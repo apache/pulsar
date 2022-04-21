@@ -23,7 +23,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
 import static org.apache.commons.collections.CollectionUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
-import static org.apache.pulsar.broker.PulsarService.isTransactionSystemTopic;
+import static org.apache.pulsar.common.naming.SystemTopicNames.isTransactionSystemTopic;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
@@ -121,7 +121,6 @@ import org.apache.pulsar.broker.service.plugin.EntryFilterWithClassLoader;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.prometheus.metrics.ObserverGauge;
 import org.apache.pulsar.broker.stats.prometheus.metrics.Summary;
-import org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStore;
 import org.apache.pulsar.broker.validator.BindAddressValidator;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
@@ -132,13 +131,13 @@ import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.configuration.BindAddress;
 import org.apache.pulsar.common.configuration.FieldContext;
-import org.apache.pulsar.common.events.EventsTopicNames;
 import org.apache.pulsar.common.intercept.AppendIndexMetadataInterceptor;
 import org.apache.pulsar.common.intercept.BrokerEntryMetadataInterceptor;
 import org.apache.pulsar.common.intercept.BrokerEntryMetadataUtils;
 import org.apache.pulsar.common.intercept.ManagedLedgerPayloadProcessor;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
@@ -1904,7 +1903,7 @@ public class BrokerService implements Closeable {
                     this.getPulsar().getTransactionMetadataStoreService();
             // if the store belongs to this bundle, remove and close the store
             this.getPulsar().getTransactionMetadataStoreService().getStores().values().stream().filter(store ->
-                    serviceUnit.includes(TopicName.TRANSACTION_COORDINATOR_ASSIGN
+                    serviceUnit.includes(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN
                             .getPartition((int) (store.getTransactionCoordinatorID().getId()))))
                     .map(TransactionMetadataStore::getTransactionCoordinatorID)
                     .forEach(tcId -> closeFutures.add(metadataStoreService.removeTransactionMetadataStore(tcId)));
@@ -2936,23 +2935,8 @@ public class BrokerService implements Closeable {
     }
 
     public boolean isSystemTopic(TopicName topicName) {
-        if (NamespaceService.isSystemServiceNamespace(topicName.getNamespace())) {
-            return true;
-        }
-
-        TopicName nonePartitionedTopicName = TopicName.get(topicName.getPartitionedTopicName());
-
-        // event topic
-        if (EventsTopicNames.checkTopicIsEventsNames(nonePartitionedTopicName)) {
-            return true;
-        }
-
-        String localName = nonePartitionedTopicName.getLocalName();
-        // transaction pending ack topic
-        if (StringUtils.endsWith(localName, MLPendingAckStore.PENDING_ACK_STORE_SUFFIX)) {
-            return true;
-        }
-        return false;
+        return NamespaceService.isSystemServiceNamespace(topicName.getNamespace())
+                || SystemTopicNames.isSystemTopic(topicName);
     }
 
     /**

@@ -19,9 +19,9 @@
 package org.apache.pulsar.broker.admin.impl;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
-import static org.apache.pulsar.broker.PulsarService.isTransactionInternalName;
 import static org.apache.pulsar.broker.resources.PulsarResources.DEFAULT_OPERATION_TIMEOUT_SEC;
-import static org.apache.pulsar.common.events.EventsTopicNames.checkTopicIsTransactionCoordinatorAssign;
+import static org.apache.pulsar.common.naming.SystemTopicNames.isTransactionCoordinatorAssign;
+import static org.apache.pulsar.common.naming.SystemTopicNames.isTransactionSystemTopic;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.github.zafarkhaja.semver.Version;
 import com.google.common.collect.Lists;
@@ -170,7 +170,7 @@ public class PersistentTopicsBase extends AdminResource {
         try {
             List<String> topics = topicResources().listPersistentTopicsAsync(namespaceName).join();
             return topics.stream().filter(topic -> {
-                if (isTransactionInternalName(TopicName.get(topic))) {
+                if (isTransactionSystemTopic(TopicName.get(topic))) {
                     return false;
                 }
                 if (bundle.isPresent()) {
@@ -245,7 +245,7 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected void validateCreateTopic(TopicName topicName) {
-        if (isTransactionInternalName(topicName)) {
+        if (isTransactionSystemTopic(topicName)) {
             log.warn("Forbidden to create transaction internal topic: {}", topicName);
             throw new RestException(Status.BAD_REQUEST, "Cannot create topic in system topic format!");
         }
@@ -713,7 +713,7 @@ public class PersistentTopicsBase extends AdminResource {
        future.thenAccept(__ -> {
            // If the topic name is a partition name, no need to get partition topic metadata again
            if (topicName.isPartitioned()) {
-               if (checkTopicIsTransactionCoordinatorAssign(topicName)) {
+               if (isTransactionCoordinatorAssign(topicName)) {
                    internalUnloadTransactionCoordinatorAsync(asyncResponse, authoritative);
                } else {
                    internalUnloadNonPartitionedTopicAsync(asyncResponse, authoritative);

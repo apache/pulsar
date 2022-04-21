@@ -22,7 +22,6 @@ import com.google.common.collect.Sets;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.http.HttpStatus;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
-import org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStore;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -36,6 +35,7 @@ import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
@@ -486,14 +486,14 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         ManagedLedgerInternalStats managedLedgerInternalStats = stats.pendingAckLogStats.managedLedgerInternalStats;
         assertEquals(TopicName.get(TopicDomain.persistent.toString(), "public", "default",
                 "testGetPendingAckInternalStats" + "-"
-                        + subName + MLPendingAckStore.PENDING_ACK_STORE_SUFFIX).getPersistenceNamingEncoding(),
+                        + subName + SystemTopicNames.PENDING_ACK_STORE_SUFFIX).getPersistenceNamingEncoding(),
                 stats.pendingAckLogStats.managedLedgerName);
 
         verifyManagedLegerInternalStats(managedLedgerInternalStats, 16);
 
         ManagedLedgerInternalStats finalManagedLedgerInternalStats = managedLedgerInternalStats;
         managedLedgerInternalStats.cursors.forEach((s, cursorStats) -> {
-            assertEquals(s, MLPendingAckStore.PENDING_ACK_STORE_CURSOR_NAME);
+            assertEquals(s, SystemTopicNames.PENDING_ACK_STORE_CURSOR_NAME);
             assertEquals(cursorStats.readPosition, finalManagedLedgerInternalStats.lastConfirmedEntry);
         });
 
@@ -503,7 +503,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
 
         assertEquals(TopicName.get(TopicDomain.persistent.toString(), "public", "default",
                 "testGetPendingAckInternalStats" + "-"
-                        + subName + MLPendingAckStore.PENDING_ACK_STORE_SUFFIX).getPersistenceNamingEncoding(),
+                        + subName + SystemTopicNames.PENDING_ACK_STORE_SUFFIX).getPersistenceNamingEncoding(),
                 stats.pendingAckLogStats.managedLedgerName);
         assertNull(managedLedgerInternalStats.ledgers.get(0).metadata);
     }
@@ -528,8 +528,8 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
     }
 
     private void initTransaction(int coordinatorSize) throws Exception {
-        admin.topics().createPartitionedTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString(), coordinatorSize);
-        admin.lookups().lookupTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString());
+        admin.topics().createPartitionedTopic(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN.toString(), coordinatorSize);
+        admin.lookups().lookupTopic(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN.toString());
         pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl.toString()).enableTransaction(true).build();
         pulsarClient.close();
         Awaitility.await().until(() ->

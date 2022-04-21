@@ -23,7 +23,7 @@ import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.transaction.TransactionTestBase;
 import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -48,11 +48,11 @@ public class AdminApiTransactionMultiBrokerTest extends TransactionTestBase {
     @Test
     public void testRedirectOfGetCoordinatorInternalStats() throws Exception {
         Map<String, String> map = admin.lookups()
-                .lookupPartitionedTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString());
+                .lookupPartitionedTopic(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN.toString());
         while (map.containsValue(getPulsarServiceList().get(0).getBrokerServiceUrl())) {
-            admin.topics().deletePartitionedTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString());
-            admin.topics().createPartitionedTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString(), NUM_PARTITIONS);
-            map = admin.lookups().lookupPartitionedTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString());
+            admin.topics().deletePartitionedTopic(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN.toString());
+            admin.topics().createPartitionedTopic(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN.toString(), NUM_PARTITIONS);
+            map = admin.lookups().lookupPartitionedTopic(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN.toString());
         }
         //init tc stores
         pulsarClient = PulsarClient.builder()

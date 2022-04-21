@@ -19,7 +19,7 @@
 package org.apache.pulsar;
 
 import static org.apache.pulsar.common.naming.NamespaceName.SYSTEM_NAMESPACE;
-import static org.apache.pulsar.common.naming.TopicName.TRANSACTION_COORDINATOR_ASSIGN;
+import static org.apache.pulsar.common.naming.SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN;
 import com.beust.jcommander.Parameter;
 import com.google.common.collect.Sets;
 import java.io.File;

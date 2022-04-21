@@ -22,7 +22,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.broker.resourcegroup.ResourceUsageTransportManager.DISABLE_RESOURCE_USAGE_TRANSPORT_MANAGER;
-import static org.apache.pulsar.common.naming.TopicName.TRANSACTION_COORDINATOR_LOG;
+import static org.apache.pulsar.common.naming.SystemTopicNames.isTransactionSystemTopic;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
@@ -113,7 +113,6 @@ import org.apache.pulsar.broker.storage.ManagedLedgerStorage;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBufferProvider;
 import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferClientImpl;
 import org.apache.pulsar.broker.transaction.pendingack.TransactionPendingAckStoreProvider;
-import org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStore;
 import org.apache.pulsar.broker.validator.MultipleListenerValidator;
 import org.apache.pulsar.broker.web.WebService;
 import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServlet;
@@ -1703,20 +1702,6 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         }
 
         processTerminator.accept(-1);
-    }
-
-
-    public static boolean isTransactionSystemTopic(TopicName topicName) {
-        String topic = topicName.toString();
-        return topic.startsWith(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString())
-                || topic.startsWith(TRANSACTION_COORDINATOR_LOG.toString())
-                || topic.endsWith(MLPendingAckStore.PENDING_ACK_STORE_SUFFIX);
-    }
-
-    public static boolean isTransactionInternalName(TopicName topicName) {
-        String topic = topicName.toString();
-        return topic.startsWith(TRANSACTION_COORDINATOR_LOG.toString())
-                || topic.endsWith(MLPendingAckStore.PENDING_ACK_STORE_SUFFIX);
     }
 
     @VisibleForTesting

@@ -24,7 +24,7 @@ import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerService;
-import org.apache.pulsar.common.events.EventsTopicNames;
+import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
 
 public class SystemTopic extends PersistentTopic {
@@ -65,7 +65,7 @@ public class SystemTopic extends PersistentTopic {
 
     @Override
     public CompletableFuture<Void> checkReplication() {
-        if (EventsTopicNames.isTopicPoliciesSystemTopic(topic)) {
+        if (SystemTopicNames.isTopicPoliciesSystemTopic(topic)) {
             return super.checkReplication();
         }
         return CompletableFuture.completedFuture(null);
