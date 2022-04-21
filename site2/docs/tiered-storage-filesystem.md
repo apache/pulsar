@@ -521,3 +521,39 @@ Execute the following commands in the repository where you download Pulsar tarba
     And the **Capacity Used** is changed from 4 KB to 116.46 KB.
 
     ![](assets/FileSystem-8.png)
+
+## Read data from fileSystem
+
+This section provides detailed instructions about how to read data out as Ledger Entry in the file system.
+
+* The data was offloaded as `MapFile` to the following path:
+  ```properties
+    path = storageBasePath + "/" + managedLedgerName + "/" + ledgerId + "-" + uuid.toString();
+  ```
+    1. storageBasePath is the value of `hadoop.tmp.dir`, configured in `broker.conf` and `filesystem_offload_core_site.xml`
+    2. managedLedgerName is the name of the persistentTopic manager Ledger
+  ```shell
+     managedLedgerName of persistent://public/default/topics-name is  public/default/persistent/topics-name.
+  ```
+  Considering the iteration of versions,  you can use the following method to get the managedLedgerName:
+  ```shell
+     String managedLedgerName = TopicName.get("persistent://public/default/topics-name").getPersistenceNamingEncoding(); 
+  ```
+
+* Create a reader to read `MapFile` according to the above path and the `configuration` of the file system
+  ```shell
+     MapFile.Reader reader = new MapFile.Reader(new Path(dataFilePath),  configuration); 
+  ```
+* Read data as `LedgerEntry` from FileSystem.
+  ```java
+     LongWritable key = new LongWritable();
+     BytesWritable value = new BytesWritable();
+     key.set(nextExpectedId - 1);
+     reader.seek(key);
+     reader.next(key, value);
+     int length = value.getLength();
+     long entryId = key.get();
+     ByteBuf buf = PooledByteBufAllocator.DEFAULT.buffer(length, length);
+     buf.writeBytes(value.copyBytes());
+     LedgerEntryImpl ledgerEntry = LedgerEntryImpl.create(ledgerId, entryId, length, buf);
+  ```
