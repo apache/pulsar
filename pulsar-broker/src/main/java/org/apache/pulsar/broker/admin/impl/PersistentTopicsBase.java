@@ -4029,47 +4029,14 @@ public class PersistentTopicsBase extends AdminResource {
 
     private CompletableFuture<Void> updatePartitionedTopic(TopicName topicName, int numPartitions, boolean force) {
         CompletableFuture<Void> result = new CompletableFuture<>();
-        createSubscriptions(topicName, numPartitions).thenCompose(__ -> {
-            CompletableFuture<Void> future = namespaceResources().getPartitionedTopicResources()
-                    .updatePartitionedTopicAsync(topicName, p -> new PartitionedTopicMetadata(numPartitions));
-            future.exceptionally(ex -> {
-                // If the update operation fails, clean up the partitions that were created
-                getPartitionedTopicMetadataAsync(topicName, false, false).thenAccept(metadata -> {
-                    int oldPartition = metadata.partitions;
-                    for (int i = oldPartition; i < numPartitions; i++) {
-                        topicResources().deletePersistentTopicAsync(topicName.getPartition(i)).exceptionally(ex1 -> {
-                            log.warn("[{}] Failed to clean up managedLedger {}", clientAppId(), topicName,
-                                    ex1.getCause());
-                            return null;
-                        });
-                    }
-                }).exceptionally(e -> {
-                    log.warn("[{}] Failed to clean up managedLedger", topicName, e);
-                    return null;
-                });
-                return null;
-            });
-            return future;
-        }).thenAccept(__ -> result.complete(null)).exceptionally(ex -> {
+        createSubscriptions(topicName, numPartitions).thenCompose(__ -> namespaceResources().getPartitionedTopicResources()
+                .updatePartitionedTopicAsync(topicName, p -> new PartitionedTopicMetadata(numPartitions))
+        ).thenAccept(__ -> result.complete(null)).exceptionally(ex -> {
             if (force && ex.getCause() instanceof PulsarAdminException.ConflictException) {
                 CompletableFuture<Void> future = namespaceResources().getPartitionedTopicResources()
                         .updatePartitionedTopicAsync(topicName, p -> new PartitionedTopicMetadata(numPartitions));
-                future.thenAccept(__ -> result.complete(null)).exceptionally(ex2 -> {
-                    // If the update operation fails, clean up the partitions that were created
-                    getPartitionedTopicMetadataAsync(topicName, false, false).thenAccept(metadata -> {
-                        int oldPartition = metadata.partitions;
-                        for (int i = oldPartition; i < numPartitions; i++) {
-                            topicResources().deletePersistentTopicAsync(topicName.getPartition(i)).exceptionally(ex1 -> {
-                                log.warn("[{}] Failed to clean up managedLedger {}", clientAppId(), topicName,
-                                        ex1.getCause());
-                                return null;
-                            });
-                        }
-                    }).exceptionally(e -> {
-                        log.warn("[{}] Failed to clean up managedLedger", topicName, e);
-                        return null;
-                    });
-                    result.completeExceptionally(ex2);
+                future.thenAccept(__ -> result.complete(null)).exceptionally(ex1 -> {
+                    result.completeExceptionally(ex1);
                     return null;
                 });
                 return null;
