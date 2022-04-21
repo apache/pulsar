@@ -47,6 +47,8 @@ public class BlockAwareSegmentInputStreamImpl extends BlockAwareSegmentInputStre
     static final int[] BLOCK_END_PADDING = new int[]{ 0xFE, 0xDC, 0xDE, 0xAD };
     static final byte[] BLOCK_END_PADDING_BYTES =  Ints.toByteArray(0xFEDCDEAD);
 
+    private static final ByteBuf PADDING_BUF = PulsarByteBufAllocator.DEFAULT.buffer(1, 1);
+
     private final ReadHandle ledger;
     private final long startEntryId;
     private final int blockSize;
@@ -80,7 +82,7 @@ public class BlockAwareSegmentInputStreamImpl extends BlockAwareSegmentInputStre
 
     private int currentOffset = 0;
 
-    private byte[] readEntries(int len) throws IOException {
+    private ByteBuf readEntries(int len) throws IOException {
         checkState(bytesReadOffset >= DataBlockHeaderImpl.getDataStartOffset());
         checkState(bytesReadOffset < blockSize);
 
@@ -97,8 +99,8 @@ public class BlockAwareSegmentInputStreamImpl extends BlockAwareSegmentInputStre
             ByteBuf entryByteBuf = entriesByteBuf.get(0);
             int readableBytes = entryByteBuf.readableBytes();
             int read = Math.min(readableBytes, len);
-            byte[] buf = new byte[read];
-            entryByteBuf.getBytes(currentOffset, buf);
+            ByteBuf buf = entryByteBuf.slice(currentOffset, read);
+            buf.retain();
             currentOffset += read;
             entryByteBuf.readerIndex(currentOffset);
             bytesReadOffset += read;
@@ -117,10 +119,10 @@ public class BlockAwareSegmentInputStreamImpl extends BlockAwareSegmentInputStre
             if (dataBlockFullOffset == blockSize) {
                 dataBlockFullOffset = bytesReadOffset;
             }
-            return new byte[]{
-                BLOCK_END_PADDING_BYTES[(bytesReadOffset++ - dataBlockFullOffset) % BLOCK_END_PADDING_BYTES.length]
-            };
-
+            PADDING_BUF.clear();
+            PADDING_BUF.writeByte(BLOCK_END_PADDING_BYTES[(bytesReadOffset++ - dataBlockFullOffset)
+                % BLOCK_END_PADDING_BYTES.length]);
+            return PADDING_BUF.retain();
         }
     }
 
@@ -218,11 +220,11 @@ public class BlockAwareSegmentInputStreamImpl extends BlockAwareSegmentInputStre
 
         // reading ledger entries
         if (bytesReadOffset < blockSize) {
-            byte[] readEntries = readEntries(readLen);
-            for (int i = 0; i < readEntries.length; i++) {
-                b[offset + i] = readEntries[i];
-                readBytes++;
-            }
+            ByteBuf readEntries = readEntries(readLen);
+            int read = readEntries.readableBytes();
+            readEntries.readBytes(b, offset, read);
+            readEntries.release();
+            readBytes += read;
             return readBytes;
         }
 
