@@ -81,6 +81,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
 
         this.childrenCache = Caffeine.newBuilder()
                 .refreshAfterWrite(CACHE_REFRESH_TIME_MILLIS, TimeUnit.MILLISECONDS)
+                .expireAfterWrite(CACHE_REFRESH_TIME_MILLIS * 2, TimeUnit.MILLISECONDS)
                 .buildAsync(new AsyncCacheLoader<String, List<String>>() {
                     @Override
                     public CompletableFuture<List<String>> asyncLoad(String key, Executor executor) {
@@ -101,6 +102,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
 
         this.existsCache = Caffeine.newBuilder()
                 .refreshAfterWrite(CACHE_REFRESH_TIME_MILLIS, TimeUnit.MILLISECONDS)
+                .expireAfterWrite(CACHE_REFRESH_TIME_MILLIS * 2, TimeUnit.MILLISECONDS)
                 .buildAsync(new AsyncCacheLoader<String, Boolean>() {
                     @Override
                     public CompletableFuture<Boolean> asyncLoad(String key, Executor executor) {

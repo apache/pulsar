@@ -25,7 +25,7 @@
     <parent>
         <groupId>org.apache.pulsar</groupId>
         <artifactId>pulsar-sql</artifactId>
-        <version>2.10.0-SNAPSHOT</version>
+        <version>2.11.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>pulsar-presto-connector-original</artifactId>
@@ -33,7 +33,6 @@
     <name>Pulsar SQL :: Pulsar Presto Connector Packaging</name>
 
     <properties>
-        <dep.airlift.version>0.199</dep.airlift.version>
         <jctools.version>2.1.2</jctools.version>
         <dslJson.verson>1.8.4</dslJson.verson>
     </properties>
@@ -42,13 +41,11 @@
         <dependency>
             <groupId>io.airlift</groupId>
             <artifactId>bootstrap</artifactId>
-            <version>${dep.airlift.version}</version>
         </dependency>
 
         <dependency>
             <groupId>io.airlift</groupId>
             <artifactId>json</artifactId>
-            <version>${dep.airlift.version}</version>
         </dependency>
 
         <dependency>

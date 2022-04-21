@@ -30,6 +30,7 @@ import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.LedgerOffloaderFactory;
+import org.apache.bookkeeper.mledger.LedgerOffloaderStats;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
@@ -61,6 +62,7 @@ public class PulsarConnectorCache {
 
     private final StatsProvider statsProvider;
     private OrderedScheduler offloaderScheduler;
+    private final LedgerOffloaderStats offloaderStats;
     private OffloadersCache offloadersCache = new OffloadersCache();
     private LedgerOffloader defaultOffloader;
     private Map<NamespaceName, LedgerOffloader> offloaderMap = new ConcurrentHashMap<>();
@@ -83,6 +85,14 @@ public class PulsarConnectorCache {
         pulsarConnectorConfig.getStatsProviderConfigs().forEach(clientConfiguration::setProperty);
 
         this.statsProvider.start(clientConfiguration);
+
+        this.initOffloaderScheduler(pulsarConnectorConfig.getOffloadPolices());
+
+        int period = pulsarConnectorConfig.getManagedLedgerStatsPeriodSeconds();
+        boolean exposeTopicLevelMetrics = pulsarConnectorConfig.isExposeTopicLevelMetricsInPrometheus();
+        this.offloaderStats =
+                LedgerOffloaderStats.create(pulsarConnectorConfig.isExposeManagedLedgerMetricsInPrometheus(),
+                        exposeTopicLevelMetrics, offloaderScheduler, period);
 
         this.defaultOffloader = initManagedLedgerOffloader(
                 pulsarConnectorConfig.getOffloadPolices(), pulsarConnectorConfig);
@@ -142,13 +152,10 @@ public class PulsarConnectorCache {
         return managedLedgerConfig;
     }
 
-    private synchronized OrderedScheduler getOffloaderScheduler(OffloadPoliciesImpl offloadPolicies) {
-        if (this.offloaderScheduler == null) {
+    private void initOffloaderScheduler(OffloadPoliciesImpl offloadPolicies) {
             this.offloaderScheduler = OrderedScheduler.newSchedulerBuilder()
                     .numThreads(offloadPolicies.getManagedLedgerOffloadMaxThreads())
                     .name("pulsar-offloader").build();
-        }
-        return this.offloaderScheduler;
     }
 
     private LedgerOffloader initManagedLedgerOffloader(OffloadPoliciesImpl offloadPolicies,
@@ -171,7 +178,7 @@ public class PulsarConnectorCache {
                             LedgerOffloader.METADATA_SOFTWARE_VERSION_KEY.toLowerCase(), PulsarVersion.getVersion(),
                             LedgerOffloader.METADATA_SOFTWARE_GITSHA_KEY.toLowerCase(), PulsarVersion.getGitSha()
                         ),
-                        getOffloaderScheduler(offloadPolicies));
+                        this.offloaderScheduler, this.offloaderStats);
                 } catch (IOException ioe) {
                     log.error("Failed to create offloader: ", ioe);
                     throw new RuntimeException(ioe.getMessage(), ioe.getCause());

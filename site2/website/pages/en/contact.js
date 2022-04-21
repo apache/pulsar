@@ -50,9 +50,9 @@ class Contact extends React.Component {
             There are many ways to get help from the Apache Pulsar community.
             The mailing lists are the primary place where all Pulsar committers are present.
             Bugs and feature requests can either be discussed on the dev mailing list or
-            by opening an issue on
-            <a href="https://github.com/apache/pulsar/" target="_blank">GitHub</a>.
-            </translate></p>
+            by opening an issue on</translate>
+            <a href="https://github.com/apache/pulsar/" target="_blank"> GitHub</a>.
+            </p>
 
             <h2><translate>Mailing Lists</translate></h2>
             <table className="versions">
@@ -79,6 +79,16 @@ class Contact extends React.Component {
                 )}
               </tbody>
             </table>
+            <h2><translate>Reporting Security Vulnerabilities</translate></h2>
+              <p><translate>
+              The current process for reporting vulnerabilities is outlined here: </translate>
+              <a href="https://www.apache.org/security/" target="_blank"> Apache Security</a>
+              <translate>. When reporting a vulnerability to</translate>
+              <a href="mailto:security@apache.org" target="_blank"> security@apache.org</a>
+              <translate>, you can copy your email to </translate>
+              <a href="mailto:private@pulsar.apache.org" target="_blank"> private@pulsar.apache.org </a>
+              <translate> to send your report to the Apache Pulsar Project Management Committee. This is a private mailing list.</translate>
+              </p>
 
             <h2><translate>Stack Overflow</translate></h2>
               <p><translate>

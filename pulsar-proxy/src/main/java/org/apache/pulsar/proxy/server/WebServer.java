@@ -18,16 +18,16 @@
  */
 package org.apache.pulsar.proxy.server;
 
+import static org.apache.pulsar.broker.web.Filters.addFilter;
+import static org.apache.pulsar.broker.web.Filters.addFilterClass;
 import io.prometheus.client.jetty.JettyStatisticsCollector;
 import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
-import javax.servlet.DispatcherType;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.web.AuthenticationFilter;
@@ -37,6 +37,7 @@ import org.apache.pulsar.broker.web.RateLimitingFilter;
 import org.apache.pulsar.broker.web.WebExecutorThreadPool;
 import org.apache.pulsar.common.util.SecurityUtility;
 import org.apache.pulsar.common.util.keystoretls.KeyStoreSSLContext;
+import org.eclipse.jetty.server.ConnectionLimit;
 import org.eclipse.jetty.server.Connector;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.HttpConfiguration;
@@ -48,9 +49,9 @@ import org.eclipse.jetty.server.handler.DefaultHandler;
 import org.eclipse.jetty.server.handler.HandlerCollection;
 import org.eclipse.jetty.server.handler.RequestLogHandler;
 import org.eclipse.jetty.server.handler.StatisticsHandler;
-import org.eclipse.jetty.servlet.FilterHolder;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
+import org.eclipse.jetty.servlets.QoSFilter;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.servlet.ServletContainer;
@@ -77,8 +78,12 @@ public class WebServer {
     private ServerConnector connectorTls;
 
     public WebServer(ProxyConfiguration config, AuthenticationService authenticationService) {
-        this.webServiceExecutor = new WebExecutorThreadPool(config.getHttpNumThreads(), "pulsar-external-web");
+        this.webServiceExecutor = new WebExecutorThreadPool(config.getHttpNumThreads(), "pulsar-external-web",
+                config.getHttpServerThreadPoolQueueSize());
         this.server = new Server(webServiceExecutor);
+        if (config.getMaxHttpServerConnections() > 0) {
+            server.addBean(new ConnectionLimit(config.getMaxHttpServerConnections(), server));
+        }
         this.authenticationService = authenticationService;
         this.config = config;
 
@@ -89,7 +94,7 @@ public class WebServer {
 
         if (config.getWebServicePort().isPresent()) {
             this.externalServicePort = config.getWebServicePort().get();
-            connector = new ServerConnector(server, 1, 1, new HttpConnectionFactory(httpConfig));
+            connector = new ServerConnector(server, new HttpConnectionFactory(httpConfig));
             connector.setHost(config.getBindAddress());
             connector.setPort(externalServicePort);
             connectors.add(connector);
@@ -122,7 +127,7 @@ public class WebServer {
                             true,
                             config.getTlsCertRefreshCheckDurationSec());
                 }
-                connectorTls = new ServerConnector(server, 1, 1, sslCtxFactory);
+                connectorTls = new ServerConnector(server, sslCtxFactory);
                 connectorTls.setPort(config.getWebServicePortTls().get());
                 connectorTls.setHost(config.getBindAddress());
                 connectors.add(connectorTls);
@@ -132,7 +137,7 @@ public class WebServer {
         }
 
         // Limit number of concurrent HTTP connections to avoid getting out of file descriptors
-        connectors.stream().forEach(c -> c.setAcceptQueueSize(1024 / connectors.size()));
+        connectors.stream().forEach(c -> c.setAcceptQueueSize(config.getHttpServerAcceptQueueSize()));
         server.setConnectors(connectors.toArray(new ServerConnector[connectors.size()]));
     }
 
@@ -159,21 +164,29 @@ public class WebServer {
 
         ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
         context.setContextPath(basePath);
-        context.addServlet(servletHolder, "/*");
+        context.addServlet(servletHolder, MATCH_ALL);
         for (Pair<String, Object> attribute : attributes) {
             context.setAttribute(attribute.getLeft(), attribute.getRight());
         }
-        if (config.isAuthenticationEnabled() && requireAuthentication) {
-            FilterHolder filter = new FilterHolder(new AuthenticationFilter(authenticationService));
-            context.addFilter(filter, MATCH_ALL, EnumSet.allOf(DispatcherType.class));
-        }
+
+        addQosFilterIfNeeded(context);
 
         if (config.isHttpRequestsLimitEnabled()) {
-            context.addFilter(new FilterHolder(new RateLimitingFilter(config.getHttpRequestsMaxPerSecond())), MATCH_ALL,
-                    EnumSet.allOf(DispatcherType.class));
+            addFilter(context, new RateLimitingFilter(config.getHttpRequestsMaxPerSecond()));
+        }
+
+        if (config.isAuthenticationEnabled() && requireAuthentication) {
+            addFilter(context, new AuthenticationFilter(authenticationService));
         }
 
         handlers.add(context);
+    }
+
+    private void addQosFilterIfNeeded(ServletContextHandler context) {
+        if (config.getMaxConcurrentHttpRequests() > 0) {
+            addFilterClass(context, QoSFilter.class, Collections.singletonMap("maxRequests",
+                    String.valueOf(config.getMaxConcurrentHttpRequests())));
+        }
     }
 
     public void addRestResources(String basePath, String javaPackages, String attribute, Object attributeValue) {
@@ -184,7 +197,7 @@ public class WebServer {
         servletHolder.setAsyncSupported(true);
         ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
         context.setContextPath(basePath);
-        context.addServlet(servletHolder, "/*");
+        context.addServlet(servletHolder, MATCH_ALL);
         context.setAttribute(attribute, attributeValue);
         handlers.add(context);
     }

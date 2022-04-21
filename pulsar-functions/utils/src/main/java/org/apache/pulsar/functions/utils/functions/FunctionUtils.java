@@ -25,16 +25,15 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Collections;
-
 import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.functions.FunctionDefinition;
 import org.apache.pulsar.common.nar.NarClassLoader;
+import org.apache.pulsar.common.nar.NarClassLoaderBuilder;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.apache.pulsar.functions.utils.Exceptions;
 import org.apache.pulsar.functions.api.Function;
+import org.apache.pulsar.functions.utils.Exceptions;
 
 
 @UtilityClass
@@ -62,7 +61,8 @@ public class FunctionUtils {
             Class functionClass = ncl.loadClass(conf.getFunctionClass());
             if (!(Function.class.isAssignableFrom(functionClass))) {
                 throw new IOException(
-                        "Class " + conf.getFunctionClass() + " does not implement interface " + Function.class.getName());
+                        "Class " + conf.getFunctionClass() + " does not implement interface " + Function.class
+                                .getName());
             }
         } catch (Throwable t) {
             Exceptions.rethrowIOException(t);
@@ -72,7 +72,9 @@ public class FunctionUtils {
     }
 
     public static FunctionDefinition getFunctionDefinition(String narPath) throws IOException {
-        try (NarClassLoader ncl = NarClassLoader.getFromArchive(new File(narPath), Collections.emptySet())) {
+        try (NarClassLoader ncl = NarClassLoaderBuilder.builder()
+                .narFile(new File(narPath))
+                .build();) {
             String configStr = ncl.getServiceDefinition(PULSAR_IO_SERVICE_NAME);
             return ObjectMapperFactory.getThreadLocalYaml().readValue(configStr, FunctionDefinition.class);
         }
@@ -81,7 +83,8 @@ public class FunctionUtils {
         return searchForFunctions(functionsDirectory, false);
     }
 
-    public static Functions searchForFunctions(String functionsDirectory, boolean alwaysPopulatePath) throws IOException {
+    public static Functions searchForFunctions(String functionsDirectory, boolean alwaysPopulatePath)
+            throws IOException {
         Path path = Paths.get(functionsDirectory).toAbsolutePath();
         log.info("Searching for functions in {}", path);
 

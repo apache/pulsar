@@ -199,11 +199,11 @@ public class AuthorizationService {
     public boolean canProduce(TopicName topicName, String role, AuthenticationDataSource authenticationData)
             throws Exception {
         try {
-            return canProduceAsync(topicName, role, authenticationData).get(conf.getZooKeeperOperationTimeoutSeconds(),
-                    SECONDS);
+            return canProduceAsync(topicName, role, authenticationData).get(
+                    conf.getMetadataStoreOperationTimeoutSeconds(), SECONDS);
         } catch (InterruptedException e) {
-            log.warn("Time-out {} sec while checking authorization on {} ", conf.getZooKeeperOperationTimeoutSeconds(),
-                    topicName);
+            log.warn("Time-out {} sec while checking authorization on {} ",
+                    conf.getMetadataStoreOperationTimeoutSeconds(), topicName);
             throw e;
         } catch (Exception e) {
             log.warn("Producer-client  with Role - {} failed to get permissions for topic - {}. {}", role, topicName,
@@ -216,10 +216,10 @@ public class AuthorizationService {
                               String subscription) throws Exception {
         try {
             return canConsumeAsync(topicName, role, authenticationData, subscription)
-                    .get(conf.getZooKeeperOperationTimeoutSeconds(), SECONDS);
+                    .get(conf.getMetadataStoreOperationTimeoutSeconds(), SECONDS);
         } catch (InterruptedException e) {
-            log.warn("Time-out {} sec while checking authorization on {} ", conf.getZooKeeperOperationTimeoutSeconds(),
-                    topicName);
+            log.warn("Time-out {} sec while checking authorization on {} ",
+                    conf.getMetadataStoreOperationTimeoutSeconds(), topicName);
             throw e;
         } catch (Exception e) {
             log.warn("Consumer-client  with Role - {} failed to get permissions for topic - {}. {}", role, topicName,
@@ -242,10 +242,10 @@ public class AuthorizationService {
             throws Exception {
         try {
             return canLookupAsync(topicName, role, authenticationData)
-                    .get(conf.getZooKeeperOperationTimeoutSeconds(), SECONDS);
+                    .get(conf.getMetadataStoreOperationTimeoutSeconds(), SECONDS);
         } catch (InterruptedException e) {
-            log.warn("Time-out {} sec while checking authorization on {} ", conf.getZooKeeperOperationTimeoutSeconds(),
-                    topicName);
+            log.warn("Time-out {} sec while checking authorization on {} ",
+                    conf.getMetadataStoreOperationTimeoutSeconds(), topicName);
             throw e;
         } catch (Exception e) {
             log.warn("Role - {} failed to get lookup permissions for topic - {}. {}", role, topicName,

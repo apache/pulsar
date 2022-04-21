@@ -121,6 +121,10 @@ public class WebSocketWebResourceTest {
         // Mock ServletContext
         when(servletContext.getAttribute(anyString())).thenReturn(socketService);
 
+        // Mock HttpServletRequest
+        when(httpRequest.getRemoteAddr()).thenReturn("127.0.0.1");
+        when(httpRequest.getRemotePort()).thenReturn(8080);
+
         // Mock UriInfo
         when(uri.getRequestUri()).thenReturn(null);
 

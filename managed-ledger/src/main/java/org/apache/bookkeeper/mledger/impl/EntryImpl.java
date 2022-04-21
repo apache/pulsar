@@ -19,7 +19,6 @@
 package org.apache.bookkeeper.mledger.impl;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.ComparisonChain;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.util.Recycler;
@@ -149,7 +148,15 @@ public final class EntryImpl extends AbstractCASReferenceCounted implements Entr
 
     @Override
     public int compareTo(EntryImpl other) {
-        return ComparisonChain.start().compare(ledgerId, other.ledgerId).compare(entryId, other.entryId).result();
+        if (this.ledgerId != other.ledgerId) {
+            return this.ledgerId < other.ledgerId ? -1 : 1;
+        }
+
+        if (this.entryId != other.entryId) {
+            return this.entryId < other.entryId ? -1 : 1;
+        }
+
+        return 0;
     }
 
     @Override

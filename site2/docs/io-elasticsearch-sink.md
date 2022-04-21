@@ -50,7 +50,7 @@ The configuration of the Elasticsearch sink connector has the following properti
 | Name | Type|Required | Default | Description 
 |------|----------|----------|---------|-------------|
 | `elasticSearchUrl` | String| true |" " (empty string)| The URL of elastic search cluster to which the connector connects. |
-| `indexName` | String| true |" " (empty string)| The index name to which the connector writes messages. |
+| `indexName` | String| false |" " (empty string)| The index name to which the connector writes messages. The default value is the topic name. It accepts date formats in the name to support event time based index with the pattern `%{+<date-format>}`. For example, suppose the event time of the record is 1645182000000L, the indexName is `logs-%{+yyyy-MM-dd}`, then the formatted index name would be `logs-2022-02-18`. |
 | `schemaEnable` | Boolean | false | false | Turn on the Schema Aware mode. |
 | `createIndexIfNeeded` | Boolean | false | false | Manage index if missing. |
 | `maxRetries` | Integer | false | 1 | The maximum number of retries for elasticsearch requests. Use -1 to disable it.  |
@@ -77,6 +77,9 @@ The configuration of the Elasticsearch sink connector has the following properti
 | `username` | String| false |" " (empty string)| The username used by the connector to connect to the elastic search cluster. <br><br>If `username` is set, then `password` should also be provided. |
 | `password` | String| false | " " (empty string)|The password used by the connector to connect to the elastic search cluster. <br><br>If `username` is set, then `password` should also be provided.  |
 | `ssl` | ElasticSearchSslConfig | false |  | Configuration for TLS encrypted communication |
+| `compatibilityMode` | enum (AUTO,ELASTICSEARCH,ELASTICSEARCH_7,OPENSEARCH) | AUTO |  | Specify compatibility mode with the ElasticSearch cluster. `AUTO` value will try to auto detect the correct compatibility mode to use. Use `ELASTICSEARCH_7` if the target cluster is running ElasticSearch 7 or prior. Use `ELASTICSEARCH` if the target cluster is running ElasticSearch 8 or higher. Use `OPENSEARCH` if the target cluster is running OpenSearch. |
+| `token` | String| false | " " (empty string)|The token used by the connector to connect to the ElasticSearch cluster. Only one between basic/token/apiKey authentication mode must be configured. |
+| `apiKey` | String| false | " " (empty string)|The apiKey used by the connector to connect to the ElasticSearch cluster. Only one between basic/token/apiKey authentication mode must be configured. |
 
 ### Definition of ElasticSearchSslConfig structure:
 

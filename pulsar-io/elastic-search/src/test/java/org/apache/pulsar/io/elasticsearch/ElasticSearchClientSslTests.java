@@ -25,25 +25,25 @@ import org.testng.annotations.Test;
 
 import java.io.IOException;
 import java.time.Duration;
-import java.util.Optional;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
 
 // see https://www.elastic.co/guide/en/elasticsearch/reference/current/security-settings.html#ssl-tls-settings
-public class ElasticSearchClientSslTests {
-
-    public static final String ELASTICSEARCH_IMAGE = Optional.ofNullable(System.getenv("ELASTICSEARCH_IMAGE"))
-            .orElse("docker.elastic.co/elasticsearch/elasticsearch:7.16.3-amd64");
+public abstract class ElasticSearchClientSslTests extends ElasticSearchTestBase {
 
     final static String INDEX = "myindex";
 
     final static String sslResourceDir = MountableFile.forClasspathResource("ssl").getFilesystemPath();
     final static  String configDir = "/usr/share/elasticsearch/config";
 
+    public ElasticSearchClientSslTests(String elasticImageName) {
+        super(elasticImageName);
+    }
+
     @Test
     public void testSslBasic() throws IOException {
-        try(ElasticsearchContainer container = new ElasticsearchContainer(ELASTICSEARCH_IMAGE)
+        try (ElasticsearchContainer container = createElasticsearchContainer()
                 .withFileSystemBind(sslResourceDir, configDir + "/ssl")
                 .withPassword("elastic")
                 .withEnv("xpack.license.self_generated.type", "trial")
@@ -71,14 +71,13 @@ public class ElasticSearchClientSslTests {
                             .setEnabled(true)
                             .setTruststorePath(sslResourceDir + "/truststore.jks")
                             .setTruststorePassword("changeit"));
-            ElasticSearchClient client = new ElasticSearchClient(config);
-            testIndexExists(client);
+            testClientWithConfig(config);
         }
     }
 
     @Test
     public void testSslWithHostnameVerification() throws IOException {
-        try(ElasticsearchContainer container = new ElasticsearchContainer(ELASTICSEARCH_IMAGE)
+        try (ElasticsearchContainer container = createElasticsearchContainer()
                 .withFileSystemBind(sslResourceDir, configDir + "/ssl")
                 .withPassword("elastic")
                 .withEnv("xpack.license.self_generated.type", "trial")
@@ -109,14 +108,13 @@ public class ElasticSearchClientSslTests {
                             .setHostnameVerification(true)
                             .setTruststorePath(sslResourceDir + "/truststore.jks")
                             .setTruststorePassword("changeit"));
-            ElasticSearchClient client = new ElasticSearchClient(config);
-            testIndexExists(client);
+            testClientWithConfig(config);
         }
     }
 
     @Test
     public void testSslWithClientAuth() throws IOException {
-        try(ElasticsearchContainer container = new ElasticsearchContainer(ELASTICSEARCH_IMAGE)
+        try(ElasticsearchContainer container = createElasticsearchContainer()
                 .withFileSystemBind(sslResourceDir, configDir + "/ssl")
                 .withPassword("elastic")
                 .withEnv("xpack.license.self_generated.type", "trial")
@@ -147,11 +145,15 @@ public class ElasticSearchClientSslTests {
                             .setTruststorePassword("changeit")
                             .setKeystorePath(sslResourceDir + "/keystore.jks")
                             .setKeystorePassword("changeit"));
-            ElasticSearchClient client = new ElasticSearchClient(config);
-            testIndexExists(client);
+            testClientWithConfig(config);
         }
     }
 
+    private void testClientWithConfig(ElasticSearchConfig config) throws IOException {
+        try (ElasticSearchClient client = new ElasticSearchClient(config);) {
+            testIndexExists(client);
+        }
+    }
 
     private void testIndexExists(ElasticSearchClient client) throws IOException {
         assertFalse(client.indexExists("mynewindex"));

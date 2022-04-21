@@ -36,10 +36,35 @@
         <gav>org.apache.thrift:libthrift:0.12.0</gav>
         <vulnerabilityName regex="true">.*</vulnerabilityName>
     </suppress>
+
+    <!-- see https://github.com/apache/pulsar/pull/14629-->
     <suppress>
-        <notes>Suppress Zookeeper 3.6.2 vulnerabilities</notes>
-        <gav regex="true">org\.apache\.zookeeper:.*:3\.6\.2</gav>
-        <vulnerabilityName regex="true">.*</vulnerabilityName>
+        <notes><![CDATA[
+   file name: kotlin-stdlib-common-1.4.32.jar
+   ]]></notes>
+        <sha1>ef50bfa2c0491a11dcc35d9822edbfd6170e1ea2</sha1>
+        <cpe>cpe:/a:jetbrains:kotlin</cpe>
+    </suppress>
+    <suppress>
+        <notes><![CDATA[
+   file name: kotlin-stdlib-jdk7-1.4.32.jar
+   ]]></notes>
+        <sha1>3546900a3ebff0c43f31190baf87a9220e37b7ea</sha1>
+        <cve>CVE-2022-24329</cve>
+    </suppress>
+    <suppress>
+        <notes><![CDATA[
+   file name: kotlin-stdlib-jdk8-1.4.32.jar
+   ]]></notes>
+        <sha1>3302f9ec8a5c1ed220781dbd37770072549bd333</sha1>
+        <cve>CVE-2022-24329</cve>
+    </suppress>
+    <suppress>
+        <notes><![CDATA[
+   file name: kotlin-stdlib-1.4.32.jar
+   ]]></notes>
+        <sha1>461367948840adbb0839c51d91ed74ef4a9ccb52</sha1>
+        <cve>CVE-2022-24329</cve>
     </suppress>
 
     <!-- see https://github.com/alibaba/canal/issues/4010 -->
@@ -443,6 +468,16 @@
         <cve>CVE-2019-10158</cve>
         <cve>CVE-2019-10174</cve>
         <cve>CVE-2020-25711</cve>
+    </suppress>
+    <suppress>
+        <notes><![CDATA[
+       file name: mariadb-java-client-2.7.5.jar
+       ]]></notes>
+        <sha1>9dd29797ecabe7d2e7fa892ec6713a5552cfcc59</sha1>
+        <cve>CVE-2020-28912</cve>
+        <cve>CVE-2021-46669</cve>
+        <cve>CVE-2021-46666</cve>
+        <cve>CVE-2021-46667</cve>
     </suppress>
 
 </suppressions>

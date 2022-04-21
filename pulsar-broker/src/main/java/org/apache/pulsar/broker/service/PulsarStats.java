@@ -55,12 +55,10 @@ public class PulsarStats implements Closeable {
     private List<NonPersistentTopic> tempNonPersistentTopics;
     private final BrokerOperabilityMetrics brokerOperabilityMetrics;
     private final boolean exposePublisherStats;
-    private final PulsarService pulsarService;
 
     private final ReentrantReadWriteLock bufferLock = new ReentrantReadWriteLock();
 
     public PulsarStats(PulsarService pulsar) {
-        this.pulsarService = pulsar;
         this.topicStatsBuf = Unpooled.buffer(16 * 1024);
         this.tempTopicStatsBuf = Unpooled.buffer(16 * 1024);
 
@@ -139,6 +137,8 @@ public class PulsarStats implements Closeable {
                                 // this task: helps to activate inactive-backlog-cursors which have caught up and
                                 // connected, also deactivate active-backlog-cursors which has backlog
                                 topic.checkBackloggedCursors();
+                                // check if topic is inactive and require ledger rollover
+                                ((PersistentTopic) topic).checkInactiveLedgers();
                             } else if (topic instanceof NonPersistentTopic) {
                                 tempNonPersistentTopics.add((NonPersistentTopic) topic);
                             } else {

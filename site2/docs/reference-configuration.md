@@ -145,9 +145,9 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 |exposePublisherStats|Whether to enable topic level metrics.|true|
 |statsUpdateFrequencyInSecs||60|
 |statsUpdateInitialDelayInSecs||60|
-|zookeeperServers|  Zookeeper quorum connection string  ||
-|zooKeeperCacheExpirySeconds|ZooKeeper cache expiry time in seconds|300|
-|configurationStoreServers| Configuration store connection string (as a comma-separated list) ||
+|metadataStoreUrl| Metadata store quorum connection string  ||
+|metadataStoreCacheExpirySeconds|Metadata store cache expiry time in seconds|300|
+|configurationMetadataStoreUrl| Configuration store connection string (as a comma-separated list) ||
 |brokerServicePort| Broker data port  |6650|
 |brokerServicePortTls|  Broker data port for TLS  |6651|
 |webServicePort|  Port to use to server HTTP request  |8080|
@@ -164,9 +164,11 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 |bindAddresses| Additional Hostname or IP addresses the service binds on: `listener_name:scheme://host:port,...`.  ||
 |advertisedAddress| Hostname or IP address the service advertises to the outside world. If not set, the value of `InetAddress.getLocalHost().getHostName()` is used.  ||
 |clusterName| Name of the cluster to which this broker belongs to ||
+|maxTenants|The maximum number of tenants that can be created in each Pulsar cluster. When the number of tenants reaches the threshold, the broker rejects the request of creating a new tenant. The default value 0 disables the check. |0|
 |brokerDeduplicationEnabled|  Sets the default behavior for message deduplication in the broker. If enabled, the broker will reject messages that were already stored in the topic. This setting can be overridden on a per-namespace basis.  |false|
 |brokerDeduplicationMaxNumberOfProducers| The maximum number of producers for which information will be stored for deduplication purposes.  |10000|
 |brokerDeduplicationEntriesInterval|  The number of entries after which a deduplication informational snapshot is taken. A larger interval will lead to fewer snapshots being taken, though this would also lengthen the topic recovery time (the time required for entries published after the snapshot to be replayed). |1000|
+|brokerDeduplicationSnapshotIntervalSeconds| The time period after which a deduplication informational snapshot is taken. It runs simultaneously with `brokerDeduplicationEntriesInterval`. |120|
 |brokerDeduplicationProducerInactivityTimeoutMinutes| The time of inactivity (in minutes) after which the broker will discard deduplication information related to a disconnected producer. |360|
 |brokerDeduplicationSnapshotFrequencyInSeconds| How often is the thread pool scheduled to check whether a snapshot needs to be taken. The value of `0` means it is disabled. |120| 
 |dispatchThrottlingRateInMsg| Dispatch throttling-limit of messages for a broker (per second). 0 means the dispatch throttling-limit is disabled. |0|
@@ -179,7 +181,7 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 |dispatchThrottlingRatePerSubscriptionInByte|Dispatch throttling-limit of bytes for a subscription. 0 means the dispatch throttling-limit is disabled.|0|
 |dispatchThrottlingRatePerReplicatorInMsg| The default messages per second dispatch throttling-limit for every replicator in replication. The value of `0` means disabling replication message dispatch-throttling| 0 |
 |dispatchThrottlingRatePerReplicatorInByte| The default bytes per second dispatch throttling-limit for every replicator in replication. The value of `0` means disabling replication message-byte dispatch-throttling| 0 | 
-|zooKeeperSessionTimeoutMillis| Zookeeper session timeout in milliseconds |30000|
+|metadataStoreSessionTimeoutMillis| Metadata store session timeout in milliseconds |30000|
 |brokerShutdownTimeoutMs| Time to wait for broker graceful shutdown. After this time elapses, the process will be killed  |60000|
 |skipBrokerShutdownOnOOM| Flag to skip broker shutdown when broker handles Out of memory error. |false|
 |backlogQuotaCheckEnabled|  Enable backlog quota check. Enforces action on topic when the quota is reached  |true|
@@ -207,7 +209,10 @@ brokerServiceCompactionThresholdInBytes|If the estimated backlog size is greater
 |statusFilePath|  Path for the file used to determine the rotation status for the broker when responding to service discovery health checks ||
 |preferLaterVersions| If true, (and ModularLoadManagerImpl is being used), the load manager will attempt to use only brokers running the latest software version (to minimize impact to bundles)  |false|
 |maxNumPartitionsPerPartitionedTopic|Max number of partitions per partitioned topic. Use 0 or negative number to disable the check|0|
-|tlsEnabled|Deprecated - Use `webServicePortTls` and `brokerServicePortTls` instead. |false|
+| maxSubscriptionsPerTopic | Maximum number of subscriptions allowed to subscribe to a topic. Once this limit reaches, the broker rejects new subscriptions until the number of subscriptions decreases. When the value is set to 0, the limit check is disabled. | 0 |
+| maxProducersPerTopic | Maximum number of producers allowed to connect to a topic. Once this limit reaches, the broker rejects new producers until the number of connected producers decreases. When the value is set to 0, the limit check is disabled. | 0 |
+| maxConsumersPerTopic | Maximum number of consumers allowed to connect to a topic. Once this limit reaches, the broker rejects new consumers until the number of connected consumers decreases. When the value is set to 0, the limit check is disabled. | 0 |
+| maxConsumersPerSubscription | Maximum number of consumers allowed to connect to a subscription. Once this limit reaches, the broker rejects new consumers until the number of connected consumers decreases. When the value is set to 0, the limit check is disabled. | 0 |
 |tlsCertificateFilePath|  Path for the TLS certificate file ||
 |tlsKeyFilePath|  Path for the TLS private key file ||
 |tlsTrustCertsFilePath| Path for the trusted TLS certificate file. This cert is used to verify that any certs presented by connecting clients are signed by a certificate authority. If this verification fails, then the certs are untrusted and the connections are dropped. ||
@@ -254,7 +259,11 @@ brokerServiceCompactionThresholdInBytes|If the estimated backlog size is greater
 |athenzDomainNames| Supported Athenz provider domain names(comma separated) for authentication  ||
 |exposePreciseBacklogInPrometheus| Enable expose the precise backlog stats, set false to use published counter and consumed counter to calculate, this would be more efficient but may be inaccurate. |false|
 |schemaRegistryStorageClassName|The schema storage implementation used by this broker.|org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorageFactory|
-|isSchemaValidationEnforced|Enforce schema validation on following cases: if a producer without a schema attempts to produce to a topic with schema, the producer will be failed to connect. PLEASE be carefully on using this, since non-java clients don't support schema. If this setting is enabled, then non-java clients fail to produce.|false|
+|isSchemaValidationEnforced| Whether to enable schema validation, when schema validation is enabled, if a producer without a schema attempts to produce the message to a topic with schema, the producer is rejected and disconnected.|false|
+|isAllowAutoUpdateSchemaEnabled|Allow schema to be auto updated at broker level.|true|
+|schemaCompatibilityStrategy| The schema compatibility strategy at broker level, see [here](schema-evolution-compatibility.md#schema-compatibility-check-strategy) for available values.|FULL|
+|systemTopicSchemaCompatibilityStrategy| The schema compatibility strategy is used for system topics, see [here](schema-evolution-compatibility.md#schema-compatibility-check-strategy) for available values.|ALWAYS_COMPATIBLE|
+| topicFencingTimeoutSeconds | If a topic remains fenced for a certain time period (in seconds), it is closed forcefully. If set to 0 or a negative number, the fenced topic is not closed. | 0 |
 |offloadersDirectory|The directory for all the offloader implementations.|./offloaders|
 |bookkeeperMetadataServiceUri| Metadata service uri that bookkeeper is used for loading corresponding metadata driver and resolving its metadata service location. This value can be fetched using `bookkeeper shell whatisinstanceid` command in BookKeeper cluster. For example: zk+hierarchical://localhost:2181/ledgers. The metadata service uri list can also be semicolon separated values like below: zk+hierarchical://zk1:2181;zk2:2181;zk3:2181/ledgers ||
 |bookkeeperClientAuthenticationPlugin|  Authentication plugin to use when connecting to bookies ||
@@ -292,9 +301,15 @@ brokerServiceCompactionThresholdInBytes|If the estimated backlog size is greater
 |managedLedgerMaxEntriesPerLedger| The max number of entries to append to a ledger before triggering a rollover. A ledger rollover is triggered after the min rollover time has passed and one of the following conditions is true: <ul><li>The max rollover time has been reached</li><li>The max entries have been written to the ledger</li><li>The max ledger size has been written to the ledger</li></ul>|50000|
 |managedLedgerMinLedgerRolloverTimeMinutes| Minimum time between ledger rollover for a topic  |10|
 |managedLedgerMaxLedgerRolloverTimeMinutes| Maximum time before forcing a ledger rollover for a topic |240|
+|managedLedgerInactiveLedgerRolloverTimeSeconds| Time to rollover ledger for inactive topic |0|
 |managedLedgerCursorMaxEntriesPerLedger|  Max number of entries to append to a cursor ledger  |50000|
 |managedLedgerCursorRolloverTimeInSeconds|  Max time before triggering a rollover on a cursor ledger  |14400|
 |managedLedgerMaxUnackedRangesToPersist|  Max number of “acknowledgment holes” that are going to be persistently stored. When acknowledging out of order, a consumer will leave holes that are supposed to be quickly filled by acking all the messages. The information of which messages are acknowledged is persisted by compressing in “ranges” of messages that were acknowledged. After the max number of ranges is reached, the information will only be tracked in memory and messages will be redelivered in case of crashes.  |1000|
+| managedLedgerMaxUnackedRangesToPersistInMetadataStore | Maximum number of "acknowledgment holes" that can be stored in metadata store. If the number of unacknowledged message range is higher than this limit, the broker persists unacknowledged ranges into BookKeeper to avoid additional data overhead into metadata store. | 1000 |
+| managedLedgerMetadataOperationsTimeoutSeconds | Operation timeout while updating managed-ledger metadata. | 60 |
+| managedLedgerReadEntryTimeoutSeconds | Read entries timeout when the broker tries to read messages from BookKeeper. | 0 |
+| managedLedgerAddEntryTimeoutSeconds | Add entry timeout when the broker tries to publish messages to BookKeeper. | 0 |
+| managedLedgerNewEntriesCheckDelayInMillis | New entries check delay for the cursor under the managed ledger. If no new messages in the topic, the cursor tries to check again after the delay time. For consumption latency sensitive scenarios, you can set the value to a smaller value or 0. A smaller value may degrade consumption throughput.|10|
 |autoSkipNonRecoverableData|  Skip reading non-recoverable/unreadable data-ledger under managed-ledger’s list.It helps when data-ledgers gets corrupted at bookkeeper and managed-cursor is stuck at that ledger. |false|
 |loadBalancerEnabled| Enable load balancer  |true|
 |loadBalancerPlacementStrategy| Strategy to assign a new bundle weightedRandomSelection ||
@@ -319,8 +334,6 @@ brokerServiceCompactionThresholdInBytes|If the estimated backlog size is greater
 |replicationConnectionsPerBroker| Max number of connections to open for each broker in a remote cluster More connections host-to-host lead to better throughput over high-latency links.  |16|
 |replicationProducerQueueSize|  Replicator producer queue size  |1000|
 |replicatorPrefix|  Replicator prefix used for replicator producer name and cursor name pulsar.repl||
-|replicationTlsEnabled| Enable TLS when talking with other clusters to replicate messages |false|
-|brokerServicePurgeInactiveFrequencyInSeconds|Deprecated. Use `brokerDeleteInactiveTopicsFrequencySeconds`.|60|
 |transactionCoordinatorEnabled|Whether to enable transaction coordinator in broker.|true|
 |transactionMetadataStoreProviderClassName| |org.apache.pulsar.transaction.coordinator.impl.InMemTransactionMetadataStoreProvider|
 |defaultRetentionTimeInMinutes| Default message retention time  |0|
@@ -362,6 +375,7 @@ brokerServiceCompactionThresholdInBytes|If the estimated backlog size is greater
 | preciseTopicPublishRateLimiterEnable | Enable precise topic publish rate limiting. | false |
 | lazyCursorRecovery | Whether to recover cursors lazily when trying to recover a managed ledger backing a persistent topic. It can improve write availability of topics. The caveat is now when recovered ledger is ready to write we're not sure if all old consumers' last mark delete position(ack position) can be recovered or not. So user can make the trade off or have custom logic in application to checkpoint consumer state.| false |  
 |haProxyProtocolEnabled | Enable or disable the [HAProxy](http://www.haproxy.org/) protocol. |false|
+| maxNamespacesPerTenant | The maximum number of namespaces that can be created in each tenant. When the number of namespaces reaches this threshold, the broker rejects the request of creating a new tenant. The default value 0 disables the check. |0|
 | maxTopicsPerNamespace | The maximum number of persistent topics that can be created in the namespace. When the number of topics reaches this threshold, the broker rejects the request of creating a new topic, including the auto-created topics by the producer or consumer, until the number of connected consumers decreases. The default value 0 disables the check. | 0 |
 |subscriptionTypesEnabled| Enable all subscription types, which are exclusive, shared, failover, and key_shared. | Exclusive, Shared, Failover, Key_Shared |
 | managedLedgerInfoCompressionType | Compression type of managed ledger information. <br /><br />Available options are `NONE`, `LZ4`, `ZLIB`, `ZSTD`, and `SNAPPY`). <br /><br />If this value is `NONE` or invalid, the `managedLedgerInfo` is not compressed. <br /><br />**Note** that after enabling this configuration, if you want to degrade a broker, you need to change the value to `NONE` and make sure all ledger metadata is saved without compression. | None |
@@ -369,6 +383,24 @@ brokerServiceCompactionThresholdInBytes|If the estimated backlog size is greater
 | additionalServletDirectory | Location of broker additional servlet NAR directory | ./brokerAdditionalServlet |
 | brokerEntryMetadataInterceptors | Set broker entry metadata interceptors.<br /><br />Multiple interceptors should be separated by commas. <br /><br />Available values:<li>org.apache.pulsar.common.intercept.AppendBrokerTimestampMetadataInterceptor</li><li>org.apache.pulsar.common.intercept.AppendIndexMetadataInterceptor</li> <br /><br />Example<br />brokerEntryMetadataInterceptors=org.apache.pulsar.common.intercept.AppendBrokerTimestampMetadataInterceptor, org.apache.pulsar.common.intercept.AppendIndexMetadataInterceptor|N/A |
 | enableExposingBrokerEntryMetadataToClient|Whether to expose broker entry metadata to client or not.<br /><br />Available values:<li>true</li><li>false</li><br />Example<br />enableExposingBrokerEntryMetadataToClient=true  | false |
+| strictBookieAffinityEnabled | Enable or disable the strict bookie isolation strategy. If enabled, <br /> - `bookie-ensemble` first tries to choose bookies that belong to a namespace's affinity group. If the number of bookies is not enough, then the rest bookies are chosen. <br /> - If namespace has no affinity group, `bookie-ensemble` only chooses bookies that belong to no region. If the number of bookies is not enough, `BKNotEnoughBookiesException` is thrown.| false |
+
+
+#### Deprecated parameters of Broker
+The following parameters have been deprecated in the `conf/broker.conf` file.
+
+|Name|Description|Default|
+|---|---|---|
+|backlogQuotaDefaultLimitGB|  Use `backlogQuotaDefaultLimitBytes` instead. |-1|
+|brokerServicePurgeInactiveFrequencyInSeconds|  Use `brokerDeleteInactiveTopicsFrequencySeconds`.|60|
+|tlsEnabled|  Use `webServicePortTls` and `brokerServicePortTls` instead. |false|
+|replicationTlsEnabled| Enable TLS when talking with other clusters to replicate messages. Use `brokerClientTlsEnabled` instead. |false|
+|subscriptionKeySharedEnable|  Whether to enable the Key_Shared subscription. Use `subscriptionTypesEnabled` instead. |true|
+|zookeeperServers|  Zookeeper quorum connection string. Use `metadataStoreUrl` instead.  |N/A|
+|configurationStoreServers| Configuration store connection string (as a comma-separated list). Use `configurationMetadataStoreUrl` instead. |N/A|
+|zooKeeperSessionTimeoutMillis| Zookeeper session timeout in milliseconds. Use `metadataStoreSessionTimeoutMillis` instead. |30000|
+|zooKeeperCacheExpirySeconds|ZooKeeper cache expiry time in seconds. Use `metadataStoreCacheExpirySeconds` instead.|300|
+| managedLedgerMaxUnackedRangesToPersistInZooKeeper | Maximum number of "acknowledgment holes" that can be stored in ZooKeeper. Use `managedLedgerMaxUnackedRangesToPersistInMetadataStore` instead. | 1000 |
 
 ## Client
 
@@ -443,9 +475,9 @@ You can set the log level and configuration in the  [log4j2.yaml](https://github
 |Name|Description|Default|
 |---|---|---|
 |authenticateOriginalAuthData|  If this flag is set to `true`, the broker authenticates the original Auth data; else it just accepts the originalPrincipal and authorizes it (if required). |false|
-|zookeeperServers|  The quorum connection string for local ZooKeeper  ||
-|zooKeeperCacheExpirySeconds|ZooKeeper cache expiry time in seconds|300|
-|configurationStoreServers| Configuration store connection string (as a comma-separated list) ||
+|metadataStoreUrl|  The quorum connection string for local metadata store  ||
+|metadataStoreCacheExpirySeconds| Metadata store cache expiry time in seconds|300|
+|configurationMetadataStoreUrl| Configuration store connection string (as a comma-separated list) ||
 |brokerServicePort| The port on which the standalone broker listens for connections |6650|
 |webServicePort|  The port used by the standalone broker for HTTP requests  |8080|
 |bindAddress| The hostname or IP address on which the standalone service binds  |0.0.0.0|
@@ -457,8 +489,8 @@ You can set the log level and configuration in the  [log4j2.yaml](https://github
 |isRunningStandalone|This flag controls features that are meant to be used when running in standalone mode.|N/A|
 |clusterName| The name of the cluster that this broker belongs to. |standalone|
 | failureDomainsEnabled | Enable cluster's failure-domain which can distribute brokers into logical region. | false |
-|zooKeeperSessionTimeoutMillis| The ZooKeeper session timeout, in milliseconds. |30000|
-|zooKeeperOperationTimeoutSeconds|ZooKeeper operation timeout in seconds.|30|
+|metadataStoreSessionTimeoutMillis| Metadata store session timeout, in milliseconds. |30000|
+|metadataStoreOperationTimeoutSeconds|Metadata store operation timeout in seconds.|30|
 |brokerShutdownTimeoutMs| The time to wait for graceful broker shutdown. After this time elapses, the process will be killed. |60000|
 |skipBrokerShutdownOnOOM| Flag to skip broker shutdown when broker handles Out of memory error. |false|
 |backlogQuotaCheckEnabled|  Enable the backlog quota check, which enforces a specified action when the quota is reached.  |true|
@@ -472,7 +504,6 @@ You can set the log level and configuration in the  [log4j2.yaml](https://github
 |activeConsumerFailoverDelayTimeMillis| How long to delay rewinding cursor and dispatching messages when active consumer is changed.  |1000|
 | subscriptionExpirationTimeMinutes | How long to delete inactive subscriptions from last consumption. When it is set to 0, inactive subscriptions are not deleted automatically | 0 |
 | subscriptionRedeliveryTrackerEnabled | Enable subscription message redelivery tracker to send redelivery count to consumer. | true |
-|subscriptionKeySharedEnable|Whether to enable the Key_Shared subscription.|true|
 | subscriptionKeySharedUseConsistentHashing | In Key_Shared subscription type, with default AUTO_SPLIT mode, use splitting ranges or consistent hashing to reassign keys to new consumers. | false |
 | subscriptionKeySharedConsistentHashingReplicaPoints | In Key_Shared subscription type, the number of points in the consistent-hashing ring. The greater the number, the more equal the assignment of keys to consumers. | 100 |
 | subscriptionExpiryCheckIntervalInMinutes | How frequently to proactively check and purge expired subscription |5 |
@@ -489,8 +520,6 @@ You can set the log level and configuration in the  [log4j2.yaml](https://github
 | maxUnackedMessagesPerBroker | Maximum number of unacknowledged messages allowed per broker. Once this limit reaches, the broker stops dispatching messages to all shared subscriptions which has a higher number of unacknowledged messages until subscriptions start acknowledging messages back and unacknowledged messages count reaches to limit/2. When the value is set to 0, unacknowledged message limit check is disabled and broker does not block dispatchers. | 0 |
 | maxUnackedMessagesPerSubscriptionOnBrokerBlocked | Once the broker reaches maxUnackedMessagesPerBroker limit, it blocks subscriptions which have higher unacknowledged messages than this percentage limit and subscription does not receive any new messages until that subscription acknowledges messages back. | 0.16 |
 | unblockStuckSubscriptionEnabled|Broker periodically checks if subscription is stuck and unblock if flag is enabled.|false|
-|maxNumPartitionsPerPartitionedTopic|Max number of partitions per partitioned topic. Use 0 or negative number to disable the check|0|
-|zookeeperSessionExpiredPolicy|There are two policies when ZooKeeper session expired happens, "shutdown" and "reconnect". If it is set to "shutdown" policy, when ZooKeeper session expired happens, the broker is shutdown. If it is set to "reconnect" policy, the broker tries to reconnect to ZooKeeper server and re-register metadata to ZooKeeper. Note: the "reconnect" policy is an experiment feature.|shutdown|
 | topicPublisherThrottlingTickTimeMillis | Tick time to schedule task that checks topic publish rate limiting across all topics. A lower value can improve accuracy while throttling publish but it uses more CPU to perform frequent check. (Disable publish throttling with value 0) | 10|
 | brokerPublisherThrottlingTickTimeMillis | Tick time to schedule task that checks broker publish rate limiting across all topics. A lower value can improve accuracy while throttling publish but it uses more CPU to perform frequent check. When the value is set to 0, publish throttling is disabled. |50 |
 | brokerPublisherThrottlingMaxMessageRate | Maximum rate (in 1 second) of messages allowed to publish for a broker if the message rate limiting is enabled. When the value is set to 0, message rate limiting is disabled. | 0|
@@ -520,9 +549,11 @@ You can set the log level and configuration in the  [log4j2.yaml](https://github
 | numWorkerThreadsForNonPersistentTopic | Number of worker threads to serve non-persistent topic. | 8 |
 | enablePersistentTopics | Enable broker to load persistent topics. | true |
 | enableNonPersistentTopics | Enable broker to load non-persistent topics. | true |
-| maxProducersPerTopic | Maximum number of producers allowed to connect to topic. Once this limit reaches, the broker rejects new producers until the number of connected producers decreases. When the value is set to 0, maxProducersPerTopic-limit check is disabled. | 0 |
-| maxConsumersPerTopic | Maximum number of consumers allowed to connect to topic. Once this limit reaches, the broker rejects new consumers until the number of connected consumers decreases. When the value is set to 0, maxConsumersPerTopic-limit check is disabled. | 0 |
-| maxConsumersPerSubscription | Maximum number of consumers allowed to connect to subscription. Once this limit reaches, the broker rejects new consumers until the number of connected consumers decreases. When the value is set to 0, maxConsumersPerSubscription-limit check is disabled. | 0 |
+| maxSubscriptionsPerTopic | Maximum number of subscriptions allowed to subscribe to a topic. Once this limit reaches, the broker rejects new subscriptions until the number of subscriptions decreases. When the value is set to 0, the limit check is disabled. | 0 |
+| maxProducersPerTopic | Maximum number of producers allowed to connect to a topic. Once this limit reaches, the broker rejects new producers until the number of connected producers decreases. When the value is set to 0, the limit check is disabled. | 0 |
+| maxConsumersPerTopic | Maximum number of consumers allowed to connect to a topic. Once this limit reaches, the broker rejects new consumers until the number of connected consumers decreases. When the value is set to 0, the limit check is disabled. | 0 |
+| maxConsumersPerSubscription | Maximum number of consumers allowed to connect to a subscription. Once this limit reaches, the broker rejects new consumers until the number of connected consumers decreases. When the value is set to 0, the limit check is disabled. | 0 |
+| maxNumPartitionsPerPartitionedTopic | Maximum number of partitions per partitioned topic. When the value is set to a negative number or is set to 0, the check is disabled. | 0 |
 | metadataStoreBatchingEnabled | Enable metadata operations batching. | true |
 | metadataStoreBatchingMaxDelayMillis | Maximum delay to impose on batching grouping. | 5 |
 | metadataStoreBatchingMaxOperations | Maximum number of operations to include in a singular batch. | 1000 |
@@ -552,8 +583,8 @@ You can set the log level and configuration in the  [log4j2.yaml](https://github
 | brokerClientTlsProtocols | Specify the TLS protocols that the broker uses to negotiate during TLS handshake. | |
 | systemTopicEnabled | Enable/Disable system topics. | false |
 | topicLevelPoliciesEnabled | Enable or disable topic level policies. Topic level policies depends on the system topic. Please enable the system topic first. | false |
+| topicFencingTimeoutSeconds | If a topic remains fenced for a certain time period (in seconds), it is closed forcefully. If set to 0 or a negative number, the fenced topic is not closed. | 0 |
 | proxyRoles | Role names that are treated as "proxy roles". If the broker sees a request with role as proxyRoles, it demands to see a valid original principal. | |
-| authenticateOriginalAuthData | If this flag is set, the broker authenticates the original Auth data. Otherwise, it just accepts the originalPrincipal and authorizes it (if required). | false |
 |authenticationEnabled| Enable authentication for the broker. |false|
 |authenticationProviders| A comma-separated list of class names for authentication providers. |false|
 |authorizationEnabled|  Enforce authorization in brokers. |false|
@@ -571,7 +602,7 @@ You can set the log level and configuration in the  [log4j2.yaml](https://github
 |tokenAudienceClaim| The token audience "claim" name, e.g. "aud". It is used to get the audience from token. If it is not set, the audience is not verified. ||
 | tokenAudience | The token audience stands for this broker. The field `tokenAudienceClaim` of a valid token need contains this parameter.| |
 |saslJaasClientAllowedIds|This is a regexp, which limits the range of possible ids which can connect to the Broker using SASL. By default, it is set to `SaslConstants.JAAS_CLIENT_ALLOWED_IDS_DEFAULT`, which is ".*pulsar.*", so only clients whose id contains 'pulsar' are allowed to connect.|N/A|
-|saslJaasBrokerSectionName|Service Principal, for login context name. By default, it is set to `SaslConstants.JAAS_DEFAULT_BROKER_SECTION_NAME`, which is "Broker".|N/A|
+|saslJaasServerSectionName|Service Principal, for login context name. By default, it is set to `SaslConstants.JAAS_DEFAULT_BROKER_SECTION_NAME`, which is "Broker".|N/A|
 |httpMaxRequestSize|If the value is larger than 0, it rejects all HTTP requests with bodies larged than the configured limit.|-1|
 |exposePreciseBacklogInPrometheus| Enable expose the precise backlog stats, set false to use published counter and consumed counter to calculate, this would be more efficient but may be inaccurate. |false|
 |bookkeeperMetadataServiceUri|Metadata service uri is what BookKeeper used for loading corresponding metadata driver and resolving its metadata service location. This value can be fetched using `bookkeeper shell whatisinstanceid` command in BookKeeper cluster. For example: `zk+hierarchical://localhost:2181/ledgers`. The metadata service uri list can also be semicolon separated values like: `zk+hierarchical://zk1:2181;zk2:2181;zk3:2181/ledgers`.|N/A|
@@ -613,7 +644,6 @@ You can set the log level and configuration in the  [log4j2.yaml](https://github
 |managedLedgerDefaultWriteQuorum|   |1|
 |managedLedgerDefaultAckQuorum|   |1|
 | managedLedgerDigestType | Default type of checksum to use when writing to BookKeeper. | CRC32C |
-| managedLedgerNumWorkerThreads | Number of threads to be used for managed ledger tasks dispatching. | Runtime.getRuntime().availableProcessors() |
 | managedLedgerNumSchedulerThreads | Number of threads to be used for managed ledger scheduled tasks. | Runtime.getRuntime().availableProcessors() |
 |managedLedgerCacheSizeMB|    |N/A|
 |managedLedgerCacheCopyEntries| Whether to copy the entry payloads when inserting in cache.| false|
@@ -630,15 +660,14 @@ You can set the log level and configuration in the  [log4j2.yaml](https://github
 |managedLedgerCursorRolloverTimeInSeconds|    |14400|
 | managedLedgerMaxSizePerLedgerMbytes | Maximum ledger size before triggering a rollover for a topic. | 2048 |
 | managedLedgerMaxUnackedRangesToPersist | Maximum number of "acknowledgment holes" that are going to be persistently stored. When acknowledging out of order, a consumer leaves holes that are supposed to be quickly filled by acknowledging all the messages. The information of which messages are acknowledged is persisted by compressing in "ranges" of messages that were acknowledged. After the max number of ranges is reached, the information is only tracked in memory and messages are redelivered in case of crashes. | 10000 |
-| managedLedgerMaxUnackedRangesToPersistInZooKeeper | Maximum number of "acknowledgment holes" that can be stored in Zookeeper. If the number of unacknowledged message range is higher than this limit, the broker persists unacknowledged ranges into bookkeeper to avoid additional data overhead into Zookeeper. | 1000 |
+| managedLedgerMaxUnackedRangesToPersistInMetadataStore | Maximum number of "acknowledgment holes" that can be stored in metadata store. If the number of unacknowledged message range is higher than this limit, the broker persists unacknowledged ranges into BookKeeper to avoid additional data overhead into metadata store. | 1000 |
 |autoSkipNonRecoverableData|    |false|
 | managedLedgerMetadataOperationsTimeoutSeconds | Operation timeout while updating managed-ledger metadata. | 60 |
 | managedLedgerReadEntryTimeoutSeconds | Read entries timeout when the broker tries to read messages from BookKeeper. | 0 |
-| managedLedgerAddEntryTimeoutSeconds | Add entry timeout when the broker tries to publish message to BookKeeper. | 0 |
-| managedLedgerNewEntriesCheckDelayInMillis | New entries check delay for the cursor under the managed ledger. If no new messages in the topic, the cursor tries to check again after the delay time. For consumption latency sensitive scenario, you can set the value to a smaller value or 0. Of course, a smaller value may degrade consumption throughput.|10 ms|
+| managedLedgerAddEntryTimeoutSeconds | Add entry timeout when the broker tries to publish messages to BookKeeper. | 0 |
+| managedLedgerNewEntriesCheckDelayInMillis | New entries check delay for the cursor under the managed ledger. If no new messages in the topic, the cursor tries to check again after the delay time. For consumption latency sensitive scenarios, you can set the value to a smaller value or 0. Of course, a smaller value may degrade consumption throughput.|10|
 | managedLedgerPrometheusStatsLatencyRolloverSeconds | Managed ledger prometheus stats latency rollover seconds.  | 60 |
 | managedLedgerTraceTaskExecution | Whether to trace managed ledger task execution time. | true |
-|managedLedgerNewEntriesCheckDelayInMillis|New entries check delay for the cursor under the managed ledger. If no new messages in the topic, the cursor will try to check again after the delay time. For consumption latency sensitive scenario, it can be set to a smaller value or 0. A smaller value degrades consumption throughput. By default, it is 10ms.|10|
 |loadBalancerEnabled|   |false|
 |loadBalancerPlacementStrategy|   |weightedRandomSelection|
 |loadBalancerReportUpdateThresholdPercentage|   |10|
@@ -680,15 +709,31 @@ You can set the log level and configuration in the  [log4j2.yaml](https://github
 |bookieId | If you want to custom a bookie ID or use a dynamic network address for a bookie, you can set the `bookieId`. <br /><br />Bookie advertises itself using the `bookieId` rather than the `BookieSocketAddress` (`hostname:port` or `IP:port`).<br /><br /> The `bookieId` is a non-empty string that can contain ASCII digits and letters ([a-zA-Z9-0]), colons, dashes, and dots. <br /><br />For more information about `bookieId`, see [here](http://bookkeeper.apache.org/bps/BP-41-bookieid/).|/|
 | maxTopicsPerNamespace | The maximum number of persistent topics that can be created in the namespace. When the number of topics reaches this threshold, the broker rejects the request of creating a new topic, including the auto-created topics by the producer or consumer, until the number of connected consumers decreases. The default value 0 disables the check. | 0 |
 | metadataStoreConfigPath | The configuration file path of the local metadata store. Standalone Pulsar uses [RocksDB](http://rocksdb.org/) as the local metadata store. The format is `/xxx/xx/rocksdb.ini`. |N/A|
+|schemaRegistryStorageClassName|The schema storage implementation used by this broker.|org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorageFactory|
+|isSchemaValidationEnforced| Whether to enable schema validation, when schema validation is enabled, if a producer without a schema attempts to produce the message to a topic with schema, the producer is rejected and disconnected.|false|
+|isAllowAutoUpdateSchemaEnabled|Allow schema to be auto updated at broker level.|true|
+|schemaCompatibilityStrategy| The schema compatibility strategy at broker level, see [here](schema-evolution-compatibility.md#schema-compatibility-check-strategy) for available values.|FULL|
+|systemTopicSchemaCompatibilityStrategy| The schema compatibility strategy is used for system topics, see [here](schema-evolution-compatibility.md#schema-compatibility-check-strategy) for available values.|ALWAYS_COMPATIBLE|
 
+#### Deprecated parameters of standalone Pulsar
+The following parameters have been deprecated in the `conf/standalone.conf` file.
+
+|Name|Description|Default|
+|---|---|---|
+|zookeeperServers|  The quorum connection string for local metadata store. Use `metadataStoreUrl` instead.  |N/A|
+|configurationStoreServers| Configuration store connection string (as a comma-separated list). Use `configurationMetadataStoreUrl` instead. |N/A|
+|zooKeeperOperationTimeoutSeconds|ZooKeeper operation timeout in seconds. Use `metadataStoreOperationTimeoutSeconds` instead. |30|
+|zooKeeperCacheExpirySeconds|ZooKeeper cache expiry time in seconds. Use `metadataStoreCacheExpirySeconds` instead. |300|
+|zooKeeperSessionTimeoutMillis| The ZooKeeper session timeout, in milliseconds. Use `metadataStoreSessionTimeoutMillis` instead. |30000|
+| managedLedgerMaxUnackedRangesToPersistInZooKeeper | Maximum number of "acknowledgment holes" that can be stored in ZooKeeper. Use `managedLedgerMaxUnackedRangesToPersistInMetadataStore` instead. | 1000 |
 
 ## WebSocket
 
 |Name|Description|Default|
 |---|---|---|
-|configurationStoreServers    |||
-|zooKeeperSessionTimeoutMillis|   |30000|
-|zooKeeperCacheExpirySeconds|ZooKeeper cache expiry time in seconds|300|
+|configurationMetadataStoreUrl |Configuration store connection string. |N/A|
+|metadataStoreSessionTimeoutMillis|Metadata store session timeout in milliseconds.  |30000|
+|metadataStoreCacheExpirySeconds|Metadata store cache expiry time in seconds|300|
 |serviceUrl|||
 |serviceUrlTls|||
 |brokerServiceUrl|||
@@ -709,6 +754,15 @@ You can set the log level and configuration in the  [log4j2.yaml](https://github
 |tlsKeyFilePath |||
 |tlsTrustCertsFilePath|||
 
+#### Deprecated parameters of WebSocket
+The following parameters have been deprecated in the `conf/websocket.conf` file.
+
+|Name|Description|Default|
+|---|---|---|
+|zooKeeperSessionTimeoutMillis|The ZooKeeper session timeout in milliseconds. Use `metadataStoreSessionTimeoutMillis` instead. |30000|
+|zooKeeperCacheExpirySeconds|ZooKeeper cache expiry time in seconds. Use `metadataStoreCacheExpirySeconds` instead.|300|
+|configurationStoreServers| Configuration Store connection string. Use `configurationMetadataStoreUrl` instead.|N/A|
+
 ## Pulsar proxy
 
 The [Pulsar proxy](concepts-architecture-overview.md#pulsar-proxy) can be configured in the `conf/proxy.conf` file.
@@ -717,16 +771,16 @@ The [Pulsar proxy](concepts-architecture-overview.md#pulsar-proxy) can be config
 |Name|Description|Default|
 |---|---|---|
 |forwardAuthorizationCredentials| Forward client authorization credentials to Broker for re-authorization, and make sure authentication is enabled for this to take effect. |false|
-|zookeeperServers|  The ZooKeeper quorum connection string (as a comma-separated list)  ||
-|configurationStoreServers| Configuration store connection string (as a comma-separated list) ||
-| brokerServiceURL | The service URL pointing to the broker cluster. | |
-| brokerServiceURLTLS | The TLS service URL pointing to the broker cluster | |
+|metadataStoreUrl| Metadata store quorum connection string (as a comma-separated list)  ||
+|configurationMetadataStoreUrl| Configuration store connection string (as a comma-separated list) ||
+| brokerServiceURL | The service URL pointing to the broker cluster. Must begin with `pulsar://`. | |
+| brokerServiceURLTLS | The TLS service URL pointing to the broker cluster. Must begin with `pulsar+ssl://`. | |
 | brokerWebServiceURL | The Web service URL pointing to the broker cluster | |
 | brokerWebServiceURLTLS | The TLS Web service URL pointing to the broker cluster | |
 | functionWorkerWebServiceURL | The Web service URL pointing to the function worker cluster. It is only configured when you setup function workers in a separate cluster. | |
 | functionWorkerWebServiceURLTLS | The TLS Web service URL pointing to the function worker cluster. It is only configured when you setup function workers in a separate cluster. | |
-|zookeeperSessionTimeoutMs| ZooKeeper session timeout (in milliseconds) |30000|
-|zooKeeperCacheExpirySeconds|ZooKeeper cache expiry time in seconds|300|
+|metadataStoreSessionTimeoutMillis| Metadata store session timeout (in milliseconds) |30000|
+|metadataStoreCacheExpirySeconds|Metadata store cache expiry time in seconds|300|
 |advertisedAddress|Hostname or IP address the service advertises to the outside world. If not set, the value of `InetAddress.getLocalHost().getHostname()` is used.|N/A|
 |servicePort| The port to use for server binary Protobuf requests |6650|
 |servicePortTls|  The port to use to server binary Protobuf TLS requests  |6651|
@@ -744,7 +798,6 @@ The [Pulsar proxy](concepts-architecture-overview.md#pulsar-proxy) can be config
 |superUserRoles|  Role names that are treated as “super-users,” meaning that they will be able to perform all admin ||
 |maxConcurrentInboundConnections| Max concurrent inbound connections. The proxy will reject requests beyond that. |10000|
 |maxConcurrentLookupRequests| Max concurrent outbound connections. The proxy will error out requests beyond that. |50000|
-|tlsEnabledInProxy| Deprecated - use `servicePortTls` and `webServicePortTls` instead. |false|
 |tlsEnabledWithBroker|  Whether TLS is enabled when communicating with Pulsar brokers. |false|
 | tlsCertRefreshCheckDurationSec | TLS certificate refresh duration in seconds. If the value is set 0, check TLS certificate every new connection. | 300 |
 |tlsCertificateFilePath|  Path for the TLS certificate file ||
@@ -764,6 +817,15 @@ The [Pulsar proxy](concepts-architecture-overview.md#pulsar-proxy) can be config
 |tokenAudienceClaim| The token audience "claim" name, e.g. "aud". It is used to get the audience from token. If it is not set, the audience is not verified. ||
 | tokenAudience | The token audience stands for this broker. The field `tokenAudienceClaim` of a valid token need contains this parameter.| |
 |haProxyProtocolEnabled | Enable or disable the [HAProxy](http://www.haproxy.org/) protocol. |false|
+
+#### Deprecated parameters of Pulsar proxy
+The following parameters have been deprecated in the `conf/proxy.conf` file.
+
+|Name|Description|Default|
+|---|---|---|
+|tlsEnabledInProxy| Deprecated - use `servicePortTls` and `webServicePortTls` instead. |false|
+|zookeeperSessionTimeoutMs| ZooKeeper session timeout (in milliseconds). Use `metadataStoreSessionTimeoutMillis` instead. |30000|
+|zooKeeperCacheExpirySeconds|ZooKeeper cache expiry time in seconds. Use `metadataStoreCacheExpirySeconds` instead.|300|
 
 ## ZooKeeper
 

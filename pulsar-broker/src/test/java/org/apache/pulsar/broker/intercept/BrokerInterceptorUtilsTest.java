@@ -19,38 +19,24 @@
 package org.apache.pulsar.broker.intercept;
 
 import org.apache.pulsar.common.nar.NarClassLoader;
+import org.apache.pulsar.common.nar.NarClassLoaderBuilder;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.testng.IObjectFactory;
-import org.testng.annotations.ObjectFactory;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
 import org.testng.annotations.Test;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Paths;
-import java.util.Set;
 
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.RETURNS_SELF;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.AssertJUnit.assertSame;
 import static org.testng.AssertJUnit.assertTrue;
 
-@PrepareForTest({
-        BrokerInterceptorUtils.class, NarClassLoader.class
-})
-@PowerMockIgnore({"org.apache.logging.log4j.*"})
 @Test(groups = "broker")
 public class BrokerInterceptorUtilsTest {
-
-    // Necessary to make PowerMockito.mockStatic work with TestNG.
-    @ObjectFactory
-    public IObjectFactory getObjectFactory() {
-        return new org.powermock.modules.testng.PowerMockObjectFactory();
-    }
 
     @Test
     public void testLoadBrokerEventListener() throws Exception {
@@ -71,19 +57,17 @@ public class BrokerInterceptorUtilsTest {
         when(mockLoader.loadClass(eq(MockBrokerInterceptor.class.getName())))
                 .thenReturn(listenerClass);
 
-        PowerMockito.mockStatic(NarClassLoader.class);
-        PowerMockito.when(NarClassLoader.getFromArchive(
-                any(File.class),
-                any(Set.class),
-                any(ClassLoader.class),
-                any(String.class)
-        )).thenReturn(mockLoader);
+        final NarClassLoaderBuilder mockedBuilder = mock(NarClassLoaderBuilder.class, RETURNS_SELF);
+        when(mockedBuilder.build()).thenReturn(mockLoader);
+        try (MockedStatic<NarClassLoaderBuilder> builder = Mockito.mockStatic(NarClassLoaderBuilder.class)) {
+            builder.when(() -> NarClassLoaderBuilder.builder()).thenReturn(mockedBuilder);
 
-        BrokerInterceptorWithClassLoader returnedPhWithCL = BrokerInterceptorUtils.load(metadata, "");
-        BrokerInterceptor returnedPh = returnedPhWithCL.getInterceptor();
+            BrokerInterceptorWithClassLoader returnedPhWithCL = BrokerInterceptorUtils.load(metadata, "");
+            BrokerInterceptor returnedPh = returnedPhWithCL.getInterceptor();
 
-        assertSame(mockLoader, returnedPhWithCL.getClassLoader());
-        assertTrue(returnedPh instanceof MockBrokerInterceptor);
+            assertSame(mockLoader, returnedPhWithCL.getClassLoader());
+            assertTrue(returnedPh instanceof MockBrokerInterceptor);
+        }
     }
 
     @Test(expectedExceptions = IOException.class)
@@ -104,15 +88,13 @@ public class BrokerInterceptorUtilsTest {
         when(mockLoader.loadClass(eq(MockBrokerInterceptor.class.getName())))
                 .thenReturn(listenerClass);
 
-        PowerMockito.mockStatic(NarClassLoader.class);
-        PowerMockito.when(NarClassLoader.getFromArchive(
-                any(File.class),
-                any(Set.class),
-                any(ClassLoader.class),
-                any(String.class)
-        )).thenReturn(mockLoader);
+        final NarClassLoaderBuilder mockedBuilder = mock(NarClassLoaderBuilder.class, RETURNS_SELF);
+        when(mockedBuilder.build()).thenReturn(mockLoader);
+        try (MockedStatic<NarClassLoaderBuilder> builder = Mockito.mockStatic(NarClassLoaderBuilder.class)) {
+            builder.when(() -> NarClassLoaderBuilder.builder()).thenReturn(mockedBuilder);
 
-        BrokerInterceptorUtils.load(metadata, "");
+            BrokerInterceptorUtils.load(metadata, "");
+        }
     }
 
     @Test(expectedExceptions = IOException.class)
@@ -134,14 +116,12 @@ public class BrokerInterceptorUtilsTest {
         when(mockLoader.loadClass(eq(Runnable.class.getName())))
                 .thenReturn(listenerClass);
 
-        PowerMockito.mockStatic(NarClassLoader.class);
-        PowerMockito.when(NarClassLoader.getFromArchive(
-                any(File.class),
-                any(Set.class),
-                any(ClassLoader.class),
-                any(String.class)
-        )).thenReturn(mockLoader);
+        final NarClassLoaderBuilder mockedBuilder = mock(NarClassLoaderBuilder.class, RETURNS_SELF);
+        when(mockedBuilder.build()).thenReturn(mockLoader);
+        try (MockedStatic<NarClassLoaderBuilder> builder = Mockito.mockStatic(NarClassLoaderBuilder.class)) {
+            builder.when(() -> NarClassLoaderBuilder.builder()).thenReturn(mockedBuilder);
 
-        BrokerInterceptorUtils.load(metadata, "");
+            BrokerInterceptorUtils.load(metadata, "");
+        }
     }
 }

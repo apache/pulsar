@@ -110,20 +110,15 @@ pulsar.web-service-url=http://localhost:8080,localhost:8081,localhost:8082
 pulsar.zookeeper-uri=localhost1,localhost2:2181
 ```
 
-A frequently asked question is why my latest message not showing up when querying with Pulsar SQL.
-It's not a bug but controlled by a setting, by default BookKeeper LAC only advanced when subsequent entries are added.
-If there is no subsequent entries added, the last entry written will not be visible to readers until the ledger is closed.
-This is not a problem for Pulsar which uses managed ledger, but Pulsar SQL directly read from BookKeeper ledger.
-We can add following setting to change the behavior:
-In Broker config, set
-bookkeeperExplicitLacIntervalInMills > 0
-bookkeeperUseV2WireProtocol=false
+**Note: by default, Pulsar SQL does not get the last message in a topic**. It is by design and controlled by settings. By default, BookKeeper LAC only advances when subsequent entries are added. If there is no subsequent entry added, the last written entry is not visible to readers until the ledger is closed. This is not a problem for Pulsar which uses managed ledger, but Pulsar SQL directly reads from BookKeeper ledger. 
 
-And in Presto config, set
-pulsar.bookkeeper-explicit-interval > 0
-pulsar.bookkeeper-use-v2-protocol=false
+If you want to get the last message in a topic, set the following configurations:
 
-However,keep in mind that using bk V3 protocol will introduce additional GC overhead to BK as it uses Protobuf.
+1. For the broker configuration, set `bookkeeperExplicitLacIntervalInMills` > 0 in `broker.conf` or `standalone.conf`.
+   
+2. For the Presto configuration, set `pulsar.bookkeeper-explicit-interval` > 0 and `pulsar.bookkeeper-use-v2-protocol=false`.
+
+However, using BookKeeper V3 protocol introduces additional GC overhead to BK as it uses Protobuf.
 
 ## Query data from existing Presto clusters
 

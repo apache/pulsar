@@ -31,9 +31,11 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.RawMessage;
 import org.apache.pulsar.client.api.RawReader;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
+import org.apache.pulsar.common.api.proto.CommandMessage;
 import org.apache.pulsar.common.api.proto.MessageIdData;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.naming.TopicName;
@@ -56,6 +58,7 @@ public class RawReaderImpl implements RawReader {
         consumerConfiguration.setSubscriptionType(SubscriptionType.Exclusive);
         consumerConfiguration.setReceiverQueueSize(DEFAULT_RECEIVER_QUEUE_SIZE);
         consumerConfiguration.setReadCompacted(true);
+        consumerConfiguration.setSubscriptionInitialPosition(SubscriptionInitialPosition.Earliest);
 
         consumer = new RawConsumerImpl(client, consumerConfiguration,
                                        consumerFuture);
@@ -113,6 +116,7 @@ public class RawReaderImpl implements RawReader {
                     conf,
                     client.externalExecutorProvider(),
                     TopicName.getPartitionIndex(conf.getSingleTopic()),
+                    false,
                     false,
                     consumerFuture,
                     MessageId.earliest,
@@ -201,8 +205,8 @@ public class RawReaderImpl implements RawReader {
         }
 
         @Override
-        void messageReceived(MessageIdData messageId, int redeliveryCount,
-                             List<Long> ackSet, ByteBuf headersAndPayload, ClientCnx cnx) {
+        void messageReceived(CommandMessage commandMessage, ByteBuf headersAndPayload, ClientCnx cnx) {
+            MessageIdData messageId = commandMessage.getMessageId();
             if (log.isDebugEnabled()) {
                 log.debug("[{}][{}] Received raw message: {}/{}/{}", topic, subscription,
                         messageId.getEntryId(), messageId.getLedgerId(), messageId.getPartition());

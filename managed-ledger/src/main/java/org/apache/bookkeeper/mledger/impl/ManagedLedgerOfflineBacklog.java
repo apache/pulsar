@@ -152,7 +152,7 @@ public class ManagedLedgerOfflineBacklog {
                         }
 
                         // find no of entries in last ledger
-                        if (ledgers.size() > 0) {
+                        if (!ledgers.isEmpty()) {
                             final long id = ledgers.lastKey();
                             AsyncCallback.OpenCallback opencb = (rc, lh, ctx1) -> {
                                 if (log.isDebugEnabled()) {
@@ -212,7 +212,7 @@ public class ManagedLedgerOfflineBacklog {
             final NavigableMap<Long, MLDataFormats.ManagedLedgerInfo.LedgerInfo> ledgers,
             final PersistentOfflineTopicStats offlineTopicStats) throws Exception {
 
-        if (ledgers.size() == 0) {
+        if (ledgers.isEmpty()) {
             return;
         }
         String managedLedgerName = topicName.getPersistenceNamingEncoding();
@@ -220,7 +220,8 @@ public class ManagedLedgerOfflineBacklog {
         BookKeeper bk = factory.getBookKeeper();
         final CountDownLatch allCursorsCounter = new CountDownLatch(1);
         final long errorInReadingCursor = -1;
-        ConcurrentOpenHashMap<String, Long> ledgerRetryMap = new ConcurrentOpenHashMap<>();
+        ConcurrentOpenHashMap<String, Long> ledgerRetryMap =
+                ConcurrentOpenHashMap.<String, Long>newBuilder().build();
 
         final MLDataFormats.ManagedLedgerInfo.LedgerInfo ledgerInfo = ledgers.lastEntry().getValue();
         final PositionImpl lastLedgerPosition = new PositionImpl(ledgerInfo.getLedgerId(), ledgerInfo.getEntries() - 1);

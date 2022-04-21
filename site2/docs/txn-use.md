@@ -20,19 +20,26 @@ This section provides an example of how to use the transaction API to send and r
 
 2. Enable transaction. 
 
-    Change the configuration in the `broker.conf` file.
+    Change the configuration in the `broker.conf` or `standalone.conf` file.
 
     ```
+    //mandatory configuration, used to enable transaction coordinator
     transactionCoordinatorEnabled=true
+   
+    //mandtory configuration, used to create systemTopic used for transaction buffer snapshot
+    systemTopicEnabled=true
+   
     ```
 
-    If you want to enable batch messages in transactions, follow the steps below.
-
-    Set `acknowledgmentAtBatchIndexLevelEnabled` to `true` in the `broker.conf` or `standalone.conf` file.
+    * If you want to acknowledge batch messages in transactions, set `acknowledgmentAtBatchIndexLevelEnabled` to `true` in the `broker.conf` or `standalone.conf` file.
 
       ```
       acknowledgmentAtBatchIndexLevelEnabled=true
       ```
+
+    * If you want to guarantee exactly-once semantics, you need to enable [message deduplication](cookbooks-deduplication.md).
+    You can enable message deduplication at the broker level, the namespace level, or the topic level according to your needs.
+    
 
 3. Initialize transaction coordinator metadata.
 

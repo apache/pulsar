@@ -40,7 +40,7 @@ public class BookiesImpl extends BaseResource implements Bookies {
 
     @Override
     public BookiesRackConfiguration getBookiesRackInfo() throws PulsarAdminException {
-        return sync(() -> getBookiesRackInfoAsync());
+        return sync(this::getBookiesRackInfoAsync);
     }
 
     @Override
@@ -64,7 +64,7 @@ public class BookiesImpl extends BaseResource implements Bookies {
 
     @Override
     public BookiesClusterInfo getBookies() throws PulsarAdminException {
-        return sync(() -> getBookiesAsync());
+        return sync(this::getBookiesAsync);
     }
 
     @Override

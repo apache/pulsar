@@ -30,6 +30,7 @@ import javax.servlet.http.HttpServletResponse;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.broker.authentication.AuthenticationState;
 import org.apache.pulsar.client.api.PulsarClientException.AuthenticationException;
 import org.apache.pulsar.client.api.PulsarClientException.AuthorizationException;
 import org.apache.pulsar.client.api.PulsarClientException.ConsumerBusyException;
@@ -59,7 +60,7 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
 
     protected final TopicName topic;
     protected final Map<String, String> queryParams;
-
+    private static final String PULSAR_AUTH_METHOD_NAME = "X-Pulsar-Auth-Method-Name";
 
     public AbstractWebSocketHandler(WebSocketService service,
                                     HttpServletRequest request,
@@ -76,9 +77,21 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
 
     protected boolean checkAuth(ServletUpgradeResponse response) {
         String authRole = "<none>";
+        String authMethodName = request.getHeader(PULSAR_AUTH_METHOD_NAME);
+        AuthenticationState authenticationState = null;
         if (service.isAuthenticationEnabled()) {
             try {
-                authRole = service.getAuthenticationService().authenticateHttpRequest(request);
+                if (authMethodName != null
+                        && service.getAuthenticationService().getAuthenticationProvider(authMethodName) != null) {
+                    authenticationState = service.getAuthenticationService()
+                            .getAuthenticationProvider(authMethodName).newHttpAuthState(request);
+                }
+                if (authenticationState != null) {
+                    authRole = service.getAuthenticationService()
+                            .authenticateHttpRequest(request, authenticationState.getAuthDataSource());
+                } else {
+                    authRole = service.getAuthenticationService().authenticateHttpRequest(request);
+                }
                 log.info("[{}:{}] Authenticated WebSocket client {} on topic {}", request.getRemoteAddr(),
                         request.getRemotePort(), authRole, topic);
 
@@ -96,7 +109,12 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
         }
 
         if (service.isAuthorizationEnabled()) {
-            AuthenticationDataSource authenticationData = new AuthenticationDataHttps(request);
+            AuthenticationDataSource authenticationData;
+            if (authenticationState != null) {
+                authenticationData = authenticationState.getAuthDataSource();
+            } else {
+                authenticationData = new AuthenticationDataHttps(request);
+            }
             try {
                 if (!isAuthorized(authRole, authenticationData)) {
                     log.warn("[{}:{}] WebSocket Client [{}] is not authorized on topic {}", request.getRemoteAddr(),

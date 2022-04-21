@@ -64,7 +64,7 @@ admin.clusters().createCluster(clusterName, clusterData);
 When provision a new cluster, you need to initialize that cluster's [metadata](concepts-architecture-overview.md#metadata-store). When initializing cluster metadata, you need to specify all of the following:
 
 * The name of the cluster
-* The local ZooKeeper connection string for the cluster
+* The local metadata store connection string for the cluster
 * The configuration store connection string for the entire instance
 * The web service URL for the cluster
 * A broker service URL enabling interaction with the [brokers](reference-terminology.md#broker) in the cluster

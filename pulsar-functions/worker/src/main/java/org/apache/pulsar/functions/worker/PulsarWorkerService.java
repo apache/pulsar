@@ -19,8 +19,7 @@
 package org.apache.pulsar.functions.worker;
 
 import static org.apache.pulsar.common.policies.data.PoliciesUtil.getBundles;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import static org.apache.pulsar.metadata.impl.MetadataStoreFactoryImpl.removeIdentifierFromMetadataURL;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Sets;
 import io.netty.util.concurrent.DefaultThreadFactory;
@@ -272,13 +271,14 @@ public class PulsarWorkerService implements WorkerService {
         URI dlogURI;
         try {
             if (workerConfig.isInitializedDlogMetadata()) {
-                dlogURI = WorkerUtils.newDlogNamespaceURI(internalConf.getZookeeperServers());
+                String metadataStoreUrl = removeIdentifierFromMetadataURL(internalConf.getMetadataStoreUrl());
+                dlogURI = WorkerUtils.newDlogNamespaceURI(metadataStoreUrl);
             } else {
                 dlogURI = WorkerUtils.initializeDlogNamespace(internalConf);
             }
         } catch (IOException ioe) {
             log.error("Failed to initialize dlog namespace with zookeeper {} at metadata service uri {} for storing "
-                            + "function packages", internalConf.getZookeeperServers(),
+                            + "function packages", internalConf.getMetadataStoreUrl(),
                     internalConf.getBookkeeperMetadataServiceUri(), ioe);
             throw ioe;
         }
@@ -354,15 +354,16 @@ public class PulsarWorkerService implements WorkerService {
         URI dlogURI;
         try {
             // initializing dlog namespace for function worker
-            if (workerConfig.isInitializedDlogMetadata()){
-                dlogURI = WorkerUtils.newDlogNamespaceURI(internalConf.getZookeeperServers());
+            if (workerConfig.isInitializedDlogMetadata()) {
+                String metadataStoreUrl = removeIdentifierFromMetadataURL(internalConf.getMetadataStoreUrl());
+                dlogURI = WorkerUtils.newDlogNamespaceURI(metadataStoreUrl);
             } else {
                 dlogURI = WorkerUtils.initializeDlogNamespace(internalConf);
             }
         } catch (IOException ioe) {
             LOG.error("Failed to initialize dlog namespace with zookeeper {} at at metadata service uri {} for "
                             + "storing function packages",
-                    internalConf.getZookeeperServers(), internalConf.getBookkeeperMetadataServiceUri(), ioe);
+                    internalConf.getMetadataStoreUrl(), internalConf.getBookkeeperMetadataServiceUri(), ioe);
             throw ioe;
         }
 
@@ -399,12 +400,7 @@ public class PulsarWorkerService implements WorkerService {
 
         workerStatsManager.startupTimeStart();
         log.info("/** Starting worker id={} **/", workerConfig.getWorkerId());
-
-        try {
-            log.info("Worker Configs: {}", new ObjectMapper().writeValueAsString(workerConfig));
-        } catch (JsonProcessingException e) {
-            log.warn("Failed to print worker configs with error {}", e.getMessage(), e);
-        }
+        log.info("Worker Configs: {}", workerConfig);
 
         try {
             DistributedLogConfiguration dlogConf = WorkerUtils.getDlogConf(workerConfig);
@@ -504,8 +500,8 @@ public class PulsarWorkerService implements WorkerService {
             log.info("/** Initializing Runtime Manager **/");
 
             MessageId lastAssignmentMessageId = functionRuntimeManager.initialize();
-            Supplier<Boolean> checkIsStillLeader =
-                    () -> membershipManager.getLeader().getWorkerId().equals(workerConfig.getWorkerId());
+            Supplier<Boolean> checkIsStillLeader = WorkerUtils.getIsStillLeaderSupplier(membershipManager,
+                    workerConfig.getWorkerId());
 
             // Setting references to managers in scheduler
             schedulerManager.setFunctionMetaDataManager(functionMetaDataManager);
