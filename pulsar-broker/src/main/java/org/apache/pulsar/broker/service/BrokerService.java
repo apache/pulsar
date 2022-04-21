@@ -2936,9 +2936,7 @@ public class BrokerService implements Closeable {
     }
 
     public boolean isSystemTopic(TopicName topicName) {
-        if (topicName.getNamespaceObject().equals(NamespaceName.SYSTEM_NAMESPACE)
-                || topicName.getNamespaceObject().equals(pulsar.getHeartbeatNamespaceV1())
-                || topicName.getNamespaceObject().equals(pulsar.getHeartbeatNamespaceV2())) {
+        if (NamespaceService.isSystemServiceNamespace(topicName.getNamespace())) {
             return true;
         }
 
