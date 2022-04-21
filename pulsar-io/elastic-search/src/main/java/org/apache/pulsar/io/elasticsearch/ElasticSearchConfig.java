@@ -112,6 +112,22 @@ public class ElasticSearchConfig implements Serializable {
 
     @FieldDoc(
             required = false,
+            defaultValue = "",
+            sensitive = true,
+            help = "The token used by the connector to connect to the ElasticSearch cluster. Only one between basic/token/apiKey authentication mode must be configured."
+    )
+    private String token;
+
+    @FieldDoc(
+            required = false,
+            defaultValue = "",
+            sensitive = true,
+            help = "The apiKey used by the connector to connect to the ElasticSearch cluster. Only one between basic/token/apiKey authentication mode must be configured."
+    )
+    private String apiKey;
+
+    @FieldDoc(
+            required = false,
             defaultValue = "1",
             help = "The maximum number of retries for elasticsearch requests. Use -1 to disable it."
     )
@@ -308,8 +324,18 @@ public class ElasticSearchConfig implements Serializable {
         }
 
         if ((StringUtils.isNotEmpty(username) && StringUtils.isEmpty(password))
-           || (StringUtils.isEmpty(username) && StringUtils.isNotEmpty(password))) {
+                || (StringUtils.isEmpty(username) && StringUtils.isNotEmpty(password))) {
             throw new IllegalArgumentException("Values for both Username & password are required.");
+        }
+
+        boolean basicAuthSet = StringUtils.isNotEmpty(username) && StringUtils.isNotEmpty(password);
+        boolean tokenAuthSet = StringUtils.isNotEmpty(token);
+        boolean apiKeySet = StringUtils.isNotEmpty(apiKey);
+        if ((basicAuthSet && tokenAuthSet && apiKeySet)
+                || (basicAuthSet && tokenAuthSet)
+                || (basicAuthSet && apiKeySet)
+                || (tokenAuthSet && apiKeySet)) {
+            throw new IllegalArgumentException("Only one between basic/token/apiKey authentication mode must be configured.");
         }
 
         if (indexNumberOfShards <= 0) {

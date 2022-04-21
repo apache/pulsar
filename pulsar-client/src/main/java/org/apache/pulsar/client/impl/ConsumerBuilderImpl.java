@@ -530,4 +530,10 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
         conf.setStartPaused(paused);
         return this;
     }
+
+    @Override
+    public ConsumerBuilder<T> autoScaledReceiverQueueSizeEnabled(boolean enabled) {
+        conf.setAutoScaledReceiverQueueSizeEnabled(enabled);
+        return this;
+    }
 }
