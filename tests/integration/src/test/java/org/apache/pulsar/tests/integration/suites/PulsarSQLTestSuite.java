@@ -21,10 +21,14 @@ package org.apache.pulsar.tests.integration.suites;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.util.HashMap;
+import java.util.Map;
+
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.tests.integration.containers.BrokerContainer;
 import org.apache.pulsar.tests.integration.containers.S3Container;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
 
@@ -49,6 +53,20 @@ public abstract class PulsarSQLTestSuite extends PulsarTestSuite {
         specBuilder.numBrokers(1);
         specBuilder.maxMessageSize(2 * Commands.DEFAULT_MAX_MESSAGE_SIZE);
         return super.beforeSetupCluster(clusterName, specBuilder);
+    }
+
+    @Override
+    protected void beforeStartCluster() throws Exception {
+        Map<String, String> envMap = new HashMap<>();
+        envMap.put("managedLedgerMaxEntriesPerLedger", String.valueOf(ENTRIES_PER_LEDGER));
+        envMap.put("managedLedgerMinLedgerRolloverTimeMinutes", "0");
+        envMap.put("managedLedgerOffloadDriver", OFFLOAD_DRIVER);
+        envMap.put("s3ManagedLedgerOffloadBucket", BUCKET);
+        envMap.put("s3ManagedLedgerOffloadServiceEndpoint", ENDPOINT);
+
+        for (BrokerContainer brokerContainer : pulsarCluster.getBrokers()) {
+            brokerContainer.withEnv(envMap);
+        }
     }
 
     @Override
