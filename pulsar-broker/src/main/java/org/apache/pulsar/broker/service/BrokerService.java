@@ -1188,11 +1188,6 @@ public class BrokerService implements Closeable {
         return topicFuture;
     }
 
-    private <T> CompletableFuture<T> futureWithDeadline() {
-        return FutureUtil.createFutureWithTimeout(FUTURE_DEADLINE_TIMEOUT_DURATION, executor(),
-                () -> FUTURE_DEADLINE_TIMEOUT_EXCEPTION);
-    }
-
     public PulsarClient getReplicationClient(String cluster, Optional<ClusterData> clusterDataOp) {
         PulsarClient client = replicationClients.get(cluster);
         if (client != null) {
@@ -2848,15 +2843,6 @@ public class BrokerService implements Closeable {
         } else {
             return Optional.empty();
         }
-    }
-
-    private void foreachCnx(Consumer<TransportCnx> consumer) {
-        Set<TransportCnx> cnxSet = new HashSet<>();
-        topics.forEach((n, t) -> {
-            Optional<Topic> topic = extractTopic(t);
-            topic.ifPresent(value -> value.getProducers().values().forEach(producer -> cnxSet.add(producer.getCnx())));
-        });
-        cnxSet.forEach(consumer);
     }
 
     public boolean isAllowAutoTopicCreation(final String topic) {
