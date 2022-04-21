@@ -31,17 +31,6 @@
     <artifactId>java-version-trim-agent</artifactId>
     <name>Pulsar SQL :: Java Version Trim Agent</name>
 
-    <dependencies>
-        <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>log4j-over-slf4j</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-jdk14</artifactId>
-        </dependency>
-    </dependencies>
-
     <build>
         <finalName>java-version-trim-agent</finalName>
         <plugins>

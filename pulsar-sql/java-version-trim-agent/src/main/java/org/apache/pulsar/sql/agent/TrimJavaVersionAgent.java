@@ -19,7 +19,7 @@
 package org.apache.pulsar.sql.agent;
 
 import java.lang.instrument.Instrumentation;
-import lombok.extern.slf4j.Slf4j;
+import java.util.logging.Logger;
 
 /**
  * The presto 332 couldn't parse Java version like this `11.0.14.1`,
@@ -27,8 +27,9 @@ import lombok.extern.slf4j.Slf4j;
  *
  * After the presto upgrade to 332+, we could remove this.
  */
-@Slf4j
 public class TrimJavaVersionAgent {
+
+    private static final Logger logger = Logger.getLogger(TrimJavaVersionAgent.class.getName());
 
     private static final String JAVA_VERSION = "java.version";
 
@@ -42,9 +43,8 @@ public class TrimJavaVersionAgent {
 
     public static void premain(String agentArgs, Instrumentation inst) {
         String javaVersion = System.getProperty(JAVA_VERSION);
-        log.info("original java version => {}", javaVersion);
         String trimVersion = trimJavaVersion(javaVersion);
-        log.info("trim java version => {}", javaVersion);
+        logger.info("original java version " + javaVersion + " => trim java version " + trimVersion);
         System.setProperty(JAVA_VERSION, trimVersion);
     }
 
