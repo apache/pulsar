@@ -47,7 +47,9 @@ SET_KEYS = [
     'proxyRoles',
     'schemaRegistryCompatibilityCheckers',
     'brokerClientTlsCiphers',
-    'brokerClientTlsProtocols'
+    'brokerClientTlsProtocols',
+    'webServiceTlsCiphers',
+    'webServiceTlsProtocols',
 ]
 
 PF_ENV_PREFIX = 'PF_'

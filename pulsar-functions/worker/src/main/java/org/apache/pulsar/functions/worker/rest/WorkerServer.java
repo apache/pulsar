@@ -26,6 +26,7 @@ import org.apache.pulsar.broker.web.RateLimitingFilter;
 import org.apache.pulsar.broker.web.JettyRequestLogFactory;
 import org.apache.pulsar.broker.web.WebExecutorThreadPool;
 import org.apache.pulsar.common.util.SecurityUtility;
+import org.apache.pulsar.common.util.keystoretls.KeyStoreSSLContext;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.rest.api.v2.WorkerApiV2Resource;
@@ -122,6 +123,7 @@ public class WorkerServer {
 
         if (this.workerConfig.getTlsEnabled()) {
             try {
+<<<<<<< HEAD
                 SslContextFactory sslCtxFactory = SecurityUtility.createSslContextFactory(
                         this.workerConfig.isTlsAllowInsecureConnection(), this.workerConfig.getTlsTrustCertsFilePath(),
                         this.workerConfig.getTlsCertificateFilePath(), this.workerConfig.getTlsKeyFilePath(),
@@ -129,6 +131,35 @@ public class WorkerServer {
                         true,
                         this.workerConfig.getTlsCertRefreshCheckDurationSec());
                 httpsConnector = new ServerConnector(server, 1, 1, sslCtxFactory);
+=======
+                SslContextFactory sslCtxFactory;
+                if (workerConfig.isTlsEnabledWithKeyStore()) {
+                    sslCtxFactory = KeyStoreSSLContext.createSslContextFactory(
+                            workerConfig.getTlsProvider(),
+                            workerConfig.getTlsKeyStoreType(),
+                            workerConfig.getTlsKeyStore(),
+                            workerConfig.getTlsKeyStorePassword(),
+                            workerConfig.isTlsAllowInsecureConnection(),
+                            workerConfig.getTlsTrustStoreType(),
+                            workerConfig.getTlsTrustStore(),
+                            workerConfig.getTlsTrustStorePassword(),
+                            workerConfig.isTlsRequireTrustedClientCertOnConnect(),
+                            workerConfig.getWebServiceTlsCiphers(),
+                            workerConfig.getWebServiceTlsProtocols(),
+                            workerConfig.getTlsCertRefreshCheckDurationSec()
+                    );
+                } else {
+                    sslCtxFactory = SecurityUtility.createSslContextFactory(
+                            workerConfig.isTlsAllowInsecureConnection(),
+                            workerConfig.getTlsTrustCertsFilePath(),
+                            workerConfig.getTlsCertificateFilePath(),
+                            workerConfig.getTlsKeyFilePath(),
+                            workerConfig.isTlsRequireTrustedClientCertOnConnect(),
+                            true,
+                            workerConfig.getTlsCertRefreshCheckDurationSec());
+                }
+                httpsConnector = new ServerConnector(server, sslCtxFactory);
+>>>>>>> a4103960a4e (Add KeyStore support in WebSocket, Function Worker HTTPS Servers  (#15084))
                 httpsConnector.setPort(this.workerConfig.getWorkerPortTls());
                 connectors.add(httpsConnector);
             } catch (Exception e) {
