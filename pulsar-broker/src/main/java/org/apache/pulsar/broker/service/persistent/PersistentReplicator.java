@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service.persistent;
 
 import static org.apache.pulsar.broker.service.persistent.PersistentTopic.MESSAGE_RATE_BACKOFF_MS;
+import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
@@ -56,7 +57,6 @@ import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.SendCallback;
 import org.apache.pulsar.common.api.proto.MarkerType;
-import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.stats.ReplicatorStatsImpl;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.stats.Rate;
@@ -122,7 +122,7 @@ public class PersistentReplicator extends AbstractReplicator
         readMaxSizeBytes = topic.getBrokerService().pulsar().getConfiguration().getDispatcherMaxReadSizeBytes();
         producerQueueThreshold = (int) (producerQueueSize * 0.9);
 
-        this.initializeDispatchRateLimiterIfNeeded(Optional.empty());
+        this.initializeDispatchRateLimiterIfNeeded();
 
         startProducer();
     }
@@ -503,7 +503,7 @@ public class PersistentReplicator extends AbstractReplicator
 
         @Override
         public CompletableFuture<MessageId> getFuture() {
-            return null;
+            return CompletableFuture.completedFuture(null);
         }
     }
 
@@ -637,6 +637,14 @@ public class PersistentReplicator extends AbstractReplicator
     public void deleteFailed(ManagedLedgerException exception, Object ctx) {
         log.error("[{}][{} -> {}] Failed to delete message at {}: {}", topicName, localCluster, remoteCluster, ctx,
                 exception.getMessage(), exception);
+        if (ctx instanceof PositionImpl) {
+            PositionImpl deletedEntry = (PositionImpl) ctx;
+            if (deletedEntry.compareTo((PositionImpl) cursor.getMarkDeletedPosition()) > 0) {
+                brokerService.getPulsar().getExecutor().schedule(
+                        () -> cursor.asyncDelete(deletedEntry, (PersistentReplicator) this, deletedEntry), 10,
+                        TimeUnit.SECONDS);
+            }
+        }
     }
 
     public void updateRates() {
@@ -696,9 +704,9 @@ public class PersistentReplicator extends AbstractReplicator
     }
 
     @Override
-    public void initializeDispatchRateLimiterIfNeeded(Optional<Policies> policies) {
-        if (!dispatchRateLimiter.isPresent() && DispatchRateLimiter
-            .isDispatchRateNeeded(topic.getBrokerService(), policies, topic.getName(), Type.REPLICATOR)) {
+    public void initializeDispatchRateLimiterIfNeeded() {
+        if (!dispatchRateLimiter.isPresent()
+            && DispatchRateLimiter.isDispatchRateEnabled(topic.getReplicatorDispatchRate())) {
             this.dispatchRateLimiter = Optional.of(new DispatchRateLimiter(topic, Type.REPLICATOR));
         }
     }
@@ -764,4 +772,9 @@ public class PersistentReplicator extends AbstractReplicator
     }
 
     private static final Logger log = LoggerFactory.getLogger(PersistentReplicator.class);
+
+    @VisibleForTesting
+    public ManagedCursor getCursor() {
+        return cursor;
+    }
 }

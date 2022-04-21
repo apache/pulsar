@@ -22,7 +22,7 @@ import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
 
 /**
- * Example function that does not return any value
+ * Example function that does not return any value.
  */
 public class VoidFunction implements Function<String, Void> {
     @Override

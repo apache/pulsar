@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.systopic;
 import com.google.common.collect.Sets;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Message;
@@ -142,9 +143,9 @@ public class NamespaceEventsSystemTopicServiceTest extends MockedPulsarServiceBa
         admin.topics().createPartitionedTopic(normalTopic, 3);
         TopicName systemTopicName = TopicName.get(systemTopic);
         TopicName normalTopicName = TopicName.get(normalTopic);
-
-        Assert.assertEquals(SystemTopicClient.isSystemTopic(systemTopicName), true);
-        Assert.assertEquals(SystemTopicClient.isSystemTopic(normalTopicName), false);
+        BrokerService brokerService = pulsar.getBrokerService();
+        Assert.assertEquals(brokerService.isSystemTopic(systemTopicName), true);
+        Assert.assertEquals(brokerService.isSystemTopic(normalTopicName), false);
     }
 
     private void prepareData() throws PulsarAdminException {

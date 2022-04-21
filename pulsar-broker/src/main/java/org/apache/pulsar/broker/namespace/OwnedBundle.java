@@ -98,6 +98,11 @@ public class OwnedBundle {
      * @throws Exception
      */
     public CompletableFuture<Void> handleUnloadRequest(PulsarService pulsar, long timeout, TimeUnit timeoutUnit) {
+        return handleUnloadRequest(pulsar, timeout, timeoutUnit, true);
+    }
+
+    public CompletableFuture<Void> handleUnloadRequest(PulsarService pulsar, long timeout, TimeUnit timeoutUnit,
+                                                       boolean closeWithoutWaitingClientDisconnect) {
         long unloadBundleStartTime = System.nanoTime();
         // Need a per namespace RenetrantReadWriteLock
         // Here to do a writeLock to set the flag and proceed to check and close connections
@@ -130,7 +135,8 @@ public class OwnedBundle {
         // close topics forcefully
         return pulsar.getNamespaceService().getOwnershipCache()
                 .updateBundleState(this.bundle, false)
-                .thenCompose(v -> pulsar.getBrokerService().unloadServiceUnit(bundle, true, timeout, timeoutUnit))
+                .thenCompose(v -> pulsar.getBrokerService().unloadServiceUnit(
+                        bundle, closeWithoutWaitingClientDisconnect, timeout, timeoutUnit))
                 .handle((numUnloadedTopics, ex) -> {
                     if (ex != null) {
                         // ignore topic-close failure to unload bundle

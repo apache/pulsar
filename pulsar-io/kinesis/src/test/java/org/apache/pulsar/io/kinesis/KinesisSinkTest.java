@@ -18,137 +18,164 @@
  */
 package org.apache.pulsar.io.kinesis;
 
-import java.io.IOException;
-import java.util.Map;
-
-import org.apache.pulsar.io.aws.AwsCredentialProviderPlugin;
-import org.testng.Assert;
+import java.util.concurrent.atomic.AtomicLong;
+import lombok.SneakyThrows;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.schema.GenericObject;
+import org.apache.pulsar.functions.api.Record;
+import org.apache.pulsar.io.core.SinkContext;
+import org.awaitility.Awaitility;
+import org.testcontainers.containers.localstack.LocalStackContainer;
+import org.testcontainers.utility.DockerImageName;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
-import org.testng.collections.Maps;
+import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
+import software.amazon.awssdk.auth.credentials.AwsCredentials;
+import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
+import software.amazon.awssdk.services.kinesis.model.CreateStreamRequest;
+import software.amazon.awssdk.services.kinesis.model.GetRecordsRequest;
+import software.amazon.awssdk.services.kinesis.model.GetRecordsResponse;
+import software.amazon.awssdk.services.kinesis.model.GetShardIteratorRequest;
+import software.amazon.awssdk.services.kinesis.model.ListShardsRequest;
+import software.amazon.awssdk.services.kinesis.model.ShardIteratorType;
 
-import com.amazonaws.auth.AWSCredentials;
-import com.amazonaws.auth.AWSCredentialsProvider;
-import com.amazonaws.auth.BasicSessionCredentials;
-import com.google.gson.Gson;
+import java.net.URI;
+import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
 
-/**
- * Unit test of {@link KinesisSink}.
- */
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
+
+
 public class KinesisSinkTest {
 
-    @Test
-    public void testDefaultCredentialProvider() throws Exception {
-        KinesisSink sink = new KinesisSink();
-        Map<String, String> credentialParam = Maps.newHashMap();
-        String awsCredentialPluginParam = new Gson().toJson(credentialParam);
-        try {
-            sink.defaultCredentialProvider(awsCredentialPluginParam);
-            Assert.fail("accessKey and SecretKey validation not applied");
-        } catch (IllegalArgumentException ie) {
-            // Ok..
-        }
+    public static final String STREAM_NAME = "my-stream-1";
+    public static LocalStackContainer LOCALSTACK_CONTAINER = new LocalStackContainer(DockerImageName.parse("localstack/localstack:latest"))
+            .withServices(LocalStackContainer.Service.KINESIS);
 
-        final String accesKey = "ak";
-        final String secretKey = "sk";
-        credentialParam.put(KinesisSink.ACCESS_KEY_NAME, accesKey);
-        credentialParam.put(KinesisSink.SECRET_KEY_NAME, secretKey);
-        awsCredentialPluginParam = new Gson().toJson(credentialParam);
-        AWSCredentialsProvider credentialProvider = sink.defaultCredentialProvider(awsCredentialPluginParam)
-                .getCredentialProvider();
-        Assert.assertNotNull(credentialProvider);
-        Assert.assertEquals(credentialProvider.getCredentials().getAWSAccessKeyId(), accesKey);
-        Assert.assertEquals(credentialProvider.getCredentials().getAWSSecretKey(), secretKey);
+    @BeforeClass(alwaysRun = true)
+    public void beforeClass() throws Exception {
+        LOCALSTACK_CONTAINER.start();
+        createClient().createStream(CreateStreamRequest.builder().streamName(STREAM_NAME).shardCount(1).build()).get();
+    }
 
-        sink.close();
+    @AfterClass(alwaysRun = true)
+    public void afterClass() throws Exception {
+        LOCALSTACK_CONTAINER.stop();
     }
 
     @Test
-    public void testCredentialProvider() throws Exception {
-        KinesisSink sink = new KinesisSink();
+    public void testWrite() throws Exception {
+        AtomicBoolean ackCalled = new AtomicBoolean();
+        AtomicLong sequenceCounter = new AtomicLong(0);
+        Message<GenericObject> message = mock(Message.class);
+        when(message.getData()).thenReturn("hello".getBytes(StandardCharsets.UTF_8));
+        final Record<GenericObject> pulsarRecord = new Record<GenericObject>() {
 
-        final String accesKey = "ak";
-        final String secretKey = "sk";
-        Map<String, String> credentialParam = Maps.newHashMap();
-        credentialParam.put(KinesisSink.ACCESS_KEY_NAME, accesKey);
-        credentialParam.put(KinesisSink.SECRET_KEY_NAME, secretKey);
-        String awsCredentialPluginParam = new Gson().toJson(credentialParam);
-        AWSCredentialsProvider credentialProvider = sink.createCredentialProvider(null, awsCredentialPluginParam)
-                .getCredentialProvider();
-        Assert.assertEquals(credentialProvider.getCredentials().getAWSAccessKeyId(), accesKey);
-        Assert.assertEquals(credentialProvider.getCredentials().getAWSSecretKey(), secretKey);
+            @Override
+            public Optional<String> getKey() {
+                return Optional.of( "key-" + sequenceCounter.incrementAndGet());
+            }
 
-        credentialProvider = sink.createCredentialProvider(AwsCredentialProviderPluginImpl.class.getName(), "{}")
-                .getCredentialProvider();
-        Assert.assertNotNull(credentialProvider);
-        Assert.assertEquals(credentialProvider.getCredentials().getAWSAccessKeyId(),
-                AwsCredentialProviderPluginImpl.accessKey);
-        Assert.assertEquals(credentialProvider.getCredentials().getAWSSecretKey(),
-                AwsCredentialProviderPluginImpl.secretKey);
-        Assert.assertEquals(((BasicSessionCredentials) credentialProvider.getCredentials()).getSessionToken(),
-                AwsCredentialProviderPluginImpl.sessionToken);
+            @Override
+            public GenericObject getValue() {
+                // Value comes from the message raw data, not the GenericObject
+                return null;
+            }
 
-        sink.close();
+            @Override
+            public void ack() {
+                ackCalled.set(true);
+            }
+
+            @Override
+            public Optional<Message<GenericObject>> getMessage() {
+                return Optional.of(message);
+            }
+        };
+
+        try (final KinesisSink sink = new KinesisSink()) {
+            Map<String, Object> map = createConfig();
+            SinkContext mockSinkContext = mock(SinkContext.class);
+
+            sink.open(map, mockSinkContext);
+            for (int i = 0; i < 10; i++) {
+                sink.write(pulsarRecord);
+            }
+            Awaitility.await().untilAsserted(() -> {
+                assertTrue(ackCalled.get());
+            });
+            final GetRecordsResponse getRecords = getStreamRecords();
+            assertEquals(getRecords.records().size(), 10);
+
+            for (software.amazon.awssdk.services.kinesis.model.Record record : getRecords.records()) {
+                assertEquals(record.data().asString(StandardCharsets.UTF_8), "hello");
+            }
+        }
     }
 
-    @Test
-    public void testCredentialProviderPlugin() throws Exception {
-        KinesisSink sink = new KinesisSink();
-
-        AWSCredentialsProvider credentialProvider = sink
-                .createCredentialProviderWithPlugin(AwsCredentialProviderPluginImpl.class.getName(), "{}")
-                .getCredentialProvider();
-        Assert.assertNotNull(credentialProvider);
-        Assert.assertEquals(credentialProvider.getCredentials().getAWSAccessKeyId(),
-                AwsCredentialProviderPluginImpl.accessKey);
-        Assert.assertEquals(credentialProvider.getCredentials().getAWSSecretKey(),
-                AwsCredentialProviderPluginImpl.secretKey);
-        Assert.assertEquals(((BasicSessionCredentials) credentialProvider.getCredentials()).getSessionToken(),
-                AwsCredentialProviderPluginImpl.sessionToken);
-
-        sink.close();
+    private Map<String, Object> createConfig() {
+        final URI endpointOverride = LOCALSTACK_CONTAINER.getEndpointOverride(LocalStackContainer.Service.KINESIS);
+        Map<String, Object> map = new HashMap<>();
+        map.put("awsEndpoint", endpointOverride.getHost());
+        map.put("awsEndpointPort", endpointOverride.getPort());
+        map.put("skipCertificateValidation", true);
+        map.put("awsKinesisStreamName", STREAM_NAME);
+        map.put("awsRegion", "us-east-1");
+        map.put("awsCredentialPluginParam", "{\"accessKey\":\"access\",\"secretKey\":\"secret\"}");
+        return map;
     }
 
-    public static class AwsCredentialProviderPluginImpl implements AwsCredentialProviderPlugin {
+    private KinesisAsyncClient createClient() {
+        final KinesisAsyncClient client = KinesisAsyncClient.builder()
+                .credentialsProvider(new AwsCredentialsProvider() {
+                    @Override
+                    public AwsCredentials resolveCredentials() {
+                        return AwsBasicCredentials.create(
+                                "access",
+                                "secret");
+                    }
+                })
+                .region(Region.US_EAST_1)
+                .endpointOverride(LOCALSTACK_CONTAINER.getEndpointOverride(LocalStackContainer.Service.KINESIS))
+                .build();
+        return client;
+    }
 
-        public static final String accessKey = "ak";
-        public static final String secretKey = "sk";
-        public static final String sessionToken = "st";
+    @SneakyThrows
+    private GetRecordsResponse getStreamRecords() {
+        final KinesisAsyncClient client = createClient();
+        final String shardId = client.listShards(
+                        ListShardsRequest.builder()
+                                .streamName(STREAM_NAME)
+                                .build()
+                ).get()
+                .shards()
+                .get(0)
+                .shardId();
 
-        public void init(String param) {
-            // no-op
-        }
-
-        @Override
-        public AWSCredentialsProvider getCredentialProvider() {
-            return new AWSCredentialsProvider() {
-                @Override
-                public AWSCredentials getCredentials() {
-                    return new BasicSessionCredentials(accessKey, secretKey, sessionToken) {
-
-                        @Override
-                        public String getAWSAccessKeyId() {
-                            return accessKey;
-                        }
-                        @Override
-                        public String getAWSSecretKey() {
-                            return secretKey;
-                        }
-                        @Override
-                        public String getSessionToken() {
-                            return sessionToken;
-                        }
-                    };
-                }
-                @Override
-                public void refresh() {
-                    // TODO Auto-generated method stub
-                }
-            };
-        }
-        @Override
-        public void close() throws IOException {
-            // TODO Auto-generated method stub
-        }
+        final String iterator = client.getShardIterator(GetShardIteratorRequest.builder()
+                        .streamName(STREAM_NAME)
+                        .shardId(shardId)
+                        .shardIteratorType(ShardIteratorType.TRIM_HORIZON)
+                        .build())
+                .get()
+                .shardIterator();
+        final GetRecordsResponse response = client.getRecords(
+                        GetRecordsRequest
+                                .builder()
+                                .shardIterator(iterator)
+                                .build())
+                .get();
+        return response;
     }
 
 }

@@ -111,6 +111,12 @@ public class PulsarFunctionsJavaTest extends PulsarFunctionsTest {
        testLoggingFunction(Runtime.JAVA);
    }
 
+
+   @Test(groups = {"java_function", "function"})
+   public void testInitFunction() throws Exception {
+	   testInitFunction(Runtime.JAVA);
+   }
+
    @Test(groups = {"java_function", "function"})
    public void testTumblingCountWindowTest() throws Exception {
        String[] EXPECTED_RESULTS = {
@@ -161,5 +167,25 @@ public class PulsarFunctionsJavaTest extends PulsarFunctionsTest {
     public void testMergeFunctionTest() throws Exception {
 	    testMergeFunction();
    }
+
+    @Test(groups = {"java_function", "function"})
+    public void testGenericObjectFunction() throws Exception {
+        testGenericObjectFunction(GENERIC_OBJECT_FUNCTION_JAVA_CLASS, false, false);
+    }
+
+    @Test(groups = {"java_function", "function"})
+    public void testGenericObjectRemoveFiledFunction() throws Exception {
+        testGenericObjectFunction(REMOVE_AVRO_FIELD_FUNCTION_JAVA_CLASS, true, false);
+    }
+
+    @Test(groups = {"java_function", "function"})
+    public void testGenericObjectFunctionKeyValue() throws Exception {
+        testGenericObjectFunction(GENERIC_OBJECT_FUNCTION_JAVA_CLASS, false, true);
+    }
+
+    @Test(groups = {"java_function", "function"})
+    public void testGenericObjectRemoveFiledFunctionKeyValue() throws Exception {
+        testGenericObjectFunction(REMOVE_AVRO_FIELD_FUNCTION_JAVA_CLASS, true, true);
+    }
 
 }

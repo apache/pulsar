@@ -35,6 +35,7 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
 import org.apache.bookkeeper.client.api.DigestType;
+import org.apache.bookkeeper.util.BookKeeperConstants;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
 import org.apache.pulsar.common.configuration.Category;
@@ -48,6 +49,7 @@ import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.sasl.SaslConstants;
+import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 
 /**
  * Pulsar service configuration object.
@@ -110,6 +112,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
                 + "metadataStoreUrl"
     )
     @Getter(AccessLevel.NONE)
+    @Deprecated
     private String zookeeperServers;
 
     @FieldContext(
@@ -124,7 +127,6 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private String metadataStoreUrl;
 
-    @Deprecated
     @FieldContext(
         category = CATEGORY_SERVER,
         required = false,
@@ -133,6 +135,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + " Deprecated in favor of using `configurationStoreServers`"
     )
     @Getter(AccessLevel.NONE)
+    @Deprecated
     private String globalZookeeperServers;
 
     @FieldContext(
@@ -293,6 +296,24 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(category = CATEGORY_SERVER, doc = "Max concurrent web requests")
     private int maxConcurrentHttpRequests = 1024;
 
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Capacity for thread pool queue in the HTTP server"
+                    + " Default is set to 8192."
+    )
+    private int httpServerThreadPoolQueueSize = 8192;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Capacity for accept queue in the HTTP server"
+                    + " Default is set to 8192."
+    )
+    private int httpServerAcceptQueueSize = 8192;
+
+    @FieldContext(category = CATEGORY_SERVER, doc = "Maximum number of inbound http connections. "
+            + "(0 to disable limiting)")
+    private int maxHttpServerConnections = 2048;
+
     @FieldContext(category = CATEGORY_SERVER, doc = "Whether to enable the delayed delivery for messages.")
     private boolean delayedDeliveryEnabled = true;
 
@@ -326,6 +347,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Name of the cluster to which this broker belongs to"
     )
     private String clusterName;
+
     @FieldContext(
         category = CATEGORY_SERVER,
         dynamic = true,
@@ -333,39 +355,73 @@ public class ServiceConfiguration implements PulsarConfiguration {
                 + "This configuration is not precise control, in a concurrent scenario, the threshold will be exceeded."
     )
     private int maxTenants = 0;
+
     @FieldContext(
         category = CATEGORY_SERVER,
         dynamic = true,
         doc = "Enable cluster's failure-domain which can distribute brokers into logical region"
     )
     private boolean failureDomainsEnabled = false;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Metadata store session timeout in milliseconds."
+    )
+    private long metadataStoreSessionTimeoutMillis = 30_000;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Metadata store operation timeout in seconds."
+    )
+    private int metadataStoreOperationTimeoutSeconds = 30;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Metadata store cache expiry time in seconds."
+    )
+    private int metadataStoreCacheExpirySeconds = 300;
+
+    @Deprecated
     @FieldContext(
         category = CATEGORY_SERVER,
-        doc = "ZooKeeper session timeout in milliseconds"
+        deprecated = true,
+        doc = "ZooKeeper session timeout in milliseconds. "
+                + "@deprecated - Use metadataStoreSessionTimeoutMillis instead."
     )
-    private long zooKeeperSessionTimeoutMillis = 30000;
+    private long zooKeeperSessionTimeoutMillis = -1;
+
+    @Deprecated
     @FieldContext(
             category = CATEGORY_SERVER,
-            doc = "ZooKeeper operation timeout in seconds"
+            deprecated = true,
+            doc = "ZooKeeper operation timeout in seconds. "
+                    + "@deprecated - Use metadataStoreOperationTimeoutSeconds instead."
         )
-    private int zooKeeperOperationTimeoutSeconds = 30;
+    private int zooKeeperOperationTimeoutSeconds = -1;
+
+    @Deprecated
     @FieldContext(
             category = CATEGORY_SERVER,
-            doc = "ZooKeeper cache expiry time in seconds"
+            deprecated = true,
+            doc = "ZooKeeper cache expiry time in seconds. "
+                    + "@deprecated - Use metadataStoreCacheExpirySeconds instead."
         )
-    private int zooKeeperCacheExpirySeconds = 300;
+    private int zooKeeperCacheExpirySeconds = -1;
+
     @FieldContext(
         category = CATEGORY_SERVER,
         dynamic = true,
         doc = "Time to wait for broker graceful shutdown. After this time elapses, the process will be killed"
     )
     private long brokerShutdownTimeoutMs = 60000;
+
     @FieldContext(
         category = CATEGORY_SERVER,
         dynamic = true,
         doc = "Flag to skip broker shutdown when broker handles Out of memory error"
     )
     private boolean skipBrokerShutdownOnOOM = false;
+
     @FieldContext(
             category = CATEGORY_SERVER,
             doc = "Amount of seconds to timeout when loading a topic. In situations with many geo-replicated clusters, "
@@ -561,6 +617,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private Set<String> subscriptionTypesEnabled =
             Sets.newHashSet("Exclusive", "Shared", "Failover", "Key_Shared");
 
+    @Deprecated
     @FieldContext(
         category = CATEGORY_POLICIES,
         dynamic = true,
@@ -664,6 +721,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + " of namespace policy. This is enabled by default."
     )
     private boolean isAllowAutoUpdateSchemaEnabled = true;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Whether to enable the automatic shrink of pendingAcks map, "
+                    + "the default is false, which means it is not enabled. "
+                    + "When there are a large number of share or key share consumers in the cluster, "
+                    + "it can be enabled to reduce the memory consumption caused by pendingAcks.")
+    private boolean autoShrinkForConsumerPendingAcksMap = false;
 
     @FieldContext(
         category = CATEGORY_SERVER,
@@ -866,6 +931,20 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "Default interval to publish usage reports if resourceUsagePublishToTopic is enabled."
     )
     private int resourceUsageTransportPublishIntervalInSecs = 60;
+
+    @FieldContext(
+            dynamic = false,
+            category = CATEGORY_POLICIES,
+            doc = "Enables evaluating subscription pattern on broker side."
+    )
+    private boolean enableBrokerSideSubscriptionPatternEvaluation = true;
+
+    @FieldContext(
+            dynamic = false,
+            category = CATEGORY_POLICIES,
+            doc = "Max length of subscription pattern"
+    )
+    private int subscriptionPatternMaxLength = 50;
 
     // <-- dispatcher read settings -->
     @FieldContext(
@@ -1138,7 +1217,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
         + " With \"shutdown\", the broker will be restarted.\n\n"
         + " With \"reconnect\", the broker will keep serving the topics, while attempting to recreate a new session."
     )
-    private MetadataSessionExpiredPolicy zookeeperSessionExpiredPolicy = MetadataSessionExpiredPolicy.shutdown;
+    private MetadataSessionExpiredPolicy zookeeperSessionExpiredPolicy = MetadataSessionExpiredPolicy.reconnect;
 
     @FieldContext(
         category = CATEGORY_SERVER,
@@ -1202,6 +1281,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
                 + "take effect."
     )
     private boolean enableNamespaceIsolationUpdateOnTime = false;
+
+    @FieldContext(category = CATEGORY_SERVER, doc = "Enable or disable strict bookie affinity.")
+    private boolean strictBookieAffinityEnabled = false;
 
     /***** --- TLS. --- ****/
     @FieldContext(
@@ -1608,6 +1690,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             category = CATEGORY_STORAGE_ML,
             doc = "Default  password to use when writing to BookKeeper. \n\nDefault is ``."
         )
+    @ToString.Exclude
     private String managedLedgerPassword = "";
 
     @FieldContext(
@@ -1630,16 +1713,19 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int managedLedgerMaxAckQuorum = 5;
     @FieldContext(
         category = CATEGORY_STORAGE_ML,
+        dynamic = true,
         doc = "Amount of memory to use for caching data payload in managed ledger. \n\nThis"
             + " memory is allocated from JVM direct memory and it's shared across all the topics"
             + " running in the same broker. By default, uses 1/5th of available direct memory")
     private int managedLedgerCacheSizeMB = Math.max(64,
             (int) (io.netty.util.internal.PlatformDependent.maxDirectMemory() / 5 / (1024 * 1024)));
+
     @FieldContext(category = CATEGORY_STORAGE_ML, doc = "Whether we should make a copy of the entry payloads when "
             + "inserting in cache")
     private boolean managedLedgerCacheCopyEntries = false;
     @FieldContext(
         category = CATEGORY_STORAGE_ML,
+        dynamic = true,
         doc = "Threshold to which bring down the cache level when eviction is triggered"
     )
     private double managedLedgerCacheEvictionWatermark = 0.9;
@@ -1647,6 +1733,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "Configure the cache eviction frequency for the managed ledger cache. Default is 100/s")
     private double managedLedgerCacheEvictionFrequency = 100.0;
     @FieldContext(category = CATEGORY_STORAGE_ML,
+            dynamic = true,
             doc = "All entries that have stayed in cache for more than the configured time, will be evicted")
     private long managedLedgerCacheEvictionTimeThresholdMillis = 1000;
     @FieldContext(category = CATEGORY_STORAGE_ML,
@@ -1684,11 +1771,6 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "The class of the managed ledger storage"
     )
     private String managedLedgerStorageClassName = "org.apache.pulsar.broker.ManagedLedgerClientFactory";
-    @FieldContext(
-        category = CATEGORY_STORAGE_ML,
-        doc = "Number of threads to be used for managed ledger tasks dispatching"
-    )
-    private int managedLedgerNumWorkerThreads = Runtime.getRuntime().availableProcessors();
     @FieldContext(
         category = CATEGORY_STORAGE_ML,
         doc = "Number of threads to be used for managed ledger scheduled tasks"
@@ -1750,12 +1832,20 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + " will only be tracked in memory and messages will be redelivered in case of"
             + " crashes.")
     private int managedLedgerMaxUnackedRangesToPersist = 10000;
+    @Deprecated
     @FieldContext(
         category = CATEGORY_STORAGE_ML,
+        deprecated = true,
         doc = "Max number of `acknowledgment holes` that can be stored in Zookeeper.\n\n"
             + "If number of unack message range is higher than this limit then broker will persist"
             + " unacked ranges into bookkeeper to avoid additional data overhead into zookeeper.")
-    private int managedLedgerMaxUnackedRangesToPersistInZooKeeper = 1000;
+    private int managedLedgerMaxUnackedRangesToPersistInZooKeeper = -1;
+    @FieldContext(
+            category = CATEGORY_STORAGE_ML,
+            doc = "Max number of `acknowledgment holes` that can be stored in MetadataStore.\n\n"
+                    + "If number of unack message range is higher than this limit then broker will persist"
+                    + " unacked ranges into bookkeeper to avoid additional data overhead into MetadataStore.")
+    private int managedLedgerMaxUnackedRangesToPersistInMetadataStore = 1000;
     @FieldContext(
             category = CATEGORY_STORAGE_OFFLOADING,
             doc = "Use Open Range-Set to cache unacked messages (it is memory efficient but it can take more cpu)"
@@ -1814,6 +1904,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "ManagedLedgerInfo compression type, option values (NONE, LZ4, ZLIB, ZSTD, SNAPPY). \n"
                     + "If value is invalid or NONE, then save the ManagedLedgerInfo bytes data directly.")
     private String managedLedgerInfoCompressionType = "NONE";
+
+    @FieldContext(category = CATEGORY_STORAGE_ML,
+            doc = "ManagedCursorInfo compression type, option values (NONE, LZ4, ZLIB, ZSTD, SNAPPY). \n"
+                    + "If value is NONE, then save the ManagedCursorInfo bytes data directly.")
+    private String managedCursorInfoCompressionType = "NONE";
 
     /*** --- Load balancer. --- ****/
     @FieldContext(
@@ -2041,7 +2136,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Supported algorithms name for namespace bundle split"
     )
     private List<String> supportedNamespaceBundleSplitAlgorithms = Lists.newArrayList("range_equally_divide",
-            "topic_count_equally_divide");
+            "topic_count_equally_divide", "specified_positions_divide");
     @FieldContext(
         dynamic = true,
         category = CATEGORY_LOAD_BALANCER,
@@ -2206,6 +2301,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Number of IO threads in Pulsar Client used in WebSocket proxy"
     )
     private int webSocketNumIoThreads = Runtime.getRuntime().availableProcessors();
+
+    @FieldContext(category = CATEGORY_WEBSOCKET,
+            doc = "Number of threads used by Websocket service")
+    private int webSocketNumServiceThreads = 20;
+
     @FieldContext(
         category = CATEGORY_WEBSOCKET,
         doc = "Number of connections per Broker in Pulsar Client used in WebSocket proxy"
@@ -2323,6 +2423,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Stats update initial delay in seconds"
     )
     private int statsUpdateInitialDelayInSecs = 60;
+    @FieldContext(
+        category = CATEGORY_METRICS,
+        doc = "If true, aggregate publisher stats of PartitionedTopicStats by producerName"
+    )
+    private boolean aggregatePublisherStatsByProducerName = false;
 
     /**** --- Ledger Offloading. --- ****/
     /****
@@ -2358,6 +2463,21 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "Maximum prefetch rounds for ledger reading for offloading"
     )
     private int managedLedgerOffloadPrefetchRounds = 1;
+
+    @FieldContext(
+        dynamic = true,
+        category = CATEGORY_STORAGE_ML,
+        doc = "Time to rollover ledger for inactive topic (duration without any publish on that topic). "
+                + "Disable rollover with value 0 (Default value 0)"
+        )
+    private int managedLedgerInactiveLedgerRolloverTimeSeconds = 0;
+
+    @FieldContext(
+            category = CATEGORY_STORAGE_ML,
+            doc = "Evicting cache data by the slowest markDeletedPosition or readPosition. "
+                    + "The default is to evict through readPosition."
+    )
+    private boolean cacheEvictionByMarkDeletedPosition = false;
 
     /**** --- Transaction config variables. --- ****/
     @FieldContext(
@@ -2406,6 +2526,18 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private int transactionBufferSnapshotMinTimeInMillis = 5000;
 
+    @FieldContext(
+            category = CATEGORY_TRANSACTION,
+            doc = "The max concurrent requests for transaction buffer client."
+    )
+    private int transactionBufferClientMaxConcurrentRequests = 1000;
+
+    @FieldContext(
+            category = CATEGORY_TRANSACTION,
+            doc = "The transaction buffer client's operation timeout in milliseconds."
+    )
+    private long transactionBufferClientOperationTimeoutInMills = 3000L;
+
     /**** --- KeyStore TLS config variables. --- ****/
     @FieldContext(
             category = CATEGORY_KEYSTORE_TLS,
@@ -2415,7 +2547,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_KEYSTORE_TLS,
-            doc = "TLS Provider for KeyStore type"
+            doc = "TLS Provider for Specify the SSL provider for the broker service: \n"
+                    + "When using TLS authentication with CACert, the valid value is either OPENSSL or JDK.\n"
+                    + "When using TLS authentication with KeyStore, available values can be SunJSSE, Conscrypt and etc."
     )
     private String tlsProvider = null;
 
@@ -2435,6 +2569,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             category = CATEGORY_KEYSTORE_TLS,
             doc = "TLS KeyStore password for broker"
     )
+    @ToString.Exclude
     private String tlsKeyStorePassword = null;
 
     @FieldContext(
@@ -2453,6 +2588,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             category = CATEGORY_KEYSTORE_TLS,
             doc = "TLS TrustStore password for broker, null means empty password."
     )
+    @ToString.Exclude
     private String tlsTrustStorePassword = null;
 
     /**** --- KeyStore TLS config variables used for internal client/admin to auth with other broker. --- ****/
@@ -2484,6 +2620,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "TLS TrustStore password for internal client, "
                   + " used by the internal client to authenticate with Pulsar brokers"
     )
+    @ToString.Exclude
     private String brokerClientTlsTrustStorePassword = null;
     @FieldContext(
             category = CATEGORY_KEYSTORE_TLS,
@@ -2580,7 +2717,15 @@ public class ServiceConfiguration implements PulsarConfiguration {
         } else {
             // Fallback to same metadata service used by broker, adding the "metadata-store" to specify the BK
             // metadata adapter
-            return "metadata-store:" + getMetadataStoreUrl();
+            String suffix;
+            if (StringUtils.isNotBlank(metadataStoreUrl)) {
+                suffix = metadataStoreUrl;
+            } else {
+                // Fallback to old setting
+                // Note: chroot is not settable by using 'zookeeperServers' config.
+                suffix = ZKMetadataStore.ZK_SCHEME_IDENTIFIER + zookeeperServers;
+            }
+            return "metadata-store:" + suffix + BookKeeperConstants.DEFAULT_ZK_LEDGERS_ROOT_PATH;
         }
     }
 
@@ -2615,5 +2760,24 @@ public class ServiceConfiguration implements PulsarConfiguration {
             return SchemaCompatibilityStrategy.FULL;
         }
         return schemaCompatibilityStrategy;
+    }
+
+    public int getManagedLedgerMaxUnackedRangesToPersistInMetadataStore() {
+        return managedLedgerMaxUnackedRangesToPersistInZooKeeper > 0
+                ? managedLedgerMaxUnackedRangesToPersistInZooKeeper :
+                managedLedgerMaxUnackedRangesToPersistInMetadataStore;
+    }
+
+    public long getMetadataStoreSessionTimeoutMillis() {
+        return zooKeeperSessionTimeoutMillis > 0 ? zooKeeperSessionTimeoutMillis : metadataStoreSessionTimeoutMillis;
+    }
+
+    public int getMetadataStoreOperationTimeoutSeconds() {
+        return zooKeeperOperationTimeoutSeconds > 0 ? zooKeeperOperationTimeoutSeconds
+                : metadataStoreOperationTimeoutSeconds;
+    }
+
+    public int getMetadataStoreCacheExpirySeconds() {
+        return zooKeeperCacheExpirySeconds > 0 ? zooKeeperCacheExpirySeconds : metadataStoreCacheExpirySeconds;
     }
 }

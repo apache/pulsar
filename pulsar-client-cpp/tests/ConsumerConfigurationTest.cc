@@ -59,8 +59,8 @@ TEST(ConsumerConfigurationTest, testDefaultConfig) {
     ASSERT_EQ(conf.isReplicateSubscriptionStateEnabled(), false);
     ASSERT_EQ(conf.getProperties().empty(), true);
     ASSERT_EQ(conf.getPriorityLevel(), 0);
-    ASSERT_EQ(conf.getMaxPendingChunkedMessage(), 100);
-    ASSERT_EQ(conf.isAutoOldestChunkedMessageOnQueueFull(), false);
+    ASSERT_EQ(conf.getMaxPendingChunkedMessage(), 10);
+    ASSERT_EQ(conf.isAutoAckOldestChunkedMessageOnQueueFull(), false);
 }
 
 TEST(ConsumerConfigurationTest, testCustomConfig) {
@@ -139,14 +139,18 @@ TEST(ConsumerConfigurationTest, testCustomConfig) {
     ASSERT_EQ(conf.getProperties()["k1"], "v1");
     ASSERT_EQ(conf.hasProperty("k1"), true);
 
+    std::map<std::string, std::string> subscriptionProperties = {{"k1", "v1"}};
+    conf.setSubscriptionProperties(subscriptionProperties);
+    ASSERT_EQ(conf.getSubscriptionProperties()["k1"], "v1");
+
     conf.setPriorityLevel(1);
     ASSERT_EQ(conf.getPriorityLevel(), 1);
 
     conf.setMaxPendingChunkedMessage(500);
     ASSERT_EQ(conf.getMaxPendingChunkedMessage(), 500);
 
-    conf.setAutoOldestChunkedMessageOnQueueFull(true);
-    ASSERT_TRUE(conf.isAutoOldestChunkedMessageOnQueueFull());
+    conf.setAutoAckOldestChunkedMessageOnQueueFull(true);
+    ASSERT_TRUE(conf.isAutoAckOldestChunkedMessageOnQueueFull());
 }
 
 TEST(ConsumerConfigurationTest, testReadCompactPersistentExclusive) {

@@ -32,6 +32,7 @@ import org.apache.kafka.connect.data.Field;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.errors.DataException;
+import org.apache.pulsar.client.api.schema.GenericRecord;
 
 public class KafkaConnectData {
     public static Object getKafkaConnectData(Object nativeObject, Schema kafkaSchema) {
@@ -49,6 +50,10 @@ public class KafkaConnectData {
         } else if (nativeObject instanceof GenericData.Record) {
             GenericData.Record avroRecord = (GenericData.Record) nativeObject;
             return avroAsConnectData(avroRecord, kafkaSchema);
+        } else if (nativeObject instanceof GenericRecord) {
+            // Pulsar's GenericRecord
+            GenericRecord pulsarGenericRecord = (GenericRecord) nativeObject;
+            return pulsarGenericRecordAsConnectData(pulsarGenericRecord, kafkaSchema);
         }
 
         return nativeObject;
@@ -65,6 +70,21 @@ public class KafkaConnectData {
         Struct struct = new Struct(kafkaSchema);
         for (Field field : kafkaSchema.fields()) {
             struct.put(field, getKafkaConnectData(avroRecord.get(field.name()), field.schema()));
+        }
+        return struct;
+    }
+
+    static Object pulsarGenericRecordAsConnectData(GenericRecord genericRecord, Schema kafkaSchema) {
+        if (kafkaSchema == null) {
+            if (genericRecord == null) {
+                return null;
+            }
+            throw new DataException("Don't know how to convert " + genericRecord + " to Connect data (schema is null).");
+        }
+
+        Struct struct = new Struct(kafkaSchema);
+        for (Field field : kafkaSchema.fields()) {
+            struct.put(field, getKafkaConnectData(genericRecord.getField(field.name()), field.schema()));
         }
         return struct;
     }

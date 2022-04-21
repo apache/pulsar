@@ -80,8 +80,19 @@ public class PulsarLedgerIdGenerator implements LedgerIdGenerator {
                         // Proceed
                         return internalGenerateShortLedgerId();
                     } else {
-                        return store.put(shortIdGenPath, new byte[0], Optional.empty())
-                                .thenCompose(__ -> internalGenerateShortLedgerId());
+                        CompletableFuture<Void> future = new CompletableFuture<>();
+                        store.put(shortIdGenPath, new byte[0], Optional.of(-1L))
+                                .whenComplete((stat, throwable) -> {
+                                    Throwable cause = FutureUtil.unwrapCompletionException(throwable);
+                                    if (cause == null
+                                            || cause instanceof MetadataStoreException.BadVersionException) {
+                                        // creat shortIdGenPath success or it already created by others.
+                                        future.complete(null);
+                                    } else {
+                                        future.completeExceptionally(throwable);
+                                    }
+                                });
+                        return future.thenCompose(__ -> internalGenerateShortLedgerId());
                     }
                 });
     }
@@ -187,8 +198,8 @@ public class PulsarLedgerIdGenerator implements LedgerIdGenerator {
         CompletableFuture<Long> future = new CompletableFuture<>();
         store.put(ledgerPrefix + formatHalfId(hob), new byte[0], Optional.empty())
                 .whenComplete((__, ex) -> {
-                    if (ex != null && !(ex.getCause()
-                            .getCause() instanceof MetadataStoreException.BadVersionException)) {
+                    ex = FutureUtil.unwrapCompletionException(ex);
+                    if (ex != null && !(ex instanceof MetadataStoreException.BadVersionException)) {
                         // BadVersion is OK here because we can have multiple threads (or nodes) trying to create the
                         // new HOB path
                         future.completeExceptionally(ex);

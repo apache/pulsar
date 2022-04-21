@@ -74,6 +74,7 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
     @JsonIgnore
     private BatcherBuilder batcherBuilder = BatcherBuilder.DEFAULT;
     private boolean chunkingEnabled = false;
+    private int chunkMaxMessageSize = -1;
 
     @JsonIgnore
     private CryptoKeyReader cryptoKeyReader;
@@ -100,6 +101,8 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
     private boolean lazyStartPartitionedProducers = false;
 
     private SortedMap<String, String> properties = new TreeMap<>();
+
+    private String initialSubscriptionName = null;
 
     /**
      *

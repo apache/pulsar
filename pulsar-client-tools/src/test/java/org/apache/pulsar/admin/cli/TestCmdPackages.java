@@ -35,7 +35,6 @@ import org.apache.pulsar.client.admin.Packages;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.packages.management.core.common.PackageMetadata;
-import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -43,7 +42,6 @@ import org.testng.annotations.Test;
 /**
  * Unit test for packages commands.
  */
-@PrepareForTest(CmdPackages.class)
 public class TestCmdPackages {
 
     private PulsarAdmin pulsarAdmin;

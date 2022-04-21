@@ -69,7 +69,7 @@ public class FunctionMetaDataManagerTest {
         when(messageBuilder.key(anyString())).thenReturn(messageBuilder);
         doAnswer(invocation -> {
             Object arg0 = invocation.getArgument(0);
-            FunctionMetaDataManagerTest.producerByteArray = (byte[])arg0;
+            FunctionMetaDataManagerTest.producerByteArray = (byte[]) arg0;
             return messageBuilder;
         }).when(messageBuilder).value(any());
         when(messageBuilder.property(anyString(), anyString())).thenReturn(messageBuilder);
@@ -303,7 +303,7 @@ public class FunctionMetaDataManagerTest {
 
         Request.ServiceRequest serviceRequest
                 = Request.ServiceRequest.newBuilder().setServiceRequestType(
-                        Request.ServiceRequest.ServiceRequestType.UPDATE).build();
+                Request.ServiceRequest.ServiceRequestType.UPDATE).build();
         Message msg = mock(Message.class);
         doReturn(serviceRequest.toByteArray()).when(msg).getData();
         functionMetaDataManager.processMetaDataTopicMessage(msg);
@@ -341,7 +341,7 @@ public class FunctionMetaDataManagerTest {
         Function.FunctionMetaData m1 = Function.FunctionMetaData.newBuilder()
                 .setVersion(1)
                 .setFunctionDetails(Function.FunctionDetails.newBuilder().setName("func-1")
-                .setNamespace("namespace-1").setTenant("tenant-1")).build();
+                        .setNamespace("namespace-1").setTenant("tenant-1")).build();
 
         Assert.assertTrue(functionMetaDataManager.processUpdate(m1));
         verify(functionMetaDataManager, times(1))

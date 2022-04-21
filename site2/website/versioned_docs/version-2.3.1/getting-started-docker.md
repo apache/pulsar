@@ -1,8 +1,8 @@
 ---
-id: version-2.3.1-standalone-docker
+id: version-2.3.1-getting-started-docker
 title: Start a standalone cluster with Docker
 sidebar_label: Pulsar in Docker
-original_id: standalone-docker
+original_id: getting-started-docker
 ---
 
 For local development and testing, you can run Pulsar in standalone

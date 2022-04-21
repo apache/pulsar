@@ -198,6 +198,12 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
     }
 
     @Override
+    public ProducerBuilder<T> chunkMaxMessageSize(int chunkMaxMessageSize) {
+        conf.setChunkMaxMessageSize(chunkMaxMessageSize);
+        return this;
+    }
+
+    @Override
     public ProducerBuilder<T> cryptoKeyReader(@NonNull CryptoKeyReader cryptoKeyReader) {
         conf.setCryptoKeyReader(cryptoKeyReader);
         return this;
@@ -275,7 +281,6 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
 
     @Override
     public ProducerBuilder<T> properties(@NonNull Map<String, String> properties) {
-        checkArgument(!properties.isEmpty(), "properties cannot be empty");
         properties.entrySet().forEach(entry ->
             checkArgument(StringUtils.isNotBlank(entry.getKey()) && StringUtils.isNotBlank(entry.getValue()),
                     "properties' key/value cannot be blank"));
@@ -323,6 +328,21 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
     @Override
     public ProducerBuilder<T> enableLazyStartPartitionedProducers(boolean lazyStartPartitionedProducers) {
         conf.setLazyStartPartitionedProducers(lazyStartPartitionedProducers);
+        return this;
+    }
+
+    /**
+     * Use this config to automatically create an initial subscription when creating the topic.
+     * If this field is not set, the initial subscription will not be created.
+     * If this field is set but the broker's `allowAutoSubscriptionCreation` is disabled, the producer will fail to
+     * be created.
+     * This method is limited to internal use. This method will only be used when the consumer creates the dlq producer.
+     *
+     * @param initialSubscriptionName Name of the initial subscription of the topic.
+     * @return the producer builder implementation instance
+     */
+    public ProducerBuilderImpl<T> initialSubscriptionName(String initialSubscriptionName) {
+        conf.setInitialSubscriptionName(initialSubscriptionName);
         return this;
     }
 

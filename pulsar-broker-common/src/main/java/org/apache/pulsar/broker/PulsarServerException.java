@@ -44,4 +44,10 @@ public class PulsarServerException extends IOException {
             super(t);
         }
     }
+    public static class InvalidTopicNameException extends PulsarServerException {
+
+        public InvalidTopicNameException(String message) {
+            super(message);
+        }
+    }
 }

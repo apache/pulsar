@@ -58,5 +58,9 @@ public class AggregatedSubscriptionStats {
 
     long totalMsgExpired;
 
+    double msgDropRate;
+
+    long consumersCount;
+
     public Map<Consumer, AggregatedConsumerStats> consumerStat = new HashMap<>();
 }

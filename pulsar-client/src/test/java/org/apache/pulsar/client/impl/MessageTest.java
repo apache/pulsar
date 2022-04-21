@@ -22,8 +22,8 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
-
 import java.nio.ByteBuffer;
+import java.util.Optional;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
@@ -80,5 +80,16 @@ public class MessageTest {
 
         assertFalse(topicMessage.isReplicated());
         assertNull(topicMessage.getReplicatedFrom());
+    }
+
+    @Test
+    public void testMessageImplGetReaderSchema() {
+        MessageMetadata builder = new MessageMetadata();
+        builder.hasSchemaVersion();
+        ByteBuffer payload = ByteBuffer.wrap(new byte[0]);
+        Message<byte[]> msg = MessageImpl.create(builder, payload, Schema.BYTES, null);
+
+        Optional<Schema<?>> readerSchema = msg.getReaderSchema();
+        assertTrue(readerSchema.isPresent());
     }
 }

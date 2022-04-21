@@ -24,6 +24,7 @@ import java.util.Map;
  * Metadata of a partitioned topic.
  */
 public class PartitionedTopicMetadata {
+    public static final String MEDIA_TYPE = "application/vnd.partitioned-topic-metadata+json";
 
     /* Number of partitions for the topic */
     public int partitions;

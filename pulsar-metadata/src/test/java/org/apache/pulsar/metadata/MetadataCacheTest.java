@@ -233,7 +233,7 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
         v.put("b", "2");
         objCache.create(key1, v).join();
 
-        assertEquals(objCache.getIfCached(key1), Optional.of(v));
+        assertEqualsAndRetry(() -> objCache.getIfCached(key1), Optional.of(v), Optional.empty());
         assertEquals(objCache.get(key1).join(), Optional.of(v));
 
         objCache.delete(key1).join();
@@ -264,12 +264,12 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
             assertEquals(e.getCause().getClass(), AlreadyExistsException.class);
         }
 
-        assertEquals(objCache.getIfCached(key1), Optional.of(value1));
+        assertEqualsAndRetry(() -> objCache.getIfCached(key1), Optional.of(value1), Optional.empty());
         assertEquals(objCache.get(key1).join(), Optional.of(value1));
 
         assertEquals(objCache.readModifyUpdateOrCreate(key1, __ -> value2).join(), value2);
         assertEquals(objCache.get(key1).join(), Optional.of(value2));
-        assertEquals(objCache.getIfCached(key1), Optional.of(value2));
+        assertEqualsAndRetry(() -> objCache.getIfCached(key1), Optional.of(value2), Optional.empty());
 
         objCache.delete(key1).join();
 
@@ -320,7 +320,7 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
         store.put(key1, ObjectMapperFactory.getThreadLocal().writeValueAsBytes(value1), Optional.of(-1L)).join();
 
         assertEquals(objCache.get(key1).join(), Optional.of(value1));
-        assertEquals(objCache.getIfCached(key1), Optional.of(value1));
+        assertEqualsAndRetry(() -> objCache.getIfCached(key1), Optional.of(value1), Optional.empty());
     }
 
     @Test(dataProvider = "impl")

@@ -22,7 +22,6 @@ import static org.testng.Assert.assertEquals;
 import java.util.Optional;
 import org.apache.commons.lang3.SystemUtils;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
-import org.apache.pulsar.broker.loadbalance.impl.LinuxBrokerHostUsageImpl;
 import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -40,7 +39,7 @@ public class LoadReportNetworkLimitTest extends MockedPulsarServiceBaseTest {
         super.internalSetup();
 
         if (SystemUtils.IS_OS_LINUX) {
-            nicCount = new LinuxBrokerHostUsageImpl(pulsar).getNicCount();
+            nicCount = LinuxInfoUtils.getPhysicalNICs().size();
         }
     }
 
