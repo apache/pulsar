@@ -66,6 +66,7 @@ import org.apache.pulsar.client.impl.ClientBuilderImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace.Mode;
+import org.apache.pulsar.common.lookup.GetTopicsResult;
 import org.apache.pulsar.common.lookup.data.LookupData;
 import org.apache.pulsar.common.naming.BundleSplitOption;
 import org.apache.pulsar.common.naming.NamespaceBundle;
@@ -286,7 +287,6 @@ public class NamespaceService implements AutoCloseable {
     /**
      * Register all the bootstrap name spaces including the heartbeat namespace.
      *
-     * @return
      * @throws PulsarServerException
      */
     public void registerBootstrapNamespaces() throws PulsarServerException {
@@ -1029,7 +1029,7 @@ public class NamespaceService implements AutoCloseable {
 
     public CompletableFuture<Boolean> checkTopicOwnership(TopicName topicName) {
         return getBundleAsync(topicName)
-                .thenApply(ownershipCache::checkOwnership);
+                .thenCompose(ownershipCache::checkOwnershipAsync);
     }
 
     public void removeOwnedServiceUnit(NamespaceBundle nsBundle) throws Exception {
@@ -1242,7 +1242,8 @@ public class NamespaceService implements AutoCloseable {
     private CompletableFuture<List<String>> getNonPersistentTopicsFromPeerCluster(ClusterDataImpl peerClusterData,
                                                                                   NamespaceName namespace) {
         PulsarClientImpl client = getNamespaceClient(peerClusterData);
-        return client.getLookup().getTopicsUnderNamespace(namespace, Mode.NON_PERSISTENT);
+        return client.getLookup().getTopicsUnderNamespace(namespace, Mode.NON_PERSISTENT, null, null)
+                .thenApply(GetTopicsResult::getTopics);
     }
 
     public PulsarClientImpl getNamespaceClient(ClusterDataImpl cluster) {

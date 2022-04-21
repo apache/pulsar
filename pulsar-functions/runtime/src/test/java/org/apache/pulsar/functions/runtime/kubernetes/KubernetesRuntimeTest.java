@@ -24,8 +24,6 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.protobuf.util.JsonFormat;
-import io.kubernetes.client.openapi.apis.AppsV1Api;
-import io.kubernetes.client.openapi.apis.CoreV1Api;
 import io.kubernetes.client.custom.Quantity;
 import io.kubernetes.client.openapi.models.V1Container;
 import io.kubernetes.client.openapi.models.V1PodSpec;
@@ -112,11 +110,6 @@ public class KubernetesRuntimeTest {
     class TestSecretProviderConfigurator implements SecretsProviderConfigurator {
 
         @Override
-        public void init(Map<String, String> config) {
-
-        }
-
-        @Override
         public String getSecretsProviderClassName(FunctionDetails functionDetails) {
             if (!StringUtils.isEmpty(functionDetails.getSecretsMap())) {
                 if (functionDetails.getRuntime() == FunctionDetails.Runtime.JAVA) {
@@ -151,10 +144,6 @@ public class KubernetesRuntimeTest {
             return null;
         }
 
-        @Override
-        public void doAdmissionChecks(AppsV1Api appsV1Api, CoreV1Api coreV1Api, String jobNamespace, String jobName, FunctionDetails functionDetails) {
-
-        }
     }
 
     private KubernetesRuntimeFactory factory;

@@ -38,10 +38,10 @@ function retry {
           fi
         fi
         ((n++))
-        echo "Command failed. Attempt $n/$max:"
+        echo "::warning::Command failed. Attempt $n/$max:"
         sleep $delay;
       else
-        fail "The command has failed after $n attempts."
+        fail "::error::The command has failed after $n attempts."
       fi
     }
   done

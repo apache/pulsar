@@ -22,6 +22,7 @@ import static org.testng.Assert.assertEquals;
 
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Response.Status;
+import org.apache.pulsar.common.policies.data.ErrorData;
 import org.testng.annotations.Test;
 
 /**
@@ -54,7 +55,8 @@ public class RestExceptionTest {
         RestException testException = new RestException(otherException);
 
         assertEquals(Status.INTERNAL_SERVER_ERROR.getStatusCode(), testException.getResponse().getStatus());
-        assertEquals(RestException.getExceptionData(otherException), testException.getResponse().getEntity());
+        ErrorData errorData = (ErrorData)testException.getResponse().getEntity();
+        assertEquals(RestException.getExceptionData(otherException), errorData.reason);
     }
 
 }

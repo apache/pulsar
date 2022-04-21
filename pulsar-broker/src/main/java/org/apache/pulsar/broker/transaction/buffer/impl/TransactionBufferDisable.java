@@ -41,7 +41,7 @@ public class TransactionBufferDisable implements TransactionBuffer {
 
     @Override
     public CompletableFuture<TransactionMeta> getTransactionMeta(TxnID txnID) {
-        return null;
+        return CompletableFuture.completedFuture(null);
     }
 
     @Override
@@ -65,7 +65,7 @@ public class TransactionBufferDisable implements TransactionBuffer {
 
     @Override
     public CompletableFuture<Void> purgeTxns(List<Long> dataLedgers) {
-        return null;
+        return CompletableFuture.completedFuture(null);
     }
 
     @Override

@@ -305,6 +305,11 @@ brokerServiceCompactionThresholdInBytes|If the estimated backlog size is greater
 |managedLedgerCursorMaxEntriesPerLedger|  Max number of entries to append to a cursor ledger  |50000|
 |managedLedgerCursorRolloverTimeInSeconds|  Max time before triggering a rollover on a cursor ledger  |14400|
 |managedLedgerMaxUnackedRangesToPersist|  Max number of “acknowledgment holes” that are going to be persistently stored. When acknowledging out of order, a consumer will leave holes that are supposed to be quickly filled by acking all the messages. The information of which messages are acknowledged is persisted by compressing in “ranges” of messages that were acknowledged. After the max number of ranges is reached, the information will only be tracked in memory and messages will be redelivered in case of crashes.  |1000|
+| managedLedgerMaxUnackedRangesToPersistInMetadataStore | Maximum number of "acknowledgment holes" that can be stored in metadata store. If the number of unacknowledged message range is higher than this limit, the broker persists unacknowledged ranges into BookKeeper to avoid additional data overhead into metadata store. | 1000 |
+| managedLedgerMetadataOperationsTimeoutSeconds | Operation timeout while updating managed-ledger metadata. | 60 |
+| managedLedgerReadEntryTimeoutSeconds | Read entries timeout when the broker tries to read messages from BookKeeper. | 0 |
+| managedLedgerAddEntryTimeoutSeconds | Add entry timeout when the broker tries to publish messages to BookKeeper. | 0 |
+| managedLedgerNewEntriesCheckDelayInMillis | New entries check delay for the cursor under the managed ledger. If no new messages in the topic, the cursor tries to check again after the delay time. For consumption latency sensitive scenarios, you can set the value to a smaller value or 0. A smaller value may degrade consumption throughput.|10|
 |autoSkipNonRecoverableData|  Skip reading non-recoverable/unreadable data-ledger under managed-ledger’s list.It helps when data-ledgers gets corrupted at bookkeeper and managed-cursor is stuck at that ledger. |false|
 |loadBalancerEnabled| Enable load balancer  |true|
 |loadBalancerPlacementStrategy| Strategy to assign a new bundle weightedRandomSelection ||
@@ -378,6 +383,7 @@ brokerServiceCompactionThresholdInBytes|If the estimated backlog size is greater
 | additionalServletDirectory | Location of broker additional servlet NAR directory | ./brokerAdditionalServlet |
 | brokerEntryMetadataInterceptors | Set broker entry metadata interceptors.<br /><br />Multiple interceptors should be separated by commas. <br /><br />Available values:<li>org.apache.pulsar.common.intercept.AppendBrokerTimestampMetadataInterceptor</li><li>org.apache.pulsar.common.intercept.AppendIndexMetadataInterceptor</li> <br /><br />Example<br />brokerEntryMetadataInterceptors=org.apache.pulsar.common.intercept.AppendBrokerTimestampMetadataInterceptor, org.apache.pulsar.common.intercept.AppendIndexMetadataInterceptor|N/A |
 | enableExposingBrokerEntryMetadataToClient|Whether to expose broker entry metadata to client or not.<br /><br />Available values:<li>true</li><li>false</li><br />Example<br />enableExposingBrokerEntryMetadataToClient=true  | false |
+| strictBookieAffinityEnabled | Enable or disable the strict bookie isolation strategy. If enabled, <br /> - `bookie-ensemble` first tries to choose bookies that belong to a namespace's affinity group. If the number of bookies is not enough, then the rest bookies are chosen. <br /> - If namespace has no affinity group, `bookie-ensemble` only chooses bookies that belong to no region. If the number of bookies is not enough, `BKNotEnoughBookiesException` is thrown.| false |
 
 
 #### Deprecated parameters of Broker
@@ -394,7 +400,7 @@ The following parameters have been deprecated in the `conf/broker.conf` file.
 |configurationStoreServers| Configuration store connection string (as a comma-separated list). Use `configurationMetadataStoreUrl` instead. |N/A|
 |zooKeeperSessionTimeoutMillis| Zookeeper session timeout in milliseconds. Use `metadataStoreSessionTimeoutMillis` instead. |30000|
 |zooKeeperCacheExpirySeconds|ZooKeeper cache expiry time in seconds. Use `metadataStoreCacheExpirySeconds` instead.|300|
-
+| managedLedgerMaxUnackedRangesToPersistInZooKeeper | Maximum number of "acknowledgment holes" that can be stored in ZooKeeper. Use `managedLedgerMaxUnackedRangesToPersistInMetadataStore` instead. | 1000 |
 
 ## Client
 
@@ -596,7 +602,7 @@ You can set the log level and configuration in the  [log4j2.yaml](https://github
 |tokenAudienceClaim| The token audience "claim" name, e.g. "aud". It is used to get the audience from token. If it is not set, the audience is not verified. ||
 | tokenAudience | The token audience stands for this broker. The field `tokenAudienceClaim` of a valid token need contains this parameter.| |
 |saslJaasClientAllowedIds|This is a regexp, which limits the range of possible ids which can connect to the Broker using SASL. By default, it is set to `SaslConstants.JAAS_CLIENT_ALLOWED_IDS_DEFAULT`, which is ".*pulsar.*", so only clients whose id contains 'pulsar' are allowed to connect.|N/A|
-|saslJaasBrokerSectionName|Service Principal, for login context name. By default, it is set to `SaslConstants.JAAS_DEFAULT_BROKER_SECTION_NAME`, which is "Broker".|N/A|
+|saslJaasServerSectionName|Service Principal, for login context name. By default, it is set to `SaslConstants.JAAS_DEFAULT_BROKER_SECTION_NAME`, which is "Broker".|N/A|
 |httpMaxRequestSize|If the value is larger than 0, it rejects all HTTP requests with bodies larged than the configured limit.|-1|
 |exposePreciseBacklogInPrometheus| Enable expose the precise backlog stats, set false to use published counter and consumed counter to calculate, this would be more efficient but may be inaccurate. |false|
 |bookkeeperMetadataServiceUri|Metadata service uri is what BookKeeper used for loading corresponding metadata driver and resolving its metadata service location. This value can be fetched using `bookkeeper shell whatisinstanceid` command in BookKeeper cluster. For example: `zk+hierarchical://localhost:2181/ledgers`. The metadata service uri list can also be semicolon separated values like: `zk+hierarchical://zk1:2181;zk2:2181;zk3:2181/ledgers`.|N/A|
@@ -654,15 +660,14 @@ You can set the log level and configuration in the  [log4j2.yaml](https://github
 |managedLedgerCursorRolloverTimeInSeconds|    |14400|
 | managedLedgerMaxSizePerLedgerMbytes | Maximum ledger size before triggering a rollover for a topic. | 2048 |
 | managedLedgerMaxUnackedRangesToPersist | Maximum number of "acknowledgment holes" that are going to be persistently stored. When acknowledging out of order, a consumer leaves holes that are supposed to be quickly filled by acknowledging all the messages. The information of which messages are acknowledged is persisted by compressing in "ranges" of messages that were acknowledged. After the max number of ranges is reached, the information is only tracked in memory and messages are redelivered in case of crashes. | 10000 |
-| managedLedgerMaxUnackedRangesToPersistInZooKeeper | Maximum number of "acknowledgment holes" that can be stored in Zookeeper. If the number of unacknowledged message range is higher than this limit, the broker persists unacknowledged ranges into bookkeeper to avoid additional data overhead into Zookeeper. | 1000 |
+| managedLedgerMaxUnackedRangesToPersistInMetadataStore | Maximum number of "acknowledgment holes" that can be stored in metadata store. If the number of unacknowledged message range is higher than this limit, the broker persists unacknowledged ranges into BookKeeper to avoid additional data overhead into metadata store. | 1000 |
 |autoSkipNonRecoverableData|    |false|
 | managedLedgerMetadataOperationsTimeoutSeconds | Operation timeout while updating managed-ledger metadata. | 60 |
 | managedLedgerReadEntryTimeoutSeconds | Read entries timeout when the broker tries to read messages from BookKeeper. | 0 |
-| managedLedgerAddEntryTimeoutSeconds | Add entry timeout when the broker tries to publish message to BookKeeper. | 0 |
-| managedLedgerNewEntriesCheckDelayInMillis | New entries check delay for the cursor under the managed ledger. If no new messages in the topic, the cursor tries to check again after the delay time. For consumption latency sensitive scenario, you can set the value to a smaller value or 0. Of course, a smaller value may degrade consumption throughput.|10 ms|
+| managedLedgerAddEntryTimeoutSeconds | Add entry timeout when the broker tries to publish messages to BookKeeper. | 0 |
+| managedLedgerNewEntriesCheckDelayInMillis | New entries check delay for the cursor under the managed ledger. If no new messages in the topic, the cursor tries to check again after the delay time. For consumption latency sensitive scenarios, you can set the value to a smaller value or 0. Of course, a smaller value may degrade consumption throughput.|10|
 | managedLedgerPrometheusStatsLatencyRolloverSeconds | Managed ledger prometheus stats latency rollover seconds.  | 60 |
 | managedLedgerTraceTaskExecution | Whether to trace managed ledger task execution time. | true |
-|managedLedgerNewEntriesCheckDelayInMillis|New entries check delay for the cursor under the managed ledger. If no new messages in the topic, the cursor will try to check again after the delay time. For consumption latency sensitive scenario, it can be set to a smaller value or 0. A smaller value degrades consumption throughput. By default, it is 10ms.|10|
 |loadBalancerEnabled|   |false|
 |loadBalancerPlacementStrategy|   |weightedRandomSelection|
 |loadBalancerReportUpdateThresholdPercentage|   |10|
@@ -720,6 +725,7 @@ The following parameters have been deprecated in the `conf/standalone.conf` file
 |zooKeeperOperationTimeoutSeconds|ZooKeeper operation timeout in seconds. Use `metadataStoreOperationTimeoutSeconds` instead. |30|
 |zooKeeperCacheExpirySeconds|ZooKeeper cache expiry time in seconds. Use `metadataStoreCacheExpirySeconds` instead. |300|
 |zooKeeperSessionTimeoutMillis| The ZooKeeper session timeout, in milliseconds. Use `metadataStoreSessionTimeoutMillis` instead. |30000|
+| managedLedgerMaxUnackedRangesToPersistInZooKeeper | Maximum number of "acknowledgment holes" that can be stored in ZooKeeper. Use `managedLedgerMaxUnackedRangesToPersistInMetadataStore` instead. | 1000 |
 
 ## WebSocket
 

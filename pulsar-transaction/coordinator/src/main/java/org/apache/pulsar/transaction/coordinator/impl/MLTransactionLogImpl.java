@@ -271,11 +271,13 @@ public class MLTransactionLogImpl implements TransactionLog {
         public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
             if (managedLedgerConfig.isAutoSkipNonRecoverableData()
                     && exception instanceof ManagedLedgerException.NonRecoverableLedgerException
-                    || exception instanceof ManagedLedgerException.ManagedLedgerFencedException) {
+                    || exception instanceof ManagedLedgerException.ManagedLedgerFencedException
+                    || exception instanceof ManagedLedgerException.CursorAlreadyClosedException) {
                 isReadable = false;
+            } else {
+                outstandingReadsRequests.decrementAndGet();
             }
             log.error("Transaction log init fail error!", exception);
-            outstandingReadsRequests.decrementAndGet();
         }
 
     }

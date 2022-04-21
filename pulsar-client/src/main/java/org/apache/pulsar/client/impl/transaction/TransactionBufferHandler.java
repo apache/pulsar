@@ -72,4 +72,8 @@ public interface TransactionBufferHandler {
      * Release resources.
      */
     void close();
+
+    int getAvailableRequestCredits();
+
+    int getPendingRequestsCount();
 }
