@@ -25,7 +25,13 @@ import io.prestosql.spi.connector.ColumnMetadata;
 import io.prestosql.spi.connector.ConnectorContext;
 import io.prestosql.spi.predicate.TupleDomain;
 import io.prestosql.testing.TestingConnectorContext;
-import org.apache.bookkeeper.mledger.*;
+import java.math.BigDecimal;
+import org.apache.bookkeeper.mledger.AsyncCallbacks;
+import org.apache.bookkeeper.mledger.Entry;
+import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
+import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.ReadOnlyCursor;
 import org.apache.bookkeeper.mledger.impl.EntryImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.impl.ReadOnlyCursorImpl;
@@ -156,6 +162,8 @@ public abstract class TestPulsarConnector {
         public int time;
         @org.apache.avro.reflect.AvroSchema("{ \"type\": \"int\", \"logicalType\": \"date\" }")
         public int date;
+        @org.apache.avro.reflect.AvroSchema("{ \"type\": \"bytes\", \"logicalType\": \"decimal\", \"precision\": 4, \"scale\": 2 }")
+        public BigDecimal decimal;
         public TestPulsarConnector.Bar bar;
         public TestEnum field7;
     }
@@ -243,6 +251,7 @@ public abstract class TestPulsarConnector {
             fooFieldNames.add("date");
             fooFieldNames.add("bar");
             fooFieldNames.add("field7");
+            fooFieldNames.add("decimal");
 
 
             ConnectorContext prestoConnectorContext = new TestingConnectorContext();
@@ -303,6 +312,7 @@ public abstract class TestPulsarConnector {
                 LocalDate epoch = LocalDate.ofEpochDay(0);
                 return Math.toIntExact(ChronoUnit.DAYS.between(epoch, localDate));
             });
+            fooFunctions.put("decimal", integer -> BigDecimal.valueOf(1234, 2));
             fooFunctions.put("bar.field1", integer -> integer % 3 == 0 ? null : integer + 1);
             fooFunctions.put("bar.field2", integer -> integer % 2 == 0 ? null : String.valueOf(integer + 2));
             fooFunctions.put("bar.field3", integer -> integer + 3.0f);
@@ -321,7 +331,6 @@ public abstract class TestPulsarConnector {
      * @param schemaInfo
      * @param handleKeyValueType
      * @param includeInternalColumn
-     * @param dispatchingRowDecoderFactory
      * @return
      */
     protected static List<PulsarColumnHandle> getColumnColumnHandles(TopicName topicName, SchemaInfo schemaInfo,
@@ -383,6 +392,7 @@ public abstract class TestPulsarConnector {
             LocalDate localDate = LocalDate.now();
             LocalDate epoch = LocalDate.ofEpochDay(0);
             foo.date = Math.toIntExact(ChronoUnit.DAYS.between(epoch, localDate));
+            foo.decimal= BigDecimal.valueOf(count, 2);
 
             MessageMetadata messageMetadata = new MessageMetadata()
                     .setProducerName("test-producer").setSequenceId(i)
@@ -599,6 +609,7 @@ public abstract class TestPulsarConnector {
                                     foo.timestamp = (long) fooFunctions.get("timestamp").apply(count);
                                     foo.time = (int) fooFunctions.get("time").apply(count);
                                     foo.date = (int) fooFunctions.get("date").apply(count);
+                                    foo.decimal = (BigDecimal) fooFunctions.get("decimal").apply(count);
                                     foo.bar = bar;
                                     foo.field7 = (Foo.TestEnum) fooFunctions.get("field7").apply(count);
 
