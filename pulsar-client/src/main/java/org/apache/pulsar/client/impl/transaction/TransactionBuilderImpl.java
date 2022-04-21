@@ -67,10 +67,8 @@ public class TransactionBuilderImpl implements TransactionBuilder {
                         future.completeExceptionally(throwable);
                         return;
                     }
-                    TransactionImpl transaction = new TransactionImpl(client, txnTimeout,
+                    TransactionImpl transaction = new TransactionImpl(client, timeUnit.toMillis(txnTimeout),
                             txnID.getLeastSigBits(), txnID.getMostSigBits());
-                    client.getTimer().newTimeout(transaction,
-                            txnTimeout, timeUnit);
                     future.complete(transaction);
                 });
         return future;

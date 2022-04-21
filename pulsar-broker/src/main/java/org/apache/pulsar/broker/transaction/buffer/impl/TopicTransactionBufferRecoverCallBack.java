@@ -51,5 +51,5 @@ public interface TopicTransactionBufferRecoverCallBack {
     /**
      * Topic transaction buffer recover exceptionally.
      */
-    void recoverExceptionally(Exception e);
+    void recoverExceptionally(Throwable e);
 }

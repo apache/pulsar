@@ -1,8 +1,8 @@
 ---
-id: version-2.6.1-develop-binary-protocol
+id: version-2.6.1-developing-binary-protocol
 title: Pulsar binary protocol specification
 sidebar_label: Binary protocol
-original_id: develop-binary-protocol
+original_id: developing-binary-protocol
 ---
 
 Pulsar uses a custom binary protocol for communications between producers/consumers and brokers. This protocol is designed to support required features, such as acknowledgements and flow control, while ensuring maximum transport and implementation efficiency.

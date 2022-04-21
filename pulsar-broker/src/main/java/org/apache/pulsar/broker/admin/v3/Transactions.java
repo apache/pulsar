@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.broker.admin.v3;
 
+import static javax.ws.rs.core.Response.Status.METHOD_NOT_ALLOWED;
+import static javax.ws.rs.core.Response.Status.NOT_FOUND;
+import static javax.ws.rs.core.Response.Status.SERVICE_UNAVAILABLE;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiResponse;
@@ -33,14 +36,17 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.admin.impl.TransactionsBase;
-import org.apache.pulsar.common.naming.TopicDomain;
-import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.broker.service.BrokerServiceException;
+import org.apache.pulsar.broker.web.RestException;
+import org.apache.pulsar.common.util.FutureUtil;
 
 @Path("/transactions")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 @Api(value = "/transactions", description = "Transactions admin apis", tags = "transactions")
+@Slf4j
 public class Transactions extends TransactionsBase {
 
     @GET
@@ -55,6 +61,7 @@ public class Transactions extends TransactionsBase {
                                     @QueryParam("authoritative")
                                     @DefaultValue("false") boolean authoritative,
                                     @QueryParam("coordinatorId") Integer coordinatorId) {
+        checkTransactionCoordinatorEnabled();
         internalGetCoordinatorStats(asyncResponse, authoritative, coordinatorId);
     }
 
@@ -76,9 +83,23 @@ public class Transactions extends TransactionsBase {
                                             @PathParam("topic") @Encoded String encodedTopic,
                                             @PathParam("mostSigBits") String mostSigBits,
                                             @PathParam("leastSigBits") String leastSigBits) {
-        validateTopicName(tenant, namespace, encodedTopic);
-        internalGetTransactionInBufferStats(asyncResponse, authoritative,
-                Long.parseLong(mostSigBits), Long.parseLong(leastSigBits));
+        try {
+            checkTransactionCoordinatorEnabled();
+            validateTopicName(tenant, namespace, encodedTopic);
+            internalGetTransactionInBufferStats(authoritative, Long.parseLong(mostSigBits),
+                    Long.parseLong(leastSigBits))
+                    .thenAccept(asyncResponse::resume)
+                    .exceptionally(ex -> {
+                        if (!isRedirectException(ex)) {
+                            log.error("[{}] Failed to get transaction state in transaction buffer {}",
+                                    clientAppId(), topicName, ex);
+                        }
+                        resumeAsyncResponseExceptionally(asyncResponse, ex);
+                        return null;
+                    });
+        } catch (Exception ex) {
+            resumeAsyncResponseExceptionally(asyncResponse, ex);
+        }
     }
 
     @GET
@@ -100,9 +121,23 @@ public class Transactions extends TransactionsBase {
                                                 @PathParam("mostSigBits") String mostSigBits,
                                                 @PathParam("leastSigBits") String leastSigBits,
                                                 @PathParam("subName") String subName) {
-        validateTopicName(tenant, namespace, encodedTopic);
-        internalGetTransactionInPendingAckStats(asyncResponse, authoritative, Long.parseLong(mostSigBits),
-                Long.parseLong(leastSigBits), subName);
+        try {
+            checkTransactionCoordinatorEnabled();
+            validateTopicName(tenant, namespace, encodedTopic);
+            internalGetTransactionInPendingAckStats(authoritative, Long.parseLong(mostSigBits),
+                    Long.parseLong(leastSigBits), subName)
+                    .thenAccept(asyncResponse::resume)
+                    .exceptionally(ex -> {
+                        if (!isRedirectException(ex)) {
+                            log.error("[{}] Failed to get transaction state in pending ack {}",
+                                    clientAppId(), topicName, ex);
+                        }
+                        resumeAsyncResponseExceptionally(asyncResponse, ex);
+                        return null;
+                    });
+        } catch (Exception ex) {
+            resumeAsyncResponseExceptionally(asyncResponse, ex);
+        }
     }
 
     @GET
@@ -121,8 +156,22 @@ public class Transactions extends TransactionsBase {
                                           @PathParam("tenant") String tenant,
                                           @PathParam("namespace") String namespace,
                                           @PathParam("topic") @Encoded String encodedTopic) {
-        validateTopicName(tenant, namespace, encodedTopic);
-        internalGetTransactionBufferStats(asyncResponse, authoritative);
+        try {
+            checkTransactionCoordinatorEnabled();
+            validateTopicName(tenant, namespace, encodedTopic);
+            internalGetTransactionBufferStats(authoritative)
+                    .thenAccept(asyncResponse::resume)
+                    .exceptionally(ex -> {
+                        if (!isRedirectException(ex)) {
+                            log.error("[{}] Failed to get transaction buffer stats in topic {}",
+                                    clientAppId(), topicName, ex);
+                        }
+                        resumeAsyncResponseExceptionally(asyncResponse, ex);
+                        return null;
+                    });
+        } catch (Exception ex) {
+            resumeAsyncResponseExceptionally(asyncResponse, ex);
+        }
     }
 
     @GET
@@ -142,8 +191,22 @@ public class Transactions extends TransactionsBase {
                                    @PathParam("namespace") String namespace,
                                    @PathParam("topic") @Encoded String encodedTopic,
                                    @PathParam("subName") String subName) {
-        validateTopicName(tenant, namespace, encodedTopic);
-        internalGetPendingAckStats(asyncResponse, authoritative, subName);
+        try {
+            checkTransactionCoordinatorEnabled();
+            validateTopicName(tenant, namespace, encodedTopic);
+            internalGetPendingAckStats(authoritative, subName)
+                    .thenAccept(asyncResponse::resume)
+                    .exceptionally(ex -> {
+                        if (!isRedirectException(ex)) {
+                            log.error("[{}] Failed to get transaction pending ack stats in topic {}",
+                                    clientAppId(), topicName, ex);
+                        }
+                        resumeAsyncResponseExceptionally(asyncResponse, ex);
+                        return null;
+                    });
+        } catch (Exception ex) {
+            resumeAsyncResponseExceptionally(asyncResponse, ex);
+        }
     }
 
     @GET
@@ -162,6 +225,7 @@ public class Transactions extends TransactionsBase {
                                        @DefaultValue("false") boolean authoritative,
                                        @PathParam("mostSigBits") String mostSigBits,
                                        @PathParam("leastSigBits") String leastSigBits) {
+        checkTransactionCoordinatorEnabled();
         internalGetTransactionMetadata(asyncResponse, authoritative, Integer.parseInt(mostSigBits),
                 Long.parseLong(leastSigBits));
     }
@@ -182,6 +246,7 @@ public class Transactions extends TransactionsBase {
                                     @DefaultValue("false") boolean authoritative,
                                     @PathParam("timeout") String timeout,
                                     @QueryParam("coordinatorId") Integer coordinatorId) {
+        checkTransactionCoordinatorEnabled();
         internalGetSlowTransactions(asyncResponse, authoritative, Long.parseLong(timeout), coordinatorId);
     }
 
@@ -199,6 +264,7 @@ public class Transactions extends TransactionsBase {
                                             @DefaultValue("false") boolean authoritative,
                                             @PathParam("coordinatorId") String coordinatorId,
                                             @QueryParam("metadata") @DefaultValue("false") boolean metadata) {
+        checkTransactionCoordinatorEnabled();
         internalGetCoordinatorInternalStats(asyncResponse, authoritative, metadata, Integer.parseInt(coordinatorId));
     }
 
@@ -222,7 +288,30 @@ public class Transactions extends TransactionsBase {
                                            @PathParam("topic") @Encoded String encodedTopic,
                                            @PathParam("subName") String subName,
                                            @QueryParam("metadata") @DefaultValue("false") boolean metadata) {
-        internalGetPendingAckInternalStats(asyncResponse, authoritative,
-                TopicName.get(TopicDomain.persistent.value(), tenant, namespace, encodedTopic), subName, metadata);
+        try {
+            checkTransactionCoordinatorEnabled();
+            validateTopicName(tenant, namespace, encodedTopic);
+            internalGetPendingAckInternalStats(authoritative, subName, metadata)
+                    .thenAccept(asyncResponse::resume)
+                    .exceptionally(ex -> {
+                        if (!isRedirectException(ex)) {
+                            log.error("[{}] Failed to get pending ack internal stats {}",
+                                    clientAppId(), topicName, ex);
+                        }
+                        Throwable cause = FutureUtil.unwrapCompletionException(ex);
+                        if (cause instanceof BrokerServiceException.ServiceUnitNotReadyException) {
+                            asyncResponse.resume(new RestException(SERVICE_UNAVAILABLE, cause));
+                        } else if (cause instanceof BrokerServiceException.NotAllowedException) {
+                            asyncResponse.resume(new RestException(METHOD_NOT_ALLOWED, cause));
+                        } else if (cause instanceof BrokerServiceException.SubscriptionNotFoundException) {
+                            asyncResponse.resume(new RestException(NOT_FOUND, cause));
+                        } else {
+                            asyncResponse.resume(new RestException(cause));
+                        }
+                        return null;
+                    });
+        } catch (Exception ex) {
+            resumeAsyncResponseExceptionally(asyncResponse, ex);
+        }
     }
 }

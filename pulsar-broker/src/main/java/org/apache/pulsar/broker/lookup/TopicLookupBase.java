@@ -80,8 +80,13 @@ public class TopicLookupBase extends PulsarWebResource {
             return;
         }
 
-        pulsar().getNamespaceService().checkTopicExists(topicName).thenAccept(exist -> {
-            if (!exist && !pulsar().getBrokerService().isAllowAutoTopicCreation(topicName)) {
+        // Currently, it's hard to check the non-persistent-non-partitioned topic, because it only exists in the broker,
+        // it doesn't have metadata. If the topic is non-persistent and non-partitioned, we'll return the true flag.
+        CompletableFuture<Boolean> existFuture = pulsar().getBrokerService().isAllowAutoTopicCreation(topicName)
+                || (!topicName.isPersistent() && !topicName.isPartitioned())
+                ? CompletableFuture.completedFuture(true) : pulsar().getNamespaceService().checkTopicExists(topicName);
+        existFuture.thenAccept(exist -> {
+            if (!exist) {
                 completeLookupResponseExceptionally(asyncResponse, new RestException(Response.Status.NOT_FOUND,
                         "Topic not found."));
                 return;

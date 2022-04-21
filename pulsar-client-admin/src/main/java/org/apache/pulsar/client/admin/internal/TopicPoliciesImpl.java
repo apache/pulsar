@@ -21,9 +21,6 @@ package org.apache.pulsar.client.admin.internal;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
@@ -81,18 +78,6 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
         } catch (Exception e) {
             throw getApiException(e);
         }
-    }
-
-
-    @Override
-    public void setBacklogQuota(String topic, BacklogQuota backlogQuota) throws PulsarAdminException {
-        TopicPolicies.super.setBacklogQuota(topic, backlogQuota);
-    }
-
-
-    @Override
-    public void removeBacklogQuota(String topic) throws PulsarAdminException {
-        TopicPolicies.super.removeBacklogQuota(topic);
     }
 
     @Override
@@ -1237,17 +1222,7 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
 
     @Override
     public void removeSubscriptionTypesEnabled(String topic) throws PulsarAdminException {
-        try {
-            removeSubscriptionTypesEnabledAsync(topic)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> removeSubscriptionTypesEnabledAsync(topic));
     }
 
     @Override

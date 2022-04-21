@@ -19,6 +19,7 @@
 package org.apache.pulsar.common.util;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.concurrent.TimeUnit;
 import lombok.experimental.UtilityClass;
 
@@ -29,7 +30,7 @@ import lombok.experimental.UtilityClass;
 public class RelativeTimeUtil {
     public static long parseRelativeTimeInSeconds(String relativeTime) {
         if (relativeTime.isEmpty()) {
-            throw new IllegalArgumentException("exipiry time cannot be empty");
+            throw new IllegalArgumentException("expiry time cannot be empty");
         }
 
         int lastIndex =  relativeTime.length() - 1;
@@ -73,6 +74,6 @@ public class RelativeTimeUtil {
     public static double nsToSeconds(long ns) {
         double seconds = (double) ns / 1_000_000_000;
         BigDecimal bd = new BigDecimal(seconds);
-        return bd.setScale(3, BigDecimal.ROUND_HALF_UP).doubleValue();
+        return bd.setScale(3, RoundingMode.HALF_UP).doubleValue();
     }
 }

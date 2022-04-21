@@ -18,14 +18,13 @@
  */
 package org.apache.pulsar.functions.worker.dlog;
 
+import java.io.IOException;
+import java.io.InputStream;
 import org.apache.distributedlog.DLSN;
 import org.apache.distributedlog.LogRecordWithDLSN;
 import org.apache.distributedlog.api.DistributedLogManager;
 import org.apache.distributedlog.api.LogReader;
 import org.apache.distributedlog.exceptions.EndOfStreamException;
-
-import java.io.IOException;
-import java.io.InputStream;
 
 /**
  * DistributedLog Input Stream.

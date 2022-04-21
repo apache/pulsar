@@ -74,6 +74,7 @@ import org.apache.pulsar.common.functions.Utils;
 import org.apache.pulsar.common.io.SinkConfig;
 import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.common.nar.NarClassLoader;
+import org.apache.pulsar.common.nar.NarClassLoaderBuilder;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.policies.data.PublisherStats;
@@ -1120,7 +1121,11 @@ public class PulsarFunctionLocalRunTest {
 
     private void runWithNarClassLoader(Assert.ThrowingRunnable throwingRunnable) throws Throwable {
         ClassLoader originalClassLoader = Thread.currentThread().getContextClassLoader();
-        try (NarClassLoader classLoader = NarClassLoader.getFromArchive(getPulsarIODataGeneratorNar(), Collections.emptySet(), originalClassLoader, NarClassLoader.DEFAULT_NAR_EXTRACTION_DIR)) {
+        try (NarClassLoader classLoader = NarClassLoaderBuilder.builder()
+                .narFile(getPulsarIODataGeneratorNar())
+                .parentClassLoader(originalClassLoader)
+                .extractionDirectory(NarClassLoader.DEFAULT_NAR_EXTRACTION_DIR)
+                .build()) {
             try {
                 Thread.currentThread().setContextClassLoader(classLoader);
                 throwingRunnable.run();
