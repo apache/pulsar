@@ -21,15 +21,15 @@ package org.apache.pulsar.websocket.service;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
-
+import java.util.TreeSet;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.ToString;
 import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
 import org.apache.pulsar.common.configuration.FieldContext;
 import org.apache.pulsar.common.configuration.PulsarConfiguration;
 
 import com.google.common.collect.Sets;
-
-import lombok.Getter;
-import lombok.Setter;
 
 @Getter
 @Setter
@@ -131,5 +131,63 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     // Tls cert refresh duration in seconds (set 0 to check on every new connection) 
     private long tlsCertRefreshCheckDurationSec = 300;
 
+    /**** --- KeyStore TLS config variables. --- ****/
+    @FieldContext(
+            doc = "Enable TLS with KeyStore type configuration for WebSocket"
+    )
+    private boolean tlsEnabledWithKeyStore = false;
+
+    @FieldContext(
+            doc = "Specify the TLS provider for the WebSocket service: \n"
+                    + "When using TLS authentication with CACert, the valid value is either OPENSSL or JDK.\n"
+                    + "When using TLS authentication with KeyStore, available values can be SunJSSE, Conscrypt and etc."
+    )
+    private String tlsProvider = null;
+
+    @FieldContext(
+            doc = "TLS KeyStore type configuration in WebSocket: JKS, PKCS12"
+    )
+    private String tlsKeyStoreType = "JKS";
+
+    @FieldContext(
+            doc = "TLS KeyStore path in WebSocket"
+    )
+    private String tlsKeyStore = null;
+
+    @FieldContext(
+            doc = "TLS KeyStore password for WebSocket"
+    )
+    @ToString.Exclude
+    private String tlsKeyStorePassword = null;
+
+    @FieldContext(
+            doc = "TLS TrustStore type configuration in WebSocket: JKS, PKCS12"
+    )
+    private String tlsTrustStoreType = "JKS";
+
+    @FieldContext(
+            doc = "TLS TrustStore path in WebSocket"
+    )
+    private String tlsTrustStore = null;
+
+    @FieldContext(
+            doc = "TLS TrustStore password for WebSocket, null means empty password."
+    )
+    @ToString.Exclude
+    private String tlsTrustStorePassword = null;
+
+    @FieldContext(
+            doc = "Specify the tls protocols the proxy's web service will use to negotiate during TLS Handshake.\n\n"
+                    + "Example:- [TLSv1.3, TLSv1.2]"
+    )
+    private Set<String> webServiceTlsProtocols = new TreeSet<>();
+
+    @FieldContext(
+            doc = "Specify the tls cipher the proxy's web service will use to negotiate during TLS Handshake.\n\n"
+                    + "Example:- [TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256]"
+    )
+    private Set<String> webServiceTlsCiphers = new TreeSet<>();
+
+    @FieldContext(doc = "Key-value properties. Types are all String")
     private Properties properties = new Properties();
 }
