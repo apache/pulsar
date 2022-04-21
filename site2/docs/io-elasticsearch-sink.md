@@ -78,6 +78,8 @@ The configuration of the Elasticsearch sink connector has the following properti
 | `password` | String| false | " " (empty string)|The password used by the connector to connect to the elastic search cluster. <br><br>If `username` is set, then `password` should also be provided.  |
 | `ssl` | ElasticSearchSslConfig | false |  | Configuration for TLS encrypted communication |
 | `compatibilityMode` | enum (AUTO,ELASTICSEARCH,ELASTICSEARCH_7,OPENSEARCH) | AUTO |  | Specify compatibility mode with the ElasticSearch cluster. `AUTO` value will try to auto detect the correct compatibility mode to use. Use `ELASTICSEARCH_7` if the target cluster is running ElasticSearch 7 or prior. Use `ELASTICSEARCH` if the target cluster is running ElasticSearch 8 or higher. Use `OPENSEARCH` if the target cluster is running OpenSearch. |
+| `token` | String| false | " " (empty string)|The token used by the connector to connect to the ElasticSearch cluster. Only one between basic/token/apiKey authentication mode must be configured. |
+| `apiKey` | String| false | " " (empty string)|The apiKey used by the connector to connect to the ElasticSearch cluster. Only one between basic/token/apiKey authentication mode must be configured. |
 
 ### Definition of ElasticSearchSslConfig structure:
 
