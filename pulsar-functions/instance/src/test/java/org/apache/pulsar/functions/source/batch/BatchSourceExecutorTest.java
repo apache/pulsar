@@ -18,7 +18,8 @@
  */
 package org.apache.pulsar.functions.source.batch;
 
-
+import static org.awaitility.Awaitility.await;
+import static org.testng.Assert.fail;
 import com.google.gson.Gson;
 import lombok.Getter;
 import org.apache.pulsar.client.api.ConsumerBuilder;
@@ -44,7 +45,6 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.function.Consumer;
-import static org.testng.Assert.fail;
 
 /**
  * Unit tests for {@link org.apache.pulsar.functions.source.batch.BatchSourceExecutor}
@@ -368,6 +368,8 @@ public class BatchSourceExecutorTest {
     }
     Assert.assertEquals(testBatchSource.getRecordCount(), 6);
     Assert.assertEquals(testBatchSource.getDiscoverCount(), 1);
+
+    awaitDiscoverNotInProgress();
     triggerQueue.put("trigger");
     completedQueue.take();
     Assert.assertTrue(testBatchSource.getDiscoverCount() == 2);
@@ -387,6 +389,8 @@ public class BatchSourceExecutorTest {
     }
     Assert.assertEquals(testBatchPushSource.getRecordCount(), 5);
     Assert.assertEquals(testBatchPushSource.getDiscoverCount(), 1);
+
+    awaitDiscoverNotInProgress();
     triggerQueue.put("trigger");
     completedQueue.take();
     Assert.assertEquals(testBatchPushSource.getDiscoverCount(), 2);
@@ -406,4 +410,7 @@ public class BatchSourceExecutorTest {
     fail("should have thrown an exception");
   }
 
+  private void awaitDiscoverNotInProgress() {
+    await().until(() -> !batchSourceExecutor.discoverInProgress);
+  }
 }
