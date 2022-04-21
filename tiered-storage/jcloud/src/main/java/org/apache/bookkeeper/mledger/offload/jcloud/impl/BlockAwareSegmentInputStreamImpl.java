@@ -275,6 +275,8 @@ public class BlockAwareSegmentInputStreamImpl extends BlockAwareSegmentInputStre
             entriesByteBuf.forEach(buf -> buf.release());
             entriesByteBuf.clear();
         }
+        PADDING_BUF.clear();
+        PADDING_BUF.release();
     }
 
     @Override
