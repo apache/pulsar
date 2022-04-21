@@ -108,11 +108,19 @@ public class AdminApiHealthCheckTest extends MockedPulsarServiceBaseTest {
         final Phaser phaser = new Phaser(3);
         Thread thread1=new Thread(() -> {
             phaser.arriveAndAwaitAdvance();
-            deadlock(lock1, lock2, 1000L);
+            try {
+                deadlock(lock1, lock2, 1000L);
+            } finally {
+                phaser.arriveAndDeregister();
+            }
         }, "deadlockthread-1");
         Thread thread2=new Thread(() -> {
             phaser.arriveAndAwaitAdvance();
-            deadlock(lock2, lock1, 2000L);
+            try {
+                deadlock(lock2, lock1, 2000L);
+            } finally {
+                phaser.arriveAndDeregister();
+            }
         }, "deadlockthread-2");
         thread1.start();
         thread2.start();
@@ -125,19 +133,25 @@ public class AdminApiHealthCheckTest extends MockedPulsarServiceBaseTest {
             // unlock the deadlock
             thread1.interrupt();
             thread2.interrupt();
+            // wait for deadlock threads to finish
+            phaser.arriveAndAwaitAdvance();
         }
     }
 
     private void deadlock(Lock lock1, Lock lock2, long millis) {
-        lock1.lock();
         try {
-            Thread.sleep(millis);
-            lock2.lock();
-            lock2.unlock();
+            lock1.lockInterruptibly();
+            try {
+                Thread.sleep(millis);
+                lock2.lockInterruptibly();
+                lock2.unlock();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            } finally {
+                lock1.unlock();
+            }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-        } finally {
-            lock1.unlock();
         }
     }
 
