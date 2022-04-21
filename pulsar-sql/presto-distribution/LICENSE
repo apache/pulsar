@@ -238,8 +238,6 @@ The Apache Software License, Version 2.0
     - netty-codec-dns-4.1.76.Final.jar
     - netty-codec-http-4.1.76.Final.jar
     - netty-codec-haproxy-4.1.76.Final.jar
-    - netty-codec-socks-4.1.76.Final.jar
-    - netty-handler-proxy-4.1.76.Final.jar
     - netty-common-4.1.76.Final.jar
     - netty-handler-4.1.76.Final.jar
     - netty-reactive-streams-2.0.4.jar
@@ -257,16 +255,6 @@ The Apache Software License, Version 2.0
     - netty-transport-native-epoll-4.1.76.Final-linux-x86_64.jar
     - netty-transport-native-unix-common-4.1.76.Final.jar
     - netty-transport-native-unix-common-4.1.76.Final-linux-x86_64.jar
-    - netty-codec-http2-4.1.76.Final.jar
- * GRPC
-    - grpc-api-1.45.1.jar
-    - grpc-context-1.45.1.jar
-    - grpc-core-1.45.1.jar
-    - grpc-grpclb-1.45.1.jar
-    - grpc-netty-1.45.1.jar
-    - grpc-protobuf-1.45.1.jar
-    - grpc-protobuf-lite-1.45.1.jar
-    - grpc-stub-1.45.1.jar
  * Joda Time
     - joda-time-2.10.5.jar
   * Jetty
@@ -477,7 +465,6 @@ The Apache Software License, Version 2.0
 Protocol Buffers License
  * Protocol Buffers
    - protobuf-java-3.19.2.jar
-   - protobuf-java-util-3.19.2.jar
 
 BSD 3-clause "New" or "Revised" License
   *  RE2J TD -- re2j-td-1.4.jar
