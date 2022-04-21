@@ -155,6 +155,16 @@ public class AdminApiHealthCheckTest extends MockedPulsarServiceBaseTest {
         }
     }
 
+    @Test(timeOut = 5000L)
+    public void testDeadlockDetectionOverhead() {
+        ThreadMXBean threadBean = ManagementFactory.getThreadMXBean();
+        for (int i=0; i < 1000; i++) {
+            long[] threadIds = threadBean.findDeadlockedThreads();
+            // assert that there's no deadlock
+            Assert.assertNull(threadIds);
+        }
+    }
+
     @Test
     public void testHealthCheckupV1() throws Exception {
         final int times = 30;
