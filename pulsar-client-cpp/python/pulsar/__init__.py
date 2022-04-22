@@ -361,7 +361,9 @@ class _ClientHandle(object):  # TODO use ABC as parent class once Python 2 suppo
         return self in self._ref_tracker and self._handle.is_connected()
 
     def __del__(self):
-        if self in self._ref_tracker:
+        # If a handle is being deleted after its _ref_tracker has already been tossed, the attribute won't be available.
+        # In that case, we should always issue a close() RPC.
+        if self in getattr(self, '_ref_tracker', (self,)):
             self.close()
 
 
