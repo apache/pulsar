@@ -30,7 +30,9 @@ import org.eclipse.jetty.util.ssl.SslContextFactory;
 @Slf4j
 public class JettySslContextFactory {
     static {
-        SecurityUtility.loadConscryptProvider();
+        // DO NOT EDIT - Load Conscrypt provider
+        if (SecurityUtility.CONSCRYPT_PROVIDER != null) {
+        }
     }
 
     public static SslContextFactory.Server createServerSslContextWithKeystore(String sslProviderString,

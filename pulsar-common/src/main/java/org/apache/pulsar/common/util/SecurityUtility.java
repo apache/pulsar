@@ -114,7 +114,7 @@ public class SecurityUtility {
         }
     }
 
-    public static Provider loadConscryptProvider() {
+    private static Provider loadConscryptProvider() {
         Class<?> conscryptClazz;
 
         try {
