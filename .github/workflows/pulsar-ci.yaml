@@ -150,9 +150,9 @@ jobs:
             group: BROKER_GROUP_2
           - name: Brokers - Broker Group 3
             group: BROKER_GROUP_3
-          - name: Brokers - JDK 8
-            group: BROKER_JDK8
-            jdk: 8
+          - name: Brokers - JDK 17
+            group: BROKER_JDK17
+            jdk: 17
           - name: Brokers - Client Api
             group: BROKER_CLIENT_API
           - name: Brokers - Client Impl

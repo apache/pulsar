@@ -78,8 +78,8 @@ function test_group_broker_client_impl() {
   mvn_test -pl pulsar-broker -Dgroups='broker-impl'
 }
 
-function test_group_broker_jdk8() {
-  mvn_test -pl pulsar-broker -Dgroups='broker-jdk8' -Dpulsar.allocator.pooled=true
+function test_group_broker_jdk17() {
+  mvn_test -pl pulsar-broker -Dgroups='broker-jdk17' -Dpulsar.allocator.pooled=true
 }
 
 # prints summaries of failed tests to console
