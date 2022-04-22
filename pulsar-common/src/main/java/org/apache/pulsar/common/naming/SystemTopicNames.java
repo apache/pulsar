@@ -81,6 +81,12 @@ public class SystemTopicNames {
                 || topic.endsWith(PENDING_ACK_STORE_SUFFIX);
     }
 
+    public static boolean isTransactionInternalName(TopicName topicName) {
+        String topic = topicName.toString();
+        return topic.startsWith(TRANSACTION_COORDINATOR_LOG.toString())
+                || topic.endsWith(PENDING_ACK_STORE_SUFFIX);
+    }
+
     public static boolean isSystemTopic(TopicName topicName) {
         TopicName nonePartitionedTopicName = TopicName.get(topicName.getPartitionedTopicName());
         return isEventSystemTopic(nonePartitionedTopicName) || isTransactionSystemTopic(topicName);
