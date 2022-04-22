@@ -43,6 +43,7 @@ public class BaseResources<T> {
 
     protected static final String BASE_POLICIES_PATH = "/admin/policies";
     protected static final String BASE_CLUSTERS_PATH = "/admin/clusters";
+    protected static final String LOCAL_POLICIES_ROOT = "/admin/local-policies";
 
     @Getter
     private final MetadataStore store;

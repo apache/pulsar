@@ -126,6 +126,7 @@ public class NamespaceStatsAggregator {
         subsStats.lastConsumedFlowTimestamp = subscriptionStats.lastConsumedFlowTimestamp;
         subsStats.lastConsumedTimestamp = subscriptionStats.lastConsumedTimestamp;
         subsStats.lastMarkDeleteAdvancedTimestamp = subscriptionStats.lastMarkDeleteAdvancedTimestamp;
+        subsStats.consumersCount = subscriptionStats.consumers.size();
         subscriptionStats.consumers.forEach(cStats -> {
             stats.consumersCount++;
             subsStats.unackedMessages += cStats.unackedMessages;

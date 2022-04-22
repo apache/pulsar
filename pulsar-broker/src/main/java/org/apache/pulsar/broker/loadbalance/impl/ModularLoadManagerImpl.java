@@ -149,9 +149,6 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
     // Used to filter brokers from being selected for assignment.
     private final List<BrokerFilter> filterPipeline;
 
-    // Timestamp of last invocation of updateBundleData.
-    private long lastBundleDataUpdate;
-
     // LocalBrokerData available before most recent update.
     private LocalBrokerData lastData;
 
@@ -356,7 +353,8 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
     @Override
     public Set<String> getAvailableBrokers() {
         try {
-            return new HashSet<>(brokersData.listLocks(LoadManager.LOADBALANCE_BROKERS_ROOT).join());
+            return new HashSet<>(brokersData.listLocks(LoadManager.LOADBALANCE_BROKERS_ROOT)
+                    .get(conf.getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS));
         } catch (Exception e) {
             log.warn("Error when trying to get active brokers", e);
             return loadData.getBrokerData().keySet();
@@ -927,7 +925,6 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
             timeAverageBrokerDataCache.readModifyUpdateOrCreate(timeAverageZPath,
                     __ -> new TimeAverageBrokerData()).join();
             updateAll();
-            lastBundleDataUpdate = System.currentTimeMillis();
         } catch (Exception e) {
             log.error("Unable to acquire lock for broker: [{}]", brokerZnodePath, e);
             throw new PulsarServerException(e);

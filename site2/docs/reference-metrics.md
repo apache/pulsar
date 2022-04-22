@@ -111,6 +111,7 @@ The following metrics are available for broker:
   - [Authentication metrics](#authentication-metrics)
   - [Connection metrics](#connection-metrics)
   - [Jetty metrics](#jetty-metrics)
+  - [Schema metrics](#schema-metrics)
 - [Pulsar Functions](#pulsar-functions)
 - [Proxy](#proxy)
 - [Pulsar SQL Worker](#pulsar-sql-worker)
@@ -420,13 +421,8 @@ All the managed ledger bookie client metrics are labelled with the following lab
 | pulsar_managedLedger_client_bookkeeper_ml_scheduler_completed_tasks_* | Gauge |  The number of tasks the scheduler executor execute completed. <br>The number of metrics determined by the scheduler executor thread number configured by `managedLedgerNumSchedulerThreads` in `broker.conf`. <br> |
 | pulsar_managedLedger_client_bookkeeper_ml_scheduler_queue_* | Gauge | The number of tasks queued in the scheduler executor's queue. <br>The number of metrics determined by scheduler executor's thread number configured by `managedLedgerNumSchedulerThreads` in `broker.conf`. <br> |
 | pulsar_managedLedger_client_bookkeeper_ml_scheduler_total_tasks_* | Gauge | The total number of tasks the scheduler executor received. <br>The number of metrics determined by scheduler executor's thread number configured by `managedLedgerNumSchedulerThreads` in `broker.conf`. <br> |
-| pulsar_managedLedger_client_bookkeeper_ml_workers_completed_tasks_* | Gauge | The number of tasks the worker executor execute completed. <br>The number of metrics determined by the number of worker task thread number configured by `managedLedgerNumWorkerThreads` in `broker.conf` <br> |
-| pulsar_managedLedger_client_bookkeeper_ml_workers_queue_* | Gauge | The number of tasks queued in the worker executor's queue. <br>The number of metrics determined by scheduler executor's thread number configured by `managedLedgerNumWorkerThreads` in `broker.conf`. <br> |
-| pulsar_managedLedger_client_bookkeeper_ml_workers_total_tasks_* | Gauge | The total number of tasks the worker executor received. <br>The number of metrics determined by worker executor's thread number configured by `managedLedgerNumWorkerThreads` in `broker.conf`. <br> |
 | pulsar_managedLedger_client_bookkeeper_ml_scheduler_task_execution | Summary | The scheduler task execution latency calculated in milliseconds. |
 | pulsar_managedLedger_client_bookkeeper_ml_scheduler_task_queued | Summary | The scheduler task queued latency calculated in milliseconds. |
-| pulsar_managedLedger_client_bookkeeper_ml_workers_task_execution | Summary | The worker task execution latency calculated in milliseconds. |
-| pulsar_managedLedger_client_bookkeeper_ml_workers_task_queued | Summary | The worker task queued latency calculated in milliseconds. |
 
 ### Token metrics
 
@@ -499,6 +495,25 @@ All the jetty metrics are labelled with the following labels:
 | jetty_responses_total | Counter | Number of responses, labeled by status code. The `code` label can be "1xx", "2xx", "3xx", "4xx", or "5xx". |
 | jetty_stats_seconds | Gauge | Time in seconds stats have been collected for. |
 | jetty_responses_bytes_total | Counter | Total number of bytes across all responses. |
+
+### Schema metrics
+
+> For a functions-worker running separately from brokers, its schema metrics are only exposed when `includeStandardPrometheusMetrics` is set to `true`.
+
+All the schema metrics are labelled with the following labels:
+
+- *cluster*: `cluster=${pulsar_cluster}`. `${pulsar_cluster}` is the cluster name that you have configured in the `broker.conf` file.
+
+| Name | Type | Description |
+|---|---|---|
+| pulsar_schema_del_ops_failed_count | Counter | Number of failed operations to delete schemas. |
+| pulsar_schema_get_ops_failed_count | Counter | Number of failed operations to get schemas. |
+| pulsar_schema_put_ops_failed_count | Counter | Number of failed operations to send schemas. |
+| pulsar_schema_compatible_count | Counter | Number of compatible schemas. |
+| pulsar_schema_incompatible_count | Counter | Number of incompatible schemas. |
+| pulsar_schema_del_ops_latency | Summary | Latency of successful operations to delete schemas. |
+| pulsar_schema_get_ops_latency | Summary | Latency of successful operations to get schemas. |
+| pulsar_schema_put_ops_latency | Summary | Latency of successful operations to send schemas. |
 
 ## Pulsar Functions
 

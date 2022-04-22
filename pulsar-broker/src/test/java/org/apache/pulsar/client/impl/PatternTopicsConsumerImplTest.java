@@ -32,7 +32,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 import java.util.stream.IntStream;
-import java.util.stream.Stream;
 
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.client.api.Consumer;
@@ -418,66 +417,6 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         producer2.close();
         producer3.close();
         producer4.close();
-    }
-
-    @Test(timeOut = testTimeout)
-    public void testTopicsPatternFilter() {
-        String topicName1 = "persistent://my-property/my-ns/pattern-topic-1";
-        String topicName2 = "persistent://my-property/my-ns/pattern-topic-2";
-        String topicName3 = "persistent://my-property/my-ns/hello-3";
-        String topicName4 = "non-persistent://my-property/my-ns/hello-4";
-
-        List<String> topicsNames = Lists.newArrayList(topicName1, topicName2, topicName3, topicName4);
-
-        Pattern pattern1 = Pattern.compile("persistent://my-property/my-ns/pattern-topic.*");
-        List<String> result1 = PulsarClientImpl.topicsPatternFilter(topicsNames, pattern1);
-        assertTrue(result1.size() == 2 && result1.contains(topicName1) && result1.contains(topicName2));
-
-        Pattern pattern2 = Pattern.compile("persistent://my-property/my-ns/.*");
-        List<String> result2 = PulsarClientImpl.topicsPatternFilter(topicsNames, pattern2);
-        assertTrue(result2.size() == 4
-            && Stream.of(topicName1, topicName2, topicName3, topicName4).allMatch(result2::contains));
-    }
-
-    @Test(timeOut = testTimeout)
-    public void testTopicsListMinus() {
-        String topicName1 = "persistent://my-property/my-ns/pattern-topic-1";
-        String topicName2 = "persistent://my-property/my-ns/pattern-topic-2";
-        String topicName3 = "persistent://my-property/my-ns/pattern-topic-3";
-        String topicName4 = "persistent://my-property/my-ns/pattern-topic-4";
-        String topicName5 = "persistent://my-property/my-ns/pattern-topic-5";
-        String topicName6 = "persistent://my-property/my-ns/pattern-topic-6";
-
-        List<String> oldNames = Lists.newArrayList(topicName1, topicName2, topicName3, topicName4);
-        List<String> newNames = Lists.newArrayList(topicName3, topicName4, topicName5, topicName6);
-
-        List<String> addedNames = PatternMultiTopicsConsumerImpl.topicsListsMinus(newNames, oldNames);
-        List<String> removedNames = PatternMultiTopicsConsumerImpl.topicsListsMinus(oldNames, newNames);
-
-        assertTrue(addedNames.size() == 2 &&
-            addedNames.contains(topicName5) &&
-            addedNames.contains(topicName6));
-        assertTrue(removedNames.size() == 2 &&
-            removedNames.contains(topicName1) &&
-            removedNames.contains(topicName2));
-
-        // totally 2 different list, should return content of first lists.
-        List<String> addedNames2 = PatternMultiTopicsConsumerImpl.topicsListsMinus(addedNames, removedNames);
-        assertTrue(addedNames2.size() == 2 &&
-            addedNames2.contains(topicName5) &&
-            addedNames2.contains(topicName6));
-
-        // 2 same list, should return empty list.
-        List<String> addedNames3 = PatternMultiTopicsConsumerImpl.topicsListsMinus(addedNames, addedNames);
-        assertEquals(addedNames3.size(), 0);
-
-        // empty list minus: addedNames2.size = 2, addedNames3.size = 0
-        List<String> addedNames4 = PatternMultiTopicsConsumerImpl.topicsListsMinus(addedNames2, addedNames3);
-        assertEquals(addedNames2.size(), addedNames4.size());
-        addedNames4.forEach(name -> assertTrue(addedNames2.contains(name)));
-
-        List<String> addedNames5 = PatternMultiTopicsConsumerImpl.topicsListsMinus(addedNames3, addedNames2);
-        assertEquals(addedNames5.size(), 0);
     }
 
     // simulate subscribe a pattern which has no topics, but then matched topics added in.

@@ -24,6 +24,7 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslHandler;
+import io.netty.handler.ssl.SslProvider;
 import io.netty.handler.timeout.ReadTimeoutHandler;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
@@ -77,7 +78,13 @@ public class ServiceChannelInitializer extends ChannelInitializer<SocketChannel>
                         serviceConfig.getTlsProtocols(),
                         serviceConfig.getTlsCertRefreshCheckDurationSec());
             } else {
-                serverSslCtxRefresher = new NettyServerSslContextBuilder(serviceConfig.isTlsAllowInsecureConnection(),
+                SslProvider sslProvider = null;
+                if (serviceConfig.getTlsProvider() != null) {
+                    sslProvider = SslProvider.valueOf(serviceConfig.getTlsProvider());
+                }
+                serverSslCtxRefresher = new NettyServerSslContextBuilder(
+                        sslProvider,
+                        serviceConfig.isTlsAllowInsecureConnection(),
                         serviceConfig.getTlsTrustCertsFilePath(), serviceConfig.getTlsCertificateFilePath(),
                         serviceConfig.getTlsKeyFilePath(), serviceConfig.getTlsCiphers(),
                         serviceConfig.getTlsProtocols(),
@@ -108,11 +115,19 @@ public class ServiceChannelInitializer extends ChannelInitializer<SocketChannel>
                         serviceConfig.getTlsCertRefreshCheckDurationSec(),
                         authData);
             } else {
+                SslProvider sslProvider = null;
+                if (serviceConfig.getBrokerClientSslProvider() != null) {
+                    sslProvider = SslProvider.valueOf(serviceConfig.getBrokerClientSslProvider());
+                }
                 clientSslCtxRefresher = new NettyClientSslContextRefresher(
+                        sslProvider,
                         serviceConfig.isTlsAllowInsecureConnection(),
                         serviceConfig.getBrokerClientTrustCertsFilePath(),
                         authData,
-                        serviceConfig.getTlsCertRefreshCheckDurationSec());
+                        serviceConfig.getBrokerClientTlsCiphers(),
+                        serviceConfig.getBrokerClientTlsProtocols(),
+                        serviceConfig.getTlsCertRefreshCheckDurationSec()
+                );
             }
         } else {
             this.clientSslCtxRefresher = null;
@@ -158,7 +173,7 @@ public class ServiceChannelInitializer extends ChannelInitializer<SocketChannel>
         }
 
         ch.pipeline().addLast("handler",
-                new ProxyConnection(proxyService, sslHandlerSupplier));
+                new ProxyConnection(proxyService, sslHandlerSupplier, proxyService.getDnsNameResolver()));
 
     }
 }
