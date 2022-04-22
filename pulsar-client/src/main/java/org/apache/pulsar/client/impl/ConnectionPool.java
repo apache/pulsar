@@ -36,6 +36,7 @@ import java.net.URISyntaxException;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -47,6 +48,7 @@ import org.apache.pulsar.client.api.PulsarClientException.InvalidServiceURL;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.netty.DnsResolverUtil;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -62,13 +64,20 @@ public class ConnectionPool implements AutoCloseable {
     private final boolean isSniProxy;
 
     protected final DnsNameResolver dnsResolver;
+    private final boolean shouldCloseDnsResolver;
 
     public ConnectionPool(ClientConfigurationData conf, EventLoopGroup eventLoopGroup) throws PulsarClientException {
         this(conf, eventLoopGroup, () -> new ClientCnx(conf, eventLoopGroup));
     }
 
     public ConnectionPool(ClientConfigurationData conf, EventLoopGroup eventLoopGroup,
-            Supplier<ClientCnx> clientCnxSupplier) throws PulsarClientException {
+                          Supplier<ClientCnx> clientCnxSupplier) throws PulsarClientException {
+        this(conf, eventLoopGroup, clientCnxSupplier, Optional.empty());
+    }
+
+    public ConnectionPool(ClientConfigurationData conf, EventLoopGroup eventLoopGroup,
+                             Supplier<ClientCnx> clientCnxSupplier, Optional<DnsNameResolver> dnsNameResolver)
+            throws PulsarClientException {
         this.eventLoopGroup = eventLoopGroup;
         this.clientConfig = conf;
         this.maxConnectionsPerHosts = conf.getConnectionsPerBroker();
@@ -91,6 +100,12 @@ public class ConnectionPool implements AutoCloseable {
             log.error("Failed to create channel initializer");
             throw new PulsarClientException(e);
         }
+
+        this.shouldCloseDnsResolver = !dnsNameResolver.isPresent();
+        this.dnsResolver = dnsNameResolver.orElseGet(() -> createDnsNameResolver(conf, eventLoopGroup));
+    }
+
+    private static DnsNameResolver createDnsNameResolver(ClientConfigurationData conf, EventLoopGroup eventLoopGroup) {
         DnsNameResolverBuilder dnsNameResolverBuilder = new DnsNameResolverBuilder(eventLoopGroup.next())
                 .traceEnabled(true).channelType(EventLoopUtil.getDatagramChannelClass(eventLoopGroup));
         if (conf.getDnsLookupBindAddress() != null) {
@@ -98,7 +113,8 @@ public class ConnectionPool implements AutoCloseable {
                     conf.getDnsLookupBindPort());
             dnsNameResolverBuilder.localAddress(addr);
         }
-        this.dnsResolver = dnsNameResolverBuilder.build();
+        DnsResolverUtil.applyJdkDnsCacheSettings(dnsNameResolverBuilder);
+        return dnsNameResolverBuilder.build();
     }
 
     private static final Random random = new Random();
@@ -320,7 +336,9 @@ public class ConnectionPool implements AutoCloseable {
     @Override
     public void close() throws Exception {
         closeAllConnections();
-        dnsResolver.close();
+        if (shouldCloseDnsResolver) {
+            dnsResolver.close();
+        }
     }
 
     private void cleanupConnection(InetSocketAddress address, int connectionKey,

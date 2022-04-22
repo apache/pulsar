@@ -309,8 +309,11 @@ OPTS="$OPTS -Dpulsar.log.dir=$PULSAR_LOG_DIR"
 OPTS="$OPTS -Dpulsar.log.level=$PULSAR_LOG_LEVEL"
 OPTS="$OPTS -Dpulsar.log.root.level=$PULSAR_LOG_ROOT_LEVEL"
 OPTS="$OPTS -Dpulsar.routing.appender.default=$PULSAR_ROUTING_APPENDER_DEFAULT"
+
+
 # Configure log4j2 to disable servlet webapp detection so that Garbage free logging can be used
-OPTS="$OPTS -Dlog4j2.is.webapp=false"
+PULSAR_LOG4J_CONF=${PULSAR_LOG4J_CONF:-"-Dlog4j2.is.webapp=false  -Dlog4j2.contextSelector=org.apache.logging.log4j.core.async.AsyncLoggerContextSelector -Dlog4j2.enableThreadlocals=true -Dlog4j2.enableDirectEncoders=true"}
+OPTS="$OPTS $PULSAR_LOG4J_CONF"
 
 # Functions related logging
 OPTS="$OPTS -Dpulsar.functions.process.container.log.dir=$PULSAR_LOG_DIR"

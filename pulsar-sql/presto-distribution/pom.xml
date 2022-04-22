@@ -34,8 +34,6 @@
   <properties>
     <skipBuildDistribution>false</skipBuildDistribution>
     <jersey.version>2.34</jersey.version>
-    <presto.version>332</presto.version>
-    <airlift.version>0.170</airlift.version>
     <objenesis.version>2.6</objenesis.version>
     <objectsize.version>0.0.12</objectsize.version>
     <jackson.version>2.13.2</jackson.version>

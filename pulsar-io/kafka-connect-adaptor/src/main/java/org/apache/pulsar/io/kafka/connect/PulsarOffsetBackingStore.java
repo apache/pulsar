@@ -213,8 +213,17 @@ public class PulsarOffsetBackingStore implements OffsetBackingStore {
         values.forEach((key, value) -> {
             ByteBuf bb = Unpooled.wrappedBuffer(key);
             byte[] keyBytes = ByteBufUtil.getBytes(bb);
-            bb = Unpooled.wrappedBuffer(value);
-            byte[] valBytes = ByteBufUtil.getBytes(bb);
+            byte[] valBytes = null;
+            if (value != null) {
+                bb = Unpooled.wrappedBuffer(value);
+                valBytes = ByteBufUtil.getBytes(bb);
+            } else {
+                // It does not actually matter if it is earliest or latest.
+                // The connector that provides null offsets works with the
+                // system that cannot seek to the offset anyway.
+                // Just need to store something to keep the offset store happy.
+                valBytes = MessageId.earliest.toByteArray();
+            }
             producer.newMessage()
                 .key(new String(keyBytes, UTF_8))
                 .value(valBytes)

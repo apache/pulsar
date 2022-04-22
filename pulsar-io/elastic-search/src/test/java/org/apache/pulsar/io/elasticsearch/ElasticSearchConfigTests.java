@@ -29,6 +29,7 @@ import java.util.Map;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
+import static org.testng.Assert.expectThrows;
 
 
 public class ElasticSearchConfigTests {
@@ -74,6 +75,8 @@ public class ElasticSearchConfigTests {
         assertEquals(config.getTypeName(), "_doc");
         assertNull(config.getUsername());
         assertNull(config.getPassword());
+        assertNull(config.getToken());
+        assertNull(config.getApiKey());
         assertEquals(config.getIndexNumberOfReplicas(), 0);
         assertEquals(config.getIndexNumberOfShards(), 1);
 
@@ -194,6 +197,48 @@ public class ElasticSearchConfigTests {
 
         ElasticSearchConfig config = ElasticSearchConfig.load(map);
         config.validate();
+    }
+
+    @Test
+    public final void credentialsTest() throws IOException {
+        Map<String, Object> map = new HashMap<String, Object> ();
+        map.put("elasticSearchUrl", "http://localhost:90902");
+        map.put("indexName", "myindex");
+        map.put("username", "elastic");
+        map.put("password", "go-speedie-go");
+        map.put("token", "tok");
+        {
+            ElasticSearchConfig config = ElasticSearchConfig.load(map);
+            expectThrows(IllegalArgumentException.class, () -> config.validate());
+        }
+        map.put("apiKey", "apiKey");
+        {
+            ElasticSearchConfig config = ElasticSearchConfig.load(map);
+            expectThrows(IllegalArgumentException.class, () -> config.validate());
+        }
+        map.remove("token");
+        {
+            ElasticSearchConfig config = ElasticSearchConfig.load(map);
+            expectThrows(IllegalArgumentException.class, () -> config.validate());
+        }
+        map.remove("username");
+        map.remove("password");
+        {
+            ElasticSearchConfig config = ElasticSearchConfig.load(map);
+            config.validate();
+        }
+        map.put("token", "tok");
+        map.remove("apiKey");
+        {
+            ElasticSearchConfig config = ElasticSearchConfig.load(map);
+            config.validate();
+        }
+        map.remove("token");
+
+        {
+            ElasticSearchConfig config = ElasticSearchConfig.load(map);
+            config.validate();
+        }
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class,

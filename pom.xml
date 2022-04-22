@@ -213,11 +213,11 @@ flexible messaging model and an intuitive client API.</description>
     <snakeyaml.version>1.30</snakeyaml.version>
     <ant.version>1.10.12</ant.version>
     <seancfoley.ipaddress.version>5.3.3</seancfoley.ipaddress.version>
+    <disruptor.version>3.4.3</disruptor.version>
 
 
     <!-- test dependencies -->
     <cassandra.version>3.6.0</cassandra.version>
-    <disruptor.version>3.4.0</disruptor.version>
     <testcontainers.version>1.15.3</testcontainers.version>
     <hamcrest.version>2.2</hamcrest.version>
 
@@ -947,6 +947,14 @@ flexible messaging model and an intuitive client API.</description>
 
       <dependency>
         <groupId>io.grpc</groupId>
+        <artifactId>grpc-bom</artifactId>
+        <version>${grpc.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+
+      <dependency>
+        <groupId>io.grpc</groupId>
         <artifactId>grpc-all</artifactId>
         <version>${grpc.version}</version>
         <exclusions>
@@ -970,42 +978,6 @@ flexible messaging model and an intuitive client API.</description>
       </dependency>
 
       <dependency>
-        <groupId>io.grpc</groupId>
-        <artifactId>grpc-api</artifactId>
-        <version>${grpc.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>io.grpc</groupId>
-        <artifactId>grpc-core</artifactId>
-        <version>${grpc.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>io.grpc</groupId>
-        <artifactId>grpc-netty</artifactId>
-        <version>${grpc.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>io.grpc</groupId>
-        <artifactId>grpc-protobuf</artifactId>
-        <version>${grpc.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>io.grpc</groupId>
-        <artifactId>grpc-grpclb</artifactId>
-        <version>${grpc.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>io.grpc</groupId>
-        <artifactId>grpc-alts</artifactId>
-        <version>${grpc.version}</version>
-      </dependency>
-
-      <dependency>
         <groupId>com.google.http-client</groupId>
         <artifactId>google-http-client</artifactId>
         <version>${google-http-client.version}</version>
@@ -1024,12 +996,6 @@ flexible messaging model and an intuitive client API.</description>
       </dependency>
 
       <dependency>
-        <groupId>io.grpc</groupId>
-        <artifactId>grpc-netty-shaded</artifactId>
-        <version>${grpc.version}</version>
-      </dependency>
-
-      <dependency>
         <groupId>io.perfmark</groupId>
         <artifactId>perfmark-api</artifactId>
         <version>${perfmark.version}</version>
@@ -1040,18 +1006,6 @@ flexible messaging model and an intuitive client API.</description>
             <groupId>com.google.errorprone</groupId>
           </exclusion>
         </exclusions>
-      </dependency>
-
-      <dependency>
-        <groupId>io.grpc</groupId>
-        <artifactId>grpc-stub</artifactId>
-        <version>${grpc.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>io.grpc</groupId>
-        <artifactId>grpc-protobuf-lite</artifactId>
-        <version>${grpc.version}</version>
       </dependency>
 
       <dependency>

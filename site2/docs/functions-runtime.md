@@ -231,7 +231,7 @@ You can create a secret in the namespace where your functions are deployed. For 
 tenant: "mytenant"
 namespace: "mynamespace"
 name: "myfunction"
-topicName: "persistent://mytenant/mynamespace/myfuncinput"
+inputs: [ "persistent://mytenant/mynamespace/myfuncinput" ]
 className: "com.company.pulsar.myfunction"
 
 secrets:
