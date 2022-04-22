@@ -78,7 +78,7 @@ public class TransactionMetricsTest extends BrokerTestBase {
                         .allowedClusters(Sets.newHashSet("test"))
                         .build());
         admin.namespaces().createNamespace(NamespaceName.SYSTEM_NAMESPACE.toString());
-        admin.topics().createPartitionedTopic(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN.toString(), 1);
+        createTransactionCoordinatorAssign();
     }
 
     @AfterMethod(alwaysRun = true)

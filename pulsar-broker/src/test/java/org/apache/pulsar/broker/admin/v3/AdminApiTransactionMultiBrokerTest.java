@@ -24,6 +24,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.transaction.TransactionTestBase;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.naming.SystemTopicNames;
+import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -50,8 +51,15 @@ public class AdminApiTransactionMultiBrokerTest extends TransactionTestBase {
         Map<String, String> map = admin.lookups()
                 .lookupPartitionedTopic(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN.toString());
         while (map.containsValue(getPulsarServiceList().get(0).getBrokerServiceUrl())) {
-            admin.topics().deletePartitionedTopic(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN.toString());
-            admin.topics().createPartitionedTopic(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN.toString(), NUM_PARTITIONS);
+            pulsarServiceList.get(0).getPulsarResources()
+                    .getNamespaceResources()
+                    .getPartitionedTopicResources()
+                            .deletePartitionedTopicAsync(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN);
+            pulsarServiceList.get(0).getPulsarResources()
+                    .getNamespaceResources()
+                    .getPartitionedTopicResources()
+                    .createPartitionedTopic(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN,
+                            new PartitionedTopicMetadata(NUM_PARTITIONS));
             map = admin.lookups().lookupPartitionedTopic(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN.toString());
         }
         //init tc stores

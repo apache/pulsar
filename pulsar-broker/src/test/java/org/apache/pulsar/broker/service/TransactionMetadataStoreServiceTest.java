@@ -65,7 +65,7 @@ public class TransactionMetadataStoreServiceTest extends BrokerTestBase {
         super.baseSetup(configuration);
         admin.tenants().createTenant("pulsar", new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet("test")));
         admin.namespaces().createNamespace(NamespaceName.SYSTEM_NAMESPACE.toString());
-        admin.topics().createPartitionedTopic(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN.toString(), 16);
+        createTransactionCoordinatorAssign(16);
         admin.lookups().lookupPartitionedTopic(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN.toString());
     }
 
