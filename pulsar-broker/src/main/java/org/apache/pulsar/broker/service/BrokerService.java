@@ -23,7 +23,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
 import static org.apache.commons.collections.CollectionUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
-import static org.apache.pulsar.common.naming.SystemTopicNames.isTransactionSystemTopic;
+import static org.apache.pulsar.common.naming.SystemTopicNames.isTransactionInternalName;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
@@ -1375,7 +1375,7 @@ public class BrokerService implements Closeable {
             return;
         }
 
-        if (isTransactionSystemTopic(topicName)) {
+        if (isTransactionInternalName(topicName)) {
             String msg = String.format("Can not create transaction system topic %s", topic);
             log.warn(msg);
             pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));

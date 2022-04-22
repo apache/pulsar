@@ -22,7 +22,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.broker.resourcegroup.ResourceUsageTransportManager.DISABLE_RESOURCE_USAGE_TRANSPORT_MANAGER;
-import static org.apache.pulsar.common.naming.SystemTopicNames.isTransactionSystemTopic;
+import static org.apache.pulsar.common.naming.SystemTopicNames.isTransactionInternalName;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
@@ -1124,7 +1124,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                     .get(config.getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS)) {
                 try {
                     TopicName topicName = TopicName.get(topic);
-                    if (bundle.includes(topicName) && !isTransactionSystemTopic(topicName)) {
+                    if (bundle.includes(topicName) && !isTransactionInternalName(topicName)) {
                         CompletableFuture<Optional<Topic>> future = brokerService.getTopicIfExists(topic);
                         if (future != null) {
                             persistentTopics.add(future);

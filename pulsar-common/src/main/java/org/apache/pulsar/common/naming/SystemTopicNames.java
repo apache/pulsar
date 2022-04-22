@@ -74,21 +74,15 @@ public class SystemTopicNames {
         return TopicName.get(topic).getLocalName().equals(NAMESPACE_EVENTS_LOCAL_NAME);
     }
 
-    public static boolean isTransactionSystemTopic(TopicName topicName) {
+    public static boolean isTransactionInternalName(TopicName topicName) {
         String topic = topicName.toString();
         return topic.startsWith(TRANSACTION_COORDINATOR_ASSIGN.toString())
                 || topic.startsWith(TRANSACTION_COORDINATOR_LOG.toString())
                 || topic.endsWith(PENDING_ACK_STORE_SUFFIX);
     }
 
-    public static boolean isTransactionInternalName(TopicName topicName) {
-        String topic = topicName.toString();
-        return topic.startsWith(TRANSACTION_COORDINATOR_LOG.toString())
-                || topic.endsWith(PENDING_ACK_STORE_SUFFIX);
-    }
-
     public static boolean isSystemTopic(TopicName topicName) {
         TopicName nonePartitionedTopicName = TopicName.get(topicName.getPartitionedTopicName());
-        return isEventSystemTopic(nonePartitionedTopicName) || isTransactionSystemTopic(topicName);
+        return isEventSystemTopic(nonePartitionedTopicName) || isTransactionInternalName(nonePartitionedTopicName);
     }
 }
