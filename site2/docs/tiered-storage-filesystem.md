@@ -557,3 +557,29 @@ This section provides detailed instructions about how to read data out as Ledger
      buf.writeBytes(value.copyBytes());
      LedgerEntryImpl ledgerEntry = LedgerEntryImpl.create(ledgerId, entryId, length, buf);
   ```
+* Deserialize the `ledgerEntry` to `Message`.
+  ```java
+        ByteBuf metadataAndPayload = ledgerEntry.getDataBuffer();
+        long totalSize = metadataAndPayload.readableBytes();
+        BrokerEntryMetadata brokerEntryMetadata = Commands.peekBrokerEntryMetadataIfExist(metadataAndPayload);
+        MessageMetadata metadata = Commands.parseMessageMetadata(metadataAndPayload);
+        
+        Map<String, String> properties = new TreeMap<>();
+        properties.put("X-Pulsar-batch-size", String.valueOf(totalSize
+                - metadata.getSerializedSize()));
+        properties.put("TOTAL-CHUNKS", Integer.toString(metadata.getNumChunksFromMsg()));
+        properties.put("CHUNK-ID", Integer.toString(metadata.getChunkId()));
+
+        // Decode if needed
+        CompressionCodec codec = CompressionCodecProvider.getCompressionCodec(metadata.getCompression());
+        ByteBuf uncompressedPayload = codec.decode(metadataAndPayload, metadata.getUncompressedSize());
+        // Copy into a heap buffer for output stream compatibility
+        ByteBuf data = PulsarByteBufAllocator.DEFAULT.heapBuffer(uncompressedPayload.readableBytes(),
+                uncompressedPayload.readableBytes());
+        data.writeBytes(uncompressedPayload);
+        uncompressedPayload.release();
+  
+        MessageImpl message = new MessageImpl(topic, ((PositionImpl)ledgerEntry.getPosition()).toString(), properties,
+                data, Schema.BYTES, metadata);
+        message.setBrokerEntryMetadata(brokerEntryMetadata);
+  ```
