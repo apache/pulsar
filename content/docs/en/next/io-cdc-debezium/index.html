@@ -79,7 +79,7 @@ and persists the messages to Pulsar topics.</p>
 <pre><code class="hljs css language-yaml"><span class="hljs-attr">tenant:</span> <span class="hljs-string">"public"</span>
 <span class="hljs-attr">namespace:</span> <span class="hljs-string">"default"</span>
 <span class="hljs-attr">name:</span> <span class="hljs-string">"debezium-mysql-source"</span>
-<span class="hljs-attr">topicName:</span> <span class="hljs-string">"debezium-mysql-topic"</span>
+<span class="hljs-attr">inputs:</span> <span class="hljs-string">[</span> <span class="hljs-string">"debezium-mysql-topic"</span> <span class="hljs-string">]</span>
 <span class="hljs-attr">archive:</span> <span class="hljs-string">"connectors/pulsar-io-debezium-mysql-<span class="hljs-template-variable">2.10.0</span>.nar"</span>
 <span class="hljs-attr">parallelism:</span> <span class="hljs-number">1</span>
 
@@ -182,7 +182,7 @@ mysql&gt; <span class="hljs-keyword">UPDATE</span> products <span class="hljs-ke
 <pre><code class="hljs css language-yaml"><span class="hljs-attr">tenant:</span> <span class="hljs-string">"public"</span>
 <span class="hljs-attr">namespace:</span> <span class="hljs-string">"default"</span>
 <span class="hljs-attr">name:</span> <span class="hljs-string">"debezium-postgres-source"</span>
-<span class="hljs-attr">topicName:</span> <span class="hljs-string">"debezium-postgres-topic"</span>
+<span class="hljs-attr">inputs:</span> <span class="hljs-string">[</span> <span class="hljs-string">"debezium-postgres-topic"</span> <span class="hljs-string">]</span>
 <span class="hljs-attr">archive:</span> <span class="hljs-string">"connectors/pulsar-io-debezium-postgres-<span class="hljs-template-variable">2.10.0</span>.nar"</span>
 <span class="hljs-attr">parallelism:</span> <span class="hljs-number">1</span>
 
@@ -284,7 +284,7 @@ UPDATE 1
 <pre><code class="hljs css language-yaml"><span class="hljs-attr">tenant:</span> <span class="hljs-string">"public"</span>
 <span class="hljs-attr">namespace:</span> <span class="hljs-string">"default"</span>
 <span class="hljs-attr">name:</span> <span class="hljs-string">"debezium-mongodb-source"</span>
-<span class="hljs-attr">topicName:</span> <span class="hljs-string">"debezium-mongodb-topic"</span>
+<span class="hljs-attr">inputs:</span> <span class="hljs-string">[</span> <span class="hljs-string">"debezium-mongodb-topic"</span> <span class="hljs-string">]</span>
 <span class="hljs-attr">archive:</span> <span class="hljs-string">"connectors/pulsar-io-debezium-mongodb-<span class="hljs-template-variable">2.10.0</span>.nar"</span>
 <span class="hljs-attr">parallelism:</span> <span class="hljs-number">1</span>
 

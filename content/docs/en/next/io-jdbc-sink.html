@@ -57,7 +57,7 @@ and persists the messages to ClickHouse, MariaDB, PostgreSQL, and SQLite.</p>
 <pre><code class="hljs css language-yaml"><span class="hljs-attr">tenant:</span> <span class="hljs-string">"public"</span>
 <span class="hljs-attr">namespace:</span> <span class="hljs-string">"default"</span>
 <span class="hljs-attr">name:</span> <span class="hljs-string">"jdbc-clickhouse-sink"</span>
-<span class="hljs-attr">topicName:</span> <span class="hljs-string">"persistent://public/default/jdbc-clickhouse-topic"</span>
+<span class="hljs-attr">inputs:</span> <span class="hljs-string">[</span> <span class="hljs-string">"persistent://public/default/jdbc-clickhouse-topic"</span> <span class="hljs-string">]</span>
 <span class="hljs-attr">sinkType:</span> <span class="hljs-string">"jdbc-clickhouse"</span>    
 <span class="hljs-attr">configs:</span>
     <span class="hljs-attr">userName:</span> <span class="hljs-string">"clickhouse"</span>
@@ -82,7 +82,7 @@ and persists the messages to ClickHouse, MariaDB, PostgreSQL, and SQLite.</p>
 <pre><code class="hljs css language-yaml"><span class="hljs-attr">tenant:</span> <span class="hljs-string">"public"</span>
 <span class="hljs-attr">namespace:</span> <span class="hljs-string">"default"</span>
 <span class="hljs-attr">name:</span> <span class="hljs-string">"jdbc-mariadb-sink"</span>
-<span class="hljs-attr">topicName:</span> <span class="hljs-string">"persistent://public/default/jdbc-mariadb-topic"</span>
+<span class="hljs-attr">inputs:</span> <span class="hljs-string">[</span> <span class="hljs-string">"persistent://public/default/jdbc-mariadb-topic"</span> <span class="hljs-string">]</span>
 <span class="hljs-attr">sinkType:</span> <span class="hljs-string">"jdbc-mariadb"</span>    
 <span class="hljs-attr">configs:</span>
     <span class="hljs-attr">userName:</span> <span class="hljs-string">"mariadb"</span>
@@ -108,7 +108,7 @@ and persists the messages to ClickHouse, MariaDB, PostgreSQL, and SQLite.</p>
 <pre><code class="hljs css language-yaml"><span class="hljs-attr">tenant:</span> <span class="hljs-string">"public"</span>
 <span class="hljs-attr">namespace:</span> <span class="hljs-string">"default"</span>
 <span class="hljs-attr">name:</span> <span class="hljs-string">"jdbc-openmldb-sink"</span>
-<span class="hljs-attr">topicName:</span> <span class="hljs-string">"persistent://public/default/jdbc-openmldb-topic"</span>
+<span class="hljs-attr">inputs:</span> <span class="hljs-string">[</span> <span class="hljs-string">"persistent://public/default/jdbc-openmldb-topic"</span> <span class="hljs-string">]</span>
 <span class="hljs-attr">sinkType:</span> <span class="hljs-string">"jdbc-openmldb"</span>    
 <span class="hljs-attr">configs:</span>
     <span class="hljs-attr">jdbcUrl:</span> <span class="hljs-string">"jdbc:openmldb:///pulsar_openmldb_db?zk=localhost:6181&amp;zkPath=/openmldb"</span>
@@ -132,7 +132,7 @@ and persists the messages to ClickHouse, MariaDB, PostgreSQL, and SQLite.</p>
 <pre><code class="hljs css language-yaml"><span class="hljs-attr">tenant:</span> <span class="hljs-string">"public"</span>
 <span class="hljs-attr">namespace:</span> <span class="hljs-string">"default"</span>
 <span class="hljs-attr">name:</span> <span class="hljs-string">"jdbc-postgres-sink"</span>
-<span class="hljs-attr">topicName:</span> <span class="hljs-string">"persistent://public/default/jdbc-postgres-topic"</span>
+<span class="hljs-attr">inputs:</span> <span class="hljs-string">[</span> <span class="hljs-string">"persistent://public/default/jdbc-postgres-topic"</span> <span class="hljs-string">]</span>
 <span class="hljs-attr">sinkType:</span> <span class="hljs-string">"jdbc-postgres"</span>    
 <span class="hljs-attr">configs:</span>
     <span class="hljs-attr">userName:</span> <span class="hljs-string">"postgres"</span>
@@ -156,7 +156,7 @@ and persists the messages to ClickHouse, MariaDB, PostgreSQL, and SQLite.</p>
 <pre><code class="hljs css language-yaml"><span class="hljs-attr">tenant:</span> <span class="hljs-string">"public"</span>
 <span class="hljs-attr">namespace:</span> <span class="hljs-string">"default"</span>
 <span class="hljs-attr">name:</span> <span class="hljs-string">"jdbc-sqlite-sink"</span>
-<span class="hljs-attr">topicName:</span> <span class="hljs-string">"persistent://public/default/jdbc-sqlite-topic"</span>
+<span class="hljs-attr">inputs:</span> <span class="hljs-string">[</span> <span class="hljs-string">"persistent://public/default/jdbc-sqlite-topic"</span> <span class="hljs-string">]</span>
 <span class="hljs-attr">sinkType:</span> <span class="hljs-string">"jdbc-sqlite"</span>    
 <span class="hljs-attr">configs:</span>
     <span class="hljs-attr">jdbcUrl:</span> <span class="hljs-string">"jdbc:sqlite:db.sqlite"</span>
