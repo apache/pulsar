@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.admin;
 import com.google.common.collect.Sets;
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadMXBean;
+import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Phaser;
 import java.util.concurrent.locks.Lock;
@@ -43,6 +44,8 @@ import org.testng.annotations.Test;
 @Test(groups = "broker-admin")
 @Slf4j
 public class AdminApiHealthCheckTest extends MockedPulsarServiceBaseTest {
+
+    private final ThreadMXBean threadBean = ManagementFactory.getThreadMXBean();
 
     @BeforeMethod
     @Override
@@ -135,6 +138,9 @@ public class AdminApiHealthCheckTest extends MockedPulsarServiceBaseTest {
             thread2.interrupt();
             // wait for deadlock threads to finish
             phaser.arriveAndAwaitAdvance();
+            // wait for deadlocked status to clear before continuing
+            Awaitility.await().atMost(Duration.ofSeconds(10))
+                    .until(() -> threadBean.findDeadlockedThreads() == null);
         }
     }
 
@@ -157,7 +163,6 @@ public class AdminApiHealthCheckTest extends MockedPulsarServiceBaseTest {
 
     @Test(timeOut = 5000L)
     public void testDeadlockDetectionOverhead() {
-        ThreadMXBean threadBean = ManagementFactory.getThreadMXBean();
         for (int i=0; i < 1000; i++) {
             long[] threadIds = threadBean.findDeadlockedThreads();
             // assert that there's no deadlock
