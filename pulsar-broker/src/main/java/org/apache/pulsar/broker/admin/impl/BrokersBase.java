@@ -148,20 +148,26 @@ public class BrokersBase extends AdminResource {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the cluster"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Cluster doesn't exist") })
-    public Map<String, NamespaceOwnershipStatus> getOwnedNamespaces(@PathParam("clusterName") String cluster,
-            @PathParam("broker-webserviceurl") String broker) throws Exception {
-        validateSuperUserAccess();
-        validateClusterOwnership(cluster);
-        validateBrokerName(broker);
-
-        try {
-            // now we validated that this is the broker specified in the request
-            return pulsar().getNamespaceService().getOwnedNameSpacesStatus();
-        } catch (Exception e) {
-            LOG.error("[{}] Failed to get the namespace ownership status. cluster={}, broker={}", clientAppId(),
-                    cluster, broker);
-            throw new RestException(e);
-        }
+    public void getOwnedNamespaces(@Suspended final AsyncResponse asyncResponse,
+                                   @PathParam("clusterName") String cluster,
+                                   @PathParam("broker-webserviceurl") String broker) {
+        validateSuperUserAccessAsync()
+                .thenAccept(__ -> validateBrokerName(broker))
+                .thenCompose(__ -> validateClusterOwnershipAsync(cluster))
+                .thenCompose(__ -> pulsar().getNamespaceService().getOwnedNameSpacesStatusAsync())
+                .thenAccept(namespaceOwnershipStatus -> {
+                    LOG.info("[{}] Successfully to get the namespace ownership status. cluster={} broker={}",
+                            clientAppId(), cluster, broker);
+                    asyncResponse.resume(namespaceOwnershipStatus);
+                }).exceptionally(ex -> {
+                    // If the exception is not redirect exception we need to log it.
+                    if (!isRedirectException(ex)) {
+                        LOG.error("[{}] Failed to get the namespace ownership status. cluster={}, broker={}",
+                                clientAppId(), cluster, broker);
+                    }
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @POST
