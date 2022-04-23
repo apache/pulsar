@@ -226,17 +226,17 @@ public class BrokersBase extends AdminResource {
         @ApiResponse(code = 403, message = "You don't have admin permission to view configuration"),
         @ApiResponse(code = 404, message = "Configuration not found"),
         @ApiResponse(code = 500, message = "Internal server error")})
-    public Map<String, String> getAllDynamicConfigurations() throws Exception {
-        validateSuperUserAccess();
-        try {
-            return dynamicConfigurationResources().getDynamicConfiguration().orElseGet(Collections::emptyMap);
-        } catch (RestException e) {
-            LOG.error("[{}] couldn't find any configuration in zk {}", clientAppId(), e.getMessage(), e);
-            throw e;
-        } catch (Exception e) {
-            LOG.error("[{}] Failed to retrieve configuration from zk {}", clientAppId(), e.getMessage(), e);
-            throw new RestException(e);
-        }
+    public void getAllDynamicConfigurations(@Suspended AsyncResponse asyncResponse) {
+        validateSuperUserAccessAsync()
+                .thenCompose(__ -> dynamicConfigurationResources().getDynamicConfigurationAsync())
+                .thenAccept(configOpt -> {
+                    LOG.info("[{}] Successfully to get all dynamic configuration.", clientAppId());
+                    asyncResponse.resume(configOpt.orElseGet(Collections::emptyMap));
+                }).exceptionally(ex -> {
+                    LOG.error("[{}] Failed to get all dynamic configuration.", clientAppId(), ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @GET
@@ -244,9 +244,16 @@ public class BrokersBase extends AdminResource {
     @ApiOperation(value = "Get all updatable dynamic configurations's name")
     @ApiResponses(value = {
             @ApiResponse(code = 403, message = "You don't have admin permission to get configuration")})
-    public List<String> getDynamicConfigurationName() {
-        validateSuperUserAccess();
-        return BrokerService.getDynamicConfiguration();
+    public void getDynamicConfigurationName(@Suspended AsyncResponse asyncResponse) {
+        validateSuperUserAccessAsync()
+                .thenAccept(__ -> {
+                    LOG.info("[{}] Successfully to get all dynamic configuration names.", clientAppId());
+                    asyncResponse.resume(BrokerService.getDynamicConfiguration());
+                }).exceptionally(ex -> {
+                    LOG.error("[{}] Failed to get all dynamic configuration names.", clientAppId(), ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @GET
