@@ -153,6 +153,7 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
                 if (EntryFilter.FilterResult.REJECT == getFilterResult(filterContext, entry, entryFilters)) {
                     entriesToFiltered.add(entry.getPosition());
                     entries.set(i, null);
+                    totalEntries--;
                     entry.release();
                     continue;
                 }
@@ -165,6 +166,7 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
                     subscription.acknowledgeMessage(Collections.singletonList(entry.getPosition()), AckType.Individual,
                             Collections.emptyMap());
                     entries.set(i, null);
+                    totalEntries--;
                     entry.release();
                     continue;
                 } else if (((PersistentTopic) subscription.getTopic())
@@ -172,6 +174,7 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
                     subscription.acknowledgeMessage(Collections.singletonList(entry.getPosition()), AckType.Individual,
                             Collections.emptyMap());
                     entries.set(i, null);
+                    totalEntries--;
                     entry.release();
                     continue;
                 }
@@ -184,6 +187,7 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
                 }
 
                 entries.set(i, null);
+                totalEntries--;
                 entry.release();
                 subscription.acknowledgeMessage(Collections.singletonList(pos), AckType.Individual,
                         Collections.emptyMap());
@@ -192,6 +196,7 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
                     && trackDelayedDelivery(entry.getLedgerId(), entry.getEntryId(), msgMetadata)) {
                 // The message is marked for delayed delivery. Ignore for now.
                 entries.set(i, null);
+                totalEntries--;
                 entry.release();
                 continue;
             }
