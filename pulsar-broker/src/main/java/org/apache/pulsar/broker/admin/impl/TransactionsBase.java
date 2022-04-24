@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.admin.impl;
 import static javax.ws.rs.core.Response.Status.METHOD_NOT_ALLOWED;
 import static javax.ws.rs.core.Response.Status.NOT_FOUND;
 import static javax.ws.rs.core.Response.Status.SERVICE_UNAVAILABLE;
+import static org.apache.pulsar.broker.resources.PulsarResources.DEFAULT_OPERATION_TIMEOUT_SEC;
 import com.google.common.collect.Lists;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -44,6 +45,7 @@ import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.TransactionBufferStats;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorInternalStats;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorStats;
@@ -429,6 +431,37 @@ public abstract class TransactionsBase extends AdminResource {
             log.warn("[{}] Failed to validate topic name {}://{}/{}/{}", clientAppId(), domain(), property, namespace,
                     topic, e);
             throw new RestException(Response.Status.PRECONDITION_FAILED, "Topic name is not valid");
+        }
+    }
+
+    protected void internalUpdateTransactionCoordinatorNumber(int numPartitions) {
+        final int maxPartitions = pulsar().getConfig().getMaxNumPartitionsPerPartitionedTopic();
+        if (maxPartitions > 0 && numPartitions > maxPartitions) {
+            throw new RestException(Response.Status.NOT_ACCEPTABLE,
+                    "Number of partitions should be less than or equal to " + maxPartitions);
+        }
+
+        CompletableFuture<Void> updatePartition = new CompletableFuture<>();
+        namespaceResources().getPartitionedTopicResources()
+                .updatePartitionedTopicAsync(TopicName.TRANSACTION_COORDINATOR_ASSIGN, p -> {
+                    if (p.partitions >= numPartitions) {
+                        throw new RestException(Response.Status.NOT_ACCEPTABLE, "Number of partitions should "
+                                + "be more than the current number of transaction coordinator partitions");
+                    }
+                    return new PartitionedTopicMetadata(numPartitions);
+                }).thenAccept(r -> updatePartition.complete(null)).exceptionally(ex -> {
+                    updatePartition.completeExceptionally(ex.getCause());
+                    return null;
+                });
+        try {
+            updatePartition.get(DEFAULT_OPERATION_TIMEOUT_SEC, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            log.error("{} Failed to update number of partitions in zk for topic {} and partitions {}",
+                    clientAppId(), topicName, numPartitions, e);
+            if (e.getCause() instanceof RestException) {
+                throw (RestException) e.getCause();
+            }
+            throw new RestException(e);
         }
     }
 }

@@ -29,6 +29,7 @@ import javax.ws.rs.Consumes;
 import javax.ws.rs.DefaultValue;
 import javax.ws.rs.Encoded;
 import javax.ws.rs.GET;
+import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
@@ -313,5 +314,18 @@ public class Transactions extends TransactionsBase {
         } catch (Exception ex) {
             resumeAsyncResponseExceptionally(asyncResponse, ex);
         }
+    }
+
+    @POST
+    @Path("/transactionCoordinator/partitions")
+    @ApiResponses(value = {
+            @ApiResponse(code = 503, message = "This Broker is not configured "
+                    + "with transactionCoordinatorEnabled=true."),
+            @ApiResponse(code = 406, message = "The number of partitions should be more than "
+                    + "the current number of transaction coordinator partitions"
+                    + " and less than or equal to maxNumPartitionsPerPartitionedTopic")})
+    public void updateTransactionCoordinatorNumber(int numPartitions) {
+        checkTransactionCoordinatorEnabled();
+        internalUpdateTransactionCoordinatorNumber(numPartitions);
     }
 }

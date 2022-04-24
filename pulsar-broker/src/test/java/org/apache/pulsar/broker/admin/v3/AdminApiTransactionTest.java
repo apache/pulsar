@@ -518,6 +518,41 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         } catch (PulsarAdminException ex) {
             assertEquals(ex.getStatusCode(), HttpStatus.SC_SERVICE_UNAVAILABLE);
         }
+        try {
+            admin.transactions().updateTransactionCoordinatorNumber(1);
+        } catch (PulsarAdminException ex) {
+            assertEquals(ex.getStatusCode(), HttpStatus.SC_SERVICE_UNAVAILABLE);
+        }
+    }
+
+    @Test
+    public void testUpdateTransactionCoordinatorNumber() throws Exception {
+        int coordinatorSize = 3;
+        admin.topics().createPartitionedTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString(), coordinatorSize);
+        conf.setMaxNumPartitionsPerPartitionedTopic(15);
+        try {
+            admin.transactions().updateTransactionCoordinatorNumber(coordinatorSize - 1);
+        } catch (PulsarAdminException pulsarAdminException) {
+            assertEquals(pulsarAdminException.getStatusCode(), HttpStatus.SC_NOT_ACCEPTABLE);
+        }
+        try {
+            admin.transactions().updateTransactionCoordinatorNumber(-1);
+        } catch (PulsarAdminException pulsarAdminException) {
+            assertEquals(pulsarAdminException.getCause().getMessage(),
+                    "Number of partitions must be more than 0");
+        }
+
+        try {
+            admin.transactions()
+                    .updateTransactionCoordinatorNumber(conf.getMaxNumPartitionsPerPartitionedTopic() + 1);
+        } catch (PulsarAdminException pulsarAdminException) {
+            assertEquals(pulsarAdminException.getStatusCode(), HttpStatus.SC_NOT_ACCEPTABLE);
+        }
+        admin.transactions().updateTransactionCoordinatorNumber(conf.getMaxNumPartitionsPerPartitionedTopic());
+        pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl.toString()).enableTransaction(true).build();
+        pulsarClient.close();
+        Awaitility.await().until(() -> pulsar.getTransactionMetadataStoreService().getStores().size() ==
+                        conf.getMaxNumPartitionsPerPartitionedTopic());
     }
 
     private static void verifyCoordinatorStats(String state,

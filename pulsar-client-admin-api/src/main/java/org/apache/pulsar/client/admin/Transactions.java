@@ -243,4 +243,17 @@ public interface Transactions {
     TransactionPendingAckInternalStats getPendingAckInternalStats(String topic, String subName,
                                                                   boolean metadata) throws PulsarAdminException;
 
+    /**
+     * update the number of transaction coordinator.
+     * @param numPartitions the new transaction coordinator number.
+     */
+    void updateTransactionCoordinatorNumber(int numPartitions) throws PulsarAdminException;
+
+    /**
+     * update the number of transaction coordinator.
+     * @param numPartitions the new transaction coordinator number.
+     * @return a future that can be used to track when the transaction coordinator number is updated.
+     */
+    CompletableFuture<Void> updateTransactionCoordinatorNumberAsync(int numPartitions);
+
 }
