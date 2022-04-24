@@ -62,7 +62,7 @@ public abstract class BrokerTestBase extends MockedPulsarServiceBaseTest {
                 .getNamespaceResources()
                 .getPartitionedTopicResources()
                 .createPartitionedTopic(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN,
-                        new PartitionedTopicMetadata(1));
+                        new PartitionedTopicMetadata(partitions));
     }
 
     void rolloverPerIntervalStats() {
