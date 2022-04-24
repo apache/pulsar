@@ -237,9 +237,16 @@ public class BrokersBase extends AdminResource {
     @Path("/configuration/runtime")
     @ApiOperation(value = "Get all runtime configurations. This operation requires Pulsar super-user privileges.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
-    public Map<String, String> getRuntimeConfiguration() {
-        validateSuperUserAccess();
-        return pulsar().getBrokerService().getRuntimeConfiguration();
+    public void getRuntimeConfiguration(@Suspended AsyncResponse asyncResponse) {
+        validateSuperUserAccessAsync()
+                .thenAccept(__ -> {
+                    LOG.info("[{}] Successfully to get runtime configuration.", clientAppId());
+                    asyncResponse.resume(pulsar().getBrokerService().getRuntimeConfiguration());
+                }).exceptionally(ex -> {
+                    LOG.error("[{}] Failed to get runtime configuration.", clientAppId(), ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     /**
@@ -273,9 +280,16 @@ public class BrokersBase extends AdminResource {
     @Path("/internal-configuration")
     @ApiOperation(value = "Get the internal configuration data", response = InternalConfigurationData.class)
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
-    public InternalConfigurationData getInternalConfigurationData() {
-        validateSuperUserAccess();
-        return pulsar().getInternalConfigurationData();
+    public void getInternalConfigurationData(@Suspended AsyncResponse asyncResponse) {
+        validateSuperUserAccessAsync()
+                .thenAccept(__ -> {
+                    LOG.info("[{}] Successfully to get internal configuration data.", clientAppId());
+                    asyncResponse.resume(pulsar().getInternalConfigurationData());
+                }).exceptionally(ex -> {
+                    LOG.error("[{}] Failed to get internal configuration data.", clientAppId(), ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @GET
@@ -286,16 +300,17 @@ public class BrokersBase extends AdminResource {
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 500, message = "Internal server error")})
     public void backlogQuotaCheck(@Suspended AsyncResponse asyncResponse) {
-        validateSuperUserAccess();
-        pulsar().getBrokerService().getBacklogQuotaChecker().execute(safeRun(()->{
-            try {
-                pulsar().getBrokerService().monitorBacklogQuota();
-                asyncResponse.resume(Response.noContent().build());
-            } catch (Exception e) {
-                LOG.error("trigger backlogQuotaCheck fail", e);
-                asyncResponse.resume(new RestException(e));
-            }
-        }));
+        validateSuperUserAccessAsync()
+                .thenAcceptAsync(__ -> {
+                    pulsar().getBrokerService().monitorBacklogQuota();
+                    LOG.info("[{}] Successfully to trigger backlog quota check.", clientAppId());
+                    asyncResponse.resume(Response.noContent().build());
+                } , pulsar().getBrokerService().getBacklogQuotaChecker())
+                .exceptionally(ex -> {
+                    LOG.error("[{}] Failed to trigger backlog quota check.", clientAppId(), ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @GET

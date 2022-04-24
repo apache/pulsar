@@ -1804,34 +1804,37 @@ public class BrokerService implements Closeable {
         });
     }
 
+    public void forEachPersistentTopic(Consumer<PersistentTopic> consumer) {
+        topics.values().stream().map(BrokerService::extractTopic)
+                .map(topicOp -> topicOp.filter(topic -> topic instanceof PersistentTopic))
+                .forEach(topicOp -> topicOp.ifPresent(topic -> consumer.accept((PersistentTopic) topic)));
+    }
+
     public BacklogQuotaManager getBacklogQuotaManager() {
         return this.backlogQuotaManager;
     }
 
     public void monitorBacklogQuota() {
-        forEachTopic(topic -> {
-            if (topic instanceof PersistentTopic) {
-                PersistentTopic persistentTopic = (PersistentTopic) topic;
-                if (persistentTopic.isSizeBacklogExceeded()) {
-                    getBacklogQuotaManager().handleExceededBacklogQuota(persistentTopic,
-                            BacklogQuota.BacklogQuotaType.destination_storage, false);
-                } else {
-                    persistentTopic.checkTimeBacklogExceeded().thenAccept(isExceeded -> {
-                        if (isExceeded) {
-                            getBacklogQuotaManager().handleExceededBacklogQuota(persistentTopic,
-                                    BacklogQuota.BacklogQuotaType.message_age,
-                                    pulsar.getConfiguration().isPreciseTimeBasedBacklogQuotaCheck());
-                        } else {
-                            if (log.isDebugEnabled()) {
-                                log.debug("quota not exceeded for [{}]", topic.getName());
-                            }
+        forEachPersistentTopic(topic -> {
+            if (topic.isSizeBacklogExceeded()) {
+                getBacklogQuotaManager().handleExceededBacklogQuota(topic,
+                        BacklogQuota.BacklogQuotaType.destination_storage, false);
+            } else {
+                topic.checkTimeBacklogExceeded().thenAccept(isExceeded -> {
+                    if (isExceeded) {
+                        getBacklogQuotaManager().handleExceededBacklogQuota(topic,
+                                BacklogQuota.BacklogQuotaType.message_age,
+                                pulsar.getConfiguration().isPreciseTimeBasedBacklogQuotaCheck());
+                    } else {
+                        if (log.isDebugEnabled()) {
+                            log.debug("quota not exceeded for [{}]", topic.getName());
                         }
-                    }).exceptionally(throwable -> {
-                        log.error("Error when checkTimeBacklogExceeded({}) in monitorBacklogQuota",
-                                persistentTopic.getName(), throwable);
-                        return null;
-                    });
-                }
+                    }
+                }).exceptionally(throwable -> {
+                    log.error("Error when checkTimeBacklogExceeded({}) in monitorBacklogQuota",
+                            topic.getName(), throwable);
+                    return null;
+                });
             }
         });
     }

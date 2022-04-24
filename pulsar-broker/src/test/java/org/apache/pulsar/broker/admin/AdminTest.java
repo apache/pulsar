@@ -89,6 +89,7 @@ import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.stats.AllocatorStats;
 import org.apache.pulsar.common.stats.Metrics;
+import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.metadata.cache.impl.MetadataCacheImpl;
 import org.apache.pulsar.metadata.impl.AbstractMetadataStore;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
@@ -194,9 +195,10 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
                 conf.getConfigurationMetadataStoreUrl(),
                 new ClientConfiguration().getZkLedgersRootPath(),
                 conf.isBookkeeperMetadataStoreSeparated() ? conf.getBookkeeperMetadataStoreUrl() : null,
-                pulsar.getWorkerConfig().map(wc -> wc.getStateStorageServiceUrl()).orElse(null));
-
-        assertEquals(brokers.getInternalConfigurationData(), expectedData);
+                pulsar.getWorkerConfig().map(WorkerConfig::getStateStorageServiceUrl).orElse(null));
+        Object response = asynRequests(ctx -> brokers.getInternalConfigurationData(ctx));
+        assertTrue(response instanceof InternalConfigurationData);
+        assertEquals(response, expectedData);
     }
 
     @Test
