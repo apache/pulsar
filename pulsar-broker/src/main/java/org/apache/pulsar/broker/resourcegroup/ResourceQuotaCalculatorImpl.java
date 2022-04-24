@@ -116,7 +116,7 @@ public class ResourceQuotaCalculatorImpl implements ResourceQuotaCalculator {
 
         if (currentMessagesUsed > 0) {
             long diff = abs(currentMessagesUsed - lastReportedMessages);
-            float diffPercentage = (float) diff * 100 / lastReportedBytes;
+            float diffPercentage = (float) diff * 100 / lastReportedMessages;
             if (diffPercentage > toleratedDriftPercentage) {
                 return true;
             }
