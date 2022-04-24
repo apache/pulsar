@@ -30,6 +30,7 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import org.apache.pulsar.tests.TestRetrySupport;
+import org.apache.zookeeper.TestZKServer;
 import org.assertj.core.util.Files;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;

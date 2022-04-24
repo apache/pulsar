@@ -84,6 +84,10 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
                 try {
                     url = metadataServiceUri.replaceFirst(METADATA_STORE_SCHEME + ":", "")
                             .replace(";", ",");
+                    String idx = "://";
+                    if (url.indexOf(idx) != -1) {
+                        url = url.substring(url.indexOf(idx) + idx.length());
+                    }
                 } catch (Exception e) {
                     throw new MetadataException(Code.METADATA_SERVICE_ERROR, e);
                 }

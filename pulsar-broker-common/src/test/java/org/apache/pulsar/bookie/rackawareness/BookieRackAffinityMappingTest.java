@@ -19,6 +19,7 @@
 package org.apache.pulsar.bookie.rackawareness;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
@@ -33,6 +34,7 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreFactory;
+import org.apache.zookeeper.TestZKServer;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -58,6 +60,23 @@ public class BookieRackAffinityMappingTest {
     @AfterMethod(alwaysRun = true)
     void teardown() throws Exception {
         store.close();
+    }
+
+
+    @Test
+    public void testCreateMetadataStoreWithBkMetadataServiceUri() throws Exception {
+        TestZKServer zkServer = new TestZKServer();
+        String zkConnection = zkServer.getConnectionString();
+        ClientConfiguration conf = new ClientConfiguration();
+        conf.setZkTimeout(3000);
+
+        conf.setMetadataServiceUri("zk+hierarchical://" + zkConnection + "/ledgers");
+        assertNotNull(BookieRackAffinityMapping.createMetadataStore(conf));
+
+        conf.setMetadataServiceUri("zk+null://" + zkConnection + "/ledgers");
+        assertNotNull(BookieRackAffinityMapping.createMetadataStore(conf));
+
+        zkServer.close();
     }
 
     @Test

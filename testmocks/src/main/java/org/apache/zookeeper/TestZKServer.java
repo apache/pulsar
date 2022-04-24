@@ -16,10 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.metadata;
+package org.apache.zookeeper;
 
 import static org.testng.Assert.assertTrue;
-
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
@@ -27,13 +26,10 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.Socket;
-
 import java.nio.charset.StandardCharsets;
-
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.commons.io.FileUtils;
-import org.apache.zookeeper.KeeperException;
+import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.zookeeper.server.ContainerManager;
 import org.apache.zookeeper.server.NIOServerCnxnFactory;
 import org.apache.zookeeper.server.Request;
@@ -41,7 +37,6 @@ import org.apache.zookeeper.server.RequestProcessor;
 import org.apache.zookeeper.server.ServerCnxnFactory;
 import org.apache.zookeeper.server.SessionTracker;
 import org.apache.zookeeper.server.ZooKeeperServer;
-import org.assertj.core.util.Files;
 
 @Slf4j
 public class TestZKServer implements AutoCloseable {
@@ -54,7 +49,7 @@ public class TestZKServer implements AutoCloseable {
     private int zkPort = 0;
 
     public TestZKServer() throws Exception {
-        this.zkDataDir = Files.newTemporaryFolder();
+        this.zkDataDir = new File(FileUtils.getTempDirectory(), RandomStringUtils.randomAlphabetic(5));
         this.zkDataDir.deleteOnExit();
         // Allow all commands on ZK control port
         System.setProperty("zookeeper.4lw.commands.whitelist", "*");

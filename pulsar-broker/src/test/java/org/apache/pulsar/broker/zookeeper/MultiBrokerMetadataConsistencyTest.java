@@ -24,10 +24,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.MultiBrokerBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.apache.pulsar.metadata.TestZKServer;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import org.apache.zookeeper.TestZKServer;
 import org.testng.annotations.Test;
 
 @Slf4j
