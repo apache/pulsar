@@ -138,6 +138,8 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
             AtomicLongFieldUpdater.newUpdater(AbstractTopic.class, "usageCount");
     private volatile long usageCount = 0;
 
+    protected Map<String/*subscription*/, DispatchRateImpl> subscriptionLevelDispatchRateMap = Collections.emptyMap();
+
     public AbstractTopic(String topic, BrokerService brokerService) {
         this.topic = topic;
         this.brokerService = brokerService;
@@ -157,7 +159,11 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         return this.topicPolicies.getSubscribeRate().get();
     }
 
-    public DispatchRateImpl getSubscriptionDispatchRate() {
+    public DispatchRateImpl getSubscriptionDispatchRate(String subscriptionName) {
+        DispatchRateImpl rate = DispatchRateImpl.normalize(subscriptionLevelDispatchRateMap.get(subscriptionName));
+        if (rate != null) {
+            return rate;
+        }
         return this.topicPolicies.getSubscriptionDispatchRate().get();
     }
 
@@ -214,6 +220,8 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
             DispatchRateImpl.normalize(data.getSubscriptionDispatchRate()));
         topicPolicies.getCompactionThreshold().updateTopicValue(data.getCompactionThreshold());
         topicPolicies.getDispatchRate().updateTopicValue(DispatchRateImpl.normalize(data.getDispatchRate()));
+
+        this.subscriptionLevelDispatchRateMap = data.getSubscriptionLevelDispatchRateMap();
     }
 
     protected void updateTopicPolicyByNamespacePolicy(Policies namespacePolicies) {

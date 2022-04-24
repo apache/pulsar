@@ -4396,6 +4396,49 @@ public class PersistentTopicsBase extends AdminResource {
             });
     }
 
+    protected CompletableFuture<DispatchRate> internalGetSubscriptionLevelDispatchRate(String subName, boolean applied,
+                                                                                       boolean isGlobal) {
+        return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
+                .thenCompose(otp -> {
+                    DispatchRateImpl rate =
+                            otp.map(tp -> tp.getSubscriptionLevelDispatchRateMap().get(subName)).orElse(null);
+                    if (applied && rate == null) {
+                        return internalGetSubscriptionDispatchRate(true, isGlobal);
+                    } else {
+                        return CompletableFuture.completedFuture(rate);
+                    }
+                });
+    }
+
+    protected CompletableFuture<Void> internalSetSubscriptionLevelDispatchRate(String subName,
+                                                                               DispatchRateImpl dispatchRate,
+                                                                               boolean isGlobal) {
+        final DispatchRateImpl newDispatchRate = DispatchRateImpl.normalize(dispatchRate);
+        if (newDispatchRate == null) {
+            return CompletableFuture.completedFuture(null);
+        }
+        return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
+                .thenCompose(op -> {
+                    TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
+                    topicPolicies.getSubscriptionLevelDispatchRateMap().put(subName, newDispatchRate);
+                    topicPolicies.setIsGlobal(isGlobal);
+                    return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
+                });
+    }
+
+    protected CompletableFuture<Void> internalRemoveSubscriptionLevelDispatchRate(String subName, boolean isGlobal) {
+        return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
+            .thenCompose(op -> {
+                if (!op.isPresent()) {
+                    return CompletableFuture.completedFuture(null);
+                }
+                TopicPolicies topicPolicies = op.get();
+                topicPolicies.getSubscriptionLevelDispatchRateMap().remove(subName);
+                topicPolicies.setIsGlobal(isGlobal);
+                return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, op.get());
+            });
+    }
+
 
     protected CompletableFuture<Optional<Integer>> internalGetMaxConsumersPerSubscription(boolean isGlobal) {
         return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
