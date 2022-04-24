@@ -164,7 +164,6 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
                     subscription.acknowledgeMessage(Collections.singletonList(entry.getPosition()), AckType.Individual,
                             Collections.emptyMap());
                     entries.set(i, null);
-                    totalEntries--;
                     entry.release();
                     continue;
                 } else if (((PersistentTopic) subscription.getTopic())
