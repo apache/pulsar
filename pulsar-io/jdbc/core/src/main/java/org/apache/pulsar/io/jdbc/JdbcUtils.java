@@ -94,7 +94,7 @@ public class JdbcUtils {
      */
     public static TableId getTableId(Connection connection, String tableName) throws Exception {
         DatabaseMetaData metadata = connection.getMetaData();
-        try (ResultSet rs = metadata.getTables(null, null, tableName, new String[]{"TABLE"})) {
+        try (ResultSet rs = metadata.getTables(connection.getCatalog(), null, tableName, new String[]{"TABLE"})) {
             if (rs.next()) {
                 String catalogName = rs.getString(1);
                 String schemaName = rs.getString(2);
