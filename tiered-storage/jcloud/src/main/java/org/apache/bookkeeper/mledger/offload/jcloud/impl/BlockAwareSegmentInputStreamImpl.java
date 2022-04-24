@@ -49,7 +49,7 @@ public class BlockAwareSegmentInputStreamImpl extends BlockAwareSegmentInputStre
     static final int[] BLOCK_END_PADDING = new int[]{ 0xFE, 0xDC, 0xDE, 0xAD };
     static final byte[] BLOCK_END_PADDING_BYTES =  Ints.toByteArray(0xFEDCDEAD);
 
-    private final ByteBuf PADDING_BUF = PulsarByteBufAllocator.DEFAULT.buffer(1, 1);
+    private final ByteBuf paddingBuf = PulsarByteBufAllocator.DEFAULT.buffer(1, 1);
 
     private final ReadHandle ledger;
     private final long startEntryId;
@@ -130,10 +130,10 @@ public class BlockAwareSegmentInputStreamImpl extends BlockAwareSegmentInputStre
             if (dataBlockFullOffset == blockSize) {
                 dataBlockFullOffset = bytesReadOffset;
             }
-            PADDING_BUF.clear();
-            PADDING_BUF.writeByte(BLOCK_END_PADDING_BYTES[(bytesReadOffset++ - dataBlockFullOffset)
+            paddingBuf.clear();
+            paddingBuf.writeByte(BLOCK_END_PADDING_BYTES[(bytesReadOffset++ - dataBlockFullOffset)
                 % BLOCK_END_PADDING_BYTES.length]);
-            return PADDING_BUF.retain();
+            return paddingBuf.retain();
         }
     }
 
@@ -275,7 +275,8 @@ public class BlockAwareSegmentInputStreamImpl extends BlockAwareSegmentInputStre
             entriesByteBuf.forEach(buf -> buf.release());
             entriesByteBuf.clear();
         }
-        PADDING_BUF.release();
+        paddingBuf.clear();
+        paddingBuf.release();
     }
 
     @Override
