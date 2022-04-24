@@ -181,8 +181,8 @@ implements <a href="../BrokerFilter.html" title="interface in org.apache.pulsar.
 </tr>
 <tr id="i0" class="altColor">
 <td class="colFirst"><code>void</code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#filter(java.util.Set,org.apache.pulsar.broker.BundleData,org.apache.pulsar.broker.loadbalance.LoadData,org.apache.pulsar.broker.ServiceConfiguration)">filter</a></span>&#8203;(java.util.Set&lt;java.lang.String&gt;&nbsp;brokers,
-      <a href="../../BundleData.html" title="class in org.apache.pulsar.broker">BundleData</a>&nbsp;bundleToAssign,
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#filter(java.util.Set,org.apache.pulsar.policies.data.loadbalancer.BundleData,org.apache.pulsar.broker.loadbalance.LoadData,org.apache.pulsar.broker.ServiceConfiguration)">filter</a></span>&#8203;(java.util.Set&lt;java.lang.String&gt;&nbsp;brokers,
+      org.apache.pulsar.policies.data.loadbalancer.BundleData&nbsp;bundleToAssign,
       <a href="../LoadData.html" title="class in org.apache.pulsar.broker.loadbalance">LoadData</a>&nbsp;loadData,
       org.apache.pulsar.broker.ServiceConfiguration&nbsp;conf)</code></th>
 <td class="colLast">
@@ -264,21 +264,21 @@ implements <a href="../BrokerFilter.html" title="interface in org.apache.pulsar.
 </dl>
 </li>
 </ul>
-<a id="filter(java.util.Set,org.apache.pulsar.broker.BundleData,org.apache.pulsar.broker.loadbalance.LoadData,org.apache.pulsar.broker.ServiceConfiguration)">
+<a id="filter(java.util.Set,org.apache.pulsar.policies.data.loadbalancer.BundleData,org.apache.pulsar.broker.loadbalance.LoadData,org.apache.pulsar.broker.ServiceConfiguration)">
 <!--   -->
 </a>
 <ul class="blockListLast">
 <li class="blockList">
 <h4>filter</h4>
 <pre class="methodSignature">public&nbsp;void&nbsp;filter&#8203;(java.util.Set&lt;java.lang.String&gt;&nbsp;brokers,
-                   <a href="../../BundleData.html" title="class in org.apache.pulsar.broker">BundleData</a>&nbsp;bundleToAssign,
+                   org.apache.pulsar.policies.data.loadbalancer.BundleData&nbsp;bundleToAssign,
                    <a href="../LoadData.html" title="class in org.apache.pulsar.broker.loadbalance">LoadData</a>&nbsp;loadData,
                    org.apache.pulsar.broker.ServiceConfiguration&nbsp;conf)
             throws <a href="../BrokerFilterBadVersionException.html" title="class in org.apache.pulsar.broker.loadbalance">BrokerFilterBadVersionException</a></pre>
 <div class="block">From the given set of available broker candidates, filter those using the version numbers.</div>
 <dl>
 <dt><span class="overrideSpecifyLabel">Specified by:</span></dt>
-<dd><code><a href="../BrokerFilter.html#filter(java.util.Set,org.apache.pulsar.broker.BundleData,org.apache.pulsar.broker.loadbalance.LoadData,org.apache.pulsar.broker.ServiceConfiguration)">filter</a></code>&nbsp;in interface&nbsp;<code><a href="../BrokerFilter.html" title="interface in org.apache.pulsar.broker.loadbalance">BrokerFilter</a></code></dd>
+<dd><code><a href="../BrokerFilter.html#filter(java.util.Set,org.apache.pulsar.policies.data.loadbalancer.BundleData,org.apache.pulsar.broker.loadbalance.LoadData,org.apache.pulsar.broker.ServiceConfiguration)">filter</a></code>&nbsp;in interface&nbsp;<code><a href="../BrokerFilter.html" title="interface in org.apache.pulsar.broker.loadbalance">BrokerFilter</a></code></dd>
 <dt><span class="paramLabel">Parameters:</span></dt>
 <dd><code>brokers</code> - The currently available brokers that have not already been filtered.</dd>
 <dd><code>bundleToAssign</code> - The data for the bundle to assign.</dd>

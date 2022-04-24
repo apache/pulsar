@@ -159,8 +159,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </tr>
 <tr id="i1" class="rowColor">
 <td class="colFirst"><code>java.util.Optional&lt;java.lang.String&gt;</code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#selectBroker(java.util.Set,org.apache.pulsar.broker.BundleData,org.apache.pulsar.broker.loadbalance.LoadData,org.apache.pulsar.broker.ServiceConfiguration)">selectBroker</a></span>&#8203;(java.util.Set&lt;java.lang.String&gt;&nbsp;candidates,
-            <a href="../BundleData.html" title="class in org.apache.pulsar.broker">BundleData</a>&nbsp;bundleToAssign,
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#selectBroker(java.util.Set,org.apache.pulsar.policies.data.loadbalancer.BundleData,org.apache.pulsar.broker.loadbalance.LoadData,org.apache.pulsar.broker.ServiceConfiguration)">selectBroker</a></span>&#8203;(java.util.Set&lt;java.lang.String&gt;&nbsp;candidates,
+            org.apache.pulsar.policies.data.loadbalancer.BundleData&nbsp;bundleToAssign,
             <a href="LoadData.html" title="class in org.apache.pulsar.broker.loadbalance">LoadData</a>&nbsp;loadData,
             org.apache.pulsar.broker.ServiceConfiguration&nbsp;conf)</code></th>
 <td class="colLast">
@@ -184,14 +184,14 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <!--   -->
 </a>
 <h3>Method Detail</h3>
-<a id="selectBroker(java.util.Set,org.apache.pulsar.broker.BundleData,org.apache.pulsar.broker.loadbalance.LoadData,org.apache.pulsar.broker.ServiceConfiguration)">
+<a id="selectBroker(java.util.Set,org.apache.pulsar.policies.data.loadbalancer.BundleData,org.apache.pulsar.broker.loadbalance.LoadData,org.apache.pulsar.broker.ServiceConfiguration)">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>selectBroker</h4>
 <pre class="methodSignature">java.util.Optional&lt;java.lang.String&gt;&nbsp;selectBroker&#8203;(java.util.Set&lt;java.lang.String&gt;&nbsp;candidates,
-                                                  <a href="../BundleData.html" title="class in org.apache.pulsar.broker">BundleData</a>&nbsp;bundleToAssign,
+                                                  org.apache.pulsar.policies.data.loadbalancer.BundleData&nbsp;bundleToAssign,
                                                   <a href="LoadData.html" title="class in org.apache.pulsar.broker.loadbalance">LoadData</a>&nbsp;loadData,
                                                   org.apache.pulsar.broker.ServiceConfiguration&nbsp;conf)</pre>
 <div class="block">Find a suitable broker to assign the given bundle to.</div>

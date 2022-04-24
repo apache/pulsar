@@ -182,8 +182,8 @@ implements <a href="../ModularLoadManagerStrategy.html" title="interface in org.
 </tr>
 <tr id="i0" class="altColor">
 <td class="colFirst"><code>java.util.Optional&lt;java.lang.String&gt;</code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#selectBroker(java.util.Set,org.apache.pulsar.broker.BundleData,org.apache.pulsar.broker.loadbalance.LoadData,org.apache.pulsar.broker.ServiceConfiguration)">selectBroker</a></span>&#8203;(java.util.Set&lt;java.lang.String&gt;&nbsp;candidates,
-            <a href="../../BundleData.html" title="class in org.apache.pulsar.broker">BundleData</a>&nbsp;bundleToAssign,
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#selectBroker(java.util.Set,org.apache.pulsar.policies.data.loadbalancer.BundleData,org.apache.pulsar.broker.loadbalance.LoadData,org.apache.pulsar.broker.ServiceConfiguration)">selectBroker</a></span>&#8203;(java.util.Set&lt;java.lang.String&gt;&nbsp;candidates,
+            org.apache.pulsar.policies.data.loadbalancer.BundleData&nbsp;bundleToAssign,
             <a href="../LoadData.html" title="class in org.apache.pulsar.broker.loadbalance">LoadData</a>&nbsp;loadData,
             org.apache.pulsar.broker.ServiceConfiguration&nbsp;conf)</code></th>
 <td class="colLast">
@@ -233,20 +233,20 @@ implements <a href="../ModularLoadManagerStrategy.html" title="interface in org.
 <!--   -->
 </a>
 <h3>Method Detail</h3>
-<a id="selectBroker(java.util.Set,org.apache.pulsar.broker.BundleData,org.apache.pulsar.broker.loadbalance.LoadData,org.apache.pulsar.broker.ServiceConfiguration)">
+<a id="selectBroker(java.util.Set,org.apache.pulsar.policies.data.loadbalancer.BundleData,org.apache.pulsar.broker.loadbalance.LoadData,org.apache.pulsar.broker.ServiceConfiguration)">
 <!--   -->
 </a>
 <ul class="blockListLast">
 <li class="blockList">
 <h4>selectBroker</h4>
 <pre class="methodSignature">public&nbsp;java.util.Optional&lt;java.lang.String&gt;&nbsp;selectBroker&#8203;(java.util.Set&lt;java.lang.String&gt;&nbsp;candidates,
-                                                         <a href="../../BundleData.html" title="class in org.apache.pulsar.broker">BundleData</a>&nbsp;bundleToAssign,
+                                                         org.apache.pulsar.policies.data.loadbalancer.BundleData&nbsp;bundleToAssign,
                                                          <a href="../LoadData.html" title="class in org.apache.pulsar.broker.loadbalance">LoadData</a>&nbsp;loadData,
                                                          org.apache.pulsar.broker.ServiceConfiguration&nbsp;conf)</pre>
 <div class="block">Find a suitable broker to assign the given bundle to.</div>
 <dl>
 <dt><span class="overrideSpecifyLabel">Specified by:</span></dt>
-<dd><code><a href="../ModularLoadManagerStrategy.html#selectBroker(java.util.Set,org.apache.pulsar.broker.BundleData,org.apache.pulsar.broker.loadbalance.LoadData,org.apache.pulsar.broker.ServiceConfiguration)">selectBroker</a></code>&nbsp;in interface&nbsp;<code><a href="../ModularLoadManagerStrategy.html" title="interface in org.apache.pulsar.broker.loadbalance">ModularLoadManagerStrategy</a></code></dd>
+<dd><code><a href="../ModularLoadManagerStrategy.html#selectBroker(java.util.Set,org.apache.pulsar.policies.data.loadbalancer.BundleData,org.apache.pulsar.broker.loadbalance.LoadData,org.apache.pulsar.broker.ServiceConfiguration)">selectBroker</a></code>&nbsp;in interface&nbsp;<code><a href="../ModularLoadManagerStrategy.html" title="interface in org.apache.pulsar.broker.loadbalance">ModularLoadManagerStrategy</a></code></dd>
 <dt><span class="paramLabel">Parameters:</span></dt>
 <dd><code>candidates</code> - The candidates for which the bundle may be assigned.</dd>
 <dd><code>bundleToAssign</code> - The data for the bundle to assign.</dd>

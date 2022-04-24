@@ -708,15 +708,6 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/namespace/NamespaceService.AddressType.html#BROKER_URL">BROKER_URL</a></span> - org.apache.pulsar.broker.namespace.<a href="org/apache/pulsar/broker/namespace/NamespaceService.AddressType.html" title="enum in org.apache.pulsar.broker.namespace">NamespaceService.AddressType</a></dt>
 <dd>&nbsp;</dd>
-<dt><a href="org/apache/pulsar/broker/BrokerData.html" title="class in org.apache.pulsar.broker"><span class="typeNameLink">BrokerData</span></a> - Class in <a href="org/apache/pulsar/broker/package-summary.html">org.apache.pulsar.broker</a></dt>
-<dd>
-<div class="block">Data class containing three components comprising all the data available for the leader broker about other brokers: -
- The local broker data which is written to ZooKeeper by each individual broker (LocalBrokerData).</div>
-</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/BrokerData.html#%3Cinit%3E(org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData)">BrokerData(LocalBrokerData)</a></span> - Constructor for class org.apache.pulsar.broker.<a href="org/apache/pulsar/broker/BrokerData.html" title="class in org.apache.pulsar.broker">BrokerData</a></dt>
-<dd>
-<div class="block">Initialize this BrokerData using the most recent local data.</div>
-</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/BrokerService.html#brokerDispatchRateLimiter">brokerDispatchRateLimiter</a></span> - Variable in class org.apache.pulsar.broker.service.<a href="org/apache/pulsar/broker/service/BrokerService.html" title="class in org.apache.pulsar.broker.service">BrokerService</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="org/apache/pulsar/broker/loadbalance/BrokerFilter.html" title="interface in org.apache.pulsar.broker.loadbalance"><span class="typeNameLink">BrokerFilter</span></a> - Interface in <a href="org/apache/pulsar/broker/loadbalance/package-summary.html">org.apache.pulsar.broker.loadbalance</a></dt>
@@ -915,7 +906,7 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>
 <div class="block">Gets the broker service URL (TLS) associated with the internal listener.</div>
 </dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/loadbalance/impl/DeviationShedder.html#brokerValue(org.apache.pulsar.broker.BrokerData,org.apache.pulsar.broker.ServiceConfiguration)">brokerValue(BrokerData, ServiceConfiguration)</a></span> - Method in class org.apache.pulsar.broker.loadbalance.impl.<a href="org/apache/pulsar/broker/loadbalance/impl/DeviationShedder.html" title="class in org.apache.pulsar.broker.loadbalance.impl">DeviationShedder</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/loadbalance/impl/DeviationShedder.html#brokerValue(org.apache.pulsar.policies.data.loadbalancer.BrokerData,org.apache.pulsar.broker.ServiceConfiguration)">brokerValue(BrokerData, ServiceConfiguration)</a></span> - Method in class org.apache.pulsar.broker.loadbalance.impl.<a href="org/apache/pulsar/broker/loadbalance/impl/DeviationShedder.html" title="class in org.apache.pulsar.broker.loadbalance.impl">DeviationShedder</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="org/apache/pulsar/broker/loadbalance/impl/BrokerVersionFilter.html" title="class in org.apache.pulsar.broker.loadbalance.impl"><span class="typeNameLink">BrokerVersionFilter</span></a> - Class in <a href="org/apache/pulsar/broker/loadbalance/impl/package-summary.html">org.apache.pulsar.broker.loadbalance.impl</a></dt>
 <dd>&nbsp;</dd>
@@ -966,21 +957,6 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/loadbalance/impl/ModularLoadManagerImpl.html#BUNDLE_DATA_PATH">BUNDLE_DATA_PATH</a></span> - Static variable in class org.apache.pulsar.broker.loadbalance.impl.<a href="org/apache/pulsar/broker/loadbalance/impl/ModularLoadManagerImpl.html" title="class in org.apache.pulsar.broker.loadbalance.impl">ModularLoadManagerImpl</a></dt>
 <dd>&nbsp;</dd>
-<dt><a href="org/apache/pulsar/broker/BundleData.html" title="class in org.apache.pulsar.broker"><span class="typeNameLink">BundleData</span></a> - Class in <a href="org/apache/pulsar/broker/package-summary.html">org.apache.pulsar.broker</a></dt>
-<dd>
-<div class="block">Data class comprising the short term and long term historical data for this bundle.</div>
-</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/BundleData.html#%3Cinit%3E()">BundleData()</a></span> - Constructor for class org.apache.pulsar.broker.<a href="org/apache/pulsar/broker/BundleData.html" title="class in org.apache.pulsar.broker">BundleData</a></dt>
-<dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/BundleData.html#%3Cinit%3E(int,int)">BundleData(int, int)</a></span> - Constructor for class org.apache.pulsar.broker.<a href="org/apache/pulsar/broker/BundleData.html" title="class in org.apache.pulsar.broker">BundleData</a></dt>
-<dd>
-<div class="block">Initialize the bundle data.</div>
-</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/BundleData.html#%3Cinit%3E(int,int,org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats)">BundleData(int, int, NamespaceBundleStats)</a></span> - Constructor for class org.apache.pulsar.broker.<a href="org/apache/pulsar/broker/BundleData.html" title="class in org.apache.pulsar.broker">BundleData</a></dt>
-<dd>
-<div class="block">Initialize this bundle data and have its histories default to the given stats before the first sample is
- received.</div>
-</dd>
 <dt><a href="org/apache/pulsar/common/naming/BundleSplitOption.html" title="class in org.apache.pulsar.common.naming"><span class="typeNameLink">BundleSplitOption</span></a> - Class in <a href="org/apache/pulsar/common/naming/package-summary.html">org.apache.pulsar.common.naming</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/naming/BundleSplitOption.html#%3Cinit%3E()">BundleSplitOption()</a></span> - Constructor for class org.apache.pulsar.common.naming.<a href="org/apache/pulsar/common/naming/BundleSplitOption.html" title="class in org.apache.pulsar.common.naming">BundleSplitOption</a></dt>
@@ -1003,7 +979,7 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/loadbalance/impl/DeviationShedder.html#bundleTreeSetCache">bundleTreeSetCache</a></span> - Variable in class org.apache.pulsar.broker.loadbalance.impl.<a href="org/apache/pulsar/broker/loadbalance/impl/DeviationShedder.html" title="class in org.apache.pulsar.broker.loadbalance.impl">DeviationShedder</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/loadbalance/impl/DeviationShedder.html#bundleValue(java.lang.String,org.apache.pulsar.broker.BrokerData,org.apache.pulsar.broker.ServiceConfiguration)">bundleValue(String, BrokerData, ServiceConfiguration)</a></span> - Method in class org.apache.pulsar.broker.loadbalance.impl.<a href="org/apache/pulsar/broker/loadbalance/impl/DeviationShedder.html" title="class in org.apache.pulsar.broker.loadbalance.impl">DeviationShedder</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/loadbalance/impl/DeviationShedder.html#bundleValue(java.lang.String,org.apache.pulsar.policies.data.loadbalancer.BrokerData,org.apache.pulsar.broker.ServiceConfiguration)">bundleValue(String, BrokerData, ServiceConfiguration)</a></span> - Method in class org.apache.pulsar.broker.loadbalance.impl.<a href="org/apache/pulsar/broker/loadbalance/impl/DeviationShedder.html" title="class in org.apache.pulsar.broker.loadbalance.impl">DeviationShedder</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/resourcegroup/ResourceGroup.BytesAndMessagesCount.html#bytes">bytes</a></span> - Variable in class org.apache.pulsar.broker.resourcegroup.<a href="org/apache/pulsar/broker/resourcegroup/ResourceGroup.BytesAndMessagesCount.html" title="class in org.apache.pulsar.broker.resourcegroup">ResourceGroup.BytesAndMessagesCount</a></dt>
 <dd>&nbsp;</dd>
@@ -3076,11 +3052,11 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/resourcegroup/ResourceUsagePublisher.html#fillResourceUsage(org.apache.pulsar.broker.service.resource.usage.ResourceUsage)">fillResourceUsage(ResourceUsage)</a></span> - Method in interface org.apache.pulsar.broker.resourcegroup.<a href="org/apache/pulsar/broker/resourcegroup/ResourceUsagePublisher.html" title="interface in org.apache.pulsar.broker.resourcegroup">ResourceUsagePublisher</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/loadbalance/BrokerFilter.html#filter(java.util.Set,org.apache.pulsar.broker.BundleData,org.apache.pulsar.broker.loadbalance.LoadData,org.apache.pulsar.broker.ServiceConfiguration)">filter(Set&lt;String&gt;, BundleData, LoadData, ServiceConfiguration)</a></span> - Method in interface org.apache.pulsar.broker.loadbalance.<a href="org/apache/pulsar/broker/loadbalance/BrokerFilter.html" title="interface in org.apache.pulsar.broker.loadbalance">BrokerFilter</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/loadbalance/BrokerFilter.html#filter(java.util.Set,org.apache.pulsar.policies.data.loadbalancer.BundleData,org.apache.pulsar.broker.loadbalance.LoadData,org.apache.pulsar.broker.ServiceConfiguration)">filter(Set&lt;String&gt;, BundleData, LoadData, ServiceConfiguration)</a></span> - Method in interface org.apache.pulsar.broker.loadbalance.<a href="org/apache/pulsar/broker/loadbalance/BrokerFilter.html" title="interface in org.apache.pulsar.broker.loadbalance">BrokerFilter</a></dt>
 <dd>
 <div class="block">From the given set of available broker candidates, filter those using the load data.</div>
 </dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/loadbalance/impl/BrokerVersionFilter.html#filter(java.util.Set,org.apache.pulsar.broker.BundleData,org.apache.pulsar.broker.loadbalance.LoadData,org.apache.pulsar.broker.ServiceConfiguration)">filter(Set&lt;String&gt;, BundleData, LoadData, ServiceConfiguration)</a></span> - Method in class org.apache.pulsar.broker.loadbalance.impl.<a href="org/apache/pulsar/broker/loadbalance/impl/BrokerVersionFilter.html" title="class in org.apache.pulsar.broker.loadbalance.impl">BrokerVersionFilter</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/loadbalance/impl/BrokerVersionFilter.html#filter(java.util.Set,org.apache.pulsar.policies.data.loadbalancer.BundleData,org.apache.pulsar.broker.loadbalance.LoadData,org.apache.pulsar.broker.ServiceConfiguration)">filter(Set&lt;String&gt;, BundleData, LoadData, ServiceConfiguration)</a></span> - Method in class org.apache.pulsar.broker.loadbalance.impl.<a href="org/apache/pulsar/broker/loadbalance/impl/BrokerVersionFilter.html" title="class in org.apache.pulsar.broker.loadbalance.impl">BrokerVersionFilter</a></dt>
 <dd>
 <div class="block">From the given set of available broker candidates, filter those using the version numbers.</div>
 </dd>
@@ -4479,8 +4455,6 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/naming/NamespaceBundleFactory.html#getLongHashCode(java.lang.String)">getLongHashCode(String)</a></span> - Method in class org.apache.pulsar.common.naming.<a href="org/apache/pulsar/common/naming/NamespaceBundleFactory.html" title="class in org.apache.pulsar.common.naming">NamespaceBundleFactory</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/BundleData.html#getLongTermData()">getLongTermData()</a></span> - Method in class org.apache.pulsar.broker.<a href="org/apache/pulsar/broker/BundleData.html" title="class in org.apache.pulsar.broker">BundleData</a></dt>
-<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/lookup/LookupResult.html#getLookupData()">getLookupData()</a></span> - Method in class org.apache.pulsar.broker.lookup.<a href="org/apache/pulsar/broker/lookup/LookupResult.html" title="class in org.apache.pulsar.broker.lookup">LookupResult</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/BrokerService.html#getLookupRequestSemaphore()">getLookupRequestSemaphore()</a></span> - Method in class org.apache.pulsar.broker.service.<a href="org/apache/pulsar/broker/service/BrokerService.html" title="class in org.apache.pulsar.broker.service">BrokerService</a></dt>
@@ -4544,8 +4518,6 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>
 <div class="block">Get the can read max position.</div>
 </dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/TimeAverageMessageData.html#getMaxSamples()">getMaxSamples()</a></span> - Method in class org.apache.pulsar.broker.<a href="org/apache/pulsar/broker/TimeAverageMessageData.html" title="class in org.apache.pulsar.broker">TimeAverageMessageData</a></dt>
-<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/v2/Namespaces.html#getMaxSubscriptionsPerTopic(java.lang.String,java.lang.String)">getMaxSubscriptionsPerTopic(String, String)</a></span> - Method in class org.apache.pulsar.broker.admin.v2.<a href="org/apache/pulsar/broker/admin/v2/Namespaces.html" title="class in org.apache.pulsar.broker.admin.v2">Namespaces</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/v2/PersistentTopics.html#getMaxSubscriptionsPerTopic(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,boolean,boolean)">getMaxSubscriptionsPerTopic(AsyncResponse, String, String, String, boolean, boolean)</a></span> - Method in class org.apache.pulsar.broker.admin.v2.<a href="org/apache/pulsar/broker/admin/v2/PersistentTopics.html" title="class in org.apache.pulsar.broker.admin.v2">PersistentTopics</a></dt>
@@ -4632,17 +4604,9 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/loadbalance/impl/PulsarServiceRequest.html#getMsgRateIn()">getMsgRateIn()</a></span> - Method in class org.apache.pulsar.broker.loadbalance.impl.<a href="org/apache/pulsar/broker/loadbalance/impl/PulsarServiceRequest.html" title="class in org.apache.pulsar.broker.loadbalance.impl">PulsarServiceRequest</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/TimeAverageMessageData.html#getMsgRateIn()">getMsgRateIn()</a></span> - Method in class org.apache.pulsar.broker.<a href="org/apache/pulsar/broker/TimeAverageMessageData.html" title="class in org.apache.pulsar.broker">TimeAverageMessageData</a></dt>
-<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/loadbalance/impl/PulsarServiceRequest.html#getMsgRateOut()">getMsgRateOut()</a></span> - Method in class org.apache.pulsar.broker.loadbalance.impl.<a href="org/apache/pulsar/broker/loadbalance/impl/PulsarServiceRequest.html" title="class in org.apache.pulsar.broker.loadbalance.impl">PulsarServiceRequest</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/TimeAverageMessageData.html#getMsgRateOut()">getMsgRateOut()</a></span> - Method in class org.apache.pulsar.broker.<a href="org/apache/pulsar/broker/TimeAverageMessageData.html" title="class in org.apache.pulsar.broker">TimeAverageMessageData</a></dt>
-<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/loadbalance/impl/PulsarServiceRequest.html#getMsgThroughputIn()">getMsgThroughputIn()</a></span> - Method in class org.apache.pulsar.broker.loadbalance.impl.<a href="org/apache/pulsar/broker/loadbalance/impl/PulsarServiceRequest.html" title="class in org.apache.pulsar.broker.loadbalance.impl">PulsarServiceRequest</a></dt>
-<dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/TimeAverageMessageData.html#getMsgThroughputIn()">getMsgThroughputIn()</a></span> - Method in class org.apache.pulsar.broker.<a href="org/apache/pulsar/broker/TimeAverageMessageData.html" title="class in org.apache.pulsar.broker">TimeAverageMessageData</a></dt>
-<dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/TimeAverageMessageData.html#getMsgThroughputOut()">getMsgThroughputOut()</a></span> - Method in class org.apache.pulsar.broker.<a href="org/apache/pulsar/broker/TimeAverageMessageData.html" title="class in org.apache.pulsar.broker">TimeAverageMessageData</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/BrokerService.html#getMultiLayerTopicMap()">getMultiLayerTopicMap()</a></span> - Method in class org.apache.pulsar.broker.service.<a href="org/apache/pulsar/broker/service/BrokerService.html" title="class in org.apache.pulsar.broker.service">BrokerService</a></dt>
 <dd>&nbsp;</dd>
@@ -4789,8 +4753,6 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>
 <div class="block">Get the current number of RGs.</div>
 </dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/TimeAverageMessageData.html#getNumSamples()">getNumSamples()</a></span> - Method in class org.apache.pulsar.broker.<a href="org/apache/pulsar/broker/TimeAverageMessageData.html" title="class in org.apache.pulsar.broker">TimeAverageMessageData</a></dt>
-<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/BrokerService.html#getOfflineTopicStat(org.apache.pulsar.common.naming.TopicName)">getOfflineTopicStat(TopicName)</a></span> - Method in class org.apache.pulsar.broker.service.<a href="org/apache/pulsar/broker/service/BrokerService.html" title="class in org.apache.pulsar.broker.service">BrokerService</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/v2/Namespaces.html#getOffloadDeletionLag(java.lang.String,java.lang.String)">getOffloadDeletionLag(String, String)</a></span> - Method in class org.apache.pulsar.broker.admin.v2.<a href="org/apache/pulsar/broker/admin/v2/Namespaces.html" title="class in org.apache.pulsar.broker.admin.v2">Namespaces</a></dt>
@@ -5476,8 +5438,6 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/loadbalance/LoadReport.html#getServiceUnitRequests()">getServiceUnitRequests()</a></span> - Method in interface org.apache.pulsar.broker.loadbalance.<a href="org/apache/pulsar/broker/loadbalance/LoadReport.html" title="interface in org.apache.pulsar.broker.loadbalance">LoadReport</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/BundleData.html#getShortTermData()">getShortTermData()</a></span> - Method in class org.apache.pulsar.broker.<a href="org/apache/pulsar/broker/BundleData.html" title="class in org.apache.pulsar.broker">BundleData</a></dt>
-<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/impl/SinksBase.html#getSinkConfigDefinition(java.lang.String)">getSinkConfigDefinition(String)</a></span> - Method in class org.apache.pulsar.broker.admin.impl.<a href="org/apache/pulsar/broker/admin/impl/SinksBase.html" title="class in org.apache.pulsar.broker.admin.impl">SinksBase</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/impl/SinksBase.html#getSinkInfo(java.lang.String,java.lang.String,java.lang.String)">getSinkInfo(String, String, String)</a></span> - Method in class org.apache.pulsar.broker.admin.impl.<a href="org/apache/pulsar/broker/admin/impl/SinksBase.html" title="class in org.apache.pulsar.broker.admin.impl">SinksBase</a></dt>
@@ -5821,8 +5781,6 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>
 <div class="block">Get a reference to a topic that is currently loaded in the broker.</div>
 </dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/BundleData.html#getTopics()">getTopics()</a></span> - Method in class org.apache.pulsar.broker.<a href="org/apache/pulsar/broker/BundleData.html" title="class in org.apache.pulsar.broker">BundleData</a></dt>
-<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/BrokerService.html#getTopics()">getTopics()</a></span> - Method in class org.apache.pulsar.broker.service.<a href="org/apache/pulsar/broker/service/BrokerService.html" title="class in org.apache.pulsar.broker.service">BrokerService</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/compaction/CompactorMXBeanImpl.html#getTopics()">getTopics()</a></span> - Method in class org.apache.pulsar.compaction.<a href="org/apache/pulsar/compaction/CompactorMXBeanImpl.html" title="class in org.apache.pulsar.compaction">CompactorMXBeanImpl</a></dt>
@@ -10756,10 +10714,6 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/compaction/CompactorMXBeanImpl.html#reset()">reset()</a></span> - Method in class org.apache.pulsar.compaction.<a href="org/apache/pulsar/compaction/CompactorMXBeanImpl.html" title="class in org.apache.pulsar.compaction">CompactorMXBeanImpl</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/TimeAverageBrokerData.html#reset(java.util.Set,java.util.Map,org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats)">reset(Set&lt;String&gt;, Map&lt;String, BundleData&gt;, NamespaceBundleStats)</a></span> - Method in class org.apache.pulsar.broker.<a href="org/apache/pulsar/broker/TimeAverageBrokerData.html" title="class in org.apache.pulsar.broker">TimeAverageBrokerData</a></dt>
-<dd>
-<div class="block">Reuse this TimeAverageBrokerData using new data.</div>
-</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/AbstractTopic.html#resetBrokerPublishCountAndEnableReadIfRequired(boolean)">resetBrokerPublishCountAndEnableReadIfRequired(boolean)</a></span> - Method in class org.apache.pulsar.broker.service.<a href="org/apache/pulsar/broker/service/AbstractTopic.html" title="class in org.apache.pulsar.broker.service">AbstractTopic</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/Topic.html#resetBrokerPublishCountAndEnableReadIfRequired(boolean)">resetBrokerPublishCountAndEnableReadIfRequired(boolean)</a></span> - Method in interface org.apache.pulsar.broker.service.<a href="org/apache/pulsar/broker/service/Topic.html" title="interface in org.apache.pulsar.broker.service">Topic</a></dt>
@@ -11237,11 +11191,11 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>
 <div class="block">Select a consumer by hash.</div>
 </dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/loadbalance/impl/LeastLongTermMessageRate.html#selectBroker(java.util.Set,org.apache.pulsar.broker.BundleData,org.apache.pulsar.broker.loadbalance.LoadData,org.apache.pulsar.broker.ServiceConfiguration)">selectBroker(Set&lt;String&gt;, BundleData, LoadData, ServiceConfiguration)</a></span> - Method in class org.apache.pulsar.broker.loadbalance.impl.<a href="org/apache/pulsar/broker/loadbalance/impl/LeastLongTermMessageRate.html" title="class in org.apache.pulsar.broker.loadbalance.impl">LeastLongTermMessageRate</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/loadbalance/impl/LeastLongTermMessageRate.html#selectBroker(java.util.Set,org.apache.pulsar.policies.data.loadbalancer.BundleData,org.apache.pulsar.broker.loadbalance.LoadData,org.apache.pulsar.broker.ServiceConfiguration)">selectBroker(Set&lt;String&gt;, BundleData, LoadData, ServiceConfiguration)</a></span> - Method in class org.apache.pulsar.broker.loadbalance.impl.<a href="org/apache/pulsar/broker/loadbalance/impl/LeastLongTermMessageRate.html" title="class in org.apache.pulsar.broker.loadbalance.impl">LeastLongTermMessageRate</a></dt>
 <dd>
 <div class="block">Find a suitable broker to assign the given bundle to.</div>
 </dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/loadbalance/ModularLoadManagerStrategy.html#selectBroker(java.util.Set,org.apache.pulsar.broker.BundleData,org.apache.pulsar.broker.loadbalance.LoadData,org.apache.pulsar.broker.ServiceConfiguration)">selectBroker(Set&lt;String&gt;, BundleData, LoadData, ServiceConfiguration)</a></span> - Method in interface org.apache.pulsar.broker.loadbalance.<a href="org/apache/pulsar/broker/loadbalance/ModularLoadManagerStrategy.html" title="interface in org.apache.pulsar.broker.loadbalance">ModularLoadManagerStrategy</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/loadbalance/ModularLoadManagerStrategy.html#selectBroker(java.util.Set,org.apache.pulsar.policies.data.loadbalancer.BundleData,org.apache.pulsar.broker.loadbalance.LoadData,org.apache.pulsar.broker.ServiceConfiguration)">selectBroker(Set&lt;String&gt;, BundleData, LoadData, ServiceConfiguration)</a></span> - Method in interface org.apache.pulsar.broker.loadbalance.<a href="org/apache/pulsar/broker/loadbalance/ModularLoadManagerStrategy.html" title="interface in org.apache.pulsar.broker.loadbalance">ModularLoadManagerStrategy</a></dt>
 <dd>
 <div class="block">Find a suitable broker to assign the given bundle to.</div>
 </dd>
@@ -11608,8 +11562,6 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/loadbalance/NoopLoadManager.html#setLoadReportForceUpdateFlag()">setLoadReportForceUpdateFlag()</a></span> - Method in class org.apache.pulsar.broker.loadbalance.<a href="org/apache/pulsar/broker/loadbalance/NoopLoadManager.html" title="class in org.apache.pulsar.broker.loadbalance">NoopLoadManager</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/BundleData.html#setLongTermData(org.apache.pulsar.broker.TimeAverageMessageData)">setLongTermData(TimeAverageMessageData)</a></span> - Method in class org.apache.pulsar.broker.<a href="org/apache/pulsar/broker/BundleData.html" title="class in org.apache.pulsar.broker">BundleData</a></dt>
-<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/v2/PersistentTopics.html#setMaxConsumers(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,boolean,boolean,int)">setMaxConsumers(AsyncResponse, String, String, String, boolean, boolean, int)</a></span> - Method in class org.apache.pulsar.broker.admin.v2.<a href="org/apache/pulsar/broker/admin/v2/PersistentTopics.html" title="class in org.apache.pulsar.broker.admin.v2">PersistentTopics</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/v2/Namespaces.html#setMaxConsumersPerSubscription(java.lang.String,java.lang.String,int)">setMaxConsumersPerSubscription(String, String, int)</a></span> - Method in class org.apache.pulsar.broker.admin.v2.<a href="org/apache/pulsar/broker/admin/v2/Namespaces.html" title="class in org.apache.pulsar.broker.admin.v2">Namespaces</a></dt>
@@ -11629,8 +11581,6 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/v2/Namespaces.html#setMaxProducersPerTopic(java.lang.String,java.lang.String,int)">setMaxProducersPerTopic(String, String, int)</a></span> - Method in class org.apache.pulsar.broker.admin.v2.<a href="org/apache/pulsar/broker/admin/v2/Namespaces.html" title="class in org.apache.pulsar.broker.admin.v2">Namespaces</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/v1/Namespaces.html#setMaxProducersPerTopic(java.lang.String,java.lang.String,java.lang.String,int)">setMaxProducersPerTopic(String, String, String, int)</a></span> - Method in class org.apache.pulsar.broker.admin.v1.<a href="org/apache/pulsar/broker/admin/v1/Namespaces.html" title="class in org.apache.pulsar.broker.admin.v1">Namespaces</a></dt>
-<dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/TimeAverageMessageData.html#setMaxSamples(int)">setMaxSamples(int)</a></span> - Method in class org.apache.pulsar.broker.<a href="org/apache/pulsar/broker/TimeAverageMessageData.html" title="class in org.apache.pulsar.broker">TimeAverageMessageData</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/v2/Namespaces.html#setMaxSubscriptionsPerTopic(java.lang.String,java.lang.String,int)">setMaxSubscriptionsPerTopic(String, String, int)</a></span> - Method in class org.apache.pulsar.broker.admin.v2.<a href="org/apache/pulsar/broker/admin/v2/Namespaces.html" title="class in org.apache.pulsar.broker.admin.v2">Namespaces</a></dt>
 <dd>&nbsp;</dd>
@@ -11654,17 +11604,9 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/loadbalance/impl/PulsarServiceRequest.html#setMsgRateIn(double)">setMsgRateIn(double)</a></span> - Method in class org.apache.pulsar.broker.loadbalance.impl.<a href="org/apache/pulsar/broker/loadbalance/impl/PulsarServiceRequest.html" title="class in org.apache.pulsar.broker.loadbalance.impl">PulsarServiceRequest</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/TimeAverageMessageData.html#setMsgRateIn(double)">setMsgRateIn(double)</a></span> - Method in class org.apache.pulsar.broker.<a href="org/apache/pulsar/broker/TimeAverageMessageData.html" title="class in org.apache.pulsar.broker">TimeAverageMessageData</a></dt>
-<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/loadbalance/impl/PulsarServiceRequest.html#setMsgRateOut(double)">setMsgRateOut(double)</a></span> - Method in class org.apache.pulsar.broker.loadbalance.impl.<a href="org/apache/pulsar/broker/loadbalance/impl/PulsarServiceRequest.html" title="class in org.apache.pulsar.broker.loadbalance.impl">PulsarServiceRequest</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/TimeAverageMessageData.html#setMsgRateOut(double)">setMsgRateOut(double)</a></span> - Method in class org.apache.pulsar.broker.<a href="org/apache/pulsar/broker/TimeAverageMessageData.html" title="class in org.apache.pulsar.broker">TimeAverageMessageData</a></dt>
-<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/loadbalance/impl/PulsarServiceRequest.html#setMsgThroughputIn(double)">setMsgThroughputIn(double)</a></span> - Method in class org.apache.pulsar.broker.loadbalance.impl.<a href="org/apache/pulsar/broker/loadbalance/impl/PulsarServiceRequest.html" title="class in org.apache.pulsar.broker.loadbalance.impl">PulsarServiceRequest</a></dt>
-<dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/TimeAverageMessageData.html#setMsgThroughputIn(double)">setMsgThroughputIn(double)</a></span> - Method in class org.apache.pulsar.broker.<a href="org/apache/pulsar/broker/TimeAverageMessageData.html" title="class in org.apache.pulsar.broker">TimeAverageMessageData</a></dt>
-<dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/TimeAverageMessageData.html#setMsgThroughputOut(double)">setMsgThroughputOut(double)</a></span> - Method in class org.apache.pulsar.broker.<a href="org/apache/pulsar/broker/TimeAverageMessageData.html" title="class in org.apache.pulsar.broker">TimeAverageMessageData</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/v2/Namespaces.html#setNamespaceAntiAffinityGroup(java.lang.String,java.lang.String,java.lang.String)">setNamespaceAntiAffinityGroup(String, String, String)</a></span> - Method in class org.apache.pulsar.broker.admin.v2.<a href="org/apache/pulsar/broker/admin/v2/Namespaces.html" title="class in org.apache.pulsar.broker.admin.v2">Namespaces</a></dt>
 <dd>&nbsp;</dd>
@@ -11693,8 +11635,6 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/PulsarStandalone.html#setNoStreamStorage(boolean)">setNoStreamStorage(boolean)</a></span> - Method in class org.apache.pulsar.<a href="org/apache/pulsar/PulsarStandalone.html" title="class in org.apache.pulsar">PulsarStandalone</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/PulsarStandalone.html#setNumOfBk(int)">setNumOfBk(int)</a></span> - Method in class org.apache.pulsar.<a href="org/apache/pulsar/PulsarStandalone.html" title="class in org.apache.pulsar">PulsarStandalone</a></dt>
-<dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/TimeAverageMessageData.html#setNumSamples(int)">setNumSamples(int)</a></span> - Method in class org.apache.pulsar.broker.<a href="org/apache/pulsar/broker/TimeAverageMessageData.html" title="class in org.apache.pulsar.broker">TimeAverageMessageData</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/v2/Namespaces.html#setOffloadDeletionLag(java.lang.String,java.lang.String,long)">setOffloadDeletionLag(String, String, long)</a></span> - Method in class org.apache.pulsar.broker.admin.v2.<a href="org/apache/pulsar/broker/admin/v2/Namespaces.html" title="class in org.apache.pulsar.broker.admin.v2">Namespaces</a></dt>
 <dd>&nbsp;</dd>
@@ -11832,8 +11772,6 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/AdminResource.html#setServletContext(javax.servlet.ServletContext)">setServletContext(ServletContext)</a></span> - Method in class org.apache.pulsar.broker.admin.<a href="org/apache/pulsar/broker/admin/AdminResource.html" title="class in org.apache.pulsar.broker.admin">AdminResource</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/BundleData.html#setShortTermData(org.apache.pulsar.broker.TimeAverageMessageData)">setShortTermData(TimeAverageMessageData)</a></span> - Method in class org.apache.pulsar.broker.<a href="org/apache/pulsar/broker/BundleData.html" title="class in org.apache.pulsar.broker">BundleData</a></dt>
-<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/transaction/buffer/impl/TransactionEntryImpl.html#setStartBatchIndex(int)">setStartBatchIndex(int)</a></span> - Method in class org.apache.pulsar.broker.transaction.buffer.impl.<a href="org/apache/pulsar/broker/transaction/buffer/impl/TransactionEntryImpl.html" title="class in org.apache.pulsar.broker.transaction.buffer.impl">TransactionEntryImpl</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/resource/usage/ResourceUsage.html#setStorage()">setStorage()</a></span> - Method in class org.apache.pulsar.broker.service.resource.usage.<a href="org/apache/pulsar/broker/service/resource/usage/ResourceUsage.html" title="class in org.apache.pulsar.broker.service.resource.usage">ResourceUsage</a></dt>
@@ -11873,8 +11811,6 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/nonpersistent/NonPersistentTopic.html#setTopicEpoch(long)">setTopicEpoch(long)</a></span> - Method in class org.apache.pulsar.broker.service.nonpersistent.<a href="org/apache/pulsar/broker/service/nonpersistent/NonPersistentTopic.html" title="class in org.apache.pulsar.broker.service.nonpersistent">NonPersistentTopic</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/persistent/PersistentTopic.html#setTopicEpoch(long)">setTopicEpoch(long)</a></span> - Method in class org.apache.pulsar.broker.service.persistent.<a href="org/apache/pulsar/broker/service/persistent/PersistentTopic.html" title="class in org.apache.pulsar.broker.service.persistent">PersistentTopic</a></dt>
-<dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/BundleData.html#setTopics(int)">setTopics(int)</a></span> - Method in class org.apache.pulsar.broker.<a href="org/apache/pulsar/broker/BundleData.html" title="class in org.apache.pulsar.broker">BundleData</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/resource/usage/StorageUsage.html#setTotalBytes(long)">setTotalBytes(long)</a></span> - Method in class org.apache.pulsar.broker.service.resource.usage.<a href="org/apache/pulsar/broker/service/resource/usage/StorageUsage.html" title="class in org.apache.pulsar.broker.service.resource.usage">StorageUsage</a></dt>
 <dd>&nbsp;</dd>
@@ -12445,28 +12381,6 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>
 <div class="block"><code>TIME = 14;</code></div>
 </dd>
-<dt><a href="org/apache/pulsar/broker/TimeAverageBrokerData.html" title="class in org.apache.pulsar.broker"><span class="typeNameLink">TimeAverageBrokerData</span></a> - Class in <a href="org/apache/pulsar/broker/package-summary.html">org.apache.pulsar.broker</a></dt>
-<dd>
-<div class="block">Data class aggregating the short term and long term data across all bundles belonging to a broker.</div>
-</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/TimeAverageBrokerData.html#%3Cinit%3E(java.util.Set,java.util.Map,org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats)">TimeAverageBrokerData(Set&lt;String&gt;, Map&lt;String, BundleData&gt;, NamespaceBundleStats)</a></span> - Constructor for class org.apache.pulsar.broker.<a href="org/apache/pulsar/broker/TimeAverageBrokerData.html" title="class in org.apache.pulsar.broker">TimeAverageBrokerData</a></dt>
-<dd>
-<div class="block">Initialize a TimeAverageBrokerData.</div>
-</dd>
-<dt><a href="org/apache/pulsar/broker/TimeAverageMessageData.html" title="class in org.apache.pulsar.broker"><span class="typeNameLink">TimeAverageMessageData</span></a> - Class in <a href="org/apache/pulsar/broker/package-summary.html">org.apache.pulsar.broker</a></dt>
-<dd>
-<div class="block">Data class comprising the average message data over a fixed period of time.</div>
-</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/TimeAverageMessageData.html#%3Cinit%3E()">TimeAverageMessageData()</a></span> - Constructor for class org.apache.pulsar.broker.<a href="org/apache/pulsar/broker/TimeAverageMessageData.html" title="class in org.apache.pulsar.broker">TimeAverageMessageData</a></dt>
-<dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/TimeAverageMessageData.html#%3Cinit%3E(int)">TimeAverageMessageData(int)</a></span> - Constructor for class org.apache.pulsar.broker.<a href="org/apache/pulsar/broker/TimeAverageMessageData.html" title="class in org.apache.pulsar.broker">TimeAverageMessageData</a></dt>
-<dd>
-<div class="block">Initialize this TimeAverageData to 0 values.</div>
-</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/TimeAverageMessageData.html#%3Cinit%3E(int,org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats)">TimeAverageMessageData(int, NamespaceBundleStats)</a></span> - Constructor for class org.apache.pulsar.broker.<a href="org/apache/pulsar/broker/TimeAverageMessageData.html" title="class in org.apache.pulsar.broker">TimeAverageMessageData</a></dt>
-<dd>
-<div class="block">Initialize this TimeAverageData using default stats.</div>
-</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/GracefulExecutorServicesShutdown.html#timeout(java.time.Duration)">timeout(Duration)</a></span> - Method in class org.apache.pulsar.broker.service.<a href="org/apache/pulsar/broker/service/GracefulExecutorServicesShutdown.html" title="class in org.apache.pulsar.broker.service">GracefulExecutorServicesShutdown</a></dt>
 <dd>
 <div class="block">Sets the timeout for graceful shutdown.</div>
@@ -12689,14 +12603,6 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/persistent/PersistentDispatcherMultipleConsumers.html#totalAvailablePermits">totalAvailablePermits</a></span> - Variable in class org.apache.pulsar.broker.service.persistent.<a href="org/apache/pulsar/broker/service/persistent/PersistentDispatcherMultipleConsumers.html" title="class in org.apache.pulsar.broker.service.persistent">PersistentDispatcherMultipleConsumers</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/TimeAverageMessageData.html#totalMsgRate()">totalMsgRate()</a></span> - Method in class org.apache.pulsar.broker.<a href="org/apache/pulsar/broker/TimeAverageMessageData.html" title="class in org.apache.pulsar.broker">TimeAverageMessageData</a></dt>
-<dd>
-<div class="block">Get the total message rate.</div>
-</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/TimeAverageMessageData.html#totalMsgThroughput()">totalMsgThroughput()</a></span> - Method in class org.apache.pulsar.broker.<a href="org/apache/pulsar/broker/TimeAverageMessageData.html" title="class in org.apache.pulsar.broker">TimeAverageMessageData</a></dt>
-<dd>
-<div class="block">Get the total message throughput.</div>
-</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/persistent/PersistentDispatcherMultipleConsumers.html#totalUnackedMessages">totalUnackedMessages</a></span> - Variable in class org.apache.pulsar.broker.service.persistent.<a href="org/apache/pulsar/broker/service/persistent/PersistentDispatcherMultipleConsumers.html" title="class in org.apache.pulsar.broker.service.persistent">PersistentDispatcherMultipleConsumers</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/Dispatcher.html#trackDelayedDelivery(long,long,org.apache.pulsar.common.api.proto.MessageMetadata)">trackDelayedDelivery(long, long, MessageMetadata)</a></span> - Method in interface org.apache.pulsar.broker.service.<a href="org/apache/pulsar/broker/service/Dispatcher.html" title="interface in org.apache.pulsar.broker.service">Dispatcher</a></dt>
@@ -13106,10 +13012,6 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/BrokerServiceException.UnsupportedVersionException.html#%3Cinit%3E(java.lang.String)">UnsupportedVersionException(String)</a></span> - Constructor for exception org.apache.pulsar.broker.service.<a href="org/apache/pulsar/broker/service/BrokerServiceException.UnsupportedVersionException.html" title="class in org.apache.pulsar.broker.service">BrokerServiceException.UnsupportedVersionException</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/TimeAverageMessageData.html#update(double,double,double,double)">update(double, double, double, double)</a></span> - Method in class org.apache.pulsar.broker.<a href="org/apache/pulsar/broker/TimeAverageMessageData.html" title="class in org.apache.pulsar.broker">TimeAverageMessageData</a></dt>
-<dd>
-<div class="block">Update using new samples for the message data.</div>
-</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/resourcegroup/ResourceGroupPublishLimiter.html#update(long,long)">update(long, long)</a></span> - Method in class org.apache.pulsar.broker.resourcegroup.<a href="org/apache/pulsar/broker/resourcegroup/ResourceGroupPublishLimiter.html" title="class in org.apache.pulsar.broker.resourcegroup">ResourceGroupPublishLimiter</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/resourcegroup/ResourceGroupPublishLimiter.html#update(org.apache.pulsar.broker.resourcegroup.ResourceGroup.BytesAndMessagesCount)">update(ResourceGroup.BytesAndMessagesCount)</a></span> - Method in class org.apache.pulsar.broker.resourcegroup.<a href="org/apache/pulsar/broker/resourcegroup/ResourceGroupPublishLimiter.html" title="class in org.apache.pulsar.broker.resourcegroup">ResourceGroupPublishLimiter</a></dt>
@@ -13140,14 +13042,6 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/resourcegroup/ResourceGroupPublishLimiter.html#update(org.apache.pulsar.common.policies.data.ResourceGroup)">update(ResourceGroup)</a></span> - Method in class org.apache.pulsar.broker.resourcegroup.<a href="org/apache/pulsar/broker/resourcegroup/ResourceGroupPublishLimiter.html" title="class in org.apache.pulsar.broker.resourcegroup">ResourceGroupPublishLimiter</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/BundleData.html#update(org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats)">update(NamespaceBundleStats)</a></span> - Method in class org.apache.pulsar.broker.<a href="org/apache/pulsar/broker/BundleData.html" title="class in org.apache.pulsar.broker">BundleData</a></dt>
-<dd>
-<div class="block">Update the historical data for this bundle.</div>
-</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/TimeAverageMessageData.html#update(org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats)">update(NamespaceBundleStats)</a></span> - Method in class org.apache.pulsar.broker.<a href="org/apache/pulsar/broker/TimeAverageMessageData.html" title="class in org.apache.pulsar.broker">TimeAverageMessageData</a></dt>
-<dd>
-<div class="block">Update using a new bundle sample.</div>
-</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/loadbalance/impl/ModularLoadManagerImpl.html#updateAll()">updateAll()</a></span> - Method in class org.apache.pulsar.broker.loadbalance.impl.<a href="org/apache/pulsar/broker/loadbalance/impl/ModularLoadManagerImpl.html" title="class in org.apache.pulsar.broker.loadbalance.impl">ModularLoadManagerImpl</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/v2/Bookies.html#updateBookieRackInfo(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,org.apache.pulsar.common.policies.data.BookieInfo)">updateBookieRackInfo(AsyncResponse, String, String, BookieInfo)</a></span> - Method in class org.apache.pulsar.broker.admin.v2.<a href="org/apache/pulsar/broker/admin/v2/Bookies.html" title="class in org.apache.pulsar.broker.admin.v2">Bookies</a></dt>

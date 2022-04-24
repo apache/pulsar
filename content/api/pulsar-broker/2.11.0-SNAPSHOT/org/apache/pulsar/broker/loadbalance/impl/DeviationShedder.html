@@ -215,14 +215,14 @@ implements <a href="../LoadSheddingStrategy.html" title="interface in org.apache
 </tr>
 <tr id="i0" class="altColor">
 <td class="colFirst"><code>protected abstract double</code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#brokerValue(org.apache.pulsar.broker.BrokerData,org.apache.pulsar.broker.ServiceConfiguration)">brokerValue</a></span>&#8203;(<a href="../../BrokerData.html" title="class in org.apache.pulsar.broker">BrokerData</a>&nbsp;brokerData,
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#brokerValue(org.apache.pulsar.policies.data.loadbalancer.BrokerData,org.apache.pulsar.broker.ServiceConfiguration)">brokerValue</a></span>&#8203;(org.apache.pulsar.policies.data.loadbalancer.BrokerData&nbsp;brokerData,
            org.apache.pulsar.broker.ServiceConfiguration&nbsp;conf)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr id="i1" class="rowColor">
 <td class="colFirst"><code>protected abstract double</code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#bundleValue(java.lang.String,org.apache.pulsar.broker.BrokerData,org.apache.pulsar.broker.ServiceConfiguration)">bundleValue</a></span>&#8203;(java.lang.String&nbsp;bundle,
-           <a href="../../BrokerData.html" title="class in org.apache.pulsar.broker">BrokerData</a>&nbsp;brokerData,
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#bundleValue(java.lang.String,org.apache.pulsar.policies.data.loadbalancer.BrokerData,org.apache.pulsar.broker.ServiceConfiguration)">bundleValue</a></span>&#8203;(java.lang.String&nbsp;bundle,
+           org.apache.pulsar.policies.data.loadbalancer.BrokerData&nbsp;brokerData,
            org.apache.pulsar.broker.ServiceConfiguration&nbsp;conf)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
@@ -312,24 +312,24 @@ implements <a href="../LoadSheddingStrategy.html" title="interface in org.apache
 <!--   -->
 </a>
 <h3>Method Detail</h3>
-<a id="bundleValue(java.lang.String,org.apache.pulsar.broker.BrokerData,org.apache.pulsar.broker.ServiceConfiguration)">
+<a id="bundleValue(java.lang.String,org.apache.pulsar.policies.data.loadbalancer.BrokerData,org.apache.pulsar.broker.ServiceConfiguration)">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>bundleValue</h4>
 <pre class="methodSignature">protected abstract&nbsp;double&nbsp;bundleValue&#8203;(java.lang.String&nbsp;bundle,
-                                      <a href="../../BrokerData.html" title="class in org.apache.pulsar.broker">BrokerData</a>&nbsp;brokerData,
+                                      org.apache.pulsar.policies.data.loadbalancer.BrokerData&nbsp;brokerData,
                                       org.apache.pulsar.broker.ServiceConfiguration&nbsp;conf)</pre>
 </li>
 </ul>
-<a id="brokerValue(org.apache.pulsar.broker.BrokerData,org.apache.pulsar.broker.ServiceConfiguration)">
+<a id="brokerValue(org.apache.pulsar.policies.data.loadbalancer.BrokerData,org.apache.pulsar.broker.ServiceConfiguration)">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>brokerValue</h4>
-<pre class="methodSignature">protected abstract&nbsp;double&nbsp;brokerValue&#8203;(<a href="../../BrokerData.html" title="class in org.apache.pulsar.broker">BrokerData</a>&nbsp;brokerData,
+<pre class="methodSignature">protected abstract&nbsp;double&nbsp;brokerValue&#8203;(org.apache.pulsar.policies.data.loadbalancer.BrokerData&nbsp;brokerData,
                                       org.apache.pulsar.broker.ServiceConfiguration&nbsp;conf)</pre>
 </li>
 </ul>
