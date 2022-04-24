@@ -25,6 +25,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.concurrent.FastThreadLocal;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -978,21 +979,29 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
         isAllowAutoUpdateSchema = data.is_allow_auto_update_schema;
         schemaValidationEnforced = data.schema_validation_enforced;
 
-        producers.values().forEach(producer -> {
-            producer.checkPermissions();
-            producer.checkEncryption();
-        });
-        subscriptions.forEach((subName, sub) -> sub.getConsumers().forEach(Consumer::checkPermissions));
+        List<CompletableFuture<Void>> producerCheckFutures = new ArrayList<>(producers.size());
+        producers.values().forEach(producer -> producerCheckFutures.add(
+                producer.checkPermissionsAsync().thenRun(producer::checkEncryption)));
 
-        if (data.inactive_topic_policies != null) {
-            this.inactiveTopicPolicies = data.inactive_topic_policies;
-        } else {
-            ServiceConfiguration cfg = brokerService.getPulsar().getConfiguration();
-            resetInactiveTopicPolicies(cfg.getBrokerDeleteInactiveTopicsMode()
-                    , cfg.getBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds(),
-                    cfg.isBrokerDeleteInactiveTopicsEnabled());
-        }
-        return checkReplicationAndRetryOnFailure();
+        return FutureUtil.waitForAll(producerCheckFutures).thenCompose((__) -> {
+            List<CompletableFuture<Void>> consumerCheckFutures = new ArrayList<>();
+            subscriptions.forEach((subName, sub) -> sub.getConsumers().forEach(consumer -> {
+                consumerCheckFutures.add(consumer.checkPermissionsAsync());
+            }));
+
+            return FutureUtil.waitForAll(consumerCheckFutures)
+                    .thenCompose((___) -> {
+                        if (data.inactive_topic_policies != null) {
+                            this.inactiveTopicPolicies = data.inactive_topic_policies;
+                        } else {
+                            ServiceConfiguration cfg = brokerService.getPulsar().getConfiguration();
+                            resetInactiveTopicPolicies(cfg.getBrokerDeleteInactiveTopicsMode()
+                                    , cfg.getBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds(),
+                                    cfg.isBrokerDeleteInactiveTopicsEnabled());
+                        }
+                        return checkReplicationAndRetryOnFailure();
+                    });
+        });
     }
 
     /**
