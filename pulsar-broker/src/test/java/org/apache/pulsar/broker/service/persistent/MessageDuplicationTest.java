@@ -205,6 +205,8 @@ public class MessageDuplicationTest {
         inactiveProducers.put(producerName3, System.currentTimeMillis() - 70000);
         // Try second purgeInactive, produce2 and produce3 is inactive.
         messageDeduplication.purgeInactiveProducers();
+        assertFalse(inactiveProducers.containsKey(producerName2));
+        assertFalse(inactiveProducers.containsKey(producerName3));
         field = MessageDeduplication.class.getDeclaredField("highestSequencedPushed");
         field.setAccessible(true);
         ConcurrentOpenHashMap<String, Long> highestSequencedPushed = (ConcurrentOpenHashMap<String, Long>) field.get(messageDeduplication);
