@@ -1906,6 +1906,11 @@ public class ManagedCursorImpl implements ManagedCursor {
                 decrementPendingMarkDeleteCount();
 
                 mdEntry.triggerComplete();
+                State cursorState = STATE_UPDATER.get(ManagedCursorImpl.this);
+                if (cursorState == State.Closed || cursorState == State.Closing) {
+                    log.warn("[{}] Message {} may be re-delivery because the current cursor is closing.",
+                            ledger.getName(), mdEntry.newPosition);
+                }
             }
 
             @Override
