@@ -1375,7 +1375,8 @@ public class NamespaceService implements AutoCloseable {
     public static boolean isSystemServiceNamespace(String namespace) {
         return SYSTEM_NAMESPACE.toString().equals(namespace)
                 || SLA_NAMESPACE_PATTERN.matcher(namespace).matches()
-                || isHeartbeatNamespace(NamespaceName.get(namespace));
+                || HEARTBEAT_NAMESPACE_PATTERN.matcher(namespace).matches()
+                || HEARTBEAT_NAMESPACE_PATTERN_V2.matcher(namespace).matches();
     }
 
     public static boolean isHeartbeatNamespace(ServiceUnitId ns) {
