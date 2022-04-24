@@ -2339,8 +2339,9 @@ public class ManagedCursorImpl implements ManagedCursor {
                     new VoidCallback() {
                         @Override
                         public void operationComplete() {
-                            log.info("[{}][{}] Updated md-position={} into cursor-ledger {}", ledger.getName(), name,
-                                    markDeletePosition, cursorLedger.getId());
+                            log.info("[{}][{}] Updated md-position={} into cursor-ledger {}, "
+                                            + "individualDeletedMessagesSize={}", ledger.getName(), name,
+                                    markDeletePosition, cursorLedger.getId(), individualDeletedMessages.size());
                             asyncCloseCursorLedger(callback, ctx);
                         }
 
@@ -2355,7 +2356,8 @@ public class ManagedCursorImpl implements ManagedCursor {
             persistPositionMetaStore(-1, position, properties, new MetaStoreCallback<Void>() {
                 @Override
                 public void operationComplete(Void result, Stat stat) {
-                    log.info("[{}][{}] Closed cursor at md-position={}", ledger.getName(), name, markDeletePosition);
+                    log.info("[{}][{}] Closed cursor at md-position={} individualDeletedMessagesSize={}",
+                            ledger.getName(), name, markDeletePosition, individualDeletedMessages.size());
                     // At this point the position had already been safely stored in the cursor z-node
                     callback.closeComplete(ctx);
                     asyncDeleteLedger(cursorLedger);
