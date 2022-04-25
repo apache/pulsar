@@ -40,7 +40,7 @@ import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.common.naming.NamespaceName;
-import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TransactionSubscription;
@@ -78,7 +78,7 @@ public class TransactionMetricsTest extends BrokerTestBase {
                         .allowedClusters(Sets.newHashSet("test"))
                         .build());
         admin.namespaces().createNamespace(NamespaceName.SYSTEM_NAMESPACE.toString());
-        admin.topics().createPartitionedTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString(), 1);
+        createTransactionCoordinatorAssign();
     }
 
     @AfterMethod(alwaysRun = true)
@@ -90,7 +90,7 @@ public class TransactionMetricsTest extends BrokerTestBase {
     @Test
     public void testTransactionCoordinatorMetrics() throws Exception{
         long timeout = 10000;
-        admin.lookups().lookupTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString());
+        admin.lookups().lookupTopic(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN.toString());
         TransactionCoordinatorID transactionCoordinatorIDOne = TransactionCoordinatorID.get(0);
         TransactionCoordinatorID transactionCoordinatorIDTwo = TransactionCoordinatorID.get(1);
         pulsar.getTransactionMetadataStoreService().handleTcClientConnect(transactionCoordinatorIDOne);
@@ -127,7 +127,7 @@ public class TransactionMetricsTest extends BrokerTestBase {
         String topic = "persistent://" + ns1 + "/test_coordinator_metrics";
         String subName = "test_coordinator_metrics";
         TransactionCoordinatorID transactionCoordinatorIDOne = TransactionCoordinatorID.get(0);
-        admin.lookups().lookupPartitionedTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString());
+        admin.lookups().lookupPartitionedTopic(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN.toString());
         pulsar.getTransactionMetadataStoreService().handleTcClientConnect(transactionCoordinatorIDOne);
         admin.topics().createNonPartitionedTopic(topic);
         admin.topics().createSubscription(topic, subName, MessageId.earliest);
@@ -229,7 +229,7 @@ public class TransactionMetricsTest extends BrokerTestBase {
         String topic = "persistent://" + ns1 + "/test_managed_ledger_metrics";
         String subName = "test_managed_ledger_metrics";
         admin.topics().createNonPartitionedTopic(topic);
-        admin.lookups().lookupTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString());
+        admin.lookups().lookupTopic(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN.toString());
         TransactionCoordinatorID transactionCoordinatorIDOne = TransactionCoordinatorID.get(0);
         pulsar.getTransactionMetadataStoreService().handleTcClientConnect(transactionCoordinatorIDOne).get();
         admin.topics().createSubscription(topic, subName, MessageId.earliest);
@@ -291,7 +291,7 @@ public class TransactionMetricsTest extends BrokerTestBase {
         String subName = "test_managed_ledger_metrics";
         String subName2 = "test_pending_ack_no_init";
         admin.topics().createNonPartitionedTopic(topic);
-        admin.lookups().lookupTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString());
+        admin.lookups().lookupTopic(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN.toString());
         TransactionCoordinatorID transactionCoordinatorIDOne = TransactionCoordinatorID.get(0);
         pulsar.getTransactionMetadataStoreService().handleTcClientConnect(transactionCoordinatorIDOne).get();
         admin.topics().createSubscription(topic, subName, MessageId.earliest);
@@ -352,7 +352,7 @@ public class TransactionMetricsTest extends BrokerTestBase {
 
     @Test
     public void testDuplicateMetricTypeDefinitions() throws Exception{
-        admin.lookups().lookupTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString());
+        admin.lookups().lookupTopic(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN.toString());
         TransactionCoordinatorID transactionCoordinatorIDOne = TransactionCoordinatorID.get(0);
         TransactionCoordinatorID transactionCoordinatorIDTwo = TransactionCoordinatorID.get(1);
         pulsar.getTransactionMetadataStoreService().handleTcClientConnect(transactionCoordinatorIDOne);

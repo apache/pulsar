@@ -21,8 +21,8 @@ package org.apache.pulsar.broker.systopic;
 import org.apache.pulsar.broker.service.TransactionBufferSnapshotService;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.events.EventType;
-import org.apache.pulsar.common.events.EventsTopicNames;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.slf4j.Logger;
@@ -38,7 +38,7 @@ public class NamespaceEventsSystemTopicFactory {
 
     public TopicPoliciesSystemTopicClient createTopicPoliciesSystemTopicClient(NamespaceName namespaceName) {
         TopicName topicName = TopicName.get(TopicDomain.persistent.value(), namespaceName,
-                EventsTopicNames.NAMESPACE_EVENTS_LOCAL_NAME);
+                SystemTopicNames.NAMESPACE_EVENTS_LOCAL_NAME);
         log.info("Create topic policies system topic client {}", topicName.toString());
         return new TopicPoliciesSystemTopicClient(client, topicName);
     }
@@ -46,7 +46,7 @@ public class NamespaceEventsSystemTopicFactory {
     public TransactionBufferSystemTopicClient createTransactionBufferSystemTopicClient(NamespaceName namespaceName,
                                                    TransactionBufferSnapshotService transactionBufferSnapshotService) {
         TopicName topicName = TopicName.get(TopicDomain.persistent.value(), namespaceName,
-                EventsTopicNames.TRANSACTION_BUFFER_SNAPSHOT);
+                SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT);
         log.info("Create transaction buffer snapshot client, topicName : {}", topicName.toString());
         return new TransactionBufferSystemTopicClient(client, topicName, transactionBufferSnapshotService);
     }
@@ -55,10 +55,10 @@ public class NamespaceEventsSystemTopicFactory {
         switch (eventType) {
             case TOPIC_POLICY:
                 return TopicName.get(TopicDomain.persistent.value(), namespaceName,
-                        EventsTopicNames.NAMESPACE_EVENTS_LOCAL_NAME);
+                        SystemTopicNames.NAMESPACE_EVENTS_LOCAL_NAME);
             case TRANSACTION_BUFFER_SNAPSHOT:
                 return TopicName.get(TopicDomain.persistent.value(), namespaceName,
-                        EventsTopicNames.TRANSACTION_BUFFER_SNAPSHOT);
+                        SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT);
             default:
                 return null;
         }
