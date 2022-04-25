@@ -47,8 +47,8 @@ import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
+import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.resources.ClusterResources.FailureDomainResources;
-import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.Namespaces;
 import org.apache.pulsar.common.naming.Constants;
@@ -68,7 +68,7 @@ import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class ClustersBase extends PulsarWebResource {
+public class ClustersBase extends AdminResource {
 
     @GET
     @ApiOperation(
@@ -79,16 +79,18 @@ public class ClustersBase extends PulsarWebResource {
             @ApiResponse(code = 200, message = "Return a list of clusters."),
             @ApiResponse(code = 500, message = "Internal server error.")
     })
-    public Set<String> getClusters() throws Exception {
-        try {
-            // Remove "global" cluster from returned list
-            Set<String> clusters = clusterResources().list().stream()
-                    .filter(cluster -> !Constants.GLOBAL_CLUSTER.equals(cluster)).collect(Collectors.toSet());
-            return clusters;
-        } catch (Exception e) {
-            log.error("[{}] Failed to get clusters list", clientAppId(), e);
-            throw new RestException(e);
-        }
+    public void getClusters(@Suspended AsyncResponse asyncResponse) {
+        clusterResources().listAsync()
+                .thenApply(clusters -> clusters.stream()
+                        // Remove "global" cluster from returned list
+                        .filter(cluster -> !Constants.GLOBAL_CLUSTER.equals(cluster))
+                        .collect(Collectors.toSet()))
+                .thenAccept(asyncResponse::resume)
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to get clusters {}", clientAppId(), ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @GET
@@ -104,26 +106,19 @@ public class ClustersBase extends PulsarWebResource {
             @ApiResponse(code = 404, message = "Cluster doesn't exist."),
             @ApiResponse(code = 500, message = "Internal server error.")
     })
-    public ClusterData getCluster(
-        @ApiParam(
-            value = "The cluster name",
-            required = true
-        )
-        @PathParam("cluster") String cluster
-    ) {
-        validateSuperUserAccess();
-
-        try {
-            return clusterResources().getCluster(cluster)
-                    .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Cluster does not exist"));
-        } catch (Exception e) {
-            log.error("[{}] Failed to get cluster {}", clientAppId(), cluster, e);
-            if (e instanceof RestException) {
-                throw (RestException) e;
-            } else {
-                throw new RestException(e);
-            }
-        }
+    public void getCluster(@Suspended AsyncResponse asyncResponse,
+                           @ApiParam(value = "The cluster name", required = true)
+                           @PathParam("cluster") String cluster) {
+        validateSuperUserAccessAsync()
+                .thenCompose(__ -> clusterResources().getClusterAsync(cluster))
+                .thenAccept(clusterData -> {
+                    asyncResponse.resume(clusterData
+                            .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Cluster does not exist")));
+                }).exceptionally(ex -> {
+                    log.error("[{}] Failed to get cluster {}", clientAppId(), cluster, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @PUT
@@ -140,10 +135,8 @@ public class ClustersBase extends PulsarWebResource {
             @ApiResponse(code = 500, message = "Internal server error.")
     })
     public void createCluster(
-        @ApiParam(
-            value = "The cluster name",
-            required = true
-        )
+        @Suspended AsyncResponse asyncResponse,
+        @ApiParam(value = "The cluster name", required = true)
         @PathParam("cluster") String cluster,
         @ApiParam(
             value = "The cluster data",
@@ -158,27 +151,25 @@ public class ClustersBase extends PulsarWebResource {
                         + "}"
                 )
             )
-        )
-                ClusterDataImpl clusterData
-    ) {
-        validateSuperUserAccess();
-        validatePoliciesReadOnlyAccess();
-
-        try {
-            NamedEntity.checkName(cluster);
-            if (clusterResources().getCluster(cluster).isPresent()) {
-                log.warn("[{}] Failed to create already existing cluster {}", clientAppId(), cluster);
-                throw new RestException(Status.CONFLICT, "Cluster already exists");
-            }
-            clusterResources().createCluster(cluster, clusterData);
-            log.info("[{}] Created cluster {}", clientAppId(), cluster);
-        } catch (IllegalArgumentException e) {
-            log.warn("[{}] Failed to create cluster with invalid name {}", clientAppId(), cluster, e);
-            throw new RestException(Status.PRECONDITION_FAILED, "Cluster name is not valid");
-        } catch (Exception e) {
-            log.error("[{}] Failed to create cluster {}", clientAppId(), cluster, e);
-            throw new RestException(e);
-        }
+        ) ClusterDataImpl clusterData) {
+        validateSuperUserAccessAsync()
+                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
+                .thenCompose(__ -> {
+                    NamedEntity.checkName(cluster);
+                    return clusterResources().getClusterAsync(cluster);
+                }).thenCompose(clusterOpt -> {
+                    if (clusterOpt.isPresent()) {
+                        throw new RestException(Status.CONFLICT, "Cluster already exists");
+                    }
+                    return clusterResources().createClusterAsync(cluster, clusterData);
+                }).thenAccept(__ -> {
+                    log.info("[{}] Successfully to created cluster {}", clientAppId(), cluster);
+                    asyncResponse.resume(Response.ok());
+                }).exceptionally(ex -> {
+                    log.error("[{}] Failed to create cluster {}", clientAppId(), cluster, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @POST
@@ -193,10 +184,8 @@ public class ClustersBase extends PulsarWebResource {
             @ApiResponse(code = 500, message = "Internal server error.")
     })
     public void updateCluster(
-        @ApiParam(
-            value = "The cluster name",
-            required = true
-        )
+        @Suspended AsyncResponse asyncResponse,
+        @ApiParam(value = "The cluster name", required = true)
         @PathParam("cluster") String cluster,
         @ApiParam(
             value = "The cluster data",
@@ -211,22 +200,18 @@ public class ClustersBase extends PulsarWebResource {
                         + "}"
                 )
             )
-        )
-                ClusterDataImpl clusterData
-    ) {
-        validateSuperUserAccess();
-        validatePoliciesReadOnlyAccess();
-
-        try {
-            clusterResources().updateCluster(cluster, old -> clusterData);
-            log.info("[{}] Updated cluster {}", clientAppId(), cluster);
-        } catch (NotFoundException e) {
-            log.warn("[{}] Failed to update cluster {}: Does not exist", clientAppId(), cluster);
-            throw new RestException(Status.NOT_FOUND, "Cluster does not exist");
-        } catch (Exception e) {
-            log.error("[{}] Failed to update cluster {}", clientAppId(), cluster, e);
-            throw new RestException(e);
-        }
+        ) ClusterDataImpl clusterData) {
+        validateSuperUserAccessAsync()
+                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
+                .thenCompose(__ -> clusterResources().updateClusterAsync(cluster, old -> clusterData))
+                .thenAccept(__ -> {
+                    log.info("[{}] Successfully to update cluster {}", clientAppId(), cluster);
+                    asyncResponse.resume(Response.ok());
+                }).exceptionally(ex -> {
+                    log.error("[{}] Failed to update cluster {}", clientAppId(), cluster, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @POST

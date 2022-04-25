@@ -43,7 +43,7 @@ public class ClusterResources extends BaseResources<ClusterData> {
     }
 
     public CompletableFuture<Set<String>> listAsync() {
-        return getChildrenAsync(BASE_CLUSTERS_PATH).thenApply(list -> new HashSet<>(list));
+        return getChildrenAsync(BASE_CLUSTERS_PATH).thenApply(HashSet::new);
     }
 
     public Set<String> list() throws MetadataStoreException {
@@ -64,6 +64,15 @@ public class ClusterResources extends BaseResources<ClusterData> {
 
     public void createCluster(String clusterName, ClusterData clusterData) throws MetadataStoreException {
         create(joinPath(BASE_CLUSTERS_PATH, clusterName), clusterData);
+    }
+
+    public CompletableFuture<Void> createClusterAsync(String clusterName, ClusterData clusterData) {
+        return createAsync(joinPath(BASE_CLUSTERS_PATH, clusterName), clusterData);
+    }
+
+    public CompletableFuture<Void> updateClusterAsync(String clusterName,
+                                                      Function<ClusterData, ClusterData> modifyFunction) {
+        return setAsync(joinPath(BASE_CLUSTERS_PATH, clusterName), modifyFunction);
     }
 
     public void updateCluster(String clusterName, Function<ClusterData, ClusterData> modifyFunction)

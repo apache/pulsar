@@ -142,11 +142,15 @@ public abstract class AdminResource extends PulsarWebResource {
         return pulsar().getPulsarResources().getNamespaceResources().getPoliciesReadOnlyAsync()
                 .thenAccept(arePoliciesReadOnly -> {
                     if (arePoliciesReadOnly) {
-                        log.debug("Policies are read-only. Broker cannot do read-write operations");
+                        if (log.isDebugEnabled()) {
+                            log.debug("Policies are read-only. Broker cannot do read-write operations");
+                        }
                         throw new RestException(Status.FORBIDDEN, "Broker is forbidden to do read-write operations");
                     } else {
                         // Do nothing, just log the message.
-                        log.debug("Broker is allowed to make read-write operations");
+                        if (log.isDebugEnabled()) {
+                            log.debug("Broker is allowed to make read-write operations");
+                        }
                     }
                 });
     }
