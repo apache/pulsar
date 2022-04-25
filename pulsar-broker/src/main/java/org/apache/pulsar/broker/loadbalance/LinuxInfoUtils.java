@@ -254,7 +254,7 @@ public class LinuxInfoUtils {
 
     @AllArgsConstructor
     public enum UsageUnit {
-        Kbps(1024);
+        Kbps(8 / 1000);
 
         private final int convertUnit;
 
