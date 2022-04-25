@@ -529,7 +529,11 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testUpdateTransactionCoordinatorNumber() throws Exception {
         int coordinatorSize = 3;
-        admin.topics().createPartitionedTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString(), coordinatorSize);
+        pulsar.getPulsarResources()
+                .getNamespaceResources()
+                .getPartitionedTopicResources()
+                .createPartitionedTopic(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN,
+                        new PartitionedTopicMetadata(coordinatorSize));
         conf.setMaxNumPartitionsPerPartitionedTopic(15);
         try {
             admin.transactions().scaleTransactionCoordinators(coordinatorSize - 1);

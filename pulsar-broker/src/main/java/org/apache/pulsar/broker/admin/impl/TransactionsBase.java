@@ -441,10 +441,10 @@ public abstract class TransactionsBase extends AdminResource {
             throw new RestException(Response.Status.NOT_ACCEPTABLE,
                     "Number of partitions should be less than or equal to " + maxPartitions);
         }
-        validateTopicOwnership(TopicName.TRANSACTION_COORDINATOR_ASSIGN, authoritative);
+        validateTopicOwnership(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN, authoritative);
         CompletableFuture<Void> updatePartition = new CompletableFuture<>();
         namespaceResources().getPartitionedTopicResources()
-                .updatePartitionedTopicAsync(TopicName.TRANSACTION_COORDINATOR_ASSIGN, p -> {
+                .updatePartitionedTopicAsync(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN, p -> {
                     if (p.partitions >= replicas) {
                         throw new RestException(Response.Status.NOT_ACCEPTABLE, "Number of partitions should "
                                 + "be more than the current number of transaction coordinator partitions");
