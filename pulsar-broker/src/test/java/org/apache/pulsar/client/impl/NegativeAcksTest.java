@@ -106,7 +106,9 @@ public class NegativeAcksTest extends ProducerConsumerBase {
         log.info("Test negative acks batching={} partitions={} subType={} negAckDelayMs={}", batching, usePartitions,
                 subscriptionType, negAcksDelayMillis);
         String topic = BrokerTestUtil.newUniqueName("testNegativeAcks");
-        admin.topics().createPartitionedTopic(topic, 2);
+        if (usePartitions) {
+            admin.topics().createPartitionedTopic(topic, 2);
+        }
 
         @Cleanup
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
