@@ -141,12 +141,13 @@ public class RateLimiterTest {
         assertTrue(rate.tryAcquire(2));
         assertEquals(rate.getAvailablePermits(), 1);
 
+        //try to acquire failed, not decrease availablePermits.
         assertFalse(rate.tryAcquire(2));
         assertEquals(rate.getAvailablePermits(), 1);
 
-
         assertTrue(rate.tryAcquire(1));
         assertEquals(rate.getAvailablePermits(), 0);
+
         rate.close();
     }
 
@@ -206,7 +207,7 @@ public class RateLimiterTest {
 
         Thread.sleep(rateTimeMSec);
         // check after three rate-time: acquiredPermits is 0
-        assertEquals(rate.getAvailablePermits() > 0, true);
+        assertTrue(rate.getAvailablePermits() > 0);
 
         rate.close();
     }
