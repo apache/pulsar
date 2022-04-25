@@ -1348,8 +1348,9 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
                 .build();
 
         admin.topicPolicies().setSubscriptionDispatchRate(topic, subscriptionName, subLevelRate);
-
-        Assert.assertEquals(admin.topicPolicies().getSubscriptionDispatchRate(topic, subscriptionName), subLevelRate);
+        Awaitility.await().untilAsserted(() ->
+                Assert.assertEquals(admin.topicPolicies().getSubscriptionDispatchRate(topic, subscriptionName),
+                        subLevelRate));
 
         Awaitility.await().untilAsserted(() -> Assert.assertEquals(
                 abstractTopic.getSubscriptionDispatchRate(subscriptionName), subLevelRate));
@@ -1361,7 +1362,8 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(dispatchRateLimiter.getDispatchRateOnMsg(), subLevelRate.getDispatchThrottlingRateInMsg());
 
         admin.topicPolicies().removeSubscriptionDispatchRate(topic, subscriptionName);
-        Assert.assertNull(admin.topicPolicies().getSubscriptionDispatchRate(topic, subscriptionName));
+        Awaitility.await().untilAsserted(() ->
+                Assert.assertNull(admin.topicPolicies().getSubscriptionDispatchRate(topic, subscriptionName)));
 
         admin.topics().delete(topic, true);
     }
