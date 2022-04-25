@@ -22,7 +22,7 @@ import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.common.naming.NamespaceName;
-import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.util.CmdGenerateDocs;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 
@@ -103,7 +103,8 @@ public class PulsarTransactionCoordinatorMetadataSetup {
                     arguments.cluster);
 
             // Create transaction coordinator assign partitioned topic
-            PulsarClusterMetadataSetup.createPartitionedTopic(configStore, TopicName.TRANSACTION_COORDINATOR_ASSIGN,
+            PulsarClusterMetadataSetup.createPartitionedTopic(configStore,
+                    SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN,
                     arguments.numTransactionCoordinators);
         }
 

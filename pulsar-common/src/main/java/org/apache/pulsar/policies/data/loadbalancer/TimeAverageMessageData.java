@@ -16,9 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker;
-
-import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
+package org.apache.pulsar.policies.data.loadbalancer;
 
 /**
  * Data class comprising the average message data over a fixed period of time.

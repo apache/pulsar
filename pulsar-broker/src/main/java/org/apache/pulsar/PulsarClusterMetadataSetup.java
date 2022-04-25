@@ -37,6 +37,7 @@ import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.resources.TenantResources;
 import org.apache.pulsar.common.conf.InternalConfigurationData;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.ClusterData;
@@ -311,7 +312,7 @@ public class PulsarClusterMetadataSetup {
         createNamespaceIfAbsent(resources, NamespaceName.SYSTEM_NAMESPACE, arguments.cluster);
 
         // Create transaction coordinator assign partitioned topic
-        createPartitionedTopic(configStore, TopicName.TRANSACTION_COORDINATOR_ASSIGN,
+        createPartitionedTopic(configStore, SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN,
                 arguments.numTransactionCoordinators);
 
         localStore.close();
