@@ -522,7 +522,7 @@ Execute the following commands in the repository where you download Pulsar tarba
 
     ![](assets/FileSystem-8.png)
 
-## Read data from fileSystem
+## Read offloaded data from fileSystem
 
 This section provides detailed instructions about how to read data out as Ledger Entry in the file system.
 
@@ -530,12 +530,12 @@ This section provides detailed instructions about how to read data out as Ledger
   ```properties
     path = storageBasePath + "/" + managedLedgerName + "/" + ledgerId + "-" + uuid.toString();
   ```
-    1. storageBasePath is the value of `hadoop.tmp.dir`, configured in `broker.conf` and `filesystem_offload_core_site.xml`
+    1. storageBasePath is the value of `hadoop.tmp.dir`, configured in `broker.conf` or `filesystem_offload_core_site.xml`
     2. managedLedgerName is the name of the persistentTopic manager Ledger
   ```shell
-     managedLedgerName of persistent://public/default/topics-name is  public/default/persistent/topics-name.
+     managedLedgerName of persistent://public/default/topics-name is public/default/persistent/topics-name.
   ```
-  Considering the iteration of versions,  you can use the following method to get the managedLedgerName:
+  Can use the following method to get the managedLedgerName:
   ```shell
      String managedLedgerName = TopicName.get("persistent://public/default/topics-name").getPersistenceNamingEncoding(); 
   ```
