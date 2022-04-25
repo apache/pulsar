@@ -27,17 +27,10 @@ import lombok.EqualsAndHashCode;
 public class ResourceUsage {
     public final double usage;
     public final double limit;
-    @EqualsAndHashCode.Exclude
-    private final float percentUsage;
 
     public ResourceUsage(double usage, double limit) {
         this.usage = usage;
         this.limit = limit;
-        float proportion = 0;
-        if (limit > 0) {
-            proportion = ((float) usage) / ((float) limit);
-        }
-        percentUsage = proportion * 100;
     }
 
     public ResourceUsage() {
@@ -57,6 +50,10 @@ public class ResourceUsage {
     }
 
     public float percentUsage() {
-        return percentUsage;
+        float proportion = 0;
+        if (limit > 0) {
+            proportion = ((float) usage) / ((float) limit);
+        }
+        return proportion * 100;
     }
 }
