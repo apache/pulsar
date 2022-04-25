@@ -155,7 +155,8 @@ public class PersistentTopics extends PersistentTopicsBase {
                     .exceptionally(ex -> {
                         Throwable realCause = FutureUtil.unwrapCompletionException(ex);
                         log.error("[{}] Failed to get permissions for topic {}", clientAppId(), topicName, ex);
-                        return handleCommonRestAsyncException(asyncResponse, realCause);
+                        resumeAsyncResponseExceptionally(asyncResponse, realCause);
+                        return null;
                     });
         } catch (Exception e) {
             log.error("[{}] Failed to validate topic name {}", clientAppId(), topicName, e);

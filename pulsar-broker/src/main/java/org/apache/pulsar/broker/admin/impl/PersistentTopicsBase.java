@@ -206,8 +206,8 @@ public class PersistentTopicsBase extends AdminResource {
 
     protected CompletableFuture<Map<String, Set<AuthAction>>> internalGetPermissionsOnTopic() {
         // This operation should be reading from zookeeper and it should be allowed without having admin privileges
-        validateAdminAccessForTenant(namespaceName.getTenant());
-        return namespaceResources().getPoliciesAsync(namespaceName)
+        return validateAdminAccessForTenantAsync(namespaceName.getTenant())
+                .thenCompose(__ -> namespaceResources().getPoliciesAsync(namespaceName)
             .thenApply(policies -> {
                 if (!policies.isPresent()) {
                     throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
@@ -236,7 +236,7 @@ public class PersistentTopicsBase extends AdminResource {
                     }
                 }
                 return permissions;
-            });
+            }));
     }
 
     protected void validateCreateTopic(TopicName topicName) {

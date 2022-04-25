@@ -25,7 +25,6 @@ import io.swagger.annotations.ApiParam;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import javax.ws.rs.DELETE;
@@ -119,7 +118,8 @@ public class PersistentTopics extends PersistentTopicsBase {
                     .exceptionally(ex -> {
                         Throwable realCause = FutureUtil.unwrapCompletionException(ex);
                         log.error("[{}] Failed to get permissions for topic {}", clientAppId(), topicName, ex);
-                        return handleCommonRestAsyncException(asyncResponse, realCause);
+                        resumeAsyncResponseExceptionally(asyncResponse, realCause);
+                        return null;
                     });
         } catch (Exception e) {
             log.error("[{}] Failed to validate topic name {}", clientAppId(), topicName, e);
