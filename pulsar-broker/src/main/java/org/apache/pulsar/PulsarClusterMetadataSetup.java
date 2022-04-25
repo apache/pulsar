@@ -138,6 +138,9 @@ public class PulsarClusterMetadataSetup {
             hidden = true)
         private String bookieMetadataServiceUri;
 
+        @Parameter(names = { "-f", "--force" }, description = "Update partitions of transaction topic forcefully")
+        private boolean force = false;
+
         @Parameter(names = { "-h", "--help" }, description = "Show this help message")
         private boolean help = false;
 
@@ -313,7 +316,7 @@ public class PulsarClusterMetadataSetup {
 
         // Create transaction coordinator assign partitioned topic
         createPartitionedTopic(configStore, SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN,
-                arguments.numTransactionCoordinators);
+                arguments.numTransactionCoordinators, arguments.force);
 
         localStore.close();
         configStore.close();
@@ -356,8 +359,8 @@ public class PulsarClusterMetadataSetup {
         }
     }
 
-    static void createPartitionedTopic(MetadataStore configStore, TopicName topicName, int numPartitions)
-            throws InterruptedException, IOException, ExecutionException {
+    static void createPartitionedTopic(MetadataStore configStore, TopicName topicName, int numPartitions,
+                                       boolean force) throws InterruptedException, IOException, ExecutionException {
         PulsarResources resources = new PulsarResources(null, configStore);
         NamespaceResources.PartitionedTopicResources partitionedTopicResources =
                 resources.getNamespaceResources().getPartitionedTopicResources();
@@ -370,7 +373,7 @@ public class PulsarClusterMetadataSetup {
             PartitionedTopicMetadata existsMeta = getResult.get();
 
             // Only update metadata if the partitions should be modified
-            if (existsMeta.partitions < numPartitions) {
+            if (existsMeta.partitions < numPartitions && force) {
                 partitionedTopicResources.updatePartitionedTopicAsync(topicName,
                         __ -> new PartitionedTopicMetadata(numPartitions)).get();
             }

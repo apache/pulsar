@@ -51,6 +51,9 @@ public class PulsarTransactionCoordinatorMetadataSetup {
         }, description = "Num transaction coordinators will assigned in cluster")
         private int numTransactionCoordinators = 16;
 
+        @Parameter(names = { "-f", "--force" }, description = "Update partitions of transaction topic forcefully")
+        private boolean force = false;
+
         @Parameter(names = { "-h", "--help" }, description = "Show this help message")
         private boolean help = false;
 
@@ -105,7 +108,7 @@ public class PulsarTransactionCoordinatorMetadataSetup {
             // Create transaction coordinator assign partitioned topic
             PulsarClusterMetadataSetup.createPartitionedTopic(configStore,
                     SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN,
-                    arguments.numTransactionCoordinators);
+                    arguments.numTransactionCoordinators, arguments.force);
         }
 
         System.out.println("Transaction coordinator metadata setup success");
