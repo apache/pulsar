@@ -28,28 +28,30 @@ static std::vector<std::string> logLines;
 
 class MyTestLogger : public Logger {
    public:
-    MyTestLogger() = default;
+    MyTestLogger(const std::string &fileName) : fileName_(fileName) {}
 
     bool isEnabled(Level level) override { return true; }
 
     void log(Level level, int line, const std::string &message) override {
         std::stringstream ss;
-        ss << " " << level << ":" << line << " " << message << std::endl;
+        ss << std::this_thread::get_id() << " " << level << " " << fileName_ << ":" << line << " " << message
+           << std::endl;
         logLines.emplace_back(ss.str());
     }
+
+   private:
+    const std::string fileName_;
 };
 
 class MyTestLoggerFactory : public LoggerFactory {
    public:
-    Logger *getLogger(const std::string &fileName) override { return logger; }
-
-   private:
-    MyTestLogger *logger = new MyTestLogger;
+    Logger *getLogger(const std::string &fileName) override { return new MyTestLogger(fileName); }
 };
 
 TEST(CustomLoggerTest, testCustomLogger) {
     // simulate new client created on a different thread (because logging factory is called once per thread)
-    auto testThread = std::thread([] {
+    std::atomic_int numLogLines{0};
+    auto testThread = std::thread([&numLogLines] {
         ClientConfiguration clientConfig;
         auto customLogFactory = new MyTestLoggerFactory();
         clientConfig.setLogger(customLogFactory);
@@ -57,6 +59,11 @@ TEST(CustomLoggerTest, testCustomLogger) {
         Client client("pulsar://localhost:6650", clientConfig);
         client.close();
         ASSERT_TRUE(logLines.size() > 0);
+        for (auto &&line : logLines) {
+            std::cout << line;
+            std::cout.flush();
+        }
+        numLogLines = logLines.size();
         LogUtils::resetLoggerFactory();
     });
     testThread.join();
@@ -65,7 +72,7 @@ TEST(CustomLoggerTest, testCustomLogger) {
     Client client("pulsar://localhost:6650", clientConfig);
     client.close();
     // custom logger didn't get any new lines
-    ASSERT_EQ(logLines.size(), 7);
+    ASSERT_EQ(logLines.size(), numLogLines);
 }
 
 TEST(CustomLoggerTest, testConsoleLoggerFactory) {
