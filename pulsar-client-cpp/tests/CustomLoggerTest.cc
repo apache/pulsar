@@ -20,6 +20,7 @@
 #include <pulsar/ConsoleLoggerFactory.h>
 #include <LogUtils.h>
 #include <gtest/gtest.h>
+#include <atomic>
 #include <thread>
 
 using namespace pulsar;
