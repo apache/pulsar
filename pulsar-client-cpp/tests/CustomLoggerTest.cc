@@ -56,7 +56,7 @@ TEST(CustomLoggerTest, testCustomLogger) {
         // reset to previous log factory
         Client client("pulsar://localhost:6650", clientConfig);
         client.close();
-        ASSERT_EQ(logLines.size(), 7);
+        ASSERT_TRUE(logLines.size() > 0);
         LogUtils::resetLoggerFactory();
     });
     testThread.join();
