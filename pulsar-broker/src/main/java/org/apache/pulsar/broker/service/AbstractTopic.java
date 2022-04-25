@@ -65,6 +65,7 @@ import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
+import org.apache.pulsar.common.policies.data.SubscriptionPolicies;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
@@ -138,7 +139,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
             AtomicLongFieldUpdater.newUpdater(AbstractTopic.class, "usageCount");
     private volatile long usageCount = 0;
 
-    protected Map<String/*subscription*/, DispatchRateImpl> subscriptionLevelDispatchRateMap = Collections.emptyMap();
+    private Map<String/*subscription*/, SubscriptionPolicies> subscriptionPolicies = Collections.emptyMap();
 
     public AbstractTopic(String topic, BrokerService brokerService) {
         this.topic = topic;
@@ -160,7 +161,9 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
     }
 
     public DispatchRateImpl getSubscriptionDispatchRate(String subscriptionName) {
-        DispatchRateImpl rate = DispatchRateImpl.normalize(subscriptionLevelDispatchRateMap.get(subscriptionName));
+        DispatchRateImpl rate = Optional.ofNullable(subscriptionPolicies.get(subscriptionName))
+                .map(SubscriptionPolicies::getDispatchRate).orElse(null);
+        rate = DispatchRateImpl.normalize(rate);
         if (rate != null) {
             return rate;
         }
@@ -221,7 +224,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         topicPolicies.getCompactionThreshold().updateTopicValue(data.getCompactionThreshold());
         topicPolicies.getDispatchRate().updateTopicValue(DispatchRateImpl.normalize(data.getDispatchRate()));
 
-        this.subscriptionLevelDispatchRateMap = data.getSubscriptionLevelDispatchRateMap();
+        this.subscriptionPolicies = data.getSubscriptionPolicies();
     }
 
     protected void updateTopicPolicyByNamespacePolicy(Policies namespacePolicies) {

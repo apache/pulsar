@@ -71,10 +71,11 @@ public class TopicPolicies {
     private Integer maxSubscriptionsPerTopic;
     private DispatchRateImpl replicatorDispatchRate;
     private SchemaCompatibilityStrategy schemaCompatibilityStrategy;
+
     /**
-     * Dispatch rate limiter setting for specific subscription.
+     * Subscription level policies for specific subscription.
      */
-    private Map<String/*subscription*/, DispatchRateImpl> subscriptionLevelDispatchRateMap = new HashMap<>();
+    private Map<String/*subscription*/, SubscriptionPolicies> subscriptionPolicies = new HashMap<>();
 
     public boolean isGlobalPolicies() {
         return isGlobal != null && isGlobal;

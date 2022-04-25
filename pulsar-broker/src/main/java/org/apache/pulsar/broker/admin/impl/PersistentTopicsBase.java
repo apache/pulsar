@@ -126,6 +126,7 @@ import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
+import org.apache.pulsar.common.policies.data.SubscriptionPolicies;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
@@ -4400,8 +4401,9 @@ public class PersistentTopicsBase extends AdminResource {
                                                                                        boolean isGlobal) {
         return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
                 .thenCompose(otp -> {
-                    DispatchRateImpl rate =
-                            otp.map(tp -> tp.getSubscriptionLevelDispatchRateMap().get(subName)).orElse(null);
+                    DispatchRateImpl rate = otp.map(tp -> tp.getSubscriptionPolicies().get(subName))
+                            .map(SubscriptionPolicies::getDispatchRate)
+                            .orElse(null);
                     if (applied && rate == null) {
                         return internalGetSubscriptionDispatchRate(true, isGlobal);
                     } else {
@@ -4420,8 +4422,10 @@ public class PersistentTopicsBase extends AdminResource {
         return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
                 .thenCompose(op -> {
                     TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
-                    topicPolicies.getSubscriptionLevelDispatchRateMap().put(subName, newDispatchRate);
                     topicPolicies.setIsGlobal(isGlobal);
+                    topicPolicies.getSubscriptionPolicies()
+                            .computeIfAbsent(subName, k -> new SubscriptionPolicies())
+                            .setDispatchRate(newDispatchRate);
                     return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
                 });
     }
@@ -4433,7 +4437,15 @@ public class PersistentTopicsBase extends AdminResource {
                     return CompletableFuture.completedFuture(null);
                 }
                 TopicPolicies topicPolicies = op.get();
-                topicPolicies.getSubscriptionLevelDispatchRateMap().remove(subName);
+                SubscriptionPolicies sp = topicPolicies.getSubscriptionPolicies().get(subName);
+                if (sp == null) {
+                    return CompletableFuture.completedFuture(null);
+                }
+                sp.setDispatchRate(null);
+                if (sp.checkEmpty()) {
+                    // cleanup empty SubscriptionPolicies
+                    topicPolicies.getSubscriptionPolicies().remove(subName, sp);
+                }
                 topicPolicies.setIsGlobal(isGlobal);
                 return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, op.get());
             });
