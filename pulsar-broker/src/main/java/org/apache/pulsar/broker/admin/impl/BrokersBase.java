@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.admin.impl;
 
-import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
 import com.google.common.collect.Maps;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
