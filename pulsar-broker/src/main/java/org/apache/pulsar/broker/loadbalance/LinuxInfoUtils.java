@@ -243,7 +243,7 @@ public class LinuxInfoUtils {
 
     @AllArgsConstructor
     public enum NICUnit {
-        Kbps(1024);
+        Kbps(1000);
 
         private final int convertUnit;
 
@@ -254,7 +254,7 @@ public class LinuxInfoUtils {
 
     @AllArgsConstructor
     public enum UsageUnit {
-        Kbps(8 / 1024);
+        Kbps(1024);
 
         private final int convertUnit;
 
