@@ -2402,9 +2402,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
         schemaValidationEnforced = data.schema_validation_enforced;
 
-        //If the topic-level policy already exists, the namespace-level policy cannot override the topic-level policy.
-        Optional<TopicPolicies> topicPolicies = getTopicPolicies();
-
         initializeRateLimiterIfNeeded();
 
         updatePublishDispatcher();
@@ -2422,12 +2419,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 sub.getConsumers().forEach(consumer -> consumerCheckFutures.add(consumer.checkPermissionsAsync()));
                 subscriptionCheckFutures.add(FutureUtil.waitForAll(consumerCheckFutures).thenRun(() -> {
                     Dispatcher dispatcher = sub.getDispatcher();
-                    // If the topic-level policy already exists, the namespace-level policy cannot override
-                    // the topic-level policy.
-                    if (dispatcher != null && (!topicPolicies.isPresent() || !topicPolicies.get()
-                            .isSubscriptionDispatchRateSet())) {
-                        dispatcher.getRateLimiter()
-                                .ifPresent(rateLimiter -> rateLimiter.onPoliciesUpdate(data));
+                    if (dispatcher != null) {
+                        dispatcher.getRateLimiter().ifPresent(DispatchRateLimiter::updateDispatchRate);
                     }
                 }));
             });
