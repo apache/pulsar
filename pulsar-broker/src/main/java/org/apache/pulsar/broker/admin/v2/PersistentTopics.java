@@ -153,9 +153,8 @@ public class PersistentTopics extends PersistentTopicsBase {
             validateTopicName(tenant, namespace, encodedTopic);
             internalGetPermissionsOnTopic().thenAccept(permissions -> asyncResponse.resume(permissions))
                     .exceptionally(ex -> {
-                        Throwable realCause = FutureUtil.unwrapCompletionException(ex);
                         log.error("[{}] Failed to get permissions for topic {}", clientAppId(), topicName, ex);
-                        resumeAsyncResponseExceptionally(asyncResponse, realCause);
+                        resumeAsyncResponseExceptionally(asyncResponse, ex);
                         return null;
                     });
         } catch (Exception e) {
