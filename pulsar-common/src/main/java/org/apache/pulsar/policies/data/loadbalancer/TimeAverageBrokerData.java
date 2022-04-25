@@ -16,13 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker;
+package org.apache.pulsar.policies.data.loadbalancer;
 
 import java.util.Map;
 import java.util.Set;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 
 /**
  * Data class aggregating the short term and long term data across all bundles belonging to a broker.

@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.broker.stats.prometheus;
 
-import static org.apache.pulsar.common.events.EventsTopicNames.checkTopicIsEventsNames;
+import static org.apache.pulsar.common.naming.SystemTopicNames.isEventSystemTopic;
 import io.netty.util.concurrent.FastThreadLocal;
 import java.util.HashMap;
 import java.util.Map;
@@ -79,7 +79,7 @@ public class TransactionAggregator {
                             topic.getSubscriptions().values().forEach(subscription -> {
                                 try {
                                     localManageLedgerStats.get().reset();
-                                    if (!checkTopicIsEventsNames(TopicName.get(subscription.getTopic().getName()))
+                                    if (!isEventSystemTopic(TopicName.get(subscription.getTopic().getName()))
                                             && subscription instanceof  PersistentSubscription
                                             && ((PersistentSubscription) subscription).checkIfPendingAckStoreInit()) {
                                         ManagedLedger managedLedger =

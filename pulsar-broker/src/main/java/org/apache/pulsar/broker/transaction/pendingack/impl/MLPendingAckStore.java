@@ -45,6 +45,7 @@ import org.apache.pulsar.broker.transaction.pendingack.proto.PendingAckOp;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
+import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
 import org.jctools.queues.MessagePassingQueue;
 import org.jctools.queues.SpscArrayQueue;
@@ -60,10 +61,6 @@ public class MLPendingAckStore implements PendingAckStore {
     private final ManagedLedger managedLedger;
 
     private final ManagedCursor cursor;
-
-    public static final String PENDING_ACK_STORE_SUFFIX = "__transaction_pending_ack";
-
-    public static final String PENDING_ACK_STORE_CURSOR_NAME = "__pending_ack_state";
 
     private final SpscArrayQueue<Entry> entryQueue;
 
@@ -412,11 +409,11 @@ public class MLPendingAckStore implements PendingAckStore {
     }
 
     public static String getTransactionPendingAckStoreSuffix(String originTopicName, String subName) {
-        return TopicName.get(originTopicName) + "-" + subName + PENDING_ACK_STORE_SUFFIX;
+        return TopicName.get(originTopicName) + "-" + subName + SystemTopicNames.PENDING_ACK_STORE_SUFFIX;
     }
 
     public static String getTransactionPendingAckStoreCursorName() {
-        return PENDING_ACK_STORE_CURSOR_NAME;
+        return SystemTopicNames.PENDING_ACK_STORE_CURSOR_NAME;
     }
 
     private static final Logger log = LoggerFactory.getLogger(MLPendingAckStore.class);

@@ -95,7 +95,6 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     protected volatile long incomingMessagesSize = 0;
     protected volatile Timeout batchReceiveTimeout = null;
     protected final Lock reentrantLock = new ReentrantLock();
-    private volatile boolean isListenerHandlingMessage = false;
 
     protected static final AtomicLongFieldUpdater<ConsumerBase> CONSUMER_EPOCH =
             AtomicLongFieldUpdater.newUpdater(ConsumerBase.class, "consumerEpoch");
@@ -984,33 +983,34 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     }
 
     private void triggerListener() {
+        // The messages are added into the receiver queue by the internal pinned executor,
+        // so need to use internal pinned executor to avoid race condition which message
+        // might be added into the receiver queue but not able to read here.
         internalPinnedExecutor.execute(() -> {
             try {
-                // Listener should only have one pending/running executable to process a message
-                // See https://github.com/apache/pulsar/issues/11008 for context.
-                if (!isListenerHandlingMessage) {
-                    final Message<T> msg = internalReceive(0, TimeUnit.MILLISECONDS);
+                Message<T> msg;
+                do {
+                    msg = internalReceive(0, TimeUnit.MILLISECONDS);
                     if (msg != null) {
-                        isListenerHandlingMessage = true;
                         // Trigger the notification on the message listener in a separate thread to avoid blocking the
                         // internal pinned executor thread while the message processing happens
+                        final Message<T> finalMsg = msg;
                         if (SubscriptionType.Key_Shared == conf.getSubscriptionType()) {
                             executorProvider.getExecutor(peekMessageKey(msg)).execute(() ->
-                                    callMessageListener(msg));
+                                    callMessageListener(finalMsg));
                         } else {
                             getExternalExecutor(msg).execute(() -> {
-                                callMessageListener(msg);
+                                callMessageListener(finalMsg);
                             });
                         }
+                    } else {
+                        if (log.isDebugEnabled()) {
+                            log.debug("[{}] [{}] Message has been cleared from the queue", topic, subscription);
+                        }
                     }
-                }
+                } while (msg != null);
             } catch (PulsarClientException e) {
                 log.warn("[{}] [{}] Failed to dequeue the message for listener", topic, subscription, e);
-                return;
-            }
-
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] [{}] Message has been cleared from the queue", topic, subscription);
             }
         });
     }
@@ -1021,13 +1021,16 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
                 log.debug("[{}][{}] Calling message listener for message {}", topic, subscription,
                         msg.getMessageId());
             }
+            ConsumerImpl receivedConsumer = (msg instanceof TopicMessageImpl)
+                    ? ((TopicMessageImpl<T>) msg).receivedByconsumer : (ConsumerImpl) this;
+            // Increase the permits here since we will not increase permits while receive messages from consumer
+            // after enabled message listener.
+            receivedConsumer.increaseAvailablePermits((MessageImpl<?>) (msg instanceof TopicMessageImpl
+                                ? ((TopicMessageImpl<T>) msg).getMessage() : msg));
             listener.received(ConsumerBase.this, msg);
         } catch (Throwable t) {
             log.error("[{}][{}] Message listener error in processing message: {}", topic, subscription,
                     msg.getMessageId(), t);
-        } finally {
-            isListenerHandlingMessage = false;
-            triggerListener();
         }
     }
 

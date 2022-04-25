@@ -43,6 +43,7 @@ import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.Transactions;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
@@ -70,7 +71,7 @@ public abstract class TransactionsBase extends AdminResource {
     protected void internalGetCoordinatorStats(AsyncResponse asyncResponse, boolean authoritative,
                                                Integer coordinatorId) {
         if (coordinatorId != null) {
-            validateTopicOwnership(TopicName.TRANSACTION_COORDINATOR_ASSIGN.getPartition(coordinatorId),
+            validateTopicOwnership(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN.getPartition(coordinatorId),
                     authoritative);
             TransactionMetadataStore transactionMetadataStore =
                     pulsar().getTransactionMetadataStoreService().getStores()
@@ -82,7 +83,7 @@ public abstract class TransactionsBase extends AdminResource {
             }
             asyncResponse.resume(transactionMetadataStore.getCoordinatorStats());
         } else {
-            getPartitionedTopicMetadataAsync(TopicName.TRANSACTION_COORDINATOR_ASSIGN,
+            getPartitionedTopicMetadataAsync(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN,
                     false, false).thenAccept(partitionMetadata -> {
                 if (partitionMetadata.partitions == 0) {
                     asyncResponse.resume(new RestException(Response.Status.NOT_FOUND,
@@ -153,7 +154,7 @@ public abstract class TransactionsBase extends AdminResource {
     protected void internalGetTransactionMetadata(AsyncResponse asyncResponse,
                                                   boolean authoritative, int mostSigBits, long leastSigBits) {
         try {
-            validateTopicOwnership(TopicName.TRANSACTION_COORDINATOR_ASSIGN.getPartition(mostSigBits),
+            validateTopicOwnership(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN.getPartition(mostSigBits),
                     authoritative);
             CompletableFuture<TransactionMetadata> transactionMetadataFuture = new CompletableFuture<>();
             TxnMeta txnMeta = pulsar().getTransactionMetadataStoreService()
@@ -262,7 +263,7 @@ public abstract class TransactionsBase extends AdminResource {
                                                boolean authoritative, long timeout, Integer coordinatorId) {
         try {
             if (coordinatorId != null) {
-                validateTopicOwnership(TopicName.TRANSACTION_COORDINATOR_ASSIGN.getPartition(coordinatorId),
+                validateTopicOwnership(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN.getPartition(coordinatorId),
                         authoritative);
                 TransactionMetadataStore transactionMetadataStore =
                         pulsar().getTransactionMetadataStoreService().getStores()
@@ -298,7 +299,7 @@ public abstract class TransactionsBase extends AdminResource {
                     asyncResponse.resume(transactionMetadata);
                 });
             } else {
-                getPartitionedTopicMetadataAsync(TopicName.TRANSACTION_COORDINATOR_ASSIGN,
+                getPartitionedTopicMetadataAsync(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN,
                         false, false).thenAccept(partitionMetadata -> {
                     if (partitionMetadata.partitions == 0) {
                         asyncResponse.resume(new RestException(Response.Status.NOT_FOUND,
@@ -351,7 +352,7 @@ public abstract class TransactionsBase extends AdminResource {
     protected void internalGetCoordinatorInternalStats(AsyncResponse asyncResponse, boolean authoritative,
                                                        boolean metadata, int coordinatorId) {
         try {
-            TopicName topicName = TopicName.TRANSACTION_COORDINATOR_ASSIGN.getPartition(coordinatorId);
+            TopicName topicName = SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN.getPartition(coordinatorId);
             validateTopicOwnership(topicName, authoritative);
             TransactionMetadataStore metadataStore = pulsar().getTransactionMetadataStoreService()
                     .getStores().get(TransactionCoordinatorID.get(coordinatorId));

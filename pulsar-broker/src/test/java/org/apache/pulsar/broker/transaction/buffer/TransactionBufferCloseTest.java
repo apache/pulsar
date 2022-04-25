@@ -26,8 +26,8 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClient;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
-import org.apache.pulsar.common.events.EventsTopicNames;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.PublisherStats;
@@ -38,7 +38,6 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
-
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -110,7 +109,7 @@ public class TransactionBufferCloseTest extends TransactionTestBase {
 
     private void checkSnapshotPublisherCount(String namespace, int expectCount) throws PulsarAdminException {
         TopicName snTopicName = TopicName.get(TopicDomain.persistent.value(), NamespaceName.get(namespace),
-                EventsTopicNames.TRANSACTION_BUFFER_SNAPSHOT);
+                SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT);
         List<PublisherStats> publisherStatsList =
                 (List<PublisherStats>) admin.topics()
                         .getStats(snTopicName.getPartitionedTopicName()).getPublishers();

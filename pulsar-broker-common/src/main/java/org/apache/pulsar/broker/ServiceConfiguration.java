@@ -1905,6 +1905,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "If value is invalid or NONE, then save the ManagedLedgerInfo bytes data directly.")
     private String managedLedgerInfoCompressionType = "NONE";
 
+    @FieldContext(category = CATEGORY_STORAGE_ML,
+            doc = "ManagedCursorInfo compression type, option values (NONE, LZ4, ZLIB, ZSTD, SNAPPY). \n"
+                    + "If value is NONE, then save the ManagedCursorInfo bytes data directly.")
+    private String managedCursorInfoCompressionType = "NONE";
+
     /*** --- Load balancer. --- ****/
     @FieldContext(
             category = CATEGORY_LOAD_BALANCER,
@@ -2542,7 +2547,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_KEYSTORE_TLS,
-            doc = "TLS Provider for Specify the SSL provider for the broker service: \n"
+            doc = "Specify the TLS provider for the broker service: \n"
                     + "When using TLS authentication with CACert, the valid value is either OPENSSL or JDK.\n"
                     + "When using TLS authentication with KeyStore, available values can be SunJSSE, Conscrypt and etc."
     )

@@ -317,6 +317,46 @@ tlsAllowInsecureConnection: false
 tlsEnableHostnameVerification: false
 # Tls cert refresh duration in seconds (set 0 to check on every new connection)
 tlsCertRefreshCheckDurationSec: 300
+# Whether client certificates are required for TLS. Connections are rejected if the client
+# certificate isn't trusted.
+tlsRequireTrustedClientCertOnConnect: false
+
+### --- KeyStore TLS config variables --- ###
+## Note that some of the above TLS configs also apply to the KeyStore TLS configuration.
+
+# TLS Provider for KeyStore type
+tlsProvider:
+
+# Enable TLS with KeyStore type configuration in function worker.
+tlsEnabledWithKeyStore: false
+
+# TLS KeyStore type configuration in function worker: JKS, PKCS12
+tlsKeyStoreType: JKS
+
+# TLS KeyStore path in function worker
+tlsKeyStore:
+
+# TLS KeyStore password for function worker
+tlsKeyStorePassword:
+
+# TLS TrustStore type configuration in function worker: JKS, PKCS12
+tlsTrustStoreType: JKS
+
+# TLS TrustStore path in function worker
+tlsTrustStore:
+
+# TLS TrustStore password in function worker, default value is empty password
+tlsTrustStorePassword:
+
+# Specify the tls protocols the function worker's web service will use to negotiate during TLS handshake
+# (a comma-separated list of protocol names).
+# Examples:- [TLSv1.3, TLSv1.2]
+webServiceTlsProtocols:
+
+# Specify the tls cipher the function worker will use to negotiate during TLS Handshake
+# (a comma-separated list of ciphers).
+# Examples:- [TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256]
+webServiceTlsCiphers:
 
 ########################
 # State Management

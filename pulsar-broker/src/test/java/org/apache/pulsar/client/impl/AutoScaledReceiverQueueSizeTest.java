@@ -238,6 +238,7 @@ public class AutoScaledReceiverQueueSizeTest extends MockedPulsarServiceBaseTest
             }
             log.info("i={},expandReceiverQueueHint:{},local permits:{}",
                     i, consumer.scaleReceiverQueueHint.get(), consumer.getAvailablePermits());
+            Awaitility.await().until(consumer::hasEnoughMessagesForBatchReceive);
             Assert.assertEquals(consumer.batchReceive().size(), 5);
             Assert.assertEquals(consumer.getCurrentReceiverQueueSize(), currentSize);
             log.info("getCurrentReceiverQueueSize={}", consumer.getCurrentReceiverQueueSize());
