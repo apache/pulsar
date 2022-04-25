@@ -435,34 +435,33 @@ public abstract class TransactionsBase extends AdminResource {
         }
     }
 
-    protected void internalScaleTransactionCoordinators(int replicas, boolean authoritative) {
+    protected void internalScaleTransactionCoordinators(AsyncResponse asyncResponse, int replicas,
+                                                        boolean authoritative) {
         final int maxPartitions = pulsar().getConfig().getMaxNumPartitionsPerPartitionedTopic();
         if (maxPartitions > 0 && replicas > maxPartitions) {
             throw new RestException(Response.Status.NOT_ACCEPTABLE,
                     "Number of partitions should be less than or equal to " + maxPartitions);
         }
-        validateTopicOwnership(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN, authoritative);
-        CompletableFuture<Void> updatePartition = new CompletableFuture<>();
-        namespaceResources().getPartitionedTopicResources()
-                .updatePartitionedTopicAsync(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN, p -> {
-                    if (p.partitions >= replicas) {
-                        throw new RestException(Response.Status.NOT_ACCEPTABLE, "Number of partitions should "
-                                + "be more than the current number of transaction coordinator partitions");
-                    }
-                    return new PartitionedTopicMetadata(replicas);
-                }).thenAccept(r -> updatePartition.complete(null)).exceptionally(ex -> {
-                    updatePartition.completeExceptionally(ex.getCause());
+        validateTopicOwnershipAsync(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN, authoritative)
+                .thenAccept((ignore) -> {
+                    namespaceResources().getPartitionedTopicResources()
+                            .updatePartitionedTopicAsync(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN, p -> {
+                                if (p.partitions >= replicas) {
+                                    throw new RestException(Response.Status.NOT_ACCEPTABLE,
+                                            "Number of partitions should "
+                                            + "be more than the current number of transaction coordinator partitions");
+                                }
+                                return new PartitionedTopicMetadata(replicas);
+                            }).thenAccept(r -> asyncResponse.resume(Response.noContent().build()))
+                            .exceptionally(ex -> {
+                                log.error("{} Failed to update the scale of transaction coordinators", clientAppId());
+                                resumeAsyncResponseExceptionally(asyncResponse, ex);
+                                return null;
+                            });
+                }).exceptionally(e -> {
+                    log.error("{} Failed to update the scale of transaction coordinators", clientAppId());
+                    resumeAsyncResponseExceptionally(asyncResponse, e);
                     return null;
                 });
-        try {
-            updatePartition.get(DEFAULT_OPERATION_TIMEOUT_SEC, TimeUnit.SECONDS);
-        } catch (Exception e) {
-            log.error("{} Failed to update number of partitions in zk for topic {} and partitions {}",
-                    clientAppId(), topicName, replicas, e);
-            if (e.getCause() instanceof RestException) {
-                throw (RestException) e.getCause();
-            }
-            throw new RestException(e);
-        }
     }
 }

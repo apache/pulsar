@@ -324,9 +324,14 @@ public class Transactions extends TransactionsBase {
             @ApiResponse(code = 406, message = "The number of partitions should be more than "
                     + "the current number of transaction coordinator partitions"
                     + " and less than or equal to maxNumPartitionsPerPartitionedTopic")})
-    public void scaleTransactionCoordinators(@QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+    public void scaleTransactionCoordinators(@Suspended final AsyncResponse asyncResponse,
+                                             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
                                              int replicas) {
-        checkTransactionCoordinatorEnabled();
-        internalScaleTransactionCoordinators(replicas, authoritative);
+        try {
+            checkTransactionCoordinatorEnabled();
+            internalScaleTransactionCoordinators(asyncResponse, replicas, authoritative);
+        } catch (Exception e) {
+            resumeAsyncResponseExceptionally(asyncResponse, e);
+        }
     }
 }
