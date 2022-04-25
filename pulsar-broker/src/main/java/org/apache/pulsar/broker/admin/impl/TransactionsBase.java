@@ -21,7 +21,6 @@ package org.apache.pulsar.broker.admin.impl;
 import static javax.ws.rs.core.Response.Status.METHOD_NOT_ALLOWED;
 import static javax.ws.rs.core.Response.Status.NOT_FOUND;
 import static javax.ws.rs.core.Response.Status.SERVICE_UNAVAILABLE;
-import static org.apache.pulsar.broker.resources.PulsarResources.DEFAULT_OPERATION_TIMEOUT_SEC;
 import com.google.common.collect.Lists;
 import java.util.ArrayList;
 import java.util.HashMap;
