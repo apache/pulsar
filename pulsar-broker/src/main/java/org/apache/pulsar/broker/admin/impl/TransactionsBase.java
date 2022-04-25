@@ -434,21 +434,21 @@ public abstract class TransactionsBase extends AdminResource {
         }
     }
 
-    protected void internalUpdateTransactionCoordinatorNumber(int numPartitions) {
+    protected void internalScaleTransactionCoordinators(int replicas, boolean authoritative) {
         final int maxPartitions = pulsar().getConfig().getMaxNumPartitionsPerPartitionedTopic();
-        if (maxPartitions > 0 && numPartitions > maxPartitions) {
+        if (maxPartitions > 0 && replicas > maxPartitions) {
             throw new RestException(Response.Status.NOT_ACCEPTABLE,
                     "Number of partitions should be less than or equal to " + maxPartitions);
         }
-
+        validateTopicOwnership(TopicName.TRANSACTION_COORDINATOR_ASSIGN, authoritative);
         CompletableFuture<Void> updatePartition = new CompletableFuture<>();
         namespaceResources().getPartitionedTopicResources()
                 .updatePartitionedTopicAsync(TopicName.TRANSACTION_COORDINATOR_ASSIGN, p -> {
-                    if (p.partitions >= numPartitions) {
+                    if (p.partitions >= replicas) {
                         throw new RestException(Response.Status.NOT_ACCEPTABLE, "Number of partitions should "
                                 + "be more than the current number of transaction coordinator partitions");
                     }
-                    return new PartitionedTopicMetadata(numPartitions);
+                    return new PartitionedTopicMetadata(replicas);
                 }).thenAccept(r -> updatePartition.complete(null)).exceptionally(ex -> {
                     updatePartition.completeExceptionally(ex.getCause());
                     return null;
@@ -457,7 +457,7 @@ public abstract class TransactionsBase extends AdminResource {
             updatePartition.get(DEFAULT_OPERATION_TIMEOUT_SEC, TimeUnit.SECONDS);
         } catch (Exception e) {
             log.error("{} Failed to update number of partitions in zk for topic {} and partitions {}",
-                    clientAppId(), topicName, numPartitions, e);
+                    clientAppId(), topicName, replicas, e);
             if (e.getCause() instanceof RestException) {
                 throw (RestException) e.getCause();
             }

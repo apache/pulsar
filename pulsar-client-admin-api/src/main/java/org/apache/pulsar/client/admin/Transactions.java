@@ -244,16 +244,18 @@ public interface Transactions {
                                                                   boolean metadata) throws PulsarAdminException;
 
     /**
-     * update the number of transaction coordinator.
-     * @param numPartitions the new transaction coordinator number.
+     * Sets the scale of the transaction coordinators.
+     * And currently, we can only support scale-up.
+     * @param replicas the new transaction coordinators size.
      */
-    void updateTransactionCoordinatorNumber(int numPartitions) throws PulsarAdminException;
+    void scaleTransactionCoordinators(int replicas) throws PulsarAdminException;
 
     /**
-     * update the number of transaction coordinator.
-     * @param numPartitions the new transaction coordinator number.
+     * Asynchronously sets the size of the transaction coordinators.
+     * And currently, we can only support scale-up.
+     * @param replicas the new transaction coordinators size.
      * @return a future that can be used to track when the transaction coordinator number is updated.
      */
-    CompletableFuture<Void> updateTransactionCoordinatorNumberAsync(int numPartitions);
+    CompletableFuture<Void> scaleTransactionCoordinatorsAsync(int replicas);
 
 }

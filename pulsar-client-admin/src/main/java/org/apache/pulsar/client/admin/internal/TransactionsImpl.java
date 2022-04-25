@@ -339,16 +339,16 @@ public class TransactionsImpl extends BaseResource implements Transactions {
     }
 
     @Override
-    public void updateTransactionCoordinatorNumber(int numPartitions) throws PulsarAdminException {
-         sync(() -> updateTransactionCoordinatorNumberAsync(numPartitions));
+    public void scaleTransactionCoordinators(int replicas) throws PulsarAdminException {
+         sync(() -> scaleTransactionCoordinatorsAsync(replicas));
     }
 
     @Override
-    public CompletableFuture<Void> updateTransactionCoordinatorNumberAsync(int numPartitions) {
-        checkArgument(numPartitions > 0, "Number of partitions must be more than 0");
+    public CompletableFuture<Void> scaleTransactionCoordinatorsAsync(int replicas) {
+        checkArgument(replicas > 0, "Number of partitions must be more than 0");
         WebTarget path = adminV3Transactions.path("transactionCoordinator");
         path = path.path("partitions");
-        return asyncPostRequest(path, Entity.entity(numPartitions, MediaType.APPLICATION_JSON));
+        return asyncPostRequest(path, Entity.entity(replicas, MediaType.APPLICATION_JSON));
     }
 
 }
