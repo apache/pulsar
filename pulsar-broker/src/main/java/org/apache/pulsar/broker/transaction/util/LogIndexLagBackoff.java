@@ -18,33 +18,28 @@
  */
 package org.apache.pulsar.broker.transaction.util;
 
-import org.apache.pulsar.client.api.RedeliveryBackoff;
+import static com.google.common.base.Preconditions.checkArgument;
+import lombok.Getter;
 
-public class LogIndexBackoff implements RedeliveryBackoff {
+public class LogIndexLagBackoff {
 
+    @Getter
     private final long minLag;
+    @Getter
     private final long maxLag;
+    @Getter
     private final double exponent;
 
-    public LogIndexBackoff(long minLag, long maxLag, double exponent) {
+    public LogIndexLagBackoff(long minLag, long maxLag, double exponent) {
+        checkArgument(minLag >= 0, "min lag must be >= 0");
+        checkArgument(maxLag >= minLag || maxLag == -1, "maxLag should be >= minLag or == -1");
+        checkArgument(exponent >= 1, "exponent must be >= 1");
         this.minLag = minLag;
         this.maxLag = maxLag;
         this.exponent = exponent;
     }
 
-    public long getMinLag() {
-        return this.minLag;
-    }
 
-    public long getMaxLag() {
-        return this.maxLag;
-    }
-
-    public double getExponent() {
-        return exponent;
-    }
-
-    @Override
     public long next(int indexCount) {
         if (indexCount <= 0 || minLag <= 0) {
             return 0;

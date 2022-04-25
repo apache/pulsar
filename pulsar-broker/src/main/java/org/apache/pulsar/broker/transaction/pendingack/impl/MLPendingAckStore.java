@@ -42,7 +42,7 @@ import org.apache.pulsar.broker.transaction.pendingack.PendingAckStore;
 import org.apache.pulsar.broker.transaction.pendingack.proto.PendingAckMetadata;
 import org.apache.pulsar.broker.transaction.pendingack.proto.PendingAckMetadataEntry;
 import org.apache.pulsar.broker.transaction.pendingack.proto.PendingAckOp;
-import org.apache.pulsar.broker.transaction.util.LogIndexBackoff;
+import org.apache.pulsar.broker.transaction.util.LogIndexLagBackoff;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
@@ -77,7 +77,7 @@ public class MLPendingAckStore implements PendingAckStore {
     private volatile long upperLimitOfLogAppendTimes = 0;
 
     protected PositionImpl maxAckPosition = PositionImpl.EARLIEST;
-    private final LogIndexBackoff logIndexBackoff;
+    private final LogIndexLagBackoff logIndexBackoff;
 
     /**
      * The map is for pending ack store clear useless data.
@@ -105,7 +105,7 @@ public class MLPendingAckStore implements PendingAckStore {
         this.lastConfirmedEntry = (PositionImpl) managedLedger.getLastConfirmedEntry();
         this.pendingAckLogIndex = new ConcurrentSkipListMap<>();
         this.subManagedCursor = subManagedCursor;
-        this.logIndexBackoff = new LogIndexBackoff(transactionPendingAckLogIndexMinLag, -1, 1);
+        this.logIndexBackoff = new LogIndexLagBackoff(transactionPendingAckLogIndexMinLag, -1, 1);
     }
 
     @Override
