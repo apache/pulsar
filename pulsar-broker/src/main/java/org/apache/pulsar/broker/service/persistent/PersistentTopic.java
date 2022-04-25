@@ -442,12 +442,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     public void updateSubscribeRateLimiter() {
         SubscribeRate subscribeRate = this.getSubscribeRate();
-        synchronized (subscribeRateLimiter) {
-            if (isSubscribeRateEnabled(subscribeRate)) {
-                subscribeRateLimiter = Optional.of(subscribeRateLimiter.orElse(new SubscribeRateLimiter(this)));
-            } else {
-                subscribeRateLimiter = Optional.empty();
-            }
+        if (isSubscribeRateEnabled(subscribeRate)) {
+            subscribeRateLimiter = Optional.of(new SubscribeRateLimiter(this));
+        } else {
+            subscribeRateLimiter = Optional.empty();
         }
         subscribeRateLimiter.ifPresent(limiter -> limiter.onSubscribeRateUpdate(subscribeRate));
     }
