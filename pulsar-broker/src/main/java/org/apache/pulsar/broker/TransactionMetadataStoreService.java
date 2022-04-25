@@ -56,6 +56,7 @@ import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
@@ -124,7 +125,7 @@ public class TransactionMetadataStoreService {
                             if (ex == null) {
                                 for (String topic : topics) {
                                     TopicName name = TopicName.get(topic);
-                                    if (TopicName.TRANSACTION_COORDINATOR_ASSIGN.getLocalName()
+                                    if (SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN.getLocalName()
                                             .equals(TopicName.get(name.getPartitionedTopicName()).getLocalName())
                                             && name.isPartitioned()) {
                                         handleTcClientConnect(TransactionCoordinatorID.get(name.getPartitionIndex()));
@@ -144,7 +145,7 @@ public class TransactionMetadataStoreService {
                             if (ex == null) {
                                 for (String topic : topics) {
                                     TopicName name = TopicName.get(topic);
-                                    if (TopicName.TRANSACTION_COORDINATOR_ASSIGN.getLocalName()
+                                    if (SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN.getLocalName()
                                             .equals(TopicName.get(name.getPartitionedTopicName()).getLocalName())
                                             && name.isPartitioned()) {
                                         removeTransactionMetadataStore(
@@ -170,7 +171,7 @@ public class TransactionMetadataStoreService {
             if (stores.get(tcId) != null) {
                 completableFuture.complete(null);
             } else {
-                pulsarService.getBrokerService().checkTopicNsOwnership(TopicName
+                pulsarService.getBrokerService().checkTopicNsOwnership(SystemTopicNames
                         .TRANSACTION_COORDINATOR_ASSIGN.getPartition((int) tcId.getId()).toString())
                         .thenRun(() -> internalPinnedExecutor.execute(() -> {
                     final Semaphore tcLoadSemaphore = this.tcLoadSemaphores

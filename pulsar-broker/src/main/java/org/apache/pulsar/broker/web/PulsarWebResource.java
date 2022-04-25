@@ -775,11 +775,7 @@ public abstract class PulsarWebResource {
 
     public static CompletableFuture<ClusterDataImpl> checkLocalOrGetPeerReplicationCluster(PulsarService pulsarService,
                                                                                            NamespaceName namespace) {
-        if (!namespace.isGlobal()) {
-            return CompletableFuture.completedFuture(null);
-        }
-        NamespaceName heartbeatNamespace = pulsarService.getHeartbeatNamespaceV2();
-        if (namespace.equals(heartbeatNamespace)) {
+        if (!namespace.isGlobal() || NamespaceService.isHeartbeatNamespace(namespace)) {
             return CompletableFuture.completedFuture(null);
         }
 
