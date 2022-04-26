@@ -83,7 +83,8 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
                 // it out
                 producer.triggerFlush();
             }
-
+            // Use CompletableFuture#get(long, TimeUnit) instead of CompletableFuture#get()
+            // details see (https://bugs.openjdk.java.net/browse/JDK-8227018).
             return sendFuture.get(Integer.MAX_VALUE, TimeUnit.MILLISECONDS);
         } catch (Exception e) {
             throw PulsarClientException.unwrap(e);

@@ -599,6 +599,8 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
         @Override
         public MessageId send() throws PulsarClientException {
             try {
+                // Use CompletableFuture#get(long, TimeUnit) instead of CompletableFuture#get()
+                // details see (https://bugs.openjdk.java.net/browse/JDK-8227018).
                 return sendAsync().get(Integer.MAX_VALUE, TimeUnit.MILLISECONDS);
             } catch (Exception e) {
                 throw PulsarClientException.unwrap(e);
