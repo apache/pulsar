@@ -238,10 +238,8 @@ public class BrokersBase extends AdminResource {
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
     public void getRuntimeConfiguration(@Suspended AsyncResponse asyncResponse) {
         validateSuperUserAccessAsync()
-                .thenAccept(__ -> {
-                    LOG.info("[{}] Successfully to get runtime configuration.", clientAppId());
-                    asyncResponse.resume(pulsar().getBrokerService().getRuntimeConfiguration());
-                }).exceptionally(ex -> {
+                .thenAccept(__ -> asyncResponse.resume(pulsar().getBrokerService().getRuntimeConfiguration()))
+                .exceptionally(ex -> {
                     LOG.error("[{}] Failed to get runtime configuration.", clientAppId(), ex);
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
@@ -281,10 +279,8 @@ public class BrokersBase extends AdminResource {
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
     public void getInternalConfigurationData(@Suspended AsyncResponse asyncResponse) {
         validateSuperUserAccessAsync()
-                .thenAccept(__ -> {
-                    LOG.info("[{}] Successfully to get internal configuration data.", clientAppId());
-                    asyncResponse.resume(pulsar().getInternalConfigurationData());
-                }).exceptionally(ex -> {
+                .thenAccept(__ -> asyncResponse.resume(pulsar().getInternalConfigurationData()))
+                .exceptionally(ex -> {
                     LOG.error("[{}] Failed to get internal configuration data.", clientAppId(), ex);
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
