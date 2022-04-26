@@ -73,11 +73,11 @@ public class TopicLookup extends TopicLookupBase {
         }
         internalLookupTopicAsync(topicName, authoritative, listenerName)
                 .thenAccept(lookupData -> asyncResponse.resume(lookupData))
-                .exceptionally(e -> {
+                .exceptionally(ex -> {
                     if (log.isDebugEnabled()) {
-                        log.debug("Failed to check exist for topic {} when lookup", topicName, e.getCause());
+                        log.debug("Failed to check exist for topic {} when lookup", topicName, ex);
                     }
-                    completeLookupResponseExceptionally(asyncResponse, e.getCause());
+                    completeLookupResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
     }

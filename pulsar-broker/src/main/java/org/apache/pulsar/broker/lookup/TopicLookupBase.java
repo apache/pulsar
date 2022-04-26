@@ -333,7 +333,8 @@ public class TopicLookupBase extends PulsarWebResource {
 
     protected void completeLookupResponseExceptionally(AsyncResponse asyncResponse, Throwable t) {
         pulsar().getBrokerService().getLookupRequestSemaphore().release();
-        asyncResponse.resume(t);
+        Throwable cause = FutureUtil.unwrapCompletionException(t);
+        asyncResponse.resume(cause);
     }
 
     protected TopicName getTopicName(String topicDomain, String tenant, String cluster, String namespace,
