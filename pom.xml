@@ -77,6 +77,8 @@ flexible messaging model and an intuitive client API.</description>
   </issueManagement>
 
   <properties>
+    <sonar.organization>nicoloboschi</sonar.organization>
+    <sonar.host.url>https://sonarcloud.io</sonar.host.url>
     <maven.compiler.source>8</maven.compiler.source>
     <maven.compiler.target>8</maven.compiler.target>
 
