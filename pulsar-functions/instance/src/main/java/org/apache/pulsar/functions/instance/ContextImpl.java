@@ -599,7 +599,7 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
         @Override
         public MessageId send() throws PulsarClientException {
             try {
-                return sendAsync().get();
+                return sendAsync().get(Integer.MAX_VALUE, TimeUnit.MILLISECONDS);
             } catch (Exception e) {
                 throw PulsarClientException.unwrap(e);
             }

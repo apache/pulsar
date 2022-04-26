@@ -84,7 +84,7 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
                 producer.triggerFlush();
             }
 
-            return sendFuture.get();
+            return sendFuture.get(Integer.MAX_VALUE, TimeUnit.MILLISECONDS);
         } catch (Exception e) {
             throw PulsarClientException.unwrap(e);
         }
