@@ -298,7 +298,6 @@ public class BrokersBase extends AdminResource {
         validateSuperUserAccessAsync()
                 .thenAcceptAsync(__ -> {
                     pulsar().getBrokerService().monitorBacklogQuota();
-                    LOG.info("[{}] Successfully to trigger backlog quota check.", clientAppId());
                     asyncResponse.resume(Response.noContent().build());
                 } , pulsar().getBrokerService().getBacklogQuotaChecker())
                 .exceptionally(ex -> {
