@@ -63,8 +63,8 @@ public class TopicLookupBase extends PulsarWebResource {
             return FutureUtil.failedFuture(new WebApplicationException(Response.Status.SERVICE_UNAVAILABLE));
         }
         return validateClusterOwnershipAsync(topicName.getCluster())
-                .thenCompose(__ -> validateTopicOperationAsync(topicName, TopicOperation.LOOKUP, null))
                 .thenCompose(__ -> validateGlobalNamespaceOwnershipAsync(topicName.getNamespaceObject()))
+                .thenCompose(__ -> validateTopicOperationAsync(topicName, TopicOperation.LOOKUP, null))
                 .thenCompose(__ -> {
                     // Currently, it's hard to check the non-persistent-non-partitioned topic, because it only exists
                     // in the broker, it doesn't have metadata. If the topic is non-persistent and non-partitioned,
@@ -77,13 +77,16 @@ public class TopicLookupBase extends PulsarWebResource {
                     return existFuture;
                 })
                 .thenCompose(exist -> {
-                    if (!exist && !pulsar().getBrokerService().isAllowAutoTopicCreation(topicName)) {
+                    if (!exist) {
                         throw new RestException(Response.Status.NOT_FOUND, "Topic not found.");
                     }
                     CompletableFuture<Optional<LookupResult>> lookupFuture = pulsar().getNamespaceService()
                             .getBrokerServiceUrlAsync(topicName,
-                                    LookupOptions.builder().advertisedListenerName(listenerName)
-                                            .authoritative(authoritative).loadTopicsInBundle(false).build());
+                                    LookupOptions.builder()
+                                            .advertisedListenerName(listenerName)
+                                            .authoritative(authoritative)
+                                            .loadTopicsInBundle(false)
+                                            .build());
 
                     return lookupFuture.thenApply(optionalResult -> {
                         if (optionalResult == null || !optionalResult.isPresent()) {
