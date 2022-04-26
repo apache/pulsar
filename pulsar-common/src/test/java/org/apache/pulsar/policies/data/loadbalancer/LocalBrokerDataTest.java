@@ -31,6 +31,6 @@ public class LocalBrokerDataTest {
         LocalBrokerData localBrokerData = gson.fromJson(data, LocalBrokerData.class);
         Assert.assertEquals(localBrokerData.getMemory().limit, 1228.0d, 0.0001f);
         Assert.assertEquals(localBrokerData.getMemory().usage, 614.0d, 0.0001f);
-        Assert.assertEquals(localBrokerData.getMemory().percentUsage(), ((float) localBrokerData.getCpu().usage) / ((float) localBrokerData.getCpu().limit) * 100, 0.0001f);
+        Assert.assertEquals(localBrokerData.getMemory().percentUsage(), ((float) localBrokerData.getMemory().usage) / ((float) localBrokerData.getMemory().limit) * 100, 0.0001f);
     }
 }
