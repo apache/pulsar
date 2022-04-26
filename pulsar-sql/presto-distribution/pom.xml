@@ -194,6 +194,13 @@
       <version>${jackson.version}</version>
     </dependency>
 
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>java-version-trim-agent</artifactId>
+      <version>${project.version}</version>
+      <scope>provided</scope>
+    </dependency>
+
   </dependencies>
 
   <dependencyManagement>

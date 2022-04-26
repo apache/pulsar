@@ -29,13 +29,18 @@ import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.UnrecoverableKeyException;
 import java.security.cert.CertificateException;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.SSLContext;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.http.Header;
+import org.apache.http.HttpHeaders;
 import org.apache.http.HttpHost;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
@@ -49,6 +54,7 @@ import org.apache.http.impl.nio.client.HttpAsyncClientBuilder;
 import org.apache.http.impl.nio.conn.PoolingNHttpClientConnectionManager;
 import org.apache.http.impl.nio.reactor.DefaultConnectingIOReactor;
 import org.apache.http.impl.nio.reactor.IOReactorConfig;
+import org.apache.http.message.BasicHeader;
 import org.apache.http.nio.conn.NHttpClientConnectionManager;
 import org.apache.http.nio.conn.NoopIOSessionStrategy;
 import org.apache.http.nio.conn.SchemeIOSessionStrategy;
@@ -99,10 +105,12 @@ public abstract class RestClient implements Closeable {
             org.opensearch.client.RestClientBuilder.HttpClientConfigCallback {
         final NHttpClientConnectionManager connectionManager;
         final CredentialsProvider credentialsProvider;
+        final List<Header> defaultHeaders;
 
         public ConfigCallback() {
             this.connectionManager = buildConnectionManager(RestClient.this.config);
             this.credentialsProvider = buildCredentialsProvider(RestClient.this.config);
+            this.defaultHeaders = buildDefaultHeaders(RestClient.this.config);
         }
 
         @Override
@@ -113,6 +121,9 @@ public abstract class RestClient implements Closeable {
 
             if (this.credentialsProvider != null) {
                 builder.setDefaultCredentialsProvider(credentialsProvider);
+            }
+            if (defaultHeaders != null) {
+                builder.setDefaultHeaders(defaultHeaders);
             }
             return builder;
         }
@@ -189,6 +200,21 @@ public abstract class RestClient implements Closeable {
             credentialsProvider.setCredentials(AuthScope.ANY,
                     new UsernamePasswordCredentials(config.getUsername(), config.getPassword()));
             return credentialsProvider;
+        }
+
+        private List<Header> buildDefaultHeaders(ElasticSearchConfig config) {
+            if (StringUtils.isEmpty(config.getToken()) && StringUtils.isEmpty(config.getApiKey())) {
+                return null;
+            }
+            List<Header> headers = new ArrayList<>();
+            String authHeaderValue;
+            if (!StringUtils.isEmpty(config.getToken())) {
+                authHeaderValue = "Bearer " + config.getToken();
+            } else {
+                authHeaderValue = "ApiKey " + config.getApiKey();
+            }
+            headers.add(new BasicHeader(HttpHeaders.AUTHORIZATION, authHeaderValue));
+            return Collections.unmodifiableList(headers);
         }
     }
 

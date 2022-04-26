@@ -30,10 +30,10 @@ import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.events.ActionType;
 import org.apache.pulsar.common.events.EventType;
-import org.apache.pulsar.common.events.EventsTopicNames;
 import org.apache.pulsar.common.events.PulsarEvent;
 import org.apache.pulsar.common.events.TopicPoliciesEvent;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
@@ -138,7 +138,7 @@ public class NamespaceEventsSystemTopicServiceTest extends MockedPulsarServiceBa
 
     @Test(timeOut = 30000)
     public void checkSystemTopic() throws PulsarAdminException {
-        final String systemTopic = "persistent://" + NAMESPACE1 + "/" + EventsTopicNames.NAMESPACE_EVENTS_LOCAL_NAME;
+        final String systemTopic = "persistent://" + NAMESPACE1 + "/" + SystemTopicNames.NAMESPACE_EVENTS_LOCAL_NAME;
         final String normalTopic = "persistent://" + NAMESPACE1 + "/normal_topic";
         admin.topics().createPartitionedTopic(normalTopic, 3);
         TopicName systemTopicName = TopicName.get(systemTopic);

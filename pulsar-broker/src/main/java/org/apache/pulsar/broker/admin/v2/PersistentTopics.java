@@ -163,6 +163,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 412, message = "Topic name is not valid"),
             @ApiResponse(code = 500, message = "Internal server error") })
     public void grantPermissionsOnTopic(
+            @Suspended final AsyncResponse asyncResponse,
             @ApiParam(value = "Specify the tenant", required = true)
             @PathParam("tenant") String tenant,
             @ApiParam(value = "Specify the namespace", required = true)
@@ -174,8 +175,14 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Actions to be granted (produce,functions,consume)",
                     allowableValues = "produce,functions,consume")
                     Set<AuthAction> actions) {
-        validateTopicName(tenant, namespace, encodedTopic);
-        internalGrantPermissionsOnTopic(role, actions);
+        try {
+            validateTopicName(tenant, namespace, encodedTopic);
+            internalGrantPermissionsOnTopic(asyncResponse, role, actions);
+        } catch (WebApplicationException wae) {
+            asyncResponse.resume(wae);
+        } catch (Exception e) {
+            asyncResponse.resume(new RestException(e));
+        }
     }
 
     @DELETE

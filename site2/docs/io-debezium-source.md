@@ -94,7 +94,7 @@ You can use one of the following methods to create a configuration file.
     tenant: "public"
     namespace: "default"
     name: "debezium-mysql-source"
-    topicName: "debezium-mysql-topic"
+    inputs: [ "debezium-mysql-topic" ]
     archive: "connectors/pulsar-io-debezium-mysql-{{pulsar:version}}.nar"
     parallelism: 1
 
@@ -226,7 +226,7 @@ You can use one of the following methods to create a configuration file.
     tenant: "public"
     namespace: "default"
     name: "debezium-postgres-source"
-    topicName: "debezium-postgres-topic"
+    inputs: [ "debezium-postgres-topic" ]
     archive: "connectors/pulsar-io-debezium-postgres-{{pulsar:version}}.nar"
     parallelism: 1
 
@@ -370,7 +370,7 @@ You need to create a configuration file before using the Pulsar Debezium connect
     tenant: "public"
     namespace: "default"
     name: "debezium-mongodb-source"
-    topicName: "debezium-mongodb-topic"
+    inputs: [ "debezium-mongodb-topic" ]
     archive: "connectors/pulsar-io-debezium-mongodb-{{pulsar:version}}.nar"
     parallelism: 1
 
@@ -508,7 +508,7 @@ Using yaml as an example, you can create a debezium-oracle-source-config.yaml fi
 tenant: "public"
 namespace: "default"
 name: "debezium-oracle-source"
-topicName: "debezium-oracle-topic"
+inputs: [ "debezium-oracle-topic" ]
 parallelism: 1
 
 className: "org.apache.pulsar.io.debezium.oracle.DebeziumOracleSource"
@@ -576,7 +576,7 @@ Similarly to other connectors, you can use JSON or YAMl to configure the connect
 tenant: "public"
 namespace: "default"
 name: "debezium-mssql-source"
-topicName: "debezium-mssql-topic"
+inputs: [ "debezium-mssql-topic" ]
 parallelism: 1
 
 className: "org.apache.pulsar.io.debezium.mssql.DebeziumMsSqlSource"
