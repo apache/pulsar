@@ -163,7 +163,7 @@ public class ClustersBase extends AdminResource {
                     }
                     return clusterResources().createClusterAsync(cluster, clusterData);
                 }).thenAccept(__ -> {
-                    log.info("[{}] Successfully to created cluster {}", clientAppId(), cluster);
+                    log.info("[{}] Created cluster {}", clientAppId(), cluster);
                     asyncResponse.resume(Response.ok());
                 }).exceptionally(ex -> {
                     log.error("[{}] Failed to create cluster {}", clientAppId(), cluster, ex);
@@ -205,7 +205,7 @@ public class ClustersBase extends AdminResource {
                 .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
                 .thenCompose(__ -> clusterResources().updateClusterAsync(cluster, old -> clusterData))
                 .thenAccept(__ -> {
-                    log.info("[{}] Successfully to update cluster {}", clientAppId(), cluster);
+                    log.info("[{}] Updated cluster {}", clientAppId(), cluster);
                     asyncResponse.resume(Response.ok());
                 }).exceptionally(ex -> {
                     log.error("[{}] Failed to update cluster {}", clientAppId(), cluster, ex);
