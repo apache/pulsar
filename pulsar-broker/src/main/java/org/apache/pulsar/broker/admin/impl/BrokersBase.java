@@ -155,11 +155,8 @@ public class BrokersBase extends AdminResource {
                 .thenAccept(__ -> validateBrokerName(broker))
                 .thenCompose(__ -> validateClusterOwnershipAsync(cluster))
                 .thenCompose(__ -> pulsar().getNamespaceService().getOwnedNameSpacesStatusAsync())
-                .thenAccept(namespaceOwnershipStatus -> {
-                    LOG.info("[{}] Successfully to get the namespace ownership status. cluster={} broker={}",
-                            clientAppId(), cluster, broker);
-                    asyncResponse.resume(namespaceOwnershipStatus);
-                }).exceptionally(ex -> {
+                .thenAccept(asyncResponse::resume)
+                .exceptionally(ex -> {
                     // If the exception is not redirect exception we need to log it.
                     if (!isRedirectException(ex)) {
                         LOG.error("[{}] Failed to get the namespace ownership status. cluster={}, broker={}",
@@ -229,10 +226,8 @@ public class BrokersBase extends AdminResource {
     public void getAllDynamicConfigurations(@Suspended AsyncResponse asyncResponse) {
         validateSuperUserAccessAsync()
                 .thenCompose(__ -> dynamicConfigurationResources().getDynamicConfigurationAsync())
-                .thenAccept(configOpt -> {
-                    LOG.info("[{}] Successfully to get all dynamic configuration.", clientAppId());
-                    asyncResponse.resume(configOpt.orElseGet(Collections::emptyMap));
-                }).exceptionally(ex -> {
+                .thenAccept(configOpt -> asyncResponse.resume(configOpt.orElseGet(Collections::emptyMap)))
+                .exceptionally(ex -> {
                     LOG.error("[{}] Failed to get all dynamic configuration.", clientAppId(), ex);
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
@@ -246,10 +241,8 @@ public class BrokersBase extends AdminResource {
             @ApiResponse(code = 403, message = "You don't have admin permission to get configuration")})
     public void getDynamicConfigurationName(@Suspended AsyncResponse asyncResponse) {
         validateSuperUserAccessAsync()
-                .thenAccept(__ -> {
-                    LOG.info("[{}] Successfully to get all dynamic configuration names.", clientAppId());
-                    asyncResponse.resume(BrokerService.getDynamicConfiguration());
-                }).exceptionally(ex -> {
+                .thenAccept(__ -> asyncResponse.resume(BrokerService.getDynamicConfiguration()))
+                .exceptionally(ex -> {
                     LOG.error("[{}] Failed to get all dynamic configuration names.", clientAppId(), ex);
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
