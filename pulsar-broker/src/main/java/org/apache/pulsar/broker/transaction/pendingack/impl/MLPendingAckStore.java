@@ -73,8 +73,8 @@ public class MLPendingAckStore implements PendingAckStore {
 
     private PositionImpl currentLoadPosition;
 
-    private final AtomicLong logAppendTimes = new AtomicLong(0);
-    private volatile long upperLimitOfLogAppendTimes = 0;
+    private final AtomicLong currentIndexLag = new AtomicLong(0);
+    private volatile long maxIndexLag;
 
     protected PositionImpl maxAckPosition = PositionImpl.EARLIEST;
     private final LogIndexLagBackoff logIndexBackoff;
@@ -105,7 +105,8 @@ public class MLPendingAckStore implements PendingAckStore {
         this.lastConfirmedEntry = (PositionImpl) managedLedger.getLastConfirmedEntry();
         this.pendingAckLogIndex = new ConcurrentSkipListMap<>();
         this.subManagedCursor = subManagedCursor;
-        this.logIndexBackoff = new LogIndexLagBackoff(transactionPendingAckLogIndexMinLag, -1, 1);
+        this.logIndexBackoff = new LogIndexLagBackoff(transactionPendingAckLogIndexMinLag, Long.MAX_VALUE, 1);
+        this.maxIndexLag = logIndexBackoff.next(0);
     }
 
     @Override
@@ -226,7 +227,7 @@ public class MLPendingAckStore implements PendingAckStore {
                     log.debug("[{}][{}] MLPendingAckStore message append success at {} txnId: {}, operation : {}",
                             managedLedger.getName(), ctx, position, txnID, pendingAckMetadataEntry.getPendingAckOp());
                 }
-                logAppendTimes.incrementAndGet();
+                currentIndexLag.incrementAndGet();
                 handleMetadataEntry((PositionImpl) position, pendingAckMetadataEntry);
                 buf.release();
                 completableFuture.complete(null);
@@ -265,11 +266,11 @@ public class MLPendingAckStore implements PendingAckStore {
                 if (nowPosition.compareTo(maxAckPosition) > 0) {
                     maxAckPosition = nowPosition;
                 }
-                if (logAppendTimes.get() > upperLimitOfLogAppendTimes) {
+                if (currentIndexLag.get() >= maxIndexLag) {
                     pendingAckLogIndex.compute(maxAckPosition,
                             (thisPosition, otherPosition) -> logPosition);
-                    upperLimitOfLogAppendTimes = logIndexBackoff.next(pendingAckLogIndex.size());
-                    logAppendTimes.set(0);
+                    maxIndexLag = logIndexBackoff.next(pendingAckLogIndex.size());
+                    currentIndexLag.set(0);
                 }
             });
         }
@@ -288,7 +289,7 @@ public class MLPendingAckStore implements PendingAckStore {
             }
 
             if (deletePosition != null) {
-                upperLimitOfLogAppendTimes = logIndexBackoff.next(pendingAckLogIndex.size());
+                maxIndexLag = logIndexBackoff.next(pendingAckLogIndex.size());
                 PositionImpl finalDeletePosition = deletePosition;
                 cursor.asyncMarkDelete(deletePosition,
                         new AsyncCallbacks.MarkDeleteCallback() {
@@ -339,7 +340,7 @@ public class MLPendingAckStore implements PendingAckStore {
                         currentLoadPosition = PositionImpl.get(entry.getLedgerId(), entry.getEntryId());
                         PendingAckMetadataEntry pendingAckMetadataEntry = new PendingAckMetadataEntry();
                         pendingAckMetadataEntry.parseFrom(buffer, buffer.readableBytes());
-                        logAppendTimes.incrementAndGet();
+                        currentIndexLag.incrementAndGet();
                         handleMetadataEntry(new PositionImpl(entry.getLedgerId(), entry.getEntryId()),
                                 pendingAckMetadataEntry);
                         pendingAckReplyCallBack.handleMetadataEntry(pendingAckMetadataEntry);

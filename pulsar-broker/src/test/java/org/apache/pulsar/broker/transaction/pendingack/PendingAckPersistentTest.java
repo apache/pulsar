@@ -195,8 +195,8 @@ public class PendingAckPersistentTest extends TransactionTestBase {
     @Test
     public void cumulativePendingAckReplayTest() throws Exception {
         int messageCount = 1000;
-        getPulsarServiceList().get(0).getConfig().setTransactionPendingAckLogIndexMinLag(4 * messageCount - 1);
-        getPulsarServiceList().get(0).getConfiguration().setManagedLedgerDefaultMarkDeleteRateLimit(5);
+        getPulsarServiceList().get(0).getConfig().setTransactionPendingAckLogIndexMinLag(4 * messageCount + 2);
+        getPulsarServiceList().get(0).getConfiguration().setManagedLedgerDefaultMarkDeleteRateLimit(10);
         String subName = "cumulative-test";
 
         @Cleanup
@@ -394,16 +394,16 @@ public class PendingAckPersistentTest extends TransactionTestBase {
         PendingAckStore pendingAckStore = ((CompletableFuture<PendingAckStore>) field1.get(pendingAckHandle)).get();
 
         Field field3 = MLPendingAckStore.class.getDeclaredField("pendingAckLogIndex");
-        Field field4 = MLPendingAckStore.class.getDeclaredField("upperLimitOfLogAppendTimes");
+        Field field4 = MLPendingAckStore.class.getDeclaredField("maxIndexLag");
 
         field3.setAccessible(true);
         field4.setAccessible(true);
 
         ConcurrentSkipListMap<PositionImpl, PositionImpl> pendingAckLogIndex =
                 (ConcurrentSkipListMap<PositionImpl, PositionImpl>) field3.get(pendingAckStore);
-        long upperLimitOfLogAppendTimes = (long) field4.get(pendingAckStore);
-        Assert.assertEquals(pendingAckLogIndex.size(), 1);
-        Assert.assertEquals(upperLimitOfLogAppendTimes, 5);
+        long maxIndexLag = (long) field4.get(pendingAckStore);
+        Assert.assertEquals(pendingAckLogIndex.size(), 0);
+        Assert.assertEquals(maxIndexLag, 5);
         transaction.commit().get();
 
         Awaitility.await().untilAsserted(() ->
@@ -414,21 +414,24 @@ public class PendingAckPersistentTest extends TransactionTestBase {
                 .withTransactionTimeout(5, TimeUnit.SECONDS)
                 .build()
                 .get();
+        Message<byte[]> message0 = null;
         //remove previous index
-        Message<byte[]> message0 = consumer.receive(5, TimeUnit.SECONDS);
-        consumer.acknowledgeAsync(message0.getMessageId(), transaction1).get();
-        Assert.assertEquals(pendingAckLogIndex.size(), 0);
-        upperLimitOfLogAppendTimes = (long) field4.get(pendingAckStore);
-        Assert.assertEquals(upperLimitOfLogAppendTimes, 0);
+        for (int i = 0; i < 4; i++) {
+            message0 = consumer.receive(5, TimeUnit.SECONDS);
+            consumer.acknowledgeAsync(message0.getMessageId(), transaction1).get();
+        }
+        Assert.assertEquals(pendingAckLogIndex.size(), 1);
+        maxIndexLag = (long) field4.get(pendingAckStore);
+        Assert.assertEquals(maxIndexLag, 5);
         //add new index
         for (int i = 0; i < 9; i++) {
-            message0 = consumer.receive(5, TimeUnit.SECONDS);
+            message0= consumer.receive(5, TimeUnit.SECONDS);
             consumer.acknowledgeAsync(message0.getMessageId(), transaction1).get();
         }
 
         Assert.assertEquals(pendingAckLogIndex.size(), 2);
-        upperLimitOfLogAppendTimes = (long) field4.get(pendingAckStore);
-        Assert.assertEquals(upperLimitOfLogAppendTimes, 10);
+        maxIndexLag = (long) field4.get(pendingAckStore);
+        Assert.assertEquals(maxIndexLag, 10);
 
         transaction1.commit().get();
         Message<byte[]> message1 = message0;
@@ -444,9 +447,7 @@ public class PendingAckPersistentTest extends TransactionTestBase {
         consumer.acknowledgeAsync(message2.getMessageId(), transaction2).get();
 
         Assert.assertEquals(pendingAckLogIndex.size(), 0);
-        Awaitility.await().untilAsserted(() -> {
-            long upperLimitOfLogAppendTimes1 = (long) field4.get(pendingAckStore);
-            Assert.assertEquals(upperLimitOfLogAppendTimes1, 0);
-        });
+        maxIndexLag = (long) field4.get(pendingAckStore);
+        Assert.assertEquals(maxIndexLag, 5);
     }
 }

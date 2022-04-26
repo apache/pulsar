@@ -31,8 +31,8 @@ public class LogIndexLagBackoff {
     private final double exponent;
 
     public LogIndexLagBackoff(long minLag, long maxLag, double exponent) {
-        checkArgument(minLag >= 0, "min lag must be >= 0");
-        checkArgument(maxLag >= minLag || maxLag == -1, "maxLag should be >= minLag or == -1");
+        checkArgument(minLag > 0, "min lag must be > 0");
+        checkArgument(maxLag >= minLag, "maxLag should be >= minLag");
         checkArgument(exponent >= 1, "exponent must be >= 1");
         this.minLag = minLag;
         this.maxLag = maxLag;
@@ -41,13 +41,9 @@ public class LogIndexLagBackoff {
 
 
     public long next(int indexCount) {
-        if (indexCount <= 0 || minLag <= 0) {
-            return 0;
+        if (indexCount <= 0) {
+            return minLag;
         }
-        if (maxLag != -1) {
-            return (long) Math.min(this.maxLag, minLag * Math.pow(indexCount, exponent));
-        } else {
-            return (long) (minLag * Math.pow(indexCount, exponent));
-        }
+        return (long) Math.min(this.maxLag, minLag * Math.pow(indexCount, exponent));
     }
 }
