@@ -254,9 +254,9 @@ public class LinuxInfoUtils {
 
     @AllArgsConstructor
     public enum UsageUnit {
-        Kbps(8 / 1000);
+        Kbps(8d / 1000);
 
-        private final int convertUnit;
+        private final double convertUnit;
 
         public double convertBy(double usageBytes) {
             return this.convertUnit * usageBytes;
