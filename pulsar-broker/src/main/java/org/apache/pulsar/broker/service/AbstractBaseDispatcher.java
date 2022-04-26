@@ -317,4 +317,8 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
     protected byte[] peekStickyKey(ByteBuf metadataAndPayload) {
         return Commands.peekStickyKey(metadataAndPayload, subscription.getTopicName(), subscription.getName());
     }
+
+    protected String getSubscriptionName() {
+        return subscription == null ? null : subscription.getName();
+    }
 }

@@ -558,10 +558,10 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
 
     @Override
     public boolean initializeDispatchRateLimiterIfNeeded() {
-        if (!dispatchRateLimiter.isPresent()
-            && DispatchRateLimiter.isDispatchRateEnabled(topic.getSubscriptionDispatchRate(subscription.getName()))) {
+        if (!dispatchRateLimiter.isPresent() && DispatchRateLimiter.isDispatchRateEnabled(
+                topic.getSubscriptionDispatchRate(getSubscriptionName()))) {
             this.dispatchRateLimiter =
-                    Optional.of(new DispatchRateLimiter(topic, subscription.getName(), Type.SUBSCRIPTION));
+                    Optional.of(new DispatchRateLimiter(topic, getSubscriptionName(), Type.SUBSCRIPTION));
             return true;
         }
         return false;
