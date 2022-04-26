@@ -64,6 +64,7 @@ import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicies;
 import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicyImpl;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -164,9 +165,15 @@ public class ClustersBase extends AdminResource {
                     return clusterResources().createClusterAsync(cluster, clusterData);
                 }).thenAccept(__ -> {
                     log.info("[{}] Created cluster {}", clientAppId(), cluster);
-                    asyncResponse.resume(Response.ok());
+                    asyncResponse.resume(Response.ok().build());
                 }).exceptionally(ex -> {
                     log.error("[{}] Failed to create cluster {}", clientAppId(), cluster, ex);
+                    Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+                    if (realCause instanceof IllegalArgumentException) {
+                        asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED,
+                                "Cluster name is not valid"));
+                        return null;
+                    }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
@@ -206,9 +213,14 @@ public class ClustersBase extends AdminResource {
                 .thenCompose(__ -> clusterResources().updateClusterAsync(cluster, old -> clusterData))
                 .thenAccept(__ -> {
                     log.info("[{}] Updated cluster {}", clientAppId(), cluster);
-                    asyncResponse.resume(Response.ok());
+                    asyncResponse.resume(Response.ok().build());
                 }).exceptionally(ex -> {
                     log.error("[{}] Failed to update cluster {}", clientAppId(), cluster, ex);
+                    Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+                    if (realCause instanceof MetadataStoreException.NotFoundException) {
+                        asyncResponse.resume(new RestException(Status.NOT_FOUND, "Cluster does not exist"));
+                        return null;
+                    }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });

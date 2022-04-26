@@ -201,15 +201,14 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void clusters() throws Exception {
-        assertEquals(asynRequests(ctx -> clusters.getClusters(ctx)), Lists.newArrayList());
-        verify(clusters, never()).validateSuperUserAccess();
+        assertEquals(asynRequests(ctx -> clusters.getClusters(ctx)), Sets.newHashSet());
+        verify(clusters, never()).validateSuperUserAccessAsync();
 
         asynRequests(ctx -> clusters.createCluster(ctx,
                 "use", ClusterDataImpl.builder().serviceUrl("http://broker.messaging.use.example.com:8080").build()));
-        verify(clusters, times(1)).validateSuperUserAccess();
         // ensure to read from ZooKeeper directly
         //clusters.clustersListCache().clear();
-        assertEquals(asynRequests(ctx -> clusters.getClusters(ctx)), Lists.newArrayList("use"));
+        assertEquals(asynRequests(ctx -> clusters.getClusters(ctx)), Sets.newHashSet("use"));
 
         // Check creating existing cluster
         try {
@@ -230,15 +229,12 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
 
         assertEquals(asynRequests(ctx -> clusters.getCluster(ctx, "use")),
                 ClusterDataImpl.builder().serviceUrl("http://broker.messaging.use.example.com:8080").build());
-        verify(clusters, times(4)).validateSuperUserAccess();
 
         asynRequests(ctx -> clusters.updateCluster(ctx, "use",
                 ClusterDataImpl.builder().serviceUrl("http://new-broker.messaging.use.example.com:8080").build()));
-        verify(clusters, times(5)).validateSuperUserAccess();
 
         assertEquals(asynRequests(ctx -> clusters.getCluster(ctx, "use")),
                 ClusterData.builder().serviceUrl("http://new-broker.messaging.use.example.com:8080").build());
-        verify(clusters, times(6)).validateSuperUserAccess();
 
         try {
             clusters.getNamespaceIsolationPolicies("use");
@@ -274,8 +270,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         assertTrue(clusters.getNamespaceIsolationPolicies("use").isEmpty());
 
         clusters.deleteCluster("use");
-        verify(clusters, times(13)).validateSuperUserAccess();
-        assertEquals(asynRequests(ctx -> clusters.getClusters(ctx)), Lists.newArrayList());
+        assertEquals(asynRequests(ctx -> clusters.getClusters(ctx)), Sets.newHashSet());
 
         try {
             asynRequests(ctx -> clusters.getCluster(ctx, "use"));
@@ -409,6 +404,8 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), Status.PRECONDITION_FAILED.getStatusCode());
         }
+        verify(clusters, times(13)).validateSuperUserAccessAsync();
+        verify(clusters, times(11)).validateSuperUserAccess();
     }
 
     Object asynRequests(Consumer<TestAsyncResponse> function) throws Exception {
