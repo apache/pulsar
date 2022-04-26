@@ -48,7 +48,7 @@ public class LogIndexLagBackOffTest {
         try {
             new LogIndexLagBackoff(1, 1, 0.2);
         } catch (IllegalArgumentException e) {
-            Assert.assertEquals(e.getMessage(), "exponent must be >= 1");
+            Assert.assertEquals(e.getMessage(), "exponent must be > 0");
         }
 
     }

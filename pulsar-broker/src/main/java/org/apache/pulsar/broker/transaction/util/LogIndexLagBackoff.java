@@ -33,7 +33,7 @@ public class LogIndexLagBackoff {
     public LogIndexLagBackoff(long minLag, long maxLag, double exponent) {
         checkArgument(minLag > 0, "min lag must be > 0");
         checkArgument(maxLag >= minLag, "maxLag should be >= minLag");
-        checkArgument(exponent >= 1, "exponent must be >= 1");
+        checkArgument(exponent > 0, "exponent must be > 0");
         this.minLag = minLag;
         this.maxLag = maxLag;
         this.exponent = exponent;

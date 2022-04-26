@@ -902,6 +902,8 @@ public class TransactionTest extends TransactionTestBase {
 
     @Test
     public void testPendingAckMarkDeletePosition() throws Exception {
+        getPulsarServiceList().get(0).getConfig().setTransactionPendingAckLogIndexMinLag(1);
+        getPulsarServiceList().get(0).getConfiguration().setManagedLedgerDefaultMarkDeleteRateLimit(5);
         String topic = NAMESPACE1 + "/test1";
 
         @Cleanup
