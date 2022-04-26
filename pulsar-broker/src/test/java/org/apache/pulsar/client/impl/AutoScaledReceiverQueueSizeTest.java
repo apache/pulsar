@@ -66,8 +66,8 @@ public class AutoScaledReceiverQueueSizeTest extends MockedPulsarServiceBaseTest
         byte[] data = "data".getBytes(StandardCharsets.UTF_8);
 
         producer.send(data);
-        Assert.assertNotNull(consumer.receive());
         Awaitility.await().until(consumer.scaleReceiverQueueHint::get);
+        Assert.assertNotNull(consumer.receive());
         log.info("getCurrentReceiverQueueSize={}", consumer.getCurrentReceiverQueueSize());
 
         //this will trigger receiver queue size expanding.
