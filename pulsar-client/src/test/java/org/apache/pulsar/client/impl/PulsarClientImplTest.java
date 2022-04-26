@@ -53,7 +53,6 @@ import lombok.Cleanup;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.util.ExecutorProvider;
@@ -237,7 +236,6 @@ public class PulsarClientImplTest {
         assertThrows(IllegalArgumentException.class,
             () -> client.newConsumer(null)
                 .topic("topic_testSchemaNull")
-                .subscriptionType(SubscriptionType.Shared)
                 .subscriptionName("testSchemaNull")
                 .subscribe());
     }
