@@ -434,15 +434,13 @@ public abstract class TransactionsBase extends AdminResource {
         }
     }
 
-    protected void internalScaleTransactionCoordinators(AsyncResponse asyncResponse, int replicas,
-                                                        boolean authoritative) {
+    protected void internalScaleTransactionCoordinators(AsyncResponse asyncResponse, int replicas) {
         final int maxPartitions = pulsar().getConfig().getMaxNumPartitionsPerPartitionedTopic();
         if (maxPartitions > 0 && replicas > maxPartitions) {
             throw new RestException(Response.Status.NOT_ACCEPTABLE,
                     "Number of partitions should be less than or equal to " + maxPartitions);
         }
-        validateTopicOwnershipAsync(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN, authoritative)
-                .thenAccept((ignore) -> {
+        validateSuperUserAccessAsync().thenAccept((ignore) -> {
                     namespaceResources().getPartitionedTopicResources()
                             .updatePartitionedTopicAsync(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN, p -> {
                                 if (p.partitions >= replicas) {
