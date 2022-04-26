@@ -51,7 +51,9 @@ import java.util.regex.Pattern;
 
 import lombok.Cleanup;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.util.ExecutorProvider;
@@ -223,6 +225,21 @@ public class PulsarClientImplTest {
             // Externally passed eventLoopGroup should not be shutdown.
             assertFalse(eventLoopGroup.isShutdown());
         }
+    }
+
+    @Test
+    public void testConsumerSchemaNull() throws PulsarClientException {
+        @Cleanup
+        PulsarClient client = PulsarClient.builder()
+            .serviceUrl("pulsar://127.0.0.1:6650")
+            .build();
+
+        assertThrows(IllegalArgumentException.class,
+            () -> client.newConsumer(null)
+                .topic("topic_testSchemaNull")
+                .subscriptionType(SubscriptionType.Shared)
+                .subscriptionName("testSchemaNull")
+                .subscribe());
     }
 
     @Test
