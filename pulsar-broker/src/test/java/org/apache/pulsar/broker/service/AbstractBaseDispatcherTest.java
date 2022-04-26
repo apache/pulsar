@@ -55,13 +55,13 @@ public class AbstractBaseDispatcherTest {
 
     private ServiceConfiguration svcConfig;
 
-    PersistentSubscription subscriptionMock;
+    private PersistentSubscription subscriptionMock;
 
     @BeforeMethod
     public void setup() throws Exception {
         this.svcConfig = mock(ServiceConfiguration.class);
         this.subscriptionMock = mock(PersistentSubscription.class);
-        this.helper = new AbstractBaseDispatcherTestHelper(subscriptionMock, svcConfig);
+        this.helper = new AbstractBaseDispatcherTestHelper(this.subscriptionMock, this.svcConfig);
     }
 
     @Test
@@ -72,7 +72,7 @@ public class AbstractBaseDispatcherTest {
         SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
         EntryBatchSizes batchSizes = EntryBatchSizes.get(entries.size());
 
-        int size = helper.filterEntriesForConsumer(entries, batchSizes, sendMessageInfo, null, null, false);
+        int size = this.helper.filterEntriesForConsumer(entries, batchSizes, sendMessageInfo, null, null, false);
         assertEquals(size, 0);
     }
 
@@ -80,7 +80,7 @@ public class AbstractBaseDispatcherTest {
     @Test
     public void testFilterEntriesForConsumerOfEntryFilter() {
         Topic mockTopic = mock(Topic.class);
-        when(subscriptionMock.getTopic()).thenReturn(mockTopic);
+        when(this.subscriptionMock.getTopic()).thenReturn(mockTopic);
 
         BrokerService mockBrokerService = mock(BrokerService.class);
         when(mockTopic.getBrokerService()).thenReturn(mockBrokerService);
@@ -91,7 +91,7 @@ public class AbstractBaseDispatcherTest {
         ImmutableMap<String, EntryFilterWithClassLoader> entryFilters = ImmutableMap.of("key", mockFilter);
         when(mockBrokerService.getEntryFilters()).thenReturn(entryFilters);
 
-        this.helper = new AbstractBaseDispatcherTestHelper(subscriptionMock, svcConfig);
+        this.helper = new AbstractBaseDispatcherTestHelper(this.subscriptionMock, this.svcConfig);
 
         List<Entry> entries = new ArrayList<>();
 
@@ -99,7 +99,7 @@ public class AbstractBaseDispatcherTest {
         SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
         EntryBatchSizes batchSizes = EntryBatchSizes.get(entries.size());
         //
-        int size = helper.filterEntriesForConsumer(entries, batchSizes, sendMessageInfo, null, null, false);
+        int size = this.helper.filterEntriesForConsumer(entries, batchSizes, sendMessageInfo, null, null, false);
         assertEquals(size, 0);
     }
 
@@ -110,14 +110,14 @@ public class AbstractBaseDispatcherTest {
 
         SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
         EntryBatchSizes batchSizes = EntryBatchSizes.get(entries.size());
-        int size = helper.filterEntriesForConsumer(entries, batchSizes, sendMessageInfo, null, null, false);
+        int size = this.helper.filterEntriesForConsumer(entries, batchSizes, sendMessageInfo, null, null, false);
         assertEquals(size, 0);
     }
 
     @Test
     public void testFilterEntriesForConsumerOfTxnBufferAbort() {
         PersistentTopic mockTopic = mock(PersistentTopic.class);
-        when(subscriptionMock.getTopic()).thenReturn(mockTopic);
+        when(this.subscriptionMock.getTopic()).thenReturn(mockTopic);
 
         when(mockTopic.isTxnAborted(any(TxnID.class))).thenReturn(true);
 
@@ -126,7 +126,7 @@ public class AbstractBaseDispatcherTest {
 
         SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
         EntryBatchSizes batchSizes = EntryBatchSizes.get(entries.size());
-        int size = helper.filterEntriesForConsumer(entries, batchSizes, sendMessageInfo, null, null, false);
+        int size = this.helper.filterEntriesForConsumer(entries, batchSizes, sendMessageInfo, null, null, false);
         assertEquals(size, 0);
     }
 
@@ -139,7 +139,7 @@ public class AbstractBaseDispatcherTest {
 
         SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
         EntryBatchSizes batchSizes = EntryBatchSizes.get(entries.size());
-        int size = helper.filterEntriesForConsumer(entries, batchSizes, sendMessageInfo, null, null, false);
+        int size = this.helper.filterEntriesForConsumer(entries, batchSizes, sendMessageInfo, null, null, false);
         assertEquals(size, 0);
     }
 
@@ -150,7 +150,7 @@ public class AbstractBaseDispatcherTest {
 
         SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
         EntryBatchSizes batchSizes = EntryBatchSizes.get(entries.size());
-        int size = helper.filterEntriesForConsumer(entries, batchSizes, sendMessageInfo, null, null, false);
+        int size = this.helper.filterEntriesForConsumer(entries, batchSizes, sendMessageInfo, null, null, false);
         assertEquals(size, 0);
     }
 
