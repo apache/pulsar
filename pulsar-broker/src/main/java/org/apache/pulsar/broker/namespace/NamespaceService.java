@@ -29,7 +29,7 @@ import com.google.common.hash.Hashing;
 import io.prometheus.client.Counter;
 import java.net.URI;
 import java.net.URL;
-import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -735,10 +735,10 @@ public class NamespaceService implements AutoCloseable {
     public CompletableFuture<Map<String, NamespaceOwnershipStatus>> getOwnedNameSpacesStatusAsync() {
        return getLocalNamespaceIsolationPoliciesAsync()
                 .thenCompose(namespaceIsolationPolicies -> {
-                    List<CompletableFuture<OwnedBundle>> ownedBundleFutures = Collections.unmodifiableList(
-                            new ArrayList<>(ownershipCache.getOwnedBundlesAsync().values()));
-                    return FutureUtil.waitForAll(ownedBundleFutures)
-                            .thenApply(__ -> ownedBundleFutures.stream()
+                    Collection<CompletableFuture<OwnedBundle>> futures =
+                            ownershipCache.getOwnedBundlesAsync().values();
+                    return FutureUtil.waitForAll(futures)
+                            .thenApply(__ -> futures.stream()
                                     .map(CompletableFuture::join)
                                     .collect(Collectors.toMap(bundle -> bundle.getNamespaceBundle().toString(),
                                             bundle -> getNamespaceOwnershipStatus(bundle,
