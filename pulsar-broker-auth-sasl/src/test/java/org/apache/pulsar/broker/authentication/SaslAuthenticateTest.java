@@ -28,6 +28,7 @@ import java.io.File;
 import java.io.FileWriter;
 import java.net.URI;
 import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Properties;
@@ -170,6 +171,10 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
         conf.setAuthenticationEnabled(true);
         conf.setSaslJaasClientAllowedIds(".*" + "client" + ".*");
         conf.setSaslJaasServerSectionName("PulsarBroker");
+        File secretKeyFile = File.createTempFile("saslRoleTokenSignerSecret", ".key");
+        secretKeyFile.deleteOnExit();
+        Files.write(Paths.get(secretKeyFile.toString()), "PulsarSecret".getBytes());
+        conf.setSaslJaasServerRoleTokenSignerSecret(secretKeyFile.toString());
         Set<String> providers = new HashSet<>();
         providers.add(AuthenticationProviderSasl.class.getName());
         conf.setAuthenticationProviders(providers);

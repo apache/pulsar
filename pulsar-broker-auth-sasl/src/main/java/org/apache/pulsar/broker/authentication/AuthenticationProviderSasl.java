@@ -35,6 +35,8 @@ import static org.apache.pulsar.common.sasl.SaslConstants.SASL_STATE_SERVER;
 import static org.apache.pulsar.common.sasl.SaslConstants.SASL_STATE_SERVER_CHECK_TOKEN;
 import java.io.IOException;
 import java.net.SocketAddress;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
@@ -47,7 +49,10 @@ import javax.security.auth.login.LoginException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.client.api.url.URL;
 import org.apache.pulsar.common.api.AuthData;
 import org.apache.pulsar.common.sasl.JAASCredentialsContainer;
 import org.apache.pulsar.common.sasl.SaslConstants;
@@ -97,8 +102,14 @@ public class AuthenticationProviderSasl implements AuthenticationProvider {
                 throw new IOException(e);
             }
         }
-
-        this.signer = new SaslRoleTokenSigner(config.getSaslJaasServerRoleTokenSignerSecret().getBytes());
+        String saslJaasServerRoleTokenSignerSecretFile = config.getSaslJaasServerRoleTokenSignerSecret();
+        byte[] secret = null;
+        if (StringUtils.isNotBlank(saslJaasServerRoleTokenSignerSecretFile)) {
+            secret = readSecretFromUrl(saslJaasServerRoleTokenSignerSecretFile);
+        } else {
+            secret = SaslConstants.JAAS_DEFAULT_ROLE_TOKEN_SIGNER_SECRET.getBytes();
+        }
+        this.signer = new SaslRoleTokenSigner(secret);
     }
 
     @Override
@@ -172,6 +183,24 @@ public class AuthenticationProviderSasl implements AuthenticationProvider {
                 token, token.getUserRole(), token.getSession(), token.getExpires(), signed);
         }
         return signed;
+    }
+
+    private byte[] readSecretFromUrl(String secretConfUrl) throws IOException {
+        if (secretConfUrl.startsWith("file:")) {
+            try {
+                return IOUtils.toByteArray(URL.createURL(secretConfUrl.trim()));
+            } catch (IOException e) {
+                throw e;
+            } catch (Exception e) {
+                throw new IOException(e);
+            }
+        } else if (Files.exists(Paths.get(secretConfUrl))) {
+            // Assume the key content was passed in a valid file path
+            return Files.readAllBytes(Paths.get(secretConfUrl));
+        } else {
+            String msg = "Role token signer secret file " + secretConfUrl + " doesn't exist";
+            throw new IllegalArgumentException(msg);
+        }
     }
 
     private ConcurrentHashMap<Long, AuthenticationState> authStates = new ConcurrentHashMap<>();

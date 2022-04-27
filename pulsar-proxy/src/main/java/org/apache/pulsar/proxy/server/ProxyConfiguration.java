@@ -353,9 +353,13 @@ public class ProxyConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_SASL_AUTH,
-            doc = "secret for SaslRoleTokenSigner . Default value is \"PulsarSecret\"."
+            doc = "Configure the secret to be used to SaslRoleTokenSigner\n"
+                    + "The secret can be specified like:\n"
+                    + "saslJaasServerRoleTokenSignerSecret=file:///my/saslRoleTokenSignerSecret.key\n"
+                    + "If saslJaasServerRoleTokenSignerSecret is empty, will use Default value "
+                    + "`SaslConstants.JAAS_DEFAULT_ROLE_TOKEN_SIGNER_SECRET`."
     )
-    private String saslJaasServerRoleTokenSignerSecret = SaslConstants.JAAS_DEFAULT_ROLE_TOKEN_SIGNER_SECRET;
+    private String saslJaasServerRoleTokenSignerSecret;
 
     @FieldContext(
         category = CATEGORY_SASL_AUTH,
