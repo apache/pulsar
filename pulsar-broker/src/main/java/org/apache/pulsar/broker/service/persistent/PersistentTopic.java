@@ -754,7 +754,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     getDurableSubscription(subscriptionName, initialPosition, startMessageRollbackDurationSec,
                             replicatedSubscriptionState, subscriptionProperties)
                     : getNonDurableSubscription(subscriptionName, startMessageId, initialPosition,
-                    startMessageRollbackDurationSec, readCompacted);
+                    startMessageRollbackDurationSec, readCompacted, subscriptionProperties);
 
             CompletableFuture<Consumer> future = subscriptionFuture.thenCompose(subscription -> {
                 Consumer consumer = new Consumer(subscription, subType, topic, consumerId, priorityLevel,
@@ -900,8 +900,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     private CompletableFuture<? extends Subscription> getNonDurableSubscription(String subscriptionName,
             MessageId startMessageId, InitialPosition initialPosition, long startMessageRollbackDurationSec,
-            boolean isReadCompacted) {
-        log.info("[{}][{}] Creating non-durable subscription at msg id {}", topic, subscriptionName, startMessageId);
+            boolean isReadCompacted, Map<String, String> subscriptionProperties) {
+        log.info("[{}][{}] Creating non-durable subscription at msg id {} - {}",
+                topic, subscriptionName, startMessageId, subscriptionProperties);
 
         CompletableFuture<Subscription> subscriptionFuture = new CompletableFuture<>();
         if (checkMaxSubscriptionsPerTopicExceed(subscriptionName)) {
@@ -939,13 +940,19 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     return FutureUtil.failedFuture(e);
                 }
 
-                subscription = new PersistentSubscription(this, subscriptionName, cursor, false);
+                subscription = new PersistentSubscription(this, subscriptionName, cursor, false,
+                        subscriptionProperties);
                 subscriptions.put(subscriptionName, subscription);
             } else {
                 // if subscription exists, check if it's a durable subscription
                 if (subscription.getCursor() != null && subscription.getCursor().isDurable()) {
                     return FutureUtil.failedFuture(
                             new NotAllowedException("Durable subscription with the same name already exists."));
+                }
+
+                if (MapUtils.isEmpty(subscription.getSubscriptionProperties())
+                        && MapUtils.isNotEmpty(subscriptionProperties)) {
+                    subscription.getSubscriptionProperties().putAll(subscriptionProperties);
                 }
             }
 
