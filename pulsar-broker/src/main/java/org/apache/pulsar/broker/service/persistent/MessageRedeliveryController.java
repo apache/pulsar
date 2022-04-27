@@ -36,7 +36,7 @@ public class MessageRedeliveryController {
     private final ConcurrentLongLongPairHashMap hashesToBeBlocked;
 
     public MessageRedeliveryController(boolean allowOutOfOrderDelivery) {
-        this.messagesToRedeliver = new ConcurrentSortedLongPairSet(128, 2);
+        this.messagesToRedeliver = new ConcurrentSortedLongPairSet(128, 2, true);
         this.hashesToBeBlocked = allowOutOfOrderDelivery
                 ? null
                 : ConcurrentLongLongPairHashMap

@@ -175,6 +175,7 @@ public class ConcurrentLongPairSet implements LongPairSet {
         return size;
     }
 
+    @Override
     public long capacity() {
         long capacity = 0;
         for (int i = 0; i < sections.length; i++) {

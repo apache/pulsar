@@ -245,4 +245,32 @@ public class ConcurrentSortedLongPairSetTest {
         set.add(1, 1);
         assertFalse(set.isEmpty());
     }
+
+    @Test
+    public void testShrink() {
+        LongPairSet set = new ConcurrentSortedLongPairSet(2, 1, true);
+        set.add(0, 0);
+        assertTrue(set.capacity() == 4);
+        set.add(0, 1);
+        assertTrue(set.capacity() == 4);
+        set.add(1, 1);
+        assertTrue(set.capacity() == 8);
+        set.add(1, 2);
+        assertTrue(set.capacity() == 8);
+        set.add(1, 3);
+        set.add(1, 4);
+        set.add(1, 5);
+        assertTrue(set.capacity() == 12);
+        set.remove(1, 5);
+        // not shrink
+        assertTrue(set.capacity() == 12);
+        set.remove(1, 4);
+        // the internal map does not keep shrinking at every remove() operation
+        assertTrue(set.capacity() == 12);
+        set.remove(1, 3);
+        set.remove(1, 2);
+        set.remove(1, 1);
+        // shrink
+        assertTrue(set.capacity() == 8);
+    }
 }
