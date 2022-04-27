@@ -26,6 +26,7 @@
 #include "PartitionedConsumerImpl.h"
 #include "MultiTopicsConsumerImpl.h"
 #include "PatternMultiTopicsConsumerImpl.h"
+#include "TimeUtils.h"
 #include <pulsar/ConsoleLoggerFactory.h>
 #include <boost/algorithm/string/predicate.hpp>
 #include <sstream>
@@ -34,6 +35,7 @@
 #include <algorithm>
 #include <random>
 #include <mutex>
+#include <thread>
 #ifdef USE_LOG4CXX
 #include "Log4CxxLogger.h"
 #endif
@@ -534,13 +536,20 @@ void ClientImpl::handleClose(Result result, SharedInt numberOfOpenHandlers, Resu
         lock.unlock();
 
         LOG_DEBUG("Shutting down producers and consumers for client");
-        shutdown();
-        if (callback) {
-            if (closingError != ResultOk) {
-                LOG_DEBUG("Problem in closing client, could not close one or more consumers or producers");
+        // handleClose() is called in ExecutorService's event loop, while shutdown() tried to wait the event
+        // loop exits. So here we use another thread to call shutdown().
+        auto self = shared_from_this();
+        std::thread shutdownTask{[this, self, callback] {
+            shutdown();
+            if (callback) {
+                if (closingError != ResultOk) {
+                    LOG_DEBUG(
+                        "Problem in closing client, could not close one or more consumers or producers");
+                }
+                callback(closingError);
             }
-            callback(closingError);
-        }
+        }};
+        shutdownTask.detach();
     }
 }
 
@@ -576,11 +585,25 @@ void ClientImpl::shutdown() {
         return;
     }
     LOG_DEBUG("ConnectionPool is closed");
-    ioExecutorProvider_->close();
+
+    // 500ms as the timeout is long enough because ExecutorService::close calls io_service::stop() internally
+    // and waits until io_service::run() in another thread returns, which should be as soon as possible after
+    // stop() is called.
+    TimeoutProcessor<std::chrono::milliseconds> timeoutProcessor{500};
+
+    timeoutProcessor.tik();
+    ioExecutorProvider_->close(timeoutProcessor.getLeftTimeout());
+    timeoutProcessor.tok();
     LOG_DEBUG("ioExecutorProvider_ is closed");
+
+    timeoutProcessor.tik();
     listenerExecutorProvider_->close();
+    timeoutProcessor.tok();
     LOG_DEBUG("listenerExecutorProvider_ is closed");
+
+    timeoutProcessor.tik();
     partitionListenerExecutorProvider_->close();
+    timeoutProcessor.tok();
     LOG_DEBUG("partitionListenerExecutorProvider_ is closed");
 }
 
