@@ -24,10 +24,10 @@ import java.util.Map;
 import java.util.TreeSet;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
-import org.apache.pulsar.broker.BrokerData;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.LoadData;
 import org.apache.pulsar.broker.loadbalance.LoadSheddingStrategy;
+import org.apache.pulsar.policies.data.loadbalancer.BrokerData;
 
 /**
  * An abstract class which makes a LoadSheddingStrategy which makes decisions based on standard deviation easier to

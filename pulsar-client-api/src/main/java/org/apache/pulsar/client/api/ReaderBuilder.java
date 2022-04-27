@@ -320,4 +320,51 @@ public interface ReaderBuilder<T> extends Cloneable {
      * @return the reader builder instance
      */
     ReaderBuilder<T> intercept(ReaderInterceptor<T>... interceptors);
+
+    /**
+     * Consumer buffers chunk messages into memory until it receives all the chunks of the original message. While
+     * consuming chunk-messages, chunks from same message might not be contiguous in the stream and they might be mixed
+     * with other messages' chunks. so, consumer has to maintain multiple buffers to manage chunks coming from different
+     * messages. This mainly happens when multiple publishers are publishing messages on the topic concurrently or
+     * publisher failed to publish all chunks of the messages.
+     *
+     * <pre>
+     * eg: M1-C1, M2-C1, M1-C2, M2-C2
+     * Here, Messages M1-C1 and M1-C2 belong to original message M1, M2-C1 and M2-C2 messages belong to M2 message.
+     * </pre>
+     * Buffering large number of outstanding uncompleted chunked messages can create memory pressure and it can be
+     * guarded by providing this @maxPendingChunkedMessage threshold. Once, consumer reaches this threshold, it drops
+     * the outstanding unchunked-messages by silently acking or asking broker to redeliver later by marking it unacked.
+     * This behavior can be controlled by configuration: @autoAckOldestChunkedMessageOnQueueFull
+     *
+     * The default value is 10.
+     *
+     * @param maxPendingChunkedMessage
+     * @return
+     */
+    ReaderBuilder<T> maxPendingChunkedMessage(int maxPendingChunkedMessage);
+
+    /**
+     * Buffering large number of outstanding uncompleted chunked messages can create memory pressure and it can be
+     * guarded by providing this @maxPendingChunkedMessage threshold. Once, consumer reaches this threshold, it drops
+     * the outstanding unchunked-messages by silently acking if autoAckOldestChunkedMessageOnQueueFull is true else it
+     * marks them for redelivery.
+     *
+     * @default false
+     *
+     * @param autoAckOldestChunkedMessageOnQueueFull
+     * @return
+     */
+    ReaderBuilder<T> autoAckOldestChunkedMessageOnQueueFull(boolean autoAckOldestChunkedMessageOnQueueFull);
+
+    /**
+     * If producer fails to publish all the chunks of a message then consumer can expire incomplete chunks if consumer
+     * won't be able to receive all chunks in expire times (default 1 minute).
+     *
+     * @param duration
+     * @param unit
+     * @return
+     */
+    ReaderBuilder<T> expireTimeOfIncompleteChunkedMessage(long duration, TimeUnit unit);
+
 }

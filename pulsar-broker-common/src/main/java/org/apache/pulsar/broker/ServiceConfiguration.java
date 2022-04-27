@@ -1842,12 +1842,20 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + " will only be tracked in memory and messages will be redelivered in case of"
             + " crashes.")
     private int managedLedgerMaxUnackedRangesToPersist = 10000;
+    @Deprecated
     @FieldContext(
         category = CATEGORY_STORAGE_ML,
+        deprecated = true,
         doc = "Max number of `acknowledgment holes` that can be stored in Zookeeper.\n\n"
             + "If number of unack message range is higher than this limit then broker will persist"
             + " unacked ranges into bookkeeper to avoid additional data overhead into zookeeper.")
-    private int managedLedgerMaxUnackedRangesToPersistInZooKeeper = 1000;
+    private int managedLedgerMaxUnackedRangesToPersistInZooKeeper = -1;
+    @FieldContext(
+            category = CATEGORY_STORAGE_ML,
+            doc = "Max number of `acknowledgment holes` that can be stored in MetadataStore.\n\n"
+                    + "If number of unack message range is higher than this limit then broker will persist"
+                    + " unacked ranges into bookkeeper to avoid additional data overhead into MetadataStore.")
+    private int managedLedgerMaxUnackedRangesToPersistInMetadataStore = 1000;
     @FieldContext(
             category = CATEGORY_STORAGE_OFFLOADING,
             doc = "Use Open Range-Set to cache unacked messages (it is memory efficient but it can take more cpu)"
@@ -1906,6 +1914,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "ManagedLedgerInfo compression type, option values (NONE, LZ4, ZLIB, ZSTD, SNAPPY). \n"
                     + "If value is invalid or NONE, then save the ManagedLedgerInfo bytes data directly.")
     private String managedLedgerInfoCompressionType = "NONE";
+
+    @FieldContext(category = CATEGORY_STORAGE_ML,
+            doc = "ManagedCursorInfo compression type, option values (NONE, LZ4, ZLIB, ZSTD, SNAPPY). \n"
+                    + "If value is NONE, then save the ManagedCursorInfo bytes data directly.")
+    private String managedCursorInfoCompressionType = "NONE";
 
     /*** --- Load balancer. --- ****/
     @FieldContext(
@@ -2544,7 +2557,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_KEYSTORE_TLS,
-            doc = "TLS Provider for Specify the SSL provider for the broker service: \n"
+            doc = "Specify the TLS provider for the broker service: \n"
                     + "When using TLS authentication with CACert, the valid value is either OPENSSL or JDK.\n"
                     + "When using TLS authentication with KeyStore, available values can be SunJSSE, Conscrypt and etc."
     )
@@ -2757,6 +2770,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
             return SchemaCompatibilityStrategy.FULL;
         }
         return schemaCompatibilityStrategy;
+    }
+
+    public int getManagedLedgerMaxUnackedRangesToPersistInMetadataStore() {
+        return managedLedgerMaxUnackedRangesToPersistInZooKeeper > 0
+                ? managedLedgerMaxUnackedRangesToPersistInZooKeeper :
+                managedLedgerMaxUnackedRangesToPersistInMetadataStore;
     }
 
     public long getMetadataStoreSessionTimeoutMillis() {

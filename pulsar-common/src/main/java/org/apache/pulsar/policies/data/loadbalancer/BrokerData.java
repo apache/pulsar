@@ -16,12 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker;
+package org.apache.pulsar.policies.data.loadbalancer;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import lombok.Data;
-import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 
 /**
  * Data class containing three components comprising all the data available for the leader broker about other brokers: -
