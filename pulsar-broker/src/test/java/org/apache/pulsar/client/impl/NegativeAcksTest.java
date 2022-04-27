@@ -279,6 +279,8 @@ public class NegativeAcksTest extends ProducerConsumerBase {
         MessageId messageId = new MessageIdImpl(3, 1, 0);
         TopicMessageIdImpl topicMessageId = new TopicMessageIdImpl("topic-1", "topic-1", messageId);
         BatchMessageIdImpl batchMessageId = new BatchMessageIdImpl(3, 1, 0, 0);
+        BatchMessageIdImpl batchMessageId2 = new BatchMessageIdImpl(3, 1, 0, 1);
+        BatchMessageIdImpl batchMessageId3 = new BatchMessageIdImpl(3, 1, 0, 2);
 
         UnAckedMessageTracker unAckedMessageTracker = ((ConsumerImpl) consumer).getUnAckedMessageTracker();
         unAckedMessageTracker.add(topicMessageId);
@@ -294,7 +296,11 @@ public class NegativeAcksTest extends ProducerConsumerBase {
         nackedMessages.clear();
         // negative batch message id
         unAckedMessageTracker.add(batchMessageId);
+        unAckedMessageTracker.add(batchMessageId2);
+        unAckedMessageTracker.add(batchMessageId3);
         consumer.negativeAcknowledge(batchMessageId);
+        consumer.negativeAcknowledge(batchMessageId2);
+        consumer.negativeAcknowledge(batchMessageId3);
         assertEquals(nackedMessages.size(), 1);
         assertEquals(unAckedMessageTracker.size(), 0);
         nackedMessages.clear();
