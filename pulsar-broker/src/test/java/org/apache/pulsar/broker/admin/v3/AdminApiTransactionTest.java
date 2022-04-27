@@ -534,7 +534,6 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
                 .getPartitionedTopicResources()
                 .createPartitionedTopic(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN,
                         new PartitionedTopicMetadata(coordinatorSize));
-        conf.setMaxNumPartitionsPerPartitionedTopic(15);
         try {
             admin.transactions().scaleTransactionCoordinators(coordinatorSize - 1);
         } catch (PulsarAdminException pulsarAdminException) {
@@ -544,20 +543,14 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
             admin.transactions().scaleTransactionCoordinators(-1);
         } catch (PulsarAdminException pulsarAdminException) {
             assertEquals(pulsarAdminException.getCause().getMessage(),
-                    "Number of partitions must be more than 0");
+                    "Number of transaction coordinators must be more than 0");
         }
 
-        try {
-            admin.transactions()
-                    .scaleTransactionCoordinators(conf.getMaxNumPartitionsPerPartitionedTopic() + 1);
-        } catch (PulsarAdminException pulsarAdminException) {
-            assertEquals(pulsarAdminException.getStatusCode(), HttpStatus.SC_NOT_ACCEPTABLE);
-        }
-        admin.transactions().scaleTransactionCoordinators(conf.getMaxNumPartitionsPerPartitionedTopic());
+        admin.transactions().scaleTransactionCoordinators(coordinatorSize * 2);
         pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl.toString()).enableTransaction(true).build();
         pulsarClient.close();
         Awaitility.await().until(() -> pulsar.getTransactionMetadataStoreService().getStores().size() ==
-                        conf.getMaxNumPartitionsPerPartitionedTopic());
+                        coordinatorSize * 2);
     }
 
     private static void verifyCoordinatorStats(String state,

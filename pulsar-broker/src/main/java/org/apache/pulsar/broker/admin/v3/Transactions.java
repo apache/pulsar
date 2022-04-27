@@ -317,13 +317,12 @@ public class Transactions extends TransactionsBase {
     }
 
     @POST
-    @Path("/transactionCoordinator/partitions")
+    @Path("/transactionCoordinator/replicas")
     @ApiResponses(value = {
             @ApiResponse(code = 503, message = "This Broker is not configured "
                     + "with transactionCoordinatorEnabled=true."),
-            @ApiResponse(code = 406, message = "The number of partitions should be more than "
-                    + "the current number of transaction coordinator partitions"
-                    + " and less than or equal to maxNumPartitionsPerPartitionedTopic")})
+            @ApiResponse(code = 406, message = "The number of replicas should be more than "
+                    + "the current number of transaction coordinator replicas")})
     public void scaleTransactionCoordinators(@Suspended final AsyncResponse asyncResponse, int replicas) {
         try {
             checkTransactionCoordinatorEnabled();

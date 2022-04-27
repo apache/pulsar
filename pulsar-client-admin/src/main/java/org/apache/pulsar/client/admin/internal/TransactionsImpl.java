@@ -345,9 +345,9 @@ public class TransactionsImpl extends BaseResource implements Transactions {
 
     @Override
     public CompletableFuture<Void> scaleTransactionCoordinatorsAsync(int replicas) {
-        checkArgument(replicas > 0, "Number of partitions must be more than 0");
+        checkArgument(replicas > 0, "Number of transaction coordinators must be more than 0");
         WebTarget path = adminV3Transactions.path("transactionCoordinator");
-        path = path.path("partitions");
+        path = path.path("replicas");
         return asyncPostRequest(path, Entity.entity(replicas, MediaType.APPLICATION_JSON));
     }
 
