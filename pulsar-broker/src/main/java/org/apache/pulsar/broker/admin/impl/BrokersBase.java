@@ -147,20 +147,23 @@ public class BrokersBase extends AdminResource {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the cluster"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Cluster doesn't exist") })
-    public Map<String, NamespaceOwnershipStatus> getOwnedNamespaces(@PathParam("clusterName") String cluster,
-            @PathParam("broker-webserviceurl") String broker) throws Exception {
-        validateSuperUserAccess();
-        validateClusterOwnership(cluster);
-        validateBrokerName(broker);
-
-        try {
-            // now we validated that this is the broker specified in the request
-            return pulsar().getNamespaceService().getOwnedNameSpacesStatus();
-        } catch (Exception e) {
-            LOG.error("[{}] Failed to get the namespace ownership status. cluster={}, broker={}", clientAppId(),
-                    cluster, broker);
-            throw new RestException(e);
-        }
+    public void getOwnedNamespaces(@Suspended final AsyncResponse asyncResponse,
+                                   @PathParam("clusterName") String cluster,
+                                   @PathParam("broker-webserviceurl") String broker) {
+        validateSuperUserAccessAsync()
+                .thenAccept(__ -> validateBrokerName(broker))
+                .thenCompose(__ -> validateClusterOwnershipAsync(cluster))
+                .thenCompose(__ -> pulsar().getNamespaceService().getOwnedNameSpacesStatusAsync())
+                .thenAccept(asyncResponse::resume)
+                .exceptionally(ex -> {
+                    // If the exception is not redirect exception we need to log it.
+                    if (!isRedirectException(ex)) {
+                        LOG.error("[{}] Failed to get the namespace ownership status. cluster={}, broker={}",
+                                clientAppId(), cluster, broker);
+                    }
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @POST
@@ -219,17 +222,15 @@ public class BrokersBase extends AdminResource {
         @ApiResponse(code = 403, message = "You don't have admin permission to view configuration"),
         @ApiResponse(code = 404, message = "Configuration not found"),
         @ApiResponse(code = 500, message = "Internal server error")})
-    public Map<String, String> getAllDynamicConfigurations() throws Exception {
-        validateSuperUserAccess();
-        try {
-            return dynamicConfigurationResources().getDynamicConfiguration().orElseGet(Collections::emptyMap);
-        } catch (RestException e) {
-            LOG.error("[{}] couldn't find any configuration in zk {}", clientAppId(), e.getMessage(), e);
-            throw e;
-        } catch (Exception e) {
-            LOG.error("[{}] Failed to retrieve configuration from zk {}", clientAppId(), e.getMessage(), e);
-            throw new RestException(e);
-        }
+    public void getAllDynamicConfigurations(@Suspended AsyncResponse asyncResponse) {
+        validateSuperUserAccessAsync()
+                .thenCompose(__ -> dynamicConfigurationResources().getDynamicConfigurationAsync())
+                .thenAccept(configOpt -> asyncResponse.resume(configOpt.orElseGet(Collections::emptyMap)))
+                .exceptionally(ex -> {
+                    LOG.error("[{}] Failed to get all dynamic configuration.", clientAppId(), ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @GET
@@ -237,9 +238,14 @@ public class BrokersBase extends AdminResource {
     @ApiOperation(value = "Get all updatable dynamic configurations's name")
     @ApiResponses(value = {
             @ApiResponse(code = 403, message = "You don't have admin permission to get configuration")})
-    public List<String> getDynamicConfigurationName() {
-        validateSuperUserAccess();
-        return BrokerService.getDynamicConfiguration();
+    public void getDynamicConfigurationName(@Suspended AsyncResponse asyncResponse) {
+        validateSuperUserAccessAsync()
+                .thenAccept(__ -> asyncResponse.resume(BrokerService.getDynamicConfiguration()))
+                .exceptionally(ex -> {
+                    LOG.error("[{}] Failed to get all dynamic configuration names.", clientAppId(), ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @GET
