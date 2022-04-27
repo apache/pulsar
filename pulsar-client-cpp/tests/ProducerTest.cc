@@ -250,3 +250,46 @@ TEST(ProducerTest, testGetNumOfChunks) {
     ASSERT_EQ(ProducerImpl::getNumOfChunks(4, 5), 1);
     ASSERT_EQ(ProducerImpl::getNumOfChunks(1, 0), 1);
 }
+
+TEST(ProducerTest, testBacklogQuotasExceeded) {
+    std::string ns = "public/test-backlog-quotas";
+    std::string topic = ns + "/testBacklogQuotasExceeded" + std::to_string(time(nullptr));
+
+    int res = makePutRequest(adminUrl + "admin/v2/persistent/" + topic + "/partitions", "5");
+    ASSERT_TRUE(res == 204 || res == 409) << "res: " << res;
+    LOG_INFO("Created topic " << topic << " with 5 partitions");
+
+    auto setBacklogPolicy = [&ns](const std::string& policy, int limitSize) {
+        const auto body =
+            R"({"policy":")" + policy + R"(","limitSize":)" + std::to_string(limitSize) + "}";
+        int res = makePostRequest(adminUrl + "admin/v2/namespaces/" + ns + "/backlogQuota", body);
+        LOG_INFO(res << " | Change the backlog policy to: " << body);
+        ASSERT_TRUE(res == 204 || res == 409);
+    };
+
+    Client client(serviceUrl);
+
+    // Create a topic with backlog size that is greater than 1024
+    Consumer consumer;
+    ASSERT_EQ(ResultOk, client.subscribe(topic, "sub", consumer));  // create a cursor
+    Producer producer;
+
+    const auto partition = topic + "-partition-0";
+    ASSERT_EQ(ResultOk, client.createProducer(partition, producer));
+    ASSERT_EQ(ResultOk, producer.send(MessageBuilder().setContent(std::string(1024L, 'a')).build()));
+    ASSERT_EQ(ResultOk, producer.close());
+
+    setBacklogPolicy("producer_request_hold", 1024);
+    ASSERT_EQ(ResultProducerBlockedQuotaExceededError, client.createProducer(topic, producer));
+    ASSERT_EQ(ResultProducerBlockedQuotaExceededError, client.createProducer(partition, producer));
+
+    setBacklogPolicy("producer_exception", 1024);
+    ASSERT_EQ(ResultProducerBlockedQuotaExceededException, client.createProducer(topic, producer));
+    ASSERT_EQ(ResultProducerBlockedQuotaExceededException, client.createProducer(partition, producer));
+
+    setBacklogPolicy("consumer_backlog_eviction", 1024);
+    ASSERT_EQ(ResultOk, client.createProducer(topic, producer));
+    ASSERT_EQ(ResultOk, client.createProducer(partition, producer));
+
+    client.close();
+}

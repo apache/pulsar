@@ -47,6 +47,17 @@
     </dependency>
     <dependency>
       <groupId>org.apache.jclouds.driver</groupId>
+      <artifactId>jclouds-okhttp</artifactId>
+      <version>${jclouds.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>*</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.jclouds.driver</groupId>
       <artifactId>jclouds-slf4j</artifactId>
       <version>${jclouds.version}</version>
     </dependency>
