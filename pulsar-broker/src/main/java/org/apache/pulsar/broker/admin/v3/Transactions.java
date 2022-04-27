@@ -37,6 +37,7 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.admin.impl.TransactionsBase;
 import org.apache.pulsar.broker.service.BrokerServiceException;
@@ -326,7 +327,12 @@ public class Transactions extends TransactionsBase {
     public void scaleTransactionCoordinators(@Suspended final AsyncResponse asyncResponse, int replicas) {
         try {
             checkTransactionCoordinatorEnabled();
-            internalScaleTransactionCoordinators(asyncResponse, replicas);
+            internalScaleTransactionCoordinators(replicas)
+                    .thenRun(() -> asyncResponse.resume(Response.noContent().build()))
+                    .exceptionally(e -> {
+                        resumeAsyncResponseExceptionally(asyncResponse, e);
+                        return null;
+                    });
         } catch (Exception e) {
             resumeAsyncResponseExceptionally(asyncResponse, e);
         }

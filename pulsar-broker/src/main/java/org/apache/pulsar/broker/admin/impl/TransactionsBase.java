@@ -434,26 +434,23 @@ public abstract class TransactionsBase extends AdminResource {
         }
     }
 
-    protected void internalScaleTransactionCoordinators(AsyncResponse asyncResponse, int replicas) {
-        validateSuperUserAccessAsync().thenAccept((ignore) -> {
-                    namespaceResources().getPartitionedTopicResources()
-                            .updatePartitionedTopicAsync(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN, p -> {
-                                if (p.partitions >= replicas) {
-                                    throw new RestException(Response.Status.NOT_ACCEPTABLE,
-                                            "Number of transaction coordinators should "
-                                            + "be more than the current number of transaction coordinator");
-                                }
-                                return new PartitionedTopicMetadata(replicas);
-                            }).thenAccept(r -> asyncResponse.resume(Response.noContent().build()))
-                            .exceptionally(ex -> {
-                                log.error("{} Failed to update the scale of transaction coordinators", clientAppId());
-                                resumeAsyncResponseExceptionally(asyncResponse, ex);
-                                return null;
-                            });
-                }).exceptionally(e -> {
+    protected CompletableFuture<Void> internalScaleTransactionCoordinators(int replicas) {
+        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+        validateSuperUserAccessAsync()
+                .thenCompose((ignore)-> namespaceResources().getPartitionedTopicResources()
+                        .updatePartitionedTopicAsync(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN, p -> {
+                            if (p.partitions >= replicas) {
+                                throw new RestException(Response.Status.NOT_ACCEPTABLE,
+                                        "Number of transaction coordinators should "
+                                                + "be more than the current number of transaction coordinator");
+                            }
+                            return new PartitionedTopicMetadata(replicas);
+                        }).thenAccept(r -> completableFuture.complete(null)))
+                .exceptionally(e -> {
                     log.error("{} Failed to update the scale of transaction coordinators", clientAppId());
-                    resumeAsyncResponseExceptionally(asyncResponse, e);
+                    completableFuture.completeExceptionally(e);
                     return null;
                 });
+        return completableFuture;
     }
 }
