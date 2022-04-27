@@ -241,7 +241,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
 
         // 9) Delete the partitioned topic
         response = mock(AsyncResponse.class);
-        persistentTopics.deletePartitionedTopic(response, testTenant, testNamespace, testLocalTopicName, true, true, false);
+        persistentTopics.deletePartitionedTopic(response, testTenant, testNamespace, testLocalTopicName, true, true);
         responseCaptor = ArgumentCaptor.forClass(Response.class);
         verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
         Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
@@ -577,7 +577,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
 
         // 4) delete partitioned topic
         response = mock(AsyncResponse.class);
-        persistentTopics.deletePartitionedTopic(response, testTenant, testNamespace, partitionTopicName, true, true, false);
+        persistentTopics.deletePartitionedTopic(response, testTenant, testNamespace, partitionTopicName, true, true);
         responseCaptor = ArgumentCaptor.forClass(Response.class);
         verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
         Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
@@ -1040,7 +1040,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
 
         // 10) Delete the partitioned topic
         response = mock(AsyncResponse.class);
-        persistentTopics.deletePartitionedTopic(response, testTenant, testNamespace, topicName, true, true, false);
+        persistentTopics.deletePartitionedTopic(response, testTenant, testNamespace, topicName, true, true);
         responseCaptor = ArgumentCaptor.forClass(Response.class);
         verify(response, timeout(10000).times(1)).resume(responseCaptor.capture());
         Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
@@ -1231,23 +1231,23 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         persistentTopics.createNonPartitionedTopic(testTenant, testNamespace, topicName, false, null);
         CompletableFuture<Void> deleteTopicFuture = new CompletableFuture<>();
         deleteTopicFuture.completeExceptionally(new MetadataStoreException.NotFoundException());
-        doReturn(deleteTopicFuture).when(brokerService).deleteTopic(anyString(), anyBoolean(), anyBoolean());
-        persistentTopics.deleteTopic(testTenant, testNamespace, topicName, true, true, true);
+        doReturn(deleteTopicFuture).when(brokerService).deleteTopic(anyString(), anyBoolean());
+        persistentTopics.deleteTopic(testTenant, testNamespace, topicName, true, true);
         //
         CompletableFuture<Void> deleteTopicFuture2 = new CompletableFuture<>();
         deleteTopicFuture2.completeExceptionally(new MetadataStoreException("test exception"));
-        doReturn(deleteTopicFuture2).when(brokerService).deleteTopic(anyString(), anyBoolean(), anyBoolean());
+        doReturn(deleteTopicFuture2).when(brokerService).deleteTopic(anyString(), anyBoolean());
         try {
-            persistentTopics.deleteTopic(testTenant, testNamespace, topicName, true, true, true);
+            persistentTopics.deleteTopic(testTenant, testNamespace, topicName, true, true);
         } catch (Exception e) {
             Assert.assertTrue(e instanceof RestException);
         }
         //
         CompletableFuture<Void> deleteTopicFuture3 = new CompletableFuture<>();
         deleteTopicFuture3.completeExceptionally(new MetadataStoreException.NotFoundException());
-        doReturn(deleteTopicFuture3).when(brokerService).deleteTopic(anyString(), anyBoolean(), anyBoolean());
+        doReturn(deleteTopicFuture3).when(brokerService).deleteTopic(anyString(), anyBoolean());
         try {
-            persistentTopics.deleteTopic(testTenant, testNamespace, topicName, false, true, true);
+            persistentTopics.deleteTopic(testTenant, testNamespace, topicName, false, true);
         } catch (RestException e) {
             Assert.assertEquals(e.getResponse().getStatus(), 404);
         }
