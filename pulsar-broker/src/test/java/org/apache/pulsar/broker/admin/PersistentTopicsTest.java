@@ -628,7 +628,11 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         persistentTopics.grantPermissionsOnTopic(response, testTenant, testNamespace, topicName, role, expectActions);
         verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
         Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
-        Map<String, Set<AuthAction>> permissions = persistentTopics.getPermissionsOnTopic(testTenant, testNamespace, topicName);
+        response = mock(AsyncResponse.class);
+        responseCaptor = ArgumentCaptor.forClass(Response.class);
+        persistentTopics.getPermissionsOnTopic(response, testTenant, testNamespace, topicName);
+        verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
+        Map<String, Set<AuthAction>> permissions = (Map<String, Set<AuthAction>>) responseCaptor.getValue();
         Assert.assertEquals(permissions.get(role), expectActions);
     }
 
@@ -669,15 +673,22 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
                 expectActions);
         verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
         Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
-        Map<String, Set<AuthAction>> permissions = persistentTopics.getPermissionsOnTopic(testTenant, testNamespace,
-                partitionedTopicName);
+        response = mock(AsyncResponse.class);
+        responseCaptor = ArgumentCaptor.forClass(Response.class);
+        persistentTopics.getPermissionsOnTopic(response, testTenant, testNamespace, partitionedTopicName);
+        verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
+        Map<String, Set<AuthAction>> permissions = (Map<String, Set<AuthAction>>) responseCaptor.getValue();
         Assert.assertEquals(permissions.get(role), expectActions);
         TopicName topicName = TopicName.get(TopicDomain.persistent.value(), testTenant, testNamespace,
                 partitionedTopicName);
         for (int i = 0; i < numPartitions; i++) {
             TopicName partition = topicName.getPartition(i);
-            Map<String, Set<AuthAction>> partitionPermissions = persistentTopics.getPermissionsOnTopic(testTenant,
-                    testNamespace, partition.getEncodedLocalName());
+            response = mock(AsyncResponse.class);
+            responseCaptor = ArgumentCaptor.forClass(Response.class);
+            persistentTopics.getPermissionsOnTopic(response, testTenant, testNamespace, partition.getEncodedLocalName());
+            verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
+            Map<String, Set<AuthAction>> partitionPermissions =
+                    (Map<String, Set<AuthAction>>) responseCaptor.getValue();
             Assert.assertEquals(partitionPermissions.get(role), expectActions);
         }
     }
@@ -699,7 +710,11 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         persistentTopics.revokePermissionsOnTopic(response, testTenant, testNamespace, topicName, role);
         verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
         Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
-        Map<String, Set<AuthAction>> permissions = persistentTopics.getPermissionsOnTopic(testTenant, testNamespace, topicName);
+        response = mock(AsyncResponse.class);
+        responseCaptor = ArgumentCaptor.forClass(Response.class);
+        persistentTopics.getPermissionsOnTopic(response, testTenant, testNamespace, topicName);
+        verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
+        Map<String, Set<AuthAction>> permissions = (Map<String, Set<AuthAction>>) responseCaptor.getValue();
         Assert.assertEquals(permissions.get(role), null);
     }
 
@@ -727,16 +742,21 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         responseCaptor = ArgumentCaptor.forClass(Response.class);
         verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
         Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
-
-        Map<String, Set<AuthAction>> permissions = persistentTopics.getPermissionsOnTopic(testTenant, testNamespace,
-                partitionedTopicName);
+        response = mock(AsyncResponse.class);
+        responseCaptor = ArgumentCaptor.forClass(Response.class);
+        persistentTopics.getPermissionsOnTopic(response, testTenant, testNamespace, partitionedTopicName);
+        verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
+        Map<String, Set<AuthAction>> permissions = (Map<String, Set<AuthAction>>) responseCaptor.getValue();
         Assert.assertEquals(permissions.get(role), null);
         TopicName topicName = TopicName.get(TopicDomain.persistent.value(), testTenant, testNamespace,
                 partitionedTopicName);
         for (int i = 0; i < numPartitions; i++) {
             TopicName partition = topicName.getPartition(i);
-            Map<String, Set<AuthAction>> partitionPermissions = persistentTopics.getPermissionsOnTopic(testTenant,
-                    testNamespace, partition.getEncodedLocalName());
+            response = mock(AsyncResponse.class);
+            responseCaptor = ArgumentCaptor.forClass(Response.class);
+            persistentTopics.getPermissionsOnTopic(response, testTenant, testNamespace, partition.getEncodedLocalName());
+            verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
+            Map<String, Set<AuthAction>> partitionPermissions = (Map<String, Set<AuthAction>>) responseCaptor.getValue();
             Assert.assertEquals(partitionPermissions.get(role), null);
         }
     }

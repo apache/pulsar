@@ -25,7 +25,6 @@ import io.swagger.annotations.ApiParam;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import javax.ws.rs.DELETE;
@@ -107,11 +106,23 @@ public class PersistentTopics extends PersistentTopicsBase {
                     + "namespace level combined (union) with any eventual specific permission set on the topic.")
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace doesn't exist")})
-    public Map<String, Set<AuthAction>> getPermissionsOnTopic(@PathParam("property") String property,
-            @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
-            @PathParam("topic") @Encoded String encodedTopic) {
-        validateTopicName(property, cluster, namespace, encodedTopic);
-        return internalGetPermissionsOnTopic();
+    public void getPermissionsOnTopic(@Suspended AsyncResponse asyncResponse,
+                                                              @PathParam("property") String property,
+                                                              @PathParam("cluster") String cluster,
+                                                              @PathParam("namespace") String namespace,
+                                                              @PathParam("topic") @Encoded String encodedTopic) {
+        try {
+            validateTopicName(property, cluster, namespace, encodedTopic);
+            internalGetPermissionsOnTopic().thenAccept(permissions -> asyncResponse.resume(permissions))
+                    .exceptionally(ex -> {
+                        log.error("[{}] Failed to get permissions for topic {}", clientAppId(), topicName, ex);
+                        resumeAsyncResponseExceptionally(asyncResponse, ex);
+                        return null;
+                    });
+        } catch (Exception e) {
+            log.error("[{}] Failed to validate topic name {}", clientAppId(), topicName, e);
+            resumeAsyncResponseExceptionally(asyncResponse, e);
+        }
     }
 
     @POST
