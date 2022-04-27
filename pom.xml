@@ -143,7 +143,7 @@ flexible messaging model and an intuitive client API.</description>
     <cassandra-driver-core.version>3.6.0</cassandra-driver-core.version>
     <aerospike-client.version>4.4.20</aerospike-client.version>
     <kafka-client.version>2.7.2</kafka-client.version>
-    <rabbitmq-client.version>5.1.1</rabbitmq-client.version>
+    <rabbitmq-client.version>5.5.3</rabbitmq-client.version>
     <aws-sdk.version>1.11.774</aws-sdk.version>
     <avro.version>1.10.2</avro.version>
     <joda.version>2.10.5</joda.version>

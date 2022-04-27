@@ -418,7 +418,7 @@ The Apache Software License, Version 2.0
     - org.apache.bookkeeper.stats-bookkeeper-stats-api-4.15.0.jar
     - org.apache.bookkeeper.stats-prometheus-metrics-provider-4.15.0.jar
     - org.apache.distributedlog-distributedlog-common-4.15.0.jar
-    - org.apache.distributedlog-distributedlog-core-4.14.4-tests.jar
+    - org.apache.distributedlog-distributedlog-core-4.15.0-tests.jar
     - org.apache.distributedlog-distributedlog-core-4.15.0.jar
     - org.apache.distributedlog-distributedlog-protocol-4.15.0.jar
     - org.apache.bookkeeper.stats-codahale-metrics-provider-4.15.0.jar
@@ -543,6 +543,8 @@ The Apache Software License, Version 2.0
     - com.lmax-disruptor-3.4.3.jar
   * RxJava
     - io.reactivex.rxjava3-rxjava-3.0.1.jar
+  * RabbitMQ Java Client
+    - com.rabbitmq-amqp-client-5.5.3.jar
 
 BSD 3-clause "New" or "Revised" License
  * Google auth library
