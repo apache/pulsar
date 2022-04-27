@@ -1016,6 +1016,14 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 boolean createTopicIfDoesNotExist = forceTopicCreation
                         && service.isAllowAutoTopicCreation(topicName.toString());
 
+                final long consumerEpoch;
+                if (subscribe.hasConsumerEpoch()) {
+                    consumerEpoch = subscribe.getConsumerEpoch();
+                } else {
+                    consumerEpoch = DEFAULT_CONSUMER_EPOCH;
+                }
+                Optional<Map<String, String>> subscriptionProperties = SubscriptionOption.getPropertiesMap(
+                        subscribe.getSubscriptionPropertiesList());
                 service.getTopic(topicName.toString(), createTopicIfDoesNotExist)
                         .thenCompose(optTopic -> {
                             if (!optTopic.isPresent()) {
@@ -1037,10 +1045,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                                 new SubscriptionNotFoundException(
                                                         "Subscription does not exist"));
                             }
-                            long consumerEpoch = DEFAULT_CONSUMER_EPOCH;
-                            if (subscribe.hasConsumerEpoch()) {
-                                consumerEpoch = subscribe.getConsumerEpoch();
-                            }
+
                             SubscriptionOption option = SubscriptionOption.builder().cnx(ServerCnx.this)
                                     .subscriptionName(subscriptionName)
                                     .consumerId(consumerId).subType(subType).priorityLevel(priorityLevel)
@@ -1049,8 +1054,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                     .initialPosition(initialPosition)
                                     .startMessageRollbackDurationSec(startMessageRollbackDurationSec)
                                     .replicatedSubscriptionStateArg(isReplicated).keySharedMeta(keySharedMeta)
-                                    .subscriptionProperties(SubscriptionOption.getPropertiesMap(
-                                            subscribe.getSubscriptionPropertiesList()))
+                                    .subscriptionProperties(subscriptionProperties)
                                     .consumerEpoch(consumerEpoch)
                                     .build();
                             if (schema != null) {
