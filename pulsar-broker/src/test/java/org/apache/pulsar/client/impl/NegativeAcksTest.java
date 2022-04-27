@@ -21,6 +21,8 @@ package org.apache.pulsar.client.impl;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 
+import java.lang.reflect.Field;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -31,10 +33,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.powermock.reflect.Whitebox;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
@@ -257,5 +261,42 @@ public class NegativeAcksTest extends ProducerConsumerBase {
         assertNull(consumer.receive(100, TimeUnit.MILLISECONDS));
         consumer.close();
         producer.close();
+    }
+
+    @Test
+    public void testNegativeAcksDeleteFromUnackedTracker() throws Exception{
+        String topic = BrokerTestUtil.newUniqueName("testNegativeAcksDeleteFromUnackedTracker");
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("sub1")
+                .acknowledgmentGroupTime(0, TimeUnit.SECONDS)
+                .subscriptionType(SubscriptionType.Shared)
+                .ackTimeout(100, TimeUnit.SECONDS)
+                .negativeAckRedeliveryDelay(100, TimeUnit.SECONDS)
+                .subscribe();
+
+        MessageId messageId = new MessageIdImpl(3, 1, 0);
+        TopicMessageIdImpl topicMessageId = new TopicMessageIdImpl("topic-1", "topic-1", messageId);
+        BatchMessageIdImpl batchMessageId = new BatchMessageIdImpl(3, 1, 0, 0);
+
+        UnAckedMessageTracker unAckedMessageTracker = ((ConsumerImpl) consumer).getUnAckedMessageTracker();
+        unAckedMessageTracker.add(topicMessageId);
+
+        Field fieldNegativeAcksTracker = Whitebox.getField(ConsumerImpl.class, "negativeAcksTracker");
+        NegativeAcksTracker negativeAcksTracker = (NegativeAcksTracker) fieldNegativeAcksTracker.get(((ConsumerImpl) consumer));
+        Field fieldNackedMessages = Whitebox.getField(NegativeAcksTracker.class, "nackedMessages");
+        // negative topic message id
+        consumer.negativeAcknowledge(topicMessageId);
+        HashMap<MessageId, Long> nackedMessages = (HashMap)fieldNackedMessages.get(negativeAcksTracker);
+        assertEquals(nackedMessages.size(), 1);
+        assertEquals(unAckedMessageTracker.size(), 0);
+        nackedMessages.clear();
+        // negative batch message id
+        unAckedMessageTracker.add(batchMessageId);
+        consumer.negativeAcknowledge(batchMessageId);
+        assertEquals(nackedMessages.size(), 1);
+        assertEquals(unAckedMessageTracker.size(), 0);
+        nackedMessages.clear();
     }
 }
