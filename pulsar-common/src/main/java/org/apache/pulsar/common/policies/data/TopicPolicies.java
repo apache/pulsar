@@ -75,6 +75,7 @@ public class TopicPolicies {
     /**
      * Subscription level policies for specific subscription.
      */
+    @Builder.Default
     private Map<String/*subscription*/, SubscriptionPolicies> subscriptionPolicies = new HashMap<>();
 
     public boolean isGlobalPolicies() {
