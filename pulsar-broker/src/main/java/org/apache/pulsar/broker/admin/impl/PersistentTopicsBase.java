@@ -204,44 +204,39 @@ public class PersistentTopicsBase extends AdminResource {
         return getPartitionedTopicList(TopicDomain.getEnum(domain()));
     }
 
-    protected Map<String, Set<AuthAction>> internalGetPermissionsOnTopic() {
+    protected CompletableFuture<Map<String, Set<AuthAction>>> internalGetPermissionsOnTopic() {
         // This operation should be reading from zookeeper and it should be allowed without having admin privileges
-        validateAdminAccessForTenant(namespaceName.getTenant());
+        return validateAdminAccessForTenantAsync(namespaceName.getTenant())
+                .thenCompose(__ -> namespaceResources().getPoliciesAsync(namespaceName)
+            .thenApply(policies -> {
+                if (!policies.isPresent()) {
+                    throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
+                }
 
-        String topicUri = topicName.toString();
+                Map<String, Set<AuthAction>> permissions = Maps.newHashMap();
+                String topicUri = topicName.toString();
+                AuthPolicies auth = policies.get().auth_policies;
+                // First add namespace level permissions
+                auth.getNamespaceAuthentication().forEach(permissions::put);
 
-        try {
-            Policies policies = namespaceResources().getPolicies(namespaceName)
-                    .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Namespace does not exist"));
+                // Then add topic level permissions
+                if (auth.getTopicAuthentication().containsKey(topicUri)) {
+                    for (Map.Entry<String, Set<AuthAction>> entry :
+                            auth.getTopicAuthentication().get(topicUri).entrySet()) {
+                        String role = entry.getKey();
+                        Set<AuthAction> topicPermissions = entry.getValue();
 
-            Map<String, Set<AuthAction>> permissions = Maps.newHashMap();
-            AuthPolicies auth = policies.auth_policies;
-
-            // First add namespace level permissions
-            auth.getNamespaceAuthentication().forEach(permissions::put);
-
-            // Then add topic level permissions
-            if (auth.getTopicAuthentication().containsKey(topicUri)) {
-                for (Map.Entry<String, Set<AuthAction>> entry :
-                        auth.getTopicAuthentication().get(topicUri).entrySet()) {
-                    String role = entry.getKey();
-                    Set<AuthAction> topicPermissions = entry.getValue();
-
-                    if (!permissions.containsKey(role)) {
-                        permissions.put(role, topicPermissions);
-                    } else {
-                        // Do the union between namespace and topic level
-                        Set<AuthAction> union = Sets.union(permissions.get(role), topicPermissions);
-                        permissions.put(role, union);
+                        if (!permissions.containsKey(role)) {
+                            permissions.put(role, topicPermissions);
+                        } else {
+                            // Do the union between namespace and topic level
+                            Set<AuthAction> union = Sets.union(permissions.get(role), topicPermissions);
+                            permissions.put(role, union);
+                        }
                     }
                 }
-            }
-
-            return permissions;
-        } catch (Exception e) {
-            log.error("[{}] Failed to get permissions for topic {}", clientAppId(), topicUri, e);
-            throw new RestException(e);
-        }
+                return permissions;
+            }));
     }
 
     protected void validateCreateTopic(TopicName topicName) {
@@ -314,12 +309,12 @@ public class PersistentTopicsBase extends AdminResource {
                 });
     }
 
-    protected void internalDeleteTopicForcefully(boolean authoritative, boolean deleteSchema) {
+    protected void internalDeleteTopicForcefully(boolean authoritative) {
         validateTopicOwnership(topicName, authoritative);
         validateNamespaceOperation(topicName.getNamespaceObject(), NamespaceOperation.DELETE_TOPIC);
 
         try {
-            pulsar().getBrokerService().deleteTopic(topicName.toString(), true, deleteSchema).get();
+            pulsar().getBrokerService().deleteTopic(topicName.toString(), true).get();
         } catch (Exception e) {
             if (isManagedLedgerNotFoundException(e)) {
                 log.info("[{}] Topic was already not existing {}", clientAppId(), topicName, e);
@@ -585,8 +580,9 @@ public class PersistentTopicsBase extends AdminResource {
         return metadata;
     }
 
-    protected void internalDeletePartitionedTopic(AsyncResponse asyncResponse, boolean authoritative,
-                                                  boolean force, boolean deleteSchema) {
+    protected void internalDeletePartitionedTopic(AsyncResponse asyncResponse,
+                                                  boolean authoritative,
+                                                  boolean force) {
         validateTopicOwnershipAsync(topicName, authoritative)
                 .thenCompose(__ -> validateNamespaceOperationAsync(topicName.getNamespaceObject(),
                         NamespaceOperation.DELETE_TOPIC))
@@ -596,14 +592,6 @@ public class PersistentTopicsBase extends AdminResource {
                             final int numPartitions = partitionedMeta.partitions;
                             if (numPartitions < 1){
                                 return CompletableFuture.completedFuture(null);
-                            }
-                            if (deleteSchema) {
-                                return pulsar().getBrokerService()
-                                        .deleteSchemaStorage(topicName.getPartition(0).toString())
-                                        .thenCompose(unused ->
-                                                internalRemovePartitionsAuthenticationPoliciesAsync(numPartitions))
-                                        .thenCompose(unused2 ->
-                                                internalRemovePartitionsTopicAsync(numPartitions, force));
                             }
                             return internalRemovePartitionsAuthenticationPoliciesAsync(numPartitions)
                                     .thenCompose(unused -> internalRemovePartitionsTopicAsync(numPartitions, force));
@@ -1020,20 +1008,20 @@ public class PersistentTopicsBase extends AdminResource {
                 });
     }
 
-    protected void internalDeleteTopic(boolean authoritative, boolean force, boolean deleteSchema) {
+    protected void internalDeleteTopic(boolean authoritative, boolean force) {
         if (force) {
-            internalDeleteTopicForcefully(authoritative, deleteSchema);
+            internalDeleteTopicForcefully(authoritative);
         } else {
-            internalDeleteTopic(authoritative, deleteSchema);
+            internalDeleteTopic(authoritative);
         }
     }
 
-    protected void internalDeleteTopic(boolean authoritative, boolean deleteSchema) {
+    protected void internalDeleteTopic(boolean authoritative) {
         validateNamespaceOperation(topicName.getNamespaceObject(), NamespaceOperation.DELETE_TOPIC);
         validateTopicOwnership(topicName, authoritative);
 
         try {
-            pulsar().getBrokerService().deleteTopic(topicName.toString(), false, deleteSchema).get();
+            pulsar().getBrokerService().deleteTopic(topicName.toString(), false).get();
             log.info("[{}] Successfully removed topic {}", clientAppId(), topicName);
         } catch (Exception e) {
             Throwable t = e.getCause();

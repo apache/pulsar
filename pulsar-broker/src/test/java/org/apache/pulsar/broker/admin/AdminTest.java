@@ -788,8 +788,11 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
         Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
         // verify permission
-        Map<String, Set<AuthAction>> permission = persistentTopics.getPermissionsOnTopic(property, cluster,
-                namespace, topic);
+        response = mock(AsyncResponse.class);
+        responseCaptor = ArgumentCaptor.forClass(Response.class);
+        persistentTopics.getPermissionsOnTopic(response, property, cluster, namespace, topic);
+        verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
+        Map<String, Set<AuthAction>> permission = (Map<String, Set<AuthAction>>) responseCaptor.getValue();
         assertEquals(permission.get(role), actions);
         // remove permission
         response = mock(AsyncResponse.class);
@@ -799,7 +802,11 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
         // verify removed permission
         Awaitility.await().untilAsserted(() -> {
-            Map<String, Set<AuthAction>> p = persistentTopics.getPermissionsOnTopic(property, cluster, namespace, topic);
+            AsyncResponse response1 = mock(AsyncResponse.class);
+            ArgumentCaptor<Response> responseCaptor1 = ArgumentCaptor.forClass(Response.class);
+            persistentTopics.getPermissionsOnTopic(response1, property, cluster, namespace, topic);
+            verify(response1, timeout(5000).times(1)).resume(responseCaptor1.capture());
+            Map<String, Set<AuthAction>> p = (Map<String, Set<AuthAction>>) responseCaptor1.getValue();
             assertTrue(p.isEmpty());
         });
     }
