@@ -176,6 +176,10 @@ public class NamespaceResources extends BaseResources<Policies> {
             }, operationTimeoutSec);
         }
 
+        public CompletableFuture<Optional<NamespaceIsolationPolicies>> getIsolationDataPoliciesAsync(String cluster) {
+            return getAsync(joinPath(BASE_CLUSTERS_PATH, cluster, NAMESPACE_ISOLATION_POLICIES))
+                    .thenApply(isolationData -> isolationData.map(NamespaceIsolationPolicies::new));
+        }
         public Optional<NamespaceIsolationPolicies> getIsolationDataPolicies(String cluster)
                 throws MetadataStoreException {
             Optional<Map<String, NamespaceIsolationDataImpl>> data =
