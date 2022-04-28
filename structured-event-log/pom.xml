@@ -23,10 +23,9 @@
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
-    <groupId>org.apache.pulsar</groupId>
+    <groupId>com.datastax.oss</groupId>
     <artifactId>pulsar</artifactId>
-    <version>2.10.1-SNAPSHOT</version>
-    <relativePath>..</relativePath>
+    <version>2.10.0.1-SNAPSHOT</version>
   </parent>
 
   <artifactId>structured-event-log</artifactId>

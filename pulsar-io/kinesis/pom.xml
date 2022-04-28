@@ -50,7 +50,7 @@
     </dependency>
 
     <dependency>
-      <groupId>org.apache.pulsar</groupId>
+      <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-functions-instance</artifactId>
       <version>${project.version}</version>
       <scope>test</scope>

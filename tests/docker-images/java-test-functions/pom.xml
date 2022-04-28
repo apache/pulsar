@@ -30,12 +30,12 @@
   <name>Apache Pulsar :: Tests :: Docker Images :: Java Test Functions</name>
   <dependencies>
     <dependency>
-      <groupId>org.apache.pulsar</groupId>
+      <groupId>com.datastax.oss</groupId>
       <artifactId>pulsar-io-core</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
-      <groupId>org.apache.pulsar</groupId>
+      <groupId>com.datastax.oss</groupId>
       <artifactId>pulsar-functions-api</artifactId>
       <version>${project.version}</version>
     </dependency>

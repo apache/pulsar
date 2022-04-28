@@ -52,6 +52,7 @@ import java.util.List;
 import java.util.Optional;
 
 import javax.servlet.DispatcherType;
+import javax.ws.rs.HEAD;
 
 @Slf4j
 public class WorkerServer {
@@ -123,15 +124,6 @@ public class WorkerServer {
 
         if (this.workerConfig.getTlsEnabled()) {
             try {
-<<<<<<< HEAD
-                SslContextFactory sslCtxFactory = SecurityUtility.createSslContextFactory(
-                        this.workerConfig.isTlsAllowInsecureConnection(), this.workerConfig.getTlsTrustCertsFilePath(),
-                        this.workerConfig.getTlsCertificateFilePath(), this.workerConfig.getTlsKeyFilePath(),
-                        this.workerConfig.isTlsRequireTrustedClientCertOnConnect(),
-                        true,
-                        this.workerConfig.getTlsCertRefreshCheckDurationSec());
-                httpsConnector = new ServerConnector(server, 1, 1, sslCtxFactory);
-=======
                 SslContextFactory sslCtxFactory;
                 if (workerConfig.isTlsEnabledWithKeyStore()) {
                     sslCtxFactory = KeyStoreSSLContext.createSslContextFactory(
@@ -159,7 +151,6 @@ public class WorkerServer {
                             workerConfig.getTlsCertRefreshCheckDurationSec());
                 }
                 httpsConnector = new ServerConnector(server, sslCtxFactory);
->>>>>>> a4103960a4e (Add KeyStore support in WebSocket, Function Worker HTTPS Servers  (#15084))
                 httpsConnector.setPort(this.workerConfig.getWorkerPortTls());
                 connectors.add(httpsConnector);
             } catch (Exception e) {
