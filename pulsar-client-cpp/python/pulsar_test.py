@@ -1183,7 +1183,7 @@ class PulsarTest(TestCase):
         client = Client(self.serviceUrl, listener_name='test')
         try:
             producer = client.create_producer("persistent://public/default/partitioned_topic_name_test")
-            self.assertTrue(False)
+            self.fail()
         except pulsar.PulsarException:
             # Expected
             pass
