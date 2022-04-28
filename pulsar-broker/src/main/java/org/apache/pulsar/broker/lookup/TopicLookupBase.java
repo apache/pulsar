@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.lookup;
 
-import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.pulsar.common.protocol.Commands.newLookupErrorResponse;
 import static org.apache.pulsar.common.protocol.Commands.newLookupResponse;
 import io.netty.buffer.ByteBuf;
@@ -48,6 +47,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.util.Codec;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -56,97 +56,81 @@ public class TopicLookupBase extends PulsarWebResource {
     private static final String LOOKUP_PATH_V1 = "/lookup/v2/destination/";
     private static final String LOOKUP_PATH_V2 = "/lookup/v2/topic/";
 
-    protected void internalLookupTopicAsync(TopicName topicName, boolean authoritative,
-                                            AsyncResponse asyncResponse, String listenerName) {
+    protected CompletableFuture<LookupData> internalLookupTopicAsync(TopicName topicName, boolean authoritative,
+                                                                     String listenerName) {
         if (!pulsar().getBrokerService().getLookupRequestSemaphore().tryAcquire()) {
             log.warn("No broker was found available for topic {}", topicName);
-            asyncResponse.resume(new WebApplicationException(Response.Status.SERVICE_UNAVAILABLE));
-            return;
+            return FutureUtil.failedFuture(new WebApplicationException(Response.Status.SERVICE_UNAVAILABLE));
         }
-
-        try {
-            validateClusterOwnership(topicName.getCluster());
-            validateAdminAndClientPermission(topicName);
-            validateGlobalNamespaceOwnership(topicName.getNamespaceObject());
-        } catch (WebApplicationException we) {
-            // Validation checks failed
-            log.error("Validation check failed: {}", we.getMessage());
-            completeLookupResponseExceptionally(asyncResponse, we);
-            return;
-        } catch (Throwable t) {
-            // Validation checks failed with unknown error
-            log.error("Validation check failed: {}", t.getMessage(), t);
-            completeLookupResponseExceptionally(asyncResponse, new RestException(t));
-            return;
-        }
-
-        // Currently, it's hard to check the non-persistent-non-partitioned topic, because it only exists in the broker,
-        // it doesn't have metadata. If the topic is non-persistent and non-partitioned, we'll return the true flag.
-        CompletableFuture<Boolean> existFuture = pulsar().getBrokerService().isAllowAutoTopicCreation(topicName)
-                || (!topicName.isPersistent() && !topicName.isPartitioned())
-                ? CompletableFuture.completedFuture(true) : pulsar().getNamespaceService().checkTopicExists(topicName);
-        existFuture.thenAccept(exist -> {
-            if (!exist) {
-                completeLookupResponseExceptionally(asyncResponse, new RestException(Response.Status.NOT_FOUND,
-                        "Topic not found."));
-                return;
-            }
-            CompletableFuture<Optional<LookupResult>> lookupFuture = pulsar().getNamespaceService()
-                    .getBrokerServiceUrlAsync(topicName,
-                            LookupOptions.builder().advertisedListenerName(listenerName)
-                                    .authoritative(authoritative).loadTopicsInBundle(false).build());
-
-            lookupFuture.thenAccept(optionalResult -> {
-                if (optionalResult == null || !optionalResult.isPresent()) {
-                    log.warn("No broker was found available for topic {}", topicName);
-                    completeLookupResponseExceptionally(asyncResponse,
-                            new WebApplicationException(Response.Status.SERVICE_UNAVAILABLE));
-                    return;
-                }
-
-                LookupResult result = optionalResult.get();
-                // We have found either a broker that owns the topic, or a broker to
-                // which we should redirect the client to
-                if (result.isRedirect()) {
-                    boolean newAuthoritative = result.isAuthoritativeRedirect();
-                    URI redirect;
-                    try {
-                        String redirectUrl = isRequestHttps() ? result.getLookupData().getHttpUrlTls()
-                                : result.getLookupData().getHttpUrl();
-                        checkNotNull(redirectUrl, "Redirected cluster's service url is not configured");
-                        String lookupPath = topicName.isV2() ? LOOKUP_PATH_V2 : LOOKUP_PATH_V1;
-                        String path = String.format("%s%s%s?authoritative=%s",
-                                redirectUrl, lookupPath, topicName.getLookupName(), newAuthoritative);
-                        path = listenerName == null ? path : path + "&listenerName=" + listenerName;
-                        redirect = new URI(path);
-                    } catch (URISyntaxException | NullPointerException e) {
-                        log.error("Error in preparing redirect url for {}: {}", topicName, e.getMessage(), e);
-                        completeLookupResponseExceptionally(asyncResponse, e);
-                        return;
+        return validateClusterOwnershipAsync(topicName.getCluster())
+                .thenCompose(__ -> validateGlobalNamespaceOwnershipAsync(topicName.getNamespaceObject()))
+                .thenCompose(__ -> validateTopicOperationAsync(topicName, TopicOperation.LOOKUP, null))
+                .thenCompose(__ -> {
+                    // Currently, it's hard to check the non-persistent-non-partitioned topic, because it only exists
+                    // in the broker, it doesn't have metadata. If the topic is non-persistent and non-partitioned,
+                    // we'll return the true flag.
+                    CompletableFuture<Boolean> existFuture = pulsar().getBrokerService()
+                            .isAllowAutoTopicCreation(topicName)
+                            || (!topicName.isPersistent() && !topicName.isPartitioned())
+                            ? CompletableFuture.completedFuture(true)
+                            : pulsar().getNamespaceService().checkTopicExists(topicName);
+                    return existFuture;
+                })
+                .thenCompose(exist -> {
+                    if (!exist) {
+                        throw new RestException(Response.Status.NOT_FOUND, "Topic not found.");
                     }
-                    if (log.isDebugEnabled()) {
-                        log.debug("Redirect lookup for topic {} to {}", topicName, redirect);
-                    }
-                    completeLookupResponseExceptionally(asyncResponse,
-                            new WebApplicationException(Response.temporaryRedirect(redirect).build()));
+                    CompletableFuture<Optional<LookupResult>> lookupFuture = pulsar().getNamespaceService()
+                            .getBrokerServiceUrlAsync(topicName,
+                                    LookupOptions.builder()
+                                            .advertisedListenerName(listenerName)
+                                            .authoritative(authoritative)
+                                            .loadTopicsInBundle(false)
+                                            .build());
 
-                } else {
-                    // Found broker owning the topic
-                    if (log.isDebugEnabled()) {
-                        log.debug("Lookup succeeded for topic {} -- broker: {}", topicName, result.getLookupData());
-                    }
-                    completeLookupResponseSuccessfully(asyncResponse, result.getLookupData());
-                }
-            }).exceptionally(exception -> {
-                log.warn("Failed to lookup broker for topic {}: {}", topicName, exception.getMessage(), exception);
-                completeLookupResponseExceptionally(asyncResponse, exception);
-                return null;
-            });
-        }).exceptionally(e -> {
-            log.warn("Failed to check exist for topic {}: {} when lookup", topicName, e.getMessage(), e);
-            completeLookupResponseExceptionally(asyncResponse, e);
-            return null;
-        });
+                    return lookupFuture.thenApply(optionalResult -> {
+                        if (optionalResult == null || !optionalResult.isPresent()) {
+                            log.warn("No broker was found available for topic {}", topicName);
+                            throw new WebApplicationException(Response.Status.SERVICE_UNAVAILABLE);
+                        }
+
+                        LookupResult result = optionalResult.get();
+                        // We have found either a broker that owns the topic, or a broker to
+                        // which we should redirect the client to
+                        if (result.isRedirect()) {
+                            boolean newAuthoritative = result.isAuthoritativeRedirect();
+                            URI redirect;
+                            try {
+                                String redirectUrl = isRequestHttps() ? result.getLookupData().getHttpUrlTls()
+                                        : result.getLookupData().getHttpUrl();
+                                if (redirectUrl == null) {
+                                    log.error("Redirected cluster's service url is not configured");
+                                    throw new RestException(Response.Status.PRECONDITION_FAILED,
+                                            "Redirected cluster's service url is not configured.");
+                                }
+                                String lookupPath = topicName.isV2() ? LOOKUP_PATH_V2 : LOOKUP_PATH_V1;
+                                String path = String.format("%s%s%s?authoritative=%s",
+                                        redirectUrl, lookupPath, topicName.getLookupName(), newAuthoritative);
+                                path = listenerName == null ? path : path + "&listenerName=" + listenerName;
+                                redirect = new URI(path);
+                            } catch (URISyntaxException e) {
+                                log.error("Error in preparing redirect url for {}: {}", topicName, e.getMessage(), e);
+                                throw new RestException(Response.Status.PRECONDITION_FAILED, e.getMessage());
+                            }
+                            if (log.isDebugEnabled()) {
+                                log.debug("Redirect lookup for topic {} to {}", topicName, redirect);
+                            }
+                            throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
+                        } else {
+                            // Found broker owning the topic
+                            if (log.isDebugEnabled()) {
+                                log.debug("Lookup succeeded for topic {} -- broker: {}", topicName,
+                                        result.getLookupData());
+                            }
+                            return result.getLookupData();
+                        }
+                    });
+                });
     }
 
     private void validateAdminAndClientPermission(TopicName topic) throws RestException, Exception {
@@ -347,14 +331,10 @@ public class TopicLookupBase extends PulsarWebResource {
         return lookupfuture;
     }
 
-    private void completeLookupResponseExceptionally(AsyncResponse asyncResponse, Throwable t) {
+    protected void completeLookupResponseExceptionally(AsyncResponse asyncResponse, Throwable t) {
         pulsar().getBrokerService().getLookupRequestSemaphore().release();
-        asyncResponse.resume(t);
-    }
-
-    private void completeLookupResponseSuccessfully(AsyncResponse asyncResponse, LookupData lookupData) {
-        pulsar().getBrokerService().getLookupRequestSemaphore().release();
-        asyncResponse.resume(lookupData);
+        Throwable cause = FutureUtil.unwrapCompletionException(t);
+        asyncResponse.resume(cause);
     }
 
     protected TopicName getTopicName(String topicDomain, String tenant, String cluster, String namespace,
