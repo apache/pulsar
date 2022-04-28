@@ -340,54 +340,50 @@ public class ClustersBase extends AdminResource {
             @ApiResponse(code = 412, message = "Cluster is not empty."),
             @ApiResponse(code = 500, message = "Internal server error.")
     })
-    public void deleteCluster(
-        @ApiParam(
-            value = "The cluster name",
-            required = true
-        )
-        @PathParam("cluster") String cluster
-    ) {
-        validateSuperUserAccess();
-        validatePoliciesReadOnlyAccess();
+    public void deleteCluster(@Suspended AsyncResponse asyncResponse,
+                              @ApiParam(value = "The cluster name", required = true)
+                              @PathParam("cluster") String cluster) {
+        validateSuperUserAccessAsync()
+                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
+                .thenCompose(__ -> internalDeleteClusterAsync(cluster))
+                .thenAccept(__ -> {
+                    log.info("[{}] Deleted cluster {}", clientAppId(), cluster);
+                    asyncResponse.resume(Response.ok().build());
+                }).exceptionally(ex -> {
+                    Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+                    if (realCause instanceof NotFoundException) {
+                        log.warn("[{}] Failed to delete cluster {} - Does not exist", clientAppId(), cluster);
+                        asyncResponse.resume(new RestException(Status.NOT_FOUND, "Cluster does not exist"));
+                        return null;
+                    }
+                    log.error("[{}] Failed to delete cluster {}", clientAppId(), cluster, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
+    }
 
+    private CompletableFuture<Void> internalDeleteClusterAsync(String cluster) {
         // Check that the cluster is not used by any tenant (eg: no namespaces provisioned there)
-        boolean isClusterUsed = false;
-        try {
-            isClusterUsed = pulsar().getPulsarResources().getClusterResources().isClusterUsed(cluster);
-
-            // check the namespaceIsolationPolicies associated with the cluster
-            Optional<NamespaceIsolationPolicies> nsIsolationPolicies =
-                    namespaceIsolationPolicies().getIsolationDataPolicies(cluster);
-
-            // Need to delete the isolation policies if present
-            if (nsIsolationPolicies.isPresent()) {
-                if (nsIsolationPolicies.get().getPolicies().isEmpty()) {
-                    namespaceIsolationPolicies().deleteIsolationData(cluster);
-                } else {
-                    isClusterUsed = true;
-                }
-            }
-        } catch (Exception e) {
-            log.error("[{}] Failed to get cluster usage {}", clientAppId(), cluster, e);
-            throw new RestException(e);
-        }
-
-        if (isClusterUsed) {
-            log.warn("[{}] Failed to delete cluster {} - Cluster not empty", clientAppId(), cluster);
-            throw new RestException(Status.PRECONDITION_FAILED, "Cluster not empty");
-        }
-
-        try {
-            clusterResources().getFailureDomainResources().deleteFailureDomains(cluster);
-            clusterResources().deleteCluster(cluster);
-            log.info("[{}] Deleted cluster {}", clientAppId(), cluster);
-        } catch (NotFoundException e) {
-            log.warn("[{}] Failed to delete cluster {} - Does not exist", clientAppId(), cluster);
-            throw new RestException(Status.NOT_FOUND, "Cluster does not exist");
-        } catch (Exception e) {
-            log.error("[{}] Failed to delete cluster {}", clientAppId(), cluster, e);
-            throw new RestException(e);
-        }
+        return pulsar().getPulsarResources().getClusterResources().isClusterUsedAsync(cluster)
+                .thenCompose(isClusterUsed -> {
+                    if (isClusterUsed) {
+                        throw new RestException(Status.PRECONDITION_FAILED, "Cluster not empty");
+                    }
+                    // check the namespaceIsolationPolicies associated with the cluster
+                    return namespaceIsolationPolicies().getIsolationDataPoliciesAsync(cluster);
+                }).thenCompose(nsIsolationPolicies -> {
+                    if (!nsIsolationPolicies.isPresent()) {
+                        return CompletableFuture.completedFuture(null);
+                    }
+                    if (!nsIsolationPolicies.get().getPolicies().isEmpty()) {
+                        throw new RestException(Status.PRECONDITION_FAILED, "Cluster not empty");
+                    }
+                    // Need to delete the isolation policies if present
+                    return namespaceIsolationPolicies().deleteIsolationDataAsync(cluster)
+                            .thenCompose(__ -> clusterResources()
+                                    .getFailureDomainResources().deleteFailureDomainsAsync(cluster))
+                            .thenCompose(__ -> clusterResources().deleteClusterAsync(cluster));
+                });
     }
 
     @GET
