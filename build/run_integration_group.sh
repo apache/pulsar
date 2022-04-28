@@ -95,7 +95,7 @@ test_group_shade_build() {
 }
 
 test_group_shade_run() {
-  mvn_run_integration_test --skip-build-deps "$@" -DShadeTests -DtestForkCount=1 -DtestReuseFork=false
+  mvn_run_integration_test --skip-build-deps "$@" -DShadeTests -DtestForkCount=1 -DtestReuseFork=false -Dmaven.compiler.source=8 -Dmaven.compiler.target=8
 }
 
 test_group_backwards_compat() {
