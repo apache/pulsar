@@ -64,9 +64,6 @@ endif()
 set(PYTHON_WRAPPER_LIBS ${Boost_PYTHON_LIBRARY}
                         ${Boost_PYTHON3_LIBRARY}
                         ${Boost_PYTHON37-MT_LIBRARY}
-                        ${Boost_PYTHON34_LIBRARY}
-                        ${Boost_PYTHON35_LIBRARY}
-                        ${Boost_PYTHON36_LIBRARY}
                         ${Boost_PYTHON38_LIBRARY}
                         ${Boost_PYTHON39_LIBRARY}
                         ${Boost_PYTHON310_LIBRARY}

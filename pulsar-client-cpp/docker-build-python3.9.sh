@@ -30,7 +30,7 @@ cd $ROOT_DIR/pulsar-client-cpp
 PYTHON_VERSION="3.9"
 PYTHON_SPEC="cp39-cp39"
 ARCH="x86_64"
-IMAGE_NAME=pulsar-build:manylinux-$PYTHON_SPEC-$ARCH
+IMAGE_NAME=pulsar-build:manylinux2014-$PYTHON_SPEC-$ARCH
 
 docker build -t $IMAGE_NAME ./docker/manylinux2014 \
         --build-arg PYTHON_VERSION=$PYTHON_VERSION \
