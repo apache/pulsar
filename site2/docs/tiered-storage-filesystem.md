@@ -522,29 +522,28 @@ Execute the following commands in the repository where you download Pulsar tarba
 
     ![](assets/FileSystem-8.png)
 
-## Read offloaded data from fileSystem
+## Read offloaded data from filesystem
 
-This section provides detailed instructions about how to read data out as Ledger Entry in the file system.
-
-* The data was offloaded as `MapFile` to the following path:
+* The offloaded data is stored as `MapFile` in the following new path of the filesystem:
   ```properties
     path = storageBasePath + "/" + managedLedgerName + "/" + ledgerId + "-" + uuid.toString();
   ```
-    1. storageBasePath is the value of `hadoop.tmp.dir`, configured in `broker.conf` or `filesystem_offload_core_site.xml`
-    2. managedLedgerName is the name of the persistentTopic manager Ledger
+    * `storageBasePath` is the value of `hadoop.tmp.dir`, which is configured in `broker.conf` or `filesystem_offload_core_site.xml`.
+    * `managedLedgerName` is the ledger name of the persistentTopic manager.
   ```shell
      managedLedgerName of persistent://public/default/topics-name is public/default/persistent/topics-name.
   ```
-  Can use the following method to get the managedLedgerName:
+  You can use the following method to get `managedLedgerName`:
   ```shell
      String managedLedgerName = TopicName.get("persistent://public/default/topics-name").getPersistenceNamingEncoding(); 
   ```
 
-* Create a reader to read `MapFile` according to the above path and the `configuration` of the file system
+To read data out as ledger entries from the filesystem, complete the following steps.
+1. Create a reader to read both `MapFile` with a new path and the `configuration` of the filesystem.
   ```shell
      MapFile.Reader reader = new MapFile.Reader(new Path(dataFilePath),  configuration); 
   ```
-* Read data as `LedgerEntry` from FileSystem.
+2. Read the data as `LedgerEntry` from the filesystem.
   ```java
      LongWritable key = new LongWritable();
      BytesWritable value = new BytesWritable();
@@ -557,7 +556,7 @@ This section provides detailed instructions about how to read data out as Ledger
      buf.writeBytes(value.copyBytes());
      LedgerEntryImpl ledgerEntry = LedgerEntryImpl.create(ledgerId, entryId, length, buf);
   ```
-* Deserialize the `ledgerEntry` to `Message`.
+. Deserialize the `LedgerEntry` to `Message`.
   ```java
         ByteBuf metadataAndPayload = ledgerEntry.getDataBuffer();
         long totalSize = metadataAndPayload.readableBytes();
