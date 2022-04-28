@@ -556,7 +556,7 @@ To read data out as ledger entries from the filesystem, complete the following s
      buf.writeBytes(value.copyBytes());
      LedgerEntryImpl ledgerEntry = LedgerEntryImpl.create(ledgerId, entryId, length, buf);
   ```
-. Deserialize the `LedgerEntry` to `Message`.
+3. Deserialize the `LedgerEntry` to `Message`.
   ```java
         ByteBuf metadataAndPayload = ledgerEntry.getDataBuffer();
         long totalSize = metadataAndPayload.readableBytes();
