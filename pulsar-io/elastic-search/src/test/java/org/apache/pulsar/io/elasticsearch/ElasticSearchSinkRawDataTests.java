@@ -163,6 +163,7 @@ public abstract class ElasticSearchSinkRawDataTests extends ElasticSearchTestBas
         map.put("indexName", "test-index");
         map.put("bulkEnabled", conf.isBulkEnabled());
         map.put("bulkActions", 1);
+        map.put("maxRetries", 1);
         map.put("stripNonPrintableCharacters", conf.isStripNonPrintableCharacters());
         sink.open(map, mockSinkContext);
 
