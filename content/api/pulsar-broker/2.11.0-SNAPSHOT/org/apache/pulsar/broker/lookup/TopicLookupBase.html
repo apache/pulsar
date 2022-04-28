@@ -26,7 +26,7 @@
     catch(err) {
     }
 //-->
-var data = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":9,"i5":9};
+var data = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":10,"i5":9,"i6":9};
 var tabs = {65535:["t0","All Methods"],1:["t1","Static Methods"],2:["t2","Instance Methods"],8:["t4","Concrete Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -201,6 +201,12 @@ extends <a href="../web/PulsarWebResource.html" title="class in org.apache.pulsa
 <th class="colLast" scope="col">Description</th>
 </tr>
 <tr id="i0" class="altColor">
+<td class="colFirst"><code>protected void</code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#completeLookupResponseExceptionally(javax.ws.rs.container.AsyncResponse,java.lang.Throwable)">completeLookupResponseExceptionally</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
+                                   java.lang.Throwable&nbsp;t)</code></th>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr id="i1" class="rowColor">
 <td class="colFirst"><code>protected org.apache.pulsar.common.naming.TopicName</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getTopicName(java.lang.String,java.lang.String,java.lang.String,java.lang.String)">getTopicName</a></span>&#8203;(java.lang.String&nbsp;topicDomain,
             java.lang.String&nbsp;tenant,
@@ -208,7 +214,7 @@ extends <a href="../web/PulsarWebResource.html" title="class in org.apache.pulsa
             java.lang.String&nbsp;encodedTopic)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i1" class="rowColor">
+<tr id="i2" class="altColor">
 <td class="colFirst"><code>protected org.apache.pulsar.common.naming.TopicName</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getTopicName(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String)">getTopicName</a></span>&#8203;(java.lang.String&nbsp;topicDomain,
             java.lang.String&nbsp;tenant,
@@ -217,20 +223,19 @@ extends <a href="../web/PulsarWebResource.html" title="class in org.apache.pulsa
             java.lang.String&nbsp;encodedTopic)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i2" class="altColor">
+<tr id="i3" class="rowColor">
 <td class="colFirst"><code>protected java.lang.String</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#internalGetNamespaceBundle(org.apache.pulsar.common.naming.TopicName)">internalGetNamespaceBundle</a></span>&#8203;(org.apache.pulsar.common.naming.TopicName&nbsp;topicName)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i3" class="rowColor">
-<td class="colFirst"><code>protected void</code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#internalLookupTopicAsync(org.apache.pulsar.common.naming.TopicName,boolean,javax.ws.rs.container.AsyncResponse,java.lang.String)">internalLookupTopicAsync</a></span>&#8203;(org.apache.pulsar.common.naming.TopicName&nbsp;topicName,
+<tr id="i4" class="altColor">
+<td class="colFirst"><code>protected java.util.concurrent.CompletableFuture&lt;org.apache.pulsar.common.lookup.data.LookupData&gt;</code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#internalLookupTopicAsync(org.apache.pulsar.common.naming.TopicName,boolean,java.lang.String)">internalLookupTopicAsync</a></span>&#8203;(org.apache.pulsar.common.naming.TopicName&nbsp;topicName,
                         boolean&nbsp;authoritative,
-                        javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                         java.lang.String&nbsp;listenerName)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i4" class="altColor">
+<tr id="i5" class="rowColor">
 <td class="colFirst"><code>static java.util.concurrent.CompletableFuture&lt;io.netty.buffer.ByteBuf&gt;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#lookupTopicAsync(org.apache.pulsar.broker.PulsarService,org.apache.pulsar.common.naming.TopicName,boolean,java.lang.String,org.apache.pulsar.broker.authentication.AuthenticationDataSource,long)">lookupTopicAsync</a></span>&#8203;(<a href="../PulsarService.html" title="class in org.apache.pulsar.broker">PulsarService</a>&nbsp;pulsarService,
                 org.apache.pulsar.common.naming.TopicName&nbsp;topicName,
@@ -242,7 +247,7 @@ extends <a href="../web/PulsarWebResource.html" title="class in org.apache.pulsa
 <div class="block">Lookup broker-service address for a given namespace-bundle which contains given topic.</div>
 </td>
 </tr>
-<tr id="i5" class="rowColor">
+<tr id="i6" class="altColor">
 <td class="colFirst"><code>static java.util.concurrent.CompletableFuture&lt;io.netty.buffer.ByteBuf&gt;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#lookupTopicAsync(org.apache.pulsar.broker.PulsarService,org.apache.pulsar.common.naming.TopicName,boolean,java.lang.String,org.apache.pulsar.broker.authentication.AuthenticationDataSource,long,java.lang.String)">lookupTopicAsync</a></span>&#8203;(<a href="../PulsarService.html" title="class in org.apache.pulsar.broker">PulsarService</a>&nbsp;pulsarService,
                 org.apache.pulsar.common.naming.TopicName&nbsp;topicName,
@@ -305,16 +310,15 @@ extends <a href="../web/PulsarWebResource.html" title="class in org.apache.pulsa
 <!--   -->
 </a>
 <h3>Method Detail</h3>
-<a id="internalLookupTopicAsync(org.apache.pulsar.common.naming.TopicName,boolean,javax.ws.rs.container.AsyncResponse,java.lang.String)">
+<a id="internalLookupTopicAsync(org.apache.pulsar.common.naming.TopicName,boolean,java.lang.String)">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>internalLookupTopicAsync</h4>
-<pre class="methodSignature">protected&nbsp;void&nbsp;internalLookupTopicAsync&#8203;(org.apache.pulsar.common.naming.TopicName&nbsp;topicName,
-                                        boolean&nbsp;authoritative,
-                                        javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
-                                        java.lang.String&nbsp;listenerName)</pre>
+<pre class="methodSignature">protected&nbsp;java.util.concurrent.CompletableFuture&lt;org.apache.pulsar.common.lookup.data.LookupData&gt;&nbsp;internalLookupTopicAsync&#8203;(org.apache.pulsar.common.naming.TopicName&nbsp;topicName,
+                                                                                                                           boolean&nbsp;authoritative,
+                                                                                                                           java.lang.String&nbsp;listenerName)</pre>
 </li>
 </ul>
 <a id="internalGetNamespaceBundle(org.apache.pulsar.common.naming.TopicName)">
@@ -394,6 +398,16 @@ extends <a href="../web/PulsarWebResource.html" title="class in org.apache.pulsa
 <dd><code>advertisedListenerName</code> - </dd>
 <dt><span class="returnLabel">Returns:</span></dt>
 </dl>
+</li>
+</ul>
+<a id="completeLookupResponseExceptionally(javax.ws.rs.container.AsyncResponse,java.lang.Throwable)">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>completeLookupResponseExceptionally</h4>
+<pre class="methodSignature">protected&nbsp;void&nbsp;completeLookupResponseExceptionally&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
+                                                   java.lang.Throwable&nbsp;t)</pre>
 </li>
 </ul>
 <a id="getTopicName(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String)">

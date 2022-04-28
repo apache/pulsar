@@ -26,7 +26,7 @@
     catch(err) {
     }
 //-->
-var data = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":10,"i5":10,"i6":10,"i7":10,"i8":10,"i9":10,"i10":10,"i11":10,"i12":10};
+var data = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":10,"i5":10,"i6":10,"i7":10,"i8":10,"i9":10,"i10":10,"i11":10,"i12":10,"i13":10};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],8:["t4","Concrete Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -215,44 +215,49 @@ extends java.lang.Object</pre>
 </td>
 </tr>
 <tr id="i5" class="rowColor">
+<td class="colFirst"><code>java.util.Map&lt;<a href="../../common/naming/NamespaceBundle.html" title="class in org.apache.pulsar.common.naming">NamespaceBundle</a>,&#8203;java.util.concurrent.CompletableFuture&lt;<a href="OwnedBundle.html" title="class in org.apache.pulsar.broker.namespace">OwnedBundle</a>&gt;&gt;</code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getOwnedBundlesAsync()">getOwnedBundlesAsync</a></span>()</code></th>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr id="i6" class="altColor">
 <td class="colFirst"><code>java.util.concurrent.CompletableFuture&lt;java.util.Optional&lt;<a href="NamespaceEphemeralData.html" title="class in org.apache.pulsar.broker.namespace">NamespaceEphemeralData</a>&gt;&gt;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getOwnerAsync(org.apache.pulsar.common.naming.NamespaceBundle)">getOwnerAsync</a></span>&#8203;(<a href="../../common/naming/NamespaceBundle.html" title="class in org.apache.pulsar.common.naming">NamespaceBundle</a>&nbsp;suName)</code></th>
 <td class="colLast">
 <div class="block">Method to get the current owner of the <code>ServiceUnit</code>.</div>
 </td>
 </tr>
-<tr id="i6" class="altColor">
+<tr id="i7" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#invalidateLocalOwnerCache()">invalidateLocalOwnerCache</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i7" class="rowColor">
+<tr id="i8" class="altColor">
 <td class="colFirst"><code>boolean</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#isNamespaceBundleOwned(org.apache.pulsar.common.naming.NamespaceBundle)">isNamespaceBundleOwned</a></span>&#8203;(<a href="../../common/naming/NamespaceBundle.html" title="class in org.apache.pulsar.common.naming">NamespaceBundle</a>&nbsp;bundle)</code></th>
 <td class="colLast">
 <div class="block">Checked whether a particular bundle is currently owned by this broker.</div>
 </td>
 </tr>
-<tr id="i8" class="altColor">
+<tr id="i9" class="rowColor">
 <td class="colFirst"><code>boolean</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#refreshSelfOwnerInfo()">refreshSelfOwnerInfo</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i9" class="rowColor">
+<tr id="i10" class="altColor">
 <td class="colFirst"><code>java.util.concurrent.CompletableFuture&lt;java.lang.Void&gt;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#removeOwnership(org.apache.pulsar.common.naming.NamespaceBundle)">removeOwnership</a></span>&#8203;(<a href="../../common/naming/NamespaceBundle.html" title="class in org.apache.pulsar.common.naming">NamespaceBundle</a>&nbsp;bundle)</code></th>
 <td class="colLast">
 <div class="block">Method to remove the ownership of local broker on the <code>NamespaceBundle</code>, if owned.</div>
 </td>
 </tr>
-<tr id="i10" class="altColor">
+<tr id="i11" class="rowColor">
 <td class="colFirst"><code>java.util.concurrent.CompletableFuture&lt;java.lang.Void&gt;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#removeOwnership(org.apache.pulsar.common.naming.NamespaceBundles)">removeOwnership</a></span>&#8203;(<a href="../../common/naming/NamespaceBundles.html" title="class in org.apache.pulsar.common.naming">NamespaceBundles</a>&nbsp;bundles)</code></th>
 <td class="colLast">
 <div class="block">Method to remove ownership of all owned bundles.</div>
 </td>
 </tr>
-<tr id="i11" class="rowColor">
+<tr id="i12" class="altColor">
 <td class="colFirst"><code>java.util.concurrent.CompletableFuture&lt;<a href="NamespaceEphemeralData.html" title="class in org.apache.pulsar.broker.namespace">NamespaceEphemeralData</a>&gt;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#tryAcquiringOwnership(org.apache.pulsar.common.naming.NamespaceBundle)">tryAcquiringOwnership</a></span>&#8203;(<a href="../../common/naming/NamespaceBundle.html" title="class in org.apache.pulsar.common.naming">NamespaceBundle</a>&nbsp;bundle)</code></th>
 <td class="colLast">
@@ -260,7 +265,7 @@ extends java.lang.Object</pre>
  or set the local broker as the owner if absent.</div>
 </td>
 </tr>
-<tr id="i12" class="altColor">
+<tr id="i13" class="rowColor">
 <td class="colFirst"><code>java.util.concurrent.CompletableFuture&lt;java.lang.Void&gt;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#updateBundleState(org.apache.pulsar.common.naming.NamespaceBundle,boolean)">updateBundleState</a></span>&#8203;(<a href="../../common/naming/NamespaceBundle.html" title="class in org.apache.pulsar.common.naming">NamespaceBundle</a>&nbsp;bundle,
                  boolean&nbsp;isActive)</code></th>
@@ -406,6 +411,15 @@ extends java.lang.Object</pre>
 <dt><span class="returnLabel">Returns:</span></dt>
 <dd>a map of owned <code>ServiceUnit</code> objects</dd>
 </dl>
+</li>
+</ul>
+<a id="getOwnedBundlesAsync()">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>getOwnedBundlesAsync</h4>
+<pre class="methodSignature">public&nbsp;java.util.Map&lt;<a href="../../common/naming/NamespaceBundle.html" title="class in org.apache.pulsar.common.naming">NamespaceBundle</a>,&#8203;java.util.concurrent.CompletableFuture&lt;<a href="OwnedBundle.html" title="class in org.apache.pulsar.broker.namespace">OwnedBundle</a>&gt;&gt;&nbsp;getOwnedBundlesAsync()</pre>
 </li>
 </ul>
 <a id="isNamespaceBundleOwned(org.apache.pulsar.common.naming.NamespaceBundle)">

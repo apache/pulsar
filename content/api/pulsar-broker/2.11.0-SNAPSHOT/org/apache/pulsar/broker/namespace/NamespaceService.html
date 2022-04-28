@@ -380,8 +380,8 @@ implements java.lang.AutoCloseable</pre>
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr id="i21" class="rowColor">
-<td class="colFirst"><code>java.util.Map&lt;java.lang.String,&#8203;org.apache.pulsar.common.policies.data.NamespaceOwnershipStatus&gt;</code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getOwnedNameSpacesStatus()">getOwnedNameSpacesStatus</a></span>()</code></th>
+<td class="colFirst"><code>java.util.concurrent.CompletableFuture&lt;java.util.Map&lt;java.lang.String,&#8203;org.apache.pulsar.common.policies.data.NamespaceOwnershipStatus&gt;&gt;</code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getOwnedNameSpacesStatusAsync()">getOwnedNameSpacesStatusAsync</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr id="i22" class="altColor">
@@ -878,18 +878,13 @@ implements java.lang.AutoCloseable</pre>
 <pre class="methodSignature">public&nbsp;java.util.concurrent.CompletableFuture&lt;java.lang.Boolean&gt;&nbsp;isNamespaceBundleOwned&#8203;(<a href="../../common/naming/NamespaceBundle.html" title="class in org.apache.pulsar.common.naming">NamespaceBundle</a>&nbsp;bundle)</pre>
 </li>
 </ul>
-<a id="getOwnedNameSpacesStatus()">
+<a id="getOwnedNameSpacesStatusAsync()">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
-<h4>getOwnedNameSpacesStatus</h4>
-<pre class="methodSignature">public&nbsp;java.util.Map&lt;java.lang.String,&#8203;org.apache.pulsar.common.policies.data.NamespaceOwnershipStatus&gt;&nbsp;getOwnedNameSpacesStatus()
-                                                                                                                               throws java.lang.Exception</pre>
-<dl>
-<dt><span class="throwsLabel">Throws:</span></dt>
-<dd><code>java.lang.Exception</code></dd>
-</dl>
+<h4>getOwnedNameSpacesStatusAsync</h4>
+<pre class="methodSignature">public&nbsp;java.util.concurrent.CompletableFuture&lt;java.util.Map&lt;java.lang.String,&#8203;org.apache.pulsar.common.policies.data.NamespaceOwnershipStatus&gt;&gt;&nbsp;getOwnedNameSpacesStatusAsync()</pre>
 </li>
 </ul>
 <a id="isNamespaceBundleDisabled(org.apache.pulsar.common.naming.NamespaceBundle)">

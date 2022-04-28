@@ -221,13 +221,13 @@ extends <a href="../TopicLookupBase.html" title="class in org.apache.pulsar.brok
 </tr>
 <tr id="i1" class="rowColor">
 <td class="colFirst"><code>void</code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#lookupTopicAsync(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,boolean,javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String)">lookupTopicAsync</a></span>&#8203;(java.lang.String&nbsp;topicDomain,
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#lookupTopicAsync(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,boolean,java.lang.String,java.lang.String)">lookupTopicAsync</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
+                java.lang.String&nbsp;topicDomain,
                 java.lang.String&nbsp;property,
                 java.lang.String&nbsp;cluster,
                 java.lang.String&nbsp;namespace,
                 java.lang.String&nbsp;encodedTopic,
                 boolean&nbsp;authoritative,
-                javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                 java.lang.String&nbsp;listenerName,
                 java.lang.String&nbsp;listenerNameHeader)</code></th>
 <td class="colLast">&nbsp;</td>
@@ -238,7 +238,7 @@ extends <a href="../TopicLookupBase.html" title="class in org.apache.pulsar.brok
 <!--   -->
 </a>
 <h3>Methods inherited from class&nbsp;org.apache.pulsar.broker.lookup.<a href="../TopicLookupBase.html" title="class in org.apache.pulsar.broker.lookup">TopicLookupBase</a></h3>
-<code><a href="../TopicLookupBase.html#getTopicName(java.lang.String,java.lang.String,java.lang.String,java.lang.String)">getTopicName</a>, <a href="../TopicLookupBase.html#getTopicName(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String)">getTopicName</a>, <a href="../TopicLookupBase.html#internalGetNamespaceBundle(org.apache.pulsar.common.naming.TopicName)">internalGetNamespaceBundle</a>, <a href="../TopicLookupBase.html#internalLookupTopicAsync(org.apache.pulsar.common.naming.TopicName,boolean,javax.ws.rs.container.AsyncResponse,java.lang.String)">internalLookupTopicAsync</a>, <a href="../TopicLookupBase.html#lookupTopicAsync(org.apache.pulsar.broker.PulsarService,org.apache.pulsar.common.naming.TopicName,boolean,java.lang.String,org.apache.pulsar.broker.authentication.AuthenticationDataSource,long)">lookupTopicAsync</a>, <a href="../TopicLookupBase.html#lookupTopicAsync(org.apache.pulsar.broker.PulsarService,org.apache.pulsar.common.naming.TopicName,boolean,java.lang.String,org.apache.pulsar.broker.authentication.AuthenticationDataSource,long,java.lang.String)">lookupTopicAsync</a></code></li>
+<code><a href="../TopicLookupBase.html#completeLookupResponseExceptionally(javax.ws.rs.container.AsyncResponse,java.lang.Throwable)">completeLookupResponseExceptionally</a>, <a href="../TopicLookupBase.html#getTopicName(java.lang.String,java.lang.String,java.lang.String,java.lang.String)">getTopicName</a>, <a href="../TopicLookupBase.html#getTopicName(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String)">getTopicName</a>, <a href="../TopicLookupBase.html#internalGetNamespaceBundle(org.apache.pulsar.common.naming.TopicName)">internalGetNamespaceBundle</a>, <a href="../TopicLookupBase.html#internalLookupTopicAsync(org.apache.pulsar.common.naming.TopicName,boolean,java.lang.String)">internalLookupTopicAsync</a>, <a href="../TopicLookupBase.html#lookupTopicAsync(org.apache.pulsar.broker.PulsarService,org.apache.pulsar.common.naming.TopicName,boolean,java.lang.String,org.apache.pulsar.broker.authentication.AuthenticationDataSource,long)">lookupTopicAsync</a>, <a href="../TopicLookupBase.html#lookupTopicAsync(org.apache.pulsar.broker.PulsarService,org.apache.pulsar.common.naming.TopicName,boolean,java.lang.String,org.apache.pulsar.broker.authentication.AuthenticationDataSource,long,java.lang.String)">lookupTopicAsync</a></code></li>
 </ul>
 <ul class="blockList">
 <li class="blockList"><a id="methods.inherited.from.class.org.apache.pulsar.broker.web.PulsarWebResource">
@@ -289,7 +289,7 @@ extends <a href="../TopicLookupBase.html" title="class in org.apache.pulsar.brok
 <!--   -->
 </a>
 <h3>Method Detail</h3>
-<a id="lookupTopicAsync(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,boolean,javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String)">
+<a id="lookupTopicAsync(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,boolean,java.lang.String,java.lang.String)">
 <!--   -->
 </a>
 <ul class="blockList">
@@ -298,7 +298,9 @@ extends <a href="../TopicLookupBase.html" title="class in org.apache.pulsar.brok
 <pre class="methodSignature">@GET
 @Path("{topic-domain}/{property}/{cluster}/{namespace}/{topic}")
 @Produces("application/json")
-public&nbsp;void&nbsp;lookupTopicAsync&#8203;(@PathParam("topic-domain")
+public&nbsp;void&nbsp;lookupTopicAsync&#8203;(@Suspended
+                             javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
+                             @PathParam("topic-domain")
                              java.lang.String&nbsp;topicDomain,
                              @PathParam("property")
                              java.lang.String&nbsp;property,
@@ -310,8 +312,6 @@ public&nbsp;void&nbsp;lookupTopicAsync&#8203;(@PathParam("topic-domain")
                              java.lang.String&nbsp;encodedTopic,
                              @QueryParam("authoritative") @DefaultValue("false")
                              boolean&nbsp;authoritative,
-                             @Suspended
-                             javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                              @QueryParam("listenerName")
                              java.lang.String&nbsp;listenerName,
                              @HeaderParam("X-Pulsar-ListenerName")

@@ -255,10 +255,9 @@ extends <a href="../AdminResource.html" title="class in org.apache.pulsar.broker
 </tr>
 <tr id="i6" class="altColor">
 <td class="colFirst"><code>protected void</code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#internalDeletePartitionedTopic(javax.ws.rs.container.AsyncResponse,boolean,boolean,boolean)">internalDeletePartitionedTopic</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#internalDeletePartitionedTopic(javax.ws.rs.container.AsyncResponse,boolean,boolean)">internalDeletePartitionedTopic</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                               boolean&nbsp;authoritative,
-                              boolean&nbsp;force,
-                              boolean&nbsp;deleteSchema)</code></th>
+                              boolean&nbsp;force)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr id="i7" class="rowColor">
@@ -285,21 +284,18 @@ extends <a href="../AdminResource.html" title="class in org.apache.pulsar.broker
 </tr>
 <tr id="i10" class="altColor">
 <td class="colFirst"><code>protected void</code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#internalDeleteTopic(boolean,boolean)">internalDeleteTopic</a></span>&#8203;(boolean&nbsp;authoritative,
-                   boolean&nbsp;deleteSchema)</code></th>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#internalDeleteTopic(boolean)">internalDeleteTopic</a></span>&#8203;(boolean&nbsp;authoritative)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr id="i11" class="rowColor">
 <td class="colFirst"><code>protected void</code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#internalDeleteTopic(boolean,boolean,boolean)">internalDeleteTopic</a></span>&#8203;(boolean&nbsp;authoritative,
-                   boolean&nbsp;force,
-                   boolean&nbsp;deleteSchema)</code></th>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#internalDeleteTopic(boolean,boolean)">internalDeleteTopic</a></span>&#8203;(boolean&nbsp;authoritative,
+                   boolean&nbsp;force)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr id="i12" class="altColor">
 <td class="colFirst"><code>protected void</code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#internalDeleteTopicForcefully(boolean,boolean)">internalDeleteTopicForcefully</a></span>&#8203;(boolean&nbsp;authoritative,
-                             boolean&nbsp;deleteSchema)</code></th>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#internalDeleteTopicForcefully(boolean)">internalDeleteTopicForcefully</a></span>&#8203;(boolean&nbsp;authoritative)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr id="i13" class="rowColor">
@@ -497,7 +493,7 @@ extends <a href="../AdminResource.html" title="class in org.apache.pulsar.broker
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr id="i44" class="altColor">
-<td class="colFirst"><code>protected java.util.Map&lt;java.lang.String,&#8203;java.util.Set&lt;org.apache.pulsar.common.policies.data.AuthAction&gt;&gt;</code></td>
+<td class="colFirst"><code>protected java.util.concurrent.CompletableFuture&lt;java.util.Map&lt;java.lang.String,&#8203;java.util.Set&lt;org.apache.pulsar.common.policies.data.AuthAction&gt;&gt;&gt;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#internalGetPermissionsOnTopic()">internalGetPermissionsOnTopic</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
@@ -1005,7 +1001,7 @@ extends <a href="../AdminResource.html" title="class in org.apache.pulsar.broker
 <ul class="blockList">
 <li class="blockList">
 <h4>internalGetPermissionsOnTopic</h4>
-<pre class="methodSignature">protected&nbsp;java.util.Map&lt;java.lang.String,&#8203;java.util.Set&lt;org.apache.pulsar.common.policies.data.AuthAction&gt;&gt;&nbsp;internalGetPermissionsOnTopic()</pre>
+<pre class="methodSignature">protected&nbsp;java.util.concurrent.CompletableFuture&lt;java.util.Map&lt;java.lang.String,&#8203;java.util.Set&lt;org.apache.pulsar.common.policies.data.AuthAction&gt;&gt;&gt;&nbsp;internalGetPermissionsOnTopic()</pre>
 </li>
 </ul>
 <a id="validateCreateTopic(org.apache.pulsar.common.naming.TopicName)">
@@ -1037,14 +1033,13 @@ extends <a href="../AdminResource.html" title="class in org.apache.pulsar.broker
                                                java.util.Set&lt;org.apache.pulsar.common.policies.data.AuthAction&gt;&nbsp;actions)</pre>
 </li>
 </ul>
-<a id="internalDeleteTopicForcefully(boolean,boolean)">
+<a id="internalDeleteTopicForcefully(boolean)">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>internalDeleteTopicForcefully</h4>
-<pre class="methodSignature">protected&nbsp;void&nbsp;internalDeleteTopicForcefully&#8203;(boolean&nbsp;authoritative,
-                                             boolean&nbsp;deleteSchema)</pre>
+<pre class="methodSignature">protected&nbsp;void&nbsp;internalDeleteTopicForcefully&#8203;(boolean&nbsp;authoritative)</pre>
 </li>
 </ul>
 <a id="internalRevokePermissionsOnTopic(javax.ws.rs.container.AsyncResponse,java.lang.String)">
@@ -1119,7 +1114,7 @@ extends <a href="../AdminResource.html" title="class in org.apache.pulsar.broker
                                                                                                      boolean&nbsp;checkAllowAutoCreation)</pre>
 </li>
 </ul>
-<a id="internalDeletePartitionedTopic(javax.ws.rs.container.AsyncResponse,boolean,boolean,boolean)">
+<a id="internalDeletePartitionedTopic(javax.ws.rs.container.AsyncResponse,boolean,boolean)">
 <!--   -->
 </a>
 <ul class="blockList">
@@ -1127,8 +1122,7 @@ extends <a href="../AdminResource.html" title="class in org.apache.pulsar.broker
 <h4>internalDeletePartitionedTopic</h4>
 <pre class="methodSignature">protected&nbsp;void&nbsp;internalDeletePartitionedTopic&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
                                               boolean&nbsp;authoritative,
-                                              boolean&nbsp;force,
-                                              boolean&nbsp;deleteSchema)</pre>
+                                              boolean&nbsp;force)</pre>
 </li>
 </ul>
 <a id="internalUnloadTopic(javax.ws.rs.container.AsyncResponse,boolean)">
@@ -1241,17 +1235,6 @@ extends <a href="../AdminResource.html" title="class in org.apache.pulsar.broker
                                                                                                           boolean&nbsp;isGlobal)</pre>
 </li>
 </ul>
-<a id="internalDeleteTopic(boolean,boolean,boolean)">
-<!--   -->
-</a>
-<ul class="blockList">
-<li class="blockList">
-<h4>internalDeleteTopic</h4>
-<pre class="methodSignature">protected&nbsp;void&nbsp;internalDeleteTopic&#8203;(boolean&nbsp;authoritative,
-                                   boolean&nbsp;force,
-                                   boolean&nbsp;deleteSchema)</pre>
-</li>
-</ul>
 <a id="internalDeleteTopic(boolean,boolean)">
 <!--   -->
 </a>
@@ -1259,7 +1242,16 @@ extends <a href="../AdminResource.html" title="class in org.apache.pulsar.broker
 <li class="blockList">
 <h4>internalDeleteTopic</h4>
 <pre class="methodSignature">protected&nbsp;void&nbsp;internalDeleteTopic&#8203;(boolean&nbsp;authoritative,
-                                   boolean&nbsp;deleteSchema)</pre>
+                                   boolean&nbsp;force)</pre>
+</li>
+</ul>
+<a id="internalDeleteTopic(boolean)">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>internalDeleteTopic</h4>
+<pre class="methodSignature">protected&nbsp;void&nbsp;internalDeleteTopic&#8203;(boolean&nbsp;authoritative)</pre>
 </li>
 </ul>
 <a id="internalGetSubscriptions(javax.ws.rs.container.AsyncResponse,boolean)">

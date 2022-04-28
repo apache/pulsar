@@ -244,18 +244,18 @@ extends <a href="../AdminResource.html" title="class in org.apache.pulsar.broker
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr id="i3" class="rowColor">
-<td class="colFirst"><code>java.util.Map&lt;java.lang.String,&#8203;java.lang.String&gt;</code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getAllDynamicConfigurations()">getAllDynamicConfigurations</a></span>()</code></th>
+<td class="colFirst"><code>void</code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getAllDynamicConfigurations(javax.ws.rs.container.AsyncResponse)">getAllDynamicConfigurations</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr id="i4" class="altColor">
-<td class="colFirst"><code>java.util.List&lt;java.lang.String&gt;</code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getDynamicConfigurationName()">getDynamicConfigurationName</a></span>()</code></th>
+<td class="colFirst"><code>void</code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getDynamicConfigurationName(javax.ws.rs.container.AsyncResponse)">getDynamicConfigurationName</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr id="i5" class="rowColor">
-<td class="colFirst"><code>org.apache.pulsar.common.conf.InternalConfigurationData</code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getInternalConfigurationData()">getInternalConfigurationData</a></span>()</code></th>
+<td class="colFirst"><code>void</code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getInternalConfigurationData(javax.ws.rs.container.AsyncResponse)">getInternalConfigurationData</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr id="i6" class="altColor">
@@ -264,14 +264,15 @@ extends <a href="../AdminResource.html" title="class in org.apache.pulsar.broker
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr id="i7" class="rowColor">
-<td class="colFirst"><code>java.util.Map&lt;java.lang.String,&#8203;org.apache.pulsar.common.policies.data.NamespaceOwnershipStatus&gt;</code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getOwnedNamespaces(java.lang.String,java.lang.String)">getOwnedNamespaces</a></span>&#8203;(java.lang.String&nbsp;cluster,
+<td class="colFirst"><code>void</code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getOwnedNamespaces(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String)">getOwnedNamespaces</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
+                  java.lang.String&nbsp;cluster,
                   java.lang.String&nbsp;broker)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr id="i8" class="altColor">
-<td class="colFirst"><code>java.util.Map&lt;java.lang.String,&#8203;java.lang.String&gt;</code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getRuntimeConfiguration()">getRuntimeConfiguration</a></span>()</code></th>
+<td class="colFirst"><code>void</code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getRuntimeConfiguration(javax.ws.rs.container.AsyncResponse)">getRuntimeConfiguration</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr id="i9" class="rowColor">
@@ -409,7 +410,7 @@ public&nbsp;void&nbsp;getLeaderBroker&#8203;(@Suspended
                             javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse)</pre>
 </li>
 </ul>
-<a id="getOwnedNamespaces(java.lang.String,java.lang.String)">
+<a id="getOwnedNamespaces(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String)">
 <!--   -->
 </a>
 <ul class="blockList">
@@ -417,15 +418,12 @@ public&nbsp;void&nbsp;getLeaderBroker&#8203;(@Suspended
 <h4>getOwnedNamespaces</h4>
 <pre class="methodSignature">@GET
 @Path("/{clusterName}/{broker-webserviceurl}/ownedNamespaces")
-public&nbsp;java.util.Map&lt;java.lang.String,&#8203;org.apache.pulsar.common.policies.data.NamespaceOwnershipStatus&gt;&nbsp;getOwnedNamespaces&#8203;(@PathParam("clusterName")
-                                                                                                                                java.lang.String&nbsp;cluster,
-                                                                                                                                @PathParam("broker-webserviceurl")
-                                                                                                                                java.lang.String&nbsp;broker)
-                                                                                                                         throws java.lang.Exception</pre>
-<dl>
-<dt><span class="throwsLabel">Throws:</span></dt>
-<dd><code>java.lang.Exception</code></dd>
-</dl>
+public&nbsp;void&nbsp;getOwnedNamespaces&#8203;(@Suspended
+                               javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
+                               @PathParam("clusterName")
+                               java.lang.String&nbsp;cluster,
+                               @PathParam("broker-webserviceurl")
+                               java.lang.String&nbsp;broker)</pre>
 </li>
 </ul>
 <a id="updateDynamicConfiguration(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String)">
@@ -458,7 +456,7 @@ public&nbsp;void&nbsp;deleteDynamicConfiguration&#8203;(@Suspended
                                        java.lang.String&nbsp;configName)</pre>
 </li>
 </ul>
-<a id="getAllDynamicConfigurations()">
+<a id="getAllDynamicConfigurations(javax.ws.rs.container.AsyncResponse)">
 <!--   -->
 </a>
 <ul class="blockList">
@@ -466,15 +464,11 @@ public&nbsp;void&nbsp;deleteDynamicConfiguration&#8203;(@Suspended
 <h4>getAllDynamicConfigurations</h4>
 <pre class="methodSignature">@GET
 @Path("/configuration/values")
-public&nbsp;java.util.Map&lt;java.lang.String,&#8203;java.lang.String&gt;&nbsp;getAllDynamicConfigurations()
-                                                                                   throws java.lang.Exception</pre>
-<dl>
-<dt><span class="throwsLabel">Throws:</span></dt>
-<dd><code>java.lang.Exception</code></dd>
-</dl>
+public&nbsp;void&nbsp;getAllDynamicConfigurations&#8203;(@Suspended
+                                        javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse)</pre>
 </li>
 </ul>
-<a id="getDynamicConfigurationName()">
+<a id="getDynamicConfigurationName(javax.ws.rs.container.AsyncResponse)">
 <!--   -->
 </a>
 <ul class="blockList">
@@ -482,10 +476,11 @@ public&nbsp;java.util.Map&lt;java.lang.String,&#8203;java.lang.String&gt;&nbsp;g
 <h4>getDynamicConfigurationName</h4>
 <pre class="methodSignature">@GET
 @Path("/configuration")
-public&nbsp;java.util.List&lt;java.lang.String&gt;&nbsp;getDynamicConfigurationName()</pre>
+public&nbsp;void&nbsp;getDynamicConfigurationName&#8203;(@Suspended
+                                        javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse)</pre>
 </li>
 </ul>
-<a id="getRuntimeConfiguration()">
+<a id="getRuntimeConfiguration(javax.ws.rs.container.AsyncResponse)">
 <!--   -->
 </a>
 <ul class="blockList">
@@ -493,10 +488,11 @@ public&nbsp;java.util.List&lt;java.lang.String&gt;&nbsp;getDynamicConfigurationN
 <h4>getRuntimeConfiguration</h4>
 <pre class="methodSignature">@GET
 @Path("/configuration/runtime")
-public&nbsp;java.util.Map&lt;java.lang.String,&#8203;java.lang.String&gt;&nbsp;getRuntimeConfiguration()</pre>
+public&nbsp;void&nbsp;getRuntimeConfiguration&#8203;(@Suspended
+                                    javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse)</pre>
 </li>
 </ul>
-<a id="getInternalConfigurationData()">
+<a id="getInternalConfigurationData(javax.ws.rs.container.AsyncResponse)">
 <!--   -->
 </a>
 <ul class="blockList">
@@ -504,7 +500,8 @@ public&nbsp;java.util.Map&lt;java.lang.String,&#8203;java.lang.String&gt;&nbsp;g
 <h4>getInternalConfigurationData</h4>
 <pre class="methodSignature">@GET
 @Path("/internal-configuration")
-public&nbsp;org.apache.pulsar.common.conf.InternalConfigurationData&nbsp;getInternalConfigurationData()</pre>
+public&nbsp;void&nbsp;getInternalConfigurationData&#8203;(@Suspended
+                                         javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse)</pre>
 </li>
 </ul>
 <a id="backlogQuotaCheck(javax.ws.rs.container.AsyncResponse)">

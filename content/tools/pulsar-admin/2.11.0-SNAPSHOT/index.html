@@ -7531,7 +7531,7 @@
 <pre class="code-block example"><code class="lang-shell">$ pulsar-<span class="hljs-keyword">admin</span> topics bundle-range <span class="hljs-keyword">options</span>
 </code></pre>
 <h2 id="-em-delete-em--60"><em>delete</em></h2>
-<p>Delete a topic. The topic cannot be deleted if there&#39;s any active subscription or producers connected to it.</p>
+<p>Delete a topic. The topic cannot be deleted if there&#39;s any active subscription or producers connected to it.And the application is not able to connect to the topic(delete then re-create with same name) again if the schema auto uploading is disabled. Besides, users should to use the truncate cmd to clean up data of the topic instead of delete cmd if users continue to use this topic later.</p>
 <h3 id="usage">Usage</h3>
 <hr>
 <pre class="code-block example"><code class="lang-shell">$ pulsar-<span class="hljs-keyword">admin</span> topics <span class="hljs-keyword">delete</span> <span class="hljs-keyword">options</span>
@@ -7553,7 +7553,7 @@
 </tr>
 <tr>
 <td><code>-d, --deleteSchema</code></td>
-<td>Delete schema while deleting topic</td>
+<td>Delete schema while deleting topic, but the parameter is invalid and the schema is always deleted</td>
 <td>false</td>
 </tr>
 </tbody>
@@ -7943,7 +7943,7 @@
 <pre class="code-block example"><code class="lang-shell">$ <span class="hljs-string">pulsar-admin </span><span class="hljs-string">topics </span><span class="hljs-built_in">get-partitioned-topic-metadata</span> <span class="hljs-string">options</span>
 </code></pre>
 <h2 id="-em-delete-partitioned-topic-em-"><em>delete-partitioned-topic</em></h2>
-<p>Delete a partitioned topic. It will also delete all the partitions of the topic if it exists.</p>
+<p>Delete a partitioned topic. It will also delete all the partitions of the topic if it exists.And the application is not able to connect to the topic(delete then re-create with same name) again if the schema auto uploading is disabled. Besides, users should to use the truncate cmd to clean up data of the topic instead of delete cmd if users continue to use this topic later.</p>
 <h3 id="usage">Usage</h3>
 <hr>
 <pre class="code-block example"><code class="lang-shell">$ <span class="hljs-string">pulsar-admin </span><span class="hljs-string">topics </span><span class="hljs-built_in">delete-partitioned-topic</span> <span class="hljs-string">options</span>
@@ -7960,7 +7960,7 @@
 <tbody>
 <tr>
 <td><code>-d, --deleteSchema</code></td>
-<td>Delete schema while deleting topic</td>
+<td>Delete schema while deleting topic, but the parameter is invalid and the schema is always deleted</td>
 <td>false</td>
 </tr>
 <tr>

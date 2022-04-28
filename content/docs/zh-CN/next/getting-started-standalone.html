@@ -1,0 +1,291 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charSet="utf-8"/><meta http-equiv="X-UA-Compatible" content="IE=edge"/><title>Set up a standalone Pulsar locally · Apache Pulsar</title><meta name="viewport" content="width=device-width, initial-scale=1.0"/><meta name="generator" content="Docusaurus"/><meta name="description" content="可以通过运行单机模式 Pulsar 进行本地开发和测试。 单机模式的 Pulsar 需有 Pulsar broker、必要的 RocksDB 和 BookKeeper 组件，在单独的 Java 虚拟机（JVM）中运行。"/><meta name="docsearch:version" content="next"/><meta name="docsearch:language" content="zh-CN"/><meta property="og:title" content="Set up a standalone Pulsar locally · Apache Pulsar"/><meta property="og:type" content="website"/><meta property="og:url" content="https://pulsar.apache.org/"/><meta property="og:description" content="可以通过运行单机模式 Pulsar 进行本地开发和测试。 单机模式的 Pulsar 需有 Pulsar broker、必要的 RocksDB 和 BookKeeper 组件，在单独的 Java 虚拟机（JVM）中运行。"/><meta name="twitter:card" content="summary"/><meta name="twitter:image" content="https://pulsar.apache.org/img/pulsar.svg"/><link rel="shortcut icon" href="/img/pulsar.ico"/><link rel="stylesheet" href="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.css"/><link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/atom-one-dark.min.css"/><link rel="alternate" type="application/atom+xml" href="https://pulsar.apache.org/blog/atom.xml" title="Apache Pulsar Blog ATOM Feed"/><link rel="alternate" type="application/rss+xml" href="https://pulsar.apache.org/blog/feed.xml" title="Apache Pulsar Blog RSS Feed"/><script>
+              (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+              (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+              m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+              })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+              ga('create', 'UA-102219959-1', 'auto');
+              ga('send', 'pageview');
+            </script><link rel="stylesheet" href="/css/code-blocks-buttons.css"/><script type="text/javascript" src="https://buttons.github.io/buttons.js"></script><script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.0/clipboard.min.js"></script><script type="text/javascript" src="/js/custom.js"></script><script src="/js/scrollSpy.js"></script><link rel="stylesheet" href="/css/main.css"/><script src="/js/codetabs.js"></script></head><body class="sideNavVisible separateOnPageNav"><div class="fixedHeaderContainer"><div class="headerWrapper wrapper"><header><a href="/zh-CN"><img class="logo" src="/img/pulsar.svg" alt="Apache Pulsar"/></a><a href="/zh-CN/versions"><h3>next</h3></a><div class="navigationWrapper navigationSlider"><nav class="slidingNav"><ul class="nav-site nav-site-internal"><li class="siteNavGroupActive siteNavItemActive"><a href="/docs/zh-CN/next/getting-started-standalone" target="_self">文档</a></li><li class=""><a href="/zh-CN/download" target="_self">下载</a></li><li class="siteNavGroupActive"><a href="/docs/zh-CN/next/client-libraries" target="_self">客户端</a></li><li class=""><a href="#restapis" target="_self">REST API</a></li><li class=""><a href="#cli" target="_self">命令行</a></li><li class=""><a href="/blog/" target="_self">博客</a></li><li class=""><a href="#community" target="_self">社区</a></li><li class=""><a href="#apache" target="_self">Apache</a></li><li class=""><a href="https://pulsar-next.staged.apache.org/" target="_self">New Website (Beta)</a></li><span><li><a id="languages-menu" href="#"><img class="languages-icon" src="/img/language.svg" alt="Languages icon"/>中文</a><div id="languages-dropdown" class="hide"><ul id="languages-dropdown-items"><li><a href="/docs/en/next/getting-started-standalone">English</a></li><li><a href="/docs/ja/next/getting-started-standalone">日本語</a></li><li><a href="/docs/fr/next/getting-started-standalone">Français</a></li><li><a href="/docs/ko/next/getting-started-standalone">한국어</a></li><li><a href="/docs/zh-TW/next/getting-started-standalone">繁體中文</a></li><li><a href="https://crowdin.com/project/apache-pulsar" target="_blank" rel="noreferrer noopener">参与翻译</a></li></ul></div></li><script>
+        const languagesMenuItem = document.getElementById("languages-menu");
+        const languagesDropDown = document.getElementById("languages-dropdown");
+        languagesMenuItem.addEventListener("click", function(event) {
+          event.preventDefault();
+
+          if (languagesDropDown.className == "hide") {
+            languagesDropDown.className = "visible";
+          } else {
+            languagesDropDown.className = "hide";
+          }
+        });
+      </script></span><li class="navSearchWrapper reactNavSearchWrapper"><input type="text" id="search_input_react" placeholder="Search" title="Search"/></li></ul></nav></div></header></div></div><div class="navPusher"><div class="docMainWrapper wrapper"><div class="docsNavContainer" id="docsNav"><nav class="toc"><div class="toggleNav"><section class="navWrapper wrapper"><div class="navBreadcrumb wrapper"><div class="navToggle" id="navToggler"><div class="hamburger-menu"><div class="line1"></div><div class="line2"></div><div class="line3"></div></div></div><h2><i>›</i><span>Get Started</span></h2><div class="tocToggler" id="tocToggler"><i class="icon-toc"></i></div></div><div class="navGroups"><div class="navGroup"><h3 class="navGroupCategoryTitle">Get Started</h3><ul class=""><li class="navListItem navListItemActive"><a class="navItem" href="/docs/zh-CN/next/getting-started-standalone">Run Pulsar locally</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/getting-started-docker">Run Pulsar in Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/getting-started-helm">Run Pulsar in Kubernetes</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">概念和架构</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/concepts-overview">概述</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/concepts-messaging">消息</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/concepts-architecture-overview">架构</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/concepts-clients">客户端</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/concepts-replication">跨机房复制</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/concepts-multi-tenancy">多租户</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/concepts-authentication">认证和授权</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/concepts-topic-compaction">消息压缩</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/concepts-proxy-sni-routing">Pulsar Proxy 支持 SNI 路由</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/concepts-multiple-advertised-listeners">配置 Advertised 监听器</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Schema</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/schema-get-started">开始</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/schema-understand">理解 schema</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/schema-evolution-compatibility">Schema 演化和兼容</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/schema-manage">管理 Schema</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar Functions</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/functions-overview">概述</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/functions-runtime">设置：配置 Pulsar Functions 运行时</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/functions-worker">设置：Pulsar Functions Worker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/functions-develop">操作：开发</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/functions-package">如何打包</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/functions-debug">操作：调试</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/functions-deploy">操作：部署</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/functions-cli">参考：命令</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/window-functions-context">窗口函数：上下文</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar IO</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/io-overview">概述</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/io-quickstart">开始</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/io-use">使用</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/io-debug">调试</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/io-connectors">内置 connector</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/io-cdc">CDC connector</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/io-develop">开发</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/io-cli">CLI</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Pulsar SQL</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/sql-overview">概述</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/sql-getting-started">查询数据</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/sql-deployment-configurations">配置和部署</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/sql-rest-api">REST API</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">层级存储</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/tiered-storage-overview">概述</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/tiered-storage-aws">亚马逊 AWS S3 offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/tiered-storage-gcs">GCS offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/tiered-storage-filesystem">Filesystem offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/tiered-storage-azure">Azure BlobStore offloader</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/tiered-storage-aliyun">阿里云 OSS offloader</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">事务</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/txn-why">为什么需要事务？</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/txn-what">什么是事务？</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/txn-how">事务运行原理</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/txn-use">如何使用事务？</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/txn-monitor">如何监控事务？</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Kubernetes (Helm)</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/helm-overview">概述</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/helm-prepare">准备</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/helm-install">安装</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/helm-deploy">部署</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/helm-upgrade">升级</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/helm-tools">所需工具</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">部署</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/deploy-aws">Amazon Web Services (Aws)</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/deploy-kubernetes">Kubernetes</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/deploy-bare-metal">裸机</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/deploy-bare-metal-multi-cluster">裸机多集群部署</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/deploy-docker">Docker</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/deploy-monitoring">Monitor</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">系统管理</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/administration-zk-bk">ZooKeeper 和 BookKeeper</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/administration-geo">跨地域复制</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/administration-pulsar-manager">Pulsar Manager</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/administration-stats">Pulsar 统计数据</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/administration-load-balance">负载均衡</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/administration-proxy">Pulsar 代理</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/administration-upgrade">升级</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/administration-isolation">Pulsar 隔离</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">安全</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/security-overview">概述</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/security-policy-and-supported-versions">安全政策和支持的版本</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/security-tls-transport">使用TLS进行传输加密</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/security-tls-authentication">使用TLS进行认证</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/security-tls-keystore">使用 TLS 配置KeyStore</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/security-jwt">使用 JWT 认证</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/security-athenz">使用 Athenz 验证</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/security-kerberos">使用 Kerberos 进行身份验证</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/security-oauth2">使用 OAuth 2.0 访问令牌进行身份验证</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/security-authorization">授权和ACL</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/security-encryption">端到端加密</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/security-extending">Extend Authentication and Authorization</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/security-bouncy-castle">Bouncy Castle Providers</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">性能</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/performance-pulsar-perf">Pulsar Perf 性能测试</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">客户端库</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/client-libraries">概述</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/client-libraries-java">Java</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/client-libraries-go">Go</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/client-libraries-python">Python</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/client-libraries-cpp">C++</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/client-libraries-node">Node.js
+</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/client-libraries-websocket">WebSocket</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/client-libraries-dotnet">C#</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/client-libraries-rest">REST</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">Admin API</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/admin-api-overview">概述</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/admin-api-clusters">集群</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/admin-api-tenants">租户</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/admin-api-brokers">Brokers</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/admin-api-namespaces">命名空间</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/admin-api-permissions">权限管理</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/admin-api-topics">Topic</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/admin-api-functions">Functions</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/admin-api-packages">Package</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">适配器</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/adaptors-kafka">Kafka 客户端封装</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/adaptors-spark">Apache Spark</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/adaptors-storm">Apache Storm</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">参考手册</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/cookbooks-compaction">Topic compaction</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/cookbooks-deduplication">消息去重</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/cookbooks-non-persistent">非持久化消息</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/cookbooks-retention-expiry">消息保留和过期</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/cookbooks-encryption">加密</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/cookbooks-message-queue">消息队列</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/cookbooks-bookkeepermetadata">BookKeeper Ledger 元数据</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">开发</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/develop-tools">模拟工具</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/developing-binary-protocol">Binary protocol</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/develop-load-manager">模块化负载管理器</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/develop-plugin">Plugin</a></li></ul></div><div class="navGroup"><h3 class="navGroupCategoryTitle">参考</h3><ul class=""><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/reference-terminology">术语</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/reference-cli-tools">Pulsar 命令行工具</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/reference-configuration">Pulsar configuration</a></li><li class="navListItem"><a class="navItem" href="/docs/zh-CN/next/reference-metrics">Pulsar Metrics</a></li></ul></div></div></section></div><script>
+            var coll = document.getElementsByClassName('collapsible');
+            var checkActiveCategory = true;
+            for (var i = 0; i < coll.length; i++) {
+              var links = coll[i].nextElementSibling.getElementsByTagName('*');
+              if (checkActiveCategory){
+                for (var j = 0; j < links.length; j++) {
+                  if (links[j].classList.contains('navListItemActive')){
+                    coll[i].nextElementSibling.classList.toggle('hide');
+                    coll[i].childNodes[1].classList.toggle('rotate');
+                    checkActiveCategory = false;
+                    break;
+                  }
+                }
+              }
+
+              coll[i].addEventListener('click', function() {
+                var arrow = this.childNodes[1];
+                arrow.classList.toggle('rotate');
+                var content = this.nextElementSibling;
+                content.classList.toggle('hide');
+              });
+            }
+
+            document.addEventListener('DOMContentLoaded', function() {
+              createToggler('#navToggler', '#docsNav', 'docsSliderActive');
+              createToggler('#tocToggler', 'body', 'tocActive');
+
+              var headings = document.querySelector('.toc-headings');
+              headings && headings.addEventListener('click', function(event) {
+                var el = event.target;
+                while(el !== headings){
+                  if (el.tagName === 'A') {
+                    document.body.classList.remove('tocActive');
+                    break;
+                  } else{
+                    el = el.parentNode;
+                  }
+                }
+              }, false);
+
+              function createToggler(togglerSelector, targetSelector, className) {
+                var toggler = document.querySelector(togglerSelector);
+                var target = document.querySelector(targetSelector);
+
+                if (!toggler) {
+                  return;
+                }
+
+                toggler.onclick = function(event) {
+                  event.preventDefault();
+
+                  target.classList.toggle(className);
+                };
+              }
+            });
+        </script></nav></div><div class="container mainContainer docsContainer"><div class="wrapper"><div class="post"><header class="postHeader"><a class="edit-page-link button" href="https://crowdin.com/project/apache-pulsar/zh-CN" target="_blank" rel="noreferrer noopener">Translate</a><h1 id="__docusaurus" class="postHeaderTitle">Set up a standalone Pulsar locally</h1></header><article><div><span><p>可以通过运行单机模式 Pulsar 进行本地开发和测试。 单机模式的 Pulsar 需有 Pulsar broker、必要的 RocksDB 和 BookKeeper 组件，在单独的 Java 虚拟机（JVM）中运行。</p>
+<blockquote>
+<p>了解如何在生产环境中运行完整的 Pulsar集群，请参阅 <a href="/docs/zh-CN/next/deploy-bare-metal">Pulsar 的集群部署</a>。</p>
+</blockquote>
+<h2><a class="anchor" aria-hidden="true" id="安装单机模式-pulsar"></a><a href="#安装单机模式-pulsar" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>安装单机模式 Pulsar</h2>
+<p>本教程将详细介绍安装的每一步。</p>
+<h3><a class="anchor" aria-hidden="true" id="系统要求"></a><a href="#系统要求" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>系统要求</h3>
+<p>当前，Pulsar 可运行在 64 位 <strong>macOS</strong>、<strong>Linux</strong> 和 <strong>Windows</strong> 上。要想运行 Pulsar，你需要安装 64 位 JRE/JDK 8 或更新版本。</p>
+<blockquote>
+<p>提示 正常情况下，Pulsar的JVM的堆内存默认分配是2G It can be changed in <code>conf/pulsar_env.sh</code> file under <code>PULSAR_MEM</code>. This is extra options passed into JVM.</p>
+<p>注意： Broker只能运行在64-bit的JVM虚拟机上</p>
+</blockquote>
+<h3><a class="anchor" aria-hidden="true" id="安装二进制版本-pulsar"></a><a href="#安装二进制版本-pulsar" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>安装二进制版本 Pulsar</h3>
+<p>首先，通过以下方式下载二进制安装包：</p>
+<ul>
+<li><p>从 Apache 镜像站下载（<a href="https://archive.apache.org/dist/pulsar/pulsar-2.10.0/apache-pulsar-2.10.0-bin.tar.gz" download>Pulsar 2.10.0 二进制版本</a>）</p></li>
+<li><p>从 Pulsar 官网<a href="/download">下载页</a>下载</p></li>
+<li><p>从 Pulsar <a href="https://github.com/apache/pulsar/releases/latest">发布页面</a>下载</p></li>
+<li><p>使用 <a href="https://www.gnu.org/software/wget">wget</a> 命令下载：</p>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> wget https://archive.apache.org/dist/pulsar/pulsar-2.10.0/apache-pulsar-2.10.0-bin.tar.gz</span>
+</code></pre></li>
+</ul>
+<p>下载好压缩文件后，解压缩并使用 <code>cd</code> 命令进入文件所在位置：</p>
+<pre><code class="hljs css language-bash">$ tar xvfz apache-pulsar-2.10.0-bin.tar.gz
+$ <span class="hljs-built_in">cd</span> apache-pulsar-2.10.0
+</code></pre>
+<h4><a class="anchor" aria-hidden="true" id="软件包包含的内容"></a><a href="#软件包包含的内容" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>软件包包含的内容:</h4>
+<p>Pulsar 二进制包包含以下目录:</p>
+<table>
+<thead>
+<tr><th style="text-align:left">目录</th><th style="text-align:left">内容</th></tr>
+</thead>
+<tbody>
+<tr><td style="text-align:left"><code>bin</code></td><td style="text-align:left">Pulsar的命令行工具，比如 <a href="/docs/zh-CN/next/reference-cli-tools#pulsar"><code>pulsar</code></a> 和 <a href="https://pulsar.apache.org/tools/pulsar-admin/"><code>pulsar-admin</code></a>.</td></tr>
+<tr><td style="text-align:left"><code>conf</code></td><td style="text-align:left">Pulsar的配置文件，包括 <a href="/docs/zh-CN/next/reference-configuration#broker"> broker的配置</a> 等等。</td></tr>
+<tr><td style="text-align:left"><strong>注意：</strong> Pulsar 独立的使用 RocksDB 作为本地元数据存储及其配置文件路径是 <a href="/docs/zh-CN/next/reference-configuration"><code>metadataStoreConfigPath</code></a> 您可以在 <code>standalone.conf</code> 配置。 关于RocksDB配置的更多信息，请参阅 <a href="https://github.com/facebook/rocksdb/blob/main/examples/rocksdb_option_file_example.ini">这里</a> 及相关 <a href="https://github.com/facebook/rocksdb/wiki/RocksDB-Tuning-Guide">文档</a>。</td></tr>
+<tr><td style="text-align:left"><code>examples</code></td><td style="text-align:left">Java JAR 包，包含 <a href="/docs/zh-CN/next/functions-overview">Pulsar Functions</a> 的示例。</td></tr>
+<tr><td style="text-align:left"><code>instances</code></td><td style="text-align:left">为 <a href="/docs/zh-CN/next/functions-overview">Pulsar Functions</a> 创建的组件。</td></tr>
+<tr><td style="text-align:left"><code>lib</code></td><td style="text-align:left">Pulsar使用到的<a href="https://en.wikipedia.org/wiki/JAR_(file_format)"> JAR </a>文件</td></tr>
+<tr><td style="text-align:left"><code>licenses</code></td><td style="text-align:left">开源许可文件，<code>.txt</code> 格式，用于规范 Pulsar <a href="https://github.com/apache/pulsar">代码库</a>的各个组件。</td></tr>
+</tbody>
+</table>
+<p>运行 Pulsar 会立即生成以下目录。</p>
+<table>
+<thead>
+<tr><th style="text-align:left">目录</th><th style="text-align:left">内容</th></tr>
+</thead>
+<tbody>
+<tr><td style="text-align:left"><code>data</code></td><td style="text-align:left">RocketsDB和BookKeeper的数据存储目录。</td></tr>
+<tr><td style="text-align:left"><code>logs</code></td><td style="text-align:left">安装时生成的日志文件</td></tr>
+</tbody>
+</table>
+<blockquote>
+<p>想要使用内置connectors和分层存储卸载程序，可以按照以下说明进行安装：</p>
+<ul>
+<li><a href="#install-builtin-connectors-optional">安装内置连接器（可选）</a></li>
+<li><a href="#install-tiered-storage-offloaders-optional">安装分层存储卸载程序（可选）</a></li>
+</ul>
+<p>不安装上述程序，则跳至下一步<a href="#start-pulsar-standalone">启动单机 Pulsar</a>。 可以在不安装内置连接器和分层存储卸载程序的情况下，成功安装 Pulsar。</p>
+</blockquote>
+<h3><a class="anchor" aria-hidden="true" id="安装内置连接器可选"></a><a href="#安装内置连接器可选" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>安装内置连接器（可选）</h3>
+<p>在 <code>2.1.0-孵化</code> 发布以后，Pulsar 发布了一个单独的二进制分布，其中包含所有的<code>内置</code>连接器。 要启用这些<code>内置</code>连接器，可以通过以下方式下载连接器安装包：</p>
+<ul>
+<li><p>从 Apache 镜像下载 <a href="https://archive.apache.org/dist/pulsar/pulsar-2.10.0/connectors" download>Pulsar IO 连接器 2.10.0 版本</a></p></li>
+<li><p>从 Pulsar 官网<a href="/download">下载页</a>下载</p></li>
+<li><p>从 Pulsar <a href="https://github.com/apache/pulsar/releases/latest">发布页面</a>下载</p></li>
+<li><p>使用 <a href="https://www.gnu.org/software/wget">wget</a> 命令下载：</p>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> wget https://archive.apache.org/dist/pulsar/pulsar-2.10.0/connectors/{connector}-2.10.0.nar</span>
+</code></pre></li>
+</ul>
+<p>下载 nar 文件后，将其复制到 pulsar 目录下的 <code>connectors</code> 目录中。 比如，要下载 <code>pulsar-io-aerospike-2.10.0.nar</code> 连接器文件，则输入以下命令：</p>
+<pre><code class="hljs css language-bash">$ mkdir connectors
+$ mv pulsar-io-aerospike-2.10.0.nar connectors
+
+$ ls connectors
+pulsar-io-aerospike-2.10.0.nar
+...
+</code></pre>
+<blockquote>
+<p>注意：如果在裸机集群中运行 Pulsar，需要确保 <code>connectors</code> 解压到 broker 的所有 pulsar 目录中（如果在单独的 worker 集群中运行 Pulsar Functions，则将其解压到 function-worker 的所有 pulsar 目录中）。</p>
+<ul>
+<li>如果<a href="/docs/zh-CN/next/getting-started-docker">在 Docker 中运行 Pulsar</a> 或者通过 Docker 镜像部署 Puslar（比如：<a href="/docs/zh-CN/next/deploy-kubernetes">K8S</a>、<a href="https://dcos.io/">DCOS</a>），则可以使用 <code>apachepulsar/pulsar-all</code> 镜像，而不是 <code>apachepulsar/pulsar</code> 镜像。 <code>apachepulsar/pulsar-all</code> 镜像已经捆绑了<a href="/docs/zh-CN/next/io-overview#working-with-connectors">所有内置 connector</a>。</li>
+</ul>
+</blockquote>
+<h3><a class="anchor" aria-hidden="true" id="安装分层存储卸载程序可选"></a><a href="#安装分层存储卸载程序可选" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>安装分层存储卸载程序（可选）</h3>
+<blockquote>
+<p>在 <code>2.2.0</code>版本发布以后，Pulsar发布了一个单独的二进制分发，其中包含分层存储卸载程序。 可以通过以下说明来启用分层存储卸载容器，不启用则跳至下一部分。</p>
+</blockquote>
+<p>要使用<a href="/docs/zh-CN/next/concepts-tiered-storage">分层存储卸载程序</a>，需要在所有 broker 节点上下载卸载程序的压缩文件，下载方式有以下几种：</p>
+<ul>
+<li><p>从 Apache mirror 下载 <a href="https://archive.apache.org/dist/pulsar/pulsar-2.10.0/apache-pulsar-offloaders-2.10.0-bin.tar.gz" download>Pulsar 分层存储卸载程序 {{pulsar：version}} 版本</a></p></li>
+<li><p>从 Pulsar 官网<a href="/download">下载页</a>下载</p></li>
+<li><p>从 Pulsar <a href="https://github.com/apache/pulsar/releases/latest">发布页面</a>下载</p></li>
+<li><p>使用 <a href="https://www.gnu.org/software/wget">wget</a> 命令下载：</p>
+<pre><code class="hljs css language-shell"><span class="hljs-meta">$</span><span class="bash"> wget https://archive.apache.org/dist/pulsar/pulsar-2.10.0/apache-pulsar-offloaders-2.10.0-bin.tar.gz</span>
+</code></pre></li>
+</ul>
+<p>下载卸载程序压缩包后，解压缩，并将卸载程序复制为 <code>offloaders</code> 存储在 pulsar 目录中：</p>
+<pre><code class="hljs css language-bash">$ tar xvfz apache-pulsar-offloaders-2.10.0-bin.tar.gz
+
+// you will find a directory named `apache-pulsar-offloaders-2.10.0` <span class="hljs-keyword">in</span> the pulsar directory
+// <span class="hljs-keyword">then</span> copy the offloaders
+
+$ mv apache-pulsar-offloaders-2.10.0/offloaders offloaders
+
+$ ls offloaders
+tiered-storage-jcloud-2.10.0.nar
+</code></pre>
+<p>关于如何配置分层存储的详细信息，请参阅<a href="/docs/zh-CN/next/cookbooks-tiered-storage">分层存储指南</a>。</p>
+<blockquote>
+<p>如果在一个裸机集群中运行 Pulsar，请确保<code>卸载程序</code>安装包已经在 broker 的所有 pulsar 目录下解压缩。</p>
+<ul>
+<li>如果<a href="/docs/zh-CN/next/getting-started-docker">在 Docker 中运行 Pulsar</a> 或者通过 Docker 镜像部署 Puslar（比如：<a href="/docs/zh-CN/next/deploy-kubernetes">K8S</a>、<code>DCOS</code>），则可以使用 apachepulsar/pulsar-all 镜像，而不是 <code>apachepulsar/pulsar</code> 镜像。 <code>apachepulsar/pulsar-all</code> image has already bundled tiered storage offloaders.</li>
+</ul>
+</blockquote>
+<h2><a class="anchor" aria-hidden="true" id="启动单机模式-pulsar"></a><a href="#启动单机模式-pulsar" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>启动单机模式 Pulsar</h2>
+<p>当有最新版本的本地副本后，可以使用 <a href="/docs/zh-CN/next/reference-cli-tools#pulsar"><code>pulsar</code></a> 命令启动本地集群（该命令存储在 <code>bin</code> 目录中），并且可以指定为以单机模式启动 Pulsar。</p>
+<pre><code class="hljs css language-bash">$ bin/pulsar standalone
+</code></pre>
+<p>成功启动 Pulsar 后，可以看到如下所示的 <code>INFO</code> 级日志消息：</p>
+<pre><code class="hljs css language-bash">21:59:29.327 [DLM-/stream/storage-OrderedScheduler-3-0] INFO  org.apache.bookkeeper.stream.storage.impl.sc.StorageContainerImpl - Successfully started storage container (0).
+21:59:34.576 [main] INFO  org.apache.pulsar.broker.authentication.AuthenticationService - Authentication is disabled
+21:59:34.576 [main] INFO  org.apache.pulsar.websocket.WebSocketService - Pulsar WebSocket Service started
+</code></pre>
+<blockquote>
+<p>提示：您可以直接控制运行在终端上的Pulsar服务。 如果你需要运行其他命令，再打开一个新的终端窗口即可。<br>
+您也可以使用 <code>bin/pulsar-daemon 启动单机模式的Pulsar的</code> 命令作为后台进程运行服务。 For more information, see <a href="https://pulsar.apache.org/docs/en/reference-cli-tools/#pulsar-daemon">pulsar-daemon</a>.</p>
+<ul>
+<li><p>By default, there is no encryption, authentication, or authorization configured. Apache Pulsar 允许在没有任何授权的情况下从远程服务器访问。 请检查<a href="/docs/zh-CN/next/security-overview">安全概述</a>文件以确保部署安全。</p></li>
+<li><p>When you start a local standalone cluster, a <code>public/default</code> <a href="/docs/zh-CN/next/concepts-messaging#namespaces">namespace</a> is created automatically. 自动创建的命名空间将用于开发用途。 所有Pulsar的topic主题都在命名空间中进行管理。 了解更多信息，参阅 <a href="/docs/zh-CN/next/concepts-messaging#topics">Topics</a>。</p></li>
+</ul>
+</blockquote>
+<h2><a class="anchor" aria-hidden="true" id="使用单机模式-pulsar"></a><a href="#使用单机模式-pulsar" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>使用单机模式 Pulsar</h2>
+<p>Pulsar 中有一个名为 <a href="/docs/zh-CN/next/reference-cli-tools#pulsar-client"><code>pulsar-client</code></a> 的 CLI 工具。 Pulsar-client 工具允许使用者在运行的集群中 consume 并 produce 消息到 Pulsar topic。</p>
+<h3><a class="anchor" aria-hidden="true" id="consume-消息"></a><a href="#consume-消息" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Consume 消息</h3>
+<p>在 <code>first-subscription</code> 订阅中 consume 一条消息到 <code>my-topic</code> 的命令如下所示：</p>
+<pre><code class="hljs css language-bash">$ bin/pulsar-client consume my-topic -s <span class="hljs-string">"first-subscription"</span>
+</code></pre>
+<p>如果消息成功发送到 topic，则会在 <code>pulsar-client</code> 日志中出现一个确认，如下所示：</p>
+<pre><code class="hljs">22:17:16.781 [main] INFO  org.apache.pulsar.client.cli.PulsarClientTool - 1 messages successfully consumed
+</code></pre>
+<blockquote>
+<p><strong>Tip</strong>  <br>
+As you have noticed that we do not explicitly create the <code>my-topic</code> topic, to which we consume the message. 当 consume 消息到不存在的 topic 时，Pulsar 会自动创建此 topic。 同样地，当 produce 消息到不存在的 topic 时，Pulsar 也会自动创建此 topic。</p>
+</blockquote>
+<h3><a class="anchor" aria-hidden="true" id="produce-消息"></a><a href="#produce-消息" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Produce 消息</h3>
+<p>向名称为 <code>my-topic</code> 的 topic 发送一条简单的消息 <code>hello-pulsar</code>，命令如下所示：</p>
+<pre><code class="hljs css language-bash">$ bin/pulsar-client produce my-topic --messages <span class="hljs-string">"hello-pulsar"</span>
+</code></pre>
+<p>如果消息成功发送到 topic，则会在 <code>pulsar-client</code> 日志中出现一个确认，如下所示：</p>
+<pre><code class="hljs">22:21:08.693 [main] INFO  org.apache.pulsar.client.cli.PulsarClientTool - 1 messages successfully produced
+</code></pre>
+<h2><a class="anchor" aria-hidden="true" id="终止单机模式-pulsar"></a><a href="#终止单机模式-pulsar" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>终止单机模式 Pulsar</h2>
+<p>使用 <code>Ctrl+C</code> 终止单机模式 Pulsar 的运行。</p>
+<blockquote>
+<p>提示：如果使用 <code>pulsar-daemon start standalone</code> 命令在后台运行服务，则可以通过 <code>pulsar-daemon stop standalone</code> 命令终止服务。</p>
+<p>了解更多信息，请参阅 <a href="https://pulsar.apache.org/docs/en/reference-cli-tools/#pulsar-daemon">pulsar-daemon</a>。</p>
+</blockquote>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-next button" href="/docs/zh-CN/next/getting-started-docker"><span>下一页</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#安装单机模式-pulsar">安装单机模式 Pulsar</a><ul class="toc-headings"><li><a href="#系统要求">系统要求</a></li><li><a href="#安装二进制版本-pulsar">安装二进制版本 Pulsar</a></li><li><a href="#安装内置连接器可选">安装内置连接器（可选）</a></li><li><a href="#安装分层存储卸载程序可选">安装分层存储卸载程序（可选）</a></li></ul></li><li><a href="#启动单机模式-pulsar">启动单机模式 Pulsar</a></li><li><a href="#使用单机模式-pulsar">使用单机模式 Pulsar</a><ul class="toc-headings"><li><a href="#consume-消息">Consume 消息</a></li><li><a href="#produce-消息">Produce 消息</a></li></ul></li><li><a href="#终止单机模式-pulsar">终止单机模式 Pulsar</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+      const community = document.querySelector("a[href='#community']").parentNode;
+      const communityMenu =
+        '<li>' +
+        '<a id="community-menu" href="#">Community <span style="font-size: 0.75em">&nbsp;▼</span></a>' +
+        '<div id="community-dropdown" class="hide">' +
+          '<ul id="community-dropdown-items">' +
+            '<li><a href="/zh-CN/contact">Contact</a></li>' +
+            '<li><a href="/zh-CN/contributing">Contributing</a></li>' +
+            '<li><a href="/zh-CN/coding-guide">Coding guide</a></li>' +
+            '<li><a href="/zh-CN/events">Events</a></li>' +
+            '<li><a href="https://twitter.com/Apache_Pulsar" target="_blank">Twitter &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/wiki" target="_blank">Wiki &#x2750</a></li>' +
+            '<li><a href="https://github.com/apache/pulsar/issues" target="_blank">Issue tracking &#x2750</a></li>' +
+            '<li><a href="https://pulsar-summit.org/" target="_blank">Pulsar Summit &#x2750</a></li>' +
+            '<li>&nbsp;</li>' +
+            '<li><a href="/zh-CN/resources">Resources</a></li>' +
+            '<li><a href="/zh-CN/team">Team</a></li>' +
+            '<li><a href="/zh-CN/powered-by">Powered By</a></li>' +
+          '</ul>' +
+        '</div>' +
+        '</li>';
+
+      community.innerHTML = communityMenu;
+
+      const communityMenuItem = document.getElementById("community-menu");
+      const communityDropDown = document.getElementById("community-dropdown");
+      communityMenuItem.addEventListener("click", function(event) {
+        event.preventDefault();
+
+        if (communityDropDown.className == 'hide') {
+          communityDropDown.className = 'visible';
+        } else {
+          communityDropDown.className = 'hide';
+        }
+      });
+    </script></span></footer></div><script type="text/javascript" src="https://cdn.jsdelivr.net/docsearch.js/1/docsearch.min.js"></script><script>window.twttr=(function(d,s, id){var js,fjs=d.getElementsByTagName(s)[0],t=window.twttr||{};if(d.getElementById(id))return t;js=d.createElement(s);js.id=id;js.src='https://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js, fjs);t._e = [];t.ready = function(f) {t._e.push(f);};return t;}(document, 'script', 'twitter-wjs'));</script><script>
+                document.addEventListener('keyup', function(e) {
+                  if (e.target !== document.body) {
+                    return;
+                  }
+                  // keyCode for '/' (slash)
+                  if (e.keyCode === 191) {
+                    const search = document.getElementById('search_input_react');
+                    search && search.focus();
+                  }
+                });
+              </script><script>
+              var search = docsearch({
+                
+                apiKey: 'd226a455cecdd4bc18a554c1b47e5b52',
+                indexName: 'apache_pulsar',
+                inputSelector: '#search_input_react',
+                algoliaOptions: {"facetFilters":["language:zh-CN","version:next"]}
+              });
+            </script></body></html>
