@@ -132,7 +132,7 @@ const siteConfig = {
     { href: "#apache", label: "Apache" },
     {
       href: "https://pulsar-next.staged.apache.org/",
-      label: "New Website(Beta)",
+      label: "New Website (Beta)",
     },
     // Determines search bar position among links
     //{ search: true },
