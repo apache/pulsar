@@ -469,12 +469,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        java: [ '8', '11', '17' ]
+        java: [ 8, 11, 17 ]
 
     steps:
       - name: checkout
         if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Tune Runner VM
         if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
@@ -536,13 +536,14 @@ jobs:
         run: |
           ./build/run_integration_group.sh SHADE_BUILD
 
-      - uses: actions/checkout@v3
-      - name: Run integration test group Shade on java '${{ matrix.java }}'
+      - uses: actions/setup-java@v3
         if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
-        uses: actions/setup-java@v3
         with:
           distribution: 'temurin'
           java-version: ${{ matrix.java }}
+
+      - name: Run integration test group Shade on java '${{ matrix.java }}'
+        if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
         run: |
           ./build/run_integration_group.sh SHADE_RUN
 
