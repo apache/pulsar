@@ -274,6 +274,12 @@ public class ElasticSearchConfig implements Serializable {
     )
     private CompatibilityMode compatibilityMode = CompatibilityMode.AUTO;
 
+    @FieldDoc(
+            defaultValue = "true",
+            help = "If stripNonPrintableCharacters is true, all non-printable characters will be removed from the document."
+    )
+    private boolean stripNonPrintableCharacters = true;
+
     public enum MalformedDocAction {
         IGNORE,
         WARN,
