@@ -147,4 +147,9 @@ public class FileSystemPackagesStorage implements PackagesStorage {
     public CompletableFuture<Void> closeAsync() {
         return CompletableFuture.completedFuture(null);
     }
+
+    @Override
+    public String dataPath() {
+        return "/data";
+    }
 }
