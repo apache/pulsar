@@ -105,6 +105,7 @@ public class ClientCnx extends PulsarHandler {
     protected final Authentication authentication;
     private State state;
 
+    @Getter
     private final ConcurrentLongHashMap<TimedCompletableFuture<? extends Object>> pendingRequests =
             ConcurrentLongHashMap.<TimedCompletableFuture<? extends Object>>newBuilder()
                     .expectedItems(16)
