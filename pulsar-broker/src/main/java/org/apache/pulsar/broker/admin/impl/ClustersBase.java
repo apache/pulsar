@@ -48,6 +48,8 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import org.apache.pulsar.broker.admin.AdminResource;
+import org.apache.commons.collections4.CollectionUtils;
+import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.resources.ClusterResources.FailureDomainResources;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.Namespaces;
@@ -238,68 +240,62 @@ public class ClustersBase extends AdminResource {
             @ApiResponse(code = 412, message = "Peer cluster doesn't exist."),
             @ApiResponse(code = 500, message = "Internal server error.")
     })
-    public void setPeerClusterNames(
-        @ApiParam(
-            value = "The cluster name",
-            required = true
-        )
-        @PathParam("cluster") String cluster,
-        @ApiParam(
-            value = "The list of peer cluster names",
-            required = true,
-            examples = @Example(
-                value = @ExampleProperty(
-                    mediaType = MediaType.APPLICATION_JSON,
-                    value =
-                          "[\n"
-                        + "   'cluster-a',\n"
-                        + "   'cluster-b'\n"
-                        + "]"
-                )
-            )
-        )
-        LinkedHashSet<String> peerClusterNames
-    ) {
-        validateSuperUserAccess();
-        validatePoliciesReadOnlyAccess();
-
-        // validate if peer-cluster exist
-        if (peerClusterNames != null && !peerClusterNames.isEmpty()) {
-            for (String peerCluster : peerClusterNames) {
-                try {
-                    if (cluster.equalsIgnoreCase(peerCluster)) {
-                        throw new RestException(Status.PRECONDITION_FAILED,
-                                cluster + " itself can't be part of peer-list");
+    public void setPeerClusterNames(@Suspended AsyncResponse asyncResponse,
+                                    @ApiParam(value = "The cluster name", required = true)
+                                    @PathParam("cluster") String cluster,
+                                    @ApiParam(
+                                        value = "The list of peer cluster names",
+                                        required = true,
+                                        examples = @Example(
+                                        value = @ExampleProperty(mediaType = MediaType.APPLICATION_JSON,
+                                        value = "[\n"
+                                                + "   'cluster-a',\n"
+                                                + "   'cluster-b'\n"
+                                                + "]")))
+                                    LinkedHashSet<String> peerClusterNames) {
+        validateSuperUserAccessAsync()
+                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
+                .thenCompose(__ -> innerSetPeerClusterNamesAsync(cluster, peerClusterNames))
+                .thenAccept(__ -> {
+                    log.info("[{}] Successfully added peer-cluster {} for {}",
+                            clientAppId(), peerClusterNames, cluster);
+                    asyncResponse.resume(Response.ok().build());
+                }).exceptionally(ex -> {
+                    Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+                    log.error("[{}] Failed to validate peer-cluster list {}, {}", clientAppId(), peerClusterNames, ex);
+                    if (realCause instanceof NotFoundException) {
+                        asyncResponse.resume(new RestException(Status.NOT_FOUND, "Cluster does not exist"));
+                        return null;
                     }
-                    clusterResources().getCluster(peerCluster)
-                            .orElseThrow(() -> new RestException(Status.PRECONDITION_FAILED,
-                                    "Peer cluster " + peerCluster + " does not exist"));
-                } catch (RestException e) {
-                    log.warn("[{}] Peer cluster doesn't exist from {}, {}", clientAppId(), peerClusterNames,
-                            e.getMessage());
-                    throw e;
-                } catch (Exception e) {
-                    log.warn("[{}] Failed to validate peer-cluster list {}, {}", clientAppId(), peerClusterNames,
-                            e.getMessage());
-                    throw new RestException(e);
-                }
-            }
-        }
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
 
-        try {
-            clusterResources().updateCluster(cluster, old ->
-                old.clone()
-                        .peerClusterNames(peerClusterNames)
-                        .build()
-            );
-            log.info("[{}] Successfully added peer-cluster {} for {}", clientAppId(), peerClusterNames, cluster);
-        } catch (NotFoundException e) {
-            log.warn("[{}] Failed to update cluster {}: Does not exist", clientAppId(), cluster);
-            throw new RestException(Status.NOT_FOUND, "Cluster does not exist");
-        } catch (Exception e) {
-            log.error("[{}] Failed to update cluster {}", clientAppId(), cluster, e);
-            throw new RestException(e);
+    }
+
+    private CompletableFuture<Void> innerSetPeerClusterNamesAsync(String cluster,
+                                                                LinkedHashSet<String> peerClusterNames) {
+        // validate if peer-cluster exist
+        CompletableFuture<Void> future;
+        if (CollectionUtils.isNotEmpty(peerClusterNames)) {
+            future = FutureUtil.waitForAll(peerClusterNames.stream().map(peerCluster -> {
+                if (cluster.equalsIgnoreCase(peerCluster)) {
+                    return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED,
+                            cluster + " itself can't be part of peer-list"));
+                }
+                return clusterResources().getClusterAsync(peerCluster)
+                        .thenAccept(peerClusterOpt -> {
+                            if (!peerClusterOpt.isPresent()) {
+                                throw new RestException(Status.PRECONDITION_FAILED,
+                                        "Peer cluster " + peerCluster + " does not exist");
+                            }
+                        });
+            }).collect(Collectors.toList()));
+        } else {
+            future = CompletableFuture.completedFuture(null);
         }
+        return future.thenCompose(__ -> clusterResources().updateClusterAsync(cluster,
+                old -> old.clone().peerClusterNames(peerClusterNames).build()));
     }
 
     @GET
