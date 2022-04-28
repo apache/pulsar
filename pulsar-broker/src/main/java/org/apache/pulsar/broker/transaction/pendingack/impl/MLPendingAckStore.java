@@ -284,8 +284,7 @@ public class MLPendingAckStore implements PendingAckStore {
                     && subManagedCursor.getPersistentMarkDeletedPosition() != null
                     && pendingAckLogIndex.firstEntry().getKey()
                     .compareTo((PositionImpl) subManagedCursor.getPersistentMarkDeletedPosition()) <= 0) {
-                deletePosition = pendingAckLogIndex.firstEntry().getValue();
-                pendingAckLogIndex.remove(pendingAckLogIndex.firstKey());
+                deletePosition = pendingAckLogIndex.remove(pendingAckLogIndex.firstKey());
             }
 
             if (deletePosition != null) {

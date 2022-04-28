@@ -36,7 +36,7 @@ public class LogIndexLagBackOffTest {
         Assert.assertEquals(logIndexLagBackoff.next(3), 9);
 
         try {
-            new LogIndexLagBackoff(- 1, 2, 3);
+            new LogIndexLagBackoff(-1, 2, 3);
         } catch (IllegalArgumentException e) {
             Assert.assertEquals(e.getMessage(), "min lag must be > 0");
         }
