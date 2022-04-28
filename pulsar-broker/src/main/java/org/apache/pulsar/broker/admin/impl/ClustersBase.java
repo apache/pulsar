@@ -402,6 +402,7 @@ public class ClustersBase extends AdminResource {
         @ApiParam(value = "The cluster name", required = true) @PathParam("cluster") String cluster
     ) {
         validateSuperUserAccessAsync()
+                .thenCompose(__ -> validateClusterExistAsync(cluster, Status.NOT_FOUND))
                 .thenCompose(__ -> internalGetNamespaceIsolationPolicies(cluster))
                 .thenAccept(asyncResponse::resume)
                 .exceptionally(ex -> {
@@ -411,22 +412,31 @@ public class ClustersBase extends AdminResource {
                 });
     }
 
+    /**
+     * Verify that the cluster exists.
+     * For compatibility to avoid breaking changes, we can specify a REST status code when it doesn't exist.
+     * @param cluster Cluster name
+     * @param notExistStatus REST status code
+     */
+    private CompletableFuture<Void> validateClusterExistAsync(String cluster, Status notExistStatus) {
+        return clusterResources().clusterExistsAsync(cluster)
+                .thenAccept(clusterExist -> {
+                    if (!clusterExist) {
+                        throw new RestException(notExistStatus, "Cluster " + cluster + " does not exist.");
+                    }
+                });
+    }
+
     private CompletableFuture<Map<String, NamespaceIsolationDataImpl>> internalGetNamespaceIsolationPolicies(
             String cluster) {
-        return clusterResources().clusterExistsAsync(cluster)
-                .thenCompose(clusterExist -> {
-                    if (!clusterExist) {
-                        throw new RestException(Status.NOT_FOUND, "Cluster " + cluster + " does not exist.");
-                    }
-                    return namespaceIsolationPolicies().getIsolationDataPoliciesAsync(cluster)
-                            .thenApply(namespaceIsolationPolicies -> {
-                                if (!namespaceIsolationPolicies.isPresent()) {
-                                    throw new RestException(Status.NOT_FOUND,
-                                            "NamespaceIsolationPolicies for cluster " + cluster + " does not exist");
-                                }
-                                return namespaceIsolationPolicies.get().getPolicies();
-                            });
-                });
+            return namespaceIsolationPolicies().getIsolationDataPoliciesAsync(cluster)
+                    .thenApply(namespaceIsolationPolicies -> {
+                        if (!namespaceIsolationPolicies.isPresent()) {
+                            throw new RestException(Status.NOT_FOUND,
+                                    "NamespaceIsolationPolicies for cluster " + cluster + " does not exist");
+                        }
+                        return namespaceIsolationPolicies.get().getPolicies();
+                    });
     }
 
 
@@ -443,40 +453,28 @@ public class ClustersBase extends AdminResource {
             @ApiResponse(code = 412, message = "Cluster doesn't exist."),
             @ApiResponse(code = 500, message = "Internal server error.")
     })
-    public NamespaceIsolationData getNamespaceIsolationPolicy(
-        @ApiParam(
-            value = "The cluster name",
-            required = true
-        )
-        @PathParam("cluster") String cluster,
-        @ApiParam(
-            value = "The name of the namespace isolation policy",
-            required = true
-        )
+    public void getNamespaceIsolationPolicy(
+        @Suspended AsyncResponse asyncResponse,
+        @ApiParam(value = "The cluster name", required = true) @PathParam("cluster") String cluster,
+        @ApiParam(value = "The name of the namespace isolation policy", required = true)
         @PathParam("policyName") String policyName
-    ) throws Exception {
-        validateSuperUserAccess();
-        validateClusterExists(cluster);
-
-        try {
-            NamespaceIsolationPolicies nsIsolationPolicies = namespaceIsolationPolicies()
-                    .getIsolationDataPolicies(cluster)
-                    .orElseThrow(() -> new RestException(Status.NOT_FOUND,
-                            "NamespaceIsolationPolicies for cluster " + cluster + " does not exist"));
-            // construct the response to Namespace isolation data map
-            if (!nsIsolationPolicies.getPolicies().containsKey(policyName)) {
-                log.info("[{}] Cannot find NamespaceIsolationPolicy {} for cluster {}",
-                        clientAppId(), policyName, cluster);
-                throw new RestException(Status.NOT_FOUND,
-                        "Cannot find NamespaceIsolationPolicy " + policyName + " for cluster " + cluster);
-            }
-            return nsIsolationPolicies.getPolicies().get(policyName);
-        } catch (RestException re) {
-            throw re;
-        } catch (Exception e) {
-            log.error("[{}] Failed to get clusters/{}/namespaceIsolationPolicies/{}", clientAppId(), cluster, e);
-            throw new RestException(e);
-        }
+    ) {
+        validateSuperUserAccessAsync()
+                .thenCompose(__ -> validateClusterExistAsync(cluster, Status.PRECONDITION_FAILED))
+                .thenCompose(__ -> internalGetNamespaceIsolationPolicies(cluster))
+                .thenAccept(policies -> {
+                    // construct the response to Namespace isolation data map
+                    if (!policies.containsKey(policyName)) {
+                        throw new RestException(Status.NOT_FOUND,
+                                "Cannot find NamespaceIsolationPolicy " + policyName + " for cluster " + cluster);
+                    }
+                    asyncResponse.resume(policies.get(policyName));
+                }).exceptionally(ex -> {
+                    log.error("[{}] Failed to get clusters/{}/namespaceIsolationPolicies/{}",
+                            clientAppId(), cluster, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @GET
