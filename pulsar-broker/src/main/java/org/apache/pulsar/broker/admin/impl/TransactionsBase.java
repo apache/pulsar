@@ -435,8 +435,7 @@ public abstract class TransactionsBase extends AdminResource {
     }
 
     protected CompletableFuture<Void> internalScaleTransactionCoordinators(int replicas) {
-        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
-        validateSuperUserAccessAsync()
+        return validateSuperUserAccessAsync()
                 .thenCompose((ignore)-> namespaceResources().getPartitionedTopicResources()
                         .updatePartitionedTopicAsync(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN, p -> {
                             if (p.partitions >= replicas) {
@@ -445,12 +444,6 @@ public abstract class TransactionsBase extends AdminResource {
                                                 + "be more than the current number of transaction coordinator");
                             }
                             return new PartitionedTopicMetadata(replicas);
-                        }).thenAccept(r -> completableFuture.complete(null)))
-                .exceptionally(e -> {
-                    log.error("{} Failed to update the scale of transaction coordinators", clientAppId());
-                    completableFuture.completeExceptionally(e);
-                    return null;
-                });
-        return completableFuture;
+                        }));
     }
 }

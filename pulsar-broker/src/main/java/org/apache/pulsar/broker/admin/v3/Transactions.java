@@ -323,7 +323,8 @@ public class Transactions extends TransactionsBase {
             @ApiResponse(code = 503, message = "This Broker is not configured "
                     + "with transactionCoordinatorEnabled=true."),
             @ApiResponse(code = 406, message = "The number of replicas should be more than "
-                    + "the current number of transaction coordinator replicas")})
+                    + "the current number of transaction coordinator replicas"),
+            @ApiResponse(code = 401, message = "This operation requires super-user access")})
     public void scaleTransactionCoordinators(@Suspended final AsyncResponse asyncResponse, int replicas) {
         try {
             checkTransactionCoordinatorEnabled();
@@ -334,6 +335,7 @@ public class Transactions extends TransactionsBase {
                         return null;
                     });
         } catch (Exception e) {
+            log.warn("{} Failed to update the scale of transaction coordinators", clientAppId());
             resumeAsyncResponseExceptionally(asyncResponse, e);
         }
     }
