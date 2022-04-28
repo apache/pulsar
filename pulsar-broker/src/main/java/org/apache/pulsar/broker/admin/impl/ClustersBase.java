@@ -311,22 +311,20 @@ public class ClustersBase extends AdminResource {
             @ApiResponse(code = 404, message = "Cluster doesn't exist."),
             @ApiResponse(code = 500, message = "Internal server error.")
     })
-    public Set<String> getPeerCluster(
-            @ApiParam(
-                    value = "The cluster name",
-                    required = true
-            )
-            @PathParam("cluster") String cluster
-    ) {
-        validateSuperUserAccess();
-        try {
-            ClusterData clusterData = clusterResources().getCluster(cluster)
-                    .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Cluster does not exist"));
-            return clusterData.getPeerClusterNames();
-        } catch (Exception e) {
-            log.error("[{}] Failed to get cluster {}", clientAppId(), cluster, e);
-            throw new RestException(e);
-        }
+    public void getPeerCluster(@Suspended AsyncResponse asyncResponse,
+                               @ApiParam(value = "The cluster name", required = true)
+                               @PathParam("cluster") String cluster) {
+        validateSuperUserAccessAsync()
+                .thenCompose(__ -> clusterResources().getClusterAsync(cluster))
+                .thenAccept(clusterOpt -> {
+                    ClusterData clusterData =
+                            clusterOpt.orElseThrow(() -> new RestException(Status.NOT_FOUND, "Cluster does not exist"));
+                    asyncResponse.resume(clusterData);
+                }).exceptionally(ex -> {
+                    log.error("[{}] Failed to get cluster {}", clientAppId(), cluster, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @DELETE
