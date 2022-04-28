@@ -22,6 +22,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
+import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.Lists;
 import java.util.ArrayList;
 import java.util.List;
@@ -181,6 +182,20 @@ public class ConcurrentSortedLongPairSetTest {
         values = new ArrayList<>(set.items());
         values.sort(null);
         assertEquals(values, Lists.newArrayList(new LongPair(6, 6), new LongPair(7, 7)));
+
+        set = new ConcurrentSortedLongPairSet(128, 2, true);
+        set.add(2, 2);
+        set.add(1, 3);
+        set.add(3, 1);
+        set.add(2, 1);
+        set.add(3, 2);
+        set.add(1, 2);
+        set.add(1, 1);
+        removeItems = set.removeIf((ledgerId, entryId) -> {
+            return ComparisonChain.start().compare(ledgerId, 1).compare(entryId, 3)
+                    .result() <= 0;
+        });
+        assertEquals(removeItems, 3);
     }
 
     @Test
@@ -244,5 +259,33 @@ public class ConcurrentSortedLongPairSetTest {
         assertTrue(set.isEmpty());
         set.add(1, 1);
         assertFalse(set.isEmpty());
+    }
+
+    @Test
+    public void testShrink() {
+        LongPairSet set = new ConcurrentSortedLongPairSet(2, 1, true);
+        set.add(0, 0);
+        assertTrue(set.capacity() == 4);
+        set.add(0, 1);
+        assertTrue(set.capacity() == 4);
+        set.add(1, 1);
+        assertTrue(set.capacity() == 8);
+        set.add(1, 2);
+        assertTrue(set.capacity() == 8);
+        set.add(1, 3);
+        set.add(1, 4);
+        set.add(1, 5);
+        assertTrue(set.capacity() == 12);
+        set.remove(1, 5);
+        // not shrink
+        assertTrue(set.capacity() == 12);
+        set.remove(1, 4);
+        // the internal map does not keep shrinking at every remove() operation
+        assertTrue(set.capacity() == 12);
+        set.remove(1, 3);
+        set.remove(1, 2);
+        set.remove(1, 1);
+        // shrink
+        assertTrue(set.capacity() == 8);
     }
 }
