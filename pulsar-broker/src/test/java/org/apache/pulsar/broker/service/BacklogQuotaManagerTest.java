@@ -41,6 +41,7 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.GetStatsOptions;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
@@ -180,8 +181,7 @@ public class BacklogQuotaManagerTest {
 
             rolloverStats();
 
-            TopicStats stats =
-                    admin.topics().getStats(topic1, GetStatsOptions.builder().getPreciseBacklog(true).build());
+            TopicStats stats = getTopicStats(topic1);
 
             // overall backlogSize should be zero because we only have readers
             assertEquals(stats.getBacklogSize(), 0, "backlog size is [" + stats.getBacklogSize() + "]");
@@ -230,6 +230,12 @@ public class BacklogQuotaManagerTest {
         }
     }
 
+    private TopicStats getTopicStats(String topic1) throws PulsarAdminException {
+        TopicStats stats =
+                admin.topics().getStats(topic1, GetStatsOptions.builder().getPreciseBacklog(true).build());
+        return stats;
+    }
+
     @Test
     public void testTriggerBacklogQuotaSizeWithReader() throws Exception {
         assertEquals(admin.namespaces().getBacklogQuotaMap("prop/ns-quota"),
@@ -253,8 +259,7 @@ public class BacklogQuotaManagerTest {
             Thread.sleep(TIME_TO_CHECK_BACKLOG_QUOTA * 1000);
             admin.brokers().backlogQuotaCheck();
             rolloverStats();
-            TopicStats stats =
-                    admin.topics().getStats(topic1, GetStatsOptions.builder().getPreciseBacklog(true).build());
+            TopicStats stats = getTopicStats(topic1);
             // overall backlogSize should be zero because we only have readers
             assertEquals(stats.getBacklogSize(), 0, "backlog size is [" + stats.getBacklogSize() + "]");
             // non-durable mes should still
@@ -324,8 +329,7 @@ public class BacklogQuotaManagerTest {
             Thread.sleep(TIME_TO_CHECK_BACKLOG_QUOTA * 1000);
             admin.brokers().backlogQuotaCheck();
             rolloverStats();
-            TopicStats stats =
-                    admin.topics().getStats(topic1, GetStatsOptions.builder().getPreciseBacklog(true).build());
+            TopicStats stats = getTopicStats(topic1);
             // overall backlogSize should be zero because we only have readers
             assertEquals(stats.getBacklogSize(), 0, "backlog size is [" + stats.getBacklogSize() + "]");
             // non-durable mes should still
@@ -400,7 +404,7 @@ public class BacklogQuotaManagerTest {
         Thread.sleep((TIME_TO_CHECK_BACKLOG_QUOTA + 1) * 1000);
         rolloverStats();
 
-        TopicStats stats = admin.topics().getStats(topic1, GetStatsOptions.builder().getPreciseBacklog(true).build());
+        TopicStats stats = getTopicStats(topic1);
         assertTrue(stats.getBacklogSize() < 10 * 1024, "Storage size is [" + stats.getStorageSize() + "]");
     }
 
@@ -432,14 +436,14 @@ public class BacklogQuotaManagerTest {
             consumer2.receive();
         }
 
-        TopicStats stats = admin.topics().getStats(topic1, GetStatsOptions.builder().getPreciseBacklog(true).build());
+        TopicStats stats = getTopicStats(topic1);
         assertEquals(stats.getSubscriptions().get(subName1).getMsgBacklog(), 9);
         assertEquals(stats.getSubscriptions().get(subName2).getMsgBacklog(), 9);
 
         Thread.sleep((TIME_TO_CHECK_BACKLOG_QUOTA * 2) * 1000);
         rolloverStats();
 
-        stats = admin.topics().getStats(topic1, GetStatsOptions.builder().getPreciseBacklog(true).build());
+        stats = getTopicStats(topic1);
         // All messages for both subscription should be cleaned up from backlog by backlog monitor task.
         assertEquals(stats.getSubscriptions().get(subName1).getMsgBacklog(), 0);
         assertEquals(stats.getSubscriptions().get(subName2).getMsgBacklog(), 0);
@@ -473,14 +477,14 @@ public class BacklogQuotaManagerTest {
             consumer2.receive();
         }
 
-        TopicStats stats = admin.topics().getStats(topic1, GetStatsOptions.builder().getPreciseBacklog(true).build());
+        TopicStats stats = getTopicStats(topic1);
         assertEquals(stats.getSubscriptions().get(subName1).getMsgBacklog(), 14);
         assertEquals(stats.getSubscriptions().get(subName2).getMsgBacklog(), 14);
 
         Thread.sleep((TIME_TO_CHECK_BACKLOG_QUOTA * 2) * 1000);
         rolloverStats();
 
-        stats = admin.topics().getStats(topic1, GetStatsOptions.builder().getPreciseBacklog(true).build());
+        stats = getTopicStats(topic1);
         PersistentTopic topic1Reference = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topic1).get();
         ManagedLedgerImpl ml = (ManagedLedgerImpl) topic1Reference.getManagedLedger();
         // Messages on first 2 ledgers should be expired, backlog is number of
@@ -516,7 +520,7 @@ public class BacklogQuotaManagerTest {
         assertEquals(internalStats.ledgers.size(), 2);
         assertEquals(internalStats.ledgers.get(1).entries, 0);
 
-        TopicStats stats = admin.topics().getStats(topic, GetStatsOptions.builder().getPreciseBacklog(true).build());
+        TopicStats stats = getTopicStats(topic);
         assertEquals(stats.getSubscriptions().get(subName).getMsgBacklog(), 1);
 
         TimeUnit.SECONDS.sleep(TIME_TO_CHECK_BACKLOG_QUOTA);
@@ -532,8 +536,7 @@ public class BacklogQuotaManagerTest {
                     PersistentTopicInternalStats latestInternalStats = admin.topics().getInternalStats(topic);
                     assertEquals(latestInternalStats.ledgers.size(), 2);
                     assertEquals(latestInternalStats.ledgers.get(1).entries, 0);
-                    TopicStats latestStats =
-                            admin.topics().getStats(topic, GetStatsOptions.builder().getPreciseBacklog(true).build());
+                    TopicStats latestStats = getTopicStats(topic);
                     assertEquals(latestStats.getSubscriptions().get(subName).getMsgBacklog(), 0);
                 });
 
@@ -571,7 +574,7 @@ public class BacklogQuotaManagerTest {
         Thread.sleep((TIME_TO_CHECK_BACKLOG_QUOTA + 1) * 1000);
         rolloverStats();
 
-        TopicStats stats = admin.topics().getStats(topic1, GetStatsOptions.builder().getPreciseBacklog(true).build());
+        TopicStats stats = getTopicStats(topic1);
         assertTrue(stats.getBacklogSize() <= 10 * 1024, "Storage size is [" + stats.getStorageSize() + "]");
     }
 
@@ -603,7 +606,7 @@ public class BacklogQuotaManagerTest {
             consumer2.receive();
         }
 
-        TopicStats stats = admin.topics().getStats(topic1, GetStatsOptions.builder().getPreciseBacklog(true).build());
+        TopicStats stats = getTopicStats(topic1);
         assertEquals(stats.getSubscriptions().get(subName1).getMsgBacklog(), 9);
         assertEquals(stats.getSubscriptions().get(subName2).getMsgBacklog(), 9);
 
@@ -615,7 +618,7 @@ public class BacklogQuotaManagerTest {
 
         Thread.sleep(1000);
         rolloverStats();
-        stats = admin.topics().getStats(topic1, GetStatsOptions.builder().getPreciseBacklog(true).build());
+        stats = getTopicStats(topic1);
         // sub1 has empty backlog as it acked all messages
         assertEquals(stats.getSubscriptions().get(subName1).getMsgBacklog(), 0);
         assertEquals(stats.getSubscriptions().get(subName2).getMsgBacklog(), 9);
@@ -623,7 +626,7 @@ public class BacklogQuotaManagerTest {
         Thread.sleep((TIME_TO_CHECK_BACKLOG_QUOTA * 2) * 1000);
         rolloverStats();
 
-        stats = admin.topics().getStats(topic1, GetStatsOptions.builder().getPreciseBacklog(true).build());
+        stats = getTopicStats(topic1);
         // sub2 has empty backlog because it's backlog get cleaned up by backlog quota monitor task
         assertEquals(stats.getSubscriptions().get(subName2).getMsgBacklog(), 0);
         client.close();
@@ -669,8 +672,7 @@ public class BacklogQuotaManagerTest {
         }
 
         {
-            TopicStats stats =
-                    admin.topics().getStats(topic1, GetStatsOptions.builder().getPreciseBacklog(true).build());
+            TopicStats stats = getTopicStats(topic1);
             assertEquals(stats.getSubscriptions().get(subName1).getMsgBacklog(), 14);
             assertEquals(stats.getSubscriptions().get(subName2).getMsgBacklog(), 14);
         }
@@ -689,8 +691,7 @@ public class BacklogQuotaManagerTest {
                 .pollInterval(Duration.ofSeconds(1))
                 .untilAsserted(() -> {
                     rolloverStats();
-                    TopicStats stats =
-                            admin.topics().getStats(topic1, GetStatsOptions.builder().getPreciseBacklog(true).build());
+                    TopicStats stats = getTopicStats(topic1);
                     // sub1 has empty backlog as it acked all messages
                     assertEquals(stats.getSubscriptions().get(subName1).getMsgBacklog(), 0);
                     assertEquals(stats.getSubscriptions().get(subName2).getMsgBacklog(), 14);
@@ -703,7 +704,7 @@ public class BacklogQuotaManagerTest {
                     // Messages on first 2 ledgers should be expired, backlog is number of
                     // message in current ledger which should be 4.
                     long msgBacklog =
-                            admin.topics().getStats(topic1, GetStatsOptions.builder().getPreciseBacklog(true).build())
+                            getTopicStats(topic1)
                                     .getSubscriptions().get(subName2).getMsgBacklog();
                     assertEquals(msgBacklog, 4, 1);
                 });
@@ -776,7 +777,7 @@ public class BacklogQuotaManagerTest {
         Thread.sleep((TIME_TO_CHECK_BACKLOG_QUOTA + 1) * 1000);
         rolloverStats();
 
-        TopicStats stats = admin.topics().getStats(topic1, GetStatsOptions.builder().getPreciseBacklog(true).build());
+        TopicStats stats = getTopicStats(topic1);
         assertTrue(stats.getBacklogSize() <= 10 * 1024, "Storage size is [" + stats.getStorageSize() + "]");
     }
 
@@ -942,7 +943,7 @@ public class BacklogQuotaManagerTest {
         Thread.sleep((TIME_TO_CHECK_BACKLOG_QUOTA + 1) * 1000);
         rolloverStats();
 
-        TopicStats stats = admin.topics().getStats(topic1, GetStatsOptions.builder().getPreciseBacklog(true).build());
+        TopicStats stats = getTopicStats(topic1);
         assertTrue(stats.getBacklogSize() <= 15 * 1024, "Storage size is [" + stats.getStorageSize() + "]");
     }
 
@@ -983,7 +984,7 @@ public class BacklogQuotaManagerTest {
 
         Thread.sleep((TIME_TO_CHECK_BACKLOG_QUOTA + 1) * 1000);
         rolloverStats();
-        TopicStats stats = admin.topics().getStats(topic1, GetStatsOptions.builder().getPreciseBacklog(true).build());
+        TopicStats stats = getTopicStats(topic1);
         assertEquals(stats.getPublishers().size(), 0,
                 "Number of producers on topic " + topic1 + " are [" + stats.getPublishers().size() + "]");
     }
@@ -1106,7 +1107,7 @@ public class BacklogQuotaManagerTest {
         assertTrue(gotException, "backlog exceeded exception did not occur");
         // now remove backlog and ensure that producer is unblocked;
 
-        TopicStats stats = admin.topics().getStats(topic1, GetStatsOptions.builder().getPreciseBacklog(true).build());
+        TopicStats stats = getTopicStats(topic1);
         int backlog = (int) stats.getSubscriptions().get(subName1).getMsgBacklog();
 
         for (int i = 0; i < backlog; i++) {
@@ -1170,7 +1171,7 @@ public class BacklogQuotaManagerTest {
         assertTrue(gotException, "backlog exceeded exception did not occur");
 
         // now remove backlog and ensure that producer is unblocked;
-        TopicStats stats = admin.topics().getStats(topic1, GetStatsOptions.builder().getPreciseBacklog(true).build());
+        TopicStats stats = getTopicStats(topic1);
         assertEquals(stats.getSubscriptions().get(subName1).getMsgBacklog(), numMsgs);
 
         for (int i = 0; i < numMsgs; i++) {
@@ -1179,7 +1180,7 @@ public class BacklogQuotaManagerTest {
 
         Thread.sleep((TIME_TO_CHECK_BACKLOG_QUOTA * 2) * 1000);
         rolloverStats();
-        stats = admin.topics().getStats(topic1, GetStatsOptions.builder().getPreciseBacklog(true).build());
+        stats = getTopicStats(topic1);
         assertEquals(stats.getSubscriptions().get(subName1).getMsgBacklog(), 0);
         // publish should work now
         Exception sendException = null;
@@ -1235,7 +1236,7 @@ public class BacklogQuotaManagerTest {
         assertTrue(gotException, "backlog exceeded exception did not occur");
 
         // now remove backlog and ensure that producer is unblocked;
-        TopicStats stats = admin.topics().getStats(topic1, GetStatsOptions.builder().getPreciseBacklog(true).build());
+        TopicStats stats = getTopicStats(topic1);
         assertEquals(stats.getSubscriptions().get(subName1).getMsgBacklog(), numMsgs);
 
         for (int i = 0; i < numMsgs; i++) {
@@ -1244,7 +1245,7 @@ public class BacklogQuotaManagerTest {
 
         Thread.sleep((TIME_TO_CHECK_BACKLOG_QUOTA * 2) * 1000);
         rolloverStats();
-        stats = admin.topics().getStats(topic1, GetStatsOptions.builder().getPreciseBacklog(true).build());
+        stats = getTopicStats(topic1);
         assertEquals(stats.getSubscriptions().get(subName1).getMsgBacklog(), 0);
         // publish should work now
         Exception sendException = null;
@@ -1297,7 +1298,7 @@ public class BacklogQuotaManagerTest {
         Thread.sleep((TIME_TO_CHECK_BACKLOG_QUOTA + 1) * 1000);
         rolloverStats();
 
-        TopicStats stats = admin.topics().getStats(topic1, GetStatsOptions.builder().getPreciseBacklog(true).build());
+        TopicStats stats = getTopicStats(topic1);
         assertTrue(stats.getBacklogSize() < 10 * 1024, "Storage size is [" + stats.getStorageSize() + "]");
     }
     private static final Logger LOG = LoggerFactory.getLogger(BacklogQuotaManagerTest.class);
