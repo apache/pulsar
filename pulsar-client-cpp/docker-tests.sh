@@ -34,7 +34,7 @@ ROOT_DIR=$(git rev-parse --show-toplevel)
 cd $ROOT_DIR/pulsar-client-cpp
 
 BUILD_IMAGE_NAME="${BUILD_IMAGE_NAME:-apachepulsar/pulsar-build}"
-BUILD_IMAGE_VERSION="${BUILD_IMAGE_VERSION:-ubuntu-20.04}"
+BUILD_IMAGE_VERSION="${BUILD_IMAGE_VERSION:-ubuntu-16.04-pb3-jdk17}"
 
 IMAGE="$BUILD_IMAGE_NAME:$BUILD_IMAGE_VERSION"
 
@@ -67,8 +67,7 @@ if [ "$GTEST_COLOR" = "no" ]; then
 fi
 
 # Java17 is required for CLI e.g) bin/pulsar create-token
-$DOCKER_CMD bash -c "apt-get -y install openjdk-17-jre-headless &&\
- set -o pipefail; cd /pulsar/pulsar-client-cpp && ./run-unit-tests.sh ${tests} $DISABLE_COLOR_OUTPUT"
+$DOCKER_CMD bash -c "set -o pipefail; cd /pulsar/pulsar-client-cpp && ./run-unit-tests.sh ${tests} $DISABLE_COLOR_OUTPUT"
 RES=$?
 if [ $RES -ne 0 ]; then
   (
