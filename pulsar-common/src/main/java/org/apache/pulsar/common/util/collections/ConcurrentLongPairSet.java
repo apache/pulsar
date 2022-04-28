@@ -448,20 +448,7 @@ public class ConcurrentLongPairSet implements LongPairSet {
                     bucket = (bucket + 2) & (table.length - 1);
                 }
             } finally {
-                if (autoShrink && size < resizeThresholdBelow) {
-                    try {
-                        int newCapacity = alignToPowerOfTwo((int) (capacity / shrinkFactor));
-                        int newResizeThresholdUp = (int) (newCapacity * mapFillFactor);
-                        if (newCapacity < capacity && newResizeThresholdUp > size) {
-                            // shrink the hashmap
-                            rehash(newCapacity);
-                        }
-                    } finally {
-                        unlockWrite(stamp);
-                    }
-                } else {
-                    unlockWrite(stamp);
-                }
+                tryShrinkThenUnlock(stamp);
             }
         }
 
@@ -484,22 +471,26 @@ public class ConcurrentLongPairSet implements LongPairSet {
                     }
                 }
             } finally {
-                if (autoShrink && size < resizeThresholdBelow) {
-                    try {
-                        int newCapacity = alignToPowerOfTwo((int) (capacity / shrinkFactor));
-                        int newResizeThresholdUp = (int) (newCapacity * mapFillFactor);
-                        if (newCapacity < capacity && newResizeThresholdUp > size) {
-                            // shrink the hashmap
-                            rehash(newCapacity);
-                        }
-                    } finally {
-                        unlockWrite(stamp);
-                    }
-                } else {
-                    unlockWrite(stamp);
-                }
+                tryShrinkThenUnlock(stamp);
             }
             return removedItems;
+        }
+
+        private void tryShrinkThenUnlock(long stamp) {
+            if (autoShrink && size < resizeThresholdBelow) {
+                try {
+                    int newCapacity = alignToPowerOfTwo((int) (capacity / shrinkFactor));
+                    int newResizeThresholdUp = (int) (newCapacity * mapFillFactor);
+                    if (newCapacity < capacity && newResizeThresholdUp > size) {
+                        // shrink the hashmap
+                        rehash(newCapacity);
+                    }
+                } finally {
+                    unlockWrite(stamp);
+                }
+            } else {
+                unlockWrite(stamp);
+            }
         }
 
         private void cleanBucket(int bucket) {
