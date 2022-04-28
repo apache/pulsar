@@ -87,6 +87,7 @@ The configuration of the Elasticsearch sink connector has the following properti
 |------|----------|----------|---------|-------------|
 | `enabled` | Boolean| false | false | Enable SSL/TLS. |
 | `hostnameVerification` | Boolean| false | true | Whether or not to validate node hostnames when using SSL. |
+| `disableCertificateValidation` | Boolean| false | true | Whether or not to disable the node certificate validation. Changing this value is high insecure and you should not use it in production environment. |
 | `truststorePath` | String| false |" " (empty string)| The path to the truststore file. |
 | `truststorePassword` | String| false |" " (empty string)| Truststore password. |
 | `keystorePath` | String| false |" " (empty string)| The path to the keystore file. |
