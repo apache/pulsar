@@ -48,14 +48,15 @@ import org.apache.pulsar.common.util.collections.ConcurrentLongPairSet.LongPairC
 public class ConcurrentSortedLongPairSet implements LongPairSet {
 
     protected final NavigableMap<Long, ConcurrentLongPairSet> longPairSets = new ConcurrentSkipListMap<>();
-    private int expectedItems;
-    private int concurrencyLevel;
+    private final int expectedItems;
+    private final int concurrencyLevel;
     /**
      * If {@link #longPairSets} adds and removes the item-set frequently then it allocates and removes
      * {@link ConcurrentLongPairSet} for the same item multiple times which can lead to gc-puases. To avoid such
      * situation, avoid removing empty LogPairSet until it reaches max limit.
      */
-    private int maxAllowedSetOnRemove;
+    private final int maxAllowedSetOnRemove;
+    private final boolean autoShrink;
     private static final int DEFAULT_MAX_ALLOWED_SET_ON_REMOVE = 10;
 
     public ConcurrentSortedLongPairSet() {
@@ -70,10 +71,20 @@ public class ConcurrentSortedLongPairSet implements LongPairSet {
         this(expectedItems, concurrencyLevel, DEFAULT_MAX_ALLOWED_SET_ON_REMOVE);
     }
 
+    public ConcurrentSortedLongPairSet(int expectedItems, int concurrencyLevel, boolean autoShrink) {
+        this(expectedItems, concurrencyLevel, DEFAULT_MAX_ALLOWED_SET_ON_REMOVE, autoShrink);
+    }
+
     public ConcurrentSortedLongPairSet(int expectedItems, int concurrencyLevel, int maxAllowedSetOnRemove) {
+        this(expectedItems, concurrencyLevel, maxAllowedSetOnRemove, false);
+    }
+
+    public ConcurrentSortedLongPairSet(int expectedItems, int concurrencyLevel, int maxAllowedSetOnRemove,
+                                       boolean autoShrink) {
         this.expectedItems = expectedItems;
         this.concurrencyLevel = concurrencyLevel;
         this.maxAllowedSetOnRemove = maxAllowedSetOnRemove;
+        this.autoShrink = autoShrink;
     }
 
     @Override
@@ -82,6 +93,7 @@ public class ConcurrentSortedLongPairSet implements LongPairSet {
                 (key) -> ConcurrentLongPairSet.newBuilder()
                         .expectedItems(expectedItems)
                         .concurrencyLevel(concurrencyLevel)
+                        .autoShrink(autoShrink)
                         .build());
         return messagesToReplay.add(item1, item2);
     }
@@ -192,6 +204,15 @@ public class ConcurrentSortedLongPairSet implements LongPairSet {
             size.getAndAdd(longPairSet.size());
         });
         return size.get();
+    }
+
+    @Override
+    public long capacity() {
+        AtomicLong capacity = new AtomicLong(0);
+        longPairSets.forEach((item1, longPairSet) -> {
+            capacity.getAndAdd(longPairSet.capacity());
+        });
+        return capacity.get();
     }
 
     @Override
