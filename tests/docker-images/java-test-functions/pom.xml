@@ -23,7 +23,7 @@
   <parent>
     <groupId>org.apache.pulsar.tests</groupId>
     <artifactId>docker-images</artifactId>
-    <version>2.10.1-SNAPSHOT</version>
+    <version>2.10.0.1-SNAPSHOT</version>
   </parent>
   <modelVersion>4.0.0</modelVersion>
   <artifactId>java-test-functions</artifactId>
@@ -66,21 +66,14 @@
 
       <dependencies>
         <dependency>
-<<<<<<< HEAD
-          <groupId>org.apache.pulsar</groupId>
+          <groupId>com.datastax.oss</groupId>
           <artifactId>pulsar-functions-api-examples</artifactId>
           <version>${project.version}</version>
-=======
-            <groupId>com.datastax.oss</groupId>
-            <artifactId>pulsar-functions-api-examples</artifactId>
-            <version>${project.version}</version>
->>>>>>> a815516416c (New distro groupId 'com.datastax.oss')
         </dependency>
       </dependencies>
 
       <build>
         <plugins>
-<<<<<<< HEAD
           <plugin>
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-shade-plugin</artifactId>
@@ -93,44 +86,13 @@
                 <configuration>
                   <artifactSet>
                     <includes>
-                      <include>org.apache.pulsar:pulsar-functions-api-examples</include>
+                      <include>com.datastax.oss:pulsar-functions-api-examples</include>
                     </includes>
                   </artifactSet>
                 </configuration>
               </execution>
             </executions>
           </plugin>
-=======
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-shade-plugin</artifactId>
-                <executions>
-                    <execution>
-                        <phase>${shadePluginPhase}</phase>
-                        <goals>
-                            <goal>shade</goal>
-                        </goals>
-                        <configuration>
-                            <!--Don't create dependency reduced pom.  This causes maven to go into a infinite loop.  May be a maven bug-->
-                            <createDependencyReducedPom>false</createDependencyReducedPom>>
-                            <transformers>
-                                <transformer
-                                        implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
-                                <transformer
-                                        implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                                </transformer>
-                            </transformers>
-                            <artifactSet>
-                                <includes>
-                                    <include>com.datastax.oss:pulsar-client</include>
-                                    <include>com.datastax.oss:pulsar-functions-api-examples</include>
-                                </includes>
-                            </artifactSet>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
->>>>>>> a815516416c (New distro groupId 'com.datastax.oss')
         </plugins>
       </build>
     </profile>
