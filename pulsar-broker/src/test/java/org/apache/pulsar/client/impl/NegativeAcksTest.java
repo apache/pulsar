@@ -264,7 +264,7 @@ public class NegativeAcksTest extends ProducerConsumerBase {
     }
 
     @Test
-    public void testNegativeAcksDeleteFromUnackedTracker() throws Exception{
+    public void testNegativeAcksDeleteFromUnackedTracker() throws Exception {
         String topic = BrokerTestUtil.newUniqueName("testNegativeAcksDeleteFromUnackedTracker");
         @Cleanup
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
@@ -304,5 +304,55 @@ public class NegativeAcksTest extends ProducerConsumerBase {
         assertEquals(nackedMessages.size(), 1);
         assertEquals(unAckedMessageTracker.size(), 0);
         nackedMessages.clear();
+    }
+
+    @Test
+    public void testNegativeAcksWithBatchAckEnabled() throws Exception {
+        stopBroker();
+        conf.setAcknowledgmentAtBatchIndexLevelEnabled(true);
+        setup();
+        String topic = BrokerTestUtil.newUniqueName("testNegativeAcksWithBatchAckEnabled");
+
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("sub1")
+                .acknowledgmentGroupTime(0, TimeUnit.SECONDS)
+                .subscriptionType(SubscriptionType.Shared)
+                .enableBatchIndexAcknowledgment(true)
+                .ackTimeout(1000, TimeUnit.MILLISECONDS)
+                .subscribe();
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .create();
+
+        Set<String> sentMessages = new HashSet<>();
+        final int N = 10;
+        for (int i = 0; i < N; i++) {
+            String value = "test-" + i;
+            producer.sendAsync(value);
+            sentMessages.add(value);
+        }
+        producer.flush();
+
+        for (int i = 0; i < N; i++) {
+            Message<String> msg = consumer.receive();
+            consumer.negativeAcknowledge(msg);
+        }
+
+        Set<String> receivedMessages = new HashSet<>();
+
+        // All the messages should be received again
+        for (int i = 0; i < N; i++) {
+            Message<String> msg = consumer.receive();
+            receivedMessages.add(msg.getValue());
+            consumer.acknowledge(msg);
+        }
+
+        assertEquals(receivedMessages, sentMessages);
+        // There should be no more messages
+        assertNull(consumer.receive(100, TimeUnit.MILLISECONDS));
     }
 }
