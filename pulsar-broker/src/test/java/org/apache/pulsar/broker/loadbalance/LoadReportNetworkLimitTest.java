@@ -31,13 +31,17 @@ import org.testng.annotations.Test;
 public class LoadReportNetworkLimitTest extends MockedPulsarServiceBaseTest {
     int nicCount;
 
+    @Override
+    protected void doInitConf() throws Exception {
+        super.doInitConf();
+        conf.setLoadBalancerEnabled(true);
+        conf.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(5.4));
+    }
+
     @BeforeClass
     @Override
     public void setup() throws Exception {
-        conf.setLoadBalancerEnabled(true);
-        conf.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(5.4));
         super.internalSetup();
-
         if (SystemUtils.IS_OS_LINUX) {
             nicCount = LinuxInfoUtils.getPhysicalNICs().size();
         }
