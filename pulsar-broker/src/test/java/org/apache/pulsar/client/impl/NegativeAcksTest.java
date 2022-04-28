@@ -263,7 +263,7 @@ public class NegativeAcksTest extends ProducerConsumerBase {
         producer.close();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testNegativeAcksDeleteFromUnackedTracker() throws Exception {
         String topic = BrokerTestUtil.newUniqueName("testNegativeAcksDeleteFromUnackedTracker");
         @Cleanup
@@ -306,7 +306,7 @@ public class NegativeAcksTest extends ProducerConsumerBase {
         nackedMessages.clear();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testNegativeAcksWithBatchAckEnabled() throws Exception {
         stopBroker();
         conf.setAcknowledgmentAtBatchIndexLevelEnabled(true);
