@@ -18,14 +18,13 @@
  */
 package org.apache.pulsar.common.util.collections;
 
+import java.util.Map;
 import java.util.NavigableMap;
 import java.util.NavigableSet;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
 import org.apache.pulsar.common.util.collections.ConcurrentLongPairSet.LongPair;
 import org.apache.pulsar.common.util.collections.ConcurrentLongPairSet.LongPairConsumer;
 
@@ -113,14 +112,16 @@ public class ConcurrentSortedLongPairSet implements LongPairSet {
 
     @Override
     public int removeIf(LongPairPredicate filter) {
-        AtomicInteger removedValues = new AtomicInteger(0);
-        longPairSets.forEach((item1, longPairSet) -> {
-            removedValues.addAndGet(longPairSet.removeIf(filter));
+        int removedValues = 0;
+        for (Map.Entry<Long, ConcurrentLongPairSet> entry : longPairSets.entrySet()) {
+            Long item1 = entry.getKey();
+            ConcurrentLongPairSet longPairSet = entry.getValue();
+            removedValues += longPairSet.removeIf(filter);
             if (longPairSet.isEmpty() && longPairSets.size() > maxAllowedSetOnRemove) {
                 longPairSets.remove(item1, longPairSet);
             }
-        });
-        return removedValues.get();
+        }
+        return removedValues;
     }
 
     @Override
@@ -199,20 +200,20 @@ public class ConcurrentSortedLongPairSet implements LongPairSet {
 
     @Override
     public long size() {
-        AtomicLong size = new AtomicLong(0);
-        longPairSets.forEach((item1, longPairSet) -> {
-            size.getAndAdd(longPairSet.size());
-        });
-        return size.get();
+        long size = 0;
+        for (Map.Entry<Long, ConcurrentLongPairSet> entry : longPairSets.entrySet()) {
+            size += entry.getValue().size();
+        }
+        return size;
     }
 
     @Override
     public long capacity() {
-        AtomicLong capacity = new AtomicLong(0);
-        longPairSets.forEach((item1, longPairSet) -> {
-            capacity.getAndAdd(longPairSet.capacity());
-        });
-        return capacity.get();
+        long capacity = 0;
+        for (Map.Entry<Long, ConcurrentLongPairSet> entry : longPairSets.entrySet()) {
+            capacity += entry.getValue().capacity();
+        }
+        return capacity;
     }
 
     @Override
