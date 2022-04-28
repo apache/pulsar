@@ -491,53 +491,45 @@ public class ClustersBase extends AdminResource {
         @ApiResponse(code = 412, message = "Cluster doesn't exist."),
         @ApiResponse(code = 500, message = "Internal server error.")
     })
-    public List<BrokerNamespaceIsolationData> getBrokersWithNamespaceIsolationPolicy(
-            @ApiParam(
-                value = "The cluster name",
-                required = true
-            )
+    public void getBrokersWithNamespaceIsolationPolicy(
+            @Suspended AsyncResponse asyncResponse,
+            @ApiParam(value = "The cluster name", required = true)
             @PathParam("cluster") String cluster) {
-        validateSuperUserAccess();
-        validateClusterExists(cluster);
-
-        Set<String> availableBrokers;
-        Map<String, ? extends NamespaceIsolationData> nsPolicies;
-        try {
-            availableBrokers = pulsar().getLoadManager().get().getAvailableBrokers();
-        } catch (Exception e) {
-            log.error("[{}] Failed to get list of brokers in cluster {}", clientAppId(), cluster, e);
-            throw new RestException(e);
-        }
-        try {
-            Optional<NamespaceIsolationPolicies> nsPoliciesResult = namespaceIsolationPolicies()
-                    .getIsolationDataPolicies(cluster);
-            if (!nsPoliciesResult.isPresent()) {
-                throw new RestException(Status.NOT_FOUND, "namespace-isolation policies not found for " + cluster);
-            }
-            nsPolicies = nsPoliciesResult.get().getPolicies();
-        } catch (Exception e) {
-            log.error("[{}] Failed to get namespace isolation-policies {}", clientAppId(), cluster, e);
-            throw new RestException(e);
-        }
-        return availableBrokers.stream().map(broker -> {
-            BrokerNamespaceIsolationData.Builder brokerIsolationData = BrokerNamespaceIsolationData.builder()
-                    .brokerName(broker);
-            if (nsPolicies != null) {
-                List<String> namespaceRegexes = new ArrayList<>();
-                nsPolicies.forEach((name, policyData) -> {
-                    NamespaceIsolationPolicyImpl nsPolicyImpl = new NamespaceIsolationPolicyImpl(policyData);
-                    if (nsPolicyImpl.isPrimaryBroker(broker) || nsPolicyImpl.isSecondaryBroker(broker)) {
-                        namespaceRegexes.addAll(policyData.getNamespaces());
-                        if (nsPolicyImpl.isPrimaryBroker(broker)) {
-                            brokerIsolationData.primary(true);
-                        }
-                    }
+        validateSuperUserAccessAsync()
+                .thenCompose(__ -> validateClusterExistAsync(cluster, Status.PRECONDITION_FAILED))
+                .thenCompose(__ -> pulsar().getLoadManager().get().getAvailableBrokersAsync())
+                .thenCompose(availableBrokers -> internalGetNamespaceIsolationPolicies(cluster)
+                        .thenApply(policies -> availableBrokers.stream()
+                                .map(broker -> internalGetBrokerNsIsolationData(broker, policies))
+                                .collect(Collectors.toList())))
+                .thenAccept(asyncResponse::resume)
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to get namespace isolation-policies {}", clientAppId(), cluster, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
                 });
+    }
 
-                brokerIsolationData.namespaceRegex(namespaceRegexes);
-            }
+    private BrokerNamespaceIsolationData internalGetBrokerNsIsolationData(
+                                                                    String broker,
+                                                                    Map<String, NamespaceIsolationDataImpl> policies) {
+        BrokerNamespaceIsolationData.Builder brokerIsolationData =
+                BrokerNamespaceIsolationData.builder().brokerName(broker);
+        if (policies == null) {
             return brokerIsolationData.build();
-        }).collect(Collectors.toList());
+        }
+        List<String> namespaceRegexes = new ArrayList<>();
+        policies.forEach((name, policyData) -> {
+            NamespaceIsolationPolicyImpl nsPolicyImpl = new NamespaceIsolationPolicyImpl(policyData);
+            if (nsPolicyImpl.isPrimaryBroker(broker) || nsPolicyImpl.isSecondaryBroker(broker)) {
+                namespaceRegexes.addAll(policyData.getNamespaces());
+                if (nsPolicyImpl.isPrimaryBroker(broker)) {
+                    brokerIsolationData.primary(true);
+                }
+            }
+        });
+        brokerIsolationData.namespaceRegex(namespaceRegexes);
+        return brokerIsolationData.build();
     }
 
     @GET
