@@ -818,7 +818,7 @@ The [Pulsar proxy](concepts-architecture-overview.md#pulsar-proxy) can be config
 | tokenAudience | The token audience stands for this broker. The field `tokenAudienceClaim` of a valid token need contains this parameter.| |
 |haProxyProtocolEnabled | Enable or disable the [HAProxy](http://www.haproxy.org/) protocol. |false|
 | numIOThreads | Number of threads used for Netty IO. | 2 * Runtime.getRuntime().availableProcessors() |
-| numAcceptorThreads | Number of threads to use for Netty Acceptor. | 1 |
+| numAcceptorThreads | Number of threads used for Netty Acceptor. | 1 |
 
 #### Deprecated parameters of Pulsar proxy
 The following parameters have been deprecated in the `conf/proxy.conf` file.
