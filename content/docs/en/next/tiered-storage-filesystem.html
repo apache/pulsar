@@ -405,7 +405,69 @@ Offload triggered <span class="hljs-keyword">for</span> persistent:<span class="
 <p>And the <strong>Capacity Used</strong> is changed from 4 KB to 116.46 KB.</p>
 <p><img src="/docs/assets/FileSystem-8.png" alt=""></p></li>
 </ol>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/en/next/tiered-storage-gcs"><span class="arrow-prev">← </span><span>GCS offloader</span></a><a class="docs-next button" href="/docs/en/next/tiered-storage-azure"><span class="function-name-prevnext">Azure BlobStore offloader</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#installation">Installation</a><ul class="toc-headings"><li><a href="#prerequisite">Prerequisite</a></li><li><a href="#step">Step</a></li></ul></li><li><a href="#configuration">Configuration</a><ul class="toc-headings"><li><a href="#configure-filesystem-offloader-driver">Configure filesystem offloader driver</a></li><li><a href="#run-filesystem-offloader-automatically">Run filesystem offloader automatically</a></li><li><a href="#run-filesystem-offloader-manually">Run filesystem offloader manually</a></li></ul></li><li><a href="#tutorial">Tutorial</a><ul class="toc-headings"><li><a href="#step-1-prepare-the-hdfs-environment">Step 1: Prepare the HDFS environment</a></li><li><a href="#step-2-install-the-filesystem-offloader">Step 2: Install the filesystem offloader</a></li><li><a href="#step-3-configure-the-filesystem-offloader">Step 3: Configure the filesystem offloader</a></li><li><a href="#step-1-install-the-filesystem-offloader">Step 1: Install the filesystem offloader</a></li><li><a href="#step-2-mont-your-nfs-to-your-local-filesystem">Step 2: Mont your NFS to your local filesystem</a></li><li><a href="#step-3-configure-the-filesystem-offloader-driver">Step 3: Configure the filesystem offloader driver</a></li><li><a href="#step-4-offload-data-from-bookkeeper-to-filesystem">Step 4: Offload data from BookKeeper to filesystem</a></li></ul></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+<h2><a class="anchor" aria-hidden="true" id="read-offloaded-data-from-filesystem"></a><a href="#read-offloaded-data-from-filesystem" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Read offloaded data from filesystem</h2>
+<ul>
+<li>The offloaded data is stored as <code>MapFile</code> in the following new path of the filesystem:
+<pre><code class="hljs css language-properties">  <span class="hljs-attr">path</span> = <span class="hljs-string">storageBasePath + "/" + managedLedgerName + "/" + ledgerId + "-" + uuid.toString();</span>
+</code></pre>
+<ul>
+<li><code>storageBasePath</code> is the value of <code>hadoop.tmp.dir</code>, which is configured in <code>broker.conf</code> or <code>filesystem_offload_core_site.xml</code>.</li>
+<li><code>managedLedgerName</code> is the ledger name of the persistentTopic manager.</li>
+</ul>
+<pre><code class="hljs css language-shell">   managedLedgerName of persistent://public/default/topics-name is public/default/persistent/topics-name.
+</code></pre>
+You can use the following method to get <code>managedLedgerName</code>:
+<pre><code class="hljs css language-shell">   String managedLedgerName = TopicName.get("persistent://public/default/topics-name").getPersistenceNamingEncoding(); 
+</code></pre></li>
+</ul>
+<p>To read data out as ledger entries from the filesystem, complete the following steps.</p>
+<ol>
+<li>Create a reader to read both <code>MapFile</code> with a new path and the <code>configuration</code> of the filesystem.</li>
+</ol>
+<pre><code class="hljs css language-shell">   MapFile.Reader reader = new MapFile.Reader(new Path(dataFilePath),  configuration); 
+</code></pre>
+<ol start="2">
+<li>Read the data as <code>LedgerEntry</code> from the filesystem.</li>
+</ol>
+<pre><code class="hljs css language-java">   LongWritable key = <span class="hljs-keyword">new</span> LongWritable();
+   BytesWritable value = <span class="hljs-keyword">new</span> BytesWritable();
+   key.set(nextExpectedId - <span class="hljs-number">1</span>);
+   reader.seek(key);
+   reader.next(key, value);
+   <span class="hljs-keyword">int</span> length = value.getLength();
+   <span class="hljs-keyword">long</span> entryId = key.get();
+   ByteBuf buf = PooledByteBufAllocator.DEFAULT.buffer(length, length);
+   buf.writeBytes(value.copyBytes());
+   LedgerEntryImpl ledgerEntry = LedgerEntryImpl.create(ledgerId, entryId, length, buf);
+</code></pre>
+<ol start="3">
+<li>Deserialize the <code>LedgerEntry</code> to <code>Message</code>.</li>
+</ol>
+<pre><code class="hljs css language-java">      ByteBuf metadataAndPayload = ledgerEntry.getDataBuffer();
+      <span class="hljs-keyword">long</span> totalSize = metadataAndPayload.readableBytes();
+      BrokerEntryMetadata brokerEntryMetadata = Commands.peekBrokerEntryMetadataIfExist(metadataAndPayload);
+      MessageMetadata metadata = Commands.parseMessageMetadata(metadataAndPayload);
+      
+      Map&lt;String, String&gt; properties = <span class="hljs-keyword">new</span> TreeMap&lt;&gt;();
+      properties.put(<span class="hljs-string">"X-Pulsar-batch-size"</span>, String.valueOf(totalSize
+              - metadata.getSerializedSize()));
+      properties.put(<span class="hljs-string">"TOTAL-CHUNKS"</span>, Integer.toString(metadata.getNumChunksFromMsg()));
+      properties.put(<span class="hljs-string">"CHUNK-ID"</span>, Integer.toString(metadata.getChunkId()));
+
+      <span class="hljs-comment">// Decode if needed</span>
+      CompressionCodec codec = CompressionCodecProvider.getCompressionCodec(metadata.getCompression());
+      ByteBuf uncompressedPayload = codec.decode(metadataAndPayload, metadata.getUncompressedSize());
+      <span class="hljs-comment">// Copy into a heap buffer for output stream compatibility</span>
+      ByteBuf data = PulsarByteBufAllocator.DEFAULT.heapBuffer(uncompressedPayload.readableBytes(),
+              uncompressedPayload.readableBytes());
+      data.writeBytes(uncompressedPayload);
+      uncompressedPayload.release();
+
+      MessageImpl message = <span class="hljs-keyword">new</span> MessageImpl(topic, ((PositionImpl)ledgerEntry.getPosition()).toString(), properties,
+              data, Schema.BYTES, metadata);
+      message.setBrokerEntryMetadata(brokerEntryMetadata);
+</code></pre>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/en/next/tiered-storage-gcs"><span class="arrow-prev">← </span><span>GCS offloader</span></a><a class="docs-next button" href="/docs/en/next/tiered-storage-azure"><span class="function-name-prevnext">Azure BlobStore offloader</span><span class="arrow-next"> →</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#installation">Installation</a><ul class="toc-headings"><li><a href="#prerequisite">Prerequisite</a></li><li><a href="#step">Step</a></li></ul></li><li><a href="#configuration">Configuration</a><ul class="toc-headings"><li><a href="#configure-filesystem-offloader-driver">Configure filesystem offloader driver</a></li><li><a href="#run-filesystem-offloader-automatically">Run filesystem offloader automatically</a></li><li><a href="#run-filesystem-offloader-manually">Run filesystem offloader manually</a></li></ul></li><li><a href="#tutorial">Tutorial</a><ul class="toc-headings"><li><a href="#step-1-prepare-the-hdfs-environment">Step 1: Prepare the HDFS environment</a></li><li><a href="#step-2-install-the-filesystem-offloader">Step 2: Install the filesystem offloader</a></li><li><a href="#step-3-configure-the-filesystem-offloader">Step 3: Configure the filesystem offloader</a></li><li><a href="#step-1-install-the-filesystem-offloader">Step 1: Install the filesystem offloader</a></li><li><a href="#step-2-mont-your-nfs-to-your-local-filesystem">Step 2: Mont your NFS to your local filesystem</a></li><li><a href="#step-3-configure-the-filesystem-offloader-driver">Step 3: Configure the filesystem offloader driver</a></li><li><a href="#step-4-offload-data-from-bookkeeper-to-filesystem">Step 4: Offload data from BookKeeper to filesystem</a></li></ul></li><li><a href="#read-offloaded-data-from-filesystem">Read offloaded data from filesystem</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +
