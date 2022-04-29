@@ -59,7 +59,6 @@ public class ProxyConfigurationTest extends ProducerConsumerBase {
         return new Object[][] { {2, 1}, {4, 2} };
     }
 
-    setProxyConfig", timeOut = 10000)
     public void configTest(int numIoThreads, int connectionsPerBroker) throws Exception {
         config.setWebSocketNumIoThreads(numIoThreads);
         config.setWebSocketConnectionsPerBroker(connectionsPerBroker);
