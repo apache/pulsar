@@ -831,7 +831,7 @@ public class PersistentTopics extends PersistentTopicsBase {
                             authoritative, force))
                     .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
                     .exceptionally(ex -> {
-                        resumeAsyncResponseExceptionally(asyncResponse, ex.getCause());
+                        resumeAsyncResponseExceptionally(asyncResponse, ex);
                         return null;
                     });
         } catch (Exception e) {
