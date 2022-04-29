@@ -6,7 +6,7 @@ sidebar_label: Message deduplication
 
 When **Message deduplication** is enabled, it ensures that each message produced on Pulsar topics is persisted to disk *only once*, even if the message is produced more than once. Message deduplication is handled automatically on the broker side. 
 
-Message deduplication could affect performance in the brokers during informational snapshot.
+Message deduplication could affect the performance of the brokers during informational snapshots.
 
 To use message deduplication in Pulsar, you need to configure your Pulsar brokers, namespaces or topics and it is recommended to modify configuration in the clients, setting send timeout to infinity.
 
