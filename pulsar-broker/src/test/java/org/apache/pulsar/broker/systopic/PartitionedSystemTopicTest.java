@@ -117,7 +117,10 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
 
     @Test
     public void testHealthCheckTopicNotOffload() throws Exception {
-        TopicName topicName = TopicName.get("persistent", "prop", "ns-abc", BrokersBase.HEALTH_CHECK_TOPIC_SUFFIX);
+        final String heartbeatNamespace = NamespaceService.getHeartbeatNamespace(pulsar.getAdvertisedAddress(),
+                pulsar.getConfig());
+        TopicName topicName = TopicName.get("persistent://" + heartbeatNamespace
+                        + "/" + BrokersBase.HEALTH_CHECK_TOPIC_SUFFIX);
         PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService()
                 .getTopic(topicName.toString(), true).get().get();
         ManagedLedgerConfig config = persistentTopic.getManagedLedger().getConfig();
