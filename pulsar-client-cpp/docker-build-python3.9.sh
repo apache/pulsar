@@ -30,11 +30,8 @@ cd $ROOT_DIR/pulsar-client-cpp
 PYTHON_VERSION="3.9"
 PYTHON_SPEC="cp39-cp39"
 ARCH="x86_64"
-IMAGE_NAME=apachepulsar/pulsar-build:manylinux2014-$PYTHON_SPEC-$ARCH
-
-# Build wheel file
-BUILD_IMAGE_NAME="${BUILD_IMAGE_NAME:-pulsar-build}"
-IMAGE=$BUILD_IMAGE_NAME:manylinux-$PYTHON_SPEC-$ARCH
+IMAGE_NAME=apachepulsar/pulsar-build
+IMAGE=$IMAGE_NAME:manylinux-$PYTHON_SPEC-$ARCH
 
 VOLUME_OPTION=${VOLUME_OPTION:-"-v $ROOT_DIR:/pulsar"}
 COMMAND="/pulsar/pulsar-client-cpp/docker/build-wheel-file-within-docker.sh"
