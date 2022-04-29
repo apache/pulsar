@@ -22,6 +22,7 @@ import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructor
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.testng.Assert.fail;
 import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.assertNotNull;
 import com.google.common.collect.ImmutableList;
@@ -31,6 +32,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+
+import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.service.AbstractBaseDispatcher;
 import org.apache.pulsar.broker.service.AbstractTopic;
@@ -42,6 +45,7 @@ import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.awaitility.Awaitility;
@@ -50,6 +54,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
+@Slf4j
 public class FilterEntryTest extends BrokerTestBase {
     @BeforeMethod
     @Override
@@ -209,6 +214,97 @@ public class FilterEntryTest extends BrokerTestBase {
             AbstractTopic abstractTopic = (AbstractTopic) subscription.getTopic();
             long filtered = abstractTopic.getFilteredEntriesCount();
             assertEquals(filtered, 10);
+        }
+    }
+
+    @Test
+    public void testEntryFilterRescheduleMessageDependingOnConsumerSharedSubscription() throws Throwable {
+        String topic = "persistent://prop/ns-abc/topic" + UUID.randomUUID();
+        String subName = "sub";
+
+        Map<String, String> metadataConsumer1 = new HashMap<>();
+        metadataConsumer1.put("matchValueAccept", "FOR-1");
+        metadataConsumer1.put("matchValueReschedule", "FOR-2");
+
+        Map<String, String> metadataConsumer2 = new HashMap<>();
+        metadataConsumer2.put("matchValueAccept", "FOR-2");
+        metadataConsumer2.put("matchValueReschedule", "FOR-1");
+
+        try (Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .enableBatching(false).topic(topic).create();
+             Consumer<String> consumer1 = pulsarClient.newConsumer(Schema.STRING).topic(topic)
+                     .subscriptionType(SubscriptionType.Shared)
+                     .properties(metadataConsumer1)
+                     .consumerName("consumer1")
+                     .receiverQueueSize(5)
+                     .subscriptionName(subName)
+                     .subscribe();
+             Consumer<String> consumer2 = pulsarClient.newConsumer(Schema.STRING)
+                     .subscriptionType(SubscriptionType.Shared)
+                     .properties(metadataConsumer2)
+                     .consumerName("consumer2")
+                     .topic(topic)
+                     .receiverQueueSize(5)
+                     .subscriptionName(subName)
+                     .subscribe()) {
+
+            // mock entry filters
+            PersistentSubscription subscription = (PersistentSubscription) pulsar.getBrokerService()
+                    .getTopicReference(topic).get().getSubscription(subName);
+            Dispatcher dispatcher = subscription.getDispatcher();
+            Field field = AbstractBaseDispatcher.class.getDeclaredField("entryFilters");
+            field.setAccessible(true);
+            NarClassLoader narClassLoader = mock(NarClassLoader.class);
+            EntryFilter filter1 = new EntryFilterTest();
+            EntryFilterWithClassLoader loader1 = spyWithClassAndConstructorArgs(EntryFilterWithClassLoader.class, filter1, narClassLoader);
+            EntryFilter filter2 = new EntryFilterTest();
+            EntryFilterWithClassLoader loader2 = spyWithClassAndConstructorArgs(EntryFilterWithClassLoader.class, filter2, narClassLoader);
+            field.set(dispatcher, ImmutableList.of(loader1, loader2));
+
+            int numMessages = 10;
+            for (int i = 0; i < numMessages; i++) {
+                if (i % 2 == 0) {
+                    producer.newMessage()
+                            .property("FOR-1", "")
+                            .value("consumer-1")
+                            .send();
+                } else {
+                    producer.newMessage()
+                            .property("FOR-2", "")
+                            .value("consumer-2")
+                            .send();
+                }
+            }
+
+            // assert that the consumer1 receive all the messages and that such messages
+            // are for consumer1
+            int counter = 0;
+            while (counter < numMessages / 2) {
+                Message<String> message = consumer1.receive(1, TimeUnit.MINUTES);
+                if (message != null) {
+                    log.info("received1 {} - {}", message.getValue(), message.getProperties());
+                    counter++;
+                    assertEquals("consumer-1", message.getValue());
+                    consumer1.acknowledge(message);
+                } else {
+                    fail("consumer1 did not receive all the messages");
+                }
+            }
+
+            // assert that the consumer2 receive all the messages and that such messages
+            // are for consumer1
+            counter = 0;
+            while (counter < numMessages / 2) {
+                Message<String> message = consumer2.receive(1, TimeUnit.MINUTES);
+                if (message != null) {
+                    log.info("received2 {} - {}", message.getValue(), message.getProperties());
+                    counter++;
+                    assertEquals("consumer-2", message.getValue());
+                    consumer2.acknowledge(message);
+                } else {
+                    fail("consumer2 did not receive all the messages");
+                }
+            }
         }
     }
 }

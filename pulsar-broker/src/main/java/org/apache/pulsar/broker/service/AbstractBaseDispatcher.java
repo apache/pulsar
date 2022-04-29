@@ -135,7 +135,7 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
         int totalChunkedMessages = 0;
         int totalEntries = 0;
         List<Position> entriesToFiltered = CollectionUtils.isNotEmpty(entryFilters) ? new ArrayList<>() : null;
-        List<MessageIdData> entriesToRedeliver = CollectionUtils.isNotEmpty(entryFilters) ? new ArrayList<>() : null;
+        List<PositionImpl> entriesToRedeliver = CollectionUtils.isNotEmpty(entryFilters) ? new ArrayList<>() : null;
         for (int i = 0, entriesSize = entries.size(); i < entriesSize; i++) {
             Entry entry = entries.get(i);
             if (entry == null) {
@@ -159,12 +159,7 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
                     entry.release();
                     continue;
                 } else if (filterResult == EntryFilter.FilterResult.RESCHEDULE) {
-                    MessageIdData converted = new MessageIdData();
-                    converted.setEntryId(entry.getEntryId());
-                    converted.setLedgerId(entry.getLedgerId());
-                    log.info("{} Message at {} must be rescheduled, it was for Consumer {}", subscription,
-                            entry.getPosition(), consumer);
-                    entriesToRedeliver.add(converted);
+                    entriesToRedeliver.add((PositionImpl) entry.getPosition());
                     entries.set(i, null);
                     entry.release();
                     continue;
@@ -243,7 +238,7 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
         }
         if (CollectionUtils.isNotEmpty(entriesToRedeliver)) {
             // simulate the Consumer rejected the message
-            consumer.redeliverUnacknowledgedMessages(entriesToRedeliver);
+            subscription.redeliverUnacknowledgedMessages(consumer, entriesToRedeliver);
         }
 
         sendMessageInfo.setTotalMessages(totalMessages);
