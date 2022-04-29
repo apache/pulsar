@@ -436,7 +436,7 @@ public abstract class TransactionsBase extends AdminResource {
 
     protected CompletableFuture<Void> internalScaleTransactionCoordinators(int replicas) {
         return validateSuperUserAccessAsync()
-                .thenCompose((ignore)-> namespaceResources().getPartitionedTopicResources()
+                .thenCompose((ignore) -> namespaceResources().getPartitionedTopicResources()
                         .updatePartitionedTopicAsync(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN, p -> {
                             if (p.partitions >= replicas) {
                                 throw new RestException(Response.Status.NOT_ACCEPTABLE,
