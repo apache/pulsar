@@ -12,7 +12,7 @@ To use message deduplication in Pulsar, you need to configure your Pulsar broker
 
 ## How it works
 
-You can enable or disable message deduplication at broker, namespace or topic level. By default, it is disabled on all brokers, namespaces or topics. You can enable it in the following ways:
+You can enable or disable message deduplication at broker, namespace, or topic level. By default, it is disabled on all brokers, namespaces, or topics. You can enable it in the following ways:
 
 * Enable deduplication for all namespaces/topics at the broker-level.
 * Enable deduplication for a specific namespace with the `pulsar-admin namespaces` interface.
