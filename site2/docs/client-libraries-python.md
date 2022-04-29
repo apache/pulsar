@@ -167,6 +167,17 @@ while True:
 client.close()
 ```
 
+### Use listener_name
+To ensure clients in both internal and external networks can connect to a Pulsar cluster, Pulsar introduces [advertisedListeners](concepts-multiple-advertised-listeners.md).
+
+The following example creates a Python Client use a listener_name:
+
+```python
+import pulsar
+
+client = pulsar.Client('pulsar://localhost:6650', listener_name='external')
+```
+
 ## Schema
 
 ### Supported schema types
