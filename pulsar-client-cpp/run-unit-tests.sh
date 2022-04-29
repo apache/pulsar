@@ -44,7 +44,7 @@ if [ -f /gtest-parallel/gtest-parallel ]; then
         tests="--gtest_filter=$1"
         echo "Running tests: $1"
     fi
-    /gtest-parallel/gtest-parallel $tests --dump_json_test_results=/tmp/gtest_parallel_results.json \
+    python3 /gtest-parallel/gtest-parallel $tests --dump_json_test_results=/tmp/gtest_parallel_results.json \
       --workers=$gtest_workers --retry_failed=$RETRY_FAILED -d /tmp \
       ./main
     RES=$?
@@ -58,7 +58,7 @@ popd
 if [ $RES -eq 0 ]; then
     pushd python
     echo "---- Build Python Wheel file"
-    python setup.py bdist_wheel
+    python3 setup.py bdist_wheel
 
     echo "---- Installing Python Wheel file"
     ls -lha dist
@@ -67,9 +67,9 @@ if [ $RES -eq 0 ]; then
     echo "dist/${WHEEL_FILE}[all]"
     # Protobuf 3.18 only works with Python3. Since we're still using Python2 in CI, 
     # let's pin the Python version to the previous one
-    pip install protobuf==3.17.3
+    pip3 install protobuf==3.17.3
 
-    pip install dist/${WHEEL_FILE}[all]
+    pip3 install dist/${WHEEL_FILE}[all]
 
     echo "---- Running Python unit tests"
 
@@ -85,7 +85,7 @@ if [ $RES -eq 0 ]; then
     #RES=$?
     #echo "custom_logger_test.py: $RES"
 
-    python pulsar_test.py
+    python3 pulsar_test.py
     RES=$?
     echo "pulsar_test.py: $RES"
 
