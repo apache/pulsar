@@ -1458,13 +1458,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_SASL_AUTH,
-            doc = "Configure the secret to be used to SaslRoleTokenSigner\n"
+            doc = "Path to file containing the secret to be used to SaslRoleTokenSigner\n"
                     + "The secret can be specified like:\n"
-                    + "saslJaasServerRoleTokenSignerSecret=file:///my/saslRoleTokenSignerSecret.key\n"
-                    + "If saslJaasServerRoleTokenSignerSecret is empty, will use Default value "
-                    + "`SaslConstants.JAAS_DEFAULT_ROLE_TOKEN_SIGNER_SECRET`."
+                    + "saslJaasServerRoleTokenSignerSecretPath=file:///my/saslRoleTokenSignerSecret.key\n"
+                    + "If saslJaasServerRoleTokenSignerSecretPath is empty, will use Default value "
+                    + "`SaslConstants.JAAS_DEFAULT_ROLE_TOKEN_SIGNER_SECRET` as secret."
     )
-    private String saslJaasServerRoleTokenSignerSecret;
+    private String saslJaasServerRoleTokenSignerSecretPath;
 
     @FieldContext(
         category = CATEGORY_SASL_AUTH,

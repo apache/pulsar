@@ -102,10 +102,10 @@ public class AuthenticationProviderSasl implements AuthenticationProvider {
                 throw new IOException(e);
             }
         }
-        String saslJaasServerRoleTokenSignerSecretFile = config.getSaslJaasServerRoleTokenSignerSecret();
+        String saslJaasServerRoleTokenSignerSecretPath = config.getSaslJaasServerRoleTokenSignerSecretPath();
         byte[] secret = null;
-        if (StringUtils.isNotBlank(saslJaasServerRoleTokenSignerSecretFile)) {
-            secret = readSecretFromUrl(saslJaasServerRoleTokenSignerSecretFile);
+        if (StringUtils.isNotBlank(saslJaasServerRoleTokenSignerSecretPath)) {
+            secret = readSecretFromUrl(saslJaasServerRoleTokenSignerSecretPath);
         } else {
             secret = SaslConstants.JAAS_DEFAULT_ROLE_TOKEN_SIGNER_SECRET.getBytes();
         }
