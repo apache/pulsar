@@ -2496,8 +2496,11 @@ public class PersistentTopic extends AbstractTopic
                 }
 
                 return CompletableFuture.allOf(replicationFuture, dedupFuture, persistentPoliciesFuture,
-                        preCreateSubscriptionForCompactionIfNeeded());
+                                preCreateSubscriptionForCompactionIfNeeded());
             });
+        }).exceptionally(ex -> {
+            log.error("[{}] update namespace polices : {} error", this.getName(), data, ex);
+            throw FutureUtil.wrapToCompletionException(ex);
         });
     }
 

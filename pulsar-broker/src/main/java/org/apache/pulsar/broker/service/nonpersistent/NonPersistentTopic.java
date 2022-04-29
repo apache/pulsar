@@ -1001,6 +1001,9 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
                         }
                         return checkReplicationAndRetryOnFailure();
                     });
+        }).exceptionally(ex -> {
+            log.error("[{}] update namespace polices : {} error", this.getName(), data, ex);
+            throw FutureUtil.wrapToCompletionException(ex);
         });
     }
 
