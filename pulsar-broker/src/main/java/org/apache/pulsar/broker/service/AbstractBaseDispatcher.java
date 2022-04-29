@@ -42,6 +42,7 @@ import org.apache.pulsar.broker.service.plugin.EntryFilterWithClassLoader;
 import org.apache.pulsar.broker.service.plugin.FilterContext;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
+import org.apache.pulsar.common.api.proto.MessageIdData;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshot;
 import org.apache.pulsar.common.protocol.Commands;
@@ -121,19 +122,20 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
      */
     public int filterEntriesForConsumer(List<Entry> entries, EntryBatchSizes batchSizes,
             SendMessageInfo sendMessageInfo, EntryBatchIndexesAcks indexesAcks,
-            ManagedCursor cursor, boolean isReplayRead) {
+            ManagedCursor cursor, boolean isReplayRead, Consumer consumer) {
         return filterEntriesForConsumer(Optional.empty(), 0, entries, batchSizes, sendMessageInfo, indexesAcks, cursor,
-                isReplayRead);
+                isReplayRead, consumer);
     }
 
     public int filterEntriesForConsumer(Optional<EntryWrapper[]> entryWrapper, int entryWrapperOffset,
              List<Entry> entries, EntryBatchSizes batchSizes, SendMessageInfo sendMessageInfo,
-             EntryBatchIndexesAcks indexesAcks, ManagedCursor cursor, boolean isReplayRead) {
+             EntryBatchIndexesAcks indexesAcks, ManagedCursor cursor, boolean isReplayRead, Consumer consumer) {
         int totalMessages = 0;
         long totalBytes = 0;
         int totalChunkedMessages = 0;
         int totalEntries = 0;
         List<Position> entriesToFiltered = CollectionUtils.isNotEmpty(entryFilters) ? new ArrayList<>() : null;
+        List<MessageIdData> entriesToRedeliver = CollectionUtils.isNotEmpty(entryFilters) ? new ArrayList<>() : null;
         for (int i = 0, entriesSize = entries.size(); i < entriesSize; i++) {
             Entry entry = entries.get(i);
             if (entry == null) {
@@ -147,10 +149,22 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
             msgMetadata = msgMetadata == null
                     ? Commands.peekMessageMetadata(metadataAndPayload, subscription.toString(), -1)
                     : msgMetadata;
+            EntryFilter.FilterResult filterResult = EntryFilter.FilterResult.ACCEPT;
             if (CollectionUtils.isNotEmpty(entryFilters)) {
-                fillContext(filterContext, msgMetadata, subscription);
-                if (EntryFilter.FilterResult.REJECT == getFilterResult(filterContext, entry, entryFilters)) {
+                fillContext(filterContext, msgMetadata, subscription, consumer);
+                filterResult = getFilterResult(filterContext, entry, entryFilters);
+                if (filterResult == EntryFilter.FilterResult.REJECT) {
                     entriesToFiltered.add(entry.getPosition());
+                    entries.set(i, null);
+                    entry.release();
+                    continue;
+                } else if (filterResult == EntryFilter.FilterResult.RESCHEDULE) {
+                    MessageIdData converted = new MessageIdData();
+                    converted.setEntryId(entry.getEntryId());
+                    converted.setLedgerId(entry.getLedgerId());
+                    log.info("{} Message at {} must be rescheduled, it was for Consumer {}", subscription,
+                            entry.getPosition(), consumer);
+                    entriesToRedeliver.add(converted);
                     entries.set(i, null);
                     entry.release();
                     continue;
@@ -227,6 +241,10 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
                 ((AbstractTopic) topic).addFilteredEntriesCount(filtered);
             }
         }
+        if (CollectionUtils.isNotEmpty(entriesToRedeliver)) {
+            // simulate the Consumer rejected the message
+            consumer.redeliverUnacknowledgedMessages(entriesToRedeliver);
+        }
 
         sendMessageInfo.setTotalMessages(totalMessages);
         sendMessageInfo.setTotalBytes(totalBytes);
@@ -236,21 +254,22 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
 
     private static EntryFilter.FilterResult getFilterResult(FilterContext filterContext, Entry entry,
                                                             ImmutableList<EntryFilterWithClassLoader> entryFilters) {
-        EntryFilter.FilterResult result = EntryFilter.FilterResult.ACCEPT;
         for (EntryFilter entryFilter : entryFilters) {
-            if (entryFilter.filterEntry(entry, filterContext) == EntryFilter.FilterResult.REJECT) {
-                result = EntryFilter.FilterResult.REJECT;
-                break;
+            EntryFilter.FilterResult filterResult =
+                    entryFilter.filterEntry(entry, filterContext);
+            if (filterResult != EntryFilter.FilterResult.ACCEPT) {
+                return filterResult;
             }
         }
-        return result;
+        return EntryFilter.FilterResult.ACCEPT;
     }
 
     private void fillContext(FilterContext context, MessageMetadata msgMetadata,
-                             Subscription subscription) {
+                             Subscription subscription, Consumer consumer) {
         context.reset();
         context.setMsgMetadata(msgMetadata);
         context.setSubscription(subscription);
+        context.setConsumer(consumer);
     }
 
     /**
