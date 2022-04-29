@@ -379,7 +379,7 @@ brokerServiceCompactionThresholdInBytes|If the estimated backlog size is greater
 | brokerEntryMetadataInterceptors | Set broker entry metadata interceptors.<br /><br />Multiple interceptors should be separated by commas. <br /><br />Available values:<li>org.apache.pulsar.common.intercept.AppendBrokerTimestampMetadataInterceptor</li><li>org.apache.pulsar.common.intercept.AppendIndexMetadataInterceptor</li> <br /><br />Example<br />brokerEntryMetadataInterceptors=org.apache.pulsar.common.intercept.AppendBrokerTimestampMetadataInterceptor, org.apache.pulsar.common.intercept.AppendIndexMetadataInterceptor|N/A |
 | enableExposingBrokerEntryMetadataToClient|Whether to expose broker entry metadata to client or not.<br /><br />Available values:<li>true</li><li>false</li><br />Example<br />enableExposingBrokerEntryMetadataToClient=true  | false |
 | strictBookieAffinityEnabled | Enable or disable the strict bookie isolation strategy. If enabled, <br /> - `bookie-ensemble` first tries to choose bookies that belong to a namespace's affinity group. If the number of bookies is not enough, then the rest bookies are chosen. <br /> - If namespace has no affinity group, `bookie-ensemble` only chooses bookies that belong to no region. If the number of bookies is not enough, `BKNotEnoughBookiesException` is thrown.| false |
-|managedCursorInfoCompressionType | The compression type of managed cursor information. <br />Available options are `NONE`, `LZ4`, `ZLIB`, `ZSTD`, and `SNAPPY`). <br />If this value is `NONE` or invalid, managed cursor information is not compressed. | NONE
+|managedCursorInfoCompressionType | The compression type of managed cursor information. <br />Available options are `NONE`, `LZ4`, `ZLIB`, `ZSTD`, and `SNAPPY`). <br />If this value is `NONE`, managed cursor information is not compressed. | NONE
 
 
 #### Deprecated parameters of Broker
@@ -711,7 +711,7 @@ You can set the log level and configuration in the  [log4j2.yaml](https://github
 |isAllowAutoUpdateSchemaEnabled|Allow schema to be auto updated at broker level.|true|
 |schemaCompatibilityStrategy| The schema compatibility strategy at broker level, see [here](schema-evolution-compatibility.md#schema-compatibility-check-strategy) for available values.|FULL|
 |systemTopicSchemaCompatibilityStrategy| The schema compatibility strategy is used for system topics, see [here](schema-evolution-compatibility.md#schema-compatibility-check-strategy) for available values.|ALWAYS_COMPATIBLE|
-|managedCursorInfoCompressionType | The compression type of managed cursor information. <br />Available options are `NONE`, `LZ4`, `ZLIB`, `ZSTD`, and `SNAPPY`). <br />If this value is `NONE` or invalid, managed cursor information is not compressed. | NONE
+|managedCursorInfoCompressionType | The compression type of managed cursor information. <br />Available options are `NONE`, `LZ4`, `ZLIB`, `ZSTD`, and `SNAPPY`). <br />If this value is `NONE`, managed cursor information is not compressed. | NONE
 
 
 #### Deprecated parameters of standalone Pulsar
