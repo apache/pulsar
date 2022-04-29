@@ -214,7 +214,7 @@
       <groupId>org.apache.maven.plugins</groupId>
       <artifactId>maven-compiler-plugin</artifactId>
       <configuration>
-        <release>${pulsar.client.javac.release}</release>
+        <release>${pulsar.client.compiler.release}</release>
       </configuration>
     </plugin>
 

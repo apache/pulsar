@@ -85,7 +85,7 @@ components in the Pulsar ecosystem, including connectors, adapters, and other la
 
 ## Pulsar Runtime Java Version Recommendation
 
-pulsar ver 2.11  >=
+- pulsar ver >= 2.11
 
 | Pulsar Components | Java Version  |
 | ----------------- |:-------------:|
@@ -93,7 +93,15 @@ pulsar ver 2.11  >=
 | CLI               | 17            |
 | Java Client       | 8 or 11 or 17 |
 
-pulsar ver 2.11 <
+-  2.8 <= pulsar ver < 2.11
+
+| Pulsar Components | Java Version  |
+| ----------------- |:-------------:|
+| Broker            | 11            |
+| CLI               | 8 or 11       |
+| Java Client       | 8 or 11       |
+
+- pulsar ver 2.8 <
 
 | Pulsar Components | Java Version  |
 | ----------------- |:-------------:|
