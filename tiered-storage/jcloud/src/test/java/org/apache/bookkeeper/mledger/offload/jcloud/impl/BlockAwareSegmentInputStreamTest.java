@@ -19,6 +19,7 @@
 package org.apache.bookkeeper.mledger.offload.jcloud.impl;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.fail;
 import static org.testng.internal.junit.ArrayAsserts.assertArrayEquals;
 
@@ -45,6 +46,7 @@ import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.client.api.LedgerMetadata;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.offload.jcloud.DataBlockHeader;
+import org.jclouds.io.ByteStreams2;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 import org.testng.collections.Lists;
@@ -216,8 +218,10 @@ public class BlockAwareSegmentInputStreamTest {
         };
     }
 
-    @Test(dataProvider = "useBufferRead")
-    public void testHaveEndPadding(boolean useBufferRead) throws Exception {
+//    @Test(dataProvider = "useBufferRead")
+    @Test
+    public void testHaveEndPadding() throws Exception {
+        boolean useBufferRead = true;
         int ledgerId = 1;
         int entrySize = 8;
         int lac = 160;
@@ -286,6 +290,7 @@ public class BlockAwareSegmentInputStreamTest {
             while ((ret = inputStream.read(padding, offset, padding.length - offset)) > 0) {
                 offset += ret;
             }
+            assertEquals(inputStream.read(padding, 0, padding.length), -1);
         } else {
             int len = left;
             int offset = 0;
@@ -519,6 +524,7 @@ public class BlockAwareSegmentInputStreamTest {
             while ((ret = inputStream.read(padding, offset, padding.length - offset)) > 0) {
                 offset += ret;
             }
+            assertEquals(inputStream.read(padding, 0, padding.length), -1);
         } else {
             int len = padding.length;
             int offset = 0;
@@ -621,6 +627,7 @@ public class BlockAwareSegmentInputStreamTest {
             while ((ret = inputStream.read(padding, offset, padding.length - offset)) > 0) {
                 offset += ret;
             }
+            assertEquals(inputStream.read(padding, 0, padding.length), -1);
         } else {
             int len = blockSize - consumedBytes;
             int offset = 0;
@@ -691,10 +698,106 @@ public class BlockAwareSegmentInputStreamTest {
 
         int bytesRead = 0;
         int ret;
+        int offset = 0;
+        int resetOffsetCount = 0;
         byte[] buf = new byte[1024];
-        while ((ret = inputStream.read(buf, 0, buf.length)) > 0) {
+        while ((ret = inputStream.read(buf, offset, buf.length - offset)) > 0) {
             bytesRead += ret;
+            int currentOffset = offset;
+            offset = (offset + ret) % buf.length;
+            if (offset < currentOffset) {
+                resetOffsetCount++;
+            }
         }
         assertEquals(bytesRead, blockSize);
+        assertNotEquals(resetOffsetCount, 0);
+    }
+
+    // This test is for testing the read(byte[] buf, int off, int len) method can work properly
+    // on the offset not 0.
+    @Test
+    public void testReadTillLacWithSmallBuffer() throws Exception {
+        // simulate last data block read.
+        int ledgerId = 1;
+        int entrySize = 8;
+        int lac = 89;
+        ReadHandle readHandle = new MockReadHandle(ledgerId, entrySize, lac);
+
+        // set block size equals to (header + lac_entry) size.
+        int blockSize = DataBlockHeaderImpl.getDataStartOffset() + (1 + lac) * (entrySize + 4 + 8);
+        BlockAwareSegmentInputStreamImpl inputStream = new BlockAwareSegmentInputStreamImpl(readHandle, 0, blockSize);
+        int expectedEntryCount = (blockSize - DataBlockHeaderImpl.getDataStartOffset()) / (entrySize + 4 + 8);
+
+        // verify get methods
+        assertEquals(inputStream.getLedger(), readHandle);
+        assertEquals(inputStream.getStartEntryId(), 0);
+        assertEquals(inputStream.getBlockSize(), blockSize);
+
+        // verify read inputStream
+        // 1. read header. 128
+        byte headerB[] = new byte[DataBlockHeaderImpl.getDataStartOffset()];
+        // read twice to test the offset not 0 case
+        int ret = inputStream.read(headerB, 0, 66);
+        assertEquals(ret, 66);
+        ret = inputStream.read(headerB, 66, headerB.length - 66);
+        assertEquals(headerB.length - 66, ret);
+        DataBlockHeader headerRead = DataBlockHeaderImpl.fromStream(new ByteArrayInputStream(headerB));
+        assertEquals(headerRead.getBlockLength(), blockSize);
+        assertEquals(headerRead.getFirstEntryId(), 0);
+
+        byte[] entryData = new byte[entrySize];
+        Arrays.fill(entryData, (byte)0xB); // 0xB is MockLedgerEntry.blockPadding
+
+        // 2. read Ledger entries. 96 * 20
+        IntStream.range(0, expectedEntryCount).forEach(i -> {
+            try {
+                byte lengthBuf[] = new byte[4];
+                byte entryIdBuf[] = new byte[8];
+                byte content[] = new byte[entrySize];
+
+                int read = inputStream.read(lengthBuf, 0, 4);
+                assertEquals(read, 4);
+                read = inputStream.read(entryIdBuf, 0, 8);
+                assertEquals(read, 8);
+
+                Random random = new Random(System.currentTimeMillis());
+                int o = 0;
+                int totalRead = 0;
+                int maxReadTime = 10;
+                while (o != content.length) {
+                    int r;
+                    if (maxReadTime-- == 0) {
+                        r = entrySize - o;
+                    } else {
+                        r = random.nextInt(entrySize - o);
+                    }
+                    read = inputStream.read(content, o, r);
+                    totalRead += read;
+                    o += r;
+                }
+                assertEquals(totalRead, entrySize);
+
+                assertEquals(entrySize, Ints.fromByteArray(lengthBuf));
+                assertEquals(i, Longs.fromByteArray(entryIdBuf));
+                assertArrayEquals(entryData, content);
+            } catch (Exception e) {
+                fail("meet exception", e);
+            }
+        });
+
+        // 3. should have no padding
+        int left = blockSize - DataBlockHeaderImpl.getDataStartOffset() -  expectedEntryCount * (entrySize + 4 + 8);
+        assertEquals(left, 0);
+
+        // 4. reach end.
+        byte[] b = new byte[4];
+        ret = inputStream.read(b, 0, 4);
+        assertEquals(ret, -1);
+
+        assertEquals(inputStream.getBlockEntryCount(), expectedEntryCount);
+        assertEquals(inputStream.getBlockEntryBytesCount(), entrySize * expectedEntryCount);
+        assertEquals(inputStream.getEndEntryId(), expectedEntryCount - 1);
+
+        inputStream.close();
     }
 }

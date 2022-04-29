@@ -29,6 +29,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+
 import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.client.api.ReadHandle;
@@ -73,8 +75,8 @@ public class BlockAwareSegmentInputStreamImpl extends BlockAwareSegmentInputStre
     private List<ByteBuf> entriesByteBuf = null;
     private LedgerOffloaderStats offloaderStats;
     private String topicName;
-
     private int currentOffset = 0;
+    private final AtomicBoolean close = new AtomicBoolean(false);
 
     public BlockAwareSegmentInputStreamImpl(ReadHandle ledger, long startEntryId, int blockSize) {
         this.ledger = ledger;
@@ -214,9 +216,9 @@ public class BlockAwareSegmentInputStreamImpl extends BlockAwareSegmentInputStre
     @Override
     public int read(byte[] b, int off, int len) throws IOException {
         if (b == null) {
-            throw new NullPointerException();
+            throw new NullPointerException("The given bytes are null");
         } else if (off < 0 || len < 0 || len > b.length - off) {
-            throw new IndexOutOfBoundsException();
+            throw new IndexOutOfBoundsException("off=" + off + ", len=" + len + ", b.length=" + b.length);
         } else if (len == 0) {
             return 0;
         }
@@ -269,13 +271,18 @@ public class BlockAwareSegmentInputStreamImpl extends BlockAwareSegmentInputStre
 
     @Override
     public void close() throws IOException {
-        super.close();
-        dataBlockHeaderStream.close();
-        if (!entriesByteBuf.isEmpty()) {
-            entriesByteBuf.forEach(buf -> buf.release());
-            entriesByteBuf.clear();
-        }
-        if (paddingBuf.refCnt() != 0) {
+        // The close method will be triggered twice in the BlobStoreManagedLedgerOffloader#offload method.
+        // The stream resource used by the try-with block which will called the close
+        // And through debug, writeBlobStore.uploadMultipartPart in the offload method also will trigger
+        // the close method.
+        // So we add the close variable to avoid release paddingBuf twice.
+        if (!close.compareAndSet(false, true)) {
+            super.close();
+            dataBlockHeaderStream.close();
+            if (!entriesByteBuf.isEmpty()) {
+                entriesByteBuf.forEach(buf -> buf.release());
+                entriesByteBuf.clear();
+            }
             paddingBuf.clear();
             paddingBuf.release();
         }
