@@ -220,6 +220,8 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
         Path dataPath = FileSystems.getDefault().getPath(dataDir);
         try {
             Files.createDirectories(dataPath);
+            Set<PosixFilePermission> perms = PosixFilePermissions.fromString("rwx------");
+            Files.setPosixFilePermissions(dataPath, perms);
         } catch (IOException e) {
             e.printStackTrace();
         }

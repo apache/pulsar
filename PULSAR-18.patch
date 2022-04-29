@@ -1,0 +1,13 @@
+diff --git a/pulsar-metadata/src/main/java/org/apache/pulsar/metadata/impl/RocksdbMetadataStore.java b/pulsar-metadata/src/main/java/org/apache/pulsar/metadata/impl/RocksdbMetadataStore.java
+index 1828eb5b87..0c08f06461 100644
+--- a/pulsar-metadata/src/main/java/org/apache/pulsar/metadata/impl/RocksdbMetadataStore.java
++++ b/pulsar-metadata/src/main/java/org/apache/pulsar/metadata/impl/RocksdbMetadataStore.java
+@@ -220,6 +220,8 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
+         Path dataPath = FileSystems.getDefault().getPath(dataDir);
+         try {
+             Files.createDirectories(dataPath);
++            Set<PosixFilePermission> perms = PosixFilePermissions.fromString("rwx------");
++            Files.setPosixFilePermissions(dataPath, perms);
+         } catch (IOException e) {
+             e.printStackTrace();
+         }
