@@ -142,7 +142,7 @@ public class PerformanceTransaction {
 
         @Parameter(names = {"-c",
                 "--max-connections"}, description = "Max number of TCP connections to a single broker")
-        public int maxConnections = 100;
+        public int maxConnections = 1;
 
         @Parameter(names = {"-time",
                 "--test-duration"}, description = "Test duration (in second). 0 means keeping publishing")
