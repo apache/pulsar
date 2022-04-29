@@ -90,6 +90,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerNotFoundException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
+import org.apache.bookkeeper.mledger.impl.NullLedgerOffloader;
 import org.apache.bookkeeper.mledger.util.Futures;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -106,6 +107,7 @@ import org.apache.pulsar.broker.delayed.DelayedDeliveryTrackerLoader;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.intercept.ManagedLedgerInterceptorImpl;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
+import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.resources.NamespaceResources.PartitionedTopicResources;
 import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
 import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
@@ -1509,7 +1511,9 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                     topicLevelOffloadPolicies,
                     OffloadPoliciesImpl.oldPoliciesCompatible(nsLevelOffloadPolicies, policies.orElse(null)),
                     getPulsar().getConfig().getProperties());
-            if (topicLevelOffloadPolicies != null) {
+            if (NamespaceService.isSystemServiceNamespace(namespace.toString())) {
+                managedLedgerConfig.setLedgerOffloader(NullLedgerOffloader.INSTANCE);
+            } else if (topicLevelOffloadPolicies != null) {
                 try {
                     LedgerOffloader topicLevelLedgerOffLoader = pulsar().createManagedLedgerOffloader(offloadPolicies);
                     managedLedgerConfig.setLedgerOffloader(topicLevelLedgerOffLoader);

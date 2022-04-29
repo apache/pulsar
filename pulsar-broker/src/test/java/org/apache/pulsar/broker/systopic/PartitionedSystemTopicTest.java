@@ -19,13 +19,23 @@
 package org.apache.pulsar.broker.systopic;
 
 import com.google.common.collect.Sets;
+import org.apache.bookkeeper.mledger.LedgerOffloader;
+import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
+import org.apache.bookkeeper.mledger.impl.NullLedgerOffloader;
 import org.apache.commons.lang.RandomStringUtils;
+import org.apache.pulsar.broker.admin.impl.BrokersBase;
+import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerTestBase;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.common.events.EventsTopicNames;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.awaitility.Awaitility;
+import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -34,6 +44,7 @@ import org.testng.annotations.Test;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 @Test(groups = "broker")
 public class PartitionedSystemTopicTest extends BrokerTestBase {
@@ -103,5 +114,28 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
             consumer.join().close();
         }
     }
+
+    @Test
+    public void testHealthCheckTopicNotOffload() throws Exception {
+        TopicName topicName = TopicName.get("persistent", "prop", "ns-abc", BrokersBase.HEALTH_CHECK_TOPIC_SUFFIX);
+        PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService()
+                .getTopic(topicName.toString(), true).get().get();
+        ManagedLedgerConfig config = persistentTopic.getManagedLedger().getConfig();
+        config.setLedgerOffloader(NullLedgerOffloader.INSTANCE);
+        admin.brokers().healthcheck();
+        admin.topics().triggerOffload(topicName.toString(), MessageId.earliest);
+        Awaitility.await().untilAsserted(() -> {
+            Assert.assertEquals(persistentTopic.getManagedLedger().getOffloadedSize(), 0);
+        });
+        LedgerOffloader ledgerOffloader = Mockito.mock(LedgerOffloader.class);
+        config.setLedgerOffloader(ledgerOffloader);
+        Assert.assertEquals(config.getLedgerOffloader(), ledgerOffloader);
+        admin.topics().setMaxConsumers(topicName.toString(), 2);
+        Awaitility.await().pollDelay(5, TimeUnit.SECONDS).untilAsserted(() -> {
+            Assert.assertEquals(persistentTopic.getManagedLedger().getConfig().getLedgerOffloader(),
+                    NullLedgerOffloader.INSTANCE);
+        });
+    }
+
 
 }

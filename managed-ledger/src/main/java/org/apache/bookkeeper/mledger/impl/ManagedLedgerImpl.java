@@ -2776,6 +2776,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     @Override
     public void asyncOffloadPrefix(Position pos, OffloadCallback callback, Object ctx) {
+        if (config.getLedgerOffloader() != null && config.getLedgerOffloader() == NullLedgerOffloader.INSTANCE) {
+            callback.offloadFailed(new ManagedLedgerException("NullLedgerOffloader"), ctx);
+            return;
+        }
         PositionImpl requestOffloadTo = (PositionImpl) pos;
         if (!isValidPosition(requestOffloadTo) &&
                 // Also consider the case where the last ledger is currently
