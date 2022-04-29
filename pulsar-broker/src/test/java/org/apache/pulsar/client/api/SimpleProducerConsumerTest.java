@@ -113,7 +113,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-
+@Test(groups = "flaky")
 public class SimpleProducerConsumerTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(SimpleProducerConsumerTest.class);
     private static final int TIMEOUT_MULTIPLIER = Integer.getInteger("SimpleProducerConsumerTest.receive.timeout.multiplier", 1);
@@ -2406,7 +2406,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    
+    @Test
     public void testRedeliveryFailOverConsumer() throws Exception {
         boolean ackReceiptEnabled = false;
 
@@ -2492,7 +2492,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    
+    @Test
     public void testRedeliveryFailOverConsumer1() throws Exception {
         boolean ackReceiptEnabled = true;
 
@@ -4486,7 +4486,6 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    (invocationCount = 5)
     public void testListenerOrdering() throws Exception {
         final String topic = "persistent://my-property/my-ns/test-listener-ordering-" + System.currentTimeMillis();
         final int numMessages = 1000;
