@@ -26,7 +26,7 @@
     catch(err) {
     }
 //-->
-var data = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":10,"i5":10,"i6":10,"i7":10,"i8":10};
+var data = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":10,"i5":10,"i6":10,"i7":10,"i8":10,"i9":10};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],8:["t4","Concrete Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -300,13 +300,19 @@ extends <a href="../impl/TransactionsBase.html" title="class in org.apache.pulsa
                       java.lang.String&nbsp;leastSigBits)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
+<tr id="i9" class="rowColor">
+<td class="colFirst"><code>void</code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#scaleTransactionCoordinators(javax.ws.rs.container.AsyncResponse,int)">scaleTransactionCoordinators</a></span>&#8203;(javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
+                            int&nbsp;replicas)</code></th>
+<td class="colLast">&nbsp;</td>
+</tr>
 </table>
 <ul class="blockList">
 <li class="blockList"><a id="methods.inherited.from.class.org.apache.pulsar.broker.admin.impl.TransactionsBase">
 <!--   -->
 </a>
 <h3>Methods inherited from class&nbsp;org.apache.pulsar.broker.admin.impl.<a href="../impl/TransactionsBase.html" title="class in org.apache.pulsar.broker.admin.impl">TransactionsBase</a></h3>
-<code><a href="../impl/TransactionsBase.html#checkTransactionCoordinatorEnabled()">checkTransactionCoordinatorEnabled</a>, <a href="../impl/TransactionsBase.html#getExistingPersistentTopicAsync(boolean)">getExistingPersistentTopicAsync</a>, <a href="../impl/TransactionsBase.html#internalGetCoordinatorInternalStats(javax.ws.rs.container.AsyncResponse,boolean,boolean,int)">internalGetCoordinatorInternalStats</a>, <a href="../impl/TransactionsBase.html#internalGetCoordinatorStats(javax.ws.rs.container.AsyncResponse,boolean,java.lang.Integer)">internalGetCoordinatorStats</a>, <a href="../impl/TransactionsBase.html#internalGetPendingAckInternalStats(boolean,java.lang.String,boolean)">internalGetPendingAckInternalStats</a>, <a href="../impl/TransactionsBase.html#internalGetPendingAckStats(boolean,java.lang.String)">internalGetPendingAckStats</a>, <a href="../impl/TransactionsBase.html#internalGetSlowTransactions(javax.ws.rs.container.AsyncResponse,boolean,long,java.lang.Integer)">internalGetSlowTransactions</a>, <a href="../impl/TransactionsBase.html#internalGetTransactionBufferStats(boolean)">internalGetTransactionBufferStats</a>, <a href="../impl/TransactionsBase.html#internalGetTransactionInBufferStats(boolean,long,long)">internalGetTransactionInBufferStats</a>, <a href="../impl/TransactionsBase.html#internalGetTransactionInPendingAckStats(boolean,long,long,java.lang.String)">internalGetTransactionInPendingAckStats</a>, <a href="../impl/TransactionsBase.html#internalGetTransactionMetadata(javax.ws.rs.container.AsyncResponse,boolean,int,long)">internalGetTransactionMetadata</a>, <a href="../impl/TransactionsBase.html#validateTopicName(java.lang.String,java.lang.String,java.lang.String)">validateTopicName</a></code></li>
+<code><a href="../impl/TransactionsBase.html#checkTransactionCoordinatorEnabled()">checkTransactionCoordinatorEnabled</a>, <a href="../impl/TransactionsBase.html#getExistingPersistentTopicAsync(boolean)">getExistingPersistentTopicAsync</a>, <a href="../impl/TransactionsBase.html#internalGetCoordinatorInternalStats(javax.ws.rs.container.AsyncResponse,boolean,boolean,int)">internalGetCoordinatorInternalStats</a>, <a href="../impl/TransactionsBase.html#internalGetCoordinatorStats(javax.ws.rs.container.AsyncResponse,boolean,java.lang.Integer)">internalGetCoordinatorStats</a>, <a href="../impl/TransactionsBase.html#internalGetPendingAckInternalStats(boolean,java.lang.String,boolean)">internalGetPendingAckInternalStats</a>, <a href="../impl/TransactionsBase.html#internalGetPendingAckStats(boolean,java.lang.String)">internalGetPendingAckStats</a>, <a href="../impl/TransactionsBase.html#internalGetSlowTransactions(javax.ws.rs.container.AsyncResponse,boolean,long,java.lang.Integer)">internalGetSlowTransactions</a>, <a href="../impl/TransactionsBase.html#internalGetTransactionBufferStats(boolean)">internalGetTransactionBufferStats</a>, <a href="../impl/TransactionsBase.html#internalGetTransactionInBufferStats(boolean,long,long)">internalGetTransactionInBufferStats</a>, <a href="../impl/TransactionsBase.html#internalGetTransactionInPendingAckStats(boolean,long,long,java.lang.String)">internalGetTransactionInPendingAckStats</a>, <a href="../impl/TransactionsBase.html#internalGetTransactionMetadata(javax.ws.rs.container.AsyncResponse,boolean,int,long)">internalGetTransactionMetadata</a>, <a href="../impl/TransactionsBase.html#internalScaleTransactionCoordinators(int)">internalScaleTransactionCoordinators</a>, <a href="../impl/TransactionsBase.html#validateTopicName(java.lang.String,java.lang.String,java.lang.String)">validateTopicName</a></code></li>
 </ul>
 <ul class="blockList">
 <li class="blockList"><a id="methods.inherited.from.class.org.apache.pulsar.broker.admin.AdminResource">
@@ -529,7 +535,7 @@ public&nbsp;void&nbsp;getCoordinatorInternalStats&#8203;(@Suspended
 <a id="getPendingAckInternalStats(javax.ws.rs.container.AsyncResponse,boolean,java.lang.String,java.lang.String,java.lang.String,java.lang.String,boolean)">
 <!--   -->
 </a>
-<ul class="blockListLast">
+<ul class="blockList">
 <li class="blockList">
 <h4>getPendingAckInternalStats</h4>
 <pre class="methodSignature">@GET
@@ -548,6 +554,19 @@ public&nbsp;void&nbsp;getPendingAckInternalStats&#8203;(@Suspended
                                        java.lang.String&nbsp;subName,
                                        @QueryParam("metadata") @DefaultValue("false")
                                        boolean&nbsp;metadata)</pre>
+</li>
+</ul>
+<a id="scaleTransactionCoordinators(javax.ws.rs.container.AsyncResponse,int)">
+<!--   -->
+</a>
+<ul class="blockListLast">
+<li class="blockList">
+<h4>scaleTransactionCoordinators</h4>
+<pre class="methodSignature">@POST
+@Path("/transactionCoordinator/replicas")
+public&nbsp;void&nbsp;scaleTransactionCoordinators&#8203;(@Suspended
+                                         javax.ws.rs.container.AsyncResponse&nbsp;asyncResponse,
+                                         int&nbsp;replicas)</pre>
 </li>
 </ul>
 </li>

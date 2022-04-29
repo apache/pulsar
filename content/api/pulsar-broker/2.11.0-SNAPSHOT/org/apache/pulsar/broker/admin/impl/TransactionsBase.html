@@ -26,7 +26,7 @@
     catch(err) {
     }
 //-->
-var data = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":10,"i5":10,"i6":10,"i7":10,"i8":10,"i9":10,"i10":10,"i11":10};
+var data = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":10,"i5":10,"i6":10,"i7":10,"i8":10,"i9":10,"i10":10,"i11":10,"i12":10};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],8:["t4","Concrete Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -287,6 +287,11 @@ extends <a href="../AdminResource.html" title="class in org.apache.pulsar.broker
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr id="i11" class="rowColor">
+<td class="colFirst"><code>protected java.util.concurrent.CompletableFuture&lt;java.lang.Void&gt;</code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#internalScaleTransactionCoordinators(int)">internalScaleTransactionCoordinators</a></span>&#8203;(int&nbsp;replicas)</code></th>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr id="i12" class="altColor">
 <td class="colFirst"><code>protected void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#validateTopicName(java.lang.String,java.lang.String,java.lang.String)">validateTopicName</a></span>&#8203;(java.lang.String&nbsp;property,
                  java.lang.String&nbsp;namespace,
@@ -471,7 +476,7 @@ extends <a href="../AdminResource.html" title="class in org.apache.pulsar.broker
 <a id="validateTopicName(java.lang.String,java.lang.String,java.lang.String)">
 <!--   -->
 </a>
-<ul class="blockListLast">
+<ul class="blockList">
 <li class="blockList">
 <h4>validateTopicName</h4>
 <pre class="methodSignature">protected&nbsp;void&nbsp;validateTopicName&#8203;(java.lang.String&nbsp;property,
@@ -481,6 +486,15 @@ extends <a href="../AdminResource.html" title="class in org.apache.pulsar.broker
 <dt><span class="overrideSpecifyLabel">Overrides:</span></dt>
 <dd><code><a href="../AdminResource.html#validateTopicName(java.lang.String,java.lang.String,java.lang.String)">validateTopicName</a></code>&nbsp;in class&nbsp;<code><a href="../AdminResource.html" title="class in org.apache.pulsar.broker.admin">AdminResource</a></code></dd>
 </dl>
+</li>
+</ul>
+<a id="internalScaleTransactionCoordinators(int)">
+<!--   -->
+</a>
+<ul class="blockListLast">
+<li class="blockList">
+<h4>internalScaleTransactionCoordinators</h4>
+<pre class="methodSignature">protected&nbsp;java.util.concurrent.CompletableFuture&lt;java.lang.Void&gt;&nbsp;internalScaleTransactionCoordinators&#8203;(int&nbsp;replicas)</pre>
 </li>
 </ul>
 </li>

@@ -67,7 +67,7 @@ values.</p>
 <tr><td><code>bulkActions</code></td><td>Integer</td><td>false</td><td>1000</td><td>The maximum number of actions per elasticsearch bulk request. Use -1 to disable it.</td></tr>
 <tr><td><code>bulkSizeInMb</code></td><td>Integer</td><td>false</td><td>5</td><td>The maximum size in megabytes of elasticsearch bulk requests. Use -1 to disable it.</td></tr>
 <tr><td><code>bulkConcurrentRequests</code></td><td>Integer</td><td>false</td><td>0</td><td>The maximum number of in flight elasticsearch bulk requests. The default 0 allows the execution of a single request. A value of 1 means 1 concurrent request is allowed to be executed while accumulating new bulk requests.</td></tr>
-<tr><td><code>bulkFlushIntervalInMs</code></td><td>Integer</td><td>false</td><td>-1</td><td>The maximum period of time to wait for flushing pending writes when bulk writes are enabled. Default is -1 meaning not set.</td></tr>
+<tr><td><code>bulkFlushIntervalInMs</code></td><td>Long</td><td>false</td><td>1000</td><td>The maximum period of time to wait for flushing pending writes when bulk writes are enabled. -1 or zero means the scheduled flushing is disabled.</td></tr>
 <tr><td><code>compressionEnabled</code></td><td>Boolean</td><td>false</td><td>false</td><td>Enable elasticsearch request compression.</td></tr>
 <tr><td><code>connectTimeoutInMs</code></td><td>Integer</td><td>false</td><td>5000</td><td>The elasticsearch client connection timeout in milliseconds.</td></tr>
 <tr><td><code>connectionRequestTimeoutInMs</code></td><td>Integer</td><td>false</td><td>1000</td><td>The time in milliseconds for getting a connection from the elasticsearch connection pool.</td></tr>

@@ -26,7 +26,7 @@
     catch(err) {
     }
 //-->
-var data = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":10,"i5":10,"i6":10,"i7":10,"i8":10,"i9":10,"i10":10,"i11":10,"i12":10,"i13":10,"i14":10,"i15":10,"i16":10,"i17":10,"i18":10,"i19":10,"i20":10,"i21":10};
+var data = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":10,"i5":10,"i6":10,"i7":10,"i8":10,"i9":10,"i10":10,"i11":10,"i12":10,"i13":10,"i14":10,"i15":10,"i16":10,"i17":10,"i18":10,"i19":10,"i20":10,"i21":10,"i22":10,"i23":10};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],8:["t4","Concrete Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -331,6 +331,16 @@ implements org.apache.pulsar.client.admin.Transactions</pre>
 <tr id="i21" class="rowColor">
 <td class="colFirst"><code>java.util.concurrent.CompletableFuture&lt;org.apache.pulsar.common.policies.data.TransactionMetadata&gt;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getTransactionMetadataAsync(org.apache.pulsar.client.api.transaction.TxnID)">getTransactionMetadataAsync</a></span>&#8203;(org.apache.pulsar.client.api.transaction.TxnID&nbsp;txnID)</code></th>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr id="i22" class="altColor">
+<td class="colFirst"><code>void</code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#scaleTransactionCoordinators(int)">scaleTransactionCoordinators</a></span>&#8203;(int&nbsp;replicas)</code></th>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr id="i23" class="rowColor">
+<td class="colFirst"><code>java.util.concurrent.CompletableFuture&lt;java.lang.Void&gt;</code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#scaleTransactionCoordinatorsAsync(int)">scaleTransactionCoordinatorsAsync</a></span>&#8203;(int&nbsp;replicas)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 </table>
@@ -709,7 +719,7 @@ implements org.apache.pulsar.client.admin.Transactions</pre>
 <a id="getPendingAckInternalStats(java.lang.String,java.lang.String,boolean)">
 <!--   -->
 </a>
-<ul class="blockListLast">
+<ul class="blockList">
 <li class="blockList">
 <h4>getPendingAckInternalStats</h4>
 <pre class="methodSignature">public&nbsp;org.apache.pulsar.common.policies.data.TransactionPendingAckInternalStats&nbsp;getPendingAckInternalStats&#8203;(java.lang.String&nbsp;topic,
@@ -721,6 +731,35 @@ implements org.apache.pulsar.client.admin.Transactions</pre>
 <dd><code>getPendingAckInternalStats</code>&nbsp;in interface&nbsp;<code>org.apache.pulsar.client.admin.Transactions</code></dd>
 <dt><span class="throwsLabel">Throws:</span></dt>
 <dd><code>org.apache.pulsar.client.admin.PulsarAdminException</code></dd>
+</dl>
+</li>
+</ul>
+<a id="scaleTransactionCoordinators(int)">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>scaleTransactionCoordinators</h4>
+<pre class="methodSignature">public&nbsp;void&nbsp;scaleTransactionCoordinators&#8203;(int&nbsp;replicas)
+                                  throws org.apache.pulsar.client.admin.PulsarAdminException</pre>
+<dl>
+<dt><span class="overrideSpecifyLabel">Specified by:</span></dt>
+<dd><code>scaleTransactionCoordinators</code>&nbsp;in interface&nbsp;<code>org.apache.pulsar.client.admin.Transactions</code></dd>
+<dt><span class="throwsLabel">Throws:</span></dt>
+<dd><code>org.apache.pulsar.client.admin.PulsarAdminException</code></dd>
+</dl>
+</li>
+</ul>
+<a id="scaleTransactionCoordinatorsAsync(int)">
+<!--   -->
+</a>
+<ul class="blockListLast">
+<li class="blockList">
+<h4>scaleTransactionCoordinatorsAsync</h4>
+<pre class="methodSignature">public&nbsp;java.util.concurrent.CompletableFuture&lt;java.lang.Void&gt;&nbsp;scaleTransactionCoordinatorsAsync&#8203;(int&nbsp;replicas)</pre>
+<dl>
+<dt><span class="overrideSpecifyLabel">Specified by:</span></dt>
+<dd><code>scaleTransactionCoordinatorsAsync</code>&nbsp;in interface&nbsp;<code>org.apache.pulsar.client.admin.Transactions</code></dd>
 </dl>
 </li>
 </ul>
