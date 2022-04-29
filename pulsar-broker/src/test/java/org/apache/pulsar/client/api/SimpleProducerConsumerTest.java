@@ -2410,7 +2410,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
     }
 
     @Test(groups = "quarantine")
-    public void testRedeliveryFailOverConsumer() throws Exception {
+    public void testRedeliveryFailOverConsumer1() throws Exception {
         boolean ackReceiptEnabled = false;
 
         log.info("-- Starting {} test --", methodName);
@@ -2446,7 +2446,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                 consumer.acknowledge(msg);
                 log.info("Received message: " + new String(msg.getData()));
             } else {
-                break;
+                fail("unknown error");
             }
         }
         assertEquals(messages1.size(), consumeMsgInParts);
@@ -2496,7 +2496,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
     }
 
     @Test(groups = "quarantine")
-    public void testRedeliveryFailOverConsumer1() throws Exception {
+    public void testRedeliveryFailOverConsumer2() throws Exception {
         boolean ackReceiptEnabled = true;
 
         log.info("-- Starting {} test --", methodName);
@@ -2571,7 +2571,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                 consumer.acknowledge(msg);
                 log.info("Received message: " + new String(msg.getData()));
             } else {
-                break;
+                fail("unknown error");
             }
         }
         assertEquals(messages1.size(), remainingMsgs);
