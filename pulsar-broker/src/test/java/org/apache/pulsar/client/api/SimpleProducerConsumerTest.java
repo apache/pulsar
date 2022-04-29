@@ -2436,7 +2436,9 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         Message<byte[]> msg;
         List<Message<byte[]>> messages1 = Lists.newArrayList();
         for (int i = 0; i < consumeMsgInParts; i++) {
-            msg = consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            //There is some detailed info about this case.
+            //https://github.com/apache/pulsar/pull/15088#issuecomment-1113521990
+            msg = consumer.receive();
             if (msg != null) {
                 messages1.add(msg);
                 consumer.acknowledge(msg);
@@ -2452,7 +2454,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         // (1.b) consume second consumeMsgInParts msgs and trigger redeliver
         messages1.clear();
         for (int i = 0; i < consumeMsgInParts; i++) {
-            msg = consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            msg = consumer.receive();
             if (msg != null) {
                 messages1.add(msg);
                 consumer.acknowledge(msg);
@@ -2475,7 +2477,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         int remainingMsgs = (2 * receiverQueueSize) - (2 * consumeMsgInParts);
         messages1.clear();
         for (int i = 0; i < remainingMsgs; i++) {
-            msg = consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            msg = consumer.receive();
             if (msg != null) {
                 messages1.add(msg);
                 consumer.acknowledge(msg);
