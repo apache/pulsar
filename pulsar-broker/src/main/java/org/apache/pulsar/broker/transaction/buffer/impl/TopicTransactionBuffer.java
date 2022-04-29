@@ -577,17 +577,18 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                         .createReader(TopicName.get(topic.getName())).thenAcceptAsync(reader -> {
                             try {
                                 boolean hasSnapshot = false;
-                                while (reader.hasMoreEvents()) {
-                                    Message<TransactionBufferSnapshot> message = reader.readNext();
-                                    if (topic.getName().equals(message.getKey())) {
-                                        TransactionBufferSnapshot transactionBufferSnapshot = message.getValue();
-                                        if (transactionBufferSnapshot != null) {
-                                            hasSnapshot = true;
-                                            callBack.handleSnapshot(transactionBufferSnapshot);
-                                            this.startReadCursorPosition = PositionImpl.get(
-                                                    transactionBufferSnapshot.getMaxReadPositionLedgerId(),
-                                                    transactionBufferSnapshot.getMaxReadPositionEntryId());
-                                        }
+                                while (true) {
+                                    Message<TransactionBufferSnapshot> message = reader.readNext(topic.getName());
+                                    if (message == null) {
+                                        break;
+                                    }
+                                    TransactionBufferSnapshot transactionBufferSnapshot = message.getValue();
+                                    if (transactionBufferSnapshot != null) {
+                                        hasSnapshot = true;
+                                        callBack.handleSnapshot(transactionBufferSnapshot);
+                                        this.startReadCursorPosition = PositionImpl.get(
+                                                transactionBufferSnapshot.getMaxReadPositionLedgerId(),
+                                                transactionBufferSnapshot.getMaxReadPositionEntryId());
                                     }
                                 }
                                 if (!hasSnapshot) {

@@ -145,6 +145,16 @@ public interface SystemTopicClient<T> {
     interface Reader<T> {
 
         /**
+         * Read event from system topic by reused reader.
+         * @param topicName Need a topic name to distinguish different topic calls,
+         *                  when a Reader is shared by multiple topics
+         * @return pulsar event
+         */
+        default Message<T> readNext(String topicName) throws PulsarClientException {
+            return readNext();
+        }
+
+        /**
          * Read event from system topic.
          * @return pulsar event
          */

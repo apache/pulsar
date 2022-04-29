@@ -486,11 +486,10 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         TransactionBufferSnapshotService transactionBufferSnapshotServiceOriginal =
                 (TransactionBufferSnapshotService) field.get(getPulsarServiceList().get(0));
         // mock reader can't read snapshot fail
-        doThrow(new PulsarClientException("test")).when(reader).hasMoreEvents();
+        doThrow(new PulsarClientException("test")).when(reader).readNext(any());
         // check reader close topic
         checkCloseTopic(pulsarClient, transactionBufferSnapshotServiceOriginal,
                 transactionBufferSnapshotService, originalTopic, field, producer);
-        doReturn(true).when(reader).hasMoreEvents();
 
         // mock create reader fail
         doReturn(FutureUtil.failedFuture(new PulsarClientException("test")))

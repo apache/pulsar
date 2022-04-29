@@ -20,6 +20,8 @@
 package org.apache.pulsar.broker.systopic;
 
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.concurrent.CompletableFuture;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.service.TransactionBufferSnapshotService;
@@ -151,11 +153,36 @@ public class TransactionBufferSystemTopicClient extends SystemTopicClientBase<Tr
 
         private final org.apache.pulsar.client.api.Reader<TransactionBufferSnapshot> reader;
         private final TransactionBufferSystemTopicClient transactionBufferSystemTopicClient;
+        private final HashMap<String, LinkedList<Message<TransactionBufferSnapshot>>> transactionBufferSnapshotCache;
 
         private TransactionBufferSnapshotReader(org.apache.pulsar.client.api.Reader<TransactionBufferSnapshot> reader,
                                                 TransactionBufferSystemTopicClient transactionBufferSystemTopicClient) {
             this.reader = reader;
             this.transactionBufferSystemTopicClient = transactionBufferSystemTopicClient;
+            this.transactionBufferSnapshotCache = new HashMap<>();
+        }
+
+        @Override
+        public synchronized Message<TransactionBufferSnapshot> readNext(String topicName)
+                throws PulsarClientException {
+            LinkedList<Message<TransactionBufferSnapshot>> cache = transactionBufferSnapshotCache.get(topicName);
+            if (cache != null && cache.size() != 0) {
+                return  cache.removeFirst();
+            } else {
+                Message<TransactionBufferSnapshot> message;
+                while (reader.hasMessageAvailable()) {
+                    message = reader.readNext();
+                    if (message.getKey().equals(topicName)) {
+                        return message;
+                    } else {
+                        LinkedList<Message<TransactionBufferSnapshot>> linkedList =
+                                transactionBufferSnapshotCache.computeIfAbsent(message.getKey(),
+                                        k -> new LinkedList<>());
+                        linkedList.add(message);
+                    }
+                }
+                return null;
+            }
         }
 
         @Override
