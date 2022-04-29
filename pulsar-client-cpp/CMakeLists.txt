@@ -22,7 +22,7 @@ cmake_minimum_required(VERSION 3.4)
 project (pulsar-cpp)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake_modules")
 
-execute_process(COMMAND python ${CMAKE_SOURCE_DIR}/../src/gen-pulsar-version-macro.py OUTPUT_STRIP_TRAILING_WHITESPACE OUTPUT_VARIABLE PVM)
+execute_process(COMMAND ${CMAKE_SOURCE_DIR}/../src/gen-pulsar-version-macro.py OUTPUT_STRIP_TRAILING_WHITESPACE OUTPUT_VARIABLE PVM)
 set(PVM_COMMENT "This is generated from Version.h.in by CMAKE. DO NOT EDIT DIRECTLY")
 configure_file(templates/Version.h.in include/pulsar/Version.h @ONLY)
 
@@ -437,15 +437,9 @@ if (BUILD_WIRESHARK)
     add_subdirectory(wireshark)
 endif()
 
-# `make format` option
-if (NOT APPLE AND NOT WIN32)
-    set(CLANG_FORMAT_VERSION "5.0")
-endif()
-
-
 find_package(ClangTools)
 set(BUILD_SUPPORT_DIR "${CMAKE_SOURCE_DIR}/build-support")
-add_custom_target(format python ${BUILD_SUPPORT_DIR}/run_clang_format.py
+add_custom_target(format ${BUILD_SUPPORT_DIR}/run_clang_format.py
         ${CLANG_FORMAT_BIN}
         0
         ${BUILD_SUPPORT_DIR}/clang_format_exclusions.txt
@@ -458,7 +452,7 @@ add_custom_target(format python ${BUILD_SUPPORT_DIR}/run_clang_format.py
         ${CMAKE_SOURCE_DIR}/wireshark)
 
 # `make check-format` option (for CI test)
-add_custom_target(check-format python ${BUILD_SUPPORT_DIR}/run_clang_format.py
+add_custom_target(check-format ${BUILD_SUPPORT_DIR}/run_clang_format.py
         ${CLANG_FORMAT_BIN}
         1
         ${BUILD_SUPPORT_DIR}/clang_format_exclusions.txt
