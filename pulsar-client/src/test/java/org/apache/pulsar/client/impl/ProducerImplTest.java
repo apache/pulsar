@@ -21,8 +21,8 @@ package org.apache.pulsar.client.impl;
 import java.nio.ByteBuffer;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
-import org.junit.Assert;
-import org.junit.Test;
+import org.testng.Assert;
+import org.testng.annotations.Test;
 
 public class ProducerImplTest {
     @Test
@@ -39,7 +39,7 @@ public class ProducerImplTest {
                             null, 0, null);
             opSendMsg.chunkedMessageCtx = ctx;
             // check the ctx hasn't been deallocated.
-            Assert.assertEquals(testMessageId, ctx.firstChunkMessageId);
+            Assert.assertEquals(ctx.firstChunkMessageId, testMessageId);
             opSendMsg.recycle();
         }
 

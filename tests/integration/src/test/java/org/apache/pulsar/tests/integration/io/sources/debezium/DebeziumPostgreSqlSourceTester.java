@@ -18,6 +18,10 @@
  */
 package org.apache.pulsar.tests.integration.io.sources.debezium;
 
+import static org.testng.Assert.assertNotEquals;
+import java.io.Closeable;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.tests.integration.containers.DebeziumPostgreSqlContainer;
@@ -26,10 +30,6 @@ import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.io.sources.SourceTester;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.testng.Assert;
-
-import java.io.Closeable;
-import java.util.Map;
-import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * A tester for testing Debezium Postgresql source.
@@ -139,7 +139,7 @@ public class DebeziumPostgreSqlSourceTester extends SourceTester<DebeziumPostgre
             String lastConfirmedFlushLsn = res.getStdout();
             log.info("Current confirmedFlushLsn: \n{} \nLast confirmedFlushLsn: \n{}",
                     confirmedFlushLsn.get(), lastConfirmedFlushLsn);
-            org.junit.Assert.assertNotEquals(confirmedFlushLsn.get(), lastConfirmedFlushLsn);
+            assertNotEquals(confirmedFlushLsn.get(), lastConfirmedFlushLsn);
             confirmedFlushLsn.set(lastConfirmedFlushLsn);
         } catch (Exception e) {
             Assert.fail("failed to get flush lsn", e);

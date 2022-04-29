@@ -35,7 +35,6 @@ import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStoreState;
 import org.apache.pulsar.transaction.coordinator.impl.MLTransactionMetadataStore;
 import org.awaitility.Awaitility;
-import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -46,8 +45,8 @@ import java.util.Collections;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
-import static org.junit.Assert.assertFalse;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 
 @Slf4j
@@ -97,7 +96,7 @@ public class TransactionClientConnectTest extends TransactionTestBase {
             completableFuture.get(3, TimeUnit.SECONDS);
         } catch (TimeoutException ignore) {
         } catch (ExecutionException e) {
-            Assert.assertFalse(e.getCause()
+            assertFalse(e.getCause()
                     instanceof TransactionCoordinatorClientException.CoordinatorNotFoundException);
         }
 

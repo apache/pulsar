@@ -18,11 +18,10 @@
  */
 package org.apache.pulsar.common.util.collections;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 import com.google.common.collect.Lists;
 
 import java.util.ArrayList;
@@ -35,7 +34,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import org.apache.pulsar.common.util.collections.ConcurrentLongLongPairHashMap.LongPair;
-import org.junit.Test;
+import org.testng.annotations.Test;
 
 /**
  * Test the concurrent long-long pair hashmap class.

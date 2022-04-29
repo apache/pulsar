@@ -18,12 +18,10 @@
  */
 package org.apache.pulsar.compaction;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 import org.testng.annotations.Test;
-
 import java.util.concurrent.TimeUnit;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 
 @Test(groups = "broker-compaction")
 public class CompactorMXBeanImplTest {

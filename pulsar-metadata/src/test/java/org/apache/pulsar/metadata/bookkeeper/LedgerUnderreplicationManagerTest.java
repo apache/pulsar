@@ -18,10 +18,11 @@
  */
 package org.apache.pulsar.metadata.bookkeeper;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 import com.google.protobuf.TextFormat;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
@@ -157,7 +158,7 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
         }
         Long newl = 0xfefefefefefeL;
         lum.markLedgerUnderreplicated(newl, missingReplica);
-        assertEquals("Should have got the one just added", newl, f.get(5, TimeUnit.SECONDS));
+        assertEquals(f.get(5, TimeUnit.SECONDS), newl, "Should have got the one just added");
     }
 
     @Test(dataProvider = "impl")
@@ -206,7 +207,7 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
         m1.markLedgerUnderreplicated(ledger, missingReplica);
         Future<Long> f = getLedgerToReplicate(m1);
         Long l = f.get(5, TimeUnit.SECONDS);
-        assertEquals("Should be the ledger I just marked", ledger, l);
+        assertEquals(l, ledger, "Should be the ledger I just marked");
 
         f = getLedgerToReplicate(m2);
         try {
@@ -220,7 +221,7 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
         m1.close();
 
         l = f.get(5, TimeUnit.SECONDS);
-        assertEquals("Should be the ledger I marked", ledger, l);
+        assertEquals(l, ledger, "Should be the ledger I marked");
     }
 
 
@@ -255,9 +256,8 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
         Long lA = fA.get(5, TimeUnit.SECONDS);
         Long lB = fB.get(5, TimeUnit.SECONDS);
 
-        assertTrue("Should be the ledgers I just marked",
-                (lA.equals(ledgerA) && lB.equals(ledgerB))
-                        || (lA.equals(ledgerB) && lB.equals(ledgerA)));
+        assertTrue((lA.equals(ledgerA) && lB.equals(ledgerB))
+                || (lA.equals(ledgerB) && lB.equals(ledgerA)), "Should be the ledgers I just marked");
 
         Future<Long> f = getLedgerToReplicate(m2);
         try {
@@ -272,7 +272,7 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
         m1.close();
 
         Long l = f.get(5, TimeUnit.SECONDS);
-        assertEquals("Should be the ledger I marked", lB, l);
+        assertEquals(l, lB, "Should be the ledger I marked");
     }
 
     /**
@@ -305,9 +305,9 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
         Long lA = fA.get(5, TimeUnit.SECONDS);
         Long lB = fB.get(5, TimeUnit.SECONDS);
 
-        assertTrue("Should be the ledgers I just marked",
-                (lA.equals(ledgerA) && lB.equals(ledgerB))
-                        || (lA.equals(ledgerB) && lB.equals(ledgerA)));
+        assertTrue((lA.equals(ledgerA) && lB.equals(ledgerB))
+                || (lA.equals(ledgerB) && lB.equals(ledgerA)), "Should be the ledgers I just marked"
+        );
 
         Future<Long> f = getLedgerToReplicate(m2);
         try {
@@ -320,7 +320,7 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
         m1.releaseUnderreplicatedLedger(lB);
 
         Long l = f.get(5, TimeUnit.SECONDS);
-        assertEquals("Should be the ledger I marked", lB, l);
+        assertEquals(l, lB, "Should be the ledger I marked");
     }
 
     /**
@@ -344,14 +344,12 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
 
         lum.markLedgerUnderreplicated(ledgerA, missingReplica2);
 
-        assertEquals("Should be the ledger I just marked",
-                lA, ledgerA);
+        assertEquals(lA, ledgerA, "Should be the ledger I just marked");
         lum.markLedgerReplicated(lA);
 
         Future<Long> f = getLedgerToReplicate(lum);
         lA = f.get(5, TimeUnit.SECONDS);
-        assertEquals("Should be the ledger I had marked previously",
-                lA, ledgerA);
+        assertEquals(lA, ledgerA, "Should be the ledger I had marked previously");
     }
 
     /**
@@ -376,23 +374,23 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
 
         // lock is not yet acquired so replicationWorkerIdRereplicatingLedger
         // should
-        assertEquals("ReplicationWorkerId of the lock", null, lum.getReplicationWorkerIdRereplicatingLedger(ledgerA));
+        assertNull(lum.getReplicationWorkerIdRereplicatingLedger(ledgerA), "ReplicationWorkerId of the lock");
 
         Future<Long> fA = getLedgerToReplicate(lum);
         Long lA = fA.get(5, TimeUnit.SECONDS);
-        assertEquals("Should be the ledger that was just marked", lA, ledgerA);
+        assertEquals(lA, ledgerA, "Should be the ledger that was just marked");
 
         /*
          * ZkLedgerUnderreplicationManager.getLockData uses
          * DNS.getDefaultHost("default") as the bookieId.
          *
          */
-        assertEquals("ReplicationWorkerId of the lock", DNS.getDefaultHost("default"),
-                lum.getReplicationWorkerIdRereplicatingLedger(ledgerA));
+        assertEquals(lum.getReplicationWorkerIdRereplicatingLedger(ledgerA), DNS.getDefaultHost("default"),
+                "ReplicationWorkerId of the lock");
 
         lum.markLedgerReplicated(lA);
 
-        assertEquals("ReplicationWorkerId of the lock", null, lum.getReplicationWorkerIdRereplicatingLedger(ledgerA));
+        assertNull(lum.getReplicationWorkerIdRereplicatingLedger(ledgerA), "ReplicationWorkerId of the lock");
     }
 
     /**
@@ -419,16 +417,13 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
         byte[] data = store.get(getUrLedgerZnode(ledgerA)).join().get().getValue();
         TextFormat.merge(new String(data, Charset.forName("UTF-8")), builderA);
         List<String> replicaList = builderA.getReplicaList();
-        assertEquals("Published duplicate missing replica : " + replicaList, 1,
-                replicaList.size());
-        assertTrue("Published duplicate missing replica : " + replicaList,
-                replicaList.contains(missingReplica1));
+        assertEquals(replicaList.size(), 1, "Published duplicate missing replica : " + replicaList);
+        assertTrue(replicaList.contains(missingReplica1), "Published duplicate missing replica : " + replicaList);
 
         Future<Long> fA = getLedgerToReplicate(m1);
         Long lA = fA.get(5, TimeUnit.SECONDS);
 
-        assertEquals("Should be the ledger I just marked",
-                lA, ledgerA);
+        assertEquals(lA, ledgerA, "Should be the ledger I just marked");
         m1.markLedgerReplicated(lA);
 
         Future<Long> f = getLedgerToReplicate(m2);
@@ -458,9 +453,19 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
         final int iterationCount = 100;
         final CountDownLatch latch1 = new CountDownLatch(iterationCount);
         final CountDownLatch latch2 = new CountDownLatch(iterationCount);
-        Thread thread1 = new Thread(() -> takeLedgerAndRelease(m1, latch1, iterationCount));
+        Thread thread1 = new Thread() {
+            @Override
+            public void run() {
+                takeLedgerAndRelease(m1, latch1, iterationCount);
+            }
+        };
 
-        Thread thread2 = new Thread(() -> takeLedgerAndRelease(m2, latch2, iterationCount));
+        Thread thread2 = new Thread() {
+            @Override
+            public void run() {
+                takeLedgerAndRelease(m2, latch2, iterationCount);
+            }
+        };
         thread1.start();
         thread2.start();
 
@@ -588,28 +593,28 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
         });
 
         // getLedgerToRereplicate is waiting until enable rereplication
-        Thread thread1 = new Thread(() -> {
-            try {
-                Long lA = lum.getLedgerToRereplicate();
-                assertEquals("Should be the ledger I just marked", lA,
-                        ledgerA);
-                znodeLatch.countDown();
-            } catch (UnavailableException e) {
-                e.printStackTrace();
+        Thread thread1 = new Thread() {
+            @Override
+            public void run() {
+                try {
+                    Long lA = lum.getLedgerToRereplicate();
+                    assertEquals(lA, ledgerA, "Should be the ledger I just marked");
+                    znodeLatch.countDown();
+                } catch (UnavailableException e) {
+                    e.printStackTrace();
+                }
             }
-        });
+        };
         thread1.start();
 
         try {
-            assertFalse("shouldn't complete", znodeLatch.await(1, TimeUnit.SECONDS));
-            assertEquals("Failed to disable ledger replication!", 2, znodeLatch
-                    .getCount());
+            assertFalse(znodeLatch.await(1, TimeUnit.SECONDS),"shouldn't complete");
+            assertEquals(znodeLatch.getCount(), 2, "Failed to disable ledger replication!");
 
             lum.enableLedgerReplication();
             znodeLatch.await(5, TimeUnit.SECONDS);
             log.debug("Enabled Ledeger Replication");
-            assertEquals("Failed to disable ledger replication!", 0, znodeLatch
-                    .getCount());
+            assertEquals(znodeLatch.getCount(), 0, "Failed to disable ledger replication!");
         } finally {
             thread1.interrupt();
         }
@@ -623,13 +628,13 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
         LedgerUnderreplicationManager underReplicaMgr1 = lmf.newLedgerUnderreplicationManager();
         @Cleanup
         LedgerUnderreplicationManager underReplicaMgr2 = lmf.newLedgerUnderreplicationManager();
-        assertEquals(-1, underReplicaMgr1.getCheckAllLedgersCTime());
+        assertEquals(underReplicaMgr1.getCheckAllLedgersCTime(), -1);
         long curTime = System.currentTimeMillis();
         underReplicaMgr2.setCheckAllLedgersCTime(curTime);
-        assertEquals(curTime, underReplicaMgr1.getCheckAllLedgersCTime());
+        assertEquals(underReplicaMgr1.getCheckAllLedgersCTime(), curTime);
         curTime = System.currentTimeMillis();
         underReplicaMgr2.setCheckAllLedgersCTime(curTime);
-        assertEquals(curTime, underReplicaMgr1.getCheckAllLedgersCTime());
+        assertEquals(underReplicaMgr1.getCheckAllLedgersCTime(), curTime);
     }
 
     @Test(dataProvider = "impl")
@@ -642,15 +647,15 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
         @Cleanup
         LedgerUnderreplicationManager underReplicaMgr2 = lmf.newLedgerUnderreplicationManager();
 
-        assertEquals(-1, underReplicaMgr1.getPlacementPolicyCheckCTime());
+        assertEquals(underReplicaMgr1.getPlacementPolicyCheckCTime(), -1);
         long curTime = System.currentTimeMillis();
         underReplicaMgr2.setPlacementPolicyCheckCTime(curTime);
 
-        assertEquals(curTime, underReplicaMgr1.getPlacementPolicyCheckCTime());
+        assertEquals(underReplicaMgr1.getPlacementPolicyCheckCTime(), curTime);
         curTime = System.currentTimeMillis();
         underReplicaMgr2.setPlacementPolicyCheckCTime(curTime);
 
-        assertEquals(curTime, underReplicaMgr1.getPlacementPolicyCheckCTime());
+        assertEquals(underReplicaMgr1.getPlacementPolicyCheckCTime(), curTime);
     }
 
     @Test(dataProvider = "impl")
@@ -662,13 +667,13 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
         LedgerUnderreplicationManager underReplicaMgr1 = lmf.newLedgerUnderreplicationManager();
         @Cleanup
         LedgerUnderreplicationManager underReplicaMgr2 = lmf.newLedgerUnderreplicationManager();
-        assertEquals(-1, underReplicaMgr1.getReplicasCheckCTime());
+        assertEquals(underReplicaMgr1.getReplicasCheckCTime(), -1);
         long curTime = System.currentTimeMillis();
         underReplicaMgr2.setReplicasCheckCTime(curTime);
-        assertEquals(curTime, underReplicaMgr1.getReplicasCheckCTime());
+        assertEquals(underReplicaMgr1.getReplicasCheckCTime(), curTime);
         curTime = System.currentTimeMillis();
         underReplicaMgr2.setReplicasCheckCTime(curTime);
-        assertEquals(curTime, underReplicaMgr1.getReplicasCheckCTime());
+        assertEquals(underReplicaMgr1.getReplicasCheckCTime(), curTime);
     }
 
     private void verifyMarkLedgerUnderreplicated(Collection<String> missingReplica) throws Exception {
@@ -687,9 +692,8 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
         List<String> replicaList = builderA.getReplicaList();
 
         for (String replica : missingReplica) {
-            assertTrue("UrLedger:" + urLedgerA
-                    + " doesn't contain failed bookie :" + replica, replicaList
-                    .contains(replica));
+            assertTrue(replicaList.contains(replica),
+                    "UrLedger:" + urLedgerA + " doesn't contain failed bookie :" + replica);
         }
     }
 

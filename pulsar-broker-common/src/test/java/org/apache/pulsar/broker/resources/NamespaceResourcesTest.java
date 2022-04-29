@@ -19,7 +19,7 @@
 
 package org.apache.pulsar.broker.resources;
 
-import org.junit.Assert;
+import org.testng.Assert;
 import org.testng.annotations.Test;
 
 

@@ -18,9 +18,9 @@
  */
 package org.apache.pulsar.broker.admin;
 
-import static org.junit.Assert.fail;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.expectThrows;
 import java.util.Map;
 import javax.ws.rs.core.Response;
 import lombok.extern.slf4j.Slf4j;
@@ -58,15 +58,8 @@ public class AdminApiDynamicConfigurationsTest extends MockedPulsarServiceBaseTe
 
     @Test
     public void TestDeleteInvalidDynamicConfiguration() {
-        try {
-            admin.brokers().deleteDynamicConfiguration("errorName");
-            fail("exception should be thrown");
-        } catch (Exception e) {
-            if (e instanceof PulsarAdminException) {
-                assertEquals(((PulsarAdminException) e).getStatusCode(), Response.Status.PRECONDITION_FAILED.getStatusCode());
-            } else {
-                fail("PulsarAdminException should be thrown");
-            }
-        }
+        assertEquals(expectThrows(PulsarAdminException.class,
+                        () -> admin.brokers().deleteDynamicConfiguration("errorName")).getStatusCode(),
+                Response.Status.PRECONDITION_FAILED.getStatusCode());
     }
 }

@@ -23,12 +23,12 @@ import org.asynchttpclient.BoundRequestBuilder;
 import org.asynchttpclient.DefaultAsyncHttpClient;
 import org.asynchttpclient.ListenableFuture;
 import org.asynchttpclient.Response;
-import org.junit.Assert;
-import org.junit.Test;
 
 import java.io.IOException;
 import java.net.URL;
 import java.util.concurrent.ExecutionException;
+import org.testng.Assert;
+import org.testng.annotations.Test;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
