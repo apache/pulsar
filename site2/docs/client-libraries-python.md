@@ -170,7 +170,7 @@ client.close()
 ### Use listener_name
 To ensure clients in both internal and external networks can connect to a Pulsar cluster, Pulsar introduces [advertisedListeners](concepts-multiple-advertised-listeners.md).
 
-The following example creates a Python Client use a listener_name:
+The following example creates a Python client using multiple advertised listeners:
 
 ```python
 import pulsar
