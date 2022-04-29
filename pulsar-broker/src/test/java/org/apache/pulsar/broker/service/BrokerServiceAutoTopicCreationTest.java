@@ -25,7 +25,7 @@ import static org.testng.Assert.fail;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.common.events.EventsTopicNames;
+import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.apache.pulsar.common.policies.data.TopicType;
@@ -395,7 +395,7 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
         pulsar.getConfiguration().setAllowAutoTopicCreation(false);
         pulsar.getConfiguration().setSystemTopicEnabled(true);
 
-        final String topicString = "persistent://prop/ns-abc/" + EventsTopicNames.TRANSACTION_BUFFER_SNAPSHOT;
+        final String topicString = "persistent://prop/ns-abc/" + SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT;
 
         pulsarClient.newProducer().topic(topicString).create();
 
@@ -408,7 +408,7 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
         pulsar.getConfiguration().setAllowAutoTopicCreation(false);
         pulsar.getConfiguration().setSystemTopicEnabled(true);
 
-        final String topicString = "persistent://prop/ns-abc/" + EventsTopicNames.NAMESPACE_EVENTS_LOCAL_NAME;
+        final String topicString = "persistent://prop/ns-abc/" + SystemTopicNames.NAMESPACE_EVENTS_LOCAL_NAME;
 
         pulsarClient.newProducer().topic(topicString).create();
 

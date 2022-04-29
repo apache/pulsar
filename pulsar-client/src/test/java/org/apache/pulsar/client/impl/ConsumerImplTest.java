@@ -35,6 +35,7 @@ import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Messages;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
@@ -211,7 +212,6 @@ public class ConsumerImplTest {
 
         Assert.assertTrue(consumer.paused);
     }
-
 
     public void testMaxReceiverQueueSize() {
         int size = consumer.getCurrentReceiverQueueSize();

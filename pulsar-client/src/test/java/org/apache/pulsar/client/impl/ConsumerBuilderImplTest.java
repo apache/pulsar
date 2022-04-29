@@ -65,7 +65,6 @@ public class ConsumerBuilderImplTest {
         assertNotNull(consumerBuilderImpl.topic(TOPIC_NAME).subscribe());
     }
 
-    
     public void testConsumerBuilderImplWhenTopicNamesVarargsIsNull() {
         consumerBuilderImpl.topic(null);
     }

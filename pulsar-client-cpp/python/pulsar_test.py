@@ -1179,6 +1179,16 @@ class PulsarTest(TestCase):
             # Expected
             pass
 
+    def test_listener_name_client(self):
+        client = Client(self.serviceUrl, listener_name='test')
+        try:
+            producer = client.create_producer("persistent://public/default/partitioned_topic_name_test")
+            self.fail()
+        except pulsar.PulsarException:
+            # Expected
+            pass
+        client.close()
+
     def test_negative_acks(self):
         client = Client(self.serviceUrl)
         consumer = client.subscribe(

@@ -41,7 +41,6 @@ import org.testcontainers.shaded.org.apache.commons.lang.StringUtils;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-
 /**
  * Test presto query from tiered storage, the Pulsar SQL is cluster mode.
  */

@@ -19,6 +19,14 @@
 package org.apache.pulsar.broker.admin;
 
 import com.google.common.collect.Sets;
+import java.lang.management.ManagementFactory;
+import java.lang.management.ThreadMXBean;
+import java.time.Duration;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Phaser;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -32,12 +40,12 @@ import org.springframework.util.CollectionUtils;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-import java.util.concurrent.CompletableFuture;
-import java.util.stream.Collectors;
 
 
 @Slf4j
 public class AdminApiHealthCheckTest extends MockedPulsarServiceBaseTest {
+
+    private final ThreadMXBean threadBean = ManagementFactory.getThreadMXBean();
 
     @BeforeMethod
     @Override
@@ -92,7 +100,6 @@ public class AdminApiHealthCheckTest extends MockedPulsarServiceBaseTest {
                 ))
         );
     }
-
 
     public void testHealthCheckupV1() throws Exception {
         final int times = 30;

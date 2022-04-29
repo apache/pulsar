@@ -133,7 +133,6 @@ public class RateLimiterTest {
         rate.close();
     }
 
-
     public void testMultipleTryAcquire() {
         final long rateTimeMSec = 1000;
         final int permits = 100;
@@ -189,7 +188,7 @@ public class RateLimiterTest {
 
         Thread.sleep(rateTimeMSec);
         // check after three rate-time: acquiredPermits is 0
-        assertEquals(rate.getAvailablePermits() > 0, true);
+        assertTrue(rate.getAvailablePermits() > 0);
 
         rate.close();
     }

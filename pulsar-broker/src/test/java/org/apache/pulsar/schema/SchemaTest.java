@@ -784,7 +784,7 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         final String topicOne = "not-partitioned-topic";
         final String topic2 = "persistent://" + tenant + "/" + cluster + "/" + namespace + "/partitioned-topic";
 
-        // persistent, not-partitioned v1/topic
+        // persistent, non-partitioned v1/topic
         final String topic1 = TopicName.get(
                 TopicDomain.persistent.value(),
                 tenant,
@@ -839,9 +839,9 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
             assertNotNull(schema);
         }
 
-        // not-force and not-delete-schema when delete topic
+        // not-force delete topic
         try {
-            admin.topics().delete(topic1, false, false);
+            admin.topics().delete(topic1, false);
             fail();
         } catch (Exception e) {
             assertTrue(e.getMessage().startsWith("Topic has active producers/subscriptions"));
@@ -849,7 +849,7 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         assertEquals(this.getPulsar().getSchemaRegistryService()
                 .trimDeletedSchemaAndGetList(TopicName.get(topic1).getSchemaName()).get().size(), 2);
         try {
-            admin.topics().deletePartitionedTopic(topic2, false, false);
+            admin.topics().deletePartitionedTopic(topic2, false);
             fail();
         } catch (Exception e) {
             assertTrue(e.getMessage().startsWith("Topic has active producers/subscriptions"));
@@ -858,14 +858,13 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
                 .trimDeletedSchemaAndGetList(TopicName.get(topic2).getSchemaName()).get().size(), 1);
 
         // force and delete-schema when delete topic
-        admin.topics().delete(topic1, true, true);
+        admin.topics().delete(topic1, true);
         assertEquals(this.getPulsar().getSchemaRegistryService()
                 .trimDeletedSchemaAndGetList(TopicName.get(topic1).getSchemaName()).get().size(), 0);
-        admin.topics().deletePartitionedTopic(topic2, true, true);
+        admin.topics().deletePartitionedTopic(topic2, true);
         assertEquals(this.getPulsar().getSchemaRegistryService()
                 .trimDeletedSchemaAndGetList(TopicName.get(topic2).getSchemaName()).get().size(), 0);
     }
-
 
     public void testProducerMultipleSchemaMessages() throws Exception {
         final String tenant = PUBLIC_TENANT;
