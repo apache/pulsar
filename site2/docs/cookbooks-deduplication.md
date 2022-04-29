@@ -62,7 +62,7 @@ $ bin/pulsar-admin namespaces set-deduplication \
 
 ## Pulsar clients
 
-If you enable message deduplication in Pulsar brokers, namespaces or topics, it is recommended to make the client retry infinitely the messages until it succeed, otherwise is possible to break the ordering guarantee as some request can time out and the application wont know if the request was successfully added to the topic or not. 
+If you enable message deduplication in Pulsar brokers, namespaces, or topics, it is recommended to make the client retry infinitely the messages until it succeeds, otherwise it is possible to break the ordering guarantee as some requests may time out and the application does not know whether the request is successfully added to the topic or not. 
 
 So you need to complete the following tasks for your client producers:
 
