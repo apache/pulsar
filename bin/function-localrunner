@@ -94,7 +94,8 @@ OPTS="$OPTS -Dio.netty.tryReflectionSetAccessible=true"
 if [[ -z "$IS_JAVA_8" ]]; then
   # Netty: enable java.nio.DirectByteBuffer
   # https://github.com/netty/netty/blob/4.1/common/src/main/java/io/netty/util/internal/PlatformDependent0.java
-  OPTS="$OPTS --add-opens java.base/java.nio=ALL-UNNAMED"
+  # https://github.com/netty/netty/issues/12265
+  OPTS="$OPTS --add-opens java.base/java.nio=ALL-UNNAMED --add-opens java.base/jdk.internal.misc=ALL-UNNAMED"
 fi
 
 # Ensure we can read bigger content from ZK. (It might be

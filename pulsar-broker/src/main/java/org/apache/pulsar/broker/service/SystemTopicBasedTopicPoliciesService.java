@@ -236,8 +236,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
     public CompletableFuture<Void> addOwnedNamespaceBundleAsync(NamespaceBundle namespaceBundle) {
         CompletableFuture<Void> result = new CompletableFuture<>();
         NamespaceName namespace = namespaceBundle.getNamespaceObject();
-        if (NamespaceService.checkHeartbeatNamespace(namespace) != null
-                || NamespaceService.checkHeartbeatNamespaceV2(namespace) != null) {
+        if (NamespaceService.isHeartbeatNamespace(namespace)) {
             result.complete(null);
             return result;
         }

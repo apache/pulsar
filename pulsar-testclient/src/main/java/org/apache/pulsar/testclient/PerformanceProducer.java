@@ -597,10 +597,12 @@ public class PerformanceProducer {
                     .sendTimeout(arguments.sendTimeout, TimeUnit.SECONDS) //
                     .compressionType(arguments.compression) //
                     .maxPendingMessages(arguments.maxOutstanding) //
-                    .maxPendingMessagesAcrossPartitions(arguments.maxPendingMessagesAcrossPartitions)
                     .accessMode(arguments.producerAccessMode)
                     // enable round robin message routing if it is a partitioned topic
                     .messageRoutingMode(MessageRoutingMode.RoundRobinPartition);
+            if (arguments.maxPendingMessagesAcrossPartitions > 0) {
+                producerBuilder.maxPendingMessagesAcrossPartitions(arguments.maxPendingMessagesAcrossPartitions);
+            }
 
             AtomicReference<Transaction> transactionAtomicReference;
             if (arguments.isEnableTransaction) {

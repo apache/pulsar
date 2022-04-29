@@ -25,7 +25,6 @@ import io.swagger.annotations.ApiParam;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import javax.ws.rs.DELETE;
@@ -107,11 +106,23 @@ public class PersistentTopics extends PersistentTopicsBase {
                     + "namespace level combined (union) with any eventual specific permission set on the topic.")
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace doesn't exist")})
-    public Map<String, Set<AuthAction>> getPermissionsOnTopic(@PathParam("property") String property,
-            @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
-            @PathParam("topic") @Encoded String encodedTopic) {
-        validateTopicName(property, cluster, namespace, encodedTopic);
-        return internalGetPermissionsOnTopic();
+    public void getPermissionsOnTopic(@Suspended AsyncResponse asyncResponse,
+                                                              @PathParam("property") String property,
+                                                              @PathParam("cluster") String cluster,
+                                                              @PathParam("namespace") String namespace,
+                                                              @PathParam("topic") @Encoded String encodedTopic) {
+        try {
+            validateTopicName(property, cluster, namespace, encodedTopic);
+            internalGetPermissionsOnTopic().thenAccept(permissions -> asyncResponse.resume(permissions))
+                    .exceptionally(ex -> {
+                        log.error("[{}] Failed to get permissions for topic {}", clientAppId(), topicName, ex);
+                        resumeAsyncResponseExceptionally(asyncResponse, ex);
+                        return null;
+                    });
+        } catch (Exception e) {
+            log.error("[{}] Failed to validate topic name {}", clientAppId(), topicName, e);
+            resumeAsyncResponseExceptionally(asyncResponse, e);
+        }
     }
 
     @POST
@@ -122,12 +133,20 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace doesn't exist"),
             @ApiResponse(code = 409, message = "Concurrent modification") })
-    public void grantPermissionsOnTopic(@PathParam("property") String property,
-            @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
-            @PathParam("topic") @Encoded String encodedTopic, @PathParam("role") String role,
+    public void grantPermissionsOnTopic(@Suspended final AsyncResponse asyncResponse,
+            @PathParam("property") String property, @PathParam("cluster") String cluster,
+            @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic,
+            @PathParam("role") String role,
             Set<AuthAction> actions) {
-        validateTopicName(property, cluster, namespace, encodedTopic);
-        internalGrantPermissionsOnTopic(role, actions);
+
+        try {
+            validateTopicName(property, cluster, namespace, encodedTopic);
+            internalGrantPermissionsOnTopic(asyncResponse, role, actions);
+        } catch (WebApplicationException wae) {
+            asyncResponse.resume(wae);
+        } catch (Exception e) {
+            asyncResponse.resume(new RestException(e));
+        }
     }
 
     @DELETE
@@ -141,11 +160,18 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace doesn't exist"),
             @ApiResponse(code = 412, message = "Permissions are not set at the topic level")})
-    public void revokePermissionsOnTopic(@PathParam("property") String property,
-            @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
-            @PathParam("topic") @Encoded String encodedTopic, @PathParam("role") String role) {
-        validateTopicName(property, cluster, namespace, encodedTopic);
-        internalRevokePermissionsOnTopic(role);
+    public void revokePermissionsOnTopic(@Suspended final AsyncResponse asyncResponse,
+            @PathParam("property") String property, @PathParam("cluster") String cluster,
+            @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic,
+            @PathParam("role") String role) {
+        try {
+            validateTopicName(property, cluster, namespace, encodedTopic);
+            internalRevokePermissionsOnTopic(asyncResponse, role);
+        } catch (WebApplicationException wae) {
+            asyncResponse.resume(wae);
+        } catch (Exception e) {
+            asyncResponse.resume(new RestException(e));
+        }
     }
 
     @PUT
@@ -268,11 +294,10 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("property") String property, @PathParam("cluster") String cluster,
             @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("force") @DefaultValue("false") boolean force,
-            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
-            @QueryParam("deleteSchema") @DefaultValue("false") boolean deleteSchema) {
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         try {
             validateTopicName(property, cluster, namespace, encodedTopic);
-            internalDeletePartitionedTopic(asyncResponse, authoritative, force, deleteSchema);
+            internalDeletePartitionedTopic(asyncResponse, authoritative, force);
         } catch (WebApplicationException wae) {
             asyncResponse.resume(wae);
         } catch (Exception e) {
@@ -307,10 +332,9 @@ public class PersistentTopics extends PersistentTopicsBase {
     public void deleteTopic(@PathParam("property") String property, @PathParam("cluster") String cluster,
             @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("force") @DefaultValue("false") boolean force,
-            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
-            @QueryParam("deleteSchema") @DefaultValue("false") boolean deleteSchema) {
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(property, cluster, namespace, encodedTopic);
-        internalDeleteTopic(authoritative, force, deleteSchema);
+        internalDeleteTopic(authoritative, force);
     }
 
     @GET

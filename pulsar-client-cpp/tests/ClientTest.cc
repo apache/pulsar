@@ -224,7 +224,7 @@ TEST(ClientTest, testReferenceCount) {
         LOG_INFO("Reference count of the reader's underlying consumer: " << consumers[1].use_count());
 
         readerWeakPtr = PulsarFriend::getReaderImplWeakPtr(reader);
-        ASSERT_EQ(readerWeakPtr.use_count(), 1);
+        ASSERT_TRUE(readerWeakPtr.use_count() > 0);
         LOG_INFO("Reference count of the reader: " << readerWeakPtr.use_count());
     }
 

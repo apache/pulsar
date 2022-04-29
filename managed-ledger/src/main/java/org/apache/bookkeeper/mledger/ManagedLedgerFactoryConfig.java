@@ -86,4 +86,9 @@ public class ManagedLedgerFactoryConfig {
      * ManagedLedgerInfo compression type. If the compression type is null or invalid, don't compress data.
      */
     private String managedLedgerInfoCompressionType = MLDataFormats.CompressionType.NONE.name();
+
+    /**
+     * ManagedCursorInfo compression type. If the compression type is null or invalid, don't compress data.
+     */
+    private String managedCursorInfoCompressionType = MLDataFormats.CompressionType.NONE.name();
 }

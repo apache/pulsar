@@ -338,9 +338,25 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     }
 
     @Override
+    public void initReceiverQueueSize() {
+        if (conf.isAutoScaledReceiverQueueSizeEnabled()) {
+            int size = Math.min(INITIAL_RECEIVER_QUEUE_SIZE, maxReceiverQueueSize);
+            if (batchReceivePolicy.getMaxNumMessages() > 0) {
+                size = Math.max(size, batchReceivePolicy.getMaxNumMessages());
+            }
+            CURRENT_RECEIVER_QUEUE_SIZE_UPDATER.set(this, size);
+        } else {
+            CURRENT_RECEIVER_QUEUE_SIZE_UPDATER.set(this, maxReceiverQueueSize);
+        }
+    }
+
+    @Override
     protected Message<T> internalReceive() throws PulsarClientException {
         Message<T> message;
         try {
+            if (incomingMessages.isEmpty()) {
+                expectMoreIncomingMessages();
+            }
             message = incomingMessages.take();
             decreaseIncomingMessageSize(message);
             checkState(message instanceof TopicMessageImpl);
@@ -363,6 +379,9 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
         long callTime = System.nanoTime();
         try {
+            if (incomingMessages.isEmpty()) {
+                expectMoreIncomingMessages();
+            }
             message = incomingMessages.poll(timeout, unit);
             if (message != null) {
                 decreaseIncomingMessageSize(message);
@@ -425,6 +444,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 }
                 result.complete(messages);
             } else {
+                expectMoreIncomingMessages();
                 OpBatchReceive<T> opBatchReceive = OpBatchReceive.of(result);
                 pendingBatchReceives.add(opBatchReceive);
                 cancellationHandler.setCancelAction(() -> pendingBatchReceives.remove(opBatchReceive));
@@ -444,6 +464,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         internalPinnedExecutor.execute(() -> {
             Message<T> message = incomingMessages.poll();
             if (message == null) {
+                expectMoreIncomingMessages();
                 pendingReceives.add(result);
                 cancellationHandler.setCancelAction(() -> pendingReceives.remove(result));
             } else {
@@ -712,6 +733,11 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                     .redeliverUnacknowledgedMessages(messageIds1.stream()
                         .map(mid -> mid.getInnerMessageId()).collect(Collectors.toSet())));
         resumeReceivingFromPausedConsumersIfNeeded();
+    }
+
+    @Override
+    protected void updateAutoScaleReceiverQueueHint() {
+        scaleReceiverQueueHint.set(incomingMessages.size() >= getCurrentReceiverQueueSize());
     }
 
     @Override
@@ -1030,7 +1056,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                         configurationData.setStartPaused(paused);
                         ConsumerImpl<T> newConsumer = ConsumerImpl.newConsumerImpl(client, partitionName,
                                     configurationData, client.externalExecutorProvider(),
-                                    partitionIndex, true, subFuture,
+                                    partitionIndex, true, listener != null, subFuture,
                                     startMessageId, schema, interceptors,
                                     createIfDoesNotExist, startMessageRollbackDurationInSec);
                         synchronized (pauseMutex) {
@@ -1060,7 +1086,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                     internalConfig.setStartPaused(paused);
                     ConsumerImpl<T> newConsumer = ConsumerImpl.newConsumerImpl(client, topicName, internalConfig,
                             client.externalExecutorProvider(), -1,
-                            true, subFuture, startMessageId, schema, interceptors,
+                            true, listener != null, subFuture, startMessageId, schema, interceptors,
                             createIfDoesNotExist, startMessageRollbackDurationInSec);
 
                     synchronized (pauseMutex) {
@@ -1364,7 +1390,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                         ConsumerImpl<T> newConsumer = ConsumerImpl.newConsumerImpl(
                                 client, partitionName, configurationData,
                                 client.externalExecutorProvider(),
-                                partitionIndex, true, subFuture, startMessageId, schema, interceptors,
+                                partitionIndex, true, listener != null, subFuture, startMessageId, schema, interceptors,
                                 true /* createTopicIfDoesNotExist */, startMessageRollbackDurationInSec);
                         synchronized (pauseMutex) {
                             if (paused) {
@@ -1487,7 +1513,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         checkArgument(newSize > 0, "receiver queue size should larger than 0");
         if (log.isDebugEnabled()) {
             log.debug("[{}][{}] setMaxReceiverQueueSize={}, previous={}", topic, subscription,
-                    getCurrentReceiverQueueSize(), newSize);
+                    newSize, getCurrentReceiverQueueSize());
         }
         CURRENT_RECEIVER_QUEUE_SIZE_UPDATER.set(this, newSize);
         resumeReceivingFromPausedConsumersIfNeeded();

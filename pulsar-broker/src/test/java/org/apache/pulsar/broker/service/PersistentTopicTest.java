@@ -108,6 +108,8 @@ import org.apache.pulsar.broker.service.persistent.PersistentDispatcherSingleAct
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.service.schema.DefaultSchemaRegistryService;
+import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
@@ -153,6 +155,7 @@ import org.testng.annotations.Test;
 public class PersistentTopicTest extends MockedBookKeeperTestCase {
     protected PulsarService pulsar;
     private BrokerService brokerService;
+    private SchemaRegistryService schemaRegistryService;
     private ManagedLedgerFactory mlFactoryMock;
     private ServerCnx serverCnx;
     private MetadataStore store;
@@ -182,6 +185,10 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         pulsar = spyWithClassAndConstructorArgs(PulsarService.class, svcConfig);
         doReturn(svcConfig).when(pulsar).getConfiguration();
         doReturn(mock(Compactor.class)).when(pulsar).getCompactor();
+
+        // create SchemaRegistryService for testDeleteTopic() otherwise it will fail
+        schemaRegistryService = spyWithClassAndConstructorArgs(DefaultSchemaRegistryService.class);
+        doReturn(schemaRegistryService).when(pulsar).getSchemaRegistryService();
 
         mlFactoryMock = mock(ManagedLedgerFactory.class);
         doReturn(mlFactoryMock).when(pulsar).getManagedLedgerFactory();
@@ -2160,6 +2167,28 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         assertFalse(fencedTopicMonitoringTask.isCancelled());
         assertTrue((boolean) isFencedField.get(topic));
         assertTrue((boolean) isClosingOrDeletingField.get(topic));
+    }
+
+    @Test
+    public void testTopicCloseFencingTimeout() throws Exception {
+        pulsar.getConfiguration().setTopicFencingTimeoutSeconds(10);
+        Method fence = PersistentTopic.class.getDeclaredMethod("fence");
+        fence.setAccessible(true);
+        Field fencedTopicMonitoringTaskField = PersistentTopic.class.getDeclaredField("fencedTopicMonitoringTask");
+        fencedTopicMonitoringTaskField.setAccessible(true);
+
+        // create topic
+        PersistentTopic topic = (PersistentTopic) brokerService.getOrCreateTopic(successTopicName).get();
+
+        // fence topic to init fencedTopicMonitoringTask
+        fence.invoke(topic);
+
+        // close topic
+        topic.close().get();
+        assertFalse(brokerService.getTopicReference(successTopicName).isPresent());
+        ScheduledFuture<?> fencedTopicMonitoringTask = (ScheduledFuture<?>) fencedTopicMonitoringTaskField.get(topic);
+        assertTrue(fencedTopicMonitoringTask.isDone());
+        assertTrue(fencedTopicMonitoringTask.isCancelled());
     }
 
     @Test
