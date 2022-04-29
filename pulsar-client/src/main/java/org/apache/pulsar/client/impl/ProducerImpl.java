@@ -1402,6 +1402,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     TimeoutException te = (TimeoutException) e;
                     long sequenceId = te.getSequenceId();
                     long ns = System.nanoTime();
+                    //firstSentAt and lastSentAt maybe -1, it means that the message didn't flush to channel.
                     String errMsg = String.format(
                         "%s : createdAt %s seconds ago, firstSentAt %s seconds ago, lastSentAt %s seconds ago, "
                                 + "retryCount %s",
