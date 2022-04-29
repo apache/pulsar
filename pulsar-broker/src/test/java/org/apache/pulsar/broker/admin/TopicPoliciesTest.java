@@ -2039,7 +2039,6 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         };
     }
 
-    persistentAndPartition")
     public void testTopicMaxMessageSize(TopicDomain topicDomain, boolean isPartitioned) throws Exception {
         final String topic = TopicName.get(
                 topicDomain.value(),

@@ -34,7 +34,6 @@ import org.testng.annotations.Test;
  * ManagedLedgerInfo compression configuration test.
  */
 
-{"broker", "broker-jdk8"})
 public class ManagedLedgerCompressionTest extends BrokerTestBase {
 
     @BeforeClass

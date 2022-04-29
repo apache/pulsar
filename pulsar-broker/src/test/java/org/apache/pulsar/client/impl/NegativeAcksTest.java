@@ -197,7 +197,6 @@ public class NegativeAcksTest extends ProducerConsumerBase {
         };
     }
 
-    variationsBackoff")
     public void testNegativeAcksWithBackoff(boolean batching, boolean usePartitions, SubscriptionType subscriptionType,
             int minNackTimeMs, int maxNackTimeMs, int ackTimeout)
             throws Exception {

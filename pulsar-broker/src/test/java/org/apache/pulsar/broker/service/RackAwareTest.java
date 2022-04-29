@@ -147,7 +147,6 @@ public class RackAwareTest extends BkEnsemblesTestBase {
         }
     }
 
-    (dataProvider="forceMinRackNumProvider")
     public void testPlacementMinRackNumsPerWriteQuorum(boolean forceMinRackNums) throws Exception {
         cleanup();
         config = new ServiceConfiguration();

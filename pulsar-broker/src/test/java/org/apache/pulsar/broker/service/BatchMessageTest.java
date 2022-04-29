@@ -990,7 +990,6 @@ public class BatchMessageTest extends BrokerTestBase {
         consumer1.close();
     }
 
-    (dataProvider="testSubTypeAndEnableBatch")
     private void testDecreaseUnAckMessageCountWithAckReceipt(SubscriptionType subType,
                                                              boolean enableBatch) throws Exception {
         final int messageCount = 50;

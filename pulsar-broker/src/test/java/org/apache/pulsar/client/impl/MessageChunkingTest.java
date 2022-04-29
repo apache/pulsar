@@ -110,7 +110,6 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         }
     }
 
-    ackReceiptEnabledWithMaxMessageSize")
     public void testLargeMessage(boolean ackReceiptEnabled, boolean clientSizeMaxMessageSize) throws Exception {
 
         log.info("-- Starting {} test --", methodName);

@@ -769,7 +769,6 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
      **/
     // Running the test twice to make sure types are present when generated multiple times
-    (invocationCount = 2)
     public void testDuplicateMetricTypeDefinitions() throws Exception {
         Producer<byte[]> p1 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic1").create();
         Producer<byte[]> p2 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic2").create();

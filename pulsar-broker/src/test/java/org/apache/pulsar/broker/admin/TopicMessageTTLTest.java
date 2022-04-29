@@ -183,7 +183,6 @@ public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
                 (int) persistentTopic.getHierarchyTopicPolicies().getMessageTTLInSeconds().get(), 3600));
     }
 
-    isV1")
     public void testNamespaceTTL(boolean isV1) throws Exception {
         String myNamespace = testTenant + "/" + (isV1 ? testCluster + "/" : "") + "n1"+isV1;
         admin.namespaces().createNamespace(myNamespace, Sets.newHashSet(testCluster));

@@ -111,7 +111,6 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         };
     }
 
-    testTopic")
     private void recoverTest(String testTopic) throws Exception {
         PulsarClient pulsarClient = this.pulsarClient;
         Transaction tnx1 = pulsarClient.newTransaction()
@@ -453,7 +452,6 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         reader.close();
     }
 
-    (timeOut=30000)
     public void testTransactionBufferRecoverThrowPulsarClientException() throws Exception {
         String topic = NAMESPACE1 + "/testTransactionBufferRecoverThrowPulsarClientException";
         @Cleanup

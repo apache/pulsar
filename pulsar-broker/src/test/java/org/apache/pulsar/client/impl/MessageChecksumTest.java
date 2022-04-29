@@ -109,7 +109,6 @@ public class MessageChecksumTest extends BrokerTestBase {
      * In this case, the client should remove the message checksum before resending it to the broker.
      * original PR https://github.com/apache/pulsar/pull/89
      */
-    (dataProviderClass = EnumValuesDataProvider.class, dataProvider = "values")
     public void testChecksumCompatibilityInMixedVersionBrokerCluster(MixedVersionScenario mixedVersionScenario)
             throws Exception {
         // GIVEN

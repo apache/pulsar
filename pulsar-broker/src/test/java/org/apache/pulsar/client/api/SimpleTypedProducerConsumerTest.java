@@ -308,7 +308,6 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
 
    }
 
-    {PulsarClientException.class})
     public void testAvroConsumerWithWrongRestoredSchema() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
