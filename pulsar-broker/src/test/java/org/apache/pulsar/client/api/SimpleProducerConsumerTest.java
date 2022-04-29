@@ -2462,7 +2462,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                 consumer.acknowledge(msg);
                 log.info("Received message: " + new String(msg.getData()));
             } else {
-                break;
+                fail("unknown error");
             }
         }
         assertEquals(messages1.size(), consumeMsgInParts);
@@ -2485,7 +2485,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                 consumer.acknowledge(msg);
                 log.info("Received message: " + new String(msg.getData()));
             } else {
-                break;
+                fail("unknown error");
             }
         }
         assertEquals(messages1.size(), remainingMsgs);
@@ -2532,7 +2532,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                 consumer.acknowledge(msg);
                 log.info("Received message: " + new String(msg.getData()));
             } else {
-                break;
+                fail("unknown error");
             }
         }
         assertEquals(messages1.size(), consumeMsgInParts);
@@ -2548,7 +2548,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                 consumer.acknowledge(msg);
                 log.info("Received message: " + new String(msg.getData()));
             } else {
-                break;
+                fail("unknown error");
             }
         }
         assertEquals(messages1.size(), consumeMsgInParts);
