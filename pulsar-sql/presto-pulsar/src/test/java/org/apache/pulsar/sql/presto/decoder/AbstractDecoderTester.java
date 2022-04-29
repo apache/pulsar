@@ -26,6 +26,7 @@ import io.prestosql.spi.connector.ColumnMetadata;
 import io.prestosql.spi.connector.ConnectorContext;
 import io.prestosql.spi.type.Type;
 import io.prestosql.testing.TestingConnectorContext;
+import java.math.BigDecimal;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.schema.SchemaInfo;
@@ -99,6 +100,10 @@ public abstract class AbstractDecoderTester {
     }
 
     protected void checkValue(Map<DecoderColumnHandle, FieldValueProvider> decodedRow, DecoderColumnHandle handle, boolean value) {
+        decoderTestUtil.checkValue(decodedRow, handle, value);
+    }
+
+    protected void checkValue(Map<DecoderColumnHandle, FieldValueProvider> decodedRow, DecoderColumnHandle handle, BigDecimal value) {
         decoderTestUtil.checkValue(decodedRow, handle, value);
     }
 

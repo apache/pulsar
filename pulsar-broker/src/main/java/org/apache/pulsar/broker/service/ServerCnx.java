@@ -832,8 +832,13 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             authState = authenticationProvider.newAuthState(clientData, remoteAddress, sslSession);
 
             if (log.isDebugEnabled()) {
-                log.debug("[{}] Authenticate role : {}", remoteAddress,
-                    authState != null ? authState.getAuthRole() : null);
+                String role = "";
+                if (authState != null && authState.isComplete()) {
+                    role = authState.getAuthRole();
+                } else {
+                    role = "authentication incomplete or null";
+                }
+                log.debug("[{}] Authenticate role : {}", remoteAddress, role);
             }
 
             state = doAuthentication(clientData, clientProtocolVersion, clientVersion);
@@ -962,6 +967,11 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
               ? new KeySharedMeta().copyFrom(subscribe.getKeySharedMeta())
               : emptyKeySharedMeta;
 
+        if (log.isDebugEnabled()) {
+            log.debug("Topic name = {}, subscription name = {}, schema is {}", topicName, subscriptionName,
+                    schema == null ? "absent" : "present");
+        }
+
         CompletableFuture<Boolean> isAuthorizedFuture = isTopicOperationAllowed(
                 topicName,
                 subscriptionName,
@@ -1023,6 +1033,14 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 boolean createTopicIfDoesNotExist = forceTopicCreation
                         && service.isAllowAutoTopicCreation(topicName.toString());
 
+                final long consumerEpoch;
+                if (subscribe.hasConsumerEpoch()) {
+                    consumerEpoch = subscribe.getConsumerEpoch();
+                } else {
+                    consumerEpoch = DEFAULT_CONSUMER_EPOCH;
+                }
+                Optional<Map<String, String>> subscriptionProperties = SubscriptionOption.getPropertiesMap(
+                        subscribe.getSubscriptionPropertiesList());
                 service.getTopic(topicName.toString(), createTopicIfDoesNotExist)
                         .thenCompose(optTopic -> {
                             if (!optTopic.isPresent()) {
@@ -1044,10 +1062,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                                 new SubscriptionNotFoundException(
                                                         "Subscription does not exist"));
                             }
-                            long consumerEpoch = DEFAULT_CONSUMER_EPOCH;
-                            if (subscribe.hasConsumerEpoch()) {
-                                consumerEpoch = subscribe.getConsumerEpoch();
-                            }
+
                             SubscriptionOption option = SubscriptionOption.builder().cnx(ServerCnx.this)
                                     .subscriptionName(subscriptionName)
                                     .consumerId(consumerId).subType(subType).priorityLevel(priorityLevel)
@@ -1056,8 +1071,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                     .initialPosition(initialPosition)
                                     .startMessageRollbackDurationSec(startMessageRollbackDurationSec)
                                     .replicatedSubscriptionStateArg(isReplicated).keySharedMeta(keySharedMeta)
-                                    .subscriptionProperties(SubscriptionOption.getPropertiesMap(
-                                            subscribe.getSubscriptionPropertiesList()))
+                                    .subscriptionProperties(subscriptionProperties)
                                     .consumerEpoch(consumerEpoch)
                                     .build();
                             if (schema != null) {
@@ -1240,7 +1254,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 }
             }
 
-            log.info("[{}][{}] Creating producer. producerId={}", remoteAddress, topicName, producerId);
+            log.info("[{}][{}] Creating producer. producerId={}, schema is {}", remoteAddress, topicName, producerId,
+                    schema == null ? "absent" : "present");
 
             service.getOrCreateTopic(topicName.toString()).thenCompose((Topic topic) -> {
                 // Before creating producer, check if backlog quota exceeded
@@ -1275,6 +1290,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                     BrokerServiceException.getClientErrorCode(exception),
                                     message);
                         }
+                        log.error("Try add schema failed, remote address {}, topic {}, producerId {}", remoteAddress,
+                                topicName, producerId, exception);
                         producers.remove(producerId, producerFuture);
                         return null;
                     });

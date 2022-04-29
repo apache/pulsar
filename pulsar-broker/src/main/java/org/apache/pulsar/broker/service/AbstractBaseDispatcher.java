@@ -139,7 +139,6 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
             if (entry == null) {
                 continue;
             }
-            totalEntries++;
             ByteBuf metadataAndPayload = entry.getDataBuffer();
             int entryWrapperIndex = i + entryWrapperOffset;
             MessageMetadata msgMetadata = entryWrapper.isPresent() && entryWrapper.get()[entryWrapperIndex] != null
@@ -196,6 +195,7 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
                 continue;
             }
 
+            totalEntries++;
             int batchSize = msgMetadata.getNumMessagesInBatch();
             totalMessages += batchSize;
             totalBytes += metadataAndPayload.readableBytes();

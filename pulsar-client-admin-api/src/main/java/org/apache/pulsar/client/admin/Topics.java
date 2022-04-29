@@ -664,7 +664,7 @@ public interface Topics {
     CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadataAsync(String topic);
 
     /**
-     * Delete a partitioned topic.
+     * Delete a partitioned topic and its schemas.
      * <p/>
      * It will also delete all the partitions of the topic if it exists.
      * <p/>
@@ -674,21 +674,27 @@ public interface Topics {
      * @param force
      *            Delete topic forcefully
      * @param deleteSchema
-     *            Delete topic's schema storage
+     *            Delete topic's schema storage and it is always true even if it is specified as false
      *
      * @throws PulsarAdminException
+     * @deprecated Use {@link Topics#deletePartitionedTopic(String, boolean)} instead because parameter
+     * `deleteSchema` is always true
      */
+    @Deprecated
     void deletePartitionedTopic(String topic, boolean force, boolean deleteSchema) throws PulsarAdminException;
 
     /**
      * @see Topics#deletePartitionedTopic(String, boolean, boolean)
+     * IMPORTANT NOTICE: the application is not able to connect to the topic(delete then re-create with same name) again
+     * if the schema auto uploading is disabled. Besides, users should to use the truncate method to clean up
+     * data of the topic instead of delete method if users continue to use this topic later.
      */
     default void deletePartitionedTopic(String topic, boolean force) throws PulsarAdminException {
-        deletePartitionedTopic(topic, force, false);
+        deletePartitionedTopic(topic, force, true);
     }
 
     /**
-     * Delete a partitioned topic asynchronously.
+     * Delete a partitioned topic and its schemas asynchronously.
      * <p/>
      * It will also delete all the partitions of the topic if it exists.
      * <p/>
@@ -698,17 +704,20 @@ public interface Topics {
      * @param force
      *            Delete topic forcefully
      * @param deleteSchema
-     *            Delete topic's schema storage
+     *            Delete topic's schema storage and it is always true even if it is specified as false
      *
      * @return a future that can be used to track when the partitioned topic is deleted
+     * @deprecated Use {@link Topics#deletePartitionedTopicAsync(String, boolean)} instead because parameter
+     * `deleteSchema` is always true
      */
+    @Deprecated
     CompletableFuture<Void> deletePartitionedTopicAsync(String topic, boolean force, boolean deleteSchema);
 
     /**
      * @see Topics#deletePartitionedTopic(String, boolean, boolean)
      */
     default CompletableFuture<Void> deletePartitionedTopicAsync(String topic, boolean force) {
-        return deletePartitionedTopicAsync(topic, force, false);
+        return deletePartitionedTopicAsync(topic, force, true);
     }
 
     /**
@@ -736,7 +745,7 @@ public interface Topics {
     CompletableFuture<Void> deletePartitionedTopicAsync(String topic);
 
     /**
-     * Delete a topic.
+     * Delete a topic and its schemas.
      * <p/>
      * Delete a topic. The topic cannot be deleted if force flag is disable and there's any active
      * subscription or producer connected to the it. Force flag deletes topic forcefully by closing
@@ -748,7 +757,7 @@ public interface Topics {
      * @param force
      *            Delete topic forcefully
      * @param deleteSchema
-     *            Delete topic's schema storage
+     *            Delete topic's schema storage and it is always true even if it is specified as false
      *
      * @throws NotAuthorizedException
      *             Don't have admin permission
@@ -758,18 +767,24 @@ public interface Topics {
      *             Topic has active subscriptions or producers
      * @throws PulsarAdminException
      *             Unexpected error
+     * @deprecated Use {@link Topics#delete(String, boolean)} instead because
+     * parameter `deleteSchema` is always true
      */
+    @Deprecated
     void delete(String topic, boolean force, boolean deleteSchema) throws PulsarAdminException;
 
     /**
      * @see Topics#delete(String, boolean, boolean)
+     * IMPORTANT NOTICE: the application is not able to connect to the topic(delete then re-create with same name) again
+     * if the schema auto uploading is disabled. Besides, users should to use the truncate method to clean up
+     * data of the topic instead of delete method if users continue to use this topic later.
      */
     default void delete(String topic, boolean force) throws PulsarAdminException {
-        delete(topic, force, false);
+        delete(topic, force, true);
     }
 
     /**
-     * Delete a topic asynchronously.
+     * Delete a topic and its schemas asynchronously.
      * <p/>
      * Delete a topic asynchronously. The topic cannot be deleted if force flag is disable and there's any active
      * subscription or producer connected to the it. Force flag deletes topic forcefully by closing all active producers
@@ -781,17 +796,20 @@ public interface Topics {
      * @param force
      *            Delete topic forcefully
      * @param deleteSchema
-     *            Delete topic's schema storage
+     *            Delete topic's schema storage and it is always true even if it is specified as false
      *
      * @return a future that can be used to track when the topic is deleted
+     * @deprecated Use {@link Topics#deleteAsync(String, boolean)} instead because
+     * parameter `deleteSchema` is always true
      */
+    @Deprecated
     CompletableFuture<Void> deleteAsync(String topic, boolean force, boolean deleteSchema);
 
     /**
      * @see Topics#deleteAsync(String, boolean, boolean)
      */
     default CompletableFuture<Void> deleteAsync(String topic, boolean force) {
-        return deleteAsync(topic, force, false);
+        return deleteAsync(topic, force, true);
     }
 
     /**

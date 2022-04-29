@@ -16,17 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.events;
+package org.apache.pulsar.common.naming;
 
 import com.google.common.collect.Sets;
 import java.util.Collections;
 import java.util.Set;
-import org.apache.pulsar.common.naming.TopicName;
 
 /**
- * System topic names for each {@link EventType}.
+ * Encapsulate the parsing of the completeTopicName name.
  */
-public class EventsTopicNames {
+public class SystemTopicNames {
 
     /**
      * Local topic name for the namespace events.
@@ -38,19 +37,34 @@ public class EventsTopicNames {
      */
     public static final String TRANSACTION_BUFFER_SNAPSHOT = "__transaction_buffer_snapshot";
 
+
+    public static final String PENDING_ACK_STORE_SUFFIX = "__transaction_pending_ack";
+
+    public static final String PENDING_ACK_STORE_CURSOR_NAME = "__pending_ack_state";
+
     /**
      * The set of all local topic names declared above.
      */
     public static final Set<String> EVENTS_TOPIC_NAMES =
             Collections.unmodifiableSet(Sets.newHashSet(NAMESPACE_EVENTS_LOCAL_NAME, TRANSACTION_BUFFER_SNAPSHOT));
 
-    public static boolean checkTopicIsEventsNames(TopicName topicName) {
+
+    public static final TopicName TRANSACTION_COORDINATOR_ASSIGN = TopicName.get(TopicDomain.persistent.value(),
+            NamespaceName.SYSTEM_NAMESPACE, "transaction_coordinator_assign");
+
+    public static final TopicName TRANSACTION_COORDINATOR_LOG = TopicName.get(TopicDomain.persistent.value(),
+            NamespaceName.SYSTEM_NAMESPACE, "__transaction_log_");
+
+    public static final TopicName RESOURCE_USAGE_TOPIC = TopicName.get(TopicDomain.non_persistent.value(),
+            NamespaceName.SYSTEM_NAMESPACE, "resource-usage");
+
+    public static boolean isEventSystemTopic(TopicName topicName) {
         return EVENTS_TOPIC_NAMES.contains(TopicName.get(topicName.getPartitionedTopicName()).getLocalName());
     }
 
-    public static boolean checkTopicIsTransactionCoordinatorAssign(TopicName topicName) {
+    public static boolean isTransactionCoordinatorAssign(TopicName topicName) {
         return topicName != null && topicName.toString()
-                .startsWith(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString());
+                .startsWith(TRANSACTION_COORDINATOR_ASSIGN.toString());
     }
 
     public static boolean isTopicPoliciesSystemTopic(String topic) {
@@ -58,5 +72,17 @@ public class EventsTopicNames {
             return false;
         }
         return TopicName.get(topic).getLocalName().equals(NAMESPACE_EVENTS_LOCAL_NAME);
+    }
+
+    public static boolean isTransactionInternalName(TopicName topicName) {
+        String topic = topicName.toString();
+        return topic.startsWith(TRANSACTION_COORDINATOR_ASSIGN.toString())
+                || topic.startsWith(TRANSACTION_COORDINATOR_LOG.toString())
+                || topic.endsWith(PENDING_ACK_STORE_SUFFIX);
+    }
+
+    public static boolean isSystemTopic(TopicName topicName) {
+        TopicName nonePartitionedTopicName = TopicName.get(topicName.getPartitionedTopicName());
+        return isEventSystemTopic(nonePartitionedTopicName) || isTransactionInternalName(nonePartitionedTopicName);
     }
 }

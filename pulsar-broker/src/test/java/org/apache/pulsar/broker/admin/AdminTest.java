@@ -89,6 +89,7 @@ import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.stats.AllocatorStats;
 import org.apache.pulsar.common.stats.Metrics;
+import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.metadata.cache.impl.MetadataCacheImpl;
 import org.apache.pulsar.metadata.impl.AbstractMetadataStore;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
@@ -194,9 +195,10 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
                 conf.getConfigurationMetadataStoreUrl(),
                 new ClientConfiguration().getZkLedgersRootPath(),
                 conf.isBookkeeperMetadataStoreSeparated() ? conf.getBookkeeperMetadataStoreUrl() : null,
-                pulsar.getWorkerConfig().map(wc -> wc.getStateStorageServiceUrl()).orElse(null));
-
-        assertEquals(brokers.getInternalConfigurationData(), expectedData);
+                pulsar.getWorkerConfig().map(WorkerConfig::getStateStorageServiceUrl).orElse(null));
+        Object response = asynRequests(ctx -> brokers.getInternalConfigurationData(ctx));
+        assertTrue(response instanceof InternalConfigurationData);
+        assertEquals(response, expectedData);
     }
 
     @Test
@@ -780,20 +782,33 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         // grant permission
         final Set<AuthAction> actions = Sets.newHashSet(AuthAction.produce);
         final String role = "test-role";
-        persistentTopics.grantPermissionsOnTopic(property, cluster, namespace, topic, role, actions);
+        response = mock(AsyncResponse.class);
+        responseCaptor = ArgumentCaptor.forClass(Response.class);
+        persistentTopics.grantPermissionsOnTopic(response, property, cluster, namespace, topic, role, actions);
+        verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
+        Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
         // verify permission
-        Map<String, Set<AuthAction>> permission = persistentTopics.getPermissionsOnTopic(property, cluster,
-                namespace, topic);
+        response = mock(AsyncResponse.class);
+        responseCaptor = ArgumentCaptor.forClass(Response.class);
+        persistentTopics.getPermissionsOnTopic(response, property, cluster, namespace, topic);
+        verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
+        Map<String, Set<AuthAction>> permission = (Map<String, Set<AuthAction>>) responseCaptor.getValue();
         assertEquals(permission.get(role), actions);
         // remove permission
-        persistentTopics.revokePermissionsOnTopic(property, cluster, namespace, topic, role);
-
+        response = mock(AsyncResponse.class);
+        persistentTopics.revokePermissionsOnTopic(response, property, cluster, namespace, topic, role);
+        responseCaptor = ArgumentCaptor.forClass(Response.class);
+        verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
+        Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
         // verify removed permission
         Awaitility.await().untilAsserted(() -> {
-            Map<String, Set<AuthAction>> p = persistentTopics.getPermissionsOnTopic(property, cluster, namespace, topic);
+            AsyncResponse response1 = mock(AsyncResponse.class);
+            ArgumentCaptor<Response> responseCaptor1 = ArgumentCaptor.forClass(Response.class);
+            persistentTopics.getPermissionsOnTopic(response1, property, cluster, namespace, topic);
+            verify(response1, timeout(5000).times(1)).resume(responseCaptor1.capture());
+            Map<String, Set<AuthAction>> p = (Map<String, Set<AuthAction>>) responseCaptor1.getValue();
             assertTrue(p.isEmpty());
         });
-
     }
 
     @Test

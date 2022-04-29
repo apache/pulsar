@@ -173,7 +173,7 @@ public class ServiceChannelInitializer extends ChannelInitializer<SocketChannel>
         }
 
         ch.pipeline().addLast("handler",
-                new ProxyConnection(proxyService, sslHandlerSupplier));
+                new ProxyConnection(proxyService, sslHandlerSupplier, proxyService.getDnsNameResolver()));
 
     }
 }

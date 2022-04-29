@@ -24,6 +24,7 @@ import java.util.Set;
 import java.util.TreeSet;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.ToString;
 import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
 import org.apache.pulsar.common.configuration.FieldContext;
 import org.apache.pulsar.common.configuration.PulsarConfiguration;
@@ -31,14 +32,6 @@ import org.apache.pulsar.common.configuration.PulsarConfiguration;
 @Getter
 @Setter
 public class WebSocketProxyConfiguration implements PulsarConfiguration {
-
-    // Number of threads used by Proxy server
-    public static final int PROXY_SERVER_EXECUTOR_THREADS = 2 * Runtime.getRuntime().availableProcessors();
-    // Number of threads used by Websocket service
-    public static final int WEBSOCKET_SERVICE_THREADS = 20;
-    // Number of threads used by Global ZK
-    public static final int GLOBAL_ZK_THREADS = 8;
-
     @FieldContext(required = true, doc = "Name of the cluster to which this broker belongs to")
     private String clusterName;
 
@@ -140,6 +133,26 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     @FieldContext(doc = "Number of threads to used in HTTP server")
     private int numHttpServerThreads = Math.max(6, Runtime.getRuntime().availableProcessors());
 
+    @FieldContext(doc = "Number of threads used by Websocket service")
+    private int webSocketNumServiceThreads = 20;
+
+    @FieldContext(doc = "Max concurrent web requests")
+    private int maxConcurrentHttpRequests = 1024;
+
+    @FieldContext(doc = "Capacity for thread pool queue in the HTTP server"
+                    + " Default is set to 8192."
+    )
+    private int httpServerThreadPoolQueueSize = 8192;
+
+    @FieldContext(doc = "Capacity for accept queue in the HTTP server"
+                    + " Default is set to 8192."
+    )
+    private int httpServerAcceptQueueSize = 8192;
+
+    @FieldContext(doc = "Maximum number of inbound http connections. "
+            + "(0 to disable limiting)")
+    private int maxHttpServerConnections = 2048;
+
     @FieldContext(doc = "Number of connections per broker in Pulsar client used in WebSocket proxy")
     private int webSocketConnectionsPerBroker = Runtime.getRuntime().availableProcessors();
 
@@ -174,6 +187,63 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
 
     @FieldContext(doc = "TLS cert refresh duration (in seconds). 0 means checking every new connection.")
     private long tlsCertRefreshCheckDurationSec = 300;
+
+    /**** --- KeyStore TLS config variables. --- ****/
+    @FieldContext(
+            doc = "Enable TLS with KeyStore type configuration for WebSocket"
+    )
+    private boolean tlsEnabledWithKeyStore = false;
+
+    @FieldContext(
+            doc = "Specify the TLS provider for the WebSocket service: \n"
+                    + "When using TLS authentication with CACert, the valid value is either OPENSSL or JDK.\n"
+                    + "When using TLS authentication with KeyStore, available values can be SunJSSE, Conscrypt and etc."
+    )
+    private String tlsProvider = null;
+
+    @FieldContext(
+            doc = "TLS KeyStore type configuration in WebSocket: JKS, PKCS12"
+    )
+    private String tlsKeyStoreType = "JKS";
+
+    @FieldContext(
+            doc = "TLS KeyStore path in WebSocket"
+    )
+    private String tlsKeyStore = null;
+
+    @FieldContext(
+            doc = "TLS KeyStore password for WebSocket"
+    )
+    @ToString.Exclude
+    private String tlsKeyStorePassword = null;
+
+    @FieldContext(
+            doc = "TLS TrustStore type configuration in WebSocket: JKS, PKCS12"
+    )
+    private String tlsTrustStoreType = "JKS";
+
+    @FieldContext(
+            doc = "TLS TrustStore path in WebSocket"
+    )
+    private String tlsTrustStore = null;
+
+    @FieldContext(
+            doc = "TLS TrustStore password for WebSocket, null means empty password."
+    )
+    @ToString.Exclude
+    private String tlsTrustStorePassword = null;
+
+    @FieldContext(
+            doc = "Specify the tls protocols the proxy's web service will use to negotiate during TLS Handshake.\n\n"
+                    + "Example:- [TLSv1.3, TLSv1.2]"
+    )
+    private Set<String> webServiceTlsProtocols = new TreeSet<>();
+
+    @FieldContext(
+            doc = "Specify the tls cipher the proxy's web service will use to negotiate during TLS Handshake.\n\n"
+                    + "Example:- [TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256]"
+    )
+    private Set<String> webServiceTlsCiphers = new TreeSet<>();
 
     @FieldContext(doc = "Key-value properties. Types are all String")
     private Properties properties = new Properties();

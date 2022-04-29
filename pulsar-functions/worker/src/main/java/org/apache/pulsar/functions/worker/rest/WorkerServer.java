@@ -18,23 +18,26 @@
  */
 package org.apache.pulsar.functions.worker.rest;
 
+import static org.apache.pulsar.broker.web.Filters.addFilter;
 import io.prometheus.client.jetty.JettyStatisticsCollector;
 import java.util.ArrayList;
-import java.util.EnumSet;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
-import javax.servlet.DispatcherType;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.web.AuthenticationFilter;
+import org.apache.pulsar.broker.web.Filters;
 import org.apache.pulsar.broker.web.JettyRequestLogFactory;
 import org.apache.pulsar.broker.web.RateLimitingFilter;
 import org.apache.pulsar.broker.web.WebExecutorThreadPool;
 import org.apache.pulsar.common.util.SecurityUtility;
+import org.apache.pulsar.common.util.keystoretls.KeyStoreSSLContext;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.rest.api.v2.WorkerApiV2Resource;
 import org.apache.pulsar.functions.worker.rest.api.v2.WorkerStatsApiV2Resource;
+import org.eclipse.jetty.server.ConnectionLimit;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
@@ -43,9 +46,9 @@ import org.eclipse.jetty.server.handler.DefaultHandler;
 import org.eclipse.jetty.server.handler.HandlerCollection;
 import org.eclipse.jetty.server.handler.RequestLogHandler;
 import org.eclipse.jetty.server.handler.StatisticsHandler;
-import org.eclipse.jetty.servlet.FilterHolder;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
+import org.eclipse.jetty.servlets.QoSFilter;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.servlet.ServletContainer;
@@ -57,7 +60,6 @@ public class WorkerServer {
     private final WorkerService workerService;
     private final AuthenticationService authenticationService;
     private static final String MATCH_ALL = "/*";
-    private static final int MAX_CONCURRENT_REQUESTS = 1024;
     private final WebExecutorThreadPool webServerExecutor;
     private Server server;
 
@@ -68,7 +70,8 @@ public class WorkerServer {
         this.workerConfig = workerService.getWorkerConfig();
         this.workerService = workerService;
         this.authenticationService = authenticationService;
-        this.webServerExecutor = new WebExecutorThreadPool(this.workerConfig.getNumHttpServerThreads(), "function-web");
+        this.webServerExecutor = new WebExecutorThreadPool(this.workerConfig.getNumHttpServerThreads(), "function-web",
+                this.workerConfig.getHttpServerThreadPoolQueueSize());
         init();
     }
 
@@ -79,9 +82,12 @@ public class WorkerServer {
 
     private void init() {
         server = new Server(webServerExecutor);
+        if (workerConfig.getMaxHttpServerConnections() > 0) {
+            server.addBean(new ConnectionLimit(workerConfig.getMaxHttpServerConnections(), server));
+        }
 
         List<ServerConnector> connectors = new ArrayList<>();
-        httpConnector = new ServerConnector(server, 1, 1);
+        httpConnector = new ServerConnector(server);
         httpConnector.setPort(this.workerConfig.getWorkerPort());
         connectors.add(httpConnector);
 
@@ -120,13 +126,33 @@ public class WorkerServer {
 
         if (this.workerConfig.getTlsEnabled()) {
             try {
-                SslContextFactory sslCtxFactory = SecurityUtility.createSslContextFactory(
-                        this.workerConfig.isTlsAllowInsecureConnection(), this.workerConfig.getTlsTrustCertsFilePath(),
-                        this.workerConfig.getTlsCertificateFilePath(), this.workerConfig.getTlsKeyFilePath(),
-                        this.workerConfig.isTlsRequireTrustedClientCertOnConnect(),
-                        true,
-                        this.workerConfig.getTlsCertRefreshCheckDurationSec());
-                httpsConnector = new ServerConnector(server, 1, 1, sslCtxFactory);
+                SslContextFactory sslCtxFactory;
+                if (workerConfig.isTlsEnabledWithKeyStore()) {
+                    sslCtxFactory = KeyStoreSSLContext.createSslContextFactory(
+                            workerConfig.getTlsProvider(),
+                            workerConfig.getTlsKeyStoreType(),
+                            workerConfig.getTlsKeyStore(),
+                            workerConfig.getTlsKeyStorePassword(),
+                            workerConfig.isTlsAllowInsecureConnection(),
+                            workerConfig.getTlsTrustStoreType(),
+                            workerConfig.getTlsTrustStore(),
+                            workerConfig.getTlsTrustStorePassword(),
+                            workerConfig.isTlsRequireTrustedClientCertOnConnect(),
+                            workerConfig.getWebServiceTlsCiphers(),
+                            workerConfig.getWebServiceTlsProtocols(),
+                            workerConfig.getTlsCertRefreshCheckDurationSec()
+                    );
+                } else {
+                    sslCtxFactory = SecurityUtility.createSslContextFactory(
+                            workerConfig.isTlsAllowInsecureConnection(),
+                            workerConfig.getTlsTrustCertsFilePath(),
+                            workerConfig.getTlsCertificateFilePath(),
+                            workerConfig.getTlsKeyFilePath(),
+                            workerConfig.isTlsRequireTrustedClientCertOnConnect(),
+                            true,
+                            workerConfig.getTlsCertRefreshCheckDurationSec());
+                }
+                httpsConnector = new ServerConnector(server, sslCtxFactory);
                 httpsConnector.setPort(this.workerConfig.getWorkerPortTls());
                 connectors.add(httpsConnector);
             } catch (Exception e) {
@@ -135,7 +161,7 @@ public class WorkerServer {
         }
 
         // Limit number of concurrent HTTP connections to avoid getting out of file descriptors
-        connectors.forEach(c -> c.setAcceptQueueSize(MAX_CONCURRENT_REQUESTS / connectors.size()));
+        connectors.forEach(c -> c.setAcceptQueueSize(workerConfig.getHttpServerAcceptQueueSize()));
         server.setConnectors(connectors.toArray(new ServerConnector[connectors.size()]));
     }
 
@@ -161,20 +187,27 @@ public class WorkerServer {
 
         final ServletHolder apiServlet =
                 new ServletHolder(new ServletContainer(config));
-        contextHandler.addServlet(apiServlet, "/*");
-        if (workerService.getWorkerConfig().isAuthenticationEnabled() && requireAuthentication) {
-            FilterHolder filter = new FilterHolder(new AuthenticationFilter(authenticationService));
-            contextHandler.addFilter(filter, MATCH_ALL, EnumSet.allOf(DispatcherType.class));
-        }
+        contextHandler.addServlet(apiServlet, MATCH_ALL);
+
+        addQosFilterIfNeeded(contextHandler, workerService.getWorkerConfig());
 
         if (workerService.getWorkerConfig().isHttpRequestsLimitEnabled()) {
-            contextHandler.addFilter(
-                    new FilterHolder(
-                            new RateLimitingFilter(workerService.getWorkerConfig().getHttpRequestsMaxPerSecond())),
-                    MATCH_ALL, EnumSet.allOf(DispatcherType.class));
+            addFilter(contextHandler,
+                    new RateLimitingFilter(workerService.getWorkerConfig().getHttpRequestsMaxPerSecond()));
+        }
+
+        if (workerService.getWorkerConfig().isAuthenticationEnabled() && requireAuthentication) {
+            addFilter(contextHandler, new AuthenticationFilter(authenticationService));
         }
 
         return contextHandler;
+    }
+
+    private static void addQosFilterIfNeeded(ServletContextHandler context, WorkerConfig workerConfig) {
+        if (workerConfig.getMaxConcurrentHttpRequests() > 0) {
+            Filters.addFilterClass(context, QoSFilter.class, Collections.singletonMap("maxRequests",
+                    String.valueOf(workerConfig.getMaxConcurrentHttpRequests())));
+        }
     }
 
     public void stop() {

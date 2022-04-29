@@ -46,7 +46,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        go-version: [1.11, 1.12, 1.13, 1.14]
+        go-version: [1.15, 1.16, 1.17]
 
     steps:
       - name: Check out code into the Go module directory
@@ -84,10 +84,12 @@ jobs:
         if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
         run: |
           cd pulsar-function-go
+          export GO111MODULE=on
           go build ./...
 
       - name: CheckStyle
         if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
         run: |
           cd pulsar-function-go
+          export GO111MODULE=on
           ./bin/golangci-lint run -c ./golangci.yml ./pf

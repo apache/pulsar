@@ -21,7 +21,8 @@ package org.apache.pulsar.broker.transaction.buffer.impl;
 import io.netty.util.HashedWheelTimer;
 import java.util.concurrent.CompletableFuture;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.broker.PulsarServerException;
+import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.client.api.transaction.TransactionBufferClient;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.transaction.TransactionBufferHandler;
@@ -39,9 +40,9 @@ public class TransactionBufferClientImpl implements TransactionBufferClient {
         this.tbHandler = tbHandler;
     }
 
-    public static TransactionBufferClient create(PulsarClient pulsarClient, HashedWheelTimer timer,
-             int maxConcurrentRequests, long operationTimeoutInMills) {
-        TransactionBufferHandler handler = new TransactionBufferHandlerImpl(pulsarClient, timer,
+    public static TransactionBufferClient create(PulsarService pulsarService, HashedWheelTimer timer,
+        int maxConcurrentRequests, long operationTimeoutInMills) throws PulsarServerException {
+        TransactionBufferHandler handler = new TransactionBufferHandlerImpl(pulsarService, timer,
                 maxConcurrentRequests, operationTimeoutInMills);
         return new TransactionBufferClientImpl(handler);
     }

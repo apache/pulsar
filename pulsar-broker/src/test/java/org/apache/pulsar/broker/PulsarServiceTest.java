@@ -67,6 +67,7 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
         configuration.setClusterName("clusterName");
         configuration.setFunctionsWorkerEnabled(true);
         configuration.setBrokerShutdownTimeoutMs(0L);
+        configuration.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
         WorkerService expectedWorkerService = mock(WorkerService.class);
         @Cleanup
         PulsarService pulsarService = spy(new PulsarService(configuration, new WorkerConfig(),
@@ -87,6 +88,7 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
         configuration.setClusterName("clusterName");
         configuration.setFunctionsWorkerEnabled(false);
         configuration.setBrokerShutdownTimeoutMs(0L);
+        configuration.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
         @Cleanup
         PulsarService pulsarService = new PulsarService(configuration, new WorkerConfig(),
                 Optional.empty(), (exitCode) -> {});

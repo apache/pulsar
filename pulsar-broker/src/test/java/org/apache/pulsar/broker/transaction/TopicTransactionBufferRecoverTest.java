@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.broker.transaction;
 
-import static org.apache.pulsar.common.events.EventsTopicNames.TRANSACTION_BUFFER_SNAPSHOT;
+import static org.apache.pulsar.common.naming.SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
@@ -67,7 +67,6 @@ import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.common.events.EventType;
-import org.apache.pulsar.common.events.EventsTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -252,7 +251,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         ReaderBuilder<TransactionBufferSnapshot> readerBuilder = pulsarClient
                 .newReader(Schema.AVRO(TransactionBufferSnapshot.class))
                 .startMessageId(MessageId.earliest)
-                .topic(NAMESPACE1 + "/" + EventsTopicNames.TRANSACTION_BUFFER_SNAPSHOT);
+                .topic(NAMESPACE1 + "/" + TRANSACTION_BUFFER_SNAPSHOT);
         Reader<TransactionBufferSnapshot> reader = readerBuilder.create();
 
         MessageId messageId1 = producer.newMessage(tnx1).value("test").send();
@@ -391,7 +390,6 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
     public void clearTransactionBufferSnapshotTest() throws Exception {
         String topic = NAMESPACE1 + "/tb-snapshot-delete-" + RandomUtils.nextInt();
 
-        @Cleanup
         Producer<byte[]> producer = pulsarClient
                 .newProducer()
                 .topic(topic)
@@ -404,6 +402,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         producer.newMessage(txn).value("test".getBytes()).sendAsync();
         producer.newMessage(txn).value("test".getBytes()).sendAsync();
         txn.commit().get();
+        producer.close();
 
         // take snapshot
         PersistentTopic originalTopic = (PersistentTopic) getPulsarServiceList().get(0)
