@@ -294,6 +294,10 @@ The Apache Software License, Version 2.0
     - bval-jsr-2.0.0.jar
   * Bytecode
     - bytecode-1.2.jar
+  * BCrypt
+    - bcrypt-0.9.0.jar
+  * Bytes Utility Library
+    - bytes-1.3.0.jar
   * CGLIB Nodep
     - cglib-nodep-3.3.0.jar
   * Airlift
@@ -405,6 +409,7 @@ The Apache Software License, Version 2.0
     - presto-plugin-toolkit-334.jar
     - presto-server-main-334.jar
     - presto-spi-334.jar
+    - presto-record-decoder-334.jar
   * RocksDB JNI
     - rocksdbjni-6.10.2.jar
   * SnakeYAML
@@ -429,18 +434,18 @@ The Apache Software License, Version 2.0
     - async-http-client-2.12.1.jar
     - async-http-client-netty-utils-2.12.1.jar
   * Apache Bookkeeper
-    - bookkeeper-common-4.14.3.1.0.0.jar
-    - bookkeeper-common-allocator-4.14.3.1.0.0.jar
-    - bookkeeper-proto-4.14.3.1.0.0.jar
-    - bookkeeper-server-4.14.3.1.0.0.jar
-    - bookkeeper-stats-api-4.14.3.1.0.0.jar
-    - bookkeeper-tools-framework-4.14.3.1.0.0.jar
-    - circe-checksum-4.14.3.1.0.0.jar
-    - codahale-metrics-provider-4.14.3.1.0.0.jar
-    - cpu-affinity-4.14.3.1.0.0.jar
-    - http-server-4.14.3.1.0.0.jar
-    - prometheus-metrics-provider-4.14.3.1.0.0.jar
-    - codahale-metrics-provider-4.14.3.1.0.0.jar
+    - bookkeeper-common-4.14.4.1.0.0.jar
+    - bookkeeper-common-allocator-4.14.4.1.0.0.jar
+    - bookkeeper-proto-4.14.4.1.0.0.jar
+    - bookkeeper-server-4.14.4.1.0.0.jar
+    - bookkeeper-stats-api-4.14.4.1.0.0.jar
+    - bookkeeper-tools-framework-4.14.4.1.0.0.jar
+    - circe-checksum-4.14.4.1.0.0.jar
+    - codahale-metrics-provider-4.14.4.1.0.0.jar
+    - cpu-affinity-4.14.4.1.0.0.jar
+    - http-server-4.14.4.1.0.0.jar
+    - prometheus-metrics-provider-4.14.4.1.0.0.jar
+    - codahale-metrics-provider-4.14.4.1.0.0.jar
   * Apache Commons
     - commons-cli-1.5.0.jar
     - commons-codec-1.15.jar
