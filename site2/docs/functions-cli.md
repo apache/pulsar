@@ -1,197 +1,83 @@
 ---
 id: functions-cli
-title: Pulsar Functions command line tool
-sidebar_label: "Reference: CLI"
+title: Pulsar Functions CLI and YAML configs
+sidebar_label: "CLI and YAML configs"
 ---
 
-The following tables list Pulsar Functions command-line tools. You can learn Pulsar Functions modes, commands, and parameters.
+## Pulsar admin CLI for functions
 
-## localrun
-
-Run Pulsar Functions locally, rather than deploying it to the Pulsar cluster.
-
-Name | Description | Default
----|---|---
-auto-ack | Whether or not the framework acknowledges messages automatically. | true |
-broker-service-url | The URL for the Pulsar broker. | |
-classname | The class name of a Pulsar Function.| |
-client-auth-params | Client authentication parameter. | |
-client-auth-plugin | Client authentication plugin using which function-process can connect to broker. |  |
-CPU | The CPU in cores that need to be allocated per function instance (applicable only to docker runtime).| |
-custom-schema-inputs | The map of input topics to Schema class names (as a JSON string). | |
-custom-serde-inputs | The map of input topics to SerDe class names (as a JSON string). | |
-dead-letter-topic | The topic where all messages that were not processed successfully are sent. This parameter is not supported in Python Functions.  | |
-disk | The disk in bytes that need to be allocated per function instance (applicable only to docker runtime). | |
-fqfn | The Fully Qualified Function Name (FQFN) for the function. |  |
-function-config-file | The path to a YAML config file specifying the configuration of a Pulsar Function. |  |
-go | Path to the main Go executable binary for the function (if the function is written in Go). It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)/function (package URL from packages management service)] from which worker can download the package. |  |
-hostname-verification-enabled | Enable hostname verification. | false
-inputs | The input topic or topics of a Pulsar Function (multiple topics can be specified as a comma-separated list). | |
-jar | Path to the jar file for the function (if the function is written in Java). It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)/function (package URL from packages management service)] from which worker can download the package. |  |
-instance-id-offset | Start the instanceIds from this offset. | 0
-log-topic | The topic to which the logs  a Pulsar Function are produced. |  |
-max-message-retries | How many times should we try to process a message before giving up. |  |
-name | The name of a Pulsar Function. |  |
-namespace | The namespace of a Pulsar Function. |  |
-output | The output topic of a Pulsar Function (If none is specified, no output is written). |  |
-output-serde-classname | The SerDe class to be used for messages output by the function. |  |
-parallelism | The parallelism factor of  a Pulsar Function (i.e. the number of function instances to run). |  |
-processing-guarantees | The processing guarantees (delivery semantics) applied to the function. Available values: [ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE]. | ATLEAST_ONCE
-py | Path to the main Python file/Python Wheel file for the function (if the function is written in Python). It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)/function (package URL from packages management service)] from which worker can download the package. |  |
-ram | The ram in bytes that need to be allocated per function instance (applicable only to process/docker runtime). |  |
-retain-ordering | Function consumes and processes messages in order. | |
-schema-type | The builtin schema type or custom schema class name to be used for messages output by the function. | <empty string>
-sliding-interval-count | The number of messages after which the window slides. |  |
-sliding-interval-duration-ms | The time duration after which the window slides. |  |
-subs-name | Pulsar source subscription name if user wants a specific subscription-name for the input-topic consumer. |  |
-tenant | The tenant of a Pulsar Function. |  |
-timeout-ms | The message timeout in milliseconds. |  |
-tls-allow-insecure | Allow insecure tls connection. | false
-tls-trust-cert-path | tls trust cert file path. |  |
-topics-pattern | The topic pattern to consume from list of topics under a namespace that match the pattern. [--input] and [--topic-pattern] are mutually exclusive. Add SerDe class name for a pattern in --custom-serde-inputs (only supported in Java Function). |  |
-use-tls | Use tls connection. | false
-user-config | User-defined config key/values. |  |
-window-length-count | The number of messages per window. |  |
-window-length-duration-ms | The time duration of the window in milliseconds. | |
+The Pulsar admin interface enables you to create and manage Pulsar Functions through CLI. For the latest and complete information, including commands, flags, and descriptions, refer to [Pulsar admin CLI](https://pulsar.apache.org/tools/pulsar-admin/).
 
 
-## create
+## YAML configurations for functions
 
-Create and deploy a Pulsar Function in cluster mode.
+You can configure a function by using a predefined a .yaml file. The following table outlines the required fields and arguments.
 
-Name | Description | Default
----|---|---
-auto-ack | Whether or not the framework acknowledges messages automatically. | true |
-classname | The class name of a Pulsar Function. |  |
-CPU | The CPU in cores that need to be allocated per function instance (applicable only to docker runtime).| |
-custom-runtime-options | A string that encodes options to customize the runtime, see docs for configured runtime for details | |
-custom-schema-inputs | The map of input topics to Schema class names (as a JSON string). | |
-custom-serde-inputs | The map of input topics to SerDe class names (as a JSON string). | |
-dead-letter-topic | The topic where all messages that were not processed successfully are sent. This parameter is not supported in Python Functions. | |
-disk | The disk in bytes that need to be allocated per function instance (applicable only to docker runtime). | |
-fqfn | The Fully Qualified Function Name (FQFN) for the function. |  |
-function-config-file | The path to a YAML config file specifying the configuration of a Pulsar Function. |  |
-go | Path to the main Go executable binary for the function (if the function is written in Go). It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)/function (package URL from packages management service)] from which worker can download the package. |  |
-inputs | The input topic or topics of a Pulsar Function (multiple topics can be specified as a comma-separated list). | |
-jar | Path to the jar file for the function (if the function is written in Java). It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)/function (package URL from packages management service)] from which worker can download the package. |  |
-log-topic | The topic to which the logs of a Pulsar Function are produced. |  |
-max-message-retries | How many times should we try to process a message before giving up. |  |
-name | The name of a Pulsar Function. |  |
-namespace | The namespace of a Pulsar Function. |  |
-output | The output topic of a Pulsar Function (If none is specified, no output is written). |  |
-output-serde-classname | The SerDe class to be used for messages output by the function. |  |
-parallelism | The parallelism factor of a Pulsar Function (i.e. the number of function instances to run). |  |
-processing-guarantees | The processing guarantees (delivery semantics) applied to the function. Available values: [ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE]. | ATLEAST_ONCE
-py | Path to the main Python file/Python Wheel file for the function (if the function is written in Python). It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)/function (package URL from packages management service)] from which worker can download the package. |  |
-ram | The ram in bytes that need to be allocated per function instance (applicable only to process/docker runtime). |  |
-retain-ordering | Function consumes and processes messages in order. |  |
-schema-type | The builtin schema type or custom schema class name to be used for messages output by the function. | <empty string>
-sliding-interval-count | The number of messages after which the window slides. |  |
-sliding-interval-duration-ms | The time duration after which the window slides. |  |
-subs-name | Pulsar source subscription name if user wants a specific subscription-name for the input-topic consumer. |  |
-tenant | The tenant of a Pulsar Function. |  |
-timeout-ms | The message timeout in milliseconds. |  |
-topics-pattern | The topic pattern to consume from list of topics under a namespace that match the pattern. [--input] and [--topic-pattern] are mutually exclusive. Add SerDe class name for a pattern in --custom-serde-inputs (only supported in Java Function). |  |
-user-config | User-defined config key/values. |  |
-window-length-count | The number of messages per window. |  |
-window-length-duration-ms | The time duration of the window in milliseconds. | |
-
-## delete
-
-Delete a Pulsar Function that is running on a Pulsar cluster.
-
-Name | Description | Default
----|---|---
-fqfn | The Fully Qualified Function Name (FQFN) for the function. | |
-name | The name of a Pulsar Function. |  |
-namespace | The namespace of a Pulsar Function. |  |
-tenant | The tenant of a Pulsar Function. |  |
-
-## update
-
-Update a Pulsar Function that has been deployed to a Pulsar cluster.
-
-Name | Description | Default
----|---|---
-auto-ack | Whether or not the framework acknowledges messages automatically. | true |
-classname | The class name of a Pulsar Function. | |
-CPU | The CPU in cores that need to be allocated per function instance (applicable only to docker runtime). | |
-custom-runtime-options | A string that encodes options to customize the runtime, see docs for configured runtime for details | |
-custom-schema-inputs | The map of input topics to Schema class names (as a JSON string). | |
-custom-serde-inputs | The map of input topics to SerDe class names (as a JSON string). | |
-dead-letter-topic | The topic where all messages that were not processed successfully are sent. This parameter is not supported in Python Functions. | |
-disk | The disk in bytes that need to be allocated per function instance (applicable only to docker runtime). | |
-fqfn | The Fully Qualified Function Name (FQFN) for the function. |  |
-function-config-file | The path to a YAML config file specifying the configuration of a Pulsar Function. |  |
-go | Path to the main Go executable binary for the function (if the function is written in Go). It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)/function (package URL from packages management service)] from which worker can download the package. |  |
-inputs | The input topic or topics of a Pulsar Function (multiple topics can be specified as a comma-separated list). | |
-jar | Path to the jar file for the function (if the function is written in Java). It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)/function (package URL from packages management service)] from which worker can download the package. |  |
-log-topic | The topic to which the logs of a Pulsar Function are produced. |  |
-max-message-retries | How many times should we try to process a message before giving up. |  |
-name | The name of a Pulsar Function. |  |
-namespace | The namespace of a Pulsar Function. |  |
-output | The output topic of a Pulsar Function (If none is specified, no output is written). |  |
-output-serde-classname | The SerDe class to be used for messages output by the function. |  |
-parallelism | The parallelism factor of a Pulsar Function (i.e. the number of function instances to run). |  |
-processing-guarantees | The processing guarantees (delivery semantics) applied to the function. Available values: [ATLEAST_ONCE, ATMOST_ONCE, EFFECTIVELY_ONCE]. | ATLEAST_ONCE
-py | Path to the main Python file/Python Wheel file for the function (if the function is written in Python). It also supports URL path [http/https/file (file protocol assumes that file already exists on worker host)/function (package URL from packages management service)] from which worker can download the package. |  |
-ram | The ram in bytes that need to be allocated per function instance (applicable only to process/docker runtime). |  |
-retain-ordering | Function consumes and processes messages in order. |  |
-schema-type | The builtin schema type or custom schema class name to be used for messages output by the function. | <empty string>
-sliding-interval-count | The number of messages after which the window slides. |  |
-sliding-interval-duration-ms | The time duration after which the window slides. |  |
-subs-name | Pulsar source subscription name if user wants a specific subscription-name for the input-topic consumer. |  |
-tenant | The tenant of a Pulsar Function. |  |
-timeout-ms | The message timeout in milliseconds. |  |
-topics-pattern | The topic pattern to consume from list of topics under a namespace that match the pattern. [--input] and [--topic-pattern] are mutually exclusive. Add SerDe class name for a pattern in --custom-serde-inputs (only supported in Java Function). |  |
-update-auth-data | Whether or not to update the auth data. | false
-user-config | User-defined config key/values. |  |
-window-length-count | The number of messages per window. |  |
-window-length-duration-ms | The time duration of the window in milliseconds. | |
-
-## get
-
-Fetch information about a Pulsar Function.
-
-Name | Description | Default
----|---|---
-fqfn | The Fully Qualified Function Name (FQFN) for the function. | |
-name | The name of a Pulsar Function. |  |
-namespace | The namespace of a Pulsar Function. |  |
-tenant | The tenant of a Pulsar Function. |  |
-
-## restart
-
-Restart function instance.
-
-Name | Description | Default
----|---|---
-fqfn | The Fully Qualified Function Name (FQFN) for the function. | |
-instance-id | The function instanceId (restart all instances if instance-id is not provided. |  |
-name | The name of a Pulsar Function. |  |
-namespace | The namespace of a Pulsar Function. |  |
-tenant | The tenant of a Pulsar Function. |  |
-
-## stop
-
-Stops function instance.
-
-Name | Description | Default
----|---|---
-fqfn | The Fully Qualified Function Name (FQFN) for the function. | |
-instance-id | The function instanceId (restart all instances if instance-id is not provided. |  |
-name | The name of a Pulsar Function. |  |
-namespace | The namespace of a Pulsar Function. |  |
-tenant | The tenant of a Pulsar Function. |  |
-
-## start
-
-Starts a stopped function instance.
-
-Name | Description | Default
----|---|---
-fqfn | The Fully Qualified Function Name (FQFN) for the function. | |
-instance-id | The function instanceId (restart all instances if instance-id is not provided. |  |
-name | The name of a Pulsar Function. |  |
-namespace | The namespace of a Pulsar Function. |  |
-tenant | The tenant of a Pulsar Function. |  |
+| Field Name           | Nested Field                       | Type                       | Related Command Argument   | Description                                                                                                                                                                                                                                      |
+|----------------------|------------------------------------|----------------------------|----------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| runtimeFlags         | N/A                                | String                     | N/A                        | Any flags that you want to pass to a runtime. (for process & Kubernetes runtime only)                                                                                                                                                            |
+| tenant               | N/A                                | String                     | `--tenant`                 | The tenant of a function.                                                                                                                                                                                                                        |
+| namespace            | N/A                                | String                     | `--namespace`              | The namespace of a function.                                                                                                                                                                                                                     |
+| name                 | N/A                                | String                     | `--name`                   | The name of a function.                                                                                                                                                                                                                          |
+| className            | N/A                                | String                     | `--classname`              | The class name of a function.                                                                                                                                                                                                                    |
+| inputs               | N/A                                | List<String>               | `-i`, `--inputs`           | The input topics of a function. Multiple topics can be specified as a comma-separated list.                                                                                                                                                      |
+| customSerdeInputs    | N/A                                | Map<String,String>         | `--custom-serde-inputs`    | The mapping from input topics to SerDe class names.                                                                                                                                                                                              |
+| topicsPattern        | N/A                                | String                     | `--topics-pattern`         | The topic pattern to consume from a list of topics under a namespace. <br />**Note:** `--input` and `--topic-pattern` are mutually exclusive. For Java functions, you need to add the SerDe class name for a pattern in `--custom-serde-inputs`. |
+| customSchemaInputs   | N/A                                | Map<String,String>         | `--custom-schema-inputs`   | The mapping from input topics to schema properties.                                                                                                                                                                                              |
+| customSchemaOutputs  | N/A                                | Map<String,String>         | `--custom-schema-outputs`  | The mapping from output topics to schema properties.                                                                                                                                                                                             |
+| inputSpecs           |                                    | Map<String,ConsumerConfig> | `--input-specs`            | The mapping from inputs to custom configurations.                                                                                                                                                                                                |
+|                      | schemaType                         | String                     | N/A                        | N/A                                                                                                                                                                                                                                              |
+|                      | serdeClassName                     | String                     | N/A                        | N/A                                                                                                                                                                                                                                              |
+|                      | isRegexPattern                     | Boolean                    | N/A                        | N/A                                                                                                                                                                                                                                              |
+|                      | schemaProperties                   | Map<String,String>         | N/A                        | N/A                                                                                                                                                                                                                                              |
+|                      | consumerProperties                 | Map<String,String>         | N/A                        | N/A                                                                                                                                                                                                                                              |
+|                      | receiverQueueSize                  | Int                        | N/A                        | N/A                                                                                                                                                                                                                                              |
+|                      | cryptoConfig                       | CryptoConfig               | N/A                        | https://github.com/apache/pulsar/blob/master/pulsar-client-admin-api/src/main/java/org/apache/pulsar/common/functions/CryptoConfig.java                                                                                                          |
+|                      | poolMessages                       | Boolean                    | N/A                        | N/A                                                                                                                                                                                                                                              |
+| output               | N/A                                | String                     | `-o`, `--output`           | The output topic of a function. If none is specified, no output is written.                                                                                                                                                                      |
+| producerConfig       |                                    | ProducerConfig             | `--producer-config`        | The custom configurations for producers.                                                                                                                                                                                                         |
+|                      | maxPendingMessages                 | Int                        | N/A                        | The max size of a queue that holds messages pending to receive an acknowledgment from a broker.                                                                                                                                                  |
+|                      | maxPendingMessagesAcrossPartitions | Int                        | N/A                        | The number of `maxPendingMessages` across all partitions.                                                                                                                                                                                        |
+|                      | useThreadLocalProducers            | Boolean                    | N/A                        | N/A                                                                                                                                                                                                                                              |
+|                      | cryptoConfig                       | CryptoConfig               | N/A                        | https://github.com/apache/pulsar/blob/master/pulsar-client-admin-api/src/main/java/org/apache/pulsar/common/functions/CryptoConfig.java                                                                                                          |
+|                      | batchBuilder                       | String                     | `--batch-builder`          | The type of batch construction method. Available values: `DEFAULT` and `KEY_BASED`. The default value is `DEFAULT`.                                                                                                                              |
+| outputSchemaType     | N/A                                | String                     | `-st`, `--schema-type`     | The built-in schema type or custom schema class name used for message outputs.                                                                                                                                                                   |
+| outputSerdeClassName | N/A                                | String                     | `--output-serde-classname` | The SerDe class used for message outputs.                                                                                                                                                                                                        |
+| logTopic             | N/A                                | String                     | `--log-topic`              | The topic that the logs of a function are produced to.                                                                                                                                                                                           |
+| processingGuarantees | N/A| String | `--processing-guarantees` | The processing guarantees (delivery semantics) applied to a function. Available values: `ATLEAST_ONCE`, `ATMOST_ONCE`, `EFFECTIVELY_ONCE`.
+| retainOrdering | N/A| Boolean | `--retain-ordering`	 | Whether functions consume and process messages in order or not. |
+| retainKeyOrdering | N/A| Boolean |	`--retain-key-ordering`	| Whether functions consume and process messages in key order or not. |
+| batchBuilder | N/A| String | `--batch-builder` | Use `producerConfig.batchBuilder` instead (will be deprecated in code soon). |
+| forwardSourceMessageProperty | N/A| Boolean | `--forward-source-message-property` | Whether the properties of input messages are forwarded to output topics or not during processing. When the value is set to `false`, the forwarding is disabled. |
+| userConfig | N/A| Map<String,Object> | `--user-config`	| User-defined config key/values. |
+| secrets | N/A| Map<String,Object> | `--secrets`	| The mapping from secretName to objects that encapsulate how the secret is fetched by the underlying secrets provider. |
+| runtime | N/A| String | N/A | The runtime of a function. Available values: `java`,`python`, `go`. |
+| autoAck | N/A| Boolean | `--auto-ack` | Whether the framework acknowledges messages automatically or not. |
+| maxMessageRetries | N/A| Int |	`--max-message-retries` | The number of retries to process a message before giving up. |
+| deadLetterTopic | N/A| String | `--dead-letter-topic` | The topic used for storing messages that are not processed successfully. |
+| subName | N/A| String | `--subs-name` | The name of Pulsar source subscription used for input-topic consumers if required.|
+| parallelism | N/A| Int | `--parallelism` | The parallelism factor of a function, that is, the number of function instances to run. |
+| resources | N/A | Resources	| N/A| N/A	 |
+| | cpu | double | `--cpu` | The CPU in cores that need to be allocated per function instance (for Kubernetes runtime only). |
+| | ram | Long | `--ram` | The RAM in bytes that need to be allocated per function instance (for process/Kubernetes runtime only). |
+| | disk | Long | `--disk` | The disk in bytes that need to be allocated per function instance (for Kubernetes runtime only). |
+| fqfn | N/A | String | `--fqfn` | The Fully Qualified Function Name (FQFN) of a function. |
+| windowConfig | | | WindowConfig | N/A| N/A|		
+| | windowLengthCount | Int | `--window-length-count` | The number of messages per window. |
+| | windowLengthDurationMs | Long | `--window-length-duration-ms` | The time duration (in milliseconds) per window. |
+| | slidingIntervalCount | Int | `--sliding-interval-count` | The number of messages after which a window slides. |
+| | slidingIntervalDurationMs | Long | `--sliding-interval-duration-ms` | The time duration after which a window slides. |
+| | lateDataTopic | String | N/A	| N/A |
+| | maxLagMs | Long | N/A	| N/A |
+| | watermarkEmitIntervalMs | Long | N/A	| N/A |
+| | timestampExtractorClassName | String | N/A	 | N/A|
+| | actualWindowFunctionClassName | String | N/A	| N/A |
+| timeoutMs | N/A| Long | `--timeout-ms` | The message timeout in milliseconds. |
+| jar | N/A| String | `--jar` | The path of the JAR file for a function (if the function is written in Java). It also supports URL paths that workers can download the package from, including HTTP, HTTPS, file (file protocol assuming that file already exists on worker host), and function (package URL from packages management service). |
+| py | N/A| String | `--py` | The path of the main Python/Python wheel file for a function (if the function is written in Python). It also supports URL paths that workers can download the package from, including HTTP, HTTPS, file (file protocol assuming that file already exists on worker host), and function (package URL from packages management service).  |
+| go | N/A| String | `--go` | Path to the main Go executable binary for the function (if the function is written in Go).  It also supports URL paths that workers can download the package from, including HTTP, HTTPS, file (file protocol assuming that file already exists on worker host), and function (package URL from packages management service). |
+| cleanupSubscription | N/A| Boolean | N/A | Whether the subscriptions that a function created or used should be deleted or not when the function is deleted. |
+| customRuntimeOptions | N/A| String | `--custom-runtime-options` | A string that encodes options to customize the runtime. |
+| maxPendingAsyncRequests | N/A| Int | `--max-message-retries` | The max number of pending async requests per instance to avoid a large number of concurrent requests. |
+| exposePulsarAdminClientEnabled | N/A| Boolean | N/A | Whether the pulsar admin client is exposed to function context or not. By default, it is disabled. |
+| subscriptionPosition | N/A| String | `--subs-position` | The position of Pulsar source subscription used for consuming messages from a specified location. |
