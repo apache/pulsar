@@ -28,6 +28,7 @@ import static org.apache.pulsar.common.protocol.Commands.newLookupErrorResponse;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import io.netty.buffer.ByteBuf;
+import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOption;
@@ -280,11 +281,11 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         super.channelActive(ctx);
         ConnectionController.State state = connectionController.increaseConnection(remoteAddress);
         if (!state.equals(ConnectionController.State.OK)) {
-            ctx.channel().writeAndFlush(Commands.newError(-1, ServerError.NotAllowedError,
-                    state.equals(ConnectionController.State.REACH_MAX_CONNECTION)
-                            ? "Reached the maximum number of connections"
-                            : "Reached the maximum number of connections on address" + remoteAddress));
-            ctx.channel().close();
+            ctx.writeAndFlush(Commands.newError(-1, ServerError.NotAllowedError,
+                            state.equals(ConnectionController.State.REACH_MAX_CONNECTION)
+                                    ? "Reached the maximum number of connections"
+                                    : "Reached the maximum number of connections on address" + remoteAddress))
+                    .addListener(ChannelFutureListener.CLOSE);
             return;
         }
         log.info("New connection from {}", remoteAddress);
