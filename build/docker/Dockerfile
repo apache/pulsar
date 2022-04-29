@@ -29,7 +29,7 @@ RUN apt-get update && \
     apt-get install -y tig g++ cmake libssl-dev libcurl4-openssl-dev \
                 liblog4cxx-dev google-mock libgtest-dev \
                 libboost-dev libboost-program-options-dev libboost-system-dev libboost-python-dev \
-                libxml2-utils protobuf-compiler wget \
+                libxml2-utils wget \
                 curl doxygen openjdk-17-jdk-headless clang-format \
                 gnupg2 golang-go zip unzip libzstd-dev libsnappy-dev wireshark-dev
 
@@ -41,6 +41,15 @@ RUN cd /usr/src/googletest && \
 
 # Include gtest parallel to speed up unit tests
 RUN git clone https://github.com/google/gtest-parallel.git
+
+# Build protobuf 3.x.y from source since the default protobuf from Ubuntu's apt source is 2.x.y
+RUN curl -O -L https://github.com/protocolbuffers/protobuf/releases/download/v3.17.3/protobuf-cpp-3.17.3.tar.gz && \
+    tar xvfz protobuf-cpp-3.17.3.tar.gz && \
+    cd protobuf-3.17.3/ && \
+    CXXFLAGS=-fPIC ./configure && \
+    make -j8 && make install && \
+    cd .. && rm -rf protobuf-3.17.3/ protobuf-cpp-3.17.3.tar.gz
+ENV LD_LIBRARY_PATH /usr/local/lib
 
 ## Website build dependencies
 
