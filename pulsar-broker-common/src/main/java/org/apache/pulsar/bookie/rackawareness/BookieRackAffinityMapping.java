@@ -19,6 +19,7 @@
 package org.apache.pulsar.bookie.rackawareness;
 
 import static org.apache.pulsar.metadata.bookkeeper.AbstractMetadataDriver.METADATA_STORE_SCHEME;
+import com.google.common.base.Joiner;
 import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -79,7 +80,7 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
             store = (MetadataStore) storeProperty;
         } else {
             String url;
-            String metadataServiceUri = (String) conf.getProperty("metadataServiceUri");
+            String metadataServiceUri = conf.getString("metadataServiceUri");
             if (StringUtils.isNotBlank(metadataServiceUri)) {
                 try {
                     url = metadataServiceUri.replaceFirst(METADATA_STORE_SCHEME + ":", "")
@@ -92,7 +93,7 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
                     throw new MetadataException(Code.METADATA_SERVICE_ERROR, e);
                 }
             } else {
-                String zkServers = (String) conf.getProperty("zkServers");
+                String zkServers = Joiner.on(",").join(conf.getStringArray("zkServers"));
                 if (StringUtils.isBlank(zkServers)) {
                     String errorMsg = String.format("Neither %s configuration set in the BK client configuration nor "
                             + "metadataServiceUri/zkServers set in bk server configuration", METADATA_STORE_INSTANCE);
@@ -101,7 +102,7 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
                 url = zkServers;
             }
             try {
-                int zkTimeout = Integer.parseInt((String) conf.getProperty("zkTimeout"));
+                int zkTimeout = conf.getInt("zkTimeout");
                 store = MetadataStoreExtended.create(url,
                         MetadataStoreConfig.builder()
                                 .sessionTimeoutMillis(zkTimeout)

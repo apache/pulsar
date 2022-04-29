@@ -62,7 +62,6 @@ public class BookieRackAffinityMappingTest {
         store.close();
     }
 
-
     @Test
     public void testCreateMetadataStoreWithBkMetadataServiceUri() throws Exception {
         TestZKServer zkServer = new TestZKServer();
@@ -77,6 +76,25 @@ public class BookieRackAffinityMappingTest {
         assertNotNull(BookieRackAffinityMapping.createMetadataStore(conf));
 
         zkServer.close();
+    }
+
+    @Test
+    public void testCreateMetadataStoreWithBkZkServers() throws Exception {
+        TestZKServer zks1 = new TestZKServer();
+        String zk1 = zks1.getConnectionString();
+
+        TestZKServer zks2 = new TestZKServer();
+        String zk2 = zks2.getConnectionString();
+
+        ClientConfiguration conf = new ClientConfiguration();
+        conf.setZkTimeout(3000);
+        conf.setMetadataServiceUri(null);
+        conf.setZkServers(zk1 + "," + zk2);
+
+        assertNotNull(BookieRackAffinityMapping.createMetadataStore(conf));
+
+        zks1.close();
+        zks2.close();
     }
 
     @Test
