@@ -167,7 +167,7 @@ while True:
 client.close()
 ```
 
-### Use listener_name
+### Create a Python client with multiple advertised listeners
 To ensure clients in both internal and external networks can connect to a Pulsar cluster, Pulsar introduces [advertisedListeners](concepts-multiple-advertised-listeners.md).
 
 The following example creates a Python client using multiple advertised listeners:
