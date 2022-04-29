@@ -32,11 +32,11 @@ import org.testng.annotations.Test;
 
 import lombok.Cleanup;
 
-@Test(groups = "broker-api")
+
 public class ProxyProtocolTest extends TlsProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(ProxyProtocolTest.class);
 
-    @Test
+
     public void testSniProxyProtocol() throws Exception {
 
         // Client should try to connect to proxy and pass broker-url as SNI header
@@ -58,7 +58,7 @@ public class ProxyProtocolTest extends TlsProducerConsumerBase {
         pulsarClient.newProducer().topic(topicName).create();
     }
 
-    @Test
+
     public void testSniProxyProtocolWithInvalidProxyUrl() throws Exception {
 
         // Client should try to connect to proxy and pass broker-url as SNI header
@@ -86,7 +86,7 @@ public class ProxyProtocolTest extends TlsProducerConsumerBase {
         }
     }
 
-    @Test
+
     public void testSniProxyProtocolWithoutTls() throws Exception {
         // Client should try to connect to proxy and pass broker-url as SNI header
         String proxyUrl = pulsar.getBrokerServiceUrl();

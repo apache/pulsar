@@ -48,7 +48,7 @@ import static org.mockito.Mockito.when;
 
 public class ReaderHandlerTest {
 
-    @Test
+    
     @SuppressWarnings("unchecked")
     public void testCreateReaderImp() throws IOException {
         final String subName = "readerImpSubscription";
@@ -76,7 +76,7 @@ public class ReaderHandlerTest {
         Assert.assertEquals(readerHandler.getSubscription(), subName);
     }
 
-    @Test
+    
     @SuppressWarnings("unchecked")
     public void testCreateMultipleTopicReaderImp() throws IOException {
         final String subName = "multipleTopicReaderImpSubscription";
@@ -104,7 +104,7 @@ public class ReaderHandlerTest {
         Assert.assertEquals(readerHandler.getSubscription(), subName);
     }
 
-    @Test
+    
     @SuppressWarnings("unchecked")
     public void testCreateIllegalReaderImp() throws IOException {
         // mock data

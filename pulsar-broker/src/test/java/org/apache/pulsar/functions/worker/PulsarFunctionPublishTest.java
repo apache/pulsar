@@ -82,7 +82,7 @@ import org.testng.annotations.Test;
  * Test Pulsar function state
  */
 @Slf4j
-@Test(groups = "functions-worker")
+
 public class PulsarFunctionPublishTest {
     LocalBookkeeperEnsemble bkEnsemble;
 
@@ -285,7 +285,7 @@ public class PulsarFunctionPublishTest {
         return functionConfig;
     }
 
-    @Test(timeOut = 20000)
+    
     public void testPulsarFunctionState() throws Exception {
 
         final String namespacePortion = "io";
@@ -374,7 +374,7 @@ public class PulsarFunctionPublishTest {
         tempDirectory.assertThatFunctionDownloadTempFilesHaveBeenDeleted();
     }
 
-    @Test
+    
     public void testMultipleAddress() throws Exception {
         final String namespacePortion = "io";
         final String replNamespace = tenant + "/" + namespacePortion;
@@ -423,7 +423,7 @@ public class PulsarFunctionPublishTest {
         }, 50, 150);
     }
 
-    @Test(timeOut = 20000)
+    
     public void testPulsarFunctionBKCleanup() throws Exception {
         final String namespacePortion = "io";
         final String replNamespace = tenant + "/" + namespacePortion;
@@ -536,7 +536,7 @@ public class PulsarFunctionPublishTest {
 
     }
 
-    @Test
+    
     public void testUpdateFunctionUserConfig() throws Exception {
         final String namespacePortion = "io";
         final String replNamespace = tenant + "/" + namespacePortion;

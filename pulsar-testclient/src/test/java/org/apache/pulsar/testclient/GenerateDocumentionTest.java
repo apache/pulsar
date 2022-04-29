@@ -22,12 +22,12 @@ import org.testng.annotations.Test;
 
 public class GenerateDocumentionTest {
 
-    @Test
+
     public void testGenerateDocumention() throws Exception {
         CmdGenerateDocumentation.main(new String[]{});
     }
 
-    @Test
+
     public void testSpecifyModuleName() throws Exception {
         String[] args = new String[]{"-n", "produce", "-n", "consume"};
         CmdGenerateDocumentation.main(args);

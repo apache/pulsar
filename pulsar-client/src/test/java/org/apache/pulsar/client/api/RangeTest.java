@@ -23,14 +23,14 @@ import org.testng.annotations.Test;
 
 public class RangeTest {
 
-    @Test
+
     public void testOf() {
         Range range = Range.of(0, 3);
         Assert.assertEquals(0, range.getStart());
         Assert.assertEquals(3, range.getEnd());
     }
 
-    @Test
+
     public void testIntersect() {
         Range range1 = Range.of(0, 9);
         Range range2 = Range.of(0, 2);
@@ -57,7 +57,7 @@ public class RangeTest {
         Assert.assertEquals(9, intersectRange.getEnd());
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
+    
     public void testInvalid() {
         Range.of(0, -5);
     }

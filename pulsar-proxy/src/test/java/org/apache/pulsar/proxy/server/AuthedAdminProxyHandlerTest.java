@@ -146,7 +146,7 @@ public class AuthedAdminProxyHandlerTest extends MockedPulsarServiceBaseTest {
             .build();
     }
 
-    @Test
+
     public void testAuthenticatedProxyAsNonAdmin() throws Exception {
         try (PulsarAdmin brokerAdmin = getDirectToBrokerAdminClient("admin");
              PulsarAdmin proxyAdmin = getAdminClient("admin");

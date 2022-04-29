@@ -35,7 +35,7 @@ import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 
 public class TestWorkerConfig {
-    @Test
+
     public void validateAuthenticationCompatibleWorkerConfig() {
         WorkerConfig workerConfig = new WorkerConfig();
 
@@ -62,7 +62,7 @@ public class TestWorkerConfig {
         assertFalse(workerConfig.isBrokerClientAuthenticationEnabled());
     }
 
-    @Test
+
     public void testBackwardCompatibility() throws IOException {
         File testConfigFile = new File("tmp." + System.currentTimeMillis() + ".properties");
         if (testConfigFile.exists()) {

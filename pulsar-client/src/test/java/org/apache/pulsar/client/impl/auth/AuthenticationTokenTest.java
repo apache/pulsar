@@ -38,7 +38,7 @@ import org.testng.collections.Maps;
 
 public class AuthenticationTokenTest {
 
-    @Test
+
     public void testAuthToken() throws Exception {
         AuthenticationToken authToken = new AuthenticationToken("token-xyz");
         assertEquals(authToken.getAuthMethodName(), "token");
@@ -60,7 +60,7 @@ public class AuthenticationTokenTest {
         authToken.close();
     }
 
-    @Test
+
     public void testAuthTokenClientConfig() throws Exception {
         ClientConfigurationData clientConfig = new ClientConfigurationData();
         clientConfig.setServiceUrl("pulsar://service-url");
@@ -89,7 +89,7 @@ public class AuthenticationTokenTest {
         authToken.close();
     }
 
-    @Test
+
     public void testAuthTokenConfig() throws Exception {
         AuthenticationToken authToken = new AuthenticationToken();
         authToken.configure("token:my-test-token-string");
@@ -101,7 +101,7 @@ public class AuthenticationTokenTest {
         authToken.close();
     }
 
-    @Test
+
     public void testAuthTokenConfigFromFile() throws Exception {
         File tokenFile = File.createTempFile("pulsar-test-token", ".key");
         tokenFile.deleteOnExit();
@@ -129,7 +129,7 @@ public class AuthenticationTokenTest {
      * File can have spaces and newlines before or after the token. We should be able to read
      * the token correctly anyway.
      */
-    @Test
+
     public void testAuthTokenConfigFromFileWithNewline() throws Exception {
         File tokenFile = File.createTempFile("pulsar-test-token", ".key");
         tokenFile.deleteOnExit();
@@ -153,7 +153,7 @@ public class AuthenticationTokenTest {
         authToken.close();
     }
 
-    @Test
+
     public void testAuthTokenConfigNoPrefix() throws Exception {
         AuthenticationToken authToken = new AuthenticationToken();
         authToken.configure("my-test-token-string");
@@ -165,7 +165,7 @@ public class AuthenticationTokenTest {
         authToken.close();
     }
 
-    @Test
+
     public void testAuthTokenConfigFromJson() throws Exception{
         AuthenticationToken authToken = new AuthenticationToken();
         authToken.configure("{\"token\":\"my-test-token-string\"}");
@@ -177,7 +177,7 @@ public class AuthenticationTokenTest {
         authToken.close();
     }
 
-    @Test
+
     public void testSerializableAuthentication() throws Exception {
         SerializableSupplier tokenSupplier = new SerializableSupplier("cert");
         AuthenticationToken token = new AuthenticationToken(tokenSupplier);

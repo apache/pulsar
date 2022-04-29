@@ -25,21 +25,21 @@ import org.testng.annotations.Test;
 
 public class BatchMessageAckerDisabledTest {
 
-    @Test
+
     public void testAckIndividual() {
         for (int i = 0; i < 10; i++) {
             assertTrue(BatchMessageAckerDisabled.INSTANCE.ackIndividual(i));
         }
     }
 
-    @Test
+
     public void testAckCumulative() {
         for (int i = 0; i < 10; i++) {
             assertTrue(BatchMessageAckerDisabled.INSTANCE.ackCumulative(i));
         }
     }
 
-    @Test
+
     public void testGetOutstandingAcks() {
         assertEquals(0, BatchMessageAckerDisabled.INSTANCE.getOutstandingAcks());
     }

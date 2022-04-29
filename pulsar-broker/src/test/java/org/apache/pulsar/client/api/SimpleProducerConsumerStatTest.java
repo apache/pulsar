@@ -52,7 +52,7 @@ import com.google.gson.JsonObject;
 
 import lombok.Cleanup;
 
-@Test(groups = "broker-api")
+
 public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(SimpleProducerConsumerStatTest.class);
 
@@ -84,7 +84,6 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
         return new Object[][] { { true }, { false } };
     }
 
-    @Test(dataProvider = "batch_with_timeout")
     public void testSyncProducerAndConsumer(int batchMessageDelayMs, int ackTimeoutSec) throws Exception {
         log.info("-- Starting {} test --", methodName);
         ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer()
@@ -131,7 +130,6 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test(dataProvider = "batch_with_timeout")
     public void testAsyncProducerAndAsyncAck(int batchMessageDelayMs, int ackTimeoutSec) throws Exception {
         log.info("-- Starting {} test --", methodName);
         ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer()
@@ -188,7 +186,6 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test(dataProvider = "batch_with_timeout")
     public void testAsyncProducerAndReceiveAsyncAndAsyncAck(int batchMessageDelayMs, int ackTimeoutSec)
             throws Exception {
         log.info("-- Starting {} test --", methodName);
@@ -249,7 +246,6 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test(dataProvider = "batch", timeOut = 100000)
     public void testMessageListener(int batchMessageDelayMs) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -296,7 +292,7 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test(dataProvider = "batch")
+    
     public void testSendTimeout(int batchMessageDelayMs) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -343,7 +339,7 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test
+
     public void testBatchMessagesRateOut() throws PulsarClientException, InterruptedException, PulsarAdminException {
         log.info("-- Starting {} test --", methodName);
         String topicName = "persistent://my-property/cluster/my-ns/testBatchMessagesRateOut";
@@ -386,7 +382,7 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
         }
     }
 
-    @Test
+
     public void testAddBrokerLatencyStats() throws Exception {
 
         log.info("-- Starting {} test --", methodName);
@@ -433,7 +429,6 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test(dataProvider =  "batchingEnabled")
     public void testProducerPendingQueueSizeStats(boolean batchingEnabled) throws Exception {
         log.info("-- Starting {} test --", methodName);
         ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer()

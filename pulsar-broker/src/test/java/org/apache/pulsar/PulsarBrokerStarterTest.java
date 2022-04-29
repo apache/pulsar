@@ -41,7 +41,7 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.util.CmdGenerateDocs;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker")
+
 public class PulsarBrokerStarterTest {
 
     private File createValidBrokerConfigFile() throws FileNotFoundException {
@@ -138,7 +138,7 @@ public class PulsarBrokerStarterTest {
         assertEquals(serviceConfig.getBookkeeperExplicitLacIntervalInMills(), 5);
     }
 
-    @Test
+
     public void testLoadConfigWithException() throws Exception {
 
         File testConfigFile = new File("tmp." + System.currentTimeMillis() + ".properties");
@@ -171,7 +171,7 @@ public class PulsarBrokerStarterTest {
      * method returns a non-null {@link ServiceConfiguration} instance where all required settings are filled in and (2)
      * if the property variables inside the given property file are correctly referred to that returned object.
      */
-    @Test
+
     public void testLoadBalancerConfig() throws SecurityException, NoSuchMethodException, IOException,
             IllegalArgumentException, IllegalAccessException, InvocationTargetException {
 
@@ -220,7 +220,7 @@ public class PulsarBrokerStarterTest {
      * method returns a non-null {@link ServiceConfiguration} instance where all required settings are filled in and (2)
      * if the property variables inside the given property file are correctly referred to that returned object.
      */
-    @Test
+
     public void testGlobalZooKeeperConfig() throws SecurityException, NoSuchMethodException, IOException,
             IllegalArgumentException, IllegalAccessException, InvocationTargetException {
 
@@ -280,7 +280,7 @@ public class PulsarBrokerStarterTest {
     /**
      * Verifies that the main throws {@link FileNotFoundException} when no argument is given.
      */
-    @Test
+
     public void testMainWithNoArgument() throws Exception {
         try {
             PulsarBrokerStarter.main(new String[0]);
@@ -294,7 +294,7 @@ public class PulsarBrokerStarterTest {
      * Verifies that the main throws {@link IllegalArgumentException}
      * when no config file for bookie and bookie auto recovery is given.
      */
-    @Test
+
     public void testMainRunBookieAndAutoRecoveryNoConfig() throws Exception {
         try {
             File testConfigFile = createValidBrokerConfigFile();
@@ -312,7 +312,7 @@ public class PulsarBrokerStarterTest {
      * Verifies that the main throws {@link IllegalArgumentException}
      * when no config file for bookie auto recovery is given.
      */
-    @Test
+
     public void testMainRunBookieRecoveryNoConfig() throws Exception {
         try {
             File testConfigFile = createValidBrokerConfigFile();
@@ -328,7 +328,7 @@ public class PulsarBrokerStarterTest {
     /**
      * Verifies that the main throws {@link IllegalArgumentException} when no config file for bookie is given.
      */
-    @Test
+
     public void testMainRunBookieNoConfig() throws Exception {
         try {
             File testConfigFile = createValidBrokerConfigFile();
@@ -344,7 +344,7 @@ public class PulsarBrokerStarterTest {
     /**
      * Verifies that the main throws {@link IllegalArgumentException} when no config file for bookie .
      */
-    @Test
+
     public void testMainEnableRunBookieThroughBrokerConfig() throws Exception {
         try {
             File testConfigFile = createValidBrokerConfigFile();
@@ -356,7 +356,7 @@ public class PulsarBrokerStarterTest {
         }
     }
 
-    @Test
+
     public void testMainGenerateDocs() throws Exception {
         PrintStream oldStream = System.out;
         try {

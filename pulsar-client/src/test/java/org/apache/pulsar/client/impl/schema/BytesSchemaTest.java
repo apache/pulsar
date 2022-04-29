@@ -32,12 +32,12 @@ import org.testng.annotations.Test;
  */
 public class BytesSchemaTest {
 
-    @Test
+
     public void testBytesSchemaOf() {
         testBytesSchema(BytesSchema.of());
     }
 
-    @Test
+
     public void testSchemaBYTES() {
         testBytesSchema(Schema.BYTES);
     }

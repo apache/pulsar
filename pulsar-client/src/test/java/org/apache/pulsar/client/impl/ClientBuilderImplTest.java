@@ -25,22 +25,22 @@ import org.testng.annotations.Test;
 
 public class ClientBuilderImplTest {
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
+    
     public void testClientBuilderWithServiceUrlAndServiceUrlProviderNotSet() throws PulsarClientException {
         PulsarClient.builder().build();
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
+    
     public void testClientBuilderWithNullServiceUrl() throws PulsarClientException {
         PulsarClient.builder().serviceUrl(null).build();
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
+    
     public void testClientBuilderWithNullServiceUrlProvider() throws PulsarClientException {
         PulsarClient.builder().serviceUrlProvider(null).build();
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
+    
     public void testClientBuilderWithServiceUrlAndServiceUrlProvider() throws PulsarClientException {
         PulsarClient.builder().serviceUrlProvider(new ServiceUrlProvider() {
             @Override
@@ -55,7 +55,7 @@ public class ClientBuilderImplTest {
         }).serviceUrl("pulsar://localhost:6650").build();
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
+    
     public void testClientBuilderWithBlankServiceUrlInServiceUrlProvider() throws PulsarClientException {
         PulsarClient.builder().serviceUrlProvider(new ServiceUrlProvider() {
             @Override
@@ -70,12 +70,12 @@ public class ClientBuilderImplTest {
         }).build();
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
+    
     public void testClientBuilderWithIllegalMinusPort() throws PulsarClientException {
         PulsarClient.builder().dnsLookupBind("localhost", -1).build();
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
+    
     public void testClientBuilderWithIllegalLargePort() throws PulsarClientException {
         PulsarClient.builder().dnsLookupBind("localhost", 65536).build();
     }

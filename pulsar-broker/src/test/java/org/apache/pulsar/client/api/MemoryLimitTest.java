@@ -34,7 +34,7 @@ import java.util.concurrent.TimeUnit;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.fail;
 
-@Test(groups = "broker-api")
+
 public class MemoryLimitTest extends ProducerConsumerBase {
 
     @DataProvider(name = "batching")
@@ -59,7 +59,7 @@ public class MemoryLimitTest extends ProducerConsumerBase {
         super.internalCleanup();
     }
 
-    @Test
+
     public void testRejectMessages()
             throws Exception {
         String topic = newTopicName();
@@ -107,7 +107,7 @@ public class MemoryLimitTest extends ProducerConsumerBase {
         producer.send(new byte[1024]);
     }
 
-    @Test
+
     public void testRejectMessagesOnMultipleTopics() throws Exception {
         String t1 = newTopicName();
         String t2 = newTopicName();

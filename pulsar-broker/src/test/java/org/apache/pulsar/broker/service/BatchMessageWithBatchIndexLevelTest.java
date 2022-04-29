@@ -39,7 +39,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import static org.testng.Assert.assertEquals;
 
-@Test(groups = "broker")
+
 public class BatchMessageWithBatchIndexLevelTest extends BatchMessageTest {
 
     @BeforeClass
@@ -49,7 +49,7 @@ public class BatchMessageWithBatchIndexLevelTest extends BatchMessageTest {
         super.baseSetup();
     }
 
-    @Test
+
     @SneakyThrows
     public void testBatchMessageAck() {
         int numMsgs = 40;
@@ -110,7 +110,7 @@ public class BatchMessageWithBatchIndexLevelTest extends BatchMessageTest {
         });
     }
 
-    @Test
+
     public void testBatchMessageMultiNegtiveAck() throws Exception{
         final String topicName = "persistent://prop/ns-abc/batchMessageMultiNegtiveAck-" + UUID.randomUUID();
         final String subscriptionName = "sub-negtive-1";

@@ -26,7 +26,7 @@ import org.testng.annotations.Test;
 
 public class AutoFailoverPolicyTypeTest {
 
-    @Test
+
     public void testAutoFailoverPolicyType() {
         assertNull(AutoFailoverPolicyType.fromString("TEST"));
         assertEquals("min_available", AutoFailoverPolicyType.fromString("min_available").toString());

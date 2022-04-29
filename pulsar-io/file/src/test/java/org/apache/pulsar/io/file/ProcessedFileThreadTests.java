@@ -43,7 +43,7 @@ public class ProcessedFileThreadTests extends AbstractFileTests {
     private ProcessedFileThread cleanupThread;
     private FileSourceConfig fileConfig;
 
-    @Test
+
     public final void singleFileTest() throws IOException {
 
         consumer = Mockito.mock(PushSource.class);
@@ -82,7 +82,7 @@ public class ProcessedFileThreadTests extends AbstractFileTests {
         }
     }
 
-    @Test
+
     public final void multipleFileTest() throws IOException {
 
         consumer = Mockito.mock(PushSource.class);
@@ -122,7 +122,7 @@ public class ProcessedFileThreadTests extends AbstractFileTests {
         }
     }
 
-    @Test
+
     public final void keepFileTest() throws IOException {
 
         consumer = Mockito.mock(PushSource.class);
@@ -157,7 +157,7 @@ public class ProcessedFileThreadTests extends AbstractFileTests {
         }
     }
 
-    @Test
+
     public final void continuousRunTest() throws IOException {
 
         consumer = Mockito.mock(PushSource.class);
@@ -205,7 +205,7 @@ public class ProcessedFileThreadTests extends AbstractFileTests {
         }
     }
 
-    @Test
+
     public final void multipleConsumerTest() throws IOException {
 
         consumer = Mockito.mock(PushSource.class);
@@ -257,7 +257,7 @@ public class ProcessedFileThreadTests extends AbstractFileTests {
         }
     }
 
-    @Test
+
     public final void renameFileTest() throws IOException {
 
         consumer = Mockito.mock(PushSource.class);

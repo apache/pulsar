@@ -54,7 +54,7 @@ import com.google.common.collect.Sets;
 
 import io.netty.util.concurrent.DefaultThreadFactory;
 
-@Test(groups = "broker-api")
+
 public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(PartitionedProducerConsumerTest.class);
 
@@ -76,7 +76,7 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
         executor.shutdownNow();
     }
 
-    @Test(timeOut = 30000)
+    
     public void testRoundRobinProducer() throws Exception {
         log.info("-- Starting {} test --", methodName);
         PulsarClient pulsarClient = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
@@ -119,7 +119,7 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test(timeOut = 30000)
+    
     public void testPartitionedTopicNameWithSpecialCharacter() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -137,7 +137,7 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test(timeOut = 30000)
+    
     public void testCustomPartitionProducer() throws Exception {
         PulsarClient pulsarClient = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
         TopicName topicName = null;
@@ -188,7 +188,7 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
         }
     }
 
-    @Test(timeOut = 30000)
+    
     public void testSinglePartitionProducer() throws Exception {
         log.info("-- Starting {} test --", methodName);
         PulsarClient pulsarClient = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
@@ -232,7 +232,7 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test(timeOut = 30000)
+    
     public void testKeyBasedProducer() throws Exception {
         log.info("-- Starting {} test --", methodName);
         PulsarClient pulsarClient = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
@@ -287,7 +287,7 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
         Assert.assertTrue(messageSet.add(message), "Received duplicate message " + message);
     }
 
-    @Test(timeOut = 100000)
+    
     public void testPauseAndResume() throws Exception {
         log.info("-- Starting {} test --", methodName);
         PulsarClient pulsarClient = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
@@ -341,7 +341,7 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test(timeOut = 30000)
+    
     public void testPauseAndResumeWithUnloading() throws Exception {
         final String topicName = "persistent://my-property/my-ns/pause-and-resume-with-unloading"
                 + System.currentTimeMillis();
@@ -393,7 +393,7 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
         admin.topics().deletePartitionedTopic(topicName, true);
     }
 
-    @Test(timeOut = 30000)
+    
     public void testInvalidSequence() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -448,7 +448,7 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
 
     }
 
-    @Test(timeOut = 30000)
+    
     public void testSillyUser() throws Exception {
 
         int numPartitions = 4;
@@ -492,7 +492,7 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
 
     }
 
-    @Test(timeOut = 30000)
+    
     public void testDeletePartitionedTopic() throws Exception {
         int numPartitions = 4;
         TopicName topicName = TopicName
@@ -514,7 +514,7 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
         }
     }
 
-    @Test(timeOut = 30000)
+    
     public void testAsyncPartitionedProducerConsumer() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -563,7 +563,7 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test(timeOut = 30000)
+    
     public void testAsyncPartitionedProducerConsumerQueueSizeOne() throws Exception {
         log.info("-- Starting {} test --", methodName);
         PulsarClient pulsarClient = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
@@ -620,7 +620,7 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test(timeOut = 30000)
+    
     public void testFairDistributionForPartitionConsumers() throws Exception {
         log.info("-- Starting {} test --", methodName);
         PulsarClient pulsarClient = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
@@ -707,7 +707,7 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
         }
     }
 
-    @Test
+
     public void testGetPartitionsForTopic() throws Exception {
         int numPartitions = 4;
         String topic = "persistent://my-property/my-ns/my-partitionedtopic1-" + System.currentTimeMillis();
@@ -727,7 +727,7 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
                 Collections.singletonList(nonPartitionedTopic));
     }
 
-    @Test
+
     public void testMessageIdForSubscribeToSinglePartition() throws Exception {
         PulsarClient pulsarClient = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
         TopicName topicName = null;
@@ -807,7 +807,7 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test(timeOut = 30000)
+    
     public void testAutoUpdatePartitionsForProducerConsumer() throws Exception {
         log.info("-- Starting {} test --", methodName);
         PulsarClient pulsarClient = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
@@ -904,7 +904,7 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test
+
     public void testCustomPartitionedProducer() throws Exception {
         PulsarClient pulsarClient = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
         TopicName topicName = null;
@@ -941,7 +941,7 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
      * 
      * @throws Exception
      */
-    @Test
+
     public void testPartitionedTopicInterceptor() throws Exception {
         log.info("-- Starting {} test --", methodName);
         PulsarClient pulsarClient = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection

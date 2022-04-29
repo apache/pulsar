@@ -58,7 +58,7 @@ public class EntryCacheTest extends MockedBookKeeperTestCase {
         when(ml.getMBean()).thenReturn(new ManagedLedgerMBeanImpl(ml));
     }
 
-    @Test(timeOut = 5000)
+    
     public void testRead() throws Exception {
         ReadHandle lh = getLedgerHandle();
         when(lh.getId()).thenReturn((long) 0);
@@ -90,7 +90,7 @@ public class EntryCacheTest extends MockedBookKeeperTestCase {
         verify(lh, never()).readAsync(anyLong(), anyLong());
     }
 
-    @Test(timeOut = 5000)
+    
     public void testReadMissingBefore() throws Exception {
         ReadHandle lh = getLedgerHandle();
         when(lh.getId()).thenReturn((long) 0);
@@ -118,7 +118,7 @@ public class EntryCacheTest extends MockedBookKeeperTestCase {
         counter.await();
     }
 
-    @Test(timeOut = 5000)
+    
     public void testReadMissingAfter() throws Exception {
         ReadHandle lh = getLedgerHandle();
         when(lh.getId()).thenReturn((long) 0);
@@ -146,7 +146,7 @@ public class EntryCacheTest extends MockedBookKeeperTestCase {
         counter.await();
     }
 
-    @Test(timeOut = 5000)
+    
     public void testReadMissingMiddle() throws Exception {
         ReadHandle lh = getLedgerHandle();
         when(lh.getId()).thenReturn((long) 0);
@@ -175,7 +175,7 @@ public class EntryCacheTest extends MockedBookKeeperTestCase {
         counter.await();
     }
 
-    @Test(timeOut = 5000)
+    
     public void testReadMissingMultiple() throws Exception {
         ReadHandle lh = getLedgerHandle();
         when(lh.getId()).thenReturn((long) 0);
@@ -204,7 +204,7 @@ public class EntryCacheTest extends MockedBookKeeperTestCase {
         counter.await();
     }
 
-    @Test(timeOut = 5000)
+    
     public void testReadWithError() throws Exception {
         final ReadHandle lh = getLedgerHandle();
         when(lh.getId()).thenReturn((long) 0);

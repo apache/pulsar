@@ -25,21 +25,21 @@ public class DefaultTestRetriesTest {
     int invocationCountB;
     int invocationCountC;
 
-    @Test
+
     void testMethodA() {
         if (invocationCountA++ < 1) {
             throw new IllegalStateException("Sample failure to trigger retry.");
         }
     }
 
-    @Test
+
     void testMethodB() {
         if (invocationCountB++ < 1) {
             throw new IllegalStateException("Sample failure to trigger retry.");
         }
     }
 
-    @Test
+
     void testMethodC() {
         if (invocationCountC++ < 1) {
             throw new IllegalStateException("Sample failure to trigger retry.");

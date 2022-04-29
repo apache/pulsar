@@ -44,7 +44,7 @@ public class DynamicReceiverQueueSizeTest extends MockedPulsarServiceBaseTest {
         super.internalCleanup();
     }
 
-    @Test
+
     public void testConsumerImpl() throws PulsarClientException {
         String topic = "persistent://public/default/testConsumerImpl" + System.currentTimeMillis();
         @Cleanup
@@ -88,7 +88,7 @@ public class DynamicReceiverQueueSizeTest extends MockedPulsarServiceBaseTest {
         Awaitility.await().untilAsserted(() -> Assert.assertEquals(consumer.getTotalIncomingMessages(), 3));
     }
 
-    @Test
+
     public void testMultiConsumerImpl() throws Exception {
         String topic = "persistent://public/default/testMultiConsumerImpl" + System.currentTimeMillis();
         admin.topics().createPartitionedTopic(topic, 4);

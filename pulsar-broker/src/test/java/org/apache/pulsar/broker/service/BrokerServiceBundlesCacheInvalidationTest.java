@@ -42,7 +42,7 @@ public class BrokerServiceBundlesCacheInvalidationTest extends BrokerTestBase {
         super.internalCleanup();
     }
 
-    @Test
+
     public void testRecreateNamespace() throws Exception {
         String namespace = "prop/test-" + System.nanoTime();
         String topic = namespace + "/my-topic";

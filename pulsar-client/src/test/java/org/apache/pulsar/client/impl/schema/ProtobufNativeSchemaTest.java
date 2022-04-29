@@ -46,7 +46,7 @@ public class ProtobufNativeSchemaTest {
             "SgJEhMKC2RvdWJsZUZpZWxkGAIgASgBQjUKJW9yZy5hcGFjaGUucHVsc2FyLmNsaWVudC5zY2hlbWEucHJvdG9CDEV4dGVybmFsVGVzdGIGcHJvdG8z\"," +
             "\"rootMessageTypeName\":\"proto.TestMessage\",\"rootFileDescriptorName\":\"Test.proto\"}";
 
-    @Test
+
     public void testEncodeAndDecode() {
         final String stringFieldValue = "StringFieldValue";
         org.apache.pulsar.client.schema.proto.Test.TestMessage testMessage = org.apache.pulsar.client.schema.proto.Test.TestMessage.newBuilder().setStringField(stringFieldValue).build();
@@ -58,7 +58,7 @@ public class ProtobufNativeSchemaTest {
         assertEquals(message.getStringField(), stringFieldValue);
     }
 
-    @Test
+
     public void testSchema() {
         ProtobufNativeSchema<org.apache.pulsar.client.schema.proto.Test.TestMessage> protobufSchema
                 = ProtobufNativeSchema.of(org.apache.pulsar.client.schema.proto.Test.TestMessage.class);
@@ -69,7 +69,7 @@ public class ProtobufNativeSchemaTest {
         assertEquals(new String(protobufSchema.getSchemaInfo().getSchema(), StandardCharsets.UTF_8), EXPECTED_SCHEMA_JSON);
     }
 
-    @Test
+
     public void testGenericOf() {
         try {
             ProtobufNativeSchema<org.apache.pulsar.client.schema.proto.Test.TestMessage> protobufNativeSchema
@@ -90,7 +90,7 @@ public class ProtobufNativeSchemaTest {
     }
 
 
-    @Test
+
     public void testDecodeByteBuf() {
         ProtobufNativeSchema<org.apache.pulsar.client.schema.proto.Test.TestMessage> protobufSchema
                 = ProtobufNativeSchema.of(org.apache.pulsar.client.schema.proto.Test.TestMessage.class);
@@ -104,7 +104,7 @@ public class ProtobufNativeSchemaTest {
 
     }
 
-    @Test
+
     public void testGetNativeSchema()  {
         ProtobufNativeSchema<org.apache.pulsar.client.schema.proto.Test.TestMessage> protobufSchema
                 = ProtobufNativeSchema.of(org.apache.pulsar.client.schema.proto.Test.TestMessage.class);

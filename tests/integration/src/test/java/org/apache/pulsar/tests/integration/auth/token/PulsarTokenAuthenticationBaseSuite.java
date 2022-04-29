@@ -136,7 +136,7 @@ public abstract class PulsarTokenAuthenticationBaseSuite extends PulsarClusterTe
         cmdContainer.close();
     }
 
-    @Test
+
     public void testPublishWithTokenAuth() throws Exception {
         final String tenant = "token-test-tenant" + randomName(4);
         final String namespace = tenant + "/ns-1";
@@ -205,7 +205,7 @@ public abstract class PulsarTokenAuthenticationBaseSuite extends PulsarClusterTe
         }
     }
 
-    @Test
+
     public void testProxyRedirectWithTokenAuth() throws Exception {
 
         final String tenant = "token-test-tenant" + randomName(4);
@@ -260,7 +260,6 @@ public abstract class PulsarTokenAuthenticationBaseSuite extends PulsarClusterTe
         return new Object[][] { { Boolean.TRUE }, { Boolean.FALSE } };
     }
 
-    @Test(dataProvider = "shouldRefreshToken")
     public void testExpiringToken(boolean shouldRefreshToken) throws Exception {
         final String tenant = "token-test-tenant" + randomName(4);
         final String namespace = tenant + "/ns-1";
@@ -325,7 +324,7 @@ public abstract class PulsarTokenAuthenticationBaseSuite extends PulsarClusterTe
         }
     }
 
-    @Test
+
     public void testExpiringTokenWithRefreshAndProducerRestart() throws Exception {
         final String tenant = "token-expiry-test-tenant" + randomName(4);
         final String namespace = tenant + "/ns-1";
@@ -378,7 +377,7 @@ public abstract class PulsarTokenAuthenticationBaseSuite extends PulsarClusterTe
                     .create();
     }
 
-    @Test
+
     public void testAuthenticationFailedImmediately() throws PulsarClientException {
         try {
             @Cleanup

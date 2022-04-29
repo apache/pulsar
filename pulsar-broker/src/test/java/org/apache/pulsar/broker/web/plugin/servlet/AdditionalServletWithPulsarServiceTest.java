@@ -34,7 +34,7 @@ import org.testng.annotations.Test;
 
 public class AdditionalServletWithPulsarServiceTest {
 
-    @Test
+
     public void testLoadAdditionalServlet() throws Exception {
         AdditionalServletDefinition def = new AdditionalServletDefinition();
         def.setAdditionalServletClass(MockAdditionalServletWithClassLoader.class.getName());

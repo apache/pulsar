@@ -56,12 +56,11 @@ public class SemanticsTest extends PulsarTestSuite {
     // Test Basic Publish & Consume Operations
     //
 
-    @Test(dataProvider = "ServiceUrlAndTopics")
     public void testPublishAndConsume(Supplier<String> serviceUrl, boolean isPersistent) throws Exception {
         super.testPublishAndConsume(serviceUrl.get(), isPersistent);
     }
 
-    @Test(dataProvider = "ServiceUrls")
+    
     public void testEffectivelyOnceDisabled(Supplier<String> serviceUrl) throws Exception {
         String nsName = generateNamespaceName();
         pulsarCluster.createNamespace(nsName);
@@ -131,7 +130,7 @@ public class SemanticsTest extends PulsarTestSuite {
         assertEquals(expectedContent, msg.getValue());
     }
 
-    @Test(dataProvider = "ServiceUrls")
+    
     public void testEffectivelyOnceEnabled(Supplier<String> serviceUrl) throws Exception {
         String nsName = generateNamespaceName();
         pulsarCluster.createNamespace(nsName);
@@ -172,12 +171,12 @@ public class SemanticsTest extends PulsarTestSuite {
         receiveAndAssertMessage(consumer, 2L, "message-2");
     }
 
-    @Test
+    
     public void testSubscriptionInitialPositionOneTopic() throws Exception {
         testSubscriptionInitialPosition(1);
     }
 
-    @Test
+    
     public void testSubscriptionInitialPositionTwoTopics() throws Exception {
         testSubscriptionInitialPosition(2);
     }
@@ -234,7 +233,7 @@ public class SemanticsTest extends PulsarTestSuite {
         }
     }
 
-    @Test(dataProvider = "ServiceUrls")
+    
     public void testBatchProducing(Supplier<String> serviceUrl) throws Exception {
         String topicName = generateTopicName("testbatchproducing", true);
 

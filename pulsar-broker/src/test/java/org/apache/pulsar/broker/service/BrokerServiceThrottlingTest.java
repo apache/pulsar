@@ -53,7 +53,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker")
+
 public class BrokerServiceThrottlingTest extends BrokerTestBase {
 
     @BeforeMethod
@@ -73,7 +73,7 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
      *
      * @throws Exception
      */
-    @Test
+
     public void testThrottlingLookupRequestSemaphore() throws Exception {
         BrokerService service = pulsar.getBrokerService();
         assertNotEquals(service.lookupRequestSemaphore.get().availablePermits(), 0);
@@ -88,7 +88,7 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
      *
      * @throws Exception
      */
-    @Test
+
     public void testLookupThrottlingForClientByBroker0Permit() throws Exception {
 
         final String topicName = "persistent://prop/ns-abc/newTopic";
@@ -132,7 +132,7 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
      *
      * @throws Exception
      */
-    @Test
+
     public void testLookupThrottlingForClientByBroker() throws Exception {
         final String topicName = "persistent://prop/ns-abc/newTopic";
 
@@ -249,7 +249,7 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
      *
      * @throws Exception
      */
-    @Test
+
     public void testLookupThrottlingForClientByBrokerInternalRetry() throws Exception {
         final String topicName = "persistent://prop/ns-abc/newTopic-" + UUID.randomUUID().toString();
 

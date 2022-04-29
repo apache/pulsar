@@ -71,7 +71,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker-impl")
+
 public class PatternTopicsConsumerImplAuthTest extends ProducerConsumerBase {
     private static final long testTimeout = 90000; // 1.5 min
     private static final Logger log = LoggerFactory.getLogger(PatternTopicsConsumerImplAuthTest.class);
@@ -119,7 +119,7 @@ public class PatternTopicsConsumerImplAuthTest extends ProducerConsumerBase {
 
     // verify binary proto with correct auth check
     // if with invalid role, consumer for pattern topic subscription will fail
-    @Test(timeOut = testTimeout)
+    
     public void testBinaryProtoToGetTopicsOfNamespace() throws Exception {
         String key = "BinaryProtoToGetTopics";
         String subscriptionName = "my-ex-subscription-" + key;

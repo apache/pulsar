@@ -78,7 +78,7 @@ public class TestAvroDecoder extends AbstractDecoderTester {
         assertTrue(pulsarRowDecoder instanceof PulsarAvroRowDecoder);
     }
 
-    @Test
+
     public void testPrimitiveType() {
         DecoderTestMessage message = new DecoderTestMessage();
         message.stringField = "message_1";
@@ -140,7 +140,7 @@ public class TestAvroDecoder extends AbstractDecoderTester {
         checkValue(decodedRow, longDecimalFieldColumnHandle, message.longDecimalField);
     }
 
-    @Test
+
     public void testRow() {
         DecoderTestMessage message = new DecoderTestMessage();
         message.stringField = "message_2";
@@ -175,7 +175,7 @@ public class TestAvroDecoder extends AbstractDecoderTester {
         checkRowValues(getBlock(decodedRow, columnHandle), columnHandle.getType(), fieldValue);
     }
 
-    @Test
+
     public void testArray() {
         DecoderTestMessage message = new DecoderTestMessage();
         message.arrayField = Arrays.asList("message_1", "message_2", "message_3");
@@ -195,7 +195,7 @@ public class TestAvroDecoder extends AbstractDecoderTester {
         checkArrayValues(getBlock(decodedRow, columnHandle), columnHandle.getType(), fieldValue);
     }
 
-    @Test
+
     public void testMap() {
 
         DecoderTestMessage message = new DecoderTestMessage();
@@ -220,7 +220,7 @@ public class TestAvroDecoder extends AbstractDecoderTester {
         checkMapValues(getBlock(decodedRow, columnHandle), columnHandle.getType(), fieldValue);
     }
 
-    @Test
+
     public void testCompositeType() {
         DecoderTestMessage message = new DecoderTestMessage();
 
@@ -294,7 +294,7 @@ public class TestAvroDecoder extends AbstractDecoderTester {
         checkRowValues(getBlock(decodedRow, columnHandle), columnHandle.getType(), fieldValue);
     }
 
-    @Test(singleThreaded = true)
+    (singleThreaded = true)
     public void testCyclicDefinitionDetect() {
         AvroSchema cyclicSchema = AvroSchema.of(DecoderTestMessage.CyclicFoo.class);
         PrestoException exception = expectThrows(PrestoException.class,

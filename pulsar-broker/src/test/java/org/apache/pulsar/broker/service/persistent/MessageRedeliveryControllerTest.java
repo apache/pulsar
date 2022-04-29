@@ -35,14 +35,14 @@ import org.apache.pulsar.common.util.collections.LongPairSet;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker")
+
 public class MessageRedeliveryControllerTest {
     @DataProvider(name = "allowOutOfOrderDelivery")
     public Object[][] dataProvider() {
         return new Object[][] { { true }, { false } };
     }
 
-    @Test(dataProvider = "allowOutOfOrderDelivery", timeOut = 10000)
+    
     public void testAddAndRemove(boolean allowOutOfOrderDelivery) throws Exception {
         MessageRedeliveryController controller = new MessageRedeliveryController(allowOutOfOrderDelivery);
 
@@ -157,7 +157,7 @@ public class MessageRedeliveryControllerTest {
         }
     }
 
-    @Test(dataProvider = "allowOutOfOrderDelivery", timeOut = 10000)
+    
     public void testContainsStickyKeyHashes(boolean allowOutOfOrderDelivery) throws Exception {
         MessageRedeliveryController controller = new MessageRedeliveryController(allowOutOfOrderDelivery);
         controller.add(1, 1, 100);
@@ -181,7 +181,7 @@ public class MessageRedeliveryControllerTest {
         assertFalse(controller.containsStickyKeyHashes(Sets.newHashSet(105, 106)));
     }
 
-    @Test(dataProvider = "allowOutOfOrderDelivery", timeOut = 10000)
+    
     public void testGetMessagesToReplayNow(boolean allowOutOfOrderDelivery) throws Exception {
         MessageRedeliveryController controller = new MessageRedeliveryController(allowOutOfOrderDelivery);
         controller.add(2, 2);

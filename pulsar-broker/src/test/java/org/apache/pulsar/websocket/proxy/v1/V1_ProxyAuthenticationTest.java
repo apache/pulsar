@@ -54,7 +54,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Test(groups = "websocket")
+
 public class V1_ProxyAuthenticationTest extends V1_ProducerConsumerBase {
 
     private ProxyServer proxyServer;
@@ -149,17 +149,17 @@ public class V1_ProxyAuthenticationTest extends V1_ProducerConsumerBase {
         Assert.assertEquals(produceSocket.getBuffer(), consumeSocket.getBuffer());
     }
 
-    @Test(timeOut = 10000)
+    
     public void authenticatedSocketTest() throws Exception {
         socketTest();
     }
 
-    @Test(timeOut = 10000)
+    
     public void anonymousSocketTest() throws Exception {
         socketTest();
     }
 
-    @Test(timeOut = 10000)
+    
     public void unauthenticatedSocketTest() {
         Exception exception = null;
         try {
@@ -170,7 +170,7 @@ public class V1_ProxyAuthenticationTest extends V1_ProducerConsumerBase {
         Assert.assertTrue(exception instanceof java.util.concurrent.ExecutionException);
     }
 
-    @Test(timeOut = 10000)
+    
     public void statsTest() throws Exception {
         final String topic = "prop/use/my-ns/my-topic2";
         final String consumerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get() + "/ws/consumer/persistent/" + topic + "/my-sub";

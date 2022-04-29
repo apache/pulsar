@@ -72,7 +72,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker-api")
+
 public class NonPersistentTopicTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(NonPersistentTopicTest.class);
     private final String configClusterName = "r1";
@@ -101,7 +101,6 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
         super.internalCleanup();
     }
 
-    @Test(timeOut = 90000 /* 1.5mn */)
     public void testNonPersistentPartitionsAreNotAutoCreatedWhenThePartitionedTopicDoesNotExist() throws Exception {
         final boolean defaultAllowAutoTopicCreation = conf.isAllowAutoTopicCreation();
         try {
@@ -128,7 +127,6 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
         }
     }
 
-    @Test(timeOut = 90000 /* 1.5mn */)
     public void testAutoCreateNonPersistentPartitionsWhenThePartitionedTopicExists() throws Exception {
         final boolean defaultAllowAutoTopicCreation = conf.isAllowAutoTopicCreation();
         try {
@@ -157,7 +155,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
         }
     }
 
-    @Test(dataProvider = "subscriptionType")
+    
     public void testNonPersistentTopic(SubscriptionType type) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -196,7 +194,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
 
     }
 
-    @Test(dataProvider = "subscriptionType")
+    
     public void testPartitionedNonPersistentTopic(SubscriptionType type) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -239,7 +237,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
 
     }
 
-    @Test(dataProvider = "subscriptionType")
+    
     public void testPartitionedNonPersistentTopicWithTcpLookup(SubscriptionType type) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -297,7 +295,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
     /**
      * It verifies that broker doesn't dispatch messages if consumer runs out of permits filled out with messages
      */
-    @Test(dataProvider = "subscriptionType")
+    
     public void testConsumerInternalQueueMaxOut(SubscriptionType type) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -340,7 +338,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
     /**
      * Verifies that broker should failed to publish message if producer publishes messages more than rate limit
      */
-    @Test
+
     public void testProducerRateLimit() throws Exception {
         int defaultNonPersistentMessageRate = conf.getMaxConcurrentNonPersistentMessagePerConnection();
         try {
@@ -399,7 +397,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test
+
     public void testMultipleSubscription() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -478,7 +476,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
     /**
      * verifies that broker is capturing topic stats correctly
      */
-    @Test
+
     public void testTopicStats() throws Exception {
 
         final String topicName = "non-persistent://my-property/my-ns/unacked-topic";
@@ -533,7 +531,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
     /**
      * verifies that non-persistent topic replicates using replicator
      */
-    @Test
+
     public void testReplicator() throws Exception {
 
         ReplicationClusterManager replication = new ReplicationClusterManager();
@@ -685,7 +683,6 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
      * 5. Create producer on that topic should fail
      * </pre>
      */
-    @Test(dataProvider = "loadManager")
     public void testLoadManagerAssignmentForNonPersistentTestAssignment(String loadManagerName) throws Exception {
 
         final String namespace = "my-property/my-ns";
@@ -740,7 +737,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test
+
     public void testNonPersistentTopicUnderPersistentNamespace() throws Exception {
 
         final String namespace = "my-property/my-ns";
@@ -772,7 +769,6 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
      * @param loadManagerName
      * @throws Exception
      */
-    @Test(dataProvider = "loadManager")
     public void testNonPersistentBrokerModeRejectPersistentTopic(String loadManagerName) throws Exception {
 
         final String namespace = "my-property/my-ns";
@@ -831,7 +827,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test
+
     public void testMsgDropStat() throws Exception {
 
         int defaultNonPersistentMessageRate = conf.getMaxConcurrentNonPersistentMessagePerConnection();

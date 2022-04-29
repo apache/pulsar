@@ -53,7 +53,7 @@ import org.testng.annotations.Test;
 import com.google.common.collect.Sets;
 import io.netty.util.concurrent.DefaultThreadFactory;
 
-@Test(groups = "broker-impl")
+
 public class MessageRedeliveryTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(MessageRedeliveryTest.class);
 
@@ -82,7 +82,6 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
      * @param useOpenRangeSet
      * @throws Exception
      */
-    @Test(dataProvider = "useOpenRangeSet", timeOut = 30000)
     public void testRedelivery(boolean useOpenRangeSet) throws Exception {
 
         this.conf.setManagedLedgerMaxEntriesPerLedger(5);
@@ -221,7 +220,7 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
 
     }
 
-    @Test
+
     public void testDoNotRedeliveryMarkDeleteMessages() throws PulsarClientException, PulsarAdminException {
         final String topic = "testDoNotRedeliveryMarkDeleteMessages";
         final String subName = "my-sub";
@@ -257,7 +256,6 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
         assertNull(message);
     }
 
-    @Test(dataProvider = "enableBatch")
     public void testRedeliveryAddEpoch(boolean enableBatch) throws Exception{
         final String topic = "testRedeliveryAddEpoch";
         final String subName = "my-sub";
@@ -330,7 +328,6 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
     }
 
 
-    @Test(dataProvider = "enableBatch")
     public void testMultiConsumerRedeliveryAddEpoch(boolean enableBatch) throws Exception{
         final String topic = "testMultiConsumerRedeliveryAddEpoch";
         final String subName = "my-sub";

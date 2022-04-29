@@ -36,10 +36,10 @@ import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker")
+
 public class ProtocolHandlerUtilsTest {
 
-    @Test
+
     public void testLoadProtocolHandler() throws Exception {
         ProtocolHandlerDefinition def = new ProtocolHandlerDefinition();
         def.setHandlerClass(MockProtocolHandler.class.getName());
@@ -71,7 +71,7 @@ public class ProtocolHandlerUtilsTest {
         }
     }
 
-    @Test
+
     public void testLoadProtocolHandlerBlankHandlerClass() throws Exception {
         ProtocolHandlerDefinition def = new ProtocolHandlerDefinition();
         def.setDescription("test-protocol-handler");
@@ -103,7 +103,7 @@ public class ProtocolHandlerUtilsTest {
         }
     }
 
-    @Test
+
     public void testLoadProtocolHandlerWrongHandlerClass() throws Exception {
         ProtocolHandlerDefinition def = new ProtocolHandlerDefinition();
         def.setHandlerClass(Runnable.class.getName());

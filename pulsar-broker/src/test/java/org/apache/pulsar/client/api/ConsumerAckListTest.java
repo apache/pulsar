@@ -32,7 +32,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
-@Test(groups = "broker-api")
+
 public class ConsumerAckListTest extends ProducerConsumerBase {
 
     @BeforeClass
@@ -53,7 +53,6 @@ public class ConsumerAckListTest extends ProducerConsumerBase {
         return new Object[][] { { true }, { false } };
     }
 
-    @Test(timeOut = 30000, dataProvider = "ackReceiptEnabled")
     public void testBatchListAck(boolean ackReceiptEnabled) throws Exception {
         ackListMessage(true,true, ackReceiptEnabled);
         ackListMessage(true,false, ackReceiptEnabled);

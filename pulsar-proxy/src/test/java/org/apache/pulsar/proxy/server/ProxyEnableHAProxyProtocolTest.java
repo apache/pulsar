@@ -77,7 +77,7 @@ public class ProxyEnableHAProxyProtocolTest extends MockedPulsarServiceBaseTest 
         proxyService.close();
     }
 
-    @Test
+
     public void testSimpleProduceAndConsume() throws PulsarClientException, PulsarAdminException {
         @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(proxyService.getServiceUrl())

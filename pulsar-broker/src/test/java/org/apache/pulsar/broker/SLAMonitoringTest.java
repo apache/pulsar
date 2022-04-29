@@ -47,7 +47,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 @Slf4j
-@Test(groups = "broker")
+
 public class SLAMonitoringTest {
     LocalBookkeeperEnsemble bkEnsemble;
 
@@ -136,7 +136,7 @@ public class SLAMonitoringTest {
         bkEnsemble.stop();
     }
 
-    @Test
+
     public void testOwnershipAfterSetup() {
         for (int i = 0; i < BROKER_COUNT; i++) {
             try {
@@ -149,7 +149,7 @@ public class SLAMonitoringTest {
         }
     }
 
-    @Test
+
     public void testOwnedNamespaces() {
         testOwnershipViaAdminAfterSetup();
         try {
@@ -168,7 +168,7 @@ public class SLAMonitoringTest {
         }
     }
 
-    @Test
+
     public void testOwnershipViaAdminAfterSetup() {
         for (int i = 0; i < BROKER_COUNT; i++) {
             try {
@@ -186,7 +186,7 @@ public class SLAMonitoringTest {
         }
     }
 
-    @Test
+
     public void testUnloadIfBrokerCrashes() {
         int crashIndex = BROKER_COUNT / 2;
         log.info("Trying to close the broker at index = {}", crashIndex);

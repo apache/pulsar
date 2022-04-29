@@ -68,7 +68,6 @@ public class PackagesCliTest extends TestRetrySupport {
         return envs;
     }
 
-    @Test(timeOut = 60000 * 5)
     public void testPackagesOperationsWithoutUploadingPackages() throws Exception {
         ContainerExecResult result = runPackagesCommand("list", "--type", "function", "public/default");
         assertEquals(result.getExitCode(), 0);
@@ -84,7 +83,6 @@ public class PackagesCliTest extends TestRetrySupport {
         }
     }
 
-    @Test(timeOut = 60000 * 8)
     public void testPackagesOperationsWithUploadingPackages() throws Exception {
         String testPackageName = "function://public/default/test@v1";
         ContainerExecResult result = runPackagesCommand("upload", "--description", "a test package",

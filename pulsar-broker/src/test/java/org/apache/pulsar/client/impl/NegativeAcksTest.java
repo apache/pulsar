@@ -41,7 +41,7 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Slf4j
-@Test(groups = "broker-impl")
+
 public class NegativeAcksTest extends ProducerConsumerBase {
 
     @Override
@@ -99,7 +99,7 @@ public class NegativeAcksTest extends ProducerConsumerBase {
         };
     }
 
-    @Test(dataProvider = "variations")
+    
     public void testNegativeAcks(boolean batching, boolean usePartitions, SubscriptionType subscriptionType,
             int negAcksDelayMillis, int ackTimeout)
             throws Exception {
@@ -197,7 +197,7 @@ public class NegativeAcksTest extends ProducerConsumerBase {
         };
     }
 
-    @Test(dataProvider = "variationsBackoff")
+    variationsBackoff")
     public void testNegativeAcksWithBackoff(boolean batching, boolean usePartitions, SubscriptionType subscriptionType,
             int minNackTimeMs, int maxNackTimeMs, int ackTimeout)
             throws Exception {

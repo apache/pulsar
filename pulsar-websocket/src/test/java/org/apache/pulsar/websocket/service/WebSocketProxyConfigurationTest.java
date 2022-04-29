@@ -30,10 +30,10 @@ import java.util.Properties;
 
 import static org.testng.Assert.assertEquals;
 
-@Test(groups = "broker")
+
 public class WebSocketProxyConfigurationTest {
 
-    @Test
+
     public void testConfigFileDefaults() throws Exception {
         try (FileInputStream stream = new FileInputStream("../conf/websocket.conf")) {
             final WebSocketProxyConfiguration javaConfig = PulsarConfigurationLoader.create(new Properties(), WebSocketProxyConfiguration.class);

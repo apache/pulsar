@@ -27,7 +27,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class TestDefaultMessageFormatter {
 
-    @Test
+
     public void testFormatMessage() {
         String producerName = "producer-1";
         long msgId = 3;

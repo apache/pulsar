@@ -36,7 +36,7 @@ public class TokensCliUtilsTest {
      *
      * @throws Exception
      */
-    @Test
+
     public void testGenerateDocs() throws Exception {
         PrintStream oldStream = System.out;
         try {

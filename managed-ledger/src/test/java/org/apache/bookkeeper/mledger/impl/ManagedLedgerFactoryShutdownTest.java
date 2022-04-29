@@ -148,7 +148,7 @@ public class ManagedLedgerFactoryShutdownTest {
 
     }
 
-    @Test(timeOut = 5000)
+    
     public void openEncounteredShutdown() throws Exception {
 
         ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(metadataStore, bookKeeper);

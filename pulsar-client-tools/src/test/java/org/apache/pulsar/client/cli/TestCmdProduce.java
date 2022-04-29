@@ -38,7 +38,7 @@ public class TestCmdProduce {
         cmdProduce.updateConfig(null, null, "ws://localhost:8080/");
     }
 
-    @Test
+
     public void testGetWebSocketProduceUri() {
         String topicNameV1 = "persistent://public/cluster/default/issue-11067";
         assertEquals(cmdProduce.getWebSocketProduceUri(topicNameV1),
@@ -48,7 +48,7 @@ public class TestCmdProduce {
                 "ws://localhost:8080/ws/v2/producer/persistent/public/default/issue-11067");
     }
 
-    @Test
+
     public void testBuildSchema() {
         // default
         assertEquals(SchemaType.BYTES, CmdProduce.buildSchema("string", "bytes", CmdProduce.KEY_VALUE_ENCODING_TYPE_NOT_SET).getSchemaInfo().getType());

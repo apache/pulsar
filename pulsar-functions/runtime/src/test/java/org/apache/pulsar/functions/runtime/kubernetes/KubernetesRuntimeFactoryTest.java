@@ -196,14 +196,14 @@ public class KubernetesRuntimeFactoryTest {
         return functionDetailsBuilder.build();
     }
 
-    @Test
+
     public void testAdmissionChecks() throws Exception {
         factory = createKubernetesRuntimeFactory(null, null, null, null, false);
         FunctionDetails functionDetails = createFunctionDetails();
         factory.doAdmissionChecks(functionDetails);
     }
 
-    @Test
+
     public void testValidateMinResourcesRequired() throws Exception {
         factory = createKubernetesRuntimeFactory(null, null, null, null, false);
 
@@ -228,7 +228,7 @@ public class KubernetesRuntimeFactoryTest {
         testMinResource(null, 512L, true, "Per instance CPU requested, 0.0, for function is less than the minimum required, 0.1");
     }
 
-    @Test
+
     public void testValidateMaxResourcesRequired() throws Exception {
         factory = createKubernetesRuntimeFactory(null, null, null, null, false);
 
@@ -253,7 +253,7 @@ public class KubernetesRuntimeFactoryTest {
         testMaxResource(null, 3072L, true, "Per instance RAM requested, 3072, for function is greater than the maximum required, 2048");
     }
 
-    @Test
+
     public void testValidateMinMaxResourcesRequired() throws Exception {
         testMinMaxResource(0.1, 1024L, false, null);
         testMinMaxResource(0.2, 1536L, false, null);
@@ -269,7 +269,7 @@ public class KubernetesRuntimeFactoryTest {
         testMinMaxResource(0.2, null, true, "Per instance RAM requested, 0, for function is less than the minimum required, 1024");
     }
 
-    @Test
+
     public void testValidateResourcesGranularityAndProportion() throws Exception {
         factory = createKubernetesRuntimeFactory(null, null, null, null, false);
 
@@ -330,12 +330,11 @@ public class KubernetesRuntimeFactoryTest {
     }
 
 
-    @Test
+
     public void testAuthProviderNotSet() throws Exception {
         testAuthProvider(Optional.empty());
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "Function authentication provider.*.must implement KubernetesFunctionAuthProvider")
     public void testAuthProviderWrongInterface() throws Exception {
         testAuthProvider(Optional.of(new FunctionAuthProvider() {
             @Override
@@ -364,7 +363,7 @@ public class KubernetesRuntimeFactoryTest {
         }));
     }
 
-    @Test
+
     public void testAuthProviderCorrectInterface() throws Exception {
         testAuthProvider(Optional.of(new KubernetesFunctionAuthProvider() {
 
@@ -458,7 +457,7 @@ public class KubernetesRuntimeFactoryTest {
         }
     }
 
-    @Test
+
     public void testDynamicConfigMapLoading() throws Exception {
 
         String changeConfigMap = "changeMap";

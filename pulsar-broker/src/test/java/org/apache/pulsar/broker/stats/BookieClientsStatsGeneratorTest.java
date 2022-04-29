@@ -33,7 +33,7 @@ import org.testng.annotations.Test;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
 
-@Test(groups = "broker")
+
 public class BookieClientsStatsGeneratorTest extends BrokerTestBase {
 
     @BeforeClass
@@ -48,14 +48,14 @@ public class BookieClientsStatsGeneratorTest extends BrokerTestBase {
         super.internalCleanup();
     }
 
-    @Test
+
     public void testBookieClientStatsGenerator() throws Exception {
         // should not generate any NPE or other exceptions..
         Map<String, Map<String, PendingBookieOpsStats>> stats = BookieClientStatsGenerator.generate(super.getPulsar());
         assertTrue(stats.isEmpty());
     }
 
-    @Test
+
     public void testJvmDirectMemoryUsedMetric() {
         PooledByteBufAllocator allocator = new PooledByteBufAllocator( //
                 true, // preferDirect

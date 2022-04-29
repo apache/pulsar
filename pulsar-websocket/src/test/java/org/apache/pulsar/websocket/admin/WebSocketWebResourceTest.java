@@ -136,7 +136,7 @@ public class WebSocketWebResourceTest {
         this.webResource = null;
     }
 
-    @Test
+    
     public void testAuthenticationDisabled() throws Exception {
         try {
             Assert.assertEquals(webResource.clientAppId(), AUTHORIZED_USER);
@@ -147,7 +147,7 @@ public class WebSocketWebResourceTest {
         }
     }
 
-    @Test
+    
     public void testSuperUserAccess() throws Exception {
         try {
             Assert.assertEquals(webResource.clientAppId(), SUPER_USER);
@@ -158,7 +158,7 @@ public class WebSocketWebResourceTest {
         }
     }
 
-    @Test
+    
     public void testAuthorizedUserAccess() throws Exception {
         try {
             webResource.validateSuperUserAccess();
@@ -175,7 +175,7 @@ public class WebSocketWebResourceTest {
         }
     }
 
-    @Test
+    
     public void testUnauthorizedUserAccess() throws Exception {
         try {
             Assert.assertEquals(webResource.clientAppId(), UNAUTHORIZED_USER);
@@ -198,7 +198,7 @@ public class WebSocketWebResourceTest {
         }
     }
 
-    @Test
+    
     public void testBlankUserAccess() throws Exception {
         try {
             webResource.clientAppId();
@@ -222,7 +222,7 @@ public class WebSocketWebResourceTest {
         }
     }
 
-    @Test
+    
     public void testUnauthenticatedUserAccess() throws Exception {
         try {
             webResource.clientAppId();

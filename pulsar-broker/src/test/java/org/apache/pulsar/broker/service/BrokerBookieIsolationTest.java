@@ -81,7 +81,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker")
+
 public class BrokerBookieIsolationTest {
 
     private LocalBookkeeperEnsemble bkEnsemble;
@@ -119,7 +119,7 @@ public class BrokerBookieIsolationTest {
      *
      * @throws Exception
      */
-    @Test
+
     public void testBookieIsolation() throws Exception {
         final String tenant1 = "tenant1";
         final String cluster = "use";
@@ -266,7 +266,7 @@ public class BrokerBookieIsolationTest {
         assertEquals(clientConf.getProperty(REPP_DNS_RESOLVER_CLASS), BookieRackAffinityMapping.class.getName());
     }
 
-    @Test
+
     public void testSetRackInfoAndAffinityGroupDuringProduce() throws Exception {
         final String tenant1 = "tenant1";
         final String cluster = "use";
@@ -401,7 +401,7 @@ public class BrokerBookieIsolationTest {
      *
      * @throws Exception
      */
-    @Test
+
     public void testStrictBookieIsolation() throws Exception {
         final String tenant1 = "tenant1";
         final String cluster = "use";
@@ -554,7 +554,7 @@ public class BrokerBookieIsolationTest {
      *
      * @throws Exception
      */
-    @Test
+
     public void testBookieIsolationWithSecondaryGroup() throws Exception {
         final String tenant1 = "tenant1";
         final String cluster = "use";
@@ -700,7 +700,7 @@ public class BrokerBookieIsolationTest {
         }
     }
 
-    @Test
+
     public void testDeleteIsolationGroup() throws Exception {
 
         final String tenant1 = "tenant1";

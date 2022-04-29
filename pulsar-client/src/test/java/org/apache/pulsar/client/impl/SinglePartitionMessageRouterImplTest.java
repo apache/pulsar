@@ -31,7 +31,7 @@ import org.testng.annotations.Test;
  */
 public class SinglePartitionMessageRouterImplTest {
 
-    @Test
+
     public void testChoosePartitionWithoutKey() {
         Message<?> msg = mock(Message.class);
         when(msg.getKey()).thenReturn(null);
@@ -40,7 +40,7 @@ public class SinglePartitionMessageRouterImplTest {
         assertEquals(1234, router.choosePartition(msg, new TopicMetadataImpl(2468)));
     }
 
-    @Test
+
     public void testChoosePartitionWithKey() {
         String key1 = "key1";
         String key2 = "key2";

@@ -36,7 +36,7 @@ public class ManagedCursorListAckTest extends MockedBookKeeperTestCase {
 
     private static final Charset Encoding = Charsets.UTF_8;
 
-    @Test(timeOut = 20000)
+    
     void testMultiPositionDelete() throws Exception {
         ManagedLedger ledger = factory.open("my_test_ledger", new ManagedLedgerConfig().setMaxEntriesPerLedger(2));
 

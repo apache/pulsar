@@ -58,7 +58,7 @@ public class FunctionsCLITest extends PulsarFunctionsTestBase {
     }
 
     // Flaky Test: https://github.com/apache/pulsar/issues/6179
-    // @Test
+    //
     public void testUploadDownload() throws Exception {
         String bkPkgPath = uploadFunction();
         String localPkgFile = "/tmp/checkdownload-" + randomName(16);

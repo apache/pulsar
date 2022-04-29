@@ -27,7 +27,7 @@ import org.testng.annotations.Test;
 
 public class MetadataTests {
 
-    @Test
+
     public void testValidMetadata() {
         Map<String, String> metadata = new HashMap<>();
 
@@ -49,7 +49,7 @@ public class MetadataTests {
         Assert.assertTrue(validateMetadata(metadata));
     }
 
-    @Test
+
     public void testInvalidMetadata() {
         Map<String, String> metadata = new HashMap<>();
 

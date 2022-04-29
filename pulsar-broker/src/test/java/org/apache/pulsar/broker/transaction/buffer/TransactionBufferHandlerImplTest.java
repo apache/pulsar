@@ -41,10 +41,10 @@ import org.testng.annotations.Test;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
-@Test(groups = "broker")
+
 public class TransactionBufferHandlerImplTest {
 
-    @Test
+
     public void testRequestCredits() throws PulsarServerException {
         PulsarClient pulsarClient = mock(PulsarClientImpl.class);
         PulsarService pulsarService = mock(PulsarService.class);
@@ -73,7 +73,7 @@ public class TransactionBufferHandlerImplTest {
         assertEquals(handler.getPendingRequestsCount(), 0);
     }
 
-    @Test
+
     public void testMinRequestCredits() throws PulsarServerException {
         PulsarClient pulsarClient = mock(PulsarClientImpl.class);
         PulsarService pulsarService = mock(PulsarService.class);

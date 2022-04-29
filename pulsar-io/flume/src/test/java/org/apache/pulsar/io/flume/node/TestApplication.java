@@ -95,7 +95,7 @@ public class TestApplication {
         return lifeCycleAware;
     }
 
-    @Test
+
     public void testBasicConfiguration() throws Exception {
 
         EventBus eventBus = new EventBus("test-event-bus");
@@ -136,7 +136,7 @@ public class TestApplication {
         verify(channel).stop();
     }
 
-    @Test
+
     public void testFLUME1854() throws Exception {
         File configFile = new File(baseDir, "flume-conf.properties");
         Files.copy(new File(getClass().getClassLoader()
@@ -157,7 +157,6 @@ public class TestApplication {
         }
     }
 
-    @Test(timeOut = 10000L)
     public void testFLUME2786() throws Exception {
         final String agentName = "test";
         final int interval = 1;

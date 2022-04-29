@@ -59,27 +59,24 @@ public class AuthenticationOAuth2Test {
         this.auth = new AuthenticationOAuth2(flow, this.clock);
     }
 
-    @Test
+
     public void testGetAuthMethodName() {
         assertEquals(this.auth.getAuthMethodName(), "token");
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = ".*No.*")
     public void testConfigureNoParams() throws Exception {
         this.auth.configure("");
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = ".*Malformed.*")
     public void testConfigureMalformed() throws Exception {
         this.auth.configure("{garbage}");
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = ".*Required.*")
     public void testConfigureRequired() throws Exception {
         this.auth.configure("{}");
     }
 
-    @Test
+
     public void testConfigure() throws Exception {
         Map<String, String> params = new HashMap<>();
         params.put("type", "client_credentials");
@@ -93,7 +90,7 @@ public class AuthenticationOAuth2Test {
         assertNotNull(this.auth.flow);
     }
 
-    @Test
+
     public void testConfigureWithoutOptionalParams() throws Exception {
         Map<String, String> params = new HashMap<>();
         params.put("type", "client_credentials");
@@ -105,13 +102,13 @@ public class AuthenticationOAuth2Test {
         assertNotNull(this.auth.flow);
     }
 
-    @Test
+
     public void testStart() throws Exception {
         this.auth.start();
         verify(this.flow).initialize();
     }
 
-    @Test
+
     public void testGetAuthData() throws Exception {
         AuthenticationDataProvider data;
         TokenResult tr = TokenResult.builder().accessToken(TEST_ACCESS_TOKEN).expiresIn(TEST_EXPIRES_IN).build();
@@ -132,13 +129,13 @@ public class AuthenticationOAuth2Test {
         assertEquals(data.getCommandData(), tr.getAccessToken());
     }
 
-    @Test
+
     public void testMetadataResolver() throws MalformedURLException {
         URL url = DefaultMetadataResolver.getWellKnownMetadataUrl(URI.create("http://localhost/path/oauth").toURL());
         assertEquals("http://localhost/path/oauth/.well-known/openid-configuration", url.toString());
     }
 
-    @Test
+
     public void testClose() throws Exception {
         this.auth.close();
         verify(this.flow).close();

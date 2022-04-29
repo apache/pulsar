@@ -63,7 +63,7 @@ public class SinkConfigUtilsTest {
         private String configParameter;
     }
 
-    @Test
+
     public void testConvertBackFidelity() throws IOException  {
         SinkConfig sinkConfig = new SinkConfig();
         sinkConfig.setTenant("test-tenant");
@@ -129,7 +129,7 @@ public class SinkConfigUtilsTest {
                 new Gson().toJson(sinkConfig));
     }
 
-    @Test
+
     public void testParseRetainOrderingField() throws IOException {
         List<Boolean> testcases = Lists.newArrayList(true, false, null);
         for (Boolean testcase : testcases) {
@@ -141,7 +141,7 @@ public class SinkConfigUtilsTest {
         }
     }
 
-    @Test
+
     public void testParseKeyRetainOrderingField() throws IOException {
         List<Boolean> testcases = Lists.newArrayList(true, false, null);
         for (Boolean testcase : testcases) {
@@ -153,7 +153,7 @@ public class SinkConfigUtilsTest {
         }
     }
 
-    @Test
+
     public void testParseProcessingGuaranteesField() throws IOException {
         List<FunctionConfig.ProcessingGuarantees> testcases = Lists.newArrayList(
                 EFFECTIVELY_ONCE,
@@ -171,7 +171,7 @@ public class SinkConfigUtilsTest {
         }
     }
 
-    @Test
+
     public void testCleanSubscriptionField() throws IOException {
         List<Boolean> testcases = Lists.newArrayList(true, false, null);
 
@@ -184,7 +184,7 @@ public class SinkConfigUtilsTest {
         }
     }
 
-    @Test
+
     public void testMergeEqual() {
         SinkConfig sinkConfig = createSinkConfig();
         SinkConfig newSinkConfig = createSinkConfig();
@@ -195,28 +195,25 @@ public class SinkConfigUtilsTest {
         );
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "Sink Names differ")
     public void testMergeDifferentName() {
         SinkConfig sinkConfig = createSinkConfig();
         SinkConfig newSinkConfig = createUpdatedSinkConfig("name", "Different");
         SinkConfigUtils.validateUpdate(sinkConfig, newSinkConfig);
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "Tenants differ")
     public void testMergeDifferentTenant() {
         SinkConfig sinkConfig = createSinkConfig();
         SinkConfig newSinkConfig = createUpdatedSinkConfig("tenant", "Different");
         SinkConfigUtils.validateUpdate(sinkConfig, newSinkConfig);
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "Namespaces differ")
     public void testMergeDifferentNamespace() {
         SinkConfig sinkConfig = createSinkConfig();
         SinkConfig newSinkConfig = createUpdatedSinkConfig("namespace", "Different");
         SinkConfigUtils.validateUpdate(sinkConfig, newSinkConfig);
     }
 
-    @Test
+
     public void testMergeDifferentClassName() {
         SinkConfig sinkConfig = createSinkConfig();
         SinkConfig newSinkConfig = createUpdatedSinkConfig("className", "Different");
@@ -232,14 +229,12 @@ public class SinkConfigUtilsTest {
         );
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "Input Topics cannot be altered")
     public void testMergeDifferentInputs() {
         SinkConfig sinkConfig = createSinkConfig();
         SinkConfig newSinkConfig = createUpdatedSinkConfig("topicsPattern", "Different");
         SinkConfigUtils.validateUpdate(sinkConfig, newSinkConfig);
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "isRegexPattern for input topic test-input cannot be altered")
     public void testMergeDifferentInputSpecWithRegexChange() {
         SinkConfig sinkConfig = createSinkConfig();
         Map<String, ConsumerConfig> inputSpecs = new HashMap<>();
@@ -248,7 +243,7 @@ public class SinkConfigUtilsTest {
         SinkConfigUtils.validateUpdate(sinkConfig, newSinkConfig);
     }
 
-    @Test
+
     public void testMergeDifferentInputSpec() {
         SinkConfig sinkConfig = createSinkConfig();
         sinkConfig.getInputSpecs().put("test-input", ConsumerConfig.builder().isRegexPattern(true).receiverQueueSize(1000).build());
@@ -263,28 +258,25 @@ public class SinkConfigUtilsTest {
         assertEquals(sinkConfig.getInputSpecs().get("test-input").getReceiverQueueSize().intValue(), 1000);
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "Processing Guarantees cannot be altered")
     public void testMergeDifferentProcessingGuarantees() {
         SinkConfig sinkConfig = createSinkConfig();
         SinkConfig newSinkConfig = createUpdatedSinkConfig("processingGuarantees", EFFECTIVELY_ONCE);
         SinkConfigUtils.validateUpdate(sinkConfig, newSinkConfig);
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "Retain Ordering cannot be altered")
     public void testMergeDifferentRetainOrdering() {
         SinkConfig sinkConfig = createSinkConfig();
         SinkConfig newSinkConfig = createUpdatedSinkConfig("retainOrdering", true);
         SinkConfigUtils.validateUpdate(sinkConfig, newSinkConfig);
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "Retain Key Ordering cannot be altered")
     public void testMergeDifferentRetainKeyOrdering() {
         SinkConfig sinkConfig = createSinkConfig();
         SinkConfig newSinkConfig = createUpdatedSinkConfig("retainKeyOrdering", true);
         SinkConfigUtils.validateUpdate(sinkConfig, newSinkConfig);
     }
 
-    @Test
+
     public void testMergeDifferentUserConfig() {
         SinkConfig sinkConfig = createSinkConfig();
         Map<String, String> myConfig = new HashMap<>();
@@ -302,7 +294,7 @@ public class SinkConfigUtilsTest {
         );
     }
 
-    @Test
+
     public void testMergeDifferentSecrets() {
         SinkConfig sinkConfig = createSinkConfig();
         Map<String, String> mySecrets = new HashMap<>();
@@ -320,21 +312,19 @@ public class SinkConfigUtilsTest {
         );
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "AutoAck cannot be altered")
     public void testMergeDifferentAutoAck() {
         SinkConfig sinkConfig = createSinkConfig();
         SinkConfig newSinkConfig = createUpdatedSinkConfig("autoAck", false);
         SinkConfig mergedConfig = SinkConfigUtils.validateUpdate(sinkConfig, newSinkConfig);
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "Subscription Name cannot be altered")
     public void testMergeDifferentSubname() {
         SinkConfig sinkConfig = createSinkConfig();
         SinkConfig newSinkConfig = createUpdatedSinkConfig("sourceSubscriptionName", "Different");
         SinkConfig mergedConfig = SinkConfigUtils.validateUpdate(sinkConfig, newSinkConfig);
     }
 
-    @Test
+
     public void testMergeDifferentParallelism() {
         SinkConfig sinkConfig = createSinkConfig();
         SinkConfig newSinkConfig = createUpdatedSinkConfig("parallelism", 101);
@@ -350,7 +340,7 @@ public class SinkConfigUtilsTest {
         );
     }
 
-    @Test
+
     public void testMergeDifferentResources() {
         SinkConfig sinkConfig = createSinkConfig();
         Resources resources = new Resources();
@@ -370,7 +360,7 @@ public class SinkConfigUtilsTest {
         );
     }
 
-    @Test
+
     public void testMergeDifferentTimeout() {
         SinkConfig sinkConfig = createSinkConfig();
         SinkConfig newSinkConfig = createUpdatedSinkConfig("timeoutMs", 102l);
@@ -386,7 +376,7 @@ public class SinkConfigUtilsTest {
         );
     }
 
-    @Test
+
     public void testMergeDifferentCleanupSubscription() {
         SinkConfig sinkConfig = createSinkConfig();
         SinkConfig newSinkConfig = createUpdatedSinkConfig("cleanupSubscription", false);
@@ -399,7 +389,7 @@ public class SinkConfigUtilsTest {
         );
     }
 
-    @Test
+
     public void testMergeRuntimeFlags() {
         SinkConfig sinkConfig = createSinkConfig();
         SinkConfig newFunctionConfig = createUpdatedSinkConfig("runtimeFlags", "-Dfoo=bar2");
@@ -414,7 +404,7 @@ public class SinkConfigUtilsTest {
         );
     }
 
-    @Test
+
     public void testValidateConfig() throws IOException {
         SinkConfig sinkConfig = createSinkConfig();
 
@@ -464,7 +454,7 @@ public class SinkConfigUtilsTest {
         return sinkConfig;
     }
 
-    @Test
+
     public void testPoolMessages() throws IOException {
         SinkConfig sinkConfig = createSinkConfig();
         Function.FunctionDetails functionDetails = SinkConfigUtils.convert(sinkConfig, new SinkConfigUtils.ExtractedSinkDetails(null, null));

@@ -50,7 +50,7 @@ import static org.testng.Assert.fail;
  * Unit test for {@link org.apache.pulsar.client.impl.TableViewImpl}.
  */
 @Slf4j
-@Test(groups = "broker-impl")
+
 public class TableViewTest extends MockedPulsarServiceBaseTest {
 
     @BeforeClass
@@ -102,7 +102,7 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
         return keys;
     }
 
-    @Test(timeOut = 30 * 1000)
+    
     public void testTableView() throws Exception {
         String topic = "persistent://public/default/tableview-test";
         admin.topics().createPartitionedTopic(topic, 3);
@@ -150,7 +150,7 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test(timeOut = 30 * 1000)
+    
     public void testTableViewUpdatePartitions() throws Exception {
         String topic = "persistent://public/default/tableview-test-update-partitions";
         admin.topics().createPartitionedTopic(topic, 3);
@@ -184,7 +184,7 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
     }
 
 
-    @Test(timeOut = 30 * 1000)
+    
     // Regression test for making sure partition changes are always periodically checked even after a check returned
     // exceptionally.
     public void testTableViewUpdatePartitionsTriggeredDespiteExceptions() throws Exception {

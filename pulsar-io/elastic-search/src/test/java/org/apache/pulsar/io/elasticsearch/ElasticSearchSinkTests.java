@@ -158,7 +158,7 @@ public abstract class ElasticSearchSinkTests extends ElasticSearchTestBase {
         }
     }
 
-    @Test
+
     public final void multiNodesClientTest() throws Exception {
         if (elasticImageName.equals(ELASTICSEARCH_8)) {
             throw new SkipException("Elastic java-client doesn't provide internal info about server nodes");
@@ -176,21 +176,21 @@ public abstract class ElasticSearchSinkTests extends ElasticSearchTestBase {
         assertEquals(nodeList.size(), 3);
     }
     
-    @Test(expectedExceptions = IllegalArgumentException.class)
+    
     public final void invalidIndexNameTest() throws Exception {
         map.put("indexName", "myIndex");
         map.put("createIndexIfNeeded", "true");
         sink.open(map, mockSinkContext);
     }
 
-    @Test
+
     public final void createIndexTest() throws Exception {
         map.put("indexName", "test-index");
         sink.open(map, mockSinkContext);
         send(1);
     }
 
-    @Test
+
     public final void singleRecordTest() throws Exception {
         map.put("indexName", "test-index");
         sink.open(map, mockSinkContext);
@@ -198,7 +198,7 @@ public abstract class ElasticSearchSinkTests extends ElasticSearchTestBase {
         verify(mockRecord, times(1)).ack();
     }
 
-    @Test
+
     public final void send100Test() throws Exception {
         map.put("indexName", "test-index");
         sink.open(map, mockSinkContext);
@@ -206,7 +206,7 @@ public abstract class ElasticSearchSinkTests extends ElasticSearchTestBase {
         verify(mockRecord, times(100)).ack();
     }
 
-    @Test
+
     public final void sendKeyIgnoreSingleField() throws Exception {
         final String index = "testkeyignore";
         map.put("indexName", index);
@@ -228,7 +228,7 @@ public abstract class ElasticSearchSinkTests extends ElasticSearchTestBase {
         }
     }
 
-    @Test
+
     public final void sendKeyIgnoreMultipleFields() throws Exception {
         final String index = "testkeyignore2";
         map.put("indexName", index);
@@ -282,7 +282,7 @@ public abstract class ElasticSearchSinkTests extends ElasticSearchTestBase {
         }
     }
 
-    @Test
+
     public void testStripNullNodes() throws Exception {
         map.put("stripNulls", true);
         sink.open(map, mockSinkContext);
@@ -295,7 +295,7 @@ public abstract class ElasticSearchSinkTests extends ElasticSearchTestBase {
         assertEquals(json, "{\"userName\":\"boby\"}");
     }
 
-    @Test
+
     public void testKeepNullNodes() throws Exception {
         map.put("stripNulls", false);
         sink.open(map, mockSinkContext);
@@ -308,7 +308,6 @@ public abstract class ElasticSearchSinkTests extends ElasticSearchTestBase {
         assertEquals(json, "{\"name\":null,\"userName\":\"boby\",\"email\":null}");
     }
 
-    @Test(expectedExceptions = PulsarClientException.InvalidMessageException.class)
     public void testNullValueFailure() throws Exception {
         String index = "testnullvaluefail";
         map.put("indexName", index);
@@ -319,12 +318,12 @@ public abstract class ElasticSearchSinkTests extends ElasticSearchTestBase {
         sink.write(mockRecordNullValue);
     }
 
-    @Test
+
     public void testNullValueIgnore() throws Exception {
         testNullValue(ElasticSearchConfig.NullValueAction.IGNORE);
     }
 
-    @Test
+
     public void testNullValueDelete() throws Exception {
         testNullValue(ElasticSearchConfig.NullValueAction.DELETE);
     }
@@ -369,7 +368,7 @@ public abstract class ElasticSearchSinkTests extends ElasticSearchTestBase {
         assertNull(sink.getElasticsearchClient().irrecoverableError.get());
     }
 
-    @Test
+
     public void testCloseClient() throws Exception {
         final ElasticSearchSink sink = new ElasticSearchSink();
         map.put("bulkEnabled", true);

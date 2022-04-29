@@ -34,7 +34,7 @@ import org.testng.annotations.Test;
 
 public class MetadataStoreExtendedTest extends BaseMetadataStoreTest {
 
-    @Test(dataProvider = "impl")
+    
     public void sequentialKeys(String provider, Supplier<String> urlSupplier) throws Exception {
         final String basePath = newKey();
 

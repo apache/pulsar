@@ -95,7 +95,7 @@ public class ProxyParserTest extends MockedPulsarServiceBaseTest {
         proxyService.close();
     }
 
-    @Test
+
     public void testProducer() throws Exception {
         @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(proxyService.getServiceUrl())
@@ -108,7 +108,7 @@ public class ProxyParserTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+
     public void testProducerConsumer() throws Exception {
         @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(proxyService.getServiceUrl())
@@ -139,7 +139,7 @@ public class ProxyParserTest extends MockedPulsarServiceBaseTest {
         consumer.close();
     }
 
-    @Test
+
     public void testPartitions() throws Exception {
         TenantInfoImpl tenantInfo = createDefaultTenantInfo();
         admin.tenants().createTenant("sample", tenantInfo);
@@ -167,7 +167,7 @@ public class ProxyParserTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+
     public void testRegexSubscription() throws Exception {
         @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(proxyService.getServiceUrl())
@@ -212,7 +212,7 @@ public class ProxyParserTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+
     public void testProtocolVersionAdvertisement() throws Exception {
         final String topic = "persistent://sample/test/local/protocol-version-advertisement";
         final String sub = "my-sub";

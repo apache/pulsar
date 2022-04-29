@@ -67,7 +67,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker")
+
 public class BatchMessageTest extends BrokerTestBase {
 
     private static final Logger log = LoggerFactory.getLogger(BatchMessageTest.class);
@@ -113,7 +113,7 @@ public class BatchMessageTest extends BrokerTestBase {
         };
     }
 
-    @Test(dataProvider = "codecAndContainerBuilder")
+    
     public void testSimpleBatchProducerWithFixedBatchSize(CompressionType compressionType, BatcherBuilder builder) throws Exception {
         int numMsgs = 50;
         int numMsgsInBatch = numMsgs / 2;
@@ -157,7 +157,7 @@ public class BatchMessageTest extends BrokerTestBase {
         producer.close();
     }
 
-    @Test(dataProvider = "codecAndContainerBuilder")
+    
     public void testSimpleBatchProducerWithFixedBatchBytes(CompressionType compressionType, BatcherBuilder builder) throws Exception {
         int numMsgs = 50;
         int numBytesInBatch = 600;
@@ -206,7 +206,7 @@ public class BatchMessageTest extends BrokerTestBase {
         producer.close();
     }
 
-    @Test(dataProvider = "codecAndContainerBuilder")
+    
     public void testSimpleBatchProducerWithFixedBatchTime(CompressionType compressionType, BatcherBuilder builder) throws Exception {
         int numMsgs = 100;
         final String topicName = "persistent://prop/ns-abc/testSimpleBatchProducerWithFixedBatchTime-" + UUID.randomUUID();
@@ -242,7 +242,7 @@ public class BatchMessageTest extends BrokerTestBase {
         producer.close();
     }
 
-    @Test(dataProvider = "codecAndContainerBuilder")
+    
     public void testSimpleBatchProducerWithFixedBatchSizeAndTime(CompressionType compressionType, BatcherBuilder builder) throws Exception {
         int numMsgs = 100;
         final String topicName = "persistent://prop/ns-abc/testSimpleBatchProducerWithFixedBatchSizeAndTime-" + UUID.randomUUID();
@@ -278,7 +278,7 @@ public class BatchMessageTest extends BrokerTestBase {
         producer.close();
     }
 
-    @Test(dataProvider = "codecAndContainerBuilder")
+    
     public void testBatchProducerWithLargeMessage(CompressionType compressionType, BatcherBuilder builder) throws Exception {
         int numMsgs = 50;
         int numMsgsInBatch = numMsgs / 2;
@@ -338,7 +338,7 @@ public class BatchMessageTest extends BrokerTestBase {
         producer.close();
     }
 
-    @Test(dataProvider = "codecAndContainerBuilder")
+    
     public void testSimpleBatchProducerConsumer(CompressionType compressionType, BatcherBuilder builder) throws Exception {
         int numMsgs = 500;
         int numMsgsInBatch = numMsgs / 20;
@@ -397,7 +397,7 @@ public class BatchMessageTest extends BrokerTestBase {
         producer.close();
     }
 
-    @Test(dataProvider = "containerBuilder")
+    
     public void testSimpleBatchSyncProducerWithFixedBatchSize(BatcherBuilder builder) throws Exception {
         int numMsgs = 10;
         int numMsgsInBatch = numMsgs / 2;
@@ -439,7 +439,7 @@ public class BatchMessageTest extends BrokerTestBase {
         producer.close();
     }
 
-    @Test(dataProvider = "containerBuilder")
+    
     public void testSimpleBatchProducerWithStoppingAndStartingBroker(BatcherBuilder builder) throws Exception {
         // Send enough messages to trigger one batch by size and then have a remaining message in the batch container
         int numMsgs = 3;
@@ -492,7 +492,7 @@ public class BatchMessageTest extends BrokerTestBase {
         producer.close();
     }
 
-    @Test(dataProvider = "containerBuilder")
+    
     public void testSimpleBatchProducerConsumer1kMessages(BatcherBuilder builder) throws Exception {
         int numMsgs = 2000;
         int numMsgsInBatch = 4;
@@ -555,7 +555,7 @@ public class BatchMessageTest extends BrokerTestBase {
      * on broker) individual ack on 6-10. (if ack type individual on bid 5, then hole remains which is ok) 0 2 1-10 0 3
      * 1-10
      */
-    @Test(groups = "broker")
+    
     public void testOutOfOrderAcksForBatchMessage() throws Exception {
         int numMsgs = 40;
         int numMsgsInBatch = numMsgs / 4;
@@ -620,7 +620,7 @@ public class BatchMessageTest extends BrokerTestBase {
         producer.close();
     }
 
-    @Test(dataProvider = "containerBuilder")
+    
     public void testNonBatchCumulativeAckAfterBatchPublish(BatcherBuilder builder) throws Exception {
         int numMsgs = 10;
         int numMsgsInBatch = numMsgs;
@@ -672,7 +672,7 @@ public class BatchMessageTest extends BrokerTestBase {
         noBatchProducer.close();
     }
 
-    @Test(dataProvider = "containerBuilder")
+    
     public void testBatchAndNonBatchCumulativeAcks(BatcherBuilder builder) throws Exception {
         int numMsgs = 50;
         int numMsgsInBatch = numMsgs / 10;
@@ -744,7 +744,7 @@ public class BatchMessageTest extends BrokerTestBase {
      *
      * @throws Exception
      */
-    @Test(dataProvider = "containerBuilder")
+    
     public void testConcurrentBatchMessageAck(BatcherBuilder builder) throws Exception {
         int numMsgs = 10;
         final String topicName = "persistent://prop/ns-abc/testConcurrentAck-" + UUID.randomUUID();
@@ -799,7 +799,7 @@ public class BatchMessageTest extends BrokerTestBase {
         producer.close();
     }
 
-    @Test
+
     public void testOrderingOfKeyBasedBatchMessageContainer() throws PulsarClientException, ExecutionException, InterruptedException {
         final String topicName = "persistent://prop/ns-abc/testKeyBased";
         final String subscriptionName = "sub-1";
@@ -865,7 +865,7 @@ public class BatchMessageTest extends BrokerTestBase {
         producer.close();
     }
 
-    @Test(dataProvider = "containerBuilder")
+    
     public void testRetrieveSequenceIdGenerated(BatcherBuilder builder) throws Exception {
 
         int numMsgs = 10;
@@ -897,7 +897,7 @@ public class BatchMessageTest extends BrokerTestBase {
         consumer.close();
     }
 
-    @Test(dataProvider = "containerBuilder")
+    
     public void testRetrieveSequenceIdSpecify(BatcherBuilder builder) throws Exception {
 
         int numMsgs = 10;
@@ -929,7 +929,7 @@ public class BatchMessageTest extends BrokerTestBase {
         consumer.close();
     }
 
-    @Test(dataProvider = "codecAndContainerBuilder")
+    
     public void testSendOverSizeMessage(CompressionType compressionType, BatcherBuilder builder) throws Exception {
 
         final int numMsgs = 10;
@@ -957,7 +957,7 @@ public class BatchMessageTest extends BrokerTestBase {
 
     }
 
-    @Test
+
     public void testBatchMessageDispatchingAccordingToPermits() throws Exception {
 
         int numMsgs = 1000;
@@ -990,7 +990,7 @@ public class BatchMessageTest extends BrokerTestBase {
         consumer1.close();
     }
 
-    @Test(dataProvider="testSubTypeAndEnableBatch")
+    (dataProvider="testSubTypeAndEnableBatch")
     private void testDecreaseUnAckMessageCountWithAckReceipt(SubscriptionType subType,
                                                              boolean enableBatch) throws Exception {
         final int messageCount = 50;

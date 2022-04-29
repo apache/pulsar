@@ -73,7 +73,7 @@ public class ProxyConnectionThrottlingTest extends MockedPulsarServiceBaseTest {
         proxyService.close();
     }
 
-    @Test
+
     public void testInboundConnection() throws Exception {
         LOG.info("Creating producer 1");
         @Cleanup

@@ -41,7 +41,7 @@ public class JavaInstanceTest {
      * Verify that be able to run lambda functions.
      * @throws Exception
      */
-    @Test
+    
     public void testLambda() throws Exception {
         JavaInstance instance = new JavaInstance(
                 mock(ContextImpl.class),
@@ -54,7 +54,7 @@ public class JavaInstanceTest {
         instance.close();
     }
 
-    @Test
+    
     public void testNullReturningFunction() throws Exception  {
     	JavaInstance instance = new JavaInstance(
                 mock(ContextImpl.class),
@@ -66,7 +66,7 @@ public class JavaInstanceTest {
     	instance.close();
     }
 
-    @Test
+    
     public void testUserExceptionThrowingFunction() throws Exception  {
     	final UserException userException = new UserException("Boom");
     	Function<String, String> func = (input, context) -> {
@@ -83,7 +83,7 @@ public class JavaInstanceTest {
     	instance.close();
     }
 
-    @Test
+    
     public void testAsyncFunction() throws Exception {
         InstanceConfig instanceConfig = new InstanceConfig();
         @Cleanup("shutdownNow")
@@ -119,7 +119,7 @@ public class JavaInstanceTest {
         instance.close();
     }
 
-    @Test
+    
     public void testNullReturningAsyncFunction() throws Exception {
         InstanceConfig instanceConfig = new InstanceConfig();
         @Cleanup("shutdownNow")
@@ -153,7 +153,7 @@ public class JavaInstanceTest {
         instance.close();
     }
 
-    @Test
+    
     public void testUserExceptionThrowingAsyncFunction() throws Exception {
     	final UserException userException = new UserException("Boom");
         InstanceConfig instanceConfig = new InstanceConfig();
@@ -183,7 +183,7 @@ public class JavaInstanceTest {
         instance.close();
     }
 
-    @Test
+    
     public void testAsyncFunctionMaxPending() throws Exception {
         InstanceConfig instanceConfig = new InstanceConfig();
         int pendingQueueSize = 3;

@@ -43,7 +43,7 @@ public class ManagedLedgerFactoryChangeLedgerPathTest extends BookKeeperClusterT
         return "/test";
     }
 
-    @Test()
+    
     public void testChangeZKPath() throws Exception {
         ClientConfiguration configuration = new ClientConfiguration();
         String zkConnectString = zkUtil.getZooKeeperConnectString() + "/test";
@@ -77,7 +77,7 @@ public class ManagedLedgerFactoryChangeLedgerPathTest extends BookKeeperClusterT
             Assert.assertEquals(("entry" + i).getBytes("UTF8"), entry.getData());
         }
     }
-    @Test()
+    
     public void testChangeZKPath2() throws Exception {
         ClientConfiguration configuration = new ClientConfiguration();
         String zkConnectString = zkUtil.getZooKeeperConnectString() + "/test";

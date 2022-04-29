@@ -44,7 +44,7 @@ public class FieldParserTest {
      * test all conversion scenarios.
      *
      */
-    @Test
+
     public void testConversion() {
 
         assertEquals(convert("2", Integer.class), Integer.valueOf(2));
@@ -78,7 +78,7 @@ public class FieldParserTest {
     /**
      * test object update from given properties.
      */
-    @Test
+
     public void testUpdateObject() {
         final ServiceConfiguration config = new ServiceConfiguration();
         final String nameSpace = "ns1,ns2";

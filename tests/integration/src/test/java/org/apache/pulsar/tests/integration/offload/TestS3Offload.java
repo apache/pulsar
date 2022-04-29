@@ -53,17 +53,17 @@ public class TestS3Offload extends TestBaseOffload {
         }
     }
 
-    @Test(dataProvider =  "ServiceAndAdminUrls")
+    
     public void testPublishOffloadAndConsumeViaCLI(Supplier<String> serviceUrl, Supplier<String> adminUrl) throws Exception {
         super.testPublishOffloadAndConsumeViaCLI(serviceUrl.get(), adminUrl.get());
     }
 
-    @Test(dataProvider =  "ServiceAndAdminUrls")
+    
     public void testPublishOffloadAndConsumeViaThreshold(Supplier<String> serviceUrl, Supplier<String> adminUrl) throws Exception {
         super.testPublishOffloadAndConsumeViaThreshold(serviceUrl.get(), adminUrl.get());
     }
 
-    @Test(dataProvider =  "ServiceAndAdminUrls")
+    
     public void testPublishOffloadAndConsumeDeletionLag(Supplier<String> serviceUrl, Supplier<String> adminUrl) throws Exception {
         super.testPublishOffloadAndConsumeDeletionLag(serviceUrl.get(), adminUrl.get());
 

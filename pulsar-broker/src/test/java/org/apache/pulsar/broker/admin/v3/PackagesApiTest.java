@@ -35,7 +35,7 @@ import java.io.File;
 import java.util.Collections;
 import java.util.List;
 
-@Test(groups = "broker-admin")
+
 public class PackagesApiTest extends MockedPulsarServiceBaseTest {
 
     @BeforeMethod
@@ -52,7 +52,7 @@ public class PackagesApiTest extends MockedPulsarServiceBaseTest {
         super.internalCleanup();
     }
 
-    @Test(timeOut = 60000)
+    
     public void testPackagesOperations() throws Exception {
         // create a temp file for testing
 
@@ -100,7 +100,7 @@ public class PackagesApiTest extends MockedPulsarServiceBaseTest {
         assertEquals(getUpdatedMetadata.getProperties(), updatedMetadata.getProperties());
     }
 
-    @Test(timeOut = 60000)
+    
     public void testPackagesOperationsFailed() {
         // download a non-existent package should return not found exception
         String unknownPackageName = "function://public/default/unknown@v1";

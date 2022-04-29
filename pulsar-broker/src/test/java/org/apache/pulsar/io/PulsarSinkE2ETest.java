@@ -65,10 +65,10 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
 import lombok.Cleanup;
 
-@Test(groups = "broker-io")
+
 public class PulsarSinkE2ETest extends AbstractPulsarE2ETest {
 
-    @Test
+
     public void testReadCompactedSink() throws Exception {
         final String namespacePortion = "io";
         final String replNamespace = tenant + "/" + namespacePortion;
@@ -129,7 +129,7 @@ public class PulsarSinkE2ETest extends AbstractPulsarE2ETest {
         });
     }
 
-    @Test(timeOut = 30000)
+    
     public void testPulsarSinkDLQ() throws Exception {
         final String namespacePortion = "io";
         final String replNamespace = tenant + "/" + namespacePortion;
@@ -452,30 +452,28 @@ public class PulsarSinkE2ETest extends AbstractPulsarE2ETest {
         tempDirectory.assertThatFunctionDownloadTempFilesHaveBeenDeleted();
     }
 
-    @Test(timeOut = 20000, groups = "builtin")
     public void testPulsarSinkStatsBuiltin() throws Exception {
         String jarFilePathUrl = String.format("%s://data-generator", Utils.BUILTIN);
         testPulsarSinkStats(jarFilePathUrl);
     }
 
-    @Test(timeOut = 20000, groups = "builtin", expectedExceptions = {PulsarAdminException.class}, expectedExceptionsMessageRegExp = "Built-in sink is not available")
     public void testPulsarSinkStatsBuiltinDoesNotExist() throws Exception {
         String jarFilePathUrl = String.format("%s://foo", Utils.BUILTIN);
         testPulsarSinkStats(jarFilePathUrl);
     }
 
-    @Test(timeOut = 20000)
+    
     public void testPulsarSinkStatsWithFile() throws Exception {
         String jarFilePathUrl = getPulsarIODataGeneratorNar().toURI().toString();
         testPulsarSinkStats(jarFilePathUrl);
     }
 
-    @Test(timeOut = 40000)
+    
     public void testPulsarSinkStatsWithUrl() throws Exception {
         testPulsarSinkStats(fileServer.getUrl("/pulsar-io-data-generator.nar"));
     }
 
-    @Test(timeOut = 20000)
+    
     public void testPulsarSinkPoolMessages() throws Exception {
         String jarFilePathUrl = PulsarSinkE2ETest.class.getProtectionDomain().getCodeSource().getLocation().toURI().toString();
         testPulsarSinkStats(jarFilePathUrl, sinkConfig -> {

@@ -38,7 +38,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 @Slf4j
-@Test(groups = "broker-impl")
+
 public class PartialPartitionedProducerTest extends ProducerConsumerBase {
     @Override
     @BeforeClass
@@ -53,7 +53,7 @@ public class PartialPartitionedProducerTest extends ProducerConsumerBase {
         super.internalCleanup();
     }
 
-    @Test
+
     public void testPtWithSinglePartition() throws Throwable {
         final String topic = BrokerTestUtil.newUniqueName("pt-with-single-routing");
         admin.topics().createPartitionedTopic(topic, 10);
@@ -72,7 +72,7 @@ public class PartialPartitionedProducerTest extends ProducerConsumerBase {
         assertEquals(producerImpl.getProducers().size(), 1);
     }
 
-    @Test
+
     public void testPtWithPartialPartition() throws Throwable {
         final String topic = BrokerTestUtil.newUniqueName("pt-with-partial-routing");
         admin.topics().createPartitionedTopic(topic, 10);
@@ -93,7 +93,7 @@ public class PartialPartitionedProducerTest extends ProducerConsumerBase {
     }
 
     // AddPartitionTest
-    @Test
+
     public void testPtLazyLoading() throws Throwable {
         final String topic = BrokerTestUtil.newUniqueName("pt-lazily");
         admin.topics().createPartitionedTopic(topic, 10);
@@ -124,7 +124,7 @@ public class PartialPartitionedProducerTest extends ProducerConsumerBase {
         assertEquals(producerImpl.getProducers().size(), 10);
     }
 
-    @Test
+
     public void testPtLoadingNotSharedMode() throws Throwable {
         final String topic = BrokerTestUtil.newUniqueName("pt-not-shared-mode");
         admin.topics().createPartitionedTopic(topic, 10);
@@ -156,7 +156,7 @@ public class PartialPartitionedProducerTest extends ProducerConsumerBase {
     }
 
     // AddPartitionAndLimitTest
-    @Test
+
     public void testPtUpdateWithPartialPartition() throws Throwable {
         final String topic = BrokerTestUtil.newUniqueName("pt-update-with-partial-routing");
         admin.topics().createPartitionedTopic(topic, 2);
@@ -207,7 +207,7 @@ public class PartialPartitionedProducerTest extends ProducerConsumerBase {
         assertEquals(producerImpl.getProducers().size(), 3);
     }
 
-    @Test
+
     public void testPtUpdateNotSharedMode() throws Throwable {
         final String topic = BrokerTestUtil.newUniqueName("pt-update-not-shared");
         admin.topics().createPartitionedTopic(topic, 2);

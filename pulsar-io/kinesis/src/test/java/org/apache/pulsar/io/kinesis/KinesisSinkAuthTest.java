@@ -33,7 +33,7 @@ import com.google.gson.Gson;
 
 public class KinesisSinkAuthTest {
 
-    @Test
+
     public void testDefaultCredentialProvider() throws Exception {
         KinesisSink sink = new KinesisSink();
         Map<String, String> credentialParam = Maps.newHashMap();
@@ -59,7 +59,7 @@ public class KinesisSinkAuthTest {
         sink.close();
     }
 
-    @Test
+
     public void testCredentialProvider() throws Exception {
         KinesisSink sink = new KinesisSink();
 
@@ -87,7 +87,7 @@ public class KinesisSinkAuthTest {
         sink.close();
     }
 
-    @Test
+
     public void testCredentialProviderPlugin() throws Exception {
         KinesisSink sink = new KinesisSink();
 

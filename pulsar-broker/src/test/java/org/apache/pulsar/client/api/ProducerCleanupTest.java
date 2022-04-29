@@ -28,7 +28,7 @@ import org.testng.annotations.Test;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
-@Test(groups = "broker-api")
+
 public class ProducerCleanupTest extends ProducerConsumerBase {
 
     @BeforeMethod
@@ -44,7 +44,7 @@ public class ProducerCleanupTest extends ProducerConsumerBase {
         super.internalCleanup();
     }
 
-    @Test
+
     public void testAllTimerTaskShouldCanceledAfterProducerClosed() throws PulsarClientException, InterruptedException {
         Producer<byte[]> producer = pulsarClient.newProducer()
                 .topic("persistent://public/default/" + UUID.randomUUID().toString())

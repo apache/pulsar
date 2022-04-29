@@ -38,7 +38,7 @@ import static org.testng.Assert.assertTrue;
 @Slf4j
 public class PulsarByteBufAllocatorOomThrowExceptionTest {
 
-    @Test
+
     public void testDefaultConfig() throws Exception {
         AtomicBoolean called = new AtomicBoolean();
         System.setProperty("pulsar.allocator.out_of_memory_policy", "ThrowException");

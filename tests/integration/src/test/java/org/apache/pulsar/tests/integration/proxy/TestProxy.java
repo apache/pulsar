@@ -87,17 +87,17 @@ public class TestProxy extends PulsarTestSuite {
         }
     }
 
-    @Test
+
     public void testProxyWithServiceDiscovery() throws Exception {
         testProxy(pulsarCluster.getPlainTextServiceUrl(), pulsarCluster.getHttpServiceUrl());
     }
 
-    @Test
+
     public void testProxyWithNoServiceDiscoveryProxyConnectsViaURL() throws Exception {
         testProxy(pulsarCluster.getProxy().getPlainTextServiceUrl(), pulsarCluster.getProxy().getHttpServiceUrl());
     }
 
-    @Test
+
     public void testProxyRequestBodyRedirect() throws Exception {
         // See GH issue #5360, this ensures that we properly get a request with a body to be processed
         final String tenant = "proxy-test-" + randomName(10);

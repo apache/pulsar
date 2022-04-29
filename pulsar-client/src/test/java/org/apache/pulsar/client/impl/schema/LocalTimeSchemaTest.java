@@ -26,7 +26,7 @@ import java.time.LocalTime;
 
 public class LocalTimeSchemaTest {
 
-    @Test
+
     public void testSchemaEncode() {
         LocalTimeSchema schema = LocalTimeSchema.of();
         LocalTime localTime = LocalTime.now();
@@ -43,7 +43,7 @@ public class LocalTimeSchemaTest {
         Assert.assertEquals(expected, schema.encode(localTime));
     }
 
-    @Test
+
     public void testSchemaEncodeDecodeFidelity() {
         LocalTimeSchema schema = LocalTimeSchema.of();
         LocalTime localTime = LocalTime.now();
@@ -54,7 +54,7 @@ public class LocalTimeSchemaTest {
         Assert.assertEquals(localTime, schema.decode(byteBuf));
     }
 
-    @Test
+
     public void testSchemaDecode() {
         byte[] byteData = new byte[] {
                0,
@@ -75,7 +75,7 @@ public class LocalTimeSchemaTest {
         Assert.assertEquals(expected, schema.decode(byteBuf).toNanoOfDay());
     }
 
-    @Test
+
     public void testNullEncodeDecode() {
         ByteBuf byteBuf = null;
         byte[] bytes = null;

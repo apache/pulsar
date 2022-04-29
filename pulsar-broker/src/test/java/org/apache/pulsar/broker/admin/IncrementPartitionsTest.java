@@ -40,7 +40,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker-admin")
+
 public class IncrementPartitionsTest extends MockedPulsarServiceBaseTest {
 
     private MockedPulsarService mockPulsarSetup;
@@ -70,7 +70,7 @@ public class IncrementPartitionsTest extends MockedPulsarServiceBaseTest {
         mockPulsarSetup.cleanup();
     }
 
-    @Test
+
     public void testIncrementPartitionsOfTopicOnUnusedTopic() throws Exception {
         final String partitionedTopicName = "persistent://prop-xyz/use/ns1/test-topic";
 
@@ -81,7 +81,7 @@ public class IncrementPartitionsTest extends MockedPulsarServiceBaseTest {
         assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName).partitions, 20);
     }
 
-    @Test
+
     public void testIncrementPartitionsOfTopic() throws Exception {
         final String partitionedTopicName = "persistent://prop-xyz/use/ns1/test-topic-2";
 
@@ -106,7 +106,7 @@ public class IncrementPartitionsTest extends MockedPulsarServiceBaseTest {
         consumer.close();
     }
 
-    @Test
+
     public void testIncrementPartitionsWithNoSubscriptions() throws Exception {
         final String partitionedTopicName =
                 BrokerTestUtil.newUniqueName("persistent://prop-xyz/use/ns1/test-topic");
@@ -133,7 +133,7 @@ public class IncrementPartitionsTest extends MockedPulsarServiceBaseTest {
                 assertEquals(admin.topics().getPartitionedTopicMetadata(partitionedTopicName).partitions, 20));
     }
 
-    @Test
+
     public void testIncrementPartitionsWithReaders() throws Exception {
         TopicName partitionedTopicName = TopicName.get(
                 BrokerTestUtil.newUniqueName("persistent://prop-xyz/use/ns1/test-topic"));

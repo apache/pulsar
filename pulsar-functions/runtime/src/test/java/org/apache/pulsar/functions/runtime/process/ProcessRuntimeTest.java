@@ -208,7 +208,7 @@ public class ProcessRuntimeTest {
         return config;
     }
 
-    @Test
+
     public void testJavaConstructor() throws Exception {
         InstanceConfig config = createJavaInstanceConfig(FunctionDetails.Runtime.JAVA);
 
@@ -217,7 +217,7 @@ public class ProcessRuntimeTest {
         verifyJavaInstance(config);
     }
 
-    @Test
+
     public void testJavaConstructorWithEmptyExtraDepsDirString() throws Exception {
         InstanceConfig config = createJavaInstanceConfig(FunctionDetails.Runtime.JAVA);
 
@@ -226,7 +226,7 @@ public class ProcessRuntimeTest {
         verifyJavaInstance(config);
     }
 
-    @Test
+
     public void testJavaConstructorWithNoneExistentDir() throws Exception {
         InstanceConfig config = createJavaInstanceConfig(FunctionDetails.Runtime.JAVA);
 
@@ -235,7 +235,7 @@ public class ProcessRuntimeTest {
         verifyJavaInstance(config, Paths.get("/path/to/non-existent/dir"));
     }
 
-    @Test
+
     public void testJavaConstructorWithEmptyDir() throws Exception {
         InstanceConfig config = createJavaInstanceConfig(FunctionDetails.Runtime.JAVA);
 
@@ -250,7 +250,7 @@ public class ProcessRuntimeTest {
         }
     }
 
-    @Test
+
     public void testJavaConstructorWithDeps() throws Exception {
         InstanceConfig config = createJavaInstanceConfig(FunctionDetails.Runtime.JAVA);
 
@@ -335,7 +335,7 @@ public class ProcessRuntimeTest {
         assertEquals(String.join(" ", args), expectedArgs);
     }
 
-    @Test
+
     public void testPythonConstructor() throws Exception {
         InstanceConfig config = createJavaInstanceConfig(FunctionDetails.Runtime.PYTHON);
 
@@ -344,7 +344,7 @@ public class ProcessRuntimeTest {
         verifyPythonInstance(config, null);
     }
 
-    @Test
+
     public void testPythonConstructorWithDeps() throws Exception {
         InstanceConfig config = createJavaInstanceConfig(FunctionDetails.Runtime.PYTHON);
 
@@ -384,7 +384,7 @@ public class ProcessRuntimeTest {
         assertEquals(String.join(" ", args), expectedArgs);
     }
 
-    @Test
+
     public void testJavaConstructorWithWebServiceUrlAndExposePulsarAdminClientEnabled() throws Exception {
         InstanceConfig config = createJavaInstanceConfig(FunctionDetails.Runtime.JAVA, true);
 
@@ -393,7 +393,7 @@ public class ProcessRuntimeTest {
         verifyJavaInstance(config, null, defaultWebServiceUrl);
     }
 
-    @Test
+
     public void testJavaConstructorWithWebServiceUrlAndExposePulsarAdminClientDisabled() throws Exception {
         InstanceConfig config = createJavaInstanceConfig(FunctionDetails.Runtime.JAVA, false);
 
@@ -402,7 +402,7 @@ public class ProcessRuntimeTest {
         verifyJavaInstance(config, null, defaultWebServiceUrl);
     }
 
-    @Test
+
     public void testJavaConstructorWithoutWebServiceUrlAndExposePulsarAdminClientEnabled() throws Exception {
         InstanceConfig config = createJavaInstanceConfig(FunctionDetails.Runtime.JAVA, true);
 
@@ -411,7 +411,7 @@ public class ProcessRuntimeTest {
         verifyJavaInstance(config, null, null);
     }
 
-    @Test
+
     public void testJavaConstructorWithoutWebServiceUrlAndExposePulsarAdminClientDisabled() throws Exception {
         InstanceConfig config = createJavaInstanceConfig(FunctionDetails.Runtime.JAVA, false);
 

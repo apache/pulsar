@@ -40,7 +40,7 @@ public class OffloadIndexV2Test {
 
     // prepare metadata, then use builder to build a StreamingOffloadIndexBlockImpl
     // verify get methods, readout and fromStream methods.
-    @Test
+
     public void streamingOffloadIndexBlockImplTest() throws Exception {
         OffloadIndexBlockV2Builder blockBuilder = OffloadIndexBlockV2Builder.create();
         final long ledgerId = 1; // use dummy ledgerId, from BK 4.12 the ledger is is required
@@ -181,7 +181,7 @@ public class OffloadIndexV2Test {
         indexBlock.close();
     }
 
-    @Test
+
     public void streamingMultiLedgerOffloadIndexBlockImplTest() throws Exception {
         OffloadIndexBlockV2Builder blockBuilder = OffloadIndexBlockV2Builder.create();
         final long ledgerId1 = 1; // use dummy ledgerId, from BK 4.12 the ledger is is required

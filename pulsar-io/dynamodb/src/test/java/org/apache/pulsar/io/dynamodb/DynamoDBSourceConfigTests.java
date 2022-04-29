@@ -51,7 +51,7 @@ public class DynamoDBSourceConfigTests {
         DAY = then.getTime();
     }
 
-    @Test
+
     public final void loadFromYamlFileTest() throws IOException {
         File yamlFile = getFile("sourceConfig.yaml");
         DynamoDBSourceConfig config = DynamoDBSourceConfig.load(yamlFile.getAbsolutePath());
@@ -75,7 +75,7 @@ public class DynamoDBSourceConfigTests {
         assertEquals(actual, expected);
     }
     
-    @Test
+
     public final void loadFromMapTest() throws IOException {
         Map<String, Object> map = new HashMap<String, Object> ();
         map.put("awsEndpoint", "https://some.endpoint.aws");
@@ -112,8 +112,6 @@ public class DynamoDBSourceConfigTests {
         assertEquals(actual, expected);
     }
     
-    @Test(expectedExceptions = IllegalArgumentException.class, 
-            expectedExceptionsMessageRegExp = "empty aws-credential param")
     public final void missingCredentialsTest() throws Exception {
         Map<String, Object> map = new HashMap<String, Object> ();
         map.put("awsEndpoint", "https://some.endpoint.aws");
@@ -124,8 +122,6 @@ public class DynamoDBSourceConfigTests {
         source.open(map, null);
     }
     
-    @Test(expectedExceptions = IllegalArgumentException.class, 
-            expectedExceptionsMessageRegExp = "Timestamp must be specified")
     public final void missingStartTimeTest() throws Exception {
         Map<String, Object> map = new HashMap<String, Object> ();
         map.put("awsEndpoint", "https://some.endpoint.aws");

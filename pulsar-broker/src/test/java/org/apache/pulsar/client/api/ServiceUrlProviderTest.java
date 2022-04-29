@@ -34,7 +34,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 @Slf4j
-@Test(groups = "broker-api")
+
 public class ServiceUrlProviderTest extends ProducerConsumerBase {
 
     @BeforeClass
@@ -51,7 +51,7 @@ public class ServiceUrlProviderTest extends ProducerConsumerBase {
         super.internalCleanup();
     }
 
-    @Test
+
     public void testCreateClientWithServiceUrlProvider() throws Exception {
 
         @Cleanup
@@ -85,7 +85,7 @@ public class ServiceUrlProviderTest extends ProducerConsumerBase {
         consumer.close();
     }
 
-    @Test
+
     public void testCreateClientWithAutoChangedServiceUrlProvider() throws Exception {
 
         AutoChangedServiceUrlProvider serviceUrlProvider = new AutoChangedServiceUrlProvider(pulsar.getBrokerServiceUrl());

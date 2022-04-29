@@ -46,10 +46,10 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker")
+
 public class InMemoryDeliveryTrackerTest {
 
-    @Test
+
     public void test() throws Exception {
         PersistentDispatcherMultipleConsumers dispatcher = mock(PersistentDispatcherMultipleConsumers.class);
 
@@ -104,7 +104,7 @@ public class InMemoryDeliveryTrackerTest {
         assertEquals(tracker.getScheduledMessages(10), Collections.emptySet());
     }
 
-    @Test
+
     public void testWithTimer() throws Exception {
         PersistentDispatcherMultipleConsumers dispatcher = mock(PersistentDispatcherMultipleConsumers.class);
         Timer timer = mock(Timer.class);
@@ -162,7 +162,7 @@ public class InMemoryDeliveryTrackerTest {
      * Adding a message that is about to expire within the tick time should lead
      * to a rejection from the tracker.
      */
-    @Test
+
     public void testAddWithinTickTime() {
         PersistentDispatcherMultipleConsumers dispatcher = mock(PersistentDispatcherMultipleConsumers.class);
 

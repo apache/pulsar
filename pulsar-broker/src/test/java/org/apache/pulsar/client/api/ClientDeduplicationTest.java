@@ -30,7 +30,7 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-@Test(groups = "flaky")
+
 public class ClientDeduplicationTest extends ProducerConsumerBase {
 
     @BeforeClass
@@ -46,7 +46,7 @@ public class ClientDeduplicationTest extends ProducerConsumerBase {
         super.internalCleanup();
     }
 
-    @Test
+
     public void testNamespaceDeduplicationApi() throws Exception {
         final String namespace = "my-property/my-ns";
         assertNull(admin.namespaces().getDeduplicationStatus(namespace));
@@ -58,7 +58,7 @@ public class ClientDeduplicationTest extends ProducerConsumerBase {
         Awaitility.await().untilAsserted(() -> assertNull(admin.namespaces().getDeduplicationStatus(namespace)));
     }
 
-    @Test
+
     public void testProducerSequenceAfterReconnect() throws Exception {
         final String topic = "persistent://my-property/my-ns/testProducerSequenceAfterReconnect";
         admin.namespaces().setDeduplicationStatus("my-property/my-ns", true);
@@ -89,7 +89,7 @@ public class ClientDeduplicationTest extends ProducerConsumerBase {
         producer.close();
     }
 
-    @Test
+
     public void testProducerSequenceAfterRestart() throws Exception {
         String topic = "persistent://my-property/my-ns/testProducerSequenceAfterRestart";
         admin.namespaces().setDeduplicationStatus("my-property/my-ns", true);
@@ -123,7 +123,7 @@ public class ClientDeduplicationTest extends ProducerConsumerBase {
         producer.close();
     }
 
-    @Test(timeOut = 30000)
+    
     public void testProducerDeduplication() throws Exception {
         String topic = "persistent://my-property/my-ns/testProducerDeduplication";
         admin.namespaces().setDeduplicationStatus("my-property/my-ns", true);
@@ -174,7 +174,7 @@ public class ClientDeduplicationTest extends ProducerConsumerBase {
         producer.close();
     }
 
-    @Test(timeOut = 30000)
+    
     public void testProducerDeduplicationWithDiscontinuousSequenceId() throws Exception {
         String topic = "persistent://my-property/my-ns/testProducerDeduplicationWithDiscontinuousSequenceId";
         admin.namespaces().setDeduplicationStatus("my-property/my-ns", true);
@@ -235,7 +235,7 @@ public class ClientDeduplicationTest extends ProducerConsumerBase {
         producer.close();
     }
 
-    @Test(timeOut = 30000)
+    
     public void testProducerDeduplicationNonBatchAsync() throws Exception {
         String topic = "persistent://my-property/my-ns/testProducerDeduplicationNonBatchAsync";
         admin.namespaces().setDeduplicationStatus("my-property/my-ns", true);

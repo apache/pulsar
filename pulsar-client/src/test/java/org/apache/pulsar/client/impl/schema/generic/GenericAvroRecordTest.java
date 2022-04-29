@@ -29,7 +29,7 @@ import org.testng.annotations.Test;
 
 public class GenericAvroRecordTest {
 
-    @Test
+
     public void testAvroGetNativeRecord() {
         SchemaType schemaType = SchemaType.AVRO;
         RecordSchemaBuilder test = SchemaBuilder

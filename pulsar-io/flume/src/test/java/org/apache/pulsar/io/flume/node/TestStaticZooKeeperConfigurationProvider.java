@@ -37,7 +37,7 @@ public class TestStaticZooKeeperConfigurationProvider extends
         // do nothing
     }
 
-    @Test
+
     public void testPropertyRead() throws Exception {
         verifyProperties(configurationProvider);
     }

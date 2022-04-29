@@ -122,7 +122,7 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
      * Ensure that getLedgerToReplicate will block until it a ledger
      * becomes available.
      */
-    @Test(dataProvider = "impl")
+    
     public void testBasicInteraction(String provider, Supplier<String> urlSupplier) throws Exception {
         methodSetup(urlSupplier);
 
@@ -160,7 +160,7 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
         assertEquals("Should have got the one just added", newl, f.get(5, TimeUnit.SECONDS));
     }
 
-    @Test(dataProvider = "impl")
+    
     public void testGetList(String provider, Supplier<String> urlSupplier) throws Exception {
         methodSetup(urlSupplier);
 
@@ -191,7 +191,7 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
      * client shouldn't be able to get it. If the first client dies
      * however, the second client should be able to get it.
      */
-    @Test(dataProvider = "impl")
+    
     public void testLocking(String provider, Supplier<String> urlSupplier) throws Exception {
         methodSetup(urlSupplier);
 
@@ -233,7 +233,7 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
      * acquire a ledger, and that it's not the one that was previously
      * marked as replicated.
      */
-    @Test(dataProvider = "impl")
+    
     public void testMarkingAsReplicated(String provider, Supplier<String> urlSupplier) throws Exception {
         methodSetup(urlSupplier);
 
@@ -282,7 +282,7 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
      * When a client releases a previously acquired ledger, another
      * client should then be able to acquire it.
      */
-    @Test(dataProvider = "impl")
+    
     public void testRelease(String provider, Supplier<String> urlSupplier) throws Exception {
         methodSetup(urlSupplier);
 
@@ -329,7 +329,7 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
      * under replicated ledger list when first rereplicating client marks
      * it as replicated.
      */
-    @Test(dataProvider = "impl")
+    
     public void testManyFailures(String provider, Supplier<String> urlSupplier) throws Exception {
         methodSetup(urlSupplier);
 
@@ -363,7 +363,7 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
      *
      * @throws Exception
      */
-    @Test(dataProvider = "impl")
+    
     public void testGetReplicationWorkerIdRereplicatingLedger(String provider, Supplier<String> urlSupplier)
             throws Exception {
         methodSetup(urlSupplier);
@@ -400,7 +400,7 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
      * the same missing replica twice, only marking as replicated
      * will be enough to remove it from the list.
      */
-    @Test(dataProvider = "impl")
+    
     public void test2reportSame(String provider, Supplier<String> urlSupplier)
             throws Exception {
         methodSetup(urlSupplier);
@@ -444,7 +444,7 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
      * Test that multiple LedgerUnderreplicationManagers should be able to take
      * lock and release for same ledger.
      */
-    @Test(dataProvider = "impl")
+    
     public void testMultipleManagersShouldBeAbleToTakeAndReleaseLock(String provider, Supplier<String> urlSupplier)
             throws Exception {
         methodSetup(urlSupplier);
@@ -490,7 +490,7 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
      * localhost:3181, localhost:318, localhost:31812
      * *******************************************************************
      */
-    @Test(dataProvider = "impl")
+    
     public void testMarkSimilarMissingReplica(String provider, Supplier<String> urlSupplier)
             throws Exception {
         methodSetup(urlSupplier);
@@ -509,7 +509,7 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
      * Test multiple bookie failures for a ledger and marked as underreplicated
      * one after another.
      */
-    @Test(dataProvider = "impl")
+    
     public void testManyFailuresInAnEnsemble(String provider, Supplier<String> urlSupplier)
             throws Exception {
         methodSetup(urlSupplier);
@@ -524,7 +524,7 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
      * able to getLedgerToRereplicate(). This calls will enter into infinite
      * waiting until enabling rereplication process
      */
-    @Test(dataProvider = "impl")
+    
     public void testDisableLedgerReplication(String provider, Supplier<String> urlSupplier)
             throws Exception {
         methodSetup(urlSupplier);
@@ -556,7 +556,7 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
      * Test enabling the ledger re-replication. After enableLedegerReplication,
      * should continue getLedgerToRereplicate() task
      */
-    @Test(dataProvider = "impl")
+    
     public void testEnableLedgerReplication(String provider, Supplier<String> urlSupplier)
             throws Exception {
         methodSetup(urlSupplier);
@@ -615,7 +615,7 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
         }
     }
 
-    @Test(dataProvider = "impl")
+    
     public void testCheckAllLedgersCTime(String provider, Supplier<String> urlSupplier)
             throws Exception {
         methodSetup(urlSupplier);
@@ -632,7 +632,7 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
         assertEquals(curTime, underReplicaMgr1.getCheckAllLedgersCTime());
     }
 
-    @Test(dataProvider = "impl")
+    
     public void testPlacementPolicyCheckCTime(String provider, Supplier<String> urlSupplier)
             throws Exception {
         methodSetup(urlSupplier);
@@ -653,7 +653,7 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
         assertEquals(curTime, underReplicaMgr1.getPlacementPolicyCheckCTime());
     }
 
-    @Test(dataProvider = "impl")
+    
     public void testReplicasCheckCTime(String provider, Supplier<String> urlSupplier)
             throws Exception {
         methodSetup(urlSupplier);

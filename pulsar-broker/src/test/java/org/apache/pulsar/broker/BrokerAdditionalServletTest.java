@@ -46,7 +46,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 @Slf4j
-@Test(groups = "broker")
+
 public class BrokerAdditionalServletTest extends MockedPulsarServiceBaseTest {
 
     private final String BASE_PATH = "/additional/servlet";
@@ -116,7 +116,7 @@ public class BrokerAdditionalServletTest extends MockedPulsarServiceBaseTest {
         Mockito.when(pulsar.getBrokerAdditionalServlets()).thenReturn(brokerAdditionalServlets);
     }
 
-    @Test
+
     public void test() throws IOException {
         int httpPort = pulsar.getWebService().getListenPortHTTP().get();
         log.info("pulsar webService httpPort {}", httpPort);

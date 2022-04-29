@@ -87,7 +87,7 @@ public class PulsarGenericObjectSinkTest extends PulsarStandaloneTestSuite {
         private String field1;
     }
 
-    @Test(groups = {"sink"})
+    
     public void testGenericObjectSink() throws Exception {
 
         @Cleanup PulsarClient client = PulsarClient.builder()
@@ -173,7 +173,7 @@ public class PulsarGenericObjectSinkTest extends PulsarStandaloneTestSuite {
         getSinkInfoNotFound(sinkName);
     }
 
-    @Test(groups = {"sink"})
+    
     public void testGenericObjectSinkWithSchemaChange() throws Exception {
 
         @Cleanup PulsarClient client = PulsarClient.builder()

@@ -32,7 +32,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker")
+
 public class ZooKeeperSessionExpireRecoveryTest extends MockedPulsarServiceBaseTest {
 
     @BeforeMethod(alwaysRun = true)
@@ -50,7 +50,7 @@ public class ZooKeeperSessionExpireRecoveryTest extends MockedPulsarServiceBaseT
     /**
      * Verify we are able to recover when receiving a SessionExpired event on global ZK session
      */
-    @Test
+
     public void testSessionExpired() throws Exception {
         admin.clusters().createCluster("my-cluster", ClusterData.builder().serviceUrl("test-url").build());
 

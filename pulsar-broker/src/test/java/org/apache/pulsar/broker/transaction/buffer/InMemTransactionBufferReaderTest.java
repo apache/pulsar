@@ -41,12 +41,12 @@ import org.testng.annotations.Test;
 /**
  * Unit test {@link InMemTransactionBufferReader}.
  */
-@Test(groups = "broker")
+
 public class InMemTransactionBufferReaderTest {
 
     private final TxnID txnID = new TxnID(1234L, 5678L);
 
-    @Test
+
     public void testInvalidNumEntriesArgument() {
         try (InMemTransactionBufferReader reader = new InMemTransactionBufferReader(
             txnID,
@@ -63,7 +63,7 @@ public class InMemTransactionBufferReaderTest {
         }
     }
 
-    @Test
+
     public void testCloseReleaseAllEntries() throws Exception {
         SortedMap<Long, ByteBuf> entries = new TreeMap<>();
         final int numEntries = 100;
@@ -89,7 +89,7 @@ public class InMemTransactionBufferReaderTest {
         verifyEntriesReleased(entries, 10L, numEntries - 10);
     }
 
-    @Test
+
     public void testEndOfTransactionException() throws Exception {
         SortedMap<Long, ByteBuf> entries = new TreeMap<>();
         final int numEntries = 100;

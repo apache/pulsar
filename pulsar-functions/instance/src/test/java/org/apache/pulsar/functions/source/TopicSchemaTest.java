@@ -33,7 +33,7 @@ import org.junit.Test;
 @Slf4j
 public class TopicSchemaTest {
 
-    @Test
+
     public void testGetSchema() {
         TopicSchema topicSchema = new TopicSchema(null);
 

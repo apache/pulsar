@@ -50,7 +50,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker-api")
+
 public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(SimpleTypedProducerConsumerTest.class);
 
@@ -67,7 +67,7 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
         super.internalCleanup();
     }
 
-    @Test
+
     public void testJsonProducerAndConsumer() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -112,7 +112,7 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test
+
     public void testJsonProducerAndConsumerWithPrestoredSchema() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -155,7 +155,7 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test
+
     public void testWrongCorruptedSchema() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -182,7 +182,7 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test
+
     public void testProtobufProducerAndConsumer() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -231,7 +231,6 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test(expectedExceptions = {PulsarClientException.class})
     public void testProtobufConsumerWithWrongPrestoredSchema() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -262,7 +261,7 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-   @Test
+
    public void testAvroProducerAndConsumer() throws Exception {
        log.info("-- Starting {} test --", methodName);
 
@@ -309,7 +308,7 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
 
    }
 
-    @Test(expectedExceptions = {PulsarClientException.class})
+    {PulsarClientException.class})
     public void testAvroConsumerWithWrongRestoredSchema() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -431,7 +430,7 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
         }
     }
 
-    @Test
+
     public void testAvroProducerAndAutoSchemaConsumer() throws Exception {
        log.info("-- Starting {} test --", methodName);
 
@@ -480,7 +479,7 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
 
    }
 
-   @Test
+
     public void testAvroProducerAndAutoSchemaReader() throws Exception {
        log.info("-- Starting {} test --", methodName);
 
@@ -527,7 +526,7 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
 
    }
 
-    @Test
+
     public void testAutoBytesProducer() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -601,7 +600,7 @@ public class SimpleTypedProducerConsumerTest extends ProducerConsumerBase {
 
     }
 
-    @Test
+
     public void testMessageBuilderLoadConf() throws Exception {
         String topic = BrokerTestUtil.newUniqueName("my-topic");
 

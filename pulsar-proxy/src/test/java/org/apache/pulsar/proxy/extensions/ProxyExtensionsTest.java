@@ -43,7 +43,7 @@ import static org.testng.Assert.assertSame;
 /**
  * Unit test {@link ProxyExtensions}.
  */
-@Test(groups = "proxy")
+
 public class ProxyExtensionsTest {
 
     private static final String protocol1 = "protocol1";
@@ -84,14 +84,14 @@ public class ProxyExtensionsTest {
         verify(ncl2, times(1)).close();
     }
 
-    @Test
+
     public void testGetProtocol() {
         assertSame(extension1, extensions.extension(protocol1));
         assertSame(extension2, extensions.extension(protocol2));
         assertNull(extensions.extension(protocol3));
     }
 
-    @Test
+
     public void testInitialize() throws Exception {
         ProxyConfiguration conf = new ProxyConfiguration();
         extensions.initialize(conf);
@@ -99,7 +99,7 @@ public class ProxyExtensionsTest {
         verify(extension2, times(1)).initialize(same(conf));
     }
 
-    @Test
+
     public void testStart() {
         ProxyService service = mock(ProxyService.class);
         extensions.start(service);
@@ -107,7 +107,7 @@ public class ProxyExtensionsTest {
         verify(extension2, times(1)).start(same(service));
     }
 
-    @Test
+
     public void testNewChannelInitializersSuccess() {
         ChannelInitializer<SocketChannel> i1 = mock(ChannelInitializer.class);
         ChannelInitializer<SocketChannel> i2 = mock(ChannelInitializer.class);
@@ -132,7 +132,6 @@ public class ProxyExtensionsTest {
         assertSame(p2Initializers, initializers.get(protocol2));
     }
 
-    @Test(expectedExceptions = RuntimeException.class)
     public void testNewChannelInitializersOverlapped() {
         ChannelInitializer<SocketChannel> i1 = mock(ChannelInitializer.class);
         ChannelInitializer<SocketChannel> i2 = mock(ChannelInitializer.class);

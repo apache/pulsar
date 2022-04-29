@@ -48,7 +48,7 @@ import org.testng.annotations.Test;
 
 import com.google.common.collect.Sets;
 
-@Test(groups = "broker")
+
 public class ClientGetSchemaTest extends ProducerConsumerBase {
 
     private static final String topicBytes = "my-property/my-ns/topic-bytes";
@@ -107,7 +107,6 @@ public class ClientGetSchemaTest extends ProducerConsumerBase {
         return supplier;
     }
 
-    @Test(dataProvider = "serviceUrl")
     public void testGetSchema(Supplier<String> serviceUrl) throws Exception {
         @Cleanup
         PulsarClientImpl client = (PulsarClientImpl) PulsarClient.builder().serviceUrl(serviceUrl.get()).build();
@@ -125,7 +124,7 @@ public class ClientGetSchemaTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test
+
     public void testSchemaFailure() throws Exception {
         final String tenant = PUBLIC_TENANT;
         final String namespace = "test-namespace-" + randomName(16);

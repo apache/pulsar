@@ -38,7 +38,7 @@ import org.testng.annotations.Test;
  */
 public class SinksImplTest {
 
-    @Test
+
     public void testBadName() throws Exception {
         testBadConfig("tenant", "ns", "", err -> {
             assertThat(err.getCause(), instanceOf(PulsarAdminException.class));
@@ -54,7 +54,7 @@ public class SinksImplTest {
         });
     }
 
-    @Test
+
     public void testBadTenant() throws Exception {
         testBadConfig("", "ns", "sink", err -> {
             assertThat(err.getCause(), instanceOf(PulsarAdminException.class));
@@ -70,7 +70,7 @@ public class SinksImplTest {
         });
     }
 
-    @Test
+
     public void testBadNamespace() throws Exception {
         testBadConfig("tenant", "", "sink", err -> {
             assertThat(err.getCause(), instanceOf(PulsarAdminException.class));

@@ -36,7 +36,7 @@ import static org.testng.Assert.assertNotNull;
  */
 public class HbaseSinkConfigTest {
 
-    @Test
+
     public final void loadFromYamlFileTest() throws IOException {
         File yamlFile = getFile("sinkConfig.yaml");
         String path = yamlFile.getAbsolutePath();
@@ -57,7 +57,7 @@ public class HbaseSinkConfigTest {
         assertEquals(qualifierNames, config.getQualifierNames());
     }
 
-    @Test
+
     public final void loadFromMapTest() throws IOException {
         Map<String, Object> map = new HashMap<String, Object>();
         map.put("hbaseConfigResources", "hbase-site.xml");
@@ -80,7 +80,7 @@ public class HbaseSinkConfigTest {
 
     }
 
-    @Test
+
     public final void validValidateTest() throws IOException {
         Map<String, Object> map = new HashMap<String, Object>();
         map.put("zookeeperQuorum", "localhost");
@@ -97,8 +97,6 @@ public class HbaseSinkConfigTest {
         config.validate();
     }
 
-    @Test(expectedExceptions = NullPointerException.class,
-            expectedExceptionsMessageRegExp = "hbase tableName property not set.")
     public final void missingValidValidateTableNameTest() throws IOException {
         Map<String, Object> map = new HashMap<String, Object>();
         map.put("zookeeperQuorum", "localhost");
@@ -114,7 +112,6 @@ public class HbaseSinkConfigTest {
         config.validate();
     }
 
-    @Test(expectedExceptions = MismatchedInputException.class)
     public final void invalidListValidateTest() throws IOException {
         Map<String, Object> map = new HashMap<String, Object>();
         map.put("zookeeperQuorum", "localhost");
@@ -129,8 +126,6 @@ public class HbaseSinkConfigTest {
         config.validate();
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class,
-            expectedExceptionsMessageRegExp = "batchTimeMs must be a positive long.")
     public final void invalidBatchTimeMsTest() throws IOException {
         Map<String, Object> map = new HashMap<String, Object>();
         map.put("zookeeperQuorum", "localhost");

@@ -38,7 +38,7 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker")
+
 public class CurrentLedgerRolloverIfFullTest extends BrokerTestBase {
 
     @BeforeClass
@@ -53,7 +53,7 @@ public class CurrentLedgerRolloverIfFullTest extends BrokerTestBase {
         internalCleanup();
     }
 
-    @Test
+
     public void testCurrentLedgerRolloverIfFull() throws Exception {
         final String topicName = "persistent://prop/ns-abc/CurrentLedgerRolloverIfFullTest";
 

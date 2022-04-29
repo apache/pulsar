@@ -64,7 +64,7 @@ import static org.testng.Assert.assertEquals;
 /**
  * Tests for {@link StreamingEntryReader}
  */
-@Test(groups = "flaky")
+
 public class StreamingEntryReaderTests extends MockedBookKeeperTestCase {
 
     private static final Charset Encoding = Charsets.UTF_8;
@@ -112,7 +112,7 @@ public class StreamingEntryReaderTests extends MockedBookKeeperTestCase {
         }
     }
 
-    @Test
+
     public void testCanReadEntryFromMLedgerHappyPath() throws Exception {
         AtomicInteger entryCount = new AtomicInteger(0);
         Stack<Position> positions = new Stack<>();
@@ -145,7 +145,7 @@ public class StreamingEntryReaderTests extends MockedBookKeeperTestCase {
         assertEquals(cursor.getReadPosition(), ledger.getNextValidPosition((PositionImpl) positions.peek()));
     }
 
-    @Test
+
     public void testCanReadEntryFromMLedgerSizeExceededLimit() throws Exception {
         AtomicBoolean readComplete = new AtomicBoolean(false);
         Stack<Position> positions = new Stack<>();
@@ -211,7 +211,7 @@ public class StreamingEntryReaderTests extends MockedBookKeeperTestCase {
         }
     }
 
-    @Test
+
     public void testCanReadEntryFromMLedgerWaitingForNewEntry() throws Exception {
         AtomicInteger entryCount = new AtomicInteger(0);
         AtomicBoolean entryProcessed = new AtomicBoolean(false);
@@ -260,7 +260,7 @@ public class StreamingEntryReaderTests extends MockedBookKeeperTestCase {
         }
     }
 
-    @Test
+
     public void testCanCancelReadEntryRequestAndResumeReading() throws Exception {
         Map<Position, String> messages = new HashMap<>();
         AtomicInteger count = new AtomicInteger(0);
@@ -320,7 +320,7 @@ public class StreamingEntryReaderTests extends MockedBookKeeperTestCase {
         }
     }
 
-    @Test
+
     public void testCanHandleExceptionAndRetry() throws Exception {
         Map<Position, String> messages = new HashMap<>();
         AtomicBoolean entryProcessed = new AtomicBoolean(false);
@@ -382,7 +382,7 @@ public class StreamingEntryReaderTests extends MockedBookKeeperTestCase {
         }
     }
 
-    @Test
+
     public void testWillCancelReadAfterExhaustingRetry() throws Exception {
         Map<Position, String> messages = new HashMap<>();
         AtomicInteger count = new AtomicInteger(0);

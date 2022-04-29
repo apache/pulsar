@@ -37,13 +37,13 @@ import org.testng.annotations.Test;
 
 public class TopicCountEquallyDivideBundleSplitAlgorithmTest {
 
-    @Test
+    
     public void testWrongArg() {
         TopicCountEquallyDivideBundleSplitAlgorithm algorithm = new TopicCountEquallyDivideBundleSplitAlgorithm();
         assertThrows(NullPointerException.class, () -> algorithm.getSplitBoundary(new BundleSplitOption()));
     }
 
-    @Test
+    
     public void testTopicsSizeLessThan1() {
         TopicCountEquallyDivideBundleSplitAlgorithm algorithm = new TopicCountEquallyDivideBundleSplitAlgorithm();
         NamespaceService mockNamespaceService = mock(NamespaceService.class);
@@ -54,7 +54,7 @@ public class TopicCountEquallyDivideBundleSplitAlgorithmTest {
     }
 
     @SuppressWarnings("UnstableApiUsage")
-    @Test
+    
     public void testAlgorithmReturnCorrectResult() {
         // -- algorithm
         TopicCountEquallyDivideBundleSplitAlgorithm algorithm = new TopicCountEquallyDivideBundleSplitAlgorithm();

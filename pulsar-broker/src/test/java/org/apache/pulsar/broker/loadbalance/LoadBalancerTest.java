@@ -82,7 +82,7 @@ import org.testng.annotations.Test;
  * will do the leader election and one of the brokers will become the leader. Then kill that broker and check if the
  * second one becomes the leader.
  */
-@Test(groups = "broker")
+
 public class LoadBalancerTest {
     LocalBookkeeperEnsemble bkEnsemble;
 
@@ -188,7 +188,7 @@ public class LoadBalancerTest {
      * reports are not, both broker will have zero rank
      */
     @SuppressWarnings("unchecked")
-    @Test
+    
     public void testLoadReportsWrittenOnMetadataStore() throws Exception {
         for (int i = 0; i < BROKER_COUNT; i++) {
             String path = String.format("%s/%s", SimpleLoadManagerImpl.LOADBALANCE_BROKERS_ROOT,
@@ -225,7 +225,7 @@ public class LoadBalancerTest {
      * tests rankings get updated when we write write the new load reports to the zookeeper on loadbalance root node
      * tests writing pre-configured load report on the zookeeper translates the pre-calculated rankings
      */
-    @Test
+    
     public void testUpdateLoadReportAndCheckUpdatedRanking() throws Exception {
         for (int i = 0; i < BROKER_COUNT; i++) {
             LoadReport lr = new LoadReport();
@@ -300,7 +300,7 @@ public class LoadBalancerTest {
      * bottleneck, for the 4/5th brokers CPU become bottleneck since memory is big enough - non-bundles assigned so all
      * idle resources are available for new bundle Check the broker rankings are the load percentage of each broker.
      */
-    @Test(timeOut = 30000)
+    
     public void testBrokerRanking() throws Exception {
         for (int i = 0; i < BROKER_COUNT; i++) {
             LoadReport lr = new LoadReport();
@@ -348,7 +348,7 @@ public class LoadBalancerTest {
      * bottleneck, for the 4/5th brokers CPU become bottleneck since memory is big enough - already has some bundles
      * assigned Check the distribution of new topics is roughly consistent (with <10% variation) with the ranking
      */
-    @Test
+    
     public void testTopicAssignmentWithExistingBundles() throws Exception {
         for (int i = 0; i < BROKER_COUNT; i++) {
             ResourceQuota defaultQuota = new ResourceQuota();
@@ -488,7 +488,7 @@ public class LoadBalancerTest {
     /*
      * Test broker dynamically calculating resource quota for each connected namespace bundle.
      */
-    @Test
+    
     public void testDynamicNamespaceBundleQuota() throws Exception {
         long startTime = System.currentTimeMillis();
         for (int i = 0; i < BROKER_COUNT; i++) {
@@ -581,7 +581,7 @@ public class LoadBalancerTest {
     /**
      * Test the namespace bundle auto-split
      */
-    @Test
+    
     public void testNamespaceBundleAutoSplit() throws Exception {
         int maxBundles = pulsarServices[0].getConfiguration().getLoadBalancerNamespaceMaximumBundles();
         long maxTopics = pulsarServices[0].getConfiguration().getLoadBalancerNamespaceBundleMaxTopics();
@@ -672,7 +672,7 @@ public class LoadBalancerTest {
     /*
      * Test all brokers are consistent on current leader and close leader to trigger re-election.
      */
-    @Test
+    
     public void testLeaderElection() throws Exception {
         // this.pulsarServices is the reference to all of the PulsarServices
         // it is used in order to clean up the resources

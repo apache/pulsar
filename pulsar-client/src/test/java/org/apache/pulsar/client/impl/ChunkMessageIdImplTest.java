@@ -25,7 +25,7 @@ import org.testng.annotations.Test;
 
 public class ChunkMessageIdImplTest {
 
-    @Test
+
     public void compareToTest() {
         ChunkMessageIdImpl chunkMsgId1 = new ChunkMessageIdImpl(
                 new MessageIdImpl(0, 0, 0),
@@ -41,7 +41,7 @@ public class ChunkMessageIdImplTest {
         assertEquals(chunkMsgId2.compareTo(chunkMsgId2), 0);
     }
 
-    @Test
+
     public void hashCodeTest() {
         ChunkMessageIdImpl chunkMsgId1 = new ChunkMessageIdImpl(
                 new MessageIdImpl(0, 0, 0),
@@ -56,7 +56,7 @@ public class ChunkMessageIdImplTest {
         assertNotEquals(chunkMsgId1.hashCode(), chunkMsgId2.hashCode());
     }
 
-    @Test
+
     public void equalsTest() {
         ChunkMessageIdImpl chunkMsgId1 = new ChunkMessageIdImpl(
                 new MessageIdImpl(0, 0, 0),
@@ -74,7 +74,7 @@ public class ChunkMessageIdImplTest {
         assertEquals(msgId, chunkMsgId1);
     }
 
-    @Test
+
     public void serializeAndDeserializeTest() throws IOException {
         ChunkMessageIdImpl chunkMessageId = new ChunkMessageIdImpl(
                 new MessageIdImpl(0, 0, 0),

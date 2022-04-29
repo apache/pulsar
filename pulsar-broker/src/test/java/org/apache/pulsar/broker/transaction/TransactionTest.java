@@ -119,7 +119,7 @@ import org.testng.annotations.Test;
  * Pulsar client transaction test.
  */
 @Slf4j
-@Test(groups = "broker")
+
 public class TransactionTest extends TransactionTestBase {
 
     private static final int NUM_BROKERS = 1;
@@ -130,7 +130,7 @@ public class TransactionTest extends TransactionTestBase {
        setUpBase(NUM_BROKERS, NUM_PARTITIONS, NAMESPACE1 + "/test", 0);
     }
 
-    @Test
+
     public void testCreateTransactionSystemTopic() throws Exception {
         String subName = "test";
         String topicName = TopicName.get(NAMESPACE1 + "/" + "testCreateTransactionSystemTopic").toString();
@@ -187,7 +187,7 @@ public class TransactionTest extends TransactionTestBase {
         }
     }
 
-    @Test
+
     public void brokerNotInitTxnManagedLedgerTopic() throws Exception {
         String subName = "test";
 
@@ -249,7 +249,7 @@ public class TransactionTest extends TransactionTestBase {
                 .subscribe();
     }
 
-    @Test
+
     public void testGetTxnID() throws Exception {
         Transaction transaction = pulsarClient.newTransaction()
                 .build().get();
@@ -264,7 +264,7 @@ public class TransactionTest extends TransactionTestBase {
         Assert.assertEquals(txnID.getMostSigBits(), 0);
     }
 
-    @Test
+
     public void testSubscriptionRecreateTopic()
             throws PulsarAdminException, NoSuchFieldException, IllegalAccessException, PulsarClientException {
         String topic = "persistent://pulsar/system/testReCreateTopic";
@@ -336,7 +336,7 @@ public class TransactionTest extends TransactionTestBase {
 
     }
 
-    @Test
+
     public void testTakeSnapshotBeforeBuildTxnProducer() throws Exception {
         String topic = "persistent://" + NAMESPACE1 + "/testSnapShot";
         admin.topics().createNonPartitionedTopic(topic);
@@ -379,7 +379,7 @@ public class TransactionTest extends TransactionTestBase {
     }
 
 
-    @Test
+
     public void testAppendBufferWithNotManageLedgerExceptionCanCastToMLE()
             throws Exception {
         String topic = "persistent://pulsar/system/testReCreateTopic";
@@ -447,7 +447,7 @@ public class TransactionTest extends TransactionTestBase {
         });
     }
 
-    @Test
+
     public void testMaxReadPositionForNormalPublish() throws Exception {
         String topic = "persistent://" + NAMESPACE1 + "/NormalPublish";
         admin.topics().createNonPartitionedTopic(topic);
@@ -521,7 +521,7 @@ public class TransactionTest extends TransactionTestBase {
         Assert.assertEquals(position5.getEntryId(), messageId4.getEntryId());
     }
 
-    @Test
+
     public void testEndTBRecoveringWhenManagerLedgerDisReadable() throws Exception{
         String topic = NAMESPACE1 + "/testEndTBRecoveringWhenManagerLedgerDisReadable";
         admin.topics().createNonPartitionedTopic(topic);
@@ -584,7 +584,7 @@ public class TransactionTest extends TransactionTestBase {
         managedCursors.removeCursor("transaction-buffer-sub");
     }
 
-    @Test
+
     public void testEndTPRecoveringWhenManagerLedgerDisReadable() throws Exception{
         String topic = NAMESPACE1 + "/testEndTPRecoveringWhenManagerLedgerDisReadable";
         admin.topics().createNonPartitionedTopic(topic);
@@ -652,7 +652,7 @@ public class TransactionTest extends TransactionTestBase {
                 assertEquals(pendingAckHandle3.getStats().state, "Ready"));
     }
 
-    @Test
+
     public void testEndTCRecoveringWhenManagerLedgerDisReadable() throws Exception{
         String topic = NAMESPACE1 + "/testEndTBRecoveringWhenManagerLedgerDisReadable";
         admin.topics().createNonPartitionedTopic(topic);
@@ -725,7 +725,7 @@ public class TransactionTest extends TransactionTestBase {
                 assertEquals(metadataStore3.getCoordinatorStats().state, "Ready"));
     }
 
-    @Test
+
     public void testEndTxnWhenCommittingOrAborting() throws Exception {
         Transaction commitTxn = pulsarClient
                 .newTransaction()
@@ -753,7 +753,7 @@ public class TransactionTest extends TransactionTestBase {
         assertEquals(((CounterBrokerInterceptor)listener).getCommittedTxnCount(),1);
     }
 
-    @Test
+
     public void testNoEntryCanBeReadWhenRecovery() throws Exception {
         String topic = NAMESPACE1 + "/test";
         PersistentTopic persistentTopic =
@@ -785,7 +785,7 @@ public class TransactionTest extends TransactionTestBase {
         Awaitility.await().untilAsserted(() -> Assert.assertTrue(transactionBuffer.checkIfReady()));
     }
 
-    @Test
+
     public void testRetryExceptionOfEndTxn() throws Exception{
         Transaction transaction = pulsarClient.newTransaction()
                 .withTransactionTimeout(10, TimeUnit.SECONDS)
@@ -824,7 +824,7 @@ public class TransactionTest extends TransactionTestBase {
         completableFuture.get(5, TimeUnit.SECONDS);
     }
 
-    @Test
+
     public void testCancelTxnTimeout() throws Exception{
         Transaction transaction = pulsarClient.newTransaction()
                 .withTransactionTimeout(10, TimeUnit.SECONDS)
@@ -848,7 +848,7 @@ public class TransactionTest extends TransactionTestBase {
         Assert.assertTrue(timeout.isCancelled());
     }
 
-    @Test
+
     public void testNotChangeMaxReadPositionAndAddAbortTimesWhenCheckIfNoSnapshot() throws Exception {
         PersistentTopic persistentTopic = (PersistentTopic) getPulsarServiceList().get(0)
                 .getBrokerService()
@@ -872,7 +872,7 @@ public class TransactionTest extends TransactionTestBase {
 
     }
 
-    @Test
+
     public void testAutoCreateSchemaForTransactionSnapshot() throws Exception {
         String namespace = TENANT + "/ns2";
         String topic = namespace + "/test";
@@ -900,7 +900,7 @@ public class TransactionTest extends TransactionTestBase {
                 pulsarService.getConfiguration().setAllowAutoUpdateSchemaEnabled(true)));
     }
 
-    @Test
+
     public void testPendingAckMarkDeletePosition() throws Exception {
         String topic = NAMESPACE1 + "/test1";
 

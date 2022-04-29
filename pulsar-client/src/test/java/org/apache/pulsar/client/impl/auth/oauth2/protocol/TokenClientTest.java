@@ -38,7 +38,7 @@ import static org.mockito.Mockito.when;
  */
 public class TokenClientTest {
 
-    @Test
+
     @SuppressWarnings("unchecked")
     public void exchangeClientCredentialsSuccessByScopeTest() throws
             IOException, TokenExchangeException, ExecutionException, InterruptedException {
@@ -70,7 +70,7 @@ public class TokenClientTest {
         Assert.assertNotNull(tr);
     }
 
-    @Test
+
     @SuppressWarnings("unchecked")
     public void exchangeClientCredentialsSuccessWithoutOptionalClientCredentialsTest() throws
             IOException, TokenExchangeException, ExecutionException, InterruptedException {

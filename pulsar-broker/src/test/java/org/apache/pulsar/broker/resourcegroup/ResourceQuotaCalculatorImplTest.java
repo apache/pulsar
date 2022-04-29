@@ -41,7 +41,7 @@ public class ResourceQuotaCalculatorImplTest extends MockedPulsarServiceBaseTest
         super.internalCleanup();
     }
 
-    @Test
+
     public void testRQCalcNegativeConfTest() throws PulsarAdminException {
         final long[] allUsage = { 0 };
         long calculatedQuota = this.rqCalc.computeLocalQuota(-1, 0, allUsage);
@@ -49,19 +49,19 @@ public class ResourceQuotaCalculatorImplTest extends MockedPulsarServiceBaseTest
         Assert.assertEquals(calculatedQuota, expectedQuota);
     }
 
-    @Test
+
     public void testRQCalcNegativeLocalUsageTest() {
         final long[] allUsage = { 0 };
         Assert.assertThrows(PulsarAdminException.class, () -> this.rqCalc.computeLocalQuota(0, -1, allUsage));
     }
 
-    @Test
+
     public void testRQCalcNegativeAllUsageTest() {
         final long[] allUsage = { -1 };
         Assert.assertThrows(PulsarAdminException.class, () -> this.rqCalc.computeLocalQuota(0, 0, allUsage));
     }
 
-    @Test
+
     public void testRQCalcGlobUsedLessThanConfigTest() throws PulsarAdminException {
         final long config = 100;
         final long localUsed = 20;
@@ -70,7 +70,7 @@ public class ResourceQuotaCalculatorImplTest extends MockedPulsarServiceBaseTest
         Assert.assertTrue(newQuota > localUsed);
     }
 
-    @Test
+
     public void testRQCalcGlobUsedEqualsToConfigTest() throws PulsarAdminException {
         final long config = 100;
         final long localUsed = 20;
@@ -79,7 +79,7 @@ public class ResourceQuotaCalculatorImplTest extends MockedPulsarServiceBaseTest
         Assert.assertEquals(newQuota, localUsed);
     }
 
-    @Test
+
     public void testRQCalcGlobUsedGreaterThanConfigTest() throws PulsarAdminException {
         final long config = 100;
         final long localUsed = 20;
@@ -88,7 +88,7 @@ public class ResourceQuotaCalculatorImplTest extends MockedPulsarServiceBaseTest
         Assert.assertTrue(newQuota < localUsed);
     }
 
-    @Test
+
     public void testRQCalcProportionalIncrementTest() throws PulsarAdminException {
         final long config = 100;
         final long[] allUsage = { 60 };
@@ -102,7 +102,7 @@ public class ResourceQuotaCalculatorImplTest extends MockedPulsarServiceBaseTest
         Assert.assertEquals(initialUsageRatio, proposedUsageRatio);
     }
 
-    @Test
+
     public void testRQCalcGlobUsedZeroTest() throws PulsarAdminException {
         final long config = 10;  // don't care
         final long localUsed = 0;  // don't care

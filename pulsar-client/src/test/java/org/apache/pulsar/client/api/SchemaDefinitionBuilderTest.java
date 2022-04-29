@@ -27,39 +27,39 @@ import org.testng.annotations.Test;
 
 public class SchemaDefinitionBuilderTest {
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
+    
     public void testVerificationWithoutParams() {
         SchemaDefinition.builder().build();
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
+    
     public void testVerificationWithPojoAndJsonDef() {
         SchemaDefinition.builder().withJsonDef("{}").withPojo(Object.class).build();
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
+    
     public void testVerificationWithReaderOnly() {
         SchemaReader<Object> reader = Mockito.mock(SchemaReader.class);
         SchemaDefinition.builder().withSchemaReader(reader).build();
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
+    
     public void testVerificationWithWriterOnly() {
         SchemaWriter<Object> writer = Mockito.mock(SchemaWriter.class);
         SchemaDefinition.builder().withSchemaWriter(writer).build();
     }
 
-    @Test
+
     public void testVerificationWithJsonDef() {
         SchemaDefinition.builder().withJsonDef("{}").build();
     }
 
-    @Test
+
     public void testVerificationWithPojo() {
         SchemaDefinition.builder().withPojo(Object.class).build();
     }
 
-    @Test
+
     public void testVerificationWithPojoAndReaderAndWriter() {
         SchemaReader<Object> reader = Mockito.mock(SchemaReader.class);
         SchemaWriter<Object> writer = Mockito.mock(SchemaWriter.class);
@@ -71,7 +71,7 @@ public class SchemaDefinitionBuilderTest {
         Assert.assertNotNull(definition);
     }
 
-    @Test
+
     public void testVerificationWithJsonDefAndReaderAndWriter() {
         SchemaReader<Object> reader = Mockito.mock(SchemaReader.class);
         SchemaWriter<Object> writer = Mockito.mock(SchemaWriter.class);
@@ -83,7 +83,7 @@ public class SchemaDefinitionBuilderTest {
         Assert.assertNotNull(definition);
     }
 
-    @Test
+
     public void testReaderWriterRegistration() {
         SchemaReader<Object> reader = Mockito.mock(SchemaReader.class);
         SchemaWriter<Object> writer = Mockito.mock(SchemaWriter.class);

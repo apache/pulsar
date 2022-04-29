@@ -41,7 +41,7 @@ public class SchemaCompatibilityStrategyTest extends PulsarCliTestSuite {
         super.after();
     }
 
-    @Test
+
     public void testSchemaCompatibilityStrategyCmd() throws Exception {
         String topicName = generateTopicName("test-schema-compatibility-strategy", true);
         pulsarAdmin.topics().createNonPartitionedTopic(topicName);
@@ -61,7 +61,7 @@ public class SchemaCompatibilityStrategyTest extends PulsarCliTestSuite {
         });
     }
 
-    @Test
+
     public void testSchemaCompatibilityStrategyCmdWithNamespaceLevel() throws Exception {
         String ns = generateNamespaceName();
         String fullNS = "public/" + ns;

@@ -48,7 +48,7 @@ public class SourceTest {
         }
     }
 
-    @Test
+
     public void testSinkContext() throws Exception {
         SourceContext sourceContext = mock(SourceContext.class);
 

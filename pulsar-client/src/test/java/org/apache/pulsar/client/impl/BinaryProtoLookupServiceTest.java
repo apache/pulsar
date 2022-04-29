@@ -78,7 +78,7 @@ public class BinaryProtoLookupServiceTest {
         topicName = TopicName.get("persistent://tenant1/ns1/t1");
     }
 
-    @Test(invocationTimeOut = 3000)
+    
     public void maxLookupRedirectsTest1() throws Exception {
         Pair<InetSocketAddress, InetSocketAddress> addressPair = lookup.getBroker(topicName).get();
         assertEquals(addressPair.getLeft(), InetSocketAddress
@@ -87,7 +87,7 @@ public class BinaryProtoLookupServiceTest {
                 .createUnresolved("broker2.pulsar.apache.org" ,6650));
     }
 
-    @Test(invocationTimeOut = 3000)
+    
     public void maxLookupRedirectsTest2() throws Exception {
         Field field = BinaryProtoLookupService.class.getDeclaredField("maxLookupRedirects");
         field.setAccessible(true);
@@ -100,7 +100,7 @@ public class BinaryProtoLookupServiceTest {
                 .createUnresolved("broker2.pulsar.apache.org" ,6650));
     }
 
-    @Test(invocationTimeOut = 3000)
+    
     public void maxLookupRedirectsTest3() throws Exception {
         Field field = BinaryProtoLookupService.class.getDeclaredField("maxLookupRedirects");
         field.setAccessible(true);

@@ -60,7 +60,7 @@ import org.testng.annotations.Test;
 /**
  * HTTP lookup unit tests.
  */
-@Test(groups = "broker")
+
 public class HttpTopicLookupv2Test {
 
     private PulsarService pulsar;
@@ -101,7 +101,7 @@ public class HttpTopicLookupv2Test {
         doReturn(new Semaphore(1000)).when(brokerService).getLookupRequestSemaphore();
     }
 
-    @Test
+
     public void crossColoLookup() throws Exception {
 
         TopicLookup destLookup = spy(TopicLookup.class);
@@ -127,7 +127,7 @@ public class HttpTopicLookupv2Test {
         assertEquals(wae.getResponse().getStatus(), Status.TEMPORARY_REDIRECT.getStatusCode());
     }
 
-    @Test
+
     public void testLookupTopicNotExist() throws Exception {
 
         MockTopicLookup destLookup = spy(MockTopicLookup.class);
@@ -165,7 +165,7 @@ public class HttpTopicLookupv2Test {
         }
     }
     
-    @Test
+
     public void testNotEnoughLookupPermits() throws Exception {
 
         BrokerService brokerService = pulsar.getBrokerService();
@@ -194,7 +194,7 @@ public class HttpTopicLookupv2Test {
         assertEquals(wae.getResponse().getStatus(), Status.SERVICE_UNAVAILABLE.getStatusCode());
     }
 
-    @Test
+
     public void testValidateReplicationSettingsOnNamespace() throws Exception {
 
         final String property = "my-prop";
@@ -237,7 +237,7 @@ public class HttpTopicLookupv2Test {
         assertEquals(arg2.getValue().getClass(), RestException.class);
     }
 
-    @Test
+
     public void testDataPojo() {
         final String url = "localhost:8080";
         NamespaceData data1 = new NamespaceData(url);

@@ -53,7 +53,6 @@ public class TestRetrySupportRetryTest extends TestRetrySupport {
         markCurrentSetupNumberCleaned();
     }
 
-    @Test(retryAnalyzer = IllegalStateRetry.class)
     void shouldCallSetupBeforeRetrying(ITestContext testContext, Method method) {
         // get the number of times this method has been called
         invocationCount++;

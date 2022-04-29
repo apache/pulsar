@@ -34,7 +34,7 @@ import static org.testng.Assert.assertNotNull;
  * RabbitMQSourceConfig test
  */
 public class RabbitMQSourceConfigTest {
-    @Test
+
     public final void loadFromYamlFileTest() throws IOException {
         File yamlFile = getFile("sourceConfig.yaml");
         String path = yamlFile.getAbsolutePath();
@@ -57,7 +57,7 @@ public class RabbitMQSourceConfigTest {
         assertFalse(config.isPassive());
     }
 
-    @Test
+
     public final void loadFromMapTest() throws IOException {
         Map<String, Object> map = new HashMap<>();
         map.put("host", "localhost");
@@ -96,7 +96,7 @@ public class RabbitMQSourceConfigTest {
         assertEquals(true, config.isPassive());
     }
 
-    @Test
+
     public final void validValidateTest() throws IOException {
         Map<String, Object> map = new HashMap<>();
         map.put("host", "localhost");
@@ -119,8 +119,6 @@ public class RabbitMQSourceConfigTest {
         config.validate();
     }
 
-    @Test(expectedExceptions = NullPointerException.class,
-        expectedExceptionsMessageRegExp = "host property not set.")
     public final void missingHostValidateTest() throws IOException {
         Map<String, Object> map = new HashMap<>();
         map.put("port", "5672");
@@ -142,8 +140,6 @@ public class RabbitMQSourceConfigTest {
         config.validate();
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class,
-        expectedExceptionsMessageRegExp = "prefetchCount must be non-negative.")
     public final void invalidPrefetchCountTest() throws IOException {
         Map<String, Object> map = new HashMap<>();
         map.put("host", "localhost");

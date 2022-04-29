@@ -120,7 +120,7 @@ public class SimpleProducerConsumerTest extends TestRetrySupport {
         return PulsarClient.builder().serviceUrl(url).statsInterval(intervalInSecs, TimeUnit.SECONDS).build();
     }
 
-    @Test
+
     public void testRSAEncryption() throws Exception {
 
         String topicName = "persistent://my-property/my-ns/myrsa-topic1-" + System.currentTimeMillis();
@@ -216,7 +216,7 @@ public class SimpleProducerConsumerTest extends TestRetrySupport {
         assertTrue(messagesReceived.add(receivedMessage), "Received duplicate message " + receivedMessage);
     }
 
-    @Test
+
     public void testRedeliveryOfFailedMessages() throws Exception {
 
         @Cleanup
@@ -356,7 +356,7 @@ public class SimpleProducerConsumerTest extends TestRetrySupport {
         consumer3.close();
     }
 
-    @Test
+
     public void testEncryptionFailure() throws Exception {
 
         class EncKeyReader implements CryptoKeyReader {
@@ -480,7 +480,7 @@ public class SimpleProducerConsumerTest extends TestRetrySupport {
         assertNull(msg, "Message received even aftet ConsumerCryptoFailureAction.DISCARD is set.");
     }
 
-    @Test(groups = "encryption")
+    "encryption")
     public void testEncryptionConsumerWithoutCryptoReader() throws Exception {
 
         final String encryptionKeyName = "client-rsa.pem";

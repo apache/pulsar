@@ -59,7 +59,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 @Slf4j
-@Test(groups = "broker")
+
 public class SubscriptionSeekTest extends BrokerTestBase {
 
     @BeforeClass
@@ -75,7 +75,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
         super.internalCleanup();
     }
 
-    @Test
+
     public void testSeek() throws Exception {
         final String topicName = "persistent://prop/use/ns-abc/testSeek";
 
@@ -129,7 +129,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
         assertEquals(sub.getNumberOfEntriesInBacklog(false), 0);
     }
 
-    @Test
+
     public void testSeekForBatch() throws Exception {
         final String topicName = "persistent://prop/use/ns-abcd/testSeekForBatch";
         String subscriptionName = "my-subscription-batch";
@@ -185,7 +185,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
         }
     }
 
-    @Test
+
     public void testSeekForBatchMessageAndSpecifiedBatchIndex() throws Exception {
         final String topicName = "persistent://prop/use/ns-abcd/testSeekForBatchMessageAndSpecifiedBatchIndex";
         String subscriptionName = "my-subscription-batch";
@@ -266,7 +266,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
         newPulsarClient.close();
     }
 
-    @Test
+
     public void testSeekForBatchByAdmin() throws PulsarClientException, ExecutionException, InterruptedException, PulsarAdminException {
         final String topicName = "persistent://prop/use/ns-abcd/testSeekForBatchByAdmin-" + UUID.randomUUID().toString();
         String subscriptionName = "my-subscription-batch";
@@ -347,7 +347,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
     }
 
 
-    @Test
+
     public void testConcurrentResetCursor() throws Exception {
         final String topicName = "persistent://prop/use/ns-abc/testConcurrentReset_" + System.currentTimeMillis();
         final String subscriptionName = "test-sub-name";
@@ -396,7 +396,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
         }
     }
 
-    @Test
+
     public void testSeekOnPartitionedTopic() throws Exception {
         final String topicName = "persistent://prop/use/ns-abc/testSeekPartitions";
 
@@ -411,7 +411,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
         }
     }
 
-    @Test
+
     public void testSeekTime() throws Exception {
         final String topicName = "persistent://prop/use/ns-abc/testSeekTime";
         String resetTimeStr = "100s";
@@ -447,7 +447,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
         assertEquals(sub.getNumberOfEntriesInBacklog(false), 10);
     }
 
-    @Test
+
     public void testSeekTimeByFunction() throws Exception {
         final String topicName = "persistent://prop/use/ns-abc/test" + UUID.randomUUID();
         int partitionNum = 4;
@@ -493,7 +493,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
 
     }
 
-    @Test
+
     public void testSeekTimeOnPartitionedTopic() throws Exception {
         final String topicName = "persistent://prop/use/ns-abc/testSeekTimePartitions";
         final String resetTimeStr = "100s";
@@ -550,7 +550,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
         assertEquals(backlogs, 10);
     }
 
-    @Test
+
     public void testShouldCloseAllConsumersForMultipleConsumerDispatcherWhenSeek() throws Exception {
         final String topicName = "persistent://prop/use/ns-abc/testShouldCloseAllConsumersForMultipleConsumerDispatcherWhenSeek";
         // Disable pre-fetch in consumer to track the messages received
@@ -590,7 +590,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
         consumer2.close();
     }
 
-    @Test
+
     public void testOnlyCloseActiveConsumerForSingleActiveConsumerDispatcherWhenSeek() throws Exception {
         final String topicName = "persistent://prop/use/ns-abc/testOnlyCloseActiveConsumerForSingleActiveConsumerDispatcherWhenSeek";
         // Disable pre-fetch in consumer to track the messages received
@@ -632,7 +632,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
         assertTrue(hasConsumerNotDisconnected);
     }
 
-    @Test
+
     public void testSeekByFunction() throws Exception {
         final String topicName = "persistent://prop/use/ns-abc/test" + UUID.randomUUID();
         int partitionNum = 4;
@@ -711,7 +711,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
         return messageIds;
     }
 
-    @Test
+
     public void testSeekByFunctionAndMultiTopic() throws Exception {
         final String topicName = "persistent://prop/use/ns-abc/test" + UUID.randomUUID();
         final String topicName2 = "persistent://prop/use/ns-abc/test" + UUID.randomUUID();
@@ -760,7 +760,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
         assertEquals(count, (msgInTopic1Partition0 + msgInTopic1Partition1 + msgInTopic1Partition2) * 2);
     }
 
-    @Test
+
     public void testExceptionBySeekFunction() throws Exception {
         final String topicName = "persistent://prop/use/ns-abc/test" + UUID.randomUUID();
         creatProducerAndSendMsg(topicName,10);

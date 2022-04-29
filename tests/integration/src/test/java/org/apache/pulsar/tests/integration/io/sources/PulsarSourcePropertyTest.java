@@ -45,7 +45,7 @@ import static org.testng.Assert.fail;
  */
 @Slf4j
 public class PulsarSourcePropertyTest extends PulsarStandaloneTestSuite {
-    @Test(groups = {"source"})
+    
     public void testSourceProperty() throws Exception {
         String outputTopicName = "test-source-property-input-" + randomName(8);
         String sourceName = "test-source-property-" + randomName(8);

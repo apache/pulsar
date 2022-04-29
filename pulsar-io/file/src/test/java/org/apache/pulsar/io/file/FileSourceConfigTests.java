@@ -29,14 +29,14 @@ import org.testng.annotations.Test;
 
 public class FileSourceConfigTests {
 
-    @Test
+
     public final void loadFromYamlFileTest() throws IOException {
         File yamlFile = getFile("sinkConfig.yaml");
         FileSourceConfig config = FileSourceConfig.load(yamlFile.getAbsolutePath());
         assertNotNull(config);
     }
     
-    @Test
+
     public final void loadFromMapTest() throws IOException {
         Map<String, Object> map = new HashMap<String, Object> ();
         map.put("inputDirectory", "/tmp");
@@ -46,7 +46,7 @@ public class FileSourceConfigTests {
         assertNotNull(config);
     }
     
-    @Test
+
     public final void validValidateTest() throws IOException {
         Map<String, Object> map = new HashMap<String, Object> ();
         map.put("inputDirectory", "/tmp");
@@ -56,8 +56,6 @@ public class FileSourceConfigTests {
         config.validate();
     }
     
-    @Test(expectedExceptions = IllegalArgumentException.class, 
-            expectedExceptionsMessageRegExp = "Required property not set.")
     public final void missingRequiredPropertiesTest() throws IOException {
         Map<String, Object> map = new HashMap<String, Object> ();
         map.put("pathFilter", "/");
@@ -67,7 +65,6 @@ public class FileSourceConfigTests {
         config.validate();
     }
     
-    @Test(expectedExceptions = com.fasterxml.jackson.databind.exc.InvalidFormatException.class)
     public final void InvalidBooleanPropertyTest() throws IOException {
         Map<String, Object> map = new HashMap<String, Object> ();
         map.put("inputDirectory", "/");
@@ -78,8 +75,6 @@ public class FileSourceConfigTests {
         config.validate();
     }
     
-    @Test(expectedExceptions = IllegalArgumentException.class, 
-            expectedExceptionsMessageRegExp = "The property pollingInterval must be greater than zero")
     public final void ZeroValueTest() throws IOException {
         Map<String, Object> map = new HashMap<String, Object> ();
         map.put("inputDirectory", "/");
@@ -90,8 +85,6 @@ public class FileSourceConfigTests {
         config.validate();
     }
     
-    @Test(expectedExceptions = IllegalArgumentException.class, 
-            expectedExceptionsMessageRegExp = "The property minimumFileAge must be non-negative")
     public final void NegativeValueTest() throws IOException {
         Map<String, Object> map = new HashMap<String, Object> ();
         map.put("inputDirectory", "/");
@@ -102,8 +95,6 @@ public class FileSourceConfigTests {
         config.validate();
     }
     
-    @Test(expectedExceptions = IllegalArgumentException.class, 
-            expectedExceptionsMessageRegExp = "Invalid Regex pattern provided for fileFilter")
     public final void invalidFileFilterTest() throws IOException {
         Map<String, Object> map = new HashMap<String, Object> ();
         map.put("inputDirectory", "/");

@@ -68,7 +68,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Slf4j
-@Test(groups = "broker-impl")
+
 public class ReaderTest extends MockedPulsarServiceBaseTest {
 
     private static final String subscription = "reader-sub";
@@ -119,13 +119,13 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         return keys;
     }
 
-    @Test
+
     public void testReadMessageWithoutBatching() throws Exception {
         String topic = "persistent://my-property/my-ns/my-reader-topic";
         testReadMessages(topic, false);
     }
 
-    @Test
+
     public void testReadMessageWithoutBatchingWithMessageInclusive() throws Exception {
         String topic = "persistent://my-property/my-ns/my-reader-topic-inclusive";
         Set<String> keys = publishMessages(topic, 10, false);
@@ -138,13 +138,13 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         Assert.assertFalse(reader.hasMessageAvailable());
     }
 
-    @Test
+
     public void testReadMessageWithBatching() throws Exception {
         String topic = "persistent://my-property/my-ns/my-reader-topic-with-batching";
         testReadMessages(topic, true);
     }
 
-    @Test
+
     public void testReadMessageWithBatchingWithMessageInclusive() throws Exception {
         String topic = "persistent://my-property/my-ns/my-reader-topic-with-batching-inclusive";
         Set<String> keys = publishMessages(topic, 10, true);
@@ -182,7 +182,7 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         Assert.assertFalse(readLatest.hasMessageAvailable());
     }
 
-    @Test
+
     public void testMultiTopicSeekByFunction() throws Exception {
         final String topicName = "persistent://my-property/my-ns/test" + UUID.randomUUID();
         int msgNum = 10;
@@ -223,7 +223,7 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         assertEquals(count, msgNum);
     }
 
-    @Test
+
     public void testReadFromPartition() throws Exception {
         String topic = "persistent://my-property/my-ns/testReadFromPartition";
         String partition0 = topic + "-partition-0";
@@ -253,7 +253,7 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
      * </pre>
      * @throws Exception
      */
-    @Test
+
     public void testReaderWithTimeLong() throws Exception {
         String ns = "my-property/my-ns";
         String topic = "persistent://" + ns + "/testReadFromPartition";
@@ -323,7 +323,7 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
      * We need to ensure that delete subscription of read also need to delete the
      * non-durable cursor, because data deletion depends on the mark delete position of all cursors.
      */
-    @Test
+
     public void testRemoveSubscriptionForReaderNeedRemoveCursor() throws IOException, PulsarAdminException {
 
         final String topic = "persistent://my-property/my-ns/testRemoveSubscriptionForReaderNeedRemoveCursor";
@@ -355,7 +355,7 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
 
     }
 
-    @Test
+
     public void testReaderHasMessageAvailable() throws Exception {
         final String topic = "persistent://my-property/my-ns/testReaderHasMessageAvailable" + System.currentTimeMillis();
         @Cleanup
@@ -367,7 +367,7 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         assertFalse(reader.hasMessageAvailable());
     }
 
-    @Test
+
     public void testKeyHashRangeReader() throws IOException {
          final List<String> keys = Arrays.asList("0", "1", "2", "3", "4", "5", "6", "7", "8", "9");
         final String topic = "persistent://my-property/my-ns/testKeyHashRangeReader";
@@ -451,7 +451,7 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
 
     }
 
-    @Test
+
     public void testReaderSubName() throws Exception {
         doTestReaderSubName(true);
         doTestReaderSubName(false);
@@ -489,7 +489,7 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         multiTopicsReader.close();
     }
 
-    @Test
+
     public void testSameSubName() throws Exception {
         final String topic = "persistent://my-property/my-ns/testSameSubName";
         final String subName = "my-sub-name";
@@ -517,7 +517,7 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
 
     }
 
-    @Test(timeOut = 30000)
+    
     public void testAvoidUsingIoThreadToGetValueOfMessage() throws Exception {
         final String topic = "persistent://my-property/my-ns/testAvoidUsingIoThreadToGetValueOfMessage";
 
@@ -558,7 +558,6 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(received.size(), 1);
     }
 
-    @Test(timeOut = 1000 * 10)
     public void removeNonPersistentTopicReaderTest() throws Exception {
         final String topic = "non-persistent://my-property/my-ns/non-topic";
 
@@ -603,7 +602,7 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         });
     }
 
-    @Test
+
     public void testReaderCursorStatsCorrect() throws Exception {
         final String readerNotAckTopic = "persistent://my-property/my-ns/testReaderCursorStatsCorrect";
         @Cleanup

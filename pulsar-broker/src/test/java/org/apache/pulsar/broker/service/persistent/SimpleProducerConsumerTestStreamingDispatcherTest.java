@@ -25,7 +25,7 @@ import org.testng.annotations.Test;
 /**
  * SimpleProducerConsumerTest with {@link StreamingDispatcher}
  */
-@Test(groups = "flaky")
+
 public class SimpleProducerConsumerTestStreamingDispatcherTest extends SimpleProducerConsumerTest {
 
     @Override

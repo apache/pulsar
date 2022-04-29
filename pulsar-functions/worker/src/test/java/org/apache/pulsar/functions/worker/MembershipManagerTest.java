@@ -87,7 +87,7 @@ public class MembershipManagerTest {
         return mockClient;
     }
 
-    @Test
+
     public void testCheckFailuresNoFailures() throws Exception {
         SchedulerManager schedulerManager = mock(SchedulerManager.class);
         PulsarClient pulsarClient = mockPulsarClient();
@@ -161,7 +161,7 @@ public class MembershipManagerTest {
         assertEquals(membershipManager.unsignedFunctionDurations.size(), 0);
     }
 
-    @Test
+
     public void testCheckFailuresSomeFailures() throws Exception {
         workerConfig.setRescheduleTimeoutMs(30000);
         SchedulerManager schedulerManager = mock(SchedulerManager.class);
@@ -245,7 +245,7 @@ public class MembershipManagerTest {
         verify(schedulerManager, times(1)).schedule();
     }
 
-    @Test
+
     public void testCheckFailuresSomeUnassigned() throws Exception {
         WorkerConfig workerConfig = new WorkerConfig();
         workerConfig.setWorkerId("worker-1");
@@ -329,7 +329,7 @@ public class MembershipManagerTest {
         verify(functionRuntimeManager, times(0)).removeAssignments(any());
     }
 
-    @Test
+
     public void testHeartBeatFunctionWorkerDown() throws Exception {
         WorkerConfig workerConfig = new WorkerConfig();
         workerConfig.setWorkerId("worker-1");

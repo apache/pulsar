@@ -25,7 +25,7 @@ import org.testng.annotations.Test;
 
 public class EntryBatchIndexesAcksTest {
 
-    @Test
+
     void shouldResetStateBeforeReusing() {
         // given
         // a bitset with 95 bits set

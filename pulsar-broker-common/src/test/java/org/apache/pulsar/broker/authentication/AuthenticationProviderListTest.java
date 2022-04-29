@@ -148,7 +148,7 @@ public class AuthenticationProviderListTest {
         assertEquals(actualSubject, expectedSubject);
     }
 
-    @Test
+
     public void testAuthenticate() throws Exception {
         testAuthenticate(tokenAA, SUBJECT_A);
         testAuthenticate(tokenAB, SUBJECT_B);
@@ -183,7 +183,7 @@ public class AuthenticationProviderListTest {
         assertTrue(authState.isExpired());
     }
 
-    @Test
+
     public void testNewAuthState() throws Exception {
         AuthenticationState authStateAA = newAuthState(expiringTokenAA, SUBJECT_A);
         AuthenticationState authStateAB = newAuthState(expiringTokenAB, SUBJECT_B);
@@ -199,7 +199,7 @@ public class AuthenticationProviderListTest {
 
     }
 
-    @Test
+
     public void testNewHttpAuthState() throws Exception {
         HttpServletRequest requestAA = mock(HttpServletRequest.class);
         when(requestAA.getRemoteAddr()).thenReturn("127.0.0.1");

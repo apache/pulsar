@@ -61,7 +61,7 @@ public class TestPrimitiveDecoder extends AbstractDecoderTester {
         super.init();
     }
 
-    @Test(singleThreaded = true)
+    (singleThreaded = true)
     public void testPrimitiveType() {
 
         byte int8Value = 1;

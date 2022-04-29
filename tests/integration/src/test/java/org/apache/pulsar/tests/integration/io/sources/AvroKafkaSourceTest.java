@@ -87,7 +87,7 @@ public class AvroKafkaSourceTest extends PulsarFunctionsTestBase {
         sourceConfig = new HashMap<>();
     }
 
-    @Test(groups = "source")
+    
     public void test() throws Exception {
         startKafkaContainers(pulsarCluster);
         try {

@@ -38,7 +38,7 @@ import com.google.common.collect.Lists;
 
 public class GrowableArrayBlockingQueueTest {
 
-    @Test
+
     public void simple() throws Exception {
         BlockingQueue<Integer> queue = new GrowableArrayBlockingQueue<>(4);
 
@@ -103,7 +103,7 @@ public class GrowableArrayBlockingQueueTest {
         }
     }
 
-    @Test(timeOut = 10000)
+    
     public void blockingTake() throws Exception {
         BlockingQueue<Integer> queue = new GrowableArrayBlockingQueue<>();
 
@@ -141,7 +141,7 @@ public class GrowableArrayBlockingQueueTest {
         latch.await();
     }
 
-    @Test
+
     public void growArray() throws Exception {
         BlockingQueue<Integer> queue = new GrowableArrayBlockingQueue<>(4);
 
@@ -170,7 +170,7 @@ public class GrowableArrayBlockingQueueTest {
         assertEquals(list, Lists.newArrayList(1, 2, 3));
     }
 
-    @Test(timeOut = 10000)
+    
     public void pollTimeout() throws Exception {
         BlockingQueue<Integer> queue = new GrowableArrayBlockingQueue<>(4);
 
@@ -188,7 +188,7 @@ public class GrowableArrayBlockingQueueTest {
         assertEquals(queue.poll(1, TimeUnit.HOURS).intValue(), 3);
     }
 
-    @Test(timeOut = 10000)
+    
     public void pollTimeout2() throws Exception {
         BlockingQueue<Integer> queue = new GrowableArrayBlockingQueue<>();
 
@@ -211,7 +211,7 @@ public class GrowableArrayBlockingQueueTest {
         latch.await();
     }
 
-    @Test
+
     public void removeTest() {
         BlockingQueue<Integer> queue = new GrowableArrayBlockingQueue<>(4);
 

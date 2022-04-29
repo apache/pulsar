@@ -68,7 +68,7 @@ public class UtilsTest {
         return new Object[][]{{Boolean.TRUE}, {Boolean.FALSE}};
     }
 
-    @Test
+
     public void testJsonSerialization() {
 
         final String[] keyNames = {"key1", "key2"};
@@ -111,7 +111,6 @@ public class UtilsTest {
 
     }
 
-    @Test(dataProvider = "encryption")
     public void testFbSerialization(boolean isEncryption) {
 
         final String[] keyNames = {"key1", "key2"};
@@ -268,7 +267,7 @@ public class UtilsTest {
         return new Object[]{SchemaType.JSON, SchemaType.AVRO};
     }
 
-    @Test(dataProvider = "schemaType")
+    
     public void testSerializeRecordToJsonExpandingValue(SchemaType schemaType) throws Exception {
         RecordSchemaBuilder valueSchemaBuilder = org.apache.pulsar.client.api.schema.SchemaBuilder.record("value");
         valueSchemaBuilder.field("c").type(SchemaType.STRING).optional().defaultValue(null);
@@ -340,7 +339,7 @@ public class UtilsTest {
                 + "\"properties\":{\"prop-key\":\"prop-value\"},\"eventTime\":1648502845803}");
     }
 
-    @Test(dataProvider = "schemaType")
+    
     public void testKeyValueSerializeRecordToJsonExpandingValue(SchemaType schemaType) throws Exception {
         RecordSchemaBuilder keySchemaBuilder = org.apache.pulsar.client.api.schema.SchemaBuilder.record("key");
         keySchemaBuilder.field("a").type(SchemaType.STRING).optional().defaultValue(null);
@@ -438,7 +437,7 @@ public class UtilsTest {
                 + "\"eventTime\":1648502845803}");
     }
 
-    @Test
+
     public void testPrimitiveSerializeRecordToJsonExpandingValue() throws Exception {
         GenericObject genericObject = new GenericObject() {
             @Override

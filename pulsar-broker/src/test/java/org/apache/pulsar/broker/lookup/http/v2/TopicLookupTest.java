@@ -33,7 +33,7 @@ import static org.testng.Assert.assertEquals;
 /**
  * TopicLookup V2 API unit tests.
  */
-@Test(groups = "broker")
+
 public class TopicLookupTest extends PulsarWebResourceTest {
 
     private static final String TOPIC_PATH = "/v2/topic/persistent/public/testns/testtopic";
@@ -46,7 +46,7 @@ public class TopicLookupTest extends PulsarWebResourceTest {
         return new ResourceConfig().register(resource);
     }
 
-    @Test
+
     public void testListenerName() {
         Response response;
         // verify query param

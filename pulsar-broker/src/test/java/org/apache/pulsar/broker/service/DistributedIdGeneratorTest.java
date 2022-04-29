@@ -38,7 +38,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker")
+
 public class DistributedIdGeneratorTest {
 
     private MetadataStoreExtended store;
@@ -56,7 +56,7 @@ public class DistributedIdGeneratorTest {
         store.close();
     }
 
-    @Test
+
     public void simple() throws Exception {
         DistributedIdGenerator gen1 = new DistributedIdGenerator(coordinationService, "/my/test/simple", "p");
 
@@ -76,7 +76,7 @@ public class DistributedIdGeneratorTest {
     /**
      * Use multiple threads to generate many Id. Ensure no holes and no dups in the sequence
      */
-    @Test
+
     public void concurrent() throws Exception {
         int Threads = 10;
         int Iterations = 100;
@@ -116,7 +116,7 @@ public class DistributedIdGeneratorTest {
         assertEquals(set.size(), results.size());
     }
 
-    @Test
+
     public void invalidZnode() throws Exception {
         store.put("/my/test/invalid", "invalid-number".getBytes(), Optional.of(-1L));
 

@@ -73,7 +73,7 @@ import org.testng.annotations.Test;
 /**
  * Test Pulsar sink on function
  */
-@Test(groups = "broker-io")
+
 public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
 
     protected static FunctionConfig createFunctionConfig(String tenant, String namespace, String functionName, String sourceTopic, String sinkTopic, String subscriptionName) {
@@ -175,18 +175,17 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
         tempDirectory.assertThatFunctionDownloadTempFilesHaveBeenDeleted();
     }
 
-    @Test(timeOut = 20000)
+    
     public void testE2EPulsarFunctionWithFile() throws Exception {
         String jarFilePathUrl = getPulsarApiExamplesJar().toURI().toString();
         testE2EPulsarFunction(jarFilePathUrl);
     }
 
-    @Test(timeOut = 40000)
     public void testE2EPulsarFunctionWithUrl() throws Exception {
         testE2EPulsarFunction(fileServer.getUrl("/pulsar-functions-api-examples.jar"));
     }
 
-    @Test(timeOut = 30000)
+    
     public void testReadCompactedFunction() throws Exception {
         final String namespacePortion = "io";
         final String replNamespace = tenant + "/" + namespacePortion;
@@ -256,7 +255,7 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
         producer.close();
     }
 
-    @Test(timeOut = 20000)
+    
     public void testPulsarFunctionStats() throws Exception {
 
         final String namespacePortion = "io";
@@ -592,7 +591,7 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
         tempDirectory.assertThatFunctionDownloadTempFilesHaveBeenDeleted();
     }
 
-    @Test(timeOut = 20000)
+    
     public void testPulsarFunctionStatus() throws Exception {
 
         final String namespacePortion = "io";
@@ -673,7 +672,6 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
         assertEquals(admin.topics().getStats(sourceTopic).getSubscriptions().size(), 0);
     }
 
-    @Test(dataProvider = "validRoleName")
     public void testAuthorization(boolean validRoleName) throws Exception {
         final String namespacePortion = "io";
         final String replNamespace = tenant + "/" + namespacePortion;
@@ -717,7 +715,7 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
 
     }
 
-    @Test(timeOut = 20000)
+    
     public void testFunctionStopAndRestartApi() throws Exception {
 
         final String namespacePortion = "io";
@@ -784,7 +782,7 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
         producer.close();
     }
 
-    @Test(timeOut = 20000)
+    
     public void testFunctionAutomaticSubCleanup() throws Exception {
         final String namespacePortion = "io";
         final String replNamespace = tenant + "/" + namespacePortion;
@@ -945,7 +943,7 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
         assertEquals(admin.topics().getStats(sourceTopic).getSubscriptions().size(), 1);
     }
 
-    @Test(timeOut = 20000)
+    
     public void testMultiTopicFunction() throws Exception {
         final String namespacePortion = "io";
         final String replNamespace = tenant + "/" + namespacePortion;
@@ -1069,7 +1067,7 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
         }, 50, 150));
     }
 
-    @Test(timeOut = 20000)
+    
     public void testE2EPulsarFunctionMessagePooled() throws Exception {
         final String namespacePortion = "io";
         final String replNamespace = tenant + "/" + namespacePortion;

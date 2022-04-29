@@ -84,7 +84,7 @@ public abstract class BaseAvroSchemaCompatibilityTest {
     /**
      * make sure new schema is backwards compatible with latest
      */
-    @Test
+
     public void testBackwardCompatibility() {
 
         SchemaCompatibilityCheck schemaCompatibilityCheck = getSchemaCheck();
@@ -121,7 +121,7 @@ public abstract class BaseAvroSchemaCompatibilityTest {
     /**
      * Check to make sure the last schema version is forward-compatible with new schemas
      */
-    @Test
+
     public void testForwardCompatibility() {
 
         SchemaCompatibilityCheck schemaCompatibilityCheck = getSchemaCheck();
@@ -152,7 +152,7 @@ public abstract class BaseAvroSchemaCompatibilityTest {
     /**
      * Make sure the new schema is forward- and backward-compatible from the latest to newest and from the newest to latest.
      */
-    @Test
+
     public void testFullCompatibility() {
         SchemaCompatibilityCheck schemaCompatibilityCheck = getSchemaCheck();
         Assert.assertTrue(schemaCompatibilityCheck.isCompatible(schemaData1, schemaData2,
@@ -167,7 +167,7 @@ public abstract class BaseAvroSchemaCompatibilityTest {
 
     }
 
-    @Test
+
     public void testBackwardTransitive() {
         SchemaCompatibilityCheck schemaCompatibilityCheck = getSchemaCheck();
         Assert.assertTrue(schemaCompatibilityCheck.isCompatible(Arrays.asList(schemaData1, schemaData2), schemaData5,
@@ -184,7 +184,7 @@ public abstract class BaseAvroSchemaCompatibilityTest {
                 schemaData8, SchemaCompatibilityStrategy.BACKWARD_TRANSITIVE));
     }
 
-    @Test
+
     public void testForwardTransitive() {
         SchemaCompatibilityCheck schemaCompatibilityCheck = getSchemaCheck();
         Assert.assertTrue(schemaCompatibilityCheck.isCompatible(Arrays.asList(schemaData1, schemaData2), schemaData3,
@@ -197,7 +197,7 @@ public abstract class BaseAvroSchemaCompatibilityTest {
                 SchemaCompatibilityStrategy.FORWARD_TRANSITIVE));
     }
 
-    @Test
+
     public void testFullTransitive() {
         SchemaCompatibilityCheck schemaCompatibilityCheck = getSchemaCheck();
         Assert.assertTrue(schemaCompatibilityCheck.isCompatible(Arrays.asList(schemaData1, schemaData2), schemaData3,

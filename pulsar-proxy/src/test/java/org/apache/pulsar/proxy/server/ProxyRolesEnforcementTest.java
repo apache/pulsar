@@ -175,7 +175,7 @@ public class ProxyRolesEnforcementTest extends ProducerConsumerBase {
         super.internalCleanup();
     }
 
-    @Test
+    
     public void testIncorrectRoles() throws Exception {
         log.info("-- Starting {} test --", methodName);
 

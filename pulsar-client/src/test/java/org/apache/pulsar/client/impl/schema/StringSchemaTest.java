@@ -42,7 +42,7 @@ import org.testng.annotations.Test;
  */
 public class StringSchemaTest {
 
-    @Test
+
     public void testUtf8Charset() {
         StringSchema schema = new StringSchema();
         SchemaInfo si = schema.getSchemaInfo();
@@ -61,7 +61,7 @@ public class StringSchemaTest {
         assertEquals(schema.decode(byteBuf), myString);
     }
 
-    @Test
+
     public void testAsciiCharset() {
         StringSchema schema = new StringSchema(US_ASCII);
         SchemaInfo si = schema.getSchemaInfo();
@@ -84,7 +84,7 @@ public class StringSchemaTest {
         assertEquals(schema.decode(byteBuf), myString);
     }
 
-    @Test
+
     public void testSchemaInfoWithoutCharset() {
         SchemaInfo si = new SchemaInfoImpl()
             .setName("test-schema-info-without-charset")
@@ -117,7 +117,6 @@ public class StringSchemaTest {
         };
     }
 
-    @Test(dataProvider = "charsets")
     public void testSchemaInfoWithCharset(Charset charset) {
         Map<String, String> properties = new HashMap<>();
         properties.put(StringSchema.CHARSET_KEY, charset.name());

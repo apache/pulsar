@@ -23,13 +23,13 @@ import org.testng.annotations.Test;
 
 public class ThreadDumpUtilTest {
 
-    @Test
+
     void testThreadDump() {
         // simply verify that an exception isn't thrown
         System.out.println(ThreadDumpUtil.buildThreadDiagnosticString());
     }
 
-    @Test
+
     void testHelp() throws JMException {
         System.out.println(ThreadDumpUtil.callDiagnosticCommand("help"));
     }

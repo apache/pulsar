@@ -54,7 +54,7 @@ public class PulsarFunctionTestUtils {
         return result.toString();
     }
 
-    @Test
+
     void testParseMetrics() throws IOException {
         String sampleMetrics = IOUtils.toString(getClass().getClassLoader()
                         .getResourceAsStream("prometheus_metrics_sample.txt"), StandardCharsets.UTF_8);

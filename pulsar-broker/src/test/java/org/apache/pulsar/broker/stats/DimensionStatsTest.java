@@ -23,7 +23,7 @@ import java.util.concurrent.TimeUnit;
 import org.testng.annotations.Test;
 
 public class DimensionStatsTest {
-    @Test
+
     void shouldCalculateQuantiles() {
         DimensionStats dimensionStats = new DimensionStats("test", 100, false);
         for (int i = 1; i <= 10000; i++) {

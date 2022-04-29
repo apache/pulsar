@@ -77,7 +77,7 @@ public class SchemaTypeCompatibilityCheckTest extends MockedPulsarServiceBaseTes
         super.internalCleanup();
     }
 
-    @Test
+
     public void testSchemaCompatibilityStrategyInBrokerLevel() throws PulsarClientException {
         conf.setSchemaCompatibilityStrategy(SchemaCompatibilityStrategy.ALWAYS_INCOMPATIBLE);
 
@@ -101,7 +101,7 @@ public class SchemaTypeCompatibilityCheckTest extends MockedPulsarServiceBaseTes
         assertTrue(t.getMessage().contains("org.apache.avro.SchemaValidationException: Unable to read schema"));
     }
 
-    @Test
+
     public void structTypeProducerProducerUndefinedCompatible() throws Exception {
         admin.namespaces().setSchemaCompatibilityStrategy(namespaceName, SchemaCompatibilityStrategy.UNDEFINED);
 
@@ -123,7 +123,7 @@ public class SchemaTypeCompatibilityCheckTest extends MockedPulsarServiceBaseTes
         assertTrue(t.getMessage().contains("Incompatible schema: exists schema type JSON, new schema type AVRO"));
     }
 
-    @Test
+
     public void structTypeProducerConsumerUndefinedCompatible() throws Exception {
         admin.namespaces().setSchemaCompatibilityStrategy(namespaceName, SchemaCompatibilityStrategy.UNDEFINED);
 
@@ -149,7 +149,7 @@ public class SchemaTypeCompatibilityCheckTest extends MockedPulsarServiceBaseTes
         assertTrue(t.getMessage().contains("Incompatible schema: exists schema type JSON, new schema type AVRO"));
     }
 
-    @Test
+
     public void structTypeConsumerProducerUndefinedCompatible() throws Exception {
         admin.namespaces().setSchemaCompatibilityStrategy(namespaceName, SchemaCompatibilityStrategy.UNDEFINED);
 
@@ -175,7 +175,7 @@ public class SchemaTypeCompatibilityCheckTest extends MockedPulsarServiceBaseTes
         assertTrue(t.getMessage().contains("Incompatible schema: exists schema type JSON, new schema type AVRO"));
     }
 
-    @Test
+
     public void structTypeConsumerConsumerUndefinedCompatible() throws Exception {
         admin.namespaces().setSchemaCompatibilityStrategy(namespaceName, SchemaCompatibilityStrategy.UNDEFINED);
 
@@ -204,7 +204,7 @@ public class SchemaTypeCompatibilityCheckTest extends MockedPulsarServiceBaseTes
         assertTrue(t.getMessage().contains("Incompatible schema: exists schema type JSON, new schema type AVRO"));
     }
 
-    @Test
+
     public void primitiveTypeProducerProducerUndefinedCompatible() throws Exception {
         admin.namespaces().setSchemaCompatibilityStrategy(namespaceName, SchemaCompatibilityStrategy.UNDEFINED);
 
@@ -226,7 +226,7 @@ public class SchemaTypeCompatibilityCheckTest extends MockedPulsarServiceBaseTes
         assertTrue(t.getMessage().contains("Incompatible schema: exists schema type INT32, new schema type STRING"));
     }
 
-    @Test
+
     public void primitiveTypeProducerConsumerUndefinedCompatible() throws Exception {
         admin.namespaces().setSchemaCompatibilityStrategy(namespaceName, SchemaCompatibilityStrategy.UNDEFINED);
 
@@ -252,7 +252,7 @@ public class SchemaTypeCompatibilityCheckTest extends MockedPulsarServiceBaseTes
         assertTrue(t.getMessage().contains("Incompatible schema: exists schema type INT32, new schema type STRING"));
     }
 
-    @Test
+
     public void primitiveTypeConsumerProducerUndefinedCompatible() throws Exception {
         admin.namespaces().setSchemaCompatibilityStrategy(namespaceName, SchemaCompatibilityStrategy.UNDEFINED);
 
@@ -278,7 +278,7 @@ public class SchemaTypeCompatibilityCheckTest extends MockedPulsarServiceBaseTes
         assertTrue(t.getMessage().contains("Incompatible schema: exists schema type INT32, new schema type STRING"));
     }
 
-    @Test
+
     public void primitiveTypeConsumerConsumerUndefinedCompatible() throws Exception {
         admin.namespaces().setSchemaCompatibilityStrategy(namespaceName, SchemaCompatibilityStrategy.UNDEFINED);
 
@@ -307,7 +307,7 @@ public class SchemaTypeCompatibilityCheckTest extends MockedPulsarServiceBaseTes
         assertTrue(t.getMessage().contains("Incompatible schema: exists schema type INT32, new schema type STRING"));
     }
 
-    @Test
+
     public void testAlwaysCompatible() throws Exception {
         admin.namespaces().setSchemaCompatibilityStrategy(namespaceName, SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE);
         final String topicName = TopicName.get(

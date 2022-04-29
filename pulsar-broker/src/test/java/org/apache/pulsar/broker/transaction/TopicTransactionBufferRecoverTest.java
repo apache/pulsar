@@ -111,7 +111,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         };
     }
 
-    @Test(dataProvider = "testTopic")
+    testTopic")
     private void recoverTest(String testTopic) throws Exception {
         PulsarClient pulsarClient = this.pulsarClient;
         Transaction tnx1 = pulsarClient.newTransaction()
@@ -225,7 +225,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
 
     }
 
-    @Test
+
     private void testTakeSnapshot() throws IOException, ExecutionException, InterruptedException {
 
         @Cleanup
@@ -297,7 +297,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
 
     }
 
-    @Test
+
     private void testTopicTransactionBufferDeleteAbort() throws Exception {
         @Cleanup
         Producer<String> producer = pulsarClient
@@ -387,7 +387,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         assertTrue(exist);
     }
 
-    @Test
+
     public void clearTransactionBufferSnapshotTest() throws Exception {
         String topic = NAMESPACE1 + "/tb-snapshot-delete-" + RandomUtils.nextInt();
 
@@ -453,7 +453,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         reader.close();
     }
 
-    @Test(timeOut=30000)
+    (timeOut=30000)
     public void testTransactionBufferRecoverThrowPulsarClientException() throws Exception {
         String topic = NAMESPACE1 + "/testTransactionBufferRecoverThrowPulsarClientException";
         @Cleanup
@@ -541,7 +541,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
     }
 
 
-    @Test
+
     public void testTransactionBufferNoSnapshotCloseReader() throws Exception{
         String topic = NAMESPACE1 + "/test";
         @Cleanup

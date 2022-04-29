@@ -33,7 +33,7 @@ import static org.mockito.Mockito.when;
 
 public class SupportVersioningKeyValueSchemaTest {
 
-    @Test
+
     public void testKeyValueVersioningEncodeDecode() {
         MultiVersionSchemaInfoProvider multiVersionSchemaInfoProvider = mock(MultiVersionSchemaInfoProvider.class);
         AvroSchema<SchemaTestUtils.Foo> fooSchema = AvroSchema.of(
@@ -71,7 +71,7 @@ public class SupportVersioningKeyValueSchemaTest {
                 KeyValueEncodingType.INLINE);
     }
 
-    @Test
+
     public void testSeparateKeyValueVersioningEncodeDecode() {
         MultiVersionSchemaInfoProvider multiVersionSchemaInfoProvider = mock(MultiVersionSchemaInfoProvider.class);
         AvroSchema<SchemaTestUtils.Foo> fooSchema = AvroSchema.of(
@@ -104,7 +104,7 @@ public class SupportVersioningKeyValueSchemaTest {
                 KeyValueEncodingType.SEPARATED);
     }
 
-    @Test
+
     public void testKeyValueDefaultVersioningEncodeDecode() {
         AvroSchema<SchemaTestUtils.Foo> fooSchema = AvroSchema.of(
                 SchemaDefinition.<SchemaTestUtils.Foo>builder().withPojo(SchemaTestUtils.Foo.class).build());
@@ -137,7 +137,7 @@ public class SupportVersioningKeyValueSchemaTest {
                 KeyValueEncodingType.INLINE);
     }
 
-    @Test
+
     public void testKeyValueLatestVersioningEncodeDecode() {
         AvroSchema<SchemaTestUtils.Foo> fooSchema = AvroSchema.of(
                 SchemaDefinition.<SchemaTestUtils.Foo>builder().withPojo(SchemaTestUtils.Foo.class).build());

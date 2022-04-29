@@ -51,7 +51,7 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker")
+
 public class DelayedDeliveryTest extends ProducerConsumerBase {
 
     @Override
@@ -70,7 +70,7 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
         super.internalCleanup();
     }
 
-    @Test
+
     public void testDelayedDelivery() throws Exception {
         String topic = BrokerTestUtil.newUniqueName("testNegativeAcks");
 
@@ -124,7 +124,7 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
         }
     }
 
-    @Test
+
     public void testInterleavedMessages()
             throws Exception {
         String topic = BrokerTestUtil.newUniqueName("testInterleavedMessages");
@@ -176,7 +176,7 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
         }
     }
 
-    @Test
+
     public void testEverythingFilteredInMultipleReads()
             throws Exception {
         String topic = BrokerTestUtil.newUniqueName("testEverythingFilteredInMultipleReads");
@@ -225,7 +225,7 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
         }
     }
 
-    @Test
+
     public void testDelayedDeliveryWithMultipleConcurrentReadEntries()
             throws Exception {
         String topic = BrokerTestUtil.newUniqueName("persistent://public/default/testDelayedDelivery");
@@ -288,7 +288,7 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
         t.interrupt();
     }
 
-    @Test
+
     public void testOrderingDispatch() throws PulsarClientException {
         String topic = BrokerTestUtil.newUniqueName("persistent://public/default/testOrderingDispatch");
 
@@ -329,7 +329,7 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
         }
     }
 
-    @Test(timeOut = 20000)
+    
     public void testEnableAndDisableTopicDelayedDelivery() throws Exception {
         String topicName = "persistent://public/default/topic-" + UUID.randomUUID();
 
@@ -363,7 +363,7 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
         assertNull(admin.topics().getDelayedDeliveryPolicy(topicName));
     }
 
-    @Test(timeOut = 20000)
+    
     public void testEnableTopicDelayedDelivery() throws Exception {
         final String topicName = "persistent://public/default/test" + UUID.randomUUID().toString();
 
@@ -466,7 +466,7 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
         assertNotNull(msg);
     }
 
-    @Test
+
     public void testClearDelayedMessagesWhenClearBacklog() throws PulsarClientException, PulsarAdminException {
         final String topic = "persistent://public/default/testClearDelayedMessagesWhenClearBacklog-" + UUID.randomUUID().toString();
         final String subName = "my-sub";
@@ -493,7 +493,7 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
         Awaitility.await().untilAsserted(() -> Assert.assertEquals(dispatcher.getNumberOfDelayedMessages(), 0));
     }
 
-    @Test
+
     public void testDelayedDeliveryWithAllConsumersDisconnecting() throws Exception {
         String topic = BrokerTestUtil.newUniqueName("persistent://public/default/testDelays");
 

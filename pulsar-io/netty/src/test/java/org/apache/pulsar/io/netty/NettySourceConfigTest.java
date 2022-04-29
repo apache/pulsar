@@ -37,7 +37,7 @@ public class NettySourceConfigTest {
     private static final String LOCALHOST = "127.0.0.1";
     private static final String TCP = "tcp";
 
-    @Test
+
     public void testNettyTcpConfigLoadWithMap() throws IOException {
         Map<String, Object> map = new HashMap<>();
         map.put("type", TCP);
@@ -53,7 +53,6 @@ public class NettySourceConfigTest {
         assertEquals(1, nettySourceConfig.getNumberOfThreads());
     }
 
-    @Test(expectedExceptions = UnrecognizedPropertyException.class)
     public void testNettyTcpConfigLoadWithMapWhenInvalidPropertyIsSet() throws IOException {
         Map<String, Object> map = new HashMap<>();
         map.put("invalidProperty", 1);
@@ -61,7 +60,7 @@ public class NettySourceConfigTest {
         NettySourceConfig.load(map);
     }
 
-    @Test
+
     public void testNettyTcpConfigLoadWithYamlFile() throws IOException {
         File yamlFile = getFile("nettySourceConfig.yaml");
         NettySourceConfig nettySourceConfig = NettySourceConfig.load(yamlFile.getAbsolutePath());
@@ -72,7 +71,6 @@ public class NettySourceConfigTest {
         assertEquals(5, nettySourceConfig.getNumberOfThreads());
     }
 
-    @Test(expectedExceptions = UnrecognizedPropertyException.class)
     public void testNettyTcpConfigLoadWithYamlFileWhenInvalidPropertyIsSet() throws IOException {
         File yamlFile = getFile("nettySourceConfigWithInvalidProperty.yaml");
         NettySourceConfig.load(yamlFile.getAbsolutePath());

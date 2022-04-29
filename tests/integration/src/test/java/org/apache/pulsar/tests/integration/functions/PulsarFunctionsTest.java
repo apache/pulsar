@@ -1256,7 +1256,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         result.assertNoStderr();
     }
 
-    @Test(groups = "function")
+    
     public void testAutoSchemaFunction() throws Exception {
         String inputTopicName = "test-autoschema-input-" + randomName(8);
         String outputTopicName = "test-autoshcema-output-" + randomName(8);
@@ -1322,7 +1322,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         }
     }
 
-    @Test(groups = "function")
+    
     public void testAvroSchemaFunction() throws Exception {
         log.info("testAvroSchemaFunction start ...");
         final String inputTopic = "test-avroschema-input-" + randomName(8);

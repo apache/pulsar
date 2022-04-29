@@ -34,7 +34,7 @@ public class DLOutputStreamTest {
     /**
      * Test Case: close output stream.
      */
-    @Test
+    
     public void testClose() throws Exception {
         DistributedLogManager dlm = mock(DistributedLogManager.class);
         AppendOnlyStreamWriter writer = mock(AppendOnlyStreamWriter.class);
@@ -49,7 +49,7 @@ public class DLOutputStreamTest {
     /**
      * Test Case: flush should force writing the data.
      */
-    @Test
+    
     public void testFlush() throws Exception {
         DistributedLogManager dlm = mock(DistributedLogManager.class);
         AppendOnlyStreamWriter writer = mock(AppendOnlyStreamWriter.class);
@@ -62,7 +62,7 @@ public class DLOutputStreamTest {
     /**
      * Test Case: test writing the data.
      */
-    @Test
+    
     public void testWrite() throws Exception {
         DistributedLogManager dlm = mock(DistributedLogManager.class);
         AppendOnlyStreamWriter writer = mock(AppendOnlyStreamWriter.class);

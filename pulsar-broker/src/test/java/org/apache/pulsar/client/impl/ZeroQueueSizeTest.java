@@ -55,7 +55,7 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker-impl")
+
 public class ZeroQueueSizeTest extends BrokerTestBase {
     private static final Logger log = LoggerFactory.getLogger(ZeroQueueSizeTest.class);
     private final int totalMessages = 10;
@@ -72,17 +72,16 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
         internalCleanup();
     }
 
-    @Test
+
     public void validQueueSizeConfig() {
         pulsarClient.newConsumer().receiverQueueSize(0);
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
+    
     public void InvalidQueueSizeConfig() {
         pulsarClient.newConsumer().receiverQueueSize(-1);
     }
 
-    @Test(expectedExceptions = PulsarClientException.InvalidConfigurationException.class)
     public void zeroQueueSizeReceiveAsyncInCompatibility() throws PulsarClientException {
         String key = "zeroQueueSizeReceiveAsyncInCompatibility";
         final String topicName = "persistent://prop/use/ns-abc/topic-" + key;
@@ -93,7 +92,6 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
         consumer.receive(10, TimeUnit.SECONDS);
     }
 
-    @Test(expectedExceptions = PulsarClientException.class)
     public void zeroQueueSizePartitionedTopicInCompatibility() throws PulsarClientException, PulsarAdminException {
         String key = "zeroQueueSizePartitionedTopicInCompatibility";
         final String topicName = "persistent://prop/use/ns-abc/topic-" + key;
@@ -103,7 +101,7 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
         pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName).receiverQueueSize(0).subscribe();
     }
 
-    @Test
+
     public void zeroQueueSizeNormalConsumer() throws PulsarClientException {
         String key = "nonZeroQueueSizeNormalConsumer";
 
@@ -140,7 +138,7 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
         }
     }
 
-    @Test
+
     public void zeroQueueSizeConsumerListener() throws Exception {
         String key = "zeroQueueSizeConsumerListener";
 
@@ -184,7 +182,7 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
         }
     }
 
-    @Test
+
     public void zeroQueueSizeSharedSubscription() throws PulsarClientException {
         String key = "zeroQueueSizeSharedSubscription";
 
@@ -225,7 +223,7 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
         }
     }
 
-    @Test
+
     public void zeroQueueSizeFailoverSubscription() throws PulsarClientException {
         String key = "zeroQueueSizeFailoverSubscription";
 
@@ -280,7 +278,7 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
         }
     }
 
-    @Test
+
     public void testFailedZeroQueueSizeBatchMessage() throws PulsarClientException {
 
         int batchMessageDelayMs = 100;
@@ -318,7 +316,7 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
         }
     }
 
-    @Test
+
     public void testZeroQueueSizeMessageRedelivery() throws PulsarClientException {
         final String topic = "persistent://prop/ns-abc/testZeroQueueSizeMessageRedelivery";
         Consumer<Integer> consumer = pulsarClient.newConsumer(Schema.INT32)
@@ -350,7 +348,7 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
         producer.close();
     }
 
-    @Test
+
     public void testZeroQueueSizeMessageRedeliveryForListener() throws Exception {
         final String topic = "persistent://prop/ns-abc/testZeroQueueSizeMessageRedeliveryForListener";
         final int messages = 10;
@@ -387,7 +385,7 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
         producer.close();
     }
 
-    @Test
+
     public void testZeroQueueSizeMessageRedeliveryForAsyncReceive() throws PulsarClientException, ExecutionException, InterruptedException {
         final String topic = "persistent://prop/ns-abc/testZeroQueueSizeMessageRedeliveryForAsyncReceive";
         Consumer<Integer> consumer = pulsarClient.newConsumer(Schema.INT32)
@@ -423,7 +421,7 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
         producer.close();
     }
 
-    @Test(timeOut = 30000)
+    
     public void testPauseAndResume() throws Exception {
         final String topicName = "persistent://prop/ns-abc/zero-queue-pause-and-resume";
         final String subName = "sub";
@@ -459,7 +457,7 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
         producer.close();
     }
 
-    @Test(timeOut = 30000)
+    
     public void testPauseAndResumeWithUnloading() throws Exception {
         final String topicName = "persistent://prop/ns-abc/zero-queue-pause-and-resume-with-unloading";
         final String subName = "sub";
@@ -498,7 +496,7 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
         producer.close();
     }
 
-    @Test(timeOut = 30000)
+    
     public void testPauseAndResumeNoReconnection() throws Exception {
         final String topicName = "persistent://prop/ns-abc/zero-queue-pause-and-resume-no-reconnection";
         final String subName = "sub";

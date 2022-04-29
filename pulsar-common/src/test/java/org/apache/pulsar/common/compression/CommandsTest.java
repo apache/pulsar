@@ -38,7 +38,7 @@ import org.testng.annotations.Test;
 
 public class CommandsTest {
 
-    @Test
+
     public void testChecksumSendCommand() throws Exception {
 
         // test checksum in send command

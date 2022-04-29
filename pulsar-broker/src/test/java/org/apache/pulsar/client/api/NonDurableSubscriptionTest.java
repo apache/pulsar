@@ -45,7 +45,7 @@ import static org.testng.AssertJUnit.assertFalse;
 import static org.testng.AssertJUnit.assertNull;
 import static org.testng.AssertJUnit.assertTrue;
 
-@Test(groups = "broker-api")
+
 @Slf4j
 public class NonDurableSubscriptionTest  extends ProducerConsumerBase {
 
@@ -93,7 +93,7 @@ public class NonDurableSubscriptionTest  extends ProducerConsumerBase {
         };
     }
 
-    @Test
+
     public void testNonDurableSubscription() throws Exception {
         String topicName = "persistent://my-property/my-ns/nonDurable-topic1";
         // 1 setup producer、consumer
@@ -131,7 +131,7 @@ public class NonDurableSubscriptionTest  extends ProducerConsumerBase {
 
     }
 
-    @Test
+
     public void testSameSubscriptionNameForDurableAndNonDurableSubscription() throws Exception {
         String topicName = "persistent://my-property/my-ns/same-sub-name-topic";
         // first test for create Durable subscription and then create NonDurable subscription
@@ -193,7 +193,7 @@ public class NonDurableSubscriptionTest  extends ProducerConsumerBase {
         }
     }
 
-    @Test(timeOut = 10000)
+    
     public void testDeleteInactiveNonPersistentSubscription() throws Exception {
         final String topic = "non-persistent://my-property/my-ns/topic-" + UUID.randomUUID();
         final String subName = "my-subscriber";
@@ -239,7 +239,7 @@ public class NonDurableSubscriptionTest  extends ProducerConsumerBase {
         return result;
     }
 
-    @Test(dataProvider = "subscriptionTypes")
+    
     public void testNonDurableSubscriptionRecovery(SubscriptionType subscriptionType) throws Exception {
         log.info("testing {}", subscriptionType);
         String topicName = "persistent://my-property/my-ns/nonDurable-sub-recorvery-"+subscriptionType;
@@ -288,7 +288,7 @@ public class NonDurableSubscriptionTest  extends ProducerConsumerBase {
 
     }
 
-    @Test
+
     public void testFlowCountForMultiTopics() throws Exception {
         String topicName = "persistent://my-property/my-ns/test-flow-count";
         int numPartitions = 5;

@@ -211,7 +211,7 @@ public class ProxySaslAuthenticationTest extends ProducerConsumerBase {
 		super.internalCleanup();
 	}
 
-	@Test
+
 	void testAuthentication() throws Exception {
 		log.info("-- Starting {} test --", methodName);
 

@@ -63,7 +63,7 @@ public class RangeCacheTest {
         }
     }
 
-    @Test
+
     public void simple() {
         RangeCache<Integer, RefString> cache = new RangeCache<>();
 
@@ -111,7 +111,7 @@ public class RangeCacheTest {
         assertEquals(cache.getNumberOfEntries(), 0);
     }
 
-    @Test
+
     public void customWeighter() {
         RangeCache<Integer, RefString> cache = new RangeCache<>(value -> value.s.length(), x -> 0);
 
@@ -122,7 +122,7 @@ public class RangeCacheTest {
         assertEquals(cache.getNumberOfEntries(), 2);
     }
 
-    @Test
+
     public void customTimeExtraction() {
         RangeCache<Integer, RefString> cache = new RangeCache<>(value -> value.s.length(), x -> x.s.length());
 
@@ -141,7 +141,7 @@ public class RangeCacheTest {
         assertEquals(cache.getNumberOfEntries(), 1);
     }
 
-    @Test
+
     public void doubleInsert() {
         RangeCache<Integer, RefString> cache = new RangeCache<>();
 
@@ -170,7 +170,7 @@ public class RangeCacheTest {
         assertEquals(cache.get(1).s, "one");
     }
 
-    @Test
+
     public void getRange() {
         RangeCache<Integer, RefString> cache = new RangeCache<>();
 
@@ -191,7 +191,7 @@ public class RangeCacheTest {
         assertEquals(cache.getNumberOfEntries(), 0);
     }
 
-    @Test
+
     public void eviction() {
         RangeCache<Integer, RefString> cache = new RangeCache<>(value -> value.s.length(), x -> 0);
 
@@ -233,7 +233,7 @@ public class RangeCacheTest {
         }
     }
 
-    @Test
+
     public void evictions() {
         RangeCache<Integer, RefString> cache = new RangeCache<>();
 

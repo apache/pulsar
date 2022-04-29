@@ -23,7 +23,7 @@ import org.testng.annotations.Test;
 
 public class BitSetRecyclableRecyclableTest {
 
-    @Test
+
     public void testRecycle() {
         BitSetRecyclable bitset1 = BitSetRecyclable.create();
         bitset1.set(3);
@@ -35,7 +35,7 @@ public class BitSetRecyclableRecyclableTest {
         Assert.assertNotSame(bitset3, bitset1);
     }
 
-    @Test
+
     public void testResetWords() {
         BitSetRecyclable bitset1 = BitSetRecyclable.create();
         BitSetRecyclable bitset2 = BitSetRecyclable.create();

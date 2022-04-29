@@ -124,12 +124,12 @@ public class MongoSinkTest {
         verify(mockMongoClient, times(1)).close();
     }
 
-    @Test
+
     public void testOpen() throws Exception {
         sink.open(map, mockSinkContext);
     }
 
-    @Test
+
     public void testWriteNullMessage() throws Exception {
         when(mockRecord.getValue()).thenReturn("".getBytes());
 
@@ -141,7 +141,7 @@ public class MongoSinkTest {
         verify(mockRecord, times(1)).fail();
     }
 
-    @Test
+
     public void testWriteGoodMessage() throws Exception {
         initContext(false);
 
@@ -153,7 +153,7 @@ public class MongoSinkTest {
         verify(mockRecord, times(1)).ack();
     }
 
-    @Test
+
     public void testWriteMultipleMessages() throws Exception {
         initContext(true);
 
@@ -168,7 +168,7 @@ public class MongoSinkTest {
         verify(mockRecord, times(1)).fail();
     }
 
-    @Test
+
     public void testWriteWithError() throws Exception {
         initFailContext("{\"hello\":\"pulsar\"}");
 
@@ -180,7 +180,7 @@ public class MongoSinkTest {
         verify(mockRecord, times(1)).fail();
     }
 
-    @Test
+
     public void testWriteBadMessage() throws Exception {
         initFailContext("Oops");
 

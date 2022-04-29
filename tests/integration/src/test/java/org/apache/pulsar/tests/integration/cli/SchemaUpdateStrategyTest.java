@@ -389,7 +389,7 @@ public class SchemaUpdateStrategyTest extends PulsarTestSuite {
         }
     }
 
-    @Test
+
     public void testBackwardV2() throws Exception {
         pulsarCluster.runAdminCommandOnAnyBroker("namespaces", "create", "-c",
                                                  pulsarCluster.getClusterName(), "public/bw-p-v2");
@@ -400,7 +400,7 @@ public class SchemaUpdateStrategyTest extends PulsarTestSuite {
         testAutoUpdateBackward("public/bw-np-v2", "non-persistent://public/bw-np-v2/topic1");
     }
 
-    @Test
+
     public void testForwardV2() throws Exception {
         pulsarCluster.runAdminCommandOnAnyBroker("namespaces", "create", "-c",
                                                  pulsarCluster.getClusterName(), "public/fw-p-v2");
@@ -411,7 +411,7 @@ public class SchemaUpdateStrategyTest extends PulsarTestSuite {
         testAutoUpdateForward("public/fw-np-v2", "non-persistent://public/fw-np-v2/topic1");
     }
 
-    @Test
+
     public void testFullV2() throws Exception {
         pulsarCluster.runAdminCommandOnAnyBroker("namespaces", "create", "-c",
                                                  pulsarCluster.getClusterName(), "public/full-p-v2");
@@ -422,7 +422,7 @@ public class SchemaUpdateStrategyTest extends PulsarTestSuite {
         testAutoUpdateFull("public/full-np-v2", "non-persistent://public/full-np-v2/topic1");
     }
 
-    @Test
+
     public void testNoneV2() throws Exception {
         pulsarCluster.runAdminCommandOnAnyBroker("namespaces", "create", "-c",
                 pulsarCluster.getClusterName(), "public/none-p-v2");
@@ -433,7 +433,7 @@ public class SchemaUpdateStrategyTest extends PulsarTestSuite {
         testNone("public/none-np-v2", "non-persistent://public/none-np-v2/topic1");
     }
 
-    @Test
+
     public void testDisabledV2() throws Exception {
         pulsarCluster.runAdminCommandOnAnyBroker("namespaces", "create", "-c",
                                                  pulsarCluster.getClusterName(), "public/dis-p-v2");
@@ -444,7 +444,7 @@ public class SchemaUpdateStrategyTest extends PulsarTestSuite {
         testAutoUpdateDisabled("public/dis-np-v2", "non-persistent://public/dis-np-v2/topic1");
     }
 
-    @Test
+
     public void testBackwardV1() throws Exception {
         pulsarCluster.runAdminCommandOnAnyBroker("namespaces", "create",
                                                  "public/" + pulsarCluster.getClusterName() + "/b-p-v1");
@@ -456,7 +456,7 @@ public class SchemaUpdateStrategyTest extends PulsarTestSuite {
                                "persistent://public/" + pulsarCluster.getClusterName() + "/b-np-v1/topic1");
     }
 
-    @Test
+
     public void testForwardV1() throws Exception {
         pulsarCluster.runAdminCommandOnAnyBroker("namespaces", "create",
                                                  "public/" + pulsarCluster.getClusterName() + "/f-p-v1");
@@ -468,7 +468,7 @@ public class SchemaUpdateStrategyTest extends PulsarTestSuite {
                               "persistent://public/" + pulsarCluster.getClusterName() + "/f-np-v1/topic1");
     }
 
-    @Test
+
     public void testFullV1() throws Exception {
         pulsarCluster.runAdminCommandOnAnyBroker("namespaces", "create",
                                                  "public/" + pulsarCluster.getClusterName() + "/full-p-v1");
@@ -480,7 +480,7 @@ public class SchemaUpdateStrategyTest extends PulsarTestSuite {
                            "persistent://public/" + pulsarCluster.getClusterName() + "/full-np-v1/topic1");
     }
 
-    @Test
+
     public void testNoneV1() throws Exception {
         pulsarCluster.runAdminCommandOnAnyBroker("namespaces", "create",
                 "public/" + pulsarCluster.getClusterName() + "/none-p-v1");
@@ -492,7 +492,7 @@ public class SchemaUpdateStrategyTest extends PulsarTestSuite {
                 "persistent://public/" + pulsarCluster.getClusterName() + "/none-np-v1/topic1");
     }
 
-    @Test
+
     public void testDisabledV1() throws Exception {
         pulsarCluster.runAdminCommandOnAnyBroker("namespaces", "create",
                                                  "public/" + pulsarCluster.getClusterName() + "/dis-p-v1");

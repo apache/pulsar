@@ -70,7 +70,6 @@ public class TestCmdPackages {
         };
     }
 
-    @Test(timeOut = 60000, dataProvider = "commandsWithoutArgs")
     public void testCommandsWithoutArgs(String command) {
         String packageName = "test-package-name";
         boolean result = cmdPackages.run(new String[]{command});
@@ -78,7 +77,7 @@ public class TestCmdPackages {
     }
 
     // test command `bin/pulsar-admin packages get-metadata package-name`
-    @Test(timeOut = 1000)
+    
     public void testGetMetadataCmd() throws PulsarAdminException {
         String packageName = randomName(8);
         boolean result = cmdPackages.run(new String[]{"get-metadata", packageName});
@@ -87,7 +86,7 @@ public class TestCmdPackages {
     }
 
     // test command `bin/pulsar-admin packages update-metadata package-name --description tests`
-    @Test(timeOut = 1000)
+    
     public void testUpdateMetadataCmdWithRequiredArgs() throws PulsarAdminException {
         String packageName = randomName(8);
         boolean result = cmdPackages.run(new String[]{"update-metadata", packageName, "--description", "tests"});
@@ -99,7 +98,7 @@ public class TestCmdPackages {
 
     // test command `bin/pulsar-admin packages update-metadata package-name --description tests
     // --contact test@apache.org -PpropertyA=A`
-    @Test(timeOut = 1000)
+    
     public void testUpdateMetadataCmdWithAllArgs() throws PulsarAdminException {
         String packageName = randomName(8);
         Map<String, String> properties = new HashMap<>();
@@ -113,7 +112,7 @@ public class TestCmdPackages {
     }
 
     // test command `bin/pulsar-admin packages upload package-name --description tests --path /path/to/package`
-    @Test(timeOut = 1000)
+    
     public void testUploadCmdWithRequiredArgs() throws PulsarAdminException {
         String packageName = randomName(8);
         boolean result = cmdPackages.run(new String[]{
@@ -127,7 +126,7 @@ public class TestCmdPackages {
 
     // test command `bin/pulsar-admin packages upload package-name --description tests --contact test@apache.org
     // -PpropertyA=A --path /path/to/package`
-    @Test(timeOut = 1000)
+    
     public void testUploadCmdWithAllArgs() throws PulsarAdminException {
         String packageName = randomName(8);
         Map<String, String> properties = new HashMap<>();
@@ -143,7 +142,7 @@ public class TestCmdPackages {
     }
 
     // test command `bin/pulsar-admin download package-name --path /path/to/package`
-    @Test(timeOut = 1000)
+    
     public void testDownloadCmd() throws PulsarAdminException {
         String packageName = randomName(8);
         boolean result = cmdPackages.run(new String[]{"download", packageName, "--path", "/path/to/package"});
@@ -152,7 +151,7 @@ public class TestCmdPackages {
     }
 
     // test command `bin/pulsar-admin list public/default --type function`
-    @Test(timeOut = 1000)
+    
     public void testListCmd() throws PulsarAdminException {
         String namespace = String.format("%s/%s", randomName(4), randomName(4));
         boolean result = cmdPackages.run(new String[]{"list", namespace, "--type", "function"});
@@ -161,7 +160,7 @@ public class TestCmdPackages {
     }
 
     // test command `bin/pulsar-admin list-versions package-name`
-    @Test(timeOut = 1000)
+    
     public void testListVersionsCmd() throws PulsarAdminException {
         String packageName = randomName(8);
         boolean result = cmdPackages.run(new String[]{"list-versions", packageName});
@@ -170,7 +169,7 @@ public class TestCmdPackages {
     }
 
     // test command `bin/pulsar-admin delete package-name`
-    @Test(timeOut = 1000)
+    
     public void testDeleteCmd() throws PulsarAdminException {
         String packageName = randomName(8);
         boolean result = cmdPackages.run(new String[]{"delete", packageName});

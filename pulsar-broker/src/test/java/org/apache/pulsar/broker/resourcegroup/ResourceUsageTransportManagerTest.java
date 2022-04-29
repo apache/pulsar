@@ -53,7 +53,7 @@ public class ResourceUsageTransportManagerTest extends MockedPulsarServiceBaseTe
         super.internalCleanup();
     }
 
-    @Test
+
     public void testNamespaceCreation() throws Exception {
         TopicName topicName = TopicName.get(ResourceUsageTopicTransportManager.RESOURCE_USAGE_TOPIC_NAME);
 
@@ -61,7 +61,7 @@ public class ResourceUsageTransportManagerTest extends MockedPulsarServiceBaseTe
         assertTrue(admin.namespaces().getNamespaces(topicName.getTenant()).contains(topicName.getNamespace()));
     }
     
-    @Test
+
     public void testPublish() throws Exception {
         ResourceUsage recvdUsage = new ResourceUsage();
         final String[] recvdBroker = new String[1];

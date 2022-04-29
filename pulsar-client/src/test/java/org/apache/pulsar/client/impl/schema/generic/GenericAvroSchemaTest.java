@@ -48,13 +48,12 @@ public class GenericAvroSchemaTest {
         readerSchema = new GenericAvroSchema(avroFooSchema.getSchemaInfo());
     }
 
-    @Test
+    
     public void testSupportMultiVersioningSupportByDefault() {
         Assert.assertTrue(writerSchema.supportSchemaVersioning());
         Assert.assertTrue(readerSchema.supportSchemaVersioning());
     }
 
-    @Test(expectedExceptions = org.apache.pulsar.client.api.SchemaSerializationException.class)
     public void testFailDecodeWithoutMultiVersioningSupport() {
         GenericRecord dataForWriter = writerSchema.newRecordBuilder()
             .set("field1", SchemaTestUtils.TEST_MULTI_VERSION_SCHEMA_STRING)
@@ -63,7 +62,7 @@ public class GenericAvroSchemaTest {
         readerSchema.decode(writerSchema.encode(dataForWriter));
     }
 
-    @Test
+    
     public void testDecodeWithMultiVersioningSupport() {
         MultiVersionSchemaInfoProvider provider = mock(MultiVersionSchemaInfoProvider.class);
         readerSchema.setSchemaInfoProvider(provider);

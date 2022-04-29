@@ -34,7 +34,7 @@ import org.testng.annotations.Test;
 
 public class KinesisSinkConfigTests {
 
-    @Test
+
     public final void loadFromYamlFileTest() throws IOException {
         File yamlFile = getFile("sinkConfig.yaml");
         KinesisSinkConfig config = KinesisSinkConfig.load(yamlFile.getAbsolutePath());
@@ -49,7 +49,7 @@ public class KinesisSinkConfigTests {
         assertEquals(true, config.isRetainOrdering());
     }
 
-    @Test
+
     public final void loadFromMapTest() throws IOException {
         Map<String, Object> map = new HashMap<String, Object> ();
         map.put("awsEndpoint", "https://some.endpoint.aws");
@@ -68,7 +68,7 @@ public class KinesisSinkConfigTests {
                 "{\"accessKey\":\"myKey\",\"secretKey\":\"my-Secret\"}");
     }
 
-    @Test
+
     public final void loadFromMapCredentialFromSecretTest() throws IOException {
         Map<String, Object> map = new HashMap<String, Object> ();
         map.put("awsEndpoint", "https://some.endpoint.aws");

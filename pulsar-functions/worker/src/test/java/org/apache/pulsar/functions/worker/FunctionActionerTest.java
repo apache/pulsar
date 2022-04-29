@@ -56,7 +56,7 @@ public class FunctionActionerTest {
      *
      * @throws Exception
      */
-    @Test
+
     public void testStartFunctionWithDLNamespace() throws Exception {
 
         WorkerConfig workerConfig = new WorkerConfig();
@@ -98,7 +98,7 @@ public class FunctionActionerTest {
         }
     }
 
-    @Test
+
     public void testStartFunctionWithPkgUrl() throws Exception {
 
         WorkerConfig workerConfig = new WorkerConfig();
@@ -161,7 +161,7 @@ public class FunctionActionerTest {
         }
     }
 
-    @Test
+
     public void testFunctionAuthDisabled() throws Exception {
         WorkerConfig workerConfig = new WorkerConfig();
         workerConfig.setWorkerId("worker-1");
@@ -219,7 +219,7 @@ public class FunctionActionerTest {
         verify(functionAuthProvider.get(), times(0)).cleanUpAuthData(any(), any());
     }
 
-    @Test
+
     public void testStartFunctionWithPackageUrl() throws Exception {
 
         WorkerConfig workerConfig = new WorkerConfig();

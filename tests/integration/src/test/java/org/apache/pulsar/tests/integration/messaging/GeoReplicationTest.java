@@ -52,7 +52,6 @@ public class GeoReplicationTest extends PulsarGeoClusterTestBase {
         cleanup();
     }
 
-    @Test(timeOut = 1000 * 30, dataProvider = "TopicDomain")
     public void testTopicReplication(String domain) throws Exception {
         String cluster1 = getGeoCluster().getClusters()[0].getClusterName();
         String cluster2 = getGeoCluster().getClusters()[1].getClusterName();

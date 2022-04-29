@@ -45,7 +45,7 @@ import org.testng.annotations.Test;
 /**
  * Starts 3 brokers that are in 3 different clusters
  */
-@Test(groups = "quarantine")
+
 public class ReplicatorRateLimiterTest extends ReplicatorTestBase {
 
     protected String methodName;
@@ -56,7 +56,6 @@ public class ReplicatorRateLimiterTest extends ReplicatorTestBase {
     }
 
     @Override
-    @BeforeClass(timeOut = 300000)
     public void setup() throws Exception {
         super.setup();
     }
@@ -76,7 +75,7 @@ public class ReplicatorRateLimiterTest extends ReplicatorTestBase {
         return new Object[][] { { DispatchRateType.messageRate }, { DispatchRateType.byteRate } };
     }
 
-    @Test
+
     public void testReplicatorRatePriority() throws Exception {
         cleanup();
         config1.setSystemTopicEnabled(true);
@@ -162,7 +161,7 @@ public class ReplicatorRateLimiterTest extends ReplicatorTestBase {
      *
      * @throws Exception
      */
-    @Test
+
     public void testReplicatorRateLimiterDynamicallyChange() throws Exception {
         log.info("--- Starting ReplicatorTest::{} --- ", methodName);
 
@@ -242,7 +241,6 @@ public class ReplicatorRateLimiterTest extends ReplicatorTestBase {
      *
      * @throws Exception
      */
-    @Test(dataProvider =  "dispatchRateType")
     public void testReplicatorRateLimiterMessageNotReceivedAllMessages(DispatchRateType dispatchRateType) throws Exception {
         log.info("--- Starting ReplicatorTest::{} --- ", methodName);
 
@@ -336,7 +334,7 @@ public class ReplicatorRateLimiterTest extends ReplicatorTestBase {
      *
      * @throws Exception
      */
-    @Test
+
     public void testReplicatorRateLimiterMessageReceivedAllMessages() throws Exception {
         log.info("--- Starting ReplicatorTest::{} --- ", methodName);
 

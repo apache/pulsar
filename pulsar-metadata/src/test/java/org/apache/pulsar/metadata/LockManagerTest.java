@@ -46,7 +46,7 @@ import org.testng.annotations.Test;
 
 public class LockManagerTest extends BaseMetadataStoreTest {
 
-    @Test(dataProvider = "impl")
+    
     public void acquireLocks(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
         MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
@@ -97,7 +97,7 @@ public class LockManagerTest extends BaseMetadataStoreTest {
         assertEquals(lock2.getValue(), "lock-1");
     }
 
-    @Test(dataProvider = "impl")
+    
     public void cleanupOnClose(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
         MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
@@ -128,7 +128,7 @@ public class LockManagerTest extends BaseMetadataStoreTest {
         assertEquals(lockManager.readLock(key + "/2").join(), Optional.empty());
     }
 
-    @Test(dataProvider = "impl")
+    
     public void updateValue(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
         MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
@@ -152,7 +152,7 @@ public class LockManagerTest extends BaseMetadataStoreTest {
         assertEquals(cache.get(key + "/1").join().get(), "value-2");
     }
 
-    @Test(dataProvider = "impl")
+    
     public void updateValueWhenVersionIsOutOfSync(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
         MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
@@ -180,7 +180,7 @@ public class LockManagerTest extends BaseMetadataStoreTest {
         assertEquals(cache.get(key + "/1").join().get(), "value-2");
     }
 
-    @Test(dataProvider = "impl")
+    
     public void updateValueWhenKeyDisappears(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
         MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
@@ -206,7 +206,7 @@ public class LockManagerTest extends BaseMetadataStoreTest {
         assertEquals(cache.get(key + "/1").join().get(), "value-2");
     }
 
-    @Test(dataProvider = "impl")
+    
     public void revalidateLockWithinSameSession(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
         MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
@@ -238,7 +238,7 @@ public class LockManagerTest extends BaseMetadataStoreTest {
         assertFalse(rl2.getLockExpiredFuture().isDone());
     }
 
-    @Test(dataProvider = "impl")
+    
     public void revalidateLockOnDifferentSession(String provider, Supplier<String> urlSupplier) throws Exception {
         if (provider.equals("Memory") || provider.equals("RocksDB")) {
             // Local memory provider doesn't really have the concept of multiple sessions

@@ -24,7 +24,7 @@ import org.testng.annotations.Test;
 
 public class ReplicatorStatsTest {
 
-    @Test
+
     public void testReplicatorStatsNull() {
         ReplicatorStatsImpl rs = new ReplicatorStatsImpl();
         try {
@@ -35,7 +35,7 @@ public class ReplicatorStatsTest {
         }
     }
 
-    @Test
+
     public void testReplicatorStatsAdd() {
         ReplicatorStatsImpl replicatorStats = new ReplicatorStatsImpl();
         replicatorStats.msgRateIn = 5;

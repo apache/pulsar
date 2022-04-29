@@ -47,7 +47,6 @@ public class CompressorCodecBackwardCompatTest {
         };
     }
 
-    @Test(dataProvider = "codecs")
     void testCompressDecompress(CompressionCodec c1, CompressionCodec c2) throws IOException {
         byte[] data = text.getBytes();
         ByteBuf raw = PulsarByteBufAllocator.DEFAULT.directBuffer();

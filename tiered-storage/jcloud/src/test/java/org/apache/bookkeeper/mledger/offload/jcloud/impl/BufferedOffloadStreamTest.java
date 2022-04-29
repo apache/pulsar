@@ -105,17 +105,16 @@ public class BufferedOffloadStreamTest {
         inputStream.close();
     }
 
-    @Test
+
     public void testHavePadding() throws Exception {
         testWithPadding(10);
     }
 
-    @Test
+
     public void testNoPadding() throws Exception {
         testWithPadding(0);
     }
 
-    @Test(enabled = false, description = "Disable because let offloader to ensure there is no another ledger id")
     public void shouldEndWhenSegmentChanged() throws IOException {
         int blockSize = StreamingDataBlockHeaderImpl.getDataStartOffset();
         int paddingLen = 10;

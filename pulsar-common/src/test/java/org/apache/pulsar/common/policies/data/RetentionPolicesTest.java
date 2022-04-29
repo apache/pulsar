@@ -25,7 +25,7 @@ import org.testng.annotations.Test;
 
 public class RetentionPolicesTest {
 
-    @Test
+
     public void testRetentionPolices() {
         RetentionPolicies retentionPolicy0 = new RetentionPolicies();
         RetentionPolicies retentionPolicy1 = new RetentionPolicies(1, 100);

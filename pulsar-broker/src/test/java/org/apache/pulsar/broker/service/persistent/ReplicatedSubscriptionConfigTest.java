@@ -32,7 +32,7 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker")
+
 public class ReplicatedSubscriptionConfigTest extends ProducerConsumerBase {
 
     @Override
@@ -48,7 +48,7 @@ public class ReplicatedSubscriptionConfigTest extends ProducerConsumerBase {
         super.internalCleanup();
     }
 
-    @Test
+
     public void createReplicatedSubscription() throws Exception {
         this.conf.setEnableReplicatedSubscriptions(true);
         String topic = BrokerTestUtil.newUniqueName("createReplicatedSubscription");
@@ -70,7 +70,7 @@ public class ReplicatedSubscriptionConfigTest extends ProducerConsumerBase {
         assertTrue(stats.getSubscriptions().get("sub1").isReplicated());
     }
 
-    @Test
+
     public void upgradeToReplicatedSubscription() throws Exception {
         this.conf.setEnableReplicatedSubscriptions(true);
         String topic = BrokerTestUtil.newUniqueName("upgradeToReplicatedSubscription");
@@ -96,7 +96,7 @@ public class ReplicatedSubscriptionConfigTest extends ProducerConsumerBase {
         consumer.close();
     }
 
-    @Test
+
     public void upgradeToReplicatedSubscriptionAfterRestart() throws Exception {
         this.conf.setEnableReplicatedSubscriptions(true);
         String topic = BrokerTestUtil.newUniqueName("upgradeToReplicatedSubscriptionAfterRestart");
@@ -124,7 +124,7 @@ public class ReplicatedSubscriptionConfigTest extends ProducerConsumerBase {
         consumer.close();
     }
 
-    @Test
+
     public void testDisableReplicatedSubscriptions() throws Exception {
         this.conf.setEnableReplicatedSubscriptions(false);
         String topic = BrokerTestUtil.newUniqueName("disableReplicatedSubscriptions");

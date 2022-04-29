@@ -36,7 +36,7 @@ import org.testng.annotations.Test;
 import java.lang.reflect.Method;
 import java.util.concurrent.TimeUnit;
 
-@Test(groups = "broker-impl")
+
 public class ReplicatorGlobalNSTest extends ReplicatorTestBase {
 
     protected String methodName;
@@ -47,7 +47,6 @@ public class ReplicatorGlobalNSTest extends ReplicatorTestBase {
     }
 
     @Override
-    @BeforeClass(timeOut = 300000)
     public void setup() throws Exception {
         super.setup();
     }
@@ -64,7 +63,7 @@ public class ReplicatorGlobalNSTest extends ReplicatorTestBase {
      *
      * @throws Exception
      */
-    @Test
+    
     public void testRemoveLocalClusterOnGlobalNamespace() throws Exception {
         log.info("--- Starting ReplicatorTest::testRemoveLocalClusterOnGlobalNamespace ---");
 
@@ -100,7 +99,7 @@ public class ReplicatorGlobalNSTest extends ReplicatorTestBase {
 
     }
 
-    @Test
+    
     public void testForcefullyTopicDeletion() throws Exception {
         log.info("--- Starting ReplicatorTest::testForcefullyTopicDeletion ---");
 

@@ -46,7 +46,7 @@ import org.testng.annotations.Test;
 
 public class ClientCnxTest {
 
-    @Test
+
     public void testClientCnxTimeout() throws Exception {
         EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, false, new DefaultThreadFactory("testClientCnxTimeout"));
         ClientConfigurationData conf = new ClientConfigurationData();
@@ -72,7 +72,7 @@ public class ClientCnxTest {
         eventLoop.shutdownGracefully();
     }
 
-    @Test
+
     public void testReceiveErrorAtSendConnectFrameState() throws Exception {
         ThreadFactory threadFactory = new DefaultThreadFactory("testReceiveErrorAtSendConnectFrameState");
         EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, false, threadFactory);
@@ -107,7 +107,7 @@ public class ClientCnxTest {
         eventLoop.shutdownGracefully();
     }
 
-    @Test
+
     public void testGetLastMessageIdWithError() throws Exception {
         ThreadFactory threadFactory = new DefaultThreadFactory("testReceiveErrorAtSendConnectFrameState");
         EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, false, threadFactory);

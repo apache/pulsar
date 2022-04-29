@@ -24,7 +24,7 @@ import static org.testng.Assert.assertNotEquals;
 import org.testng.annotations.Test;
 
 public class TopicMessageIdImplTest {
-    @Test
+
     public void hashCodeTest() {
         MessageIdImpl msgId1 = new MessageIdImpl(0, 0, 0);
         MessageIdImpl msgId2 = new BatchMessageIdImpl(1, 1, 1, 1);
@@ -39,7 +39,7 @@ public class TopicMessageIdImplTest {
         assertEquals(topicMsgId2.hashCode(), msgId2.hashCode());
     }
 
-    @Test
+
     public void equalsTest() {
         MessageIdImpl msgId1 = new MessageIdImpl(0, 0, 0);
         MessageIdImpl msgId2 = new BatchMessageIdImpl(1, 1, 1, 1);

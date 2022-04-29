@@ -28,7 +28,7 @@ import org.testng.annotations.Test;
 
 public class RangeEquallyDivideBundleSplitAlgorithmTest {
 
-    @Test
+
     public void testGetSplitBoundaryMethodReturnCorrectResult() {
         RangeEquallyDivideBundleSplitAlgorithm rangeEquallyDivideBundleSplitAlgorithm = new RangeEquallyDivideBundleSplitAlgorithm();
         Assert.assertThrows(NullPointerException.class, () -> rangeEquallyDivideBundleSplitAlgorithm.getSplitBoundary(new BundleSplitOption()));

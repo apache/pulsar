@@ -143,7 +143,7 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
         super.internalCleanup();
     }
 
-    @Test
+
     public void smokeTest() throws Exception {
         KafkaConnectSink sink = new KafkaConnectSink();
         sink.open(props, context);
@@ -173,7 +173,7 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
         assertEquals(lines.get(0), "value");
     }
 
-    @Test
+
     public void sanitizeTest() throws Exception {
         props.put("sanitizeTopicName", "true");
         KafkaConnectSink originalSink = new KafkaConnectSink();
@@ -210,7 +210,7 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
         assertEquals(lines.get(0), "value");
     }
 
-    @Test
+
     public void seekPauseResumeTest() throws Exception {
         KafkaConnectSink sink = new KafkaConnectSink();
         sink.open(props, context);
@@ -252,7 +252,7 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
     }
 
 
-    @Test
+
     public void subscriptionTypeTest() throws Exception {
         try (KafkaConnectSink sink = new KafkaConnectSink()) {
             log.info("Failover is allowed");
@@ -364,7 +364,7 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
         return rec;
     }
 
-    @Test
+
     public void bytesRecordSchemaTest() throws Exception {
         byte[] in = "val".getBytes(StandardCharsets.US_ASCII);
         SinkRecord sinkRecord = recordSchemaTest(in, Schema.BYTES, "val", "BYTES");
@@ -372,21 +372,21 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
         Assert.assertEquals(out, in);
     }
 
-    @Test
+
     public void stringRecordSchemaTest() throws Exception {
         SinkRecord sinkRecord = recordSchemaTest("val", Schema.STRING, "val", "STRING");
         String out = (String) sinkRecord.value();
         Assert.assertEquals(out, "val");
     }
 
-    @Test
+
     public void booleanRecordSchemaTest() throws Exception {
         SinkRecord sinkRecord = recordSchemaTest(true, Schema.BOOL, true, "BOOLEAN");
         boolean out = (boolean) sinkRecord.value();
         Assert.assertEquals(out, true);
     }
 
-    @Test
+
     public void byteRecordSchemaTest() throws Exception {
         // int 1 is coming back from ObjectMapper
         SinkRecord sinkRecord = recordSchemaTest((byte)1, Schema.INT8, 1, "INT8");
@@ -394,7 +394,7 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
         Assert.assertEquals(out, 1);
     }
 
-    @Test
+
     public void shortRecordSchemaTest() throws Exception {
         // int 1 is coming back from ObjectMapper
         SinkRecord sinkRecord = recordSchemaTest((short)1, Schema.INT16, 1, "INT16");
@@ -402,21 +402,21 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
         Assert.assertEquals(out, 1);
     }
 
-    @Test
+
     public void integerRecordSchemaTest() throws Exception {
         SinkRecord sinkRecord = recordSchemaTest(Integer.MAX_VALUE, Schema.INT32, Integer.MAX_VALUE, "INT32");
         int out = (int) sinkRecord.value();
         Assert.assertEquals(out, Integer.MAX_VALUE);
     }
 
-    @Test
+
     public void longRecordSchemaTest() throws Exception {
         SinkRecord sinkRecord = recordSchemaTest(Long.MAX_VALUE, Schema.INT64, Long.MAX_VALUE, "INT64");
         long out = (long) sinkRecord.value();
         Assert.assertEquals(out, Long.MAX_VALUE);
     }
 
-    @Test
+
     public void floatRecordSchemaTest() throws Exception {
         // 1.0d is coming back from ObjectMapper
         SinkRecord sinkRecord = recordSchemaTest(1.0f, Schema.FLOAT, 1.0d, "FLOAT32");
@@ -424,14 +424,14 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
         Assert.assertEquals(out, 1.0d);
     }
 
-    @Test
+
     public void doubleRecordSchemaTest() throws Exception {
         SinkRecord sinkRecord = recordSchemaTest(Double.MAX_VALUE, Schema.DOUBLE, Double.MAX_VALUE, "FLOAT64");
         double out = (double) sinkRecord.value();
         Assert.assertEquals(out, Double.MAX_VALUE);
     }
 
-    @Test
+
     public void jsonSchemaTest() throws Exception {
         JSONSchema<PulsarSchemaToKafkaSchemaTest.StructWithAnnotations> jsonSchema = JSONSchema
                 .of(SchemaDefinition.<PulsarSchemaToKafkaSchemaTest.StructWithAnnotations>builder()
@@ -460,7 +460,7 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
         Assert.assertEquals((long)out.get("field3"), 100L);
     }
 
-    @Test
+
     public void avroSchemaTest() throws Exception {
         AvroSchema<PulsarSchemaToKafkaSchemaTest.StructWithAnnotations> pulsarAvroSchema
                 = AvroSchema.of(PulsarSchemaToKafkaSchemaTest.StructWithAnnotations.class);
@@ -484,7 +484,7 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
         Assert.assertEquals((long)out.get("field3"), 100L);
     }
 
-    @Test
+
     public void unknownRecordSchemaTest() throws Exception {
         Object obj = new Object();
         props.put("kafkaConnectorSinkClass", SchemaedFileStreamSinkConnector.class.getCanonicalName());
@@ -515,7 +515,7 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
         sink.close();
     }
 
-    @Test
+
     public void schemaKeyValueSchemaTest() throws Exception {
         KeyValue<Integer, String> kv = new KeyValue<>(11, "value");
         SinkRecord sinkRecord = recordSchemaTest(kv, Schema.KeyValue(Schema.INT32, Schema.STRING), 11, "INT32", "value", "STRING");
@@ -525,7 +525,7 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
         Assert.assertEquals(key, 11);
     }
 
-    @Test
+
     public void schemaKeyValueAvroSchemaTest() throws Exception {
         AvroSchema<PulsarSchemaToKafkaSchemaTest.StructWithAnnotations> pulsarAvroSchema
                 = AvroSchema.of(PulsarSchemaToKafkaSchemaTest.StructWithAnnotations.class);
@@ -569,7 +569,7 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
         Assert.assertEquals((long)outKey.get("field3"), 101L);
     }
 
-    @Test
+
     public void nullKeyValueSchemaTest() throws Exception {
         props.put("kafkaConnectorSinkClass", SchemaedFileStreamSinkConnector.class.getCanonicalName());
 
@@ -601,7 +601,7 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
         sink.close();
     }
 
-    @Test
+
     public void wrongKeyValueSchemaTest() throws Exception {
         props.put("kafkaConnectorSinkClass", SchemaedFileStreamSinkConnector.class.getCanonicalName());
 
@@ -633,7 +633,7 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
         sink.close();
     }
 
-    @Test
+
     public void offsetTest() throws Exception {
         final AtomicLong entryId = new AtomicLong(0L);
         final GenericRecord rec = getGenericRecord("value", Schema.STRING);

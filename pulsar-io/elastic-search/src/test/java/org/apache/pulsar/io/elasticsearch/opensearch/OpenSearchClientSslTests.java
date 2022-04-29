@@ -63,7 +63,7 @@ public class OpenSearchClientSslTests extends ElasticSearchTestBase {
         return map;
     }
 
-    @Test
+
     public void testSslBasic() throws IOException {
         try (ElasticsearchContainer container = createElasticsearchContainer()
                 .withFileSystemBind(sslResourceDir, configDir + "/ssl")
@@ -86,7 +86,7 @@ public class OpenSearchClientSslTests extends ElasticSearchTestBase {
         }
     }
 
-    @Test
+
     public void testSslWithHostnameVerification() throws IOException {
         try (ElasticsearchContainer container = createElasticsearchContainer()
                 .withFileSystemBind(sslResourceDir, configDir + "/ssl")
@@ -112,7 +112,7 @@ public class OpenSearchClientSslTests extends ElasticSearchTestBase {
         }
     }
 
-    @Test
+
     public void testSslWithClientAuth() throws IOException {
         try(ElasticsearchContainer container = createElasticsearchContainer()
                 .withFileSystemBind(sslResourceDir, configDir + "/ssl")

@@ -60,7 +60,7 @@ public class BKStateStoreImplTest {
                 mockTable);
     }
 
-    @Test
+
     public void testGetter() {
         assertEquals(stateContext.tenant(), TENANT);
         assertEquals(stateContext.namespace(), NS);
@@ -68,7 +68,7 @@ public class BKStateStoreImplTest {
         assertEquals(stateContext.fqsn(), FQSN);
     }
 
-    @Test
+
     public void testIncr() throws Exception {
         when(mockTable.increment(any(ByteBuf.class), anyLong()))
             .thenReturn(FutureUtils.Void());
@@ -79,7 +79,7 @@ public class BKStateStoreImplTest {
         );
     }
 
-    @Test
+
     public void testPut() throws Exception {
         when(mockTable.put(any(ByteBuf.class), any(ByteBuf.class)))
             .thenReturn(FutureUtils.Void());
@@ -90,7 +90,7 @@ public class BKStateStoreImplTest {
         );
     }
 
-    @Test
+
     public void testDelete() throws Exception {
         DeleteResult<ByteBuf, ByteBuf> result = mock(DeleteResult.class);
         when(mockTable.delete(any(ByteBuf.class), eq(Options.delete())))
@@ -102,7 +102,7 @@ public class BKStateStoreImplTest {
         );
     }
 
-    @Test
+
     public void testGetValue() throws Exception {
         ByteBuf returnedValue = Unpooled.copiedBuffer("test-value", UTF_8);
         when(mockTable.get(any(ByteBuf.class)))
@@ -114,7 +114,7 @@ public class BKStateStoreImplTest {
         );
     }
 
-    @Test
+
     public void testGetAmount() throws Exception {
         when(mockTable.getNumber(any(ByteBuf.class)))
             .thenReturn(FutureUtils.value(10L));
@@ -124,7 +124,7 @@ public class BKStateStoreImplTest {
         );
     }
 
-    @Test
+
     public void testGetKeyNotPresent() throws Exception {
         when(mockTable.get(any(ByteBuf.class)))
                 .thenReturn(FutureUtils.value(null));

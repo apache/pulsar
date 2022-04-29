@@ -29,7 +29,7 @@ import static org.testng.Assert.assertEquals;
 public class MultiplierRedeliveryBackoffTest {
 
     @SuppressWarnings("deprecation")
-    @Test
+
     public void testNext() {
 
         long minDelayMs = 1000;

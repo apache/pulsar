@@ -32,7 +32,7 @@ import org.testng.annotations.Test;
 /**
  * Unit test {@link AdminResource}.
  */
-@Test(groups = "broker-admin")
+
 public class AdminResourceTest extends BrokerTestBase {
 
     @BeforeClass
@@ -67,7 +67,7 @@ public class AdminResourceTest extends BrokerTestBase {
         };
     }
 
-    @Test
+
     public void testValidatePersistentTopicNameSuccess() {
         String tenant = "test-tenant";
         String namespace = "test-namespace";
@@ -77,7 +77,7 @@ public class AdminResourceTest extends BrokerTestBase {
         resource.validatePersistentTopicName(tenant, namespace, topic);
     }
 
-    @Test
+
     public void testValidatePersistentTopicNameInvalid() {
         String tenant = "test-tenant";
         String namespace = "test-namespace";
@@ -92,7 +92,7 @@ public class AdminResourceTest extends BrokerTestBase {
         }
     }
 
-    @Test
+
     public void testValidatePartitionedTopicNameSuccess() {
         String tenant = "test-tenant";
         String namespace = "test-namespace";
@@ -102,7 +102,7 @@ public class AdminResourceTest extends BrokerTestBase {
         resource.validatePartitionedTopicName(tenant, namespace, topic);
     }
 
-    @Test
+
     public void testValidatePartitionedTopicNameInvalid() {
         String tenant = "test-tenant";
         String namespace = "test-namespace";
@@ -117,7 +117,7 @@ public class AdminResourceTest extends BrokerTestBase {
         }
     }
 
-    @Test
+
     public void testValidatePartitionedTopicMetadata() throws Exception {
         String tenant = "prop";
         String namespace = "ns-abc";

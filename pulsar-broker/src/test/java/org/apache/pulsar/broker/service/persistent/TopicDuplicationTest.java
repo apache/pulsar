@@ -44,7 +44,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker")
+
 public class TopicDuplicationTest extends ProducerConsumerBase {
     private final String testTenant = "my-property";
     private final String testNamespace = "my-ns";
@@ -68,7 +68,7 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
         super.internalCleanup();
     }
 
-    @Test(timeOut = 10000)
+    
     public void testDuplicationApi() throws Exception {
         final String topicName = testTopic + UUID.randomUUID().toString();
         admin.topics().createPartitionedTopic(topicName, 3);
@@ -87,7 +87,7 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
         assertNull(admin.topics().getDeduplicationEnabled(topicName));
     }
 
-    @Test(timeOut = 10000)
+    
     public void testTopicDuplicationApi2() throws Exception {
         final String topicName = testTopic + UUID.randomUUID().toString();
         admin.topics().createPartitionedTopic(topicName, 3);
@@ -106,7 +106,7 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
         assertNull(admin.topics().getDeduplicationStatus(topicName));
     }
 
-    @Test(timeOut = 10000)
+    
     public void testTopicDuplicationAppliedApi() throws Exception {
         final String topicName = testTopic + UUID.randomUUID().toString();
         waitCacheInit(topicName);
@@ -127,7 +127,7 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
                 conf.isBrokerDeduplicationEnabled()));
     }
 
-    @Test(timeOut = 30000)
+    
     public void testDeduplicationPriority() throws Exception {
         final String topicName = testTopic + UUID.randomUUID().toString();
         final String producerName = "my-producer";
@@ -202,7 +202,7 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
         }).get();
     }
 
-    @Test(timeOut = 10000)
+    
     public void testDuplicationSnapshotApi() throws Exception {
         final String topicName = testTopic + UUID.randomUUID().toString();
         admin.topics().createPartitionedTopic(topicName, 3);
@@ -221,7 +221,7 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
         assertNull(admin.topics().getDeduplicationSnapshotInterval(topicName));
     }
 
-    @Test(timeOut = 30000)
+    
     public void testTopicPolicyTakeSnapshot() throws Exception {
         super.internalCleanup();
         resetConfig();
@@ -297,7 +297,7 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
         assertEquals(position, markDeletedPosition);
     }
 
-    @Test(timeOut = 20000)
+    
     public void testDuplicationMethod() throws Exception {
         final String topicName = testTopic + UUID.randomUUID().toString();
         final String producerName = "my-producer";
@@ -327,7 +327,7 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
 
     }
 
-    @Test(timeOut = 40000)
+    
     public void testDuplicationSnapshot() throws Exception {
         testTakeSnapshot(true);
         testTakeSnapshot(false);
@@ -389,7 +389,7 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
 
     }
 
-    @Test(timeOut = 30000)
+    
     public void testNamespacePolicyApi() throws Exception {
         Integer interval = admin.namespaces().getDeduplicationSnapshotInterval(myNamespace);
         assertNull(interval);
@@ -409,7 +409,7 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
 
     }
 
-    @Test(timeOut = 30000)
+    
     public void testNamespacePolicyTakeSnapshot() throws Exception {
         super.internalCleanup();
         resetConfig();
@@ -461,7 +461,7 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
 
     }
 
-    @Test(timeOut = 30000)
+    
     public void testDisableNamespacePolicyTakeSnapshot() throws Exception {
         super.internalCleanup();
         resetConfig();

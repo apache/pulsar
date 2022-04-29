@@ -47,7 +47,7 @@ public class GenericProtobufNativeReaderTest {
 
     }
 
-    @Test
+
     public void testGenericReaderByClazzBasedWriterSchema() {
         message = TestMessage.newBuilder().setStringField(STRING_FIELD_VLUE).setDoubleField(DOUBLE_FIELD_VLUE).build();
         GenericProtobufNativeReader genericProtobufNativeReader = new GenericProtobufNativeReader(genericProtobufNativeSchema.getProtobufNativeSchema());
@@ -56,7 +56,7 @@ public class GenericProtobufNativeReaderTest {
         assertEquals(genericRecordByWriterSchema.getField("doubleField"), DOUBLE_FIELD_VLUE);
     }
 
-    @Test
+
     public void testClazzBasedReaderByGenericWriterSchema() {
         genericmessage = genericProtobufNativeSchema.newRecordBuilder().set("stringField", STRING_FIELD_VLUE).set("doubleField", DOUBLE_FIELD_VLUE).build();
         byte[] messageBytes = new GenericProtobufNativeWriter().write(genericmessage);
@@ -66,7 +66,7 @@ public class GenericProtobufNativeReaderTest {
         assertEquals(genericRecordByWriterSchema.getField("doubleField"), DOUBLE_FIELD_VLUE);
 
     }
-    @Test
+
     public void testGetNativeRecord() {
         message = TestMessage.newBuilder().setStringField(STRING_FIELD_VLUE).setDoubleField(DOUBLE_FIELD_VLUE).build();
         GenericProtobufNativeReader genericProtobufNativeReader = new GenericProtobufNativeReader(genericProtobufNativeSchema.getProtobufNativeSchema());

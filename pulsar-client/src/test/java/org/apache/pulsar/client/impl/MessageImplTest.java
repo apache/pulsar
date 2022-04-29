@@ -57,7 +57,7 @@ import static org.testng.Assert.assertTrue;
  */
 public class MessageImplTest {
 
-    @Test
+
     public void testGetSequenceIdNotAssociated() {
         ByteBuffer payload = ByteBuffer.wrap(new byte[0]);
         MessageImpl<?> msg = MessageImpl.create(new MessageMetadata(), payload, Schema.BYTES, null);
@@ -65,7 +65,7 @@ public class MessageImplTest {
         assertEquals(-1, msg.getSequenceId());
     }
 
-    @Test
+
     public void testSetDuplicatePropertiesKey() {
         MessageMetadata builder = new MessageMetadata();
         builder.addProperty().setKey("key1").setValue("value1");
@@ -77,7 +77,7 @@ public class MessageImplTest {
         assertEquals("value3", msg.getProperty("key3"));
     }
 
-    @Test
+
     public void testGetSequenceIdAssociated() {
         MessageMetadata builder = new MessageMetadata()
             .setSequenceId(1234);
@@ -88,7 +88,7 @@ public class MessageImplTest {
         assertEquals(1234, msg.getSequenceId());
     }
 
-    @Test
+
     public void testGetProducerNameNotAssigned() {
         MessageMetadata builder = new MessageMetadata();
         ByteBuffer payload = ByteBuffer.wrap(new byte[0]);
@@ -97,7 +97,7 @@ public class MessageImplTest {
         assertNull(msg.getProducerName());
     }
 
-    @Test
+
     public void testGetProducerNameAssigned() {
         MessageMetadata builder = new MessageMetadata()
             .setProducerName("test-producer");
@@ -108,7 +108,7 @@ public class MessageImplTest {
         assertEquals("test-producer", msg.getProducerName());
     }
 
-    @Test
+
     public void testDefaultGetProducerDataAssigned() {
         AvroSchema<SchemaTestUtils.Foo> fooSchema = AvroSchema.of(
                 SchemaDefinition.<SchemaTestUtils.Foo>builder().withPojo(SchemaTestUtils.Foo.class).build());
@@ -135,7 +135,7 @@ public class MessageImplTest {
         assertFalse(builder.hasPartitionKey());
     }
 
-    @Test
+
     public void testInlineGetProducerDataAssigned() {
 
         AvroSchema<SchemaTestUtils.Foo> fooSchema = AvroSchema.of(
@@ -164,7 +164,7 @@ public class MessageImplTest {
         assertFalse(builder.hasPartitionKey());
     }
 
-    @Test
+
     public void testSeparatedGetProducerDataAssigned() {
         AvroSchema<SchemaTestUtils.Foo> fooSchema = AvroSchema.of(
                 SchemaDefinition.<SchemaTestUtils.Foo>builder().withPojo(SchemaTestUtils.Foo.class).build());
@@ -194,7 +194,7 @@ public class MessageImplTest {
         assertTrue(builder.hasPartitionKey());
     }
 
-    @Test
+
     public void testDefaultAVROVersionGetProducerDataAssigned() {
         AvroSchema<SchemaTestUtils.Foo> fooSchema = AvroSchema.of(
                 SchemaDefinition.<SchemaTestUtils.Foo>builder().withPojo(SchemaTestUtils.Foo.class).build());
@@ -229,7 +229,7 @@ public class MessageImplTest {
                 KeyValueEncodingType.INLINE);
     }
 
-    @Test
+
     public void testSeparatedAVROVersionGetProducerDataAssigned() {
         AvroSchema<SchemaTestUtils.Foo> fooSchema = AvroSchema.of(
                 SchemaDefinition.<SchemaTestUtils.Foo>builder().withPojo(SchemaTestUtils.Foo.class).build());
@@ -267,7 +267,7 @@ public class MessageImplTest {
                 KeyValueEncodingType.SEPARATED);
     }
 
-    @Test
+
     public void testDefaultJSONVersionGetProducerDataAssigned() {
         JSONSchema<SchemaTestUtils.Foo> fooSchema = JSONSchema.of(SchemaDefinition.<SchemaTestUtils.Foo>builder().withPojo(
                 SchemaTestUtils.Foo.class).build());
@@ -302,7 +302,7 @@ public class MessageImplTest {
                 KeyValueEncodingType.INLINE);
     }
 
-    @Test
+
     public void testSeparatedJSONVersionGetProducerDataAssigned() {
         JSONSchema<SchemaTestUtils.Foo> fooSchema = JSONSchema.of(
                 SchemaDefinition.<SchemaTestUtils.Foo>builder().withPojo(SchemaTestUtils.Foo.class).build());
@@ -340,7 +340,7 @@ public class MessageImplTest {
                 KeyValueEncodingType.SEPARATED);
     }
 
-    @Test
+
     public void testDefaultAVROJSONVersionGetProducerDataAssigned() {
         AvroSchema<SchemaTestUtils.Foo> fooSchema = AvroSchema.of(SchemaDefinition.<SchemaTestUtils.Foo>builder().withPojo(
                 SchemaTestUtils.Foo.class).build());
@@ -375,7 +375,7 @@ public class MessageImplTest {
                 KeyValueEncodingType.INLINE);
     }
 
-    @Test
+
     public void testSeparatedAVROJSONVersionGetProducerDataAssigned() {
         AvroSchema<SchemaTestUtils.Foo> fooSchema = AvroSchema.of(
                 SchemaDefinition.<SchemaTestUtils.Foo>builder().withPojo(SchemaTestUtils.Foo.class).build());
@@ -413,7 +413,7 @@ public class MessageImplTest {
                 KeyValueEncodingType.SEPARATED);
     }
 
-    @Test
+
     public void testTypedSchemaGetNullValue() {
         byte[] encodeBytes = new byte[0];
         MessageMetadata builder = new MessageMetadata()
@@ -426,7 +426,7 @@ public class MessageImplTest {
         assertNull(msg.getValue());
     }
 
-    @Test(timeOut = 30000)
+    
     public void testMessageBrokerAndEntryMetadataTimestampMissed() {
         int MOCK_BATCH_SIZE = 10;
         String data = "test-message";
@@ -484,7 +484,7 @@ public class MessageImplTest {
         }
     }
 
-    @Test(timeOut = 30000)
+    
     public void testParseMessageMetadataWithBrokerEntryMetadata() {
         int MOCK_BATCH_SIZE = 10;
         String data = "test-message";

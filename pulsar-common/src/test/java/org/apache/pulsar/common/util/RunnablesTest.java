@@ -23,7 +23,7 @@ import org.testng.annotations.Test;
 
 public class RunnablesTest {
 
-    @Test
+
     public void shouldCatchAndLogException() {
         Runnables.catchingAndLoggingThrowables(() -> {
             throw new RuntimeException();

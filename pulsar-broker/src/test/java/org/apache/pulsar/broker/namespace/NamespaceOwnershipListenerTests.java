@@ -39,7 +39,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.testng.Assert.assertTrue;
 
-@Test(groups = "broker")
+
 public class NamespaceOwnershipListenerTests extends BrokerTestBase {
 
     @BeforeMethod
@@ -54,7 +54,7 @@ public class NamespaceOwnershipListenerTests extends BrokerTestBase {
         super.internalCleanup();
     }
 
-    @Test
+
     public void testNamespaceBundleOwnershipListener() throws PulsarAdminException, InterruptedException, PulsarClientException {
 
         final CountDownLatch countDownLatch = new CountDownLatch(2);
@@ -104,7 +104,7 @@ public class NamespaceOwnershipListenerTests extends BrokerTestBase {
         admin.namespaces().deleteNamespace(namespace);
     }
 
-    @Test
+
     public void testGetAllPartitions() throws PulsarAdminException, ExecutionException, InterruptedException {
         final String namespace = "prop/" + UUID.randomUUID().toString();
         admin.namespaces().createNamespace(namespace, Sets.newHashSet("test"));
@@ -125,7 +125,7 @@ public class NamespaceOwnershipListenerTests extends BrokerTestBase {
         admin.namespaces().deleteNamespace(namespace);
     }
 
-    @Test
+
     public void testNamespaceBundleLookupOnwershipListener() throws PulsarAdminException, InterruptedException,
             PulsarClientException {
         final CountDownLatch countDownLatch = new CountDownLatch(2);

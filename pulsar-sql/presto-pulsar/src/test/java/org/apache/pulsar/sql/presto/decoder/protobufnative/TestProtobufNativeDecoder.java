@@ -65,7 +65,7 @@ public class TestProtobufNativeDecoder extends AbstractDecoderTester {
         assertTrue(pulsarRowDecoder instanceof PulsarProtobufNativeRowDecoder);
     }
 
-    @Test
+
     public void testPrimitiveType() {
         //Time: 2921-1-1
         long mills = 30010669261001L;
@@ -179,7 +179,7 @@ public class TestProtobufNativeDecoder extends AbstractDecoderTester {
 
     }
 
-    @Test
+
     public void testRow() {
 
         TestMsg.SubMessage.NestedMessage nestedMessage = TestMsg.SubMessage.NestedMessage.newBuilder()
@@ -222,7 +222,7 @@ public class TestProtobufNativeDecoder extends AbstractDecoderTester {
 
     }
 
-    @Test
+
     public void testArray() {
 
         TestMsg.TestMessage testMessage = TestMsg.TestMessage.newBuilder()
@@ -249,7 +249,7 @@ public class TestProtobufNativeDecoder extends AbstractDecoderTester {
     }
 
 
-    @Test
+
     public void testMap() {
 
         TestMsg.TestMessage testMessage = TestMsg.TestMessage.newBuilder()

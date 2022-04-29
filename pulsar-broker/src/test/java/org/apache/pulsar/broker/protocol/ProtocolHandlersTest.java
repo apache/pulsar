@@ -42,7 +42,7 @@ import org.testng.annotations.Test;
 /**
  * Unit test {@link ProtocolHandlers}.
  */
-@Test(groups = "broker")
+
 public class ProtocolHandlersTest {
 
     private static final String protocol1 = "protocol1";
@@ -83,14 +83,14 @@ public class ProtocolHandlersTest {
         verify(ncl2, times(1)).close();
     }
 
-    @Test
+
     public void testGetProtocol() {
         assertSame(handler1, handlers.protocol(protocol1));
         assertSame(handler2, handlers.protocol(protocol2));
         assertNull(handlers.protocol(protocol3));
     }
 
-    @Test
+
     public void testInitialize() throws Exception {
         ServiceConfiguration conf = new ServiceConfiguration();
         handlers.initialize(conf);
@@ -98,7 +98,7 @@ public class ProtocolHandlersTest {
         verify(handler2, times(1)).initialize(same(conf));
     }
 
-    @Test
+
     public void testGetProtocolDataToAdvertise() {
         String protocolData1 = "protocolData1";
         String protocolData2 = "protocolData2";
@@ -111,7 +111,7 @@ public class ProtocolHandlersTest {
         assertEquals(protocolData2, protocols.get(protocol2));
     }
 
-    @Test
+
     public void testStart() {
         BrokerService service = mock(BrokerService.class);
         handlers.start(service);
@@ -119,7 +119,7 @@ public class ProtocolHandlersTest {
         verify(handler2, times(1)).start(same(service));
     }
 
-    @Test
+
     public void testNewChannelInitializersSuccess() {
         ChannelInitializer<SocketChannel> i1 = mock(ChannelInitializer.class);
         ChannelInitializer<SocketChannel> i2 = mock(ChannelInitializer.class);
@@ -144,7 +144,6 @@ public class ProtocolHandlersTest {
         assertSame(p2Initializers, initializers.get(protocol2));
     }
 
-    @Test(expectedExceptions = RuntimeException.class)
     public void testNewChannelInitializersOverlapped() {
         ChannelInitializer<SocketChannel> i1 = mock(ChannelInitializer.class);
         ChannelInitializer<SocketChannel> i2 = mock(ChannelInitializer.class);

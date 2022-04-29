@@ -36,7 +36,6 @@ import org.testng.annotations.Test;
 @Slf4j
 public class ReaderMessagingTest extends MessagingBase {
 
-    @Test(dataProvider = "ServiceAndAdminUrls")
     public void testReaderReconnectAndRead(Supplier<String> serviceUrl, Supplier<String> adminUrl) throws Exception {
         log.info("-- Starting {} test --", methodName);
         final String topicName = getNonPartitionedTopic("test-reader-reconnect-read", false);
@@ -86,7 +85,6 @@ public class ReaderMessagingTest extends MessagingBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test(dataProvider = "ServiceAndAdminUrls")
     public void testReaderReconnectAndReadBatchMessages(Supplier<String> serviceUrl, Supplier<String> adminUrl)
             throws Exception {
         log.info("-- Starting {} test --", methodName);

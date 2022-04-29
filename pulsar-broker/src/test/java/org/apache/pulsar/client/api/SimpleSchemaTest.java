@@ -69,7 +69,7 @@ import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
-@Test(groups = "broker-api")
+
 @Slf4j
 public class SimpleSchemaTest extends ProducerConsumerBase {
 
@@ -107,7 +107,6 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
 
     private final boolean schemaValidationEnforced;
 
-    @Factory(dataProvider = "schemaValidationModes")
     public SimpleSchemaTest(boolean schemaValidationEnforced) {
         this.schemaValidationEnforced = schemaValidationEnforced;
     }
@@ -128,7 +127,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
         super.internalCleanup();
     }
 
-    @Test
+
     public void testString() throws Exception {
         try (Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
                 .topic("persistent://my-property/my-ns/my-topic1")
@@ -176,7 +175,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
         int j;
     }
 
-    @Test
+
     public void newProducerNewTopicNewSchema() throws Exception {
         String topic = "my-property/my-ns/schema-test";
         try (Producer<V1Data> p = pulsarClient.newProducer(Schema.AVRO(V1Data.class))
@@ -185,7 +184,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
         }
     }
 
-    @Test
+
     public void newProducerTopicExistsWithoutSchema() throws Exception {
         String topic = "my-property/my-ns/schema-test";
         try (Producer<byte[]> p = pulsarClient.newProducer().topic(topic).create()) {
@@ -198,7 +197,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
         }
     }
 
-    @Test
+
     public void newProducerTopicExistsWithSchema() throws Exception {
         String topic = "my-property/my-ns/schema-test";
         try (Producer<V1Data> p = pulsarClient.newProducer(Schema.AVRO(V1Data.class))
@@ -212,7 +211,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
         }
     }
 
-    @Test
+
     public void newProducerWithoutSchemaOnTopicWithSchema() throws Exception {
         String topic = "my-property/my-ns/schema-test";
 
@@ -256,7 +255,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
    
     }
 
-    @Test
+
     public void newProducerForMessageSchemaOnTopicWithMultiVersionSchema() throws Exception {
         String topic = "my-property/my-ns/schema-test";
         Schema<V1Data> v1Schema = Schema.AVRO(V1Data.class);
@@ -317,7 +316,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
         }
     }
 
-    @Test
+
     public void newNativeAvroProducerForMessageSchemaOnTopicWithMultiVersionSchema() throws Exception {
         String topic = "my-property/my-ns/schema-test";
         Schema<V1Data> v1Schema = Schema.AVRO(V1Data.class);
@@ -378,7 +377,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
         }
     }
 
-    @Test
+
     public void newProducerForMessageOnTopicWithDifferentSchemaType() throws Exception {
         String topic = "my-property/my-ns/schema-test";
         V1Data data1 = new V1Data(2);
@@ -410,7 +409,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
         }
     }
 
-    @Test
+
     public void newProducerForMessageSchemaOnTopicInitialWithNoSchema() throws Exception {
         String topic = "my-property/my-ns/schema-test";
         Schema<V1Data> v1Schema = Schema.AVRO(V1Data.class);
@@ -447,7 +446,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
                 v2Schema.getSchemaInfo()));
     }
 
-    @Test
+
     public void newNativeAvroProducerForMessageSchemaOnTopicInitialWithNoSchema() throws Exception {
         String topic = "my-property/my-ns/schema-test";
         Schema<V1Data> v1Schema = Schema.AVRO(V1Data.class);
@@ -485,7 +484,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
                 v2Schema.getSchemaInfo()));
     }
 
-    @Test
+
     public void newProducerForMessageSchemaWithBatch() throws Exception {
         String topic = "my-property/my-ns/schema-test";
         Consumer<V2Data> c = pulsarClient.newConsumer(Schema.AVRO(V2Data.class))
@@ -538,7 +537,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
     }
 
 
-    @Test
+
     public void newNativeAvroProducerForMessageSchemaWithBatch() throws Exception {
         String topic = "my-property/my-ns/schema-test";
         Schema<V1Data> v1Schema = Schema.AVRO(V1Data.class);
@@ -606,7 +605,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
         c.close();
     }
 
-    @Test
+
     public void newProducerWithMultipleSchemaDisabled() throws Exception {
         String topic = "my-property/my-ns/schema-test";
         AvroWriter<V1Data> v1DataAvroWriter = new AvroWriter<>(
@@ -620,7 +619,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
         }
     }
 
-    @Test
+
     public void newConsumerWithSchemaOnNewTopic() throws Exception {
         String topic = "my-property/my-ns/schema-test";
 
@@ -633,7 +632,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
         }
     }
 
-    @Test
+
     public void newConsumerWithSchemaOnExistingTopicWithoutSchema() {
         String topic = "my-property/my-ns/schema-test";
 
@@ -646,7 +645,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
         }
     }
 
-    @Test
+
     public void newConsumerWithSchemaTopicHasSchema() throws Exception {
         String topic = "my-property/my-ns/schema-test";
 
@@ -659,7 +658,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
         }
     }
 
-    @Test
+
     public void newBytesConsumerWithTopicWithSchema() throws Exception {
         String topic = "my-property/my-ns/schema-test";
 
@@ -670,12 +669,12 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
         }
     }
 
-    @Test
+
     public void getSchemaVersionFromMessagesBatchingDisabled() throws Exception {
         getSchemaVersionFromMessages(false);
     }
 
-    @Test
+
     public void getSchemaVersionFromMessagesBatchingEnabled() throws Exception {
         getSchemaVersionFromMessages(true);
     }
@@ -700,7 +699,6 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
         }
     }
 
-    @Test(dataProvider = "batchingModes")
     public void testAutoConsume(boolean batching) throws Exception {
         String topic = "my-property/my-ns/schema-test-auto-consume-" + batching;
 
@@ -737,7 +735,6 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
         }
     }
 
-    @Test(dataProvider = "batchingModesAndValueEncodingType")
     public void testAutoKeyValueConsume(boolean batching, KeyValueEncodingType keyValueEncodingType) throws Exception {
         String topic = "my-property/my-ns/schema-test-auto-keyvalue-consume-" + batching+"-"+keyValueEncodingType;
 
@@ -1021,7 +1018,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
 
     }
 
-    @Test
+
     public void testAutoKeyValueConsumeGenericObject() throws Exception {
         String topic = "my-property/my-ns/schema-test-auto-keyvalue-consume-"+ UUID.randomUUID();
 
@@ -1103,7 +1100,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
         }
     }
 
-    @Test
+
     public void testGetSchemaByVersion() throws PulsarClientException, PulsarAdminException, ExecutionException, InterruptedException {
         final String topic = "persistent://my-property/my-ns/testGetSchemaByVersion";
 
@@ -1130,7 +1127,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
         Assert.assertTrue(binaryLookupService.getSchema(TopicName.get(topic), ByteBuffer.allocate(8).putLong(1).array()).get().isPresent());
     }
 
-    @Test
+
     public void testGetNativeSchemaWithAutoConsumeWithMultiVersion() throws Exception {
         final String topic = "persistent://my-property/my-ns/testGetSchemaWithMultiVersion";
 
@@ -1170,7 +1167,6 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
         assertTrue(avroSchemaV2.toString(false).contains("V2Data"));
     }
 
-    @Test(dataProvider = "topicDomain")
     public void testAutoCreatedSchema(String domain) throws Exception {
         final String topic1 = domain + "my-property/my-ns/testAutoCreatedSchema-1";
         final String topic2 = domain + "my-property/my-ns/testAutoCreatedSchema-2";
@@ -1205,7 +1201,6 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
         return new Object[] { KeyValueEncodingType.SEPARATED, KeyValueEncodingType.INLINE };
     }
 
-    @Test(dataProvider = "keyEncodingType")
     public void testAutoKeyValueConsumeGenericObjectNullValues(KeyValueEncodingType encodingType) throws Exception {
         String topic = "my-property/my-ns/schema-test-auto-keyvalue-" + encodingType + "-null-value-consume-" + UUID.randomUUID();
 

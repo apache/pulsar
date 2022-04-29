@@ -124,7 +124,7 @@ public class LeaderServiceTest {
         leaderService.start();
     }
 
-    @Test
+
     public void testLeaderService() throws Exception {
         MessageId messageId = new MessageIdImpl(1, 2, -1);
         when(schedulerManager.getLastMessageProduced()).thenReturn(messageId);
@@ -155,7 +155,7 @@ public class LeaderServiceTest {
         verify(functionMetadataManager, times(1)).giveupLeadership();
     }
 
-    @Test
+
     public void testLeaderServiceNoNewScheduling() throws Exception {
         when(schedulerManager.getLastMessageProduced()).thenReturn(null);
 
@@ -181,7 +181,7 @@ public class LeaderServiceTest {
         verify(functionMetadataManager, times(1)).giveupLeadership();
     }
 
-    @Test
+
     public void testAcquireScheduleManagerExclusiveProducerNotLeaderAnymore() throws Exception {
         MessageId messageId = new MessageIdImpl(1, 2, -1);
         when(schedulerManager.getLastMessageProduced()).thenReturn(messageId);
@@ -217,7 +217,7 @@ public class LeaderServiceTest {
         verify(functionMetadataManager, times(0)).giveupLeadership();
     }
 
-    @Test
+
     public void testAcquireFunctionMetadataManagerExclusiveProducerNotLeaderAnymore() throws Exception {
         MessageId messageId = new MessageIdImpl(1, 2, -1);
         when(schedulerManager.getLastMessageProduced()).thenReturn(messageId);

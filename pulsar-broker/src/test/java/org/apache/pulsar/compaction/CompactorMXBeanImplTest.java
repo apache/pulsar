@@ -25,10 +25,10 @@ import java.util.concurrent.TimeUnit;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-@Test(groups = "broker-compaction")
+
 public class CompactorMXBeanImplTest {
 
-    @Test
+
     public void testSimple() throws Exception {
         CompactorMXBeanImpl mxBean = new CompactorMXBeanImpl();
         String topic = "topic1";

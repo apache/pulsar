@@ -25,7 +25,7 @@ import org.testng.annotations.Test;
 
 public class TestStatsBuckets {
 
-    @Test
+
     public void testInvalidConstructor() {
         try {
             new StatsBuckets();
@@ -35,7 +35,7 @@ public class TestStatsBuckets {
         }
     }
 
-    @Test
+
     public void testUnorderedBoundaries() {
         try {
             new StatsBuckets(2, 1);
@@ -45,7 +45,7 @@ public class TestStatsBuckets {
         }
     }
 
-    @Test
+
     public void test() {
         StatsBuckets stats = new StatsBuckets(10, 20, 30);
 
@@ -100,7 +100,7 @@ public class TestStatsBuckets {
         assertEquals(stats.getBuckets(), new long[] { 1, 0, 1, 1 });
     }
 
-    @Test
+
     public void testAddAll() {
         StatsBuckets stats = new StatsBuckets(10, 20, 30);
         stats.addValue(1);

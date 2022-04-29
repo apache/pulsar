@@ -55,7 +55,7 @@ import java.util.Map;
 @Slf4j
 public class KafkaBytesSourceTest {
 
-    @Test
+
     public void testNoKeyValueSchema() throws Exception {
 
         validateSchemaNoKeyValue(StringDeserializer.class.getName(), Schema.STRING,
@@ -107,7 +107,7 @@ public class KafkaBytesSourceTest {
         assertEquals(valueSchema.getSchemaInfo().getType(), expectedValueSchema.getSchemaInfo().getType());
     }
 
-    @Test
+
     public void testKeyValueSchema() throws Exception {
         validateSchemaKeyValue(IntegerDeserializer.class.getName(), Schema.INT32,
                 StringDeserializer.class.getName(), Schema.STRING,

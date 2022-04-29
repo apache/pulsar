@@ -38,22 +38,22 @@ public class PulsarFunctionsJavaTest extends PulsarFunctionsTest {
 		super(functionRuntimeType);
 	}
 
-   @Test(groups = {"java_function", "function"})
+   
     public void testJavaFunctionLocalRun() throws Exception {
         testFunctionLocalRun(Runtime.JAVA);
     }
 
-   @Test(groups = {"java_function", "function"})
+   
    public void testJavaFunctionNegAck() throws Exception {
        testFunctionNegAck(Runtime.JAVA);
    }
 
-   @Test(groups = {"java_function", "function"})
+   
    public void testJavaPublishFunction() throws Exception {
        testPublishFunction(Runtime.JAVA);
    }
 
-   @Test(groups = {"java_function", "function"})
+   
    public void testSerdeFunction() throws Exception {
        testCustomSerdeFunction();
    }
@@ -96,28 +96,28 @@ public class PulsarFunctionsJavaTest extends PulsarFunctionsTest {
    }
 
 
-   @Test(groups = {"java_function", "function"})
+   
    public void testJavaExclamationFunction() throws Exception {
        testExclamationFunction(Runtime.JAVA, false, false, false);
    }
 
-   @Test(groups = {"java_function", "function"})
+   
    public void testJavaExclamationTopicPatternFunction() throws Exception {
        testExclamationFunction(Runtime.JAVA, true, false, false);
    }
 
-   @Test(groups = {"java_function", "function"})
+   
    public void testJavaLoggingFunction() throws Exception {
        testLoggingFunction(Runtime.JAVA);
    }
 
 
-   @Test(groups = {"java_function", "function"})
+   
    public void testInitFunction() throws Exception {
 	   testInitFunction(Runtime.JAVA);
    }
 
-   @Test(groups = {"java_function", "function"})
+   
    public void testTumblingCountWindowTest() throws Exception {
        String[] EXPECTED_RESULTS = {
                "0,1,2,3,4,5,6,7,8,9",
@@ -135,7 +135,7 @@ public class PulsarFunctionsJavaTest extends PulsarFunctionsTest {
        testWindowFunction("tumbling", EXPECTED_RESULTS);
    }
 
-   @Test(groups = {"java_function", "function"})
+   
    public void testSlidingCountWindowTest() throws Exception {
        String[] EXPECTED_RESULTS = {
                "0,1,2,3,4",
@@ -163,27 +163,27 @@ public class PulsarFunctionsJavaTest extends PulsarFunctionsTest {
        testWindowFunction("sliding", EXPECTED_RESULTS);
    }
 
-    @Test(groups = {"java_function", "function"})
+    
     public void testMergeFunctionTest() throws Exception {
 	    testMergeFunction();
    }
 
-    @Test(groups = {"java_function", "function"})
+    
     public void testGenericObjectFunction() throws Exception {
         testGenericObjectFunction(GENERIC_OBJECT_FUNCTION_JAVA_CLASS, false, false);
     }
 
-    @Test(groups = {"java_function", "function"})
+    
     public void testGenericObjectRemoveFiledFunction() throws Exception {
         testGenericObjectFunction(REMOVE_AVRO_FIELD_FUNCTION_JAVA_CLASS, true, false);
     }
 
-    @Test(groups = {"java_function", "function"})
+    
     public void testGenericObjectFunctionKeyValue() throws Exception {
         testGenericObjectFunction(GENERIC_OBJECT_FUNCTION_JAVA_CLASS, false, true);
     }
 
-    @Test(groups = {"java_function", "function"})
+    
     public void testGenericObjectRemoveFiledFunctionKeyValue() throws Exception {
         testGenericObjectFunction(REMOVE_AVRO_FIELD_FUNCTION_JAVA_CLASS, true, true);
     }

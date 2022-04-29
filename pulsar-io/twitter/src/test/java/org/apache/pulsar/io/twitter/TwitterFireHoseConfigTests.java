@@ -34,14 +34,14 @@ public class TwitterFireHoseConfigTests {
     
     private TwitterFireHoseConfig config;
 
-    @Test
+
     public final void loadFromYamlFileTest() throws IOException {
         File yamlFile = getFile("sourceConfig.yaml");
         config = TwitterFireHoseConfig.load(yamlFile.getAbsolutePath());
         assertNotNull(config);
     }
 
-    @Test
+
     public final void loadFromMapTest() throws IOException {
         Map<String, Object> map = new HashMap<> ();
         map.put("consumerKey", "xxx");
@@ -54,7 +54,7 @@ public class TwitterFireHoseConfigTests {
         assertNotNull(config);
     }
 
-    @Test
+
     public final void validValidateTest() throws IOException {
         Map<String, Object> map = new HashMap<> ();
         map.put("consumerKey", "xxx");
@@ -66,8 +66,6 @@ public class TwitterFireHoseConfigTests {
         config.validate();
     }
     
-    @Test(expectedExceptions = IllegalArgumentException.class, 
-            expectedExceptionsMessageRegExp = "Required property not set.")
     public final void missingConsumerKeyValidateTest() throws IOException {
         Map<String, Object> map = new HashMap<> ();
         
@@ -75,7 +73,7 @@ public class TwitterFireHoseConfigTests {
         config.validate();
     }
     
-    @Test
+
     public final void getFollowingsTest() throws IOException {
         Map<String, Object> map = new HashMap<> ();
         map.put("followings", "123, 456, 789");
@@ -90,7 +88,7 @@ public class TwitterFireHoseConfigTests {
     }
     
     
-    @Test
+
     public final void getTermsTest() throws IOException {
         Map<String, Object> map = new HashMap<> ();
         map.put("terms", "mickey, donald, goofy");

@@ -92,7 +92,7 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Slf4j
-@Test(groups = "broker-admin")
+
 public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
     private final String testTenant = "my-tenant";
@@ -137,7 +137,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         this.resetConfig();
     }
 
-    @Test
+
     public void testTopicPolicyInitialValueWithNamespaceAlreadyLoaded() throws Exception{
         TopicName topicName = TopicName.get(
                 TopicDomain.persistent.value(),
@@ -177,7 +177,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
     }
 
 
-    @Test
+
     public void testSetSizeBasedBacklogQuota() throws Exception {
 
         BacklogQuota backlogQuota = BacklogQuota.builder()
@@ -202,7 +202,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topics().deletePartitionedTopic(testTopic, true);
     }
 
-    @Test
+
     public void testSetTimeBasedBacklogQuota() throws Exception {
 
         BacklogQuota backlogQuota = BacklogQuota.builder()
@@ -225,7 +225,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topics().deletePartitionedTopic(testTopic, true);
     }
 
-    @Test
+
     public void testRemoveSizeBasedBacklogQuota() throws Exception {
         List<Topic> partitions = new ArrayList<>();
         List<BacklogQuota> defaultBacklogQuotas = new ArrayList<>();
@@ -271,7 +271,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topics().deletePartitionedTopic(testTopic, true);
     }
 
-    @Test
+
     public void testRemoveTimeBasedBacklogQuota() throws Exception {
         List<Topic> partitions = new ArrayList<>();
         List<BacklogQuota> defaultBacklogQuotas = new ArrayList<>();
@@ -317,7 +317,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topics().deletePartitionedTopic(testTopic, true);
     }
 
-    @Test
+
     public void testCheckSizeBasedBacklogQuota() throws Exception {
         RetentionPolicies retentionPolicies = new RetentionPolicies(10, 10);
         String namespace = TopicName.get(testTopic).getNamespace();
@@ -365,7 +365,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topics().deletePartitionedTopic(testTopic, true);
     }
 
-    @Test
+
     public void testCheckTimeBasedBacklogQuota() throws Exception {
         RetentionPolicies retentionPolicies = new RetentionPolicies(10, 10);
         String namespace = TopicName.get(testTopic).getNamespace();
@@ -413,7 +413,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topics().deletePartitionedTopic(testTopic, true);
     }
 
-    @Test(timeOut = 20000)
+    
     public void testGetSizeBasedBacklogQuotaApplied() throws Exception {
         final String topic = testTopic + UUID.randomUUID();
         pulsarClient.newProducer().topic(topic).create().close();
@@ -454,7 +454,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
                 .get(BacklogQuota.BacklogQuotaType.destination_storage) == null);
     }
 
-    @Test(timeOut = 20000)
+    
     public void testGetTimeBasedBacklogQuotaApplied() throws Exception {
         final String topic = testTopic + UUID.randomUUID();
         pulsarClient.newProducer().topic(topic).create().close();
@@ -494,7 +494,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
                 .get(BacklogQuota.BacklogQuotaType.message_age) == null);
     }
 
-    @Test
+
     public void testCheckBacklogQuotaFailed() throws Exception {
         RetentionPolicies retentionPolicies = new RetentionPolicies(10, 10);
         String namespace = TopicName.get(testTopic).getNamespace();
@@ -519,7 +519,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
                 .get(BacklogQuota.BacklogQuotaType.destination_storage));
     }
 
-    @Test
+
     public void testCheckRetentionSizeBasedQuota() throws Exception {
         BacklogQuota backlogQuota = BacklogQuota.builder()
                 .limitSize(10 * 1024 * 1024)
@@ -560,7 +560,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topics().deletePartitionedTopic(testTopic, true);
     }
 
-    @Test
+
     public void testCheckRetentionTimeBasedQuota() throws Exception {
         BacklogQuota backlogQuota = BacklogQuota.builder()
                 .limitTime(10 * 60)
@@ -601,7 +601,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topics().deletePartitionedTopic(testTopic, true);
     }
 
-    @Test
+
     public void testSetRetention() throws Exception {
         RetentionPolicies retention = new RetentionPolicies(60, 1024);
         log.info("Retention: {} will set to the topic: {}", retention, testTopic);
@@ -615,7 +615,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topics().deletePartitionedTopic(testTopic, true);
     }
 
-    @Test
+
     public void testRemoveRetention() throws Exception {
 
         RetentionPolicies retention = new RetentionPolicies(60, 1024);
@@ -634,7 +634,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topics().deletePartitionedTopic(testTopic, true);
     }
 
-    @Test(timeOut = 10000)
+    
     public void testRetentionAppliedApi() throws Exception {
         final String topic = testTopic + UUID.randomUUID();
         pulsarClient.newProducer().topic(topic).create().close();
@@ -662,7 +662,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
                 -> assertEquals(admin.topicPolicies().getRetention(topic, true), brokerPolicies));
     }
 
-    @Test(timeOut = 20000)
+    
     public void testGetSubDispatchRateApplied() throws Exception {
         final String topic = testTopic + UUID.randomUUID();
         pulsarClient.newProducer().topic(topic).create().close();
@@ -709,7 +709,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
     }
 
-    @Test(timeOut = 20000)
+    
     public void testRetentionPriority() throws Exception {
         final String topic = testTopic + UUID.randomUUID();
         pulsarClient.newProducer().topic(topic).create().close();
@@ -765,7 +765,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         assertFalse((boolean) shouldTopicBeRetained.invoke(persistentTopic));
     }
 
-    @Test(timeOut = 20000)
+    
     public void testGetPersistenceApplied() throws Exception {
         final String topic = testTopic + UUID.randomUUID();
         pulsarClient.newProducer().topic(topic).create().close();
@@ -796,7 +796,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         assertEquals(admin.topicPolicies().getPersistence(topic, true), brokerPolicy);
     }
 
-    @Test
+
     public void testCheckPersistence() throws Exception {
         PersistencePolicies persistencePolicies = new PersistencePolicies(6, 2, 2, 0.0);
         log.info("PersistencePolicies: {} will set to the topic: {}", persistencePolicies, testTopic);
@@ -837,7 +837,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topics().deletePartitionedTopic(testTopic, true);
     }
 
-    @Test
+
     public void testSetPersistence() throws Exception {
         PersistencePolicies persistencePoliciesForNamespace = new PersistencePolicies(2, 2, 2, 0.3);
         admin.namespaces().setPersistence(myNamespace, persistencePoliciesForNamespace);
@@ -873,7 +873,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         consumer.close();
     }
 
-    @Test
+
     public void testGetDispatchRateApplied() throws Exception {
         final String topic = testTopic + UUID.randomUUID();
         pulsarClient.newProducer().topic(topic).create().close();
@@ -911,7 +911,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         assertEquals(admin.topicPolicies().getDispatchRate(topic, true), brokerDispatchRate);
     }
 
-    @Test
+
     public void testRemovePersistence() throws Exception {
         PersistencePolicies persistencePoliciesForNamespace = new PersistencePolicies(2, 2, 2, 0.3);
         admin.namespaces().setPersistence(myNamespace, persistencePoliciesForNamespace);
@@ -942,7 +942,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         assertEquals(managedLedgerConfig.getThrottleMarkDelete(), 0.3);
     }
 
-    @Test
+
     public void testCheckMaxProducers() throws Exception {
         int maxProducers = -1;
         log.info("MaxProducers: {} will set to the topic: {}", maxProducers, testTopic);
@@ -956,7 +956,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topics().deletePartitionedTopic(testTopic, true);
     }
 
-    @Test
+
     public void testGetMaxProducerApplied() throws Exception {
         final String topic = testTopic + UUID.randomUUID();
         pulsarClient.newProducer().topic(topic).create().close();
@@ -1000,7 +1000,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+
     public void testSetMaxProducers() throws Exception {
         Integer maxProducers = 2;
         log.info("MaxProducers: {} will set to the topic: {}", maxProducers, persistenceTopic);
@@ -1074,7 +1074,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topics().deletePartitionedTopic(testTopic, true);
     }
 
-    @Test
+
     public void testRemoveMaxProducers() throws Exception {
         Integer maxProducers = 2;
         log.info("MaxProducers: {} will set to the topic: {}", maxProducers, persistenceTopic);
@@ -1128,7 +1128,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
     }
 
 
-    @Test
+
     public void testGetSetDispatchRate() throws Exception {
         DispatchRate dispatchRate = DispatchRate.builder()
                 .dispatchThrottlingRateInMsg(100)
@@ -1147,7 +1147,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topics().deletePartitionedTopic(testTopic, true);
     }
 
-    @Test
+
     public void testRemoveDispatchRate() throws Exception {
         DispatchRate dispatchRate = DispatchRate.builder()
                 .dispatchThrottlingRateInMsg(100)
@@ -1170,7 +1170,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topics().deletePartitionedTopic(testTopic, true);
     }
 
-    @Test(timeOut = 20000)
+    
     public void testPolicyOverwrittenByNamespaceLevel() throws Exception {
         final String topic = testTopic + UUID.randomUUID();
         admin.topics().createNonPartitionedTopic(topic);
@@ -1227,7 +1227,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
                 });
     }
 
-    @Test(timeOut = 20000)
+    
     public void testRestart() throws Exception {
         final String topic = testTopic + UUID.randomUUID();
         admin.topics().createNonPartitionedTopic(topic);
@@ -1285,7 +1285,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         producer.close();
     }
 
-    @Test
+
     public void testGetSetSubscriptionDispatchRate() throws Exception {
         final String topic = testTopic + UUID.randomUUID();
         admin.topics().createNonPartitionedTopic(topic);
@@ -1316,7 +1316,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topics().delete(topic, true);
     }
 
-    @Test
+
     public void testGetSetSubscriptionDispatchRateAfterTopicLoaded() throws Exception {
         final String topic = testTopic + UUID.randomUUID();
         admin.topics().createNonPartitionedTopic(topic);
@@ -1347,7 +1347,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topics().delete(topic, true);
     }
 
-    @Test
+
     public void testRemoveSubscriptionDispatchRate() throws Exception {
         final String topic = testTopic + UUID.randomUUID();
         admin.topics().createNonPartitionedTopic(topic);
@@ -1391,7 +1391,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topics().delete(topic, true);
     }
 
-    @Test
+
     public void testSubscriptionDispatchRatePolicyOverwrittenNamespaceLevel() throws Exception {
         final String topic = testTopic + UUID.randomUUID();
         admin.topics().createNonPartitionedTopic(topic);
@@ -1449,7 +1449,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topics().delete(topic, true);
     }
 
-    @Test
+
     public void testGetSetCompactionThreshold() throws Exception {
         Long compactionThreshold = 100000L;
         log.info("Compaction threshold: {} will set to the topic: {}", compactionThreshold, testTopic);
@@ -1463,7 +1463,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topics().deletePartitionedTopic(testTopic, true);
     }
 
-    @Test
+
     public void testRemoveCompactionThreshold() throws Exception {
         Long compactionThreshold = 100000L;
         log.info("Compaction threshold: {} will set to the topic: {}", compactionThreshold, testTopic);
@@ -1482,7 +1482,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topics().deletePartitionedTopic(testTopic, true);
     }
 
-    @Test
+
     public void testGetSetMaxConsumersPerSubscription() throws Exception {
         Integer maxConsumersPerSubscription = 10;
         log.info("MaxConsumersPerSubscription: {} will set to the topic: {}", maxConsumersPerSubscription, testTopic);
@@ -1496,7 +1496,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topics().deletePartitionedTopic(testTopic, true);
     }
 
-    @Test
+
     public void testRemoveMaxConsumersPerSubscription() throws Exception {
         Integer maxConsumersPerSubscription = 10;
         log.info("MaxConsumersPerSubscription: {} will set to the topic: {}", maxConsumersPerSubscription, testTopic);
@@ -1522,7 +1522,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topics().deletePartitionedTopic(testTopic, true);
     }
 
-    @Test
+
     public void testGetSetPublishRate() throws Exception {
         PublishRate publishRate = new PublishRate(10000, 1024 * 1024 * 5);
         log.info("Publish Rate: {} will set to the topic: {}", publishRate, testTopic);
@@ -1536,7 +1536,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topics().deletePartitionedTopic(testTopic, true);
     }
 
-    @Test
+
     public void testRemovePublishRate() throws Exception {
         PublishRate publishRate = new PublishRate(10000, 1024 * 1024 * 5);
         log.info("Publish Rate: {} will set to the topic: {}", publishRate, testTopic);
@@ -1555,7 +1555,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topics().deletePartitionedTopic(testTopic, true);
     }
 
-    @Test
+
     public void testCheckMaxConsumers() throws Exception {
         Integer maxProducers = -1;
         log.info("MaxConsumers: {} will set to the topic: {}", maxProducers, testTopic);
@@ -1568,7 +1568,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
         admin.topics().deletePartitionedTopic(testTopic, true);
     }
-    @Test
+
     public void testGetMaxConsumersApplied() throws Exception {
         final String topic = testTopic + UUID.randomUUID();
         pulsarClient.newProducer().topic(topic).create().close();
@@ -1591,7 +1591,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         assertEquals(admin.topicPolicies().getMaxConsumers(topic, true).intValue(), conf.getMaxConsumersPerTopic());
     }
 
-    @Test
+
     public void testSetMaxConsumers() throws Exception {
         admin.namespaces().setMaxConsumersPerTopic(myNamespace, 1);
         Awaitility.await()
@@ -1625,7 +1625,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topics().deletePartitionedTopic(testTopic, true);
     }
 
-    @Test
+
     public void testRemoveMaxConsumers() throws Exception {
         Integer maxConsumers = 2;
         admin.topics().createPartitionedTopic(persistenceTopic, 2);
@@ -1674,7 +1674,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topics().deletePartitionedTopic(testTopic, true);
     }
 
-    @Test
+
     public void testDisableSubscribeRate() throws Exception {
         assertEquals(pulsar.getConfiguration().getSubscribeThrottlingRatePerConsumer(), 0);
         admin.topics().createNonPartitionedTopic(persistenceTopic);
@@ -1712,7 +1712,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         });
     }
 
-    @Test
+
     public void testGetSetSubscribeRate() throws Exception {
         admin.topics().createPartitionedTopic(persistenceTopic, 2);
 
@@ -1764,7 +1764,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topics().deletePartitionedTopic(persistenceTopic, true);
     }
 
-    @Test(timeOut = 20000)
+    
     public void testGetSubscribeRateApplied() throws Exception {
         final String topic = testTopic + UUID.randomUUID();
         pulsarClient.newProducer().topic(topic).create().close();
@@ -1793,7 +1793,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         assertEquals(admin.topicPolicies().getSubscribeRate(topic, true), brokerPolicy);
     }
 
-    @Test(timeOut = 30000)
+    
     public void testPriorityAndDisableMaxConsumersOnSub() throws Exception {
         final String topic = testTopic + UUID.randomUUID();
         int maxConsumerInBroker = 1;
@@ -1857,7 +1857,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+
     public void testRemoveSubscribeRate() throws Exception {
         admin.topics().createPartitionedTopic(persistenceTopic, 2);
         pulsarClient.newProducer().topic(persistenceTopic).create().close();
@@ -1934,7 +1934,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         admin.topics().deletePartitionedTopic(testTopic, true);
     }
 
-    @Test
+
     public void testPublishRateInDifferentLevelPolicy() throws Exception {
         cleanup();
         conf.setMaxPublishRatePerTopicInMessages(5);
@@ -2003,7 +2003,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(publishMaxByteRate.get(publishRateLimiter), 50L);
     }
 
-    @Test(timeOut = 20000)
+    
     public void testTopicMaxMessageSizeApi() throws Exception{
         admin.topics().createNonPartitionedTopic(persistenceTopic);
         assertNull(admin.topicPolicies().getMaxMessageSize(persistenceTopic));
@@ -2039,7 +2039,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         };
     }
 
-    @Test(dataProvider = "persistentAndPartition")
+    persistentAndPartition")
     public void testTopicMaxMessageSize(TopicDomain topicDomain, boolean isPartitioned) throws Exception {
         final String topic = TopicName.get(
                 topicDomain.value(),
@@ -2127,7 +2127,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         producer.close();
     }
 
-    @Test(timeOut = 20000)
+    
     public void testMaxSubscriptionsFailFast() throws Exception {
         doTestMaxSubscriptionsFailFast(SubscriptionMode.Durable);
         doTestMaxSubscriptionsFailFast(SubscriptionMode.NonDurable);
@@ -2162,7 +2162,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test(timeOut = 20000)
+    
     public void testMaxSubscriptionsPerTopicApi() throws Exception {
         final String topic = "persistent://" + myNamespace + "/test-" + UUID.randomUUID();
         // init cache
@@ -2186,7 +2186,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test(timeOut = 20000)
+    
     public void testMaxSubscriptionsPerTopicWithExistingSubs() throws Exception {
         final String topic = "persistent://" + myNamespace + "/test-" + UUID.randomUUID();
         // init cache
@@ -2227,7 +2227,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+
     public void testMaxUnackedMessagesOnSubscriptionPriority() throws Exception {
         cleanup();
         conf.setMaxUnackedMessagesPerSubscription(30);
@@ -2315,7 +2315,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test(timeOut = 20000)
+    
     public void testMaxSubscriptionsPerTopic() throws Exception {
         int brokerLevelMaxSub = 4;
         conf.setMaxSubscriptionsPerTopic(4);
@@ -2399,7 +2399,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test(timeOut = 30000)
+    
     public void testReplicatorRateApi() throws Exception {
         final String topic = "persistent://" + myNamespace + "/test-" + UUID.randomUUID();
         // init cache
@@ -2421,7 +2421,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
                 -> assertNull(admin.topicPolicies().getReplicatorDispatchRate(topic)));
     }
 
-    @Test(timeOut = 20000)
+    
     public void testGetReplicatorRateApplied() throws Exception {
         final String topic = testTopic + UUID.randomUUID();
         pulsarClient.newProducer().topic(topic).create().close();
@@ -2459,7 +2459,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         assertEquals(admin.topicPolicies().getReplicatorDispatchRate(topic, true), brokerDispatchRate);
     }
 
-    @Test(timeOut = 30000)
+    
     public void testAutoCreationDisabled() throws Exception {
         cleanup();
         conf.setAllowAutoTopicCreation(false);
@@ -2471,7 +2471,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         assertNull(admin.topicPolicies().getMessageTTL(topic));
     }
 
-    @Test
+
     public void testSubscriptionTypesWithPartitionedTopic() throws Exception {
         final String topic = "persistent://" + myNamespace + "/test-" + UUID.randomUUID();
         admin.topics().createPartitionedTopic(topic, 1);
@@ -2499,7 +2499,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
                 assertTrue(admin.topics().getSubscriptionTypesEnabled(topic).isEmpty()));
     }
 
-    @Test(timeOut = 30000)
+    
     public void testSubscriptionTypesEnabled() throws Exception {
         final String topic = "persistent://" + myNamespace + "/test-" + UUID.randomUUID();
         // use broker.conf
@@ -2586,7 +2586,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
                 .subscriptionType(SubscriptionType.Shared).subscriptionName("test").subscribe().close();
     }
 
-    @Test(timeOut = 20000)
+    
     public void testNonPersistentMaxConsumerOnSub() throws Exception {
         int maxConsumerPerSubInBroker = 1;
         int maxConsumerPerSubInNs = 2;
@@ -2640,7 +2640,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         producer.close();
     }
 
-    @Test(timeOut = 20000)
+    
     public void testGetCompactionThresholdApplied() throws Exception {
         final String topic = testTopic + UUID.randomUUID();
         pulsarClient.newProducer().topic(topic).create().close();
@@ -2666,7 +2666,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         assertEquals(admin.topicPolicies().getCompactionThreshold(topic, true).longValue(), brokerPolicy);
     }
 
-    @Test(timeOut = 30000)
+    
     public void testProduceConsumeOnTopicPolicy() {
         final String msg = "send message ";
         int numMsg = 10;
@@ -2691,7 +2691,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test(timeOut = 30000)
+    
     public void testSystemTopicShouldBeCompacted() throws Exception {
         BacklogQuota backlogQuota = BacklogQuota.builder()
                 .limitSize(1024)
@@ -2724,7 +2724,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
                 });
     }
 
-    @Test(timeOut = 30000)
+    
     public void testTopicRetentionPolicySetInManagedLedgerConfig() throws Exception {
         RetentionPolicies nsRetentionPolicies = new RetentionPolicies(1, -1);
         TopicName topicName = TopicName.get(testTopic);
@@ -2747,7 +2747,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         });
     }
 
-    @Test
+
     public void testPolicyIsDeleteTogetherManually() throws Exception {
         final String topic = testTopic + UUID.randomUUID();
         pulsarClient.newProducer().topic(topic).create().close();
@@ -2774,7 +2774,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
                         .isNull());
     }
 
-    @Test
+
     public void testPoliciesCanBeDeletedWithTopic() throws Exception {
         final String topic = testTopic + UUID.randomUUID();
         final String topic2 = testTopic + UUID.randomUUID();
@@ -2851,7 +2851,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
     }
 
-    @Test
+
     public void testPolicyIsDeleteTogetherAutomatically() throws Exception {
         final String topic = testTopic + UUID.randomUUID();
         pulsarClient.newProducer().topic(topic).create().close();
@@ -2884,7 +2884,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
                         .isNull());
     }
 
-    @Test
+
     public void testDoNotCreateSystemTopicForHeartbeatNamespace() {
         assertTrue(pulsar.getBrokerService().getTopics().size() > 0);
         pulsar.getBrokerService().getTopics().forEach((k, v) -> {
@@ -2894,7 +2894,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         });
     }
 
-    @Test(timeOut = 30000)
+    
     public void testReplicatorClusterApi() throws Exception {
         final String topic = "persistent://" + myNamespace + "/test-" + UUID.randomUUID();
         // init cache
@@ -2913,7 +2913,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
                 -> assertNull(admin.topics().getReplicationClusters(topic, false)));
     }
 
-    @Test
+
     public void testLoopCreateAndDeleteTopicPolicies() throws Exception {
         final String topic = testTopic + UUID.randomUUID();
 
@@ -2936,7 +2936,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
             });
         }
     }
-    @Test
+
     public void testGlobalTopicPolicies() throws Exception {
         final String topic = testTopic + UUID.randomUUID();
         pulsarClient.newProducer().topic(topic).create().close();
@@ -2981,7 +2981,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
     }
 
-    @Test
+
     public void testMaxMessageSizeWithChunking() throws Exception {
         this.conf.setMaxMessageSize(1000);
 

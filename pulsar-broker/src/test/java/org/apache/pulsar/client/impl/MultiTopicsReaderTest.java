@@ -66,7 +66,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 @Slf4j
-@Test(groups = "flaky")
+
 public class MultiTopicsReaderTest extends MockedPulsarServiceBaseTest {
 
     private static final String subscription = "reader-multi-topics-sub";
@@ -93,14 +93,14 @@ public class MultiTopicsReaderTest extends MockedPulsarServiceBaseTest {
         super.internalCleanup();
     }
 
-    @Test(timeOut = 30000)
+    
     public void testReadMessageWithoutBatching() throws Exception {
         String topic = "persistent://my-property/my-ns/my-reader-topic" + UUID.randomUUID();
         admin.topics().createPartitionedTopic(topic, 3);
         testReadMessages(topic, false);
     }
 
-    @Test(timeOut = 20000)
+    
     public void testReadMessageWithoutBatchingWithMessageInclusive() throws Exception {
         String topic = "persistent://my-property/my-ns/my-reader-topic-inclusive" + UUID.randomUUID();
         int topicNum = 3;
@@ -120,14 +120,14 @@ public class MultiTopicsReaderTest extends MockedPulsarServiceBaseTest {
         reader.close();
     }
 
-    @Test(timeOut = 10000)
+    
     public void testReadMessageWithBatching() throws Exception {
         String topic = "persistent://my-property/my-ns/my-reader-topic-with-batching" + UUID.randomUUID();
         admin.topics().createPartitionedTopic(topic, 3);
         testReadMessages(topic, true);
     }
 
-    @Test(timeOut = 10000)
+    
     public void testHasMessageAvailableAsync() throws Exception {
         String topic = "persistent://my-property/my-ns/testHasMessageAvailableAsync";
         String content = "my-message-";
@@ -188,7 +188,7 @@ public class MultiTopicsReaderTest extends MockedPulsarServiceBaseTest {
         });
     }
 
-    @Test(timeOut = 10000)
+    
     public void testReadMessageWithBatchingWithMessageInclusive() throws Exception {
         String topic = "persistent://my-property/my-ns/my-reader-topic-with-batching-inclusive" + UUID.randomUUID();
         int topicNum = 3;
@@ -211,7 +211,7 @@ public class MultiTopicsReaderTest extends MockedPulsarServiceBaseTest {
         reader.close();
     }
 
-    @Test(timeOut = 10000)
+    
     public void testReaderWithTimeLong() throws Exception {
         String ns = "my-property/my-ns";
         String topic = "persistent://" + ns + "/testReadFromPartition" + UUID.randomUUID();
@@ -278,7 +278,7 @@ public class MultiTopicsReaderTest extends MockedPulsarServiceBaseTest {
         producer.close();
     }
 
-    @Test(timeOut = 10000)
+    
     public void testRemoveSubscriptionForReaderNeedRemoveCursor() throws IOException, PulsarAdminException {
 
         final String topic = "persistent://my-property/my-ns/testRemoveSubscriptionForReaderNeedRemoveCursor"
@@ -317,14 +317,14 @@ public class MultiTopicsReaderTest extends MockedPulsarServiceBaseTest {
 
     }
 
-    @Test(timeOut = 10000)
+    
     public void testMultiReaderSeek() throws Exception {
         String topic = "persistent://my-property/my-ns/testKeyHashRangeReader" + UUID.randomUUID();
         admin.topics().createPartitionedTopic(topic, 3);
         publishMessages(topic,100,false);
     }
 
-    @Test
+
     public void testMultiTopicSeekByFunction() throws Exception {
         final String topicName = "persistent://my-property/my-ns/test" + UUID.randomUUID();
         int partitionNum = 4;
@@ -369,7 +369,7 @@ public class MultiTopicsReaderTest extends MockedPulsarServiceBaseTest {
         assertEquals(count, msgNumInPartition0 + msgNumInPartition1 + msgNumInPartition2 + msgNumInPartition3);
     }
 
-    @Test
+
     public void testMultiTopicSeekByFunctionWithException() throws Exception {
         final String topicName = "persistent://my-property/my-ns/test" + UUID.randomUUID();
         int partitionNum = 4;
@@ -404,7 +404,7 @@ public class MultiTopicsReaderTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test(timeOut = 20000)
+    
     public void testMultiTopic() throws Exception {
         final String topic = "persistent://my-property/my-ns/topic" + UUID.randomUUID();
         final String topic2 = "persistent://my-property/my-ns/topic2" + UUID.randomUUID();
@@ -444,7 +444,7 @@ public class MultiTopicsReaderTest extends MockedPulsarServiceBaseTest {
         Awaitility.await().untilAsserted(() -> assertEquals(client.consumersCount(), 0));
     }
 
-    @Test(timeOut = 20000)
+    
     public void testMultiNonPartitionedTopicWithStartMessageId() throws Exception {
         final String topic1 = "persistent://my-property/my-ns/topic1" + UUID.randomUUID();
         final String topic2 = "persistent://my-property/my-ns/topic2" + UUID.randomUUID();
@@ -483,7 +483,7 @@ public class MultiTopicsReaderTest extends MockedPulsarServiceBaseTest {
         Awaitility.await().untilAsserted(() -> assertEquals(client.consumersCount(), 0));
     }
 
-    @Test(timeOut = 20000)
+    
     public void testMultiNonPartitionedTopicWithRollbackDuration() throws Exception {
         final String topic1 = "persistent://my-property/my-ns/topic1" + UUID.randomUUID();
         final String topic2 = "persistent://my-property/my-ns/topic2" + UUID.randomUUID();
@@ -545,7 +545,7 @@ public class MultiTopicsReaderTest extends MockedPulsarServiceBaseTest {
         Awaitility.await().untilAsserted(() -> assertEquals(client.consumersCount(), 0));
     }
 
-    @Test(timeOut = 10000)
+    
     public void testKeyHashRangeReader() throws Exception {
         final List<String> keys = Arrays.asList("0", "1", "2", "3", "4", "5", "6", "7", "8", "9");
         final String topic = "persistent://my-property/my-ns/testKeyHashRangeReader" + UUID.randomUUID();

@@ -90,7 +90,7 @@ public class ProxyServiceTlsStarterTest extends MockedPulsarServiceBaseTest {
         serviceStarter.close();
     }
 
-    @Test
+
     public void testProducer() throws Exception {
         @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(serviceUrl)
@@ -107,7 +107,7 @@ public class ProxyServiceTlsStarterTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+
     public void testProduceAndConsumeMessageWithWebsocket() throws Exception {
         HttpClient producerClient = new HttpClient();
         WebSocketClient producerWebSocketClient = new WebSocketClient(producerClient);

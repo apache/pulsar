@@ -33,7 +33,7 @@ import org.testng.annotations.Test;
 
 public class NamespaceOwnershipStatusTest {
 
-    @Test
+
     public void testSerialization() throws Exception {
         String jsonStr = "{\"ns-1\":{\"broker_assignment\":\"shared\",\"is_controlled\":false,\"is_active\":true},"
                 + "\"ns-2\":{\"broker_assignment\":\"primary\",\"is_controlled\":true,\"is_active\":false},"

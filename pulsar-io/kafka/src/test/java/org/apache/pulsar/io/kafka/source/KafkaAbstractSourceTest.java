@@ -59,7 +59,7 @@ public class KafkaAbstractSourceTest {
 
     }
 
-    @Test
+
     public void testInvalidConfigWillThrownException() throws Exception {
         KafkaAbstractSource source = new DummySource();
         SourceContext ctx = mock(SourceContext.class);
@@ -100,7 +100,7 @@ public class KafkaAbstractSourceTest {
         source.close();
     }
 
-    @Test
+
     public final void loadFromYamlFileTest() throws IOException {
         File yamlFile = getFile("kafkaSourceConfig.yaml");
         KafkaSourceConfig config = KafkaSourceConfig.load(yamlFile.getAbsolutePath());
@@ -119,7 +119,7 @@ public class KafkaAbstractSourceTest {
         assertEquals("test-pulsar-io", props.getProperty(ConsumerConfig.GROUP_ID_CONFIG));
     }
 
-    @Test
+
     public final void loadFromSaslYamlFileTest() throws IOException {
         File yamlFile = getFile("kafkaSourceConfigSasl.yaml");
         KafkaSourceConfig config = KafkaSourceConfig.load(yamlFile.getAbsolutePath());

@@ -45,7 +45,7 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.assertEquals;
 
-@Test(groups = "broker-api")
+
 public class ConsumerRedeliveryTest extends ProducerConsumerBase {
 
     private static final Logger log = LoggerFactory.getLogger(ConsumerRedeliveryTest.class);
@@ -79,7 +79,7 @@ public class ConsumerRedeliveryTest extends ProducerConsumerBase {
      * </pre>
      * @throws Exception
      */
-    @Test(dataProvider = "ackReceiptEnabled")
+    
     public void testOrderedRedelivery(boolean ackReceiptEnabled) throws Exception {
         String topic = "persistent://my-property/my-ns/redelivery-" + System.currentTimeMillis();
 
@@ -146,7 +146,7 @@ public class ConsumerRedeliveryTest extends ProducerConsumerBase {
         }
     }
 
-    @Test(dataProvider = "ackReceiptEnabled")
+    
     public void testUnAckMessageRedeliveryWithReceiveAsync(boolean ackReceiptEnabled) throws PulsarClientException, ExecutionException, InterruptedException {
         String topic = "persistent://my-property/my-ns/async-unack-redelivery";
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
@@ -201,7 +201,7 @@ public class ConsumerRedeliveryTest extends ProducerConsumerBase {
      * 
      * @throws Exception
      */
-    @Test
+
     public void testConsumerWithPermitReceiveBatchMessages() throws Exception {
 
         log.info("-- Starting {} test --", methodName);
@@ -250,7 +250,7 @@ public class ConsumerRedeliveryTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test(timeOut = 30000)
+    
     public void testMessageRedeliveryAfterUnloadedWithEarliestPosition() throws Exception {
 
         final String subName = "my-subscriber-name";

@@ -44,7 +44,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Test(groups = "flaky")
+
 public class InactiveTopicDeleteTest extends BrokerTestBase {
 
     @BeforeMethod
@@ -57,7 +57,7 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
         super.internalCleanup();
     }
 
-    @Test
+
     public void testDeleteWhenNoSubscriptions() throws Exception {
         conf.setBrokerDeleteInactiveTopicsMode(InactiveTopicDeleteMode.delete_when_no_subscriptions);
         conf.setBrokerDeleteInactiveTopicsFrequencySeconds(1);
@@ -85,7 +85,7 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
                 .contains(topic)));
     }
 
-    @Test
+
     public void testDeleteAndCleanZkNode() throws Exception {
         conf.setBrokerDeleteInactiveTopicsMode(InactiveTopicDeleteMode.delete_when_no_subscriptions);
         conf.setBrokerDeleteInactivePartitionedTopicMetadataEnabled(true);
@@ -107,7 +107,7 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
                 .contains(topic)));
     }
 
-    @Test
+
     public void testWhenSubPartitionNotDelete() throws Exception {
         conf.setBrokerDeleteInactiveTopicsMode(InactiveTopicDeleteMode.delete_when_no_subscriptions);
         conf.setBrokerDeleteInactivePartitionedTopicMetadataEnabled(true);
@@ -132,7 +132,7 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
         });
     }
 
-    @Test
+
     public void testNotEnabledDeleteZkNode() throws Exception {
         conf.setBrokerDeleteInactiveTopicsMode(InactiveTopicDeleteMode.delete_when_no_subscriptions);
         conf.setBrokerDeleteInactiveTopicsFrequencySeconds(1);
@@ -162,7 +162,7 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
         Assert.assertFalse(admin.topics().getList(namespace).contains(topic2));
     }
 
-    @Test(timeOut = 20000)
+    
     public void testTopicPolicyUpdateAndClean() throws Exception {
         final String namespace = "prop/ns-abc";
         final String namespace2 = "prop/ns-abc2";
@@ -239,7 +239,7 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
                 , defaultPolicy);
     }
 
-    @Test(timeOut = 20000)
+    
     public void testDeleteWhenNoSubscriptionsWithMultiConfig() throws Exception {
         final String namespace = "prop/ns-abc";
         final String namespace2 = "prop/ns-abc2";
@@ -306,7 +306,7 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
         Assert.assertFalse(admin.topics().getList(namespace3).contains(topic3));
     }
 
-    @Test
+
     public void testDeleteWhenNoBacklogs() throws Exception {
         conf.setBrokerDeleteInactiveTopicsMode(InactiveTopicDeleteMode.delete_when_subscriptions_caught_up);
         conf.setBrokerDeleteInactiveTopicsFrequencySeconds(1);
@@ -339,7 +339,7 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
                 .untilAsserted(() -> Assert.assertFalse(admin.topics().getList("prop/ns-abc").contains(topic)));
     }
 
-    @Test
+
     public void testMaxInactiveDuration() throws Exception {
         conf.setBrokerDeleteInactiveTopicsMode(InactiveTopicDeleteMode.delete_when_subscriptions_caught_up);
         conf.setBrokerDeleteInactiveTopicsFrequencySeconds(1);
@@ -364,7 +364,7 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
         super.internalCleanup();
     }
 
-    @Test(timeOut = 20000)
+    
     public void testTopicLevelInActiveTopicApi() throws Exception {
         conf.setSystemTopicEnabled(true);
         conf.setTopicLevelPoliciesEnabled(true);
@@ -392,7 +392,7 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
                 -> assertNull(admin.topics().getInactiveTopicPolicies(topicName)));
     }
 
-    @Test(timeOut = 30000)
+    
     public void testTopicLevelInactivePolicyUpdateAndClean() throws Exception {
         conf.setSystemTopicEnabled(true);
         conf.setTopicLevelPoliciesEnabled(true);
@@ -469,7 +469,7 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
 
     }
 
-    @Test(timeOut = 30000)
+    
     public void testDeleteWhenNoSubscriptionsWithTopicLevelPolicies() throws Exception {
         final String namespace = "prop/ns-abc";
         conf.setSystemTopicEnabled(true);
@@ -525,7 +525,7 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
         Assert.assertFalse(admin.topics().getList(namespace).contains(topic));
     }
 
-    @Test(timeOut = 30000)
+    
     public void testInactiveTopicApplied() throws Exception {
         conf.setSystemTopicEnabled(true);
         conf.setTopicLevelPoliciesEnabled(true);
@@ -576,7 +576,7 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
                 -> assertEquals(admin.topics().getInactiveTopicPolicies(topic, true), brokerLevelPolicy));
     }
 
-    @Test(timeOut = 30000)
+    
     public void testHealthTopicInactiveNotClean() throws Exception {
         conf.setSystemTopicEnabled(true);
         conf.setBrokerDeleteInactiveTopicsMode(InactiveTopicDeleteMode.delete_when_no_subscriptions);

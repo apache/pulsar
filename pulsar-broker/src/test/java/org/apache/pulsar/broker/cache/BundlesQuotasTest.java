@@ -36,7 +36,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker")
+
 public class BundlesQuotasTest {
 
     private MetadataStore store;
@@ -57,7 +57,7 @@ public class BundlesQuotasTest {
         store.close();
     }
 
-    @Test
+
     public void testGetSetDefaultQuota() throws Exception {
         BundlesQuotas bundlesQuotas = new BundlesQuotas(store);
         ResourceQuota quota2 = new ResourceQuota();
@@ -73,7 +73,7 @@ public class BundlesQuotasTest {
         assertEquals(bundlesQuotas.getDefaultResourceQuota().join(), quota2);
     }
 
-    @Test
+
     public void testGetSetBundleQuota() throws Exception {
         BundlesQuotas bundlesQuotas = new BundlesQuotas(store);
         NamespaceBundle testBundle = new NamespaceBundle(NamespaceName.get("pulsar/test/ns-2"),

@@ -276,38 +276,28 @@ public class BatchSourceExecutorTest {
     batchSourceExecutor.close();
   }
 
-  @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp =
-          "Batch Configs cannot be found")
   public void testWithoutRightConfig() throws Exception {
     config.clear();
     batchSourceExecutor.open(config, context);
   }
 
-  @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp =
-          "Batch Configs cannot be found")
   public void testPushWithoutRightConfig() throws Exception {
     pushConfig.clear();
     batchSourceExecutor.open(pushConfig, context);
   }
 
-  @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp =
-          "BatchSourceTriggerer does not implement the correct interface")
   public void testWithoutRightTriggerer() throws Exception {
     testBatchConfig.setDiscoveryTriggererClassName(TestBatchSource.class.getName());
     config.put(BatchSourceConfig.BATCHSOURCE_CONFIG_KEY, new Gson().toJson(testBatchConfig));
     batchSourceExecutor.open(config, context);
   }
 
-  @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp =
-          "BatchSourceTriggerer does not implement the correct interface")
   public void testPushWithoutRightTriggerer() throws Exception {
     testBatchConfig.setDiscoveryTriggererClassName(TestBatchSource.class.getName());
     pushConfig.put(BatchSourceConfig.BATCHSOURCE_CONFIG_KEY, new Gson().toJson(testBatchConfig));
     batchSourceExecutor.open(pushConfig, context);
   }
 
-  @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp =
-          "Bad config passed to TestTriggerer")
   public void testWithoutRightTriggererConfig() throws Exception {
     Map<String, Object> badConfig = new HashMap<>();
     badConfig.put("something", "else");
@@ -316,8 +306,6 @@ public class BatchSourceExecutorTest {
     batchSourceExecutor.open(config, context);
   }
 
-  @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp =
-          "Bad config passed to TestTriggerer")
   public void testPushWithoutRightTriggererConfig() throws Exception {
     Map<String, Object> badConfig = new HashMap<>();
     badConfig.put("something", "else");
@@ -326,47 +314,39 @@ public class BatchSourceExecutorTest {
     batchSourceExecutor.open(pushConfig, context);
   }
 
-  @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp =
-          "BatchSource does not implement the correct interface")
   public void testWithoutRightSource() throws Exception {
     config.put(BatchSourceConfig.BATCHSOURCE_CLASSNAME_KEY, TestDiscoveryTriggerer.class.getName());
     batchSourceExecutor.open(config, context);
   }
 
-  @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp =
-          "BatchSource does not implement the correct interface")
   public void testPushWithoutRightSource() throws Exception {
     pushConfig.put(BatchSourceConfig.BATCHSOURCE_CLASSNAME_KEY, TestDiscoveryTriggerer.class.getName());
     batchSourceExecutor.open(pushConfig, context);
   }
 
-  @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp =
-          "Bad config passed to TestBatchSource")
   public void testWithoutRightSourceConfig() throws Exception {
     config.remove("foo");
     config.put("something", "else");
     batchSourceExecutor.open(config, context);
   }
 
-  @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp =
-          "Bad config passed to TestBatchPushSource")
   public void testPushWithoutRightSourceConfig() throws Exception {
     pushConfig.remove("foo");
     pushConfig.put("something", "else");
     batchSourceExecutor.open(pushConfig, context);
   }
 
-  @Test
+
   public void testOpenWithRightSource() throws Exception {
     batchSourceExecutor.open(config, context);
   }
 
-  @Test
+
   public void testPushOpenWithRightSource() throws Exception {
     batchSourceExecutor.open(pushConfig, context);
   }
 
-  @Test
+
   public void testLifeCycle() throws Exception {
     batchSourceExecutor.open(config, context);
     Assert.assertEquals(testBatchSource.getDiscoverCount(), 0);
@@ -385,7 +365,7 @@ public class BatchSourceExecutorTest {
     Assert.assertEquals(testBatchSource.getCloseCount(), 1);
   }
 
-  @Test
+
   public void testPushLifeCycle() throws Exception {
     batchSourceExecutor.open(pushConfig, context);
     Assert.assertEquals(testBatchPushSource.getDiscoverCount(), 0);
@@ -404,7 +384,6 @@ public class BatchSourceExecutorTest {
     Assert.assertEquals(testBatchPushSource.getCloseCount(), 1);
   }
 
-  @Test(expectedExceptions = Exception.class, expectedExceptionsMessageRegExp = "discovery failed")
   public void testDiscoveryPhaseError() throws Exception {
     config = createConfig(TestBatchSourceFailDiscovery.class.getName(), testBatchConfig);
     batchSourceExecutor.open(config, context);

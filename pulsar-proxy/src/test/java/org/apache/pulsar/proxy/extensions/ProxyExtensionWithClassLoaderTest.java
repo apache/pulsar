@@ -42,10 +42,10 @@ import static org.testng.Assert.expectThrows;
 /**
  * Unit test {@link ProxyExtensionWithClassLoader}.
  */
-@Test(groups = "broker")
+
 public class ProxyExtensionWithClassLoaderTest {
 
-    @Test
+
     public void testWrapper() throws Exception {
         ProxyExtension h = mock(ProxyExtension.class);
         NarClassLoader loader = mock(NarClassLoader.class);
@@ -70,7 +70,7 @@ public class ProxyExtensionWithClassLoaderTest {
         verify(h, times(1)).start(service);
     }
 
-    @Test
+
     public void testClassLoaderSwitcher() throws Exception {
         NarClassLoader loader = mock(NarClassLoader.class);
 

@@ -78,7 +78,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Slf4j
-@Test(groups = "broker")
+
 public class SimpleLoadManagerImplTest {
     LocalBookkeeperEnsemble bkEnsemble;
 
@@ -187,7 +187,7 @@ public class SimpleLoadManagerImplTest {
         }
     }
 
-    @Test
+
     public void testBasicBrokerSelection() throws Exception {
         SimpleLoadManagerImpl loadManager = new SimpleLoadManagerImpl(pulsar1);
         PulsarResourceDescription rd = new PulsarResourceDescription();
@@ -221,7 +221,7 @@ public class SimpleLoadManagerImplTest {
         field.set(objInstance, newValue);
     }
 
-    @Test
+
     public void testPrimary() throws Exception {
         createNamespacePolicies(pulsar1);
         SimpleLoadManagerImpl loadManager = new SimpleLoadManagerImpl(pulsar1);
@@ -261,7 +261,7 @@ public class SimpleLoadManagerImplTest {
 
     }
 
-    @Test(enabled = false)
+    
     public void testPrimarySecondary() throws Exception {
         createNamespacePolicies(pulsar1);
         SimpleLoadManagerImpl loadManager = new SimpleLoadManagerImpl(pulsar1);
@@ -288,7 +288,7 @@ public class SimpleLoadManagerImplTest {
         assertEquals(found.getResourceId(), ru1.getResourceId());
     }
 
-    @Test
+
     public void testResourceDescription() {
 
         PulsarResourceDescription rd = new PulsarResourceDescription();
@@ -312,7 +312,7 @@ public class SimpleLoadManagerImplTest {
 
     }
 
-    @Test
+
     public void testLoadReportParsing() throws Exception {
 
         ObjectMapper mapper = ObjectMapperFactory.create();
@@ -332,7 +332,6 @@ public class SimpleLoadManagerImplTest {
                 0);
     }
 
-    @Test(enabled = true)
     public void testDoLoadShedding() throws Exception {
         SimpleLoadManagerImpl loadManager = spyWithClassAndConstructorArgs(SimpleLoadManagerImpl.class, pulsar1);
         PulsarResourceDescription rd = new PulsarResourceDescription();
@@ -381,7 +380,7 @@ public class SimpleLoadManagerImplTest {
     }
 
     // Test that bundles belonging to the same namespace are evenly distributed.
-    @Test
+
     public void testEvenBundleDistribution() throws Exception {
         final NamespaceBundle[] bundles = LoadBalancerTestingUtils
                 .makeBundles(pulsar1.getNamespaceService().getNamespaceBundleFactory(), "pulsar", "use", "test", 16);
@@ -407,7 +406,7 @@ public class SimpleLoadManagerImplTest {
         }
     }
 
-    @Test
+
     public void testNamespaceBundleStats() {
         NamespaceBundleStats nsb1 = new NamespaceBundleStats();
         nsb1.msgRateOut = 10000;
@@ -433,7 +432,7 @@ public class SimpleLoadManagerImplTest {
         assertEquals(-1, nsb1.compareByBandwidthIn(nsb2));
     }
 
-    @Test
+
     public void testBrokerHostUsage() {
         BrokerHostUsage brokerUsage;
         if (SystemUtils.IS_OS_LINUX) {
@@ -445,7 +444,7 @@ public class SimpleLoadManagerImplTest {
         // Ok
     }
 
-    @Test
+
     public void testTask() throws Exception {
         LoadManager loadManager = mock(LoadManager.class);
         AtomicReference<LoadManager> atomicLoadManager = new AtomicReference<>(loadManager);
@@ -458,7 +457,7 @@ public class SimpleLoadManagerImplTest {
         verify(loadManager, times(1)).doLoadShedding();
     }
 
-    @Test
+
     public void testUsage() {
         Map<String, Object> metrics = Maps.newHashMap();
         metrics.put("brk_conn_cnt", 1L);

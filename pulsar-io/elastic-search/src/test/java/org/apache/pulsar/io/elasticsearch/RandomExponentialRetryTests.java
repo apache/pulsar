@@ -46,7 +46,7 @@ public class RandomExponentialRetryTests {
         return failureCount;
     }
 
-    @Test
+
     public void testExponentialWait() {
         RandomExponentialRetry backoffRetry = new RandomExponentialRetry(5);
         assertEquals(backoffRetry.waitInMs(0, 100), 100L);
@@ -58,7 +58,7 @@ public class RandomExponentialRetryTests {
         assertEquals(backoffRetry.waitInMs(6, 100), 5000L);
     }
 
-    @Test
+
     public void callWithNoRetries() throws Exception {
         MockTime mockTime = new MockTime();
         RandomExponentialRetry backoffRetry = new RandomExponentialRetry();
@@ -67,14 +67,13 @@ public class RandomExponentialRetryTests {
         assertEquals(0L, mockTime.sleeps.size());
     }
 
-    @Test(expectedExceptions = { IOException.class })
     public void callWithExhaustedRetries() throws Exception {
         MockTime mockTime = new MockTime();
         RandomExponentialRetry backoffRetry = new RandomExponentialRetry();
         assertEquals(4, (int)backoffRetry.retry( () -> testFunction(4), 3, 100, "ExhautstedRetries", mockTime));
     }
 
-    @Test
+
     public void callWithSomeRetries() throws Exception {
         int N = 10;
         MockTime mockTime = new MockTime();

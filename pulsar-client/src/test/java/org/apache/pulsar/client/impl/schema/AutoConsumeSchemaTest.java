@@ -33,7 +33,7 @@ import org.testng.annotations.Test;
 @Slf4j
 public class AutoConsumeSchemaTest {
 
-    @Test
+
     public void decodeDataWithNullSchemaVersion() {
         Schema<GenericRecord> autoConsumeSchema = new AutoConsumeSchema();
         byte[] bytes = "bytes data".getBytes();

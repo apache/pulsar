@@ -26,10 +26,10 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshot;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker")
+
 public class ReplicatedSubscriptionSnapshotCacheTest {
 
-    @Test
+    
     public void testSnapshotCache() {
         ReplicatedSubscriptionSnapshotCache cache = new ReplicatedSubscriptionSnapshotCache("my-subscription", 10);
 
@@ -72,7 +72,7 @@ public class ReplicatedSubscriptionSnapshotCacheTest {
         assertNull(cache.advancedMarkDeletePosition(new PositionImpl(5, 5)));
     }
 
-    @Test
+    
     public void testSnapshotCachePruning() {
         ReplicatedSubscriptionSnapshotCache cache = new ReplicatedSubscriptionSnapshotCache("my-subscription", 3);
 

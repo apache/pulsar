@@ -25,7 +25,7 @@ import org.testng.annotations.Test;
 
 public class FloatSchemaTest {
 
-    @Test
+
     public void testSchemaEncode() {
         FloatSchema schema = FloatSchema.of();
         float data = (float) 12345678.1234;
@@ -39,7 +39,7 @@ public class FloatSchemaTest {
         Assert.assertEquals(expected, schema.encode(data));
     }
 
-    @Test
+
     public void testSchemaEncodeDecodeFidelity() {
         FloatSchema schema = FloatSchema.of();
         ByteBuf byteBuf = ByteBufAllocator.DEFAULT.buffer(4);
@@ -51,7 +51,7 @@ public class FloatSchemaTest {
 
     }
 
-    @Test
+
     public void testNullEncodeDecode() {
         ByteBuf byteBuf = null;
         byte[] bytes = null;

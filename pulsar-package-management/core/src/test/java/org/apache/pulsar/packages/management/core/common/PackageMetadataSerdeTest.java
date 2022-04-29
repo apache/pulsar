@@ -24,7 +24,7 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 public class PackageMetadataSerdeTest {
-    @Test
+    
     public void testPackageMetadataSerDe() {
         HashMap<String, String> properties = new HashMap<>();
         properties.put("testKey", "testValue");

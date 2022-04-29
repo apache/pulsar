@@ -27,7 +27,7 @@ import org.testng.annotations.Test;
 
 
 public class TestCmdNamespaceIsolationPolicy {
-    @Test
+    
     public void testValidateListMethodToReturnNonNullStringList() {
         List<String> mockList = Lists.newArrayList("", "1", "", "", "1", "2", "3", "4", "", "", "", "1", "");
         List<String> resultList = Lists.newArrayList("1", "1", "2", "3", "4", "1");

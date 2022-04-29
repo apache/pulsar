@@ -29,7 +29,7 @@ import org.powermock.reflect.Whitebox;
 import org.testng.annotations.Test;
 
 public class EnvironmentBasedSecretsProviderTest {
-    @Test
+
     public void testConfigValidation() throws Exception {
         EnvironmentBasedSecretsProvider provider = new EnvironmentBasedSecretsProvider();
         assertNull(provider.provideSecret("mySecretName", "Ignored"));

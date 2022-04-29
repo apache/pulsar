@@ -74,7 +74,7 @@ public class SchemaTypeCompatibilityCheckOnTopicLevelTest extends MockedPulsarSe
         super.internalCleanup();
     }
 
-    @Test
+    
     public void testSetAlwaysInCompatibleStrategyOnTopicLevelAndCheckAlwaysInCompatible()
             throws PulsarClientException, PulsarServerException, PulsarAdminException {
         String topicName = TopicName.get(
@@ -107,7 +107,7 @@ public class SchemaTypeCompatibilityCheckOnTopicLevelTest extends MockedPulsarSe
         assertTrue(t.getMessage().contains("org.apache.avro.SchemaValidationException: Unable to read schema"));
     }
 
-    @Test
+    
     public void testSetAlwaysCompatibleOnNamespaceLevelAndCheckAlwaysInCompatible()
             throws PulsarClientException, PulsarServerException, PulsarAdminException {
         admin.namespaces().setSchemaCompatibilityStrategy(namespaceName, SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE);
@@ -143,7 +143,7 @@ public class SchemaTypeCompatibilityCheckOnTopicLevelTest extends MockedPulsarSe
         assertTrue(t.getMessage().contains("org.apache.avro.SchemaValidationException: Unable to read schema"));
     }
 
-    @Test
+    
     public void testDisableTopicPoliciesAndSetAlwaysInCompatibleOnNamespaceLevel()
             throws PulsarClientException, PulsarServerException, PulsarAdminException {
         conf.setTopicLevelPoliciesEnabled(false);
@@ -176,7 +176,7 @@ public class SchemaTypeCompatibilityCheckOnTopicLevelTest extends MockedPulsarSe
         assertTrue(t.getMessage().contains("org.apache.avro.SchemaValidationException: Unable to read schema"));
     }
 
-    @Test
+    
     public void testDisableTopicPoliciesWithDefaultConfig()
             throws PulsarClientException, PulsarServerException, PulsarAdminException {
         conf.setTopicLevelPoliciesEnabled(false);
@@ -202,7 +202,7 @@ public class SchemaTypeCompatibilityCheckOnTopicLevelTest extends MockedPulsarSe
                 .topic(topicName).create();
     }
 
-    @Test
+    
     public void testDefaultConfig()
             throws PulsarClientException, PulsarServerException, PulsarAdminException {
         String topicName = TopicName.get(
@@ -225,7 +225,7 @@ public class SchemaTypeCompatibilityCheckOnTopicLevelTest extends MockedPulsarSe
                 .topic(topicName).create();
     }
 
-    @Test
+    
     public void testUpdateSchemaCompatibilityStrategyRepeatedly()
             throws PulsarClientException, PulsarServerException, PulsarAdminException {
         assertEquals(conf.getSchemaCompatibilityStrategy(), SchemaCompatibilityStrategy.FULL);

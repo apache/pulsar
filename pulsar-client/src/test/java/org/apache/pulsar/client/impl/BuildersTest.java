@@ -37,7 +37,7 @@ import org.testng.annotations.Test;
 
 public class BuildersTest {
 
-    @Test
+
     public void clientBuilderTest() {
         ClientBuilderImpl clientBuilder = (ClientBuilderImpl) PulsarClient.builder().ioThreads(10)
                 .maxNumberOfRejectedRequestPerConnection(200).serviceUrl("pulsar://service:6650");
@@ -54,7 +54,7 @@ public class BuildersTest {
         assertEquals(b2.conf.getServiceUrl(), "pulsar://other-broker:6650");
     }
 
-    @Test
+
     public void enableTlsTest() {
         ClientBuilderImpl builder = (ClientBuilderImpl)PulsarClient.builder().serviceUrl("pulsar://service:6650");
         assertFalse(builder.conf.isUseTls());
@@ -81,7 +81,7 @@ public class BuildersTest {
         assertEquals(builder.conf.getServiceUrl(), "pulsar+ssl://service:6650");
     }
 
-    @Test
+
     public void readerBuilderLoadConfTest() throws Exception {
         @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl("pulsar://localhost:6650").build();
@@ -103,7 +103,6 @@ public class BuildersTest {
         assertEquals(((ReaderConfigurationData) obj).getStartMessageId(), messageId);
     }
 
-    @Test(expectedExceptions = {PulsarClientException.class}, expectedExceptionsMessageRegExp = ".* must be specified but they cannot be specified at the same time.*")
     public void shouldNotSetTwoOptAtTheSameTime() throws Exception {
         PulsarClient client = PulsarClient.builder().serviceUrl("pulsar://localhost:6650").build();
         try (Reader reader = client.newReader().topic("abc").startMessageId(MessageId.earliest)
@@ -114,7 +113,6 @@ public class BuildersTest {
         }
     }
 
-    @Test(expectedExceptions = {PulsarClientException.class}, expectedExceptionsMessageRegExp = ".* must be specified but they cannot be specified at the same time.*")
     public void shouldSetOneStartOpt() throws Exception {
         PulsarClient client = PulsarClient.builder().serviceUrl("pulsar://localhost:6650").build();
         try (Reader reader = client.newReader().topic("abc").create()) {

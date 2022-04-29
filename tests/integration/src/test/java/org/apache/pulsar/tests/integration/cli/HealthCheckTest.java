@@ -73,7 +73,7 @@ public class HealthCheckTest extends TestRetrySupport {
         }
     }
 
-    @Test
+
     public void testEverythingOK() throws Exception {
         for (BrokerContainer b : pulsarCluster.getBrokers()) {
             ContainerExecResult result = b.execCmd(PulsarCluster.ADMIN_SCRIPT, "brokers", "healthcheck");
@@ -93,14 +93,14 @@ public class HealthCheckTest extends TestRetrySupport {
         }
     }
 
-    @Test
+
     public void testZooKeeperDown() throws Exception {
         pulsarCluster.getZooKeeper().execCmd("pkill", "-STOP", "-f", "QuorumPeerMain");
         assertHealthcheckFailure();
     }
 
     // Disabled until PulsarAdmin can time out (#2891)
-    // @Test
+    //
     // public void testBrokerDown() throws Exception {
     //     for (BrokerContainer b : pulsarCluster.getBrokers()) {
     //         b.execCmd("pkill", "-STOP", "-f", "PulsarBrokerStarter");
@@ -108,7 +108,7 @@ public class HealthCheckTest extends TestRetrySupport {
     //     assertHealthcheckFailure();
     // }
 
-    @Test
+
     public void testBookKeeperDown() throws Exception {
         for (BKContainer b : pulsarCluster.getBookies()) {
             b.execCmd("pkill", "-STOP", "-f", "Main");

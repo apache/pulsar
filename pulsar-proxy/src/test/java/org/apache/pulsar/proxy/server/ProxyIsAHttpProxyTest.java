@@ -150,7 +150,7 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
         backingServer2.stop();
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
+    
     public void testRedirectNotSpecified() throws Exception {
         Properties props = new Properties();
 
@@ -161,7 +161,7 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
         PulsarConfigurationLoader.create(props, ProxyConfiguration.class);
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
+    
     public void testPathNotSpecified() throws Exception {
         Properties props = new Properties();
 
@@ -172,7 +172,7 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
         PulsarConfigurationLoader.create(props, ProxyConfiguration.class);
     }
 
-    @Test
+
     public void testSingleRedirect() throws Exception {
         Properties props = new Properties();
 
@@ -198,7 +198,7 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+
     public void testMultipleRedirect() throws Exception {
         Properties props = new Properties();
 
@@ -232,7 +232,7 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
+    
     public void testTryingToUseExistingPath() throws Exception {
         Properties props = new Properties();
 
@@ -251,7 +251,7 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
 
     }
 
-    @Test
+
     public void testLongPathInProxyTo() throws Exception {
         Properties props = new Properties();
         props.setProperty("httpReverseProxy.foobar.path", "/ui");
@@ -278,7 +278,7 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
 
     }
 
-    @Test
+
     public void testProxyToEndsInSlash() throws Exception {
         Properties props = new Properties();
         props.setProperty("httpReverseProxy.foobar.path", "/ui");
@@ -305,7 +305,7 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
 
     }
 
-    @Test
+
     public void testLongPath() throws Exception {
         Properties props = new Properties();
         props.setProperty("httpReverseProxy.foobar.path", "/foo/bar/blah");
@@ -330,7 +330,7 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+
     public void testPathEndsInSlash() throws Exception {
         Properties props = new Properties();
         props.setProperty("httpReverseProxy.foobar.path", "/ui/");
@@ -356,7 +356,7 @@ public class ProxyIsAHttpProxyTest extends MockedPulsarServiceBaseTest {
 
     }
 
-    @Test
+
     public void testStreaming() throws Exception {
         LinkedBlockingQueue<String> dataQueue = new LinkedBlockingQueue<>();
         Server streamingServer = new Server(0);

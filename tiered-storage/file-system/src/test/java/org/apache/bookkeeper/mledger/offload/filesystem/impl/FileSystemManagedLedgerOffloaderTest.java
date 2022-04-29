@@ -83,7 +83,7 @@ public class FileSystemManagedLedgerOffloaderTest extends FileStoreTestBase {
         super.start();
     }
 
-    @Test
+
     public void testOffloadAndRead() throws Exception {
         LedgerOffloader offloader = fileSystemManagedLedgerOffloader;
         UUID uuid = UUID.randomUUID();
@@ -118,7 +118,7 @@ public class FileSystemManagedLedgerOffloaderTest extends FileStoreTestBase {
         }
     }
 
-    @Test
+
     public void testOffloadAndReadMetrics() throws Exception {
         LedgerOffloader offloader = fileSystemManagedLedgerOffloader;
         UUID uuid = UUID.randomUUID();
@@ -143,7 +143,7 @@ public class FileSystemManagedLedgerOffloaderTest extends FileStoreTestBase {
         assertTrue(offloaderStats.getReadOffloadIndexLatency(topic).count > 0);
     }
 
-    @Test
+
     public void testDeleteOffload() throws Exception {
         LedgerOffloader offloader = fileSystemManagedLedgerOffloader;
         UUID uuid = UUID.randomUUID();

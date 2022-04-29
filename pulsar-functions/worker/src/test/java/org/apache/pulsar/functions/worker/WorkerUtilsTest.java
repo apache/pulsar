@@ -43,7 +43,7 @@ import org.testng.annotations.Test;
 
 public class WorkerUtilsTest {
 
-    @Test
+    
     public void testCreateExclusiveProducerWithRetry() {
         Producer<byte[]> producer = mock(Producer.class);
         ProducerBuilder<byte[]> builder = mock(ProducerBuilder.class);

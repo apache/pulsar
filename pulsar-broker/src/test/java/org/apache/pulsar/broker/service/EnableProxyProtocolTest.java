@@ -36,7 +36,7 @@ import java.net.InetSocketAddress;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
-@Test(groups = "broker")
+
 public class EnableProxyProtocolTest extends BrokerTestBase  {
 
     @BeforeClass
@@ -52,7 +52,7 @@ public class EnableProxyProtocolTest extends BrokerTestBase  {
         super.internalCleanup();
     }
 
-    @Test
+
     public void testSimpleProduceAndConsume() throws PulsarClientException {
         final String namespace = "prop/ns-abc";
         final String topicName = "persistent://" + namespace + "/testSimpleProduceAndConsume";
@@ -78,7 +78,7 @@ public class EnableProxyProtocolTest extends BrokerTestBase  {
         Assert.assertEquals(received, messages);
     }
 
-    @Test
+
     public void testProxyProtocol() throws PulsarClientException, ExecutionException, InterruptedException, PulsarAdminException {
         final String namespace = "prop/ns-abc";
         final String topicName = "persistent://" + namespace + "/testProxyProtocol";

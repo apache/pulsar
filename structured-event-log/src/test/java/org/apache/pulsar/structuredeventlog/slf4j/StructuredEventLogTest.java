@@ -74,7 +74,7 @@ public class StructuredEventLogTest {
         logConfig.setLevel(Level.DEBUG);
     }
 
-    @Test
+
     public void testTraceId() throws Exception {
         StructuredEventLog log = StructuredEventLog.newLogger();
 
@@ -95,7 +95,7 @@ public class StructuredEventLogTest {
                    not(equalTo(contextMapField(logged.get(2), "traceId"))));
     }
 
-    @Test
+
     public void testParentId() throws Exception {
         StructuredEventLog log = StructuredEventLog.newLogger();
 
@@ -122,7 +122,7 @@ public class StructuredEventLogTest {
         assertThat(contextMapField(logged.get(3), "parentId"), nullValue());
     }
 
-    @Test
+
     public void testResources() throws Exception {
         StructuredEventLog log = StructuredEventLog.newLogger();
 
@@ -165,7 +165,7 @@ public class StructuredEventLogTest {
         assertThat(contextMapField(logged.get(2), "r1"), equalTo("v1"));
     }
 
-    @Test
+
     public void testResourcesNullTest() throws Exception {
         StructuredEventLog log = StructuredEventLog.newLogger();
 
@@ -203,7 +203,7 @@ public class StructuredEventLogTest {
         assertThat(contextMapField(logged.get(1), "null"), equalTo("v2"));
     }
 
-    @Test
+
     public void testAttributes() throws Exception {
         StructuredEventLog log = StructuredEventLog.newLogger();
 
@@ -236,7 +236,7 @@ public class StructuredEventLogTest {
         assertThat(contextMapField(logged.get(2), "a1"), equalTo("v1"));
     }
 
-    @Test
+
     public void testAttributedNullTest() throws Exception {
         StructuredEventLog log = StructuredEventLog.newLogger();
 
@@ -260,7 +260,7 @@ public class StructuredEventLogTest {
         assertThat(contextMapField(logged.get(0), "a2"), equalTo("null"));
     }
 
-    @Test
+
     public void testInfoLevel() throws Exception {
         StructuredEventLog log = StructuredEventLog.newLogger();
 
@@ -279,7 +279,7 @@ public class StructuredEventLogTest {
     }
 
     @SuppressWarnings("unchecked")
-    @Test
+
     public void testInfoLevelException() throws Exception {
         StructuredEventLog log = StructuredEventLog.newLogger();
 
@@ -294,7 +294,7 @@ public class StructuredEventLogTest {
         assertThat(((Map<String, Object>)logged.get(1).get("thrown")).get("message"), equalTo("cause2"));
     }
 
-    @Test
+
     public void testWarnLevel() throws Exception {
         StructuredEventLog log = StructuredEventLog.newLogger();
 
@@ -306,7 +306,7 @@ public class StructuredEventLogTest {
     }
 
     @SuppressWarnings("unchecked")
-    @Test
+
     public void testWarnLevelException() throws Exception {
         StructuredEventLog log = StructuredEventLog.newLogger();
 
@@ -317,7 +317,7 @@ public class StructuredEventLogTest {
         assertThat(((Map<String, Object>)logged.get(0).get("thrown")).get("message"), equalTo("cause1"));
     }
 
-    @Test
+
     public void testErrorLevel() throws Exception {
         StructuredEventLog log = StructuredEventLog.newLogger();
 
@@ -329,7 +329,7 @@ public class StructuredEventLogTest {
     }
 
     @SuppressWarnings("unchecked")
-    @Test
+
     public void testErrorLevelException() throws Exception {
         StructuredEventLog log = StructuredEventLog.newLogger();
 
@@ -341,7 +341,7 @@ public class StructuredEventLogTest {
     }
 
 
-    @Test
+
     public void testTimedEvent() throws Exception {
         MockClock clock = new MockClock();
         StructuredEventLog log = StructuredEventLog.newLogger();
@@ -361,7 +361,7 @@ public class StructuredEventLogTest {
         TEST_EVENT
     }
 
-    @Test
+
     public void testEventGroups() throws Exception {
         StructuredEventLog log = StructuredEventLog.newLogger();
         log.newRootEvent().log(Events.TEST_EVENT);
@@ -377,7 +377,7 @@ public class StructuredEventLogTest {
         BARE_EVENT
     }
 
-    @Test
+
     public void testBareEnum() throws Exception {
         StructuredEventLog log = StructuredEventLog.newLogger();
         log.newRootEvent().log(BareEvents.BARE_EVENT);

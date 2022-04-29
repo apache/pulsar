@@ -51,7 +51,7 @@ import java.util.List;
 @Slf4j
 public class JettySslContextFactoryWithAutoRefreshTest {
 
-    @Test
+
     public void testJettyTlsServerTls() throws Exception {
         Configurator.setRootLevel(Level.INFO);
         Server server = new Server();
@@ -81,7 +81,7 @@ public class JettySslContextFactoryWithAutoRefreshTest {
         server.stop();
     }
 
-    @Test(expectedExceptions = SSLHandshakeException.class)
+    
     public void testJettyTlsServerInvalidTlsProtocol() throws Exception {
         Configurator.setRootLevel(Level.INFO);
         Server server = new Server();
@@ -116,7 +116,7 @@ public class JettySslContextFactoryWithAutoRefreshTest {
         server.stop();
     }
 
-    @Test(expectedExceptions = SSLHandshakeException.class)
+    
     public void testJettyTlsServerInvalidCipher() throws Exception {
         Configurator.setRootLevel(Level.INFO);
         Server server = new Server();

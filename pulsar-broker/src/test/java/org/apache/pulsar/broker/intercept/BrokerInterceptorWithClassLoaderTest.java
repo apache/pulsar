@@ -46,10 +46,10 @@ import java.util.Map;
 /**
  * Unit test {@link BrokerInterceptorWithClassLoader}.
  */
-@Test(groups = "broker")
+
 public class BrokerInterceptorWithClassLoaderTest {
 
-    @Test
+
     public void testWrapper() throws Exception {
         BrokerInterceptor h = mock(BrokerInterceptor.class);
         NarClassLoader loader = mock(NarClassLoader.class);
@@ -61,7 +61,7 @@ public class BrokerInterceptorWithClassLoaderTest {
     }
 
 
-    @Test
+
     public void testClassLoaderSwitcher() throws Exception {
         NarClassLoader narLoader = mock(NarClassLoader.class);
         BrokerInterceptor interceptor = new BrokerInterceptor() {

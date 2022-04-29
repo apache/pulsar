@@ -40,7 +40,7 @@ import static org.testng.Assert.assertEquals;
 @Slf4j
 public class AbstractGenericSchemaTest {
 
-    @Test
+
     public void testGenericProtobufNativeSchema() {
         Schema<org.apache.pulsar.client.schema.proto.Test.TestMessage> encodeSchema = Schema.PROTOBUF_NATIVE(org.apache.pulsar.client.schema.proto.Test.TestMessage.class);
         GenericSchema decodeSchema = GenericProtobufNativeSchema.of(encodeSchema.getSchemaInfo());
@@ -48,7 +48,7 @@ public class AbstractGenericSchemaTest {
         testEncodeAndDecodeGenericRecord(encodeSchema, decodeSchema);
     }
 
-    @Test
+
     public void testAutoProtobufNativeSchema() {
         // configure the schema info provider
         MultiVersionSchemaInfoProvider multiVersionSchemaInfoProvider = mock(MultiVersionSchemaInfoProvider.class);

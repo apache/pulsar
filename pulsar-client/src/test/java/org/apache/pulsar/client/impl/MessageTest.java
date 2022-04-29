@@ -34,7 +34,7 @@ import org.testng.annotations.Test;
  */
 public class MessageTest {
 
-    @Test
+
     public void testMessageImplReplicatedInfo() {
         String from = "ClusterNameOfReplicatedFrom";
         MessageMetadata builder = new MessageMetadata().setReplicatedFrom(from);
@@ -45,7 +45,7 @@ public class MessageTest {
         assertEquals(msg.getReplicatedFrom(), from);
     }
 
-    @Test
+
     public void testMessageImplNoReplicatedInfo() {
         MessageMetadata builder = new MessageMetadata();
         ByteBuffer payload = ByteBuffer.wrap(new byte[0]);
@@ -55,7 +55,7 @@ public class MessageTest {
         assertNull(msg.getReplicatedFrom());
     }
 
-    @Test
+
     public void testTopicMessageImplReplicatedInfo() {
         String from = "ClusterNameOfReplicatedFromForTopicMessage";
         String topicName = "myTopic";
@@ -69,7 +69,7 @@ public class MessageTest {
         assertEquals(msg.getReplicatedFrom(), from);
     }
 
-    @Test
+
     public void testTopicMessageImplNoReplicatedInfo() {
         String topicName = "myTopic";
         MessageMetadata builder = new MessageMetadata();
@@ -82,7 +82,7 @@ public class MessageTest {
         assertNull(topicMessage.getReplicatedFrom());
     }
 
-    @Test
+
     public void testMessageImplGetReaderSchema() {
         MessageMetadata builder = new MessageMetadata();
         builder.hasSchemaVersion();

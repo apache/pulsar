@@ -88,7 +88,7 @@ public class IsolatedBookieEnsemblePlacementPolicyTest {
         timer.stop();
     }
 
-    @Test
+
     public void testNonRegionBookie() throws Exception {
         Map<String, Map<String, BookieInfo>> bookieMapping = new HashMap<>();
         Map<String, BookieInfo> mainBookieGroup = new HashMap<>();
@@ -114,7 +114,7 @@ public class IsolatedBookieEnsemblePlacementPolicyTest {
         assertFalse(ensemble.contains(new BookieSocketAddress(BOOKIE4).toBookieId()));
     }
 
-    @Test
+
     public void testBasic() throws Exception {
         Map<String, Map<String, BookieInfo>> bookieMapping = new HashMap<>();
         Map<String, BookieInfo> mainBookieGroup = new HashMap<>();
@@ -196,7 +196,7 @@ public class IsolatedBookieEnsemblePlacementPolicyTest {
         assertEquals(new BookieSocketAddress(BOOKIE1).toBookieId(), chosenBookie);
     }
 
-    @Test
+
     public void testNoBookieInfo() throws Exception {
         IsolatedBookieEnsemblePlacementPolicy isolationPolicy = new IsolatedBookieEnsemblePlacementPolicy();
         ClientConfiguration bkClientConf = new ClientConfiguration();
@@ -228,7 +228,7 @@ public class IsolatedBookieEnsemblePlacementPolicyTest {
         }
     }
 
-    @Test
+
     public void testBookieInfoChange() throws Exception {
         Map<String, Map<String, BookieInfo>> bookieMapping = new HashMap<>();
         Map<String, BookieInfo> mainBookieGroup = new HashMap<>();
@@ -277,7 +277,7 @@ public class IsolatedBookieEnsemblePlacementPolicyTest {
         assertTrue(ensemble.contains(new BookieSocketAddress(BOOKIE3).toBookieId()));
     }
 
-    @Test
+
     public void testNoIsolationGroup() throws Exception {
         String data = "{\"group1\": {\"" + BOOKIE1
                 + "\": {\"rack\": \"rack0\", \"hostname\": \"bookie1.example.com\"}, \"" + BOOKIE2
@@ -311,7 +311,7 @@ public class IsolatedBookieEnsemblePlacementPolicyTest {
      *
      * @throws Exception
      */
-    @Test
+
     public void testOverlappedBookies() throws Exception {
         Map<String, Map<String, BookieInfo>> bookieMapping = new HashMap<>();
         Map<String, BookieInfo> defaultBookieGroup = new HashMap<>();
@@ -349,7 +349,7 @@ public class IsolatedBookieEnsemblePlacementPolicyTest {
         assertTrue(ensemble.contains(new BookieSocketAddress(BOOKIE4).toBookieId()));
     }
 
-    @Test
+
     public void testSecondaryIsolationGroupsBookies() throws Exception {
         Map<String, Map<String, BookieInfo>> bookieMapping = new HashMap<>();
         Map<String, BookieInfo> defaultBookieGroup = new HashMap<>();
@@ -392,7 +392,7 @@ public class IsolatedBookieEnsemblePlacementPolicyTest {
         assertTrue(ensemble.contains(new BookieSocketAddress(BOOKIE4).toBookieId()));
     }
 
-    @Test
+
     public void testSecondaryIsolationGroupsBookiesNegative() throws Exception {
 
         Map<String, Map<String, BookieInfo>> bookieMapping = new HashMap<>();
@@ -439,7 +439,7 @@ public class IsolatedBookieEnsemblePlacementPolicyTest {
      * When the auto-recovery trigger from bookkeeper, we need to make sure the placement policy can read from
      * custom metadata and apply it when choosing the new bookie.
      */
-    @Test
+
     public void testTheIsolationPolicyUsingCustomMetadata() throws Exception {
         // We configure two groups for the isolation policy, one is the 'primary' group, and the another is
         // 'secondary' group.

@@ -144,7 +144,7 @@ public class OffloadLedgerDeleteTest extends MockedBookKeeperTestCase {
         }
     }
 
-    @Test
+
     public void testLaggedDelete() throws Exception {
         OffloadPrefixTest.MockLedgerOffloader offloader = new OffloadPrefixTest.MockLedgerOffloader();
 
@@ -206,7 +206,7 @@ public class OffloadLedgerDeleteTest extends MockedBookKeeperTestCase {
         assertEventuallyTrue(() -> offloader.deletedOffloads().contains(firstLedgerId));
     }
 
-    @Test(timeOut = 5000)
+    
     public void testFileSystemOffloadDeletePath() throws Exception {
         MockFileSystemLedgerOffloader offloader = new MockFileSystemLedgerOffloader();
 
@@ -254,7 +254,7 @@ public class OffloadLedgerDeleteTest extends MockedBookKeeperTestCase {
         assertEventuallyTrue(() -> offloader.deletedOffloads().contains(firstLedgerId));
     }
 
-    @Test
+
     public void testLaggedDeleteRetentionSetLower() throws Exception {
         OffloadPrefixTest.MockLedgerOffloader offloader = new OffloadPrefixTest.MockLedgerOffloader();
 
@@ -302,7 +302,7 @@ public class OffloadLedgerDeleteTest extends MockedBookKeeperTestCase {
         assertEventuallyTrue(() -> offloader.deletedOffloads().contains(firstLedgerId));
     }
 
-    @Test
+
     public void testLaggedDeleteSlowConsumer() throws Exception {
         OffloadPrefixTest.MockLedgerOffloader offloader = new OffloadPrefixTest.MockLedgerOffloader();
 
@@ -356,7 +356,7 @@ public class OffloadLedgerDeleteTest extends MockedBookKeeperTestCase {
                             offloader.offloadedLedgers());
     }
 
-    @Test
+
     public void isOffloadedNeedsDeleteTest() throws Exception {
         OffloadPoliciesImpl offloadPolicies = new OffloadPoliciesImpl();
         LedgerOffloader ledgerOffloader = Mockito.mock(LedgerOffloader.class);

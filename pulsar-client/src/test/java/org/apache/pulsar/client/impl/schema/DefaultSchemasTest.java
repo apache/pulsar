@@ -44,28 +44,28 @@ public class DefaultSchemasTest {
                 .build();
     }
 
-    @Test
+
     public void testConsumerInstantiation() {
         ConsumerBuilder<String> stringConsumerBuilder = client.newConsumer(new StringSchema())
                 .topic(TEST_TOPIC);
         Assert.assertNotNull(stringConsumerBuilder);
     }
 
-    @Test
+
     public void testProducerInstantiation() {
         ProducerBuilder<String> stringProducerBuilder = client.newProducer(new StringSchema())
                 .topic(TEST_TOPIC);
         Assert.assertNotNull(stringProducerBuilder);
     }
 
-    @Test
+
     public void testReaderInstantiation() {
         ReaderBuilder<String> stringReaderBuilder = client.newReader(new StringSchema())
                 .topic(TEST_TOPIC);
         Assert.assertNotNull(stringReaderBuilder);
     }
 
-    @Test
+
     public void testStringSchema() throws Exception {
         String testString = "hello world";
         byte[] testBytes = testString.getBytes(StandardCharsets.UTF_8);

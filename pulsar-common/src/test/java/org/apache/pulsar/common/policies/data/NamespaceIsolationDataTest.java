@@ -30,7 +30,7 @@ import org.testng.annotations.Test;
 
 public class NamespaceIsolationDataTest {
 
-    @Test
+
     public void testNamespaceIsolationData() {
         NamespaceIsolationData n0 = NamespaceIsolationData.builder()
                 .namespaces(new ArrayList<>())

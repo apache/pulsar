@@ -33,7 +33,7 @@ public class MongoConfigTest {
         return new File(MongoConfigTest.class.getClassLoader().getResource(fileName).getFile());
     }
 
-    @Test
+    
     public void testMap() throws IOException {
         final Map<String, Object> map = TestHelper.createMap(true);
         final MongoConfig cfg = MongoConfig.load(map);
@@ -44,8 +44,6 @@ public class MongoConfigTest {
         assertEquals(cfg.getBatchSize(), TestHelper.BATCH_SIZE);
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class,
-            expectedExceptionsMessageRegExp = "Required property not set.")
     public void testBadMap() throws IOException {
         final Map<String, Object> map = TestHelper.createMap(false);
         final MongoConfig cfg = MongoConfig.load(map);
@@ -53,8 +51,6 @@ public class MongoConfigTest {
         cfg.validate(true, true);
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class,
-            expectedExceptionsMessageRegExp = "batchSize must be a positive integer.")
     public void testBadBatchSize() throws IOException {
         final Map<String, Object> map = TestHelper.createMap(true);
         map.put("batchSize", 0);
@@ -63,8 +59,6 @@ public class MongoConfigTest {
         cfg.validate(true, true);
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class,
-            expectedExceptionsMessageRegExp = "batchTimeMs must be a positive long.")
     public void testBadBatchTime() throws IOException {
         final Map<String, Object> map = TestHelper.createMap(true);
         map.put("batchTimeMs", 0);
@@ -73,7 +67,7 @@ public class MongoConfigTest {
         cfg.validate(true, true);
     }
 
-    @Test
+    
     public void testYaml() throws IOException {
         final File yaml = getFile("mongoSinkConfig.yaml");
         final MongoConfig cfg = MongoConfig.load(yaml.getAbsolutePath());

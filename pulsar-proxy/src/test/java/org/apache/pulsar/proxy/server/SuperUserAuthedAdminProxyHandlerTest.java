@@ -132,7 +132,7 @@ public class SuperUserAuthedAdminProxyHandlerTest extends MockedPulsarServiceBas
             .build();
     }
 
-    @Test
+
     public void testAuthenticatedProxyAsAdmin() throws Exception {
         try (PulsarAdmin adminAdmin = getAdminClient("admin")) {
             adminAdmin.clusters().createCluster(configClusterName, ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
@@ -143,7 +143,7 @@ public class SuperUserAuthedAdminProxyHandlerTest extends MockedPulsarServiceBas
         }
     }
 
-    @Test
+
     public void testAuthenticatedProxyAsNonAdmin() throws Exception {
         try (PulsarAdmin adminAdmin = getAdminClient("admin");
              PulsarAdmin user1Admin = getAdminClient("user1")) {
@@ -172,7 +172,7 @@ public class SuperUserAuthedAdminProxyHandlerTest extends MockedPulsarServiceBas
         }
     }
 
-    @Test
+
     public void testAuthWithRandoCert() throws Exception {
         // test that we cannot connect or do anything with a cert not signed by CA
         try (PulsarAdmin randoAdmin = getAdminClient("randouser")) {

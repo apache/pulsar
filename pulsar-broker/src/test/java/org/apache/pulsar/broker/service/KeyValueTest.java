@@ -43,7 +43,7 @@ import static org.testng.Assert.assertEquals;
  * Null value message produce and consume test.
  */
 @Slf4j
-@Test(groups = "broker")
+
 public class KeyValueTest extends BrokerTestBase {
 
     @BeforeMethod
@@ -58,7 +58,7 @@ public class KeyValueTest extends BrokerTestBase {
         super.internalCleanup();
     }
 
-    @Test
+
     public void keyValueAutoConsumeTest()  throws Exception {
         String topic = "persistent://prop/ns-abc/kv-record";
         admin.topics().createNonPartitionedTopic(topic);

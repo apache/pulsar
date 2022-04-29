@@ -53,7 +53,7 @@ public class NamespaceIsolationPolicyImplTest {
                 jsonMapper.readValue(this.defaultPolicyJson.getBytes(), NamespaceIsolationData.class));
     }
 
-    @Test
+
     public void testConstructor() throws Exception {
         NamespaceIsolationPolicyImpl defaultPolicy = this.getDefaultPolicy();
 
@@ -79,21 +79,21 @@ public class NamespaceIsolationPolicyImplTest {
         assertNotEquals(new OldPolicies(), newPolicy);
     }
 
-    @Test
+
     public void testGetPrimaryBrokers() throws Exception {
         List<String> primaryBrokers = this.getDefaultPolicy().getPrimaryBrokers();
         assertEquals(primaryBrokers.size(), 1);
         assertEquals(primaryBrokers.get(0), "prod1-broker[1-3].messaging.use.example.com");
     }
 
-    @Test
+
     public void testGetSecondaryBrokers() throws Exception {
         List<String> secondaryBrokers = this.getDefaultPolicy().getSecondaryBrokers();
         assertEquals(secondaryBrokers.size(), 1);
         assertEquals(secondaryBrokers.get(0), "prod1-broker.*.use.example.com");
     }
 
-    @Test
+
     public void testIsPrimaryOrSecondaryBroker() throws Exception {
         NamespaceIsolationPolicyImpl defaultPolicy = this.getDefaultPolicy();
         assertTrue(defaultPolicy.isPrimaryBroker("prod1-broker2.messaging.use.example.com"));
@@ -102,7 +102,7 @@ public class NamespaceIsolationPolicyImplTest {
         assertFalse(defaultPolicy.isSecondaryBroker("broker-X.messaging.use.example.com"));
     }
 
-    @Test
+
     public void testFindBrokers() throws Exception {
         NamespaceIsolationPolicyImpl defaultPolicy = this.getDefaultPolicy();
         List<URL> brokers = new ArrayList<URL>();
@@ -142,7 +142,7 @@ public class NamespaceIsolationPolicyImplTest {
         }
     }
 
-    @Test
+
     public void testShouldFailover() throws Exception {
         NamespaceIsolationPolicyImpl defaultPolicy = this.getDefaultPolicy();
         List<BrokerStatus> brokerStatus = new ArrayList<>();
@@ -193,7 +193,7 @@ public class NamespaceIsolationPolicyImplTest {
         assertEquals(brokerStatus.size(), 10);
     }
 
-    @Test
+
     public void testGetAvailablePrimaryBrokers() throws Exception {
         NamespaceIsolationPolicyImpl defaultPolicy = this.getDefaultPolicy();
         SortedSet<BrokerStatus> brokerStatus = new TreeSet<>();

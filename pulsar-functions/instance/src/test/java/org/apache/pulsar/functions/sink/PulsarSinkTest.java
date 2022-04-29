@@ -171,7 +171,7 @@ public class PulsarSinkTest {
     /**
      * Verify that JavaInstance does support functions that output Void type.
      */
-    @Test
+
     public void testVoidOutputClasses() throws Exception {
         PulsarSinkConfig pulsarConfig = getPulsarConfigs();
         // set type to void
@@ -190,7 +190,7 @@ public class PulsarSinkTest {
         }
     }
 
-    @Test
+
     public void testInconsistentOutputType() throws IOException {
         PulsarSinkConfig pulsarConfig = getPulsarConfigs();
         // set type to be inconsistent to that of SerDe
@@ -215,7 +215,7 @@ public class PulsarSinkTest {
     /**
      * Verify that Default Serializer works fine.
      */
-    @Test
+
     public void testDefaultSerDe() throws PulsarClientException {
 
         PulsarSinkConfig pulsarConfig = getPulsarConfigs();
@@ -236,7 +236,7 @@ public class PulsarSinkTest {
     /**
      * Verify that Explicit setting of Default Serializer works fine.
      */
-    @Test
+
     public void testExplicitDefaultSerDe() throws PulsarClientException {
         PulsarSinkConfig pulsarConfig = getPulsarConfigs();
         // set type to void
@@ -254,7 +254,7 @@ public class PulsarSinkTest {
         }
     }
 
-    @Test
+
     public void testComplexOuputType() throws PulsarClientException {
         PulsarSinkConfig pulsarConfig = getPulsarConfigs();
         // set type to void
@@ -272,7 +272,7 @@ public class PulsarSinkTest {
         }
     }
 
-    @Test
+
     public void testInitializeSchema() throws Exception {
         PulsarClient pulsarClient = getPulsarClient();
 
@@ -328,7 +328,7 @@ public class PulsarSinkTest {
         assertTrue(schema instanceof AutoConsumeSchema);
     }
 
-    @Test
+
     public void testSinkAndMessageRouting() throws Exception {
 
         String[] topics = {"topic-1", "topic-2", "topic-3", null};
@@ -496,17 +496,17 @@ public class PulsarSinkTest {
         }
     }
 
-    @Test
+
     public void testWriteGenericRecordsAtMostOnce() throws Exception {
         testWriteGenericRecords(ProcessingGuarantees.ATMOST_ONCE);
     }
 
-    @Test
+
     public void testWriteGenericRecordsAtLeastOnce() throws Exception {
         testWriteGenericRecords(ProcessingGuarantees.ATLEAST_ONCE);
     }
 
-    @Test
+
     public void testWriteGenericRecordsEOS() throws Exception {
         testWriteGenericRecords(ProcessingGuarantees.EFFECTIVELY_ONCE);
     }

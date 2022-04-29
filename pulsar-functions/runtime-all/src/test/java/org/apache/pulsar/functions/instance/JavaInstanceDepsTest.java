@@ -50,7 +50,7 @@ import java.util.zip.ZipInputStream;
  */
 public class JavaInstanceDepsTest {
 
-    @Test
+
     public void testInstanceJarDeps() throws IOException {
         File jar = new File("target/java-instance.jar");
         

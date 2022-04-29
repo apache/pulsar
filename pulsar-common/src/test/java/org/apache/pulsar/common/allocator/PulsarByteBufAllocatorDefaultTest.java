@@ -38,7 +38,7 @@ import static org.testng.Assert.assertTrue;
 @Slf4j
 public class PulsarByteBufAllocatorDefaultTest {
 
-    @Test
+
     public void testDefaultConfig() throws Exception {
         AtomicBoolean called = new AtomicBoolean();
         try (MockedConstruction<ByteBufAllocatorImpl> mocked = Mockito.mockConstruction(ByteBufAllocatorImpl.class,

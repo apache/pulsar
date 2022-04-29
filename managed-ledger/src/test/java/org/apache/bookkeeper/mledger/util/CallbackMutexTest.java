@@ -27,7 +27,7 @@ public class CallbackMutexTest {
     public final int numberOfThreads = 1000;
     public int counter = 0;
 
-    @Test
+
     public void lock() {
 
         final CallbackMutex cbm = new CallbackMutex();
@@ -44,7 +44,7 @@ public class CallbackMutexTest {
         }).start();
     }
 
-    @Test(enabled = false)
+    
     public void unlock() {
         ProtectedCode pc = new ProtectedCode();
         // Spawn many threads and start them all, all executing the same protected code

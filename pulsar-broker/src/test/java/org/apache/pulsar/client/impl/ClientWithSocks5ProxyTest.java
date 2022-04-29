@@ -43,7 +43,7 @@ import java.util.Set;
 
 import static org.testng.Assert.assertEquals;
 
-@Test
+
 @Slf4j
 public class ClientWithSocks5ProxyTest extends BrokerTestBase {
 
@@ -105,7 +105,7 @@ public class ClientWithSocks5ProxyTest extends BrokerTestBase {
         admin.topics().createNonPartitionedTopic(topicName);
     }
 
-    @Test
+
     public void testSendAndConsumer() throws PulsarClientException {
         startSocks5Server(true);
         // init consumer
@@ -130,7 +130,7 @@ public class ClientWithSocks5ProxyTest extends BrokerTestBase {
         consumer.unsubscribe();
     }
 
-    @Test
+
     public void testDisableAuth() throws PulsarClientException {
         startSocks5Server(false);
         ClientBuilder clientBuilder = PulsarClient.builder()
@@ -144,7 +144,7 @@ public class ClientWithSocks5ProxyTest extends BrokerTestBase {
         producer.send(msg.getBytes());
     }
 
-    @Test
+
     public void testSetFromSystemProperty() throws PulsarClientException {
         startSocks5Server(false);
         System.setProperty("socks5Proxy.address", "http://localhost:11080");
@@ -158,7 +158,6 @@ public class ClientWithSocks5ProxyTest extends BrokerTestBase {
         producer.send(msg.getBytes());
     }
 
-    @Test(expectedExceptions = PulsarClientException.class)
     public void testSetErrorProxyAddress() throws PulsarClientException {
         startSocks5Server(false);
         System.setProperty("socks5Proxy.address", "localhost:11080"); // with no scheme
@@ -172,7 +171,6 @@ public class ClientWithSocks5ProxyTest extends BrokerTestBase {
         producer.send(msg.getBytes());
     }
 
-    @Test(timeOut = 5000, expectedExceptions = {ThreadTimeoutException.class})
     public void testWithErrorPassword() throws PulsarClientException {
         startSocks5Server(true);
         ClientBuilder clientBuilder = PulsarClient.builder()

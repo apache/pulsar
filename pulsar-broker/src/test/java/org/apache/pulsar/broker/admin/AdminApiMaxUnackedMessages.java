@@ -44,7 +44,7 @@ import java.util.concurrent.TimeUnit;
 
 
 @Slf4j
-@Test(groups = "broker-admin")
+
 public class AdminApiMaxUnackedMessages extends MockedPulsarServiceBaseTest {
 
     @BeforeMethod
@@ -64,7 +64,7 @@ public class AdminApiMaxUnackedMessages extends MockedPulsarServiceBaseTest {
         resetConfig();
     }
 
-    @Test(timeOut = 30000)
+    
     public void testNamespacePolicy() throws Exception {
         pulsar.getConfiguration().setMaxUnackedMessagesPerConsumer(3);
         admin.namespaces().createNamespace("max-unacked-messages/policy-on-consumers");
@@ -104,7 +104,7 @@ public class AdminApiMaxUnackedMessages extends MockedPulsarServiceBaseTest {
         assertNotNull(message);
     }
 
-    @Test
+
     public void testMaxUnackedMessagesOnConsumers() throws Exception {
         admin.namespaces().createNamespace("max-unacked-messages/default-on-consumers");
         String namespace = "max-unacked-messages/default-on-consumers";
@@ -113,7 +113,7 @@ public class AdminApiMaxUnackedMessages extends MockedPulsarServiceBaseTest {
         assertEquals(2*50000, admin.namespaces().getMaxUnackedMessagesPerConsumer(namespace).intValue());
     }
 
-    @Test
+
     public void testMaxUnackedMessagesOnSubscription() throws Exception {
         admin.namespaces().createNamespace("max-unacked-messages/default-on-subscription");
         String namespace = "max-unacked-messages/default-on-subscription";
@@ -127,7 +127,7 @@ public class AdminApiMaxUnackedMessages extends MockedPulsarServiceBaseTest {
                 -> assertNull(admin.namespaces().getMaxUnackedMessagesPerSubscription(namespace)));
     }
 
-    @Test
+
     public void testMaxUnackedMessagesPerConsumerPriority() throws Exception {
         int brokerLevelPolicy = 3;
         int namespaceLevelPolicy = 2;

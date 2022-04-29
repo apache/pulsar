@@ -51,7 +51,7 @@ import org.testng.annotations.Test;
 /**
  * Test read chunked messages.
  */
-@Test
+
 @Slf4j
 public class TestReadChunkedMessages extends MockedPulsarServiceBaseTest {
 
@@ -95,7 +95,7 @@ public class TestReadChunkedMessages extends MockedPulsarServiceBaseTest {
         internalCleanup();
     }
 
-    @Test
+
     public void queryTest() throws Exception {
         String topic = "chunk-topic";
         TopicName topicName = TopicName.get(topic);

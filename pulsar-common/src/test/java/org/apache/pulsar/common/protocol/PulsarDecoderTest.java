@@ -47,7 +47,7 @@ public class PulsarDecoderTest {
         Whitebox.setInternalState(decoder, "cmd", new BaseCommand());
     }
 
-    @Test
+
     public void testChannelRead() throws Exception {
         long consumerId = 1234L;
         ByteBuf changeBuf = Commands.newActiveConsumerChange(consumerId, true);

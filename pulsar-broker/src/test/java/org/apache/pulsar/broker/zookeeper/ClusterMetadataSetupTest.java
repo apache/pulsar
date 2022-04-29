@@ -60,12 +60,12 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Slf4j
-@Test(groups = "broker")
+
 public class ClusterMetadataSetupTest {
     private ZookeeperServerTest localZkS;
 
     // test SetupClusterMetadata several times, all should be successful
-    @Test
+
     public void testReSetupClusterMetadata() throws Exception {
         String[] args = {
             "--cluster", "testReSetupClusterMetadata-cluster",
@@ -91,7 +91,7 @@ public class ClusterMetadataSetupTest {
         return new Object[][] { { Boolean.TRUE }, { Boolean.FALSE } };
     }
 
-    @Test(dataProvider = "useMetadataStoreUrl")
+    
     public void testSetupClusterWithMultiZkServers(boolean useMetadataStoreUrl) throws Exception {
         HashSet<String> firstLevelNodes = new HashSet<>(Arrays.asList(
                 "bookies", "ledgers", "pulsar", "stream", "admin"
@@ -129,7 +129,7 @@ public class ClusterMetadataSetupTest {
         }
     }
 
-    @Test(dataProvider = "useMetadataStoreUrl")
+    
     public void testSetupClusterDefault(boolean useMetadataStoreUrl) throws Exception {
         HashSet<String> firstLevelNodes = new HashSet<>(Arrays.asList(
                 "bookies", "ledgers", "pulsar", "stream", "admin", "zookeeper"
@@ -165,7 +165,7 @@ public class ClusterMetadataSetupTest {
         }
     }
 
-    @Test(dataProvider = "useMetadataStoreUrl")
+    
     public void testSetupClusterInChrootMode(boolean useMetadataStoreUrl) throws Exception {
         HashSet<String> firstLevelNodes = new HashSet<>(Arrays.asList(
                 "bookies", "ledgers", "pulsar", "stream", "admin"
@@ -200,7 +200,7 @@ public class ClusterMetadataSetupTest {
         }
     }
 
-    @Test(dataProvider = "useMetadataStoreUrl")
+    
     public void testSetupClusterInNestedChrootMode(boolean useMetadataStoreUrl) throws Exception {
         HashSet<String> firstLevelNodes = new HashSet<>(Arrays.asList(
                 "bookies", "ledgers", "pulsar", "stream", "admin"
@@ -234,7 +234,7 @@ public class ClusterMetadataSetupTest {
         }
     }
 
-    @Test
+
     public void testSetupWithBkMetadataServiceUri() throws Exception {
         String zkConnection = "127.0.0.1:" + localZkS.getZookeeperPort();
         String[] args = {
@@ -290,7 +290,7 @@ public class ClusterMetadataSetupTest {
         }
     }
 
-    @Test
+
     public void testInitialNamespaceSetup() throws Exception {
         // missing arguments
         assertEquals(PulsarInitialNamespaceSetup.doMain(new String[]{}), 1);
@@ -318,7 +318,7 @@ public class ClusterMetadataSetupTest {
         }
     }
 
-    @Test
+
     public void testInitialNamespaceSetupZKDefaultsFallback() throws Exception {
 
         final String zkServers = "127.0.0.1:" + localZkS.getZookeeperPort();
@@ -362,7 +362,7 @@ public class ClusterMetadataSetupTest {
     }
 
 
-    @Test
+
     public void testInitialNamespaceSetupZKDefaultsFallbackWithChroot() throws Exception {
 
         final String zkServers = "127.0.0.1:" + localZkS.getZookeeperPort();

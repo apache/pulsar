@@ -23,7 +23,7 @@ import org.testng.annotations.Test;
 import org.testng.internal.annotations.TestAnnotation;
 
 public class AnnotationListenerTest {
-    @Test
+
     void shouldSetDefaultRetryAnalyser() {
         AnnotationListener annotationListener = new AnnotationListener();
         TestAnnotation testAnnotation = new TestAnnotation();

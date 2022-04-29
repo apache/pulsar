@@ -23,7 +23,7 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 public class AddMissingPatchVersionTest {
-    @Test
+
     public void testVersionStrings() throws Exception {
         // Fixable versions (those lacking a patch release) get normalized with a patch release of 0
         Assert.assertEquals(PulsarVersion.fixVersionString("1.2"), "1.2.0");

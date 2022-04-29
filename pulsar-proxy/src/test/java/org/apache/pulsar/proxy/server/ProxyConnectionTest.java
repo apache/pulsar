@@ -24,7 +24,7 @@ import org.testng.annotations.Test;
 
 public class ProxyConnectionTest {
 
-    @Test
+
     public void testMatchesHostAndPort() {
         assertTrue(ProxyConnection
                 .matchesHostAndPort("pulsar://", "pulsar://1.2.3.4:6650", "1.2.3.4:6650"));

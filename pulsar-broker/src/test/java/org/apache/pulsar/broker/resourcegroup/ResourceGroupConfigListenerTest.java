@@ -90,25 +90,25 @@ public class ResourceGroupConfigListenerTest extends MockedPulsarServiceBaseTest
 
     }
 
-    @Test
+
     public void testResourceGroupCreate() throws Exception {
         createResourceGroup(rgName, testAddRg);
         deleteResourceGroup(rgName);
     }
 
-    @Test
+
     public void testResourceGroupDeleteNonExistent() throws Exception {
         assertThrows(PulsarAdminException.class, () -> admin.resourcegroups().deleteResourceGroup(rgName));
     }
 
-    @Test
+
     public void testResourceGroupUpdate() throws Exception {
         createResourceGroup(rgName, testAddRg);
         updateResourceGroup(rgName, testAddRg);
         deleteResourceGroup(rgName);
     }
 
-    @Test
+
     public void testResourceGroupUpdatePart() throws Exception {
         testAddRg = new ResourceGroup();
         testAddRg.setPublishRateInBytes(1024 * 1024L);
@@ -172,7 +172,7 @@ public class ResourceGroupConfigListenerTest extends MockedPulsarServiceBaseTest
         deleteResourceGroup(rgName);
     }
 
-    @Test
+
     public void testResourceGroupCreateDeleteCreate() throws Exception {
         createResourceGroup(rgName, testAddRg);
         deleteResourceGroup(rgName);
@@ -180,7 +180,7 @@ public class ResourceGroupConfigListenerTest extends MockedPulsarServiceBaseTest
         deleteResourceGroup(rgName);
     }
 
-    @Test
+
     public void testResourceGroupAttachToNamespace() throws Exception {
         createResourceGroup(rgName, testAddRg);
         admin.tenants().createTenant(tenantName,
@@ -201,7 +201,7 @@ public class ResourceGroupConfigListenerTest extends MockedPulsarServiceBaseTest
         deleteResourceGroup(rgName);
     }
 
-    @Test
+
     public void testResourceGroupCreateMany() throws Exception {
         Random random = new Random(System.currentTimeMillis());
 
@@ -236,7 +236,7 @@ public class ResourceGroupConfigListenerTest extends MockedPulsarServiceBaseTest
         });
     }
 
-    @Test
+
     public void testResourceGroupUpdateLoop() throws PulsarAdminException {
 
         ResourceGroup zooRg = new ResourceGroup();

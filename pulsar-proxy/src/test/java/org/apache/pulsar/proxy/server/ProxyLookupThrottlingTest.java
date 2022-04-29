@@ -76,7 +76,7 @@ public class ProxyLookupThrottlingTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test(groups = "quarantine")
+    
     public void testLookup() throws Exception {
         @Cleanup
         PulsarClient client = PulsarClient.builder()

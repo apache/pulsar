@@ -57,7 +57,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker-admin")
+
 public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
 
     private final String testTenant = "prop-xyz";
@@ -149,21 +149,21 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
     }
 
 
-    @Test
+
     public void testOffloadV2() throws Exception {
         String topicName = "persistent://prop-xyz/ns1/topic1";
         String mlName = "prop-xyz/ns1/persistent/topic1";
         testOffload(topicName, mlName);
     }
 
-    @Test
+
     public void testOffloadV1() throws Exception {
         String topicName = "persistent://prop-xyz/test/ns1/topic2";
         String mlName = "prop-xyz/test/ns1/persistent/topic2";
         testOffload(topicName, mlName);
     }
 
-    @Test
+
     public void testOffloadPolicies() throws Exception {
         String namespaceName = "prop-xyz/ns1";
         String driver = "aws-s3";
@@ -186,7 +186,7 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
         assertNull(offload3);
     }
 
-    @Test
+
     public void testOffloadPoliciesApi() throws Exception {
         final String topicName = testTopic + UUID.randomUUID().toString();
         admin.topics().createPartitionedTopic(topicName, 3);
@@ -207,7 +207,7 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
         assertNull(admin.topics().getOffloadPolicies(topicName));
     }
 
-    @Test
+
     public void testOffloadPoliciesAppliedApi() throws Exception {
         final String topicName = testTopic + UUID.randomUUID().toString();
         admin.topics().createPartitionedTopic(topicName, 3);
@@ -252,12 +252,12 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
                 -> assertEquals(admin.topics().getOffloadPolicies(topicName, true), brokerPolicies));
     }
 
-    @Test
+
     public void testTopicLevelOffloadPartitioned() throws Exception {
         testOffload(true);
     }
 
-    @Test
+
     public void testTopicLevelOffloadNonPartitioned() throws Exception {
         testOffload(false);
     }

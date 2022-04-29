@@ -50,7 +50,6 @@ public class ManagedCursorInfoMetadataTest {
         };
     }
 
-    @Test(dataProvider = "compressionTypeProvider")
     public void testEncodeAndDecode(String compressionType) throws IOException {
         long ledgerId = 10000;
         MLDataFormats.ManagedCursorInfo.Builder builder = MLDataFormats.ManagedCursorInfo.newBuilder();

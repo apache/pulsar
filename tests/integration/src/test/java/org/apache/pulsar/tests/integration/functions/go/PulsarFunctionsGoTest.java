@@ -29,7 +29,6 @@ public class PulsarFunctionsGoTest extends PulsarFunctionsTest {
 		super(functionRuntimeType);
 	}
 
-    @Test(enabled = false, groups = {"go_function", "function"})
     public void testGoFunctionLocalRun() throws Exception {
         testFunctionLocalRun(Runtime.GO);
     }

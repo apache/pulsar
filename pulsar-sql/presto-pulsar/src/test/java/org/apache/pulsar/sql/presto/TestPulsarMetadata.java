@@ -42,7 +42,7 @@ public class TestPulsarMetadata extends TestPulsarConnector {
 
     private static final Logger log = Logger.get(TestPulsarMetadata.class);
 
-    @Test(dataProvider = "rewriteNamespaceDelimiter", singleThreaded = true)
+    
     public void testListSchemaNames(String delimiter) {
         updateRewriteNamespaceDelimiterIfNeeded(delimiter);
         List<String> schemas = this.pulsarMetadata.listSchemaNames(mock(ConnectorSession.class));
@@ -62,7 +62,7 @@ public class TestPulsarMetadata extends TestPulsarConnector {
         }
     }
 
-    @Test(dataProvider = "rewriteNamespaceDelimiter", singleThreaded = true)
+    
     public void testGetTableHandle(String delimiter) {
         updateRewriteNamespaceDelimiterIfNeeded(delimiter);
         SchemaTableName schemaTableName = new SchemaTableName(TOPIC_1.getNamespace(), TOPIC_1.getLocalName());
@@ -80,7 +80,7 @@ public class TestPulsarMetadata extends TestPulsarConnector {
         assertEquals(pulsarTableHandle.getTopicName(), TOPIC_1.getLocalName());
     }
 
-    @Test(dataProvider = "rewriteNamespaceDelimiter", singleThreaded = true)
+    
     public void testGetTableMetadata(String delimiter) {
         updateRewriteNamespaceDelimiterIfNeeded(delimiter);
         List<TopicName> allTopics = new LinkedList<>();
@@ -125,7 +125,7 @@ public class TestPulsarMetadata extends TestPulsarConnector {
         }
     }
 
-    @Test(dataProvider = "rewriteNamespaceDelimiter", singleThreaded = true)
+    
     public void testGetTableMetadataWrongSchema(String delimiter) {
         updateRewriteNamespaceDelimiterIfNeeded(delimiter);
         PulsarTableHandle pulsarTableHandle = new PulsarTableHandle(
@@ -145,7 +145,7 @@ public class TestPulsarMetadata extends TestPulsarConnector {
         }
     }
 
-    @Test(dataProvider = "rewriteNamespaceDelimiter", singleThreaded = true)
+    
     public void testGetTableMetadataWrongTable(String delimiter) {
         updateRewriteNamespaceDelimiterIfNeeded(delimiter);
         PulsarTableHandle pulsarTableHandle = new PulsarTableHandle(
@@ -165,7 +165,7 @@ public class TestPulsarMetadata extends TestPulsarConnector {
         }
     }
 
-    @Test(dataProvider = "rewriteNamespaceDelimiter", singleThreaded = true)
+    
     public void testGetTableMetadataTableNoSchema(String delimiter) throws PulsarAdminException {
         updateRewriteNamespaceDelimiterIfNeeded(delimiter);
         ClientErrorException cee = new ClientErrorException(Response.Status.NOT_FOUND);
@@ -185,7 +185,7 @@ public class TestPulsarMetadata extends TestPulsarConnector {
         assertEquals(tableMetadata.getColumns().size(), PulsarInternalColumn.getInternalFields().size() + 1);
     }
 
-    @Test(dataProvider = "rewriteNamespaceDelimiter", singleThreaded = true)
+    
     public void testGetTableMetadataTableBlankSchema(String delimiter) throws PulsarAdminException {
         updateRewriteNamespaceDelimiterIfNeeded(delimiter);
         SchemaInfo badSchemaInfo = SchemaInfo.builder()
@@ -212,7 +212,7 @@ public class TestPulsarMetadata extends TestPulsarConnector {
         }
     }
 
-    @Test(dataProvider = "rewriteNamespaceDelimiter", singleThreaded = true)
+    
     public void testGetTableMetadataTableInvalidSchema(String delimiter) throws PulsarAdminException {
         updateRewriteNamespaceDelimiterIfNeeded(delimiter);
         SchemaInfo badSchemaInfo = SchemaInfo.builder()
@@ -239,7 +239,7 @@ public class TestPulsarMetadata extends TestPulsarConnector {
         }
     }
 
-    @Test(dataProvider = "rewriteNamespaceDelimiter", singleThreaded = true)
+    
     public void testListTable(String delimiter) {
         updateRewriteNamespaceDelimiterIfNeeded(delimiter);
         assertTrue(this.pulsarMetadata.listTables(mock(ConnectorSession.class), Optional.empty()).isEmpty());
@@ -262,7 +262,7 @@ public class TestPulsarMetadata extends TestPulsarConnector {
             Optional.of(NAMESPACE_NAME_4.toString()))), new HashSet<>(Arrays.asList(expectedTopics2)));
     }
 
-    @Test(dataProvider = "rewriteNamespaceDelimiter", singleThreaded = true)
+    
     public void testGetColumnHandles(String delimiter) {
         updateRewriteNamespaceDelimiterIfNeeded(delimiter);
         PulsarTableHandle pulsarTableHandle = new PulsarTableHandle(pulsarConnectorId.toString(), TOPIC_1.getNamespace(),
@@ -293,7 +293,7 @@ public class TestPulsarMetadata extends TestPulsarConnector {
         assertTrue(columnHandleMap.isEmpty());
     }
 
-    @Test(dataProvider = "rewriteNamespaceDelimiter", singleThreaded = true)
+    
     public void testListTableColumns(String delimiter) {
         updateRewriteNamespaceDelimiterIfNeeded(delimiter);
         Map<SchemaTableName, List<ColumnMetadata>> tableColumnsMap

@@ -36,7 +36,7 @@ import org.testng.annotations.Test;
 
 public class ManagedLedgerTerminationTest extends MockedBookKeeperTestCase {
 
-    @Test(timeOut = 20000)
+    
     public void terminateSimple() throws Exception {
         ManagedLedger ledger = factory.open("my_test_ledger");
 
@@ -53,7 +53,7 @@ public class ManagedLedgerTerminationTest extends MockedBookKeeperTestCase {
         }
     }
 
-    @Test(timeOut = 20000)
+    
     public void terminateReopen() throws Exception {
         ManagedLedger ledger = factory.open("my_test_ledger");
 
@@ -75,7 +75,7 @@ public class ManagedLedgerTerminationTest extends MockedBookKeeperTestCase {
         }
     }
 
-    @Test(timeOut = 20000)
+    
     public void terminateWithCursor() throws Exception {
         ManagedLedger ledger = factory.open("my_test_ledger");
         ManagedCursor c1 = ledger.openCursor("c1");
@@ -98,7 +98,7 @@ public class ManagedLedgerTerminationTest extends MockedBookKeeperTestCase {
         entries.forEach(Entry::release);
     }
 
-    @Test(timeOut = 20000)
+    
     public void terminateWithCursorReadOrWait() throws Exception {
         ManagedLedger ledger = factory.open("my_test_ledger");
         ManagedCursor c1 = ledger.openCursor("c1");
@@ -129,7 +129,7 @@ public class ManagedLedgerTerminationTest extends MockedBookKeeperTestCase {
         }
     }
 
-    @Test(timeOut = 20000)
+    
     public void terminateWithNonDurableCursor() throws Exception {
         ManagedLedger ledger = factory.open("my_test_ledger");
 

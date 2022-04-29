@@ -87,7 +87,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.hash.Hashing;
 
-@Test(groups = "broker")
+
 public class NamespaceServiceTest extends BrokerTestBase {
 
     @BeforeMethod
@@ -102,7 +102,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         super.internalCleanup();
     }
 
-    @Test
+
     public void testSplitAndOwnBundles() throws Exception {
 
         OwnershipCache MockOwnershipCache = spy(pulsar.getNamespaceService().getOwnershipCache());
@@ -167,7 +167,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
 
     }
 
-    @Test
+
     public void testSplitMapWithRefreshedStatMap() throws Exception {
 
         OwnershipCache MockOwnershipCache = spy(pulsar.getNamespaceService().getOwnershipCache());
@@ -221,7 +221,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
 
     }
 
-    @Test
+
     public void testIsServiceUnitDisabled() throws Exception {
 
         OwnershipCache MockOwnershipCache = spy(pulsar.getNamespaceService().getOwnershipCache());
@@ -244,7 +244,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
 
     }
 
-    @Test
+
     public void testRemoveOwnershipNamespaceBundle() throws Exception {
 
         OwnershipCache ownershipCache = spy(pulsar.getNamespaceService().getOwnershipCache());
@@ -268,7 +268,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         assertNull(ownershipCache.getOwnedBundle(bundle));
     }
 
-    @Test
+
     public void testUnloadNamespaceBundleFailure() throws Exception {
 
         final String topicName = "persistent://my-property/use/my-ns/my-topic1";
@@ -299,7 +299,6 @@ public class NamespaceServiceTest extends BrokerTestBase {
      *
      * @throws Exception
      */
-    @Test(timeOut = 6000)
     public void testUnloadNamespaceBundleWithStuckTopic() throws Exception {
 
         final String topicName = "persistent://my-property/use/my-ns/my-topic1";
@@ -332,7 +331,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
      * </pre>
      * @throws Exception
      */
-    @Test
+
     public void testLoadReportDeserialize() throws Exception {
 
         final String candidateBroker1 = "http://localhost:8000";
@@ -366,7 +365,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         System.out.println(result2);
     }
 
-    @Test
+
     public void testCreateLookupResult() throws Exception {
 
         final String candidateBroker = "pulsar://localhost:6650";
@@ -393,7 +392,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         System.out.println(withListener);
     }
 
-    @Test
+
     public void testCreateNamespaceWithDefaultNumberOfBundles() throws Exception {
         OwnershipCache MockOwnershipCache = spy(pulsar.getNamespaceService().getOwnershipCache());
         doReturn(CompletableFuture.completedFuture(null)).when(MockOwnershipCache).disableOwnership(any(NamespaceBundle.class));
@@ -454,7 +453,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
 
     }
 
-    @Test
+
     public void testRemoveOwnershipAndSplitBundle() throws Exception {
         OwnershipCache ownershipCache = spy(pulsar.getNamespaceService().getOwnershipCache());
         doReturn(CompletableFuture.completedFuture(null)).when(ownershipCache).disableOwnership(any(NamespaceBundle.class));
@@ -498,7 +497,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
     }
 
 
-    @Test
+
     public void testSplitBundleAndRemoveOldBundleFromOwnerShipCache() throws Exception {
         OwnershipCache ownershipCache = spy(pulsar.getNamespaceService().getOwnershipCache());
         doReturn(CompletableFuture.completedFuture(null)).when(ownershipCache).disableOwnership(any(NamespaceBundle.class));
@@ -539,7 +538,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
     }
 
 
-    @Test
+
     public void testSplitLargestBundle() throws Exception {
         String namespace = "prop/test/ns-abc2";
         String topic = "persistent://" + namespace + "/t1-";
@@ -591,7 +590,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
      *
      * @throws Exception
      */
-    @Test
+
     public void testSplitBundleWithHighestThroughput() throws Exception {
 
         conf.setLoadManagerClassName(ModularLoadManagerImpl.class.getName());
@@ -647,7 +646,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         }
     }
 
-    @Test
+
     public void testHeartbeatNamespaceMatch() throws Exception {
         NamespaceName namespaceName = NamespaceService.getHeartbeatNamespace(pulsar.getAdvertisedAddress(), conf);
         NamespaceBundle namespaceBundle = pulsar.getNamespaceService().getNamespaceBundleFactory().getFullBundle(namespaceName);

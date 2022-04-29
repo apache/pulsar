@@ -64,7 +64,7 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 import org.testng.collections.Lists;
 
-@Test(groups = "flaky")
+
 public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(DispatcherBlockConsumerTest.class);
 
@@ -92,7 +92,6 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test(enabled = false) // See https://github.com/apache/pulsar/issues/5438
     public void testConsumerBlockingWithUnAckedMessagesAtDispatcher() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -198,7 +197,6 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
      * @throws Exception
      */
     @SuppressWarnings("unchecked")
-    @Test(enabled = false) // See https://github.com/apache/pulsar/issues/5438
     public void testConsumerBlockingWithUnAckedMessagesAndRedelivery() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -302,7 +300,6 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test(enabled = false) // See https://github.com/apache/pulsar/issues/5438
     public void testCloseConsumerBlockedDispatcher() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -389,7 +386,6 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test(enabled = false) // See https://github.com/apache/pulsar/issues/5438
     public void testRedeliveryOnBlockedDispatcher() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -517,7 +513,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
         }
     }
 
-    @Test
+
     public void testBlockDispatcherStats() throws Exception {
 
         int orginalDispatcherLimit = conf.getMaxUnackedMessagesPerSubscription();
@@ -591,7 +587,6 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test(dataProvider = "gracefulUnload")
     public void testBrokerSubscriptionRecovery(boolean unloadBundleGracefully) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -673,7 +668,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
      * </pre>
      *
      */
-    @Test(timeOut = 60000)
+    
     public void testBlockBrokerDispatching() {
         log.info("-- Starting {} test --", methodName);
 
@@ -891,7 +886,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
      *
      */
     @SuppressWarnings("unchecked")
-    @Test
+
     public void testBrokerDispatchBlockAndSubAckBackRequiredMsgs() {
 
         log.info("-- Starting {} test --", methodName);

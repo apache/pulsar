@@ -84,7 +84,7 @@ public class BlobStoreBackedInputStreamTest extends BlobStoreTestBase {
         }
     }
 
-    @Test
+
     public void testReadingFullObject() throws Exception {
         String objectKey = "testReadingFull";
         int objectSize = 12345;
@@ -106,7 +106,7 @@ public class BlobStoreBackedInputStreamTest extends BlobStoreTestBase {
         assertStreamsMatch(toTest, toCompare);
     }
 
-    @Test
+
     public void testReadingFullObjectByBytes() throws Exception {
         String objectKey = "testReadingFull2";
         int objectSize = 12345;
@@ -128,7 +128,7 @@ public class BlobStoreBackedInputStreamTest extends BlobStoreTestBase {
         assertStreamsMatchByBytes(toTest, toCompare);
     }
 
-    @Test(expectedExceptions = IOException.class)
+    
     public void testErrorOnRead() throws Exception {
         BackedInputStream toTest = new BlobStoreBackedInputStreamImpl(blobStore, BUCKET, "doesn't exist",
                                                                  (key, md) -> {},
@@ -137,7 +137,7 @@ public class BlobStoreBackedInputStreamTest extends BlobStoreTestBase {
     }
 
 
-    @Test
+
     public void testSeek() throws Exception {
         String objectKey = "testSeek";
         int objectSize = 12345;
@@ -170,7 +170,7 @@ public class BlobStoreBackedInputStreamTest extends BlobStoreTestBase {
         }
     }
 
-    @Test
+
     public void testSeekWithinCurrent() throws Exception {
         String objectKey = "testSeekWithinCurrent";
         int objectSize = 12345;
@@ -220,7 +220,7 @@ public class BlobStoreBackedInputStreamTest extends BlobStoreTestBase {
             .getBlob(Mockito.eq(BUCKET), Mockito.eq(objectKey), ArgumentMatchers.any());
     }
 
-    @Test
+
     public void testSeekForward() throws Exception {
         String objectKey = "testSeekForward";
         int objectSize = 12345;
@@ -259,7 +259,7 @@ public class BlobStoreBackedInputStreamTest extends BlobStoreTestBase {
         assertStreamsMatch(toTest, toCompare);
     }
 
-    @Test
+
     public void testAvailable() throws IOException {
         String objectKey = "testAvailable";
         int objectSize = 2048;

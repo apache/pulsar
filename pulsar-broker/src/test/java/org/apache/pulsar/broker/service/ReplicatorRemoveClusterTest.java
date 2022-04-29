@@ -36,7 +36,7 @@ import org.testng.annotations.Test;
 /**
  * Starts 3 brokers that are in 3 different clusters
  */
-@Test(groups = "broker")
+
 public class ReplicatorRemoveClusterTest extends ReplicatorTestBase {
 
     protected String methodName;
@@ -67,7 +67,7 @@ public class ReplicatorRemoveClusterTest extends ReplicatorTestBase {
     }
 
 
-    @Test
+
     public void testRemoveClusterFromNamespace() throws Exception {
         admin1.tenants().createTenant("pulsar1",
                 new TenantInfoImpl(Sets.newHashSet("appid1", "appid2", "appid3"),

@@ -50,7 +50,7 @@ public class SmokeTest extends TestRetrySupport {
         pulsarContainer.start();
     }
 
-    @Test
+
     public void checkClient() throws PulsarClientException {
 
         @Cleanup
@@ -79,7 +79,7 @@ public class SmokeTest extends TestRetrySupport {
 
     }
 
-    @Test
+
     public void checkAdmin() throws PulsarClientException, PulsarAdminException {
         PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarContainer.getPulsarAdminUrl()).build();
         List<String> expectedNamespacesList = new ArrayList<>();

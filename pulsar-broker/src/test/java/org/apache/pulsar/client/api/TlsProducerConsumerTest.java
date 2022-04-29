@@ -38,7 +38,7 @@ import org.testng.annotations.Test;
 
 import lombok.Cleanup;
 
-@Test(groups = "broker-api")
+
 public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(TlsProducerConsumerTest.class);
 
@@ -48,7 +48,7 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test(timeOut = 30000)
+    
     public void testTlsLargeSizeMessage() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -82,7 +82,7 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test(timeOut = 30000)
+    
     public void testTlsClientAuthOverBinaryProtocol() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -110,7 +110,7 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
         }
     }
 
-    @Test(timeOut = 30000)
+    
     public void testTlsClientAuthOverHTTPProtocol() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -138,7 +138,7 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
         }
     }
 
-    @Test(timeOut = 60000)
+    
     public void testTlsCertsFromDynamicStream() throws Exception {
         log.info("-- Starting {} test --", methodName);
         String topicName = "persistent://my-property/use/my-ns/my-topic1";
@@ -195,7 +195,7 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test
+    
     public void testTlsCertsFromDynamicStreamExpiredAndRenewCert() throws Exception {
         log.info("-- Starting {} test --", methodName);
         ClientBuilder clientBuilder = PulsarClient.builder().serviceUrl(pulsar.getBrokerServiceUrlTls())

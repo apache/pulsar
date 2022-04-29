@@ -52,7 +52,7 @@ import org.testng.annotations.Test;
 /**
  * Starts 3 brokers that are in 3 different clusters
  */
-@Test(groups = "broker")
+
 public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
 
     @Override
@@ -76,7 +76,7 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
         super.cleanup();
     }
 
-    @Test
+
     public void testReplicateQuotaTopicPolicies() throws Exception {
         final String namespace = "pulsar/partitionedNs-" + UUID.randomUUID();
         final String topic = "persistent://" + namespace + "/topic" + UUID.randomUUID();
@@ -106,7 +106,7 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
                 assertEquals(admin3.topicPolicies(true).getBacklogQuotaMap(topic).size(), 0));
     }
 
-    @Test
+
     public void testReplicateMessageTTLPolicies() throws Exception {
         final String namespace = "pulsar/partitionedNs-" + UUID.randomUUID();
         final String topic = "persistent://" + namespace + "/topic" + UUID.randomUUID();
@@ -131,7 +131,7 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
                 assertNull(admin3.topicPolicies(true).getMessageTTL(topic)));
     }
 
-    @Test
+
     public void testReplicateSubscribeRatePolicies() throws Exception {
         final String namespace = "pulsar/partitionedNs-" + UUID.randomUUID();
         final String topic = "persistent://" + namespace + "/topic" + UUID.randomUUID();
@@ -153,7 +153,7 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
         untilRemoteClustersAsserted(admin -> assertNull(admin.topicPolicies(true).getSubscribeRate(topic)));
     }
 
-    @Test
+
     public void testReplicateMaxMessageSizePolicies() throws Exception {
         final String namespace = "pulsar/partitionedNs-" + UUID.randomUUID();
         final String topic = "persistent://" + namespace + "/topic" + UUID.randomUUID();
@@ -173,7 +173,7 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
         untilRemoteClustersAsserted(admin -> assertNull(admin.topicPolicies(true).getMaxMessageSize(topic)));
     }
 
-    @Test
+
     public void testReplicatePublishRatePolicies() throws Exception {
         final String namespace = "pulsar/partitionedNs-" + UUID.randomUUID();
         final String topic = "persistent://" + namespace + "/topic" + UUID.randomUUID();
@@ -195,7 +195,7 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
         untilRemoteClustersAsserted(admin -> assertNull(admin.topicPolicies(true).getPublishRate(topic)));
     }
 
-    @Test
+
     public void testReplicateDeduplicationSnapshotIntervalPolicies() throws Exception {
         final String namespace = "pulsar/partitionedNs-" + UUID.randomUUID();
         final String topic = "persistent://" + namespace + "/topic" + UUID.randomUUID();
@@ -228,7 +228,7 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
     }
 
 
-    @Test
+
     public void testReplicatePersistentPolicies() throws Exception {
         final String namespace = "pulsar/partitionedNs-" + UUID.randomUUID();
         final String topic = "persistent://" + namespace + "/topic" + UUID.randomUUID();
@@ -256,7 +256,7 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
                 assertNull(admin3.topicPolicies(true).getPersistence(topic)));
     }
 
-    @Test
+
     public void testReplicateDeduplicationStatusPolicies() throws Exception {
         final String namespace = "pulsar/partitionedNs-" + UUID.randomUUID();
         final String topic = "persistent://" + namespace + "/topic" + UUID.randomUUID();
@@ -281,7 +281,7 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
                 assertNull(admin3.topicPolicies(true).getDeduplicationStatus(topic)));
     }
 
-    @Test
+
     public void testReplicatorMaxProducer() throws Exception {
         final String namespace = "pulsar/partitionedNs-" + UUID.randomUUID();
         final String topic = "persistent://" + namespace + "/topic" + UUID.randomUUID();
@@ -307,7 +307,7 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
                 assertNull(admin3.topicPolicies(true).getMaxProducers(topic)));
     }
 
-    @Test
+
     public void testReplicatorMaxConsumerPerSubPolicies() throws Exception {
         final String namespace = "pulsar/partitionedNs-" + UUID.randomUUID();
         final String topic = "persistent://" + namespace + "/topic" + UUID.randomUUID();
@@ -338,7 +338,7 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
                 assertNull(admin3.topicPolicies(true).getMaxConsumersPerSubscription(topic)));
     }
 
-    @Test
+
     public void testReplicateMaxUnackedMsgPerConsumer() throws Exception {
         final String namespace = "pulsar/partitionedNs-" + UUID.randomUUID();
         final String topic = "persistent://" + namespace + "/topic" + UUID.randomUUID();
@@ -363,7 +363,7 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
                 assertNull(admin3.topicPolicies(true).getMaxUnackedMessagesOnConsumer(topic)));
     }
 
-    @Test
+
     public void testReplicatorTopicPolicies() throws Exception {
         final String namespace = "pulsar/partitionedNs-" + UUID.randomUUID();
         final String persistentTopicName = "persistent://" + namespace + "/topic" + UUID.randomUUID();
@@ -396,7 +396,7 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
         Awaitility.await().untilAsserted(() ->
                 assertNull(admin3.topicPolicies(true).getRetention(persistentTopicName)));
     }
-    @Test
+
     public void testReplicateSubscriptionTypesPolicies() throws Exception {
         final String namespace = "pulsar/partitionedNs-" + UUID.randomUUID();
         final String topic = "persistent://" + namespace + "/topic" + UUID.randomUUID();
@@ -425,7 +425,7 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
     }
 
 
-    @Test
+
     public void testReplicateMaxConsumers() throws Exception {
         final String namespace = "pulsar/partitionedNs-" + UUID.randomUUID();
         final String topic = "persistent://" + namespace + "/topic" + UUID.randomUUID();
@@ -450,7 +450,7 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
                 assertNull(admin3.topicPolicies(true).getMaxConsumers(topic)));
     }
 
-    @Test
+
     public void testReplicatorMessageDispatchRatePolicies() throws Exception {
         final String namespace = "pulsar/partitionedNs-" + UUID.randomUUID();
         final String persistentTopicName = "persistent://" + namespace + "/topic" + UUID.randomUUID();
@@ -486,7 +486,7 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
                 assertNull(admin3.topicPolicies(true).getDispatchRate(persistentTopicName)));
     }
 
-    @Test
+
     public void testReplicateDelayedDelivery() throws Exception {
         final String namespace = "pulsar/partitionedNs-" + UUID.randomUUID();
         final String topic = "persistent://" + namespace + "/topic" + UUID.randomUUID();
@@ -512,7 +512,7 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
                 assertNull(admin3.topicPolicies(true).getDelayedDeliveryPolicy(topic)));
     }
 
-    @Test
+
     public void testReplicatorInactiveTopicPolicies() throws Exception {
         final String namespace = "pulsar/partitionedNs-" + UUID.randomUUID();
         final String persistentTopicName = "persistent://" + namespace + "/topic" + UUID.randomUUID();
@@ -543,7 +543,7 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
                 assertNull(admin3.topicPolicies(true).getInactiveTopicPolicies(persistentTopicName)));
     }
 
-    @Test
+
     public void testReplicatorSubscriptionDispatchRatePolicies() throws Exception {
         final String namespace = "pulsar/partitionedNs-" + UUID.randomUUID();
         final String persistentTopicName = "persistent://" + namespace + "/topic" + UUID.randomUUID();
@@ -580,7 +580,7 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
                 assertNull(admin3.topicPolicies(true).getSubscriptionDispatchRate(persistentTopicName)));
     }
 
-    @Test
+
     public void testReplicateReplicatorDispatchRatePolicies() throws Exception {
         final String namespace = "pulsar/partitionedNs-" + UUID.randomUUID();
         final String persistentTopicName = "persistent://" + namespace + "/topic" + UUID.randomUUID();
@@ -617,7 +617,7 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
                 assertNull(admin3.topicPolicies(true).getReplicatorDispatchRate(persistentTopicName)));
     }
 
-    @Test
+
     public void testReplicateMaxUnackedMsgPerSub() throws Exception {
         final String namespace = "pulsar/partitionedNs-" + UUID.randomUUID();
         final String topic = "persistent://" + namespace + "/topic" + UUID.randomUUID();
@@ -642,7 +642,7 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
                 assertNull(admin3.topicPolicies(true).getMaxUnackedMessagesOnSubscription(topic)));
     }
 
-    @Test
+
     public void testReplicatorCompactionThresholdPolicies() throws Exception {
         final String namespace = "pulsar/partitionedNs-" + UUID.randomUUID();
         final String persistentTopicName = "persistent://" + namespace + "/topic" + UUID.randomUUID();
@@ -672,7 +672,7 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
                 assertNull(admin3.topicPolicies(true).getCompactionThreshold(persistentTopicName)));
     }
 
-    @Test
+
     public void testReplicateMaxSubscriptionsPerTopic() throws Exception {
         final String namespace = "pulsar/partitionedNs-" + UUID.randomUUID();
         final String persistentTopicName = "persistent://" + namespace + "/topic" + UUID.randomUUID();
@@ -696,7 +696,7 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
                 admin -> assertNull(admin.topicPolicies(true).getMaxSubscriptionsPerTopic(persistentTopicName)));
     }
 
-    @Test
+
     public void testReplicatorOffloadPolicies() throws Exception {
         final String namespace = "pulsar/partitionedNs-" + UUID.randomUUID();
         final String persistentTopicName = "persistent://" + namespace + "/topic" + UUID.randomUUID();

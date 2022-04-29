@@ -33,7 +33,7 @@ import org.testng.annotations.Test;
 
 public class DefaultCryptoKeyReaderTest {
 
-    @Test
+
     public void testBuild() throws Exception {
         Map<String, String> publicKeys = new HashMap<>();
         publicKeys.put("key1", "file:///path/to/public1.key");
@@ -75,7 +75,7 @@ public class DefaultCryptoKeyReaderTest {
         assertEquals((Map<String, String>) privateKeysField.get(keyReader), expectedPrivateKeys);
     }
 
-    @Test
+
     public void testGetKeys() throws Exception {
         final String ecdsaPublicKey = "./src/test/resources/crypto_ecdsa_public.key";
         final String ecdsaPrivateKey = "./src/test/resources/crypto_ecdsa_private.key";

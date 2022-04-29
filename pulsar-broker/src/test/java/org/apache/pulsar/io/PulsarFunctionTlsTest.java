@@ -74,7 +74,7 @@ import org.testng.annotations.Test;
 /**
  * Test Pulsar function TLS authentication
  */
-@Test(groups = "broker-io")
+
 public class PulsarFunctionTlsTest {
     LocalBookkeeperEnsemble bkEnsemble;
 
@@ -238,7 +238,7 @@ public class PulsarFunctionTlsTest {
         return workerService;
     }
 
-    @Test
+
     public void testAuthorization() {
 
         final String namespacePortion = "io";

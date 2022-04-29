@@ -35,7 +35,7 @@ import com.fasterxml.jackson.databind.exc.InvalidFormatException;
 
 public class HdfsSinkConfigTests {
 	
-	@Test
+
 	public final void loadFromYamlFileTest() throws IOException {
 		File yamlFile = getFile("sinkConfig.yaml");
 		HdfsSinkConfig config = HdfsSinkConfig.load(yamlFile.getAbsolutePath());
@@ -47,7 +47,7 @@ public class HdfsSinkConfigTests {
 		assertEquals("yyyy-MM-dd", config.getSubdirectoryPattern());
 	}
 	
-	@Test
+
 	public final void loadFromMapTest() throws IOException {
 		Map<String, Object> map = new HashMap<String, Object> ();
 		map.put("hdfsConfigResources", "core-site.xml");
@@ -65,7 +65,7 @@ public class HdfsSinkConfigTests {
 		assertEquals("yy-MM-dd", config.getSubdirectoryPattern());
 	}
 	
-	@Test
+
 	public final void validValidateTest() throws IOException {
 		Map<String, Object> map = new HashMap<String, Object> ();
 		map.put("hdfsConfigResources", "core-site.xml");
@@ -77,8 +77,6 @@ public class HdfsSinkConfigTests {
 		config.validate();
 	}
 	
-	@Test(expectedExceptions = IllegalArgumentException.class, 
-			expectedExceptionsMessageRegExp = "Required property not set.")
 	public final void missingDirectoryValidateTest() throws IOException {
 		Map<String, Object> map = new HashMap<String, Object> ();
 		map.put("hdfsConfigResources", "core-site.xml");
@@ -87,8 +85,6 @@ public class HdfsSinkConfigTests {
 		config.validate();
 	}
 	
-	@Test(expectedExceptions = IllegalArgumentException.class, 
-		  expectedExceptionsMessageRegExp = "Required property not set.")
 	public final void missingHdfsConfigsValidateTest() throws IOException {
 		Map<String, Object> map = new HashMap<String, Object> ();
 		map.put("directory", "/foo/bar");
@@ -97,7 +93,6 @@ public class HdfsSinkConfigTests {
 		config.validate();
 	}
 	
-	@Test(expectedExceptions = InvalidFormatException.class)
 	public final void invalidCodecValidateTest() throws IOException {
 		Map<String, Object> map = new HashMap<String, Object> ();
 		map.put("hdfsConfigResources", "core-site.xml");
@@ -110,8 +105,6 @@ public class HdfsSinkConfigTests {
 		config.validate();
 	}
 	
-	@Test(expectedExceptions = IllegalArgumentException.class, 
-		  expectedExceptionsMessageRegExp = "Sync Interval cannot be negative")
 	public final void invalidSyncIntervalTest() throws IOException {
 		Map<String, Object> map = new HashMap<String, Object> ();
 		map.put("hdfsConfigResources", "core-site.xml");
@@ -124,8 +117,6 @@ public class HdfsSinkConfigTests {
 		config.validate();
 	}
 	
-	@Test(expectedExceptions = IllegalArgumentException.class, 
-		  expectedExceptionsMessageRegExp = "Max Pending Records must be a positive integer")
 	public final void invalidMaxPendingRecordsTest() throws IOException {
 		Map<String, Object> map = new HashMap<String, Object> ();
 		map.put("hdfsConfigResources", "core-site.xml");
@@ -138,8 +129,6 @@ public class HdfsSinkConfigTests {
 		config.validate();
 	}
 	
-	@Test(expectedExceptions = IllegalArgumentException.class, 
-		  expectedExceptionsMessageRegExp = "Values for both kerberosUserPrincipal & keytab are required.")
 	public final void kerberosValidateTest() throws IOException {
 		Map<String, Object> map = new HashMap<String, Object> ();
 		map.put("hdfsConfigResources", "core-site.xml");

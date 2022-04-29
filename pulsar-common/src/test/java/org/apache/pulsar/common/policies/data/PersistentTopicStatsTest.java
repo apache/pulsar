@@ -31,7 +31,7 @@ import java.util.stream.Collectors;
 
 public class PersistentTopicStatsTest {
 
-    @Test
+
     public void testPersistentTopicStats() {
         TopicStatsImpl topicStats = new TopicStatsImpl();
         topicStats.msgRateIn = 1;
@@ -76,7 +76,7 @@ public class PersistentTopicStatsTest {
         assertEquals(topicStats.offloadedStorageSize, 0);
     }
 
-    @Test
+
     public void testPersistentTopicStatsAggregationPartialProducerIsNotSupported() {
         TopicStatsImpl topicStats1 = new TopicStatsImpl();
         topicStats1.msgRateIn = 1;
@@ -121,7 +121,7 @@ public class PersistentTopicStatsTest {
         assertEquals(target.replication.size(), 1);
     }
 
-    @Test
+
     public void testPersistentTopicStatsAggregationPartialProducerSupported() {
         TopicStatsImpl topicStats1 = new TopicStatsImpl();
         topicStats1.msgRateIn = 1;
@@ -167,7 +167,7 @@ public class PersistentTopicStatsTest {
         assertEquals(target.replication.size(), 1);
     }
 
-    @Test
+
     public void testPersistentTopicStatsAggregationByProducerName() {
         TopicStatsImpl topicStats1 = new TopicStatsImpl();
         topicStats1.msgRateIn = 1;

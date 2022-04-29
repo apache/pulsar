@@ -40,7 +40,7 @@ import org.testng.annotations.Test;
 
 import static org.awaitility.Awaitility.await;
 
-@Test(groups = "flaky")
+
 public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchThrottlingTest {
     private static final Logger log = LoggerFactory.getLogger(SubscriptionMessageDispatchThrottlingTest.class);
 
@@ -50,7 +50,6 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
      * @param subscription
      * @throws Exception
      */
-    @Test(dataProvider = "subscriptionAndDispatchRateType", timeOut = 5000)
     public void testMessageRateLimitingNotReceiveAllMessages(SubscriptionType subscription,
                                                              DispatchRateType dispatchRateType) throws Exception {
         log.info("-- Starting {} test --", methodName);
@@ -146,7 +145,7 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
      * @param subscription
      * @throws Exception
      */
-    @Test(dataProvider = "subscriptions", timeOut = 5000)
+    
     public void testMessageRateLimitingReceiveAllMessagesAfterThrottling(SubscriptionType subscription)
         throws Exception {
         log.info("-- Starting {} test --", methodName);
@@ -232,7 +231,7 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
      * @param subscription
      * @throws Exception
      */
-    @Test(dataProvider = "subscriptions", timeOut = 5000)
+    
     public void testBytesRateLimitingReceiveAllMessagesAfterThrottling(SubscriptionType subscription) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -410,7 +409,7 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
      * @param subscription
      * @throws Exception
      */
-    @Test(dataProvider = "subscriptions")
+    
     public void testMultiLevelDispatch(SubscriptionType subscription) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -436,7 +435,7 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
      * @param subscription
      * @throws Exception
      */
-    @Test(dataProvider = "subscriptions", timeOut = 8000)
+    
     public void testBrokerBytesRateLimitingReceiveAllMessagesAfterThrottling(SubscriptionType subscription) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -516,7 +515,7 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
      *
      * @throws Exception
      */
-    @Test(timeOut = 5000)
+    
     public void testRateLimitingMultipleConsumers() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -602,7 +601,7 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
     }
 
 
-    @Test(dataProvider = "subscriptions", timeOut = 5000)
+    
     public void testClusterRateLimitingConfiguration(SubscriptionType subscription) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -673,7 +672,7 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
      *
      * @throws Exception
      */
-    @Test
+
     public void testClusterPolicyOverrideConfiguration() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -776,7 +775,7 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test(dataProvider = "subscriptions", timeOut = 10000)
+    
     public void testClosingRateLimiter(SubscriptionType subscription) throws Exception {
         log.info("-- Starting {} test --", methodName);
 

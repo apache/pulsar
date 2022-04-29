@@ -42,7 +42,7 @@ import org.testng.annotations.Test;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
-@Test(groups = "broker-io")
+
 public class PulsarBatchSourceE2ETest extends AbstractPulsarE2ETest {
 
     private void testPulsarBatchSourceStats(String jarFilePathUrl) throws Exception {
@@ -174,19 +174,17 @@ public class PulsarBatchSourceE2ETest extends AbstractPulsarE2ETest {
         admin.sources().deleteSource(tenant, namespacePortion, sourceName);
     }
 
-    @Test(timeOut = 20000, groups = "builtin")
     public void testPulsarBatchSourceStatsBuiltin() throws Exception {
         String jarFilePathUrl = String.format("%s://batch-data-generator", Utils.BUILTIN);
         testPulsarBatchSourceStats(jarFilePathUrl);
     }
 
-    @Test(timeOut = 20000)
+    
     private void testPulsarBatchSourceStatsWithFile() throws Exception {
     	String jarFilePathUrl = getPulsarIOBatchDataGeneratorNar().toURI().toString();
     	testPulsarBatchSourceStats(jarFilePathUrl);
     }
 
-    @Test(timeOut = 40000)
     private void testPulsarBatchSourceStatsWithUrl() throws Exception {
     	testPulsarBatchSourceStats(fileServer.getUrl("/pulsar-io-batch-data-generator.nar"));
     }

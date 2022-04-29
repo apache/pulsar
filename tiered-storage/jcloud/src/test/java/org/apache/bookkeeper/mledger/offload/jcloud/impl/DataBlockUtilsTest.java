@@ -26,7 +26,7 @@ import static org.testng.Assert.assertNull;
 
 public class DataBlockUtilsTest {
 
-    @Test
+    
     public void parseLedgerIdTest() throws Exception {
        UUID id = UUID.randomUUID();
        long ledgerId = 123124;
@@ -43,7 +43,7 @@ public class DataBlockUtilsTest {
         assertNull(DataBlockUtils.parseLedgerId("-ledger-index"));
     }
 
-    @Test
+    
     public void parseContextUuidTest() throws Exception {
         UUID id = UUID.randomUUID();
         long ledgerId = 123124;

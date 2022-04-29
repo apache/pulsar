@@ -39,7 +39,7 @@ import org.testng.annotations.Test;
 
 public class UnAckedMessageTrackerTest  {
 
-    @Test
+
     public void testAddAndRemove() {
         PulsarClientImpl client = mock(PulsarClientImpl.class);
         Timer timer = new HashedWheelTimer(new DefaultThreadFactory("pulsar-timer", Thread.currentThread().isDaemon()),

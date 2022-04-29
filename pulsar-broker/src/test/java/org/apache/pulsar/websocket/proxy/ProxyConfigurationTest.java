@@ -34,7 +34,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-@Test(groups = "websocket")
+
 public class ProxyConfigurationTest extends ProducerConsumerBase {
     private WebSocketProxyConfiguration config;
 
@@ -59,7 +59,7 @@ public class ProxyConfigurationTest extends ProducerConsumerBase {
         return new Object[][] { {2, 1}, {4, 2} };
     }
 
-    @Test(dataProvider = "setProxyConfig", timeOut = 10000)
+    setProxyConfig", timeOut = 10000)
     public void configTest(int numIoThreads, int connectionsPerBroker) throws Exception {
         config.setWebSocketNumIoThreads(numIoThreads);
         config.setWebSocketConnectionsPerBroker(connectionsPerBroker);

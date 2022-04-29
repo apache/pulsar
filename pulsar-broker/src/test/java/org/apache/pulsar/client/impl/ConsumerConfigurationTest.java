@@ -29,7 +29,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker-impl")
+
 public class ConsumerConfigurationTest extends MockedPulsarServiceBaseTest {
     private static String persistentTopic = "persistent://my-property/use/my-ns/persist";
     private static String nonPersistentTopic = "non-persistent://my-property/use/my-ns/nopersist";
@@ -51,25 +51,23 @@ public class ConsumerConfigurationTest extends MockedPulsarServiceBaseTest {
         super.internalCleanup();
     }
 
-    @Test
+
     public void testReadCompactPersistentExclusive() throws Exception {
         pulsarClient.newConsumer().topic(persistentTopic).subscriptionName("sub1").readCompacted(true)
                 .subscriptionType(SubscriptionType.Exclusive).subscribe().close();
     }
 
-    @Test
+
     public void testReadCompactPersistentFailover() throws Exception {
         pulsarClient.newConsumer().topic(persistentTopic).subscriptionName("sub1").readCompacted(true)
                 .subscriptionType(SubscriptionType.Failover).subscribe().close();
     }
 
-    @Test(expectedExceptions = InvalidConfigurationException.class)
     public void testReadCompactPersistentShared() throws Exception {
         pulsarClient.newConsumer().topic(persistentTopic).subscriptionName("sub1").readCompacted(true)
                 .subscriptionType(SubscriptionType.Shared).subscribe().close();
     }
 
-    @Test(expectedExceptions = InvalidConfigurationException.class)
     public void testReadCompactNonPersistentExclusive() throws Exception {
         pulsarClient.newConsumer().topic(nonPersistentTopic).subscriptionName("sub1").readCompacted(true)
                 .subscriptionType(SubscriptionType.Exclusive).subscribe().close();

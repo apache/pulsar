@@ -38,7 +38,7 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test(timeOut = 30000)
+    
     public void testTlsLargeSizeMessage() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -72,7 +72,7 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test(timeOut = 30000)
+    
     public void testTlsClientAuthOverBinaryProtocol() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -102,7 +102,7 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
         }
     }
 
-    @Test(timeOut = 30000)
+    
     public void testTlsClientAuthOverHTTPProtocol() throws Exception {
         log.info("-- Starting {} test --", methodName);
 

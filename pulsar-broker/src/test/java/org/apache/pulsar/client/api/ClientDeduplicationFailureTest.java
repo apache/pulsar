@@ -60,7 +60,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Slf4j
-@Test(groups = "quarantine")
+
 public class ClientDeduplicationFailureTest {
     LocalBookkeeperEnsemble bkEnsemble;
 
@@ -73,7 +73,6 @@ public class ClientDeduplicationFailureTest {
     final String tenant = "external-repl-prop";
     String primaryHost;
 
-    @BeforeMethod(timeOut = 300000, alwaysRun = true)
     void setup(Method method) throws Exception {
         log.info("--- Setting up method {} ---", method.getName());
 
@@ -190,7 +189,6 @@ public class ClientDeduplicationFailureTest {
     }
 
     // TODO: Test disabled since it results in a OOME
-    @Test(timeOut = 300000, groups = "quarantine", enabled = false)
     public void testClientDeduplicationCorrectnessWithFailure() throws Exception {
         final String namespacePortion = "dedup";
         final String replNamespace = tenant + "/" + namespacePortion;
@@ -270,7 +268,7 @@ public class ClientDeduplicationFailureTest {
         assertEquals(prevMessage.getSequenceId(), producerThread.getLastSeqId());
     }
 
-    @Test(timeOut = 300000)
+    
     public void testClientDeduplicationWithBkFailure() throws  Exception {
         final String namespacePortion = "dedup";
         final String replNamespace = tenant + "/" + namespacePortion;

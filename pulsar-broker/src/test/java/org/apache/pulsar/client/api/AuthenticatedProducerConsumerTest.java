@@ -52,7 +52,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker-api")
+
 public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(AuthenticatedProducerConsumerTest.class);
 
@@ -163,7 +163,7 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         consumer.close();
     }
 
-    @Test(dataProvider = "batch")
+    
     public void testTlsSyncProducerAndConsumer(int batchMessageDelayMs) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -185,7 +185,7 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test(dataProvider = "batch")
+    
     public void testBasicCryptSyncProducerAndConsumer(int batchMessageDelayMs) throws Exception {
         log.info("-- Starting {} test --", methodName);
         AuthenticationBasic authPassword = new AuthenticationBasic();
@@ -203,7 +203,7 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test(dataProvider = "batch")
+    
     public void testBasicArp1SyncProducerAndConsumer(int batchMessageDelayMs) throws Exception {
         log.info("-- Starting {} test --", methodName);
         AuthenticationBasic authPassword = new AuthenticationBasic();
@@ -221,7 +221,7 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test(dataProvider = "batch")
+    
     public void testAnonymousSyncProducerAndConsumer(int batchMessageDelayMs) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -266,7 +266,7 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test
+
     public void testAuthenticationFilterNegative() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -299,7 +299,7 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test
+
     public void testInternalServerExceptionOnLookup() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -339,7 +339,7 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         mockZooKeeperGlobal.unsetAlwaysFail();
     }
 
-    @Test
+
     public void testDeleteAuthenticationPoliciesOfTopic() throws Exception {
         Map<String, String> authParams = new HashMap<>();
         authParams.put("tlsCertFile", TLS_CLIENT_CERT_FILE_PATH);

@@ -42,7 +42,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Slf4j
-@Test(groups = "broker-admin")
+
 public class BrokerAdminClientTlsAuthTest extends MockedPulsarServiceBaseTest {
     protected String methodName;
 
@@ -107,7 +107,7 @@ public class BrokerAdminClientTlsAuthTest extends MockedPulsarServiceBaseTest {
      *           => Run list topics command
      * @throws Exception
      */
-    @Test
+
     public void testPersistentList() throws Exception {
         log.info("-- Starting {} test --", methodName);
 

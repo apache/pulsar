@@ -35,7 +35,7 @@ import static org.testng.Assert.assertEquals;
 
 public class WebSocketProxyConfigurationTest {
 
-    @Test
+
     public void testBackwardCompatibility() throws IOException {
         File testConfigFile = new File("tmp." + System.currentTimeMillis() + ".properties");
         if (testConfigFile.exists()) {

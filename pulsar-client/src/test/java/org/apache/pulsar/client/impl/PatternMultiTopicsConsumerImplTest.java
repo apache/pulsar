@@ -50,7 +50,7 @@ public class PatternMultiTopicsConsumerImplTest {
 
     }
 
-    @Test
+
     public void testChangedUnfilteredResponse() {
         PatternMultiTopicsConsumerImpl.updateSubscriptions(
                 Pattern.compile("tenant/my-ns/name-.*"),
@@ -69,7 +69,7 @@ public class PatternMultiTopicsConsumerImplTest {
         verify(mockTopicsHashSetter).accept(null);
     }
 
-    @Test
+
     public void testChangedFilteredResponse() {
         PatternMultiTopicsConsumerImpl.updateSubscriptions(
                 Pattern.compile("tenant/my-ns/name-.*"),
@@ -88,7 +88,7 @@ public class PatternMultiTopicsConsumerImplTest {
         verify(mockTopicsHashSetter).accept("TOPICS_HASH");
     }
 
-    @Test
+
     public void testUnchangedResponse() {
         PatternMultiTopicsConsumerImpl.updateSubscriptions(
                 Pattern.compile("tenant/my-ns/name-.*"),

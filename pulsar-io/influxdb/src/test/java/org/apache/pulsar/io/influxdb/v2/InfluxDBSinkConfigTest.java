@@ -28,7 +28,7 @@ import org.testng.annotations.Test;
 
 public class InfluxDBSinkConfigTest {
 
-    @Test
+
     public final void testLoadFromYaml() throws Exception {
         File yamlFile = getFile("sinkConfig-v2.yaml");
         String path = yamlFile.getAbsolutePath();
@@ -54,7 +54,7 @@ public class InfluxDBSinkConfigTest {
         return map;
     }
 
-    @Test
+
     public final void testLoadFromMap() throws Exception {
         Map<String, Object> map = buildValidConfigMap();
 
@@ -64,8 +64,6 @@ public class InfluxDBSinkConfigTest {
         verifyValues(config);
     }
 
-    @Test(expectedExceptions = NullPointerException.class,
-            expectedExceptionsMessageRegExp = "influxdbUrl property not set.")
     public void testRequiredConfigMissing() throws Exception {
         Map<String, Object> map = buildValidConfigMap();
         map.remove("influxdbUrl");
@@ -73,8 +71,6 @@ public class InfluxDBSinkConfigTest {
         config.validate();
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class,
-            expectedExceptionsMessageRegExp = "batchSize must be a positive integer.")
     public void testBatchConfig() throws Exception {
         Map<String, Object> map = buildValidConfigMap();
         map.put("batchSize", -1);

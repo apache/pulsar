@@ -288,7 +288,7 @@ public class KubernetesRuntimeTest {
         return config;
     }
 
-    @Test
+
     public void testRamPadding() throws Exception {
         verifyRamPadding(0, 1000, 1000);
         verifyRamPadding(5, 1000, 1050);
@@ -308,7 +308,7 @@ public class KubernetesRuntimeTest {
         Assert.assertEquals(containerSpec.getResources().getRequests().get("memory").getNumber().longValue(), expectedRamWithPadding);
     }
 
-    @Test
+
     public void testJavaConstructor() throws Exception {
         InstanceConfig config = createJavaInstanceConfig(FunctionDetails.Runtime.JAVA, false);
 
@@ -317,7 +317,7 @@ public class KubernetesRuntimeTest {
         verifyJavaInstance(config, pulsarRootDir + "/instances/deps", false);
     }
 
-    @Test
+
     public void testJavaConstructorWithSecrets() throws Exception {
         InstanceConfig config = createJavaInstanceConfig(FunctionDetails.Runtime.JAVA, true);
 
@@ -326,7 +326,7 @@ public class KubernetesRuntimeTest {
         verifyJavaInstance(config, pulsarRootDir + "/instances/deps", true);
     }
 
-    @Test
+
     public void testJavaConstructorWithDeps() throws Exception {
         InstanceConfig config = createJavaInstanceConfig(FunctionDetails.Runtime.JAVA, false);
 
@@ -337,7 +337,7 @@ public class KubernetesRuntimeTest {
         verifyJavaInstance(config, extraDepsDir, false);
     }
 
-    @Test
+
     public void testResources() throws Exception {
 
         // test overcommit
@@ -457,7 +457,7 @@ public class KubernetesRuntimeTest {
         assertEquals(containerSpec.getResources().getLimits().get("cpu").getNumber().doubleValue(), RESOURCES.getCpu());
     }
 
-    @Test
+
     public void testPythonConstructor() throws Exception {
         InstanceConfig config = createJavaInstanceConfig(FunctionDetails.Runtime.PYTHON, false);
 
@@ -466,7 +466,7 @@ public class KubernetesRuntimeTest {
         verifyPythonInstance(config, pulsarRootDir + "/instances/deps", false);
     }
 
-    @Test
+
     public void testPythonConstructorWithDeps() throws Exception {
         InstanceConfig config = createJavaInstanceConfig(FunctionDetails.Runtime.PYTHON, false);
 
@@ -538,7 +538,7 @@ public class KubernetesRuntimeTest {
         assertEquals(containerSpec.getResources().getLimits().get("cpu").getNumber().doubleValue(), RESOURCES.getCpu());
     }
     
-    @Test
+
     public void testCreateJobName() throws Exception {    
         verifyCreateJobNameWithBackwardCompatibility();
         verifyCreateJobNameWithUpperCaseFunctionName();
@@ -553,13 +553,13 @@ public class KubernetesRuntimeTest {
         verifyCreateJobNameWithNameOverMaxCharLimit();
     }
 
-    @Test
+
     public void testCreateFunctionLabels() throws Exception {
         FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
         functionDetailsBuilder.setRuntime(FunctionDetails.Runtime.JAVA);
         functionDetailsBuilder.setTenant("tenant");
         // use long namespace to make sure label is truncated to 63 max characters for k8s requirements
-        functionDetailsBuilder.setNamespace(String.format("%-100s", "namespace:$second.part:third@test_0").replace(" ", "0"));
+        functionDetailsBuilder.setNamespace(String.format("%-100s", "namespace:$second.part:third_0").replace(" ", "0"));
         functionDetailsBuilder.setName("$function_name!");
         JsonObject configObj = new JsonObject();
         configObj.addProperty("jobNamespace", "custom-ns");
@@ -714,7 +714,7 @@ public class KubernetesRuntimeTest {
         KubernetesRuntime.doChecks(functionDetail2, null);
     }
 
-    @Test
+
     public void testNoOpKubernetesManifestCustomizer() throws Exception {
         InstanceConfig config = createJavaInstanceConfig(FunctionDetails.Runtime.JAVA, false);
         config.setFunctionDetails(createFunctionDetails(FunctionDetails.Runtime.JAVA, false, (fb) -> {
@@ -736,7 +736,7 @@ public class KubernetesRuntimeTest {
         		TEST_NAMESPACE + "-" + TEST_NAME);
     }
 
-    @Test
+
     public void testBasicKubernetesManifestCustomizer() throws Exception {
         InstanceConfig config = createJavaInstanceConfig(FunctionDetails.Runtime.JAVA, false);
         config.setFunctionDetails(createFunctionDetails(FunctionDetails.Runtime.JAVA, false, (fb) -> {
@@ -778,7 +778,7 @@ public class KubernetesRuntimeTest {
 
     }
 
-    @Test
+
     public void testCustomKubernetesManifestCustomizer() throws Exception {
         InstanceConfig config = createJavaInstanceConfig(FunctionDetails.Runtime.JAVA, false);
         config.setFunctionDetails(createFunctionDetails(FunctionDetails.Runtime.JAVA, false, (fb) -> {
@@ -793,7 +793,7 @@ public class KubernetesRuntimeTest {
         assertEquals(spec.getSpec().getTemplate().getSpec().getServiceAccountName(), "my-service-account");
     }
 
-    @Test
+
     public void testCustomKubernetesDownloadCommands() throws Exception {
         InstanceConfig config = createJavaInstanceConfig(FunctionDetails.Runtime.JAVA, false);
         config.setFunctionDetails(createFunctionDetails(FunctionDetails.Runtime.JAVA, false, (fb) -> {
@@ -825,7 +825,7 @@ public class KubernetesRuntimeTest {
         return config;
     }
 
-    @Test
+
     public void testGolangConstructor() throws Exception {
         InstanceConfig config = createGolangInstanceConfig();
 
@@ -894,7 +894,7 @@ public class KubernetesRuntimeTest {
         assertEquals(containerSpec.getResources().getLimits().get("cpu").getNumber().doubleValue(), RESOURCES.getCpu());
     }
 
-    @Test
+
     public void testKubernetesRuntimeWithExposeAdminClientEnabled() throws Exception {
         InstanceConfig config = createJavaInstanceConfig(FunctionDetails.Runtime.JAVA, false, true);
 
@@ -903,7 +903,7 @@ public class KubernetesRuntimeTest {
         verifyJavaInstance(config, pulsarRootDir + "/instances/deps", false);
     }
 
-    @Test
+
     public void testKubernetesRuntimeWithExposeAdminClientDisabled() throws Exception {
         InstanceConfig config = createJavaInstanceConfig(FunctionDetails.Runtime.JAVA, false, false);
 
@@ -1002,7 +1002,7 @@ public class KubernetesRuntimeTest {
         return configObj;
     }
 
-    @Test
+
     public void testBasicKubernetesManifestCustomizerWithRuntimeCustomizerConfig() throws Exception {
         InstanceConfig config = createJavaInstanceConfig(FunctionDetails.Runtime.JAVA, false);
 
@@ -1044,7 +1044,7 @@ public class KubernetesRuntimeTest {
     }
 
 
-    @Test
+
     public void testBasicKubernetesManifestCustomizerWithRuntimeCustomizerConfigOverwrite() throws Exception {
         InstanceConfig config = createJavaInstanceConfig(FunctionDetails.Runtime.JAVA, false);
         config.setFunctionDetails(createFunctionDetails(FunctionDetails.Runtime.JAVA, false, (fb) -> {
@@ -1091,7 +1091,7 @@ public class KubernetesRuntimeTest {
 
     }
 
-    @Test
+
     public void testJavaConstructorWithoutDownloadDirectoryDefined() throws Exception {
         InstanceConfig config = createJavaInstanceConfig(FunctionDetails.Runtime.JAVA, false);
 
@@ -1100,7 +1100,7 @@ public class KubernetesRuntimeTest {
         verifyJavaInstance(config, pulsarRootDir + "/instances/deps", false, factory.getDownloadDirectory());
     }
 
-    @Test
+
     public void testJavaConstructorWithDownloadDirectoryDefined() throws Exception {
         String downloadDirectory = "download/pulsar_functions";
         InstanceConfig config = createJavaInstanceConfig(FunctionDetails.Runtime.JAVA, false);
@@ -1110,7 +1110,7 @@ public class KubernetesRuntimeTest {
         verifyJavaInstance(config, pulsarRootDir + "/instances/deps", false, factory.getDownloadDirectory());
     }
 
-    @Test
+
     public void testJavaConstructorWithAbsolutDownloadDirectoryDefined() throws Exception {
         String downloadDirectory = "/functions/download/pulsar_functions";
         InstanceConfig config = createJavaInstanceConfig(FunctionDetails.Runtime.JAVA, false);
@@ -1120,7 +1120,7 @@ public class KubernetesRuntimeTest {
         verifyJavaInstance(config, pulsarRootDir + "/instances/deps", false, factory.getDownloadDirectory());
     }
 
-    @Test
+
     public void testCustomKubernetesDownloadCommandsWithDownloadDirectoryDefined() throws Exception {
         String downloadDirectory = "download/pulsar_functions";
         InstanceConfig config = createJavaInstanceConfig(FunctionDetails.Runtime.JAVA, false);
@@ -1139,17 +1139,17 @@ public class KubernetesRuntimeTest {
         assertTrue(containerCommand.contains(expectedDownloadCommand));
     }
 
-    @Test
+
     public void shouldUseConfiguredMetricsPort() throws Exception {
         assertMetricsPortConfigured(Collections.singletonMap("metricsPort", 12345), 12345);
     }
 
-    @Test
+
     public void shouldUseDefaultMetricsPortWhenMetricsPortIsntSet() throws Exception {
         assertMetricsPortConfigured(Collections.emptyMap(), 9094);
     }
 
-    @Test
+
     public void shouldNotAddPrometheusAnnotationIfMetricsPortIsSetToEmpty() throws Exception {
         assertMetricsPortConfigured(Collections.singletonMap("metricsPort", ""), -1);
     }

@@ -25,7 +25,7 @@ import org.testng.annotations.Test;
 
 public class LongSchemaTest {
 
-    @Test
+
     public void testSchemaEncode() {
         LongSchema longSchema = LongSchema.of();
         Long data = 1234578l;
@@ -42,7 +42,7 @@ public class LongSchemaTest {
         Assert.assertEquals(expected, longSchema.encode(data));
     }
 
-    @Test
+
     public void testSchemaEncodeDecodeFidelity() {
         LongSchema longSchema = LongSchema.of();
         ByteBuf byteBuf = ByteBufAllocator.DEFAULT.buffer(8);
@@ -59,7 +59,7 @@ public class LongSchemaTest {
         }
     }
 
-    @Test
+
     public void testSchemaDecode() {
         byte[] byteData = new byte[] {
                0,
@@ -80,7 +80,7 @@ public class LongSchemaTest {
         Assert.assertEquals(expected, longSchema.decode(byteBuf));
     }
 
-    @Test
+
     public void testNullEncodeDecode() {
         ByteBuf byteBuf = null;
         byte[] bytes = null;

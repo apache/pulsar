@@ -31,7 +31,7 @@ import org.testng.annotations.Test;
  */
 public class MessagePayloadTest {
 
-    @Test
+
     public void testConvertMessagePayloadImpl() {
         final ByteBuf buf = PulsarByteBufAllocator.DEFAULT.buffer(1);
 
@@ -46,7 +46,7 @@ public class MessagePayloadTest {
         buf.release();
     }
 
-    @Test
+
     public void testConvertCustomPayload() {
         final ByteBuffer buffer = ByteBuffer.allocate(3);
         buffer.put(new byte[]{ 0x11, 0x22, 0x33 });
@@ -63,7 +63,7 @@ public class MessagePayloadTest {
         buf.release();
     }
 
-    @Test
+
     public void testConvertEmptyCustomPayload() {
         final ByteBuf buf = MessagePayloadUtils.convertToByteBuf(new ByteBufferPayload(ByteBuffer.allocate(0)));
         Assert.assertEquals(buf.refCnt(), 1);
@@ -87,7 +87,7 @@ public class MessagePayloadTest {
         }
     }
 
-    @Test
+
     public void testFactoryWrap() {
         MessagePayloadImpl payload = (MessagePayloadImpl) MessagePayloadFactory.DEFAULT.wrap(new byte[1]);
         ByteBuf byteBuf = payload.getByteBuf();

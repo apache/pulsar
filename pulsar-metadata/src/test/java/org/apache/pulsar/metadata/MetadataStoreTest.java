@@ -54,7 +54,7 @@ import org.testng.annotations.Test;
 @Slf4j
 public class MetadataStoreTest extends BaseMetadataStoreTest {
 
-    @Test(dataProvider = "impl")
+    
     public void emptyStoreTest(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
         MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
@@ -83,7 +83,7 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
         }
     }
 
-    @Test(dataProvider = "impl")
+    
     public void insertionTestWithExpectedVersion(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
         MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
@@ -141,7 +141,7 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
         assertEquals(optRes.get().getStat().getVersion(), 1);
     }
 
-    @Test(dataProvider = "impl")
+    
     public void getChildrenTest(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
         MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
@@ -174,7 +174,7 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
         assertEquals(store.getChildren(key).join(), Collections.emptyList());
     }
 
-    @Test(dataProvider = "impl")
+    
     public void navigateChildrenTest(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
         MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
@@ -192,7 +192,7 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
                 Lists.newArrayList("ccc-1"));
     }
 
-    @Test(dataProvider = "impl")
+    
     public void deletionTest(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
         MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
@@ -226,7 +226,7 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
         }
     }
 
-    @Test(dataProvider = "impl")
+    
     public void emptyKeyTest(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
         MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
@@ -267,7 +267,7 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
         }
     }
 
-    @Test(dataProvider = "impl")
+    
     public void notificationListeners(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
         MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
@@ -333,7 +333,7 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
         assertEquals(n.getPath(), key1);
     }
 
-    @Test(dataProvider = "impl")
+    
     public void testDeleteRecursive(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
         MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
@@ -358,7 +358,7 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
         assertEquals(store.getChildren(prefix).join(), Collections.singletonList(key2.substring(1)));
     }
 
-    @Test(dataProvider = "impl")
+    
     public void testDeleteUnusedDirectories(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
         MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
@@ -387,7 +387,7 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
         assertFalse(store.exists(prefix).join());
     }
 
-    @Test(dataProvider = "impl")
+    
     public void testPersistent(String provider, Supplier<String> urlSupplier) throws Exception {
         String metadataUrl = urlSupplier.get();
         MetadataStore store = MetadataStoreFactory.create(metadataUrl, MetadataStoreConfig.builder().build());
@@ -404,7 +404,7 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
         store.close();
     }
 
-    @Test(dataProvider = "impl")
+    
     public void testConcurrentPutGetOneKey(String provider, Supplier<String> urlSupplier) throws Exception {
         MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
         byte[] data = new byte[]{0};

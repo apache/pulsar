@@ -30,7 +30,7 @@ import org.testng.annotations.Test;
 
 import java.util.UUID;
 
-@Test(groups = "broker-api")
+
 public class ConsumerCleanupTest extends ProducerConsumerBase {
 
     @BeforeClass
@@ -51,7 +51,7 @@ public class ConsumerCleanupTest extends ProducerConsumerBase {
         return new Object[][] { { true }, { false } };
     }
 
-    @Test(dataProvider = "ackReceiptEnabled")
+    
     public void testAllTimerTaskShouldCanceledAfterConsumerClosed(boolean ackReceiptEnabled)
             throws PulsarClientException, InterruptedException {
         @Cleanup

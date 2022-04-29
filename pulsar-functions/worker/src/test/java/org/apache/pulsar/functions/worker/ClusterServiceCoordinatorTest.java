@@ -66,7 +66,7 @@ public class ClusterServiceCoordinatorTest {
         verify(mockExecutor, times(1)).shutdown();
     }
 
-    @Test
+
     public void testRunTask() {
         Runnable mockTask = mock(Runnable.class);
         long interval = 100;

@@ -106,7 +106,7 @@ import org.testng.annotations.Test;
 
 public class PulsarAdminToolTest {
 
-    @Test
+
     public void brokers() throws Exception {
         PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
         Brokers mockBrokers = mock(Brokers.class);
@@ -151,7 +151,7 @@ public class PulsarAdminToolTest {
         verify(mockBrokers).shutDownBrokerGracefully(10,true);
     }
 
-    @Test
+
     public void brokerStats() throws Exception {
         PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
         BrokerStats mockBrokerStats = mock(BrokerStats.class);
@@ -172,7 +172,7 @@ public class PulsarAdminToolTest {
         verify(mockBrokerStats).getMetrics();
     }
 
-    @Test
+
     public void getOwnedNamespaces() throws Exception {
         PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
         Brokers mockBrokers = mock(Brokers.class);
@@ -185,7 +185,7 @@ public class PulsarAdminToolTest {
 
     }
 
-    @Test
+
     public void clusters() throws Exception {
         PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
         Clusters mockClusters = mock(Clusters.class);
@@ -298,7 +298,7 @@ public class PulsarAdminToolTest {
         verify(mockClusters).updateCluster("my-tls-cluster", data.build());
     }
 
-    @Test
+
     public void tenants() throws Exception {
         PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
         Tenants mockTenants = mock(Tenants.class);
@@ -326,7 +326,7 @@ public class PulsarAdminToolTest {
         verify(mockTenants).deleteTenant("my-tenant", false);
     }
 
-    @Test
+
     public void namespaces() throws Exception {
         PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
         Namespaces mockNamespaces = mock(Namespaces.class);
@@ -771,7 +771,7 @@ public class PulsarAdminToolTest {
 
     }
 
-    @Test
+
     public void namespacesCreateV1() throws Exception {
         PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
         Namespaces mockNamespaces = mock(Namespaces.class);
@@ -782,7 +782,7 @@ public class PulsarAdminToolTest {
         verify(mockNamespaces).createNamespace("my-prop/my-cluster/my-namespace");
     }
 
-    @Test
+
     public void namespacesCreateV1WithBundlesAndClusters() throws Exception {
         PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
         Namespaces mockNamespaces = mock(Namespaces.class);
@@ -795,7 +795,7 @@ public class PulsarAdminToolTest {
                 Sets.newHashSet("a", "b", "c"));
     }
 
-    @Test
+
     public void namespacesCreate() throws Exception {
         PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
         Namespaces mockNamespaces = mock(Namespaces.class);
@@ -809,7 +809,7 @@ public class PulsarAdminToolTest {
         verify(mockNamespaces).createNamespace("my-prop/my-namespace", policies);
     }
 
-    @Test
+
     public void namespacesCreateWithBundlesAndClusters() throws Exception {
         PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
         Namespaces mockNamespaces = mock(Namespaces.class);
@@ -824,7 +824,7 @@ public class PulsarAdminToolTest {
         verify(mockNamespaces).createNamespace("my-prop/my-namespace", policies);
     }
 
-    @Test
+
     public void resourceQuotas() throws Exception {
         PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
         ResourceQuotas mockResourceQuotas = mock(ResourceQuotas.class);
@@ -862,7 +862,7 @@ public class PulsarAdminToolTest {
         verify(mockResourceQuotas).resetNamespaceBundleResourceQuota("myprop/clust/ns1", "0x80000000_0xffffffff");
     }
 
-    @Test
+
     public void namespaceIsolationPolicy() throws Exception {
         PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
         Clusters mockClusters = mock(Clusters.class);
@@ -877,7 +877,7 @@ public class PulsarAdminToolTest {
         verify(mockClusters).getBrokerWithNamespaceIsolationPolicy("use", "my-broker");
     }
 
-    @Test
+
     public void topicPolicies() throws Exception {
         PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
         TopicPolicies mockTopicsPolicies = mock(TopicPolicies.class);
@@ -1285,7 +1285,7 @@ public class PulsarAdminToolTest {
                                 8, 9, 10L, null, OffloadedReadPriority.TIERED_STORAGE_FIRST));
     }
 
-    @Test
+
     public void topics() throws Exception {
         PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
         Topics mockTopics = mock(Topics.class);
@@ -1752,7 +1752,7 @@ public class PulsarAdminToolTest {
         return l;
     }
 
-    @Test
+
     public void persistentTopics() throws Exception {
         PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
         Topics mockTopics = mock(Topics.class);
@@ -1840,7 +1840,7 @@ public class PulsarAdminToolTest {
                 longThat(new TimestampMatcher()));
     }
 
-    @Test
+
     public void nonPersistentTopics() throws Exception {
         PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
         Topics mockTopics = mock(Topics.class);
@@ -1868,7 +1868,7 @@ public class PulsarAdminToolTest {
         verify(mockNonPersistentTopics).getListInBundle("myprop/clust/ns1", "0x23d70a30_0x26666658");
     }
 
-    @Test
+
     public void bookies() throws Exception {
         PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
         Bookies mockBookies = mock(Bookies.class);
@@ -1915,7 +1915,7 @@ public class PulsarAdminToolTest {
 
     }
 
-    @Test
+
     public void requestTimeout() throws Exception {
         Properties properties = new Properties();
         properties.put("webServiceUrl", "http://localhost:2181");
@@ -1943,7 +1943,7 @@ public class PulsarAdminToolTest {
         assertEquals(TimeUnit.SECONDS, requestTimeoutUnit);
     }
 
-    @Test
+
     public void testAuthTlsWithJsonParam() throws Exception {
 
         Properties properties = new Properties();
@@ -1989,7 +1989,7 @@ public class PulsarAdminToolTest {
         assertNull(atuh.getKeyFilePath());
     }
 
-    @Test
+
     void proxy() throws Exception {
         PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
         ProxyStats mockProxyStats = mock(ProxyStats.class);
@@ -2004,7 +2004,7 @@ public class PulsarAdminToolTest {
         verify(mockProxyStats).getTopics();
     }
 
-    @Test
+
     void transactions() throws Exception {
         PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
         Transactions transactions = Mockito.mock(Transactions.class);
@@ -2058,7 +2058,7 @@ public class PulsarAdminToolTest {
         verify(transactions).getPendingAckInternalStats("test", "test", false);
     }
 
-    @Test
+
     void schemas() throws Exception {
         PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
         Schemas schemas = Mockito.mock(Schemas.class);

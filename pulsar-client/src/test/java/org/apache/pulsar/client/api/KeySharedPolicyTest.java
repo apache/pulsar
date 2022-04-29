@@ -23,7 +23,7 @@ import org.testng.annotations.Test;
 
 public class KeySharedPolicyTest {
 
-    @Test
+
     public void testAutoSplit() {
 
         KeySharedPolicy policy = KeySharedPolicy.autoSplitHashRange();
@@ -32,7 +32,7 @@ public class KeySharedPolicyTest {
         policy.validate();
     }
 
-    @Test
+
     public void testExclusiveHashRange() {
 
         KeySharedPolicy.KeySharedPolicySticky policy = KeySharedPolicy.stickyHashRange();
@@ -42,7 +42,7 @@ public class KeySharedPolicyTest {
         Assert.assertEquals(policy.getRanges().size(), 2);
     }
 
-    @Test
+
     public void testExclusiveHashRangeInvalid() {
 
         KeySharedPolicy.KeySharedPolicySticky policy = KeySharedPolicy.stickyHashRange();

@@ -89,7 +89,7 @@ public class TestPulsarRecordCursor extends TestPulsarConnector {
 
     private static final Logger log = Logger.get(TestPulsarRecordCursor.class);
 
-    @Test(singleThreaded = true)
+    (singleThreaded = true)
     public void testTopics() throws Exception {
 
         for (Map.Entry<TopicName, PulsarRecordCursor> entry : pulsarRecordCursors.entrySet()) {
@@ -174,7 +174,7 @@ public class TestPulsarRecordCursor extends TestPulsarConnector {
         }
     }
 
-    @Test(singleThreaded = true)
+    (singleThreaded = true)
     public void TestKeyValueStructSchema() throws Exception {
 
         TopicName topicName = TopicName.get("persistent", NAMESPACE_NAME_1, "topic-4");
@@ -239,7 +239,7 @@ public class TestPulsarRecordCursor extends TestPulsarConnector {
         }
     }
 
-    @Test(singleThreaded = true)
+    (singleThreaded = true)
     public void TestKeyValuePrimitiveSchema() throws Exception {
 
         TopicName topicName = TopicName.get("persistent", NAMESPACE_NAME_1, "topic-4");
@@ -451,7 +451,7 @@ public class TestPulsarRecordCursor extends TestPulsarConnector {
         private Double field3;
     }
 
-    @Test
+    
     public void testGetSchemaInfo() throws Exception {
         String topic = "get-schema-test";
         PulsarSplit pulsarSplit = Mockito.mock(PulsarSplit.class);

@@ -70,7 +70,6 @@ public class FileModifiedTimeUpdaterTest {
         }
     }
 
-    @Test(dataProvider = "files")
     public void testFileModified(String fileName) throws IOException, InterruptedException {
         Path path = Paths.get(fileName);
         createFile(path);
@@ -91,7 +90,6 @@ public class FileModifiedTimeUpdaterTest {
         }
     }
 
-    @Test(dataProvider = "files")
     public void testFileNotModified(String fileName) throws IOException {
         Path path = Paths.get(fileName);
         createFile(path);
@@ -101,7 +99,7 @@ public class FileModifiedTimeUpdaterTest {
         Assert.assertEquals(fileTime, fileModifiedTimeUpdater.getLastModifiedTime());
     }
 
-    @Test
+
     public void testNettyClientSslContextRefresher() throws Exception {
         BasicAuthenticationData provider = new BasicAuthenticationData(null);
         String certFile = "/tmp/cert.txt";

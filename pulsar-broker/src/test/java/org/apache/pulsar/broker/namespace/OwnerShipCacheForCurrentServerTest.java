@@ -35,7 +35,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Slf4j
-@Test(groups = "broker")
+
 public class OwnerShipCacheForCurrentServerTest extends OwnerShipForCurrentServerTestBase {
 
     private static final String TENANT = "ownership";
@@ -58,7 +58,7 @@ public class OwnerShipCacheForCurrentServerTest extends OwnerShipForCurrentServe
         super.internalCleanup();
     }
 
-    @Test
+
     public void testOwnershipForCurrentServer() throws Exception {
         for (int i = 0; i < getPulsarServiceList().size(); i++) {
             String topicName = newTopicName();
@@ -70,7 +70,7 @@ public class OwnerShipCacheForCurrentServerTest extends OwnerShipForCurrentServe
         }
     }
 
-    @Test(timeOut = 30000)
+    
     public void testCreateTopicWithNotTopicNsOwnedBroker() {
         String topicName = newTopicName();
         int verifiedBrokerNum = 0;

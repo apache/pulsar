@@ -44,19 +44,19 @@ public class TestRetrySupportSuccessTest extends TestRetrySupport {
         markCurrentSetupNumberCleaned();
     }
 
-    @Test
+
     void shouldCallSetupOnce1() {
         Assert.assertEquals(setupCallCount, 1);
         Assert.assertEquals(cleanupCallCount, 0);
     }
 
-    @Test
+
     void shouldCallSetupOnce2() {
         Assert.assertEquals(setupCallCount, 1);
         Assert.assertEquals(cleanupCallCount, 0);
     }
 
-    @Test
+
     void shouldCallSetupOnce3() {
         Assert.assertEquals(setupCallCount, 1);
         Assert.assertEquals(cleanupCallCount, 0);

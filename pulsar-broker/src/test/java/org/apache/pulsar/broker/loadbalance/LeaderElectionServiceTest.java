@@ -45,7 +45,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Slf4j
-@Test(groups = "broker")
+
 public class LeaderElectionServiceTest {
 
     private LocalBookkeeperEnsemble bkEnsemble;
@@ -63,7 +63,7 @@ public class LeaderElectionServiceTest {
         log.info("---- bk stopped ----");
     }
 
-    @Test
+
     public void anErrorShouldBeThrowBeforeLeaderElected() throws PulsarServerException, PulsarClientException,
             PulsarAdminException {
         final String clusterName = "elect-test";

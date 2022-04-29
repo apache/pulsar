@@ -44,7 +44,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker")
+
 public class ExclusiveProducerTest extends BrokerTestBase {
 
     @BeforeClass
@@ -78,7 +78,7 @@ public class ExclusiveProducerTest extends BrokerTestBase {
         };
     }
 
-    @Test(dataProvider = "topics")
+    
     public void simpleTest(String type, boolean partitioned) throws Exception {
         String topic = newTopic(type, partitioned);
         simpleTest(topic);
@@ -121,7 +121,7 @@ public class ExclusiveProducerTest extends BrokerTestBase {
         p2.close();
     }
 
-    @Test(dataProvider = "topics")
+    
     public void testProducerTasksCleanupWhenUsingExclusiveProducers(String type, boolean partitioned) throws Exception {
         String topic = newTopic(type, partitioned);
         Producer<String> p1 = pulsarClient.newProducer(Schema.STRING)
@@ -145,7 +145,7 @@ public class ExclusiveProducerTest extends BrokerTestBase {
         Awaitility.await().untilAsserted(() -> Assert.assertEquals(timer.pendingTimeouts(), 0));
     }
 
-    @Test(dataProvider = "topics")
+    
     public void existingSharedProducer(String type, boolean partitioned) throws Exception {
         String topic = newTopic(type, partitioned);
 
@@ -166,7 +166,7 @@ public class ExclusiveProducerTest extends BrokerTestBase {
         }
     }
 
-    @Test(dataProvider = "accessMode")
+    
     public void producerReconnection(ProducerAccessMode accessMode, boolean partitioned) throws Exception {
         String topic = newTopic("persistent", partitioned);
 
@@ -182,7 +182,7 @@ public class ExclusiveProducerTest extends BrokerTestBase {
         p1.send("msg-2");
     }
 
-    @Test(dataProvider = "accessMode")
+    
     public void producerFenced(ProducerAccessMode accessMode, boolean partitioned) throws Exception {
         String topic = newTopic("persistent", partitioned);
 
@@ -221,7 +221,7 @@ public class ExclusiveProducerTest extends BrokerTestBase {
         }
     }
 
-    @Test(dataProvider = "topics")
+    
     public void topicDeleted(String ignored, boolean partitioned) throws Exception {
         String topic = newTopic("persistent", partitioned);
 
@@ -242,7 +242,7 @@ public class ExclusiveProducerTest extends BrokerTestBase {
         p1.send("msg-2");
     }
 
-    @Test(dataProvider = "topics")
+    
     public void waitForExclusiveTest(String type, boolean partitioned) throws Exception {
         String topic = newTopic(type, partitioned);
 
@@ -287,7 +287,7 @@ public class ExclusiveProducerTest extends BrokerTestBase {
         p3.close();
     }
 
-    @Test(dataProvider = "topics")
+    
     public void waitForExclusiveWithClientTimeout(String type, boolean partitioned) throws Exception {
         String topic = newTopic(type, partitioned);
 
@@ -320,7 +320,7 @@ public class ExclusiveProducerTest extends BrokerTestBase {
         fp2.get(1, TimeUnit.SECONDS);
     }
 
-    @Test(dataProvider = "topics")
+    
     public void exclusiveWithConsumers(String type, boolean partitioned) throws Exception {
         String topic = newTopic(type, partitioned);
 

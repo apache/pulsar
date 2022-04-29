@@ -38,7 +38,7 @@ import java.util.concurrent.TimeUnit;
 
 import static org.testng.Assert.*;
 
-@Test(groups = "broker-admin")
+
 @Slf4j
 public class AdminApiDelayedDelivery extends MockedPulsarServiceBaseTest {
 
@@ -58,7 +58,7 @@ public class AdminApiDelayedDelivery extends MockedPulsarServiceBaseTest {
         super.internalCleanup();
     }
 
-    @Test
+
     public void testDisableDelayedDelivery() throws Exception {
         admin.namespaces().createNamespace("delayed-delivery-messages/default-ns");
         String namespace = "delayed-delivery-messages/default-ns";
@@ -76,7 +76,7 @@ public class AdminApiDelayedDelivery extends MockedPulsarServiceBaseTest {
         assertEquals(2000, admin.namespaces().getDelayedDelivery(namespace).getTickTime());
     }
 
-    @Test
+
     public void testEnableDelayedDeliveryMessages() throws Exception {
         admin.namespaces().createNamespace("delayed-delivery-messages/default-enable-service-conf");
         String namespace = "delayed-delivery-messages/default-enable-service-conf";
@@ -117,7 +117,7 @@ public class AdminApiDelayedDelivery extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test(timeOut = 30000)
+    
     public void testNamespaceDelayedDeliveryPolicyApi() throws Exception {
         final String namespace = "delayed-delivery-messages/my-ns";
         admin.namespaces().createNamespace(namespace);
@@ -135,7 +135,7 @@ public class AdminApiDelayedDelivery extends MockedPulsarServiceBaseTest {
                 -> assertNull(admin.namespaces().getDelayedDelivery(namespace)));
     }
 
-    @Test(timeOut = 30000)
+    
     public void testDelayedDeliveryApplied() throws Exception {
         cleanup();
         conf.setSystemTopicEnabled(true);

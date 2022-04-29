@@ -46,7 +46,7 @@ import java.util.concurrent.TimeUnit;
  * Transaction buffer close test.
  */
 @Slf4j
-@Test(groups = "broker")
+
 public class TransactionBufferCloseTest extends TransactionTestBase {
 
     @BeforeMethod
@@ -70,7 +70,6 @@ public class TransactionBufferCloseTest extends TransactionTestBase {
         };
     }
 
-    @Test(timeOut = 10_000, dataProvider = "isPartition")
     public void deleteTopicCloseTransactionBufferTest(boolean isPartition) throws Exception {
         int expectedCount = isPartition ? 30 : 1;
         TopicName topicName = createAndLoadTopic(isPartition, expectedCount);
@@ -83,7 +82,6 @@ public class TransactionBufferCloseTest extends TransactionTestBase {
         checkSnapshotPublisherCount(topicName.getNamespace(), 0);
     }
 
-    @Test(timeOut = 10_000, dataProvider = "isPartition")
     public void unloadTopicCloseTransactionBufferTest(boolean isPartition) throws Exception {
         int expectedCount = isPartition ? 30 : 1;
         TopicName topicName = createAndLoadTopic(isPartition, expectedCount);

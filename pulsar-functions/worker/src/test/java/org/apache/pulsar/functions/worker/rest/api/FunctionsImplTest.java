@@ -194,12 +194,12 @@ public class FunctionsImplTest {
         }
     }
 
-    @Test
+
     public void testStatusEmpty() {
         assertNotNull(this.resource.getFunctionInstanceStatus(tenant, namespace, function, "0", null, null, null));
     }
 
-    @Test
+
     public void testMetricsEmpty() throws PulsarClientException {
         Function.FunctionDetails.Builder functionDetailsBuilder = createDefaultFunctionDetails().toBuilder();
         InstanceConfig instanceConfig = new InstanceConfig();
@@ -231,7 +231,7 @@ public class FunctionsImplTest {
         assertNotNull(functionStats.calculateOverall());
     }
 
-    @Test
+
     public void testIsAuthorizedRole() throws PulsarAdminException, InterruptedException, ExecutionException {
 
         TenantInfo tenantInfo = TenantInfo.builder().build();
@@ -310,7 +310,7 @@ public class FunctionsImplTest {
         assertFalse(functionImpl.isAuthorizedRole("test-tenant", "test-ns", null, authenticationDataSource));
     }
 
-    @Test
+
     public void testIsSuperUser() throws PulsarAdminException {
 
         FunctionsImpl functionImpl = spy(new FunctionsImpl(() -> mockedWorkerService));

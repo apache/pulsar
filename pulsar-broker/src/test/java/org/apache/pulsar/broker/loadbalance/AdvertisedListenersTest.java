@@ -42,7 +42,7 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.testng.annotations.Test;
 
 @Slf4j
-@Test(groups = "broker")
+
 public class AdvertisedListenersTest extends MultiBrokerBaseTest {
     @Override
     protected int numberOfAdditionalBrokers() {
@@ -79,7 +79,7 @@ public class AdvertisedListenersTest extends MultiBrokerBaseTest {
         this.conf.setWebServicePortTls(Optional.of(httpsPort));
     }
 
-    @Test
+
     public void testLookup() throws Exception {
         HttpGet request =
                 new HttpGet(pulsar.getWebServiceAddress() + "/lookup/v2/topic/persistent/public/default/my-topic");

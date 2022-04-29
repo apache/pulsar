@@ -29,7 +29,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Slf4j
-@Test(groups = "broker-admin")
+
 public class AdminApiTransactionMultiBrokerTest extends TransactionTestBase {
 
     private static final int NUM_BROKERS = 16;
@@ -45,7 +45,7 @@ public class AdminApiTransactionMultiBrokerTest extends TransactionTestBase {
         super.internalCleanup();
     }
 
-    @Test
+
     public void testRedirectOfGetCoordinatorInternalStats() throws Exception {
         Map<String, String> map = admin.lookups()
                 .lookupPartitionedTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString());

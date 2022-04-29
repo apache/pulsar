@@ -179,7 +179,7 @@ public class ProxyAdditionalServletTest extends MockedPulsarServiceBaseTest {
         proxyService.close();
     }
 
-    @Test
+
     public void test() throws IOException {
         int httpPort = proxyWebServer.getListenPortHTTP().get();
         log.info("proxy service httpPort {}", httpPort);

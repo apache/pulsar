@@ -46,7 +46,7 @@ public class SmokeTest extends TestRetrySupport {
         pulsarContainer.start();
     }
 
-    @Test
+
     public void checkMessages() throws PulsarClientException {
 
         @Cleanup

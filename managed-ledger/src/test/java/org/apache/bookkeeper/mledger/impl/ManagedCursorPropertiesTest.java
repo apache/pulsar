@@ -34,7 +34,7 @@ import org.testng.annotations.Test;
 
 public class ManagedCursorPropertiesTest extends MockedBookKeeperTestCase {
 
-    @Test(timeOut = 20000)
+    
     void testPropertiesClose() throws Exception {
         ManagedLedger ledger = factory.open("my_test_ledger", new ManagedLedgerConfig());
         ManagedCursor c1 = ledger.openCursor("c1");
@@ -72,7 +72,7 @@ public class ManagedCursorPropertiesTest extends MockedBookKeeperTestCase {
         assertEquals(c1.getProperties(), properties2);
     }
 
-    @Test(timeOut = 20000)
+    
     void testPropertiesRecoveryAfterCrash() throws Exception {
         ManagedLedger ledger = factory.open("my_test_ledger", new ManagedLedgerConfig());
         ManagedCursor c1 = ledger.openCursor("c1");
@@ -103,7 +103,7 @@ public class ManagedCursorPropertiesTest extends MockedBookKeeperTestCase {
         factory2.shutdown();
     }
 
-    @Test(timeOut = 20000)
+    
     void testPropertiesOnDelete() throws Exception {
         ManagedLedger ledger = factory.open("my_test_ledger", new ManagedLedgerConfig());
         ManagedCursor c1 = ledger.openCursor("c1");
@@ -138,7 +138,7 @@ public class ManagedCursorPropertiesTest extends MockedBookKeeperTestCase {
         assertEquals(c1.getProperties(), properties);
     }
 
-    @Test
+
     void testPropertiesAtCreation() throws Exception {
         ManagedLedger ledger = factory.open("my_test_ledger_at_creation", new ManagedLedgerConfig());
 

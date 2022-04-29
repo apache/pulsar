@@ -51,7 +51,7 @@ public class FastThreadLocalStateCleanerTest {
     final FastThreadLocalStateCleaner cleaner = new FastThreadLocalStateCleaner(object ->
             object.getClass() == MagicNumberWrapper.class);
 
-    @Test
+    
     public void testThreadLocalStateCleanupInCurrentThread() {
         magicNumberThreadLocal.set(new MagicNumberWrapper(44));
         assertEquals(magicNumberThreadLocal.get().intValue(), 44);
@@ -61,7 +61,7 @@ public class FastThreadLocalStateCleanerTest {
         assertEquals(magicNumberThreadLocal.get().intValue(), 42);
     }
 
-    @Test
+    
     public void testThreadLocalStateCleanupInCurrentAndOtherThread() throws InterruptedException, ExecutionException {
         magicNumberThreadLocal.set(new MagicNumberWrapper(44));
         assertEquals(magicNumberThreadLocal.get().intValue(), 44);
@@ -96,7 +96,7 @@ public class FastThreadLocalStateCleanerTest {
         assertTrue(cleanedThreads.contains(Thread.currentThread()));
     }
 
-    @Test
+    
     public void testThreadLocalStateCleanupInFastThreadLocalThread() throws InterruptedException, ExecutionException {
         CountDownLatch numberHasBeenSet = new CountDownLatch(1);
         CountDownLatch shutdownLatch = new CountDownLatch(1);

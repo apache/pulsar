@@ -27,7 +27,7 @@ import java.util.Arrays;
 import org.testng.annotations.Test;
 
 public class FunctionWorkerStarterTest {
-    @Test
+
     public void testMainGenerateDocs() throws Exception {
         PrintStream oldStream = System.out;
         try {

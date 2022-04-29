@@ -32,9 +32,9 @@ import org.testng.annotations.Test;
 
 import static org.mockito.Mockito.mock;
 
-@Test(groups = "broker-impl")
+
 public class ControlledClusterFailoverTest {
-    @Test
+
     public void testBuildControlledClusterFailoverInstance() throws IOException {
         String defaultServiceUrl = "pulsar://localhost:6650";
         String urlProvider = "http://localhost:8080/test";
@@ -63,7 +63,7 @@ public class ControlledClusterFailoverTest {
         Assert.assertEquals(request.getHeaders().get(keyB), valueB);
     }
 
-    @Test
+
     public void testControlledClusterFailoverSwitch() throws IOException {
         String defaultServiceUrl = "pulsar+ssl://localhost:6651";
         String backupServiceUrl = "pulsar+ssl://localhost:6661";

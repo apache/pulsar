@@ -186,13 +186,13 @@ public class PulsarDatabaseHistoryTest extends ProducerConsumerBase {
             "position", index);
     }
 
-    @Test
+
     public void shouldStartWithEmptyTopicAndStoreDataAndRecoverAllState() throws Exception {
         // Create the empty topic ...
         testHistoryTopicContent(false, true);
     }
 
-    @Test
+
     public void shouldIgnoreUnparseableMessages() throws Exception {
         try (final Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
             .topic(topicName)
@@ -209,7 +209,6 @@ public class PulsarDatabaseHistoryTest extends ProducerConsumerBase {
         testHistoryTopicContent(true, true);
     }
 
-    @Test(expectedExceptions = ParsingException.class)
     public void shouldStopOnUnparseableSQL() throws Exception {
         try (final Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topicName).create()) {
             producer.send("{\"source\":{\"server\":\"my-server\"},\"position\":{\"filename\":\"my-txn-file.log\",\"position\":39},\"databaseName\":\"db1\",\"ddl\":\"xxxDROP TABLE foo;\"}");
@@ -219,7 +218,7 @@ public class PulsarDatabaseHistoryTest extends ProducerConsumerBase {
     }
 
 
-    @Test
+
     public void testExists() throws Exception {
         // happy path
         testHistoryTopicContent(true, false);

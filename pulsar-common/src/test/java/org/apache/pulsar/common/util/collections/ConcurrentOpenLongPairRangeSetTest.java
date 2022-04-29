@@ -39,7 +39,7 @@ public class ConcurrentOpenLongPairRangeSetTest {
 
     static final LongPairConsumer<LongPair> consumer = (key, value) -> new LongPair(key, value);
 
-    @Test
+
     public void testIsEmpty() {
         ConcurrentOpenLongPairRangeSet<LongPair> set = new ConcurrentOpenLongPairRangeSet<>(consumer);
         assertTrue(set.isEmpty());
@@ -50,7 +50,7 @@ public class ConcurrentOpenLongPairRangeSetTest {
         assertFalse(set.isEmpty());
     }
 
-    @Test
+
     public void testAddForSameKey() {
         ConcurrentOpenLongPairRangeSet<LongPair> set = new ConcurrentOpenLongPairRangeSet<>(consumer);
         // add 0 to 5
@@ -71,7 +71,7 @@ public class ConcurrentOpenLongPairRangeSetTest {
         assertEquals(ranges.get(count++), (Range.openClosed(new LongPair(0, 101), new LongPair(0, 106))));
     }
 
-    @Test
+
     public void testAddForDifferentKey() {
         ConcurrentOpenLongPairRangeSet<LongPair> set = new ConcurrentOpenLongPairRangeSet<>(consumer);
         // [98,100],[(1,5),(1,5)],[(1,10,1,15)],[(1,20),(1,20)],[(2,0),(2,10)]
@@ -88,7 +88,7 @@ public class ConcurrentOpenLongPairRangeSetTest {
         assertEquals(ranges.get(count++), (Range.openClosed(new LongPair(2, -1), new LongPair(2, 10))));
     }
 
-    @Test
+
     public void testAddCompareCompareWithGuava() {
         ConcurrentOpenLongPairRangeSet<LongPair> set = new ConcurrentOpenLongPairRangeSet<>(consumer);
         com.google.common.collect.RangeSet<LongPair> gSet = TreeRangeSet.create();
@@ -127,13 +127,13 @@ public class ConcurrentOpenLongPairRangeSetTest {
         }
     }
 
-    @Test
+
     public void testNPE() {
         ConcurrentOpenLongPairRangeSet<LongPair> set = new ConcurrentOpenLongPairRangeSet<>(consumer);
         assertNull(set.span());
     }
 
-    @Test
+
     public void testDeleteCompareWithGuava() {
 
         ConcurrentOpenLongPairRangeSet<LongPair> set = new ConcurrentOpenLongPairRangeSet<>(consumer);
@@ -188,7 +188,7 @@ public class ConcurrentOpenLongPairRangeSetTest {
         }
     }
 
-    @Test
+
     public void testRemoveRangeInSameKey() {
         ConcurrentOpenLongPairRangeSet<LongPair> set = new ConcurrentOpenLongPairRangeSet<>(consumer);
         set.addOpenClosed(0, 1, 0, 50);
@@ -212,7 +212,7 @@ public class ConcurrentOpenLongPairRangeSetTest {
         assertEquals(ranges.get(count), Range.openClosed(new LongPair(4, 11), new LongPair(4, 20)));
     }
 
-    @Test
+
     public void testSpanWithGuava() {
         ConcurrentOpenLongPairRangeSet<LongPair> set = new ConcurrentOpenLongPairRangeSet<>(consumer);
         com.google.common.collect.RangeSet<LongPair> gSet = TreeRangeSet.create();
@@ -237,7 +237,7 @@ public class ConcurrentOpenLongPairRangeSetTest {
         assertEquals(set.span(), Range.openClosed(new LongPair(0, 97), new LongPair(4, 20)));
     }
 
-    @Test
+
     public void testFirstRange() {
         ConcurrentOpenLongPairRangeSet<LongPair> set = new ConcurrentOpenLongPairRangeSet<>(consumer);
         assertNull(set.firstRange());
@@ -255,7 +255,7 @@ public class ConcurrentOpenLongPairRangeSetTest {
         assertEquals(set.size(), 2);
     }
 
-    @Test
+
     public void testLastRange() {
         ConcurrentOpenLongPairRangeSet<LongPair> set = new ConcurrentOpenLongPairRangeSet<>(consumer);
         assertNull(set.lastRange());
@@ -277,7 +277,7 @@ public class ConcurrentOpenLongPairRangeSetTest {
         assertEquals(set.size(), 3);
     }
 
-    @Test
+
     public void testToString() {
         ConcurrentOpenLongPairRangeSet<LongPair> set = new ConcurrentOpenLongPairRangeSet<>(consumer);
         Range<LongPair> range = Range.openClosed(new LongPair(0, 97), new LongPair(0, 99));
@@ -291,7 +291,7 @@ public class ConcurrentOpenLongPairRangeSetTest {
         assertEquals(set.toString(), "[(0:5..0:75],(0:97..0:105]]");
     }
 
-    @Test
+
     public void testDeleteForDifferentKey() {
         ConcurrentOpenLongPairRangeSet<LongPair> set = new ConcurrentOpenLongPairRangeSet<>(consumer);
         set.addOpenClosed(0, 97, 0, 99);
@@ -322,7 +322,7 @@ public class ConcurrentOpenLongPairRangeSetTest {
         assertEquals(ranges.get(count++), (Range.openClosed(new LongPair(4, 15), new LongPair(4, 20))));
     }
 
-    @Test
+
     public void testDeleteWithAtMost() {
         ConcurrentOpenLongPairRangeSet<LongPair> set = new ConcurrentOpenLongPairRangeSet<>(consumer);
         set.add(Range.closed(new LongPair(0, 98), new LongPair(0, 99)));
@@ -348,7 +348,7 @@ public class ConcurrentOpenLongPairRangeSetTest {
         assertEquals(ranges.get(count++), (Range.openClosed(new LongPair(4, 11), new LongPair(4, 20))));
     }
 
-    @Test
+
     public void testDeleteWithLeastMost() {
         ConcurrentOpenLongPairRangeSet<LongPair> set = new ConcurrentOpenLongPairRangeSet<>(consumer);
         set.add(Range.closed(new LongPair(0, 98), new LongPair(0, 99)));
@@ -377,7 +377,7 @@ public class ConcurrentOpenLongPairRangeSetTest {
         assertEquals(ranges.get(count++), (Range.openClosed(new LongPair(2, 24), new LongPair(2, 26))));
     }
 
-    @Test
+
     public void testRangeContaining() {
         ConcurrentOpenLongPairRangeSet<LongPair> set = new ConcurrentOpenLongPairRangeSet<>(consumer);
         set.add(Range.closed(new LongPair(0, 98), new LongPair(0, 99)));
@@ -418,7 +418,7 @@ public class ConcurrentOpenLongPairRangeSetTest {
     /**
      * fix : #4895
      */
-    @Test
+
     public void testCacheFlagConflict() {
         ConcurrentOpenLongPairRangeSet<LongPair> set = new ConcurrentOpenLongPairRangeSet<>(consumer);
         set.add(Range.openClosed(new LongPair(0, 1), new LongPair(0, 2)));

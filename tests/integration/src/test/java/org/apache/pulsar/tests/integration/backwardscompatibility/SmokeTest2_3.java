@@ -24,12 +24,12 @@ import org.testng.annotations.Test;
 
 public class SmokeTest2_3 extends PulsarStandaloneTestSuite2_3 {
 
-    @Test(dataProvider = "StandaloneServiceUrlAndTopics")
+    
     public void testPublishAndConsume(Supplier<String> serviceUrl, boolean isPersistent) throws Exception {
         super.testPublishAndConsume(serviceUrl.get(), isPersistent);
     }
 
-    @Test(dataProvider = "StandaloneServiceUrlAndTopics")
+    
     public void testBatchMessagePublishAndConsume(Supplier<String> serviceUrl, boolean isPersistent) throws Exception {
         super.testBatchMessagePublishAndConsume(serviceUrl.get(), isPersistent);
     }

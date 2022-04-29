@@ -80,7 +80,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Test(groups = "websocket")
+
 public class ProxyPublishConsumeTest extends ProducerConsumerBase {
     protected String methodName;
 
@@ -120,7 +120,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         log.info("Finished Cleaning Up Test setup");
     }
 
-    @Test(timeOut = 10000)
+    
     public void socketTest() throws Exception {
         final String consumerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get()
                 + "/ws/v2/consumer/persistent/my-property/my-ns/my-topic1/my-sub1?subscriptionType=Failover";
@@ -196,7 +196,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         }
     }
 
-    @Test(timeOut = 10000)
+    
     public void socketTestEndOfTopic() throws Exception {
         final String topic = "my-property/my-ns/my-topic8";
         final String subscription = "my-sub";
@@ -264,7 +264,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         }
     }
 
-    @Test
+
     public void unsubscribeTest() throws Exception {
         final String namespace = "my-property/my-ns";
         final String topic = namespace + "/" + "my-topic7";
@@ -299,7 +299,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         }
     }
 
-    @Test(timeOut = 10000)
+    
     public void emptySubscriptionConsumerTest() {
 
         // Empty subscription name
@@ -326,7 +326,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         }
     }
 
-    @Test(timeOut = 10000)
+    
     public void conflictingConsumerTest() throws Exception {
         final String consumerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get()
                 + "/ws/v2/consumer/persistent/my-property/my-ns/my-topic3/sub1?subscriptionType=Exclusive";
@@ -362,7 +362,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         }
     }
 
-    @Test(timeOut = 10000)
+    
     public void conflictingProducerTest() throws Exception {
         final String producerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get()
                 + "/ws/v2/producer/persistent/my-property/my-ns/my-topic4?producerName=my-producer";
@@ -398,7 +398,6 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         }
     }
 
-    @Test// (timeOut = 30000)
     public void producerBacklogQuotaExceededTest() throws Exception {
         String namespace = "my-property/ns-ws-quota";
         admin.namespaces().createNamespace(namespace);
@@ -469,7 +468,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         }
     }
 
-    @Test(timeOut = 10000)
+    
     public void topicDoesNotExistTest() throws Exception {
         final String namespace = "my-property/ns-topic-creation-not-allowed";
         admin.namespaces().createNamespace(namespace);
@@ -527,7 +526,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         admin.namespaces().deleteNamespace(namespace);
     }
 
-    @Test(timeOut = 10000)
+    
     public void producerFencedTest() throws Exception {
         final String topic = "my-property/my-ns/producer-fenced-test";
         Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://" + topic)
@@ -556,7 +555,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         }
     }
 
-    @Test(timeOut = 10000)
+    
     public void topicTerminatedTest() throws Exception {
         final String topic = "my-property/my-ns/topic-terminated-test";
         admin.topics().createNonPartitionedTopic("persistent://" + topic);
@@ -591,7 +590,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test(timeOut = 10000)
+    
     public void testProxyStats() throws Exception {
         final String topic = "my-property/my-ns/my-topic6";
         final String consumerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get() + "/ws/v2/consumer/persistent/" + topic
@@ -665,7 +664,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         }
     }
 
-    @Test(timeOut = 10000)
+    
     public void consumeMessagesInPartitionedTopicTest() throws Exception {
         final String namespace = "my-property/my-ns";
         final String topic = namespace + "/" + "my-topic7";
@@ -706,7 +705,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         }
     }
 
-    @Test(timeOut = 10000)
+    
     public void socketPullModeTest() throws Exception {
         final String topic = "my-property/my-ns/my-topic8";
         final String subscription = "my-sub";
@@ -766,7 +765,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         }
     }
 
-    @Test(timeOut = 20000)
+    
     public void nackMessageTest() throws Exception {
         final String subscription = "my-sub";
         final String dlqTopic = "my-property/my-ns/nack-msg-dlq-" + UUID.randomUUID();
@@ -833,7 +832,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         }
     }
 
-    @Test(timeOut = 20000)
+    
     public void nackRedeliveryDelayTest() throws Exception {
         final String uriBase = "ws://localhost:" + proxyServer.getListenPortHTTP().get() + "/ws/v2";
         final String topic = "my-property/my-ns/nack-redelivery-delay-" + UUID.randomUUID();
@@ -888,7 +887,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         }
     }
 
-    @Test(timeOut = 20000)
+    
     public void ackBatchMessageTest() throws Exception {
         final String subscription = "my-sub";
         final String topic = "my-property/my-ns/ack-batch-message" + UUID.randomUUID();
@@ -930,7 +929,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         }
     }
 
-    @Test(timeOut = 20000)
+    
     public void consumeEncryptedMessages() throws Exception {
         final String subscription = "my-sub";
         final String topic = "my-property/my-ns/encrypted" + UUID.randomUUID();

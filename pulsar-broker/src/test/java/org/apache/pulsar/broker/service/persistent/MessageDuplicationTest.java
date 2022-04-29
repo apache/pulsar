@@ -53,14 +53,14 @@ import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.testng.annotations.Test;
 
 @Slf4j
-@Test(groups = "broker")
+
 public class MessageDuplicationTest {
 
     private static final int BROKER_DEDUPLICATION_ENTRIES_INTERVAL = 10;
     private static final int BROKER_DEDUPLICATION_MAX_NUMBER_PRODUCERS = 10;
     private static final String REPLICATOR_PREFIX = "foo";
 
-    @Test
+
     public void testIsDuplicate() {
         PulsarService pulsarService = mock(PulsarService.class);
         ServiceConfiguration serviceConfiguration = new ServiceConfiguration();
@@ -151,7 +151,7 @@ public class MessageDuplicationTest {
         assertEquals(lastSequenceIdPushed.longValue(), 5);
     }
 
-    @Test
+
     public void testInactiveProducerRemove() throws Exception {
         PulsarService pulsarService = mock(PulsarService.class);
         PersistentTopic topic = mock(PersistentTopic.class);
@@ -209,7 +209,7 @@ public class MessageDuplicationTest {
 
     }
 
-    @Test
+
     public void testIsDuplicateWithFailure() {
 
         PulsarService pulsarService = mock(PulsarService.class);

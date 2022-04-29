@@ -46,7 +46,7 @@ import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
 
 @Slf4j
-@Test(groups = "broker")
+
 public class MultiBrokerLeaderElectionTest extends MultiBrokerBaseTest {
     @Override
     protected int numberOfAdditionalBrokers() {
@@ -83,7 +83,7 @@ public class MultiBrokerLeaderElectionTest extends MultiBrokerBaseTest {
         return MetadataStoreExtended.create(testZKServer.getConnectionString(), MetadataStoreConfig.builder().build());
     }
 
-    @Test
+
     public void shouldElectOneLeader() {
         int leaders = 0;
         for (PulsarService broker : getAllBrokers()) {
@@ -94,7 +94,7 @@ public class MultiBrokerLeaderElectionTest extends MultiBrokerBaseTest {
         assertEquals(leaders, 1);
     }
 
-    @Test
+
     public void shouldAllBrokersKnowTheLeader() {
         Awaitility.await().untilAsserted(() -> {
             for (PulsarService broker : getAllBrokers()) {
@@ -104,7 +104,7 @@ public class MultiBrokerLeaderElectionTest extends MultiBrokerBaseTest {
         });
     }
 
-    @Test
+
     public void shouldAllBrokersBeAbleToGetTheLeader() {
         Awaitility.await().untilAsserted(() -> {
             LeaderBroker leader = null;
@@ -122,7 +122,7 @@ public class MultiBrokerLeaderElectionTest extends MultiBrokerBaseTest {
         });
     }
 
-    @Test
+
     public void shouldProvideConsistentAnswerToTopicLookups()
             throws PulsarAdminException, ExecutionException, InterruptedException {
         String topicNameBase = "persistent://public/default/lookuptest" + UUID.randomUUID() + "-";

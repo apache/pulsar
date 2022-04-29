@@ -42,7 +42,7 @@ public class GenericProtobufNativeSchemaTest {
 
     }
 
-    @Test
+
     public void testGenericReaderByClazzBasedWriterSchema() {
         message = TestMessage.newBuilder().setStringField(STRING_FIELD_VLUE).setDoubleField(DOUBLE_FIELD_VLUE).build();
         byte[] clazzBasedProtobufBytes = clazzBasedProtobufNativeSchema.encode(message);
@@ -51,7 +51,7 @@ public class GenericProtobufNativeSchemaTest {
         assertEquals(genericRecord.getField("doubleField"), DOUBLE_FIELD_VLUE);
     }
 
-    @Test
+
     public void testClazzBasedReaderByClazzGenericWriterSchema() {
         genericmessage = genericProtobufNativeSchema.newRecordBuilder().set("stringField", STRING_FIELD_VLUE).set("doubleField", DOUBLE_FIELD_VLUE).build();
         byte[] messageBytes = genericProtobufNativeSchema.encode(genericmessage);

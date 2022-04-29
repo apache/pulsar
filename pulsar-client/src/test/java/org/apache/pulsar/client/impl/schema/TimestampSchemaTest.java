@@ -27,7 +27,7 @@ import java.sql.Timestamp;
 
 public class TimestampSchemaTest {
 
-    @Test
+
     public void testSchemaEncode() {
         TimestampSchema schema = TimestampSchema.of();
         Timestamp data = new Timestamp(System.currentTimeMillis());
@@ -44,14 +44,14 @@ public class TimestampSchemaTest {
         Assert.assertEquals(expected, schema.encode(data));
     }
 
-    @Test
+
     public void testSchemaEncodeDecodeFidelity() {
         TimestampSchema schema = TimestampSchema.of();
         Timestamp timestamp = new Timestamp(System.currentTimeMillis());
         Assert.assertEquals(timestamp, schema.decode(schema.encode(timestamp)));
     }
 
-    @Test
+
     public void testSchemaDecode() {
         byte[] byteData = new byte[] {
                0,
@@ -73,7 +73,7 @@ public class TimestampSchemaTest {
 
     }
 
-    @Test
+
     public void testNullEncodeDecode() {
         ByteBuf byteBuf = null;
         byte[] bytes = null;

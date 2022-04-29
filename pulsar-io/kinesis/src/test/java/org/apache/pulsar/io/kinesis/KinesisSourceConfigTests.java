@@ -54,7 +54,7 @@ public class KinesisSourceConfigTests {
         DAY = then.getTime();
     }
 
-    @Test
+    
     public final void loadFromYamlFileTest() throws IOException {
         File yamlFile = getFile("sourceConfig.yaml");
         KinesisSourceConfig config = KinesisSourceConfig.load(yamlFile.getAbsolutePath());
@@ -78,7 +78,7 @@ public class KinesisSourceConfigTests {
         assertEquals(actual, expected);
     }
 
-    @Test
+    
     public final void loadFromMapTest() throws IOException {
         Map<String, Object> map = new HashMap<String, Object> ();
         map.put("awsEndpoint", "https://some.endpoint.aws");
@@ -116,7 +116,7 @@ public class KinesisSourceConfigTests {
         assertEquals(actual, expected);
     }
 
-    @Test
+    
     public final void loadFromMapCredentialFromSecretTest() throws IOException {
         Map<String, Object> map = new HashMap<String, Object> ();
         map.put("awsEndpoint", "https://some.endpoint.aws");
@@ -155,8 +155,6 @@ public class KinesisSourceConfigTests {
         assertEquals(actual, expected);
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class,
-            expectedExceptionsMessageRegExp = "empty aws-credential param")
     public final void missingCredentialsTest() throws Exception {
         Map<String, Object> map = new HashMap<String, Object> ();
         map.put("awsEndpoint", "https://some.endpoint.aws");
@@ -167,8 +165,6 @@ public class KinesisSourceConfigTests {
         source.open(map, null);
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class,
-            expectedExceptionsMessageRegExp = "Timestamp must be specified")
     public final void missingStartTimeTest() throws Exception {
         Map<String, Object> map = new HashMap<String, Object> ();
         map.put("awsEndpoint", "https://some.endpoint.aws");

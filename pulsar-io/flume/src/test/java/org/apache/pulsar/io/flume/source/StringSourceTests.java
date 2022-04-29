@@ -74,7 +74,7 @@ public class StringSourceTests extends AbstractFlumeTests {
         sink = null;
     }
 
-    @Test
+
     public void TestOpenAndReadSource() throws Exception {
         Map<String, Object> conf = Maps.newHashMap();
         StringSource stringSource = new StringSource();

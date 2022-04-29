@@ -27,7 +27,7 @@ import java.time.Instant;
 
 public class InstantSchemaTest {
 
-    @Test
+
     public void testSchemaEncode() {
         InstantSchema schema = InstantSchema.of();
         Instant instant = Instant.now();
@@ -38,7 +38,7 @@ public class InstantSchemaTest {
         Assert.assertEquals(expected, schema.encode(instant));
     }
 
-    @Test
+
     public void testSchemaEncodeDecodeFidelity() {
         InstantSchema schema = InstantSchema.of();
         Instant instant = Instant.now();
@@ -49,7 +49,7 @@ public class InstantSchemaTest {
         Assert.assertEquals(instant, schema.decode(byteBuf));
     }
 
-    @Test
+
     public void testSchemaDecode() {
         Instant instant = Instant.now();
         ByteBuffer byteBuffer = ByteBuffer.allocate(Long.BYTES + Integer.BYTES);
@@ -70,7 +70,7 @@ public class InstantSchemaTest {
         Assert.assertEquals(nano, decode.getNano());
     }
 
-    @Test
+
     public void testNullEncodeDecode() {
         ByteBuf byteBuf = null;
         byte[] bytes = null;

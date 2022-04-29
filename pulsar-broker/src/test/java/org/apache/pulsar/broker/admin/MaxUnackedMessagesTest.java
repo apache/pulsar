@@ -49,7 +49,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 import org.testng.collections.Lists;
 
-@Test(groups = "broker-admin")
+
 public class MaxUnackedMessagesTest extends ProducerConsumerBase {
     private final String testTenant = "my-property";
     private final String testNamespace = "my-ns";
@@ -72,7 +72,7 @@ public class MaxUnackedMessagesTest extends ProducerConsumerBase {
         resetConfig();
     }
 
-    @Test(timeOut = 10000)
+    
     public void testMaxUnackedMessagesOnSubscriptionApi() throws Exception {
         final String topicName = testTopic + UUID.randomUUID().toString();
         admin.topics().createPartitionedTopic(topicName, 3);
@@ -91,7 +91,7 @@ public class MaxUnackedMessagesTest extends ProducerConsumerBase {
     }
 
     // See https://github.com/apache/pulsar/issues/5438
-    @Test(timeOut = 20000)
+    
     public void testMaxUnackedMessagesOnSubscription() throws Exception {
         final String topicName = testTopic + System.currentTimeMillis();
         final String subscriberName = "test-sub" + System.currentTimeMillis();
@@ -181,7 +181,7 @@ public class MaxUnackedMessagesTest extends ProducerConsumerBase {
         });
     }
 
-    @Test(timeOut = 20000)
+    
     public void testMaxUnackedMessagesOnConsumerApi() throws Exception {
         final String topicName = testTopic + UUID.randomUUID().toString();
         admin.topics().createPartitionedTopic(topicName, 3);
@@ -199,7 +199,7 @@ public class MaxUnackedMessagesTest extends ProducerConsumerBase {
         assertNull(admin.topics().getMaxUnackedMessagesOnConsumer(topicName));
     }
 
-    @Test(timeOut = 20000)
+    
     public void testMaxUnackedMessagesOnConsumerAppliedApi() throws Exception {
         final String topicName = testTopic + UUID.randomUUID().toString();
         admin.topics().createPartitionedTopic(topicName, 3);
@@ -227,7 +227,7 @@ public class MaxUnackedMessagesTest extends ProducerConsumerBase {
         assertEquals(max.intValue(), 20);
     }
 
-    @Test
+
     public void testMaxUnackedMessagesOnSubApplied() throws Exception {
         final String topicName = testTopic + UUID.randomUUID().toString();
         waitCacheInit(topicName);
@@ -255,7 +255,7 @@ public class MaxUnackedMessagesTest extends ProducerConsumerBase {
                 Integer.valueOf(conf.getMaxUnackedMessagesPerSubscription()));
     }
 
-    @Test(timeOut = 30000)
+    
     public void testMaxUnackedMessagesOnConsumer() throws Exception {
         final String topicName = testTopic + System.currentTimeMillis();
         final String subscriberName = "test-sub" + System.currentTimeMillis();

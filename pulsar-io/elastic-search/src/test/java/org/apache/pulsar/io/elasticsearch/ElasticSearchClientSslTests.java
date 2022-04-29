@@ -41,7 +41,7 @@ public abstract class ElasticSearchClientSslTests extends ElasticSearchTestBase 
         super(elasticImageName);
     }
 
-    @Test
+
     public void testSslBasic() throws IOException {
         try (ElasticsearchContainer container = createElasticsearchContainer()
                 .withFileSystemBind(sslResourceDir, configDir + "/ssl")
@@ -75,7 +75,7 @@ public abstract class ElasticSearchClientSslTests extends ElasticSearchTestBase 
         }
     }
 
-    @Test
+
     public void testSslWithHostnameVerification() throws IOException {
         try (ElasticsearchContainer container = createElasticsearchContainer()
                 .withFileSystemBind(sslResourceDir, configDir + "/ssl")
@@ -112,7 +112,7 @@ public abstract class ElasticSearchClientSslTests extends ElasticSearchTestBase 
         }
     }
 
-    @Test
+
     public void testSslWithClientAuth() throws IOException {
         try(ElasticsearchContainer container = createElasticsearchContainer()
                 .withFileSystemBind(sslResourceDir, configDir + "/ssl")

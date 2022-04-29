@@ -34,7 +34,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker-api")
+
 public class RetryTopicTest extends ProducerConsumerBase {
 
     private static final Logger log = LoggerFactory.getLogger(RetryTopicTest.class);
@@ -52,7 +52,7 @@ public class RetryTopicTest extends ProducerConsumerBase {
         super.internalCleanup();
     }
 
-    @Test
+
     public void testRetryTopic() throws Exception {
         final String topic = "persistent://my-property/my-ns/retry-topic";
 
@@ -123,7 +123,7 @@ public class RetryTopicTest extends ProducerConsumerBase {
         checkConsumer.close();
     }
 
-    @Test(timeOut = 60000)
+    
     public void testRetryTopicProperties() throws Exception {
         final String topic = "persistent://my-property/my-ns/retry-topic";
 
@@ -229,7 +229,7 @@ public class RetryTopicTest extends ProducerConsumerBase {
     }
 
     //Issue 9327: do compatibility check in case of the default retry and dead letter topic name changed
-    @Test
+
     public void testRetryTopicNameForCompatibility () throws Exception {
         final String topic = "persistent://my-property/my-ns/retry-topic";
 
@@ -311,7 +311,7 @@ public class RetryTopicTest extends ProducerConsumerBase {
      * The test is disabled {@link https://github.com/apache/pulsar/issues/2647}.
      * @throws Exception
      */
-    @Test
+
     public void testRetryTopicWithMultiTopic() throws Exception {
         final String topic1 = "persistent://my-property/my-ns/retry-topic-1";
         final String topic2 = "persistent://my-property/my-ns/retry-topic-2";
@@ -391,7 +391,7 @@ public class RetryTopicTest extends ProducerConsumerBase {
         checkConsumer.close();
     }
 
-    @Test
+
     public void testRetryTopicByCustomTopicName() throws Exception {
         final String topic = "persistent://my-property/my-ns/retry-topic";
         final int maxRedeliveryCount = 2;

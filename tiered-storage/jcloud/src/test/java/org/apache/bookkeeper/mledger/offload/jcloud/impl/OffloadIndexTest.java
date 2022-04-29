@@ -46,7 +46,7 @@ import org.testng.annotations.Test;
 @Slf4j
 public class OffloadIndexTest {
 
-    @Test
+
     public void offloadIndexEntryImplTest() {
         // verify OffloadIndexEntryImpl builder
         OffloadIndexEntryImpl entry1 = OffloadIndexEntryImpl.of(0, 2, 0, 20);
@@ -111,7 +111,7 @@ public class OffloadIndexTest {
 
     // prepare metadata, then use builder to build a OffloadIndexBlockImpl
     // verify get methods, readout and fromStream methods.
-    @Test
+
     public void offloadIndexBlockImplTest() throws Exception {
         OffloadIndexBlockBuilder blockBuilder = OffloadIndexBlockBuilder.create();
         LedgerMetadata metadata = createLedgerMetadata(1); // use dummy ledgerId, from BK 4.12 the ledger is is required

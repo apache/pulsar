@@ -27,7 +27,7 @@ import org.testng.annotations.Test;
 
 import static com.google.protobuf.Descriptors.Descriptor;
 
-@Test(groups = "broker")
+
 public class ProtobufNativeSchemaCompatibilityCheckTest {
 
     private static final SchemaData schemaData1 = getSchemaData(org.apache.pulsar.client.api.schema.proto.Test.TestMessage.getDescriptor());
@@ -37,7 +37,7 @@ public class ProtobufNativeSchemaCompatibilityCheckTest {
     /**
      * make sure protobuf root message isn't allow change
      */
-    @Test
+    
     public void testRootMessageChange() {
         ProtobufNativeSchemaCompatibilityCheck compatibilityCheck = new ProtobufNativeSchemaCompatibilityCheck();
         Assert.assertFalse(compatibilityCheck.isCompatible(schemaData2, schemaData1,

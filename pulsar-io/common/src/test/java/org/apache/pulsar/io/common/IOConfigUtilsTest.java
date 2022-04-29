@@ -211,7 +211,7 @@ public class IOConfigUtilsTest {
         }
     }
 
-    @Test
+
     public void testSourceLoadWithSecrets() {
         Map<String, Object> configMap = new HashMap<>();
         configMap.put("notSensitive", "foo");
@@ -364,7 +364,7 @@ public class IOConfigUtilsTest {
         }
     }
 
-    @Test
+
     public void testSinkLoadWithSecrets() {
 
         Map<String, Object> configMap = new HashMap<>();

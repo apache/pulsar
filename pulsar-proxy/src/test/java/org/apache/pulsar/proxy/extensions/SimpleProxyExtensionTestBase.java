@@ -53,7 +53,7 @@ import static org.mockito.Mockito.doReturn;
 import static org.testng.Assert.assertEquals;
 
 @Slf4j
-@Test(groups = "proxy")
+
 public abstract class SimpleProxyExtensionTestBase extends MockedPulsarServiceBaseTest {
 
     public static final class MyProxyExtension implements ProxyExtension {
@@ -142,7 +142,7 @@ public abstract class SimpleProxyExtensionTestBase extends MockedPulsarServiceBa
         proxyService.start();
     }
 
-    @Test
+    
     public void testBootstrapProtocolHandler() throws Exception {
         SocketAddress address =
                 proxyService.getProxyExtensions()

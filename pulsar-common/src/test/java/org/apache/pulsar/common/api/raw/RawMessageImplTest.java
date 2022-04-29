@@ -35,7 +35,7 @@ public class RawMessageImplTest {
     private static final String HARD_CODE_KEY_ID = "__pfn_input_msg_id__";
     private static final String HARD_CODE_KEY_ID_VALUE  = "__pfn_input_msg_id_value__";
 
-    @Test
+
     public void testGetProperties() {
         ReferenceCountedMessageMetadata refCntMsgMetadata =
                 ReferenceCountedMessageMetadata.get(Mockito.mock(ByteBuf.class));

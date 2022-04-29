@@ -43,7 +43,7 @@ import java.util.TreeMap;
 @Slf4j
 public class KeyValueSchemaTest {
 
-    @Test
+
     public void testAllowNullAvroSchemaCreate() {
         AvroSchema<Foo> fooSchema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
         AvroSchema<Bar> barSchema = AvroSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
@@ -68,7 +68,7 @@ public class KeyValueSchemaTest {
         assertEquals(schemaInfo1, schemaInfo2);
     }
 
-    @Test
+
     public void testFillParametersToSchemainfo() {
         Map<String, String> keyProperties = new TreeMap<>();
         keyProperties.put("foo.key1", "value");
@@ -98,7 +98,7 @@ public class KeyValueSchemaTest {
                 "{\"__alwaysAllowNull\":\"true\",\"__jsr310ConversionEnabled\":\"false\",\"bar.key\":\"key\"}");
     }
 
-    @Test
+
     public void testNotAllowNullAvroSchemaCreate() {
         AvroSchema<Foo> fooSchema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).withAlwaysAllowNull(false).build());
         AvroSchema<Bar> barSchema = AvroSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).withAlwaysAllowNull(false).build());
@@ -124,7 +124,7 @@ public class KeyValueSchemaTest {
         assertEquals(schemaInfo1, schemaInfo2);
     }
 
-    @Test
+
     public void testAllowNullJsonSchemaCreate() {
         JSONSchema<Foo> fooSchema = JSONSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
         JSONSchema<Bar> barSchema = JSONSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
@@ -157,7 +157,7 @@ public class KeyValueSchemaTest {
         assertEquals(schemaInfo1, schemaInfo3);
     }
 
-    @Test
+
     public void testNotAllowNullJsonSchemaCreate() {
         JSONSchema<Foo> fooSchema = JSONSchema.of(
                 SchemaDefinition.<Foo>builder().withPojo(Foo.class).withAlwaysAllowNull(false).build());
@@ -195,7 +195,7 @@ public class KeyValueSchemaTest {
         assertEquals(schemaInfo1, schemaInfo3);
     }
 
-    @Test
+
     public void testAllowNullSchemaEncodeAndDecode() {
         Schema keyValueSchema = Schema.KeyValue(Foo.class, Bar.class);
 
@@ -220,7 +220,7 @@ public class KeyValueSchemaTest {
         assertEquals(bar, barBack);
     }
 
-    @Test
+
     public void testNotAllowNullSchemaEncodeAndDecode() {
         Schema keyValueSchema = Schema.KeyValue(JSONSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).withAlwaysAllowNull(false).build()),
                 JSONSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).withAlwaysAllowNull(false).build()));
@@ -246,7 +246,7 @@ public class KeyValueSchemaTest {
         assertEquals(bar, barBack);
     }
 
-    @Test
+
     public void testDefaultKeyValueEncodingTypeSchemaEncodeAndDecode() {
         AvroSchema<Foo> fooSchema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
         AvroSchema<Bar> barSchema = AvroSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
@@ -275,7 +275,7 @@ public class KeyValueSchemaTest {
         assertEquals(bar, barBack);
     }
 
-    @Test
+
     public void testInlineKeyValueEncodingTypeSchemaEncodeAndDecode() {
 
         AvroSchema<Foo> fooSchema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
@@ -305,7 +305,7 @@ public class KeyValueSchemaTest {
 
     }
 
-    @Test
+
     public void testSeparatedKeyValueEncodingTypeSchemaEncodeAndDecode() {
         AvroSchema<Foo> fooSchema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
         AvroSchema<Bar> barSchema = AvroSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
@@ -338,7 +338,7 @@ public class KeyValueSchemaTest {
         assertEquals(bar, barBack);
     }
 
-    @Test
+
     public void testAllowNullBytesSchemaEncodeAndDecode() {
         AvroSchema<Foo> fooAvroSchema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
         AvroSchema<Bar> barAvroSchema = AvroSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).build());
@@ -367,7 +367,7 @@ public class KeyValueSchemaTest {
         assertEquals(bar, barBack);
     }
 
-    @Test
+
     public void testNotAllowNullBytesSchemaEncodeAndDecode() {
         AvroSchema<Foo> fooAvroSchema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).withAlwaysAllowNull(false).build());
         AvroSchema<Bar> barAvroSchema = AvroSchema.of(SchemaDefinition.<Bar>builder().withPojo(Bar.class).withAlwaysAllowNull(false).build());
@@ -396,7 +396,7 @@ public class KeyValueSchemaTest {
         assertEquals(bar, barBack);
     }
 
-    @Test
+
     public void testKeyValueSchemaSeparatedEncoding() {
         KeyValueSchemaImpl<String, String> keyValueSchema = (KeyValueSchemaImpl<String,String>)
                 KeyValueSchemaImpl.of(Schema.STRING, Schema.STRING, KeyValueEncodingType.SEPARATED);
@@ -405,7 +405,7 @@ public class KeyValueSchemaTest {
         assertEquals(keyValueSchema.getKeyValueEncodingType(), keyValueSchema2.getKeyValueEncodingType());
     }
 
-    @Test
+
     public void testKeyValueSchemaCache() {
         Schema<Foo> keySchema = spy(Schema.AVRO(Foo.class));
         Schema<Foo> valueSchema = spy(Schema.AVRO(Foo.class));

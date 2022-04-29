@@ -60,7 +60,7 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+
     public void testGetWorkerService() throws Exception {
         ServiceConfiguration configuration = new ServiceConfiguration();
         configuration.setMetadataStoreUrl("zk:localhost");
@@ -80,7 +80,7 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
      * Verifies that the getWorkerService throws {@link UnsupportedOperationException}
      * when functionsWorkerEnabled is set to false .
      */
-    @Test
+
     public void testGetWorkerServiceException() throws Exception {
         ServiceConfiguration configuration = new ServiceConfiguration();
         configuration.setMetadataStoreUrl("zk:localhost");
@@ -99,7 +99,7 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+
     public void testAdvertisedAddress() throws Exception {
         useStaticPorts = true;
         setup();
@@ -111,7 +111,7 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
         assertEquals(conf, pulsar.getConfiguration());
     }
 
-    @Test
+
     public void testAdvertisedListeners() throws Exception {
         // don't use dynamic ports when using advertised listeners (#12079)
         useStaticPorts = true;
@@ -126,7 +126,7 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
         assertEquals(conf, pulsar.getConfiguration());
     }
 
-    @Test
+
     public void testDynamicBrokerPort() throws Exception {
         useStaticPorts = false;
         setup();

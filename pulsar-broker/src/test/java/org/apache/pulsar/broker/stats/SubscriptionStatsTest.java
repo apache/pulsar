@@ -37,7 +37,7 @@ import org.testng.annotations.Test;
 import java.util.UUID;
 
 @Slf4j
-@Test(groups = "broker")
+
 public class SubscriptionStatsTest extends ProducerConsumerBase {
 
     @BeforeClass
@@ -53,7 +53,7 @@ public class SubscriptionStatsTest extends ProducerConsumerBase {
         super.internalCleanup();
     }
 
-    @Test
+    
     public void testConsumersAfterMarkDelete() throws PulsarClientException, PulsarAdminException {
         final String topicName = "persistent://my-property/my-ns/testConsumersAfterMarkDelete-"
                 + UUID.randomUUID().toString();
@@ -95,7 +95,7 @@ public class SubscriptionStatsTest extends ProducerConsumerBase {
         producer.close();
     }
 
-    @Test
+    
     public void testNonContiguousDeletedMessagesRanges() throws Exception {
         final String topicName = "persistent://my-property/my-ns/testNonContiguousDeletedMessagesRanges-"
                 + UUID.randomUUID().toString();

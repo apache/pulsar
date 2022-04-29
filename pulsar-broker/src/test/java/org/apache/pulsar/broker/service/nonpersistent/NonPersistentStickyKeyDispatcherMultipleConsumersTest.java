@@ -107,7 +107,7 @@ public class NonPersistentStickyKeyDispatcherMultipleConsumersTest {
         }
     }
 
-    @Test(timeOut = 10000)
+    
     public void testSendMessage() throws BrokerServiceException {
         Consumer consumerMock = mock(Consumer.class);
         when(consumerMock.getAvailablePermits()).thenReturn(1000);
@@ -140,7 +140,7 @@ public class NonPersistentStickyKeyDispatcherMultipleConsumersTest {
                 eq(null), anyInt(), anyLong(), anyLong(), any(RedeliveryTracker.class));
     }
 
-    @Test(timeOut = 10000)
+    
     public void testSendMessageRespectFlowControl() throws BrokerServiceException {
         Consumer consumerMock = mock(Consumer.class);
         nonpersistentDispatcher.addConsumer(consumerMock);

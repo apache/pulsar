@@ -36,7 +36,7 @@ public class OffloadPoliciesTest {
     private final Long offloadThresholdInBytes = 0L;
     private final Long offloadDeletionLagInMillis = 5 * MIN;
 
-    @Test
+
     public void testS3Configuration() {
         final String driver = "aws-s3";
         final String region = "test-region";
@@ -79,7 +79,7 @@ public class OffloadPoliciesTest {
                 Long.valueOf(offloadDeletionLagInMillis));
     }
 
-    @Test
+
     public void testGcsConfiguration() {
         final String driver = "google-cloud-storage";
         final String region = "test-region";
@@ -121,7 +121,7 @@ public class OffloadPoliciesTest {
         Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadedReadPriority(), readPriority);
     }
 
-    @Test
+
     public void testCreateByProperties() {
         final String s3ManagedLedgerOffloadRegion = "test-s3-region";
         final String s3ManagedLedgerOffloadBucket = "test-s3-bucket";
@@ -215,7 +215,7 @@ public class OffloadPoliciesTest {
         Assert.assertEquals(offloadPolicies.getFileSystemURI(), fileSystemURI);
     }
 
-    @Test
+
     public void compatibleWithConfigFileTest() {
         Properties properties = new Properties();
         properties.setProperty("managedLedgerOffloadAutoTriggerSizeThresholdBytes", "" + offloadThresholdInBytes);
@@ -248,7 +248,7 @@ public class OffloadPoliciesTest {
                 offloadPolicies.getManagedLedgerOffloadDeletionLagInMillis().longValue());
     }
 
-    @Test
+
     public void oldPoliciesCompatibleTest() {
         Policies policies = new Policies();
         Assert.assertEquals(policies.offload_threshold, -1);
@@ -270,7 +270,7 @@ public class OffloadPoliciesTest {
         Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadThresholdInBytes(), Long.valueOf(0));
     }
 
-    @Test
+
     public void mergeTest() {
         final String topicBucket = "topic-bucket";
         OffloadPoliciesImpl topicLevelPolicies = new OffloadPoliciesImpl();

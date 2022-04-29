@@ -68,7 +68,7 @@ public abstract class ElasticSearchAuthTests extends ElasticSearchTestBase {
 
     }
 
-    @Test
+
     public void testBasicAuth() throws Exception {
         final String indexName = "my-index-" + UUID.randomUUID().toString();
         ElasticSearchConfig config = new ElasticSearchConfig();
@@ -92,7 +92,7 @@ public abstract class ElasticSearchAuthTests extends ElasticSearchTestBase {
         }
     }
 
-    @Test
+
     public void testTokenAuth() throws Exception {
         final String indexName = "my-index-" + UUID.randomUUID().toString();
         ElasticSearchConfig config = new ElasticSearchConfig();
@@ -126,7 +126,7 @@ public abstract class ElasticSearchAuthTests extends ElasticSearchTestBase {
         }
     }
 
-    @Test
+
     public void testApiKey() throws Exception {
         final String indexName = "my-index-" + UUID.randomUUID().toString();
         ElasticSearchConfig config = new ElasticSearchConfig();

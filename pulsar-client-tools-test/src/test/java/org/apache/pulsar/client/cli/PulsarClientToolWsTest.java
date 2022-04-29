@@ -50,7 +50,7 @@ public class PulsarClientToolWsTest extends BrokerTestBase {
         super.internalCleanup();
     }
 
-    @Test(timeOut = 30000)
+    
     public void testWebSocketNonDurableSubscriptionMode() throws Exception {
         Properties properties = new Properties();
         properties.setProperty("serviceUrl", brokerUrl.toString());
@@ -97,7 +97,7 @@ public class PulsarClientToolWsTest extends BrokerTestBase {
         });
     }
 
-    @Test(timeOut = 30000)
+    
     public void testWebSocketDurableSubscriptionMode() throws Exception {
         Properties properties = new Properties();
         properties.setProperty("serviceUrl", brokerUrl.toString());

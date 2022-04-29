@@ -85,7 +85,7 @@ public class TestCmdTopics {
         return l;
     }
 
-    @Test
+
     public void testFindFirstLedgerWithinThreshold() throws Exception {
         List<LedgerInfo> ledgers = new ArrayList<>();
         ledgers.add(newLedger(0, 10, 1000));
@@ -106,7 +106,7 @@ public class TestCmdTopics {
                             new MessageIdImpl(1, 0, -1));
     }
 
-    @Test
+
     public void testListCmd() throws Exception {
         List<String> topicList = Lists.newArrayList("persistent://public/default/t1", "persistent://public/default/t2",
                 "persistent://public/default/t3");
@@ -131,7 +131,7 @@ public class TestCmdTopics {
             System.setOut(defaultSystemOut);
         }
    }
-    @Test
+
     public void testPartitionedLookup() throws Exception {
         partitionedLookup.params = Arrays.asList("persistent://public/default/my-topic");
         partitionedLookup.run();
@@ -145,7 +145,7 @@ public class TestCmdTopics {
         verify(mockLookup).lookupPartitionedTopic(eq(topic.toString()));
     }
 
-    @Test
+
     public void testPartitionedLookupSortByBroker() throws Exception {
         partitionedLookup.params = Arrays.asList("persistent://public/default/my-topic");
         partitionedLookup.run();

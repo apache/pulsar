@@ -284,32 +284,32 @@ public class SqliteJdbcSinkTest {
 
     }
 
-    @Test
+
     public void TestInsertAction() throws Exception {
         testOpenAndWriteSink(ImmutableMap.of("ACTION", "INSERT"));
     }
 
-    @Test
+
     public void TestNoAction() throws Exception {
         testOpenAndWriteSink(ImmutableMap.of());
     }
 
-    @Test
+
     public void TestNoActionNullValue() throws Exception {
         testOpenAndWriteSinkNullValue(ImmutableMap.of("ACTION", "INSERT"));
     }
 
-    @Test
+
     public void TestNoActionNullValueJson() throws Exception {
         testOpenAndWriteSinkNullValueJson(ImmutableMap.of("ACTION", "INSERT"));
     }
 
-    @Test
+
     public void TestNoActionJson() throws Exception {
         testOpenAndWriteSinkJson(ImmutableMap.of("ACTION", "INSERT"));
     }
 
-    @Test
+
     public void TestUnknownAction() throws Exception {
         Record<GenericRecord> recordRecord = mock(Record.class);
         when(recordRecord.getProperties()).thenReturn(ImmutableMap.of("ACTION", "UNKNOWN"));
@@ -319,7 +319,7 @@ public class SqliteJdbcSinkTest {
         future.get(1, TimeUnit.SECONDS);
     }
 
-    @Test
+
     public void TestUpdateAction() throws Exception {
 
         AvroSchema<Foo> schema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
@@ -362,7 +362,7 @@ public class SqliteJdbcSinkTest {
         });
     }
 
-    @Test
+
     public void TestDeleteAction() throws Exception {
 
         AvroSchema<Foo> schema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());

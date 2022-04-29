@@ -38,7 +38,7 @@ public class JavaSerDeTest {
 
     }
 
-    @Test
+
     public void testSerDe() {
         TestObject to = new TestObject(1234, "test-serde-java-object");
 

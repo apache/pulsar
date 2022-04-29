@@ -26,7 +26,7 @@ import org.testng.annotations.Test;
 /**
  * PersistentTopicTest with {@link StreamingDispatcher}
  */
-@Test(groups = "broker")
+
 public class PersistentTopicStreamingDispatcherTest extends PersistentTopicTest {
 
     @BeforeMethod

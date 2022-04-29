@@ -112,7 +112,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker-admin")
+
 public class NamespacesTest extends MockedPulsarServiceBaseTest {
     private static final Logger log = LoggerFactory.getLogger(NamespacesTest.class);
     private Namespaces namespaces;
@@ -200,7 +200,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         conf.setClusterName(testLocalCluster);
     }
 
-    @Test
+
     public void testCreateNamespaces() throws Exception {
         try {
             namespaces.createNamespace(this.testTenant, "other-colo", "my-namespace",
@@ -253,7 +253,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+
     public void testGetNamespaces() throws Exception {
         List<String> expectedList = Lists.newArrayList(this.testLocalNamespaces.get(0).toString(),
                 this.testLocalNamespaces.get(1).toString());
@@ -318,7 +318,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
     }
 
-    @Test(enabled = false)
+    
     public void testGrantAndRevokePermissions() throws Exception {
         Policies expectedPolicies = new Policies();
         assertEquals(namespaces.getPolicies(this.testTenant, this.testLocalCluster,
@@ -474,7 +474,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+
     public void testGlobalNamespaceReplicationConfiguration() throws Exception {
         assertEquals(
                 namespaces.getNamespaceReplicationClusters(this.testGlobalNamespaces.get(0).getTenant(),
@@ -612,7 +612,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
     }
 
-    @Test
+
     public void testGetBundles() throws Exception {
         List<String> boundaries = Lists.newArrayList("0x00000000", "0x80000000", "0xffffffff");
         BundlesData bundle = BundlesData.builder()
@@ -626,7 +626,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         assertEquals(responseData, bundle);
     }
 
-    @Test
+
     public void testNamespacesApiRedirects() throws Exception {
         // Redirect cases
         uriField.set(namespaces, uriInfo);
@@ -694,7 +694,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
                 UriBuilder.fromUri(uri).host("broker-usc.com").port(8080).toString());
     }
 
-    @Test
+
     public void testDeleteNamespaces() throws Exception {
         AsyncResponse response = mock(AsyncResponse.class);
         namespaces.deleteNamespace(response, this.testTenant, this.testLocalCluster, "non-existing-namespace-1", false, false);
@@ -771,7 +771,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         assertEquals(responseCaptor.getValue().getStatus(), Status.NO_CONTENT.getStatusCode());
     }
 
-    @Test
+
     public void testDeleteNamespaceWithBundles() throws Exception {
         URL localWebServiceUrl = new URL(pulsar.getSafeWebServiceAddress());
         String bundledNsLocal = "test-delete-namespace-with-bundles";
@@ -854,7 +854,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         assertEquals(captor2.getValue().getStatus(), Status.NO_CONTENT.getStatusCode());
     }
 
-    @Test
+
     public void testUnloadNamespaces() throws Exception {
         final NamespaceName testNs = this.testLocalNamespaces.get(1);
         URL localWebServiceUrl = new URL(pulsar.getSafeWebServiceAddress());
@@ -873,7 +873,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         assertEquals(captor.getValue().getStatus(), Status.NO_CONTENT.getStatusCode());
     }
 
-    @Test
+
     public void testSplitBundles() throws Exception {
         URL localWebServiceUrl = new URL(pulsar.getSafeWebServiceAddress());
         String bundledNsLocal = "test-bundled-namespace-1";
@@ -911,7 +911,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+
     public void testSplitBundleWithUnDividedRange() throws Exception {
         URL localWebServiceUrl = new URL(pulsar.getSafeWebServiceAddress());
         String bundledNsLocal = "test-bundled-namespace-1";
@@ -938,7 +938,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         verify(response, timeout(5000).times(1)).resume(any(RestException.class));
     }
 
-    @Test
+
     public void testUnloadNamespaceWithBundles() throws Exception {
         URL localWebServiceUrl = new URL(pulsar.getSafeWebServiceAddress());
         String bundledNsLocal = "test-bundled-namespace-1";
@@ -991,7 +991,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+
     public void testValidateAdminAccessOnTenant() throws Exception {
         try {
             final String tenant = "prop";
@@ -1007,7 +1007,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+
     public void testRetention() throws Exception {
         try {
             URL localWebServiceUrl = new URL(pulsar.getSafeWebServiceAddress());
@@ -1036,7 +1036,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+
     public void testRetentionUnauthorized() throws Exception {
         try {
             NamespaceName testNs = this.testLocalNamespaces.get(3);
@@ -1048,7 +1048,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+
     public void testPersistence() throws Exception {
         NamespaceName testNs = this.testLocalNamespaces.get(0);
         PersistencePolicies persistence1 = new PersistencePolicies(3, 2, 1, 0.0);
@@ -1058,7 +1058,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         assertEquals(persistence2, persistence1);
     }
 
-    @Test
+
     public void testPersistenceUnauthorized() throws Exception {
         try {
             NamespaceName testNs = this.testLocalNamespaces.get(3);
@@ -1070,7 +1070,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+
     public void testValidateTopicOwnership() throws Exception {
         URL localWebServiceUrl = new URL(pulsar.getSafeWebServiceAddress());
         String bundledNsLocal = "test-bundled-namespace-1";
@@ -1102,7 +1102,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         topics.validateAdminOperationOnTopic(false);
     }
 
-    @Test
+
     public void testIsLeader() throws Exception {
         assertTrue(namespaces.isLeaderBroker());
     }
@@ -1112,7 +1112,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
      * @throws Exception
      */
-    @Test
+
     public void testDeleteNamespace() throws Exception {
 
         final String namespace = this.testTenant + "/use/deleteNs";
@@ -1142,7 +1142,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
      * Verifies that force deleteNamespace delete all topics in the namespace
      * @throws Exception
      */
-    @Test
+
     public void testForceDeleteNamespace() throws Exception {
         // allow forced deletion of namespaces
         pulsar.getConfiguration().setForceDeleteNamespaceAllowed(true);
@@ -1176,7 +1176,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         pulsar.getConfiguration().setForceDeleteNamespaceAllowed(false);
     }
 
-    @Test
+
     public void testForceDeleteNamespaceNotAllowed() throws Exception {
         assertFalse(pulsar.getConfiguration().isForceDeleteNamespaceAllowed());
 
@@ -1210,7 +1210,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         assertTrue(admin.namespaces().getNamespaces(this.testTenant).contains(namespace));
     }
 
-    @Test
+
     public void testSubscribeRate() throws Exception {
         SubscribeRate subscribeRate = new SubscribeRate(1, 5);
         String namespace = "my-tenants/my-namespace";
@@ -1319,7 +1319,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+
     public void testSetOffloadThreshold() throws Exception {
         TopicName topicName = TopicName.get("persistent", this.testTenant, "offload", "offload-topic");
         String namespace =  topicName.getNamespaceObject().toString();
@@ -1408,7 +1408,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
                 .isServiceUnitOwned(Mockito.argThat(bundle -> bundle.getNamespaceObject().equals(namespace)));
     }
 
-    @Test
+
     public void testDeleteNonPartitionedTopicMultipleTimes() throws Exception {
         String namespace = BrokerTestUtil.newUniqueName(this.testTenant + "/namespace");
         String topic = namespace + "/topic";
@@ -1436,7 +1436,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+
     public void testDeletePartitionedTopicMultipleTimes() throws Exception {
         String namespace = BrokerTestUtil.newUniqueName(this.testTenant + "/namespace");
         String topic = namespace + "/topic";
@@ -1465,7 +1465,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+
     public void testRetentionPolicyValidation() throws Exception {
         String namespace = BrokerTestUtil.newUniqueName(this.testTenant + "/namespace");
 
@@ -1487,7 +1487,6 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().deleteNamespace(namespace);
     }
 
-    @Test(timeOut = THREE_MINUTE_MILLIS)
     public void testMaxTopicsPerNamespace() throws Exception {
         cleanup();
         conf.setMaxTopicsPerNamespace(15);
@@ -1624,7 +1623,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+
     public void testRetentionPolicyValidationAsPartOfAllPolicies() throws Exception {
         Policies policies = new Policies();
         policies.replication_clusters = Sets.newHashSet(testLocalCluster);
@@ -1642,7 +1641,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         assertInvalidRetentionPolicyAsPartOfAllPolicies(policies, 1, -2);
     }
 
-    @Test
+
     public void testSubscriptionTypesEnabled() throws PulsarAdminException, PulsarClientException {
         pulsar.getConfiguration().setAuthorizationEnabled(false);
         pulsar.getConfiguration().setTopicLevelPoliciesEnabled(false);
@@ -1743,7 +1742,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+
     public void testSplitBundleForMultiTimes() throws Exception{
         String namespace = BrokerTestUtil.newUniqueName(this.testTenant + "/namespace");
         BundlesData data = BundlesData.builder().numBundles(4).build();

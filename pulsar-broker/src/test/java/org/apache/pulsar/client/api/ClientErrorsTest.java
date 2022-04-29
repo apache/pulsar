@@ -44,7 +44,7 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker-api")
+
 public class ClientErrorsTest {
 
     MockBrokerService mockBrokerService;
@@ -65,7 +65,7 @@ public class ClientErrorsTest {
         }
     }
 
-    @Test
+    
     public void testMockBrokerService() throws PulsarClientException {
         // test default actions of mock broker service
         @Cleanup
@@ -88,12 +88,12 @@ public class ClientErrorsTest {
         }
     }
 
-    @Test
+    
     public void testProducerCreateFailWithoutRetry() throws Exception {
         producerCreateFailWithoutRetry("persistent://prop/use/ns/t1");
     }
 
-    @Test
+    
     public void testPartitionedProducerCreateFailWithoutRetry() throws Exception {
         producerCreateFailWithoutRetry("persistent://prop/use/ns/part-t1");
     }
@@ -124,12 +124,12 @@ public class ClientErrorsTest {
         mockBrokerService.resetHandleProducer();
     }
 
-    @Test
+    
     public void testProducerCreateSuccessAfterRetry() throws Exception {
         producerCreateSuccessAfterRetry("persistent://prop/use/ns/t1");
     }
 
-    @Test
+    
     public void testPartitionedProducerCreateSuccessAfterRetry() throws Exception {
         producerCreateSuccessAfterRetry("persistent://prop/use/ns/part-t1");
     }
@@ -156,12 +156,12 @@ public class ClientErrorsTest {
         mockBrokerService.resetHandleProducer();
     }
 
-    @Test
+    
     public void testProducerCreateFailAfterRetryTimeout() throws Exception {
         producerCreateFailAfterRetryTimeout("persistent://prop/use/ns/t1");
     }
 
-    @Test
+    
     public void testPartitionedProducerCreateFailAfterRetryTimeout() throws Exception {
         producerCreateFailAfterRetryTimeout("persistent://prop/use/ns/part-t1");
     }
@@ -202,12 +202,12 @@ public class ClientErrorsTest {
         mockBrokerService.resetHandleCloseProducer();
     }
 
-    @Test
+    
     public void testCreatedProducerSendsCloseProducerAfterTimeout() throws Exception {
         producerCreatedThenFailsRetryTimeout("persistent://prop/use/ns/t1");
     }
 
-    @Test
+    
     public void testCreatedPartitionedProducerSendsCloseProducerAfterTimeout() throws Exception {
         producerCreatedThenFailsRetryTimeout("persistent://prop/use/ns/part-t1");
     }
@@ -249,12 +249,12 @@ public class ClientErrorsTest {
         mockBrokerService.resetHandleCloseProducer();
     }
 
-    @Test
+    
     public void testProducerFailDoesNotFailOtherProducer() throws Exception {
         producerFailDoesNotFailOtherProducer("persistent://prop/use/ns/t1", "persistent://prop/use/ns/t2");
     }
 
-    @Test
+    
     public void testPartitionedProducerFailDoesNotFailOtherProducer() throws Exception {
         producerFailDoesNotFailOtherProducer("persistent://prop/use/ns/part-t1", "persistent://prop/use/ns/part-t2");
     }
@@ -290,12 +290,12 @@ public class ClientErrorsTest {
         mockBrokerService.resetHandleProducer();
     }
 
-    @Test
+    
     public void testProducerContinuousRetryAfterSendFail() throws Exception {
         producerContinuousRetryAfterSendFail("persistent://prop/use/ns/t1");
     }
 
-    @Test
+    
     public void testPartitionedProducerContinuousRetryAfterSendFail() throws Exception {
         producerContinuousRetryAfterSendFail("persistent://prop/use/ns/part-t1");
     }
@@ -336,17 +336,17 @@ public class ClientErrorsTest {
         mockBrokerService.resetHandleSend();
     }
 
-    @Test
+    
     public void testSubscribeFailWithoutRetry() throws Exception {
         subscribeFailWithoutRetry("persistent://prop/use/ns/t1");
     }
 
-    @Test
+    
     public void testPartitionedSubscribeFailWithoutRetry() throws Exception {
         subscribeFailWithoutRetry("persistent://prop/use/ns/part-t1");
     }
 
-    @Test
+    
     public void testLookupWithDisconnection() throws Exception {
         @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(mockBrokerService.getBrokerAddress()).build();
@@ -408,12 +408,12 @@ public class ClientErrorsTest {
         mockBrokerService.resetHandleSubscribe();
     }
 
-    @Test
+    
     public void testSubscribeSuccessAfterRetry() throws Exception {
         subscribeSuccessAfterRetry("persistent://prop/use/ns/t1");
     }
 
-    @Test
+    
     public void testPartitionedSubscribeSuccessAfterRetry() throws Exception {
         subscribeSuccessAfterRetry("persistent://prop/use/ns/part-t1");
     }
@@ -440,12 +440,12 @@ public class ClientErrorsTest {
         mockBrokerService.resetHandleSubscribe();
     }
 
-    @Test
+    
     public void testSubscribeFailAfterRetryTimeout() throws Exception {
         subscribeFailAfterRetryTimeout("persistent://prop/use/ns/t1");
     }
 
-    @Test
+    
     public void testPartitionedSubscribeFailAfterRetryTimeout() throws Exception {
         subscribeFailAfterRetryTimeout("persistent://prop/use/ns/part-t1");
     }
@@ -478,12 +478,12 @@ public class ClientErrorsTest {
         mockBrokerService.resetHandleSubscribe();
     }
 
-    @Test
+    
     public void testSubscribeFailDoesNotFailOtherConsumer() throws Exception {
         subscribeFailDoesNotFailOtherConsumer("persistent://prop/use/ns/t1", "persistent://prop/use/ns/t2");
     }
 
-    @Test
+    
     public void testPartitionedSubscribeFailDoesNotFailOtherConsumer() throws Exception {
         subscribeFailDoesNotFailOtherConsumer("persistent://prop/use/ns/part-t1", "persistent://prop/use/ns/part-t2");
     }
@@ -521,7 +521,7 @@ public class ClientErrorsTest {
     }
 
     // failed to connect to partition at initialization step if a producer which connects to broker as lazy-loading mode
-    @Test
+    
     public void testPartitionedProducerFailOnInitialization() throws Throwable {
         @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(mockBrokerService.getHttpAddress()).build();
@@ -551,7 +551,7 @@ public class ClientErrorsTest {
     }
 
     // failed to connect to partition at sending step if a producer which connects to broker as lazy-loading mode
-    @Test
+    
     public void testPartitionedProducerFailOnSending() throws Throwable {
         @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(mockBrokerService.getHttpAddress()).build();
@@ -612,7 +612,7 @@ public class ClientErrorsTest {
 
     // if a producer which doesn't connect as lazy-loading mode fails to connect while creating partitioned producer,
     // it should close all successful connections of other producers and fail
-    @Test
+    
     public void testOneProducerFailShouldCloseAllProducersInPartitionedProducer() throws Exception {
         @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(mockBrokerService.getHttpAddress()).build();
@@ -647,7 +647,7 @@ public class ClientErrorsTest {
 
     // if a consumer fails to subscribe while creating partitioned consumer, it should close all successful connections
     // of other consumers and fail
-    @Test
+    
     public void testOneConsumerFailShouldCloseAllConsumersInPartitionedConsumer() throws Exception {
         @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(mockBrokerService.getHttpAddress()).build();
@@ -681,7 +681,7 @@ public class ClientErrorsTest {
         mockBrokerService.resetHandleCloseConsumer();
     }
 
-    @Test
+    
     public void testFlowSendWhenPartitionedSubscribeCompletes() throws Exception {
         @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(mockBrokerService.getHttpAddress()).build();
@@ -712,7 +712,7 @@ public class ClientErrorsTest {
     }
 
     // Run this test multiple times to reproduce race conditions on reconnection logic
-    @Test(invocationCount = 10, groups = "broker-api")
+    (invocationCount = 10, groups = "broker-api")
     public void testProducerReconnect() throws Exception {
         AtomicInteger numOfConnections = new AtomicInteger();
         AtomicReference<ChannelHandlerContext> channelCtx = new AtomicReference<>();
@@ -752,7 +752,7 @@ public class ClientErrorsTest {
         mockBrokerService.resetHandleSend();
     }
 
-    @Test
+    
     public void testConsumerReconnect() throws Exception {
         AtomicInteger numOfConnections = new AtomicInteger();
         AtomicReference<ChannelHandlerContext> channelCtx = new AtomicReference<>();

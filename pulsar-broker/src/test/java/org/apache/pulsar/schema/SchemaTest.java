@@ -85,7 +85,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Slf4j
-@Test(groups = "schema")
+
 public class SchemaTest extends MockedPulsarServiceBaseTest {
 
     private static final String CLUSTER_NAME = "test";
@@ -109,7 +109,7 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         super.internalCleanup();
     }
 
-    @Test
+
     public void testMultiTopicSetSchemaProvider() throws Exception {
         final String tenant = PUBLIC_TENANT;
         final String namespace = "test-namespace-" + randomName(16);
@@ -206,7 +206,7 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         consumer.close();
     }
 
-    @Test
+
     public void testMultiTopicSetSchemaProviderWithKeyValue() throws Exception {
         final String tenant = PUBLIC_TENANT;
         final String namespace = "test-namespace-" + randomName(16);
@@ -306,7 +306,7 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         consumer.close();
     }
 
-    @Test
+
     public void testSendAvroAndJsonPrimitiveSchema() throws Exception {
         final String tenant = PUBLIC_TENANT;
         final String namespace = "test-namespace-" + randomName(16);
@@ -354,7 +354,7 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         assertArrayEquals((byte[])  consumer.receive().getValue().getNativeObject(), producerJsonBytesValue);
 }
 
-    @Test
+
     public void testJSONSchemaDeserialize() throws Exception {
         final String tenant = PUBLIC_TENANT;
         final String namespace = "test-namespace-" + randomName(16);
@@ -412,7 +412,7 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         consumer1.close();
     }
 
-    @Test
+
     public void testStringSchema() throws Exception {
         final String tenant = PUBLIC_TENANT;
         final String namespace = "test-namespace-" + randomName(16);
@@ -464,12 +464,12 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         consumer2.close();
     }
 
-    @Test
+
     public void testUseAutoConsumeWithBytesSchemaTopic() throws Exception {
         testUseAutoConsumeWithSchemalessTopic(SchemaType.BYTES);
     }
 
-    @Test
+
     public void testUseAutoConsumeWithNoneSchemaTopic() throws Exception {
         testUseAutoConsumeWithSchemalessTopic(SchemaType.NONE);
     }
@@ -542,12 +542,12 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         consumer2.close();
     }
 
-    @Test
+
     public void testKeyValueSchemaINLINE() throws Exception {
         testKeyValueSchema(KeyValueEncodingType.INLINE);
     }
 
-    @Test
+
     public void testKeyValueSchemaSEPARATED() throws Exception {
         testKeyValueSchema(KeyValueEncodingType.SEPARATED);
     }
@@ -604,12 +604,12 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         consumer2.close();
     }
 
-    @Test
+
     public void testKeyValueSchemaWithStructsINLINE() throws Exception {
         testKeyValueSchemaWithStructs(KeyValueEncodingType.INLINE);
     }
 
-    @Test
+
     public void testKeyValueSchemaWithStructsSEPARATED() throws Exception {
         testKeyValueSchemaWithStructs(KeyValueEncodingType.SEPARATED);
     }
@@ -679,7 +679,7 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         consumer2.close();
     }
 
-    @Test
+
     public void testIsUsingAvroSchemaParser() {
         for (SchemaType value : SchemaType.values()) {
             if (value == SchemaType.AVRO || value == SchemaType.JSON || value == SchemaType.PROTOBUF) {
@@ -690,7 +690,7 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+
     public void testNullKeyValueProperty() throws PulsarAdminException, PulsarClientException {
         final String tenant = PUBLIC_TENANT;
         final String namespace = "test-namespace-" + randomName(16);
@@ -718,7 +718,7 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         consumer.close();
     }
 
-    @Test
+
     public void testDeleteTopicAndSchema() throws Exception {
         final String tenant = PUBLIC_TENANT;
         final String namespace = "test-namespace-" + randomName(16);
@@ -776,7 +776,7 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+
     public void testDeleteTopicAndSchemaForV1() throws Exception {
         final String tenant = PUBLIC_TENANT;
         final String cluster = CLUSTER_NAME;
@@ -866,7 +866,7 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
                 .trimDeletedSchemaAndGetList(TopicName.get(topic2).getSchemaName()).get().size(), 0);
     }
 
-    @Test
+
     public void testProducerMultipleSchemaMessages() throws Exception {
         final String tenant = PUBLIC_TENANT;
         final String namespace = "test-namespace-" + randomName(16);
@@ -907,7 +907,7 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(allSchemas.get(4), Schema.BOOL.getSchemaInfo());
     }
 
-    @Test
+
     public void testNullKey() throws Exception {
         final String tenant = PUBLIC_TENANT;
         final String namespace = "test-namespace-" + randomName(16);
@@ -942,7 +942,7 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         assertEquals("foo", message.getValue());
     }
 
-    @Test
+
     public void testConsumeMultipleSchemaMessages() throws Exception {
         final String namespace = "test-namespace-" + randomName(16);
         String ns = PUBLIC_TENANT + "/" + namespace;
@@ -1114,7 +1114,7 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+
     public void testAvroSchemaWithHttpLookup() throws Exception {
         stopBroker();
         isTcpLookup = false;
@@ -1122,7 +1122,7 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         testEmptySchema();
     }
 
-    @Test
+
     public void testAvroSchemaWithTcpLookup() throws Exception {
         stopBroker();
         isTcpLookup = true;

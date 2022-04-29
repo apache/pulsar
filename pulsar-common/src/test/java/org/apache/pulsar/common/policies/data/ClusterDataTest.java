@@ -25,7 +25,7 @@ import org.testng.annotations.Test;
 
 public class ClusterDataTest {
 
-    @Test
+
     public void simple() {
         String s1 = "http://broker.messaging.c1.example.com:8080";
         String s2 = "http://broker.messaging.c2.example.com:8080";

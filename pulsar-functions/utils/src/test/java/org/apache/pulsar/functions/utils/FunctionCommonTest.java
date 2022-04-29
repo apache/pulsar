@@ -36,7 +36,7 @@ import static org.testng.Assert.assertEquals;
  */
 public class FunctionCommonTest {
 
-    @Test
+    
     public void testValidateLocalFileUrl() throws Exception {
         String fileLocation = FutureUtil.class.getProtectionDomain().getCodeSource().getLocation().getPath();
         try {
@@ -54,7 +54,7 @@ public class FunctionCommonTest {
         FunctionCommon.extractClassLoader(fileLocationWithProtocol);
     }
 
-    @Test
+    
     public void testValidateHttpFileUrl() throws Exception {
 
         String jarHttpUrl = "https://repo1.maven.org/maven2/org/apache/pulsar/pulsar-common/2.4.2/pulsar-common-2.4.2.jar";
@@ -70,7 +70,7 @@ public class FunctionCommonTest {
         }
     }
 
-    @Test
+    
     public void testDownloadFile() throws Exception {
         String jarHttpUrl = "https://repo1.maven.org/maven2/org/apache/pulsar/pulsar-common/2.4.2/pulsar-common-2.4.2.jar";
         String testDir = FunctionCommonTest.class.getProtectionDomain().getCodeSource().getLocation().getPath();
@@ -80,7 +80,7 @@ public class FunctionCommonTest {
         pkgFile.delete();
     }
 
-    @Test
+    
     public void testGetSequenceId() {
         long lid = 12345L;
         long eid = 34566L;
@@ -91,7 +91,7 @@ public class FunctionCommonTest {
         assertEquals((lid << 28) | eid, FunctionCommon.getSequenceId(id));
     }
 
-    @Test
+    
     public void testGetMessageId() {
         long lid = 12345L;
         long eid = 34566L;

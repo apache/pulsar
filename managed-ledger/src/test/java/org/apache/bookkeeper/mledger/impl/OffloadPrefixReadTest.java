@@ -64,7 +64,7 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
-    @Test
+
     public void testOffloadRead() throws Exception {
         MockLedgerOffloader offloader = spy(MockLedgerOffloader.class);
         ManagedLedgerConfig config = new ManagedLedgerConfig();
@@ -120,7 +120,7 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
         assertEquals(offloader.openedReadHandles.get(), 0);
     }
 
-    @Test
+
     public void testBookkeeperFirstOffloadRead() throws Exception {
         MockLedgerOffloader offloader = spy(MockLedgerOffloader.class);
         MockClock clock = new MockClock();

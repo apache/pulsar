@@ -79,39 +79,39 @@ public class ClientCnxRequestTimeoutQueueTest {
         }
     }
 
-    @Test
+
     void testCommandRequestTimeout() {
         assertFutureTimesOut(cnx.sendRequestWithId(requestMessage, 1L));
     }
 
-    @Test
+
     void testGetLastMessageIdRequestTimeout() {
         assertFutureTimesOut(cnx.sendGetLastMessageId(requestMessage, 1L));
     }
 
-    @Test
+
     void testGetTopicsRequestTimeout() {
         assertFutureTimesOut(cnx.newGetTopicsOfNamespace(requestMessage, 1L));
     }
 
-    @Test
+
     void testNewAckForResponseNoFlushTimeout() {
         assertFutureTimesOut(cnx.newAckForReceipt(requestMessage, 1L));
     }
 
-    @Test
+
     void testNewAckForResponseFlushTimeout() {
         TimedCompletableFuture<Void> timedCompletableFuture = new TimedCompletableFuture<>();
         cnx.newAckForReceiptWithFuture(requestMessage, 1L, timedCompletableFuture);
         assertFutureTimesOut(timedCompletableFuture);
     }
 
-    @Test
+
     void testGetSchemaRequestTimeout() {
         assertFutureTimesOut(cnx.sendGetRawSchema(requestMessage, 1L));
     }
 
-    @Test
+
     void testGetOrCreateSchemaRequestTimeout() {
         assertFutureTimesOut(cnx.sendGetOrCreateSchema(requestMessage, 1L));
     }

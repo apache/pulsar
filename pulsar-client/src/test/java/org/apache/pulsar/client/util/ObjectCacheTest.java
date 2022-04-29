@@ -31,7 +31,7 @@ import java.util.function.Supplier;
 import org.testng.annotations.Test;
 
 public class ObjectCacheTest {
-    @Test
+
     public void testCache() {
 
         AtomicLong currentTime = new AtomicLong(0);

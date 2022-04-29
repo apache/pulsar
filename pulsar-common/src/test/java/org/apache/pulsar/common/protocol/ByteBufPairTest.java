@@ -32,7 +32,7 @@ import org.testng.annotations.Test;
 
 public class ByteBufPairTest {
 
-    @Test
+
     public void testDoubleByteBuf() throws Exception {
         ByteBuf b1 = PulsarByteBufAllocator.DEFAULT.heapBuffer(128, 128);
         b1.writerIndex(b1.capacity());
@@ -55,7 +55,7 @@ public class ByteBufPairTest {
         assertEquals(b2.refCnt(), 0);
     }
 
-    @Test
+
     public void testEncoder() throws Exception {
         ByteBuf b1 = Unpooled.wrappedBuffer("hello".getBytes());
         ByteBuf b2 = Unpooled.wrappedBuffer("world".getBytes());

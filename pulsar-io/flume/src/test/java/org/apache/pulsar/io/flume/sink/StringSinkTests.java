@@ -114,7 +114,7 @@ public class StringSinkTests extends AbstractFlumeTests {
         }
     }
 
-    @Test
+
     public void TestOpenAndWriteSink() throws Exception {
         Map<String, Object> conf = Maps.newHashMap();
         StringSink stringSink = new StringSink();

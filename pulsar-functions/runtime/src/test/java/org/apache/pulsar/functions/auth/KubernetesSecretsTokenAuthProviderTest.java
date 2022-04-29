@@ -46,7 +46,7 @@ import org.testng.annotations.Test;
 
 public class KubernetesSecretsTokenAuthProviderTest {
 
-    @Test
+
     public void testConfigureAuthDataStatefulSet() {
         byte[] testBytes = new byte[]{0, 1, 2, 3, 4};
 
@@ -74,7 +74,7 @@ public class KubernetesSecretsTokenAuthProviderTest {
         Assert.assertEquals(statefulSet.getSpec().getTemplate().getSpec().getContainers().get(0).getVolumeMounts().get(0).getMountPath(), "/etc/auth");
     }
 
-    @Test
+
     public void testConfigureAuthDataStatefulSetNoCa() {
         CoreV1Api coreV1Api = mock(CoreV1Api.class);
         KubernetesSecretsTokenAuthProvider kubernetesSecretsTokenAuthProvider = new KubernetesSecretsTokenAuthProvider();
@@ -100,7 +100,7 @@ public class KubernetesSecretsTokenAuthProviderTest {
         Assert.assertEquals(statefulSet.getSpec().getTemplate().getSpec().getContainers().get(0).getVolumeMounts().get(0).getMountPath(), "/etc/auth");
     }
 
-    @Test
+
     public void testCacheAuthData() throws ApiException {
         CoreV1Api coreV1Api = mock(CoreV1Api.class);
         doReturn(new V1Secret()).when(coreV1Api).createNamespacedSecret(anyString(), any(), anyString(), anyString(), anyString());
@@ -123,7 +123,7 @@ public class KubernetesSecretsTokenAuthProviderTest {
         Assert.assertTrue(StringUtils.isNotBlank(new String(functionAuthData.get().getData())));
     }
 
-    @Test
+
     public void configureAuthenticationConfig() {
         byte[] testBytes = new byte[]{0, 1, 2, 3, 4};
         CoreV1Api coreV1Api = mock(CoreV1Api.class);
@@ -138,7 +138,7 @@ public class KubernetesSecretsTokenAuthProviderTest {
         Assert.assertEquals(authenticationConfig.getTlsTrustCertsFilePath(), "/etc/auth/ca.pem");
     }
 
-    @Test
+
     public void configureAuthenticationConfigNoCa() {
         CoreV1Api coreV1Api = mock(CoreV1Api.class);
         KubernetesSecretsTokenAuthProvider kubernetesSecretsTokenAuthProvider = new KubernetesSecretsTokenAuthProvider();
@@ -153,7 +153,7 @@ public class KubernetesSecretsTokenAuthProviderTest {
     }
 
 
-    @Test
+
     public void testUpdateAuthData() throws Exception {
         CoreV1Api coreV1Api = mock(CoreV1Api.class);
         KubernetesSecretsTokenAuthProvider kubernetesSecretsTokenAuthProvider = new KubernetesSecretsTokenAuthProvider();

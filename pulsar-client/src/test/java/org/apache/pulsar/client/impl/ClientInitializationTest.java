@@ -29,7 +29,7 @@ import org.testng.annotations.Test;
 
 public class ClientInitializationTest {
 
-    @Test
+
     public void testInitializeAuthWithTls() throws PulsarClientException {
         Authentication auth = mock(Authentication.class);
 

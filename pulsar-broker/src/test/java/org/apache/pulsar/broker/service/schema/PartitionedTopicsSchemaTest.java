@@ -36,13 +36,13 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker")
+
 public class PartitionedTopicsSchemaTest extends BkEnsemblesTestBase {
 
     /**
      * Test that sequence id from a producer is correct when there are send errors
      */
-    @Test
+    
     public void partitionedTopicWithSchema() throws Exception {
         admin.namespaces().createNamespace("prop/my-test", Collections.singleton("usc"));
 

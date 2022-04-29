@@ -67,7 +67,7 @@ public class DLOutputStreamTest {
     /**
      * Test Case: write data using input stream.
      */
-    @Test
+
     public void writeInputStreamData() throws ExecutionException, InterruptedException {
         byte[] data = "test-write".getBytes();
         DLOutputStream.openWriterAsync(dlm)
@@ -83,7 +83,7 @@ public class DLOutputStreamTest {
     /**
      * Test Case: write data with byte array.
      */
-    @Test
+
     public void writeBytesArrayData() throws ExecutionException, InterruptedException {
         byte[] data = "test-write".getBytes();
         DLOutputStream.openWriterAsync(dlm)
@@ -96,7 +96,7 @@ public class DLOutputStreamTest {
         verify(dlm, times(1)).asyncClose();
     }
 
-    @Test
+
     public void writeLongBytesArrayData() throws ExecutionException, InterruptedException {
         byte[] data = new byte[8192 * 3 + 4096];
         DLOutputStream.openWriterAsync(dlm)
@@ -109,7 +109,7 @@ public class DLOutputStreamTest {
         verify(dlm, times(1)).asyncClose();
     }
 
-    @Test
+
     public void openAsyncLogWriterFailed() {
         when(dlm.openAsyncLogWriter()).thenReturn(failedFuture(new Exception("Open writer was failed")));
 
@@ -120,7 +120,7 @@ public class DLOutputStreamTest {
         }
     }
 
-    @Test
+
     public void writeRecordFailed() {
         when(writer.writeBulk(any(List.class)))
             .thenReturn(failedFuture(new Exception("Write data was failed")));

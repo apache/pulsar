@@ -32,7 +32,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker")
+
 public class BrokerServiceAutoSubscriptionCreationTest extends BrokerTestBase {
 
     private final AtomicInteger testId = new AtomicInteger(0);
@@ -54,7 +54,7 @@ public class BrokerServiceAutoSubscriptionCreationTest extends BrokerTestBase {
         pulsar.getAdminClient().namespaces().removeAutoSubscriptionCreation("prop/ns-abc");
     }
 
-    @Test
+
     public void testAutoSubscriptionCreationDisable() throws Exception {
         pulsar.getConfiguration().setAllowAutoSubscriptionCreation(false);
 
@@ -72,7 +72,7 @@ public class BrokerServiceAutoSubscriptionCreationTest extends BrokerTestBase {
         assertFalse(admin.topics().getSubscriptions(topicName).contains(subscriptionName));
     }
 
-    @Test
+
     public void testSubscriptionCreationWithAutoCreationDisable() throws Exception {
         pulsar.getConfiguration().setAllowAutoSubscriptionCreation(false);
 
@@ -90,7 +90,7 @@ public class BrokerServiceAutoSubscriptionCreationTest extends BrokerTestBase {
         pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName).subscribe();
     }
 
-    @Test
+
     public void testAutoSubscriptionCreationNamespaceAllowOverridesBroker() throws Exception {
         final String topic = "persistent://prop/ns-abc/test-subtopic-" + testId.getAndIncrement();
         final String subscriptionName = "test-subtopic-sub-2";
@@ -112,7 +112,7 @@ public class BrokerServiceAutoSubscriptionCreationTest extends BrokerTestBase {
         assertTrue(admin.topics().getSubscriptions(topicName.toString()).contains(subscriptionName));
     }
 
-    @Test
+
     public void testAutoSubscriptionCreationNamespaceDisallowOverridesBroker() throws Exception {
         final String topic = "persistent://prop/ns-abc/test-subtopic-" + testId.getAndIncrement();
         final String subscriptionName = "test-subtopic-sub-3";
@@ -138,7 +138,7 @@ public class BrokerServiceAutoSubscriptionCreationTest extends BrokerTestBase {
         assertFalse(admin.topics().getSubscriptions(topicName.toString()).contains(subscriptionName));
     }
 
-    @Test
+
     public void testNonPersistentTopicSubscriptionCreationWithAutoCreationDisable() throws Exception {
         pulsar.getConfiguration().setAllowAutoSubscriptionCreation(false);
 

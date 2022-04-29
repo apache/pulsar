@@ -32,7 +32,7 @@ import org.testng.annotations.Test;
 @Slf4j
 public class RoundRobinSchedulerTest {
 
-    @Test
+
     public void testRebalance() {
         Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder()
                 .setFunctionDetails(Function.FunctionDetails.newBuilder().setName("func-1")

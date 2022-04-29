@@ -42,10 +42,10 @@ import org.testng.annotations.Test;
 /**
  * Unit test {@link BookKeeperClientFactoryImpl}.
  */
-@Test(groups = "broker")
+
 public class BookKeeperClientFactoryImplTest {
 
-    @Test
+
     public void testSetDefaultEnsemblePlacementPolicyRackAwareDisabled() {
         ClientConfiguration bkConf = new ClientConfiguration();
         ServiceConfiguration conf = new ServiceConfiguration();
@@ -75,7 +75,7 @@ public class BookKeeperClientFactoryImplTest {
         assertEquals(2, bkConf.getMinNumRacksPerWriteQuorum());
     }
 
-    @Test
+
     public void testSetDefaultEnsemblePlacementPolicyRackAwareEnabled() {
         ClientConfiguration bkConf = new ClientConfiguration();
         ServiceConfiguration conf = new ServiceConfiguration();
@@ -108,7 +108,7 @@ public class BookKeeperClientFactoryImplTest {
         assertEquals(2, bkConf.getMinNumRacksPerWriteQuorum());
     }
 
-    @Test
+
     public void testSetDefaultEnsemblePlacementPolicyRackAwareEnabledChangedValues() {
         ClientConfiguration bkConf = new ClientConfiguration();
         ServiceConfiguration conf = new ServiceConfiguration();
@@ -148,7 +148,7 @@ public class BookKeeperClientFactoryImplTest {
         assertEquals(20, bkConf.getMinNumRacksPerWriteQuorum());
     }
 
-    @Test
+
     public void testSetDiskWeightBasedPlacementEnabled() {
         BookKeeperClientFactoryImpl factory = new BookKeeperClientFactoryImpl();
         ServiceConfiguration conf = new ServiceConfiguration();
@@ -160,7 +160,7 @@ public class BookKeeperClientFactoryImplTest {
                 .getDiskWeightBasedPlacementEnabled());
     }
 
-    @Test
+
     public void testSetExplicitLacInterval() {
         BookKeeperClientFactoryImpl factory = new BookKeeperClientFactoryImpl();
         ServiceConfiguration conf = new ServiceConfiguration();
@@ -173,7 +173,7 @@ public class BookKeeperClientFactoryImplTest {
                 5);
     }
 
-    @Test
+
     public void testSetMetadataServiceUriZookkeeperServers() {
         BookKeeperClientFactoryImpl factory = new BookKeeperClientFactoryImpl();
         ServiceConfiguration conf = new ServiceConfiguration();
@@ -192,7 +192,7 @@ public class BookKeeperClientFactoryImplTest {
     }
 
 
-    @Test
+
     public void testSetMetadataServiceUriMetadataStoreUrl() {
         BookKeeperClientFactoryImpl factory = new BookKeeperClientFactoryImpl();
         ServiceConfiguration conf = new ServiceConfiguration();
@@ -232,7 +232,7 @@ public class BookKeeperClientFactoryImplTest {
 
 
 
-    @Test
+
     public void testSetMetadataServiceUriBookkeeperMetadataServiceUri() {
         BookKeeperClientFactoryImpl factory = new BookKeeperClientFactoryImpl();
         ServiceConfiguration conf = new ServiceConfiguration();
@@ -260,7 +260,7 @@ public class BookKeeperClientFactoryImplTest {
         }
     }
 
-    @Test
+
     public void testOpportunisticStripingConfiguration() {
         BookKeeperClientFactoryImpl factory = new BookKeeperClientFactoryImpl();
         ServiceConfiguration conf = new ServiceConfiguration();

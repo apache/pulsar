@@ -94,7 +94,7 @@ public class ProxyPrometheusMetricsTest extends MockedPulsarServiceBaseTest {
     /**
      * Validates proxy Prometheus endpoint.
      */
-    @Test
+
     public void testMetrics() {
         Counter.build("test_counter", "a test counter").create().register();
 

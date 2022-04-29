@@ -61,7 +61,7 @@ import org.testng.annotations.Test;
 
 import com.google.common.collect.Lists;
 
-@Test(groups = "broker")
+
 public class PersistentQueueE2ETest extends BrokerTestBase {
 
     @BeforeClass
@@ -86,7 +86,7 @@ public class PersistentQueueE2ETest extends BrokerTestBase {
         }
     }
 
-    @Test
+
     public void testSimpleConsumerEvents() throws Exception {
         final String topicName = "persistent://prop/use/ns-abc/shared-topic1";
         final String subName = "sub1";
@@ -187,7 +187,7 @@ public class PersistentQueueE2ETest extends BrokerTestBase {
         deleteTopic(topicName);
     }
 
-    @Test
+
     public void testReplayOnConsumerDisconnect() throws Exception {
         final String topicName = "persistent://prop/use/ns-abc/shared-topic3";
         final String subName = "sub3";
@@ -241,7 +241,7 @@ public class PersistentQueueE2ETest extends BrokerTestBase {
     // this test is good to have to see the distribution, but every now and then it gets slightly different than the
     // expected numbers. keeping this disabled to not break the build, but nevertheless this gives good insight into
     // how the round robin distribution algorithm is behaving
-    @Test(enabled = false)
+    
     public void testRoundRobinBatchDistribution() throws Exception {
         final String topicName = "persistent://prop/use/ns-abc/shared-topic5";
         final String subName = "sub5";
@@ -312,7 +312,7 @@ public class PersistentQueueE2ETest extends BrokerTestBase {
         deleteTopic(topicName);
     }
 
-    @Test(timeOut = 300000)
+    
     public void testSharedSingleAckedNormalTopic() throws Exception {
         String key = "test1";
         final String topicName = "persistent://prop/use/ns-abc/topic-" + key;
@@ -383,7 +383,7 @@ public class PersistentQueueE2ETest extends BrokerTestBase {
         assertEquals(receivedConsumer2, totalMessages);
     }
 
-    @Test(timeOut = 60000)
+    
     public void testCancelReadRequestOnLastDisconnect() throws Exception {
         String key = "testCancelReadRequestOnLastDisconnect";
         final String topicName = "persistent://prop/use/ns-abc/topic-" + key;
@@ -460,7 +460,7 @@ public class PersistentQueueE2ETest extends BrokerTestBase {
         assertEquals(receivedConsumer1, totalMessages);
     }
 
-    @Test
+
     public void testUnackedCountWithRedeliveries() throws Exception {
         final String topicName = "persistent://prop/use/ns-abc/testUnackedCountWithRedeliveries";
         final String subName = "sub3";

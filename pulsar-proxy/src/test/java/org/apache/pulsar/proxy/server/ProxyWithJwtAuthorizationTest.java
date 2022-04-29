@@ -133,7 +133,7 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
      *
      * </pre>
      */
-    @Test
+
     public void testProxyAuthorization() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -211,7 +211,7 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
      * 4. Broker should authorize producer/consumer normally.
      * </pre>
      */
-    @Test
+
     public void testUpdatePartitionNumAndReconnect() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -306,7 +306,7 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
      *
      * </pre>
      */
-    @Test
+
     public void testProxyAuthorizationWithPrefixSubscriptionAuthMode() throws Exception {
         log.info("-- Starting {} test --", methodName);
 

@@ -41,7 +41,7 @@ public class FileConsumerThreadTests extends AbstractFileTests {
     private PushSource<byte[]> consumer;
     private FileConsumerThread consumerThread;
 
-    @Test
+
     public final void singleFileTest() throws IOException {
 
         consumer = Mockito.mock(PushSource.class);
@@ -76,7 +76,7 @@ public class FileConsumerThreadTests extends AbstractFileTests {
         }
     }
 
-    @Test
+
     public final void mulitpleFileTest() throws IOException {
 
         consumer = Mockito.mock(PushSource.class);
@@ -111,7 +111,7 @@ public class FileConsumerThreadTests extends AbstractFileTests {
         }
     }
 
-    @Test
+
     public final void multiLineFileTest() throws IOException {
 
         consumer = Mockito.mock(PushSource.class);

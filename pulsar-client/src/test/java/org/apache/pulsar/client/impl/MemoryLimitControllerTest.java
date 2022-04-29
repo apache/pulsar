@@ -45,7 +45,7 @@ public class MemoryLimitControllerTest {
         executor.shutdownNow();
     }
 
-    @Test
+
     public void testLimit() throws Exception {
         MemoryLimitController mlc = new MemoryLimitController(100);
 
@@ -62,7 +62,7 @@ public class MemoryLimitControllerTest {
         assertEquals(mlc.currentUsage(), 101);
     }
 
-    @Test
+
     public void testBlocking() throws Exception {
         MemoryLimitController mlc = new MemoryLimitController(100);
 
@@ -111,7 +111,7 @@ public class MemoryLimitControllerTest {
         assertEquals(mlc.currentUsage(), 101);
     }
 
-    @Test
+
     public void testStepRelease() throws Exception {
         MemoryLimitController mlc = new MemoryLimitController(100);
 

@@ -57,7 +57,7 @@ import org.testng.annotations.Test;
  * Test for consuming transaction messages.
  */
 @Slf4j
-@Test(groups = "broker")
+
 public class PendingAckPersistentTest extends TransactionTestBase {
 
     private static final String PENDING_ACK_REPLAY_TOPIC = NAMESPACE1 + "/pending-ack-replay";
@@ -74,7 +74,7 @@ public class PendingAckPersistentTest extends TransactionTestBase {
         super.internalCleanup();
     }
 
-    @Test
+
     public void individualPendingAckReplayTest() throws Exception {
         int messageCount = 1000;
         String subName = "individual-test";
@@ -189,7 +189,7 @@ public class PendingAckPersistentTest extends TransactionTestBase {
                         .compareTo((PositionImpl) managedCursor.getManagedLedger().getLastConfirmedEntry()) == -1);
     }
 
-    @Test
+
     public void cumulativePendingAckReplayTest() throws Exception {
         int messageCount = 1000;
         String subName = "cumulative-test";
@@ -281,7 +281,7 @@ public class PendingAckPersistentTest extends TransactionTestBase {
                         .compareTo((PositionImpl) managedCursor.getManagedLedger().getLastConfirmedEntry()) == 0);
     }
 
-    @Test
+
     private void testDeleteSubThenDeletePendingAckManagedLedger() throws Exception {
 
         String subName = "test-delete";
@@ -309,7 +309,7 @@ public class PendingAckPersistentTest extends TransactionTestBase {
         assertTrue(topics.contains(topic));
     }
 
-    @Test
+
     private void testDeleteTopicThenDeletePendingAckManagedLedger() throws Exception {
 
         String subName1 = "test-delete";

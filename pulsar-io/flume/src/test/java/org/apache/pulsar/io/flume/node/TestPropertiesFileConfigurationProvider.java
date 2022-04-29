@@ -56,7 +56,7 @@ public class TestPropertiesFileConfigurationProvider {
 
     }
 
-    @Test
+
     public void testPropertyRead() {
 
         FlumeConfiguration configuration = provider.getFlumeConfiguration();

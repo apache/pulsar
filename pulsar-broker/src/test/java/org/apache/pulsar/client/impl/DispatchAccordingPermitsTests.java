@@ -35,7 +35,7 @@ import org.testng.annotations.Test;
 
 import java.util.concurrent.TimeUnit;
 
-@Test(groups = "broker-impl")
+
 public class DispatchAccordingPermitsTests extends ProducerConsumerBase {
 
     @Override
@@ -58,7 +58,7 @@ public class DispatchAccordingPermitsTests extends ProducerConsumerBase {
      *
      * According the batch average size dispatching, the broker will dispatch all the batches to the consumer
      */
-    @Test
+
     public void testFlowPermitsWithMultiBatchesDispatch() throws PulsarAdminException, PulsarClientException {
         final String topic = "persistent://public/default/testFlowPermitsWithMultiBatchesDispatch";
         final String subName = "test";

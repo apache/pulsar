@@ -42,7 +42,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 @Slf4j
-@Test(groups = "broker-impl")
+
 public class BatchMessageIndexAckDisableTest extends ProducerConsumerBase {
 
     @BeforeMethod
@@ -64,7 +64,7 @@ public class BatchMessageIndexAckDisableTest extends ProducerConsumerBase {
         return new Object[][] { { true }, { false } };
     }
 
-    @Test(dataProvider = "ackReceiptEnabled")
+    
     public void testBatchMessageIndexAckForSharedSubscription(boolean ackReceiptEnabled) throws
             PulsarClientException, ExecutionException, InterruptedException {
         final String topic = "testBatchMessageIndexAckForSharedSubscription";
@@ -106,7 +106,7 @@ public class BatchMessageIndexAckDisableTest extends ProducerConsumerBase {
         Assert.assertEquals(received.size(), 100);
     }
 
-    @Test(dataProvider = "ackReceiptEnabled")
+    
     public void testBatchMessageIndexAckForExclusiveSubscription(boolean ackReceiptEnabled) throws
             PulsarClientException, ExecutionException, InterruptedException {
         final String topic = "testBatchMessageIndexAckForExclusiveSubscription";

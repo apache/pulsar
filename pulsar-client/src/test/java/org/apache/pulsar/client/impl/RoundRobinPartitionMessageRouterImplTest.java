@@ -37,7 +37,7 @@ import org.testng.annotations.Test;
  */
 public class RoundRobinPartitionMessageRouterImplTest {
 
-    @Test
+
     public void testChoosePartitionWithoutKey() {
         Message<?> msg = mock(Message.class);
         when(msg.getKey()).thenReturn(null);
@@ -49,7 +49,7 @@ public class RoundRobinPartitionMessageRouterImplTest {
         }
     }
 
-    @Test
+
     public void testChoosePartitionWithoutKeyWithBatching() {
         Message<?> msg = mock(Message.class);
         Mockito.when(msg.getKey()).thenReturn(null);
@@ -93,7 +93,7 @@ public class RoundRobinPartitionMessageRouterImplTest {
         }
     }
 
-    @Test
+
     public void testChoosePartitionWithNegativeTime() {
         Message<?> msg = mock(Message.class);
         when(msg.getKey()).thenReturn(null);
@@ -110,7 +110,7 @@ public class RoundRobinPartitionMessageRouterImplTest {
         assertTrue(idx < 5);
     }
 
-    @Test
+
     public void testChoosePartitionWithKey() {
         String key1 = "key1";
         String key2 = "key2";
@@ -129,7 +129,7 @@ public class RoundRobinPartitionMessageRouterImplTest {
         assertEquals(key2.hashCode() % 100, router.choosePartition(msg2, metadata));
     }
 
-    @Test
+
     public void testBatchingAwareness() throws Exception {
         Message<?> msg = mock(Message.class);
         when(msg.getKey()).thenReturn(null);

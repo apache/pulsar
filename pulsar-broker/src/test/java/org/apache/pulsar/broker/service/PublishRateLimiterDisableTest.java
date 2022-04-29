@@ -24,7 +24,7 @@ import org.testng.annotations.Test;
 public class PublishRateLimiterDisableTest {
 
     // GH issue #10603
-    @Test
+    
     void shouldAlwaysAllowAcquire() {
         PublishRateLimiterDisable publishRateLimiter = PublishRateLimiterDisable.DISABLED_RATE_LIMITER;
         assertTrue(publishRateLimiter.tryAcquire(Integer.MAX_VALUE, Long.MAX_VALUE));

@@ -83,12 +83,10 @@ public class ConsumerImplTest {
         }
     }
 
-    @Test(invocationTimeOut = 1000)
     public void testNotifyPendingReceivedCallback_EmptyQueueNotThrowsException() {
         consumer.notifyPendingReceivedCallback(null, null);
     }
 
-    @Test(invocationTimeOut = 500)
     public void testCorrectBackoffConfiguration() {
         final Backoff backoff = consumer.getConnectionHandler().backoff;
         ClientConfigurationData clientConfigurationData = new ClientConfigurationData();
@@ -96,7 +94,6 @@ public class ConsumerImplTest {
         Assert.assertEquals(backoff.next(), TimeUnit.NANOSECONDS.toMillis(clientConfigurationData.getInitialBackoffIntervalNanos()));
     }
 
-    @Test(invocationTimeOut = 1000)
     public void testNotifyPendingReceivedCallback_CompleteWithException() {
         CompletableFuture<Message<byte[]>> receiveFuture = new CompletableFuture<>();
         consumer.pendingReceives.add(receiveFuture);
@@ -113,7 +110,6 @@ public class ConsumerImplTest {
         Assert.assertTrue(receiveFuture.isCompletedExceptionally());
     }
 
-    @Test(invocationTimeOut = 1000)
     public void testNotifyPendingReceivedCallback_CompleteWithExceptionWhenMessageIsNull() {
         CompletableFuture<Message<byte[]>> receiveFuture = new CompletableFuture<>();
         consumer.pendingReceives.add(receiveFuture);
@@ -128,7 +124,6 @@ public class ConsumerImplTest {
         Assert.assertTrue(receiveFuture.isCompletedExceptionally());
     }
 
-    @Test(invocationTimeOut = 1000)
     public void testNotifyPendingReceivedCallback_InterceptorsWorksWithPrefetchDisabled() {
         CompletableFuture<Message<byte[]>> receiveFuture = new CompletableFuture<>();
         MessageImpl message = mock(MessageImpl.class);
@@ -146,7 +141,6 @@ public class ConsumerImplTest {
         Assert.assertEquals(receivedMessage, message);
     }
 
-    @Test(invocationTimeOut = 1000)
     public void testNotifyPendingReceivedCallback_WorkNormally() {
         CompletableFuture<Message<byte[]>> receiveFuture = new CompletableFuture<>();
         MessageImpl message = mock(MessageImpl.class);
@@ -165,7 +159,7 @@ public class ConsumerImplTest {
         Assert.assertEquals(receivedMessage, message);
     }
 
-    @Test
+
     public void testReceiveAsyncCanBeCancelled() {
         // given
         CompletableFuture<Message<byte[]>> future = consumer.receiveAsync();
@@ -176,7 +170,7 @@ public class ConsumerImplTest {
         Assert.assertTrue(consumer.pendingReceives.isEmpty());
     }
 
-    @Test
+
     public void testBatchReceiveAsyncCanBeCancelled() {
         // given
         CompletableFuture<Messages<byte[]>> future = consumer.batchReceiveAsync();
@@ -187,7 +181,7 @@ public class ConsumerImplTest {
         Assert.assertFalse(consumer.hasPendingBatchReceive());
     }
 
-    @Test
+
     public void testClose() {
         Exception checkException = null;
         try {
@@ -201,7 +195,7 @@ public class ConsumerImplTest {
         Assert.assertNull(checkException);
     }
 
-    @Test
+
     public void testConsumerCreatedWhilePaused() throws InterruptedException {
         PulsarClientImpl client = ClientTestFixtures.createPulsarClientMock(executorProvider, internalExecutor);
         ClientConfigurationData clientConf = client.getConfiguration();
@@ -218,7 +212,7 @@ public class ConsumerImplTest {
         Assert.assertTrue(consumer.paused);
     }
 
-    @Test
+
     public void testMaxReceiverQueueSize() {
         int size = consumer.getCurrentReceiverQueueSize();
         int permits = consumer.getAvailablePermits();

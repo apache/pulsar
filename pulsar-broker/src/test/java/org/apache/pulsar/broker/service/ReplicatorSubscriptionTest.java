@@ -57,12 +57,11 @@ import org.testng.annotations.Test;
 /**
  * Tests replicated subscriptions (PIP-33)
  */
-@Test(groups = "broker")
+
 public class ReplicatorSubscriptionTest extends ReplicatorTestBase {
     private static final Logger log = LoggerFactory.getLogger(ReplicatorSubscriptionTest.class);
 
     @Override
-    @BeforeClass(timeOut = 300000)
     public void setup() throws Exception {
         super.setup();
     }
@@ -76,7 +75,7 @@ public class ReplicatorSubscriptionTest extends ReplicatorTestBase {
     /**
      * Tests replicated subscriptions across two regions
      */
-    @Test
+
     public void testReplicatedSubscriptionAcrossTwoRegions() throws Exception {
         String namespace = BrokerTestUtil.newUniqueName("pulsar/replicatedsubscription");
         String topicName = "persistent://" + namespace + "/mytopic";
@@ -156,7 +155,7 @@ public class ReplicatorSubscriptionTest extends ReplicatorTestBase {
     /**
      * If there's no traffic, the snapshot creation should stop and then resume when traffic comes back
      */
-    @Test
+
     public void testReplicationSnapshotStopWhenNoTraffic() throws Exception {
         String namespace = BrokerTestUtil.newUniqueName("pulsar/replicatedsubscription");
         String topicName = "persistent://" + namespace + "/mytopic";
@@ -238,7 +237,7 @@ public class ReplicatorSubscriptionTest extends ReplicatorTestBase {
         assertNotEquals(rsc2.getLastCompletedSnapshotId().get(), snapshot2);
     }
 
-    @Test(timeOut = 30000)
+    
     public void testReplicatedSubscriptionRestApi1() throws Exception {
         final String namespace = BrokerTestUtil.newUniqueName("pulsar/replicatedsubscription");
         final String topicName = "persistent://" + namespace + "/topic-rest-api1";
@@ -349,7 +348,7 @@ public class ReplicatorSubscriptionTest extends ReplicatorTestBase {
                 String.format("numReceivedMessages2 (%d) should be less than %d", numReceivedMessages2, numMessages));
     }
 
-    @Test
+
     public void testGetReplicatedSubscriptionStatus() throws Exception {
         final String namespace = BrokerTestUtil.newUniqueName("pulsar/replicatedsubscription");
         final String topicName1 = "persistent://" + namespace + "/tp-no-part";
@@ -410,7 +409,7 @@ public class ReplicatorSubscriptionTest extends ReplicatorTestBase {
         });
     }
 
-    @Test(timeOut = 30000)
+    
     public void testReplicatedSubscriptionRestApi2() throws Exception {
         final String namespace = BrokerTestUtil.newUniqueName("pulsar/replicatedsubscription");
         final String topicName = "persistent://" + namespace + "/topic-rest-api2";
@@ -527,7 +526,7 @@ public class ReplicatorSubscriptionTest extends ReplicatorTestBase {
     /**
      * Tests replicated subscriptions when replicator producer is closed
      */
-    @Test
+
     public void testReplicatedSubscriptionWhenReplicatorProducerIsClosed() throws Exception {
         String namespace = BrokerTestUtil.newUniqueName("pulsar/replicatedsubscription");
         String topicName = "persistent://" + namespace + "/when-replicator-producer-is-closed";

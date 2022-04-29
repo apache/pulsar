@@ -55,7 +55,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker-compaction")
+
 public class CompactorTest extends MockedPulsarServiceBaseTest {
 
     private ScheduledExecutorService compactionScheduler;
@@ -125,7 +125,7 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
         return keys;
     }
 
-    @Test
+
     public void testCompaction() throws Exception {
         String topic = "persistent://my-property/use/my-ns/my-topic1";
         final int numMessages = 1000;
@@ -152,7 +152,7 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
         compactAndVerify(topic, expected, true);
     }
 
-    @Test
+
     public void testCompactAddCompact() throws Exception {
         String topic = "persistent://my-property/use/my-ns/my-topic1";
 
@@ -189,7 +189,7 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
         compactAndVerify(topic, expected, false);
     }
 
-    @Test
+
     public void testCompactedInOrder() throws Exception {
         String topic = "persistent://my-property/use/my-ns/my-topic1";
 
@@ -220,7 +220,7 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(keyOrder, Lists.newArrayList("c", "b", "a"));
     }
 
-    @Test
+
     public void testCompactEmptyTopic() throws Exception {
         String topic = "persistent://my-property/use/my-ns/my-topic1";
 
@@ -233,7 +233,7 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
         compactor.compact(topic).get();
     }
 
-    @Test
+
     public void testPhaseOneLoopTimeConfiguration() {
         ServiceConfiguration configuration = new ServiceConfiguration();
         configuration.setBrokerServiceCompactionPhaseOneLoopTimeInSeconds(60);

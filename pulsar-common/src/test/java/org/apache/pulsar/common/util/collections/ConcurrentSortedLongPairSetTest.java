@@ -36,7 +36,7 @@ import org.testng.annotations.Test;
 
 public class ConcurrentSortedLongPairSetTest {
 
-    @Test
+    
     public void simpleInsertions() {
         LongPairSet set = new ConcurrentSortedLongPairSet(16);
 
@@ -64,7 +64,7 @@ public class ConcurrentSortedLongPairSetTest {
         assertEquals(set.size(), 3);
     }
 
-    @Test
+    
     public void testRemove() {
         LongPairSet set = new ConcurrentSortedLongPairSet(16);
 
@@ -78,7 +78,7 @@ public class ConcurrentSortedLongPairSetTest {
         assertTrue(set.isEmpty());
     }
 
-    @Test
+    
     public void concurrentInsertions() throws Throwable {
         LongPairSet set = new ConcurrentSortedLongPairSet(16);
         @Cleanup("shutdownNow")
@@ -111,7 +111,7 @@ public class ConcurrentSortedLongPairSetTest {
         assertEquals(set.size(), N * nThreads);
     }
 
-    @Test
+    
     public void testIteration() {
         LongPairSet set = new ConcurrentSortedLongPairSet(16);
 
@@ -133,7 +133,7 @@ public class ConcurrentSortedLongPairSetTest {
 
     }
 
-    @Test
+    
     public void testRemoval() {
         LongPairSet set = new ConcurrentSortedLongPairSet(16);
 
@@ -159,7 +159,7 @@ public class ConcurrentSortedLongPairSetTest {
         assertEquals(values, Lists.newArrayList(new LongPair(6, 6), new LongPair(7, 7)));
     }
 
-    @Test
+    
     public void testIfRemoval() {
         LongPairSet set = new ConcurrentSortedLongPairSet(16, 1, 1);
 
@@ -183,7 +183,7 @@ public class ConcurrentSortedLongPairSetTest {
         assertEquals(values, Lists.newArrayList(new LongPair(6, 6), new LongPair(7, 7)));
     }
 
-    @Test
+    
     public void testItems() {
         LongPairSet set = new ConcurrentSortedLongPairSet(16);
 
@@ -203,7 +203,7 @@ public class ConcurrentSortedLongPairSetTest {
         assertEquals(set.size(), n - limit);
     }
 
-    @Test
+    
     public void testEqualsObjects() {
 
         LongPairSet set = new ConcurrentSortedLongPairSet(16);
@@ -225,7 +225,7 @@ public class ConcurrentSortedLongPairSetTest {
         assertFalse(set.contains(t1_b, t1_b));
     }
 
-    @Test
+    
     public void testToString() {
 
         LongPairSet set = new ConcurrentSortedLongPairSet(16);
@@ -238,7 +238,7 @@ public class ConcurrentSortedLongPairSetTest {
         assertEquals(set.toString(), toString);
     }
 
-    @Test
+    
     public void testIsEmpty() {
         LongPairSet set = new ConcurrentSortedLongPairSet();
         assertTrue(set.isEmpty());

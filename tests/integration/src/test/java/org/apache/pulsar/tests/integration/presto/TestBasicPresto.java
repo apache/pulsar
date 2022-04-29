@@ -90,13 +90,12 @@ public class TestBasicPresto extends TestPulsarSQLBase {
         };
     }
 
-    @Test(dataProvider = "batchingAndCompression")
+    
     public void testSimpleSQLQuery(boolean batchEnabled, CompressionType compressionType) throws Exception {
         TopicName topicName = TopicName.get("public/default/stocks_batched_" + randomName(5));
         pulsarSQLBasicTest(topicName, batchEnabled, false, JSONSchema.of(Stock.class), compressionType);
     }
 
-    @Test(dataProvider = "schemaProvider")
     public void testForSchema(Schema schema) throws Exception {
         String schemaFlag;
         if (schema.getSchemaInfo().getType().isStruct()) {
@@ -112,13 +111,13 @@ public class TestBasicPresto extends TestPulsarSQLBase {
         pulsarSQLBasicTest(TopicName.get(topic), false, false, schema, CompressionType.NONE);
     }
 
-    @Test
+
     public void testForUppercaseTopic() throws Exception {
         TopicName topicName = TopicName.get("public/default/case_UPPER_topic_" + randomName(5));
         pulsarSQLBasicTest(topicName, false, false, JSONSchema.of(Stock.class), CompressionType.NONE);
     }
 
-    @Test
+
     public void testForDifferentCaseTopic() throws Exception {
         String tableName = "diff_case_topic_" + randomName(5);
 
@@ -143,7 +142,7 @@ public class TestBasicPresto extends TestPulsarSQLBase {
         }
     }
 
-    @Test
+
     public void testListTopicShouldNotShowNonPersistentTopics() throws Exception {
         String tableName = "non_persistent" + randomName(5);
 
@@ -333,7 +332,6 @@ public class TestBasicPresto extends TestPulsarSQLBase {
         }
     }
 
-    @Test(timeOut = 1000 * 30)
     public void testQueueBigEntry() throws Exception {
         String tableName = "big_data_" + randomName(5);
         String topic = "persistent://public/default/" + tableName;

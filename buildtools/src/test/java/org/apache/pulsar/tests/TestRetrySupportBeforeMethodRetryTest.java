@@ -52,7 +52,6 @@ public class TestRetrySupportBeforeMethodRetryTest extends TestRetrySupport {
         markCurrentSetupNumberCleaned();
     }
 
-    @Test(retryAnalyzer = IllegalStateRetry.class)
     void shouldNotDoAnythingWhenThereIsBeforeAndAfterMethod(ITestContext testContext) {
         // get the number of times this method has been called
         invocationCount++;

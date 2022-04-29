@@ -38,7 +38,7 @@ public class ConsumerConfigurationTest {
     private static final Logger log = LoggerFactory.getLogger(ConsumerConfigurationTest.class);
 
     @SuppressWarnings({ "unchecked", "rawtypes" })
-    @Test
+
     public void testJsonIgnore() throws Exception {
 
         ConsumerConfigurationData<?> conf = new ConsumerConfigurationData<>();

@@ -30,7 +30,7 @@ public class ConnectionTimeoutTest {
     // 192.0.2.0/24 is assigned for documentation, should be a deadend
     static final String blackholeBroker = "pulsar://192.0.2.1:1234";
 
-    @Test
+    
     public void testLowTimeout() throws Exception {
         try (PulsarClient clientLow = PulsarClient.builder().serviceUrl(blackholeBroker)
                 .connectionTimeout(1, TimeUnit.MILLISECONDS)

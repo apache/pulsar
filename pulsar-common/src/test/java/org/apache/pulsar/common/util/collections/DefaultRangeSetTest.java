@@ -28,7 +28,7 @@ public class DefaultRangeSetTest {
     static final LongPairRangeSet.LongPairConsumer<LongPairRangeSet.LongPair> consumer =
             LongPairRangeSet.LongPair::new;
 
-    @Test
+
     public void testBehavior() {
         LongPairRangeSet.DefaultRangeSet<LongPairRangeSet.LongPair> set =
                 new LongPairRangeSet.DefaultRangeSet<>(consumer);

@@ -54,7 +54,7 @@ public class TestCmdClusters {
         cmdClusters = spy(new CmdClusters(() -> pulsarAdmin));
     }
 
-    @Test
+
     public void testCmdClusterConfigFile() throws Exception {
         ClusterData clusterData = buildClusterData();
         testCmdClusterConfigFile(clusterData, clusterData);

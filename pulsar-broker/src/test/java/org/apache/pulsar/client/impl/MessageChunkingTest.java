@@ -70,7 +70,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker-impl")
+
 public class MessageChunkingTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(MessageChunkingTest.class);
 
@@ -97,7 +97,7 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         return new Object[][] { { true }, { false } };
     }
 
-    @Test
+
     public void testInvalidConfig() throws Exception {
         final String topicName = "persistent://my-property/my-ns/my-topic1";
         ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic(topicName);
@@ -110,7 +110,7 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         }
     }
 
-    @Test(dataProvider = "ackReceiptEnabledWithMaxMessageSize")
+    ackReceiptEnabledWithMaxMessageSize")
     public void testLargeMessage(boolean ackReceiptEnabled, boolean clientSizeMaxMessageSize) throws Exception {
 
         log.info("-- Starting {} test --", methodName);
@@ -182,7 +182,7 @@ public class MessageChunkingTest extends ProducerConsumerBase {
 
     }
 
-    @Test
+
     public void testChunkingWithOrderingKey() throws Exception {
         this.conf.setMaxMessageSize(100);
 
@@ -205,7 +205,7 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         Assert.assertEquals(msg.getOrderingKey(), ok);
     }
 
-    @Test(dataProvider = "ackReceiptEnabled")
+    
     public void testLargeMessageAckTimeOut(boolean ackReceiptEnabled) throws Exception {
 
         log.info("-- Starting {} test --", methodName);
@@ -285,7 +285,7 @@ public class MessageChunkingTest extends ProducerConsumerBase {
 
     }
 
-    @Test
+
     public void testPublishWithFailure() throws Exception {
         log.info("-- Starting {} test --", methodName);
         this.conf.setMaxMessageSize(50);
@@ -307,7 +307,7 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         producer.close();
     }
 
-    @Test(enabled = false)
+    
     public void testMaxPendingChunkMessages() throws Exception {
 
         log.info("-- Starting {} test --", methodName);
@@ -361,7 +361,7 @@ public class MessageChunkingTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test
+
     public void testInvalidUseCaseForChunking() throws Exception {
 
         log.info("-- Starting {} test --", methodName);
@@ -380,7 +380,7 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test
+
     public void testExpireIncompleteChunkMessage() throws Exception{
         final String topicName = "persistent://prop/use/ns-abc/expireMsg";
 
@@ -431,7 +431,7 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         producer = null; // clean reference of mocked producer
     }
 
-    @Test
+
     public void testChunksEnqueueFailed() throws Exception {
         final String topicName = "persistent://my-property/my-ns/test-chunks-enqueue-failed";
         log.info("-- Starting {} test --", methodName);
@@ -469,7 +469,7 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         clientBuilder.memoryLimit(10000L, SizeUnit.BYTES);
     }
 
-    @Test
+
     public void testSeekChunkMessages() throws PulsarClientException {
         log.info("-- Starting {} test --", methodName);
         this.conf.setMaxMessageSize(50);
@@ -527,7 +527,7 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test
+
     public void testReaderChunkingConfiguration() throws Exception {
         log.info("-- Starting {} test --", methodName);
         final String topicName = "persistent://my-property/my-ns/my-topic1";

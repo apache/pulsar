@@ -29,11 +29,11 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import lombok.Cleanup;
 
-@Test(groups = "broker-impl")
+
 public class RawMessageSerDeserTest {
     static final Logger log = LoggerFactory.getLogger(RawMessageSerDeserTest.class);
 
-    @Test
+
     public void testSerializationAndDeserialization() {
         int payload = 0xbeefcafe;
         ByteBuf headersAndPayload = Unpooled.buffer(4);

@@ -84,7 +84,7 @@ public class FunctionMetaDataManagerTest {
         return client;
     }
 
-    @Test
+
     public void testListFunctions() throws PulsarClientException {
         FunctionMetaDataManager functionMetaDataManager = spy(
                 new FunctionMetaDataManager(new WorkerConfig(),
@@ -122,12 +122,12 @@ public class FunctionMetaDataManagerTest {
                 "tenant-1", "namespace-2").contains(f3));
     }
 
-    @Test
+
     public void testSendMsgFailWithCompaction() throws Exception {
         testSendMsgFail(true);
     }
 
-    @Test
+
     public void testSendMsgFailWithoutCompaction() throws Exception {
         testSendMsgFail(false);
     }
@@ -166,12 +166,12 @@ public class FunctionMetaDataManagerTest {
         assertEquals(functionMetaDataManager.getAllFunctionMetaData().size(), 0);
     }
 
-    @Test
+
     public void testUpdateIfLeaderFunctionWithoutCompaction() throws Exception {
         testUpdateIfLeaderFunction(false);
     }
 
-    @Test
+
     public void testUpdateIfLeaderFunctionWithCompaction() throws Exception {
         testUpdateIfLeaderFunction(true);
     }
@@ -225,12 +225,12 @@ public class FunctionMetaDataManagerTest {
         }
     }
 
-    @Test
+
     public void deregisterFunctionWithoutCompaction() throws Exception {
         deregisterFunction(false);
     }
 
-    @Test
+
     public void deregisterFunctionWithCompaction() throws Exception {
         deregisterFunction(true);
     }
@@ -290,7 +290,7 @@ public class FunctionMetaDataManagerTest {
         }
     }
 
-    @Test
+
     public void testProcessRequest() throws PulsarClientException, IOException {
         WorkerConfig workerConfig = new WorkerConfig();
         FunctionMetaDataManager functionMetaDataManager = spy(
@@ -329,7 +329,7 @@ public class FunctionMetaDataManagerTest {
         verify(functionMetaDataManager).processDeregister(serviceRequest.getFunctionMetaData());
     }
 
-    @Test
+
     public void processUpdateTest() throws PulsarClientException {
         SchedulerManager schedulerManager = mock(SchedulerManager.class);
         WorkerConfig workerConfig = new WorkerConfig();
@@ -379,7 +379,7 @@ public class FunctionMetaDataManagerTest {
                 "tenant-1").get("namespace-1").size());
     }
 
-    @Test
+
     public void processDeregister() throws PulsarClientException {
         SchedulerManager schedulerManager = mock(SchedulerManager.class);
         WorkerConfig workerConfig = new WorkerConfig();

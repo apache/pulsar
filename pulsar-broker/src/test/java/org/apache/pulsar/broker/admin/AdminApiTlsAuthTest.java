@@ -64,7 +64,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Slf4j
-@Test(groups = "broker-admin")
+
 public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
 
     private static String getTLSFile(String name) {
@@ -149,7 +149,7 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
             .tlsTrustCertsFilePath(getTLSFile("ca.cert")).build();
     }
 
-    @Test
+
     public void testSuperUserCanListTenants() throws Exception {
         try (PulsarAdmin admin = buildAdminClient("admin")) {
             admin.tenants().createTenant("tenant1",
@@ -159,7 +159,7 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+
     public void testProxyRoleCantListTenants() throws Exception {
         try (PulsarAdmin admin = buildAdminClient("admin")) {
             admin.tenants().createTenant("tenant1",
@@ -174,7 +174,7 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+
     public void testSuperUserCanGetResourceGroups() throws Exception {
         try (PulsarAdmin admin = buildAdminClient("admin")) {
             admin.resourcegroups().createResourceGroup("test-resource-group",
@@ -186,7 +186,7 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+
     public void testSuperUserCanDeleteResourceGroups() throws Exception {
         try (PulsarAdmin admin = buildAdminClient("admin")) {
             admin.resourcegroups().createResourceGroup("test-resource-group",
@@ -195,7 +195,7 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+
     public void testProxyRoleCantDeleteResourceGroups() throws Exception {
         try (PulsarAdmin admin = buildAdminClient("admin")) {
             admin.resourcegroups().createResourceGroup("test-resource-group",
@@ -209,7 +209,7 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+
     public void testProxyRoleCantCreateResourceGroups() throws Exception {
         try (PulsarAdmin admin = buildAdminClient("proxy")) {
             admin.resourcegroups().createResourceGroup("test-resource-group",
@@ -220,7 +220,7 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+
     public void testProxyRoleCantGetResourceGroups() throws Exception {
         try (PulsarAdmin admin = buildAdminClient("admin")) {
             admin.resourcegroups().createResourceGroup("test-resource-group",
@@ -240,7 +240,7 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+
     public void testProxyRoleCantListNamespacesEvenWithAccess() throws Exception {
         try (PulsarAdmin admin = buildAdminClient("admin")) {
             admin.tenants().createTenant("tenant1",
@@ -256,7 +256,7 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+
     public void testAuthorizedUserAsOriginalPrincipal() throws Exception {
         try (PulsarAdmin admin = buildAdminClient("admin")) {
             admin.tenants().createTenant("tenant1",
@@ -272,7 +272,7 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
                             .get(new GenericType<List<String>>() {}));
     }
 
-    @Test
+
     public void testUnauthorizedUserAsOriginalPrincipal() throws Exception {
         try (PulsarAdmin admin = buildAdminClient("admin")) {
             admin.tenants().createTenant("tenant1",
@@ -292,7 +292,7 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+
     public void testAuthorizedUserAsOriginalPrincipalButProxyNotAuthorized() throws Exception {
         try (PulsarAdmin admin = buildAdminClient("admin")) {
             admin.tenants().createTenant("tenant1",
@@ -312,7 +312,7 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+
     public void testAuthorizedUserAsOriginalPrincipalProxyIsSuperUser() throws Exception {
         try (PulsarAdmin admin = buildAdminClient("admin")) {
             admin.tenants().createTenant("tenant1",
@@ -328,7 +328,7 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
                             .get(new GenericType<List<String>>() {}));
     }
 
-    @Test
+
     public void testUnauthorizedUserAsOriginalPrincipalProxyIsSuperUser() throws Exception {
         try (PulsarAdmin admin = buildAdminClient("admin")) {
             admin.tenants().createTenant("tenant1",
@@ -348,7 +348,7 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+
     public void testProxyUserViaProxy() throws Exception {
         try (PulsarAdmin admin = buildAdminClient("admin")) {
             admin.tenants().createTenant("tenant1",
@@ -368,7 +368,7 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+
     public void testSuperProxyUserAndAdminCanListTenants() throws Exception {
         try (PulsarAdmin admin = buildAdminClient("admin")) {
             admin.tenants().createTenant("tenant1",
@@ -383,7 +383,7 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
                             .get(new GenericType<List<String>>() {}));
     }
 
-    @Test
+
     public void testSuperProxyUserAndNonAdminCannotListTenants() throws Exception {
         try (PulsarAdmin admin = buildAdminClient("admin")) {
             admin.tenants().createTenant("tenant1",
@@ -402,7 +402,7 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+
     public void testProxyCannotSetOriginalPrincipalAsEmpty() throws Exception {
         try (PulsarAdmin admin = buildAdminClient("admin")) {
             admin.tenants().createTenant("tenant1",
@@ -423,7 +423,7 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
     }
 
     // For https://github.com/apache/pulsar/issues/2880
-    @Test
+
     public void testDeleteNamespace() throws Exception {
         try (PulsarAdmin admin = buildAdminClient("admin")) {
             log.info("Creating tenant");
@@ -451,7 +451,7 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
      * Validates Pulsar-admin performs auto cert refresh.
      * @throws Exception
      */
-    @Test
+
     public void testCertRefreshForPulsarAdmin() throws Exception {
         String adminUser = "admin";
         String user2 = "user1";

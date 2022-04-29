@@ -63,7 +63,7 @@ public class ReflectionsTest {
         this.classLoader = ReflectionsTest.class.getClassLoader();
     }
 
-    @Test
+
     public void testCreateInstanceClassNotFound() {
         try {
             createInstance("notfound-class", classLoader);
@@ -73,7 +73,7 @@ public class ReflectionsTest {
         }
     }
 
-    @Test
+
     public void testCreateInstanceNoNoArgConstructor() {
         try {
             createInstance(OneArgClass.class.getName(), classLoader);
@@ -83,7 +83,7 @@ public class ReflectionsTest {
         }
     }
 
-    @Test
+
     public void testCreateInstanceConstructorThrowsException() {
         try {
             createInstance(ThrowExceptionClass.class.getName(), classLoader);
@@ -93,7 +93,7 @@ public class ReflectionsTest {
         }
     }
 
-    @Test
+
     public void testCreateInstanceAbstractClass() {
         try {
             createInstance(AbstractClass.class.getName(), classLoader);
@@ -103,7 +103,7 @@ public class ReflectionsTest {
         }
     }
 
-    @Test
+
     public void testCreateTypedInstanceClassNotFound() {
         try {
             createInstance("notfound-class", aInterface.class, classLoader);
@@ -113,7 +113,7 @@ public class ReflectionsTest {
         }
     }
 
-    @Test
+
     public void testCreateTypedInstanceNoNoArgConstructor() {
         try {
             createInstance(OneArgClass.class.getName(), aInterface.class, classLoader);
@@ -123,7 +123,7 @@ public class ReflectionsTest {
         }
     }
 
-    @Test
+
     public void testCreateTypedInstanceConstructorThrowsException() {
         try {
             createInstance(ThrowExceptionClass.class.getName(), aInterface.class, classLoader);
@@ -133,7 +133,7 @@ public class ReflectionsTest {
         }
     }
 
-    @Test
+
     public void testCreateTypedInstanceAbstractClass() {
         try {
             createInstance(AbstractClass.class.getName(), aInterface.class, classLoader);
@@ -143,7 +143,7 @@ public class ReflectionsTest {
         }
     }
 
-    @Test
+
     public void testCreateTypedInstanceUnassignableClass() {
         try {
             createInstance(aImplementation.class.getName(), bInterface.class, classLoader);
@@ -155,19 +155,19 @@ public class ReflectionsTest {
         }
     }
 
-    @Test
+
     public void testClassInJarImplementsIface() {
         assertTrue(Reflections.classImplementsIface(aImplementation.class.getName(), aInterface.class));
         assertFalse(Reflections.classImplementsIface(aImplementation.class.getName(), bInterface.class));
     }
 
-    @Test
+
     public void testClassExists() {
         assertTrue(Reflections.classExists(String.class.getName()));
         assertFalse(Reflections.classExists("com.fake.class"));
     }
 
-    @Test
+
     public void testLoadClass() throws Exception {
         ClassLoader clsLoader = ClassLoader.getSystemClassLoader();
         Class[] classes = new Class[] {

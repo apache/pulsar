@@ -40,7 +40,7 @@ public class ManagedLedgerMBeanTest extends MockedBookKeeperTestCase {
         }
     }
 
-    @Test
+
     public void simple() throws Exception {
         ManagedLedgerFactoryConfig config = new ManagedLedgerFactoryConfig();
         config.setMaxCacheSize(0);

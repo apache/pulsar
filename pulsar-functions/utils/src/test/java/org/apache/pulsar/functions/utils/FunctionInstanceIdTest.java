@@ -27,7 +27,7 @@ import org.testng.annotations.Test;
  */
 public class FunctionInstanceIdTest {
 
-    @Test
+
     public void testThrowsExceptionWhenTenantNamespaceFunctionNameNotProperlyDelimited() {
         try {
             FunctionInstanceId id = new FunctionInstanceId("tenant/namespace:function");
@@ -38,7 +38,7 @@ public class FunctionInstanceIdTest {
         }
     }
 
-    @Test
+
     public void testThrowsExceptionWhenFunctionInstanceIdNotPropertyDelimited() {
         try {
             FunctionInstanceId id = new FunctionInstanceId("tenant/namespace/function-1");
@@ -49,7 +49,7 @@ public class FunctionInstanceIdTest {
         }
     }
 
-    @Test
+
     public void testAllowsColonsInFunctionName() {
         FunctionInstanceId id = new FunctionInstanceId("tenant/namespace/my:function:name:-1");
 

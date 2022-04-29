@@ -49,7 +49,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
 
-@Test(groups = "broker")
+
 public class BrokerInterceptorTest extends ProducerConsumerBase {
 
     private static final String listenerName1 = "listener1";
@@ -100,14 +100,14 @@ public class BrokerInterceptorTest extends ProducerConsumerBase {
         super.internalCleanup();
     }
 
-    @Test
+
     public void testInitialize() throws Exception {
         listeners.initialize(pulsar);
         verify(listener1, times(1)).initialize(same(pulsar));
         verify(listener2, times(1)).initialize(same(pulsar));
     }
 
-    @Test
+
     public void testWebserviceRequest() throws PulsarAdminException {
         BrokerInterceptor listener = pulsar.getBrokerInterceptor();
         Assert.assertTrue(listener instanceof CounterBrokerInterceptor);
@@ -115,7 +115,7 @@ public class BrokerInterceptorTest extends ProducerConsumerBase {
         Assert.assertTrue(((CounterBrokerInterceptor)listener).getCount() >= 1);
     }
 
-    @Test
+
     public void testPulsarCommand() throws PulsarClientException {
         BrokerInterceptor listener = pulsar.getBrokerInterceptor();
         Assert.assertTrue(listener instanceof CounterBrokerInterceptor);
@@ -124,7 +124,7 @@ public class BrokerInterceptorTest extends ProducerConsumerBase {
         Assert.assertTrue(((CounterBrokerInterceptor)listener).getCount() >= 2);
     }
 
-    @Test
+
     public void testConnectionCreation() throws PulsarClientException {
         BrokerInterceptor listener = pulsar.getBrokerInterceptor();
         Assert.assertTrue(listener instanceof CounterBrokerInterceptor);
@@ -134,7 +134,7 @@ public class BrokerInterceptorTest extends ProducerConsumerBase {
         Assert.assertTrue(((CounterBrokerInterceptor)listener).getConnectionCreationCount() == 1);
     }
 
-    @Test
+
     public void testProducerCreation() throws PulsarClientException {
         BrokerInterceptor listener = pulsar.getBrokerInterceptor();
         Assert.assertTrue(listener instanceof CounterBrokerInterceptor);
@@ -143,7 +143,7 @@ public class BrokerInterceptorTest extends ProducerConsumerBase {
         Assert.assertTrue(((CounterBrokerInterceptor)listener).getProducerCount() == 1);
     }
 
-    @Test
+
     public void testConsumerCreation() throws PulsarClientException {
         BrokerInterceptor listener = pulsar.getBrokerInterceptor();
         Assert.assertTrue(listener instanceof CounterBrokerInterceptor);
@@ -152,7 +152,7 @@ public class BrokerInterceptorTest extends ProducerConsumerBase {
         Assert.assertTrue(((CounterBrokerInterceptor)listener).getConsumerCount() == 1);
     }
 
-    @Test
+
     public void testBeforeSendMessage() throws PulsarClientException {
         BrokerInterceptor listener = pulsar.getBrokerInterceptor();
         Assert.assertTrue(listener instanceof CounterBrokerInterceptor);
@@ -180,7 +180,7 @@ public class BrokerInterceptorTest extends ProducerConsumerBase {
         assertEquals(((CounterBrokerInterceptor)listener).getMessageDispatchCount(),1);
     }
 
-    @Test
+
     public void testInterceptAck() throws Exception {
         final String topic = "test-intercept-ack" + UUID.randomUUID();
         BrokerInterceptor interceptor = pulsar.getBrokerInterceptor();
@@ -197,7 +197,7 @@ public class BrokerInterceptorTest extends ProducerConsumerBase {
         Assert.assertEquals(((CounterBrokerInterceptor) interceptor).getHandleAckCount(), 1);
     }
 
-    @Test
+
     public void asyncResponseFilterTest() throws Exception {
         Assert.assertTrue(pulsar.getBrokerInterceptor() instanceof CounterBrokerInterceptor);
         CounterBrokerInterceptor interceptor = (CounterBrokerInterceptor) pulsar.getBrokerInterceptor();

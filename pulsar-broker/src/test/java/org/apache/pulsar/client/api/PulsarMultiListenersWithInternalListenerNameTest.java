@@ -54,7 +54,7 @@ import org.testng.annotations.Test;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
 
-@Test(groups = "broker-api")
+
 public class PulsarMultiListenersWithInternalListenerNameTest extends MockedPulsarServiceBaseTest {
     private final boolean withInternalListener;
     private ExecutorService executorService;
@@ -109,7 +109,7 @@ public class PulsarMultiListenersWithInternalListenerNameTest extends MockedPuls
     protected void customizeNewPulsarClientBuilder(ClientBuilder clientBuilder) {
         clientBuilder.listenerName("internal");
     }
-    @Test
+
     public void testFindBrokerWithListenerName() throws Exception {
         admin.clusters().createCluster("localhost", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
         TenantInfo tenantInfo = TenantInfo.builder()
@@ -150,7 +150,7 @@ public class PulsarMultiListenersWithInternalListenerNameTest extends MockedPuls
         }
     }
 
-    @Test
+
     public void testHttpLookupRedirect() throws Exception {
         admin.clusters().createCluster("localhost", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
         TenantInfo tenantInfo = TenantInfo.builder()

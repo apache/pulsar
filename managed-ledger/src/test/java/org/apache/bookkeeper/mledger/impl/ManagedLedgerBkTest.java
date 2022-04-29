@@ -58,7 +58,7 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         super(2);
     }
 
-    @Test
+
     public void testSimpleRead() throws Exception {
         ManagedLedgerFactoryConfig factoryConf = new ManagedLedgerFactoryConfig();
         factoryConf.setMaxCacheSize(0);
@@ -83,7 +83,7 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         entries.forEach(Entry::release);
     }
 
-    @Test
+
     public void testBookieFailure() throws Exception {
         ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(metadataStore, bkc);
         ManagedLedgerConfig config = new ManagedLedgerConfig();
@@ -147,7 +147,7 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         factory.shutdown();
     }
 
-    @Test
+
     public void verifyConcurrentUsage() throws Exception {
         ManagedLedgerFactoryConfig config = new ManagedLedgerFactoryConfig();
 
@@ -224,7 +224,7 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         assertEquals(cacheManager.mlFactoryMBean.getNumberOfCacheEvictions(), 0);
     }
 
-    @Test
+
     public void testSimple() throws Exception {
         @Cleanup("shutdown")
         ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(metadataStore, bkc);
@@ -239,7 +239,7 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         ledger.addEntry("test".getBytes());
     }
 
-    @Test
+
     public void testConcurrentMarkDelete() throws Exception {
         @Cleanup("shutdown")
         ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(metadataStore, bkc);
@@ -291,7 +291,7 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         Thread.sleep(1000);
     }
 
-    @Test
+
     public void asyncMarkDeleteAndClose() throws Exception {
         @Cleanup("shutdown")
         ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(metadataStore, bkc);
@@ -342,7 +342,7 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
      * will close the ledger an re-replicate it. After that, the next write will get a FencedException. We should
      * recover from this condition by creating a new ledger and retrying the write.
      */
-    @Test
+
     public void ledgerFencedByAutoReplication() throws Exception {
         @Cleanup("shutdown")
         ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(metadataStore, bkc);
@@ -372,7 +372,7 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
     /**
      * When another process steals the ML, the old instance should not succeed in any operation
      */
-    @Test
+
     public void ledgerFencedByFailover() throws Exception {
         @Cleanup("shutdown")
         ManagedLedgerFactoryImpl factory1 = new ManagedLedgerFactoryImpl(metadataStore, bkc);
@@ -408,7 +408,7 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         assertEquals(2, c2.getNumberOfEntriesInBacklog(false));
     }
 
-    @Test
+
     public void testOfflineTopicBacklog() throws Exception {
         ManagedLedgerFactoryConfig factoryConf = new ManagedLedgerFactoryConfig();
         factoryConf.setMaxCacheSize(0);
@@ -440,7 +440,7 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         assertNotNull(offlineTopicStats);
     }
 
-    @Test(timeOut = 20000)
+    
     void testResetCursorAfterRecovery() throws Exception {
         @Cleanup("shutdown")
         ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(metadataStore, bkc);
@@ -471,7 +471,7 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         assertEquals(cursor.getNumberOfEntriesInBacklog(false), 3);
     }
 
-    @Test(timeOut = 30000)
+    
     public void managedLedgerClosed() throws Exception {
         @Cleanup("shutdown")
         ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(metadataStore, bkc);
@@ -510,7 +510,7 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         assertEquals(res.get().getClass(), ManagedLedgerAlreadyClosedException.class);
     }
 
-    @Test
+
     public void testChangeCrcType() throws Exception {
         @Cleanup("shutdown")
         ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(metadataStore, bkc);

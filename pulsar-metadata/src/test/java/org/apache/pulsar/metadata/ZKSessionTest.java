@@ -40,10 +40,10 @@ import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
 
-@Test(groups = "quarantine")
+
 public class ZKSessionTest extends BaseMetadataStoreTest {
 
-    @Test
+    
     public void testDisconnection() throws Exception {
         @Cleanup
         MetadataStoreExtended store = MetadataStoreExtended.create(zks.getConnectionString(),
@@ -67,7 +67,7 @@ public class ZKSessionTest extends BaseMetadataStoreTest {
         assertNull(e);
     }
 
-    @Test
+    
     public void testSessionLost() throws Exception {
         @Cleanup
         MetadataStoreExtended store = MetadataStoreExtended.create(zks.getConnectionString(),
@@ -98,7 +98,7 @@ public class ZKSessionTest extends BaseMetadataStoreTest {
         assertNull(e);
     }
 
-    @Test
+    
     public void testReacquireLocksAfterSessionLost() throws Exception {
         @Cleanup
         MetadataStoreExtended store = MetadataStoreExtended.create(zks.getConnectionString(),
@@ -136,7 +136,7 @@ public class ZKSessionTest extends BaseMetadataStoreTest {
         assertFalse(lock.getLockExpiredFuture().isDone());
     }
 
-    @Test
+    
     public void testReacquireLeadershipAfterSessionLost() throws Exception {
         //  ---  init
         @Cleanup

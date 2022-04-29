@@ -25,7 +25,7 @@ import org.testng.annotations.Test;
 
 public class MathUtilsTest {
 
-    @Test
+
     public void testCeilDiv() {
         Assert.assertEquals(MathUtils.ceilDiv(0, 1024), 0);
         Assert.assertEquals(MathUtils.ceilDiv(1, 1024), 1);

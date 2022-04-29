@@ -37,7 +37,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Slf4j
-@Test(groups = "broker-admin")
+
 public class TopicPoliciesDisableTest extends MockedPulsarServiceBaseTest {
 
     private final String testTenant = "my-tenant";
@@ -68,7 +68,7 @@ public class TopicPoliciesDisableTest extends MockedPulsarServiceBaseTest {
         super.internalCleanup();
     }
 
-    @Test
+
     public void testBacklogQuotaDisabled() {
         BacklogQuota backlogQuota = BacklogQuota.builder()
                 .limitSize(1024)
@@ -98,7 +98,7 @@ public class TopicPoliciesDisableTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+
     public void testRetentionDisabled() {
         RetentionPolicies retention = new RetentionPolicies();
         log.info("Retention: {} will set to the topic: {}", retention, testTopic);
@@ -118,7 +118,7 @@ public class TopicPoliciesDisableTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+
     public void testPersistenceDisabled() {
         PersistencePolicies persistencePolicies = new PersistencePolicies();
         log.info("PersistencePolicies: {} will set to the topic: {}", persistencePolicies, testTopic);
@@ -138,7 +138,7 @@ public class TopicPoliciesDisableTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+
     public void testDispatchRateDisabled() throws Exception {
         DispatchRate dispatchRate = DispatchRate.builder().build();
         log.info("Dispatch Rate: {} will set to the topic: {}", dispatchRate, testTopic);
@@ -158,7 +158,7 @@ public class TopicPoliciesDisableTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+
     public void testSubscriptionDispatchRateDisabled() throws Exception {
         DispatchRate dispatchRate = DispatchRate.builder()
                 .dispatchThrottlingRateInMsg(1000)
@@ -182,7 +182,7 @@ public class TopicPoliciesDisableTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+
     public void testCompactionThresholdDisabled() {
         Long compactionThreshold = 10000L;
         log.info("Compaction threshold: {} will set to the topic: {}", compactionThreshold, testTopic);
@@ -202,7 +202,7 @@ public class TopicPoliciesDisableTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+
     public void testMaxConsumersPerSubscription() throws Exception {
         int maxConsumersPerSubscription = 10;
         log.info("MaxConsumersPerSubscription: {} will set to the topic: {}", maxConsumersPerSubscription, testTopic);
@@ -229,7 +229,7 @@ public class TopicPoliciesDisableTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+
     public void testPublishRateDisabled() throws Exception {
         PublishRate publishRate = new PublishRate(10000, 1024 * 1024 * 5);
         log.info("Publish Rate: {} will set to the topic: {}", publishRate, testTopic);
@@ -249,7 +249,7 @@ public class TopicPoliciesDisableTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+
     public void testMaxProducersDisabled() {
         log.info("MaxProducers will set to the topic: {}", testTopic);
         try {
@@ -267,7 +267,7 @@ public class TopicPoliciesDisableTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+
     public void testMaxConsumersDisabled() {
         log.info("MaxConsumers will set to the topic: {}", testTopic);
         try {
@@ -285,7 +285,7 @@ public class TopicPoliciesDisableTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+
     public void testSubscribeRateDisabled() throws Exception {
         SubscribeRate subscribeRate = new SubscribeRate(10, 30);
         log.info("Subscribe Rate: {} will set to the topic: {}", subscribeRate, testTopic);

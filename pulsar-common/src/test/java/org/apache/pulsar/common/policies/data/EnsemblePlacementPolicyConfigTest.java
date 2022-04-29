@@ -27,7 +27,7 @@ public class EnsemblePlacementPolicyConfigTest {
 
     static class MockedEnsemblePlacementPolicy {}
 
-    @Test
+
     public void testEncodeDecodeSuccessfully()
         throws EnsemblePlacementPolicyConfig.ParseEnsemblePlacementPolicyConfigException {
 
@@ -40,7 +40,7 @@ public class EnsemblePlacementPolicyConfigTest {
         Assert.assertEquals(decodedConfig, originalConfig);
     }
 
-    @Test
+
     public void testDecodeFailed() {
         byte[] configBytes = new byte[0];
         try {

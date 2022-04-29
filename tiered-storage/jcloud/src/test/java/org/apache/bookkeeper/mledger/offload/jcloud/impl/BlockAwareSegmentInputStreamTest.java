@@ -206,7 +206,7 @@ public class BlockAwareSegmentInputStreamTest {
         }
     }
 
-    @Test
+
     public void testHaveEndPadding() throws Exception {
         int ledgerId = 1;
         int entrySize = 8;
@@ -272,7 +272,7 @@ public class BlockAwareSegmentInputStreamTest {
         inputStream.close();
     }
 
-    @Test
+
     public void testNoEndPadding() throws Exception {
         int ledgerId = 1;
         int entrySize = 8;
@@ -333,7 +333,7 @@ public class BlockAwareSegmentInputStreamTest {
         inputStream.close();
     }
 
-    @Test
+
     public void testReadTillLac() throws Exception {
         // simulate last data block read.
         int ledgerId = 1;
@@ -394,7 +394,7 @@ public class BlockAwareSegmentInputStreamTest {
         inputStream.close();
     }
 
-    @Test
+
     public void testNoEntryPutIn() throws Exception {
         // simulate first entry size over the block size budget, it shouldn't be added.
         // 2 entries, each with bigger size than block size, so there should no entry added into block.
@@ -440,7 +440,7 @@ public class BlockAwareSegmentInputStreamTest {
         inputStream.close();
     }
 
-    @Test
+
     public void testPaddingOnLastBlock() throws Exception {
         int ledgerId = 1;
         int entrySize = 1000;
@@ -506,7 +506,7 @@ public class BlockAwareSegmentInputStreamTest {
         inputStream.close();
     }
 
-    @Test
+
     public void testOnlyNegativeOnEOF() throws Exception {
         int ledgerId = 1;
         int entrySize = 10000;

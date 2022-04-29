@@ -34,7 +34,7 @@ import org.testng.annotations.Test;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-@Test(groups = "broker")
+
 public class ManagedCursorMetricsTest extends MockedPulsarServiceBaseTest {
 
     @BeforeMethod(alwaysRun = true)
@@ -49,7 +49,7 @@ public class ManagedCursorMetricsTest extends MockedPulsarServiceBaseTest {
         super.internalCleanup();
     }
 
-    @Test
+
     public void testManagedCursorMetrics() throws Exception {
         final String subName = "my-sub";
         final String topicName = "persistent://my-namespace/use/my-ns/my-topic1";
@@ -92,7 +92,7 @@ public class ManagedCursorMetricsTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(metricsList.get(0).getMetrics().get("brk_ml_cursor_nonContiguousDeletedMessagesRange"), 0L);
     }
 
-    @Test
+
     public void testCursorReadWriteMetrics() throws Exception {
         final String subName = "read-write";
         final String topicName = "persistent://my-namespace/use/my-ns/read-write";

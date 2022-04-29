@@ -49,7 +49,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-@Test(groups = "quarantine")
+
 public class RackAwareTest extends BkEnsemblesTestBase {
 
     private static final int NUM_BOOKIES = 6;
@@ -104,7 +104,7 @@ public class RackAwareTest extends BkEnsemblesTestBase {
         bookies.clear();
     }
 
-    @Test
+
     public void testPlacement() throws Exception {
         final String group = "default";
         for (int i = 0; i < NUM_BOOKIES; i++) {
@@ -147,7 +147,7 @@ public class RackAwareTest extends BkEnsemblesTestBase {
         }
     }
 
-    @Test(dataProvider="forceMinRackNumProvider")
+    (dataProvider="forceMinRackNumProvider")
     public void testPlacementMinRackNumsPerWriteQuorum(boolean forceMinRackNums) throws Exception {
         cleanup();
         config = new ServiceConfiguration();

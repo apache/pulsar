@@ -115,22 +115,22 @@ public class TopicsAuthTest extends MockedPulsarServiceBaseTest {
         };
     }
 
-    @Test(dataProvider = "variations")
+    
     public void testProduceToNonPartitionedTopic(String token, int status) throws Exception {
         innerTestProduce(testTopicName, true, false, token, status);
     }
 
-    @Test(dataProvider = "variations")
+    
     public void testProduceToPartitionedTopic(String token, int status) throws Exception {
         innerTestProduce(testTopicName, true, true, token, status);
     }
 
-    @Test(dataProvider = "variations")
+    
     public void testProduceOnNonPersistentNonPartitionedTopic(String token, int status) throws Exception {
         innerTestProduce(testTopicName, false, false, token, status);
     }
 
-    @Test(dataProvider = "variations")
+    
     public void testProduceOnNonPersistentPartitionedTopic(String token, int status) throws Exception {
         innerTestProduce(testTopicName, false, true, token, status);
     }

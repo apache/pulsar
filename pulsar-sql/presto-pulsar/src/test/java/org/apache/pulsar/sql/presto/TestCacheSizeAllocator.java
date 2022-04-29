@@ -83,7 +83,6 @@ public class TestCacheSizeAllocator extends MockedPulsarServiceBaseTest {
         };
     }
 
-    @Test(dataProvider = "cacheSizeProvider", timeOut = 1000 * 20)
     public void cacheSizeAllocatorTest(long entryQueueSizeBytes) throws Exception {
         TopicName topicName = TopicName.get(
                 "public/default/cache-size-" + entryQueueSizeBytes + "test_" + + RandomUtils.nextInt()) ;

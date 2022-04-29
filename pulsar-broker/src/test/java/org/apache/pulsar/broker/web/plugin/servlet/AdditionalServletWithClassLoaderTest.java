@@ -35,10 +35,10 @@ import org.testng.annotations.Test;
 /**
  * Unit test {@link AdditionalServletWithClassLoader}.
  */
-@Test(groups = "broker")
+
 public class AdditionalServletWithClassLoaderTest {
 
-    @Test
+
     public void testWrapper() {
         AdditionalServlet servlet = mock(AdditionalServlet.class);
         NarClassLoader loader = mock(NarClassLoader.class);
@@ -61,7 +61,7 @@ public class AdditionalServletWithClassLoaderTest {
         verify(servlet, times(1)).getServletHolder();
     }
 
-    @Test
+
     public void testClassLoaderSwitcher() throws Exception {
         NarClassLoader narLoader = mock(NarClassLoader.class);
         AdditionalServlet servlet = new AdditionalServlet() {

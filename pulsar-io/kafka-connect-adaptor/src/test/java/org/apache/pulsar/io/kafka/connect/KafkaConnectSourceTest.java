@@ -99,7 +99,7 @@ public class KafkaConnectSourceTest extends ProducerConsumerBase  {
         }
     }
 
-    @Test
+
     public void testOpenAndRead() throws Exception {
         kafkaConnectSource = new KafkaConnectSource();
         kafkaConnectSource.open(config, context);

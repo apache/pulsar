@@ -30,10 +30,10 @@ import org.testng.annotations.Test;
 
 import com.github.zafarkhaja.semver.Version;
 
-@Test(groups = "broker")
+
 public class BrokerVersionFilterTest {
 
-    @Test
+
     public void testLatestVersion() {
         LoadData loadData = initLoadData();
         Set<String> brokers = new TreeSet<>();

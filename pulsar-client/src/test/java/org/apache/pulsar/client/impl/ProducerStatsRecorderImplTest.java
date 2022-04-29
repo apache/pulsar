@@ -35,7 +35,7 @@ import static org.testng.Assert.assertEquals;
  */
 public class ProducerStatsRecorderImplTest {
 
-    @Test
+
     public void testIncrementNumAcksReceived() throws Exception {
         ClientConfigurationData conf = new ClientConfigurationData();
         conf.setStatsIntervalSeconds(1);
@@ -55,7 +55,7 @@ public class ProducerStatsRecorderImplTest {
         assertEquals(1000.0, recorder.getSendLatencyMillisMax(), 0.5);
     }
 
-    @Test
+
     public void testGetStatsAndCancelStatsTimeoutWithoutArriveUpdateInterval() {
         ClientConfigurationData conf = new ClientConfigurationData();
         conf.setStatsIntervalSeconds(60);

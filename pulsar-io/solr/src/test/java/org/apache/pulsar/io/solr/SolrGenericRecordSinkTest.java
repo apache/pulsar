@@ -69,7 +69,7 @@ public class SolrGenericRecordSinkTest {
         solrServerUtil.stopStandaloneSolr();
     }
 
-    @Test
+
     public void TestOpenAndWriteSink() throws Exception {
         message = mock(MessageImpl.class);
         Map<String, Object> configs = new HashMap<>();

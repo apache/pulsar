@@ -52,7 +52,7 @@ import org.testng.annotations.Test;
  */
 public class CLITest extends PulsarTestSuite {
 
-    @Test
+
     public void testDeprecatedCommands() throws Exception {
         String tenantName = "test-deprecated-commands";
 
@@ -74,7 +74,7 @@ public class CLITest extends PulsarTestSuite {
         assertTrue(result.getStdout().contains(tenantName));
     }
 
-    @Test
+
     public void testGetTopicListCommand() throws Exception {
         ContainerExecResult result;
 
@@ -152,7 +152,7 @@ public class CLITest extends PulsarTestSuite {
         producer2.close();
     }
 
-    @Test
+
     public void testCreateSubscriptionCommand() throws Exception {
         String topic = "testCreateSubscriptionCommmand";
 
@@ -173,7 +173,7 @@ public class CLITest extends PulsarTestSuite {
         }
     }
 
-    @Test
+
     public void testTopicTerminationOnTopicsWithoutConnectedConsumers() throws Exception {
         String topicName = "persistent://public/default/test-topic-termination";
         BrokerContainer container = pulsarCluster.getAnyBroker();
@@ -217,7 +217,7 @@ public class CLITest extends PulsarTestSuite {
         }
     }
 
-    @Test
+
     public void testPropertiesCLI() throws Exception {
         final BrokerContainer container = pulsarCluster.getAnyBroker();
         final String namespace = "public/default";
@@ -306,7 +306,7 @@ public class CLITest extends PulsarTestSuite {
         }
     }
 
-    @Test
+
     public void testSchemaCLI() throws Exception {
         BrokerContainer container = pulsarCluster.getAnyBroker();
         String topicName = "persistent://public/default/test-schema-cli";
@@ -374,7 +374,7 @@ public class CLITest extends PulsarTestSuite {
         }
     }
 
-    @Test
+
     public void testSetInfiniteRetention() throws Exception {
         ContainerExecResult result;
 
@@ -405,7 +405,7 @@ public class CLITest extends PulsarTestSuite {
 
     // authorization related tests
 
-    @Test
+
     public void testGrantPermissionsAuthorizationDisabled() throws Exception {
         ContainerExecResult result;
 
@@ -426,7 +426,7 @@ public class CLITest extends PulsarTestSuite {
         }
     }
 
-    @Test
+
     public void testJarPojoSchemaUploadAvro() throws Exception {
 
         ContainerExecResult containerExecResult = pulsarCluster.runAdminCommandOnAnyBroker(
@@ -439,7 +439,7 @@ public class CLITest extends PulsarTestSuite {
         testPublishAndConsume("persistent://public/default/pojo-avro", "avro", Schema.AVRO(Tick.class));
     }
 
-    @Test
+
     public void testJarPojoSchemaUploadJson() throws Exception {
 
         ContainerExecResult containerExecResult = pulsarCluster.runAdminCommandOnAnyBroker(
@@ -481,7 +481,7 @@ public class CLITest extends PulsarTestSuite {
         }
     }
 
-    @Test
+
     public void testListNonPersistentTopicsCmd() throws Exception {
         String persistentTopic = "test-list-non-persistent-topic";
         ContainerExecResult result = pulsarCluster.runAdminCommandOnAnyBroker("topics", "create", persistentTopic);
@@ -493,7 +493,7 @@ public class CLITest extends PulsarTestSuite {
         }
     }
 
-    @Test
+
     public void testGenerateDocForModule() throws Exception {
         String[] moduleNames = {
                 "clusters",

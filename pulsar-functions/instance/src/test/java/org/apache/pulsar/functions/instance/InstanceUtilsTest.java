@@ -28,7 +28,7 @@ public class InstanceUtilsTest {
     /**
      * Test the calculateSubjectType function for sources
      */
-    @Test
+
     public void testCalculateSubjectTypeForSource() {
         FunctionDetails.Builder builder = FunctionDetails.newBuilder();
         // no input topics mean source
@@ -44,7 +44,7 @@ public class InstanceUtilsTest {
     /**
      * Test the calculateSubjectType function for function
      */
-    @Test
+
     public void testCalculateSubjectTypeForFunction() {
         FunctionDetails.Builder builder = FunctionDetails.newBuilder();
         // an input but no sink classname is a function
@@ -62,7 +62,7 @@ public class InstanceUtilsTest {
     /**
      * Test the calculateSubjectType function for Sink
      */
-    @Test
+
     public void testCalculateSubjectTypeForSink() {
         FunctionDetails.Builder builder = FunctionDetails.newBuilder();
         // an input and a sink classname is a sink

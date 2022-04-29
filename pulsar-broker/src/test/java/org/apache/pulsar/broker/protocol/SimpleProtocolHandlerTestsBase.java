@@ -47,7 +47,7 @@ import java.util.zip.ZipOutputStream;
 import static org.testng.Assert.assertEquals;
 
 @Slf4j
-@Test(groups = "broker")
+
 public abstract class SimpleProtocolHandlerTestsBase extends BrokerTestBase {
 
     public static final class MyProtocolHandler implements ProtocolHandler {
@@ -128,7 +128,7 @@ public abstract class SimpleProtocolHandlerTestsBase extends BrokerTestBase {
         super.baseSetup();
     }
 
-    @Test
+
     public void testBootstrapProtocolHandler() throws Exception {
         SocketAddress address =
                 pulsar.getProtocolHandlers()

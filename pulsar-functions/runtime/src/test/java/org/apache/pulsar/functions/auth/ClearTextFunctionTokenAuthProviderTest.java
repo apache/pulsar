@@ -29,7 +29,7 @@ import java.util.Optional;
 
 public class ClearTextFunctionTokenAuthProviderTest {
 
-    @Test
+    
     public void testClearTextAuth() throws Exception {
 
         ClearTextFunctionTokenAuthProvider clearTextFunctionTokenAuthProvider = new ClearTextFunctionTokenAuthProvider();

@@ -26,7 +26,7 @@ import org.testng.annotations.Test;
 
 public class MessageIdTest {
 
-    @Test
+
     public void messageIdTest() {
         MessageId mId = new MessageIdImpl(1, 2, 3);
         assertEquals(mId.toString(), "1:2:3");

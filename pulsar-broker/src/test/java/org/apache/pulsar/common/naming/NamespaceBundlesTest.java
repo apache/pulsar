@@ -49,7 +49,7 @@ import org.slf4j.LoggerFactory;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker-naming")
+
 public class NamespaceBundlesTest {
 
     private NamespaceBundleFactory factory;
@@ -60,7 +60,7 @@ public class NamespaceBundlesTest {
     }
 
     @SuppressWarnings("unchecked")
-    @Test
+
     public void testConstructor() throws Exception {
 
         long[] partitions = new long[]{0L, 0x10000000L, 0x40000000L, 0xffffffffL};
@@ -106,7 +106,7 @@ public class NamespaceBundlesTest {
         return NamespaceBundleFactory.createFactory(pulsar, Hashing.crc32());
     }
 
-    @Test
+
     public void testFindBundle() throws Exception {
         SortedSet<Long> partitions = Sets.newTreeSet();
         partitions.add(0L);
@@ -147,7 +147,7 @@ public class NamespaceBundlesTest {
         }
     }
 
-    @Test
+
     public void testSplitBundles() throws Exception {
         NamespaceName nsname = NamespaceName.get("pulsar/global/ns1");
         TopicName topicName = TopicName.get("persistent://pulsar/global/ns1/topic-1");
@@ -201,7 +201,7 @@ public class NamespaceBundlesTest {
         assertEquals(totalExpectedSplitBundles, splitChildBundles2.getLeft().getBundles().size());
     }
 
-    @Test
+
     public void testSplitBundleInTwo() throws Exception {
         final int NO_BUNDLES = 2;
         NamespaceName nsname = NamespaceName.get("pulsar/global/ns1");
@@ -233,7 +233,7 @@ public class NamespaceBundlesTest {
 
     }
 
-    @Test
+
     public void testSplitBundleByFixBoundary() throws Exception {
         NamespaceName nsname = NamespaceName.get("pulsar/global/ns1");
         NamespaceBundles bundles = factory.getBundles(nsname);

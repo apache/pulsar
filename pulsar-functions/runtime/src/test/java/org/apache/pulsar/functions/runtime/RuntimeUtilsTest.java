@@ -39,7 +39,7 @@ import static org.testng.AssertJUnit.assertTrue;
 @Slf4j
 public class RuntimeUtilsTest {
 
-    @Test
+
     public void testSplitRuntimeArgs() {
         String str1 = "-Xms314572800";
         String[] result = RuntimeUtils.splitRuntimeArgs(str1);
@@ -60,7 +60,7 @@ public class RuntimeUtilsTest {
         Assert.assertEquals(result[2], "-Dfoo=\"bar foo\"");
     }
 
-    @Test(dataProvider = "k8sRuntime")
+    
     public void getGoInstanceCmd(boolean k8sRuntime) throws IOException {
         HashMap<String, String> goInstanceConfig;
 
@@ -174,7 +174,7 @@ public class RuntimeUtilsTest {
         };
     }
 
-    @Test(dataProvider = "k8sRuntime")
+    
     public void getAdditionalJavaRuntimeArguments(boolean k8sRuntime) throws Exception {
 
         InstanceConfig instanceConfig = new InstanceConfig();

@@ -41,7 +41,7 @@ public class FunctionResultRouterTest {
         this.hash = Murmur3Hash32.getInstance();
     }
 
-    @Test
+
     public void testChoosePartitionWithoutKeyWithoutSequenceId() {
         Message<?> msg = mock(Message.class);
         when(msg.hasKey()).thenReturn(false);
@@ -59,7 +59,7 @@ public class FunctionResultRouterTest {
         }
     }
 
-    @Test
+
     public void testChoosePartitionWithoutKeySequenceId() {
         TopicMetadata topicMetadata = mock(TopicMetadata.class);
         when(topicMetadata.numPartitions()).thenReturn(5);
@@ -76,7 +76,7 @@ public class FunctionResultRouterTest {
         }
     }
 
-    @Test
+
     public void testChoosePartitionWithKeyWithoutSequenceId() {
         String key1 = "key1";
         String key2 = "key2";
@@ -99,7 +99,7 @@ public class FunctionResultRouterTest {
         assertEquals(hash.makeHash(key2) % 100, router.choosePartition(msg2, metadata));
     }
 
-    @Test
+
     public void testChoosePartitionWithKeySequenceId() {
         String key1 = "key1";
         String key2 = "key2";

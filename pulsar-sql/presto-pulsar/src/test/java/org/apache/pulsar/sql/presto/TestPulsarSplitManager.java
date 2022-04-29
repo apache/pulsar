@@ -81,7 +81,7 @@ public class TestPulsarSplitManager extends TestPulsarConnector {
         }
     }
 
-    @Test(dataProvider = "rewriteNamespaceDelimiter", singleThreaded = true)
+    
     public void testTopic(String delimiter) throws Exception {
         updateRewriteNamespaceDelimiterIfNeeded(delimiter);
         List<TopicName> topics = new LinkedList<>();
@@ -130,7 +130,7 @@ public class TestPulsarSplitManager extends TestPulsarConnector {
 
     }
 
-    @Test(dataProvider = "rewriteNamespaceDelimiter", singleThreaded = true)
+    
     public void testPartitionedTopic(String delimiter) throws Exception {
         updateRewriteNamespaceDelimiterIfNeeded(delimiter);
         for (TopicName topicName : partitionedTopicNames) {
@@ -187,7 +187,7 @@ public class TestPulsarSplitManager extends TestPulsarConnector {
         }).collect(Collectors.toList());
     }
 
-    @Test(dataProvider = "rewriteNamespaceDelimiter", singleThreaded = true)
+    
     public void testPublishTimePredicatePushdown(String delimiter) throws Exception {
         updateRewriteNamespaceDelimiterIfNeeded(delimiter);
         TopicName topicName = TOPIC_1;
@@ -244,7 +244,7 @@ public class TestPulsarSplitManager extends TestPulsarConnector {
 
     }
 
-    @Test(dataProvider = "rewriteNamespaceDelimiter", singleThreaded = true)
+    
     public void testPublishTimePredicatePushdownPartitionedTopic(String delimiter) throws Exception {
         updateRewriteNamespaceDelimiterIfNeeded(delimiter);
         TopicName topicName = PARTITIONED_TOPIC_1;
@@ -305,7 +305,7 @@ public class TestPulsarSplitManager extends TestPulsarConnector {
         }
     }
 
-    @Test(dataProvider = "rewriteNamespaceDelimiter", singleThreaded = true)
+    
     public void testPartitionFilter(String delimiter) throws Exception {
         updateRewriteNamespaceDelimiterIfNeeded(delimiter);
         for (TopicName topicName : partitionedTopicNames) {
@@ -391,7 +391,7 @@ public class TestPulsarSplitManager extends TestPulsarConnector {
 
     }
 
-    @Test(dataProvider = "rewriteNamespaceDelimiter", singleThreaded = true)
+    
     public void testGetSplitNonSchema(String delimiter) throws Exception {
         updateRewriteNamespaceDelimiterIfNeeded(delimiter);
         TopicName topicName = NON_SCHEMA_TOPIC;
@@ -412,7 +412,7 @@ public class TestPulsarSplitManager extends TestPulsarConnector {
         assertNotNull(connectorSplitSource);
     }
 
-    @Test
+
     public void pulsarSplitJsonCodecTest() throws JsonProcessingException, UnsupportedEncodingException {
         OffloadPoliciesImpl offloadPolicies = OffloadPoliciesImpl.create(
                 "aws-s3",

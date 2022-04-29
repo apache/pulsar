@@ -45,7 +45,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
  * Test Mutual Authentication.
  * Test connect set success, and producer consumer works well.
  */
-@Test(groups = "broker-api")
+
 public class MutualAuthenticationTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(MutualAuthenticationTest.class);
 
@@ -211,7 +211,7 @@ public class MutualAuthenticationTest extends ProducerConsumerBase {
         internalCleanup();
     }
 
-    @Test
+
     public void testAuthentication() throws Exception {
         log.info("-- Starting {} test --", methodName);
 

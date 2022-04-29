@@ -37,7 +37,7 @@ public class TestCmdConsume {
         subscriptionNameField.set(cmdConsume, "my-sub");
     }
 
-    @Test
+
     public void testGetWebSocketConsumeUri() {
         String topicNameV1 = "persistent://public/cluster/default/issue-11067";
         assertEquals(cmdConsume.getWebSocketConsumeUri(topicNameV1),

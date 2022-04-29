@@ -149,7 +149,7 @@ public class TestCmdSinks {
         return sinkConfig;
     }
 
-    @Test
+
     public void testCliCorrect() throws Exception {
         SinkConfig sinkConfig = getSinkConfig();
         testCmdSinkCliMissingArgs(
@@ -170,7 +170,7 @@ public class TestCmdSinks {
         );
     }
 
-    @Test
+
     public void testMissingInput() throws Exception {
         SinkConfig sinkConfig = getSinkConfig();
         sinkConfig.setInputs(null);
@@ -192,7 +192,7 @@ public class TestCmdSinks {
         );
     }
 
-    @Test
+
     public void testMissingCustomSerdeInput() throws Exception {
         SinkConfig sinkConfig = getSinkConfig();
         sinkConfig.setTopicToSerdeClassName(null);
@@ -215,7 +215,7 @@ public class TestCmdSinks {
         );
     }
 
-    @Test
+
     public void testMissingTopicPattern() throws Exception {
         SinkConfig sinkConfig = getSinkConfig();
         sinkConfig.setTopicsPattern(null);
@@ -237,7 +237,7 @@ public class TestCmdSinks {
         );
     }
 
-    @Test
+
     public void testMissingProcessingGuarantees() throws Exception {
         SinkConfig sinkConfig = getSinkConfig();
         sinkConfig.setProcessingGuarantees(null);
@@ -259,7 +259,6 @@ public class TestCmdSinks {
         );
     }
 
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Sink archive not specfied")
     public void testMissingArchive() throws Exception {
         SinkConfig sinkConfig = getSinkConfig();
         sinkConfig.setArchive(null);
@@ -281,8 +280,6 @@ public class TestCmdSinks {
         );
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "Sink Archive file /tmp/foo.jar" +
-            " does not exist")
     public void testInvalidJar() throws Exception {
         SinkConfig sinkConfig = getSinkConfig();
         String fakeJar = "/tmp/foo.jar";
@@ -305,7 +302,7 @@ public class TestCmdSinks {
         );
     }
 
-    @Test
+
     public void testMissingConfig() throws Exception {
         SinkConfig sinkConfig = getSinkConfig();
         sinkConfig.setConfigs(null);
@@ -406,13 +403,13 @@ public class TestCmdSinks {
     }
 
 
-    @Test
+
     public void testCmdSinkConfigFileCorrect() throws Exception {
         SinkConfig sinkConfig = getSinkConfig();
         testCmdSinkConfigFile(sinkConfig, sinkConfig);
     }
 
-    @Test
+
     public void testCmdSinkConfigFileMissingTopicToSerdeClassName() throws Exception {
         SinkConfig testSinkConfig = getSinkConfig();
 
@@ -420,7 +417,7 @@ public class TestCmdSinks {
         testCmdSinkConfigFile(testSinkConfig, expectedSinkConfig);
     }
 
-    @Test
+
     public void testCmdSinkConfigFileMissingTopicsPattern() throws Exception {
         SinkConfig testSinkConfig = getSinkConfig();
 
@@ -428,7 +425,7 @@ public class TestCmdSinks {
         testCmdSinkConfigFile(testSinkConfig, expectedSinkConfig);
     }
 
-    @Test
+
     public void testCmdSinkConfigFileMissingConfig() throws Exception {
         SinkConfig testSinkConfig = getSinkConfig();
         testSinkConfig.setConfigs(null);
@@ -438,7 +435,7 @@ public class TestCmdSinks {
         testCmdSinkConfigFile(testSinkConfig, expectedSinkConfig);
     }
 
-    @Test
+
     public void testCmdSinkConfigFileMissingProcessingGuarantees() throws Exception {
         SinkConfig testSinkConfig = getSinkConfig();
         testSinkConfig.setProcessingGuarantees(null);
@@ -448,7 +445,7 @@ public class TestCmdSinks {
         testCmdSinkConfigFile(testSinkConfig, expectedSinkConfig);
     }
 
-    @Test
+
     public void testCmdSinkConfigFileMissingResources() throws Exception {
         SinkConfig testSinkConfig = getSinkConfig();
         testSinkConfig.setResources(null);
@@ -458,7 +455,6 @@ public class TestCmdSinks {
         testCmdSinkConfigFile(testSinkConfig, expectedSinkConfig);
     }
 
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Sink archive not specfied")
     public void testCmdSinkConfigFileMissingJar() throws Exception {
         SinkConfig testSinkConfig = getSinkConfig();
         testSinkConfig.setArchive(null);
@@ -468,7 +464,6 @@ public class TestCmdSinks {
         testCmdSinkConfigFile(testSinkConfig, expectedSinkConfig);
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "Sink Archive file /tmp/foo.jar does not exist")
     public void testCmdSinkConfigFileInvalidJar() throws Exception {
         SinkConfig testSinkConfig = getSinkConfig();
         testSinkConfig.setArchive("/tmp/foo.jar");
@@ -510,7 +505,7 @@ public class TestCmdSinks {
     }
 
 
-    @Test
+
     public void testCliOverwriteConfigFile() throws Exception {
 
         SinkConfig testSinkConfig = new SinkConfig();
@@ -644,7 +639,7 @@ public class TestCmdSinks {
         verify(localSinkRunner).validateSinkConfigs(eq(sinkConfig));
     }
 
-    @Test
+
     public void testDeleteMissingTenant() throws Exception {
         deleteSink.tenant = null;
         deleteSink.namespace = NAMESPACE;
@@ -657,7 +652,7 @@ public class TestCmdSinks {
         verify(sink).deleteSink(eq(PUBLIC_TENANT), eq(NAMESPACE), eq(NAME));
     }
 
-    @Test
+
     public void testDeleteMissingNamespace() throws Exception {
         deleteSink.tenant = TENANT;
         deleteSink.namespace = null;
@@ -670,7 +665,6 @@ public class TestCmdSinks {
         verify(sink).deleteSink(eq(TENANT), eq(DEFAULT_NAMESPACE), eq(NAME));
     }
 
-    @Test(expectedExceptions = RuntimeException.class, expectedExceptionsMessageRegExp = "You must specify a name for the sink")
     public void testDeleteMissingName() throws Exception {
         deleteSink.tenant = TENANT;
         deleteSink.namespace = NAMESPACE;
@@ -683,7 +677,7 @@ public class TestCmdSinks {
         verify(sink).deleteSink(eq(TENANT), eq(NAMESPACE), null);
     }
 
-    @Test
+
     public void testUpdateSink() throws Exception {
 
         updateSink.name = "my-sink";
@@ -726,7 +720,7 @@ public class TestCmdSinks {
 
     }
 
-    @Test
+
     public void testParseConfigs() throws Exception {
         SinkConfig testSinkConfig = getSinkConfig();
         Map<String, Object> config = testSinkConfig.getConfigs();

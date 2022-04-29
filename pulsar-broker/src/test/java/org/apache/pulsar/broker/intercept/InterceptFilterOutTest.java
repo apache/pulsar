@@ -46,7 +46,7 @@ import static org.mockito.Mockito.verify;
 /**
  * Tests for the the interceptor filter out.
  */
-@Test(groups = "broker")
+
 public class InterceptFilterOutTest {
 
     private static final String[] shouldBeFilterOutContentTypes = new String[] {
@@ -59,7 +59,7 @@ public class InterceptFilterOutTest {
             "application/octet-stream; xxx"
     };
 
-    @Test
+
     public void testFilterOutForPreInterceptFilter() throws Exception {
         CounterBrokerInterceptor interceptor = new CounterBrokerInterceptor();
         ExceptionHandler handler = new ExceptionHandler();
@@ -85,7 +85,7 @@ public class InterceptFilterOutTest {
         }
     }
 
-    @Test
+
     public void testOnFilter() throws Exception {
         CounterBrokerInterceptor interceptor = new CounterBrokerInterceptor();
         PulsarService pulsarService = Mockito.mock(PulsarService.class);
@@ -112,7 +112,7 @@ public class InterceptFilterOutTest {
         verify(chain, times(1)).doFilter(request, response);
     }
 
-    @Test
+
     public void testFilterOutForResponseInterceptFilter() throws Exception {
         CounterBrokerInterceptor interceptor = new CounterBrokerInterceptor();
         PulsarService pulsarService = Mockito.mock(PulsarService.class);
@@ -143,7 +143,7 @@ public class InterceptFilterOutTest {
         }
     }
 
-    @Test
+
     public void testShouldNotInterceptWhenInterceptorDisabled() throws Exception {
         CounterBrokerInterceptor interceptor = new CounterBrokerInterceptor();
         PulsarService pulsarService = Mockito.mock(PulsarService.class);

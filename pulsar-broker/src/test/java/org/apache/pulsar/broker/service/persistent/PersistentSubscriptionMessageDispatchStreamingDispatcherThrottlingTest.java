@@ -26,7 +26,7 @@ import org.testng.annotations.Test;
 /**
  * SubscriptionMessageDispatchThrottlingTest with {@link StreamingDispatcher}
  */
-@Test(groups = "flaky")
+
 public class PersistentSubscriptionMessageDispatchStreamingDispatcherThrottlingTest
     extends SubscriptionMessageDispatchThrottlingTest {
 

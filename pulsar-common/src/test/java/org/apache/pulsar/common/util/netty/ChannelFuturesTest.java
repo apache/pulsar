@@ -68,18 +68,18 @@ public class ChannelFuturesTest {
         channelFuture = new DefaultChannelPromise(channel);
     }
 
-    @Test(expectedExceptions = NullPointerException.class)
+    
     public void toCompletableFuture_shouldRequireNonNullArgument() {
         ChannelFutures.toCompletableFuture(null);
     }
 
-    @Test
+
     public void toCompletableFuture_shouldCompleteSuccessfully_channelFutureCompletedBefore() throws Exception {
         channelFuture.setSuccess();
         Assert.assertEquals(ChannelFutures.toCompletableFuture(channelFuture).get(1,  TimeUnit.SECONDS), channel);
     }
 
-    @Test
+
     public void toCompletableFuture_shouldCompleteSuccessfully_channelFutureCompletedAfter() throws Exception {
         CompletableFuture<Channel> future = ChannelFutures.toCompletableFuture(channelFuture);
         Assert.assertFalse(future.isDone());
@@ -88,7 +88,7 @@ public class ChannelFuturesTest {
         Assert.assertEquals(future.get(1,  TimeUnit.SECONDS), channel);
     }
 
-    @Test
+
     public void toCompletableFuture_shouldCompleteExceptionally_channelFutureCompletedBefore() throws Exception {
         Exception failure = new Exception();
         channelFuture.setFailure(failure);
@@ -100,7 +100,7 @@ public class ChannelFuturesTest {
         }
     }
 
-    @Test
+
     public void toCompletableFuture_shouldCompleteExceptionally_channelFutureCompletedAfter() throws Exception {
         CompletableFuture<Channel> future = ChannelFutures.toCompletableFuture(channelFuture);
         Assert.assertFalse(future.isDone());

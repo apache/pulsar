@@ -44,7 +44,7 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 @Slf4j
-@Test(groups = "broker")
+
 public class ConsumerStatsTest extends ProducerConsumerBase {
 
     @BeforeMethod
@@ -61,7 +61,7 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
         super.internalCleanup();
     }
 
-    @Test
+
     public void testConsumerStatsOnZeroMaxUnackedMessagesPerConsumer() throws PulsarClientException, InterruptedException, PulsarAdminException {
         Assert.assertEquals(pulsar.getConfiguration().getMaxUnackedMessagesPerConsumer(), 0);
         final String topicName = "persistent://my-property/my-ns/testConsumerStatsOnZeroMaxUnackedMessagesPerConsumer";
@@ -114,7 +114,7 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
         Assert.assertEquals(stats.getSubscriptions().entrySet().iterator().next().getValue().getConsumers().get(0).getUnackedMessages(), 0);
     }
 
-    @Test
+
     public void testAckStatsOnPartitionedTopicForExclusiveSubscription() throws PulsarAdminException, PulsarClientException, InterruptedException {
         final String topic = "persistent://my-property/my-ns/testAckStatsOnPartitionedTopicForExclusiveSubscription";
         admin.topics().createPartitionedTopic(topic, 3);
@@ -151,7 +151,7 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
         }
     }
 
-    @Test
+
     public void testUpdateStatsForActiveConsumerAndSubscription() throws Exception {
         final String topicName = "persistent://prop/use/ns-abc/testUpdateStatsForActiveConsumerAndSubscription";
         pulsarClient.newConsumer()
@@ -176,7 +176,7 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
         Assert.assertEquals(updatedStats.getBytesOutCounter(), 1280);
     }
 
-    @Test
+
     public void testConsumerStatsOutput() throws Exception {
         Set<String> allowedFields = Sets.newHashSet(
                 "msgRateOut",

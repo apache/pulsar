@@ -25,7 +25,7 @@ import org.testng.annotations.Test;
 
 public class BooleanSchemaTest {
 
-    @Test
+
     public void testSchemaEncode() {
         BooleanSchema schema = BooleanSchema.of();
         byte[] expectedTrue = new byte[] {
@@ -38,14 +38,14 @@ public class BooleanSchemaTest {
         Assert.assertEquals(expectedFalse, schema.encode(false));
     }
 
-    @Test
+
     public void testSchemaEncodeDecodeFidelity() {
         BooleanSchema schema = BooleanSchema.of();
         Assert.assertEquals(new Boolean(true), schema.decode(schema.encode(true)));
         Assert.assertEquals(new Boolean(false), schema.decode(schema.encode(false)));
     }
 
-    @Test
+
     public void testSchemaDecode() {
         byte[] trueBytes = new byte[] {
                 1
@@ -66,7 +66,7 @@ public class BooleanSchemaTest {
         Assert.assertEquals(new Boolean(false), schema.decode(byteBuf));
     }
 
-    @Test
+
     public void testNullEncodeDecode() {
         ByteBuf byteBuf = null;
         byte[] bytes = null;

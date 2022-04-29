@@ -68,14 +68,14 @@ public class PulsarRegistrationManagerTest extends BaseMetadataStoreTest {
         }
     }
 
-    @Test(dataProvider = "impl")
+    
     public void testPrepareFormat(String provider, Supplier<String> urlSupplier) throws Exception {
         methodSetup(urlSupplier);
         registrationManager.prepareFormat();
         assertTrue(store.exists(ledgersRootPath).join());
     }
 
-    @Test(dataProvider = "impl")
+    
     public void testGetClusterInstanceIdIfClusterNotInitialized(String provider, Supplier<String> urlSupplier)
             throws Exception {
         methodSetup(urlSupplier);
@@ -87,7 +87,7 @@ public class PulsarRegistrationManagerTest extends BaseMetadataStoreTest {
         }
     }
 
-    @Test(dataProvider = "impl")
+    
     public void testGetClusterInstanceId(String provider, Supplier<String> urlSupplier) throws Exception {
         methodSetup(urlSupplier);
         assertClusterNotExists();
@@ -97,7 +97,7 @@ public class PulsarRegistrationManagerTest extends BaseMetadataStoreTest {
         log.info("Cluster instance id : {}", uuid);
     }
 
-    @Test(dataProvider = "impl")
+    
     public void testNukeNonExistingCluster(String provider, Supplier<String> urlSupplier) throws Exception {
         methodSetup(urlSupplier);
         assertClusterNotExists();
@@ -105,7 +105,7 @@ public class PulsarRegistrationManagerTest extends BaseMetadataStoreTest {
         assertClusterNotExists();
     }
 
-    @Test(dataProvider = "impl")
+    
     public void testNukeExistingCluster(String provider, Supplier<String> urlSupplier) throws Exception {
         methodSetup(urlSupplier);
         assertTrue(registrationManager.initNewCluster());
@@ -114,7 +114,7 @@ public class PulsarRegistrationManagerTest extends BaseMetadataStoreTest {
         assertClusterNotExists();
     }
 
-    @Test(dataProvider = "impl")
+    
     public void testInitNewClusterTwice(String provider, Supplier<String> urlSupplier) throws Exception {
         methodSetup(urlSupplier);
         assertTrue(registrationManager.initNewCluster());
@@ -125,13 +125,13 @@ public class PulsarRegistrationManagerTest extends BaseMetadataStoreTest {
         assertEquals(instanceId, registrationManager.getClusterInstanceId());
     }
 
-    @Test(dataProvider = "impl")
+    
     public void testPrepareFormatNonExistingCluster(String provider, Supplier<String> urlSupplier) throws Exception {
         methodSetup(urlSupplier);
         assertFalse(registrationManager.prepareFormat());
     }
 
-    @Test(dataProvider = "impl")
+    
     public void testPrepareFormatExistingCluster(String provider, Supplier<String> urlSupplier) throws Exception {
         methodSetup(urlSupplier);
         assertTrue(registrationManager.initNewCluster());
@@ -139,14 +139,14 @@ public class PulsarRegistrationManagerTest extends BaseMetadataStoreTest {
         assertTrue(registrationManager.prepareFormat());
     }
 
-    @Test(dataProvider = "impl")
+    
     public void testNukeExistingClusterWithWritableBookies(String provider, Supplier<String> urlSupplier)
             throws Exception {
         methodSetup(urlSupplier);
         testNukeExistingClusterWithBookies(false);
     }
 
-    @Test(dataProvider = "impl")
+    
     public void testNukeExistingClusterWithReadonlyBookies(String provider, Supplier<String> urlSupplier)
             throws Exception {
         methodSetup(urlSupplier);
@@ -165,7 +165,7 @@ public class PulsarRegistrationManagerTest extends BaseMetadataStoreTest {
     }
 
 
-    @Test(dataProvider = "impl")
+    
     public void testNukeExistingClusterWithAllBookies(String provider, Supplier<String> urlSupplier) throws Exception {
         methodSetup(urlSupplier);
 
@@ -181,7 +181,7 @@ public class PulsarRegistrationManagerTest extends BaseMetadataStoreTest {
         assertClusterNotExists();
     }
 
-    @Test(dataProvider = "impl")
+    
     public void testFormatNonExistingCluster(String provider, Supplier<String> urlSupplier) throws Exception {
         methodSetup(urlSupplier);
         assertClusterNotExists();
@@ -189,7 +189,7 @@ public class PulsarRegistrationManagerTest extends BaseMetadataStoreTest {
         assertClusterExists();
     }
 
-    @Test(dataProvider = "impl")
+    
     public void testFormatExistingCluster(String provider, Supplier<String> urlSupplier) throws Exception {
         methodSetup(urlSupplier);
         assertClusterNotExists();
@@ -201,7 +201,7 @@ public class PulsarRegistrationManagerTest extends BaseMetadataStoreTest {
         assertNotEquals(clusterInstanceId, registrationManager.getClusterInstanceId());
     }
 
-    @Test(dataProvider = "impl")
+    
     public void testFormatExistingClusterWithBookies(String provider, Supplier<String> urlSupplier) throws Exception {
         methodSetup(urlSupplier);
         assertClusterNotExists();

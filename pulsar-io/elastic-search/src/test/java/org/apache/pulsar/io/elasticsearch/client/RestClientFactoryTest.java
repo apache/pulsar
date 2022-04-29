@@ -29,7 +29,7 @@ import static org.testng.Assert.assertEquals;
 
 public class RestClientFactoryTest {
 
-    @Test
+
     @SneakyThrows
     public void testCompatibilityMode() {
         final ElasticSearchConfig config = new ElasticSearchConfig();

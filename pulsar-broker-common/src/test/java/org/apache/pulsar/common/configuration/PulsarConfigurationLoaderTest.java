@@ -62,7 +62,7 @@ public class PulsarConfigurationLoaderTest {
         }
     }
 
-    @Test
+
     public void testConfigurationConverting() throws Exception {
         MockConfiguration mockConfiguration = new MockConfiguration();
         ServiceConfiguration serviceConfiguration = PulsarConfigurationLoader.convertFrom(mockConfiguration);
@@ -84,7 +84,7 @@ public class PulsarConfigurationLoaderTest {
         }
     }
 
-    @Test
+
     public void testPulsarConfiguraitonLoadingStream() throws Exception {
         File testConfigFile = new File("tmp." + System.currentTimeMillis() + ".properties");
         if (testConfigFile.exists()) {
@@ -135,7 +135,7 @@ public class PulsarConfigurationLoaderTest {
         assertEquals(serviceConfig.getMetadataStoreCacheExpirySeconds(), 500);
     }
 
-    @Test
+
     public void testPulsarConfiguraitonLoadingProp() throws Exception {
         final String zk = "zk:localhost:2184";
         final Properties prop = new Properties();
@@ -145,7 +145,7 @@ public class PulsarConfigurationLoaderTest {
         assertEquals(serviceConfig.getMetadataStoreUrl(), zk);
     }
 
-    @Test
+
     public void testPulsarConfiguraitonComplete() throws Exception {
         final String zk = "zk:localhost:2184";
         final Properties prop = new Properties();
@@ -159,7 +159,7 @@ public class PulsarConfigurationLoaderTest {
         }
     }
 
-    @Test
+
     public void testBackwardCompatibility() throws IOException {
         File testConfigFile = new File("tmp." + System.currentTimeMillis() + ".properties");
         if (testConfigFile.exists()) {
@@ -219,13 +219,13 @@ public class PulsarConfigurationLoaderTest {
         assertEquals(serviceConfig.getMetadataStoreCacheExpirySeconds(), 300);
     }
 
-    @Test
+
     public void testComplete() throws Exception {
         TestCompleteObject complete = this.new TestCompleteObject();
         assertTrue(isComplete(complete));
     }
 
-    @Test
+
     public void testInComplete() throws IllegalAccessException {
 
         try {

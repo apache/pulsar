@@ -74,7 +74,7 @@ public class TestPollingZooKeeperConfigurationProvider extends
         // do nothing
     }
 
-    @Test
+
     public void testPolling() throws Exception {
         es.awaitEvent();
         es.reset();

@@ -26,7 +26,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class PerformanceClientTest {
-    @Test(timeOut = 5000)
+    
     public void testLoadArguments() throws Exception {
         PerformanceClient client = new PerformanceClient();
 

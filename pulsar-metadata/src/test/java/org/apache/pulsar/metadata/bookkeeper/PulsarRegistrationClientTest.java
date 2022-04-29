@@ -61,7 +61,7 @@ public class PulsarRegistrationClientTest extends BaseMetadataStoreTest {
         return bookies;
     }
 
-    @Test(dataProvider = "impl")
+    
     public void testGetWritableBookies(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
         MetadataStoreExtended store =
@@ -88,7 +88,7 @@ public class PulsarRegistrationClientTest extends BaseMetadataStoreTest {
     }
 
 
-    @Test(dataProvider = "impl")
+    
     public void testGetReadonlyBookies(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
         MetadataStoreExtended store =
@@ -114,7 +114,7 @@ public class PulsarRegistrationClientTest extends BaseMetadataStoreTest {
         assertEquals(addresses.size(), result.getValue().size());
     }
 
-    @Test(dataProvider = "impl")
+    
     public void testGetAllBookies(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
         MetadataStoreExtended store =
@@ -140,12 +140,12 @@ public class PulsarRegistrationClientTest extends BaseMetadataStoreTest {
         assertEquals(addresses.size(), result.getValue().size());
     }
 
-    @Test(dataProvider = "impl")
+    
     public void testWatchWritableBookiesSuccess(String provider, Supplier<String> urlSupplier) throws Exception {
         testWatchBookiesSuccess(provider, urlSupplier, true);
     }
 
-    @Test(dataProvider = "impl")
+    
     public void testWatchReadonlyBookiesSuccess(String provider, Supplier<String> urlSupplier) throws Exception {
         testWatchBookiesSuccess(provider, urlSupplier, false);
     }

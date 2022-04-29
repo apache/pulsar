@@ -27,7 +27,7 @@ public class ClientTest2_5 extends PulsarStandaloneTestSuite2_5 {
 
     private final ClientTestBase clientTestBase = new ClientTestBase();
 
-    @Test(dataProvider = "StandaloneServiceUrlAndHttpUrl")
+    
     public void testResetCursorCompatibility(Supplier<String> serviceUrl, Supplier<String> httpServiceUrl) throws Exception {
         String topicName = generateTopicName("test-reset-cursor-compatibility", true);
         clientTestBase.resetCursorCompatibility(serviceUrl.get(), httpServiceUrl.get(), topicName);

@@ -28,7 +28,7 @@ import org.testng.annotations.Test;
  */
 public class FunctionMetaDataUtilsTest {
 
-    @Test
+    
     public void testCanChangeState() {
 
         long version = 5;
@@ -41,7 +41,7 @@ public class FunctionMetaDataUtilsTest {
         Assert.assertFalse(FunctionMetaDataUtils.canChangeState(metaData, 2, Function.FunctionState.RUNNING));
     }
 
-    @Test
+    
     public void testChangeState() {
         long version = 5;
         Function.FunctionMetaData metaData = Function.FunctionMetaData.newBuilder().setFunctionDetails(
@@ -78,7 +78,7 @@ public class FunctionMetaDataUtilsTest {
         Assert.assertEquals(newMetaData.getVersion(), version + 4);
     }
 
-    @Test
+    
     public void testUpdate() {
         long version = 5;
         Function.FunctionMetaData existingMetaData = Function.FunctionMetaData.newBuilder().setFunctionDetails(

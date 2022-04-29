@@ -31,7 +31,7 @@ import org.testng.annotations.Test;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.TimeUnit;
 
-@Test(groups = "broker-impl")
+
 public class ProducerMemoryLimitTest extends ProducerConsumerBase {
 
     @Override
@@ -47,7 +47,6 @@ public class ProducerMemoryLimitTest extends ProducerConsumerBase {
         super.internalCleanup();
     }
 
-    @Test(timeOut = 10_000)
     public void testProducerTimeoutMemoryRelease() throws Exception {
         initClientWithMemoryLimit();
         @Cleanup
@@ -69,7 +68,6 @@ public class ProducerMemoryLimitTest extends ProducerConsumerBase {
 
     }
 
-    @Test(timeOut = 10_000)
     public void testProducerCloseMemoryRelease() throws Exception {
         initClientWithMemoryLimit();
         @Cleanup

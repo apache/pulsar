@@ -37,7 +37,7 @@ import org.testng.annotations.Test;
 
 public class LookupDataTest {
 
-    @Test
+
     public void withConstructor() {
         LookupData data = new LookupData("pulsar://localhost:8888", "pulsar://localhost:8884", "http://localhost:8080",
                                          "http://localhost:8081");
@@ -46,7 +46,7 @@ public class LookupDataTest {
     }
 
     @SuppressWarnings("unchecked")
-    @Test
+
     public void serializeToJsonTest() throws Exception {
         LookupData data = new LookupData("pulsar://localhost:8888", "pulsar://localhost:8884", "http://localhost:8080",
                                          "http://localhost:8081");
@@ -63,7 +63,7 @@ public class LookupDataTest {
         assertEquals(jsonMap.get("httpUrlTls"), "http://localhost:8081");
     }
 
-    @Test
+
     public void testUrlEncoder() {
         final String str = "specialCharacters_+&*%{}() \\/$@#^%";
         final String urlEncoded = Codec.encode(str);
@@ -73,7 +73,7 @@ public class LookupDataTest {
         assertEquals(Codec.decode(urlEncoded), Codec.decode(uriEncoded));
     }
     
-    @Test
+
     public void testLoadReportSerialization() throws Exception {
         final String simpleLmBrokerUrl = "simple";
         final String simpleLmReportName = "simpleLoadManager";

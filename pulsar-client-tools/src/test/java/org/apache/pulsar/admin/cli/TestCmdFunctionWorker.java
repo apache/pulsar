@@ -47,7 +47,7 @@ public class TestCmdFunctionWorker {
         cmdFunctionWorker = spy(new CmdFunctionWorker(() -> pulsarAdmin));
     }
 
-    @Test
+
     public void testCmdRebalance() throws Exception {
         cmdFunctionWorker.run(new String[]{"rebalance"});
         verify(pulsarAdmin.worker(), times(1)).rebalance();

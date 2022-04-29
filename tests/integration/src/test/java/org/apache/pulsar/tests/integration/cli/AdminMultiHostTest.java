@@ -58,7 +58,7 @@ public class AdminMultiHostTest extends TestRetrySupport {
         }
     }
 
-    @Test
+
     public void testAdminMultiHost() throws Exception {
         String hosts = pulsarCluster.getAllBrokersHttpServiceUrl();
         PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(hosts).build();

@@ -45,7 +45,7 @@ import org.testng.annotations.Test;
 
 import com.google.common.collect.Sets;
 
-@Test(groups = "broker-api")
+
 public class AuthenticationTlsHostnameVerificationTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(AuthenticationTlsHostnameVerificationTest.class);
 
@@ -150,7 +150,6 @@ public class AuthenticationTlsHostnameVerificationTest extends ProducerConsumerB
      *
      * @throws Exception
      */
-    @Test(dataProvider = "hostnameVerification")
     public void testTlsSyncProducerAndConsumerWithInvalidBrokerHost(boolean hostnameVerificationEnabled)
             throws Exception {
         log.info("-- Starting {} test --", methodName);
@@ -193,7 +192,7 @@ public class AuthenticationTlsHostnameVerificationTest extends ProducerConsumerB
      *
      * @throws Exception
      */
-    @Test
+    
     public void testTlsSyncProducerAndConsumerCorrectBrokerHost() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -237,7 +236,7 @@ public class AuthenticationTlsHostnameVerificationTest extends ProducerConsumerB
      *
      * @throws Exception
      */
-    @Test
+    
     public void testDefaultHostVerifier() throws Exception {
         log.info("-- Starting {} test --", methodName);
         Method matchIdentityStrict = TlsHostnameVerifier.class.getDeclaredMethod("matchIdentityStrict",

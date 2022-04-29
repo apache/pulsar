@@ -51,7 +51,7 @@ public class MultiVersionSchemaInfoProviderTest {
                 TopicName.get("persistent://public/default/my-topic"), client);
     }
 
-    @Test
+
     public void testGetSchema() throws Exception {
         CompletableFuture<Optional<SchemaInfo>> completableFuture = new CompletableFuture<>();
         SchemaInfo schemaInfo = AvroSchema.of(SchemaDefinition.<SchemaTestUtils>builder().withPojo(SchemaTestUtils.class).build()).getSchemaInfo();

@@ -68,7 +68,6 @@ public class ManagedCursorConcurrencyTest extends MockedBookKeeperTestCase {
         }
     };
 
-    @Test(dataProvider = "useOpenRangeSet")
     public void testMarkDeleteAndRead(boolean useOpenRangeSet) throws Exception {
         ManagedLedgerConfig config = new ManagedLedgerConfig().setMaxEntriesPerLedger(2)
                 .setUnackedRangesOpenCacheSetEnabled(useOpenRangeSet);
@@ -127,7 +126,7 @@ public class ManagedCursorConcurrencyTest extends MockedBookKeeperTestCase {
         assertFalse(gotException.get());
     }
 
-    @Test
+
     public void testCloseAndRead() throws Exception {
         ManagedLedger ledger = factory.open("my_test_ledger_test_close_and_read",
                 new ManagedLedgerConfig().setMaxEntriesPerLedger(2));
@@ -208,7 +207,7 @@ public class ManagedCursorConcurrencyTest extends MockedBookKeeperTestCase {
         assertEquals(closeFuture.get(), CLOSED);
     }
 
-    @Test(timeOut = 30000)
+    
     public void testAckAndClose() throws Exception {
         ManagedLedger ledger = factory.open("my_test_ledger_test_ack_and_close",
                 new ManagedLedgerConfig().setMaxEntriesPerLedger(2));
@@ -263,7 +262,7 @@ public class ManagedCursorConcurrencyTest extends MockedBookKeeperTestCase {
         assertFalse(gotException.get());
     }
 
-    @Test(timeOut = 30000)
+    
     public void testConcurrentIndividualDeletes() throws Exception {
         ManagedLedger ledger = factory.open("my_test_ledger", new ManagedLedgerConfig().setMaxEntriesPerLedger(100));
 
@@ -310,7 +309,7 @@ public class ManagedCursorConcurrencyTest extends MockedBookKeeperTestCase {
         assertEquals(cursor.getMarkDeletedPosition(), addedEntries.get(addedEntries.size() - 1));
     }
 
-    @Test(timeOut = 30000)
+    
     public void testConcurrentReadOfSameEntry() throws Exception {
         ManagedLedger ledger = factory.open("testConcurrentReadOfSameEntry", new ManagedLedgerConfig());
         final int numCursors = 5;
@@ -360,7 +359,7 @@ public class ManagedCursorConcurrencyTest extends MockedBookKeeperTestCase {
         assertNull(result.get());
     }
 
-    @Test(timeOut = 30000)
+    
     public void testConcurrentIndividualDeletesWithGetNthEntry() throws Exception {
         ManagedLedger ledger = factory.open("my_test_ledger",
                 new ManagedLedgerConfig().setMaxEntriesPerLedger(100).setThrottleMarkDelete(0.5));

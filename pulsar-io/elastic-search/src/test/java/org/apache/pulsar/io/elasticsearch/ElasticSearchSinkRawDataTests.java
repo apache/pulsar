@@ -118,7 +118,6 @@ public abstract class ElasticSearchSinkRawDataTests extends ElasticSearchTestBas
             sink.close();
     }
 
-    @Test(enabled = true)
     public final void singleNonSchemaAwareTest() throws Exception {
         map.put("indexName", "test-index");
         sink.open(map, mockSinkContext);

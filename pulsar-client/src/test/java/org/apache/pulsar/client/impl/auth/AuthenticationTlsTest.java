@@ -38,7 +38,7 @@ public class AuthenticationTlsTest {
      * 
      * @throws Exception
      */
-    @Test
+
     public void testSerializableAuthentication() throws Exception {
         SerializableSupplier tlsCertSupplier = new SerializableSupplier("cert");
         SerializableSupplier tlsKeySupplier = new SerializableSupplier("key");

@@ -30,7 +30,7 @@ import java.util.concurrent.CompletableFuture;
 
 public class MultiRolesTokenAuthorizationProviderTest {
 
-    @Test
+
     public void testMultiRolesAuthz() throws Exception {
         SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
         String userA = "user-a";
@@ -71,7 +71,7 @@ public class MultiRolesTokenAuthorizationProviderTest {
         }).get());
     }
 
-    @Test
+
     public void testMultiRolesAuthzWithEmptyRoles() throws Exception {
         SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
         String token = Jwts.builder().claim("sub", new String[]{}).signWith(secretKey).compact();

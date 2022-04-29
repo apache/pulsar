@@ -87,7 +87,7 @@ public class TransactionMetricsTest extends BrokerTestBase {
         super.internalCleanup();
     }
 
-    @Test
+
     public void testTransactionCoordinatorMetrics() throws Exception{
         long timeout = 10000;
         admin.lookups().lookupTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString());
@@ -119,7 +119,7 @@ public class TransactionMetricsTest extends BrokerTestBase {
         });
     }
 
-    @Test
+
     public void testTransactionCoordinatorRateMetrics() throws Exception{
         int txnCount = 120;
         String ns1 = "prop/ns-abc1";
@@ -222,7 +222,7 @@ public class TransactionMetricsTest extends BrokerTestBase {
 
     }
 
-    @Test
+
     public void testManagedLedgerMetrics() throws Exception{
         String ns1 = "prop/ns-abc1";
         admin.namespaces().createNamespace(ns1);
@@ -283,7 +283,7 @@ public class TransactionMetricsTest extends BrokerTestBase {
         assertEquals(metric.size(), 2);
     }
 
-    @Test
+
     public void testManagedLedgerMetricsWhenPendingAckNotInit() throws Exception{
         String ns1 = "prop/ns-abc1";
         admin.namespaces().createNamespace(ns1);
@@ -350,7 +350,7 @@ public class TransactionMetricsTest extends BrokerTestBase {
         checkManagedLedgerMetrics(subName2, 32, metric);
     }
 
-    @Test
+
     public void testDuplicateMetricTypeDefinitions() throws Exception{
         admin.lookups().lookupTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString());
         TransactionCoordinatorID transactionCoordinatorIDOne = TransactionCoordinatorID.get(0);

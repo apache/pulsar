@@ -50,21 +50,21 @@ import static org.testng.Assert.assertTrue;
 @Slf4j
 public class GenericSchemaTest {
 
-    @Test
+
     public void testGenericAvroSchema() {
         Schema<Foo> encodeSchema = Schema.AVRO(Foo.class);
         GenericSchema decodeSchema = GenericAvroSchema.of(encodeSchema.getSchemaInfo());
         testEncodeAndDecodeGenericRecord(encodeSchema, decodeSchema);
     }
 
-    @Test
+
     public void testGenericJsonSchema() {
         Schema<Foo> encodeSchema = Schema.JSON(Foo.class);
         GenericSchema decodeSchema = GenericJsonSchema.of(encodeSchema.getSchemaInfo());
         testEncodeAndDecodeGenericRecord(encodeSchema, decodeSchema);
     }
 
-    @Test
+
     public void testAutoAvroSchema() {
         // configure encode schema
         Schema<Foo> encodeSchema = Schema.AVRO(Foo.class);
@@ -84,7 +84,7 @@ public class GenericSchemaTest {
         testEncodeAndDecodeGenericRecord(encodeSchema, decodeSchema);
     }
 
-    @Test
+
     public void testAutoJsonSchema() {
         // configure the schema info provider
         MultiVersionSchemaInfoProvider multiVersionSchemaInfoProvider = mock(MultiVersionSchemaInfoProvider.class);
@@ -122,7 +122,7 @@ public class GenericSchemaTest {
         }
     }
 
-    @Test
+
     public void testKeyValueSchema() {
         // configure the schema info provider
         MultiVersionSchemaInfoProvider multiVersionSchemaInfoProvider = mock(MultiVersionSchemaInfoProvider.class);

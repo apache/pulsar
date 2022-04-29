@@ -37,7 +37,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.IntStream;
 
-@Test(groups = "broker-impl")
+
 public class ConnectionPoolTest extends MockedPulsarServiceBaseTest {
 
     String serviceUrl;
@@ -55,7 +55,7 @@ public class ConnectionPoolTest extends MockedPulsarServiceBaseTest {
         super.internalCleanup();
     }
 
-    @Test
+
     public void testSingleIpAddress() throws Exception {
         ClientConfigurationData conf = new ClientConfigurationData();
         EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, false, new DefaultThreadFactory("test"));
@@ -73,7 +73,7 @@ public class ConnectionPoolTest extends MockedPulsarServiceBaseTest {
         eventLoop.shutdownGracefully();
     }
 
-    @Test
+
     public void testDoubleIpAddress() throws Exception {
         String serviceUrl = "pulsar://non-existing-dns-name:" + pulsar.getBrokerListenPort().get();
 
@@ -97,7 +97,7 @@ public class ConnectionPoolTest extends MockedPulsarServiceBaseTest {
         eventLoop.shutdownGracefully();
     }
 
-    @Test
+
     public void testNoConnectionPool() throws Exception {
         ClientConfigurationData conf = new ClientConfigurationData();
         conf.setConnectionsPerBroker(0);
@@ -119,7 +119,7 @@ public class ConnectionPoolTest extends MockedPulsarServiceBaseTest {
         pool.close();
     }
 
-    @Test
+
     public void testEnableConnectionPool() throws Exception {
         ClientConfigurationData conf = new ClientConfigurationData();
         conf.setConnectionsPerBroker(5);

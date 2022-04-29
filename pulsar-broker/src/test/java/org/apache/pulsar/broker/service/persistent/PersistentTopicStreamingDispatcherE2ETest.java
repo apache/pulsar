@@ -25,7 +25,7 @@ import org.testng.annotations.Test;
 /**
  * PersistentTopicE2ETest with {@link StreamingDispatcher}
  */
-@Test(groups = "flaky")
+
 public class PersistentTopicStreamingDispatcherE2ETest extends PersistentTopicE2ETest {
 
     @Override

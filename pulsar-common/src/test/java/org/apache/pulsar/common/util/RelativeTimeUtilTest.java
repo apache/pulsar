@@ -26,7 +26,7 @@ import java.util.concurrent.TimeUnit;
 import org.testng.annotations.Test;
 
 public class RelativeTimeUtilTest {
-    @Test
+
     public void testParseRelativeTime() {
         assertEquals(RelativeTimeUtil.parseRelativeTimeInSeconds("-1"), -1);
         assertEquals(RelativeTimeUtil.parseRelativeTimeInSeconds("7"), 7);

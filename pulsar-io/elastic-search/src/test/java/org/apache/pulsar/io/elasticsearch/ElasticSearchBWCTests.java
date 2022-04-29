@@ -31,7 +31,7 @@ import static org.testng.Assert.assertEquals;
 
 public class ElasticSearchBWCTests {
 
-    @Test
+    
     public void testGenericRecord() throws Exception {
         String json = "{\"c\":\"1\",\"d\":1,\"e\":{\"a\":\"a\",\"b\":true,\"d\":1.0,\"f\":1.0,\"i\":1,\"l\":10}}";
 

@@ -37,7 +37,7 @@ public class WebSocketHttpServletRequestWrapperTest {
             + "d4UNT96nsEL6sRNTpZMQ0qNj2_LMKFnwF3O_xe43-Uen3TllkAzhNd9Z6qIxyJyFbaFyWAVgiAfoFWQD0v4EmV96ZzKZvv3CbGjw";
     private static final String BEARER_TOKEN = WebSocketHttpServletRequestWrapper.HTTP_HEADER_VALUE_PREFIX + TOKEN;
 
-    @Test
+
     public void testTokenParamWithBearerPrefix() {
         UpgradeHttpServletRequest httpServletRequest = Mockito.mock(UpgradeHttpServletRequest.class);
         Mockito.when(httpServletRequest.getParameter(WebSocketHttpServletRequestWrapper.TOKEN))
@@ -50,7 +50,7 @@ public class WebSocketHttpServletRequestWrapperTest {
                 BEARER_TOKEN);
     }
 
-    @Test
+
     public void testTokenParamWithOutBearerPrefix() {
         UpgradeHttpServletRequest httpServletRequest = Mockito.mock(UpgradeHttpServletRequest.class);
         Mockito.when(httpServletRequest.getParameter(WebSocketHttpServletRequestWrapper.TOKEN))
@@ -63,7 +63,7 @@ public class WebSocketHttpServletRequestWrapperTest {
                 BEARER_TOKEN);
     }
 
-    @Test
+
     public void mockRequestTest() throws Exception {
         WebSocketProxyConfiguration config = PulsarConfigurationLoader.create(
                 this.getClass().getClassLoader().getResource("websocket.conf").getFile(),

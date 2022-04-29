@@ -85,7 +85,7 @@ public class KeyValueSchemaInfoTest {
             .withProperties(BAR_PROPERTIES)
             .build());
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
+    
     public void testDecodeNonKeyValueSchemaInfo() {
         DefaultImplementation.getDefaultImplementation().decodeKeyValueSchemaInfo(
             FOO_SCHEMA.getSchemaInfo()
@@ -100,7 +100,7 @@ public class KeyValueSchemaInfoTest {
         };
     }
 
-    @Test(dataProvider = "encodingTypes")
+    
     public void encodeDecodeKeyValueSchemaInfo(KeyValueEncodingType encodingType) {
         Schema<KeyValue<Foo, Bar>> kvSchema = Schema.KeyValue(
             FOO_SCHEMA,
@@ -126,7 +126,7 @@ public class KeyValueSchemaInfoTest {
         assertEquals(schemaInfoKeyValue.getValue(), BAR_SCHEMA.getSchemaInfo());
     }
 
-    @Test(dataProvider = "encodingTypes")
+    
     public void encodeDecodeNestedKeyValueSchemaInfo(KeyValueEncodingType encodingType) {
         Schema<KeyValue<String, Bar>> nestedSchema =
             Schema.KeyValue(Schema.STRING, BAR_SCHEMA, KeyValueEncodingType.INLINE);
@@ -162,7 +162,7 @@ public class KeyValueSchemaInfoTest {
         assertEquals(nestedSchemaInfoKeyValue.getValue(), BAR_SCHEMA.getSchemaInfo());
     }
 
-    @Test
+
     public void testKeyValueSchemaInfoBackwardCompatibility() {
         Schema<KeyValue<Foo, Bar>> kvSchema = Schema.KeyValue(
             FOO_SCHEMA,
@@ -208,7 +208,7 @@ public class KeyValueSchemaInfoTest {
         assertTrue(valueSchemaInfo.getProperties().isEmpty());
     }
 
-    @Test
+
     public void testKeyValueSchemaInfoToString() throws Exception {
         String havePrimitiveType = DefaultImplementation.getDefaultImplementation()
                 .convertKeyValueSchemaInfoDataToString(KeyValueSchemaInfo

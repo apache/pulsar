@@ -64,7 +64,7 @@ public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
         when(ml2.getName()).thenReturn("cache2");
     }
 
-    @Test
+
     public void simple() throws Exception {
         ManagedLedgerFactoryConfig config = new ManagedLedgerFactoryConfig();
         config.setMaxCacheSize(10);
@@ -127,7 +127,7 @@ public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
         assertEquals(cacheManager.mlFactoryMBean.getNumberOfCacheEvictions(), 1);
     }
 
-    @Test
+
     public void doubleInsert() throws Exception {
         ManagedLedgerFactoryConfig config = new ManagedLedgerFactoryConfig();
         config.setMaxCacheSize(10);
@@ -151,7 +151,7 @@ public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
         assertEquals(cacheManager.getSize(), 7);
     }
 
-    @Test
+
     public void cacheSizeUpdate() throws Exception {
         ManagedLedgerFactoryConfig config = new ManagedLedgerFactoryConfig();
         config.setMaxCacheSize(200);
@@ -184,7 +184,7 @@ public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
     }
 
 
-    @Test
+
     public void cacheDisabled() throws Exception {
         ManagedLedgerFactoryConfig config = new ManagedLedgerFactoryConfig();
         config.setMaxCacheSize(0);
@@ -222,7 +222,7 @@ public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
         assertEquals(cacheManager.getSize(), 0);
     }
 
-    @Test
+
     public void verifyNoCacheIfNoConsumer() throws Exception {
         ManagedLedgerFactoryConfig config = new ManagedLedgerFactoryConfig();
         config.setMaxCacheSize(7 * 10);
@@ -251,7 +251,7 @@ public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
         assertEquals(cacheManager.mlFactoryMBean.getNumberOfCacheEvictions(), 0);
     }
 
-    @Test
+
     public void verifyHitsMisses() throws Exception {
         ManagedLedgerFactoryConfig config = new ManagedLedgerFactoryConfig();
         config.setMaxCacheSize(7 * 10);
@@ -321,7 +321,7 @@ public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
         assertEquals(cacheManager.mlFactoryMBean.getNumberOfCacheEvictions(), 0);
     }
 
-    @Test
+
     public void verifyTimeBasedEviction() throws Exception {
         ManagedLedgerFactoryConfig config = new ManagedLedgerFactoryConfig();
         config.setMaxCacheSize(1000);
@@ -356,7 +356,7 @@ public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
         assertEquals(cache.getSize(), 0);
     }
 
-    @Test(timeOut = 5000)
+    
     void entryCacheDisabledAsyncReadEntry() throws Exception {
         ReadHandle lh = EntryCacheTest.getLedgerHandle();
 

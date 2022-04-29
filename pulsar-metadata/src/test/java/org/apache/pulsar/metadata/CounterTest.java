@@ -29,7 +29,7 @@ import org.testng.annotations.Test;
 
 public class CounterTest extends BaseMetadataStoreTest {
 
-    @Test(dataProvider = "impl")
+    
     public void basicTest(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
         MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
@@ -52,7 +52,7 @@ public class CounterTest extends BaseMetadataStoreTest {
         assertNotEquals(l3, l4);
     }
 
-    @Test(dataProvider = "impl")
+    
     public void testCounterDoesNotAutoReset(String provider, Supplier<String> urlSupplier) throws Exception {
         if (provider.equals("Memory")) {
             // Test doesn't make sense for local memory since we're testing across different instances

@@ -106,7 +106,7 @@ public class InfluxDBGenericRecordSinkTest {
         verify(influxDB, times(1)).close();
     }
 
-    @Test
+
     public void testOpenAndWrite() throws Exception {
         message = mock(MessageImpl.class);
         GenericSchema<GenericRecord> genericAvroSchema;

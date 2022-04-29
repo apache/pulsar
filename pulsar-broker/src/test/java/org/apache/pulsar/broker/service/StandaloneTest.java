@@ -26,7 +26,7 @@ import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.assertNotNull;
 import static org.testng.AssertJUnit.assertNull;
 
-@Test(groups = "broker")
+
 public class StandaloneTest extends MockedPulsarServiceBaseTest {
 
     @Override
@@ -39,7 +39,7 @@ public class StandaloneTest extends MockedPulsarServiceBaseTest {
 
     }
 
-    @Test
+
     public void testWithoutMetadataStoreUrlInConfFile() throws Exception {
         String args[] = new String[]{"--config",
                 "../conf/standalone.conf"};
@@ -48,7 +48,7 @@ public class StandaloneTest extends MockedPulsarServiceBaseTest {
         assertNotNull(standalone.getConfig().getProperties().getProperty("configurationMetadataStoreUrl"));
     }
 
-    @Test
+
     public void testAdvertised() throws Exception {
         String args[] = new String[]{"--config",
                 "./src/test/resources/configurations/pulsar_broker_test_standalone.conf"};

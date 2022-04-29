@@ -28,7 +28,7 @@ import static org.testng.Assert.assertEquals;
 
 public class NonPersistentPartitionedTopicStatsTest {
 
-    @Test
+
     public void testPartitionedTopicStats() {
         NonPersistentPartitionedTopicStatsImpl nonPersistentPartitionedTopicStats = new NonPersistentPartitionedTopicStatsImpl();
         nonPersistentPartitionedTopicStats.msgRateIn = 1;

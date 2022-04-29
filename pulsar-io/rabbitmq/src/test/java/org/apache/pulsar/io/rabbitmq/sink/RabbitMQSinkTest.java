@@ -45,7 +45,7 @@ public class RabbitMQSinkTest {
         rabbitMQBrokerManager.stopBroker();
     }
 
-    @Test
+
     public void TestOpenAndWriteSink() throws Exception {
         Map<String, Object> configs = new HashMap<>();
         configs.put("host", "localhost");

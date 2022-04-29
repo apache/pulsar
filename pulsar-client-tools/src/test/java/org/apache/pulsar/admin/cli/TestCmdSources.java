@@ -132,7 +132,7 @@ public class TestCmdSources {
     	return createSource.parseBatchSourceConfigs(BATCH_SOURCE_CONFIG_STRING);
     }
 
-    @Test
+
     public void testCliCorrect() throws Exception {
         SourceConfig sourceConfig = getSourceConfig();
         testCmdSourceCliMissingArgs(
@@ -150,7 +150,7 @@ public class TestCmdSources {
         );
     }
 
-    @Test
+
     public void testMissingSerdeClassName() throws Exception {
         SourceConfig sourceConfig = getSourceConfig();
         sourceConfig.setSerdeClassName(null);
@@ -171,7 +171,7 @@ public class TestCmdSources {
         );
     }
 
-    @Test
+
     public void testMissingProcessingGuarantees() throws Exception {
         SourceConfig sourceConfig = getSourceConfig();
         sourceConfig.setProcessingGuarantees(null);
@@ -190,7 +190,6 @@ public class TestCmdSources {
         );
     }
 
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Source archive not specified")
     public void testMissingArchive() throws Exception {
         SourceConfig sourceConfig = getSourceConfig();
         sourceConfig.setArchive(null);
@@ -209,7 +208,6 @@ public class TestCmdSources {
         );
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "Source Archive /tmp/foo.jar does not exist")
     public void testInvalidJar() throws Exception {
         SourceConfig sourceConfig = getSourceConfig();
         String fakeJar = "/tmp/foo.jar";
@@ -229,7 +227,7 @@ public class TestCmdSources {
         );
     }
 
-    @Test
+
     public void testMissingConfig() throws Exception {
         SourceConfig sourceConfig = getSourceConfig();
         sourceConfig.setConfigs(null);
@@ -322,13 +320,13 @@ public class TestCmdSources {
     }
 
 
-    @Test
+
     public void testCmdSourceConfigFileCorrect() throws Exception {
         SourceConfig sourceConfig = getSourceConfig();
         testCmdSourceConfigFile(sourceConfig, sourceConfig);
     }
 
-    @Test
+
     public void testCmdSourceConfigFileMissingSerdeClassname() throws Exception {
         SourceConfig testSourceConfig = getSourceConfig();
         testSourceConfig.setSerdeClassName(null);
@@ -338,7 +336,7 @@ public class TestCmdSources {
         testCmdSourceConfigFile(testSourceConfig, expectedSourceConfig);
     }
 
-    @Test
+
     public void testCmdSourceConfigFileMissingConfig() throws Exception {
         SourceConfig testSourceConfig = getSourceConfig();
         testSourceConfig.setConfigs(null);
@@ -348,7 +346,7 @@ public class TestCmdSources {
         testCmdSourceConfigFile(testSourceConfig, expectedSourceConfig);
     }
 
-    @Test
+
     public void testCmdSourceConfigFileMissingProcessingGuarantees() throws Exception {
         SourceConfig testSourceConfig = getSourceConfig();
         testSourceConfig.setProcessingGuarantees(null);
@@ -358,7 +356,7 @@ public class TestCmdSources {
         testCmdSourceConfigFile(testSourceConfig, expectedSourceConfig);
     }
 
-    @Test
+
     public void testCmdSourceConfigFileMissingResources() throws Exception {
         SourceConfig testSourceConfig = getSourceConfig();
         testSourceConfig.setResources(null);
@@ -368,7 +366,6 @@ public class TestCmdSources {
         testCmdSourceConfigFile(testSourceConfig, expectedSourceConfig);
     }
 
-    @Test(expectedExceptions = ParameterException.class, expectedExceptionsMessageRegExp = "Source archive not specified")
     public void testCmdSourceConfigFileMissingJar() throws Exception {
         SourceConfig testSourceConfig = getSourceConfig();
         testSourceConfig.setArchive(null);
@@ -378,7 +375,6 @@ public class TestCmdSources {
         testCmdSourceConfigFile(testSourceConfig, expectedSourceConfig);
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "Source Archive /tmp/foo.jar does not exist")
     public void testCmdSourceConfigFileInvalidJar() throws Exception {
         SourceConfig testSourceConfig = getSourceConfig();
         testSourceConfig.setArchive("/tmp/foo.jar");
@@ -388,7 +384,7 @@ public class TestCmdSources {
         testCmdSourceConfigFile(testSourceConfig, expectedSourceConfig);
     }
 
-    @Test
+
     public void testBatchSourceConfigCorrect() throws Exception {
     	SourceConfig testSourceConfig = getSourceConfig();
     	testSourceConfig.setBatchSourceConfig(getBatchSourceConfig());
@@ -401,7 +397,6 @@ public class TestCmdSources {
     /*
      * Test where the DiscoveryTriggererClassName is null
      */
-    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "Discovery Triggerer not specified")
     public void testBatchSourceConfigMissingDiscoveryTriggererClassName() throws Exception {
     	SourceConfig testSourceConfig = getSourceConfig();
     	BatchSourceConfig batchSourceConfig = getBatchSourceConfig();
@@ -445,7 +440,7 @@ public class TestCmdSources {
     }
 
 
-    @Test
+
     public void testCliOverwriteConfigFile() throws Exception {
 
         SourceConfig testSourceConfig = new SourceConfig();
@@ -569,7 +564,7 @@ public class TestCmdSources {
         verify(localSourceRunner).validateSourceConfigs(eq(sourceConfig));
     }
 
-    @Test
+
     public void testDeleteMissingTenant() throws Exception {
         deleteSource.tenant = null;
         deleteSource.namespace = NAMESPACE;
@@ -582,7 +577,7 @@ public class TestCmdSources {
         verify(source).deleteSource(eq(PUBLIC_TENANT), eq(NAMESPACE), eq(NAME));
     }
 
-    @Test
+
     public void testDeleteMissingNamespace() throws Exception {
         deleteSource.tenant = TENANT;
         deleteSource.namespace = null;
@@ -595,7 +590,6 @@ public class TestCmdSources {
         verify(source).deleteSource(eq(TENANT), eq(DEFAULT_NAMESPACE), eq(NAME));
     }
 
-    @Test(expectedExceptions = RuntimeException.class, expectedExceptionsMessageRegExp = "You must specify a name for the source")
     public void testDeleteMissingName() throws Exception {
         deleteSource.tenant = TENANT;
         deleteSource.namespace = NAMESPACE;
@@ -608,7 +602,7 @@ public class TestCmdSources {
         verify(source).deleteSource(eq(TENANT), eq(NAMESPACE), null);
     }
 
-    @Test
+
     public void testUpdateSource() throws Exception {
 
         updateSource.name = "my-source";
@@ -651,7 +645,7 @@ public class TestCmdSources {
 
     }
 
-    @Test
+
     public void testParseConfigs() throws Exception {
         SourceConfig testSourceConfig = getSourceConfig();
         Map<String, Object> config = testSourceConfig.getConfigs();

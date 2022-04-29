@@ -43,7 +43,7 @@ public class DLInputStreamTest {
     /**
      * Test Case: reader hits eos (end of stream)
      */
-    @Test
+
     public void testReadEos() throws Exception {
         DistributedLogManager dlm = mock(DistributedLogManager.class);
         LogReader reader = mock(LogReader.class);
@@ -61,7 +61,7 @@ public class DLInputStreamTest {
     /**
      * Test Case: close the input stream
      */
-    @Test
+
     public void testClose() throws Exception {
         DistributedLogManager dlm = mock(DistributedLogManager.class);
         LogReader reader = mock(LogReader.class);
@@ -77,7 +77,7 @@ public class DLInputStreamTest {
     /**
      * Test Case: read records from the input stream.
      */
-    @Test
+
     public void testRead() throws Exception {
         DistributedLogManager dlm = mock(DistributedLogManager.class);
         LogReader reader = mock(LogReader.class);

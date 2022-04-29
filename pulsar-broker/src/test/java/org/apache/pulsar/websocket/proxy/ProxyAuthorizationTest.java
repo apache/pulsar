@@ -41,7 +41,7 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-@Test(groups = "websocket")
+
 public class ProxyAuthorizationTest extends MockedPulsarServiceBaseTest {
     private WebSocketService service;
     private final String configClusterName = "c1";
@@ -77,7 +77,7 @@ public class ProxyAuthorizationTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+
     public void test() throws Exception {
         AuthorizationService auth = service.getAuthorizationService();
 

@@ -73,7 +73,7 @@ public class TransactionTest extends TransactionTestBase {
      * 1. The balance update messages count should be double transfer message count.
      * 2. The balance update messages amount sum should be 0.
      */
-    @Test(dataProvider = "ServiceUrls")
+    
     public void transferNormalTest(Supplier<String> serviceUrl) throws Exception {
         log.info("transfer normal test start.");
         @Cleanup

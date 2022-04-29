@@ -56,7 +56,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 
 @Slf4j
-@Test(groups = "broker")
+
 public class PendingAckInMemoryDeleteTest extends TransactionTestBase {
 
     private static final int NUM_PARTITIONS = 16;
@@ -71,7 +71,7 @@ public class PendingAckInMemoryDeleteTest extends TransactionTestBase {
         super.internalCleanup();
     }
 
-    @Test
+
     public void txnAckTestNoBatchAndSharedSubMemoryDeleteTest() throws Exception {
         String normalTopic = NAMESPACE1 + "/normal-topic";
         String subscriptionName = "test";
@@ -155,7 +155,7 @@ public class PendingAckInMemoryDeleteTest extends TransactionTestBase {
         }
     }
 
-    @Test
+
     public void txnAckTestBatchAndSharedSubMemoryDeleteTest() throws Exception {
         String normalTopic = NAMESPACE1 + "/normal-topic";
         String subscriptionName = "test";

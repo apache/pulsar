@@ -44,7 +44,7 @@ import org.testng.annotations.Test;
  * Test multi-broker admin api.
  */
 @Slf4j
-@Test(groups = "broker-admin")
+
 public class AdminApiMultiBrokersTest extends MultiBrokerBaseTest {
     @Override
     protected int numberOfAdditionalBrokers() {
@@ -61,7 +61,7 @@ public class AdminApiMultiBrokersTest extends MultiBrokerBaseTest {
         super.onCleanup();
     }
 
-    @Test(timeOut = 30 * 1000)
+    
     public void testGetLeaderBroker()
             throws ExecutionException, InterruptedException, PulsarAdminException {
         List<PulsarService> allBrokers = getAllBrokers();
@@ -89,7 +89,6 @@ public class AdminApiMultiBrokersTest extends MultiBrokerBaseTest {
         };
     }
 
-    @Test(timeOut = 30 * 1000, dataProvider = "topicTypes")
     public void testTopicLookup(TopicDomain topicDomain, boolean isPartition) throws Exception {
         PulsarAdmin admin0 = getAllAdmins().get(0);
 

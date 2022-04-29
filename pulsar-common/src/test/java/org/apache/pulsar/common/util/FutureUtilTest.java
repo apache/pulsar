@@ -39,7 +39,7 @@ import static org.testng.Assert.fail;
 
 public class FutureUtilTest {
 
-    @Test
+    
     public void testCreateTimeoutException() {
         TimeoutException timeoutException = FutureUtil.createTimeoutException("hello world", getClass(), "test(...)");
         assertNotNull(timeoutException);
@@ -52,7 +52,7 @@ public class FutureUtilTest {
                 + "\tat org.apache.pulsar.common.util.FutureUtilTest.test(...)(Unknown Source)" + System.lineSeparator());
     }
 
-    @Test
+    
     public void testTimeoutHandling() {
         CompletableFuture<Void> future = new CompletableFuture<>();
         @Cleanup("shutdownNow")
@@ -69,7 +69,7 @@ public class FutureUtilTest {
         }
     }
 
-    @Test
+    
     public void testTimeoutHandlingNoTimeout() throws ExecutionException, InterruptedException {
         CompletableFuture<Void> future = new CompletableFuture<>();
         @Cleanup("shutdownNow")
@@ -79,7 +79,7 @@ public class FutureUtilTest {
         future.get();
     }
 
-    @Test
+    
     public void testCreatingFutureWithTimeoutHandling() {
         @Cleanup("shutdownNow")
         ScheduledExecutorService executor = Executors.newScheduledThreadPool(1);
@@ -96,7 +96,7 @@ public class FutureUtilTest {
         }
     }
 
-    @Test
+    
     public void testGetOriginalException() {
         CompletableFuture<Void> future = CompletableFuture.completedFuture(null);
         CompletableFuture<Void> exceptionFuture = future.thenAccept(__ -> {

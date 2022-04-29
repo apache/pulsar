@@ -31,7 +31,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 @Slf4j
-@Test(groups = "broker-admin")
+
 public class AdminApiSubscriptionTest extends MockedPulsarServiceBaseTest {
     @BeforeClass
     @Override
@@ -46,7 +46,7 @@ public class AdminApiSubscriptionTest extends MockedPulsarServiceBaseTest {
         super.internalCleanup();
     }
 
-    @Test
+
     public void testExpireMessageWithNonExistTopicAndExistSub() throws Exception {
         String uuid = UUID.randomUUID().toString();
         String topic = "test-expire-messages-non-exist-topic-" + uuid;
@@ -62,7 +62,7 @@ public class AdminApiSubscriptionTest extends MockedPulsarServiceBaseTest {
                 Response.Status.CONFLICT.getStatusCode());
     }
 
-    @Test
+
     public void testExpireMessageWithNonExistTopicAndNonExistSub() {
         String uuid = UUID.randomUUID().toString();
         String topic = "test-expire-messages-non-exist-topic-" + uuid;
@@ -79,7 +79,7 @@ public class AdminApiSubscriptionTest extends MockedPulsarServiceBaseTest {
         assertEquals(exception.getMessage(), "Topic not found");
     }
 
-    @Test
+
     public void tesSkipMessageWithNonExistTopicAndExistSub() throws Exception {
         String uuid = UUID.randomUUID().toString();
         String topic = "test-skip-messages-non-exist-topic-" + uuid;
@@ -90,7 +90,7 @@ public class AdminApiSubscriptionTest extends MockedPulsarServiceBaseTest {
         admin.topics().skipAllMessages(topic, subscriptionName);
     }
 
-    @Test
+
     public void tesSkipMessageWithNonExistTopicAndNotExistSub() {
         String uuid = UUID.randomUUID().toString();
         String topic = "test-skip-messages-non-exist-topic-" + uuid;

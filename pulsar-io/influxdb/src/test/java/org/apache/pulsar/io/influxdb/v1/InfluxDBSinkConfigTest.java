@@ -33,7 +33,7 @@ import static org.testng.Assert.assertNotNull;
  * InfluxDBSinkConfig test
  */
 public class InfluxDBSinkConfigTest {
-    @Test
+
     public final void loadFromYamlFileTest() throws IOException {
         File yamlFile = getFile("sinkConfig-v1.yaml");
         String path = yamlFile.getAbsolutePath();
@@ -49,7 +49,7 @@ public class InfluxDBSinkConfigTest {
         assertEquals(Integer.parseInt("100"), config.getBatchSize());
     }
 
-    @Test
+
     public final void loadFromMapTest() throws IOException {
         Map<String, Object> map = new HashMap<>();
         map.put("influxdbUrl", "http://localhost:8086");
@@ -73,7 +73,7 @@ public class InfluxDBSinkConfigTest {
         assertEquals(Integer.parseInt("100"), config.getBatchSize());
     }
 
-    @Test
+
     public final void validValidateTest() throws IOException {
         Map<String, Object> map = new HashMap<>();
         map.put("influxdbUrl", "http://localhost:8086");
@@ -89,8 +89,6 @@ public class InfluxDBSinkConfigTest {
         config.validate();
     }
 
-    @Test(expectedExceptions = NullPointerException.class,
-        expectedExceptionsMessageRegExp = "influxdbUrl property not set.")
     public final void missingInfluxdbUrlValidateTest() throws IOException {
         Map<String, Object> map = new HashMap<>();
         map.put("database", "test_db");
@@ -105,8 +103,6 @@ public class InfluxDBSinkConfigTest {
         config.validate();
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class,
-        expectedExceptionsMessageRegExp = "batchSize must be a positive integer.")
     public final void invalidBatchSizeTest() throws IOException {
         Map<String, Object> map = new HashMap<>();
         map.put("influxdbUrl", "http://localhost:8086");
@@ -122,8 +118,6 @@ public class InfluxDBSinkConfigTest {
         config.validate();
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class,
-        expectedExceptionsMessageRegExp = "No enum constant org.influxdb.InfluxDB.ConsistencyLevel.NOTSUPPORT")
     public final void invalidConsistencyLevelTest() throws IOException {
         Map<String, Object> map = new HashMap<>();
         map.put("influxdbUrl", "http://localhost:8086");

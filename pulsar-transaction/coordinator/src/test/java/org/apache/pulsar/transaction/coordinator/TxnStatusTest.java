@@ -100,7 +100,6 @@ public class TxnStatusTest {
         };
     }
 
-    @Test(dataProvider = "statuses")
     public void testTxnStatusTransition(TxnStatus status,
                                         Set<TxnStatus> statusesCanTransitionTo,
                                         Set<TxnStatus> statusesCanNotTransactionTo) {

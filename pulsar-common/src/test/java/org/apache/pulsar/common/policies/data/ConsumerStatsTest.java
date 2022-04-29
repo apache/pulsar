@@ -26,7 +26,7 @@ import org.testng.annotations.Test;
 
 public class ConsumerStatsTest {
 
-    @Test
+
     public void testConsumerStats() {
         ConsumerStatsImpl stats = new ConsumerStatsImpl();
         assertNull(stats.getAddress());

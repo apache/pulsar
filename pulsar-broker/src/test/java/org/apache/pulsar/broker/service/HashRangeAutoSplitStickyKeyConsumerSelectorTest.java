@@ -32,10 +32,10 @@ import java.util.Map;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-@Test(groups = "broker")
+
 public class HashRangeAutoSplitStickyKeyConsumerSelectorTest {
 
-    @Test
+
     public void testGetConsumerKeyHashRanges() throws BrokerServiceException.ConsumerAssignException {
         HashRangeAutoSplitStickyKeyConsumerSelector selector = new HashRangeAutoSplitStickyKeyConsumerSelector(2 << 5);
         List<String> consumerName = Arrays.asList("consumer1", "consumer2", "consumer3", "consumer4");
@@ -59,7 +59,7 @@ public class HashRangeAutoSplitStickyKeyConsumerSelectorTest {
         Assert.assertEquals(expectedResult.size(), 0);
     }
 
-    @Test
+
     public void testGetConsumerKeyHashRangesWithSameConsumerName() throws Exception {
         HashRangeAutoSplitStickyKeyConsumerSelector selector = new HashRangeAutoSplitStickyKeyConsumerSelector(2 << 5);
         final String consumerName = "My-consumer";

@@ -32,7 +32,6 @@ public class RetryAnalyzerTest {
     int invocationCountB;
     int invocationCountC;
 
-    @Test(retryAnalyzer = TestRetryAnalyzer.class)
     void testMethodA() {
         invocationCountA++;
         if (invocationCountA < RETRY_COUNT) {
@@ -40,7 +39,6 @@ public class RetryAnalyzerTest {
         }
     }
 
-    @Test(retryAnalyzer = TestRetryAnalyzer.class)
     void testMethodB() {
         invocationCountB++;
         if (invocationCountB < RETRY_COUNT) {
@@ -48,7 +46,6 @@ public class RetryAnalyzerTest {
         }
     }
 
-    @Test(retryAnalyzer = TestRetryAnalyzer.class)
     void testMethodC() {
         invocationCountC++;
         if (invocationCountC < RETRY_COUNT) {

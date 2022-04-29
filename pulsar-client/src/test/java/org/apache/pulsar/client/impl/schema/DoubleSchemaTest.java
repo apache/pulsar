@@ -25,7 +25,7 @@ import org.testng.annotations.Test;
 
 public class DoubleSchemaTest {
 
-    @Test
+
     public void testSchemaEncode() {
         DoubleSchema schema = DoubleSchema.of();
         double data = 12345678.1234;
@@ -43,7 +43,7 @@ public class DoubleSchemaTest {
         Assert.assertEquals(expected, schema.encode(data));
     }
 
-    @Test
+
     public void testSchemaEncodeDecodeFidelity() {
         DoubleSchema schema = DoubleSchema.of();
         Double dbl = 1234578.8754321;
@@ -54,7 +54,7 @@ public class DoubleSchemaTest {
         Assert.assertEquals(dbl, schema.decode(byteBuf));
     }
 
-    @Test
+
     public void testNullEncodeDecode() {
         ByteBuf byteBuf = null;
         byte[] bytes = null;

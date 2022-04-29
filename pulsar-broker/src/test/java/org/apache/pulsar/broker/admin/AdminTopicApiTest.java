@@ -37,7 +37,7 @@ import java.util.concurrent.TimeUnit;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
-@Test(groups = "broker-admin")
+
 public class AdminTopicApiTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(AdminTopicApiTest.class);
 
@@ -54,7 +54,7 @@ public class AdminTopicApiTest extends ProducerConsumerBase {
         super.internalCleanup();
     }
 
-    @Test
+
     public void testPeekMessages() throws Exception {
         @Cleanup
         PulsarClient newPulsarClient = PulsarClient.builder()

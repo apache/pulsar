@@ -61,7 +61,7 @@ import org.testng.annotations.Test;
 /**
  * Test Pulsar sink on function
  */
-@Test(groups = "broker-io")
+
 public class PulsarFunctionAdminTest {
     LocalBookkeeperEnsemble bkEnsemble;
 

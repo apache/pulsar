@@ -27,7 +27,7 @@ import static org.testng.Assert.assertEquals;
 
 public class TestRunMain {
 
-    @Test
+
     public void runMainNoArguments() throws Exception {
         PulsarAdminTool.resetLastExitCode();
         PulsarAdminTool.setAllowSystemExit(false);
@@ -35,7 +35,7 @@ public class TestRunMain {
         assertEquals(PulsarAdminTool.getLastExitCode(), 0);
     }
 
-    @Test
+
     public void runMainDummyConfigFile() throws Exception {
         PulsarAdminTool.resetLastExitCode();
         PulsarAdminTool.setAllowSystemExit(false);

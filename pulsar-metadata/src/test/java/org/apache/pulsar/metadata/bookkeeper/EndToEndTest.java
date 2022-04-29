@@ -38,7 +38,7 @@ import org.testng.annotations.Test;
  */
 @Slf4j
 public class EndToEndTest extends BaseMetadataStoreTest {
-    @Test(dataProvider = "impl")
+    
     public void testBasic(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
         BKCluster bktc = new BKCluster(urlSupplier.get(), 1);
@@ -82,7 +82,7 @@ public class EndToEndTest extends BaseMetadataStoreTest {
     }
 
 
-    @Test(dataProvider = "impl")
+    
     public void testWithLedgerRecovery(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
         BKCluster bktc = new BKCluster(urlSupplier.get(), 3);

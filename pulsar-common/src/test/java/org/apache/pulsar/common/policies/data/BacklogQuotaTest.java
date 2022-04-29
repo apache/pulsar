@@ -23,7 +23,7 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 public class BacklogQuotaTest {
-    @Test
+
     public void testBacklogQuotaIdentity() {
         Assert.assertNotEquals(BacklogQuota.builder()
                         .limitSize(1)

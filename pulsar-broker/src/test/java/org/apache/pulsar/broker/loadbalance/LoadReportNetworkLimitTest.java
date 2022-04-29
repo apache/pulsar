@@ -27,7 +27,7 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker")
+
 public class LoadReportNetworkLimitTest extends MockedPulsarServiceBaseTest {
     int nicCount;
 
@@ -49,7 +49,7 @@ public class LoadReportNetworkLimitTest extends MockedPulsarServiceBaseTest {
         super.internalCleanup();
     }
 
-    @Test
+
     public void checkLoadReportNicSpeed() throws Exception {
         // Since we have overridden the NIC speed in the configuration, the load report for the broker should always
 

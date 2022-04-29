@@ -33,7 +33,7 @@ import org.testng.annotations.Test;
 @Slf4j
 public class EndToEndMetadataTest extends BaseMetadataStoreTest {
 
-    @Test(dataProvider = "impl")
+    
     public void testPublishConsume(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
         EmbeddedPulsarCluster epc = EmbeddedPulsarCluster.builder()

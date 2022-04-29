@@ -55,7 +55,7 @@ import org.testng.annotations.Test;
  * Pulsar client transaction test.
  */
 @Slf4j
-@Test(groups = "broker")
+
 public class TransactionStablePositionTest extends TransactionTestBase {
 
     private static final String TOPIC = NAMESPACE1 + "/test-topic";
@@ -72,7 +72,7 @@ public class TransactionStablePositionTest extends TransactionTestBase {
         super.internalCleanup();
     }
 
-    @Test
+    
     public void commitTxnTest() throws Exception {
         Transaction txn = pulsarClient.newTransaction()
                 .withTransactionTimeout(5, TimeUnit.SECONDS)
@@ -118,7 +118,7 @@ public class TransactionStablePositionTest extends TransactionTestBase {
         assertNull(message);
     }
 
-    @Test
+    
     public void abortTxnTest() throws Exception {
         Transaction txn = pulsarClient.newTransaction()
                 .withTransactionTimeout(5, TimeUnit.SECONDS)
@@ -171,7 +171,6 @@ public class TransactionStablePositionTest extends TransactionTestBase {
         };
     }
 
-    @Test(dataProvider = "enableTransactionAndState")
     public void testSyncNormalPositionWhenTBRecover(boolean clientEnableTransaction,
                                                     TopicTransactionBufferState.State state) throws Exception {
 

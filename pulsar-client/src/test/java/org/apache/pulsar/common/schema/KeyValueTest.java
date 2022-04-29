@@ -91,7 +91,7 @@ public class KeyValueTest {
         };
     }
 
-    @Test(dataProvider = "schemas")
+    
     public void testAllSchemas(Map<Schema, List<Object>> schemas) {
         for (Map.Entry<Schema, List<Object>> keyEntry : schemas.entrySet()) {
             for (Map.Entry<Schema, List<Object>> valueEntry : schemas.entrySet()) {

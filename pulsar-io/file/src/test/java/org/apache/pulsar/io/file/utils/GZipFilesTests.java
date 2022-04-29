@@ -30,27 +30,27 @@ import org.testng.annotations.Test;
 
 public class GZipFilesTests {
 
-    @Test
+
     public final void validGzipFileTest() {
         assertTrue(GZipFiles.isGzip(getFile("org/apache/pulsar/io/file/validGzip.gz")));
     }
     
-    @Test
+
     public final void nonGzipFileTest() {
         assertFalse(GZipFiles.isGzip(getFile("org/apache/pulsar/io/file/nonGzipFile.txt")));
     }
     
-    @Test
+
     public final void mislabelledGzipFileTest() {
         assertFalse(GZipFiles.isGzip(getFile("org/apache/pulsar/io/file/mislabelled.gz")));
     }
     
-    @Test
+
     public final void nonExistantGzipFileTest() {
         assertFalse(GZipFiles.isGzip(null));
     }
     
-    @Test
+
     public final void streamGzipFileTest() {
         Path path = Paths.get(getFile("org/apache/pulsar/io/file/validGzip.gz").getAbsolutePath(), "");
         

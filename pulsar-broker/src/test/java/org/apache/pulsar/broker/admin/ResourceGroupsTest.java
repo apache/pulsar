@@ -68,7 +68,7 @@ public class ResourceGroupsTest extends MockedPulsarServiceBaseTest  {
         super.internalCleanup();
     }
 
-    @Test
+
     public void testCrudResourceGroups() throws Exception {
         // create with null resourcegroup should fail.
         try {
@@ -139,7 +139,7 @@ public class ResourceGroupsTest extends MockedPulsarServiceBaseTest  {
         }
     }
 
-    @Test
+
     public void testNamespaceResourceGroup() throws Exception {
         // create resourcegroup with non default values.
         ResourceGroup testResourceGroupTwo = new ResourceGroup();

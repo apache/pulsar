@@ -40,7 +40,7 @@ import org.testng.annotations.Test;
 @Slf4j
 public class RocksdbMetadataStoreTest {
 
-    @Test
+
     public void testConvert() {
         String s = "testConvert";
         Assert.assertEquals(s, RocksdbMetadataStore.toString(RocksdbMetadataStore.toBytes(s)));
@@ -49,7 +49,7 @@ public class RocksdbMetadataStoreTest {
         Assert.assertEquals(l, RocksdbMetadataStore.toLong(RocksdbMetadataStore.toBytes(l)));
     }
 
-    @Test
+
     public void testMetaValue() throws Exception {
         RocksdbMetadataStore.MetaValue metaValue = new RocksdbMetadataStore.MetaValue();
         metaValue.setVersion(RandomUtils.nextLong());
@@ -61,7 +61,7 @@ public class RocksdbMetadataStoreTest {
         Assert.assertEquals(RocksdbMetadataStore.MetaValue.parse(metaValue.serialize()), metaValue);
     }
 
-    @Test
+
     public void testOpenDbWithConfigFile() throws Exception {
         MetadataStore store;
         Path tempDir;
@@ -113,7 +113,7 @@ public class RocksdbMetadataStoreTest {
         FileUtils.deleteQuietly(tempDir.toFile());
     }
 
-    @Test
+
     public void testMultipleInstances() throws Exception {
 
         Path tempDir = Files.createTempDirectory("RocksdbMetadataStoreTest");

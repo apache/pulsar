@@ -31,7 +31,7 @@ import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker")
+
 public class MessagePublishBufferThrottleTest extends BrokerTestBase {
 
     @Override
@@ -46,7 +46,7 @@ public class MessagePublishBufferThrottleTest extends BrokerTestBase {
         resetConfig();
     }
 
-    @Test
+
     public void testMessagePublishBufferThrottleDisabled() throws Exception {
         conf.setMaxMessagePublishBufferSizeInMB(-1);
         super.baseSetup();
@@ -69,7 +69,7 @@ public class MessagePublishBufferThrottleTest extends BrokerTestBase {
         assertEquals(pulsar.getBrokerService().getPausedConnections(), 0);
     }
 
-    @Test
+
     public void testMessagePublishBufferThrottleEnable() throws Exception {
         conf.setMaxMessagePublishBufferSizeInMB(1);
         super.baseSetup();
@@ -102,7 +102,7 @@ public class MessagePublishBufferThrottleTest extends BrokerTestBase {
         assertEquals(pulsar.getBrokerService().getPausedConnections(), 0);
     }
 
-    @Test
+
     public void testBlockByPublishRateLimiting() throws Exception {
         conf.setMaxMessagePublishBufferSizeInMB(1);
         super.baseSetup();

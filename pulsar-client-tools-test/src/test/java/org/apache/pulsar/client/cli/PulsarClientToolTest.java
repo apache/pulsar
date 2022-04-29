@@ -56,7 +56,7 @@ public class PulsarClientToolTest extends BrokerTestBase {
         super.internalCleanup();
     }
 
-    @Test
+
     public void testInitialization() throws InterruptedException, ExecutionException, PulsarAdminException {
 
         Properties properties = new Properties();
@@ -101,7 +101,7 @@ public class PulsarClientToolTest extends BrokerTestBase {
         future.get();
     }
 
-    @Test(timeOut = 20000)
+    
     public void testNonDurableSubscribe() throws Exception {
 
         Properties properties = new Properties();
@@ -150,7 +150,7 @@ public class PulsarClientToolTest extends BrokerTestBase {
                 .until(()->admin.topics().getSubscriptions(topicName).size() == 0);
     }
 
-    @Test(timeOut = 60000)
+    
     public void testDurableSubscribe() throws Exception {
 
         Properties properties = new Properties();
@@ -193,7 +193,7 @@ public class PulsarClientToolTest extends BrokerTestBase {
         }
     }
 
-    @Test(timeOut = 20000)
+    
     public void testEncryption() throws Exception {
         Properties properties = new Properties();
         properties.setProperty("serviceUrl", brokerUrl.toString());
@@ -236,7 +236,7 @@ public class PulsarClientToolTest extends BrokerTestBase {
         }
     }
 
-    @Test(timeOut = 20000)
+    
     public void testDisableBatching() throws Exception {
         Properties properties = new Properties();
         properties.setProperty("serviceUrl", brokerUrl.toString());

@@ -49,7 +49,7 @@ import org.testng.annotations.Test;
  * Test for {@link MessagePayloadProcessor}.
  */
 @Slf4j
-@Test(groups = "broker-impl")
+
 public class MessagePayloadProcessorTest extends ProducerConsumerBase {
 
     @BeforeClass
@@ -89,7 +89,7 @@ public class MessagePayloadProcessorTest extends ProducerConsumerBase {
         };
     }
 
-    @Test(dataProvider = "config")
+    
     public void testDefaultProcessor(int numPartitions, boolean enableBatching, int batchingMaxMessages)
             throws Exception {
         final String topic = "testDefaultProcessor-" + numPartitions + "-" + enableBatching + "-" + batchingMaxMessages;
@@ -162,7 +162,7 @@ public class MessagePayloadProcessorTest extends ProducerConsumerBase {
         }
     }
 
-    @Test
+
     public void testCustomBatchFormat() {
         final List<List<String>> inputs = new ArrayList<>();
         inputs.add(Collections.emptyList());
@@ -186,7 +186,6 @@ public class MessagePayloadProcessorTest extends ProducerConsumerBase {
         }
     }
 
-    @Test(dataProvider = "customBatchConfig")
     public void testCustomProcessor(final int numMessages, final int batchingMaxMessages) throws Exception {
         final String topic = "persistent://public/default/testCustomProcessor-"
                 + numMessages + "-" + batchingMaxMessages;

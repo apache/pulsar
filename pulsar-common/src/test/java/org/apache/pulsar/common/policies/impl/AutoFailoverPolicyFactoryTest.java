@@ -28,7 +28,7 @@ import org.testng.annotations.Test;
 
 public class AutoFailoverPolicyFactoryTest {
 
-    @Test
+    
     public void testAutoFailoverPolicyFactory() {
         try {
             AutoFailoverPolicyFactory.create(AutoFailoverPolicyData.builder().build());

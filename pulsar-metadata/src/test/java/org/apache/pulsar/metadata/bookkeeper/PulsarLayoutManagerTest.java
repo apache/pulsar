@@ -59,7 +59,7 @@ public class PulsarLayoutManagerTest extends BaseMetadataStoreTest {
         }
     }
 
-    @Test(dataProvider = "impl")
+    
     public void testReadCreateDeleteLayout(String provider, Supplier<String> urlSupplier) throws Exception {
         methodSetup(urlSupplier);
 

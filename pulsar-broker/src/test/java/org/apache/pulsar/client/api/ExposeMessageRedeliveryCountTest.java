@@ -28,7 +28,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-@Test(groups = "broker-api")
+
 public class ExposeMessageRedeliveryCountTest extends ProducerConsumerBase {
 
     @BeforeMethod
@@ -44,7 +44,7 @@ public class ExposeMessageRedeliveryCountTest extends ProducerConsumerBase {
         super.internalCleanup();
     }
 
-    @Test(timeOut = 30000)
+    
     public void testRedeliveryCount() throws PulsarClientException {
 
         final String topic = "persistent://my-property/my-ns/redeliveryCount";
@@ -79,7 +79,7 @@ public class ExposeMessageRedeliveryCountTest extends ProducerConsumerBase {
         consumer.close();
     }
 
-    @Test(timeOut = 30000)
+    
     public void testRedeliveryCountWithPartitionedTopic() throws PulsarClientException, PulsarAdminException {
 
         final String topic = "persistent://my-property/my-ns/redeliveryCount.partitioned";
@@ -118,7 +118,7 @@ public class ExposeMessageRedeliveryCountTest extends ProducerConsumerBase {
         admin.topics().deletePartitionedTopic(topic);
     }
 
-    @Test(timeOut = 30000)
+    
     public void testRedeliveryCountWhenConsumerDisconnected() throws PulsarClientException {
 
         String topic = "persistent://my-property/my-ns/testRedeliveryCountWhenConsumerDisconnected";

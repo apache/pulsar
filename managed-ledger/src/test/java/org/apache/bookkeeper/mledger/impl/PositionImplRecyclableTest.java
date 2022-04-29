@@ -23,7 +23,7 @@ import org.testng.annotations.Test;
 
 public class PositionImplRecyclableTest {
 
-    @Test
+
     void shouldNotCarryStateInAckSetWhenRecycled() {
         PositionImplRecyclable position = PositionImplRecyclable.create();
         position.ackSet = new long[]{1L, 2L, 3L};

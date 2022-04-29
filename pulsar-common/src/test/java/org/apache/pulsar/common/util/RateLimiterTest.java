@@ -30,7 +30,7 @@ import org.testng.annotations.Test;
 
 public class RateLimiterTest {
 
-    @Test
+
     public void testInvalidRenewTime() {
         try {
             RateLimiter.builder().permits(0).rateTime(100).timeUnit(TimeUnit.SECONDS).build();
@@ -47,7 +47,7 @@ public class RateLimiterTest {
         }
     }
 
-    @Test
+
     public void testClose() throws Exception {
         RateLimiter rate = RateLimiter.builder().permits(1).rateTime(1000).timeUnit(TimeUnit.MILLISECONDS).build();
         assertFalse(rate.isClosed());
@@ -61,7 +61,7 @@ public class RateLimiterTest {
         }
     }
 
-    @Test
+
     public void testAcquireBlock() throws Exception {
         final long rateTimeMSec = 1000;
         RateLimiter rate = RateLimiter.builder().permits(1).rateTime(rateTimeMSec).timeUnit(TimeUnit.MILLISECONDS)
@@ -76,7 +76,7 @@ public class RateLimiterTest {
         rate.close();
     }
 
-    @Test
+
     public void testAcquire() throws Exception {
         final long rateTimeMSec = 1000;
         final int permits = 100;
@@ -92,7 +92,7 @@ public class RateLimiterTest {
         rate.close();
     }
 
-    @Test
+
     public void testMultipleAcquire() throws Exception {
         final long rateTimeMSec = 1000;
         final int permits = 100;
@@ -109,7 +109,7 @@ public class RateLimiterTest {
         rate.close();
     }
 
-    @Test
+
     public void testTryAcquireNoPermits() {
         final long rateTimeMSec = 1000;
         RateLimiter rate = RateLimiter.builder().permits(1).rateTime(rateTimeMSec).timeUnit(TimeUnit.MILLISECONDS)
@@ -120,7 +120,7 @@ public class RateLimiterTest {
         rate.close();
     }
 
-    @Test
+
     public void testTryAcquire() {
         final long rateTimeMSec = 1000;
         final int permits = 100;
@@ -133,7 +133,7 @@ public class RateLimiterTest {
         rate.close();
     }
 
-    @Test
+
     public void testMultipleTryAcquire() {
         final long rateTimeMSec = 1000;
         final int permits = 100;
@@ -147,7 +147,7 @@ public class RateLimiterTest {
         rate.close();
     }
 
-    @Test
+
     public void testResetRate() throws Exception {
         final long rateTimeMSec = 1000;
         final int permits = 100;
@@ -171,7 +171,7 @@ public class RateLimiterTest {
         rate.close();
     }
 
-    @Test
+
     public void testDispatchRate() throws Exception {
         final long rateTimeMSec = 1000;
         final int permits = 100;
@@ -194,7 +194,7 @@ public class RateLimiterTest {
         rate.close();
     }
 
-    @Test
+
     public void testRateLimiterWithPermitUpdater() throws Exception {
         long permits = 10;
         long rateTime = 1;
@@ -208,7 +208,7 @@ public class RateLimiterTest {
         assertEquals(limiter.getAvailablePermits(), newUpdatedRateLimit);
     }
 
-    @Test
+
     public void testRateLimiterWithFunction() {
         final AtomicInteger atomicInteger = new AtomicInteger(0);
         long permits = 10;

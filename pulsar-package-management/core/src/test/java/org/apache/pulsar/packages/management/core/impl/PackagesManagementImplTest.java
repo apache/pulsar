@@ -56,7 +56,7 @@ public class PackagesManagementImplTest {
     }
 
 
-    @Test
+    
     public void testPackagesManagementFlow() {
         PackageName packageName = PackageName.get("function://tenant/ns/non-existent-package@v1");
         // get a non-existent package metadata should fail

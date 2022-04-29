@@ -35,7 +35,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker")
+
 public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
 
     @BeforeClass
@@ -55,7 +55,7 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
         pulsar.getAdminClient().namespaces().removeAutoTopicCreation("prop/ns-abc");
     }
 
-    @Test
+
     public void testAutoNonPartitionedTopicCreation() throws Exception{
         pulsar.getConfiguration().setAllowAutoTopicCreation(true);
         pulsar.getConfiguration().setAllowAutoTopicCreationType("non-partitioned");
@@ -68,7 +68,7 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
         assertFalse(admin.topics().getPartitionedTopicList("prop/ns-abc").contains(topicString));
     }
 
-    @Test
+
     public void testAutoNonPartitionedTopicCreationOnProduce() throws Exception{
         pulsar.getConfiguration().setAllowAutoTopicCreation(true);
         pulsar.getConfiguration().setAllowAutoTopicCreationType("non-partitioned");
@@ -80,7 +80,7 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
         assertFalse(admin.topics().getPartitionedTopicList("prop/ns-abc").contains(topicString));
     }
 
-    @Test
+
     public void testAutoPartitionedTopicCreation() throws Exception{
         pulsar.getConfiguration().setAllowAutoTopicCreation(true);
         pulsar.getConfiguration().setAllowAutoTopicCreationType("partitioned");
@@ -96,7 +96,7 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
         }
     }
 
-    @Test
+
     public void testAutoPartitionedTopicCreationOnProduce() throws Exception{
         pulsar.getConfiguration().setAllowAutoTopicCreation(true);
         pulsar.getConfiguration().setAllowAutoTopicCreationType("partitioned");
@@ -111,7 +111,7 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
         }
     }
 
-    @Test
+
     public void testAutoTopicCreationDisable() throws Exception{
         pulsar.getConfiguration().setAllowAutoTopicCreation(false);
 
@@ -126,7 +126,7 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
         assertFalse(admin.namespaces().getTopics("prop/ns-abc").contains(topicString));
     }
 
-    @Test
+
     public void testAutoTopicCreationDisableIfNonPartitionedTopicAlreadyExist() throws Exception {
         pulsar.getConfiguration().setAllowAutoTopicCreation(true);
         pulsar.getConfiguration().setAllowAutoTopicCreationType("partitioned");
@@ -149,7 +149,7 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
      * So using getPartitionedTopicMetadata() directly will not produce partitioned topic
      * even if the option to automatically create partitioned topic is configured
      */
-    @Test
+
     public void testGetPartitionedMetadataWithoutCheckAllowAutoCreation() throws Exception{
         pulsar.getConfiguration().setAllowAutoTopicCreation(true);
         pulsar.getConfiguration().setAllowAutoTopicCreationType("partitioned");
@@ -163,7 +163,7 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
         assertFalse(admin.namespaces().getTopics("prop/ns-abc").contains(topicString));
     }
 
-    @Test
+
     public void testAutoCreationNamespaceAllowOverridesBroker() throws Exception {
         final String topicString = "persistent://prop/ns-abc/test-topic-4";
         final String subscriptionName = "test-topic-sub-4";
@@ -182,7 +182,7 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
         assertFalse(admin.topics().getPartitionedTopicList("prop/ns-abc").contains(topicString));
     }
 
-    @Test
+
     public void testAutoCreationNamespaceDisallowOverridesBroker() throws Exception {
         final String topicString = "persistent://prop/ns-abc/test-topic-5";
         final String subscriptionName = "test-topic-sub-5";
@@ -204,7 +204,7 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
         assertFalse(admin.namespaces().getTopics("prop/ns-abc").contains(topicString));
     }
 
-    @Test
+
     public void testAutoCreationNamespaceOverrideAllowsPartitionedTopics() throws Exception {
         final String topicString = "persistent://prop/ns-abc/partitioned-test-topic-6";
         final TopicName topicName = TopicName.get(topicString);
@@ -228,7 +228,7 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
         }
     }
 
-    @Test
+
     public void testAutoCreationNamespaceOverridesTopicTypePartitioned() throws Exception {
         final String topicString = "persistent://prop/ns-abc/partitioned-test-topic-7";
         final TopicName topicName = TopicName.get(topicString);
@@ -251,7 +251,7 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
         }
     }
 
-    @Test
+
     public void testAutoCreationNamespaceOverridesTopicTypeNonPartitioned() throws Exception {
         final String topicString = "persistent://prop/ns-abc/partitioned-test-topic-8";
         final TopicName topicName = TopicName.get(topicString);
@@ -272,7 +272,7 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
         assertFalse(admin.topics().getPartitionedTopicList("prop/ns-abc").contains(topicString));
     }
 
-    @Test
+
     public void testAutoCreationNamespaceOverridesDefaultNumPartitions() throws Exception {
         final String topicString = "persistent://prop/ns-abc/partitioned-test-topic-9";
         final TopicName topicName = TopicName.get(topicString);
@@ -297,7 +297,7 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
         }
     }
 
-    @Test
+
     public void testAutoCreationNamespaceAllowOverridesBrokerOnProduce() throws Exception {
         final String topicString = "persistent://prop/ns-abc/test-topic-10";
         final TopicName topicName = TopicName.get(topicString);
@@ -314,7 +314,7 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
     }
 
 
-    @Test
+
     public void testNotAllowSubscriptionTopicCreation() throws Exception{
         pulsar.getConfiguration().setAllowAutoTopicCreation(false);
         String topicName = "persistent://prop/ns-abc/non-partitioned-topic" + System.currentTimeMillis();
@@ -357,7 +357,7 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
 
     }
 
-    @Test
+
     public void testAutoCreationNamespaceOverridesSubscriptionTopicCreation() throws Exception {
         pulsar.getConfiguration().setAllowAutoTopicCreation(false);
         String topicString = "persistent://prop/ns-abc/non-partitioned-topic" + System.currentTimeMillis();
@@ -372,7 +372,7 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
         admin.topics().createSubscription(topicString, subscriptionName, MessageId.earliest);
     }
 
-    @Test
+
     public void testMaxNumPartitionsPerPartitionedTopicTopicCreation() {
         pulsar.getConfiguration().setAllowAutoTopicCreation(true);
         pulsar.getConfiguration().setAllowAutoTopicCreationType("partitioned");
@@ -390,7 +390,7 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
         }
     }
 
-    @Test
+
     public void testAutoCreationOfSystemTopicTransactionBufferSnapshot() throws Exception {
         pulsar.getConfiguration().setAllowAutoTopicCreation(false);
         pulsar.getConfiguration().setSystemTopicEnabled(true);
@@ -403,7 +403,7 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
         assertFalse(admin.topics().getPartitionedTopicList("prop/ns-abc").contains(topicString));
     }
 
-    @Test
+
     public void testAutoCreationOfSystemTopicNamespaceEvents() throws Exception {
         pulsar.getConfiguration().setAllowAutoTopicCreation(false);
         pulsar.getConfiguration().setSystemTopicEnabled(true);

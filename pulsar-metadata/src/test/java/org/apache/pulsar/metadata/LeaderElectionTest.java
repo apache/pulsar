@@ -39,7 +39,7 @@ import org.testng.annotations.Test;
 
 public class LeaderElectionTest extends BaseMetadataStoreTest {
 
-    @Test(dataProvider = "impl")
+    
     public void basicTest(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
         MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
@@ -72,7 +72,7 @@ public class LeaderElectionTest extends BaseMetadataStoreTest {
         assertEquals(cache.get("/my/leader-election").join(), Optional.empty());
     }
 
-    @Test(dataProvider = "impl")
+    
     public void multipleMembers(String provider, Supplier<String> urlSupplier) throws Exception {
         if (provider.equals("Memory") || provider.equals("RocksDB")) {
             // There are no multiple session in local mem provider
@@ -129,7 +129,7 @@ public class LeaderElectionTest extends BaseMetadataStoreTest {
         assertEquals(le2.getLeaderValue().join(), Optional.of("test-2"));
     }
 
-    @Test(dataProvider = "impl")
+    
     public void leaderNodeIsDeletedExternally(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
         MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
@@ -157,7 +157,7 @@ public class LeaderElectionTest extends BaseMetadataStoreTest {
         assertEquals(les, LeaderElectionState.Leading);
     }
 
-    @Test(dataProvider = "impl")
+    
     public void closeAll(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
         MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
@@ -187,7 +187,7 @@ public class LeaderElectionTest extends BaseMetadataStoreTest {
     }
 
 
-    @Test(dataProvider = "impl")
+    
     public void revalidateLeaderWithinSameSession(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
         MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
@@ -212,7 +212,7 @@ public class LeaderElectionTest extends BaseMetadataStoreTest {
         assertEqualsAndRetry(() -> le.getLeaderValueIfPresent(), Optional.of("test-2"), Optional.empty());
     }
 
-    @Test(dataProvider = "impl")
+    
     public void revalidateLeaderWithDifferentSessionsSameValue(String provider, Supplier<String> urlSupplier)
             throws Exception {
         if (provider.equals("Memory") || provider.equals("RocksDB")) {
@@ -248,7 +248,7 @@ public class LeaderElectionTest extends BaseMetadataStoreTest {
     }
 
 
-    @Test(dataProvider = "impl")
+    
     public void revalidateLeaderWithDifferentSessionsDifferentValue(String provider, Supplier<String> urlSupplier)
             throws Exception {
         if (provider.equals("Memory") || provider.equals("RocksDB")) {

@@ -34,7 +34,7 @@ import org.testng.annotations.Test;
  */
 public class MessageIdCompareToTest  {
 
-    @Test
+
     public void testEqual() {
         MessageIdImpl messageIdImpl1 = new MessageIdImpl(123L, 345L, 567);
         MessageIdImpl messageIdImpl2 = new MessageIdImpl(123L, 345L, 567);
@@ -46,7 +46,7 @@ public class MessageIdCompareToTest  {
         assertEquals(batchMessageId1.compareTo(batchMessageId2), 0, "Expected to be equal");
     }
 
-    @Test
+
     public void testGreaterThan() {
         MessageIdImpl messageIdImpl1 = new MessageIdImpl(124L, 345L, 567);
         MessageIdImpl messageIdImpl2 = new MessageIdImpl(123L, 345L, 567);
@@ -78,7 +78,7 @@ public class MessageIdCompareToTest  {
         assertTrue(batchMessageId4.compareTo(batchMessageId5) > 0, "Expected to be greater than");
     }
 
-    @Test
+
     public void testLessThan() {
         MessageIdImpl messageIdImpl1 = new MessageIdImpl(124L, 345L, 567);
         MessageIdImpl messageIdImpl2 = new MessageIdImpl(123L, 345L, 567);
@@ -110,7 +110,7 @@ public class MessageIdCompareToTest  {
         assertTrue(batchMessageId5.compareTo(batchMessageId4) < 0, "Expected to be less than");
     }
 
-    @Test
+
     public void testCompareDifferentType() {
         MessageIdImpl messageIdImpl = new MessageIdImpl(123L, 345L, 567);
         BatchMessageIdImpl batchMessageId1 = new BatchMessageIdImpl(123L, 345L, 566, 789);
@@ -124,7 +124,7 @@ public class MessageIdCompareToTest  {
         assertEquals(batchMessageId3.compareTo(messageIdImpl), 0, "Expected to be equal");
     }
 
-    @Test
+
     public void compareToSymmetricTest() {
         MessageIdImpl simpleMessageId = new MessageIdImpl(123L, 345L, 567);
         // batchIndex is -1 if message is non-batched message and has the batchIndex for a batch message
@@ -143,7 +143,7 @@ public class MessageIdCompareToTest  {
         assertTrue(batchMessageId4.compareTo(simpleMessageId) < 0, "Expected to be less than");
     }
 
-    @Test
+
     public void testMessageIdImplCompareToTopicMessageId() {
         MessageIdImpl messageIdImpl = new MessageIdImpl(123L, 345L, 567);
         TopicMessageIdImpl topicMessageId1 = new TopicMessageIdImpl(
@@ -166,7 +166,7 @@ public class MessageIdCompareToTest  {
         assertEquals(topicMessageId3.compareTo(messageIdImpl), 0, "Expected to be equal");
     }
 
-    @Test
+
     public void testBatchMessageIdImplCompareToTopicMessageId() {
         BatchMessageIdImpl messageIdImpl1 = new BatchMessageIdImpl(123L, 345L, 567, 789);
         BatchMessageIdImpl messageIdImpl2 = new BatchMessageIdImpl(123L, 345L, 567, 0);
@@ -189,7 +189,7 @@ public class MessageIdCompareToTest  {
         assertTrue(topicMessageId2.compareTo(messageIdImpl2) < 0, "Expected to be less than");
     }
 
-    @Test
+
     public void testMultiMessageIdEqual() {
         // null
         MultiMessageIdImpl null1 = new MultiMessageIdImpl(null);
@@ -265,7 +265,7 @@ public class MessageIdCompareToTest  {
         assertNotEquals(item7, item5);
     }
 
-    @Test
+
     public void testMultiMessageIdCompareto() {
         // null
         MultiMessageIdImpl null1 = new MultiMessageIdImpl(null);

@@ -50,7 +50,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker-impl")
+
 public class MessageChecksumTest extends BrokerTestBase {
     private static final Logger log = LoggerFactory.getLogger(MessageChecksumTest.class);
 
@@ -109,7 +109,7 @@ public class MessageChecksumTest extends BrokerTestBase {
      * In this case, the client should remove the message checksum before resending it to the broker.
      * original PR https://github.com/apache/pulsar/pull/89
      */
-    @Test(dataProviderClass = EnumValuesDataProvider.class, dataProvider = "values")
+    (dataProviderClass = EnumValuesDataProvider.class, dataProvider = "values")
     public void testChecksumCompatibilityInMixedVersionBrokerCluster(MixedVersionScenario mixedVersionScenario)
             throws Exception {
         // GIVEN
@@ -214,7 +214,7 @@ public class MessageChecksumTest extends BrokerTestBase {
         });
     }
 
-    @Test
+
     public void testTamperingMessageIsDetected() throws Exception {
         // GIVEN
         ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer()

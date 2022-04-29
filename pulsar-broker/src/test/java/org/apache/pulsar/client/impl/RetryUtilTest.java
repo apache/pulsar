@@ -31,11 +31,11 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 
-@Test(groups = "utils")
+
 public class RetryUtilTest {
 
 
-    @Test
+
     public void testFailAndRetry() throws Exception {
         ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
         CompletableFuture<Boolean> callback = new CompletableFuture<>();
@@ -60,7 +60,7 @@ public class RetryUtilTest {
         executor.shutdownNow();
     }
 
-    @Test
+
     public void testFail() throws Exception {
         ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
         CompletableFuture<Boolean> callback = new CompletableFuture<>();

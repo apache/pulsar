@@ -39,7 +39,7 @@ import com.scurrilous.circe.checksum.Crc32cIntChecksum;
 
 import io.netty.buffer.ByteBuf;
 
-@Test(groups = "broker")
+
 public class ChecksumTest extends BrokerTestBase {
 
     @BeforeClass
@@ -54,7 +54,7 @@ public class ChecksumTest extends BrokerTestBase {
         super.internalCleanup();
     }
 
-    @Test
+    
     public void verifyChecksumStoredInManagedLedger() throws Exception {
         final String topicName = "persistent://prop/use/ns-abc/topic0";
 
@@ -81,7 +81,7 @@ public class ChecksumTest extends BrokerTestBase {
         producer.close();
     }
 
-    @Test
+    
     public void verifyChecksumSentToConsumer() throws Exception {
         final String topicName = "persistent://prop/use/ns-abc/topic-1";
 

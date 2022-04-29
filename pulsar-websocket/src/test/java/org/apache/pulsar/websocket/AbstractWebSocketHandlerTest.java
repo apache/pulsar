@@ -72,7 +72,7 @@ public class AbstractWebSocketHandlerTest {
         createdClients.clear();
     }
 
-    @Test
+
     public void topicNameUrlEncodingTest() throws Exception {
         String producerV1 = "/ws/producer/persistent/my-property/my-cluster/my-ns/";
         String producerV1Topic = "my-topic[]<>";
@@ -133,7 +133,7 @@ public class AbstractWebSocketHandlerTest {
         assertEquals(topicName.toString(), "persistent://my-property/my-ns/" + readerV2Topic);
     }
 
-    @Test
+
     public void parseTopicNameTest() {
         String producerV1 = "/ws/producer/persistent/my-property/my-cluster/my-ns/my-topic";
         String consumerV1 = "/ws/consumer/persistent/my-property/my-cluster/my-ns/my-topic/my-subscription";
@@ -250,7 +250,7 @@ public class AbstractWebSocketHandlerTest {
         }
     }
 
-    @Test
+
     public void producerBuilderTest() throws IOException {
         String producerV2 = "/ws/v2/producer/persistent/my-property/my-ns/my-topic";
         // the params are all different with the default value
@@ -327,7 +327,7 @@ public class AbstractWebSocketHandlerTest {
         }
     }
 
-    @Test
+
     public void consumerBuilderTest() throws IOException {
         String consumerV2 = "/ws/v2/consumer/persistent/my-property/my-ns/my-topic/my-subscription";
         // the params are all different with the default value

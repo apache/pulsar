@@ -41,10 +41,10 @@ import org.testng.annotations.Test;
 /**
  * Unit test {@link ProtocolHandlerWithClassLoader}.
  */
-@Test(groups = "broker")
+
 public class ProtocolHandlerWithClassLoaderTest {
 
-    @Test
+
     public void testWrapper() throws Exception {
         ProtocolHandler h = mock(ProtocolHandler.class);
         NarClassLoader loader = mock(NarClassLoader.class);
@@ -74,7 +74,7 @@ public class ProtocolHandlerWithClassLoaderTest {
         verify(h, times(1)).getProtocolDataToAdvertise();
     }
 
-    @Test
+
     public void testClassLoaderSwitcher() throws Exception {
         NarClassLoader loader = mock(NarClassLoader.class);
 

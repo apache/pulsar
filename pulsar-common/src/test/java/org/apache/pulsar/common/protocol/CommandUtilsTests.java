@@ -42,7 +42,7 @@ import org.testng.annotations.Test;
 
 public class CommandUtilsTests {
 
-    @Test
+
     public void testMetadataFromCommandProducer() {
         Map<String, String> metadata = CommandUtils.metadataFromCommand(newCommandProducer(null, null));
         Assert.assertNotNull(metadata);
@@ -59,7 +59,7 @@ public class CommandUtilsTests {
         Assert.assertEquals(value, entry.getValue());
     }
 
-    @Test
+
     public void testMetadataFromCommandSubscribe() {
         Map<String, String> metadata = CommandUtils.metadataFromCommand(newCommandSubscribe(null, null));
         Assert.assertNotNull(metadata);
@@ -109,7 +109,7 @@ public class CommandUtilsTests {
         return cmd;
     }
 
-    @Test
+
     public void testByteBufComposite() throws Exception {
         String HEAD = "head-";
         String TAIL = "tail";
@@ -131,7 +131,7 @@ public class CommandUtilsTests {
         assertEquals(HEAD + TAIL, new String(content, StandardCharsets.UTF_8));
     }
 
-    @Test
+
     public void testAddBrokerEntryMetadata() throws Exception {
         int MOCK_BATCH_SIZE = 10;
         String data = "test-message";
@@ -151,7 +151,7 @@ public class CommandUtilsTests {
         assertTrue(new String(content, StandardCharsets.UTF_8).endsWith(data));
     }
 
-    @Test
+
     public void testSkipBrokerEntryMetadata() throws Exception {
         String data = "test-message";
         ByteBuf byteBuf = PulsarByteBufAllocator.DEFAULT.buffer(data.length(), data.length());
@@ -167,7 +167,7 @@ public class CommandUtilsTests {
         assertEquals(new String(content, StandardCharsets.UTF_8), data);
     }
 
-    @Test
+
     public void testParseBrokerEntryMetadata() throws Exception {
         int MOCK_BATCH_SIZE = 10;
         String data = "test-message";
@@ -187,7 +187,7 @@ public class CommandUtilsTests {
         assertEquals(new String(content, StandardCharsets.UTF_8), data);
     }
 
-    @Test
+
     public void testPeekBrokerEntryMetadata() throws Exception {
         int MOCK_BATCH_SIZE = 10;
         String data = "test-message";

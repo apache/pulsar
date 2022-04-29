@@ -125,7 +125,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @SuppressWarnings("unchecked")
-@Test(groups = "broker")
+
 public class ServerCnxTest {
     protected EmbeddedChannel channel;
     private ServiceConfiguration svcConfig;
@@ -233,7 +233,7 @@ public class ServerCnxTest {
         store.close();
     }
 
-    @Test(timeOut = 30000)
+    
     public void testConnectCommand() throws Exception {
         resetChannel();
         assertTrue(channel.isActive());
@@ -263,7 +263,7 @@ public class ServerCnxTest {
      *
      * @throws Exception
      */
-    @Test(timeOut = 30000)
+    
     public void testConnectCommandWithEnum() throws Exception {
         resetChannel();
         assertTrue(channel.isActive());
@@ -278,7 +278,7 @@ public class ServerCnxTest {
         channel.finish();
     }
 
-    @Test(timeOut = 30000)
+    
     public void testConnectCommandWithProtocolVersion() throws Exception {
         resetChannel();
         assertTrue(channel.isActive());
@@ -294,7 +294,7 @@ public class ServerCnxTest {
         channel.finish();
     }
 
-    @Test(timeOut = 30000)
+    
     public void testKeepAlive() throws Exception {
         resetChannel();
         assertTrue(channel.isActive());
@@ -319,7 +319,7 @@ public class ServerCnxTest {
         channel.finish();
     }
 
-    @Test(timeOut = 30000)
+    
     public void testKeepAliveNotEnforcedWithOlderClients() throws Exception {
         resetChannel();
         assertTrue(channel.isActive());
@@ -344,7 +344,7 @@ public class ServerCnxTest {
         channel.finish();
     }
 
-    @Test(timeOut = 30000)
+    
     public void testKeepAliveBeforeHandshake() throws Exception {
         resetChannel();
         assertTrue(channel.isActive());
@@ -363,7 +363,7 @@ public class ServerCnxTest {
         channel.finish();
     }
 
-    @Test(timeOut = 30000)
+    
     public void testConnectCommandWithAuthenticationPositive() throws Exception {
         AuthenticationService authenticationService = mock(AuthenticationService.class);
         AuthenticationProvider authenticationProvider = mock(AuthenticationProvider.class);
@@ -398,7 +398,7 @@ public class ServerCnxTest {
         channel.finish();
     }
 
-    @Test(timeOut = 30000)
+    
     public void testConnectCommandWithAuthenticationNegative() throws Exception {
         AuthenticationService authenticationService = mock(AuthenticationService.class);
         doReturn(authenticationService).when(brokerService).getAuthenticationService();
@@ -418,7 +418,7 @@ public class ServerCnxTest {
         channel.finish();
     }
 
-    @Test(timeOut = 30000)
+    
     public void testProducerCommand() throws Exception {
         resetChannel();
         setChannelConnected();
@@ -446,7 +446,7 @@ public class ServerCnxTest {
         assertEquals(topicRef.getProducers().size(), 0);
     }
 
-    @Test(timeOut = 5000)
+    
     public void testDuplicateConcurrentProducerCommand() throws Exception {
         resetChannel();
         setChannelConnected();
@@ -470,7 +470,7 @@ public class ServerCnxTest {
         channel.finish();
     }
 
-    @Test(timeOut = 30000)
+    
     public void testProducerOnNotOwnedTopic() throws Exception {
         resetChannel();
         setChannelConnected();
@@ -494,7 +494,7 @@ public class ServerCnxTest {
         channel.finish();
     }
 
-    @Test(timeOut = 30000)
+    
     public void testProducerCommandWithAuthorizationPositive() throws Exception {
         AuthorizationService authorizationService = mock(AuthorizationService.class);
         doReturn(CompletableFuture.completedFuture(true)).when(authorizationService).allowTopicOperationAsync(Mockito.any(),
@@ -519,7 +519,7 @@ public class ServerCnxTest {
         assertEquals(topicRef.getProducers().size(), 0);
     }
 
-    @Test(timeOut = 30000)
+    
     public void testNonExistentTopic() throws Exception {
         AuthorizationService authorizationService = spyWithClassAndConstructorArgs(AuthorizationService.class, svcConfig, pulsar.getPulsarResources());
         doReturn(authorizationService).when(brokerService).getAuthorizationService();
@@ -551,7 +551,7 @@ public class ServerCnxTest {
         channel.finish();
     }
 
-    @Test(timeOut = 30000)
+    
     public void testClusterAccess() throws Exception {
         svcConfig.setAuthorizationEnabled(true);
         AuthorizationService authorizationService = spyWithClassAndConstructorArgs(AuthorizationService.class, svcConfig, pulsar.getPulsarResources());
@@ -583,7 +583,7 @@ public class ServerCnxTest {
         channel.finish();
     }
 
-    @Test(timeOut = 30000)
+    
     public void testNonExistentTopicSuperUserAccess() throws Exception {
         AuthorizationService authorizationService = spyWithClassAndConstructorArgs(AuthorizationService.class, svcConfig, pulsar.getPulsarResources());
         doReturn(authorizationService).when(brokerService).getAuthorizationService();
@@ -622,7 +622,7 @@ public class ServerCnxTest {
         channel.finish();
     }
 
-    @Test(timeOut = 30000)
+    
     public void testProducerCommandWithAuthorizationNegative() throws Exception {
         AuthorizationService authorizationService = mock(AuthorizationService.class);
         doReturn(CompletableFuture.completedFuture(false)).when(authorizationService).allowTopicOperationAsync(Mockito.any(),
@@ -642,7 +642,7 @@ public class ServerCnxTest {
         channel.finish();
     }
 
-    @Test(timeOut = 30000)
+    
     public void testSendCommand() throws Exception {
         resetChannel();
         setChannelConnected();
@@ -667,7 +667,7 @@ public class ServerCnxTest {
         channel.finish();
     }
 
-    @Test(timeOut = 30000)
+    
     public void testSendCommandBeforeCreatingProducer() throws Exception {
         resetChannel();
         setChannelConnected();
@@ -689,7 +689,7 @@ public class ServerCnxTest {
         channel.finish();
     }
 
-    @Test(timeOut = 30000)
+    
     public void testUseSameProducerName() throws Exception {
         resetChannel();
         setChannelConnected();
@@ -709,7 +709,7 @@ public class ServerCnxTest {
         channel.finish();
     }
 
-    @Test(timeOut = 30000)
+    
     public void testRecreateSameProducer() throws Exception {
         resetChannel();
         setChannelConnected();
@@ -743,7 +743,7 @@ public class ServerCnxTest {
         channel.finish();
     }
 
-    @Test(timeOut = 30000)
+    
     public void testSubscribeMultipleTimes() throws Exception {
         resetChannel();
         setChannelConnected();
@@ -775,7 +775,7 @@ public class ServerCnxTest {
         channel.finish();
     }
 
-    @Test(timeOut = 30000)
+    
     public void testDuplicateConcurrentSubscribeCommand() throws Exception {
         resetChannel();
         setChannelConnected();
@@ -803,7 +803,7 @@ public class ServerCnxTest {
         channel.finish();
     }
 
-    @Test(timeOut = 30000)
+    
     public void testCreateProducerTimeout() throws Exception {
         resetChannel();
         setChannelConnected();
@@ -857,7 +857,7 @@ public class ServerCnxTest {
         channel.finish();
     }
 
-    @Test(timeOut = 30000)
+    
     public void testCreateProducerTimeoutThenCreateSameNamedProducerShouldFail() throws Exception {
         resetChannel();
         setChannelConnected();
@@ -923,7 +923,6 @@ public class ServerCnxTest {
         channel.finish();
     }
 
-    @Test(timeOut = 30000, enabled = false)
     public void testCreateProducerMultipleTimeouts() throws Exception {
         resetChannel();
         setChannelConnected();
@@ -1004,7 +1003,6 @@ public class ServerCnxTest {
         channel.finish();
     }
 
-    @Test(timeOut = 30000, skipFailedInvocations = true)
     public void testCreateProducerBookieTimeout() throws Exception {
         resetChannel();
         setChannelConnected();
@@ -1074,7 +1072,7 @@ public class ServerCnxTest {
         channel.finish();
     }
 
-    @Test(timeOut = 30000)
+    
     public void testSubscribeTimeout() throws Exception {
         resetChannel();
         setChannelConnected();
@@ -1149,7 +1147,7 @@ public class ServerCnxTest {
         channel.finish();
     }
 
-    @Test(timeOut = 30000)
+    
     public void testSubscribeBookieTimeout() throws Exception {
         resetChannel();
         setChannelConnected();
@@ -1232,7 +1230,7 @@ public class ServerCnxTest {
         channel.finish();
     }
 
-    @Test(timeOut = 30000)
+    
     public void testSubscribeCommand() throws Exception {
         final String failSubName = "failSub";
 
@@ -1271,7 +1269,7 @@ public class ServerCnxTest {
         channel.finish();
     }
 
-    @Test(timeOut = 30000)
+    
     public void testUnsupportedBatchMsgSubscribeCommand() throws Exception {
         final String failSubName = "failSub";
 
@@ -1303,7 +1301,7 @@ public class ServerCnxTest {
         channel.finish();
     }
 
-    @Test(timeOut = 30000)
+    
     public void testSubscribeCommandWithAuthorizationPositive() throws Exception {
         AuthorizationService authorizationService = mock(AuthorizationService.class);
         doReturn(CompletableFuture.completedFuture(true)).when(authorizationService).allowTopicOperationAsync(Mockito.any(),
@@ -1325,7 +1323,7 @@ public class ServerCnxTest {
         channel.finish();
     }
 
-    @Test(timeOut = 30000)
+    
     public void testSubscribeCommandWithAuthorizationNegative() throws Exception {
         AuthorizationService authorizationService = mock(AuthorizationService.class);
         doReturn(CompletableFuture.completedFuture(false)).when(authorizationService).allowTopicOperationAsync(Mockito.any(),
@@ -1346,7 +1344,7 @@ public class ServerCnxTest {
         channel.finish();
     }
 
-    @Test(timeOut = 30000)
+    
     public void testAckCommand() throws Exception {
         resetChannel();
         setChannelConnected();
@@ -1369,7 +1367,7 @@ public class ServerCnxTest {
         channel.finish();
     }
 
-    @Test(timeOut = 30000)
+    
     public void testFlowCommand() throws Exception {
         resetChannel();
         setChannelConnected();
@@ -1389,7 +1387,7 @@ public class ServerCnxTest {
         channel.finish();
     }
 
-    @Test(timeOut = 30000)
+    
     public void testProducerSuccessOnEncryptionRequiredTopic() throws Exception {
         resetChannel();
         setChannelConnected();
@@ -1425,7 +1423,7 @@ public class ServerCnxTest {
         channel.finish();
     }
 
-    @Test(timeOut = 30000)
+    
     public void testProducerFailureOnEncryptionRequiredTopic() throws Exception {
         resetChannel();
         setChannelConnected();
@@ -1463,7 +1461,7 @@ public class ServerCnxTest {
         channel.finish();
     }
 
-    @Test(timeOut = 30000)
+    
     public void testProducerFailureOnEncryptionRequiredOnBroker() throws Exception {
         // (a) Set encryption-required at broker level
         pulsar.getConfig().setEncryptionRequireOnProducer(true);
@@ -1503,7 +1501,7 @@ public class ServerCnxTest {
         channel.finish();
     }
 
-    @Test(timeOut = 30000)
+    
     public void testSendSuccessOnEncryptionRequiredTopic() throws Exception {
         resetChannel();
         setChannelConnected();
@@ -1547,7 +1545,7 @@ public class ServerCnxTest {
         channel.finish();
     }
 
-    @Test(timeOut = 30000)
+    
     public void testSendFailureOnEncryptionRequiredTopic() throws Exception {
         resetChannel();
         setChannelConnected();
@@ -1719,7 +1717,7 @@ public class ServerCnxTest {
         doReturn(successSubName).when(cursorMock).getName();
     }
 
-    @Test(timeOut = 30000)
+    
     public void testInvalidTopicOnLookup() throws Exception {
         resetChannel();
         setChannelConnected();
@@ -1739,7 +1737,7 @@ public class ServerCnxTest {
         channel.finish();
     }
 
-    @Test(timeOut = 30000)
+    
     public void testInvalidTopicOnProducer() throws Exception {
         resetChannel();
         setChannelConnected();
@@ -1760,7 +1758,7 @@ public class ServerCnxTest {
         channel.finish();
     }
 
-    @Test(timeOut = 30000)
+    
     public void testInvalidTopicOnSubscribe() throws Exception {
         resetChannel();
         setChannelConnected();
@@ -1780,7 +1778,7 @@ public class ServerCnxTest {
         channel.finish();
     }
 
-    @Test
+
     public void testDelayedClosedProducer() throws Exception {
         resetChannel();
         setChannelConnected();
@@ -1810,7 +1808,7 @@ public class ServerCnxTest {
         channel.finish();
     }
 
-    @Test(timeOut = 30000)
+    
     public void testTopicIsNotReady() throws Exception {
         resetChannel();
         setChannelConnected();
@@ -1853,7 +1851,7 @@ public class ServerCnxTest {
         channel.finish();
     }
 
-    @Test
+
     public void testGetTopicsOfNamespace() throws Exception {
         svcConfig.setEnableBrokerSideSubscriptionPatternEvaluation(true);
         resetChannel();
@@ -1871,7 +1869,7 @@ public class ServerCnxTest {
         channel.finish();
     }
 
-    @Test
+
     public void testGetTopicsOfNamespaceDisabledFiltering() throws Exception {
         svcConfig.setEnableBrokerSideSubscriptionPatternEvaluation(false);
         resetChannel();
@@ -1890,7 +1888,7 @@ public class ServerCnxTest {
         channel.finish();
     }
 
-    @Test
+
     public void testGetTopicsOfNamespaceLongPattern() throws Exception {
         svcConfig.setEnableBrokerSideSubscriptionPatternEvaluation(true);
         svcConfig.setSubscriptionPatternMaxLength(10);
@@ -1910,7 +1908,7 @@ public class ServerCnxTest {
         channel.finish();
     }
 
-    @Test
+
     public void testGetTopicsOfNamespaceFiltering() throws Exception {
         svcConfig.setEnableBrokerSideSubscriptionPatternEvaluation(true);
         resetChannel();
@@ -1929,7 +1927,7 @@ public class ServerCnxTest {
         channel.finish();
     }
 
-    @Test
+
     public void testGetTopicsOfNamespaceNoChange() throws Exception {
         svcConfig.setEnableBrokerSideSubscriptionPatternEvaluation(true);
         resetChannel();

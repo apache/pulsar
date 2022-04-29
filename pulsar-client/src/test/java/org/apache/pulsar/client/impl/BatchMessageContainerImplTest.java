@@ -36,7 +36,7 @@ import static org.mockito.Mockito.when;
 
 public class BatchMessageContainerImplTest {
 
-    @Test
+
     public void recoveryAfterOom() throws Exception {
         try (MockedConstruction<ByteBufAllocatorImpl> mocked = Mockito.mockConstruction(ByteBufAllocatorImpl.class,
                 (mockAllocator, context) -> {

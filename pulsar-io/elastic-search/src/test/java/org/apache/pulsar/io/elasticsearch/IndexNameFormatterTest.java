@@ -42,7 +42,6 @@ public class IndexNameFormatterTest {
         };
     }
 
-    @Test(dataProvider = "indexFormats")
     public void testIndexFormats(String format, String result) {
         Record record = Mockito.mock(Record.class);
         when(record.getEventTime()).thenReturn(Optional.of(1645182000000L));

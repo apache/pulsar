@@ -67,7 +67,7 @@ public class NarUnpackerTest {
         }
     }
 
-    @Test
+
     void shouldExtractFilesOnceInSameProcess() throws InterruptedException {
         int threads = 20;
         CountDownLatch countDownLatch = new CountDownLatch(threads);
@@ -109,7 +109,7 @@ public class NarUnpackerTest {
         }
     }
 
-    @Test
+
     void shouldExtractFilesOnceInDifferentProcess() throws InterruptedException {
         int processes = 10;
         String javaExePath = findJavaExe().getAbsolutePath();

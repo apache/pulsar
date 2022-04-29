@@ -51,7 +51,7 @@ public class MetaStoreImplTest extends MockedBookKeeperTestCase {
         int b;
     }
 
-    @Test
+
     void getMLList() throws Exception {
         MetaStore store = new MetaStoreImpl(metadataStore, executor);
 
@@ -68,7 +68,7 @@ public class MetaStoreImplTest extends MockedBookKeeperTestCase {
         }
     }
 
-    @Test
+
     void deleteNonExistingML() throws Exception {
         MetaStore store = new MetaStoreImpl(metadataStore, executor);
 
@@ -93,7 +93,7 @@ public class MetaStoreImplTest extends MockedBookKeeperTestCase {
         assertNotNull(exception.get());
     }
 
-    @Test(timeOut = 20000)
+    
     void readMalformedML() throws Exception {
         MetaStore store = new MetaStoreImpl(metadataStore, executor);
         metadataStore.put("/managed-ledgers/my_test", "non-valid".getBytes(), Optional.empty()).join();
@@ -114,7 +114,7 @@ public class MetaStoreImplTest extends MockedBookKeeperTestCase {
         latch.await();
     }
 
-    @Test(timeOut = 20000)
+    
     void readMalformedCursorNode() throws Exception {
         MetaStore store = new MetaStoreImpl(metadataStore, executor);
 
@@ -137,7 +137,7 @@ public class MetaStoreImplTest extends MockedBookKeeperTestCase {
         latch.await();
     }
 
-    @Test(timeOut = 20000)
+    
     void failInCreatingMLnode() throws Exception {
         MetaStore store = new MetaStoreImpl(metadataStore, executor);
 
@@ -159,7 +159,7 @@ public class MetaStoreImplTest extends MockedBookKeeperTestCase {
         promise.get();
     }
 
-    @Test(timeOut = 20000)
+    
     void updatingCursorNode() throws Exception {
         MetaStore store = new MetaStoreImpl(metadataStore, executor);
 
@@ -197,7 +197,7 @@ public class MetaStoreImplTest extends MockedBookKeeperTestCase {
         promise.get();
     }
 
-    @Test(timeOut = 20000)
+    
     void updatingMLNode() throws Exception {
         MetaStore store = new MetaStoreImpl(metadataStore, executor);
 
@@ -234,7 +234,7 @@ public class MetaStoreImplTest extends MockedBookKeeperTestCase {
         promise.get();
     }
 
-    @Test
+
     public void testGetChildrenWatch() throws Exception {
         MetadataCache<MyClass> objCache1 = metadataStore.getMetadataCache(MyClass.class);
 

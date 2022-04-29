@@ -33,7 +33,7 @@ import org.testng.annotations.Test;
 
 public class PublisherStatsTest {
 
-    @Test
+
     public void testPublisherStats() throws Exception {
         Set<String> allowedFields = Sets.newHashSet(
             "accessMode",
@@ -107,7 +107,7 @@ public class PublisherStatsTest {
         assertNull(stats.getClientVersion());
     }
 
-    @Test
+
     public void testPublisherStatsAggregation() {
         PublisherStatsImpl stats1 = new PublisherStatsImpl();
         stats1.msgRateIn = 1;

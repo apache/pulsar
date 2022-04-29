@@ -32,7 +32,7 @@ import org.testng.annotations.Test;
 
 public class BrokerMessageDeduplicationTest {
 
-    @Test
+
     public void markerMessageNotDeduplicated() {
         PulsarService pulsarService = mock(PulsarService.class);
         ServiceConfiguration configuration = new ServiceConfiguration();
@@ -46,7 +46,7 @@ public class BrokerMessageDeduplicationTest {
         assertEquals(status, MessageDeduplication.MessageDupStatus.NotDup);
     }
 
-    @Test
+
     public void markerMessageNotRecordPersistent() {
         PulsarService pulsarService = mock(PulsarService.class);
         ServiceConfiguration configuration = new ServiceConfiguration();

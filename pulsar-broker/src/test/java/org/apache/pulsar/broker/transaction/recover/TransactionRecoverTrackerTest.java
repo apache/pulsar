@@ -39,7 +39,7 @@ import static org.testng.AssertJUnit.assertTrue;
 
 public class TransactionRecoverTrackerTest {
 
-    @Test
+
     public void openStatusRecoverTrackerTest() throws Exception {
         TransactionMetadataStoreService transactionMetadataStoreService = mock(TransactionMetadataStoreService.class);
         TransactionTimeoutTracker timeoutTracker = new TransactionTimeoutTrackerFactoryImpl(
@@ -67,7 +67,7 @@ public class TransactionRecoverTrackerTest {
         assertEquals(priorityQueue.size(), 2);
     }
 
-    @Test
+
     public void updateStatusRecoverTest() throws Exception {
         TransactionRecoverTrackerImpl recoverTracker =
                 new TransactionRecoverTrackerImpl(mock(TransactionMetadataStoreService.class),

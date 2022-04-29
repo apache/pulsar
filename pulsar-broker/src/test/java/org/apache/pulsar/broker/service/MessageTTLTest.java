@@ -35,7 +35,7 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker")
+
 public class MessageTTLTest extends BrokerTestBase {
 
     private static final Logger log = LoggerFactory.getLogger(MessageTTLTest.class);
@@ -54,7 +54,7 @@ public class MessageTTLTest extends BrokerTestBase {
         super.internalCleanup();
     }
 
-    @Test
+
     public void testMessageExpiryAfterTopicUnload() throws Exception {
         int numMsgs = 50;
         final String topicName = "persistent://prop/ns-abc/testttl";

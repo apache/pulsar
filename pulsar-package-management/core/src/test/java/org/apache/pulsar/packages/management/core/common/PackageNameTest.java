@@ -33,7 +33,6 @@ public class PackageNameTest {
         };
     }
 
-    @Test(dataProvider = "packageNames")
     public void testPartName(String type, String tenant, String ns, String name, String version) {
         PackageName packageName = PackageName.get(type, tenant, ns, name, version);
         Assert.assertEquals(packageName.getPkgType().toString(), type);
@@ -63,7 +62,7 @@ public class PackageNameTest {
 
     }
 
-    @Test
+
     public void testPackageNameErrors() {
 
         try {

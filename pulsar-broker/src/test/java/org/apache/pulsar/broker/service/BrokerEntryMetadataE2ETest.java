@@ -47,7 +47,7 @@ import org.testng.annotations.Test;
 /**
  * Test for the broker entry metadata.
  */
-@Test(groups = "broker")
+
 public class BrokerEntryMetadataE2ETest extends BrokerTestBase {
     private static final String BATCH_HEADER = "X-Pulsar-num-batch-message";
     private static final String BATCH_SIZE_HEADER = "X-Pulsar-batch-size";
@@ -77,7 +77,6 @@ public class BrokerEntryMetadataE2ETest extends BrokerTestBase {
         internalCleanup();
     }
 
-    @Test(dataProvider = "subscriptionTypes")
     public void testProduceAndConsume(SubscriptionType subType) throws Exception {
         final String topic = newTopicName();
         final int messages = 10;
@@ -108,7 +107,7 @@ public class BrokerEntryMetadataE2ETest extends BrokerTestBase {
         Assert.assertEquals(messages, receives);
     }
 
-    @Test(timeOut = 20000)
+    
     public void testPeekMessage() throws Exception {
         final String topic = newTopicName();
         final String subscription = "my-sub";
@@ -141,7 +140,7 @@ public class BrokerEntryMetadataE2ETest extends BrokerTestBase {
         Assert.assertTrue(entryMetadata.getBrokerTimestamp() >= sendTime);
     }
 
-    @Test(timeOut = 20000)
+    
     public void testGetMessageById() throws Exception {
         final String topic = newTopicName();
         final String subscription = "my-sub";
@@ -174,7 +173,7 @@ public class BrokerEntryMetadataE2ETest extends BrokerTestBase {
     }
 
 
-    @Test(timeOut = 20000)
+    
     public void testExamineMessage() throws Exception {
         final String topic = newTopicName();
         final String subscription = "my-sub";
@@ -206,7 +205,7 @@ public class BrokerEntryMetadataE2ETest extends BrokerTestBase {
         Assert.assertTrue(entryMetadata.getBrokerTimestamp() >= sendTime);
     }
 
-    @Test(timeOut = 20000)
+    
     public void testBatchMessage() throws Exception {
         final String topic = newTopicName();
         final String subscription = "my-sub";
@@ -266,7 +265,7 @@ public class BrokerEntryMetadataE2ETest extends BrokerTestBase {
         Assert.assertTrue(Integer.parseInt(message.getProperty(BATCH_SIZE_HEADER)) > 0);
     }
 
-    @Test(timeOut = 20000)
+    
     public void testGetLastMessageId() throws Exception {
         final String topic = "persistent://prop/ns-abc/topic-test";
         final String subscription = "my-sub";
@@ -285,7 +284,7 @@ public class BrokerEntryMetadataE2ETest extends BrokerTestBase {
                 .subscribe();
     }
 
-    @Test(timeOut = 20000)
+    
     public void testConsumerGetBrokerEntryMetadataForIndividualMessage() throws Exception {
         final String topic = newTopicName();
         final String subscription = "my-sub";
@@ -320,7 +319,7 @@ public class BrokerEntryMetadataE2ETest extends BrokerTestBase {
         consumer.close();
     }
 
-    @Test(timeOut = 20000)
+    
     public void testConsumerGetBrokerEntryMetadataForBatchMessage() throws Exception {
         final String topic = newTopicName();
         final String subscription = "my-sub";
@@ -363,7 +362,7 @@ public class BrokerEntryMetadataE2ETest extends BrokerTestBase {
         consumer.close();
     }
 
-    @Test
+
     public void testManagedLedgerTotalSize() throws Exception {
         final String topic = newTopicName();
         final int messages = 10;

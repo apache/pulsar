@@ -28,7 +28,7 @@ import static org.testng.Assert.assertNotEquals;
 @Slf4j
 public class JvmDefaultGCMetricsLoggerTest {
 
-    @Test
+
     public void testInvokeJVMInternals() {
       long safePointCount = JvmDefaultGCMetricsLogger.getSafepointCount();
       long totalSafePointTime = JvmDefaultGCMetricsLogger.getTotalSafepointTime();

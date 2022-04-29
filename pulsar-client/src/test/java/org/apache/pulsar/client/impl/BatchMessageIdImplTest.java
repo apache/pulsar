@@ -32,7 +32,7 @@ import java.io.IOException;
 
 public class BatchMessageIdImplTest {
 
-    @Test
+    
     public void compareToTest() {
         BatchMessageIdImpl batchMsgId1 = new BatchMessageIdImpl(0, 0, 0, 0);
         BatchMessageIdImpl batchMsgId2 = new BatchMessageIdImpl(1, 1, 1, 1);
@@ -42,7 +42,7 @@ public class BatchMessageIdImplTest {
         assertEquals(batchMsgId2.compareTo(batchMsgId2), 0);
     }
 
-    @Test
+    
     public void hashCodeTest() {
         BatchMessageIdImpl batchMsgId1 = new BatchMessageIdImpl(0, 0, 0, 0);
         BatchMessageIdImpl batchMsgId2 = new BatchMessageIdImpl(1, 1, 1, 1);
@@ -51,7 +51,7 @@ public class BatchMessageIdImplTest {
         assertNotEquals(batchMsgId1.hashCode(), batchMsgId2.hashCode());
     }
 
-    @Test
+    
     public void equalsTest() {
         BatchMessageIdImpl batchMsgId1 = new BatchMessageIdImpl(0, 0, 0, 0);
         BatchMessageIdImpl batchMsgId2 = new BatchMessageIdImpl(1, 1, 1, 1);
@@ -74,7 +74,7 @@ public class BatchMessageIdImplTest {
         assertEquals(msgId, batchMsgId4);
     }
 
-    @Test
+    
     public void equalsUnbatchedTest() {
         BatchMessageIdImpl batchMsgId1 = new BatchMessageIdImpl(0, 0, 0, -1);
         BatchMessageIdImpl batchMsgId2 = new BatchMessageIdImpl(1, 1, 1, -1);
@@ -88,7 +88,7 @@ public class BatchMessageIdImplTest {
         assertNotEquals(batchMsgId2, msgId1);
     }
 
-    @Test
+    
     public void hashCodeUnbatchedTest() {
         BatchMessageIdImpl batchMsgId1 = new BatchMessageIdImpl(0, 0, 0, -1);
         BatchMessageIdImpl batchMsgId2 = new BatchMessageIdImpl(1, 1, 1, -1);
@@ -100,7 +100,7 @@ public class BatchMessageIdImplTest {
         assertEquals(batchMsgId2.hashCode(), msgId2.hashCode());
     }
 
-    @Test
+    
     public void deserializationTest() {
         // initialize BitSet with null
         BatchMessageAcker ackerDisabled = new BatchMessageAcker(null, 0);
@@ -126,7 +126,7 @@ public class BatchMessageIdImplTest {
         }
     }
 
-    @Test
+    
     public void serializeAndDeserializeTest() throws IOException {
         BatchMessageIdImpl batchMessageId = new BatchMessageIdImpl(1, 1, 0,
             1, 10, BatchMessageAcker.newAcker(10));

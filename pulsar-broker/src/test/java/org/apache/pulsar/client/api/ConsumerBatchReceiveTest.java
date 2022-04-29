@@ -32,7 +32,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 
-@Test
+
 public class ConsumerBatchReceiveTest extends ProducerConsumerBase {
 
     @BeforeClass(alwaysRun = true)
@@ -325,7 +325,7 @@ public class ConsumerBatchReceiveTest extends ProducerConsumerBase {
         };
     }
 
-    @Test(dataProvider = "batchReceivePolicy")
+    
     public void testBatchReceiveNonPartitionedTopic(BatchReceivePolicy batchReceivePolicy,
                                                     boolean batchProduce,
                                                     int receiverQueueSize,
@@ -334,7 +334,7 @@ public class ConsumerBatchReceiveTest extends ProducerConsumerBase {
         testBatchReceive(topic, batchReceivePolicy, batchProduce, receiverQueueSize, isEnableAckReceipt);
     }
 
-    @Test(dataProvider = "batchReceivePolicy")
+    
     public void testBatchReceivePartitionedTopic(BatchReceivePolicy batchReceivePolicy,
                                                  boolean batchProduce,
                                                  int receiverQueueSize,
@@ -344,7 +344,7 @@ public class ConsumerBatchReceiveTest extends ProducerConsumerBase {
         testBatchReceive(topic, batchReceivePolicy, batchProduce, receiverQueueSize, isEnableAckReceipt);
     }
 
-    @Test(dataProvider = "batchReceivePolicy")
+    
     public void testAsyncBatchReceiveNonPartitionedTopic(BatchReceivePolicy batchReceivePolicy,
                                                          boolean batchProduce,
                                                          int receiverQueueSize,
@@ -353,7 +353,7 @@ public class ConsumerBatchReceiveTest extends ProducerConsumerBase {
         testBatchReceiveAsync(topic, batchReceivePolicy, batchProduce, receiverQueueSize, isEnableAckReceipt);
     }
 
-    @Test(dataProvider = "batchReceivePolicy")
+    
     public void testAsyncBatchReceivePartitionedTopic(BatchReceivePolicy batchReceivePolicy,
                                                       boolean batchProduce,
                                                       int receiverQueueSize,
@@ -363,7 +363,7 @@ public class ConsumerBatchReceiveTest extends ProducerConsumerBase {
         testBatchReceiveAsync(topic, batchReceivePolicy, batchProduce, receiverQueueSize, isEnableAckReceipt);
     }
 
-    @Test(dataProvider = "batchReceivePolicy")
+    
     public void testBatchReceiveAndRedeliveryNonPartitionedTopic(BatchReceivePolicy batchReceivePolicy,
                                                                  boolean batchProduce,
                                                                  int receiverQueueSize,
@@ -372,7 +372,7 @@ public class ConsumerBatchReceiveTest extends ProducerConsumerBase {
         testBatchReceiveAndRedelivery(topic, batchReceivePolicy, batchProduce, receiverQueueSize, isEnableAckReceipt);
     }
 
-    @Test(dataProvider = "batchReceivePolicy")
+    
     public void testBatchReceiveAndRedeliveryPartitionedTopic(BatchReceivePolicy batchReceivePolicy,
                                                               boolean batchProduce,
                                                               int receiverQueueSize,
@@ -382,7 +382,7 @@ public class ConsumerBatchReceiveTest extends ProducerConsumerBase {
         testBatchReceiveAndRedelivery(topic, batchReceivePolicy, batchProduce, receiverQueueSize, isEnableAckReceipt);
     }
 
-    @Test
+
     public void verifyBatchSizeIsEqualToPolicyConfiguration() throws Exception {
         final int muxNumMessages = 100;
         final int messagesToSend = 500;
@@ -403,7 +403,7 @@ public class ConsumerBatchReceiveTest extends ProducerConsumerBase {
         receiveAllBatchesAndVerifyBatchSizeIsEqualToMaxNumMessages(consumer, batchReceivePolicy, messagesToSend / muxNumMessages);
     }
 
-    @Test
+
     public void verifyNumBytesSmallerThanMessageSize() throws Exception {
         final int messagesToSend = 500;
 

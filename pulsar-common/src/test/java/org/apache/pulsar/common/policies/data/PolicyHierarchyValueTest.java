@@ -24,7 +24,7 @@ import org.testng.annotations.Test;
 
 
 public class PolicyHierarchyValueTest {
-    @Test
+    
     public void testPolicyValue() {
         PolicyHierarchyValue<Integer> value = new PolicyHierarchyValue<>();
 

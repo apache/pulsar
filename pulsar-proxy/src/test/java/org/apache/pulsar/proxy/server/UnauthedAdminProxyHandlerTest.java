@@ -102,7 +102,7 @@ public class UnauthedAdminProxyHandlerTest extends MockedPulsarServiceBaseTest {
         webServer.stop();
     }
 
-    @Test
+
     public void testUnauthenticatedProxy() throws Exception {
         PulsarAdmin admin = PulsarAdmin.builder()
             .serviceHttpUrl("http://127.0.0.1:" + webServer.getListenPortHTTP().get())
@@ -113,7 +113,7 @@ public class UnauthedAdminProxyHandlerTest extends MockedPulsarServiceBaseTest {
                 brokerUrl.toString(), configClusterName));
     }
 
-    @Test
+
     public void testVipStatus() throws Exception {
         Client client = ClientBuilder.newClient(new ClientConfig().register(LoggingFeature.class));
         WebTarget webTarget = client.target("http://127.0.0.1:" + webServer.getListenPortHTTP().get())

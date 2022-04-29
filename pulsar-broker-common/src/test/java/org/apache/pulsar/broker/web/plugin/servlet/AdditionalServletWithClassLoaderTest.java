@@ -32,7 +32,7 @@ import static org.testng.Assert.assertEquals;
  */
 public class AdditionalServletWithClassLoaderTest {
 
-    @Test
+
     public void testWrapper() throws Exception {
         AdditionalServlet servlet = mock(AdditionalServlet.class);
         NarClassLoader loader = mock(NarClassLoader.class);

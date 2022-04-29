@@ -25,7 +25,7 @@ import org.apache.pulsar.common.util.keystoretls.KeyStoreSSLContext;
 import org.apache.pulsar.common.util.keystoretls.SSLContextValidatorEngine;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker-impl")
+
 public class KeyStoreTlsTest {
 
     protected final String BROKER_KEYSTORE_FILE_PATH =
@@ -51,7 +51,7 @@ public class KeyStoreTlsTest {
 
     public static final Provider BC_PROVIDER = getProvider();
 
-    @Test(timeOut = 300000)
+    
     public void testValidate() throws Exception {
         KeyStoreSSLContext serverSSLContext = new KeyStoreSSLContext(KeyStoreSSLContext.Mode.SERVER,
                 null,
@@ -85,7 +85,7 @@ public class KeyStoreTlsTest {
         SSLContextValidatorEngine.validate(clientSSLContext::createSSLEngine, serverSSLContext::createSSLEngine);
     }
 
-    @Test(timeOut = 300000)
+    
     public void testValidateKeyStoreNoPwd() throws Exception {
         KeyStoreSSLContext serverSSLContext = new KeyStoreSSLContext(KeyStoreSSLContext.Mode.SERVER,
                 null,

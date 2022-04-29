@@ -34,10 +34,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-@Test(groups = "broker")
+
 public class ConsistentHashingStickyKeyConsumerSelectorTest {
 
-    @Test
+
     public void testConsumerSelect() throws ConsumerAssignException {
 
         ConsistentHashingStickyKeyConsumerSelector selector = new ConsistentHashingStickyKeyConsumerSelector(100);
@@ -141,7 +141,7 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
     }
 
 
-    @Test
+
     public void testGetConsumerKeyHashRanges() throws BrokerServiceException.ConsumerAssignException {
         ConsistentHashingStickyKeyConsumerSelector selector = new ConsistentHashingStickyKeyConsumerSelector(3);
         List<String> consumerName = Arrays.asList("consumer1", "consumer2", "consumer3");

@@ -27,7 +27,7 @@ import org.testng.annotations.Test;
  * End to end transaction test.
  */
 @Slf4j
-@Test(groups = "flaky")
+
 public class TransactionEndToEndWithoutBatchIndexAckTest extends TransactionEndToEndTest {
 
     @BeforeMethod
@@ -38,7 +38,7 @@ public class TransactionEndToEndWithoutBatchIndexAckTest extends TransactionEndT
     }
 
     // TODO need to fix which using transaction with individual ack for failover subscription
-    @Test
+
     public void txnIndividualAckTestBatchAndFailoverSub() throws Exception {
         conf.setAcknowledgmentAtBatchIndexLevelEnabled(true);
         txnAckTest(true, 200, SubscriptionType.Failover);

@@ -105,12 +105,12 @@ public class MongoSourceTest {
         verify(mockMongoClient, times(1)).close();
     }
 
-    @Test
+
     public void testOpen() throws Exception {
         source.open(map, mockSourceContext);
     }
 
-    @Test
+
     public void testWriteBadMessage() throws Exception {
 
         source.open(map, mockSourceContext);

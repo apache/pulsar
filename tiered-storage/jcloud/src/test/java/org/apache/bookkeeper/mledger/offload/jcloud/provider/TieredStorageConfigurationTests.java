@@ -45,7 +45,7 @@ public class TieredStorageConfigurationTests {
     /**
      * Confirm that both property options are available for AWS
      */
-    @Test
+
     public final void awsS3KeysTest() {
         Map<String, String> map = new HashMap<>();
         map.put(TieredStorageConfiguration.BLOB_STORE_PROVIDER_KEY, JCloudBlobStoreProvider.AWS_S3.getDriver());
@@ -74,7 +74,7 @@ public class TieredStorageConfigurationTests {
     /**
      * Confirm that we can configure AWS using the new properties
      */
-    @Test
+
     public final void awsS3PropertiesTest() {
         Map<String, String> map = new HashMap<>();
         map.put(TieredStorageConfiguration.BLOB_STORE_PROVIDER_KEY, JCloudBlobStoreProvider.AWS_S3.getDriver());
@@ -95,7 +95,7 @@ public class TieredStorageConfigurationTests {
     /**
      * Confirm that we can configure AWS using the old properties
      */
-    @Test
+
     public final void awsS3BackwardCompatiblePropertiesTest() {
         Map<String, String> map = new HashMap<String,String>(); 
         map.put(TieredStorageConfiguration.BLOB_STORE_PROVIDER_KEY, JCloudBlobStoreProvider.AWS_S3.getDriver());
@@ -118,7 +118,7 @@ public class TieredStorageConfigurationTests {
      * object each time we call the supplier, this ensure that we get fresh credentials
      * if the aws credential provider changes
      */
-    @Test
+
     public final void awsS3CredsProviderTest() {
         Map<String, String> map = new HashMap<>();
         map.put(TieredStorageConfiguration.BLOB_STORE_PROVIDER_KEY, JCloudBlobStoreProvider.AWS_S3.getDriver());
@@ -145,7 +145,7 @@ public class TieredStorageConfigurationTests {
     /**
      * Confirm that both property options are available for GCS
      */
-    @Test
+
     public final void gcsKeysTest() {
         Map<String, String> map = new HashMap<>();
         map.put(TieredStorageConfiguration.BLOB_STORE_PROVIDER_KEY, JCloudBlobStoreProvider.GOOGLE_CLOUD_STORAGE.getDriver());
@@ -170,7 +170,7 @@ public class TieredStorageConfigurationTests {
     /**
      * Confirm that we can configure GCS using the new properties
      */
-    @Test
+
     public final void gcsPropertiesTest() {
         Map<String, String> map = new HashMap<>();
         map.put(TieredStorageConfiguration.BLOB_STORE_PROVIDER_KEY, JCloudBlobStoreProvider.GOOGLE_CLOUD_STORAGE.getDriver());
@@ -190,7 +190,7 @@ public class TieredStorageConfigurationTests {
     /**
      * Confirm that we can configure GCS using the old properties
      */
-    @Test
+
     public final void gcsBackwardCompatiblePropertiesTest() {
         Map<String, String> map = new HashMap<>();
         map.put(TieredStorageConfiguration.BLOB_STORE_PROVIDER_KEY, JCloudBlobStoreProvider.GOOGLE_CLOUD_STORAGE.getDriver());

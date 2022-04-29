@@ -55,7 +55,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker")
+
 public class TransactionMetadataStoreServiceTest extends BrokerTestBase {
 
     @BeforeMethod
@@ -76,7 +76,7 @@ public class TransactionMetadataStoreServiceTest extends BrokerTestBase {
         super.internalCleanup();
     }
 
-    @Test
+
     public void testAddAndRemoveTransactionMetadataStore() throws Exception {
         TransactionMetadataStoreService transactionMetadataStoreService = pulsar.getTransactionMetadataStoreService();
         Assert.assertNotNull(transactionMetadataStoreService);
@@ -91,7 +91,7 @@ public class TransactionMetadataStoreServiceTest extends BrokerTestBase {
                 transactionMetadataStoreService.getStores().size() == 0);
     }
 
-    @Test
+
     public void testNewTransaction() throws Exception {
         TransactionMetadataStoreService transactionMetadataStoreService = pulsar.getTransactionMetadataStoreService();
         transactionMetadataStoreService.handleTcClientConnect(TransactionCoordinatorID.get(0));
@@ -117,7 +117,7 @@ public class TransactionMetadataStoreServiceTest extends BrokerTestBase {
         Assert.assertEquals(transactionMetadataStoreService.getStores().size(), 0);
     }
 
-    @Test
+
     public void testAddProducedPartitionToTxn() throws Exception {
         TransactionMetadataStoreService transactionMetadataStoreService = pulsar.getTransactionMetadataStoreService();
         transactionMetadataStoreService.handleTcClientConnect(TransactionCoordinatorID.get(0));
@@ -141,7 +141,7 @@ public class TransactionMetadataStoreServiceTest extends BrokerTestBase {
         Assert.assertEquals(transactionMetadataStoreService.getStores().size(), 0);
     }
 
-    @Test
+
     public void testAddAckedPartitionToTxn() throws Exception {
         TransactionMetadataStoreService transactionMetadataStoreService = pulsar.getTransactionMetadataStoreService();
         transactionMetadataStoreService.handleTcClientConnect(TransactionCoordinatorID.get(0)).get();
@@ -164,7 +164,7 @@ public class TransactionMetadataStoreServiceTest extends BrokerTestBase {
         Assert.assertEquals(transactionMetadataStoreService.getStores().size(), 0);
     }
 
-    @Test
+
     public void testTimeoutTracker() throws Exception {
         pulsar.getTransactionMetadataStoreService().handleTcClientConnect(TransactionCoordinatorID.get(0));
         Awaitility.await()
@@ -193,7 +193,7 @@ public class TransactionMetadataStoreServiceTest extends BrokerTestBase {
                 .until(() -> txnMap.size() == 0);
     }
 
-    @Test
+
     public void testTimeoutTrackerExpired() throws Exception {
         pulsar.getTransactionMetadataStoreService().handleTcClientConnect(TransactionCoordinatorID.get(0));
         Awaitility.await().until(() -> pulsar.getTransactionMetadataStoreService()
@@ -223,7 +223,7 @@ public class TransactionMetadataStoreServiceTest extends BrokerTestBase {
         Awaitility.await().atLeast(1000, TimeUnit.MICROSECONDS).until(() -> txnMap.size() == 0);
     }
 
-    @Test
+
     public void testTimeoutTrackerMultiThreading() throws Exception {
         pulsar.getTransactionMetadataStoreService().handleTcClientConnect(TransactionCoordinatorID.get(0));
         Awaitility.await()
@@ -293,7 +293,7 @@ public class TransactionMetadataStoreServiceTest extends BrokerTestBase {
                 .until(() -> txnMap.size() == time);
     }
 
-    @Test
+
     public void transactionTimeoutRecoverTest() throws Exception {
         int timeout = 2000;
         pulsar.getTransactionMetadataStoreService().handleTcClientConnect(TransactionCoordinatorID.get(0));
@@ -333,7 +333,6 @@ public class TransactionMetadataStoreServiceTest extends BrokerTestBase {
         return new Object[][] { { TxnStatus.OPEN }, { TxnStatus.ABORTING }, { TxnStatus.COMMITTING } };
     }
 
-    @Test(dataProvider = "txnStatus")
     public void testEndTransactionOpRetry(TxnStatus txnStatus) throws Exception {
         int timeOut = 3000;
         pulsar.getTransactionMetadataStoreService().handleTcClientConnect(TransactionCoordinatorID.get(0));

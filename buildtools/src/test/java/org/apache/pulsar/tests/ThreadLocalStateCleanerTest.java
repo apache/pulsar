@@ -31,7 +31,7 @@ import org.testng.annotations.Test;
 public class ThreadLocalStateCleanerTest {
     final ThreadLocal<Integer> magicNumberThreadLocal = ThreadLocal.withInitial(() -> 42);
 
-    @Test
+
     public void testThreadLocalStateCleanupInCurrentThread() {
         magicNumberThreadLocal.set(44);
         assertEquals(magicNumberThreadLocal.get().intValue(), 44);
@@ -67,7 +67,7 @@ public class ThreadLocalStateCleanerTest {
     }
 
 
-    @Test
+
     public void testThreadLocalStateCleanupInCurrentAndOtherThread() throws InterruptedException, ExecutionException {
         magicNumberThreadLocal.set(44);
         assertEquals(magicNumberThreadLocal.get().intValue(), 44);

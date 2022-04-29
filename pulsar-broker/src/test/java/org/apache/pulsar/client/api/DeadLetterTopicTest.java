@@ -47,7 +47,7 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
-@Test(groups = "flaky")
+
 public class DeadLetterTopicTest extends ProducerConsumerBase {
 
     private static final Logger log = LoggerFactory.getLogger(DeadLetterTopicTest.class);
@@ -65,7 +65,7 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
         super.internalCleanup();
     }
 
-    @Test(groups = "quarantine")
+    
     public void testDeadLetterTopic() throws Exception {
         final String topic = "persistent://my-property/my-ns/dead-letter-topic";
 
@@ -135,7 +135,7 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
         checkConsumer.close();
     }
 
-    @Test(timeOut = 20000)
+    
     public void testDeadLetterTopicHasOriginalInfo() throws Exception {
         final String topic = "persistent://my-property/my-ns/dead-letter-topic";
 
@@ -207,7 +207,7 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
         private String field3;
     }
 
-    @Test(timeOut = 20000)
+    
     public void testAutoConsumeSchemaDeadLetter() throws Exception {
         final String topic = "persistent://my-property/my-ns/dead-letter-topic";
         final String subName = "my-subscription";
@@ -276,7 +276,7 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
         newPulsarClient.close();
     }
 
-    @Test(timeOut = 30000)
+    
     public void testDuplicatedMessageSendToDeadLetterTopic() throws Exception {
         final String topic = "persistent://my-property/my-ns/dead-letter-topic-DuplicatedMessage";
         final int maxRedeliveryCount = 1;
@@ -351,7 +351,7 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
      * The test is disabled {@link https://github.com/apache/pulsar/issues/2647}.
      * @throws Exception
      */
-    @Test(enabled = false)
+    
     public void testDeadLetterTopicWithMultiTopic() throws Exception {
         final String topic1 = "persistent://my-property/my-ns/dead-letter-topic-1";
         final String topic2 = "persistent://my-property/my-ns/dead-letter-topic-2";
@@ -430,7 +430,7 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
         checkConsumer.close();
     }
 
-    @Test(groups = "quarantine")
+    
     public void testDeadLetterTopicByCustomTopicName() throws Exception {
         final String topic = "persistent://my-property/my-ns/dead-letter-topic";
         final int maxRedeliveryCount = 2;
@@ -498,7 +498,6 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
     /**
      * issue https://github.com/apache/pulsar/issues/3077
      */
-    @Test(timeOut = 200000)
     public void testDeadLetterWithoutConsumerReceiveImmediately() throws PulsarClientException, InterruptedException {
         final String topic = "persistent://my-property/my-ns/dead-letter-topic-without-consumer-receive-immediately";
 
@@ -523,7 +522,7 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
         assertNotNull(msg);
     }
 
-    @Test
+
     public void testDeadLetterTopicUnderPartitionedTopicWithKeyShareType() throws Exception {
         final String topic = "persistent://my-property/my-ns/dead-letter-topic-with-partitioned-topic";
 
@@ -619,7 +618,7 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
         checkConsumer.close();
     }
 
-    @Test
+
     public void testDeadLetterTopicWithInitialSubscription() throws Exception {
         final String topic = "persistent://my-property/my-ns/dead-letter-topic";
 
@@ -714,7 +713,7 @@ public class DeadLetterTopicTest extends ProducerConsumerBase {
         });
     }
 
-    @Test
+
     public void testDeadLetterTopicWithInitialSubscriptionAndMultiConsumers() throws Exception {
         final String topic = "persistent://my-property/my-ns/dead-letter-topic";
 

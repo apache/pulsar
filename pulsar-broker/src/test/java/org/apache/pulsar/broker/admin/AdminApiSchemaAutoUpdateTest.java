@@ -36,7 +36,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Slf4j
-@Test(groups = "broker-admin")
+
 public class AdminApiSchemaAutoUpdateTest extends MockedPulsarServiceBaseTest {
     @BeforeMethod
     @Override
@@ -231,49 +231,49 @@ public class AdminApiSchemaAutoUpdateTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+
     public void testBackwardV2() throws Exception {
         testAutoUpdateBackward("prop-xyz/ns1", "persistent://prop-xyz/ns1/backward");
         testAutoUpdateBackward("prop-xyz/ns2", "non-persistent://prop-xyz/ns2/backward-np");
     }
 
-    @Test
+
     public void testForwardV2() throws Exception {
         testAutoUpdateForward("prop-xyz/ns1", "persistent://prop-xyz/ns1/forward");
         testAutoUpdateForward("prop-xyz/ns2", "non-persistent://prop-xyz/ns2/forward-np");
     }
 
-    @Test
+
     public void testFullV2() throws Exception {
         testAutoUpdateFull("prop-xyz/ns1", "persistent://prop-xyz/ns1/full");
         testAutoUpdateFull("prop-xyz/ns2", "non-persistent://prop-xyz/ns2/full-np");
     }
 
-    @Test
+
     public void testDisabledV2() throws Exception {
         testAutoUpdateDisabled("prop-xyz/ns1", "persistent://prop-xyz/ns1/disabled");
         testAutoUpdateDisabled("prop-xyz/ns2", "non-persistent://prop-xyz/ns2/disabled-np");
     }
 
-    @Test
+
     public void testBackwardV1() throws Exception {
         testAutoUpdateBackward("prop-xyz/test/ns1", "persistent://prop-xyz/test/ns1/backward");
         testAutoUpdateBackward("prop-xyz/test/ns2", "non-persistent://prop-xyz/test/ns2/backward-np");
     }
 
-    @Test
+
     public void testForwardV1() throws Exception {
         testAutoUpdateForward("prop-xyz/test/ns1", "persistent://prop-xyz/test/ns1/forward");
         testAutoUpdateForward("prop-xyz/test/ns2", "non-persistent://prop-xyz/test/ns2/forward-np");
     }
 
-    @Test
+
     public void testFullV1() throws Exception {
         testAutoUpdateFull("prop-xyz/test/ns1", "persistent://prop-xyz/test/ns1/full");
         testAutoUpdateFull("prop-xyz/test/ns2", "non-persistent://prop-xyz/test/ns2/full-np");
     }
 
-    @Test
+
     public void testDisabledV1() throws Exception {
         testAutoUpdateDisabled("prop-xyz/test/ns1", "persistent://prop-xyz/test/ns1/disabled");
         testAutoUpdateDisabled("prop-xyz/test/ns2", "non-persistent://prop-xyz/test/ns2/disabled-np");

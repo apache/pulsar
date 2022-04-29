@@ -119,7 +119,7 @@ public class JavaInstanceRunnableTest {
         }
     }
 
-    @Test
+
     public void testStatsManagerNull() throws Exception {
         JavaInstanceRunnable javaInstanceRunnable = createRunnable(null);
 
@@ -129,7 +129,7 @@ public class JavaInstanceRunnableTest {
         Assert.assertEquals(javaInstanceRunnable.getMetrics(), InstanceCommunication.MetricsData.newBuilder().build());
     }
 
-    @Test
+
     public void testSinkConfigParsingPreservesOriginalType() throws Exception {
         SinkSpecOrBuilder sinkSpec = mock(SinkSpecOrBuilder.class);
         when(sinkSpec.getConfigs()).thenReturn("{\"ttl\": 9223372036854775807}");
@@ -140,7 +140,7 @@ public class JavaInstanceRunnableTest {
         Assert.assertEquals(parsedConfig.get("ttl"), Long.MAX_VALUE);
     }
 
-    @Test
+
     public void testSourceConfigParsingPreservesOriginalType() throws Exception {
         SourceSpecOrBuilder sourceSpec = mock(SourceSpecOrBuilder.class);
         when(sourceSpec.getConfigs()).thenReturn("{\"ttl\": 9223372036854775807}");

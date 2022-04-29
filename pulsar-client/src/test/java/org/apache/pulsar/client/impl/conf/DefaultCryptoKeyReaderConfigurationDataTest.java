@@ -26,7 +26,7 @@ import org.testng.annotations.Test;
 
 public class DefaultCryptoKeyReaderConfigurationDataTest {
 
-    @Test
+
     public void testClone() throws Exception {
         DefaultCryptoKeyReaderConfigurationData conf = new DefaultCryptoKeyReaderConfigurationData();
         conf.setDefaultPublicKey("file:///path/to/default-public.key");
@@ -46,7 +46,7 @@ public class DefaultCryptoKeyReaderConfigurationDataTest {
         assertEquals(clone.getPrivateKeys().get("key2"), "file:///path/to/private2.key");
     }
 
-    @Test
+
     public void testToString() {
         DefaultCryptoKeyReaderConfigurationData conf = new DefaultCryptoKeyReaderConfigurationData();
         assertEquals(conf.toString(),

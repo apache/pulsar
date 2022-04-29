@@ -24,7 +24,7 @@ import org.testng.annotations.Test;
 
 
 public class NamespaceResourcesTest {
-    @Test
+
     public void test_pathIsFromNamespace() {
         Assert.assertFalse(NamespaceResources.pathIsFromNamespace("/admin/clusters"));
         Assert.assertFalse(NamespaceResources.pathIsFromNamespace("/admin/policies"));

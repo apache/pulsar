@@ -52,7 +52,6 @@ public class ProducerQueueSizeTest extends ProducerConsumerBase {
         };
     }
 
-    @Test(dataProvider = "matrix")
     public void testRemoveMaxQueueLimit(boolean blockIfQueueFull, boolean partitioned) throws Exception {
         String topic = newTopicName();
 

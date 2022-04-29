@@ -59,7 +59,7 @@ import org.testng.annotations.Test;
  * Unit tests for schema admin api.
  */
 @Slf4j
-@Test(groups = "broker-admin")
+
 public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
 
     final String cluster = "test";
@@ -149,12 +149,12 @@ public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
         return new Object[][] { { ApiVersion.V1 }, { ApiVersion.V2 } };
     }
 
-    @Test(dataProvider = "schemas")
+    
     public void testSchemaInfoApi(Schema<?> schema) throws Exception {
         testSchemaInfoApi(schema, "schematest/test/test-" + schema.getSchemaInfo().getType());
     }
 
-    @Test(dataProvider = "schemas")
+    
     public void testSchemaInfoWithVersionApi(Schema<?> schema) throws Exception {
         testSchemaInfoWithVersionApi(schema, "schematest/test/test-" + schema.getSchemaInfo().getType());
     }
@@ -177,7 +177,7 @@ public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
 
     }
 
-    @Test(dataProvider = "version")
+    
     public void testPostSchemaCompatibilityStrategy(ApiVersion version) throws PulsarAdminException {
         String namespace = format("%s%s%s", "schematest", (ApiVersion.V1.equals(version) ? "/" + cluster + "/" : "/"),
                 "test");
@@ -232,7 +232,7 @@ public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
 
     }
 
-    @Test(dataProvider = "version")
+    
     public void createKeyValueSchema(ApiVersion version) throws Exception {
         String namespace = format("%s%s%s", "schematest", (ApiVersion.V1.equals(version) ? "/" + cluster + "/" : "/"),
                 "test");
@@ -245,7 +245,7 @@ public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
         assertEquals(keyValueSchema.getSchemaInfo(), schemaInfo);
     }
 
-    @Test
+
     void getTopicIntervalStateIncludeSchemaStoreLedger() throws PulsarAdminException {
         String topicName = "persistent://schematest/test/get-schema-ledger-info";
         admin.topics().createNonPartitionedTopic(topicName);
@@ -355,18 +355,18 @@ public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
         assertEquals(ledgerInfo.size, length);
     }
 
-    @Test
+
     public void testGetSchemaCompatibilityStrategy() throws PulsarAdminException {
         assertEquals(admin.namespaces().getSchemaCompatibilityStrategy(schemaCompatibilityNamespace),
                 SchemaCompatibilityStrategy.UNDEFINED);
     }
 
-    @Test
+
     public void testGetSchemaAutoUpdateCompatibilityStrategy() throws PulsarAdminException {
         assertNull(admin.namespaces().getSchemaAutoUpdateCompatibilityStrategy(schemaCompatibilityNamespace));
     }
 
-    @Test
+
     public void testGetSchemaCompatibilityStrategyWhenSetSchemaAutoUpdateCompatibilityStrategy()
             throws PulsarAdminException {
         assertEquals(admin.namespaces().getSchemaCompatibilityStrategy(schemaCompatibilityNamespace),
@@ -387,7 +387,7 @@ public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
                 admin.namespaces().getSchemaCompatibilityStrategy(schemaCompatibilityNamespace)));
     }
 
-    @Test
+
     public void testGetSchemaCompatibilityStrategyWhenSetBrokerLevelAndSchemaAutoUpdateCompatibilityStrategy()
             throws PulsarAdminException {
         pulsar.getConfiguration().setSchemaCompatibilityStrategy(SchemaCompatibilityStrategy.FORWARD);

@@ -97,7 +97,7 @@ public abstract class ElasticSearchClientTests extends ElasticSearchTestBase {
         }
     }
 
-    @Test
+
     public void testClientInstance() throws Exception {
         try (ElasticSearchClient client = new ElasticSearchClient(new ElasticSearchConfig()
                 .setElasticSearchUrl("http://" + container.getHttpHostAddress())
@@ -110,7 +110,7 @@ public abstract class ElasticSearchClientTests extends ElasticSearchTestBase {
         }
     }
 
-    @Test
+
     public void testIndexName() throws Exception {
         String index = "myindex-" + UUID.randomUUID();
         Record<GenericObject> record = Mockito.mock(Record.class);
@@ -142,7 +142,7 @@ public abstract class ElasticSearchClientTests extends ElasticSearchTestBase {
         }
     }
 
-    @Test
+
     public void testIndexDelete() throws Exception {
         String index = "myindex-" + UUID.randomUUID();
         try (ElasticSearchClient client = new ElasticSearchClient(new ElasticSearchConfig()
@@ -166,7 +166,7 @@ public abstract class ElasticSearchClientTests extends ElasticSearchTestBase {
         }
     }
 
-    @Test
+
     public void testIndexExists() throws IOException {
         String index = "mynewindex-" + UUID.randomUUID();
         try (ElasticSearchClient client = new ElasticSearchClient(new ElasticSearchConfig()
@@ -183,7 +183,7 @@ public abstract class ElasticSearchClientTests extends ElasticSearchTestBase {
         }
     }
 
-    @Test
+
     public void testTopicToIndexName() throws IOException {
         try (ElasticSearchClient client = new ElasticSearchClient(new ElasticSearchConfig()
                 .setElasticSearchUrl("http://" + container.getHttpHostAddress())); ) {
@@ -200,7 +200,7 @@ public abstract class ElasticSearchClientTests extends ElasticSearchTestBase {
         }
     }
 
-    @Test
+
     public void testMalformedDocFails() throws Exception {
         String index = "indexmalformed-" + UUID.randomUUID();
         ElasticSearchConfig config = new ElasticSearchConfig()
@@ -223,7 +223,7 @@ public abstract class ElasticSearchClientTests extends ElasticSearchTestBase {
         }
     }
 
-    @Test
+
     public void testMalformedDocIgnore() throws Exception {
         String index = "indexmalformed2-" + UUID.randomUUID();
         ElasticSearchConfig config = new ElasticSearchConfig()
@@ -242,7 +242,7 @@ public abstract class ElasticSearchClientTests extends ElasticSearchTestBase {
         }
     }
 
-    @Test
+
     public void testBulkRetry() throws Exception {
         try (ElasticToxiproxiContainer toxiproxy = new ElasticToxiproxiContainer(container, network)) {
             toxiproxy.start();
@@ -289,7 +289,7 @@ public abstract class ElasticSearchClientTests extends ElasticSearchTestBase {
         }
     }
 
-    @Test
+
     public void testBulkBlocking() throws Exception {
         try (ElasticToxiproxiContainer toxiproxy = new ElasticToxiproxiContainer(container, network)) {
             toxiproxy.start();

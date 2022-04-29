@@ -43,7 +43,7 @@ import org.testng.annotations.Test;
  * Null value message produce and consume test.
  */
 @Slf4j
-@Test(groups = "broker")
+
 public class NullValueTest extends BrokerTestBase {
 
     @BeforeMethod
@@ -66,7 +66,7 @@ public class NullValueTest extends BrokerTestBase {
         };
     }
 
-    @Test(dataProvider = "topics")
+    
     public void nullValueBytesSchemaTest(String topic, int partitions)
             throws PulsarClientException, PulsarAdminException {
         admin.topics().createPartitionedTopic(topic, partitions);
@@ -136,7 +136,7 @@ public class NullValueTest extends BrokerTestBase {
 
     }
 
-    @Test(dataProvider = "topics")
+    
     public void nullValueBooleanSchemaTest(String topic, int partitions)
             throws PulsarClientException, PulsarAdminException {
         admin.topics().createPartitionedTopic(topic, partitions);
@@ -166,7 +166,7 @@ public class NullValueTest extends BrokerTestBase {
 
     }
 
-    @Test(dataProvider = "topics")
+    
     public void keyValueNullInlineTest(String topic, int partitions)
             throws PulsarClientException, PulsarAdminException {
         admin.topics().createPartitionedTopic(topic, partitions);
@@ -213,7 +213,7 @@ public class NullValueTest extends BrokerTestBase {
 
     }
 
-    @Test(dataProvider = "topics")
+    
     public void keyValueNullSeparatedTest(String topic, int partitions)
             throws PulsarClientException, PulsarAdminException {
         admin.topics().createPartitionedTopic(topic, partitions);

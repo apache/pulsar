@@ -34,7 +34,7 @@ import static org.testng.Assert.fail;
 
 public class SpecifiedPositionsBundleSplitAlgorithmTest {
 
-    @Test
+
     public void testTotalTopicsSizeLessThan1() {
         SpecifiedPositionsBundleSplitAlgorithm algorithm = new SpecifiedPositionsBundleSplitAlgorithm();
         NamespaceService mockNamespaceService = mock(NamespaceService.class);
@@ -45,7 +45,7 @@ public class SpecifiedPositionsBundleSplitAlgorithmTest {
                 Arrays.asList(1L, 2L))).join());
     }
 
-    @Test
+
     public void testSpecifiedPositionsLessThan1() {
         SpecifiedPositionsBundleSplitAlgorithm algorithm = new SpecifiedPositionsBundleSplitAlgorithm();
         NamespaceService mockNamespaceService = mock(NamespaceService.class);
@@ -68,7 +68,7 @@ public class SpecifiedPositionsBundleSplitAlgorithmTest {
     }
 
     @SuppressWarnings("UnstableApiUsage")
-    @Test
+
     public void testAlgorithmReturnCorrectResult() {
         // -- algorithm
         SpecifiedPositionsBundleSplitAlgorithm algorithm = new SpecifiedPositionsBundleSplitAlgorithm();

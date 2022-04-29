@@ -75,13 +75,13 @@ public class ConfigValidationTest {
         public String customString;
     }
 
-    @Test
+
     public void testGoodConfig() {
         TestConfig testConfig = createGoodConfig();
         ConfigValidation.validateConfig(testConfig);
     }
 
-    @Test
+
     public void testNotNull() {
         TestConfig testConfig = createGoodConfig();
         testConfig.stringValue = null;
@@ -89,7 +89,7 @@ public class ConfigValidationTest {
         assertTrue(e.getMessage().contains("stringValue"));
     }
 
-    @Test
+
     public void testPositiveNumber() {
         TestConfig testConfig = createGoodConfig();
         testConfig.positiveNumber = -2;
@@ -97,7 +97,7 @@ public class ConfigValidationTest {
         assertTrue(e.getMessage().contains("positiveNumber"));
     }
 
-    @Test
+
     public void testListEntry() {
         TestConfig testConfig = createGoodConfig();
         testConfig.integerList = testStringList;
@@ -105,7 +105,7 @@ public class ConfigValidationTest {
         assertTrue(e.getMessage().contains("integerList"));
     }
 
-    @Test
+
     public void testMapEntry() {
         TestConfig testConfig = createGoodConfig();
         testConfig.stringIntegerMap = testStringStringMap;
@@ -113,7 +113,7 @@ public class ConfigValidationTest {
         assertTrue(e.getMessage().contains("stringIntegerMap"));
     }
 
-    @Test
+
     public void testStringList() {
         TestConfig testConfig = createGoodConfig();
         testConfig.stringList = testIntegerList;
@@ -121,7 +121,7 @@ public class ConfigValidationTest {
         assertTrue(e.getMessage().contains("stringList"));
     }
 
-    @Test
+
     public void testCustomString() {
         TestConfig testConfig = createGoodConfig();
         testConfig.customString = "http://google.com";

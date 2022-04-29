@@ -27,7 +27,7 @@ import org.testng.annotations.Test;
 
 public class InvalidProxyConfigForAuthorizationTest {
 
-    @Test
+
     void startupShouldFailWhenAuthorizationIsEnabledWithoutAuthentication() throws Exception {
         ProxyConfiguration proxyConfiguration = new ProxyConfiguration();
         proxyConfiguration.setAuthorizationEnabled(true);

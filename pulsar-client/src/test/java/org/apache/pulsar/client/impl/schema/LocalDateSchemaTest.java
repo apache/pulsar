@@ -26,7 +26,7 @@ import java.time.LocalDate;
 
 public class LocalDateSchemaTest {
 
-    @Test
+
     public void testSchemaEncode() {
         LocalDateSchema schema = LocalDateSchema.of();
         LocalDate localDate = LocalDate.now();
@@ -43,7 +43,7 @@ public class LocalDateSchemaTest {
         Assert.assertEquals(expected, schema.encode(localDate));
     }
 
-    @Test
+
     public void testSchemaEncodeDecodeFidelity() {
         LocalDateSchema schema = LocalDateSchema.of();
         LocalDate localDate = LocalDate.now();
@@ -54,7 +54,7 @@ public class LocalDateSchemaTest {
         Assert.assertEquals(localDate, schema.decode(byteBuf));
     }
 
-    @Test
+
     public void testSchemaDecode() {
         byte[] byteData = new byte[] {
                0,
@@ -75,7 +75,7 @@ public class LocalDateSchemaTest {
         Assert.assertEquals(expected, schema.decode(byteBuf).toEpochDay());
     }
 
-    @Test
+
     public void testNullEncodeDecode() {
         ByteBuf byteBuf = null;
         byte[] bytes = null;

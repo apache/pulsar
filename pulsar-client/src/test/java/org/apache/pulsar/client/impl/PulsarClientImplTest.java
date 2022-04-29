@@ -99,14 +99,14 @@ public class PulsarClientImplTest {
         }
     }
 
-    @Test
+    
     public void testIsClosed() throws Exception {
         assertFalse(clientImpl.isClosed());
         clientImpl.close();
         assertTrue(clientImpl.isClosed());
     }
 
-    @Test
+    
     public void testConsumerIsClosed() throws Exception {
         // mock client connection
         LookupService lookup = mock(LookupService.class);
@@ -168,7 +168,7 @@ public class PulsarClientImplTest {
                 assertSame(consumer.getState(), HandlerState.State.Closed));
     }
 
-    @Test
+    
     public void testInitializeWithoutTimer() throws Exception {
         ClientConfigurationData conf = new ClientConfigurationData();
         conf.setServiceUrl("pulsar://localhost:6650");
@@ -183,7 +183,7 @@ public class PulsarClientImplTest {
         verify(timer).stop();
     }
 
-    @Test
+    
     public void testInitializeWithTimer() throws PulsarClientException {
         ClientConfigurationData conf = new ClientConfigurationData();
         EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, false, new DefaultThreadFactory("test"));
@@ -197,7 +197,6 @@ public class PulsarClientImplTest {
         client.timer().stop();
     }
 
-    @Test(expectedExceptions = PulsarClientException.class)
     public void testNewTransactionWhenDisable() throws Exception {
         ClientConfigurationData conf = new ClientConfigurationData();
         conf.setServiceUrl("pulsar://localhost:6650");
@@ -211,7 +210,7 @@ public class PulsarClientImplTest {
         pulsarClient.newTransaction();
     }
 
-    @Test
+    
     public void testResourceCleanup() throws PulsarClientException {
         ClientConfigurationData conf = clientImpl.conf;
         conf.setServiceUrl("");
@@ -225,7 +224,7 @@ public class PulsarClientImplTest {
         }
     }
 
-    @Test
+    
     public void testInitializingWithExecutorProviders() throws PulsarClientException {
         ClientConfigurationData conf = clientImpl.conf;
         @Cleanup("shutdownNow")
@@ -242,9 +241,6 @@ public class PulsarClientImplTest {
                 .build();
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class,
-            expectedExceptionsMessageRegExp = "Both externalExecutorProvider and internalExecutorProvider must be " +
-                    "specified or unspecified.")
     public void testBothExecutorProvidersMustBeSpecified() throws PulsarClientException {
         ClientConfigurationData conf = clientImpl.conf;
         @Cleanup("shutdownNow")

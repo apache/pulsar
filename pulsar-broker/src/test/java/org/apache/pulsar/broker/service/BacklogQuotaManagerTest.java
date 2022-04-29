@@ -62,7 +62,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker")
+
 public class BacklogQuotaManagerTest {
     PulsarService pulsar;
     ServiceConfiguration config;
@@ -151,7 +151,7 @@ public class BacklogQuotaManagerTest {
     /**
      * Readers should not effect backlog quota
      */
-    @Test
+
     public void testBacklogQuotaWithReader() throws Exception {
         assertEquals(admin.namespaces().getBacklogQuotaMap("prop/ns-quota"),
                 Maps.newHashMap());
@@ -228,7 +228,7 @@ public class BacklogQuotaManagerTest {
         }
     }
 
-    @Test
+
     public void testTriggerBacklogQuotaSizeWithReader() throws Exception {
         assertEquals(admin.namespaces().getBacklogQuotaMap("prop/ns-quota"),
                 Maps.newHashMap());
@@ -298,7 +298,7 @@ public class BacklogQuotaManagerTest {
      * and can't do message age check against the quota.
      * @throws Exception
      */
-    @Test
+
     public void testTriggerBacklogTimeQuotaWithReader() throws Exception {
         assertEquals(admin.namespaces().getBacklogQuotaMap("prop/ns-quota"),
                 Maps.newHashMap());
@@ -365,7 +365,7 @@ public class BacklogQuotaManagerTest {
         }
     }
 
-    @Test
+
     public void testConsumerBacklogEvictionSizeQuota() throws Exception {
         assertEquals(admin.namespaces().getBacklogQuotaMap("prop/ns-quota"),
                 Maps.newHashMap());
@@ -400,7 +400,7 @@ public class BacklogQuotaManagerTest {
         assertTrue(stats.getBacklogSize() < 10 * 1024, "Storage size is [" + stats.getStorageSize() + "]");
     }
 
-    @Test
+
     public void testConsumerBacklogEvictionTimeQuotaPrecise() throws Exception {
         assertEquals(admin.namespaces().getBacklogQuotaMap("prop/ns-quota"),
                 Maps.newHashMap());
@@ -442,7 +442,7 @@ public class BacklogQuotaManagerTest {
         client.close();
     }
 
-    @Test
+
     public void testConsumerBacklogEvictionTimeQuota() throws Exception {
         assertEquals(admin.namespaces().getBacklogQuotaMap("prop/ns-quota"),
                 Maps.newHashMap());
@@ -486,7 +486,7 @@ public class BacklogQuotaManagerTest {
         client.close();
     }
 
-    @Test
+
     public void testConsumerBacklogEvictionTimeQuotaWithEmptyLedger() throws Exception {
         assertEquals(admin.namespaces().getBacklogQuotaMap("prop/ns-quota"),
                 Maps.newHashMap());
@@ -535,7 +535,7 @@ public class BacklogQuotaManagerTest {
         client.close();
     }
 
-    @Test
+
     public void testConsumerBacklogEvictionWithAckSizeQuota() throws Exception {
         assertEquals(admin.namespaces().getBacklogQuotaMap("prop/ns-quota"),
                 Maps.newHashMap());
@@ -570,7 +570,7 @@ public class BacklogQuotaManagerTest {
         assertTrue(stats.getBacklogSize() <= 10 * 1024, "Storage size is [" + stats.getStorageSize() + "]");
     }
 
-    @Test
+
     public void testConsumerBacklogEvictionWithAckTimeQuotaPrecise() throws Exception {
         assertEquals(admin.namespaces().getBacklogQuotaMap("prop/ns-quota"),
                 Maps.newHashMap());
@@ -633,7 +633,7 @@ public class BacklogQuotaManagerTest {
                 .create();
     }
 
-    @Test
+
     public void testConsumerBacklogEvictionWithAckTimeQuota() throws Exception {
         assertEquals(admin.namespaces().getBacklogQuotaMap("prop/ns-quota"),
                 Maps.newHashMap());
@@ -704,7 +704,7 @@ public class BacklogQuotaManagerTest {
                 });
     }
 
-    @Test
+
     public void testConcurrentAckAndEviction() throws Exception {
         assertEquals(admin.namespaces().getBacklogQuotaMap("prop/ns-quota"),
                 Maps.newHashMap());
@@ -775,7 +775,7 @@ public class BacklogQuotaManagerTest {
         assertTrue(stats.getBacklogSize() <= 10 * 1024, "Storage size is [" + stats.getStorageSize() + "]");
     }
 
-    @Test
+
     public void testNoEviction() throws Exception {
         assertEquals(admin.namespaces().getBacklogQuotaMap("prop/ns-quota"),
                 Maps.newHashMap());
@@ -839,7 +839,7 @@ public class BacklogQuotaManagerTest {
         assertFalse(gotException.get());
     }
 
-    @Test
+
     public void testEvictionMulti() throws Exception {
         assertEquals(admin.namespaces().getBacklogQuotaMap("prop/ns-quota"),
                 Maps.newHashMap());
@@ -941,7 +941,7 @@ public class BacklogQuotaManagerTest {
         assertTrue(stats.getBacklogSize() <= 15 * 1024, "Storage size is [" + stats.getStorageSize() + "]");
     }
 
-    @Test
+
     public void testAheadProducerOnHold() throws Exception {
         assertEquals(admin.namespaces().getBacklogQuotaMap("prop/quotahold"),
                 Maps.newHashMap());
@@ -983,7 +983,7 @@ public class BacklogQuotaManagerTest {
                 "Number of producers on topic " + topic1 + " are [" + stats.getPublishers().size() + "]");
     }
 
-    @Test
+
     public void testAheadProducerOnHoldTimeout() throws Exception {
         assertEquals(admin.namespaces().getBacklogQuotaMap("prop/quotahold"),
                 Maps.newHashMap());
@@ -1021,7 +1021,7 @@ public class BacklogQuotaManagerTest {
         assertTrue(gotException, "timeout did not occur");
     }
 
-    @Test
+
     public void testProducerException() throws Exception {
         assertEquals(admin.namespaces().getBacklogQuotaMap("prop/quotahold"),
                 Maps.newHashMap());
@@ -1061,7 +1061,7 @@ public class BacklogQuotaManagerTest {
         assertTrue(gotException, "backlog exceeded exception did not occur");
     }
 
-    @Test
+
     public void testProducerExceptionAndThenUnblockSizeQuota() throws Exception {
         assertEquals(admin.namespaces().getBacklogQuotaMap("prop/quotahold"),
                 Maps.newHashMap());
@@ -1125,7 +1125,7 @@ public class BacklogQuotaManagerTest {
         assertFalse(gotException, "unable to publish due to " + sendException);
     }
 
-    @Test
+
     public void testProducerExceptionAndThenUnblockTimeQuotaPrecise() throws Exception {
         assertEquals(admin.namespaces().getBacklogQuotaMap("prop/quotahold"),
                 Maps.newHashMap());
@@ -1191,7 +1191,7 @@ public class BacklogQuotaManagerTest {
         client.close();
     }
 
-    @Test
+
     public void testProducerExceptionAndThenUnblockTimeQuota() throws Exception {
         assertEquals(admin.namespaces().getBacklogQuotaMap("prop/quotahold"),
                 Maps.newHashMap());
@@ -1256,7 +1256,6 @@ public class BacklogQuotaManagerTest {
         client.close();
     }
 
-    @Test(dataProvider = "backlogQuotaSizeGB")
     public void testBacklogQuotaInGB(boolean backlogQuotaSizeGB) throws Exception {
 
         pulsar.close();

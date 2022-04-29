@@ -46,7 +46,7 @@ public class DocumentTest extends BrokerTestBase {
         super.internalCleanup();
     }
 
-    @Test
+
     public void testSpecifyModuleName() {
         Properties properties = new Properties();
         properties.setProperty("serviceUrl", brokerUrl.toString());
@@ -57,7 +57,7 @@ public class DocumentTest extends BrokerTestBase {
         assertEquals(tool.generateDocumentation.getCommandNames().size(), 2);
     }
 
-    @Test
+
     public void testGenerator() {
         PulsarClientTool pulsarClientTool = new PulsarClientTool(new Properties());
         JCommander commander = pulsarClientTool.commandParser;

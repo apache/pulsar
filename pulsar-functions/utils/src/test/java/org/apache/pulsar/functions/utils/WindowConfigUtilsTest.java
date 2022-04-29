@@ -29,7 +29,7 @@ import static org.testng.Assert.fail;
  */
 public class WindowConfigUtilsTest {
 
-    @Test
+
     public void testSettingSlidingCountWindow() throws Exception {
         final Object[][] args = new Object[][]{
                 {-1, 10},
@@ -92,7 +92,7 @@ public class WindowConfigUtilsTest {
         }
     }
 
-    @Test
+
     public void testSettingSlidingTimeWindow() throws Exception {
         final Object[][] args = new Object[][]{
                 {-1L, 10L},
@@ -155,7 +155,7 @@ public class WindowConfigUtilsTest {
     }
 
 
-    @Test
+
     public void testSettingTumblingCountWindow() throws Exception {
         final Object[] args = new Object[]{-1, 0, 1, 2, 5, 10, null};
 
@@ -188,7 +188,7 @@ public class WindowConfigUtilsTest {
         }
     }
 
-    @Test
+
     public void testSettingTumblingTimeWindow() throws Exception {
         final Object[] args = new Object[]{-1L, 0L, 1L, 2L, 5L, 10L, null};
         for (Object arg : args) {
@@ -221,7 +221,7 @@ public class WindowConfigUtilsTest {
         }
     }
 
-    @Test
+
     public void testSettingLagTime() throws Exception {
         final Object[] args = new Object[]{-1L, 0L, 1L, 2L, 5L, 10L, null};
         for (Object arg : args) {
@@ -252,7 +252,7 @@ public class WindowConfigUtilsTest {
         }
     }
 
-    @Test
+
     public void testSettingWaterMarkInterval() throws Exception {
         final Object[] args = new Object[]{-1L, 0L, 1L, 2L, 5L, 10L, null};
         for (Object arg : args) {

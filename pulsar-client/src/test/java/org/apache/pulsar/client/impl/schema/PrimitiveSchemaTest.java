@@ -111,7 +111,7 @@ public class PrimitiveSchemaTest {
         return new Object[][] { { testData }, { testData2 } };
     }
 
-    @Test(dataProvider = "schemas")
+    
     public void allSchemasShouldSupportNull(Map<Schema, List<Object>> testData) {
         for (Schema<?> schema : testData.keySet()) {
             byte[] bytes = null;
@@ -129,7 +129,7 @@ public class PrimitiveSchemaTest {
         }
     }
 
-    @Test(dataProvider = "schemas")
+    
     public void allSchemasShouldRoundtripInput(Map<Schema, List<Object>> testData) {
         for (Map.Entry<Schema, List<Object>> test : testData.entrySet()) {
             log.info("Test schema {}", test.getKey());
@@ -148,7 +148,7 @@ public class PrimitiveSchemaTest {
         }
     }
 
-    @Test
+
     public void allSchemasShouldHaveSchemaType() {
         assertEquals(SchemaType.BOOLEAN, BooleanSchema.of().getSchemaInfo().getType());
         assertEquals(SchemaType.INT8, ByteSchema.of().getSchemaInfo().getType());

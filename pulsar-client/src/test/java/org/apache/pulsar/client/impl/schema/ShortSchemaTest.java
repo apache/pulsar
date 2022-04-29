@@ -25,7 +25,7 @@ import org.testng.annotations.Test;
 
 public class ShortSchemaTest {
 
-    @Test
+
     public void testSchemaEncode() {
         ShortSchema schema = ShortSchema.of();
         Short data = 12345;
@@ -36,7 +36,7 @@ public class ShortSchemaTest {
         Assert.assertEquals(expected, schema.encode(data));
     }
 
-    @Test
+
     public void testSchemaEncodeDecodeFidelity() {
         ShortSchema schema = ShortSchema.of();
         ByteBuf byteBuf = ByteBufAllocator.DEFAULT.buffer(2);
@@ -52,7 +52,7 @@ public class ShortSchemaTest {
         }
     }
 
-    @Test
+
     public void testSchemaDecode() {
         byte[] byteData = new byte[] {
                24,
@@ -66,7 +66,7 @@ public class ShortSchemaTest {
         Assert.assertEquals(expected, schema.decode(byteBuf));
     }
 
-    @Test
+
     public void testNullEncodeDecode() {
         ByteBuf byteBuf = null;
         byte[] bytes = null;

@@ -89,7 +89,7 @@ public class ProxyTlsTestWithAuth extends MockedPulsarServiceBaseTest {
         proxyService.close();
     }
 
-    @Test
+
     public void testServiceStartup() {
         // this tests is only for verify the proxy setup with oauth2 authentication plugin
     }

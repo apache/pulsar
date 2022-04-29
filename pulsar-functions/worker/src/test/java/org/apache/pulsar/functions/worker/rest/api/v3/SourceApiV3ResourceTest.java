@@ -229,7 +229,6 @@ public class SourceApiV3ResourceTest {
     // Register Functions
     //
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Tenant is not provided")
     public void testRegisterSourceMissingTenant() {
         try {
             testRegisterSourceMissingArguments(
@@ -250,7 +249,6 @@ public class SourceApiV3ResourceTest {
         }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Namespace is not provided")
     public void testRegisterSourceMissingNamespace() {
         try {
             testRegisterSourceMissingArguments(
@@ -271,7 +269,6 @@ public class SourceApiV3ResourceTest {
         }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source name is not provided")
     public void testRegisterSourceMissingSourceName() {
         try {
             testRegisterSourceMissingArguments(
@@ -292,8 +289,6 @@ public class SourceApiV3ResourceTest {
         }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source class UnknownClass must"
-            + " be in class path")
     public void testRegisterSourceWrongClassName() {
         try {
             testRegisterSourceMissingArguments(
@@ -314,7 +309,6 @@ public class SourceApiV3ResourceTest {
         }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source package is not provided")
     public void testRegisterSourceMissingPackage() {
         try {
             testRegisterSourceMissingArguments(
@@ -335,7 +329,6 @@ public class SourceApiV3ResourceTest {
         }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source Package is not provided")
     public void testRegisterSourceMissingPackageDetails() throws IOException {
         try (InputStream inputStream = new FileInputStream(getPulsarIOTwitterNar())) {
             testRegisterSourceMissingArguments(
@@ -356,10 +349,6 @@ public class SourceApiV3ResourceTest {
         }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source package does not have the"
-            + " correct format. Pulsar cannot determine if the package is a NAR package"
-            + " or JAR package. Source classname is not provided and attempts to load it as a NAR package "
-            + "produced the following error.")
     public void testRegisterSourceMissingPackageDetailsAndClassname() {
         try {
             testRegisterSourceMissingArguments(
@@ -380,8 +369,6 @@ public class SourceApiV3ResourceTest {
         }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source package does not have "
-            + "the correct format.*")
     public void testRegisterSourceInvalidJarWithNoSource() throws IOException {
         try (InputStream inputStream = new FileInputStream(getPulsarIOInvalidNar())) {
             testRegisterSourceMissingArguments(
@@ -402,7 +389,6 @@ public class SourceApiV3ResourceTest {
         }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Topic name cannot be null")
     public void testRegisterSourceNoOutputTopic() throws IOException {
         try (InputStream inputStream = new FileInputStream(getPulsarIOTwitterNar())) {
             testRegisterSourceMissingArguments(
@@ -423,8 +409,6 @@ public class SourceApiV3ResourceTest {
         }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Encountered error .*. when "
-            + "getting Source package from .*")
     public void testRegisterSourceHttpUrl() {
         try {
             testRegisterSourceMissingArguments(
@@ -491,7 +475,6 @@ public class SourceApiV3ResourceTest {
 
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source config is not provided")
     public void testMissingSinkConfig() {
         resource.registerSource(
                 tenant,
@@ -504,7 +487,6 @@ public class SourceApiV3ResourceTest {
                 null, null);
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source config is not provided")
     public void testUpdateMissingSinkConfig() {
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(true);
         resource.updateSource(
@@ -535,8 +517,6 @@ public class SourceApiV3ResourceTest {
                 null, null);
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source test-source already "
-            + "exists")
     public void testRegisterExistedSource() throws IOException {
         try {
             Configurator.setRootLevel(Level.DEBUG);
@@ -550,7 +530,6 @@ public class SourceApiV3ResourceTest {
         }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "upload failure")
     public void testRegisterSourceUploadFailure() throws Exception {
         try {
             mockWorkerUtils(ctx -> {
@@ -575,7 +554,7 @@ public class SourceApiV3ResourceTest {
         }
     }
 
-    @Test
+
     public void testRegisterSourceSuccess() throws Exception {
         mockWorkerUtils();
 
@@ -586,12 +565,12 @@ public class SourceApiV3ResourceTest {
 
 
 
-    @Test(timeOut = 20000)
+    
     public void testRegisterSourceSuccessWithPackageName() throws IOException {
         registerDefaultSourceWithPackageUrl("source://public/default/test@v1");
     }
 
-    @Test(timeOut = 20000)
+    
     public void testRegisterSourceFailedWithWrongPackageName() throws PulsarAdminException, IOException {
         try {
             doThrow(new PulsarAdminException("package name is invalid"))
@@ -603,7 +582,7 @@ public class SourceApiV3ResourceTest {
         }
     }
 
-    @Test
+
     public void testRegisterSourceConflictingFields() throws Exception {
 
         mockWorkerUtils();
@@ -637,7 +616,6 @@ public class SourceApiV3ResourceTest {
         }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "source failed to register")
     public void testRegisterSourceFailure() throws Exception {
         try {
             mockWorkerUtils();
@@ -654,8 +632,6 @@ public class SourceApiV3ResourceTest {
         }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function registration "
-            + "interrupted")
     public void testRegisterSourceInterrupted() throws Exception {
         try {
             mockWorkerUtils();
@@ -676,7 +652,6 @@ public class SourceApiV3ResourceTest {
     // Update Functions
     //
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Tenant is not provided")
     public void testUpdateSourceMissingTenant() throws Exception {
         try {
             testUpdateSourceMissingArguments(
@@ -696,7 +671,6 @@ public class SourceApiV3ResourceTest {
         }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Namespace is not provided")
     public void testUpdateSourceMissingNamespace() throws Exception {
         try {
             testUpdateSourceMissingArguments(
@@ -716,7 +690,6 @@ public class SourceApiV3ResourceTest {
         }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source name is not provided")
     public void testUpdateSourceMissingFunctionName() throws Exception {
         try {
             testUpdateSourceMissingArguments(
@@ -736,7 +709,6 @@ public class SourceApiV3ResourceTest {
         }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Update contains no change")
     public void testUpdateSourceMissingPackage() throws Exception {
         try {
             mockStatic(WorkerUtils.class, ctx -> {
@@ -759,7 +731,6 @@ public class SourceApiV3ResourceTest {
         }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Update contains no change")
     public void testUpdateSourceMissingTopicName() throws Exception {
         try {
             mockStatic(WorkerUtils.class, ctx -> {
@@ -782,8 +753,6 @@ public class SourceApiV3ResourceTest {
         }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source parallelism must be a "
-            + "positive number")
     public void testUpdateSourceNegativeParallelism() throws Exception {
         try {
             mockWorkerUtils();
@@ -805,7 +774,7 @@ public class SourceApiV3ResourceTest {
         }
     }
 
-    @Test
+
     public void testUpdateSourceChangedParallelism() throws Exception {
         try {
             mockWorkerUtils();
@@ -827,7 +796,7 @@ public class SourceApiV3ResourceTest {
         }
     }
 
-    @Test
+
     public void testUpdateSourceChangedTopic() throws Exception {
         mockWorkerUtils();
 
@@ -844,8 +813,6 @@ public class SourceApiV3ResourceTest {
                 null);
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source parallelism must be a "
-            + "positive number")
     public void testUpdateSourceZeroParallelism() throws Exception {
         try {
             mockWorkerUtils();
@@ -986,8 +953,6 @@ public class SourceApiV3ResourceTest {
         }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source test-source doesn't " +
-            "exist")
     public void testUpdateNotExistedSource() throws Exception {
         try {
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(false);
@@ -998,7 +963,6 @@ public class SourceApiV3ResourceTest {
         }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "upload failure")
     public void testUpdateSourceUploadFailure() throws Exception {
         try {
             mockWorkerUtils(ctx -> {
@@ -1017,7 +981,7 @@ public class SourceApiV3ResourceTest {
         }
     }
 
-    @Test
+
     public void testUpdateSourceSuccess() throws Exception {
         mockWorkerUtils();
 
@@ -1026,7 +990,7 @@ public class SourceApiV3ResourceTest {
         updateDefaultSource();
     }
 
-    @Test
+
     public void testUpdateSourceWithUrl() throws Exception {
         Configurator.setRootLevel(Level.DEBUG);
 
@@ -1072,7 +1036,6 @@ public class SourceApiV3ResourceTest {
 
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "source failed to register")
     public void testUpdateSourceFailure() throws Exception {
         try {
             mockWorkerUtils();
@@ -1089,8 +1052,6 @@ public class SourceApiV3ResourceTest {
         }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function registration " +
-            "interrupted")
     public void testUpdateSourceInterrupted() throws Exception {
         try {
             mockWorkerUtils();
@@ -1107,13 +1068,13 @@ public class SourceApiV3ResourceTest {
         }
     }
 
-    @Test(timeOut = 20000)
+    
     public void testUpdateSourceSuccessWithPackageName() throws Exception {
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(true);
         updateDefaultSourceWithPackageUrl("source://public/default/test@v1");
     }
 
-    @Test(timeOut = 20000)
+    
     public void testUpdateSourceFailedWithWrongPackageName() throws Exception {
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(true);
         try {
@@ -1130,7 +1091,6 @@ public class SourceApiV3ResourceTest {
     // deregister source
     //
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Tenant is not provided")
     public void testDeregisterSourceMissingTenant() {
         try {
             testDeregisterSourceMissingArguments(
@@ -1144,7 +1104,6 @@ public class SourceApiV3ResourceTest {
         }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Namespace is not provided")
     public void testDeregisterSourceMissingNamespace() {
         try {
             testDeregisterSourceMissingArguments(
@@ -1158,7 +1117,6 @@ public class SourceApiV3ResourceTest {
         }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source name is not provided")
     public void testDeregisterSourceMissingFunctionName() {
         try {
             testDeregisterSourceMissingArguments(
@@ -1193,8 +1151,6 @@ public class SourceApiV3ResourceTest {
                 null, null);
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source test-source doesn't " +
-            "exist")
     public void testDeregisterNotExistedSource() {
         try {
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(false);
@@ -1205,7 +1161,7 @@ public class SourceApiV3ResourceTest {
         }
     }
 
-    @Test
+
     public void testDeregisterSourceSuccess() {
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(true);
 
@@ -1215,7 +1171,6 @@ public class SourceApiV3ResourceTest {
         deregisterDefaultSource();
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "source failed to deregister")
     public void testDeregisterSourceFailure() throws Exception {
         try {
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(true);
@@ -1233,8 +1188,6 @@ public class SourceApiV3ResourceTest {
         }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function deregistration "
-            + "interrupted")
     public void testDeregisterSourceInterrupted() throws Exception {
         try {
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(true);
@@ -1252,7 +1205,7 @@ public class SourceApiV3ResourceTest {
         }
     }
 
-    @Test
+
     public void testDeregisterSourceBKPackageCleanup() throws IOException {
         String packagePath =
                 "public/default/test/591541f0-c7c5-40c0-983b-610c722f90b0-pulsar-io-batch-data-generator-2.7.0.nar";
@@ -1271,7 +1224,7 @@ public class SourceApiV3ResourceTest {
         }
     }
 
-    @Test
+
     public void testDeregisterBuiltinSourceBKPackageCleanup() throws IOException {
 
         String packagePath = String.format("%s://data-generator", Utils.BUILTIN);
@@ -1291,7 +1244,7 @@ public class SourceApiV3ResourceTest {
         }
     }
 
-    @Test
+
     public void testDeregisterHTTPSourceBKPackageCleanup() throws IOException {
         String packagePath = "http://foo.com/connector.jar";
         try (final MockedStatic<WorkerUtils> ctx = Mockito.mockStatic(WorkerUtils.class)) {
@@ -1310,7 +1263,7 @@ public class SourceApiV3ResourceTest {
         }
     }
 
-    @Test
+
     public void testDeregisterFileSourceBKPackageCleanup() throws IOException {
 
             String packagePath = "file://foo/connector.jar";
@@ -1334,7 +1287,6 @@ public class SourceApiV3ResourceTest {
     // Get Source Info
     //
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Tenant is not provided")
     public void testGetSourceMissingTenant() {
         try {
             testGetSourceMissingArguments(
@@ -1348,7 +1300,6 @@ public class SourceApiV3ResourceTest {
         }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Namespace is not provided")
     public void testGetSourceMissingNamespace() {
         try {
             testGetSourceMissingArguments(
@@ -1362,7 +1313,6 @@ public class SourceApiV3ResourceTest {
         }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source name is not provided")
     public void testGetSourceMissingFunctionName() {
         try {
             testGetSourceMissingArguments(
@@ -1396,8 +1346,6 @@ public class SourceApiV3ResourceTest {
         );
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Source test-source doesn't "
-            + "exist")
     public void testGetNotExistedSource() {
         try {
             when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(false);
@@ -1408,7 +1356,7 @@ public class SourceApiV3ResourceTest {
         }
     }
 
-    @Test
+
     public void testGetSourceSuccess() {
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(source))).thenReturn(true);
 
@@ -1443,7 +1391,6 @@ public class SourceApiV3ResourceTest {
     // List Sources
     //
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Tenant is not provided")
     public void testListSourcesMissingTenant() {
         try {
             testListSourcesMissingArguments(
@@ -1456,7 +1403,6 @@ public class SourceApiV3ResourceTest {
         }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Namespace is not provided")
     public void testListSourcesMissingNamespace() {
         try {
             testListSourcesMissingArguments(
@@ -1485,7 +1431,7 @@ public class SourceApiV3ResourceTest {
                 namespace, null, null);
     }
 
-    @Test
+
     public void testListSourcesSuccess() {
         final List<String> functions = Lists.newArrayList("test-1", "test-2");
         final List<FunctionMetaData> functionMetaDataList = new LinkedList<>();
@@ -1501,7 +1447,7 @@ public class SourceApiV3ResourceTest {
         assertEquals(functions, sourceList);
     }
 
-    @Test
+
     public void testOnlyGetSources() {
         final List<String> functions = Lists.newArrayList("test-1");
         final List<FunctionMetaData> functionMetaDataList = new LinkedList<>();
@@ -1528,7 +1474,6 @@ public class SourceApiV3ResourceTest {
         assertEquals(functions, sourceList);
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Namespace does not exist")
     public void testRegisterFunctionNonExistingNamespace() throws Exception {
         try {
             this.namespaceList.clear();
@@ -1539,7 +1484,6 @@ public class SourceApiV3ResourceTest {
         }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Tenant does not exist")
     public void testRegisterFunctionNonExistingTenant() throws Exception {
         try {
             when(mockedTenants.getTenantInfo(any())).thenThrow(PulsarAdminException.NotFoundException.class);

@@ -39,7 +39,7 @@ import com.google.common.collect.Lists;
 
 public class ConcurrentOpenHashSetTest {
 
-    @Test
+
     public void testConstructor() {
         try {
             new ConcurrentOpenHashSet<String>(0);
@@ -63,7 +63,7 @@ public class ConcurrentOpenHashSetTest {
         }
     }
 
-    @Test
+
     public void simpleInsertions() {
         ConcurrentOpenHashSet<String> set = new ConcurrentOpenHashSet<>(16);
 
@@ -91,7 +91,7 @@ public class ConcurrentOpenHashSetTest {
         assertEquals(set.size(), 3);
     }
 
-    @Test
+
     public void testReduceUnnecessaryExpansions() {
         ConcurrentOpenHashSet<String> set =
                 ConcurrentOpenHashSet.<String>newBuilder()
@@ -111,7 +111,7 @@ public class ConcurrentOpenHashSetTest {
         assertEquals(0, set.getUsedBucketCount());
     }
 
-    @Test
+
     public void testClear() {
         ConcurrentOpenHashSet<String> set =
                 ConcurrentOpenHashSet.<String>newBuilder()
@@ -131,7 +131,7 @@ public class ConcurrentOpenHashSetTest {
         assertTrue(set.capacity() == 4);
     }
 
-    @Test
+
     public void testExpandAndShrink() {
         ConcurrentOpenHashSet<String> map =
                 ConcurrentOpenHashSet.<String>newBuilder()
@@ -167,7 +167,7 @@ public class ConcurrentOpenHashSetTest {
         assertTrue(map.capacity() == 8);
     }
 
-    @Test
+
     public void testRemove() {
         ConcurrentOpenHashSet<String> set =
                 ConcurrentOpenHashSet.<String>newBuilder().build();
@@ -182,7 +182,7 @@ public class ConcurrentOpenHashSetTest {
         assertTrue(set.isEmpty());
     }
 
-    @Test
+
     public void testRehashing() {
         int n = 16;
         ConcurrentOpenHashSet<Integer> set = new ConcurrentOpenHashSet<>(n / 2, 1);
@@ -197,7 +197,7 @@ public class ConcurrentOpenHashSetTest {
         assertEquals(set.size(), n);
     }
 
-    @Test
+
     public void testRehashingWithDeletes() {
         int n = 16;
         ConcurrentOpenHashSet<Integer> set = new ConcurrentOpenHashSet<>(n / 2, 1);
@@ -220,7 +220,7 @@ public class ConcurrentOpenHashSetTest {
         assertEquals(set.size(), n);
     }
 
-    @Test
+
     public void concurrentInsertions() throws Throwable {
         ConcurrentOpenHashSet<Long> set =
                 ConcurrentOpenHashSet.<Long>newBuilder().build();
@@ -254,7 +254,7 @@ public class ConcurrentOpenHashSetTest {
         assertEquals(set.size(), N * nThreads);
     }
 
-    @Test
+
     public void concurrentInsertionsAndReads() throws Throwable {
         ConcurrentOpenHashSet<Long> map =
                 ConcurrentOpenHashSet.<Long>newBuilder().build();
@@ -288,7 +288,7 @@ public class ConcurrentOpenHashSetTest {
         assertEquals(map.size(), N * nThreads);
     }
 
-    @Test
+
     public void testIteration() {
         ConcurrentOpenHashSet<Long> set = ConcurrentOpenHashSet.<Long>newBuilder().build();
 
@@ -314,7 +314,7 @@ public class ConcurrentOpenHashSetTest {
         assertTrue(set.isEmpty());
     }
 
-    @Test
+
     public void testRemoval() {
         ConcurrentOpenHashSet<Integer> set =
                 ConcurrentOpenHashSet.<Integer>newBuilder().build();
@@ -337,7 +337,7 @@ public class ConcurrentOpenHashSetTest {
         assertEquals(values, Lists.newArrayList(6, 7));
     }
 
-    @Test
+
     public void testHashConflictWithDeletion() {
         final int Buckets = 16;
         ConcurrentOpenHashSet<Long> set = new ConcurrentOpenHashSet<>(Buckets, 1);
@@ -371,7 +371,7 @@ public class ConcurrentOpenHashSetTest {
         assertTrue(set.isEmpty());
     }
 
-    @Test
+
     public void testEqualsObjects() {
         class T {
             int value;

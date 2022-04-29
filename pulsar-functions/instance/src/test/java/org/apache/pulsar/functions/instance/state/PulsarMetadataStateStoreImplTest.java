@@ -60,7 +60,7 @@ public class PulsarMetadataStateStoreImplTest {
         this.store.close();
     }
 
-    @Test
+
     public void testGetter() {
         assertEquals(stateContext.tenant(), TENANT);
         assertEquals(stateContext.namespace(), NS);
@@ -68,19 +68,19 @@ public class PulsarMetadataStateStoreImplTest {
         assertEquals(stateContext.fqsn(), FQSN);
     }
 
-    @Test
+
     public void testIncr() throws Exception {
         stateContext.incrCounter("test-key", 10L);
         assertEquals(countersCache.get(PREFIX_PATH + "test-key").join().get().longValue(), 10);
     }
 
-    @Test
+
     public void testPut() throws Exception {
         stateContext.put("test-key", ByteBuffer.wrap("test-value".getBytes(UTF_8)));
         assertEquals(store.get(PREFIX_PATH + "test-key").join().get().getValue(), "test-value".getBytes(UTF_8));
     }
 
-    @Test
+
     public void testDelete() throws Exception {
         stateContext.put("test-key", ByteBuffer.wrap("test-value".getBytes(UTF_8)));
         assertEquals("test-value".getBytes(UTF_8), store.get(PREFIX_PATH + "test-key").join().get().getValue());
@@ -88,7 +88,7 @@ public class PulsarMetadataStateStoreImplTest {
         assertFalse(store.get(PREFIX_PATH + "test-key").join().isPresent());
     }
 
-    @Test
+
     public void testGetAmount() throws Exception {
         assertEquals(stateContext.getCounter("test-key"), 0);
         stateContext.incrCounter("test-key", 10L);
@@ -96,7 +96,7 @@ public class PulsarMetadataStateStoreImplTest {
         assertEquals(stateContext.getCounter("test-key"), 10);
     }
 
-    @Test
+
     public void testGetKeyNotPresent() throws Exception {
         CompletableFuture<ByteBuffer> result = stateContext.getAsync("test-key");
         assertTrue(result != null);

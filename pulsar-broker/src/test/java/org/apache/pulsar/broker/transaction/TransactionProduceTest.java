@@ -61,7 +61,7 @@ import org.testng.annotations.Test;
  * Pulsar client transaction test.
  */
 @Slf4j
-@Test(groups = "broker")
+
 public class TransactionProduceTest extends TransactionTestBase {
 
     private static final int TOPIC_PARTITION = 3;
@@ -84,12 +84,12 @@ public class TransactionProduceTest extends TransactionTestBase {
     }
 
 
-    @Test
+
     public void produceAndCommitTest() throws Exception {
         produceTest(true);
     }
 
-    @Test
+
     public void testDeleteNamespaceBeforeCommit() throws Exception {
         final String topic = NAMESPACE1 + "/testDeleteTopicBeforeCommit";
         PulsarClient pulsarClient = this.pulsarClient;
@@ -118,7 +118,7 @@ public class TransactionProduceTest extends TransactionTestBase {
         tnx.commit().get();
     }
 
-    @Test
+
     public void produceAndAbortTest() throws Exception {
         produceTest(false);
     }
@@ -246,7 +246,7 @@ public class TransactionProduceTest extends TransactionTestBase {
         }
     }
 
-    @Test
+
     public void ackCommitTest() throws Exception {
         final String subscriptionName = "ackCommitTest";
         Transaction txn = pulsarClient
@@ -308,7 +308,7 @@ public class TransactionProduceTest extends TransactionTestBase {
         log.info("finish test ackCommitTest");
     }
 
-    @Test
+
     public void ackAbortTest() throws Exception {
         final String subscriptionName = "ackAbortTest";
         Transaction txn = pulsarClient

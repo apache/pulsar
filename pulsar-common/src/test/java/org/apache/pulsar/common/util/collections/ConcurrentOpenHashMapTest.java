@@ -46,7 +46,7 @@ import com.google.common.collect.Lists;
 
 public class ConcurrentOpenHashMapTest {
 
-    @Test
+
     public void testConstructor() {
         try {
             ConcurrentOpenHashMap.<String, String>newBuilder()
@@ -78,7 +78,7 @@ public class ConcurrentOpenHashMapTest {
         }
     }
 
-    @Test
+
     public void simpleInsertions() {
         ConcurrentOpenHashMap<String, String> map =
                 ConcurrentOpenHashMap.<String, String>newBuilder()
@@ -109,7 +109,7 @@ public class ConcurrentOpenHashMapTest {
         assertEquals(map.size(), 3);
     }
 
-    @Test
+
     public void testReduceUnnecessaryExpansions() {
         ConcurrentOpenHashMap<String, String> map = ConcurrentOpenHashMap.<String, String>newBuilder()
                 .expectedItems(2)
@@ -128,7 +128,7 @@ public class ConcurrentOpenHashMapTest {
         assertEquals(0, map.getUsedBucketCount());
     }
 
-    @Test
+
     public void testClear() {
         ConcurrentOpenHashMap<String, String> map = ConcurrentOpenHashMap.<String, String>newBuilder()
                 .expectedItems(2)
@@ -147,7 +147,7 @@ public class ConcurrentOpenHashMapTest {
         assertTrue(map.capacity() == 4);
     }
 
-    @Test
+
     public void testExpandAndShrink() {
         ConcurrentOpenHashMap<String, String> map = ConcurrentOpenHashMap.<String, String>newBuilder()
                 .expectedItems(2)
@@ -182,7 +182,7 @@ public class ConcurrentOpenHashMapTest {
         assertTrue(map.capacity() == 8);
     }
 
-    @Test
+
     public void testRemove() {
         ConcurrentOpenHashMap<String, String> map =
                 ConcurrentOpenHashMap.<String, String>newBuilder().build();
@@ -199,7 +199,7 @@ public class ConcurrentOpenHashMapTest {
         assertTrue(map.isEmpty());
     }
 
-    @Test
+
     public void testRehashing() {
         int n = 16;
         ConcurrentOpenHashMap<String, Integer> map = ConcurrentOpenHashMap.<String, Integer>newBuilder()
@@ -217,7 +217,7 @@ public class ConcurrentOpenHashMapTest {
         assertEquals(map.size(), n);
     }
 
-    @Test
+
     public void testRehashingWithDeletes() {
         int n = 16;
         ConcurrentOpenHashMap<Integer, Integer> map =
@@ -244,7 +244,7 @@ public class ConcurrentOpenHashMapTest {
         assertEquals(map.size(), n);
     }
 
-    @Test
+
     public void concurrentInsertions() throws Throwable {
         ConcurrentOpenHashMap<Long, String> map = ConcurrentOpenHashMap.<Long, String>newBuilder()
                         .expectedItems(16)
@@ -281,7 +281,7 @@ public class ConcurrentOpenHashMapTest {
         assertEquals(map.size(), N * nThreads);
     }
 
-    @Test
+
     public void concurrentInsertionsAndReads() throws Throwable {
         ConcurrentOpenHashMap<Long, String> map =
                 ConcurrentOpenHashMap.<Long, String>newBuilder().build();
@@ -316,7 +316,7 @@ public class ConcurrentOpenHashMapTest {
         assertEquals(map.size(), N * nThreads);
     }
 
-    @Test
+
     public void testIteration() {
         ConcurrentOpenHashMap<Long, String> map =
                 ConcurrentOpenHashMap.<Long, String>newBuilder().build();
@@ -360,7 +360,7 @@ public class ConcurrentOpenHashMapTest {
         assertTrue(map.isEmpty());
     }
 
-    @Test
+
     public void testHashConflictWithDeletion() {
         final int Buckets = 16;
         ConcurrentOpenHashMap<Long, String> map = ConcurrentOpenHashMap.<Long, String>newBuilder()
@@ -397,7 +397,7 @@ public class ConcurrentOpenHashMapTest {
         assertTrue(map.isEmpty());
     }
 
-    @Test
+
     public void testPutIfAbsent() {
         ConcurrentOpenHashMap<Long, String> map =
                 ConcurrentOpenHashMap.<Long, String>newBuilder().build();
@@ -408,7 +408,7 @@ public class ConcurrentOpenHashMapTest {
         assertEquals(map.get(1l), "one");
     }
 
-    @Test
+
     public void testComputeIfAbsent() {
         ConcurrentOpenHashMap<Integer, Integer> map = ConcurrentOpenHashMap.<Integer, Integer>newBuilder()
                 .expectedItems(16)
@@ -430,7 +430,7 @@ public class ConcurrentOpenHashMapTest {
         assertEquals(map.get(2).intValue(), 2);
     }
 
-    @Test
+
     public void testEqualsKeys() {
         class T {
             int value;
@@ -475,7 +475,7 @@ public class ConcurrentOpenHashMapTest {
         assertNull(map.get(t1_b));
     }
 
-    @Test
+
     public void testNullValue() {
         ConcurrentOpenHashMap<String, String> map =
                 ConcurrentOpenHashMap.<String, String>newBuilder()

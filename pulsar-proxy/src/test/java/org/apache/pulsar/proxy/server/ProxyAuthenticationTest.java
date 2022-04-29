@@ -191,7 +191,7 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
 		super.internalCleanup();
 	}
 
-	@Test
+	
 	void testAuthentication() throws Exception {
 		log.info("-- Starting {} test --", methodName);
 

@@ -61,7 +61,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker")
+
 public class OwnershipCacheTest {
     private static final Logger log = LoggerFactory.getLogger(OwnershipCacheTest.class);
 
@@ -120,14 +120,14 @@ public class OwnershipCacheTest {
         zookeeperServer.close();
     }
 
-    @Test
+
     public void testConstructor() {
         OwnershipCache cache = new OwnershipCache(this.pulsar, bundleFactory, nsService);
         assertNotNull(cache);
         assertNotNull(cache.getOwnedBundles());
     }
 
-    @Test
+
     public void testDisableOwnership() throws Exception {
         OwnershipCache cache = new OwnershipCache(this.pulsar, bundleFactory, nsService);
 
@@ -145,7 +145,7 @@ public class OwnershipCacheTest {
         assertTrue(data1.isDisabled());
     }
 
-    @Test
+
     public void testGetOrSetOwner() throws Exception {
         OwnershipCache cache = new OwnershipCache(this.pulsar, bundleFactory, nsService);
         NamespaceBundle testFullBundle = new NamespaceBundle(NamespaceName.get("pulsar/test/ns-2"),
@@ -191,7 +191,7 @@ public class OwnershipCacheTest {
         assertFalse(data1.isDisabled());
     }
 
-    @Test
+
     public void testGetOwner() throws Exception {
         OwnershipCache cache = new OwnershipCache(this.pulsar, bundleFactory, nsService);
         NamespaceBundle testBundle = new NamespaceBundle(NamespaceName.get("pulsar/test/ns-3"),
@@ -238,7 +238,7 @@ public class OwnershipCacheTest {
         assertFalse(res.isPresent());
     }
 
-    @Test
+
     public void testGetOwnedServiceUnit() throws Exception {
         OwnershipCache cache = new OwnershipCache(this.pulsar, bundleFactory, nsService);
         NamespaceName testNs = NamespaceName.get("pulsar/test/ns-5");
@@ -298,7 +298,7 @@ public class OwnershipCacheTest {
         assertNotNull(cache.getOwnedBundle(testBundle));
     }
 
-    @Test
+
     public void testGetOwnedServiceUnits() throws Exception {
         OwnershipCache cache = new OwnershipCache(this.pulsar, bundleFactory, nsService);
         NamespaceName testNs = NamespaceName.get("pulsar/test/ns-6");
@@ -344,7 +344,7 @@ public class OwnershipCacheTest {
         assertEquals(cache.getOwnedBundles().size(), 1);
     }
 
-    @Test
+
     public void testRemoveOwnership() throws Exception {
         OwnershipCache cache = new OwnershipCache(this.pulsar, bundleFactory, nsService);
         NamespaceName testNs = NamespaceName.get("pulsar/test/ns-7");
@@ -369,7 +369,7 @@ public class OwnershipCacheTest {
         });
     }
 
-    @Test
+
     public void testReestablishOwnership() throws Exception {
         OwnershipCache cache = new OwnershipCache(this.pulsar, bundleFactory, nsService);
         NamespaceBundle testFullBundle = new NamespaceBundle(NamespaceName.get("pulsar/test/ns-8"),

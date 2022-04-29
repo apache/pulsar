@@ -46,7 +46,7 @@ import static org.testng.Assert.assertTrue;
 
 public class JsonConverterTests {
 
-    @Test
+
     public void testAvroToJson() throws IOException {
         Schema schema = SchemaBuilder.record("record").fields()
                 .name("n").type().longType().longDefault(10)
@@ -93,7 +93,7 @@ public class JsonConverterTests {
         assertEquals(jsonNode.get("map").get("a").numberValue(), 10);
     }
 
-    @Test
+
     public void testLogicalTypesToJson() throws IOException {
         Schema dateType = LogicalTypes.date().addToSchema(Schema.create(Schema.Type.INT));
         Schema timestampMillisType = LogicalTypes.timestampMillis().addToSchema(Schema.create(Schema.Type.LONG));

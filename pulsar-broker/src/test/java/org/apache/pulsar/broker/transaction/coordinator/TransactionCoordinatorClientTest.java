@@ -36,7 +36,7 @@ import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker")
+
 public class TransactionCoordinatorClientTest extends TransactionMetaStoreTestBase {
 
     @Override
@@ -60,7 +60,7 @@ public class TransactionCoordinatorClientTest extends TransactionMetaStoreTestBa
         }
     }
 
-    @Test
+
     public void testClientStart() throws PulsarClientException, TransactionCoordinatorClientException, InterruptedException {
         try {
             transactionCoordinatorClient.start();
@@ -73,14 +73,14 @@ public class TransactionCoordinatorClientTest extends TransactionMetaStoreTestBa
         Assert.assertEquals(transactionCoordinatorClient.getState(), State.READY);
     }
 
-    @Test
+
     public void testNewTxn() throws TransactionCoordinatorClientException {
         TxnID txnID = transactionCoordinatorClient.newTransaction();
         Assert.assertNotNull(txnID);
         Assert.assertEquals(txnID.getLeastSigBits(), 0L);
     }
 
-    @Test
+
     public void testCommitAndAbort() throws TransactionCoordinatorClientException {
         TxnID txnID = transactionCoordinatorClient.newTransaction();
         transactionCoordinatorClient.addPublishPartitionToTxn(txnID, Lists.newArrayList("persistent://public/default/testCommitAndAbort"));
@@ -93,7 +93,7 @@ public class TransactionCoordinatorClientTest extends TransactionMetaStoreTestBa
         }
     }
 
-    @Test
+
     public void testTransactionCoordinatorExceptionUnwrap() {
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
         completableFuture.completeExceptionally(new TransactionCoordinatorClientException

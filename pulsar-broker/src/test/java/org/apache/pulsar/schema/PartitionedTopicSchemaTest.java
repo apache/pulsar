@@ -38,7 +38,7 @@ import org.testng.annotations.Test;
 /**
  * Test get partitioned topic schema.
  */
-@Test(groups = "schema")
+
 public class PartitionedTopicSchemaTest extends MockedPulsarServiceBaseTest {
 
     private static final String PARTITIONED_TOPIC = "public/default/partitioned-schema-topic";
@@ -71,7 +71,7 @@ public class PartitionedTopicSchemaTest extends MockedPulsarServiceBaseTest {
         super.internalCleanup();
     }
 
-    @Test
+
     public void test() throws Exception {
         Consumer<GenericRecord> consumer = pulsarClient.newConsumer(Schema.AUTO_CONSUME())
                 .topic(PARTITIONED_TOPIC)

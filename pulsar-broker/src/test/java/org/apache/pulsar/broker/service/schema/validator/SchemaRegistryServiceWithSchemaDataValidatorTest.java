@@ -43,7 +43,7 @@ import org.testng.annotations.Test;
 /**
  * Unit test {@link SchemaRegistryServiceWithSchemaDataValidator}.
  */
-@Test(groups = "broker")
+
 public class SchemaRegistryServiceWithSchemaDataValidatorTest {
 
     private SchemaRegistryService underlyingService;
@@ -55,7 +55,7 @@ public class SchemaRegistryServiceWithSchemaDataValidatorTest {
         this.service = SchemaRegistryServiceWithSchemaDataValidator.of(underlyingService);
     }
 
-    @Test
+
     public void testGetLatestSchema() {
         String schemaId = "test-schema-id";
         CompletableFuture<SchemaAndMetadata> getFuture = new CompletableFuture<>();
@@ -64,7 +64,7 @@ public class SchemaRegistryServiceWithSchemaDataValidatorTest {
         verify(underlyingService, times(1)).getSchema(eq(schemaId));
     }
 
-    @Test
+
     public void testGetSchemaByVersion() {
         String schemaId = "test-schema-id";
         CompletableFuture<SchemaAndMetadata> getFuture = new CompletableFuture<>();
@@ -75,7 +75,7 @@ public class SchemaRegistryServiceWithSchemaDataValidatorTest {
             .getSchema(eq(schemaId), same(SchemaVersion.Latest));
     }
 
-    @Test
+
     public void testDeleteSchema() {
         String schemaId = "test-schema-id";
         String user = "test-user";
@@ -86,7 +86,7 @@ public class SchemaRegistryServiceWithSchemaDataValidatorTest {
         verify(underlyingService, times(1)).deleteSchema(eq(schemaId), eq(user), eq(false));
     }
 
-    @Test
+
     public void testIsCompatibleWithGoodSchemaData() {
         String schemaId = "test-schema-id";
         SchemaCompatibilityStrategy strategy = SchemaCompatibilityStrategy.FULL;
@@ -102,7 +102,7 @@ public class SchemaRegistryServiceWithSchemaDataValidatorTest {
             .isCompatible(eq(schemaId), same(schemaData), eq(strategy));
     }
 
-    @Test
+
     public void testIsCompatibleWithBadSchemaData() {
         String schemaId = "test-schema-id";
         SchemaCompatibilityStrategy strategy = SchemaCompatibilityStrategy.FULL;
@@ -123,7 +123,7 @@ public class SchemaRegistryServiceWithSchemaDataValidatorTest {
             .isCompatible(eq(schemaId), same(schemaData), eq(strategy));
     }
 
-    @Test
+
     public void testPutSchemaIfAbsentWithGoodSchemaData() {
         String schemaId = "test-schema-id";
         SchemaCompatibilityStrategy strategy = SchemaCompatibilityStrategy.FULL;
@@ -139,7 +139,7 @@ public class SchemaRegistryServiceWithSchemaDataValidatorTest {
             .putSchemaIfAbsent(eq(schemaId), same(schemaData), eq(strategy));
     }
 
-    @Test
+
     public void testPutSchemaIfAbsentWithBadSchemaData() {
         String schemaId = "test-schema-id";
         SchemaCompatibilityStrategy strategy = SchemaCompatibilityStrategy.FULL;

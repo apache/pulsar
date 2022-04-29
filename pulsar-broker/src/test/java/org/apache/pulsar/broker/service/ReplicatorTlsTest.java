@@ -29,11 +29,10 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 import org.testng.collections.Lists;
 
-@Test(groups = "broker")
+
 public class ReplicatorTlsTest extends ReplicatorTestBase {
 
     @Override
-    @BeforeClass(timeOut = 300000)
     public void setup() throws Exception {
         config1.setBrokerClientTlsEnabled(true);
         config2.setBrokerClientTlsEnabled(true);
@@ -47,7 +46,7 @@ public class ReplicatorTlsTest extends ReplicatorTestBase {
         super.cleanup();
     }
 
-    @Test
+    
     public void testReplicationClient() throws Exception {
         log.info("--- Starting ReplicatorTlsTest::testReplicationClient ---");
         for (BrokerService ns : Lists.newArrayList(ns1, ns2, ns3)) {

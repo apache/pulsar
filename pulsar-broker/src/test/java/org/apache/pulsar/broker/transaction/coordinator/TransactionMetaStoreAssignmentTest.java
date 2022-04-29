@@ -41,7 +41,7 @@ public class TransactionMetaStoreAssignmentTest extends TransactionTestBase {
         pulsarClient.close();
     }
 
-    @Test
+
     public void testTransactionMetaStoreAssignAndFailover() throws Exception {
 
         pulsarClient = buildClient();
@@ -72,7 +72,7 @@ public class TransactionMetaStoreAssignmentTest extends TransactionTestBase {
         pulsarClient.close();
     }
 
-    @Test
+
     public void testTransactionMetaStoreUnload() throws Exception {
 
         pulsarClient = buildClient();

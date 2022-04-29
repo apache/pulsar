@@ -29,13 +29,13 @@ import org.testng.annotations.Test;
 
 public class TimeAverageBrokerDataTest {
 
-    @Test
+
     public void testIllegalArg() {
         TimeAverageBrokerData timeAverageBrokerData = new TimeAverageBrokerData();
         assertThrows(NullPointerException.class, () -> timeAverageBrokerData.reset(null, null, null));
     }
 
-    @Test
+
     public void testResetMethodOfOneBundlesEmptyBundleMap() {
         TimeAverageBrokerData timeAverageBrokerData = new TimeAverageBrokerData();
         Set<String> bundles = new HashSet<>();
@@ -57,7 +57,7 @@ public class TimeAverageBrokerDataTest {
         assertEquals(timeAverageBrokerData.getLongTermMsgRateOut(), 4);
     }
 
-    @Test
+
     public void testResetMethodOfMultipleBundlesEmptyBundleMap() {
         TimeAverageBrokerData timeAverageBrokerData = new TimeAverageBrokerData();
         Set<String> bundles = new HashSet<>();
@@ -80,7 +80,7 @@ public class TimeAverageBrokerDataTest {
         assertEquals(timeAverageBrokerData.getLongTermMsgRateOut(), 8);
     }
 
-    @Test
+
     public void testResetMethodOfOneBundles() {
         TimeAverageBrokerData timeAverageBrokerData = new TimeAverageBrokerData();
         Set<String> bundles = new HashSet<>();
@@ -106,7 +106,7 @@ public class TimeAverageBrokerDataTest {
         assertEquals(timeAverageBrokerData.getLongTermMsgRateOut(), 4);
     }
 
-    @Test
+
     public void testResetMethodOfMultipleBundles() {
         TimeAverageBrokerData timeAverageBrokerData = new TimeAverageBrokerData();
         Set<String> bundles = new HashSet<>();

@@ -27,7 +27,7 @@ import org.testng.annotations.Test;
  */
 public class TestNoStrictCacheSizeAllocator {
 
-    @Test
+
     public void allocatorTest() {
         NoStrictCacheSizeAllocator noStrictCacheSizeAllocator = new NoStrictCacheSizeAllocator(1000);
         Assert.assertEquals(noStrictCacheSizeAllocator.getAvailableCacheSize(), 1000);

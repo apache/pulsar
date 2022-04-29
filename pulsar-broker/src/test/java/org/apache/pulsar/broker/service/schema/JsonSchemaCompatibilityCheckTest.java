@@ -40,7 +40,7 @@ import org.apache.pulsar.common.schema.SchemaType;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker")
+
 public class JsonSchemaCompatibilityCheckTest extends BaseAvroSchemaCompatibilityTest{
 
     @Override
@@ -48,7 +48,7 @@ public class JsonSchemaCompatibilityCheckTest extends BaseAvroSchemaCompatibilit
         return new JsonSchemaCompatibilityCheck();
     }
 
-    @Test
+
     public void testJsonSchemaBackwardsCompatibility() throws JsonProcessingException {
 
         SchemaData from = SchemaData.builder().data(OldJSONSchema.of(Foo.class).getSchemaInfo().getSchema()).build();

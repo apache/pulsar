@@ -77,7 +77,7 @@ public class SchemaTest extends PulsarTestSuite {
         super.tearDownCluster();
     }
 
-    @Test
+
     public void testCreateSchemaAfterDeletion() throws Exception {
         final String tenant = PUBLIC_TENANT;
         final String namespace = "test-namespace-" + randomName(16);
@@ -130,7 +130,7 @@ public class SchemaTest extends PulsarTestSuite {
         }
     }
 
-    @Test
+
     public void testMultiVersionSchema() throws Exception {
         final String tenant = PUBLIC_TENANT;
         final String namespace = "test-namespace-" + randomName(16);
@@ -179,7 +179,7 @@ public class SchemaTest extends PulsarTestSuite {
         log.info("Successfully consumer personConsumeSchema : {}", personConsumeSchema);
     }
 
-    @Test
+
     public void testAvroLogicalType() throws Exception {
         final String tenant = PUBLIC_TENANT;
         final String namespace = "test-namespace-" + randomName(16);
@@ -229,7 +229,7 @@ public class SchemaTest extends PulsarTestSuite {
         log.info("Successfully consumer avro logical type message : {}", received);
     }
 
-    @Test
+
     public void testAutoConsumeSchemaSubscribeFirst() throws Exception {
         final String tenant = PUBLIC_TENANT;
         final String namespace = "test-namespace-" + randomName(16);
@@ -271,7 +271,7 @@ public class SchemaTest extends PulsarTestSuite {
         producer.close();
     }
 
-    @Test
+
     public void testPrimitiveSchemaTypeCompatibilityCheck() {
         List<Schema> schemas = new ArrayList<>();
 

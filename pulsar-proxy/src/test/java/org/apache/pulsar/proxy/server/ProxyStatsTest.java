@@ -103,7 +103,7 @@ public class ProxyStatsTest extends MockedPulsarServiceBaseTest {
      *
      * @throws Exception
      */
-    @Test
+
     public void testConnectionsStats() throws Exception {
         final String topicName1 = "persistent://sample/test/local/connections-stats";
         @Cleanup
@@ -143,7 +143,7 @@ public class ProxyStatsTest extends MockedPulsarServiceBaseTest {
      *
      * @throws Exception
      */
-    @Test
+
     public void testTopicStats() throws Exception {
         proxyService.setProxyLogLevel(2);
         final String topicName = "persistent://sample/test/local/topic-stats";
@@ -194,7 +194,7 @@ public class ProxyStatsTest extends MockedPulsarServiceBaseTest {
      *
      * @throws Exception
      */
-    @Test
+
     public void testChangeLogLevel() {
         Assert.assertEquals(proxyService.getProxyLogLevel(), 2);
         int newLogLevel = 1;

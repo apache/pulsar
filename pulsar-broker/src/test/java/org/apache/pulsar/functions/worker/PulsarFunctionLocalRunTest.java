@@ -104,7 +104,6 @@ import org.testng.annotations.Test;
 /**
  * Test Pulsar sink on function
  */
-@Test(groups = { "flaky" })
 public class PulsarFunctionLocalRunTest {
     LocalBookkeeperEnsemble bkEnsemble;
 
@@ -684,28 +683,28 @@ public class PulsarFunctionLocalRunTest {
         localRunner.stop();
     }
 
-    @Test(timeOut = 20000)
+    
     public void testE2EPulsarFunctionLocalRun() throws Throwable {
         runWithPulsarFunctionsClassLoader(() -> testE2EPulsarFunctionLocalRun(null));
     }
 
-    @Test(timeOut = 30000)
+    
     public void testAvroFunctionLocalRun() throws Throwable {
         runWithPulsarFunctionsClassLoader(() -> testAvroFunctionLocalRun(null));
     }
 
-    @Test(timeOut = 20000)
+    
     public void testE2EPulsarFunctionLocalRunWithJar() throws Exception {
         String jarFilePathUrl = getPulsarApiExamplesJar().toURI().toString();
         testE2EPulsarFunctionLocalRun(jarFilePathUrl);
     }
 
-    @Test(timeOut = 40000)
+    
     public void testE2EPulsarFunctionLocalRunURL() throws Exception {
         testE2EPulsarFunctionLocalRun(fileServer.getUrl("/pulsar-functions-api-examples.jar"));
     }
 
-    @Test(timeOut = 40000)
+    
     public void testE2EPulsarFunctionLocalRunMultipleInstances() throws Throwable {
         runWithPulsarFunctionsClassLoader(() -> testE2EPulsarFunctionLocalRun(null, 2));
     }
@@ -830,28 +829,27 @@ public class PulsarFunctionLocalRunTest {
         testPulsarSourceLocalRun(jarFilePathUrl, 1);
     }
 
-    @Test(timeOut = 20000, groups = "builtin")
     public void testPulsarSourceStatsBuiltin() throws Exception {
         testPulsarSourceLocalRun(String.format("%s://data-generator", Utils.BUILTIN));
     }
 
-    @Test(timeOut = 20000)
+    
     public void testPulsarSourceLocalRunNoArchive() throws Throwable {
         runWithNarClassLoader(() -> testPulsarSourceLocalRun(null));
     }
 
-    @Test(timeOut = 20000)
+    
     public void testPulsarSourceLocalRunWithFile() throws Exception {
         String jarFilePathUrl = getPulsarIODataGeneratorNar().toURI().toString();
         testPulsarSourceLocalRun(jarFilePathUrl);
     }
 
-    @Test(timeOut = 40000)
+    
     public void testPulsarSourceLocalRunWithUrl() throws Exception {
         testPulsarSourceLocalRun(fileServer.getUrl("/pulsar-io-data-generator.nar"));
     }
 
-    @Test(timeOut = 40000)
+    
     public void testPulsarSourceLocalRunMultipleInstances() throws Throwable {
         runWithNarClassLoader(() -> testPulsarSourceLocalRun(null, 2));
     }
@@ -994,28 +992,27 @@ public class PulsarFunctionLocalRunTest {
         testPulsarSinkLocalRun(jarFilePathUrl, parallelism, null);
     }
 
-    @Test(timeOut = 20000, groups = "builtin")
     public void testPulsarSinkStatsBuiltin() throws Exception {
         testPulsarSinkLocalRun(String.format("%s://data-generator", Utils.BUILTIN));
     }
 
-    @Test(timeOut = 20000)
+    
     public void testPulsarSinkStatsNoArchive() throws Throwable {
         runWithNarClassLoader(() -> testPulsarSinkLocalRun(null));
     }
 
-    @Test(timeOut = 20000)
+    
     public void testPulsarSinkStatsWithFile() throws Exception {
         String jarFilePathUrl = getPulsarIODataGeneratorNar().toURI().toString();
         testPulsarSinkLocalRun(jarFilePathUrl);
     }
 
-    @Test(timeOut = 40000)
+    
     public void testPulsarSinkStatsWithUrl() throws Exception {
         testPulsarSinkLocalRun(fileServer.getUrl("/pulsar-io-data-generator.nar"));
     }
 
-    @Test(timeOut = 40000)
+    
     public void testPulsarSinkStatsMultipleInstances() throws Throwable {
         runWithNarClassLoader(() -> testPulsarSinkLocalRun(null, 2));
     }
@@ -1040,7 +1037,7 @@ public class PulsarFunctionLocalRunTest {
         }
     }
 
-    @Test
+
     public void testPulsarSinkStatsByteBufferType() throws Throwable {
         runWithNarClassLoader(() -> testPulsarSinkLocalRun(null, 1, StatsNullSink.class.getName()));
     }
@@ -1071,7 +1068,7 @@ public class PulsarFunctionLocalRunTest {
         }
     }
 
-    @Test(timeOut = 20000)
+    
     public void testExitOnError() throws Throwable{
 
         final String namespacePortion = "io";

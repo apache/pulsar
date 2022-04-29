@@ -25,7 +25,7 @@ import org.testng.annotations.Test;
 
 public class InvalidBrokerConfigForAuthorizationTest extends MockedPulsarServiceBaseTest {
 
-    @Test
+
     void startupShouldFailWhenAuthorizationIsEnabledWithoutAuthentication() throws Exception {
         conf.setAuthorizationEnabled(true);
         conf.setAuthenticationEnabled(false);

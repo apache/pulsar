@@ -76,7 +76,7 @@ import org.testng.annotations.Test;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.core.MediaType;
 
-@Test(groups = "broker")
+
 public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
 
     public static byte[] createMessageWrittenToLedger(String msg) {
@@ -155,7 +155,7 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         return future;
     }
 
-    @Test
+
     void testPersistentMessageFinder() throws Exception {
         final String ledgerAndCursorName = "testPersistentMessageFinder";
         int entriesPerLedger = 2;
@@ -243,7 +243,7 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         factory.shutdown();
     }
 
-    @Test
+
     void testPersistentMessageFinderWithBrokerTimestampForMessage() throws Exception {
 
         final String ledgerAndCursorName = "publishTime";
@@ -342,7 +342,7 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
      *
      * @throws Exception
      */
-    @Test
+
     void testMessageExpiryWithTimestampNonRecoverableException() throws Exception {
 
         final String ledgerAndCursorName = "testPersistentMessageExpiryWithNonRecoverableLedgers";
@@ -395,7 +395,7 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
 
     }
 
-    @Test
+
     void testMessageExpiryWithPosition() throws Exception {
         final String ledgerAndCursorName = "testPersistentMessageExpiryWithPositionNonRecoverableLedgers";
         final int entriesPerLedger = 5;
@@ -473,7 +473,7 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         factory.shutdown();
     }
 
-    @Test
+
     public void test() {
         ResetCursorData resetCursorData = new ResetCursorData(1, 1);
         resetCursorData.setExcluded(true);

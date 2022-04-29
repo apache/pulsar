@@ -24,21 +24,21 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 public class NameValueParameterSplitterTest {
-    @Test(description = "Basic Test")
+    (description = "Basic Test")
     public void test1() {
         NameValueParameterSplitter splitter = new NameValueParameterSplitter();
         Map<String, String> result = splitter.convert("Name=Sunnyvale");
         Assert.assertEquals(result.get("Name"), "Sunnyvale");
     }
 
-    @Test(description = "Check trimming of values")
+    (description = "Check trimming of values")
     public void test2() {
         NameValueParameterSplitter splitter = new NameValueParameterSplitter();
         Map<String, String> result = splitter.convert(" Name = Sunnyvale CA");
         Assert.assertEquals(result.get("Name"), "Sunnyvale CA");
     }
 
-    @Test(description = "Check error on invalid input")
+    (description = "Check error on invalid input")
     public void test3() {
         try {
             NameValueParameterSplitter splitter = new NameValueParameterSplitter();

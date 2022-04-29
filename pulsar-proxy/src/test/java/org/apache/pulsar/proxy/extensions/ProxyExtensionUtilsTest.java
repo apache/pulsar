@@ -36,10 +36,10 @@ import static org.testng.AssertJUnit.assertSame;
 import static org.testng.AssertJUnit.assertTrue;
 import static org.testng.AssertJUnit.fail;
 
-@Test(groups = "broker")
+
 public class ProxyExtensionUtilsTest {
 
-    @Test
+
     public void testLoadProtocolHandler() throws Exception {
         ProxyExtensionDefinition def = new ProxyExtensionDefinition();
         def.setExtensionClass(MockProxyExtension.class.getName());
@@ -72,7 +72,7 @@ public class ProxyExtensionUtilsTest {
         }
     }
 
-    @Test
+
     public void testLoadProtocolHandlerBlankHandlerClass() throws Exception {
         ProxyExtensionDefinition def = new ProxyExtensionDefinition();
         def.setDescription("test-ext");
@@ -104,7 +104,7 @@ public class ProxyExtensionUtilsTest {
         }
     }
 
-    @Test
+
     public void testLoadProtocolHandlerWrongHandlerClass() throws Exception {
         ProxyExtensionDefinition def = new ProxyExtensionDefinition();
         def.setExtensionClass(Runnable.class.getName());

@@ -32,25 +32,25 @@ public class ConsumerIdTest {
     private static final String TOPIC_TEST_2 = "my-topic-2";
     private static final String SUBSCRIPTION_TEST = "my-sub-1";
 
-    @Test
+
     public void getTopicTest() {
         ConsumerId testConsumerId = new ConsumerId(TOPIC_TEST, SUBSCRIPTION_TEST);
         assertEquals(TOPIC_TEST, testConsumerId.getTopic());
     }
 
-    @Test
+
     public void getSubscriptionTest() {
         ConsumerId testConsumerId = new ConsumerId(TOPIC_TEST, SUBSCRIPTION_TEST);
         assertEquals(SUBSCRIPTION_TEST, testConsumerId.getSubscription());
     }
 
-    @Test
+
     public void hashCodeTest() {
         ConsumerId testConsumerId = new ConsumerId(TOPIC_TEST, SUBSCRIPTION_TEST);
         assertEquals(Objects.hash(TOPIC_TEST, SUBSCRIPTION_TEST), testConsumerId.hashCode());
     }
 
-    @Test
+
     public void equalTest() {
         ConsumerId testConsumerId1 = new ConsumerId(TOPIC_TEST, SUBSCRIPTION_TEST);
         ConsumerId testConsumerId2 = new ConsumerId(TOPIC_TEST, SUBSCRIPTION_TEST);
@@ -63,7 +63,7 @@ public class ConsumerIdTest {
         assertNotEquals("", testConsumerId1);
     }
 
-    @Test
+
     public void compareToTest() {
         ConsumerId testConsumerId1 = new ConsumerId(TOPIC_TEST, SUBSCRIPTION_TEST);
         ConsumerId testConsumerId2 = new ConsumerId(TOPIC_TEST, SUBSCRIPTION_TEST);

@@ -36,7 +36,7 @@ import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsUpdate;
 import org.testng.annotations.Test;
 
 public class MarkersTest {
-    @Test
+    
     public void testSnapshotRequest() throws Exception {
         ByteBuf buf = Markers.newReplicatedSubscriptionsSnapshotRequest("sid", "us-west");
 
@@ -49,7 +49,7 @@ public class MarkersTest {
         assertEquals(request.getSourceCluster(), "us-west");
     }
 
-    @Test
+    
     public void testSnapshotResponse() throws Exception {
         ByteBuf buf = Markers.newReplicatedSubscriptionsSnapshotResponse("sid", "us-west", "us-east", 5, 7);
 
@@ -65,7 +65,7 @@ public class MarkersTest {
         assertEquals(response.getCluster().getMessageId().getEntryId(), 7);
     }
 
-    @Test
+    
     public void testSnapshot() throws Exception {
         Map<String, MarkersMessageIdData> clusters = new TreeMap<>();
         clusters.put("us-east", new MarkersMessageIdData().setLedgerId(10).setEntryId(11));
@@ -93,7 +93,7 @@ public class MarkersTest {
         assertEquals(snapshot.getClusterAt(1).getMessageId().getEntryId(), 11);
     }
 
-    @Test
+    
     public void testUpdate() {
         Map<String, MarkersMessageIdData> clusters = new TreeMap<>();
         clusters.put("us-east", new MarkersMessageIdData().setLedgerId(10).setEntryId(11));
@@ -117,7 +117,7 @@ public class MarkersTest {
         assertEquals(snapshot.getClusterAt(1).getMessageId().getEntryId(), 11);
     }
 
-    @Test
+    
     public void testTxnCommitMarker() throws IOException {
         long sequenceId = 1L;
         long mostBits = 1234L;
@@ -132,7 +132,7 @@ public class MarkersTest {
         assertEquals(msgMetadata.getTxnidLeastBits(), leastBits);
     }
 
-    @Test
+    
     public void testTxnAbortMarker() throws IOException {
         long sequenceId = 1L;
         long mostBits = 1234L;

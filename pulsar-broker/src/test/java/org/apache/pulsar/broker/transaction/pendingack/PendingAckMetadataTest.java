@@ -46,7 +46,7 @@ public class PendingAckMetadataTest extends MockedBookKeeperTestCase {
         super(3);
     }
 
-    @Test
+
     public void testPendingAckManageLedgerWriteFailState() throws Exception {
         ManagedLedgerFactoryConfig factoryConf = new ManagedLedgerFactoryConfig();
         factoryConf.setMaxCacheSize(0);

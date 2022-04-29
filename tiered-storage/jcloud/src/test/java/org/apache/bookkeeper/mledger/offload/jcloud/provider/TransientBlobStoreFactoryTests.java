@@ -33,14 +33,14 @@ public class TransientBlobStoreFactoryTests extends AbstractJCloudBlobStoreFacto
     private static final String TEST_CONTAINER_NAME = "test-container";
     private static final String TEST_BLOB_NAME = "test-blob";
     
-    @Test
+    
     public final void smallBlobTest() throws IOException {
         sendAndVerifyBlob(TEST_CONTAINER_NAME, TEST_BLOB_NAME, PAYLOAD);
         deleteBlobAndVerify(TEST_CONTAINER_NAME, "test-blob");
         deleteContainerAndVerify(TEST_CONTAINER_NAME);
     }
     
-    @Test
+    
     public final void multipartUploadTest() throws IOException {
         String[] lines = new String[] { "Line 1", "Line 2", "Line 3"};
         sendMultipartPayload(TEST_CONTAINER_NAME, TEST_BLOB_NAME, lines );

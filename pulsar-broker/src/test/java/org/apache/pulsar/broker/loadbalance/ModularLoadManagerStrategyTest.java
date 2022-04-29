@@ -32,7 +32,7 @@ import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 import org.apache.pulsar.policies.data.loadbalancer.ResourceUsage;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker")
+
 public class ModularLoadManagerStrategyTest {
 
     // Test that least long term message rate works correctly.

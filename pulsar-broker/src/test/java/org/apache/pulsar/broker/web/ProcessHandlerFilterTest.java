@@ -33,7 +33,7 @@ import org.testng.collections.Sets;
 
 public class ProcessHandlerFilterTest {
 
-    @Test
+
     public void testInterceptorOnFilter() throws ServletException, IOException {
         PulsarService mockPulsarService = Mockito.mock(PulsarService.class);
         BrokerInterceptor spyInterceptor = Mockito.spy(BrokerInterceptor.class);
@@ -49,7 +49,7 @@ public class ProcessHandlerFilterTest {
         Mockito.verify(spyInterceptor).onFilter(mockHttpServletRequest, mockHttpServletResponse, mockFilterChain);
     }
 
-    @Test
+
     public void testChainDoFilter() throws ServletException, IOException {
         PulsarService mockPulsarService = Mockito.mock(PulsarService.class);
         BrokerInterceptor spyInterceptor = Mockito.mock(BrokerInterceptor.class);

@@ -24,29 +24,29 @@ import java.io.IOException;
 
 import org.testng.annotations.Test;
 
-@Test(groups = "broker-impl")
+
 public class BatchMessageIdImplSerializationTest {
 
-    @Test
+    
     public void testSerialization1() throws Exception {
         BatchMessageIdImpl id = new BatchMessageIdImpl(1, 2, 3, 4);
         byte[] serializedId = id.toByteArray();
         assertEquals(BatchMessageIdImpl.fromByteArray(serializedId), id);
     }
 
-    @Test
+    
     public void testSerialization2() throws Exception {
         BatchMessageIdImpl id = new BatchMessageIdImpl(1, 2, -1, 3);
         byte[] serializedId = id.toByteArray();
         assertEquals(BatchMessageIdImpl.fromByteArray(serializedId), id);
     }
 
-    @Test(expectedExceptions = NullPointerException.class)
+    
     public void testSerializationNull() throws Exception {
         BatchMessageIdImpl.fromByteArray(null);
     }
 
-    @Test(expectedExceptions = IOException.class)
+    
     public void testSerializationEmpty() throws Exception {
         BatchMessageIdImpl.fromByteArray(new byte[0]);
     }

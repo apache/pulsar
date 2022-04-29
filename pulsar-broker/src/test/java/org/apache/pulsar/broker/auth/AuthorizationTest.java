@@ -40,7 +40,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 import com.google.common.collect.Sets;
 
-@Test(groups = "flaky")
+
 public class AuthorizationTest extends MockedPulsarServiceBaseTest {
 
     public AuthorizationTest() {
@@ -71,7 +71,7 @@ public class AuthorizationTest extends MockedPulsarServiceBaseTest {
         internalCleanup();
     }
 
-    @Test
+
     public void simple() throws Exception {
         AuthorizationService auth = pulsar.getBrokerService().getAuthorizationService();
 
@@ -231,7 +231,7 @@ public class AuthorizationTest extends MockedPulsarServiceBaseTest {
         admin.clusters().deleteCluster("c1");
     }
 
-    @Test
+
     public void testGetListWithoutGetBundleOp() throws Exception {
         String tenant = "p1";
         String namespaceV1 = "p1/global/ns1";

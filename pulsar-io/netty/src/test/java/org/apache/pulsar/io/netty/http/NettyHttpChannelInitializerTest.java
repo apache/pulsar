@@ -30,7 +30,7 @@ import static org.testng.Assert.assertNotNull;
  */
 public class NettyHttpChannelInitializerTest {
 
-    @Test
+
     public void testChannelInitializer() throws Exception {
         NioSocketChannel channel = new NioSocketChannel();
 

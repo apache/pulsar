@@ -72,7 +72,7 @@ public class KinesisSinkTest {
         LOCALSTACK_CONTAINER.stop();
     }
 
-    @Test
+
     public void testWrite() throws Exception {
         AtomicBoolean ackCalled = new AtomicBoolean();
         AtomicLong sequenceCounter = new AtomicLong(0);

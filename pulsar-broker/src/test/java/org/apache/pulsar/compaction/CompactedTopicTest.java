@@ -72,7 +72,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker-compaction")
+
 public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
     private final Random r = new Random(0);
 
@@ -161,7 +161,7 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
         return Triple.of(lh.getId(), positions, idsInGaps);
     }
 
-    @Test
+
     public void testEntryLookup() throws Exception {
         BookKeeper bk = pulsar.getBookKeeperClientFactory().create(
                 this.conf, null, null, Optional.empty(), null);
@@ -216,7 +216,7 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+
     public void testCleanupOldCompactedTopicLedger() throws Exception {
         BookKeeper bk = pulsar.getBookKeeperClientFactory().create(
                 this.conf, null, null, Optional.empty(), null);
@@ -273,7 +273,6 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
                       Compactor.COMPACTED_TOPIC_LEDGER_PASSWORD).close();
     }
 
-    @Test(dataProvider = "batchEnabledProvider")
     public void testCompactWithEmptyMessage(boolean batchEnabled) throws Exception {
         final String key = "1";
         byte[] msgBytes = "".getBytes();
@@ -329,7 +328,7 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
         producer.close();
     }
 
-    @Test(timeOut = 30000)
+    
     public void testReadMessageFromCompactedLedger() throws Exception {
         final String key = "1";
         String msg = "test compaction msg";
@@ -382,7 +381,7 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(nonCompactedMsgCount, numMessages);
     }
 
-    @Test
+
     public void testLastMessageIdForCompactedLedger() throws Exception {
         String topic = "persistent://my-property/use/my-ns/testLastMessageIdForCompactedLedger-" + UUID.randomUUID();
         final String key = "1";
@@ -453,7 +452,7 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
         Assert.assertFalse(reader.hasMessageAvailable());
     }
 
-    @Test
+
     public void testDoNotLossTheLastCompactedLedgerData() throws Exception {
         String topic = "persistent://my-property/use/my-ns/testDoNotLossTheLastCompactedLedgerData-" +
                 UUID.randomUUID();
@@ -512,7 +511,7 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
         producer.close();
     }
 
-    @Test
+
     public void testReadCompactedDataWhenLedgerRolloverKickIn() throws Exception {
         String topic = "persistent://my-property/use/my-ns/testReadCompactedDataWhenLedgerRolloverKickIn-" +
                 UUID.randomUUID();
@@ -587,7 +586,6 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
         producer.close();
     }
 
-    @Test(timeOut = 120000)
     public void testCompactionWithTopicUnloading() throws Exception {
         String topic = "persistent://my-property/use/my-ns/testCompactionWithTopicUnloading-" +
                 UUID.randomUUID();
@@ -652,7 +650,6 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
         producer.close();
     }
 
-    @Test(timeOut = 1000 * 30)
     public void testReader() throws Exception {
         final String ns = "my-property/use/my-ns";
         String topic = "persistent://" + ns + "/t1";
@@ -689,7 +686,7 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
         Assert.assertFalse(reader.hasMessageAvailable());
     }
 
-    @Test
+
     public void testHasMessageAvailableWithNullValueMessage() throws Exception {
         String topic = "persistent://my-property/use/my-ns/testHasMessageAvailable-" +
                 UUID.randomUUID();
@@ -734,7 +731,7 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
         Assert.assertNull(reader.readNext(3, TimeUnit.SECONDS));
     }
 
-    @Test
+
     public void testReadCompleteMessagesDuringTopicUnloading() throws Exception {
         String topic = "persistent://my-property/use/my-ns/testReadCompleteMessagesDuringTopicUnloading-" +
                 UUID.randomUUID();
@@ -791,7 +788,7 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+
     public void testReadCompactedLatestMessageWithInclusive() throws Exception {
         String topic = "persistent://my-property/use/my-ns/testLedgerRollover-" +
                 UUID.randomUUID();

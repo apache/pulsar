@@ -59,7 +59,7 @@ import org.testng.annotations.Test;
  * Test for consuming transaction messages.
  */
 @Slf4j
-@Test(groups = "broker")
+
 public class TransactionConsumeTest extends TransactionTestBase {
 
     private static final String CONSUME_TOPIC = "persistent://public/txn/txn-consume-test";
@@ -90,7 +90,7 @@ public class TransactionConsumeTest extends TransactionTestBase {
         super.internalCleanup();
     }
 
-    @Test
+
     public void noSortedTest() throws Exception {
         int messageCntBeforeTxn = 10;
         int transactionMessageCnt = 10;
@@ -169,7 +169,7 @@ public class TransactionConsumeTest extends TransactionTestBase {
         log.info("TransactionConsumeTest noSortedTest finish.");
     }
 
-    @Test
+
     public void sortedTest() throws Exception {
         int messageCntBeforeTxn = 10;
         int transactionMessageCnt = 10;

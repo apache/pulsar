@@ -72,7 +72,7 @@ import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker-api")
+
 public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(AuthorizationProducerConsumerTest.class);
 
@@ -114,7 +114,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test
+
     public void testProducerAndConsumerAuthorization() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -174,7 +174,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test
+
     public void testSubscriberPermission() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -364,7 +364,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test
+
     public void testClearBacklogPermission() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -463,7 +463,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test
+
     public void testSchemaCompatibilityStrategyPermission() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -550,7 +550,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test
+
     public void testSubscriptionPrefixAuthorization() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -592,7 +592,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test
+
     public void testGrantPermission() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -611,7 +611,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test
+
     public void testAuthData() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -634,7 +634,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test
+
     public void testPermissionForProducerCreateInitialSubscription() throws Exception {
         log.info("-- Starting {} test --", methodName);
 

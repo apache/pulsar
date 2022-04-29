@@ -33,7 +33,7 @@ import static org.testng.Assert.assertNotNull;
  * RabbitMQSinkConfig test
  */
 public class RabbitMQSinkConfigTest {
-    @Test
+
     public final void loadFromYamlFileTest() throws IOException {
         File yamlFile = getFile("sinkConfig.yaml");
         String path = yamlFile.getAbsolutePath();
@@ -54,7 +54,7 @@ public class RabbitMQSinkConfigTest {
         assertEquals(config.getExchangeType(), "test-exchange-type");
     }
 
-    @Test
+
     public final void loadFromMapTest() throws IOException {
         Map<String, Object> map = new HashMap<>();
         map.put("host", "localhost");
@@ -88,7 +88,7 @@ public class RabbitMQSinkConfigTest {
         assertEquals(config.getExchangeType(), "test-exchange-type");
     }
 
-    @Test
+
     public final void validValidateTest() throws IOException {
         Map<String, Object> map = new HashMap<>();
         map.put("host", "localhost");
@@ -109,8 +109,6 @@ public class RabbitMQSinkConfigTest {
         config.validate();
     }
 
-    @Test(expectedExceptions = NullPointerException.class,
-        expectedExceptionsMessageRegExp = "exchangeName property not set.")
     public final void missingExchangeValidateTest() throws IOException {
         Map<String, Object> map = new HashMap<>();
         map.put("host", "localhost");

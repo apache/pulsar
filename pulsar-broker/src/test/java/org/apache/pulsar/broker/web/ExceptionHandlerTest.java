@@ -33,10 +33,10 @@ import static org.eclipse.jetty.http.HttpStatus.PRECONDITION_FAILED_412;
 /**
  * Unit test for ExceptionHandler.
  */
-@Test(groups = "broker")
+
 public class ExceptionHandlerTest {
 
-    @Test
+
     @SneakyThrows
     public void testHandle() {
         String restriction = "Reach the max tenants [5] restriction";

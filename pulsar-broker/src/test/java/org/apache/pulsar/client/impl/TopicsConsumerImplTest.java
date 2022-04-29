@@ -72,7 +72,7 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
 @SuppressWarnings({ "unchecked", "rawtypes" })
-@Test(groups = "broker-impl")
+
 public class TopicsConsumerImplTest extends ProducerConsumerBase {
     private static final long testTimeout = 90000; // 1.5 min
     private static final Logger log = LoggerFactory.getLogger(TopicsConsumerImplTest.class);
@@ -92,7 +92,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
     }
 
     // Verify subscribe topics from different namespace should return error.
-    @Test(timeOut = testTimeout)
+    
     public void testDifferentTopicsNameSubscribe() throws Exception {
         String key = "TopicsFromDifferentNamespace";
         final String subscriptionName = "my-ex-subscription-" + key;
@@ -121,7 +121,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         }
     }
 
-    @Test(timeOut = testTimeout)
+    
     public void testGetConsumersAndGetTopics() throws Exception {
         String key = "TopicsConsumerGet";
         final String subscriptionName = "my-ex-subscription-" + key;
@@ -163,7 +163,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         consumer.close();
     }
 
-    @Test(timeOut = testTimeout)
+    
     public void testSyncProducerAndConsumer() throws Exception {
         String key = "TopicsConsumerSyncTest";
         final String subscriptionName = "my-ex-subscription-" + key;
@@ -229,7 +229,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         producer3.close();
     }
 
-    @Test(timeOut = testTimeout)
+    
     public void testAsyncConsumer() throws Exception {
         String key = "TopicsConsumerAsyncTest";
         final String subscriptionName = "my-ex-subscription-" + key;
@@ -314,7 +314,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         producer3.close();
     }
 
-    @Test(timeOut = testTimeout)
+    
     public void testConsumerUnackedRedelivery() throws Exception {
         String key = "TopicsConsumerRedeliveryTest";
         final String subscriptionName = "my-ex-subscription-" + key;
@@ -458,7 +458,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         producer3.close();
     }
 
-    @Test
+    
     public void testTopicNameValid() throws Exception{
         final String topicName = "persistent://prop/use/ns-abc/testTopicNameValid";
         TenantInfoImpl tenantInfo = createDefaultTenantInfo();
@@ -480,7 +480,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         }).get();
     }
 
-    @Test
+    
     public void testSubscribeUnsubscribeSingleTopic() throws Exception {
         String key = "TopicsConsumerSubscribeUnsubscribeSingleTopicTest";
         final String subscriptionName = "my-ex-subscription-" + key;
@@ -608,7 +608,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         producer3.close();
     }
 
-    @Test
+    
     public void testResubscribeSameTopic() throws Exception {
         final String localTopicName = "TopicsConsumerResubscribeSameTopicTest";
         final String localPartitionName = localTopicName + "-partition-0";
@@ -646,7 +646,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
     }
 
 
-    @Test(timeOut = testTimeout)
+    
     public void testTopicsNameSubscribeWithBuilderFail() throws Exception {
         String key = "TopicsNameSubscribeWithBuilder";
         final String subscriptionName = "my-ex-subscription-" + key;
@@ -711,7 +711,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
     /**
      * Test Listener for github issue #2547
      */
-    @Test(timeOut = 30000)
+    
     public void testMultiTopicsMessageListener() throws Exception {
         String key = "MultiTopicsMessageListenerTest";
         final String subscriptionName = "my-ex-subscription-" + key;
@@ -775,7 +775,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
      * 4. produce message to xx-partition-2 again,  and verify consumer could receive message.
      *
      */
-    @Test(timeOut = 30000)
+    
     public void testTopicAutoUpdatePartitions() throws Exception {
         String key = "TestTopicAutoUpdatePartitions";
         final String subscriptionName = "my-ex-subscription-" + key;
@@ -840,7 +840,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         consumer.close();
     }
 
-    @Test(timeOut = testTimeout)
+    
     public void testConsumerDistributionInFailoverSubscriptionWhenUpdatePartitions() throws Exception {
         final String topicName = "persistent://my-property/my-ns/testConsumerDistributionInFailoverSubscriptionWhenUpdatePartitions";
         final String subName = "failover-test";
@@ -948,7 +948,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         consumer_2.acknowledgeCumulative(lastMessage);
     }
 
-    @Test(timeOut = testTimeout)
+    
     public void testDefaultBacklogTTL() throws Exception {
 
         int defaultTTLSec = 5;
@@ -990,7 +990,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         assertEquals(subscription.getNumberOfEntriesInBacklog(false), 0);
     }
 
-    @Test(timeOut = testTimeout)
+    
     public void testGetLastMessageId() throws Exception {
         String key = "TopicGetLastMessageId";
         final String subscriptionName = "my-ex-subscription-" + key;
@@ -1087,7 +1087,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         producer3.close();
     }
 
-    @Test(timeOut = testTimeout)
+    
     public void multiTopicsInDifferentNameSpace() throws PulsarAdminException, PulsarClientException {
         List<String> topics = new ArrayList<>();
         topics.add("persistent://prop/use/ns-abc/topic-1");
@@ -1139,7 +1139,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         producer2.close();
     }
 
-    @Test(timeOut = testTimeout)
+    
     public void testSubscriptionMustCompleteWhenOperationTimeoutOnMultipleTopics() throws PulsarClientException {
         @Cleanup
         PulsarClient client = PulsarClient.builder()
@@ -1171,7 +1171,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         }
     }
 
-    @Test(timeOut = testTimeout)
+    
     public void testAutoDiscoverMultiTopicsPartitions() throws Exception {
         final String topicName = "persistent://public/default/issue-9585";
         admin.topics().createPartitionedTopic(topicName, 3);
@@ -1199,7 +1199,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
     }
 
 
-    @Test(timeOut = testTimeout)
+    
     public void testPartitionsUpdatesForMultipleTopics() throws Exception {
         final String topicName0 = "persistent://public/default/testPartitionsUpdatesForMultipleTopics-0";
         final String subName = "my-sub";

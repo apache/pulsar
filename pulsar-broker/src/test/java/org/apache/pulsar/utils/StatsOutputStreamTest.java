@@ -28,7 +28,7 @@ import java.nio.charset.StandardCharsets;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Test(groups = "utils")
+
 public class StatsOutputStreamTest {
 
     private ByteBuf buf;
@@ -40,7 +40,7 @@ public class StatsOutputStreamTest {
         stream = new StatsOutputStream(buf);
     }
 
-    @Test
+
     public void testPairs() {
         stream.writePair("my-count", 1);
         assertEquals(str(), "\"my-count\":1");
@@ -55,7 +55,7 @@ public class StatsOutputStreamTest {
         assertEquals(str(), "\"my-string\":\"value\"");
     }
 
-    @Test
+
     public void testLists() {
         stream.startList();
         stream.endList();
@@ -82,7 +82,7 @@ public class StatsOutputStreamTest {
         assertEquals(str(), "[1,2,3,false,1.0,\"xyz\"]");
     }
 
-    @Test
+
     public void testNamedLists() {
         stream.startList("abc");
         stream.endList();
@@ -94,7 +94,7 @@ public class StatsOutputStreamTest {
         assertEquals(str(), "\"abc\":[1]");
     }
 
-    @Test
+
     public void testObjects() {
         stream.startObject();
         stream.endObject();
@@ -116,7 +116,7 @@ public class StatsOutputStreamTest {
         assertEquals(str(), "{\"a\":1,\"b\":2,\"c\":3}");
     }
 
-    @Test
+
     public void testNamedObjects() {
         stream.startObject("abc");
         stream.endObject();
@@ -128,7 +128,7 @@ public class StatsOutputStreamTest {
         assertEquals(str(), "\"abc\":{\"a\":1}");
     }
 
-    @Test
+
     public void testNestedObjects() {
         stream.startList();
 

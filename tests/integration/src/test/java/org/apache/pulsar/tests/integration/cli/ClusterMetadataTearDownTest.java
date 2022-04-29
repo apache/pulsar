@@ -131,7 +131,7 @@ public class ClusterMetadataTearDownTest extends TestRetrySupport {
         pulsarCluster.stop();
     }
 
-    @Test
+
     public void testDeleteCluster() throws Exception {
         assertEquals(getNumOfLedgers(), 0);
         final String tenant = "my-tenant";

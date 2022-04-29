@@ -32,7 +32,7 @@ import org.testng.annotations.Test;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 
-@Test(groups = "broker")
+
 public class BusyWaitServiceTest extends BkEnsemblesTestBase {
     public BusyWaitServiceTest() {
         super(1);
@@ -45,7 +45,7 @@ public class BusyWaitServiceTest extends BkEnsemblesTestBase {
         config.setManagedLedgerDefaultAckQuorum(1);
     }
 
-    @Test
+
     public void testPublishWithBusyWait() throws Exception {
 
         @Cleanup

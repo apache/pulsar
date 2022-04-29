@@ -107,7 +107,7 @@ public class LookupRetryTest extends MockedPulsarServiceBaseTest {
             .build();
     }
 
-    @Test
+
     public void testGetPartitionedMetadataRetries() throws Exception {
         try (PulsarClient client = newClient()) {
             client.getPartitionsForTopic("TIMEOUT:2,OK:10").get();
@@ -117,7 +117,7 @@ public class LookupRetryTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+
     public void testTimeoutRetriesOnPartitionMetadata() throws Exception {
         try (PulsarClient client = newClient();
              Reader<byte[]> reader = client
@@ -126,7 +126,7 @@ public class LookupRetryTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+
     public void testTooManyRetriesOnPartitionMetadata() throws Exception {
         try (PulsarClient client = newClient();
              Reader<byte[]> reader = client
@@ -135,7 +135,7 @@ public class LookupRetryTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+
     public void testTooManyOnLookup() throws Exception {
         try (PulsarClient client = newClient();
              Reader<byte[]> reader = client
@@ -144,7 +144,7 @@ public class LookupRetryTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+
     public void testTimeoutOnLookup() throws Exception {
         try (PulsarClient client = newClient();
              Reader<byte[]> reader = client
@@ -153,7 +153,7 @@ public class LookupRetryTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+
     public void testManyFailures() throws Exception {
         try (PulsarClient client = newClient();
              Reader<byte[]> reader = client
@@ -163,14 +163,14 @@ public class LookupRetryTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+
     public void testProducerTimeoutOnPMR() throws Exception {
         try (PulsarClient client = newClient();
              Producer<byte[]> producer = client.newProducer().topic("TIMEOUT:2,OK:3").create()) {
         }
     }
 
-    @Test
+
     public void testProducerTooManyOnPMR() throws Exception {
         try (PulsarClient client = newClient();
              Producer<byte[]> producer = client.newProducer().topic("TOO_MANY:2,OK:3").create()) {
@@ -178,14 +178,14 @@ public class LookupRetryTest extends MockedPulsarServiceBaseTest {
 
     }
 
-    @Test
+
     public void testProducerTimeoutOnLookup() throws Exception {
         try (PulsarClient client = newClient();
              Producer<byte[]> producer = client.newProducer().topic("OK:1,TIMEOUT:2,OK:3").create()) {
         }
     }
 
-    @Test
+
     public void testProducerTooManyOnLookup() throws Exception {
         try (PulsarClient client = newClient();
              Producer<byte[]> producer = client.newProducer().topic("OK:1,TOO_MANY:2,OK:3").create()) {
@@ -203,7 +203,7 @@ public class LookupRetryTest extends MockedPulsarServiceBaseTest {
      *
      * @throws Exception
      */
-    @Test
+
     public void testCloseConnectionOnBrokerRejectedRequest() throws Exception {
         String lookupUrl = pulsar.getBrokerServiceUrl();
         try (PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl)
@@ -224,7 +224,7 @@ public class LookupRetryTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+
     public void testCloseConnectionOnBrokerTimeout() throws Exception {
         String lookupUrl = pulsar.getBrokerServiceUrl();
         try (PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl)

@@ -104,7 +104,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker-api")
+
 public class BrokerServiceLookupTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(BrokerServiceLookupTest.class);
 
@@ -133,7 +133,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test
+
     public void testMultipleBrokerLookup() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -201,7 +201,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
 
     }
 
-    @Test
+
     public void testConcurrentWriteBrokerData() throws Exception {
         Map<String, NamespaceBundleStats> map = new ConcurrentHashMap<>();
         for (int i = 0; i < 100; i++) {
@@ -246,7 +246,6 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test(enabled = false) // See https://github.com/apache/pulsar/issues/5437
     public void testMultipleBrokerDifferentClusterLookup() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -336,7 +335,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test
+
     public void testPartitionTopicLookup() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -414,7 +413,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test
+
     public void testWebserviceServiceTls() throws Exception {
         log.info("-- Starting {} test --", methodName);
         final String TLS_SERVER_CERT_FILE_PATH = "./src/test/resources/certificate/server.crt";
@@ -531,7 +530,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test(timeOut = 20000)
+    
     public void testSplitUnloadLookupTest() throws Exception {
 
         log.info("-- Starting {} test --", methodName);
@@ -634,7 +633,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test(timeOut = 20000)
+    
     public void testModularLoadManagerSplitBundle() throws Exception {
 
         log.info("-- Starting {} test --", methodName);
@@ -762,7 +761,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         }
     }
 
-    @Test(timeOut = 10000)
+    
     public void testPartitionedMetadataWithDeprecatedVersion() throws Exception {
 
         final String cluster = "use2";

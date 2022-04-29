@@ -29,7 +29,7 @@ import java.util.List;
 import java.util.Map;
 
 public class ValidatorImplsTest {
-    @Test
+
     public void testPositiveNumberValidator() {
         // test default
         ValidatorImpls.PositiveNumberValidator defaultValidator = new ValidatorImpls.PositiveNumberValidator();
@@ -53,7 +53,7 @@ public class ValidatorImplsTest {
         assertThrows(IllegalArgumentException.class, () -> validator1.validateField("field", -20));
     }
 
-    @Test
+
     public void testNotNullValidator() {
         ValidatorImpls.NotNullValidator validator = new ValidatorImpls.NotNullValidator();
         validator.validateField("fieldname", 2);
@@ -61,7 +61,7 @@ public class ValidatorImplsTest {
         assertThrows(IllegalArgumentException.class, () -> validator.validateField("field", null));
     }
 
-    @Test
+
     public void testListEntryTypeValidator() {
         Map<String, Object> config = new HashMap<>();
         config.put(ConfigValidationAnnotations.ValidatorParams.TYPE, String.class);
@@ -82,7 +82,7 @@ public class ValidatorImplsTest {
         assertThrows(IllegalArgumentException.class, () -> validator.validateField("fieldname", mixedList));
    }
 
-    @Test
+
     public void testMapEntryTypeValidator() {
         Map<String, Object> config = new HashMap<>();
         config.put(ConfigValidationAnnotations.ValidatorParams.KEY_TYPE, String.class);
@@ -104,7 +104,7 @@ public class ValidatorImplsTest {
         assertThrows(IllegalArgumentException.class, () -> validator.validateField("fieldname", badValueMap));
     }
 
-    @Test
+
     public void testImplementsClassValidator() {
         Map<String, Object> config = new HashMap<>();
         config.put(ConfigValidationAnnotations.ValidatorParams.IMPLEMENTS_CLASS, SocketAddress.class);
@@ -114,7 +114,7 @@ public class ValidatorImplsTest {
         assertThrows(IllegalArgumentException.class, () -> validator.validateField("fieldname", String.class.getName()));
     }
 
-    @Test
+
     public void testImplementsClassesValidator() {
         Map<String, Object> config = new HashMap<>();
         Class<?> clazzes [] = new Class<?>[] {String.class, Integer.class};
@@ -125,7 +125,7 @@ public class ValidatorImplsTest {
         assertThrows(IllegalArgumentException.class, () -> validator.validateField("fieldname", Boolean.class.getName()));
     }
 
-    @Test
+
     public void testStringValidator() {
         Map<String, Object> config = new HashMap<>();
         String accepted [] = new String[] {"good", "bad", "ugly"};
@@ -137,7 +137,7 @@ public class ValidatorImplsTest {
         assertThrows(IllegalArgumentException.class, () -> validator.validateField("fieldname", "beautiful"));
     }
 
-    @Test
+
     public void testSimpleTypeValidator() {
         Map<String, Object> config = new HashMap<>();
         config.put(ConfigValidationAnnotations.ValidatorParams.TYPE, Integer.class);

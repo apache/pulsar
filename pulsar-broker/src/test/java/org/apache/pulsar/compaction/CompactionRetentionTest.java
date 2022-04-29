@@ -52,7 +52,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Slf4j
-@Test(groups = "broker")
+
 public class CompactionRetentionTest extends MockedPulsarServiceBaseTest {
     private ScheduledExecutorService compactionScheduler;
     private BookKeeper bk;
@@ -89,7 +89,7 @@ public class CompactionRetentionTest extends MockedPulsarServiceBaseTest {
     /**
      * Compaction should retain expired keys in the compacted view
      */
-    @Test
+
     public void testCompaction() throws Exception {
         String topic = "persistent://my-tenant/my-ns/my-topic-" + System.nanoTime();
 
@@ -170,7 +170,7 @@ public class CompactionRetentionTest extends MockedPulsarServiceBaseTest {
      * When a topic is created, if the compaction threshold are set, the data should be retained in the compacted view,
      * even if the topic is not yet compacted.
      */
-    @Test
+
     public void testCompactionRetentionOnTopicCreationWithNamespacePolicies() throws Exception {
         String namespace = "my-tenant/my-ns";
         String topic = "persistent://my-tenant/my-ns/my-topic-" + System.nanoTime();
@@ -179,7 +179,7 @@ public class CompactionRetentionTest extends MockedPulsarServiceBaseTest {
         testCompactionCursorRetention(topic);
     }
 
-    @Test
+
     public void testCompactionRetentionAfterTopicCreationWithNamespacePolicies() throws Exception {
         String namespace = "my-tenant/my-ns";
         String topic = "persistent://my-tenant/my-ns/my-topic-" + System.nanoTime();
@@ -194,7 +194,7 @@ public class CompactionRetentionTest extends MockedPulsarServiceBaseTest {
         );
     }
 
-    @Test
+
     public void testCompactionRetentionOnTopicCreationWithTopicPolicies() throws Exception {
         String topic = "persistent://my-tenant/my-ns/my-topic-" + System.nanoTime();
 

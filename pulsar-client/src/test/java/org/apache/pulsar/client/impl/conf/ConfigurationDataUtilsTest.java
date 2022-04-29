@@ -43,7 +43,7 @@ import org.testng.annotations.Test;
  */
 public class ConfigurationDataUtilsTest {
 
-    @Test
+
     public void testLoadClientConfigurationData() {
         ClientConfigurationData confData = new ClientConfigurationData();
         confData.setServiceUrl("pulsar://unknown:6650");
@@ -75,7 +75,7 @@ public class ConfigurationDataUtilsTest {
         assertEquals(0, confData.getDnsLookupBindPort());
     }
 
-    @Test
+
     public void testLoadProducerConfigurationData() {
         ProducerConfigurationData confData = new ProducerConfigurationData();
         confData.setProducerName("unset");
@@ -93,7 +93,7 @@ public class ConfigurationDataUtilsTest {
         assertEquals(60,confData.getAutoUpdatePartitionsIntervalSeconds());
     }
 
-    @Test
+
     public void testLoadConsumerConfigurationData() {
         ConsumerConfigurationData confData = new ConsumerConfigurationData();
         confData.setSubscriptionName("unknown-subscription");
@@ -110,7 +110,7 @@ public class ConfigurationDataUtilsTest {
         assertEquals(60,confData.getAutoUpdatePartitionsIntervalSeconds());
     }
 
-    @Test
+
     public void testLoadReaderConfigurationData() {
         ReaderConfigurationData confData = new ReaderConfigurationData();
         confData.setTopicName("unknown");
@@ -125,7 +125,7 @@ public class ConfigurationDataUtilsTest {
         assertEquals("unknown-reader", confData.getReaderName());
     }
 
-    @Test
+
     public void testLoadConfigurationDataWithUnknownFields() {
         ReaderConfigurationData confData = new ReaderConfigurationData();
         confData.setTopicName("unknown");
@@ -142,7 +142,7 @@ public class ConfigurationDataUtilsTest {
         }
     }
 
-    @Test
+
     public void testConfigBuilder() throws PulsarClientException {
         ClientConfigurationData clientConfig = new ClientConfigurationData();
         clientConfig.setServiceUrl("pulsar://unknown:6650");
@@ -157,7 +157,7 @@ public class ConfigurationDataUtilsTest {
                 "builder default should override if set explicitly");
     }
 
-    @Test
+
     public void testLoadSecretParams() {
         ClientConfigurationData confData = new ClientConfigurationData();
         Map<String, String> authParamMap = new HashMap<>();
@@ -191,7 +191,7 @@ public class ConfigurationDataUtilsTest {
         }
     }
 
-    @Test
+
     public void testEquals() {
         ClientConfigurationData confData1 = new ClientConfigurationData();
         confData1.setServiceUrl("pulsar://unknown:6650");
@@ -203,7 +203,7 @@ public class ConfigurationDataUtilsTest {
         assertEquals(confData1.hashCode(), confData2.hashCode());
     }
 
-    @Test
+
     public void testSocks5() throws PulsarClientException {
         ClientConfigurationData clientConfig = new ClientConfigurationData();
         clientConfig.setServiceUrl("pulsar://unknown:6650");

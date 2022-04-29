@@ -26,7 +26,7 @@ import org.testng.annotations.Test;
 /**
  * PersistentFailoverE2ETest with {@link StreamingDispatcher}
  */
-@Test(groups = "broker")
+
 public class PersistentFailoverStreamingDispatcherE2ETest extends PersistentFailoverE2ETest {
 
     @BeforeClass

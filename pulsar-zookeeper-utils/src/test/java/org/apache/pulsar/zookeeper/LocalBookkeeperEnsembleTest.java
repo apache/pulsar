@@ -39,7 +39,7 @@ public class LocalBookkeeperEnsembleTest {
     void teardown() throws Exception {
     }
 
-    @Test
+
     public void testAdvertisedAddress() throws Exception {
         final int numBk = 1;
 
@@ -55,7 +55,7 @@ public class LocalBookkeeperEnsembleTest {
         ensemble.stop();
     }
 
-    @Test
+
     public void testStartStop() throws Exception {
 
         final int numBk = 1;

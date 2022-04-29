@@ -51,7 +51,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker")
+
 public class TopicTerminationTest extends BrokerTestBase {
 
     @BeforeMethod
@@ -68,7 +68,7 @@ public class TopicTerminationTest extends BrokerTestBase {
 
     private final String topicName = "persistent://prop/ns-abc/topic0";
 
-    @Test
+
     public void testSimpleTermination() throws Exception {
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
             .enableBatching(false)
@@ -90,7 +90,7 @@ public class TopicTerminationTest extends BrokerTestBase {
         }
     }
 
-    @Test(groups = "broker")
+
     public void testCreateProducerOnTerminatedTopic() throws Exception {
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
             .enableBatching(false)
@@ -136,7 +136,7 @@ public class TopicTerminationTest extends BrokerTestBase {
         Awaitility.await().untilAsserted(() -> Assert.assertEquals(timer.pendingTimeouts(), 0));
     }
 
-    @Test(timeOut = 20000)
+    
     public void testTerminateWhilePublishing() throws Exception {
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
             .enableBatching(false)
@@ -184,7 +184,7 @@ public class TopicTerminationTest extends BrokerTestBase {
         }
     }
 
-    @Test(groups = "broker")
+
     public void testDoubleTerminate() throws Exception {
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
             .enableBatching(false)
@@ -203,7 +203,7 @@ public class TopicTerminationTest extends BrokerTestBase {
         assertEquals(lastMessageId, msgId3);
     }
 
-    @Test(groups = "broker")
+
     public void testTerminatePartitionedTopic() throws Exception {
         admin.topics().createPartitionedTopic(topicName, 4);
 
@@ -215,7 +215,7 @@ public class TopicTerminationTest extends BrokerTestBase {
         }
     }
 
-    @Test(timeOut = 20000)
+    
     public void testSimpleTerminationConsumer() throws Exception {
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
             .enableBatching(false)
@@ -252,7 +252,7 @@ public class TopicTerminationTest extends BrokerTestBase {
         Awaitility.await().untilAsserted(() -> assertTrue(consumer.hasReachedEndOfTopic()));
     }
 
-    @Test(timeOut = 20000)
+    
     public void testSimpleTerminationMessageListener() throws Exception {
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
             .enableBatching(false)
@@ -291,7 +291,7 @@ public class TopicTerminationTest extends BrokerTestBase {
         assertTrue(consumer.hasReachedEndOfTopic());
     }
 
-    @Test(timeOut = 20000)
+    
     public void testSimpleTerminationReader() throws Exception {
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
             .enableBatching(false)
@@ -322,7 +322,7 @@ public class TopicTerminationTest extends BrokerTestBase {
         Awaitility.await().untilAsserted(() -> assertTrue(reader.hasReachedEndOfTopic()));
     }
 
-    @Test(timeOut = 20000)
+    
     public void testSimpleTerminationReaderListener() throws Exception {
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
             .enableBatching(false)
@@ -358,7 +358,7 @@ public class TopicTerminationTest extends BrokerTestBase {
         assertTrue(reader.hasReachedEndOfTopic());
     }
 
-    @Test(timeOut = 20000)
+    
     public void testSubscribeOnTerminatedTopic() throws Exception {
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
             .enableBatching(false)
@@ -376,7 +376,7 @@ public class TopicTerminationTest extends BrokerTestBase {
         Awaitility.await().untilAsserted(() -> assertTrue(consumer.hasReachedEndOfTopic()));
     }
 
-    @Test(timeOut = 20000)
+    
     public void testSubscribeOnTerminatedTopicWithNoMessages() throws Exception {
         pulsarClient.newProducer().topic(topicName)
             .enableBatching(false)

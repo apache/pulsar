@@ -46,7 +46,7 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker")
+
 public class NamespaceEventsSystemTopicServiceTest extends MockedPulsarServiceBaseTest {
 
     private static final Logger log = LoggerFactory.getLogger(NamespaceEventsSystemTopicServiceTest.class);
@@ -70,7 +70,7 @@ public class NamespaceEventsSystemTopicServiceTest extends MockedPulsarServiceBa
         super.internalCleanup();
     }
 
-    @Test
+
     public void testSchemaCompatibility() throws Exception {
         TopicPoliciesSystemTopicClient systemTopicClientForNamespace1 = systemTopicFactory
                 .createTopicPoliciesSystemTopicClient(NamespaceName.get(NAMESPACE1));
@@ -89,7 +89,7 @@ public class NamespaceEventsSystemTopicServiceTest extends MockedPulsarServiceBa
         Assert.assertEquals(SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE, topic.getSchemaCompatibilityStrategy());
     }
 
-    @Test
+
     public void testSendAndReceiveNamespaceEvents() throws Exception {
         TopicPoliciesSystemTopicClient systemTopicClientForNamespace1 = systemTopicFactory
                 .createTopicPoliciesSystemTopicClient(NamespaceName.get(NAMESPACE1));
@@ -136,7 +136,7 @@ public class NamespaceEventsSystemTopicServiceTest extends MockedPulsarServiceBa
         Assert.assertEquals(systemTopicClientForNamespace1.getReaders().size(), 0);
     }
 
-    @Test(timeOut = 30000)
+    
     public void checkSystemTopic() throws PulsarAdminException {
         final String systemTopic = "persistent://" + NAMESPACE1 + "/" + EventsTopicNames.NAMESPACE_EVENTS_LOCAL_NAME;
         final String normalTopic = "persistent://" + NAMESPACE1 + "/normal_topic";

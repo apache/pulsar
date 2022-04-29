@@ -44,7 +44,7 @@ public class TypedMessageBuilderImplTest {
     @Mock
     protected ProducerBase producerBase;
 
-    @Test
+
     public void testDefaultValue() {
         producerBase = mock(ProducerBase.class);
 
@@ -72,7 +72,7 @@ public class TypedMessageBuilderImplTest {
         assertFalse(typedMessageBuilderImpl.hasKey());
     }
 
-    @Test
+
     public void testInlineValue() {
         producerBase = mock(ProducerBase.class);
 
@@ -100,7 +100,7 @@ public class TypedMessageBuilderImplTest {
         assertFalse(typedMessageBuilderImpl.hasKey());
     }
 
-    @Test
+
     public void testSeparatedValue() {
         producerBase = mock(ProducerBase.class);
 
@@ -127,7 +127,7 @@ public class TypedMessageBuilderImplTest {
         assertEquals(barSchema.decode(contentByte), bar);
     }
 
-    @Test
+
     public void testSetKeyEncodingTypeDefault() {
         producerBase = mock(ProducerBase.class);
 
@@ -142,7 +142,7 @@ public class TypedMessageBuilderImplTest {
         assertFalse(typedMessageBuilder.getMetadataBuilder().isPartitionKeyB64Encoded());
     }
 
-    @Test
+
     public void testSetKeyEncodingTypeInline() {
         producerBase = mock(ProducerBase.class);
 
@@ -157,7 +157,7 @@ public class TypedMessageBuilderImplTest {
         assertFalse(typedMessageBuilder.getMetadataBuilder().isPartitionKeyB64Encoded());
     }
 
-    @Test
+
     public void testSetKeyEncodingTypeSeparated() {
         producerBase = mock(ProducerBase.class);
 
@@ -176,7 +176,7 @@ public class TypedMessageBuilderImplTest {
         }
     }
 
-    @Test
+
     public void testSetKeyBytesEncodingTypeDefault() {
         producerBase = mock(ProducerBase.class);
 
@@ -191,7 +191,7 @@ public class TypedMessageBuilderImplTest {
         assertTrue(typedMessageBuilder.getMetadataBuilder().isPartitionKeyB64Encoded());
     }
 
-    @Test
+
     public void testSetKeyBytesEncodingTypeInline() {
         producerBase = mock(ProducerBase.class);
 
@@ -206,7 +206,7 @@ public class TypedMessageBuilderImplTest {
         assertTrue(typedMessageBuilder.getMetadataBuilder().isPartitionKeyB64Encoded());
     }
 
-    @Test
+
     public void testSetKeyBytesEncodingTypeSeparated() {
         producerBase = mock(ProducerBase.class);
 

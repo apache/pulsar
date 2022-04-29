@@ -50,7 +50,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
 
-@Test(groups = "broker")
+
 public class MangedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase {
     private static final Logger log = LoggerFactory.getLogger(MangedLedgerInterceptorImplTest.class);
 
@@ -95,7 +95,7 @@ public class MangedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase {
         }
     }
 
-    @Test
+
     public void testAddBrokerEntryMetadata() throws Exception {
         final int MOCK_BATCH_SIZE = 2;
         int numberOfEntries = 10;
@@ -127,7 +127,7 @@ public class MangedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase {
         ledger.close();
         factory.shutdown();
     }
-    @Test
+
     public void testMessagePayloadProcessor() throws Exception {
         final String ledgerAndCursorName = "topicEntryWithPayloadProcessed";
 
@@ -152,7 +152,7 @@ public class MangedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase {
         config.setManagedLedgerInterceptor(null);
     }
 
-    @Test(timeOut = 20000)
+    
     public void testRecoveryIndex() throws Exception {
         final int MOCK_BATCH_SIZE = 2;
         ManagedLedgerInterceptor interceptor = new ManagedLedgerInterceptorImpl(getBrokerEntryMetadataInterceptors(),null);
@@ -192,7 +192,7 @@ public class MangedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase {
         ledger.close();
     }
 
-    @Test
+
     public void testFindPositionByIndex() throws Exception {
         final int MOCK_BATCH_SIZE = 2;
         final int maxEntriesPerLedger = 5;

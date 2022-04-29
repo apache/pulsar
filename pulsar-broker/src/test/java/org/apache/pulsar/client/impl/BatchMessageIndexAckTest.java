@@ -51,7 +51,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doReturn;
 
 @Slf4j
-@Test(groups = "broker-impl")
+
 public class BatchMessageIndexAckTest extends ProducerConsumerBase {
 
     @BeforeMethod
@@ -164,7 +164,7 @@ public class BatchMessageIndexAckTest extends ProducerConsumerBase {
         return new Object[][] { { true }, { false } };
     }
 
-    @Test(dataProvider = "ackReceiptEnabled")
+    
     public void testBatchMessageIndexAckForSharedSubscription(boolean ackReceiptEnabled) throws Exception {
         final String topic = "testBatchMessageIndexAckForSharedSubscription";
         final String subscriptionName = "sub";
@@ -245,7 +245,7 @@ public class BatchMessageIndexAckTest extends ProducerConsumerBase {
         Assert.assertEquals(received.size(), 100);
     }
 
-    @Test(dataProvider = "ackReceiptEnabled")
+    
     public void testBatchMessageIndexAckForExclusiveSubscription(boolean ackReceiptEnabled) throws
             PulsarClientException, ExecutionException, InterruptedException {
         final String topic = "testBatchMessageIndexAckForExclusiveSubscription";
@@ -314,7 +314,7 @@ public class BatchMessageIndexAckTest extends ProducerConsumerBase {
         Assert.assertEquals(received.size(), 100);
     }
 
-    @Test
+
     public void testDoNotRecycleAckSetMultipleTimes() throws Exception  {
         final String topic = "persistent://my-property/my-ns/testSafeAckSetRecycle";
 

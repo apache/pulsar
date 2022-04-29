@@ -71,7 +71,7 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
         int b;
     }
 
-    @Test(dataProvider = "impl")
+    
     public void emptyCacheTest(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
         MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
@@ -106,7 +106,7 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
         };
     }
 
-    @Test(dataProvider = "zk")
+    
     public void crossStoreAddDelete(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
         MetadataStore store1 = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
@@ -171,7 +171,7 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
         });
     }
 
-    @Test(dataProvider = "zk")
+    
     public void crossStoreUpdates(String provider, Supplier<String> urlSupplier) throws Exception {
         String testName = "cross store updates";
         @Cleanup
@@ -216,7 +216,7 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
         Awaitility.await().ignoreNoExceptions().untilAsserted(() ->assertEquals(storeObj.get(), value2));
     }
 
-    @Test(dataProvider = "impl")
+    
     public void insertionDeletionWitGenericType(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
         MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
@@ -242,7 +242,7 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
         assertEquals(objCache.get(key1).join(), Optional.empty());
     }
 
-    @Test(dataProvider = "impl")
+    
     public void insertionDeletion(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
         MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
@@ -277,7 +277,7 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
         assertEquals(objCache.get(key1).join(), Optional.empty());
     }
 
-    @Test(dataProvider = "impl")
+    
     public void insertionWithInvalidation(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
         MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
@@ -305,7 +305,7 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
         });
     }
 
-    @Test(dataProvider = "impl")
+    
     public void insertionOutsideCache(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
         MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
@@ -323,7 +323,7 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
         assertEqualsAndRetry(() -> objCache.getIfCached(key1), Optional.of(value1), Optional.empty());
     }
 
-    @Test(dataProvider = "impl")
+    
     public void updateOutsideCacheWithGenericType(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
         MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
@@ -344,7 +344,7 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
         });
     }
 
-    @Test(dataProvider = "impl")
+    
     public void invalidJsonContent(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
         MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
@@ -364,7 +364,7 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
         assertEquals(objCache.getIfCached(key1), Optional.empty());
     }
 
-    @Test(dataProvider = "impl")
+    
     public void testReadCloned(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
         MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
@@ -402,7 +402,7 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
 
     }
 
-    @Test(dataProvider = "impl")
+    
     public void testCloneInReadModifyUpdateOrCreate(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
         MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
@@ -441,7 +441,7 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
 
     }
 
-    @Test(dataProvider = "impl")
+    
     public void readModifyUpdate(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
         MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
@@ -477,7 +477,7 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
      *
      * @throws Exception
      */
-    @Test
+
     public void readModifyUpdateBadVersionRetry() throws Exception {
         String url = zks.getConnectionString();
         @Cleanup
@@ -502,7 +502,7 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
         }).join();
     }
 
-    @Test(dataProvider = "impl")
+    
     public void getWithStats(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
         MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
@@ -519,7 +519,7 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
         assertEquals(res.getStat().getVersion(), stat1.getVersion());
     }
 
-    @Test(dataProvider = "impl")
+    
     public void cacheWithCustomSerde(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
         MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
@@ -554,7 +554,7 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
         public int b;
     }
 
-    @Test(dataProvider = "impl")
+    
     public void customSerde(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
         MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());

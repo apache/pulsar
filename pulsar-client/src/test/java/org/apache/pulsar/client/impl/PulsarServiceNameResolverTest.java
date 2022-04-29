@@ -46,17 +46,17 @@ public class PulsarServiceNameResolverTest {
         assertNull(resolver.getServiceUri());
     }
 
-    @Test(expectedExceptions = IllegalStateException.class)
+    
     public void testResolveBeforeUpdateServiceUrl() {
         resolver.resolveHost();
     }
 
-    @Test(expectedExceptions = IllegalStateException.class)
+    
     public void testResolveUrlBeforeUpdateServiceUrl() {
         resolver.resolveHostUri();
     }
 
-    @Test
+
     public void testUpdateInvalidServiceUrl() {
         String serviceUrl = "pulsar:///";
         try {
@@ -69,7 +69,7 @@ public class PulsarServiceNameResolverTest {
         assertNull(resolver.getServiceUri());
     }
 
-    @Test
+
     public void testSimpleHostUrl() throws Exception {
         String serviceUrl = "pulsar://host1:6650";
         resolver.updateServiceUrl(serviceUrl);
@@ -90,7 +90,7 @@ public class PulsarServiceNameResolverTest {
         assertEquals(URI.create(newServiceUrl), resolver.resolveHostUri());
     }
 
-    @Test
+
     public void testMultipleHostsUrl() throws Exception {
         String serviceUrl = "pulsar://host1:6650,host2:6650";
         resolver.updateServiceUrl(serviceUrl);
@@ -110,7 +110,7 @@ public class PulsarServiceNameResolverTest {
         }
     }
 
-    @Test
+
     public void testMultipleHostsTlsUrl() throws Exception {
         String serviceUrl = "pulsar+ssl://host1:6651,host2:6651";
         resolver.updateServiceUrl(serviceUrl);

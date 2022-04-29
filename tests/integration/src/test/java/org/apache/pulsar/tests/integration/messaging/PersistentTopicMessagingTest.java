@@ -25,42 +25,42 @@ import org.testng.annotations.Test;
 @Slf4j
 public class PersistentTopicMessagingTest extends TopicMessagingBase {
 
-    @Test(dataProvider = "ServiceUrls")
+    
     public void testNonPartitionedTopicMessagingWithExclusive(Supplier<String> serviceUrl) throws Exception {
         nonPartitionedTopicSendAndReceiveWithExclusive(serviceUrl.get(), true);
     }
 
-    @Test(dataProvider = "ServiceUrls")
+    
     public void testPartitionedTopicMessagingWithExclusive(Supplier<String> serviceUrl) throws Exception {
         partitionedTopicSendAndReceiveWithExclusive(serviceUrl.get(), true);
     }
 
-    @Test(dataProvider = "ServiceUrls")
+    
     public void testNonPartitionedTopicMessagingWithFailover(Supplier<String> serviceUrl) throws Exception {
         nonPartitionedTopicSendAndReceiveWithFailover(serviceUrl.get(), true);
     }
 
-    @Test(dataProvider = "ServiceUrls")
+    
     public void testPartitionedTopicMessagingWithFailover(Supplier<String> serviceUrl) throws Exception {
         partitionedTopicSendAndReceiveWithFailover(serviceUrl.get(), true);
     }
 
-    @Test(dataProvider = "ServiceUrls")
+    
     public void testNonPartitionedTopicMessagingWithShared(Supplier<String> serviceUrl) throws Exception {
         nonPartitionedTopicSendAndReceiveWithShared(serviceUrl.get(), true);
     }
 
-    @Test(dataProvider = "ServiceUrls")
+    
     public void testPartitionedTopicMessagingWithShared(Supplier<String> serviceUrl) throws Exception {
         partitionedTopicSendAndReceiveWithShared(serviceUrl.get(), true);
     }
 
-    @Test(dataProvider = "ServiceUrls")
+    
     public void testNonPartitionedTopicMessagingWithKeyShared(Supplier<String> serviceUrl) throws Exception {
         nonPartitionedTopicSendAndReceiveWithKeyShared(serviceUrl.get(), true);
     }
 
-    @Test(dataProvider = "ServiceUrls")
+    
     public void testPartitionedTopicMessagingWithKeyShared(Supplier<String> serviceUrl) throws Exception {
         partitionedTopicSendAndReceiveWithKeyShared(serviceUrl.get(), true);
     }

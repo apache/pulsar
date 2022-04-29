@@ -78,7 +78,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Test(groups = "flaky")
+
 public class PrometheusMetricsTest extends BrokerTestBase {
 
     @BeforeMethod(alwaysRun = true)
@@ -95,7 +95,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         resetConfig();
     }
 
-    @Test
+
     public void testPublishRateLimitedTimes() throws Exception {
         cleanup();
         checkPublishRateLimitedTimes(true);
@@ -196,7 +196,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         producer3.close();
     }
 
-    @Test
+
     public void testMetricsTopicCount() throws Exception {
         String ns1 = "prop/ns-abc1";
         String ns2 = "prop/ns-abc2";
@@ -227,7 +227,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         });
     }
 
-    @Test
+
     public void testMetricsAvgMsgSize2() throws Exception {
         String ns1 = "prop/ns-abc1";
         admin.namespaces().createNamespace(ns1, 1);
@@ -256,7 +256,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         producer.close();
     }
 
-    @Test
+
     public void testPerTopicStats() throws Exception {
         Producer<byte[]> p1 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic1").create();
         Producer<byte[]> p2 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic2").create();
@@ -350,7 +350,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         c2.close();
     }
 
-    @Test
+
     public void testPerTopicExpiredStat() throws Exception {
         String ns = "prop/ns-abc1";
         admin.namespaces().createNamespace(ns);
@@ -445,7 +445,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
     }
 
-    @Test
+
     public void testBundlesMetrics() throws Exception {
         Producer<byte[]> p1 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic1").create();
 
@@ -490,7 +490,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         assertTrue(metrics.containsKey("pulsar_lb_bundles_split_count"));
     }
 
-    @Test
+
     public void testNonPersistentSubMetrics() throws Exception {
         Producer<byte[]> p1 =
                 pulsarClient.newProducer().topic("non-persistent://my-property/use/my-ns/my-topic1").create();
@@ -530,7 +530,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         assertTrue(metrics.containsKey("pulsar_subscription_consumers_count"));
     }
 
-    @Test
+
     public void testPerNamespaceStats() throws Exception {
         Producer<byte[]> p1 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic1").create();
         Producer<byte[]> p2 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic2").create();
@@ -601,7 +601,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         c2.close();
     }
 
-    @Test
+
     public void testPerProducerStats() throws Exception {
         Producer<byte[]> p1 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic1")
                 .producerName("producer1").create();
@@ -671,7 +671,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         c2.close();
     }
 
-    @Test
+
     public void testPerConsumerStats() throws Exception {
         Producer<byte[]> p1 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic1").create();
         Producer<byte[]> p2 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic2").create();
@@ -769,7 +769,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
      **/
     // Running the test twice to make sure types are present when generated multiple times
-    @Test(invocationCount = 2)
+    (invocationCount = 2)
     public void testDuplicateMetricTypeDefinitions() throws Exception {
         Producer<byte[]> p1 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic1").create();
         Producer<byte[]> p2 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic2").create();
@@ -855,7 +855,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         p2.close();
     }
 
-    @Test
+
     public void testManagedLedgerCacheStats() throws Exception {
         Producer<byte[]> p1 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic1").create();
         Producer<byte[]> p2 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic2").create();
@@ -887,7 +887,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         p2.close();
     }
 
-    @Test
+
     public void testManagedLedgerStats() throws Exception {
         Producer<byte[]> p1 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic1").create();
         Producer<byte[]> p2 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic2").create();
@@ -966,7 +966,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         p4.close();
     }
 
-    @Test
+
     public void testManagedLedgerBookieClientStats() throws Exception {
         @Cleanup
         Producer<byte[]> p1 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic1").create();
@@ -1002,7 +1002,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         assertEquals(cm.get(0).tags.get("cluster"), "test");
     }
 
-    @Test
+
     public void testAuthMetrics() throws IOException, AuthenticationException {
         SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
 
@@ -1068,7 +1068,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         Assert.assertTrue(haveFailed);
     }
 
-    @Test
+
     public void testExpiredTokenMetrics() throws Exception {
         SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
 
@@ -1111,7 +1111,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         provider.close();
     }
 
-    @Test
+
     public void testExpiringTokenMetrics() throws Exception {
         SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
 
@@ -1172,7 +1172,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         provider.close();
     }
 
-    @Test
+
     public void testParsingWithPositiveInfinityValue() {
         Multimap<String, Metric> metrics = parseMetrics("pulsar_broker_publish_latency{cluster=\"test\",quantile=\"0.0\"} +Inf");
         List<Metric> cm = (List<Metric>) metrics.get("pulsar_broker_publish_latency");
@@ -1182,7 +1182,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         assertEquals(cm.get(0).value, Double.POSITIVE_INFINITY);
     }
 
-    @Test
+
     public void testParsingWithNegativeInfinityValue() {
         Multimap<String, Metric> metrics = parseMetrics("pulsar_broker_publish_latency{cluster=\"test\",quantile=\"0.0\"} -Inf");
         List<Metric> cm = (List<Metric>) metrics.get("pulsar_broker_publish_latency");
@@ -1192,7 +1192,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         assertEquals(cm.get(0).value, Double.NEGATIVE_INFINITY);
     }
 
-    @Test
+
     public void testManagedCursorPersistStats() throws Exception {
         final String subName = "my-sub";
         final String topicName = "persistent://my-namespace/use/my-ns/my-topic1";
@@ -1240,7 +1240,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         consumer.close();
     }
 
-    @Test
+
     public void testBrokerConnection() throws Exception {
         final String topicName = "persistent://my-namespace/use/my-ns/my-topic1";
 
@@ -1316,14 +1316,14 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         assertEquals(cm.get(0).value, count);
     }
 
-    @Test
+
     void testParseMetrics() throws IOException {
         String sampleMetrics = IOUtils.toString(getClass().getClassLoader()
                 .getResourceAsStream("prometheus_metrics_sample.txt"), StandardCharsets.UTF_8);
         parseMetrics(sampleMetrics);
     }
 
-    @Test
+
     public void testCompaction() throws Exception {
         final String topicName = "persistent://my-namespace/use/my-ns/my-compaction1";
 
@@ -1399,7 +1399,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         pulsarClient.close();
     }
 
-    @Test
+
     public void testSplitTopicAndPartitionLabel() throws Exception {
         String ns1 = "prop/ns-abc1";
         String ns2 = "prop/ns-abc2";

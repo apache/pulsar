@@ -63,7 +63,7 @@ public class AuthenticationProviderTokenTest {
 
     private static final String SUBJECT = "my-test-subject";
 
-    @Test
+
     public void testInvalidInitialize() throws Exception {
         AuthenticationProviderToken provider = new AuthenticationProviderToken();
 
@@ -78,7 +78,7 @@ public class AuthenticationProviderTokenTest {
         }
     }
 
-    @Test
+
     public void testSerializeSecretKey() {
         SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
 
@@ -98,7 +98,7 @@ public class AuthenticationProviderTokenTest {
         assertEquals(jwt.getBody().getSubject(), SUBJECT);
     }
 
-    @Test
+
     public void testSerializeKeyPair() throws Exception {
         KeyPair keyPair = Keys.keyPairFor(SignatureAlgorithm.RS256);
 
@@ -120,7 +120,7 @@ public class AuthenticationProviderTokenTest {
         assertEquals(jwt.getBody().getSubject(), SUBJECT);
     }
 
-    @Test
+
     public void testAuthSecretKey() throws Exception {
         SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
 
@@ -230,7 +230,7 @@ public class AuthenticationProviderTokenTest {
         provider.close();
     }
 
-    @Test
+
     public void testTrimAuthSecretKeyFilePath() throws Exception {
         String space = " ";
         SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
@@ -250,7 +250,7 @@ public class AuthenticationProviderTokenTest {
         provider.initialize(conf);
     }
 
-    @Test
+
     public void testAuthSecretKeyFromFile() throws Exception {
         SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
 
@@ -286,7 +286,7 @@ public class AuthenticationProviderTokenTest {
         provider.close();
     }
 
-    @Test
+
     public void testAuthSecretKeyFromValidFile() throws Exception {
         SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
 
@@ -321,7 +321,7 @@ public class AuthenticationProviderTokenTest {
         provider.close();
     }
 
-    @Test
+
     public void testAuthSecretKeyFromDataBase64() throws Exception {
         SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
 
@@ -353,7 +353,7 @@ public class AuthenticationProviderTokenTest {
         provider.close();
     }
 
-    @Test
+
     public void testAuthSecretKeyPair() throws Exception {
         KeyPair keyPair = Keys.keyPairFor(SignatureAlgorithm.RS256);
 
@@ -391,7 +391,7 @@ public class AuthenticationProviderTokenTest {
         provider.close();
     }
 
-    @Test
+
     public void testAuthSecretKeyPairWithCustomClaim() throws Exception {
         String authRoleClaim = "customClaim";
         String authRole = "my-test-role";
@@ -441,7 +441,7 @@ public class AuthenticationProviderTokenTest {
         provider.close();
     }
 
-    @Test
+
     public void testAuthSecretKeyPairWithECDSA() throws Exception {
         KeyPair keyPair = Keys.keyPairFor(SignatureAlgorithm.ES256);
 
@@ -481,7 +481,7 @@ public class AuthenticationProviderTokenTest {
         provider.close();
     }
 
-    @Test(expectedExceptions = AuthenticationException.class)
+    
     public void testAuthenticateWhenNoJwtPassed() throws AuthenticationException {
         AuthenticationProviderToken provider = new AuthenticationProviderToken();
         provider.authenticate(new AuthenticationDataSource() {
@@ -497,7 +497,7 @@ public class AuthenticationProviderTokenTest {
         });
     }
 
-    @Test(expectedExceptions = AuthenticationException.class)
+    
     public void testAuthenticateWhenAuthorizationHeaderNotExist() throws AuthenticationException {
         AuthenticationProviderToken provider = new AuthenticationProviderToken();
         provider.authenticate(new AuthenticationDataSource() {
@@ -513,7 +513,7 @@ public class AuthenticationProviderTokenTest {
         });
     }
 
-    @Test(expectedExceptions = AuthenticationException.class)
+    
     public void testAuthenticateWhenAuthHeaderValuePrefixIsInvalid() throws AuthenticationException {
         AuthenticationProviderToken provider = new AuthenticationProviderToken();
         provider.authenticate(new AuthenticationDataSource() {
@@ -529,7 +529,7 @@ public class AuthenticationProviderTokenTest {
         });
     }
 
-    @Test(expectedExceptions = AuthenticationException.class)
+    
     public void testAuthenticateWhenJwtIsBlank() throws AuthenticationException {
         AuthenticationProviderToken provider = new AuthenticationProviderToken();
         provider.authenticate(new AuthenticationDataSource() {
@@ -545,7 +545,7 @@ public class AuthenticationProviderTokenTest {
         });
     }
 
-    @Test(expectedExceptions = AuthenticationException.class)
+    
     public void testAuthenticateWhenInvalidTokenIsPassed() throws AuthenticationException, IOException {
         SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
 
@@ -571,7 +571,7 @@ public class AuthenticationProviderTokenTest {
         });
     }
 
-    @Test(expectedExceptions = IOException.class)
+    
     public void testValidationKeyWhenBlankSecretKeyIsPassed() throws IOException {
         Properties properties = new Properties();
         properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_SECRET_KEY, "   ");
@@ -583,7 +583,7 @@ public class AuthenticationProviderTokenTest {
         provider.initialize(conf);
     }
 
-    @Test(expectedExceptions = IOException.class)
+    
     public void testValidationKeyWhenBlankPublicKeyIsPassed() throws IOException {
         Properties properties = new Properties();
         properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_PUBLIC_KEY, "   ");
@@ -595,7 +595,7 @@ public class AuthenticationProviderTokenTest {
         provider.initialize(conf);
     }
 
-    @Test(expectedExceptions = IOException.class)
+    
     public void testInitializeWhenSecretKeyFilePathIsInvalid() throws IOException {
         Properties properties = new Properties();
         properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_SECRET_KEY,
@@ -607,7 +607,7 @@ public class AuthenticationProviderTokenTest {
         new AuthenticationProviderToken().initialize(conf);
     }
 
-    @Test(expectedExceptions = IOException.class)
+    
     public void testInitializeWhenSecretKeyIsValidPathOrBase64() throws IOException {
         Properties properties = new Properties();
         properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_SECRET_KEY,
@@ -619,7 +619,7 @@ public class AuthenticationProviderTokenTest {
         new AuthenticationProviderToken().initialize(conf);
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
+    
     public void testInitializeWhenSecretKeyFilePathIfNotExist() throws IOException {
         File secretKeyFile = File.createTempFile("secret_key_file_not_exist", ".key");
         assertTrue(secretKeyFile.delete());
@@ -634,7 +634,7 @@ public class AuthenticationProviderTokenTest {
         new AuthenticationProviderToken().initialize(conf);
     }
 
-    @Test(expectedExceptions = IOException.class)
+    
     public void testInitializeWhenPublicKeyFilePathIsInvalid() throws IOException {
         Properties properties = new Properties();
         properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_PUBLIC_KEY,
@@ -646,7 +646,7 @@ public class AuthenticationProviderTokenTest {
         new AuthenticationProviderToken().initialize(conf);
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
+    
     public void testValidationWhenPublicKeyAlgIsInvalid() throws IOException {
         Properties properties = new Properties();
         properties.setProperty(AuthenticationProviderToken.CONF_TOKEN_PUBLIC_ALG,
@@ -659,7 +659,7 @@ public class AuthenticationProviderTokenTest {
     }
 
 
-    @Test
+
     public void testExpiringToken() throws Exception {
         SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
 
@@ -691,7 +691,7 @@ public class AuthenticationProviderTokenTest {
     }
 
     // tests for Token Audience
-    @Test
+
     public void testRightTokenAudienceClaim() throws Exception {
         String brokerAudience = "testBroker_" + System.currentTimeMillis();
         Properties properties = new Properties();
@@ -701,7 +701,7 @@ public class AuthenticationProviderTokenTest {
         testTokenAudienceWithDifferentConfig(properties, brokerAudience);
     }
 
-    @Test(expectedExceptions = AuthenticationException.class)
+    
     public void testWrongTokenAudience() throws Exception {
         String brokerAudience = "testBroker_" + System.currentTimeMillis();
 
@@ -712,7 +712,7 @@ public class AuthenticationProviderTokenTest {
         testTokenAudienceWithDifferentConfig(properties, brokerAudience);
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
+    
     public void testNoBrokerTokenAudience() throws Exception {
         String brokerAudience = "testBroker_" + System.currentTimeMillis();
 
@@ -723,7 +723,7 @@ public class AuthenticationProviderTokenTest {
         testTokenAudienceWithDifferentConfig(properties, brokerAudience);
     }
 
-    @Test
+
     public void testSelfDefineTokenAudienceClaim() throws Exception {
         String audienceClaim = "audience_claim_" + System.currentTimeMillis();
         String brokerAudience = "testBroker_" + System.currentTimeMillis();
@@ -734,7 +734,7 @@ public class AuthenticationProviderTokenTest {
         testTokenAudienceWithDifferentConfig(properties, audienceClaim, Lists.newArrayList(brokerAudience));
     }
 
-    @Test(expectedExceptions = AuthenticationException.class)
+    
     public void testWrongSelfDefineTokenAudienceClaim() throws Exception {
         String audienceClaim = "audience_claim_" + System.currentTimeMillis();
         String brokerAudience = "testBroker_" + System.currentTimeMillis();
@@ -748,7 +748,7 @@ public class AuthenticationProviderTokenTest {
                 Lists.newArrayList(brokerAudience));
     }
 
-    @Test
+
     public void testMultiTokenAudience() throws Exception {
         String audienceClaim = "audience_claim_" + System.currentTimeMillis();
         String brokerAudience = "testBroker_" + System.currentTimeMillis();
@@ -761,7 +761,7 @@ public class AuthenticationProviderTokenTest {
         testTokenAudienceWithDifferentConfig(properties, audienceClaim, audiences);
     }
 
-    @Test(expectedExceptions = AuthenticationException.class)
+    
     public void testMultiTokenAudienceNotInclude() throws Exception {
         String audienceClaim = "audience_claim_" + System.currentTimeMillis();
         String brokerAudience = "testBroker_" + System.currentTimeMillis();
@@ -775,7 +775,7 @@ public class AuthenticationProviderTokenTest {
         testTokenAudienceWithDifferentConfig(properties, audienceClaim, audiences);
     }
 
-    @Test
+
     public void testArrayTypeRoleClaim() throws Exception {
         String authRoleClaim = "customClaim";
         String authRole = "my-test-role";
@@ -823,7 +823,7 @@ public class AuthenticationProviderTokenTest {
         provider.close();
     }
 
-    @Test
+
     public void testTokenSettingPrefix() throws Exception {
         AuthenticationProviderToken provider = new AuthenticationProviderToken();
 

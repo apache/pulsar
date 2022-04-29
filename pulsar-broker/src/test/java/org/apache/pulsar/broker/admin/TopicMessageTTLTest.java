@@ -36,7 +36,7 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Slf4j
-@Test(groups = "flaky")
+
 public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
 
     private final String testTenant = "my-tenant";
@@ -75,7 +75,7 @@ public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
         return new Object[][] { { true }, { false } };
     }
 
-    @Test
+
     public void testSetThenRemoveMessageTTL() throws Exception {
         admin.topics().setMessageTTL(testTopic, 100);
         log.info("Message TTL set success on topic: {}", testTopic);
@@ -92,7 +92,7 @@ public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
         Assert.assertNull(messageTTL);
     }
 
-    @Test
+
     public void testSetInvalidMessageTTL() throws Exception {
         try {
             admin.topics().setMessageTTL(testTopic, -100);
@@ -109,7 +109,7 @@ public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+
     public void testGetMessageTTL() throws Exception {
         // Check default topic level message TTL.
         Integer messageTTL = admin.topics().getMessageTTL(testTopic);
@@ -125,7 +125,7 @@ public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(messageTTL.intValue(), 200);
     }
 
-    @Test
+
     public void testTopicPolicyDisabled() throws Exception {
         super.internalCleanup();
         this.conf.setSystemTopicEnabled(true);
@@ -153,7 +153,7 @@ public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test(timeOut = 20000)
+    
     public void testDifferentLevelPolicyPriority() throws Exception {
         final String topicName = testTopic + UUID.randomUUID();
         admin.topics().createNonPartitionedTopic(topicName);
@@ -183,7 +183,7 @@ public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
                 (int) persistentTopic.getHierarchyTopicPolicies().getMessageTTLInSeconds().get(), 3600));
     }
 
-    @Test(dataProvider = "isV1")
+    isV1")
     public void testNamespaceTTL(boolean isV1) throws Exception {
         String myNamespace = testTenant + "/" + (isV1 ? testCluster + "/" : "") + "n1"+isV1;
         admin.namespaces().createNamespace(myNamespace, Sets.newHashSet(testCluster));
@@ -197,7 +197,7 @@ public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
                 -> Assert.assertNull(admin.namespaces().getNamespaceMessageTTL(myNamespace)));
     }
 
-    @Test(timeOut = 20000)
+    
     public void testDifferentLevelPolicyApplied() throws Exception {
         final String topicName = testTopic + UUID.randomUUID();
         admin.topics().createNonPartitionedTopic(topicName);

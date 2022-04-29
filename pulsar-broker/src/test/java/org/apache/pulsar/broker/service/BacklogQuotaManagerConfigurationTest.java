@@ -29,7 +29,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 
-@Test(groups = "broker")
+
 public class BacklogQuotaManagerConfigurationTest {
 
     private ServiceConfiguration serviceConfiguration;
@@ -42,7 +42,7 @@ public class BacklogQuotaManagerConfigurationTest {
         pulsarService = getPulsarService();
     }
 
-    @Test
+
     public void testBacklogQuotaDefaultLimitGBConversion() {
         serviceConfiguration.setBacklogQuotaDefaultLimitGB(1.6);
 
@@ -51,7 +51,7 @@ public class BacklogQuotaManagerConfigurationTest {
         assertEquals(backlogQuotaManager.getDefaultQuota().getLimitSize(), 1717986918);
     }
 
-    @Test
+
     public void testBacklogQuotaDefaultLimitPrecedence() {
         serviceConfiguration.setBacklogQuotaDefaultLimitGB(1.6);
         serviceConfiguration.setBacklogQuotaDefaultLimitBytes(123);
@@ -61,7 +61,7 @@ public class BacklogQuotaManagerConfigurationTest {
         assertEquals(backlogQuotaManager.getDefaultQuota().getLimitSize(), 1717986918);
     }
 
-    @Test
+
     public void testBacklogQuotaDefaultLimitBytes() {
         serviceConfiguration.setBacklogQuotaDefaultLimitGB(0);
         serviceConfiguration.setBacklogQuotaDefaultLimitBytes(123);

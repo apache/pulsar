@@ -110,7 +110,7 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
         proxyService.close();
     }
 
-    @Test
+
     public void testProducer() throws Exception {
         @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(proxyService.getServiceUrl())
@@ -126,7 +126,7 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+
     public void testProducerConsumer() throws Exception {
         @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(proxyService.getServiceUrl())
@@ -158,7 +158,7 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
         checkArgument(msg == null);
     }
 
-    @Test
+
     public void testPartitions() throws Exception {
         TenantInfoImpl tenantInfo = createDefaultTenantInfo();
         admin.tenants().createTenant("sample", tenantInfo);
@@ -191,7 +191,7 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
     /**
      * test auto create partitioned topic by proxy
      **/
-    @Test
+
     public void testAutoCreateTopic() throws Exception{
         int defaultPartition = 2;
         int defaultNumPartitions = pulsar.getConfiguration().getDefaultNumPartitions();
@@ -211,7 +211,7 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+
     public void testRegexSubscription() throws Exception {
         @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(proxyService.getServiceUrl())
@@ -258,7 +258,7 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+
     public void testGetSchema() throws Exception {
         @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(proxyService.getServiceUrl())
@@ -282,7 +282,7 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(new String(schemaInfo.getSchema()), new String(schema.getSchemaInfo().getSchema()));
     }
 
-    @Test
+
     public void testProtocolVersionAdvertisement() throws Exception {
         final String topic = "persistent://sample/test/local/protocol-version-advertisement";
         final String sub = "my-sub";

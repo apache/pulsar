@@ -50,7 +50,7 @@ public class JdbcUtilsTest {
         sqliteUtils.tearDown();
     }
 
-    @Test
+
     public void TestGetTableId() throws Exception {
         String tableName = "TestGetTableId";
 

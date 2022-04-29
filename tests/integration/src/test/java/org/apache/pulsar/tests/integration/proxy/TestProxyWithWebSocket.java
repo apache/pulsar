@@ -58,7 +58,7 @@ public class TestProxyWithWebSocket extends PulsarTestSuite {
         return super.beforeSetupCluster(clusterName, specBuilder);
     }
 
-    @Test
+
     public void testWebSocket() throws Exception {
 
         final String tenant = "proxy-test-" + randomName(10);

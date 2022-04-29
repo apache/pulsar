@@ -22,7 +22,7 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 public class ResourceQuotaTest {
-    @Test
+
     public void testResourceQuotaDefault() {
         ResourceQuota quota = new ResourceQuota();
         Assert.assertEquals(quota.getMsgRateIn(), 0.0);
@@ -46,7 +46,7 @@ public class ResourceQuotaTest {
         Assert.assertFalse(quota.getDynamic());
     }
 
-    @Test
+
     public void testResourceQuotaEqual() {
         ResourceQuota quota1 = new ResourceQuota();
         quota1.setMsgRateIn(10);

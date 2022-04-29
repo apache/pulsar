@@ -30,7 +30,7 @@ import org.testng.annotations.Test;
  */
 public class PulsarMetadataDriverBaseStaticTest {
 
-    @Test
+
     public void testGetZKServersFromServiceUri() {
         String uriStr = "zk://server1;server2;server3/ledgers";
         URI uri = URI.create(uriStr);
@@ -48,22 +48,22 @@ public class PulsarMetadataDriverBaseStaticTest {
             zkServers);
     }
 
-    @Test(expectedExceptions = NullPointerException.class)
+    
     public void testResolveLedgerManagerFactoryNullUri() {
         ZKMetadataDriverBase.resolveLedgerManagerFactory(null);
     }
 
-    @Test(expectedExceptions = NullPointerException.class)
+    
     public void testResolveLedgerManagerFactoryNullScheme() {
         ZKMetadataDriverBase.resolveLedgerManagerFactory(URI.create("//127.0.0.1/ledgers"));
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
+    
     public void testResolveLedgerManagerFactoryUnknownScheme() {
         ZKMetadataDriverBase.resolveLedgerManagerFactory(URI.create("unknown://127.0.0.1/ledgers"));
     }
 
-    @Test
+
     public void testResolveLedgerManagerFactoryUnspecifiedLayout() {
         assertEquals(
             null,
@@ -72,7 +72,7 @@ public class PulsarMetadataDriverBaseStaticTest {
         );
     }
 
-    @Test
+
     public void testResolveLedgerManagerFactoryNullLayout() {
         assertEquals(
                 null,
@@ -82,7 +82,7 @@ public class PulsarMetadataDriverBaseStaticTest {
     }
 
     @SuppressWarnings("deprecation")
-    @Test
+
     public void testResolveLedgerManagerFactoryFlat() {
         assertEquals(
             org.apache.bookkeeper.meta.FlatLedgerManagerFactory.class,
@@ -92,7 +92,7 @@ public class PulsarMetadataDriverBaseStaticTest {
     }
 
     @SuppressWarnings("deprecation")
-    @Test
+
     public void testResolveLedgerManagerFactoryMs() {
         assertEquals(
             org.apache.bookkeeper.meta.MSLedgerManagerFactory.class,
@@ -101,7 +101,7 @@ public class PulsarMetadataDriverBaseStaticTest {
         );
     }
 
-    @Test
+
     public void testResolveLedgerManagerFactoryHierarchical() {
         assertEquals(
             HierarchicalLedgerManagerFactory.class,
@@ -110,7 +110,7 @@ public class PulsarMetadataDriverBaseStaticTest {
         );
     }
 
-    @Test
+
     public void testResolveLedgerManagerFactoryLongHierarchical() {
         assertEquals(
             LongHierarchicalLedgerManagerFactory.class,
@@ -119,7 +119,7 @@ public class PulsarMetadataDriverBaseStaticTest {
         );
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
+    
     public void testResolveLedgerManagerFactoryUnknownLedgerManagerFactory() {
         ZKMetadataDriverBase.resolveLedgerManagerFactory(
             URI.create("zk+unknown://127.0.0.1/ledgers"));

@@ -25,12 +25,12 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats.PositionInfo;
 import org.testng.annotations.Test;
 
 public class PositionTest {
-    @Test(expectedExceptions = NullPointerException.class)
+    
     public void nullParam() {
         new PositionImpl((PositionInfo) null);
     }
 
-    @Test
+
     public void simpleTest() {
         PositionImpl pos = new PositionImpl(1, 2);
         assertEquals(pos.getLedgerId(), 1);
@@ -42,7 +42,7 @@ public class PositionTest {
         assertNotEquals(pos, "1:2");
     }
 
-    @Test
+
     public void comparisons() {
         PositionImpl pos1_1 = new PositionImpl(1, 1);
         PositionImpl pos2_5 = new PositionImpl(2, 5);
@@ -70,7 +70,7 @@ public class PositionTest {
         assertEquals(0, pos10_1.compareTo(pos10_1));
     }
 
-    @Test
+
     public void hashes() throws Exception {
         PositionImpl p1 = new PositionImpl(5, 15);
         PositionImpl p2 = new PositionImpl(PositionInfo.parseFrom(p1.getPositionInfo().toByteArray()));

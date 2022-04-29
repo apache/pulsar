@@ -53,7 +53,7 @@ public class PythonSchemaTest extends PulsarTestSuite {
     /**
      * Publish from Java and consume from Python
      */
-    @Test(dataProvider = "ServiceUrls")
+    
     public void testJavaPublishPythonConsume(Supplier<String> serviceUrl) throws Exception {
         String nsName = generateNamespaceName();
         pulsarCluster.createNamespace(nsName);
@@ -92,7 +92,7 @@ public class PythonSchemaTest extends PulsarTestSuite {
     /**
      * Publish from Java and consume from Python
      */
-    @Test(dataProvider = "ServiceUrls")
+    
     public void testPythonPublishJavaConsume(Supplier<String> serviceUrl) throws Exception {
         String nsName = generateNamespaceName();
         pulsarCluster.createNamespace(nsName);

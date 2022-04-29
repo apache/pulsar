@@ -39,7 +39,7 @@ import org.testng.annotations.Test;
 @Slf4j
 public class DelayMessagingTest extends PulsarTestSuite {
 
-    @Test(dataProvider = "ServiceUrls")
+    
     public void delayMsgBlockTest(Supplier<String> serviceUrl) throws Exception {
         String nsName = generateNamespaceName();
         pulsarCluster.createNamespace(nsName);

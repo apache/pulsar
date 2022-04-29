@@ -154,7 +154,7 @@ public class Oauth2PerformanceTransactionTest extends ProducerConsumerBase {
                 .authentication(authenticationPlugin, authenticationParameters));
     }
 
-    @Test
+
     public void testTransactionPerf() throws Exception {
         String argString = "--topics-c %s --topics-p %s -threads 1 -ntxn 50 -u %s -ss %s -np 1 -au %s"
                 + " --auth-plugin %s --auth-params %s";

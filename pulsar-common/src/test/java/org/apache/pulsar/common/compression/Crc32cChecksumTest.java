@@ -52,7 +52,7 @@ public class Crc32cChecksumTest {
         HARDWARE_CRC32C_HASH = hardwareCRC32C;
     }
 
-    @Test
+
     public void testCrc32c() {
         ByteBuf payload = Unpooled.wrappedBuffer(inputBytes);
         int checksum = Crc32cIntChecksum.computeChecksum(payload);
@@ -60,7 +60,7 @@ public class Crc32cChecksumTest {
         assertEquals(expectedChecksum, checksum);
     }
 
-    @Test
+
     public void testCrc32cHardware() {
         if (HARDWARE_CRC32C_HASH == null) {
             return;
@@ -74,7 +74,7 @@ public class Crc32cChecksumTest {
         assertEquals(hw, expectedChecksum);
     }
 
-    @Test
+
     public void testCrc32cSoftware() {
         ByteBuf payload = Unpooled.wrappedBuffer(inputBytes);
 
@@ -84,7 +84,7 @@ public class Crc32cChecksumTest {
         assertEquals(sw, expectedChecksum);
     }
 
-    @Test
+
     public void testCrc32cDirectMemoryHardware() {
         if (HARDWARE_CRC32C_HASH == null) {
             return;
@@ -100,7 +100,7 @@ public class Crc32cChecksumTest {
         assertEquals(checksum, expectedChecksum);
     }
 
-    @Test
+
     public void testCrc32cIncremental() {
         if (HARDWARE_CRC32C_HASH == null) {
             return;
@@ -127,7 +127,7 @@ public class Crc32cChecksumTest {
         }
     }
 
-    @Test
+
     public void testCrc32cIncrementalUsingProvider() {
 
         final byte[] data = "data".getBytes();

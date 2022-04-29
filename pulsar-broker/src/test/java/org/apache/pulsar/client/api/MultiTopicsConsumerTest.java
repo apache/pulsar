@@ -47,7 +47,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker")
+
 public class MultiTopicsConsumerTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(MultiTopicsConsumerTest.class);
     private ScheduledExecutorService internalExecutorServiceDelegate;
@@ -89,7 +89,7 @@ public class MultiTopicsConsumerTest extends ProducerConsumerBase {
 
     // test that reproduces the issue https://github.com/apache/pulsar/issues/12024
     // where closing the consumer leads to an endless receive loop
-    @Test
+
     public void testMultiTopicsConsumerCloses() throws Exception {
         String topicNameBase = "persistent://my-property/my-ns/my-topic-consumer-closes-";
 
@@ -132,7 +132,7 @@ public class MultiTopicsConsumerTest extends ProducerConsumerBase {
 
     // test that reproduces the issue that PR https://github.com/apache/pulsar/pull/12456 fixes
     // where MultiTopicsConsumerImpl has a data race that causes out-of-order delivery of messages
-    @Test
+
     public void testShouldMaintainOrderForIndividualTopicInMultiTopicsConsumer()
             throws PulsarAdminException, PulsarClientException, ExecutionException, InterruptedException,
             TimeoutException {

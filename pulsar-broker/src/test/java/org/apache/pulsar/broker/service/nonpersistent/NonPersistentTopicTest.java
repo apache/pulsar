@@ -33,7 +33,7 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 
-@Test(groups = "broker")
+
 public class NonPersistentTopicTest extends BrokerTestBase {
 
     @BeforeMethod(alwaysRun = true)
@@ -48,7 +48,7 @@ public class NonPersistentTopicTest extends BrokerTestBase {
         super.internalCleanup();
     }
 
-    @Test
+
     public void testAccumulativeStats() throws Exception {
         final String topicName = "non-persistent://prop/ns-abc/aTopic";
         final String sharedSubName = "shared";

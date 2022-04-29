@@ -66,7 +66,7 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
-@Test(groups = "broker-admin")
+
 public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
 
     @BeforeMethod
@@ -92,7 +92,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         super.internalCleanup();
     }
 
-    @Test(timeOut = 20000)
+    
     public void testGetTransactionCoordinatorStats() throws Exception {
         initTransaction(2);
         getTransaction().commit().get();
@@ -118,7 +118,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
                 transactionCoordinatorstats.leastSigBits, transactionCoordinatorstats.lowWaterMark);
     }
 
-    @Test(timeOut = 20000)
+    
     public void testGetTransactionInBufferStats() throws Exception {
         initTransaction(2);
         TransactionImpl transaction = (TransactionImpl) getTransaction();
@@ -162,7 +162,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         assertTrue(transactionInBufferStats.aborted);
     }
 
-    @Test(timeOut = 20000)
+    
     public void testGetTransactionPendingAckStats() throws Exception {
         initTransaction(2);
         final String topic = "persistent://public/default/testGetTransactionInBufferStats";
@@ -220,7 +220,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
                         batchMessageId.getBatchIndex());
     }
 
-    @Test(timeOut = 20000)
+    
     public void testGetTransactionMetadata() throws Exception {
         initTransaction(2);
         long currentTime = System.currentTimeMillis();
@@ -287,7 +287,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
 
     }
 
-    @Test(timeOut = 20000)
+    
     public void testGetTransactionBufferStats() throws Exception {
         initTransaction(2);
         TransactionImpl transaction = (TransactionImpl) getTransaction();
@@ -344,7 +344,6 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         return new Object[] { "cumulative", "individual"};
     }
 
-    @Test(timeOut = 20000, dataProvider = "ackType")
     public void testGetPendingAckStats(String ackType) throws Exception {
         initTransaction(2);
         final String topic = "persistent://public/default/testGetPendingAckStats";
@@ -395,7 +394,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         assertEquals(transactionPendingAckStats.state, "Ready");
     }
 
-    @Test(timeOut = 20000)
+    
     public void testGetSlowTransactions() throws Exception {
         initTransaction(2);
         TransactionImpl transaction1 = (TransactionImpl) pulsarClient.newTransaction()
@@ -426,7 +425,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         return PositionImpl.get(((MessageIdImpl) messageId).getLedgerId(), ((MessageIdImpl) messageId).getEntryId());
     }
 
-    @Test(timeOut = 20000)
+    
     public void testGetCoordinatorInternalStats() throws Exception {
         initTransaction(1);
         Transaction transaction = pulsarClient.newTransaction()
@@ -449,7 +448,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
                 stats.transactionLogStats.managedLedgerName);
     }
 
-    @Test(timeOut = 20000)
+    
     public void testGetPendingAckInternalStats() throws Exception {
         initTransaction(1);
         TransactionImpl transaction = (TransactionImpl) getTransaction();
@@ -508,7 +507,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         assertNull(managedLedgerInternalStats.ledgers.get(0).metadata);
     }
 
-    @Test(timeOut = 20000)
+    
     public void testTransactionNotEnabled() throws Exception {
         stopBroker();
         conf.setTransactionCoordinatorEnabled(false);

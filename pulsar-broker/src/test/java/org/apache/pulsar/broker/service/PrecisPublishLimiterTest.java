@@ -25,7 +25,7 @@ import org.testng.annotations.Test;
 
 public class PrecisPublishLimiterTest {
 
-    @Test
+
     void shouldResetMsgLimitAfterUpdate() {
         PrecisPublishLimiter precisPublishLimiter = new PrecisPublishLimiter(new PublishRate(), () -> {
         });
@@ -35,7 +35,7 @@ public class PrecisPublishLimiterTest {
         assertTrue(precisPublishLimiter.tryAcquire(99, 99));
     }
 
-    @Test
+
     void shouldResetBytesLimitAfterUpdate() {
         PrecisPublishLimiter precisPublishLimiter = new PrecisPublishLimiter(new PublishRate(), () -> {
         });
@@ -45,7 +45,7 @@ public class PrecisPublishLimiterTest {
         assertTrue(precisPublishLimiter.tryAcquire(99, 99));
     }
 
-    @Test
+
     void shouldCloseResources() throws Exception {
         for (int i = 0; i < 20000; i++) {
             PrecisPublishLimiter precisPublishLimiter = new PrecisPublishLimiter(new PublishRate(100, 100), () -> {

@@ -94,7 +94,7 @@ public class KafkaConnectSourceErrTest extends ProducerConsumerBase  {
         super.internalCleanup();
     }
 
-    @Test
+
     public void testOpenAndRead() throws Exception {
         kafkaConnectSource = new KafkaConnectSource();
         kafkaConnectSource.open(config, context);

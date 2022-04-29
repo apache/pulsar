@@ -33,7 +33,7 @@ import static org.testng.Assert.assertTrue;
 
 public class TopicListTest {
 
-    @Test
+
     public void testFilterTopics() {
         String topicName1 = "persistent://my-property/my-ns/pattern-topic-1";
         String topicName2 = "persistent://my-property/my-ns/pattern-topic-2";
@@ -52,7 +52,7 @@ public class TopicListTest {
                 && Stream.of(topicName1, topicName2, topicName3, topicName4).allMatch(result2::contains));
     }
 
-    @Test
+
     public void testMinus() {
         String topicName1 = "persistent://my-property/my-ns/pattern-topic-1";
         String topicName2 = "persistent://my-property/my-ns/pattern-topic-2";
@@ -93,7 +93,7 @@ public class TopicListTest {
         assertEquals(addedNames5.size(), 0);
     }
 
-    @Test
+
     public void testCalculateHash() {
         String topicName1 = "persistent://my-property/my-ns/pattern-topic-1";
         String topicName2 = "persistent://my-property/my-ns/pattern-topic-2";

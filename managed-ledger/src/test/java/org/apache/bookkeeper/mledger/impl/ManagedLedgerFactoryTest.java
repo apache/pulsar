@@ -30,7 +30,7 @@ import org.testng.annotations.Test;
 
 public class ManagedLedgerFactoryTest extends MockedBookKeeperTestCase {
 
-    @Test(timeOut = 20000)
+    
     public void testGetManagedLedgerInfoWithClose() throws Exception {
         ManagedLedgerConfig conf = new ManagedLedgerConfig();
         conf.setMaxEntriesPerLedger(1);

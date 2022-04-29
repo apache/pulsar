@@ -65,7 +65,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker")
+
 public class TopicOwnerTest {
 
     private static final Logger log = LoggerFactory.getLogger(TopicOwnerTest.class);
@@ -235,7 +235,7 @@ public class TopicOwnerTest {
         }).when(spyZooKeeperServer).submitRequest(any(Request.class));
     }
 
-    @Test
+    
     public void testReestablishOwnershipAfterInvalidateCache() throws Exception {
         String topic1 = "persistent://my-tenant/my-ns/topic-1";
         NamespaceService leaderNamespaceService = leaderPulsar.getNamespaceService();
@@ -268,7 +268,7 @@ public class TopicOwnerTest {
         Assert.assertEquals(pulsarAdmins[4].lookups().lookupTopic(topic1), pulsar1.getBrokerServiceUrl());
     }
 
-    @Test
+    
     public void testConnectToInvalidateBundleCacheBroker() throws Exception {
         Assert.assertEquals(pulsarAdmins[0].namespaces().getPolicies("my-tenant/my-ns").bundles.getNumBundles(), 16);
 
@@ -300,7 +300,7 @@ public class TopicOwnerTest {
         Assert.assertTrue(consumer.isConnected());
     }
 
-    @Test
+    
     public void testLookupPartitionedTopic() throws Exception {
         final int partitions = 5;
         final String topic = "persistent://my-tenant/my-ns/partitionedTopic";
@@ -324,7 +324,7 @@ public class TopicOwnerTest {
 
     }
 
-    @Test
+    
     public void testListNonPersistentTopic() throws Exception {
         final String topicName = "non-persistent://my-tenant/my-ns/my-topic";
         pulsarAdmins[0].topics().createPartitionedTopic(topicName, 16);

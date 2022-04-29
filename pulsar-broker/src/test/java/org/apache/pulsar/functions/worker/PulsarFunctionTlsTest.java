@@ -55,7 +55,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Slf4j
-@Test(groups = "functions-worker")
+
 public class PulsarFunctionTlsTest {
 
     protected static final int BROKER_COUNT = 2;
@@ -194,7 +194,7 @@ public class PulsarFunctionTlsTest {
         }
     }
 
-    @Test
+
     public void testFunctionsCreation() throws Exception {
 
         String jarFilePathUrl = String.format("%s:%s", org.apache.pulsar.common.functions.Utils.FILE,

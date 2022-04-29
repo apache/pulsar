@@ -87,7 +87,7 @@ public class PerformanceTransactionTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+
     public void testTxnPerf() throws Exception {
         String argString = "--topics-c %s --topics-p %s -threads 1 -ntxn 50 -u %s -ss %s -np 1 -au %s";
         String testConsumeTopic = testTopic + UUID.randomUUID();
@@ -158,7 +158,7 @@ public class PerformanceTransactionTest extends MockedPulsarServiceBaseTest {
     }
 
 
-    @Test
+
     public void testProduceTxnMessage() throws InterruptedException, PulsarClientException {
         String argString = "%s -r 10 -u %s -m %d -txn";
         String topic = testTopic + UUID.randomUUID();
@@ -193,7 +193,7 @@ public class PerformanceTransactionTest extends MockedPulsarServiceBaseTest {
         Assert.assertNull(message);
     }
 
-    @Test
+
     public void testConsumeTxnMessage() throws InterruptedException, PulsarClientException {
         String argString = "%s -r 10 -u %s -txn -ss %s -st %s -sp %s -ntxn %d";
         String subName = "sub";

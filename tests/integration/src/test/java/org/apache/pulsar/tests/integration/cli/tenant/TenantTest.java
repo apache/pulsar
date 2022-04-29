@@ -34,18 +34,18 @@ import org.apache.pulsar.tests.integration.suites.PulsarTestSuite;
 import org.testng.annotations.Test;
 
 public class TenantTest extends PulsarTestSuite {
-    @Test
+
     public void testListTenantCmd() throws Exception {
         ContainerExecResult result = pulsarCluster.runAdminCommandOnAnyBroker("tenants", "list");
         assertTrue(result.getStdout().contains("public"));
     }
 
-    @Test
+
     public void testGetTenantCmd() throws Exception {
         pulsarCluster.runAdminCommandOnAnyBroker("tenants", "get", "public");
     }
 
-    @Test
+
     public void testGetNonExistTenantCmd() {
         String tenantName = randomName();
         ContainerExecException ex = expectThrows(ContainerExecException.class,
@@ -53,7 +53,7 @@ public class TenantTest extends PulsarTestSuite {
         assertTrue(ex.getResult().getStderr().contains("Tenant does not exist"));
     }
 
-    @Test
+
     public void testCreateTenantCmd() throws Exception {
         String tenantName = randomName();
         pulsarCluster.runAdminCommandOnAnyBroker("tenants", "create", tenantName);
@@ -67,7 +67,7 @@ public class TenantTest extends PulsarTestSuite {
         pulsarCluster.runAdminCommandOnAnyBroker("tenants", "delete", tenantName);
     }
 
-    @Test
+
     public void testCreateTenantCmdWithAdminRolesAndAllowClustersFlags() throws Exception {
         String tenantName = randomName();
         List<String> adminRoles = Arrays.asList("role1", "role2");
@@ -85,14 +85,14 @@ public class TenantTest extends PulsarTestSuite {
         pulsarCluster.runAdminCommandOnAnyBroker("tenants", "delete", tenantName);
     }
 
-    @Test
+
     public void testCreateExistTenantCmd() {
         ContainerExecException ex = expectThrows(ContainerExecException.class,
                 () -> pulsarCluster.runAdminCommandOnAnyBroker("tenants", "create", "public"));
         assertTrue(ex.getResult().getStderr().contains("Tenant already exist"));
     }
 
-    @Test
+
     public void testUpdateTenantCmdWithAdminRolesAndAllowedClustersFlags() throws Exception {
         String tenantName = randomName();
         List<String> adminRoles = Arrays.asList("role1", "role2");

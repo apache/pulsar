@@ -31,7 +31,7 @@ import org.junit.Assert;
 import org.testng.annotations.Test;
 
 @Slf4j
-@Test(groups = "broker")
+
 public class SimpleBrokerStartTest {
 
     public void testHasNICSpeed() throws Exception {

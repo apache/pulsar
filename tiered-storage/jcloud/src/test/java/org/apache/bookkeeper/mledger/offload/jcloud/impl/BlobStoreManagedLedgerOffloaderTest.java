@@ -95,13 +95,11 @@ public class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerO
         return offloader;
     }
 
-    @Test(timeOut = 600000)  // 10 minutes.
     public void testHappyCase() throws Exception {
         LedgerOffloader offloader = getOffloader();
         offloader.offload(buildReadHandle(), UUID.randomUUID(), new HashMap<>()).get();
     }
 
-    @Test(timeOut = 600000)  // 10 minutes.
     public void testBucketDoesNotExist() throws Exception {
 
         if (provider == JCloudBlobStoreProvider.TRANSIENT) {
@@ -119,7 +117,6 @@ public class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerO
         }
     }
 
-    @Test(timeOut = 600000)  // 10 minutes.
     public void testOffloadAndRead() throws Exception {
         ReadHandle toWrite = buildReadHandle(DEFAULT_BLOCK_SIZE, 3);
         LedgerOffloader offloader = getOffloader();
@@ -149,7 +146,7 @@ public class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerO
         }
     }
 
-    @Test(timeOut = 60000)
+    
     public void testReadHandlerState() throws Exception {
         ReadHandle toWrite = buildReadHandle(DEFAULT_BLOCK_SIZE, 3);
         LedgerOffloader offloader = getOffloader();
@@ -165,7 +162,6 @@ public class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerO
         Assert.assertEquals(toTest.getState(), BlobStoreBackedReadHandleImpl.State.Closed);
     }
 
-    @Test(timeOut = 600000)  // 10 minutes.
     public void testOffloadAndReadMetrics() throws Exception {
         ReadHandle toWrite = buildReadHandle(DEFAULT_BLOCK_SIZE, 3);
         LedgerOffloader offloader = getOffloader();
@@ -200,7 +196,7 @@ public class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerO
         assertTrue(offloaderStats.getReadOffloadIndexLatency(topic).count > 0);
     }
 
-    @Test
+
     public void testOffloadFailInitDataBlockUpload() throws Exception {
         ReadHandle readHandle = buildReadHandle();
         UUID uuid = UUID.randomUUID();
@@ -225,7 +221,7 @@ public class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerO
         }
     }
 
-    @Test
+
     public void testOffloadFailDataBlockPartUpload() throws Exception {
         ReadHandle readHandle = buildReadHandle();
         UUID uuid = UUID.randomUUID();
@@ -250,7 +246,7 @@ public class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerO
         }
     }
 
-    @Test
+
     public void testOffloadFailDataBlockUploadComplete() throws Exception {
         ReadHandle readHandle = buildReadHandle();
         UUID uuid = UUID.randomUUID();
@@ -279,7 +275,7 @@ public class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerO
         }
     }
 
-    @Test
+
     public void testOffloadFailPutIndexBlock() throws Exception {
         ReadHandle readHandle = buildReadHandle();
         UUID uuid = UUID.randomUUID();
@@ -305,7 +301,6 @@ public class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerO
         }
     }
 
-    @Test(timeOut = 600000)
     public void testOffloadReadRandomAccess() throws Exception {
         ReadHandle toWrite = buildReadHandle(DEFAULT_BLOCK_SIZE, 3);
         long[][] randomAccesses = new long[10][2];
@@ -351,7 +346,7 @@ public class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerO
         }
     }
 
-    @Test
+
     public void testOffloadReadInvalidEntryIds() throws Exception {
         ReadHandle toWrite = buildReadHandle(DEFAULT_BLOCK_SIZE, 1);
         LedgerOffloader offloader = getOffloader();
@@ -374,7 +369,7 @@ public class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerO
         }
     }
 
-    @Test
+
     public void testDeleteOffloaded() throws Exception {
         ReadHandle readHandle = buildReadHandle(DEFAULT_BLOCK_SIZE, 1);
         UUID uuid = UUID.randomUUID();
@@ -392,7 +387,7 @@ public class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerO
         Assert.assertFalse(blobStore.blobExists(BUCKET, DataBlockUtils.indexBlockOffloadKey(readHandle.getId(), uuid)));
     }
 
-    @Test
+
     public void testDeleteOffloadedFail() throws Exception {
         String failureString = "fail deleteOffloaded";
         ReadHandle readHandle = buildReadHandle(DEFAULT_BLOCK_SIZE, 1);
@@ -422,7 +417,7 @@ public class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerO
         }
     }
 
-    @Test
+
     public void testOffloadEmpty() throws Exception {
         CompletableFuture<LedgerEntries> noEntries = new CompletableFuture<>();
         noEntries.completeExceptionally(new BKException.BKReadException());
@@ -445,7 +440,7 @@ public class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerO
         }
     }
 
-    @Test
+
     public void testReadUnknownDataVersion() throws Exception {
         ReadHandle toWrite = buildReadHandle(DEFAULT_BLOCK_SIZE, 1);
         BlobStoreManagedLedgerOffloader offloader = getOffloader();
@@ -484,7 +479,7 @@ public class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerO
         }
     }
 
-    @Test
+
     public void testReadUnknownIndexVersion() throws Exception {
         ReadHandle toWrite = buildReadHandle(DEFAULT_BLOCK_SIZE, 1);
         BlobStoreManagedLedgerOffloader offloader = getOffloader();
@@ -521,7 +516,7 @@ public class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerO
         }
     }
 
-    @Test
+
     public void testReadEOFException() throws Throwable {
         ReadHandle toWrite = buildReadHandle(DEFAULT_BLOCK_SIZE, 1);
         LedgerOffloader offloader = getOffloader();
@@ -539,7 +534,6 @@ public class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerO
         }
     }
 
-    @Test(timeOut = 600000)  // 10 minutes.
     public void testScanLedgers() throws Exception {
         ReadHandle toWrite = buildReadHandle(DEFAULT_BLOCK_SIZE, 3);
         LedgerOffloader offloader = getOffloader();

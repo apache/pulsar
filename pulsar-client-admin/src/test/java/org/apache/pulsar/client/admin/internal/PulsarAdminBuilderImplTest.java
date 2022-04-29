@@ -26,7 +26,7 @@ import org.testng.annotations.Test;
 
 public class PulsarAdminBuilderImplTest {
 
-    @Test
+
     public void testAdminBuilderWithServiceUrlNotSet() throws PulsarClientException {
         try{
             PulsarAdmin.builder().build();

@@ -46,7 +46,7 @@ import org.testng.collections.Maps;
 @Slf4j
 public class TestCompaction extends PulsarTestSuite {
 
-    @Test(dataProvider = "ServiceUrls", timeOut=300_000)
+    
     public void testPublishCompactAndConsumeCLI(Supplier<String> serviceUrl) throws Exception {
 
         final String tenant = "compaction-test-cli-" + randomName(4);
@@ -100,7 +100,7 @@ public class TestCompaction extends PulsarTestSuite {
         }
     }
 
-    @Test(dataProvider = "ServiceUrls", timeOut=300_000)
+    
     public void testPublishCompactAndConsumeRest(Supplier<String> serviceUrl) throws Exception {
 
         final String tenant = "compaction-test-rest-" + randomName(4);
@@ -153,7 +153,7 @@ public class TestCompaction extends PulsarTestSuite {
         }
     }
 
-    @Test(dataProvider = "ServiceUrls", timeOut=300_000)
+    
     public void testPublishCompactAndConsumePartitionedTopics(Supplier<String> serviceUrl) throws Exception {
 
         final String tenant = "compaction-test-partitioned-topic-" + randomName(4);
@@ -302,7 +302,7 @@ public class TestCompaction extends PulsarTestSuite {
         }
     }
 
-    @Test(dataProvider = "ServiceUrls", timeOut=300_000)
+    
     public void testPublishWithAutoCompaction(Supplier<String> serviceUrl) throws Exception {
 
         final String tenant = "compaction-test-auto-" + randomName(4);

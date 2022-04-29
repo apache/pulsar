@@ -53,7 +53,6 @@ public class ManagedLedgerInfoMetadataTest {
         };
     }
 
-    @Test(dataProvider = "compressionTypeProvider")
     public void testEncodeAndDecode(String compressionType) throws IOException {
         long ledgerId = 10000;
         List<MLDataFormats.ManagedLedgerInfo.LedgerInfo> ledgerInfoList = new ArrayList<>();
@@ -119,7 +118,7 @@ public class ManagedLedgerInfoMetadataTest {
         Assert.assertEquals(info1, info2);
     }
 
-    @Test
+
     public void testParseEmptyData() throws InvalidProtocolBufferException {
         MetaStoreImpl metaStore = new MetaStoreImpl(null, null);
         MLDataFormats.ManagedLedgerInfo managedLedgerInfo = metaStore.parseManagedLedgerInfo(new byte[0]);

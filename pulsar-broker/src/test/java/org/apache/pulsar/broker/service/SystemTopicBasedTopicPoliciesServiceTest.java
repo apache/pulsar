@@ -59,7 +59,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker")
+
 public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServiceBaseTest {
 
     private static final String NAMESPACE1 = "system-topic/namespace-1";
@@ -90,7 +90,7 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
         super.internalCleanup();
     }
 
-    @Test
+
     public void testConcurrentlyRegisterUnregisterListeners() throws ExecutionException, InterruptedException {
         TopicName topicName = TopicName.get("test");
         class TopicPolicyListenerImpl implements TopicPolicyListener<TopicPolicies> {
@@ -124,7 +124,7 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
         Assert.assertFalse(systemTopicBasedTopicPoliciesService.listeners.containsKey(topicName));
     }
 
-    @Test
+
     public void testGetPolicy() throws ExecutionException, InterruptedException, TopicPoliciesCacheNotInitException {
 
         // Init topic policies
@@ -234,7 +234,7 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
         Assert.assertEquals(policies1, policiesGet1);
     }
 
-    @Test
+
     public void testCacheCleanup() throws Exception {
         final String topic = "persistent://" + NAMESPACE1 + "/test" + UUID.randomUUID();
         TopicName topicName = TopicName.get(topic);
@@ -256,7 +256,7 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
         assertNull(listMap.get(topicName));
     }
 
-    @Test
+
     public void testListenerCleanupByPartition() throws Exception {
         final String topic = "persistent://" + NAMESPACE1 + "/test" + UUID.randomUUID();
         TopicName topicName = TopicName.get(topic);
@@ -296,7 +296,7 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
         systemTopicBasedTopicPoliciesService = (SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService();
     }
 
-    @Test
+
     public void testGetPolicyTimeout() throws Exception {
         SystemTopicBasedTopicPoliciesService service = (SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService();
         Awaitility.await().untilAsserted(() -> assertTrue(service.policyCacheInitMap.get(TOPIC1.getNamespaceObject())));
@@ -316,7 +316,7 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
         assertTrue("actual:" + cost, cost >= 5000 - 1000);
     }
 
-    @Test
+
     public void testCreatSystemTopicClientWithRetry() throws Exception {
         SystemTopicBasedTopicPoliciesService service =
                 spy((SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService());
@@ -338,7 +338,7 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
         assertEquals(reader1, reader);
     }
 
-    @Test
+
     public void testGetTopicPoliciesWithRetry() throws Exception {
         Field initMapField = SystemTopicBasedTopicPoliciesService.class.getDeclaredField("policyCacheInitMap");
         initMapField.setAccessible(true);

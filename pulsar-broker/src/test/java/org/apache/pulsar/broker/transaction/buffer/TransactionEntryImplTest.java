@@ -31,10 +31,10 @@ import org.testng.annotations.Test;
 /**
  * Unit test {@link TransactionEntryImpl}.
  */
-@Test(groups = "broker")
+
 public class TransactionEntryImplTest {
 
-    @Test
+
     public void testCloseShouldReleaseBuffer() {
         ByteBuf buffer = Unpooled.copiedBuffer("test-value", UTF_8);
         TransactionEntryImpl entry = new TransactionEntryImpl(

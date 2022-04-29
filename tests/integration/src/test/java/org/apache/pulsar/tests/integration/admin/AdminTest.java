@@ -39,7 +39,7 @@ import org.testng.annotations.Test;
 @Slf4j
 public class AdminTest extends MessagingBase {
 
-    @Test(dataProvider = "ServiceAndAdminUrls")
+    ServiceAndAdminUrls")
     public void testUnderReplicatedState(Supplier<String> serviceUrl, Supplier<String> adminUrl) throws Exception {
 
         String topicName = getNonPartitionedTopic("replicated-state", true);

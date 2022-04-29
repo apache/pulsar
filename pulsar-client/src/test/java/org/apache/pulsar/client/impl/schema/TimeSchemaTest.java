@@ -27,7 +27,7 @@ import java.sql.Time;
 
 public class TimeSchemaTest {
 
-    @Test
+
     public void testSchemaEncode() {
         TimeSchema schema = TimeSchema.of();
         Time data = new Time(System.currentTimeMillis());
@@ -44,14 +44,14 @@ public class TimeSchemaTest {
         Assert.assertEquals(expected, schema.encode(data));
     }
 
-    @Test
+
     public void testSchemaEncodeDecodeFidelity() {
         TimeSchema schema = TimeSchema.of();
         Time time = new Time(System.currentTimeMillis());
         Assert.assertEquals(time, schema.decode(schema.encode(time)));
     }
 
-    @Test
+
     public void testSchemaDecode() {
         byte[] byteData = new byte[] {
                0,
@@ -71,7 +71,7 @@ public class TimeSchemaTest {
         Assert.assertEquals(expected, schema.decode(byteBuf).getTime());
     }
 
-    @Test
+
     public void testNullEncodeDecode() {
         ByteBuf byteBuf = null;
         byte[] bytes = null;

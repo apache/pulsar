@@ -101,7 +101,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker-admin")
+
 public class AdminTest extends MockedPulsarServiceBaseTest {
     private final String configClusterName = "use";
     private Clusters clusters;
@@ -186,7 +186,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         conf.setClusterName(configClusterName);
     }
 
-    @Test
+
     public void internalConfiguration() throws Exception {
         ServiceConfiguration conf = pulsar.getConfiguration();
         InternalConfigurationData expectedData = new InternalConfigurationData(
@@ -199,7 +199,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         assertEquals(brokers.getInternalConfigurationData(), expectedData);
     }
 
-    @Test
+
     public void clusters() throws Exception {
         assertEquals(clusters.getClusters(), Lists.newArrayList());
         verify(clusters, never()).validateSuperUserAccess();
@@ -412,7 +412,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         }
         return ctx.response;
     }
-    @Test
+
     public void properties() throws Throwable {
         Object response = asynRequests(ctx -> properties.getTenants(ctx));
         assertEquals(response, Lists.newArrayList());
@@ -630,7 +630,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         response = asynRequests(ctx -> properties.deleteTenant(ctx, "my-tenant", false));
     }
 
-    @Test
+
     @SuppressWarnings("unchecked")
     public void brokers() throws Exception {
         clusters.createCluster("use", ClusterDataImpl.builder()
@@ -656,7 +656,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         assertEquals(leaderBroker.getServiceUrl(), pulsar.getLeaderElectionService().getCurrentLeader().map(LeaderBroker::getServiceUrl).get());
     }
 
-    @Test
+
     public void resourceQuotas() throws Exception {
         // get Default Resource Quota
         ResourceQuota quota = resourceQuotas.getDefaultResourceQuota();
@@ -719,7 +719,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         assertEquals(defaultBandwidth, bundleQuota.getBandwidthOut());
     }
 
-    @Test
+
     public void brokerStats() throws Exception {
         doReturn("client-id").when(brokerStats).clientAppId();
         Collection<Metrics> metrics = brokerStats.getMetrics();
@@ -743,7 +743,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+
     public void persistentTopics() throws Exception {
 
         final String property = "prop-xyz";
@@ -798,7 +798,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         });
     }
 
-    @Test
+
     public void testRestExceptionMessage() {
         String message = "my-message";
         RestException exception = new RestException(Status.PRECONDITION_FAILED, message);
@@ -807,7 +807,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
     }
 
 
-    @Test
+
     public void testUpdatePartitionedTopicCoontainedInOldTopic() throws Exception {
 
         final String property = "prop-xyz";
@@ -835,7 +835,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
                 false, 10);
     }
 
-    @Test
+
     public void test500Error() throws Exception {
         final String property = "prop-xyz";
         final String cluster = "use";

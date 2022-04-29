@@ -58,7 +58,7 @@ public class AdminProxyHandlerTest {
         adminProxyHandler.init(servletConfig);
     }
 
-    @Test
+    
     public void replayableProxyContentProviderTest() throws Exception {
         HttpServletRequest request = mock(HttpServletRequest.class);
         doReturn(-1).when(request).getContentLength();
@@ -77,7 +77,7 @@ public class AdminProxyHandlerTest {
 
     }
 
-    @Test
+    
     public void shouldLimitReplayBodyBufferSize() throws Exception {
         HttpServletRequest request = mock(HttpServletRequest.class);
         int maxRequestBodySize = 1024 * 1024;
@@ -107,7 +107,7 @@ public class AdminProxyHandlerTest {
         Assert.assertEquals(((boolean) field.get(replayableProxyContentProvider)), true);
     }
 
-    @Test
+    
     public void shouldReplayBodyBuffer() {
         // given
         HttpServletRequest request = mock(HttpServletRequest.class);

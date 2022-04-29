@@ -67,7 +67,7 @@ public class ProtobufSchemaTest {
             "\\\"type\\\":\\\"STRING\\\",\\\"label\\\":\\\"LABEL_REPEATED\\\",\\\"definition\\\":null},{\\\"number\\\":11," +
             "\\\"name\\\":\\\"externalMessage\\\",\\\"type\\\":\\\"MESSAGE\\\",\\\"label\\\":\\\"LABEL_OPTIONAL\\\",\\\"definition\\\":null}]\"}";
 
-    @Test
+
     public void testEncodeAndDecode() {
         Function.FunctionDetails functionDetails = Function.FunctionDetails.newBuilder().setName(NAME).build();
 
@@ -80,7 +80,7 @@ public class ProtobufSchemaTest {
         Assert.assertEquals(message.getName(), NAME);
     }
 
-    @Test
+
     public void testSchema() {
         ProtobufSchema<org.apache.pulsar.client.schema.proto.Test.TestMessage> protobufSchema
                 = ProtobufSchema.of(org.apache.pulsar.client.schema.proto.Test.TestMessage.class);
@@ -94,7 +94,7 @@ public class ProtobufSchemaTest {
         Assert.assertEquals(schema.toString(), EXPECTED_SCHEMA_JSON);
     }
 
-    @Test
+
     public void testGenericOf() {
         try {
             ProtobufSchema<org.apache.pulsar.client.schema.proto.Test.TestMessage> protobufSchema
@@ -114,7 +114,7 @@ public class ProtobufSchemaTest {
         }
     }
 
-    @Test
+
     public void testParsingInfoProperty() throws JsonProcessingException {
         ProtobufSchema<org.apache.pulsar.client.schema.proto.Test.TestMessage> protobufSchema
                 = ProtobufSchema.of(org.apache.pulsar.client.schema.proto.Test.TestMessage.class);
@@ -123,7 +123,7 @@ public class ProtobufSchemaTest {
 
     }
 
-    @Test
+
     public void testDecodeByteBuf() throws JsonProcessingException {
         ProtobufSchema<org.apache.pulsar.client.schema.proto.Test.TestMessage> protobufSchema
                 = ProtobufSchema.of(org.apache.pulsar.client.schema.proto.Test.TestMessage.class);

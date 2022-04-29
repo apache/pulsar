@@ -87,7 +87,7 @@ public class MultiTopicsConsumerImplTest {
         }
     }
 
-    @Test
+
     public void testGetStats() throws Exception {
         String topicName = "test-stats";
         ClientConfigurationData conf = new ClientConfigurationData();
@@ -122,7 +122,7 @@ public class MultiTopicsConsumerImplTest {
     //
     // Code under tests is using CompletableFutures. Theses may hang indefinitely if code is broken.
     // That's why a test timeout is defined.
-    @Test(timeOut = 5000)
+    
     public void testParallelSubscribeAsync() throws Exception {
         String topicName = "parallel-subscribe-async-topic";
         MultiTopicsConsumerImpl<byte[]> impl = createMultiTopicsConsumer();
@@ -159,7 +159,7 @@ public class MultiTopicsConsumerImplTest {
         return impl;
     }
 
-    @Test
+
     public void testReceiveAsyncCanBeCancelled() {
         // given
         MultiTopicsConsumerImpl<byte[]> consumer = createMultiTopicsConsumer();
@@ -171,7 +171,7 @@ public class MultiTopicsConsumerImplTest {
         assertTrue(consumer.pendingReceives.isEmpty());
     }
 
-    @Test
+
     public void testBatchReceiveAsyncCanBeCancelled() {
         // given
         MultiTopicsConsumerImpl<byte[]> consumer = createMultiTopicsConsumer();
@@ -183,7 +183,7 @@ public class MultiTopicsConsumerImplTest {
         assertFalse(consumer.hasPendingBatchReceive());
     }
 
-    @Test
+
     public void testConsumerCleanupOnSubscribeFailure() {
         ConsumerConfigurationData<byte[]> consumerConfData = new ConsumerConfigurationData<>();
         consumerConfData.setSubscriptionName("subscriptionName");
@@ -210,7 +210,7 @@ public class MultiTopicsConsumerImplTest {
         verify(clientMock, times(1)).cleanupConsumer(any());
     }
 
-    @Test
+
     public void testDontCheckForPartitionsUpdatesOnNonPartitionedTopics() throws Exception {
         ExecutorProvider executorProvider = mock(ExecutorProvider.class);
         ConsumerConfigurationData<byte[]> consumerConfData = new ConsumerConfigurationData<>();

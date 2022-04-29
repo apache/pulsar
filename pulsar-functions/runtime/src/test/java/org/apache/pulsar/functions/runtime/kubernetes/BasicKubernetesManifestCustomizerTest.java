@@ -37,7 +37,7 @@ import static org.testng.Assert.assertNull;
  */
 public class BasicKubernetesManifestCustomizerTest {
 
-    @Test
+
     public void TestInitializeWithNullData() {
         BasicKubernetesManifestCustomizer customizer = new BasicKubernetesManifestCustomizer();
         customizer.initialize(null);
@@ -49,7 +49,7 @@ public class BasicKubernetesManifestCustomizerTest {
         assertNull(customizer.getRuntimeOpts().getResourceRequirements());
     }
 
-    @Test
+
     public void TestInitializeWithData() {
         BasicKubernetesManifestCustomizer customizer = new BasicKubernetesManifestCustomizer();
         Map<String, Object> confs = new HashMap<>();
@@ -61,7 +61,7 @@ public class BasicKubernetesManifestCustomizerTest {
         assertEquals(customizer.getRuntimeOpts().getJobNamespace(), "custom-ns");
     }
 
-    @Test
+
     public void TestMergeRuntimeOpts() {
         Map<String, Object> configs = new Gson().fromJson(KubernetesRuntimeTest.createRuntimeCustomizerConfig(), HashMap.class);
         BasicKubernetesManifestCustomizer customizer = new BasicKubernetesManifestCustomizer();

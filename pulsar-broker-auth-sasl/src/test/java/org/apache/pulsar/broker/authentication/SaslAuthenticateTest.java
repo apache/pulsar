@@ -206,7 +206,7 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
     }
 
     // Test could verify with kerberos configured.
-    @Test
+
     public void testProducerAndConsumerPassed() throws Exception {
         log.info("-- {} -- start", methodName);
 
@@ -243,7 +243,7 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
     }
 
     // Test sasl server/client auth.
-    @Test
+
     public void testSaslServerAndClientAuth() throws Exception {
         log.info("-- {} -- start", methodName);
         String hostName = "localhost";

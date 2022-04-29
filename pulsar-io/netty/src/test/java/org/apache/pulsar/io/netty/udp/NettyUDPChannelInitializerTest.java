@@ -31,7 +31,7 @@ import io.netty.channel.socket.nio.NioDatagramChannel;
  */
 public class NettyUDPChannelInitializerTest {
 
-    @Test
+
     public void testChannelInitializer() throws Exception {
         NioDatagramChannel channel = new NioDatagramChannel();
 

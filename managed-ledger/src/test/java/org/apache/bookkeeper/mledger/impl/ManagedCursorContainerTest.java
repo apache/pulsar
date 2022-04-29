@@ -393,7 +393,7 @@ public class ManagedCursorContainerTest {
         }
     }
 
-    @Test
+
     public void testSlowestReadPositionForActiveCursors() throws Exception {
         ManagedCursorContainer container =
                 new ManagedCursorContainer(ManagedCursorContainer.CursorType.NonDurableCursor);
@@ -432,7 +432,7 @@ public class ManagedCursorContainerTest {
         assertEquals(container.getSlowestReadPositionForActiveCursors(), new PositionImpl(5, 8));
     }
 
-    @Test
+
     public void simple() throws Exception {
         ManagedCursorContainer container = new ManagedCursorContainer();
         assertNull(container.getSlowestReaderPosition());
@@ -487,7 +487,7 @@ public class ManagedCursorContainerTest {
         assertEquals(container.toString(), "[test6=6:5]");
     }
 
-    @Test
+
     public void updatingCursorOutsideContainer() throws Exception {
         ManagedCursorContainer container = new ManagedCursorContainer();
 
@@ -509,7 +509,7 @@ public class ManagedCursorContainerTest {
         assertEquals(container.getSlowestReaderPosition(), new PositionImpl(5, 5));
     }
 
-    @Test
+
     public void removingCursor() throws Exception {
         ManagedCursorContainer container = new ManagedCursorContainer();
 
@@ -546,7 +546,7 @@ public class ManagedCursorContainerTest {
         assertEquals(container.getSlowestReaderPosition(), new PositionImpl(5, 5));
     }
 
-    @Test
+
     public void ordering() throws Exception {
         ManagedCursorContainer container = new ManagedCursorContainer();
 
@@ -580,7 +580,7 @@ public class ManagedCursorContainerTest {
         assertFalse(container.hasDurableCursors());
     }
 
-    @Test
+
     public void orderingWithUpdates() throws Exception {
         ManagedCursorContainer container = new ManagedCursorContainer();
 
@@ -645,7 +645,7 @@ public class ManagedCursorContainerTest {
         assertFalse(container.hasDurableCursors());
     }
 
-    @Test
+
     public void orderingWithUpdatesAndReset() throws Exception {
         ManagedCursorContainer container = new ManagedCursorContainer();
 

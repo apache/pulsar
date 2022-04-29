@@ -124,14 +124,14 @@ public class AvroSchemaTest {
         long timeMicros;
     }
 
-    @Test
+
     public void testGetNativeSchema() throws SchemaValidationException {
         AvroSchema<StructWithAnnotations> schema2 = AvroSchema.of(StructWithAnnotations.class);
         org.apache.avro.Schema avroSchema2 = (Schema) schema2.getNativeSchema().get();
         assertSame(schema2.schema, avroSchema2);
     }
 
-    @Test
+
     public void testSchemaDefinition() throws SchemaValidationException {
         org.apache.avro.Schema schema1 = ReflectData.get().getSchema(DefaultStruct.class);
         AvroSchema<StructWithAnnotations> schema2 = AvroSchema.of(StructWithAnnotations.class);
@@ -179,7 +179,7 @@ public class AvroSchemaTest {
         JSONAssert.assertEquals(s1, s2, false);
     }
 
-    @Test
+
     public void testNotAllowNullSchema() throws JSONException {
         AvroSchema<Foo> avroSchema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).withAlwaysAllowNull(false).build());
         assertEquals(avroSchema.getSchemaInfo().getType(), SchemaType.AVRO);
@@ -201,7 +201,7 @@ public class AvroSchemaTest {
         }
     }
 
-    @Test
+
     public void testAllowNullSchema() throws JSONException {
         AvroSchema<Foo> avroSchema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
         assertEquals(avroSchema.getSchemaInfo().getType(), SchemaType.AVRO);
@@ -224,7 +224,7 @@ public class AvroSchemaTest {
         }
     }
 
-    @Test
+
     public void testNotAllowNullEncodeAndDecode() {
         AvroSchema<Foo> avroSchema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).withAlwaysAllowNull(false).build());
 
@@ -253,7 +253,7 @@ public class AvroSchemaTest {
 
     }
 
-    @Test
+
     public void testAllowNullEncodeAndDecode() {
         AvroSchema<Foo> avroSchema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
 
@@ -280,7 +280,7 @@ public class AvroSchemaTest {
 
     }
 
-    @Test
+
     public void testLogicalType() {
         AvroSchema<SchemaLogicalType> avroSchema = AvroSchema.of(SchemaDefinition.<SchemaLogicalType>builder()
                 .withPojo(SchemaLogicalType.class).withJSR310ConversionEnabled(true).build());
@@ -302,7 +302,7 @@ public class AvroSchemaTest {
 
     }
 
-    @Test
+
     public void testJodaTimeLogicalType() {
         AvroSchema<JodaTimeLogicalType> avroSchema = AvroSchema.of(SchemaDefinition.<JodaTimeLogicalType>builder()
                 .withPojo(JodaTimeLogicalType.class).build());
@@ -321,7 +321,7 @@ public class AvroSchemaTest {
         assertEquals(object1, schemaLogicalType);
     }
 
-  @Test
+
   public void testDateAndTimestamp() {
     RecordSchemaBuilder recordSchemaBuilder =
         SchemaBuilder.record("org.apache.pulsar.client.avro.generated.NasaMission");
@@ -360,7 +360,7 @@ public class AvroSchemaTest {
     assertEquals(object, nasaMission);
   }
 
-    @Test
+
     public void testDecodeByteBuf() {
         AvroSchema<Foo> avroSchema = AvroSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
 
@@ -383,7 +383,7 @@ public class AvroSchemaTest {
         assertEquals(object1, foo1);
     }
 
-    @Test
+
     public void discardBufferIfBadAvroData() {
         AvroWriter<NasaMission> avroWriter = new AvroWriter<>(
                 ReflectData.AllowNull.get().getSchema(NasaMission.class));
@@ -403,7 +403,7 @@ public class AvroSchemaTest {
         Assert.assertEquals(((BufferedBinaryEncoder)encoder).bytesBuffered(), 0);
     }
 
-    @Test
+
     public void testAvroSchemaUserDefinedReadAndWriter() {
         SchemaReader<Foo> reader = new JacksonJsonReader<>(new ObjectMapper(), Foo.class);
         SchemaWriter<Foo> writer = new JacksonJsonWriter<>(new ObjectMapper());
@@ -428,7 +428,7 @@ public class AvroSchemaTest {
         public UUID uid;
     }
 
-    @Test
+
     public void testAvroUUID() {
         org.apache.pulsar.client.api.Schema<MyPojo> schema = org.apache.pulsar.client.api.Schema.AVRO(MyPojo.class);
         MyPojo pojo1 = new MyPojo();
@@ -448,7 +448,7 @@ public class AvroSchemaTest {
         public BigDecimal value2;
     }
 
-    @Test
+
     public void testAvroBigDecimal() {
         org.apache.pulsar.client.api.Schema<MyBigDecimalPojo> schema =
                 org.apache.pulsar.client.api.Schema.AVRO(MyBigDecimalPojo.class);

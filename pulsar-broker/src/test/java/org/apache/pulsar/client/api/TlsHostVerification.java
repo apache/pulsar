@@ -27,10 +27,10 @@ import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker-api")
+
 public class TlsHostVerification extends TlsProducerConsumerBase {
 
-    @Test
+
     public void testTlsHostVerificationAdminClient() throws Exception {
         Map<String, String> authParams = new HashMap<>();
         authParams.put("tlsCertFile", TLS_CLIENT_CERT_FILE_PATH);
@@ -50,7 +50,7 @@ public class TlsHostVerification extends TlsProducerConsumerBase {
         }
     }
 
-    @Test
+
     public void testTlsHostVerificationDisabledAdminClient() throws Exception {
         Map<String, String> authParams = new HashMap<>();
         authParams.put("tlsCertFile", TLS_CLIENT_CERT_FILE_PATH);

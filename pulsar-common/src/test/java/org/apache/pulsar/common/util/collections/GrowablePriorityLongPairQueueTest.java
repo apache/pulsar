@@ -42,7 +42,7 @@ import com.google.common.collect.Lists;
 
 public class GrowablePriorityLongPairQueueTest {
 
-    @Test
+
     public void testConstructor() {
         try {
             new GrowablePriorityLongPairQueue(0);
@@ -53,7 +53,7 @@ public class GrowablePriorityLongPairQueueTest {
 
     }
 
-    @Test
+
     public void simpleInsertions() {
         GrowablePriorityLongPairQueue queue = new GrowablePriorityLongPairQueue(16);
 
@@ -79,7 +79,7 @@ public class GrowablePriorityLongPairQueueTest {
         assertEquals(queue.size(), 4);
     }
 
-    @Test
+
     public void testRemove() {
         GrowablePriorityLongPairQueue queue = new GrowablePriorityLongPairQueue();
 
@@ -93,7 +93,7 @@ public class GrowablePriorityLongPairQueueTest {
         assertTrue(queue.isEmpty());
     }
 
-    @Test
+
     public void testExpandQueue() {
         int n = 16;
         GrowablePriorityLongPairQueue queue = new GrowablePriorityLongPairQueue(n / 2);
@@ -108,7 +108,7 @@ public class GrowablePriorityLongPairQueueTest {
         assertEquals(queue.size(), n);
     }
 
-    @Test
+
     public void testExpandRemoval() {
         int n = 16;
         GrowablePriorityLongPairQueue queue = new GrowablePriorityLongPairQueue(n / 2);
@@ -134,7 +134,7 @@ public class GrowablePriorityLongPairQueueTest {
         assertEquals(queue.size(), 0);
     }
 
-    @Test
+
     public void testExpandWithDeletes() {
         int n = 16;
         GrowablePriorityLongPairQueue queue = new GrowablePriorityLongPairQueue(n / 2);
@@ -160,7 +160,7 @@ public class GrowablePriorityLongPairQueueTest {
         assertEquals(queue.size(), 0);
     }
 
-    @Test
+
     public void concurrentInsertions() throws Throwable {
         GrowablePriorityLongPairQueue queue = new GrowablePriorityLongPairQueue();
         @Cleanup("shutdownNow")
@@ -193,7 +193,7 @@ public class GrowablePriorityLongPairQueueTest {
         assertEquals(queue.size(), N * nThreads);
     }
 
-    @Test
+
     public void concurrentInsertionsAndReads() throws Throwable {
         GrowablePriorityLongPairQueue map = new GrowablePriorityLongPairQueue();
         @Cleanup("shutdownNow")
@@ -226,7 +226,7 @@ public class GrowablePriorityLongPairQueueTest {
         assertEquals(map.size(), N * nThreads);
     }
 
-    @Test
+
     public void testIteration() {
         GrowablePriorityLongPairQueue queue = new GrowablePriorityLongPairQueue();
 
@@ -252,7 +252,7 @@ public class GrowablePriorityLongPairQueueTest {
         assertTrue(queue.isEmpty());
     }
 
-    @Test
+
     public void testRemoval() {
         GrowablePriorityLongPairQueue queue = new GrowablePriorityLongPairQueue();
 
@@ -281,7 +281,7 @@ public class GrowablePriorityLongPairQueueTest {
         assertEquals(values, Lists.newArrayList(new LongPair(6, 6), new LongPair(7, 7)));
     }
 
-    @Test
+
     public void testIfRemoval() {
         GrowablePriorityLongPairQueue queue = new GrowablePriorityLongPairQueue();
 
@@ -305,7 +305,7 @@ public class GrowablePriorityLongPairQueueTest {
         assertEquals(values, Lists.newArrayList(new LongPair(6, 6), new LongPair(7, 7)));
     }
 
-    @Test
+
     public void testItems() {
         GrowablePriorityLongPairQueue queue = new GrowablePriorityLongPairQueue();
 
@@ -325,7 +325,7 @@ public class GrowablePriorityLongPairQueueTest {
         assertEquals(queue.size(), n - limit);
     }
 
-    @Test
+
     public void testEqualsObjects() {
 
         GrowablePriorityLongPairQueue queue = new GrowablePriorityLongPairQueue();
@@ -340,7 +340,7 @@ public class GrowablePriorityLongPairQueueTest {
         assertTrue(queue.remove(t1_b, t1_b));
     }
 
-    @Test
+
     public void testInsertAndRemove() throws Exception {
         GrowablePriorityLongPairQueue queue = new GrowablePriorityLongPairQueue(8);
         queue.add(10, 10);
@@ -365,7 +365,7 @@ public class GrowablePriorityLongPairQueueTest {
         assertEquals(queue.remove(), new LongPair(33, 1));
     }
 
-    @Test
+
     public void testSetWithDuplicateInsert() {
         GrowablePriorityLongPairQueue queue = new GrowablePriorityLongPairQueue(1);
 

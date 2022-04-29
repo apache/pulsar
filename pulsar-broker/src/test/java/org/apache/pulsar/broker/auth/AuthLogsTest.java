@@ -45,7 +45,7 @@ import org.slf4j.LoggerFactory;
  * However it is useful to see which logs are produced when there's an
  * failure or error in authentication.
  */
-@Test(groups = "flaky")
+
 public class AuthLogsTest extends MockedPulsarServiceBaseTest {
     private static final Logger log = LoggerFactory.getLogger(AuthLogsTest.class);
 
@@ -83,7 +83,7 @@ public class AuthLogsTest extends MockedPulsarServiceBaseTest {
         internalCleanup();
     }
 
-    @Test
+    
     public void binaryEndpoint() throws Exception {
         log.info("LOG_TEST_SUCCESS_CLIENT should succeeed both client");
         try (PulsarClient client = PulsarClient.builder()
@@ -174,7 +174,7 @@ public class AuthLogsTest extends MockedPulsarServiceBaseTest {
         log.info("LOG_TEST_CLIENT_DONE");
     }
 
-    @Test
+    
     public void httpEndpoint() throws Exception {
         log.info("LOG_TEST_SUCCESS_CLIENT should succeeed both client");
         try (PulsarAdmin admin = PulsarAdmin.builder()

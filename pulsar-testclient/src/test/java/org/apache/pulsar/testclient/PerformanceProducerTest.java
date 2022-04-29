@@ -72,7 +72,7 @@ public class PerformanceProducerTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test(timeOut = 20000)
+    
     public void testMsgKey() throws Exception {
         String argString = "%s -r 10 -u %s -m 500";
         String topic = testTopic + UUID.randomUUID();
@@ -161,7 +161,7 @@ public class PerformanceProducerTest extends MockedPulsarServiceBaseTest {
         newConsumer2.close();
     }
 
-    @Test(timeOut = 20000)
+    
     public void testCreatePartitions() throws Exception {
         String argString = "%s -r 10 -u %s -au %s -m 5 -np 10";
         String topic = testTopic + UUID.randomUUID().toString();
@@ -178,13 +178,13 @@ public class PerformanceProducerTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(10, pulsar.getAdminClient().topics().getPartitionedTopicMetadata(topic).partitions);
     }
 
-    @Test
+
     public void testNotExistIMessageFormatter() {
         IMessageFormatter msgFormatter = PerformanceProducer.getMessageFormatter("org.apache.pulsar.testclient.NonExistentFormatter");
         Assert.assertNull(msgFormatter);
     }
 
-    @Test
+
     public void testDefaultIMessageFormatter() {
         IMessageFormatter msgFormatter = PerformanceProducer.getMessageFormatter("org.apache.pulsar.testclient.DefaultMessageFormatter");
         Assert.assertTrue(msgFormatter instanceof DefaultMessageFormatter);

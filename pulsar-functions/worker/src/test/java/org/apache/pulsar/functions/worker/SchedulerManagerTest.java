@@ -151,7 +151,7 @@ public class SchedulerManagerTest {
         this.executor.shutdownNow();
     }
 
-    @Test
+    
     public void testSchedule() throws Exception {
 
         List<Function.FunctionMetaData> functionMetaDataList = new LinkedList<>();
@@ -198,7 +198,7 @@ public class SchedulerManagerTest {
         verify(errorNotifier, times(0)).triggerError(any());
     }
 
-    @Test
+    
     public void testNothingNewToSchedule() throws Exception {
 
         List<Function.FunctionMetaData> functionMetaDataList = new LinkedList<>();
@@ -241,7 +241,7 @@ public class SchedulerManagerTest {
         verify(errorNotifier, times(0)).triggerError(any());
     }
 
-    @Test
+    
     public void testAddingFunctions() throws Exception {
         List<Function.FunctionMetaData> functionMetaDataList = new LinkedList<>();
         long version = 5;
@@ -303,7 +303,7 @@ public class SchedulerManagerTest {
         verify(functionRuntimeManager, times(1)).processAssignment(eq(assignment2));
     }
 
-    @Test
+    
     public void testDeletingFunctions() throws Exception {
         List<Function.FunctionMetaData> functionMetaDataList = new LinkedList<>();
         long version = 5;
@@ -370,7 +370,7 @@ public class SchedulerManagerTest {
                 .deleteAssignment(eq(FunctionCommon.getFullyQualifiedInstanceId(assignment2.getInstance())));
     }
 
-    @Test
+    
     public void testScalingUp() throws Exception {
         List<Function.FunctionMetaData> functionMetaDataList = new LinkedList<>();
         long version = 5;
@@ -482,7 +482,7 @@ public class SchedulerManagerTest {
         assertTrue(allAssignments.contains(assignment2Scaled3));
     }
 
-    @Test
+    
     public void testScalingDown() throws Exception {
         List<Function.FunctionMetaData> functionMetaDataList = new LinkedList<>();
         long version = 5;
@@ -632,7 +632,7 @@ public class SchedulerManagerTest {
         verify(functionRuntimeManager, times(1)).processAssignment(eq(assignment2Scaled));
     }
 
-    @Test
+    
     public void testHeartbeatFunction() throws Exception {
         List<Function.FunctionMetaData> functionMetaDataList = new LinkedList<>();
         final long version = 5;
@@ -688,7 +688,7 @@ public class SchedulerManagerTest {
         });
     }
 
-    @Test
+    
     public void testUpdate() throws Exception {
         List<Function.FunctionMetaData> functionMetaDataList = new LinkedList<>();
         long version = 5;
@@ -838,7 +838,7 @@ public class SchedulerManagerTest {
         verify(functionRuntimeManager, times(1)).processAssignment(eq(assignment2Updated3));
     }
 
-    @Test
+    
     public void testAssignmentWorkerDoesNotExist() throws Exception {
         List<Function.FunctionMetaData> functionMetaDataList = new LinkedList<>();
         long version = 5;
@@ -897,7 +897,7 @@ public class SchedulerManagerTest {
         Assert.assertEquals(invocations.size(), 0);
     }
 
-    @Test
+    
     public void testDrain() throws Exception {
 
         final int numWorkers = 4;
@@ -991,7 +991,7 @@ public class SchedulerManagerTest {
         Assert.assertTrue(dStatus.lastError.isEmpty());
     }
 
-    @Test
+    
     public void testGetDrainStatus() throws Exception {
         // Clear the drain status map in the SchedulerManager; all other parameters are don't care for a clear.
         callGetDrainStatus(null, DrainOps.ClearDrainMap,
@@ -1028,7 +1028,7 @@ public class SchedulerManagerTest {
         Assert.assertTrue(dStatus.lastError.isEmpty());
     }
 
-    @Test
+    
     public void testDrainExceptions() throws Exception {
 
         // i am leader
@@ -1058,7 +1058,7 @@ public class SchedulerManagerTest {
         Assert.expectThrows(SchedulerManager.UnknownWorkerException.class, () -> callDrain(unknownWorkerId));
     }
 
-    @Test
+    
     public void testUpdateWorkerDrainMap() throws Exception {
         final int numWorkersInDrainMap = 5;
         String workerId;

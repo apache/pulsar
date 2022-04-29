@@ -41,7 +41,7 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker")
+
 public class ManagedLedgerMetricsTest extends BrokerTestBase {
 
     @BeforeClass
@@ -56,7 +56,7 @@ public class ManagedLedgerMetricsTest extends BrokerTestBase {
         super.internalCleanup();
     }
 
-    @Test
+
     public void testManagedLedgerMetrics() throws Exception {
         ManagedLedgerMetrics metrics = new ManagedLedgerMetrics(pulsar);
 
@@ -94,7 +94,7 @@ public class ManagedLedgerMetricsTest extends BrokerTestBase {
 
     }
 
-    @Test
+
     public void testTransactionTopic() throws Exception {
         admin.tenants().createTenant(NamespaceName.SYSTEM_NAMESPACE.getTenant(),
                 new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet("test")));

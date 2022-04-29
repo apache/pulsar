@@ -77,7 +77,7 @@ import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker")
+
 public class PersistentStickyKeyDispatcherMultipleConsumersTest {
 
     private PulsarService pulsarMock;
@@ -156,7 +156,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         }
     }
 
-    @Test
+
     public void testSendMarkerMessage() {
         try {
             persistentDispatcher.addConsumer(consumerMock);
@@ -195,7 +195,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         Assert.assertEquals(allTotalMessagesCaptor.get(0).intValue(), 5);
     }
 
-    @Test(timeOut = 10000)
+    
     public void testSendMessage() {
         try (MockedStatic<DispatchRateLimiter> rateLimiterMockedStatic = mockStatic(DispatchRateLimiter.class);) {
             rateLimiterMockedStatic.when(() -> DispatchRateLimiter.isDispatchRateNeeded(
@@ -234,7 +234,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         }
     }
 
-    @Test
+
     public void testSkipRedeliverTemporally() {
         final Consumer slowConsumerMock = mock(Consumer.class);
         final ChannelPromise slowChannelMock = mock(ChannelPromise.class);
@@ -318,7 +318,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         );
     }
 
-    @Test(timeOut = 30000)
+    
     public void testMessageRedelivery() throws Exception {
         final Queue<Position> actualEntriesToConsumer1 = new ConcurrentLinkedQueue<>();
         final Queue<Position> actualEntriesToConsumer2 = new ConcurrentLinkedQueue<>();

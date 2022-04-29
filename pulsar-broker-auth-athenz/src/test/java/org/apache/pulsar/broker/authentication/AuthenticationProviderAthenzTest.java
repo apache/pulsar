@@ -61,7 +61,7 @@ public class AuthenticationProviderAthenzTest {
         System.setProperty(ZpeConsts.ZPE_PROP_ATHENZ_CONF, "./src/test/resources/athenz.conf.test");
     }
 
-    @Test
+
     public void testInitilizeFromSystemPropeties() {
         System.setProperty("pulsar.athenz.domain.names", "test_provider");
         ServiceConfiguration emptyConf = new ServiceConfiguration();
@@ -101,7 +101,7 @@ public class AuthenticationProviderAthenzTest {
         }
     }
 
-    @Test
+
     public void testAuthenticateSignedToken() throws Exception {
 
         List<String> roles = new ArrayList<String>() {
@@ -117,7 +117,7 @@ public class AuthenticationProviderAthenzTest {
         assertEquals(provider.authenticate(authData), "test_app");
     }
 
-    @Test
+
     public void testAuthenticateUnsignedToken() throws Exception {
 
         List<String> roles = new ArrayList<String>() {
@@ -136,7 +136,7 @@ public class AuthenticationProviderAthenzTest {
         }
     }
 
-    @Test
+
     public void testAuthenticateSignedTokenWithDifferentDomain() throws Exception {
 
         List<String> roles = new ArrayList<String>() {

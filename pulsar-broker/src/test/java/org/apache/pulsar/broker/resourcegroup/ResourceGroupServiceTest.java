@@ -84,7 +84,7 @@ public class ResourceGroupServiceTest extends MockedPulsarServiceBaseTest {
     }
 
     // Measure the overhead for a lookup in the codepath, going through ResourceGroupService.
-    @Test
+
     public void measureOpsTime() throws PulsarAdminException {
         long mSecsStart, mSecsEnd, diffMsecs;
         final int numPerfTestIterations = 10_000_000;
@@ -143,7 +143,7 @@ public class ResourceGroupServiceTest extends MockedPulsarServiceBaseTest {
         rgs.resourceGroupDelete(rgName);
     }
 
-    @Test
+
     public void testResourceGroupOps() throws PulsarAdminException, InterruptedException {
         org.apache.pulsar.common.policies.data.ResourceGroup rgConfig =
           new org.apache.pulsar.common.policies.data.ResourceGroup();

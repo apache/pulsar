@@ -37,7 +37,7 @@ import org.testng.annotations.Test;
 
 public class ReadOnlyCursorTest extends MockedBookKeeperTestCase {
 
-    @Test
+
     void notFound() throws Exception {
         try {
             factory.openReadOnlyCursor("notFound", PositionImpl.EARLIEST, new ManagedLedgerConfig());
@@ -49,7 +49,7 @@ public class ReadOnlyCursorTest extends MockedBookKeeperTestCase {
         factory.shutdown();
     }
 
-    @Test
+
     void simple() throws Exception {
         ManagedLedger ledger = factory.open("simple", new ManagedLedgerConfig().setRetentionTime(1, TimeUnit.HOURS));
 
@@ -100,7 +100,7 @@ public class ReadOnlyCursorTest extends MockedBookKeeperTestCase {
         cursor.close();
     }
 
-    @Test
+
     void skip() throws Exception {
         ManagedLedger ledger = factory.open("skip",
                 new ManagedLedgerConfig()
@@ -127,7 +127,7 @@ public class ReadOnlyCursorTest extends MockedBookKeeperTestCase {
         cursor.close();
     }
 
-    @Test
+
     void skipAll() throws Exception {
         ManagedLedger ledger = factory.open("skip-all",
                 new ManagedLedgerConfig().setMaxEntriesPerLedger(7).setRetentionTime(1, TimeUnit.HOURS));
@@ -152,7 +152,7 @@ public class ReadOnlyCursorTest extends MockedBookKeeperTestCase {
         cursor.close();
     }
 
-    @Test
+
     void skipMultiple() throws Exception {
         ManagedLedger ledger = factory.open("skip",
                 new ManagedLedgerConfig()
@@ -184,7 +184,7 @@ public class ReadOnlyCursorTest extends MockedBookKeeperTestCase {
         cursor.close();
     }
 
-    @Test
+
     void empty() throws Exception {
         factory.open("empty", new ManagedLedgerConfig().setRetentionTime(1, TimeUnit.HOURS));
 
@@ -196,7 +196,7 @@ public class ReadOnlyCursorTest extends MockedBookKeeperTestCase {
         cursor.close();
     }
 
-    @Test
+
     void specifyStartPosition() throws Exception {
         ManagedLedger ledger = factory.open("simple", new ManagedLedgerConfig().setRetentionTime(1, TimeUnit.HOURS));
 

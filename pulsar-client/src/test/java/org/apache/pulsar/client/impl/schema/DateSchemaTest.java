@@ -27,7 +27,7 @@ import java.util.Date;
 
 public class DateSchemaTest {
 
-    @Test
+
     public void testSchemaEncode() {
         DateSchema schema = DateSchema.of();
         Date data = new Date();
@@ -44,7 +44,7 @@ public class DateSchemaTest {
         Assert.assertEquals(expected, schema.encode(data));
     }
 
-    @Test
+
     public void testSchemaEncodeDecodeFidelity() {
         DateSchema schema = DateSchema.of();
         Date date = new Date();
@@ -55,7 +55,7 @@ public class DateSchemaTest {
         Assert.assertEquals(date, schema.decode(byteBuf));
     }
 
-    @Test
+
     public void testSchemaDecode() {
         byte[] byteData = new byte[] {
                0,
@@ -75,7 +75,7 @@ public class DateSchemaTest {
         Assert.assertEquals(expected, schema.decode(byteBuf).getTime());
     }
 
-    @Test
+
     public void testNullEncodeDecode() {
         ByteBuf byteBuf = null;
         byte[] bytes = null;

@@ -77,7 +77,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-@Test(groups = "functions-worker")
+
 public class PulsarFunctionE2ESecurityTest {
 
     LocalBookkeeperEnsemble bkEnsemble;
@@ -293,7 +293,7 @@ public class PulsarFunctionE2ESecurityTest {
         return functionConfig;
     }
 
-    @Test
+
     public void testAuthorizationWithAnonymousUser() throws Exception {
 
         final String replNamespace = TENANT + "/" + NAMESPACE;
@@ -553,7 +553,7 @@ public class PulsarFunctionE2ESecurityTest {
         }
     }
 
-    @Test
+
     public void testAuthorization() throws Exception {
         String token1 = AuthTokenUtils.createToken(secretKey, SUBJECT, Optional.empty());
         String token2 = AuthTokenUtils.createToken(secretKey, "wrong-subject", Optional.empty());

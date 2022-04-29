@@ -80,7 +80,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker")
+
 public class PersistentSubscriptionTest {
 
     private PulsarService pulsarMock;
@@ -222,7 +222,7 @@ public class PersistentSubscriptionTest {
         }
     }
 
-    @Test
+
     public void testCanAcknowledgeAndCommitForTransaction() throws ExecutionException, InterruptedException {
         doAnswer((invocationOnMock) -> {
             ((AsyncCallbacks.DeleteCallback) invocationOnMock.getArguments()[1])
@@ -266,7 +266,7 @@ public class PersistentSubscriptionTest {
         persistentSubscription.endTxn(txnID1.getMostSigBits(), txnID1.getLeastSigBits(), TxnAction.COMMIT_VALUE, -1).get();
     }
 
-    @Test
+
     public void testCanAcknowledgeAndAbortForTransaction() throws Exception {
         List<MutablePair<PositionImpl, Integer>> positionsPair = new ArrayList<>();
         positionsPair.add(new MutablePair<>(new PositionImpl(2, 1), 0));

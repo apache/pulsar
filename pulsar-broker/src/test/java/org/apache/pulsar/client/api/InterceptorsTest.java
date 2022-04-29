@@ -48,7 +48,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker-api")
+
 public class InterceptorsTest extends ProducerConsumerBase {
 
     private static final Logger log = LoggerFactory.getLogger(InterceptorsTest.class);
@@ -79,7 +79,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
         return new Object[][] {{ 0 }, { 3 }};
     }
 
-    @Test
+
     public void testProducerInterceptor() throws Exception {
         Map<MessageId, List<String>> ackCallback = new HashMap<>();
 
@@ -154,7 +154,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
         producer.close();
     }
 
-    @Test
+
     public void testProducerInterceptorsWithExceptions() throws PulsarClientException {
         ProducerInterceptor<String> interceptor = new ProducerInterceptor<String>() {
             @Override
@@ -182,7 +182,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
         producer.close();
     }
 
-    @Test
+
     public void testProducerInterceptorsWithErrors() throws PulsarClientException {
         ProducerInterceptor<String> interceptor = new ProducerInterceptor<String>() {
             @Override
@@ -210,7 +210,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
         producer.close();
     }
 
-    @Test
+
     public void testConsumerInterceptorWithErrors() throws PulsarClientException {
         ConsumerInterceptor<String> interceptor = new ConsumerInterceptor<String>() {
             @Override
@@ -283,7 +283,6 @@ public class InterceptorsTest extends ProducerConsumerBase {
         consumer2.close();
     }
 
-    @Test(dataProvider = "receiverQueueSize")
     public void testConsumerInterceptorWithSingleTopicSubscribe(Integer receiverQueueSize) throws Exception {
         ConsumerInterceptor<String> interceptor = new ConsumerInterceptor<String>() {
             @Override
@@ -392,7 +391,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
         consumer.close();
     }
 
-    @Test
+
     public void testConsumerInterceptorWithMultiTopicSubscribe() throws PulsarClientException {
 
         ConsumerInterceptor<String> interceptor = new ConsumerInterceptor<String>() {
@@ -464,7 +463,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
         consumer.close();
     }
 
-    @Test
+
     public void testConsumerInterceptorWithPatternTopicSubscribe() throws PulsarClientException {
 
         ConsumerInterceptor<String> interceptor = new ConsumerInterceptor<String>() {
@@ -536,7 +535,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
         consumer.close();
     }
 
-    @Test
+
     public void testConsumerInterceptorForAcknowledgeCumulative() throws PulsarClientException {
 
         List<MessageId> ackHolder = new ArrayList<>();
@@ -612,7 +611,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
         consumer.close();
     }
 
-    @Test
+
     public void testConsumerInterceptorForNegativeAcksSend() throws PulsarClientException, InterruptedException {
         final int totalNumOfMessages = 100;
         CountDownLatch latch = new CountDownLatch(totalNumOfMessages / 2);
@@ -682,7 +681,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
         consumer.close();
     }
 
-    @Test
+
     public void testConsumerInterceptorForAckTimeoutSend() throws PulsarClientException, InterruptedException {
         final int totalNumOfMessages = 100;
         CountDownLatch latch = new CountDownLatch(totalNumOfMessages / 2);
@@ -748,7 +747,6 @@ public class InterceptorsTest extends ProducerConsumerBase {
         consumer.close();
     }
 
-    @Test(timeOut = 1000 * 30, dataProvider = "topicPartition")
     public void testReaderInterceptor(int topicPartition) throws Exception {
         String topic = "reader-interceptor-" + topicPartition + "-" + RandomStringUtils.randomAlphabetic(5);
         if (topicPartition > 0) {

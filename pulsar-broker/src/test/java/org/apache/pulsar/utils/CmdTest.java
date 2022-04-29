@@ -25,20 +25,20 @@ import java.lang.reflect.Field;
 import org.apache.pulsar.common.configuration.FieldContext;
 import org.testng.annotations.Test;
 
-@Test(groups = "utils")
+
 public class CmdTest {
 
-    @Test
+
     public void cmdParserTest() throws Exception {
         generateDoc("org.apache.pulsar.broker.ServiceConfiguration");
     }
 
-    @Test
+
     public void cmdParserWebSocketTest() throws Exception {
         generateDoc("org.apache.pulsar.websocket.service.WebSocketProxyConfiguration");
     }
 
-    @Test
+
     public void cmdParserClientTest() throws Exception {
         generateDoc("org.apache.pulsar.client.impl.conf.ClientConfigurationData");
     }

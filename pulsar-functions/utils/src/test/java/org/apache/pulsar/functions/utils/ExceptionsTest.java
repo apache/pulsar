@@ -34,7 +34,7 @@ import org.testng.annotations.Test;
  */
 public class ExceptionsTest {
 
-    @Test
+
     public void testRethrowIOException() {
         IOException ioe = new IOException("test");
         try {
@@ -45,7 +45,7 @@ public class ExceptionsTest {
         }
     }
 
-    @Test
+
     public void testRethrowRuntimeExceptionAsIOException() throws IOException {
         RuntimeException re = new RuntimeException("test");
         try {
@@ -56,7 +56,7 @@ public class ExceptionsTest {
         }
     }
 
-    @Test
+
     public void testRethrowErrorAsIOException() throws IOException {
         Error error = new Error("test");
         try {
@@ -67,7 +67,7 @@ public class ExceptionsTest {
         }
     }
 
-    @Test
+
     public void testRethrowOtherExceptionAsIOException() throws IOException {
         Exception e = new Exception("test");
         try {
@@ -79,27 +79,27 @@ public class ExceptionsTest {
         }
     }
 
-    @Test
+
     public void testAreExceptionsPresentInChain() {
         assertFalse(Exceptions.areExceptionsPresentInChain(null, IllegalStateException.class));
     }
 
-    @Test
+
     public void testAreExceptionsPresentInChain2() {
         assertTrue(Exceptions.areExceptionsPresentInChain(new IllegalStateException(), IllegalStateException.class));
     }
 
-    @Test
+
     public void testAreExceptionsPresentInChain3() {
         assertTrue(Exceptions.areExceptionsPresentInChain(new IllegalArgumentException(new IllegalStateException()), IllegalStateException.class));
     }
 
-    @Test
+
     public void testAreExceptionsPresentInChain4() {
         assertTrue(Exceptions.areExceptionsPresentInChain(new IllegalArgumentException(new IllegalStateException()), UnsupportedOperationException.class, IllegalStateException.class));
     }
 
-    @Test
+
     public void testAreExceptionsPresentInChain5() {
         assertFalse(Exceptions.areExceptionsPresentInChain(new IllegalArgumentException(new IllegalArgumentException()), IllegalStateException.class));
     }

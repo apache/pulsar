@@ -113,14 +113,14 @@ public class TestPrestoQueryTieredStorage extends TestPulsarSQLBase {
         pulsarCluster.stopPrestoWorker();
     }
 
-    @Test
+
     public void testQueryTieredStorage1() throws Exception {
         TopicName topicName = TopicName.get(
                 TopicDomain.persistent.value(), TENANT, NAMESPACE, "stocks_ts_nons_" + randomName(5));
         pulsarSQLBasicTest(topicName, false, false, JSONSchema.of(Stock.class), CompressionType.NONE);
     }
 
-    @Test
+
     public void testQueryTieredStorage2() throws Exception {
         TopicName topicName = TopicName.get(
                 TopicDomain.persistent.value(), TENANT, NAMESPACE, "stocks_ts_ns_" + randomName(5));

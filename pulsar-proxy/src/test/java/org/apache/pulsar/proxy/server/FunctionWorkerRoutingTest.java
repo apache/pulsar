@@ -28,7 +28,7 @@ import static org.mockito.Mockito.when;
 
 public class FunctionWorkerRoutingTest {
 
-    @Test
+
     public void testFunctionWorkerRedirect() throws Exception {
         String functionWorkerUrl = "http://function";
         String brokerUrl = "http://broker";

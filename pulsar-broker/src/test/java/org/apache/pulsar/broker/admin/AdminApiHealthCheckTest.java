@@ -35,7 +35,7 @@ import org.testng.annotations.Test;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
-@Test(groups = "broker-admin")
+
 @Slf4j
 public class AdminApiHealthCheckTest extends MockedPulsarServiceBaseTest {
 
@@ -60,7 +60,7 @@ public class AdminApiHealthCheckTest extends MockedPulsarServiceBaseTest {
         super.internalCleanup();
     }
 
-    @Test
+
     public void testHealthCheckup() throws Exception {
         final int times = 30;
         CompletableFuture<Void> future = new CompletableFuture<>();
@@ -93,7 +93,7 @@ public class AdminApiHealthCheckTest extends MockedPulsarServiceBaseTest {
         );
     }
 
-    @Test
+
     public void testHealthCheckupV1() throws Exception {
         final int times = 30;
         CompletableFuture<Void> future = new CompletableFuture<>();
@@ -126,7 +126,7 @@ public class AdminApiHealthCheckTest extends MockedPulsarServiceBaseTest {
         );
     }
 
-    @Test
+
     public void testHealthCheckupV2() throws Exception {
         final int times = 30;
         CompletableFuture<Void> future = new CompletableFuture<>();

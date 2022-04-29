@@ -27,7 +27,7 @@ import org.testng.annotations.Test;
 
 public class MinAvailablePolicyTest {
 
-    @Test
+
     public void testMinAvailablePolicty() {
         MinAvailablePolicy m = new MinAvailablePolicy(3, 10);
         assertNotEquals(new OldPolicies(), m);

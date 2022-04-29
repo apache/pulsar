@@ -53,7 +53,7 @@ public class PulsarSchemaToKafkaSchemaTest {
         Long field3;
     }
 
-    @Test
+
     public void bytesSchemaTest() {
         org.apache.kafka.connect.data.Schema kafkaSchema =
                 PulsarSchemaToKafkaSchema.getKafkaConnectSchema(Schema.BYTES);
@@ -64,63 +64,63 @@ public class PulsarSchemaToKafkaSchemaTest {
         assertEquals(kafkaSchema.type(), org.apache.kafka.connect.data.Schema.Type.BYTES);
     }
 
-    @Test
+
     public void stringSchemaTest() {
         org.apache.kafka.connect.data.Schema kafkaSchema =
                 PulsarSchemaToKafkaSchema.getKafkaConnectSchema(Schema.STRING);
         assertEquals(kafkaSchema.type(), org.apache.kafka.connect.data.Schema.Type.STRING);
     }
 
-    @Test
+
     public void booleanSchemaTest() {
         org.apache.kafka.connect.data.Schema kafkaSchema =
                 PulsarSchemaToKafkaSchema.getKafkaConnectSchema(Schema.BOOL);
         assertEquals(kafkaSchema.type(), org.apache.kafka.connect.data.Schema.Type.BOOLEAN);
     }
 
-    @Test
+
     public void int8SchemaTest() {
         org.apache.kafka.connect.data.Schema kafkaSchema =
                 PulsarSchemaToKafkaSchema.getKafkaConnectSchema(Schema.INT8);
         assertEquals(kafkaSchema.type(), org.apache.kafka.connect.data.Schema.Type.INT8);
     }
 
-    @Test
+
     public void int16SchemaTest() {
         org.apache.kafka.connect.data.Schema kafkaSchema =
                 PulsarSchemaToKafkaSchema.getKafkaConnectSchema(Schema.INT16);
         assertEquals(kafkaSchema.type(), org.apache.kafka.connect.data.Schema.Type.INT16);
     }
 
-    @Test
+
     public void int32SchemaTest() {
         org.apache.kafka.connect.data.Schema kafkaSchema =
                 PulsarSchemaToKafkaSchema.getKafkaConnectSchema(Schema.INT32);
         assertEquals(kafkaSchema.type(), org.apache.kafka.connect.data.Schema.Type.INT32);
     }
 
-    @Test
+
     public void int64SchemaTest() {
         org.apache.kafka.connect.data.Schema kafkaSchema =
                 PulsarSchemaToKafkaSchema.getKafkaConnectSchema(Schema.INT64);
         assertEquals(kafkaSchema.type(), org.apache.kafka.connect.data.Schema.Type.INT64);
     }
 
-    @Test
+
     public void float32SchemaTest() {
         org.apache.kafka.connect.data.Schema kafkaSchema =
                 PulsarSchemaToKafkaSchema.getKafkaConnectSchema(Schema.FLOAT);
         assertEquals(kafkaSchema.type(), org.apache.kafka.connect.data.Schema.Type.FLOAT32);
     }
 
-    @Test
+
     public void float64SchemaTest() {
         org.apache.kafka.connect.data.Schema kafkaSchema =
                 PulsarSchemaToKafkaSchema.getKafkaConnectSchema(Schema.DOUBLE);
         assertEquals(kafkaSchema.type(), org.apache.kafka.connect.data.Schema.Type.FLOAT64);
     }
 
-    @Test
+
     public void kvBytesSchemaTest() {
         org.apache.kafka.connect.data.Schema kafkaSchema =
                 PulsarSchemaToKafkaSchema.getKafkaConnectSchema(Schema.KV_BYTES());
@@ -129,7 +129,7 @@ public class PulsarSchemaToKafkaSchemaTest {
         assertEquals(kafkaSchema.valueSchema().type(), org.apache.kafka.connect.data.Schema.Type.BYTES);
     }
 
-    @Test
+
     public void kvBytesIntSchemaTests() {
         Schema pulsarKvSchema = KeyValueSchemaImpl.of(Schema.STRING, Schema.INT64);
         org.apache.kafka.connect.data.Schema kafkaSchema =
@@ -139,7 +139,7 @@ public class PulsarSchemaToKafkaSchemaTest {
         assertEquals(kafkaSchema.valueSchema().type(), org.apache.kafka.connect.data.Schema.Type.INT64);
     }
 
-    @Test
+
     public void avroSchemaTest() {
         AvroSchema<StructWithAnnotations> pulsarAvroSchema = AvroSchema.of(StructWithAnnotations.class);
         org.apache.kafka.connect.data.Schema kafkaSchema =
@@ -151,7 +151,7 @@ public class PulsarSchemaToKafkaSchemaTest {
         }
     }
 
-    @Test
+
     public void jsonSchemaTest() {
         JSONSchema<StructWithAnnotations> jsonSchema = JSONSchema
                 .of(SchemaDefinition.<StructWithAnnotations>builder()
@@ -167,7 +167,7 @@ public class PulsarSchemaToKafkaSchemaTest {
         }
     }
 
-    @Test
+
     public void dateSchemaTest() {
         org.apache.kafka.connect.data.Schema kafkaSchema =
                 PulsarSchemaToKafkaSchema.getKafkaConnectSchema(Schema.DATE);
@@ -175,32 +175,32 @@ public class PulsarSchemaToKafkaSchemaTest {
     }
 
     // not supported schemas below:
-    @Test(expectedExceptions = IllegalStateException.class)
+    
     public void timeSchemaTest() {
         PulsarSchemaToKafkaSchema.getKafkaConnectSchema(Schema.TIME);
     }
 
-    @Test(expectedExceptions = IllegalStateException.class)
+    
     public void timestampSchemaTest() {
         PulsarSchemaToKafkaSchema.getKafkaConnectSchema(Schema.TIMESTAMP);
     }
 
-    @Test(expectedExceptions = IllegalStateException.class)
+    
     public void instantSchemaTest() {
         PulsarSchemaToKafkaSchema.getKafkaConnectSchema(Schema.INSTANT);
     }
 
-    @Test(expectedExceptions = IllegalStateException.class)
+    
     public void localDateSchemaTest() {
         PulsarSchemaToKafkaSchema.getKafkaConnectSchema(Schema.LOCAL_DATE);
     }
 
-    @Test(expectedExceptions = IllegalStateException.class)
+    
     public void localTimeSchemaTest() {
         PulsarSchemaToKafkaSchema.getKafkaConnectSchema(Schema.LOCAL_TIME);
     }
 
-    @Test(expectedExceptions = IllegalStateException.class)
+    
     public void localDatetimeSchemaTest() {
         PulsarSchemaToKafkaSchema.getKafkaConnectSchema(Schema.LOCAL_DATE_TIME);
     }

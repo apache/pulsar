@@ -36,7 +36,7 @@ public class CmdGenerateDocsTest {
         private String name;
     }
 
-    @Test
+
     public void testHelp() {
         PrintStream oldStream = System.out;
         try {
@@ -64,7 +64,7 @@ public class CmdGenerateDocsTest {
         }
     }
 
-    @Test
+
     public void testGenerateDocs() {
         PrintStream oldStream = System.out;
         try {

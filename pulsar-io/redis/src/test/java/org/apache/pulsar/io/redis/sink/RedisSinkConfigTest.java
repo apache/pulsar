@@ -34,7 +34,7 @@ import static org.testng.Assert.assertNotNull;
  */
 public class RedisSinkConfigTest {
 
-    @Test
+
     public final void loadFromYamlFileTest() throws IOException {
         File yamlFile = getFile("sinkConfig.yaml");
         String path = yamlFile.getAbsolutePath();
@@ -50,7 +50,7 @@ public class RedisSinkConfigTest {
         assertEquals(config.getConnectTimeout(), Long.parseLong("3000"));
     }
 
-    @Test
+
     public final void loadFromMapTest() throws IOException {
         Map<String, Object> map = new HashMap<String, Object>();
         map.put("redisHosts", "localhost:6379");
@@ -74,7 +74,7 @@ public class RedisSinkConfigTest {
         assertEquals(config.getConnectTimeout(), Long.parseLong("3000"));
     }
 
-    @Test
+
     public final void validValidateTest() throws IOException {
         Map<String, Object> map = new HashMap<String, Object>();
         map.put("redisHosts", "localhost:6379");
@@ -90,8 +90,7 @@ public class RedisSinkConfigTest {
         config.validate();
     }
 
-    @Test(expectedExceptions = NullPointerException.class,
-        expectedExceptionsMessageRegExp = "redisHosts property not set.")
+
     public final void missingValidValidateTableNameTest() throws IOException {
         Map<String, Object> map = new HashMap<String, Object>();
         map.put("redisPassword", "fake@123");
@@ -106,8 +105,6 @@ public class RedisSinkConfigTest {
         config.validate();
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class,
-        expectedExceptionsMessageRegExp = "batchTimeMs must be a positive long.")
     public final void invalidBatchTimeMsTest() throws IOException {
         Map<String, Object> map = new HashMap<String, Object>();
         map.put("redisHosts", "localhost:6379");
@@ -123,8 +120,6 @@ public class RedisSinkConfigTest {
         config.validate();
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class,
-        expectedExceptionsMessageRegExp = "No enum constant org.apache.pulsar.io.redis.RedisAbstractConfig.ClientMode.NOTSUPPORT")
     public final void invalidClientModeTest() throws IOException {
         Map<String, Object> map = new HashMap<String, Object>();
         map.put("redisHosts", "localhost:6379");

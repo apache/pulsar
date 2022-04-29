@@ -27,7 +27,7 @@ import org.testng.annotations.Test;
 
 public class CmdTest {
 
-    @Test
+
     public void cmdParserProxyConfigurationTest() throws Exception {
         String value = generateDoc("org.apache.pulsar.proxy.server.ProxyConfiguration");
         assertTrue(value.contains("Pulsar proxy"));

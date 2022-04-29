@@ -27,7 +27,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker")
+
 public class PartitionKeyTest extends BrokerTestBase {
 
     @BeforeMethod
@@ -42,7 +42,7 @@ public class PartitionKeyTest extends BrokerTestBase {
         super.internalCleanup();
     }
 
-    @Test(timeOut = 10000)
+    
     public void testPartitionKey() throws Exception {
         final String topicName = "persistent://prop/use/ns-abc/testPartitionKey";
 

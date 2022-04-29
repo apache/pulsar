@@ -59,7 +59,7 @@ public class PulsarVersionTest extends TestRetrySupport {
         }
     }
 
-    @Test
+
     public void getVersion() throws Exception {
         ContainerExecResult result = pulsarCluster.runAdminCommandOnAnyBroker("brokers", "version");
         String version = result.getStdout();

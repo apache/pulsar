@@ -40,7 +40,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
-@Test(groups = "broker-impl")
+
 public class ProducerCloseTest extends ProducerConsumerBase {
 
     @Override
@@ -70,7 +70,6 @@ public class ProducerCloseTest extends ProducerConsumerBase {
         };
     }
 
-    @Test(timeOut = 10_000)
     public void testProducerCloseCallback() throws Exception {
         initClient();
         @Cleanup
@@ -93,7 +92,6 @@ public class ProducerCloseTest extends ProducerConsumerBase {
         Assert.assertEquals(completableFuture.isDone(), true);
     }
 
-    @Test(timeOut = 10_000)
     public void testProducerCloseFailsPendingBatchWhenPreviousStateNotReadyCallback() throws Exception {
         initClient();
         @Cleanup
@@ -118,7 +116,6 @@ public class ProducerCloseTest extends ProducerConsumerBase {
         }
     }
 
-    @Test(timeOut = 10_000, dataProvider = "produceConf")
     public void brokerCloseTopicTest(boolean enableBatch, boolean isAsyncSend) throws Exception {
         PulsarClient longBackOffClient = PulsarClient.builder()
                 .startingBackoffInterval(5, TimeUnit.SECONDS)

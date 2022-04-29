@@ -66,14 +66,14 @@ public class TransactionClientConnectTest extends TransactionTestBase {
         super.internalCleanup();
     }
 
-    @Test
+
     public void testTransactionNewReconnect() throws Exception {
         Callable<CompletableFuture<?>> callable = () -> pulsarClient.newTransaction()
                 .withTransactionTimeout(200, TimeUnit.MILLISECONDS).build();
         tryCommandReconnect(callable, callable);
     }
 
-    @Test
+
     public void testTransactionAddSubscriptionToTxnAsyncReconnect() throws Exception {
         TransactionCoordinatorClientImpl transactionCoordinatorClient = ((PulsarClientImpl) pulsarClient).getTcClient();
         Callable<CompletableFuture<?>> callable = () -> transactionCoordinatorClient
@@ -105,7 +105,7 @@ public class TransactionClientConnectTest extends TransactionTestBase {
         completableFuture.get();
     }
 
-    @Test
+
     public void testTransactionAbortToTxnAsyncReconnect() throws Exception {
         TransactionCoordinatorClientImpl transactionCoordinatorClient = ((PulsarClientImpl) pulsarClient).getTcClient();
         Callable<CompletableFuture<?>> callable1 = () -> transactionCoordinatorClient.abortAsync(new TxnID(0,
@@ -115,7 +115,7 @@ public class TransactionClientConnectTest extends TransactionTestBase {
         tryCommandReconnect(callable1, callable2);
     }
 
-    @Test
+
     public void testTransactionCommitToTxnAsyncReconnect() throws Exception {
         TransactionCoordinatorClientImpl transactionCoordinatorClient = ((PulsarClientImpl) pulsarClient).getTcClient();
         Callable<CompletableFuture<?>> callable1 = () -> transactionCoordinatorClient.commitAsync(new TxnID(0,
@@ -125,7 +125,7 @@ public class TransactionClientConnectTest extends TransactionTestBase {
         tryCommandReconnect(callable1, callable2);
     }
 
-    @Test
+
     public void testTransactionAddPublishPartitionToTxnReconnect() throws Exception {
         TransactionCoordinatorClientImpl transactionCoordinatorClient = ((PulsarClientImpl) pulsarClient).getTcClient();
         Callable<CompletableFuture<?>> callable = () -> transactionCoordinatorClient.addPublishPartitionToTxnAsync(new TxnID(0, 0),
@@ -133,7 +133,7 @@ public class TransactionClientConnectTest extends TransactionTestBase {
         tryCommandReconnect(callable, callable);
     }
 
-    @Test
+
     public void testPulsarClientCloseThenCloseTcClient() throws Exception {
         TransactionCoordinatorClientImpl transactionCoordinatorClient = ((PulsarClientImpl) pulsarClient).getTcClient();
         Field field = TransactionCoordinatorClientImpl.class.getDeclaredField("handlers");

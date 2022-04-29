@@ -30,7 +30,7 @@ import org.testng.annotations.Test;
 
 public class FieldParserTest {
 
-    @Test
+
     public void testMap() {
         Map<String, String> properties = new HashMap<>();
         properties.put("name", "config");
@@ -52,7 +52,7 @@ public class FieldParserTest {
 
     }
 
-    @Test
+
     public void testWithBlankVallueConfig() {
         Map<String, String> properties = new HashMap<>();
         properties.put("name", "  config   ");

@@ -35,7 +35,7 @@ public class MockClockTest {
         this.clock = new MockClock();
     }
 
-    @Test
+
     public void testAdvance() {
         assertEquals(0L, clock.millis());
         clock.advance(Duration.ofMillis(10));

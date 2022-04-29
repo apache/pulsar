@@ -29,7 +29,7 @@ import org.testng.annotations.Test;
 
 import lombok.Cleanup;
 
-@Test(groups = "broker-api")
+
 public class TlsSniTest extends TlsProducerConsumerBase {
 
     /**
@@ -39,7 +39,7 @@ public class TlsSniTest extends TlsProducerConsumerBase {
      * {@link io.netty.handler.ssl.ReferenceCountedOpenSslEngine}.
      *
      */
-    @Test
+
     public void testIpAddressInBrokerServiceUrl() throws Exception {
         String topicName = "persistent://my-property/use/my-ns/my-topic1";
 

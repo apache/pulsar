@@ -39,7 +39,7 @@ public class BatchMessageAckerTest {
         acker = BatchMessageAcker.newAcker(10);
     }
 
-    @Test
+
     public void testAckers() {
         assertEquals(BATCH_SIZE, acker.getOutstandingAcks());
         assertEquals(BATCH_SIZE, acker.getBatchSize());
@@ -71,7 +71,7 @@ public class BatchMessageAckerTest {
         assertEquals(0, acker.getOutstandingAcks());
     }
 
-    @Test
+
     public void testBitSetAcker() {
         BitSet bitSet = BitSet.valueOf(acker.getBitSet().toLongArray());
         BatchMessageAcker bitSetAcker = BatchMessageAcker.newAcker(bitSet);

@@ -68,7 +68,6 @@ public class FileSystemPackagesCliTest extends TestRetrySupport {
         return envs;
     }
 
-    @Test(timeOut = 60000 * 8)
     public void testPackagesOperationsWithUploadingPackagesUsingFileSystemStorageProvider() throws Exception {
         BrokerContainer container = pulsarCluster.getBroker(0);
 

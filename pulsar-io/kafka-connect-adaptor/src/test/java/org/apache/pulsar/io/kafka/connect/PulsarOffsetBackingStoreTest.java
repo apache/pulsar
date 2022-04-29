@@ -82,14 +82,14 @@ public class PulsarOffsetBackingStoreTest extends ProducerConsumerBase {
         super.internalCleanup();
     }
 
-    @Test
+
     public void testGetFromEmpty() throws Exception {
         assertTrue(offsetBackingStore.get(
             Arrays.asList(ByteBuffer.wrap("empty-key".getBytes(UTF_8)))
         ).get().isEmpty());
     }
 
-    @Test(timeOut = 60000)
+    
     public void testGetSetNullValue() throws Exception {
         Map<ByteBuffer, ByteBuffer> kvs = new HashMap<>();
         ByteBuffer keyToSet = ByteBuffer.wrap(("test-key").getBytes(UTF_8));
@@ -111,12 +111,12 @@ public class PulsarOffsetBackingStoreTest extends ProducerConsumerBase {
         });
     }
 
-    @Test
+
     public void testGetSet() throws Exception {
         testGetSet(false);
     }
 
-    @Test
+
     public void testGetSetCallback() throws Exception {
         testGetSet(true);
     }

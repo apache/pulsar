@@ -41,7 +41,7 @@ public class MessageRouterTest {
     }
 
     @SuppressWarnings("deprecation")
-    @Test
+
     public void testChoosePartition() {
         MessageRouter router = spy(TestMessageRouter.class);
         Message<?> mockedMsg = mock(Message.class);

@@ -63,7 +63,7 @@ public class JSONSchemaTest {
     public static void assertJSONEqual(String s1, String s2) throws JSONException{
         JSONAssert.assertEquals(s1, s2, false);
     }
-    @Test
+
     public void testNotAllowNullSchema() throws JSONException {
         JSONSchema<Foo> jsonSchema = JSONSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).withAlwaysAllowNull(false).build());
         Assert.assertEquals(jsonSchema.getSchemaInfo().getType(), SchemaType.JSON);
@@ -85,7 +85,7 @@ public class JSONSchemaTest {
         }
     }
 
-    @Test
+
     public void testAllowNullSchema() throws JSONException {
         JSONSchema<Foo> jsonSchema = JSONSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
         Assert.assertEquals(jsonSchema.getSchemaInfo().getType(), SchemaType.JSON);
@@ -108,7 +108,7 @@ public class JSONSchemaTest {
         }
     }
 
-    @Test
+
     public void testAllowNullEncodeAndDecode() {
         JSONSchema<Foo> jsonSchema = JSONSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
 
@@ -138,7 +138,7 @@ public class JSONSchemaTest {
         Assert.assertEquals(object2, foo2);
     }
 
-    @Test
+
     public void testNotAllowNullEncodeAndDecode() {
         JSONSchema<Foo> jsonSchema = JSONSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).withAlwaysAllowNull(false).build());
 
@@ -167,7 +167,7 @@ public class JSONSchemaTest {
 
     }
 
-    @Test
+
     public void testAllowNullNestedClasses() {
         JSONSchema<NestedBar> jsonSchema = JSONSchema.of(SchemaDefinition.<NestedBar>builder().withPojo(NestedBar.class).build());
         JSONSchema<NestedBarList> listJsonSchema = JSONSchema.of(SchemaDefinition.<NestedBarList>builder().withPojo(NestedBarList.class).build());
@@ -194,7 +194,7 @@ public class JSONSchemaTest {
         Assert.assertEquals(listJsonSchema.decode(bytes), nestedList);
     }
 
-    @Test
+
     public void testNotAllowNullNestedClasses() {
         JSONSchema<NestedBar> jsonSchema = JSONSchema.of(SchemaDefinition.<NestedBar>builder().withPojo(NestedBar.class).withAlwaysAllowNull(false).build());
         JSONSchema<NestedBarList> listJsonSchema = JSONSchema.of(SchemaDefinition.<NestedBarList>builder().withPojo(NestedBarList.class).withAlwaysAllowNull(false).build());
@@ -221,7 +221,7 @@ public class JSONSchemaTest {
         Assert.assertEquals(listJsonSchema.decode(bytes), nestedList);
     }
 
-    @Test
+
     public void testNotAllowNullCorrectPolymorphism() {
         Bar bar = new Bar();
         bar.setField1(true);
@@ -267,13 +267,13 @@ public class JSONSchemaTest {
         Assert.assertEquals(derivedDerivedJsonSchema.decode(derivedDerivedJsonSchema.encode(derivedDerivedFoo)), derivedDerivedFoo);
     }
 
-    @Test(expectedExceptions = SchemaSerializationException.class)
+    
     public void testAllowNullDecodeWithInvalidContent() {
         JSONSchema<Foo> jsonSchema = JSONSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).build());
         jsonSchema.decode(new byte[0]);
     }
 
-    @Test
+
     public void testAllowNullCorrectPolymorphism() {
         Bar bar = new Bar();
         bar.setField1(true);
@@ -319,13 +319,13 @@ public class JSONSchemaTest {
         Assert.assertEquals(derivedDerivedJsonSchema.decode(derivedDerivedJsonSchema.encode(derivedDerivedFoo)), derivedDerivedFoo);
     }
 
-    @Test(expectedExceptions = SchemaSerializationException.class)
+    
     public void testNotAllowNullDecodeWithInvalidContent() {
         JSONSchema<Foo> jsonSchema = JSONSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).withAlwaysAllowNull(false).build());
         jsonSchema.decode(new byte[0]);
     }
 
-    @Test
+
     public void testDecodeByteBuf() {
         JSONSchema<Foo> jsonSchema = JSONSchema.of(SchemaDefinition.<Foo>builder().withPojo(Foo.class).withAlwaysAllowNull(false).build());
 
@@ -371,7 +371,7 @@ public class JSONSchemaTest {
         AMD, NVIDIA
     }
 
-    @Test
+
     public void testEncodeAndDecodeObject() throws JsonProcessingException {
         JSONSchema<PC> jsonSchema = JSONSchema.of(SchemaDefinition.<PC>builder().withPojo(PC.class).build());
         PC pc = new PC("dell", "alienware", 2021, GPU.AMD,
@@ -381,14 +381,14 @@ public class JSONSchemaTest {
         assertEquals(roundtrippedPc, pc);
     }
 
-    @Test
+
     public void testGetNativeSchema() throws SchemaValidationException {
         JSONSchema<PC> schema2 = JSONSchema.of(PC.class);
         org.apache.avro.Schema avroSchema2 = (Schema) schema2.getNativeSchema().get();
         assertSame(schema2.schema, avroSchema2);
     }
 
-    @Test
+
     public void testJsonGenericRecordBuilder() {
         JSONSchema<Seller> sellerJsonSchema = JSONSchema.of(Seller.class);
 

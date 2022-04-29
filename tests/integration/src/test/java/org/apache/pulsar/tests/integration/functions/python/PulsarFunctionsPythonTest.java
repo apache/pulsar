@@ -29,37 +29,37 @@ public class PulsarFunctionsPythonTest extends PulsarFunctionsTest {
 		super(functionRuntimeType);
 	}
 
-    @Test(groups = {"python_function", "function"})
+    
     public void testPythonFunctionLocalRun() throws Exception {
         testFunctionLocalRun(Runtime.PYTHON);
     }
 
-    @Test(groups = {"python_function", "function"})
+    
     public void testPythonFunctionNegAck() throws Exception {
         testFunctionNegAck(Runtime.PYTHON);
     }
 
-    @Test(groups = {"python_function", "function"})
+    
     public void testPythonPublishFunction() throws Exception {
         testPublishFunction(Runtime.PYTHON);
     }
 
-    @Test(groups = {"python_function", "function"})
+    
     public void testPythonExclamationFunction() throws Exception {
         testExclamationFunction(Runtime.PYTHON, false, false, false);
     }
 
-    @Test(groups = {"python_function", "function"})
+    
     public void testPythonExclamationFunctionWithExtraDeps() throws Exception {
         testExclamationFunction(Runtime.PYTHON, false, false, true);
     }
 
-    @Test(groups = {"python_function", "function"})
+    
     public void testPythonExclamationZipFunction() throws Exception {
         testExclamationFunction(Runtime.PYTHON, false, true, false);
     }
 
-    @Test(groups = {"python_function", "function"})
+    
     public void testPythonExclamationTopicPatternFunction() throws Exception {
         testExclamationFunction(Runtime.PYTHON, true, false, false);
     }

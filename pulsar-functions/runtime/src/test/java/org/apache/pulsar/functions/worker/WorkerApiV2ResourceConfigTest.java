@@ -39,7 +39,7 @@ public class WorkerApiV2ResourceConfigTest {
 
     private static final String TEST_NAME = "test-worker-config";
 
-    @Test
+
     public void testGetterSetter() {
         WorkerConfig wc = new WorkerConfig();
         wc.setPulsarServiceUrl("pulsar://localhost:1234");
@@ -57,7 +57,7 @@ public class WorkerApiV2ResourceConfigTest {
         assertEquals(new Integer(1234), wc.getWorkerPort());
     }
 
-    @Test
+
     public void testLoadWorkerConfig() throws Exception {
         URL yamlUrl = getClass().getClassLoader().getResource("test_worker_config.yml");
         WorkerConfig wc = WorkerConfig.load(yamlUrl.toURI().getPath());
@@ -70,7 +70,7 @@ public class WorkerApiV2ResourceConfigTest {
         assertEquals(200, wc.getMaxPendingAsyncRequests());
     }
 
-    @Test
+
     public void testFunctionAuthProviderDefaults() throws Exception {
         URL emptyUrl = getClass().getClassLoader().getResource("test_worker_config.yml");
         WorkerConfig emptyWc = WorkerConfig.load(emptyUrl.toURI().getPath());
@@ -94,7 +94,7 @@ public class WorkerApiV2ResourceConfigTest {
         assertEquals(emptyOverrideWc.getFunctionAuthProviderClassName(),"org.apache.my.overridden.auth");
     }
 
-    @Test
+
     public void testLoadResourceRestrictionsConfig() throws Exception {
         URL emptyUrl = getClass().getClassLoader().getResource("test_worker_config.yml");
         WorkerConfig emptyWc = WorkerConfig.load(emptyUrl.toURI().getPath());
@@ -123,14 +123,14 @@ public class WorkerApiV2ResourceConfigTest {
         assertTrue(newK8SWc.isFunctionInstanceResourceChangeInLockStep());
     }
 
-    @Test
+
     public void testPasswordsNotLeakedOnToString() throws Exception {
         URL yamlUrl = getClass().getClassLoader().getResource("test_worker_config.yml");
         WorkerConfig wc = WorkerConfig.load(yamlUrl.toURI().getPath());
         assertFalse(wc.toString().toLowerCase(Locale.ROOT).contains("password"), "Stringified config must not contain password");
     }
 
-    @Test
+
     public void testPasswordsPresentOnObjectMapping() throws Exception {
         URL yamlUrl = getClass().getClassLoader().getResource("test_worker_config.yml");
         WorkerConfig wc = WorkerConfig.load(yamlUrl.toURI().getPath());

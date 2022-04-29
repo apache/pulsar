@@ -60,7 +60,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker-admin")
+
 public class CreateSubscriptionTest extends ProducerConsumerBase {
 
     @BeforeMethod
@@ -76,7 +76,7 @@ public class CreateSubscriptionTest extends ProducerConsumerBase {
         super.internalCleanup();
     }
 
-    @Test
+    
     public void createSubscriptionSingleTopic() throws Exception {
         String topic = "persistent://my-property/my-ns/my-topic";
         admin.topics().createSubscription(topic, "sub-1", MessageId.latest);
@@ -109,7 +109,7 @@ public class CreateSubscriptionTest extends ProducerConsumerBase {
         assertEquals(admin.topics().getStats(topic).getSubscriptions().get("sub-5").getMsgBacklog(), 1);
     }
 
-    @Test
+    
     public void createSubscriptionOnPartitionedTopic() throws Exception {
         String topic = "persistent://my-property/my-ns/my-partitioned-topic";
         admin.topics().createPartitionedTopic(topic, 10);
@@ -130,7 +130,7 @@ public class CreateSubscriptionTest extends ProducerConsumerBase {
         }
     }
 
-    @Test
+    
     public void createSubscriptionOnPartitionedTopicWithPartialFailure() throws Exception {
         String topic = "persistent://my-property/my-ns/my-partitioned-topic";
         admin.topics().createPartitionedTopic(topic, 10);
@@ -156,7 +156,7 @@ public class CreateSubscriptionTest extends ProducerConsumerBase {
         }
     }
 
-    @Test
+    
     public void testSubscriptionPropertiesStats() throws Exception {
         // test non-partitioned topic
         final String topic = "persistent://my-property/my-ns/topic" + UUID.randomUUID();
@@ -192,7 +192,7 @@ public class CreateSubscriptionTest extends ProducerConsumerBase {
         assertEquals(pSubPropForPerPartition, pMap);
     }
 
-    @Test
+    
     public void addSubscriptionPropertiesTest() throws Exception {
         String topic = "persistent://my-property/my-ns/topic" + UUID.randomUUID();
         admin.topics().createNonPartitionedTopic(topic);
@@ -311,7 +311,7 @@ public class CreateSubscriptionTest extends ProducerConsumerBase {
 
     }
 
-    @Test
+    
     public void createSubscriptionBySpecifyingStringPosition() throws IOException, PulsarAdminException {
         final int numberOfMessages = 5;
         String topic = "persistent://my-property/my-ns/my-topic";
@@ -353,7 +353,7 @@ public class CreateSubscriptionTest extends ProducerConsumerBase {
         producer.close();
     }
 
-    @Test
+    
     public void testWaitingCurosrCausedMemoryLeak() throws Exception {
         String topic = "persistent://my-property/my-ns/my-topic";
         for (int i = 0; i < 10; i ++) {

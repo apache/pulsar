@@ -37,7 +37,7 @@ public class NettyServerTest {
     private static final String TCP = "TCP";
     private static final String UDP = "UDP";
 
-    @Test
+
     public void testNettyTcpServerConstructor() {
         NettyServer nettyTcpServer = new NettyServer.Builder()
                 .setType(NettyServer.Type.valueOf(TCP))
@@ -50,7 +50,7 @@ public class NettyServerTest {
         assertNotNull(nettyTcpServer);
     }
 
-    @Test
+
     public void testNettyUdpServerConstructor() {
         NettyServer nettyUdpServer = new NettyServer.Builder()
                 .setType(NettyServer.Type.valueOf(UDP))
@@ -63,7 +63,7 @@ public class NettyServerTest {
         assertNotNull(nettyUdpServer);
     }
 
-    @Test
+
     public void testNettyTcpServerByNettySourceConfig() throws IOException {
         Map<String, Object> map = new HashMap<>();
         map.put("type", "tcp");
@@ -85,7 +85,6 @@ public class NettyServerTest {
         assertNotNull(nettyTcpServer);
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
     public void testNettyTcpServerConstructorWhenHostIsNotSet() {
         new NettyServer.Builder()
                 .setType(NettyServer.Type.valueOf(TCP))
@@ -95,7 +94,6 @@ public class NettyServerTest {
                 .build();
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
     public void testNettyTcpServerConstructorWhenPortIsNotSet() {
         new NettyServer.Builder()
                 .setType(NettyServer.Type.valueOf(TCP))
@@ -105,7 +103,6 @@ public class NettyServerTest {
                 .build();
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
     public void testNettyTcpServerConstructorWhenNumberOfThreadsIsNotSet() {
         new NettyServer.Builder()
                 .setType(NettyServer.Type.valueOf(TCP))
@@ -115,7 +112,6 @@ public class NettyServerTest {
                 .build();
     }
 
-    @Test(expectedExceptions = NullPointerException.class)
     public void testNettyTcpServerConstructorWhenNettyTcpSourceIsNotSet() {
         new NettyServer.Builder()
                 .setType(NettyServer.Type.valueOf(TCP))
@@ -125,7 +121,6 @@ public class NettyServerTest {
                 .build();
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
     public void testNettyTcpServerWhenHostIsSetAsBlank() {
         new NettyServer.Builder()
                 .setType(NettyServer.Type.valueOf(TCP))
@@ -136,7 +131,6 @@ public class NettyServerTest {
                 .build();
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
     public void testNettyTcpServerWhenPortIsSetAsZero() {
         new NettyServer.Builder()
                 .setType(NettyServer.Type.valueOf(TCP))
@@ -147,7 +141,6 @@ public class NettyServerTest {
                 .build();
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
     public void testNettyTcpServerWhenPortIsSetLowerThan1024() {
         new NettyServer.Builder()
                 .setType(NettyServer.Type.valueOf(TCP))
@@ -158,7 +151,6 @@ public class NettyServerTest {
                 .build();
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
     public void testNettyTcpServerWhenNumberOfThreadsIsSetAsZero() {
         new NettyServer.Builder()
                 .setType(NettyServer.Type.valueOf(TCP))

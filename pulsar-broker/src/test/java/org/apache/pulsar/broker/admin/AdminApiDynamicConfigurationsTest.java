@@ -31,7 +31,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Slf4j
-@Test(groups = "broker-admin")
+
 public class AdminApiDynamicConfigurationsTest extends MockedPulsarServiceBaseTest {
     @BeforeMethod
     @Override
@@ -45,18 +45,18 @@ public class AdminApiDynamicConfigurationsTest extends MockedPulsarServiceBaseTe
         super.internalCleanup();
     }
 
-    @Test
+
     public void TestGetAllDynamicConfigurations() throws Exception {
         Map<String,String> configs = admin.brokers().getAllDynamicConfigurations();
         assertNotNull(configs);
     }
 
-    @Test
+
     public void TestDeleteDynamicConfiguration() throws Exception {
         admin.brokers().deleteDynamicConfiguration("dispatcherMinReadBatchSize");
     }
 
-    @Test
+
     public void TestDeleteInvalidDynamicConfiguration() {
         try {
             admin.brokers().deleteDynamicConfiguration("errorName");

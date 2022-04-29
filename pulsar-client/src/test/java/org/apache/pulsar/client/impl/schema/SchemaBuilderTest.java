@@ -79,7 +79,7 @@ public class SchemaBuilderTest {
         private String name;
     }
 
-    @Test
+
     public void testAllOptionalFieldsSchema() {
         RecordSchemaBuilder recordSchemaBuilder =
             SchemaBuilder.record("org.apache.pulsar.client.impl.schema.SchemaBuilderTest.AllOptionalFields");
@@ -112,7 +112,7 @@ public class SchemaBuilderTest {
         assertEquals(avroPojoSchema, avroSchema);
     }
 
-    @Test
+
     public void testAllPrimitiveFieldsSchema() {
         RecordSchemaBuilder recordSchemaBuilder =
             SchemaBuilder.record("org.apache.pulsar.client.impl.schema.SchemaBuilderTest.AllPrimitiveFields");
@@ -143,7 +143,7 @@ public class SchemaBuilderTest {
         assertEquals(avroPojoSchema, avroSchema);
     }
 
-    @Test
+
     public void testGenericRecordBuilderByFieldName() {
         RecordSchemaBuilder recordSchemaBuilder =
             SchemaBuilder.record("org.apache.pulsar.client.impl.schema.SchemaBuilderTest.AllPrimitiveFields");
@@ -184,7 +184,7 @@ public class SchemaBuilderTest {
         assertEquals(1.34d, fields.doubleField);
     }
 
-    @Test
+
     public void testGenericRecordBuilderByIndex() {
         RecordSchemaBuilder recordSchemaBuilder =
             SchemaBuilder.record("org.apache.pulsar.client.impl.schema.SchemaBuilderTest.AllPrimitiveFields");
@@ -225,7 +225,7 @@ public class SchemaBuilderTest {
         assertEquals(1.34d, fields.doubleField);
     }
 
-    @Test
+
     public void testGenericRecordBuilderAvroByFieldname() {
         RecordSchemaBuilder people1SchemaBuilder = SchemaBuilder.record(People1.class.getCanonicalName());
         people1SchemaBuilder.field("age").type(SchemaType.INT32);
@@ -293,7 +293,7 @@ public class SchemaBuilderTest {
 
     }
 
-    @Test
+
     public void testGenericRecordBuilderAvroByFieldnamePojo() {
         RecordSchemaBuilder people1SchemaBuilder = SchemaBuilder.record(People1.class.getCanonicalName());
         people1SchemaBuilder.field("age").type(SchemaType.INT32);
@@ -359,7 +359,7 @@ public class SchemaBuilderTest {
 
     }
 
-    @Test
+
     public void testGenericRecordBuilderAvroByFieldIndex() {
         RecordSchemaBuilder people1SchemaBuilder = SchemaBuilder.record(People1.class.getCanonicalName());
         people1SchemaBuilder.field("age").type(SchemaType.INT32);
@@ -427,7 +427,7 @@ public class SchemaBuilderTest {
 
     }
 
-    @Test
+
     public void testGenericRecordBuilderAvroByFieldIndexPojo() {
         RecordSchemaBuilder people1SchemaBuilder = SchemaBuilder.record(People1.class.getCanonicalName());
         people1SchemaBuilder.field("age").type(SchemaType.INT32);

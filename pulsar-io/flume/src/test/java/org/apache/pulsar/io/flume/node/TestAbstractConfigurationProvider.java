@@ -41,7 +41,7 @@ import org.testng.annotations.Test;
 
 public class TestAbstractConfigurationProvider {
 
-    @Test
+
     public void testDispoableChannel() throws Exception {
         String agentName = "agent1";
         Map<String, String> properties = getPropertiesForChannel(agentName,
@@ -57,7 +57,7 @@ public class TestAbstractConfigurationProvider {
         assertNotSame(channel1, channel2);
     }
 
-    @Test
+
     public void testReusableChannel() throws Exception {
         String agentName = "agent1";
         Map<String, String> properties = getPropertiesForChannel(agentName,
@@ -76,7 +76,7 @@ public class TestAbstractConfigurationProvider {
         assertSame(channel1, channel2);
     }
 
-    @Test
+
     public void testUnspecifiedChannel() throws Exception {
         String agentName = "agent1";
         Map<String, String> properties = getPropertiesForChannel(agentName,
@@ -95,7 +95,7 @@ public class TestAbstractConfigurationProvider {
         assertSame(channel1, channel2);
     }
 
-    @Test
+
     public void testReusableChannelNotReusedLater() throws Exception {
         String agentName = "agent1";
         Map<String, String> propertiesReusable = getPropertiesForChannel(agentName,
@@ -123,7 +123,7 @@ public class TestAbstractConfigurationProvider {
         assertNotSame(channel1, channel3);
     }
 
-    @Test
+
     public void testSourceThrowsExceptionDuringConfiguration() throws Exception {
         String agentName = "agent1";
         String sourceType = UnconfigurableSource.class.getName();
@@ -139,7 +139,7 @@ public class TestAbstractConfigurationProvider {
         assertEquals(config.getSinkRunners().size(), 1);
     }
 
-    @Test
+
     public void testChannelThrowsExceptionDuringConfiguration() throws Exception {
         String agentName = "agent1";
         String sourceType = "seq";
@@ -155,7 +155,7 @@ public class TestAbstractConfigurationProvider {
         assertEquals(config.getSinkRunners().size(), 0);
     }
 
-    @Test
+
     public void testSinkThrowsExceptionDuringConfiguration() throws Exception {
         String agentName = "agent1";
         String sourceType = "seq";
@@ -171,7 +171,7 @@ public class TestAbstractConfigurationProvider {
         assertEquals(config.getSinkRunners().size(), 0);
     }
 
-    @Test
+
     public void testSourceAndSinkThrowExceptionDuringConfiguration()
             throws Exception {
         String agentName = "agent1";
@@ -188,7 +188,7 @@ public class TestAbstractConfigurationProvider {
         assertEquals(config.getSinkRunners().size(), 0);
     }
 
-    @Test
+
     public void testSinkSourceMismatchDuringConfiguration() throws Exception {
         String agentName = "agent1";
         String sourceType = "seq";

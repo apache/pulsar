@@ -82,7 +82,7 @@ public class ProxyTlsTest extends MockedPulsarServiceBaseTest {
         proxyService.close();
     }
 
-    @Test
+
     public void testProducer() throws Exception {
         @Cleanup
         PulsarClient client = PulsarClient.builder()
@@ -95,7 +95,7 @@ public class ProxyTlsTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+
     public void testPartitions() throws Exception {
         @Cleanup
         PulsarClient client = PulsarClient.builder()

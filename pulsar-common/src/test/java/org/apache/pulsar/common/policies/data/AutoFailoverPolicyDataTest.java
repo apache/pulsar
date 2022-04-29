@@ -29,7 +29,7 @@ import org.testng.annotations.Test;
 
 public class AutoFailoverPolicyDataTest {
 
-    @Test
+
     public void testAutoFailoverPolicyData() {
         Map<String, String> p1parameters = new HashMap<>();
         p1parameters.put("min_limit", "3");

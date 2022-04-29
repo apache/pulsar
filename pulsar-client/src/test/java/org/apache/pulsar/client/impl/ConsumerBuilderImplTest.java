@@ -57,7 +57,7 @@ public class ConsumerBuilderImplTest {
         consumerBuilderImpl = new ConsumerBuilderImpl(client, consumerConfigurationData, Schema.BYTES);
     }
 
-    @Test
+
     public void testConsumerBuilderImpl() throws PulsarClientException {
         Consumer consumer = mock(Consumer.class);
         when(consumerBuilderImpl.subscribeAsync())
@@ -65,128 +65,128 @@ public class ConsumerBuilderImplTest {
         assertNotNull(consumerBuilderImpl.topic(TOPIC_NAME).subscribe());
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
+    
     public void testConsumerBuilderImplWhenTopicNamesVarargsIsNull() {
         consumerBuilderImpl.topic(null);
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
+    
     public void testConsumerBuilderImplWhenTopicNamesVarargsHasNullTopic() {
         consumerBuilderImpl.topic("my-topic", null);
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
+    
     public void testConsumerBuilderImplWhenTopicNamesVarargsHasBlankTopic() {
         consumerBuilderImpl.topic("my-topic", "  ");
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
+    
     public void testConsumerBuilderImplWhenTopicNamesIsNull() {
         consumerBuilderImpl.topics(null);
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
+    
     public void testConsumerBuilderImplWhenTopicNamesIsEmpty() {
         consumerBuilderImpl.topics(Arrays.asList());
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
+    
     public void testConsumerBuilderImplWhenTopicNamesHasBlankTopic() {
         List<String> topicNames = Arrays.asList("my-topic", " ");
         consumerBuilderImpl.topics(topicNames);
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
+    
     public void testConsumerBuilderImplWhenTopicNamesHasNullTopic() {
         List<String> topicNames = Arrays.asList("my-topic", null);
         consumerBuilderImpl.topics(topicNames);
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
+    
     public void testConsumerBuilderImplWhenSubscriptionNameIsNull() {
         consumerBuilderImpl.topic(TOPIC_NAME).subscriptionName(null);
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
+    
     public void testConsumerBuilderImplWhenSubscriptionNameIsBlank() {
         consumerBuilderImpl.topic(TOPIC_NAME).subscriptionName(" ");
     }
 
-    @Test(expectedExceptions = NullPointerException.class)
+    
     public void testConsumerBuilderImplWhenConsumerEventListenerIsNull() {
         consumerBuilderImpl.topic(TOPIC_NAME)
                 .subscriptionName("subscriptionName")
                 .consumerEventListener(null);
     }
 
-    @Test(expectedExceptions = NullPointerException.class)
+    
     public void testConsumerBuilderImplWhenCryptoKeyReaderIsNull() {
         consumerBuilderImpl.topic(TOPIC_NAME)
                 .subscriptionName("subscriptionName")
                 .cryptoKeyReader(null);
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
+    
     public void testConsumerBuilderImplWhenDefaultCryptoKeyReaderIsNullString() {
         consumerBuilderImpl.topic(TOPIC_NAME).subscriptionName("subscriptionName")
                 .defaultCryptoKeyReader((String) null);
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
+    
     public void testConsumerBuilderImplWhenDefaultCryptoKeyReaderIsEmptyString() {
         consumerBuilderImpl.topic(TOPIC_NAME).subscriptionName("subscriptionName").defaultCryptoKeyReader("");
     }
 
-    @Test(expectedExceptions = NullPointerException.class)
+    
     public void testConsumerBuilderImplWhenDefaultCryptoKeyReaderIsNullMap() {
         consumerBuilderImpl.topic(TOPIC_NAME).subscriptionName("subscriptionName")
                 .defaultCryptoKeyReader((Map<String, String>) null);
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
+    
     public void testConsumerBuilderImplWhenDefaultCryptoKeyReaderIsEmptyMap() {
         consumerBuilderImpl.topic(TOPIC_NAME).subscriptionName("subscriptionName")
                 .defaultCryptoKeyReader(new HashMap<String, String>());
     }
 
-    @Test(expectedExceptions = NullPointerException.class)
+    
     public void testConsumerBuilderImplWhenCryptoFailureActionIsNull() {
         consumerBuilderImpl.topic(TOPIC_NAME)
                 .subscriptionName("subscriptionName")
                 .cryptoFailureAction(null);
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
+    
     public void testConsumerBuilderImplWhenConsumerNameIsNull() {
         consumerBuilderImpl.topic(TOPIC_NAME).consumerName(null);
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
+    
     public void testConsumerBuilderImplWhenConsumerNameIsBlank() {
         consumerBuilderImpl.topic(TOPIC_NAME).consumerName(" ");
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
+    
     public void testConsumerBuilderImplWhenPropertyKeyIsNull() {
         consumerBuilderImpl.topic(TOPIC_NAME).property(null, "Test-Value");
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
+    
     public void testConsumerBuilderImplWhenPropertyKeyIsBlank() {
         consumerBuilderImpl.topic(TOPIC_NAME).property("   ", "Test-Value");
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
+    
     public void testConsumerBuilderImplWhenPropertyValueIsNull() {
         consumerBuilderImpl.topic(TOPIC_NAME).property("Test-Key", null);
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
+    
     public void testConsumerBuilderImplWhenPropertyValueIsBlank() {
         consumerBuilderImpl.topic(TOPIC_NAME).property("Test-Key", "   ");
     }
 
-    @Test
+
     public void testConsumerBuilderImplWhenPropertiesAreCorrect() {
         Map<String, String> properties = new HashMap<>();
         properties.put("Test-Key", "Test-Value");
@@ -195,7 +195,7 @@ public class ConsumerBuilderImplTest {
         consumerBuilderImpl.topic(TOPIC_NAME).properties(properties);
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
+    
     public void testConsumerBuilderImplWhenPropertiesKeyIsNull() {
         Map<String, String> properties = new HashMap<>();
         properties.put(null, "Test-Value");
@@ -203,7 +203,7 @@ public class ConsumerBuilderImplTest {
         consumerBuilderImpl.topic(TOPIC_NAME).properties(properties);
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
+    
     public void testConsumerBuilderImplWhenPropertiesKeyIsBlank() {
         Map<String, String> properties = new HashMap<>();
         properties.put("  ", "Test-Value");
@@ -211,7 +211,7 @@ public class ConsumerBuilderImplTest {
         consumerBuilderImpl.topic(TOPIC_NAME).properties(properties);
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
+    
     public void testConsumerBuilderImplWhenPropertiesValueIsNull() {
         Map<String, String> properties = new HashMap<>();
         properties.put("Test-Key", null);
@@ -219,7 +219,7 @@ public class ConsumerBuilderImplTest {
         consumerBuilderImpl.topic(TOPIC_NAME).properties(properties);
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
+    
     public void testConsumerBuilderImplWhenPropertiesValueIsBlank() {
         Map<String, String> properties = new HashMap<>();
         properties.put("Test-Key", "   ");
@@ -227,59 +227,59 @@ public class ConsumerBuilderImplTest {
         consumerBuilderImpl.topic(TOPIC_NAME).properties(properties);
     }
 
-    @Test
+
     public void testConsumerBuilderImplWhenPropertiesIsEmpty() {
         Map<String, String> properties = new HashMap<>();
 
         consumerBuilderImpl.topic(TOPIC_NAME).properties(properties);
     }
 
-    @Test(expectedExceptions = NullPointerException.class)
+    
     public void testConsumerBuilderImplWhenPropertiesIsNull() {
         consumerBuilderImpl.topic(TOPIC_NAME).properties(null);
     }
 
-    @Test(expectedExceptions = NullPointerException.class)
+    
     public void testConsumerBuilderImplWhenSubscriptionInitialPositionIsNull() {
         consumerBuilderImpl.topic(TOPIC_NAME).subscriptionInitialPosition(null);
     }
 
-    @Test(expectedExceptions = NullPointerException.class)
+    
     public void testConsumerBuilderImplWhenSubscriptionTopicsModeIsNull() {
         consumerBuilderImpl.topic(TOPIC_NAME).subscriptionTopicsMode(null);
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
+    
     public void testConsumerBuilderImplWhenNegativeAckRedeliveryDelayPropertyIsNegative() {
         consumerBuilderImpl.negativeAckRedeliveryDelay(-1, TimeUnit.MILLISECONDS);
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
+    
     public void testConsumerBuilderImplWhenPriorityLevelPropertyIsNegative() {
         consumerBuilderImpl.priorityLevel(-1);
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
+    
     public void testConsumerBuilderImplWhenMaxTotalReceiverQueueSizeAcrossPartitionsPropertyIsNegative() {
         consumerBuilderImpl.maxTotalReceiverQueueSizeAcrossPartitions(-1);
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
+    
     public void testConsumerBuilderImplWhenPatternAutoDiscoveryPeriodPeriodInMinutesIsNegative() {
         consumerBuilderImpl.patternAutoDiscoveryPeriod(-1);
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
+    
     public void testConsumerBuilderImplWhenPatternAutoDiscoveryPeriodPeriodIsNegative() {
         consumerBuilderImpl.patternAutoDiscoveryPeriod(-1, TimeUnit.MINUTES);
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
+    
     public void testConsumerBuilderImplWhenBatchReceivePolicyIsNull() {
         consumerBuilderImpl.batchReceivePolicy(null);
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
+    
     public void testConsumerBuilderImplWhenBatchReceivePolicyIsNotValid() {
         consumerBuilderImpl.batchReceivePolicy(BatchReceivePolicy.builder()
                 .maxNumMessages(0)
@@ -288,7 +288,7 @@ public class ConsumerBuilderImplTest {
                 .build());
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
+    
     public void testRedeliverCountOfDeadLetterPolicy() {
         consumerBuilderImpl.deadLetterPolicy(DeadLetterPolicy.builder()
                 .maxRedeliverCount(0)
@@ -297,13 +297,13 @@ public class ConsumerBuilderImplTest {
                 .build());
     }
 
-    @Test
+
     public void testNullDeadLetterPolicy() {
         consumerBuilderImpl.deadLetterPolicy(null);
         verify(consumerBuilderImpl.getConf()).setDeadLetterPolicy(null);
     }
 
-    @Test
+
     public void testConsumerBuilderImplWhenNumericPropertiesAreValid() {
         consumerBuilderImpl.negativeAckRedeliveryDelay(1, TimeUnit.MILLISECONDS);
         consumerBuilderImpl.priorityLevel(1);
@@ -312,13 +312,13 @@ public class ConsumerBuilderImplTest {
         consumerBuilderImpl.patternAutoDiscoveryPeriod(1, TimeUnit.SECONDS);
     }
 
-    @Test
+
     public void testConsumerMode() {
         consumerBuilderImpl.subscriptionMode(SubscriptionMode.NonDurable)
             .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest);
     }
 
-    @Test
+
     public void testNegativeAckRedeliveryBackoff() {
         consumerBuilderImpl.negativeAckRedeliveryBackoff(MultiplierRedeliveryBackoff.builder()
                 .minDelayMs(1000)
@@ -326,7 +326,7 @@ public class ConsumerBuilderImplTest {
                 .build());
     }
 
-    @Test
+
     public void testStartPaused() {
         consumerBuilderImpl.startPaused(true);
         verify(consumerBuilderImpl.getConf()).setStartPaused(true);

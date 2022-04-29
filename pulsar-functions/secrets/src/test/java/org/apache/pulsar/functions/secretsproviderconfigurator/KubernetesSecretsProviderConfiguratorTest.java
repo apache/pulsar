@@ -31,7 +31,7 @@ import java.util.HashMap;
  */
 public class KubernetesSecretsProviderConfiguratorTest {
 
-    @Test
+
     public void testConfigValidation() throws Exception {
         KubernetesSecretsProviderConfigurator provider = new KubernetesSecretsProviderConfigurator();
         try {

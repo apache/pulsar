@@ -112,46 +112,46 @@ public class ContextImplTest {
         context.setCurrentMessageContext((Record<String>) () -> null);
     }
 
-    @Test(expectedExceptions = IllegalStateException.class)
+    
     public void testIncrCounterStateDisabled() {
         context.incrCounter("test-key", 10);
     }
 
-    @Test(expectedExceptions = IllegalStateException.class)
+    
     public void testGetCounterStateDisabled() {
         context.getCounter("test-key");
     }
 
-    @Test(expectedExceptions = IllegalStateException.class)
+    
     public void testPutStateStateDisabled() {
         context.putState("test-key", ByteBuffer.wrap("test-value".getBytes(UTF_8)));
     }
 
-    @Test(expectedExceptions = IllegalStateException.class)
+    
     public void testDeleteStateStateDisabled() {
         context.deleteState("test-key");
     }
 
-    @Test(expectedExceptions = IllegalStateException.class)
+    
     public void testGetStateStateDisabled() {
         context.getState("test-key");
     }
 
-    @Test
+
     public void testIncrCounterStateEnabled() throws Exception {
         context.defaultStateStore = mock(BKStateStoreImpl.class);
         context.incrCounterAsync("test-key", 10L);
         verify(context.defaultStateStore, times(1)).incrCounterAsync(eq("test-key"), eq(10L));
     }
 
-    @Test
+
     public void testGetCounterStateEnabled() throws Exception {
         context.defaultStateStore = mock(BKStateStoreImpl.class);
         context.getCounterAsync("test-key");
         verify(context.defaultStateStore, times(1)).getCounterAsync(eq("test-key"));
     }
 
-    @Test
+
     public void testGetSubscriptionType() {
         SinkContext ctx = context;
         // make sure SinkContext can get SubscriptionType.
@@ -159,7 +159,7 @@ public class ContextImplTest {
     }
 
 
-    @Test
+
     public void testPutStateStateEnabled() throws Exception {
         context.defaultStateStore = mock(BKStateStoreImpl.class);
         ByteBuffer buffer = ByteBuffer.wrap("test-value".getBytes(UTF_8));
@@ -167,7 +167,7 @@ public class ContextImplTest {
         verify(context.defaultStateStore, times(1)).putAsync(eq("test-key"), same(buffer));
     }
 
-    @Test
+
     public void testDeleteStateStateEnabled() throws Exception {
         context.defaultStateStore = mock(BKStateStoreImpl.class);
         ByteBuffer buffer = ByteBuffer.wrap("test-value".getBytes(UTF_8));
@@ -175,24 +175,24 @@ public class ContextImplTest {
         verify(context.defaultStateStore, times(1)).deleteAsync(eq("test-key"));
     }
 
-    @Test
+
     public void testGetStateStateEnabled() throws Exception {
         context.defaultStateStore = mock(BKStateStoreImpl.class);
         context.getStateAsync("test-key");
         verify(context.defaultStateStore, times(1)).getAsync(eq("test-key"));
     }
 
-    @Test
+
     public void testPublishUsingDefaultSchema() throws Exception {
         context.newOutputMessage("sometopic", null).value("Somevalue").sendAsync();
     }
 
-    @Test
+
     public void testGetPulsarAdmin() throws Exception {
         assertEquals(context.getPulsarAdmin(), pulsarAdmin);
     }
 
-    @Test(expectedExceptions = IllegalStateException.class)
+    
     public void testGetPulsarAdminWithExposePulsarAdminDisabled() throws PulsarClientException {
         config.setExposePulsarAdminClientEnabled(false);
         context = new ContextImpl(
@@ -206,7 +206,7 @@ public class ContextImplTest {
         context.getPulsarAdmin();
     }
 
-    @Test
+
     public void testUnsupportedExtendedSinkContext() throws PulsarClientException {
         config.setExposePulsarAdminClientEnabled(false);
         context = new ContextImpl(
@@ -237,7 +237,7 @@ public class ContextImplTest {
         }
     }
 
-    @Test
+
     public void testExtendedSinkContext() throws PulsarClientException {
         config.setExposePulsarAdminClientEnabled(false);
         context = new ContextImpl(
@@ -269,7 +269,7 @@ public class ContextImplTest {
         }
     }
 
-    @Test
+
     public void testGetConsumer() throws PulsarClientException {
         config.setExposePulsarAdminClientEnabled(false);
         context = new ContextImpl(
@@ -293,7 +293,7 @@ public class ContextImplTest {
         }
     }
 
-    @Test
+
     public void testGetConsumerMultiTopic() throws PulsarClientException {
         config.setExposePulsarAdminClientEnabled(false);
         context = new ContextImpl(

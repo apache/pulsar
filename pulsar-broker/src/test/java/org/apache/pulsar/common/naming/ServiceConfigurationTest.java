@@ -44,7 +44,7 @@ import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker-naming")
+
 public class ServiceConfigurationTest {
 
     final String fileName = "configurations/pulsar_broker_test.conf"; // test-resource file
@@ -54,7 +54,7 @@ public class ServiceConfigurationTest {
      *
      * @throws Exception
      */
-    @Test
+
     public void testInit() throws Exception {
         final String zookeeperServer = "localhost:2184";
         final int brokerServicePort = 1000;
@@ -72,7 +72,7 @@ public class ServiceConfigurationTest {
         assertEquals(config.getBacklogQuotaDefaultLimitGB(), 0.05);
     }
 
-    @Test
+
     public void testOptionalSettingEmpty() throws Exception {
         String confFile = "loadBalancerOverrideBrokerNicSpeedGbps=\n";
         InputStream stream = new ByteArrayInputStream(confFile.getBytes());
@@ -80,7 +80,7 @@ public class ServiceConfigurationTest {
         assertEquals(config.getLoadBalancerOverrideBrokerNicSpeedGbps(), Optional.empty());
     }
 
-    @Test
+
     public void testOptionalSettingPresent() throws Exception {
         String confFile = "loadBalancerOverrideBrokerNicSpeedGbps=5\n";
         InputStream stream = new ByteArrayInputStream(confFile.getBytes());
@@ -88,7 +88,7 @@ public class ServiceConfigurationTest {
         assertEquals(config.getLoadBalancerOverrideBrokerNicSpeedGbps(), Optional.of(5.0));
     }
 
-    @Test
+
     public void testServicePortsEmpty() throws Exception {
         String confFile = "brokerServicePort=\nwebServicePort=\n";
         InputStream stream = new ByteArrayInputStream(confFile.getBytes());
@@ -102,7 +102,7 @@ public class ServiceConfigurationTest {
      *
      * @throws Exception
      */
-    @Test(expectedExceptions = IllegalArgumentException.class)
+    
     public void testInitFailure() throws Exception {
         final String zookeeperServer = "localhost:2184";
         InputStream newStream = updateProp(zookeeperServer, "invalid-string", null, 0.005);
@@ -125,7 +125,7 @@ public class ServiceConfigurationTest {
         return new ByteArrayInputStream(writer.toString().getBytes(StandardCharsets.UTF_8));
     }
 
-    @Test
+
     public void testZookeeperServers() throws Exception {
         String confFile = "zookeeperServers=zk1:2181\n";
         @Cleanup
@@ -139,7 +139,7 @@ public class ServiceConfigurationTest {
         assertFalse(conf.isBookkeeperMetadataStoreSeparated());
     }
 
-    @Test
+
     public void testMetadataStoreUrl() throws Exception {
         String confFile = "metadataStoreUrl=zk1:2181\n";
         @Cleanup
@@ -154,7 +154,7 @@ public class ServiceConfigurationTest {
     }
 
 
-    @Test
+
     public void testGlobalZookeeper() throws Exception {
         String confFile = "metadataStoreUrl=zk1:2181\n" +
                 "globalZookeeperServers=zk2:2182\n"
@@ -170,7 +170,7 @@ public class ServiceConfigurationTest {
         assertFalse(conf.isBookkeeperMetadataStoreSeparated());
     }
 
-    @Test
+
     public void testConfigurationStore() throws Exception {
         String confFile = "metadataStoreUrl=zk1:2181\n" +
                 "configurationStoreServers=zk2:2182\n"
@@ -186,7 +186,7 @@ public class ServiceConfigurationTest {
         assertFalse(conf.isBookkeeperMetadataStoreSeparated());
     }
 
-    @Test
+
     public void testConfigurationMetadataStoreUrl() throws Exception {
         String confFile = "metadataStoreUrl=zk1:2181\n" +
                 "configurationMetadataStoreUrl=zk2:2182\n"
@@ -202,7 +202,7 @@ public class ServiceConfigurationTest {
         assertFalse(conf.isBookkeeperMetadataStoreSeparated());
     }
 
-    @Test
+
     public void testBookkeeperMetadataStore() throws Exception {
         String confFile = "metadataStoreUrl=zk1:2181\n" +
                 "configurationMetadataStoreUrl=zk2:2182\n" +
@@ -218,7 +218,7 @@ public class ServiceConfigurationTest {
         assertTrue(conf.isBookkeeperMetadataStoreSeparated());
     }
 
-    @Test
+
     public void testConfigFileDefaults() throws Exception {
         try (FileInputStream stream = new FileInputStream("../conf/broker.conf")) {
             final ServiceConfiguration javaConfig = PulsarConfigurationLoader.create(new Properties(), ServiceConfiguration.class);

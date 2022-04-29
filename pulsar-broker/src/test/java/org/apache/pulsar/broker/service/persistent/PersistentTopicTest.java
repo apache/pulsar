@@ -58,7 +58,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker")
+
 public class PersistentTopicTest extends BrokerTestBase {
 
     @BeforeMethod(alwaysRun = true)
@@ -78,7 +78,7 @@ public class PersistentTopicTest extends BrokerTestBase {
      *
      * @throws Exception
      */
-    @Test
+
     public void testCleanFailedUnloadTopic() throws Exception {
         final String topicName = "persistent://prop/ns-abc/failedUnload";
 
@@ -110,7 +110,7 @@ public class PersistentTopicTest extends BrokerTestBase {
      *
      * @throws Exception
      */
-    @Test
+
     public void testUnblockStuckSubscription() throws Exception {
         final String topicName = "persistent://prop/ns-abc/stuckSubscriptionTopic";
         final String sharedSubName = "shared";
@@ -168,7 +168,7 @@ public class PersistentTopicTest extends BrokerTestBase {
         assertNotNull(msg);
     }
 
-    @Test
+
     public void testDeleteNamespaceInfiniteRetry() throws Exception {
         //init namespace
         final String myNamespace = "prop/ns" + UUID.randomUUID();
@@ -194,7 +194,7 @@ public class PersistentTopicTest extends BrokerTestBase {
         verify(persistentTopic, times(1)).checkReplicationAndRetryOnFailure();
     }
 
-    @Test
+
     public void testAccumulativeStats() throws Exception {
         final String topicName = "persistent://prop/ns-abc/aTopic";
         final String sharedSubName = "shared";
@@ -243,7 +243,7 @@ public class PersistentTopicTest extends BrokerTestBase {
         assertEquals(statsAfterUnsubscribe.getMsgOutCounter(), statsBeforeUnsubscribe.getMsgOutCounter());
     }
 
-    @Test
+
     public void testPersistentPartitionedTopicUnload() throws Exception {
         final String topicName = "persistent://prop/ns/failedUnload";
         final String ns = "prop/ns";
@@ -275,7 +275,7 @@ public class PersistentTopicTest extends BrokerTestBase {
         }
     }
 
-    @Test
+
     public void testAutoCreatePartitionedTopicThatNameIncludePartition() throws Exception {
         final String topicName = "persistent://prop/autoNs/failedcreate-partition-abcde";
         final String ns = "prop/autoNs";

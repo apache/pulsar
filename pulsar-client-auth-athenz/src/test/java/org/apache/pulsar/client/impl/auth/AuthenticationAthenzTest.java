@@ -94,7 +94,7 @@ public class AuthenticationAthenzTest {
         field.set(auth, new MockZTSClient("dummy"));
     }
 
-    @Test
+
     public void testGetAuthData() throws Exception {
 
         com.yahoo.athenz.auth.token.RoleToken roleToken = new com.yahoo.athenz.auth.token.RoleToken(
@@ -113,7 +113,7 @@ public class AuthenticationAthenzTest {
         assertEquals(count, 1);
     }
 
-    @Test
+
     public void testZtsUrl() throws Exception {
         Field field = auth.getClass().getDeclaredField("ztsUrl");
         field.setAccessible(true);
@@ -121,7 +121,7 @@ public class AuthenticationAthenzTest {
         assertEquals(ztsUrl, "https://localhost:4443/");
     }
 
-    @Test
+
     public void testLoadPrivateKeyBase64() throws Exception {
         try {
             String paramsStr = new String(Files.readAllBytes(Paths.get("./src/test/resources/authParams.json")));
@@ -148,7 +148,7 @@ public class AuthenticationAthenzTest {
         }
     }
 
-    @Test
+
     public void testLoadPrivateKeyUrlEncode() throws Exception {
         try {
             String paramsStr = new String(Files.readAllBytes(Paths.get("./src/test/resources/authParams.json")));
@@ -175,7 +175,7 @@ public class AuthenticationAthenzTest {
         }
     }
 
-    @Test
+
     public void testAutoPrefetchEnabled() throws Exception {
         Field field = auth.getClass().getDeclaredField("autoPrefetchEnabled");
         field.setAccessible(true);
@@ -198,7 +198,7 @@ public class AuthenticationAthenzTest {
         auth2.close();
     }
 
-    @Test
+
     public void testRoleHeaderSetting() throws Exception {
         assertEquals(auth.getAuthData().getHttpHeaders().iterator().next().getKey(), ZTSClient.getHeader());
 

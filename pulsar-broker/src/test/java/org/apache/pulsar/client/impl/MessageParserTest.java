@@ -83,7 +83,7 @@ public class MessageParserTest extends MockedPulsarServiceBaseTest {
         };
     }
 
-    @Test(dataProvider = "batchingAndCompression")
+    
     public void testParseMessages(boolean batchEnabled, CompressionType compressionType) throws Exception{
         final String topic = "persistent://my-tenant/my-ns/message-parse-test-" + batchEnabled + "-" + compressionType;
         final TopicName topicName = TopicName.get(topic);

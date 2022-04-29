@@ -46,7 +46,7 @@ import org.testng.annotations.Test;
 @Slf4j
 public class MetadataStoreBatchingTest extends BaseMetadataStoreTest {
 
-    @Test(dataProvider = "impl")
+    
     public void testBatchWrite(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
         MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder()
@@ -66,7 +66,7 @@ public class MetadataStoreBatchingTest extends BaseMetadataStoreTest {
         log.info("s2: {}", s2);
     }
 
-    @Test(dataProvider = "impl")
+    
     public void testBatching(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
         MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder()
@@ -89,7 +89,7 @@ public class MetadataStoreBatchingTest extends BaseMetadataStoreTest {
         assertFalse(r2.isPresent());
     }
 
-    @Test(dataProvider = "impl")
+    
     public void testPutVersionErrors(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
         MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder()
@@ -121,7 +121,7 @@ public class MetadataStoreBatchingTest extends BaseMetadataStoreTest {
         }
     }
 
-    @Test(dataProvider = "impl")
+    
     public void testSequential(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
         MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(), MetadataStoreConfig.builder()
@@ -145,7 +145,7 @@ public class MetadataStoreBatchingTest extends BaseMetadataStoreTest {
     }
 
 
-    @Test(dataProvider = "impl")
+    
     public void testBigBatchSize(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
         MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder()

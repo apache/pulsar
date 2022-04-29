@@ -33,7 +33,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker")
+
 public class NamespaceCreateBundlesTest extends BrokerTestBase {
 
     @BeforeMethod
@@ -49,7 +49,7 @@ public class NamespaceCreateBundlesTest extends BrokerTestBase {
         super.internalCleanup();
     }
 
-    @Test
+    
     public void testCreateNamespaceWithDefaultBundles() throws Exception {
         String namespaceName = "prop/" + UUID.randomUUID().toString();
 
@@ -60,7 +60,7 @@ public class NamespaceCreateBundlesTest extends BrokerTestBase {
         assertEquals(policies.bundles.getBoundaries().size(), 17);
     }
 
-    @Test
+    
     public void testSplitBundleUpdatesLocalPoliciesWithoutOverwriting() throws Exception {
         String namespaceName = "prop/" + UUID.randomUUID().toString();
         String topicName = "persistent://" + namespaceName + "/my-topic5";

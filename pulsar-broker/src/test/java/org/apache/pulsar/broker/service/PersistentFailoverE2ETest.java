@@ -57,7 +57,7 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker")
+
 public class PersistentFailoverE2ETest extends BrokerTestBase {
 
     @BeforeClass
@@ -138,7 +138,7 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
         }
     }
 
-    @Test
+
     public void testSimpleConsumerEventsWithoutPartition() throws Exception {
         final String topicName = "persistent://prop/use/ns-abc/failover-topic1-" + System.currentTimeMillis();
         final String subName = "sub1";
@@ -267,7 +267,7 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
         admin.topics().delete(topicName);
     }
 
-    @Test
+
     public void testSimpleConsumerEventsWithPartition() throws Exception {
         // Resetting ActiveConsumerFailoverDelayTimeMillis else if testActiveConsumerFailoverWithDelay get executed
         // first could cause this test to fail.
@@ -457,7 +457,7 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
         admin.topics().deletePartitionedTopic(topicName);
     }
 
-    @Test
+
     public void testActiveConsumerFailoverWithDelay() throws Exception {
         final String topicName = "persistent://prop/use/ns-abc/failover-topic3";
         final String subName = "sub1";

@@ -81,7 +81,7 @@ public class ProxyForwardAuthDataTest extends ProducerConsumerBase {
         super.internalCleanup();
     }
 
-    @Test
+
     public void testForwardAuthData() throws Exception {
         log.info("-- Starting {} test --", methodName);
 

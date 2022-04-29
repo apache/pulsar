@@ -25,7 +25,7 @@ import org.testng.annotations.Test;
 
 public class IntSchemaTest {
 
-    @Test
+
     public void testSchemaEncode() {
         IntSchema schema = IntSchema.of();
         Integer data = 1234578;
@@ -38,7 +38,7 @@ public class IntSchemaTest {
         Assert.assertEquals(expected, schema.encode(data));
     }
 
-    @Test
+
     public void testSchemaEncodeDecodeFidelity() {
         IntSchema schema = IntSchema.of();
         int start = 348592040;
@@ -54,7 +54,7 @@ public class IntSchemaTest {
         }
     }
 
-    @Test
+
     public void testSchemaDecode() {
         byte[] byteData = new byte[] {
                0,
@@ -70,7 +70,7 @@ public class IntSchemaTest {
         Assert.assertEquals(expected, schema.decode(byteBuf));
     }
 
-    @Test
+
     public void testNullEncodeDecode() {
         ByteBuf byteBuf = null;
         byte[] bytes = null;

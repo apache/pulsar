@@ -87,7 +87,7 @@ public class PingPongHandlerTest {
         executor.stop();
     }
 
-    @Test
+
     public void testPingPong() throws Exception {
         HttpClient httpClient = new HttpClient();
         WebSocketClient webSocketClient = new WebSocketClient(httpClient);

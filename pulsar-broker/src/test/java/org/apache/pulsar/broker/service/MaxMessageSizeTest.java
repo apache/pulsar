@@ -40,7 +40,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker")
+
 @Slf4j
 public class MaxMessageSizeTest {
 
@@ -97,7 +97,7 @@ public class MaxMessageSizeTest {
         }
     }
 
-    @Test
+
     public void testMaxMessageSetting() throws PulsarClientException {
 
         @Cleanup
@@ -163,7 +163,7 @@ public class MaxMessageSizeTest {
         producer.close();
     }
 
-    @Test
+
     public void testNonBatchingMaxMessageSize() throws Exception {
         @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(pulsar.getBrokerServiceUrl()).build();
@@ -201,7 +201,7 @@ public class MaxMessageSizeTest {
         }
     }
 
-    @Test
+
     public void testChunkingMaxMessageSize() throws Exception {
         @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(pulsar.getBrokerServiceUrl()).build();

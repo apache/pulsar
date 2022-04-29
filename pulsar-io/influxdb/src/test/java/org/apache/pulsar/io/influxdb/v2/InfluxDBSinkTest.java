@@ -95,7 +95,7 @@ public class InfluxDBSinkTest {
         when(influxDBClient.getWriteApiBlocking()).thenReturn(writeApi);
     }
 
-    @Test
+    
     public void testJsonSchema() {
         JSONSchema<Cpu> schema = JSONSchema.of(Cpu.class);
 
@@ -117,7 +117,7 @@ public class InfluxDBSinkTest {
         assertEquals(((GenericRecord)record.getField("fields")).getField("value"), 10);
     }
 
-    @Test
+    
     public void testAvroSchema() {
         AvroSchema<Cpu> schema = AvroSchema.of(Cpu.class);
 
@@ -136,13 +136,13 @@ public class InfluxDBSinkTest {
         assertEquals(((Map)record.getField("fields")).get(new Utf8("value")), 10);
     }
 
-    @Test
+    
     public void testOpenWriteCloseAvro() throws Exception {
         AvroSchema<Cpu> avroSchema = AvroSchema.of(Cpu.class);
         openWriteClose(avroSchema);
     }
 
-    @Test
+    
     public void testOpenWriteCloseJson() throws Exception {
         JSONSchema<Cpu> jsonSchema = JSONSchema.of(Cpu.class);
         openWriteClose(jsonSchema);

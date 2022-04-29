@@ -49,7 +49,7 @@ public class DeprecatedCommanderTest {
         cmdTopics = new CmdTopics(() -> admin);
     }
 
-    @Test
+
     public void testDeprecatedCommanderWorks() throws Exception {
 
         DefaultUsageFormatter defaultUsageFormatter = new DefaultUsageFormatter(cmdTopics.jcommander);

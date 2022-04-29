@@ -109,7 +109,7 @@ public class CmdFunctionsTest {
 
     }
 
-//    @Test
+//    
 //    public void testLocalRunnerCmdNoArguments() throws Exception {
 //        cmd.run(new String[] { "run" });
 //
@@ -122,7 +122,7 @@ public class CmdFunctionsTest {
 
     /*
     TODO(sijie):- Can we fix this?
-    @Test
+    
     public void testLocalRunnerCmdSettings() throws Exception {
         String fnName = TEST_NAME + "-function";
         String sourceTopicName = TEST_NAME + "-source-topic";
@@ -141,7 +141,7 @@ public class CmdFunctionsTest {
         assertNull(runner.getFnConfigFile());
     }
 
-    @Test
+    
     public void testLocalRunnerCmdYaml() throws Exception {
         URL yamlUrl = getClass().getClassLoader().getResource("test_function_config.yml");
         String configFile = yamlUrl.getPath();
@@ -158,7 +158,7 @@ public class CmdFunctionsTest {
     }
     */
 
-    @Test
+    
     public void testCreateFunction() throws Exception {
         cmd.run(new String[] {
             "create",
@@ -186,7 +186,7 @@ public class CmdFunctionsTest {
 
     }
 
-    @Test
+    
     public void restartFunction() throws Exception {
         String tenant = "sample";
         String namespace = "ns1";
@@ -200,7 +200,7 @@ public class CmdFunctionsTest {
         verify(functions, times(1)).restartFunction(tenant, namespace, FN_NAME, instanceId);
     }
 
-    @Test
+    
     public void restartFunctionInstances() throws Exception {
         String tenant = "sample";
         String namespace = "ns1";
@@ -212,7 +212,7 @@ public class CmdFunctionsTest {
         verify(functions, times(1)).restartFunction(tenant, namespace, FN_NAME);
     }
 
-    @Test
+    
     public void stopFunction() throws Exception {
         String tenant = "sample";
         String namespace = "ns1";
@@ -226,7 +226,7 @@ public class CmdFunctionsTest {
         verify(functions, times(1)).stopFunction(tenant, namespace, FN_NAME, instanceId);
     }
 
-    @Test
+    
     public void stopFunctionInstances() throws Exception {
         String tenant = "sample";
         String namespace = "ns1";
@@ -238,7 +238,7 @@ public class CmdFunctionsTest {
         verify(functions, times(1)).stopFunction(tenant, namespace, FN_NAME);
     }
 
-    @Test
+    
     public void startFunction() throws Exception {
         String tenant = "sample";
         String namespace = "ns1";
@@ -252,7 +252,7 @@ public class CmdFunctionsTest {
         verify(functions, times(1)).startFunction(tenant, namespace, FN_NAME, instanceId);
     }
 
-    @Test
+    
     public void startFunctionInstances() throws Exception {
         String tenant = "sample";
         String namespace = "ns1";
@@ -265,7 +265,7 @@ public class CmdFunctionsTest {
     }
 
 
-    @Test
+    
     public void testGetFunctionStatus() throws Exception {
         String tenant = "sample";
         String namespace = "ns1";
@@ -279,7 +279,7 @@ public class CmdFunctionsTest {
         verify(functions, times(1)).getFunctionStatus(tenant, namespace, FN_NAME, instanceId);
     }
 
-    @Test
+    
     public void testCreateFunctionWithFileUrl() throws Exception {
         cmd.run(new String[] {
             "create",
@@ -300,7 +300,7 @@ public class CmdFunctionsTest {
         verify(functions, times(1)).createFunctionWithUrl(any(FunctionConfig.class), anyString());
     }
 
-    @Test
+    
     public void testCreateGoFunctionWithFileUrl() throws Exception {
         cmd.run(new String[] {
                 "create",
@@ -320,7 +320,7 @@ public class CmdFunctionsTest {
         verify(functions, times(1)).createFunctionWithUrl(any(FunctionConfig.class), anyString());
     }
 
-    @Test
+    
     public void testCreatePyFunctionWithFileUrl() throws Exception {
         cmd.run(new String[] {
                 "create",
@@ -341,7 +341,7 @@ public class CmdFunctionsTest {
         verify(functions, times(1)).createFunctionWithUrl(any(FunctionConfig.class), anyString());
     }
 
-    @Test
+    
     public void testCreateFunctionWithPackageUrl() throws Exception {
         cmd.run(new String[] {
                 "create",
@@ -362,7 +362,7 @@ public class CmdFunctionsTest {
         verify(functions, times(1)).createFunctionWithUrl(any(FunctionConfig.class), anyString());
     }
 
-    @Test
+    
     public void testCreateGoFunctionWithPackageUrl() throws Exception {
         cmd.run(new String[] {
                 "create",
@@ -382,7 +382,7 @@ public class CmdFunctionsTest {
         verify(functions, times(1)).createFunctionWithUrl(any(FunctionConfig.class), anyString());
     }
 
-    @Test
+    
     public void testCreatePyFunctionWithPackageUrl() throws Exception {
         cmd.run(new String[] {
                 "create",
@@ -403,7 +403,7 @@ public class CmdFunctionsTest {
         verify(functions, times(1)).createFunctionWithUrl(any(FunctionConfig.class), anyString());
     }
 
-    @Test
+    
     public void testCreateFunctionWithInvalidPackageUrl() throws Exception {
         cmd.run(new String[] {
                 "create",
@@ -424,7 +424,7 @@ public class CmdFunctionsTest {
         verify(functions, times(0)).createFunctionWithUrl(any(FunctionConfig.class), anyString());
     }
 
-    @Test
+    
     public void testCreateFunctionWithoutBasicArguments() throws Exception {
         cmd.run(new String[] {
                 "create",
@@ -445,7 +445,7 @@ public class CmdFunctionsTest {
         verify(functions, times(1)).createFunctionWithUrl(any(FunctionConfig.class), anyString());
     }
 
-    @Test
+    
     public void testCreateFunctionWithTopicPatterns() throws Exception {
         String topicPatterns = "persistent://tenant/ns/topicPattern*";
         cmd.run(new String[] {
@@ -468,7 +468,7 @@ public class CmdFunctionsTest {
 
     }
 
-    @Test
+    
     public void testCreateUsingFullyQualifiedFunctionName() throws Exception {
         String tenant = "sample";
         String namespace = "ns1";
@@ -491,7 +491,7 @@ public class CmdFunctionsTest {
         verify(functions, times(1)).createFunction(any(FunctionConfig.class), anyString());
     }
 
-    @Test
+    
     public void testCreateWithoutOutputTopicWithSkipFlag() throws Exception {
         cmd.run(new String[] {
                 "create",
@@ -509,7 +509,7 @@ public class CmdFunctionsTest {
     }
 
 
-    @Test
+    
     public void testCreateWithoutOutputTopic() {
 
         ConsoleOutputCapturer consoleOutputCapturer = new ConsoleOutputCapturer();
@@ -530,7 +530,7 @@ public class CmdFunctionsTest {
         assertTrue(consoleOutputCapturer.getStdout().contains("Created successfully"));
     }
 
-    @Test
+    
     public void testGetFunction() throws Exception {
         cmd.run(new String[] {
             "get",
@@ -547,7 +547,7 @@ public class CmdFunctionsTest {
         verify(functions, times(1)).getFunction(eq(TENANT), eq(NAMESPACE), eq(FN_NAME));
     }
 
-    @Test
+    
     public void testDeleteFunction() throws Exception {
         cmd.run(new String[] {
             "delete",
@@ -564,7 +564,7 @@ public class CmdFunctionsTest {
         verify(functions, times(1)).deleteFunction(eq(TENANT), eq(NAMESPACE), eq(FN_NAME));
     }
 
-    @Test
+    
     public void testUpdateFunction() throws Exception {
         cmd.run(new String[] {
             "update",
@@ -585,7 +585,7 @@ public class CmdFunctionsTest {
         verify(functions, times(1)).updateFunction(any(FunctionConfig.class), anyString(), eq(new UpdateOptionsImpl()));
     }
 
-    @Test
+    
     public void testListFunctions() throws Exception {
         cmd.run(new String[] {
             "list",
@@ -600,7 +600,7 @@ public class CmdFunctionsTest {
         verify(functions, times(1)).getFunctions(eq(TENANT), eq(NAMESPACE));
     }
 
-    @Test
+    
     public void testStateGetter() throws Exception {
         String key = TEST_NAME + "-key";
 
@@ -621,7 +621,7 @@ public class CmdFunctionsTest {
         verify(functions, times(1)).getFunctionState(eq(TENANT), eq(NAMESPACE), eq(FN_NAME), eq(key));
     }
 
-    @Test
+    
     public void testStateGetterWithoutKey() throws Exception {
         ConsoleOutputCapturer consoleOutputCapturer = new ConsoleOutputCapturer();
         consoleOutputCapturer.start();
@@ -641,7 +641,7 @@ public class CmdFunctionsTest {
         verify(functions, times(0)).getFunctionState(any(), any(), any(), any());
     }
 
-    @Test
+    
     public void testCreateFunctionWithCpu() throws Exception {
         cmd.run(new String[] {
                 "create",
@@ -667,7 +667,7 @@ public class CmdFunctionsTest {
         verify(functions, times(1)).createFunctionWithUrl(any(FunctionConfig.class), anyString());
     }
 
-    @Test
+    
     public void testCreateFunctionWithRam() throws Exception {
         cmd.run(new String[] {
                 "create",
@@ -693,7 +693,7 @@ public class CmdFunctionsTest {
         verify(functions, times(1)).createFunctionWithUrl(any(FunctionConfig.class), anyString());
     }
 
-    @Test
+    
     public void testCreateFunctionWithDisk() throws Exception {
         cmd.run(new String[] {
                 "create",
@@ -720,7 +720,7 @@ public class CmdFunctionsTest {
     }
 
 
-    @Test
+    
     public void testUpdateFunctionWithCpu() throws Exception {
         cmd.run(new String[] {
                 "update",
@@ -746,7 +746,7 @@ public class CmdFunctionsTest {
         verify(functions, times(1)).updateFunctionWithUrl(any(FunctionConfig.class), anyString(), eq(new UpdateOptionsImpl()));
     }
 
-    @Test
+    
     public void testUpdateFunctionWithRam() throws Exception {
         cmd.run(new String[] {
                 "update",
@@ -772,7 +772,7 @@ public class CmdFunctionsTest {
         verify(functions, times(1)).updateFunctionWithUrl(any(FunctionConfig.class), anyString(), eq(new UpdateOptionsImpl()));
     }
 
-    @Test
+    
     public void testUpdateFunctionWithDisk() throws Exception {
         cmd.run(new String[] {
                 "update",
@@ -798,7 +798,7 @@ public class CmdFunctionsTest {
         verify(functions, times(1)).updateFunctionWithUrl(any(FunctionConfig.class), anyString(), eq(new UpdateOptionsImpl()));
     }
 
-    @Test
+    
     public void testUpdateAuthData() throws Exception {
         cmd.run(new String[] {
                 "update",

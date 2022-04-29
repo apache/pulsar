@@ -26,7 +26,7 @@ import org.testng.annotations.Test;
 
 public class CompletableFutureCancellationHandlerTest {
 
-    @Test
+
     public void callsCancelActionWhenCancelled() {
         // given
         AtomicBoolean called = new AtomicBoolean();
@@ -39,7 +39,7 @@ public class CompletableFutureCancellationHandlerTest {
         assertTrue(called.get());
     }
 
-    @Test
+
     public void callsCancelActionWhenTimeoutHappens() {
         // given
         AtomicBoolean called = new AtomicBoolean();

@@ -27,7 +27,7 @@ import org.testng.annotations.Test;
 
 public class TripleLongPriorityQueueTest {
 
-    @Test
+
     public void testQueue() {
         TripleLongPriorityQueue pq = new TripleLongPriorityQueue();
         assertEquals(pq.size(), 0);
@@ -54,7 +54,7 @@ public class TripleLongPriorityQueueTest {
         pq.close();
     }
 
-    @Test
+
     public void testCheckForEmpty() {
         TripleLongPriorityQueue pq = new TripleLongPriorityQueue();
         assertEquals(pq.size(), 0);
@@ -91,7 +91,7 @@ public class TripleLongPriorityQueueTest {
         pq.close();
     }
 
-    @Test
+
     public void testCompareWithSamePrefix() {
         TripleLongPriorityQueue pq = new TripleLongPriorityQueue();
         assertEquals(pq.size(), 0);

@@ -42,7 +42,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Test
+
 public class MessageIdTest extends BrokerTestBase {
     private static final Logger log = LoggerFactory.getLogger(MessageIdTest.class);
 
@@ -58,7 +58,6 @@ public class MessageIdTest extends BrokerTestBase {
         internalCleanup();
     }
 
-    @Test(timeOut = 10000, dataProviderClass = EnumValuesDataProvider.class, dataProvider = "values")
     public void producerSendAsync(TopicType topicType) throws PulsarClientException, PulsarAdminException {
         // Given
         String key = "producerSendAsync-" + topicType;
@@ -128,7 +127,6 @@ public class MessageIdTest extends BrokerTestBase {
         consumer.unsubscribe();
     }
 
-    @Test(timeOut = 10000, dataProviderClass = EnumValuesDataProvider.class, dataProvider = "values")
     public void producerSend(TopicType topicType) throws PulsarClientException, PulsarAdminException {
         // Given
         String key = "producerSend-" + topicType;

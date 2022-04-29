@@ -34,7 +34,7 @@ import org.testng.annotations.Test;
  * With BookKeeper Opportunistic Striping feature we can allow Pulsar to work
  * with only WQ bookie during temporary outages of some bookie.
  */
-@Test(groups = "broker")
+
 public class OpportunisticStripingTest extends BkEnsemblesTestBase {
 
     public OpportunisticStripingTest() {
@@ -54,7 +54,7 @@ public class OpportunisticStripingTest extends BkEnsemblesTestBase {
         config.getProperties().setProperty("bookkeeper_opportunisticStriping", "true");
     }
 
-    @Test
+
     public void testOpportunisticStriping() throws Exception {
 
         try (PulsarClient client = PulsarClient.builder()

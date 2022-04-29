@@ -70,7 +70,7 @@ public class FunctionMetaDataTopicTailerTest {
         verify(reader, times(1)).close();
     }
 
-    @Test
+    
     public void testUpdate() throws Exception {
 
         FunctionMetaData request = FunctionMetaData.newBuilder().build();

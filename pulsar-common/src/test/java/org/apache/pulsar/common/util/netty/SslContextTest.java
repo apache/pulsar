@@ -70,7 +70,7 @@ public class SslContextTest {
         return new Object[]{null, cipher};
     }
 
-    @Test(dataProvider = "cipherDataProvider")
+    
     public void testServerKeyStoreSSLContext(Set<String> cipher) throws Exception {
         NettySSLContextAutoRefreshBuilder contextAutoRefreshBuilder = new NettySSLContextAutoRefreshBuilder(null,
                 "JKS", Resources.getResource("ssl/jetty_server_key.jks").getPath(),
@@ -88,7 +88,7 @@ public class SslContextTest {
         }
     }
 
-    @Test(dataProvider = "cipherDataProvider")
+    
     public void testClientKeyStoreSSLContext(Set<String> cipher) throws Exception {
         NettySSLContextAutoRefreshBuilder contextAutoRefreshBuilder = new NettySSLContextAutoRefreshBuilder(null,
                 false, "JKS", Resources.getResource("ssl/jetty_server_trust.jks").getPath(),
@@ -96,7 +96,7 @@ public class SslContextTest {
         contextAutoRefreshBuilder.update();
     }
 
-    @Test(dataProvider = "caCertSslContextDataProvider")
+    
     public void testServerCaCertSslContextWithSslProvider(SslProvider sslProvider, Set<String> ciphers)
             throws GeneralSecurityException, IOException {
         NettyServerSslContextBuilder sslContext = new NettyServerSslContextBuilder(sslProvider,
@@ -115,7 +115,6 @@ public class SslContextTest {
         sslContext.update();
     }
 
-    @Test(dataProvider = "caCertSslContextDataProvider")
     public void testClientCaCertSslContextWithSslProvider(SslProvider sslProvider, Set<String> ciphers)
             throws GeneralSecurityException, IOException {
         NettyClientSslContextRefresher sslContext = new NettyClientSslContextRefresher(sslProvider,

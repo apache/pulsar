@@ -43,14 +43,14 @@ public class InstanceStateManagerTest {
         this.stateManager = new InstanceStateManager();
     }
 
-    @Test
+
     public void testGetStoreNull() {
         final String fqsn = "t/ns/store";
         StateStore getStore = stateManager.getStore("t", "ns", "store");
         assertNull(getStore);
     }
 
-    @Test
+
     public void testRegisterStore() {
         final String fqsn = "t/ns/store";
         StateStore store = mock(StateStore.class);
@@ -60,7 +60,7 @@ public class InstanceStateManagerTest {
         assertSame(getStore, store);
     }
 
-    @Test
+
     public void testRegisterStoreTwice() {
         final String fqsn = "t/ns/store";
         StateStore store = mock(StateStore.class);
@@ -74,7 +74,7 @@ public class InstanceStateManagerTest {
         }
     }
 
-    @Test
+
     public void testClose() {
         final String fqsn1 = "t/ns/store-1";
         StateStore store1 = mock(StateStore.class);
@@ -92,7 +92,7 @@ public class InstanceStateManagerTest {
         verify(store2, times(1)).close();
     }
 
-    @Test
+
     public void testCloseException() {
         final String fqsn1 = "t/ns/store-1";
         StateStore store1 = mock(StateStore.class);

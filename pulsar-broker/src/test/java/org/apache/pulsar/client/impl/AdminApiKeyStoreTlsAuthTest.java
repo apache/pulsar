@@ -60,7 +60,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Slf4j
-@Test(groups = "broker-impl")
+
 public class AdminApiKeyStoreTlsAuthTest extends ProducerConsumerBase {
 
     protected final String BROKER_KEYSTORE_FILE_PATH =
@@ -174,7 +174,7 @@ public class AdminApiKeyStoreTlsAuthTest extends ProducerConsumerBase {
                 .build();
     }
 
-    @Test
+
     public void testSuperUserCanListTenants() throws Exception {
         try (PulsarAdmin admin = buildAdminClient()) {
             admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
@@ -185,7 +185,7 @@ public class AdminApiKeyStoreTlsAuthTest extends ProducerConsumerBase {
         }
     }
 
-    @Test
+
     public void testSuperUserCantListNamespaces() throws Exception {
         try (PulsarAdmin admin = buildAdminClient()) {
             admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
@@ -197,7 +197,7 @@ public class AdminApiKeyStoreTlsAuthTest extends ProducerConsumerBase {
         }
     }
 
-    @Test
+
     public void testAuthorizedUserAsOriginalPrincipal() throws Exception {
         try (PulsarAdmin admin = buildAdminClient()) {
             admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
@@ -214,7 +214,7 @@ public class AdminApiKeyStoreTlsAuthTest extends ProducerConsumerBase {
                             .get(new GenericType<List<String>>() {}));
     }
 
-    @Test
+
     public void testPersistentList() throws Exception {
         log.info("-- Starting {} test --", methodName);
 

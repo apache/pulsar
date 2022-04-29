@@ -279,14 +279,14 @@ public class SchemaInfoTest {
         };
     }
 
-    @Test(dataProvider = "schemas")
+    
     public void testSchemaInfoToString(SchemaInfo si, String jsonifiedStr) {
         assertEquals(si.toString(), jsonifiedStr);
     }
 
     public static class SchemaInfoBuilderTest {
 
-        @Test
+
         public void testUnsetProperties() {
             final SchemaInfo schemaInfo = SchemaInfo.builder()
                     .type(SchemaType.STRING)
@@ -300,7 +300,7 @@ public class SchemaInfoTest {
             assertEquals(schemaInfo.getProperties(), new HashMap<>());
         }
 
-        @Test
+
         public void testSetProperties() {
             final Map<String, String> map = new HashMap<>();
             map.put("test", "value");
@@ -317,7 +317,7 @@ public class SchemaInfoTest {
             assertEquals(schemaInfo.getProperties(), new HashMap<>(map));
         }
 
-        @Test
+
         public void testNullPropertyValue() {
             final Map<String, String> map = new HashMap<>();
             map.put("key", null);

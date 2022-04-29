@@ -32,7 +32,7 @@ import org.testng.annotations.Test;
 
 public class LocalMemoryMetadataStoreTest {
 
-    @Test
+
     public void testPrivateInstance() throws Exception {
         @Cleanup
         MetadataStore store1 = MetadataStoreFactory.create("memory:local",
@@ -48,7 +48,7 @@ public class LocalMemoryMetadataStoreTest {
         assertFalse(store2.exists("/test").join());
     }
 
-    @Test
+
     public void testSharedInstance() throws Exception {
         String url = "memory:" + UUID.randomUUID();
 
@@ -75,7 +75,7 @@ public class LocalMemoryMetadataStoreTest {
         });
     }
 
-    @Test
+
     public void testPathValid() {
         assertFalse(AbstractMetadataStore.isValidPath(null));
         assertFalse(AbstractMetadataStore.isValidPath(""));

@@ -24,7 +24,7 @@ import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker")
+
 public class SubscribeRateTest extends BrokerTestBase {
 
     @Override
@@ -37,7 +37,7 @@ public class SubscribeRateTest extends BrokerTestBase {
         //No-op
     }
 
-    @Test
+
     public void testBrokerLevelSubscribeRateDynamicUpdate() throws Exception {
         conf.setTopicLevelPoliciesEnabled(true);
         conf.setSystemTopicEnabled(true);

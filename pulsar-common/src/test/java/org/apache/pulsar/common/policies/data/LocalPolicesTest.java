@@ -33,7 +33,7 @@ import org.testng.annotations.Test;
 
 public class LocalPolicesTest {
 
-    @Test
+
     public void testLocalPolices() {
         List<String> boundaries0 = new ArrayList<>();
         List<String> boundaries1 = new ArrayList<>();
@@ -93,7 +93,7 @@ public class LocalPolicesTest {
     }
 
     // https://github.com/apache/pulsar/pull/9598
-    @Test
+
     public void testMakeLocalPoliciesImmutableSerializationCompatibility() throws IOException {
 
         // no fields
@@ -128,7 +128,7 @@ public class LocalPolicesTest {
 
     }
 
-    @Test
+
     public void testMakeLocalPoliciesImmutableStringSerializationCompatibility() throws IOException {
 
         // no fields

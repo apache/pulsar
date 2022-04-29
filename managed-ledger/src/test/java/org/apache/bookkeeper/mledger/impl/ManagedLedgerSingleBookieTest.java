@@ -42,7 +42,6 @@ public class ManagedLedgerSingleBookieTest extends MockedBookKeeperTestCase {
         super(1);
     }
 
-    @Test // (timeOut = 20000)
     public void simple() throws Exception {
         ManagedLedgerConfig config = new ManagedLedgerConfig().setEnsembleSize(1).setWriteQuorumSize(1)
                 .setAckQuorumSize(1).setMetadataEnsembleSize(1).setMetadataWriteQuorumSize(1)

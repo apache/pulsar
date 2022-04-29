@@ -81,7 +81,7 @@ public class HbaseGenericRecordSinkTest {
     @Mock
     protected SinkContext mockSinkContext;
 
-    @Test(enabled = false)
+    
     public void TestOpenAndWriteSink() throws Exception {
         message = mock(MessageImpl.class);
         GenericSchema<GenericRecord> genericAvroSchema;

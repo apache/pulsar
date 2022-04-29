@@ -25,7 +25,7 @@ import org.junit.Assert;
 import org.junit.Test;
 
 public class ProducerImplTest {
-    @Test
+
     public void testChunkedMessageCtxDeallocate() {
         int totalChunks = 3;
         ProducerImpl.ChunkedMessageCtx ctx = ProducerImpl.ChunkedMessageCtx.get(totalChunks);

@@ -40,7 +40,7 @@ import com.google.common.collect.Sets;
 
 public class PoliciesDataTest {
 
-    @Test
+
     public void policies() {
         Policies policies = new Policies();
 
@@ -59,7 +59,7 @@ public class PoliciesDataTest {
         assertNotEquals(new Policies(), policies);
     }
 
-    @Test
+
     public void propertyAdmin() {
         TenantInfo pa1 = TenantInfo.builder()
                 .adminRoles(Sets.newHashSet("role1", "role2"))
@@ -77,7 +77,7 @@ public class PoliciesDataTest {
         assertEquals(pa1.getAdminRoles(), Lists.newArrayList("role1", "role2"));
     }
 
-    @Test
+
     public void bundlesPolicies() throws JsonGenerationException, JsonMappingException, IOException {
         ObjectMapper jsonMapper = ObjectMapperFactory.create();
         String oldJsonPolicy = "{\"auth_policies\":{\"namespace_auth\":{},\"destination_auth\":{}},\"replication_clusters\":[],"
@@ -90,7 +90,7 @@ public class PoliciesDataTest {
         assertEquals(oldPolicies, new OldPolicies());
     }
 
-    @Test
+
     public void bundlesData() throws IOException {
         ObjectMapper jsonMapper = ObjectMapperFactory.create();
         String newJsonPolicy = "{\"auth_policies\":{\"namespace_auth\":{},\"destination_auth\":{}},\"replication_clusters\":[],\"bundles\":{\"boundaries\":[\"0x00000000\",\"0xffffffff\"]},\"backlog_quota_map\":{},\"persistence\":null,\"latency_stats_sample_rate\":{}}";

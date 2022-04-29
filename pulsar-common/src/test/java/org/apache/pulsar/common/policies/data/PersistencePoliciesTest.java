@@ -25,7 +25,7 @@ import org.testng.annotations.Test;
 
 public class PersistencePoliciesTest {
 
-    @Test
+
     public void testPersistencePolicies() {
         PersistencePolicies policy0 = new PersistencePolicies();
         PersistencePolicies policy1 = new PersistencePolicies();

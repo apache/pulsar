@@ -32,7 +32,7 @@ public class FunctionDetailsTest {
     /**
      * Make sure the default processing guarantee is always `ATLEAST_ONCE`.
      */
-    @Test
+
     public void testDefaultProcessingGuarantee() {
         FunctionDetails fc = FunctionDetails.newBuilder().build();
         assertEquals(ProcessingGuarantees.ATLEAST_ONCE, fc.getProcessingGuarantees());

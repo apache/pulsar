@@ -26,7 +26,7 @@ import org.testng.annotations.Test;
 
 public class ClearTextSecretsProviderTest {
 
-    @Test
+
     public void testConfigValidation() throws Exception {
         ClearTextSecretsProvider provider = new ClearTextSecretsProvider();
         assertEquals(provider.provideSecret("SecretName", "SecretValue"), "SecretValue");

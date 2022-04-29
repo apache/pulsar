@@ -49,7 +49,6 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Test(groups = "stats")
 public class PulsarBrokerStatsClientTest extends ProducerConsumerBase {
 
     @BeforeMethod
@@ -65,7 +64,7 @@ public class PulsarBrokerStatsClientTest extends ProducerConsumerBase {
         super.internalCleanup();
     }
 
-    @Test
+
     public void testServiceException() throws Exception {
         URL url = new URL("http://localhost:15000");
         PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(url.toString()).build();
@@ -98,7 +97,7 @@ public class PulsarBrokerStatsClientTest extends ProducerConsumerBase {
         admin.close();
     }
 
-    @Test
+
     public void testTopicInternalStats() throws Exception {
         log.info("-- Starting {} test --", methodName);
 

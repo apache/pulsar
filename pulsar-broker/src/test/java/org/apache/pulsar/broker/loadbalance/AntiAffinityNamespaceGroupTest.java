@@ -68,7 +68,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker")
+
 public class AntiAffinityNamespaceGroupTest {
     private LocalBookkeeperEnsemble bkEnsemble;
 
@@ -175,7 +175,7 @@ public class AntiAffinityNamespaceGroupTest {
                 Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
     }
 
-    @Test
+
     public void testClusterDomain() {
 
     }
@@ -203,7 +203,7 @@ public class AntiAffinityNamespaceGroupTest {
      * </pre>
      *
      */
-    @Test
+
     public void testAntiAffinityNamespaceFilteringWithDomain() throws Exception {
 
         final String namespace = "my-tenant/use/my-ns";
@@ -302,7 +302,7 @@ public class AntiAffinityNamespaceGroupTest {
      *
      * @throws Exception
      */
-    @Test
+
     public void testAntiAffinityNamespaceFilteringWithoutDomain() throws Exception {
 
         final String namespace = "my-tenant/use/my-ns";
@@ -398,7 +398,7 @@ public class AntiAffinityNamespaceGroupTest {
      *
      * @throws Exception
      */
-    @Test
+
     public void testBrokerSelectionForAntiAffinityGroup() throws Exception {
 
         final String broker1 = primaryHost;
@@ -454,7 +454,7 @@ public class AntiAffinityNamespaceGroupTest {
      *
      * @throws Exception
      */
-    @Test
+
     public void testLoadSheddingUtilWithAntiAffinityNamespace() throws Exception {
 
         final String namespace = "my-tenant/use/my-ns";
@@ -508,7 +508,7 @@ public class AntiAffinityNamespaceGroupTest {
      *
      * @throws Exception
      */
-    @Test
+
     public void testLoadSheddingWithAntiAffinityNamespace() throws Exception {
 
         final String namespace = "my-tenant/use/my-ns";

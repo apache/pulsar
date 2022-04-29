@@ -53,7 +53,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
-@Test(groups = "broker")
+
 public class PartitionedSystemTopicTest extends BrokerTestBase {
 
     static final int PARTITIONS = 5;
@@ -78,7 +78,7 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
         super.internalCleanup();
     }
 
-    @Test
+
     public void testAutoCreatedPartitionedSystemTopic() throws Exception {
         final String ns = "prop/ns-test";
         admin.namespaces().createNamespace(ns, 2);
@@ -95,7 +95,6 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
         reader.close();
     }
 
-    @Test(timeOut = 1000 * 60)
     public void testConsumerCreationWhenEnablingTopicPolicy() throws Exception {
         String tenant = "tenant-" + RandomStringUtils.randomAlphabetic(4).toLowerCase();
         admin.tenants().createTenant(tenant, new TenantInfoImpl(Sets.newHashSet(), Sets.newHashSet("test")));
@@ -122,7 +121,7 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
         }
     }
 
-    @Test
+
     public void testProduceAndConsumeUnderSystemNamespace() throws Exception {
         TenantInfo tenantInfo = TenantInfo
                 .builder()
@@ -146,7 +145,7 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
         Assert.assertNotNull(receive);
     }
 
-    @Test
+
     public void testHealthCheckTopicNotOffload() throws Exception {
         NamespaceName namespaceName = NamespaceService.getHeartbeatNamespaceV2(pulsar.getAdvertisedAddress(),
                 pulsar.getConfig());

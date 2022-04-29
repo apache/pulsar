@@ -36,9 +36,9 @@ import org.testng.annotations.Test;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.mock;
 
-@Test(groups = "broker-impl")
+
 public class AutoClusterFailoverTest {
-    @Test
+    
     public void testBuildAutoClusterFailoverInstance() throws PulsarClientException {
         String primary = "pulsar://localhost:6650";
         String secondary = "pulsar://localhost:6651";
@@ -99,7 +99,7 @@ public class AutoClusterFailoverTest {
         Assert.assertEquals(secondaryAuthentication, autoClusterFailover1.getSecondaryAuthentications().get(secondary));
     }
 
-    @Test
+    
     public void testInitialize() {
         String primary = "pulsar://localhost:6650";
         String secondary = "pulsar://localhost:6651";
@@ -141,7 +141,7 @@ public class AutoClusterFailoverTest {
         }
     }
 
-    @Test
+    
     public void testAutoClusterFailoverSwitchWithoutAuthentication() {
         String primary = "pulsar://localhost:6650";
         String secondary = "pulsar://localhost:6651";
@@ -176,7 +176,7 @@ public class AutoClusterFailoverTest {
                 Assert.assertEquals(primary, autoClusterFailover.getServiceUrl()));
     }
 
-    @Test
+    
     public void testAutoClusterFailoverSwitchWithAuthentication() throws IOException {
         String primary = "pulsar+ssl://localhost:6651";
         String secondary = "pulsar+ssl://localhost:6661";
@@ -237,7 +237,7 @@ public class AutoClusterFailoverTest {
 
     }
 
-    @Test
+    
     public void testAutoClusterFailoverSwitchTlsTrustStore() throws IOException {
         String primary = "pulsar+ssl://localhost:6651";
         String secondary = "pulsar+ssl://localhost:6661";

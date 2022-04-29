@@ -149,7 +149,7 @@ public class ProxyWithoutServiceDiscoveryTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test
+
     public void testDiscoveryService() throws Exception {
         log.info("-- Starting {} test --", methodName);
 

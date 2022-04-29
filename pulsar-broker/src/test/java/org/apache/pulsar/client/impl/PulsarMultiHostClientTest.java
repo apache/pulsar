@@ -39,7 +39,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker-impl")
+
 public class PulsarMultiHostClientTest extends ProducerConsumerBase {
 
     private static final Logger log = LoggerFactory.getLogger(PulsarMultiHostClientTest.class);
@@ -57,7 +57,7 @@ public class PulsarMultiHostClientTest extends ProducerConsumerBase {
         super.internalCleanup();
     }
 
-    @Test
+
     public void testGetPartitionedTopicMetaData() {
         log.info("-- Starting {} test --", methodName);
 
@@ -86,7 +86,6 @@ public class PulsarMultiHostClientTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test (timeOut = 15000)
     public void testGetPartitionedTopicDataTimeout() {
         log.info("-- Starting {} test --", methodName);
 
@@ -120,7 +119,7 @@ public class PulsarMultiHostClientTest extends ProducerConsumerBase {
         }
     }
 
-    @Test
+
     public void testMultiHostUrlRetrySuccess() throws Exception {
         log.info("-- Starting {} test --", methodName);
 

@@ -69,7 +69,7 @@ public class DLInputStreamTest {
     /**
      * Test Case: reader hits eos (end of stream)
      */
-    @Test
+
     public void testReadEos() throws Exception {
         OutputStream outputStream = new ByteArrayOutputStream();
         try {
@@ -92,7 +92,7 @@ public class DLInputStreamTest {
     /**
      * Test Case: read records from the input stream. And output it to a output stream.
      */
-    @Test
+
     public void testReadToOutputStream() {
         // prepare test data
         byte[] data = "test-read".getBytes();
@@ -125,7 +125,7 @@ public class DLInputStreamTest {
 
     }
 
-    @Test
+
     public void openAsyncLogReaderFailed() {
         when(dlm.openAsyncLogReader(any(DLSN.class))).thenReturn(failedFuture(new Exception("Open reader was failed")));
 

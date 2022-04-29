@@ -31,7 +31,7 @@ import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.testng.annotations.Test;
 
 @Slf4j
-@Test(groups = "broker")
+
 public class MultiBrokerMetadataConsistencyTest extends MultiBrokerBaseTest {
     @Override
     protected int numberOfAdditionalBrokers() {
@@ -68,7 +68,7 @@ public class MultiBrokerMetadataConsistencyTest extends MultiBrokerBaseTest {
         return MetadataStoreExtended.create(testZKServer.getConnectionString(), MetadataStoreConfig.builder().build());
     }
 
-    @Test
+
     public void newTopicShouldBeInTopicsList() throws PulsarAdminException {
         List<PulsarAdmin> admins = getAllAdmins();
         PulsarAdmin first = admins.get(0);

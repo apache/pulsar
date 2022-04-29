@@ -46,7 +46,7 @@ import org.testng.annotations.Test;
 @Slf4j
 public class PulsarLedgerIdGeneratorTest extends BaseMetadataStoreTest {
 
-    @Test(dataProvider = "impl")
+    
     public void testGenerateLedgerId(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
         MetadataStoreExtended store =
@@ -121,7 +121,7 @@ public class PulsarLedgerIdGeneratorTest extends BaseMetadataStoreTest {
         }
     }
 
-    @Test(dataProvider = "impl")
+    
     public void testEnsureCounterIsNotResetWithContainerNodes(String provider, Supplier<String> urlSupplier)
             throws Exception {
         @Cleanup

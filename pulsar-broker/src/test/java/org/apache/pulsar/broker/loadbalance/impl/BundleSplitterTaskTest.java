@@ -42,7 +42,7 @@ import java.util.Set;
  * @author hezhangjian
  */
 @Slf4j
-@Test(groups = "broker")
+
 public class BundleSplitterTaskTest {
 
     private LocalBookkeeperEnsemble bkEnsemble;
@@ -70,7 +70,7 @@ public class BundleSplitterTaskTest {
         pulsar.start();
     }
 
-    @Test
+
     public void testSplitTaskWhenTopicJustOne() {
         final BundleSplitterTask bundleSplitterTask = new BundleSplitterTask();
         LoadData loadData = new LoadData();

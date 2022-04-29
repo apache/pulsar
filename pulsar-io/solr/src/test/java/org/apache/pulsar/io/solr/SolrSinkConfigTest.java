@@ -37,7 +37,7 @@ import static org.testng.Assert.assertNotNull;
  */
 public class SolrSinkConfigTest {
 
-    @Test
+
     public final void loadFromYamlFileTest() throws IOException {
         File yamlFile = getFile("sinkConfig.yaml");
         String path = yamlFile.getAbsolutePath();
@@ -51,7 +51,7 @@ public class SolrSinkConfigTest {
         assertEquals(config.getPassword(), "fake@123");
     }
 
-    @Test
+
     public final void loadFromMapTest() throws IOException {
         Map<String, Object> map = new HashMap<>();
         map.put("solrUrl", "localhost:2181,localhost:2182/chroot");
@@ -71,7 +71,7 @@ public class SolrSinkConfigTest {
         assertEquals(config.getPassword(), "fake@123");
     }
 
-    @Test
+
     public final void validValidateTest() throws IOException {
         Map<String, Object> map = new HashMap<>();
         map.put("solrUrl", "localhost:2181,localhost:2182/chroot");
@@ -85,8 +85,6 @@ public class SolrSinkConfigTest {
         config.validate();
     }
 
-    @Test(expectedExceptions = NullPointerException.class,
-        expectedExceptionsMessageRegExp = "solrUrl property not set.")
     public final void missingValidValidateSolrModeTest() throws IOException {
         Map<String, Object> map = new HashMap<>();
         map.put("solrMode", "SolrCloud");
@@ -99,8 +97,6 @@ public class SolrSinkConfigTest {
         config.validate();
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class,
-        expectedExceptionsMessageRegExp = "solrCommitWithinMs must be a positive integer.")
     public final void invalidBatchTimeMsTest() throws IOException {
         Map<String, Object> map = new HashMap<>();
         map.put("solrUrl", "localhost:2181,localhost:2182/chroot");
@@ -114,8 +110,6 @@ public class SolrSinkConfigTest {
         config.validate();
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class,
-        expectedExceptionsMessageRegExp = "No enum constant org.apache.pulsar.io.solr.SolrAbstractSink.SolrMode.NOTSUPPORT")
     public final void invalidClientModeTest() throws IOException {
         Map<String, Object> map = new HashMap<>();
         map.put("solrUrl", "localhost:2181,localhost:2182/chroot");
@@ -131,7 +125,7 @@ public class SolrSinkConfigTest {
         SolrAbstractSink.SolrMode.valueOf(config.getSolrMode().toUpperCase());
     }
 
-    @Test
+
     public final void validZkChrootTest() throws IOException {
         Map<String, Object> map = new HashMap<>();
         map.put("solrUrl", "localhost:2181,localhost:2182/chroot");

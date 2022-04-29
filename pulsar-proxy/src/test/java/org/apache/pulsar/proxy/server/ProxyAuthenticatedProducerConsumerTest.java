@@ -154,7 +154,7 @@ public class ProxyAuthenticatedProducerConsumerTest extends ProducerConsumerBase
      * @throws Exception
      */
     @SuppressWarnings("deprecation")
-    @Test
+
     public void testTlsSyncProducerAndConsumer() throws Exception {
         log.info("-- Starting {} test --", methodName);
 

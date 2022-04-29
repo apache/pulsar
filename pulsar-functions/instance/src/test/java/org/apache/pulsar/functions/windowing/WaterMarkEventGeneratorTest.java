@@ -67,7 +67,7 @@ public class WaterMarkEventGeneratorTest {
         eventList.clear();
     }
 
-    @Test
+    
     public void testTrackSingleStream() throws Exception {
         waterMarkEventGenerator.track("s1", 100);
         waterMarkEventGenerator.track("s1", 110);
@@ -76,7 +76,7 @@ public class WaterMarkEventGeneratorTest {
         assertEquals(105, eventList.get(0).getTimestamp());
     }
 
-    @Test
+    
     public void testTrackSingleStreamOutOfOrder() throws Exception {
         waterMarkEventGenerator.track("s1", 100);
         waterMarkEventGenerator.track("s1", 110);
@@ -86,7 +86,7 @@ public class WaterMarkEventGeneratorTest {
         assertEquals(105, eventList.get(0).getTimestamp());
     }
 
-    @Test
+    
     public void testTrackTwoStreams() throws Exception {
         Set<String> streams = new HashSet<>();
         streams.add("s1");
@@ -106,13 +106,13 @@ public class WaterMarkEventGeneratorTest {
         assertEquals(93, eventList.get(0).getTimestamp());
     }
 
-    @Test
+    
     public void testNoEvents() throws Exception {
         waterMarkEventGenerator.run();
         assertTrue(eventList.isEmpty());
     }
 
-    @Test
+    
     public void testLateEvent() throws Exception {
         assertTrue(waterMarkEventGenerator.track("s1", 100));
         assertTrue(waterMarkEventGenerator.track("s1", 110));

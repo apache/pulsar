@@ -25,42 +25,42 @@ import org.testng.annotations.Test;
 @Slf4j
 public class NonPersistentTopicMessagingTest extends TopicMessagingBase {
 
-    @Test(dataProvider = "ServiceUrls")
+    
     public void testNonPartitionedTopicMessagingWithExclusive(Supplier<String> serviceUrl) throws Exception {
         nonPartitionedTopicSendAndReceiveWithExclusive(serviceUrl.get(), false);
     }
 
-    @Test(dataProvider = "ServiceUrls")
+    
     public void testPartitionedTopicMessagingWithExclusive(Supplier<String> serviceUrl) throws Exception {
         partitionedTopicSendAndReceiveWithExclusive(serviceUrl.get(), false);
     }
 
-    @Test(dataProvider = "ServiceUrls")
+    
     public void testNonPartitionedTopicMessagingWithFailover(Supplier<String> serviceUrl) throws Exception {
         nonPartitionedTopicSendAndReceiveWithFailover(serviceUrl.get(), false);
     }
 
-    @Test(dataProvider = "ServiceUrls")
+    
     public void testPartitionedTopicMessagingWithFailover(Supplier<String> serviceUrl) throws Exception {
         partitionedTopicSendAndReceiveWithFailover(serviceUrl.get(), false);
     }
 
-    @Test(dataProvider = "ServiceUrls")
+    
     public void testNonPartitionedTopicMessagingWithShared(Supplier<String> serviceUrl) throws Exception {
         nonPartitionedTopicSendAndReceiveWithShared(serviceUrl.get(), false);
     }
 
-    @Test(dataProvider = "ServiceUrls")
+    
     public void testPartitionedTopicMessagingWithShared(Supplier<String> serviceUrl) throws Exception {
         partitionedTopicSendAndReceiveWithShared(serviceUrl.get(), false);
     }
 
-    @Test(dataProvider = "ServiceUrls")
+    
     public void testNonPartitionedTopicMessagingWithKeyShared(Supplier<String> serviceUrl) throws Exception {
         nonPartitionedTopicSendAndReceiveWithKeyShared(serviceUrl.get(), false);
     }
 
-    @Test(dataProvider = "ServiceUrls")
+    
     public void testPartitionedTopicMessagingWithKeyShared(Supplier<String> serviceUrl) throws Exception {
         partitionedTopicSendAndReceiveWithKeyShared(serviceUrl.get(), false);
     }

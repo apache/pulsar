@@ -225,7 +225,7 @@ public class PulsarSourceTest {
         }
     }
 
-    @Test(dataProvider = "sourceImpls")
+    
     public void testVoidInputClasses(PulsarSourceConfig pulsarSourceConfig) throws Exception {
         // set type to void
         pulsarSourceConfig.setTypeClassName(Void.class.getName());
@@ -247,7 +247,7 @@ public class PulsarSourceTest {
     /**
      * Verify that function input type should be consistent with input serde type.
      */
-    @Test(dataProvider = "sourceImpls")
+    
     public void testInconsistentInputType(PulsarSourceConfig pulsarSourceConfig) throws Exception {
         // set type to be inconsistent to that of SerDe
         pulsarSourceConfig.setTypeClassName(Integer.class.getName());
@@ -273,7 +273,7 @@ public class PulsarSourceTest {
     /**
      * Verify that Default Serializer works fine.
      */
-    @Test(dataProvider = "sourceImpls")
+    
     public void testDefaultSerDe(PulsarSourceConfig pulsarSourceConfig) throws Exception {
         // set type to void
         pulsarSourceConfig.setTypeClassName(String.class.getName());
@@ -287,7 +287,7 @@ public class PulsarSourceTest {
         pulsarSource.open(new HashMap<>(), Mockito.mock(SourceContext.class));
     }
 
-    @Test(dataProvider = "sourceImpls")
+    
     public void testComplexOutputType(PulsarSourceConfig pulsarSourceConfig) throws Exception {
         // set type to void
         pulsarSourceConfig.setTypeClassName(ComplexUserDefinedType.class.getName());
@@ -300,7 +300,7 @@ public class PulsarSourceTest {
         pulsarSource.open(new HashMap<>(), Mockito.mock(SourceContext.class));
     }
 
-    @Test
+
     public void testDanglingSubscriptions() throws Exception {
         MultiConsumerPulsarSourceConfig pulsarConfig = getMultiConsumerPulsarConfigs(true);
 
@@ -319,7 +319,7 @@ public class PulsarSourceTest {
 
     }
 
-    @Test(dataProvider = "sourceImpls")
+    
     public void testPreserveOriginalSchema(PulsarSourceConfig pulsarSourceConfig) throws Exception {
         pulsarSourceConfig.setTypeClassName(GenericRecord.class.getName());
 
@@ -341,7 +341,7 @@ public class PulsarSourceTest {
         assertSame(pushed.getSchema(), schema);
     }
 
-    @Test(dataProvider = "sourceImpls")
+    
     public void testInputConsumersGetter(PulsarSourceConfig pulsarSourceConfig) throws Exception {
         PulsarSource<GenericRecord> pulsarSource = getPulsarSource(pulsarSourceConfig);
         pulsarSource.open(new HashMap<>(), null);

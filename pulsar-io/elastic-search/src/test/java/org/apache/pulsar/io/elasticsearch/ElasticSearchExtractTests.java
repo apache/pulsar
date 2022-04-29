@@ -43,7 +43,7 @@ public class ElasticSearchExtractTests {
         return new Object[]{SchemaType.JSON, SchemaType.AVRO};
     }
 
-    @Test(dataProvider = "schemaType")
+    
     public void testGenericRecord(SchemaType schemaType) throws Exception {
         RecordSchemaBuilder valueSchemaBuilder = org.apache.pulsar.client.api.schema.SchemaBuilder.record("value");
         valueSchemaBuilder.field("c").type(SchemaType.STRING).optional().defaultValue(null);
@@ -147,7 +147,7 @@ public class ElasticSearchExtractTests {
         assertNull(pair4.getRight());
     }
 
-    @Test(dataProvider = "schemaType")
+    
     public void testKeyValueGenericRecord(SchemaType schemaType) throws Exception {
         RecordSchemaBuilder keySchemaBuilder = org.apache.pulsar.client.api.schema.SchemaBuilder.record("key");
         keySchemaBuilder.field("a").type(SchemaType.STRING).optional().defaultValue(null);

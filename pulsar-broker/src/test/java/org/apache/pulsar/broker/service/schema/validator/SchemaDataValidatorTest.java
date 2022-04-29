@@ -30,7 +30,7 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker")
+
 public class SchemaDataValidatorTest {
 
     private static class Foo {
@@ -76,7 +76,6 @@ public class SchemaDataValidatorTest {
         };
     }
 
-    @Test(dataProvider = "primitiveSchemas")
     public void testPrimitiveValidatorSuccess(SchemaType type) throws Exception {
         SchemaData data = SchemaData.builder()
             .type(type)
@@ -85,7 +84,6 @@ public class SchemaDataValidatorTest {
         SchemaDataValidator.validateSchemaData(data);
     }
 
-    @Test(dataProvider = "primitiveSchemas", expectedExceptions = InvalidSchemaDataException.class)
     public void testPrimitiveValidatorInvalid(SchemaType type) throws Exception {
         SchemaData data = SchemaData.builder()
             .type(type)
@@ -94,7 +92,6 @@ public class SchemaDataValidatorTest {
         SchemaDataValidator.validateSchemaData(data);
     }
 
-    @Test(dataProvider = "clientSchemas", expectedExceptions = InvalidSchemaDataException.class)
     public void testValidateClientSchemas(SchemaType type) throws Exception {
         SchemaData data = SchemaData.builder()
             .type(type)
@@ -103,7 +100,6 @@ public class SchemaDataValidatorTest {
         SchemaDataValidator.validateSchemaData(data);
     }
 
-    @Test(dataProvider = "structSchemas")
     public void testStructValidatorSuccess(SchemaType type) throws Exception {
         Schema<Foo> schema = Schema.AVRO(Foo.class);
         SchemaData data = SchemaData.builder()
@@ -113,7 +109,6 @@ public class SchemaDataValidatorTest {
         SchemaDataValidator.validateSchemaData(data);
     }
 
-    @Test(dataProvider = "structSchemas", expectedExceptions = InvalidSchemaDataException.class)
     public void testStructValidatorInvalid(SchemaType type) throws Exception {
         SchemaData data = SchemaData.builder()
             .type(type)
@@ -122,7 +117,7 @@ public class SchemaDataValidatorTest {
         SchemaDataValidator.validateSchemaData(data);
     }
 
-    @Test
+
     public void testJsonSchemaTypeWithJsonSchemaData() throws Exception {
         ObjectMapper mapper = ObjectMapperFactory.getThreadLocal();
         SchemaData data = SchemaData.builder()

@@ -79,7 +79,7 @@ public class PulsarZKDowngradeTest extends PulsarClusterTestBase {
         super.tearDownCluster();
     }
 
-    @Test(dataProvider = "ServiceUrlAndTopics")
+    ServiceUrlAndTopics")
     public void testPublishAndConsume(Supplier<String> serviceUrl, boolean isPersistent) throws Exception {
         String topicName = generateTopicName("testpubconsume", isPersistent);
 

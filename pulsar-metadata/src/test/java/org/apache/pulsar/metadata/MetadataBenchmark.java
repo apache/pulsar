@@ -36,7 +36,6 @@ import org.testng.annotations.Test;
 @Slf4j
 public class MetadataBenchmark extends MetadataStoreTest {
 
-    @Test(dataProvider = "impl", enabled = false)
     public void testGet(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
         MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
@@ -71,7 +70,6 @@ public class MetadataBenchmark extends MetadataStoreTest {
         log.info("[{}] Get Throughput: {} Kops/s", provider, throughput / 1_000);
     }
 
-    @Test(dataProvider = "impl", enabled = false)
     public void testGetChildren(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
         MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
@@ -105,7 +103,6 @@ public class MetadataBenchmark extends MetadataStoreTest {
         log.info("[{}] Get Children Throughput: {} Kops/s", provider, throughput / 1_000);
     }
 
-    @Test(dataProvider = "impl", enabled = false)
     public void testPut(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
         MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());

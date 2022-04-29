@@ -85,7 +85,7 @@ import org.testng.annotations.Test;
 public class FunctionRuntimeManagerTest {
     private final String PULSAR_SERVICE_URL = "pulsar://localhost:6650";
 
-    @Test
+
     public void testProcessAssignmentUpdateAddFunctions() throws Exception {
 
         WorkerConfig workerConfig = new WorkerConfig();
@@ -177,7 +177,7 @@ public class FunctionRuntimeManagerTest {
         }
     }
 
-    @Test
+
     public void testProcessAssignmentUpdateDeleteFunctions() throws Exception {
 
         WorkerConfig workerConfig = new WorkerConfig();
@@ -280,7 +280,7 @@ public class FunctionRuntimeManagerTest {
                 .thenAnswer((Answer<ThreadRuntimeFactory>) invocation -> new ThreadRuntimeFactory());
     }
 
-    @Test
+
     public void testProcessAssignmentUpdateModifyFunctions() throws Exception {
         WorkerConfig workerConfig = new WorkerConfig();
         workerConfig.setWorkerId("worker-1");
@@ -418,7 +418,7 @@ public class FunctionRuntimeManagerTest {
 
     }
 
-    @Test
+
     public void testReassignment() throws Exception {
         WorkerConfig workerConfig = new WorkerConfig();
         workerConfig.setWorkerId("worker-1");
@@ -531,7 +531,7 @@ public class FunctionRuntimeManagerTest {
         }
     }
 
-    @Test
+
     public void testRuntimeManagerInitialize() throws Exception {
         WorkerConfig workerConfig = new WorkerConfig();
         workerConfig.setWorkerId("worker-1");
@@ -679,7 +679,7 @@ public class FunctionRuntimeManagerTest {
         }
     }
 
-    @Test
+
     public void testExternallyManagedRuntimeUpdate() throws Exception {
         WorkerConfig workerConfig = new WorkerConfig();
         workerConfig.setWorkerId("worker-1");
@@ -833,7 +833,7 @@ public class FunctionRuntimeManagerTest {
         }
     }
 
-    @Test
+
     public void testFunctionRuntimeSetCorrectly() {
 
         // Function runtime not set
@@ -946,7 +946,7 @@ public class FunctionRuntimeManagerTest {
         }
     }
 
-    @Test
+
     public void testFunctionRuntimeFactoryConfigsBackwardsCompatibility() throws Exception {
 
         // Test kubernetes runtime
@@ -1052,7 +1052,7 @@ public class FunctionRuntimeManagerTest {
         }
     }
 
-    @Test
+
     public void testThreadFunctionInstancesRestart() throws Exception {
 
         WorkerConfig workerConfig = new WorkerConfig();
@@ -1126,7 +1126,7 @@ public class FunctionRuntimeManagerTest {
         }
     }
 
-    @Test
+
     public void testKubernetesFunctionInstancesRestart() throws Exception {
 
         WorkerConfig workerConfig = new WorkerConfig();

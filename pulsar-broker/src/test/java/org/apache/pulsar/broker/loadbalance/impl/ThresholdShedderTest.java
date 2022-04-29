@@ -35,7 +35,7 @@ import org.apache.pulsar.policies.data.loadbalancer.ResourceUsage;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker")
+
 @Slf4j
 public class ThresholdShedderTest {
     private ThresholdShedder thresholdShedder;
@@ -50,13 +50,13 @@ public class ThresholdShedderTest {
         thresholdShedder = new ThresholdShedder();
     }
 
-    @Test
+    
     public void testNoBrokers() {
         LoadData loadData = new LoadData();
         assertTrue(thresholdShedder.findBundlesForUnloading(loadData, conf).isEmpty());
     }
 
-    @Test
+    
     public void testBrokersWithNoBundles() {
         LoadData loadData = new LoadData();
 
@@ -68,7 +68,7 @@ public class ThresholdShedderTest {
         assertTrue(thresholdShedder.findBundlesForUnloading(loadData, conf).isEmpty());
     }
 
-    @Test
+    
     public void testBrokerNotReachThreshold() {
         LoadData loadData = new LoadData();
 
@@ -88,7 +88,7 @@ public class ThresholdShedderTest {
         assertTrue(thresholdShedder.findBundlesForUnloading(loadData, conf).isEmpty());
     }
 
-    @Test
+    
     public void testBrokerWithSingleBundle() {
         LoadData loadData = new LoadData();
 
@@ -109,7 +109,7 @@ public class ThresholdShedderTest {
         assertTrue(thresholdShedder.findBundlesForUnloading(loadData, conf).isEmpty());
     }
 
-    @Test
+    
     public void testBrokerWithMultipleBundles() {
         int numBundles = 10;
         LoadData loadData = new LoadData();
@@ -157,7 +157,7 @@ public class ThresholdShedderTest {
             Lists.newArrayList("bundle-10", "bundle-9", "bundle-8"));
     }
 
-    @Test
+    
     public void testFilterRecentlyUnloaded() {
         int numBundles = 10;
         LoadData loadData = new LoadData();
@@ -205,7 +205,7 @@ public class ThresholdShedderTest {
             Lists.newArrayList("bundle-8", "bundle-7", "bundle-6", "bundle-5"));
     }
 
-    @Test
+    
     public void testPrintResourceUsage() {
         LocalBrokerData data = new LocalBrokerData();
 

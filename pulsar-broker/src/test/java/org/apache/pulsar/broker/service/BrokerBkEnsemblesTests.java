@@ -52,7 +52,7 @@ import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker")
+
 public class BrokerBkEnsemblesTests extends BkEnsemblesTestBase {
 
     public BrokerBkEnsemblesTests() {
@@ -77,7 +77,7 @@ public class BrokerBkEnsemblesTests extends BkEnsemblesTestBase {
      *
      * @throws Exception
      */
-    @Test
+
     public void testCrashBrokerWithoutCursorLedgerLeak() throws Exception {
 
         ZooKeeper zk = bkEnsemble.getZkClient();
@@ -173,7 +173,7 @@ public class BrokerBkEnsemblesTests extends BkEnsemblesTestBase {
      *
      * @throws Exception
      */
-    @Test
+
     public void testSkipCorruptDataLedger() throws Exception {
         // Ensure intended state for autoSkipNonRecoverableData
         admin.brokers().updateDynamicConfiguration("autoSkipNonRecoverableData", "false");
@@ -279,7 +279,7 @@ public class BrokerBkEnsemblesTests extends BkEnsemblesTestBase {
         consumer.close();
     }
 
-    @Test(timeOut = 20000)
+    
     public void testTopicWithWildCardChar() throws Exception {
         @Cleanup
         PulsarClient client = PulsarClient.builder()
@@ -309,7 +309,7 @@ public class BrokerBkEnsemblesTests extends BkEnsemblesTestBase {
     }
 
 
-    @Test
+
     public void testDeleteTopicWithMissingData() throws Exception {
         String namespace = BrokerTestUtil.newUniqueName("prop/usc");
         admin.namespaces().createNamespace(namespace);

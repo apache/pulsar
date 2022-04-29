@@ -34,7 +34,7 @@ import org.testng.annotations.Test;
 
 public class FileListingThreadTests extends AbstractFileTests {
 
-    @Test
+
     public final void singleFileTest() throws IOException {
 
         Map<String, Object> map = new HashMap<> ();
@@ -57,7 +57,7 @@ public class FileListingThreadTests extends AbstractFileTests {
         }
     }
 
-    @Test
+
     public final void fiftyFileTest() throws IOException {
 
         Map<String, Object> map = new HashMap<String, Object> ();
@@ -79,7 +79,7 @@ public class FileListingThreadTests extends AbstractFileTests {
         }
     }
 
-    @Test
+
     public final void minimumSizeTest() throws IOException {
 
         Map<String, Object> map = new HashMap<String, Object> ();
@@ -97,7 +97,7 @@ public class FileListingThreadTests extends AbstractFileTests {
         }
     }
 
-    @Test
+
     public final void maximumSizeTest() throws IOException {
 
         Map<String, Object> map = new HashMap<String, Object> ();
@@ -119,7 +119,7 @@ public class FileListingThreadTests extends AbstractFileTests {
         }
     }
 
-    @Test
+
     public final void minimumAgeTest() throws IOException {
 
         Map<String, Object> map = new HashMap<String, Object> ();
@@ -140,7 +140,7 @@ public class FileListingThreadTests extends AbstractFileTests {
         }
     }
 
-    @Test
+
     public final void maximumAgeTest() throws IOException {
 
         Map<String, Object> map = new HashMap<String, Object> ();
@@ -165,7 +165,7 @@ public class FileListingThreadTests extends AbstractFileTests {
         }
     }
 
-    @Test
+
     public final void doRecurseTest() throws IOException {
 
         Map<String, Object> map = new HashMap<String, Object> ();
@@ -189,7 +189,7 @@ public class FileListingThreadTests extends AbstractFileTests {
         }
     }
 
-    @Test
+
     public final void doNotRecurseTest() throws IOException {
 
         Map<String, Object> map = new HashMap<String, Object> ();
@@ -213,7 +213,7 @@ public class FileListingThreadTests extends AbstractFileTests {
         }
     }
 
-    @Test
+
     public final void pathFilterTest() throws IOException {
 
         Map<String, Object> map = new HashMap<String, Object> ();
@@ -236,7 +236,7 @@ public class FileListingThreadTests extends AbstractFileTests {
         }
     }
 
-    @Test
+
     public final void processedFileFilterTest() throws IOException {
 
         String processedFileSuffix = ".file_process_done";
@@ -259,7 +259,7 @@ public class FileListingThreadTests extends AbstractFileTests {
         }
     }
 
-    @Test
+
     public final void processedFileFilterTest2() throws IOException {
 
         String processedFileSuffix = ".file_process_done";

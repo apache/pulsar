@@ -32,7 +32,7 @@ import java.util.concurrent.ScheduledFuture;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 
-@Test(groups = "broker")
+
 public class PublishRateLimiterTest {
     private final String CLUSTER_NAME = "clusterName";
     private final Policies policies = new Policies();
@@ -51,7 +51,7 @@ public class PublishRateLimiterTest {
         publishRateLimiter = new PublishRateLimiterImpl(policies, CLUSTER_NAME);
     }
 
-    @Test
+
     public void testPublishRateLimiterImplExceed() throws Exception {
         // increment not exceed
         publishRateLimiter.incrementPublishCount(5, 50);
@@ -72,7 +72,7 @@ public class PublishRateLimiterTest {
 
     }
 
-    @Test
+
     public void testPublishRateLimiterImplUpdate() {
         publishRateLimiter.incrementPublishCount(11, 110);
         publishRateLimiter.checkPublishRate();
@@ -86,7 +86,7 @@ public class PublishRateLimiterTest {
 
     }
 
-    @Test
+
     public void testPrecisePublishRateLimiterUpdate() {
         assertFalse(precisPublishLimiter.tryAcquire(15, 150));
 
@@ -95,7 +95,7 @@ public class PublishRateLimiterTest {
         assertTrue(precisPublishLimiter.tryAcquire(15, 150));
     }
 
-    @Test
+
     public void testPrecisePublishRateLimiterAcquire() throws Exception {
         Class precisPublishLimiterClass = Class.forName("org.apache.pulsar.broker.service.PrecisPublishLimiter");
         Field topicPublishRateLimiterOnMessageField = precisPublishLimiterClass.getDeclaredField("topicPublishRateLimiterOnMessage");

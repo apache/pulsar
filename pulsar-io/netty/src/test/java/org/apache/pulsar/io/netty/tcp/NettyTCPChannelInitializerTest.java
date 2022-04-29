@@ -33,7 +33,7 @@ import io.netty.channel.socket.nio.NioSocketChannel;
  */
 public class NettyTCPChannelInitializerTest {
 
-    @Test
+
     public void testChannelInitializer() throws Exception {
         NioSocketChannel channel = new NioSocketChannel();
 

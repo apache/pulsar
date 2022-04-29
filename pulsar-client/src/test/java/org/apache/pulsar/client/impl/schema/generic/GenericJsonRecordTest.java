@@ -42,7 +42,7 @@ import org.testng.annotations.Test;
 
 public class GenericJsonRecordTest {
 
-    @Test
+    
     public void decodeNullValue() throws Exception{
         byte[] json = "{\"somefield\":null}".getBytes(UTF_8);
         GenericJsonRecord record
@@ -53,7 +53,7 @@ public class GenericJsonRecordTest {
     }
 
 
-    @Test
+    
     public void decodeLongField() throws Exception{
         String jsonStr = "{\"timestamp\":1585204833128, \"count\":2, \"value\": 1.1, \"on\":true}";
         byte[] jsonStrBytes = jsonStr.getBytes();
@@ -101,7 +101,7 @@ public class GenericJsonRecordTest {
         AMD, NVIDIA
     }
 
-    @Test
+    
     public void testEncodeAndDecodeObject() throws JsonProcessingException {
         // test case from issue https://github.com/apache/pulsar/issues/9605
         JSONSchema<PC> jsonSchema = JSONSchema.of(SchemaDefinition.<PC>builder().withPojo(PC.class).build());
@@ -116,7 +116,7 @@ public class GenericJsonRecordTest {
         assertEquals(roundtrippedPc, pc);
     }
 
-    @Test
+    
     public void testGetNativeRecord() throws Exception{
         byte[] json = "{\"somefield\":null}".getBytes(UTF_8);
         GenericJsonRecord record

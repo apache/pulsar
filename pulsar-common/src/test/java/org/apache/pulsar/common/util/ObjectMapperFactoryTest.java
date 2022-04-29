@@ -26,7 +26,7 @@ import org.testng.annotations.Test;
 
 public class ObjectMapperFactoryTest {
 
-    @Test
+    
     public void testResourceQuotaMixIn() {
         ObjectMapper objectMapper = ObjectMapperFactory.getThreadLocal();
         try {
@@ -38,7 +38,7 @@ public class ObjectMapperFactoryTest {
         }
     }
 
-    @Test
+    
     public void testMetricsMixIn() {
         ObjectMapper objectMapper = ObjectMapperFactory.getThreadLocal();
         try {

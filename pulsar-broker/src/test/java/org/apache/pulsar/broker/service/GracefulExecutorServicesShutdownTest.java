@@ -39,7 +39,7 @@ import org.testng.annotations.Test;
 
 public class GracefulExecutorServicesShutdownTest {
 
-    @Test
+
     public void shouldShutdownExecutorsImmediately() throws ExecutionException, InterruptedException, TimeoutException {
         // given
         GracefulExecutorServicesShutdown shutdown = GracefulExecutorServicesShutdown.initiate();
@@ -58,7 +58,7 @@ public class GracefulExecutorServicesShutdownTest {
         assertTrue(future.isDone());
     }
 
-    @Test
+
     public void shouldTerminateExecutorOnTimeout() throws ExecutionException, InterruptedException, TimeoutException {
         // given
         GracefulExecutorServicesShutdown shutdown = GracefulExecutorServicesShutdown.initiate();
@@ -88,7 +88,7 @@ public class GracefulExecutorServicesShutdownTest {
         assertTrue(future.isDone());
     }
 
-    @Test
+
     public void shouldWaitForExecutorToTerminate() throws ExecutionException, InterruptedException, TimeoutException {
         // given
         GracefulExecutorServicesShutdown shutdown = GracefulExecutorServicesShutdown.initiate();
@@ -119,7 +119,7 @@ public class GracefulExecutorServicesShutdownTest {
     }
 
 
-    @Test
+
     public void shouldTerminateWhenFutureIsCancelled() throws InterruptedException, ExecutionException {
         // given
         GracefulExecutorServicesShutdown shutdown = GracefulExecutorServicesShutdown.initiate();
@@ -161,7 +161,7 @@ public class GracefulExecutorServicesShutdownTest {
         verify(executorService, times(1)).shutdownNow();
     }
 
-    @Test
+
     public void shouldAcceptNullReferenceAndIgnoreIt() {
         ExecutorService executorService = null;
         CompletableFuture<Void> future = GracefulExecutorServicesShutdown.initiate()

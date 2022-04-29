@@ -34,7 +34,7 @@ import org.testng.annotations.Test;
  * ManagedLedgerInfo compression configuration test.
  */
 
-@Test(groups = {"broker", "broker-jdk8"})
+{"broker", "broker-jdk8"})
 public class ManagedLedgerCompressionTest extends BrokerTestBase {
 
     @BeforeClass
@@ -50,7 +50,6 @@ public class ManagedLedgerCompressionTest extends BrokerTestBase {
         super.internalCleanup();
     }
 
-    @Test(timeOut = 1000 * 20)
     public void testRestartBrokerEnableManagedLedgerInfoCompression() throws Exception {
         String topic = newTopicName();
         @Cleanup

@@ -30,7 +30,7 @@ import org.testng.annotations.Test;
 public class TopicNameTest {
 
     @SuppressWarnings("deprecation")
-    @Test
+
     public void topic() {
         try {
             TopicName.get("://tenant.namespace:topic").getNamespace();
@@ -221,7 +221,7 @@ public class TopicNameTest {
         assertTrue(TopicName.get("mytopic-partition-12").isPartitioned());
     }
 
-    @Test
+
     public void testDecodeEncode() throws Exception {
         String encodedName = "a%3Aen-in_in_business_content_item_20150312173022_https%5C%3A%2F%2Fin.news.example.com%2Fr";
         String rawName = "a:en-in_in_business_content_item_20150312173022_https\\://in.news.example.com/r";
@@ -237,7 +237,7 @@ public class TopicNameTest {
     }
 
     @SuppressWarnings("deprecation")
-    @Test
+
     public void testTopicNameWithoutCluster() throws Exception {
         TopicName topicName = TopicName.get("persistent://tenant/namespace/topic");
 
@@ -261,7 +261,7 @@ public class TopicNameTest {
         assertEquals(topicName.getPersistenceNamingEncoding(), "tenant/namespace/persistent/topic");
     }
 
-    @Test
+
     public void testShortTopicName() throws Exception {
         TopicName tn = TopicName.get("short-topic");
         assertEquals(TopicDomain.persistent, tn.getDomain());

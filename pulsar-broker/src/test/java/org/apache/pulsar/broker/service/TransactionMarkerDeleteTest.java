@@ -50,7 +50,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker")
+
 public class TransactionMarkerDeleteTest extends TransactionTestBase {
 
     private static final int TOPIC_PARTITION = 3;
@@ -67,7 +67,7 @@ public class TransactionMarkerDeleteTest extends TransactionTestBase {
         super.internalCleanup();
     }
 
-    @Test
+
     public void testMarkerDeleteTimes() throws Exception {
         ManagedLedgerImpl managedLedger =
                 spy((ManagedLedgerImpl) getPulsarServiceList().get(0).getManagedLedgerFactory().open("test"));
@@ -90,7 +90,7 @@ public class TransactionMarkerDeleteTest extends TransactionTestBase {
     }
 
 
-    @Test
+
     public void testMarkerDelete() throws Exception {
         final String subName = "testMarkerDelete";
         final String topicName = NAMESPACE1 + "/testMarkerDelete";

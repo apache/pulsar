@@ -49,7 +49,7 @@ public class AutoScaledReceiverQueueSizeTest extends MockedPulsarServiceBaseTest
         super.internalCleanup();
     }
 
-    @Test
+
     public void testConsumerImpl() throws PulsarClientException {
         String topic = "persistent://public/default/testConsumerImpl" + System.currentTimeMillis();
         @Cleanup
@@ -96,7 +96,7 @@ public class AutoScaledReceiverQueueSizeTest extends MockedPulsarServiceBaseTest
         Assert.assertEquals(consumer.getCurrentReceiverQueueSize(), 3);
     }
 
-    @Test
+
     public void testConsumerImplBatchReceive() throws PulsarClientException {
         String topic = "persistent://public/default/testConsumerImplBatchReceive" + System.currentTimeMillis();
         @Cleanup
@@ -148,7 +148,7 @@ public class AutoScaledReceiverQueueSizeTest extends MockedPulsarServiceBaseTest
         log.info("getCurrentReceiverQueueSize={}", consumer.getCurrentReceiverQueueSize());
     }
 
-    @Test
+
     public void testMultiConsumerImpl() throws Exception {
         String topic = "persistent://public/default/testMultiConsumerImpl" + System.currentTimeMillis();
         admin.topics().createPartitionedTopic(topic, 3);
@@ -211,7 +211,7 @@ public class AutoScaledReceiverQueueSizeTest extends MockedPulsarServiceBaseTest
         Assert.assertEquals(consumer.getCurrentReceiverQueueSize(), 10);
     }
 
-    @Test
+
     public void testMultiConsumerImplBatchReceive() throws PulsarClientException, PulsarAdminException {
         String topic = "persistent://public/default/testMultiConsumerImplBatchReceive" + System.currentTimeMillis();
         admin.topics().createPartitionedTopic(topic, 3);

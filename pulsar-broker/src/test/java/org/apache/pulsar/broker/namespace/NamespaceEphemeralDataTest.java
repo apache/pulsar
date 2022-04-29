@@ -25,7 +25,7 @@ import java.util.Map;
 import org.apache.pulsar.policies.data.loadbalancer.AdvertisedListener;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker")
+
 public class NamespaceEphemeralDataTest {
 
     private static void setFields(NamespaceEphemeralData ned) throws Exception {
@@ -47,7 +47,7 @@ public class NamespaceEphemeralDataTest {
      * We must ensure NamespaceEphemeralData respect the equals() properties because it's used as a resource lock,
      * where equality is checked in the revalidation phase.
      */
-    @Test
+
     public void testEquals() throws Exception {
         NamespaceEphemeralData ned1 = new NamespaceEphemeralData();
         setFields(ned1);

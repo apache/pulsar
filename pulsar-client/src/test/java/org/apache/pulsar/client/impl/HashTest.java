@@ -22,7 +22,7 @@ import static org.testng.Assert.assertEquals;
 import org.testng.annotations.Test;
 
 public class HashTest {
-    @Test
+
     public void javaStringHashTest() {
         Hash h = JavaStringHash.getInstance();
 
@@ -37,7 +37,7 @@ public class HashTest {
         assertEquals(42978643, h.makeHash(key2));
     }
 
-    @Test
+
     public void murmur3_32HashTest() {
         Hash h = Murmur3Hash32.getInstance();
 

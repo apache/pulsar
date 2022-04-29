@@ -40,7 +40,7 @@ import org.apache.pulsar.common.util.collections.LongPairRangeSet;
 import org.testng.annotations.Test;
 
 public class ManagedCursorIndividualDeletedMessagesTest {
-    @Test(timeOut = 10000)
+    
     void testRecoverIndividualDeletedMessages() throws Exception {
         BookKeeper bookkeeper = mock(BookKeeper.class);
 

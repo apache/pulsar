@@ -42,7 +42,7 @@ public class OpSendMsgQueueTest {
         return ProducerImpl.OpSendMsg.create(message, null, 0L, null);
     }
 
-    @Test
+
     public void shouldPostponeAddsToPreventConcurrentModificationException() {
         // given
         ProducerImpl.OpSendMsgQueue queue = new ProducerImpl.OpSendMsgQueue();
@@ -59,7 +59,7 @@ public class OpSendMsgQueueTest {
         assertEquals(Lists.newArrayList(queue), Arrays.asList(opSendMsg, opSendMsg2));
     }
 
-    @Test
+
     public void shouldPostponeAddsAlsoInRecursiveCalls() {
         // given
         ProducerImpl.OpSendMsgQueue queue = new ProducerImpl.OpSendMsgQueue();

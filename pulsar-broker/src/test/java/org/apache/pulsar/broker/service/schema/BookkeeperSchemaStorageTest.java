@@ -30,10 +30,10 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 
-@Test(groups = "broker")
+
 public class BookkeeperSchemaStorageTest {
 
-    @Test
+
     public void testBkException() {
         Exception ex = bkException("test", BKException.Code.ReadException, 1, -1);
         assertEquals("Error while reading ledger -  ledger=1 - operation=test", ex.getMessage());
@@ -48,7 +48,7 @@ public class BookkeeperSchemaStorageTest {
                 ex.getMessage());
     }
 
-    @Test
+
     public void testVersionFromBytes() {
         long version = System.currentTimeMillis();
 

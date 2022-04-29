@@ -27,7 +27,7 @@ import org.testng.annotations.Test;
  * Test Pulsar sink on function
  */
 @Slf4j
-@Test
+
 public class PulsarFunctionMetadataStoreTest extends PulsarFunctionLocalRunTest {
 
 
@@ -38,7 +38,7 @@ public class PulsarFunctionMetadataStoreTest extends PulsarFunctionLocalRunTest 
         return wc;
     }
 
-    @Test
+
     public void testE2EPulsarFunctionLocalRun() throws Throwable {
         runWithPulsarFunctionsClassLoader(() -> testE2EPulsarFunctionLocalRun(null));
     }

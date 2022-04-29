@@ -45,7 +45,7 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 
-@Test(groups = "broker-impl")
+
 public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
     private static final Logger log = LoggerFactory.getLogger(UnAcknowledgedMessagesTimeoutTest.class);
     private final long ackTimeOutMillis = TimeUnit.SECONDS.toMillis(2);
@@ -71,7 +71,7 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
         };
     }
 
-    @Test(dataProvider = "variationsRedeliveryTracker")
+    
     public void testExclusiveSingleAckedNormalTopic(boolean isRedeliveryTracker) throws Exception {
         String key = "testExclusiveSingleAckedNormalTopic";
         final String topicName = "persistent://prop/ns-abc/topic-" + key;
@@ -138,7 +138,7 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
         assertEquals(hSet.size(), totalMessages);
     }
 
-    @Test(dataProvider = "variationsRedeliveryTracker")
+    
     public void testExclusiveCumulativeAckedNormalTopic(boolean isRedeliveryTracker) throws Exception {
         String key = "testExclusiveCumulativeAckedNormalTopic";
         final String topicName = "persistent://prop/use/ns-abc/topic-" + key;
@@ -194,7 +194,7 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
         assertNull(message);
     }
 
-    @Test(dataProvider = "variationsRedeliveryTracker")
+    
     public void testSharedSingleAckedPartitionedTopic(boolean isRedeliveryTracker) throws Exception {
         String key = "testSharedSingleAckedPartitionedTopic";
         final String topicName = "persistent://prop/ns-abc/topic-" + key;
@@ -300,7 +300,7 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
         return messagesReceived;
     }
 
-    @Test(dataProvider = "variationsRedeliveryTracker")
+    
     public void testFailoverSingleAckedPartitionedTopic(boolean isRedeliveryTracker) throws Exception {
         String key = "testFailoverSingleAckedPartitionedTopic";
         final String topicName = "persistent://prop/ns-abc/topic-" + key + UUID.randomUUID().toString();
@@ -422,7 +422,7 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
         assertEquals(messagesReceived + ackCount, totalMessages);
     }
 
-    @Test
+    
     public void testAckTimeoutMinValue() {
         try {
             pulsarClient.newConsumer().ackTimeout(999, TimeUnit.MILLISECONDS);
@@ -439,7 +439,7 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
         }
     }
 
-    @Test
+    
     public void testCheckUnAcknowledgedMessageTimer() throws PulsarClientException, InterruptedException {
         String key = "testCheckUnAcknowledgedMessageTimer";
         final String topicName = "persistent://prop/ns-abc/topic-" + key;
@@ -492,7 +492,6 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
         };
     }
 
-    @Test(dataProvider = "variationsBackoff")
     public void testCheckUnAcknowledgedMessageRedeliveryTimer(long ackTimeOutMillis, long minDelayMs,
                                                               long maxDelayMs, int multiplier)
             throws PulsarClientException, InterruptedException {
@@ -544,7 +543,7 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
         }
     }
 
-    @Test
+    
     public void testSingleMessageBatch() throws Exception {
         String topicName = "prop/ns-abc/topic-estSingleMessageBatch";
 

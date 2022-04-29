@@ -31,17 +31,16 @@ public class EnumValuesDataProviderTest {
         A, B, C
     }
 
-    @Test(dataProviderClass = EnumValuesDataProvider.class, dataProvider = "values")
     void testEnumValuesProvider(Sample sample) {
         System.out.println(sample);
     }
 
-    @Test
+
     void shouldContainAllEnumValues() {
         verifyTestParameters(EnumValuesDataProvider.toDataProviderArray(Sample.class));
     }
 
-    @Test
+
     void shouldDetermineEnumValuesFromMethod() {
         Method testMethod = Arrays.stream(getClass().getDeclaredMethods())
                 .filter(method -> method.getName().equals("testEnumValuesProvider"))
@@ -58,7 +57,6 @@ public class EnumValuesDataProviderTest {
         assertEquals(enumValuesFromDataProvider, new HashSet<>(Arrays.asList(Sample.values())));
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
     void shouldFailIfEnumParameterIsMissing() {
         Method testMethod = Arrays.stream(getClass().getDeclaredMethods())
                 .filter(method -> method.getName().equals("shouldFailIfEnumParameterIsMissing"))

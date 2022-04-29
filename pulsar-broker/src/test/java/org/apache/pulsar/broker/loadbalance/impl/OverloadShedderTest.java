@@ -35,7 +35,7 @@ import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 import org.apache.pulsar.policies.data.loadbalancer.ResourceUsage;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker")
+
 public class OverloadShedderTest {
 
     private final OverloadShedder os = new OverloadShedder();
@@ -46,13 +46,13 @@ public class OverloadShedderTest {
         conf.setLoadBalancerBrokerOverloadedThresholdPercentage(85);
     }
 
-    @Test
+    
     public void testNoBrokers() {
         LoadData loadData = new LoadData();
         assertTrue(os.findBundlesForUnloading(loadData, conf).isEmpty());
     }
 
-    @Test
+    
     public void testBrokersWithNoBundles() {
         LoadData loadData = new LoadData();
 
@@ -64,7 +64,7 @@ public class OverloadShedderTest {
         assertTrue(os.findBundlesForUnloading(loadData, conf).isEmpty());
     }
 
-    @Test
+    
     public void testBrokerNotOverloaded() {
         LoadData loadData = new LoadData();
 
@@ -85,7 +85,7 @@ public class OverloadShedderTest {
         assertTrue(os.findBundlesForUnloading(loadData, conf).isEmpty());
     }
 
-    @Test
+    
     public void testBrokerWithSingleBundle() {
         LoadData loadData = new LoadData();
 
@@ -106,7 +106,7 @@ public class OverloadShedderTest {
         assertTrue(os.findBundlesForUnloading(loadData, conf).isEmpty());
     }
 
-    @Test
+    
     public void testBrokerWithMultipleBundles() {
         int numBundles = 10;
         LoadData loadData = new LoadData();
@@ -151,7 +151,7 @@ public class OverloadShedderTest {
         assertEquals(bundlesToUnload.get("broker-1"), Lists.newArrayList("bundle-10", "bundle-9"));
     }
 
-    @Test
+    
     public void testFilterRecentlyUnloaded() {
         int numBundles = 10;
         LoadData loadData = new LoadData();
@@ -190,7 +190,7 @@ public class OverloadShedderTest {
         assertEquals(bundlesToUnload.get("broker-1"), Lists.newArrayList("bundle-8", "bundle-7"));
     }
 
-    @Test
+    
     public void testPrintResourceUsage() {
         LocalBrokerData data = new LocalBrokerData();
 

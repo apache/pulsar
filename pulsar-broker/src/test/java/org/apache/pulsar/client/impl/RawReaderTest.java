@@ -50,7 +50,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Test(groups = "flaky")
+
 public class RawReaderTest extends MockedPulsarServiceBaseTest {
 
     private static final String subscription = "foobar-sub";
@@ -106,7 +106,7 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
         return msgMetadata.getPartitionKey();
     }
 
-    @Test
+
     public void testRawReader() throws Exception {
         int numKeys = 10;
 
@@ -128,7 +128,7 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
         Assert.assertTrue(keys.isEmpty());
     }
 
-    @Test
+
     public void testSeekToStart() throws Exception {
         int numKeys = 10;
         String topic = "persistent://my-property/my-ns/my-raw-topic";
@@ -162,7 +162,7 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
         Assert.assertTrue(readKeys.isEmpty());
     }
 
-    @Test
+
     public void testSeekToMiddle() throws Exception {
         int numKeys = 10;
         String topic = "persistent://my-property/my-ns/my-raw-topic";
@@ -208,7 +208,7 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
     /**
      * Try to fill the receiver queue, and drain it multiple times
      */
-    @Test
+
     public void testFlowControl() throws Exception {
         int numMessages = RawReaderImpl.DEFAULT_RECEIVER_QUEUE_SIZE * 5;
         String topic = "persistent://my-property/my-ns/my-raw-topic";
@@ -239,7 +239,7 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(keys.size(), numMessages);
     }
 
-    @Test
+
     public void testFlowControlBatch() throws Exception {
         int numMessages = RawReaderImpl.DEFAULT_RECEIVER_QUEUE_SIZE * 5;
         String topic = "persistent://my-property/my-ns/my-raw-topic";
@@ -267,7 +267,7 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(keys.size(), numMessages);
     }
 
-    @Test
+
     public void testBatchingExtractKeysAndIds() throws Exception {
         String topic = "persistent://my-property/my-ns/my-raw-topic";
 
@@ -302,7 +302,7 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+
     public void testBatchingRebatch() throws Exception {
         String topic = "persistent://my-property/my-ns/my-raw-topic";
 
@@ -331,7 +331,7 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+
     public void testAcknowledgeWithProperties() throws Exception {
         int numKeys = 10;
 
@@ -369,7 +369,7 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
 
     }
 
-    @Test
+
     public void testReadCancellationOnClose() throws Exception {
         int numKeys = 10;
 

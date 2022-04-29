@@ -34,7 +34,7 @@ public class SimpleBookKeeperTest extends MockedBookKeeperTestCase {
     private static final String SECRET = "secret";
     private static final Charset Encoding = Charsets.UTF_8;
 
-    @Test
+
     public void simpleTest() throws Exception {
 
         LedgerHandle ledger = bkc.createLedger(DigestType.MAC, SECRET.getBytes());

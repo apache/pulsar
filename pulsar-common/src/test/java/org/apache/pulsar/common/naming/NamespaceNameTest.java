@@ -28,7 +28,7 @@ import org.testng.annotations.Test;
 
 public class NamespaceNameTest {
 
-    @Test
+
     public void namespace() {
         try {
             NamespaceName.get("namespace");
@@ -181,7 +181,7 @@ public class NamespaceNameTest {
         assertEquals(v2Namespace.getLocalName(), "testns-1");
     }
 
-    @Test
+
     void testNewScheme() {
         NamespaceName ns = NamespaceName.get("my-tenant/my-namespace");
         assertEquals(ns.getTenant(), "my-tenant");

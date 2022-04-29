@@ -54,7 +54,7 @@ public class SupportVersioningAvroSchemaTest {
         genericAvroSchema = new GenericAvroSchema(schemaInfo);
     }
 
-    @Test
+
     public void testDecode() {
         when(multiVersionSchemaInfoProvider.getSchemaByVersion(any(byte[].class)))
                 .thenReturn(CompletableFuture.completedFuture(genericAvroSchema.getSchemaInfo()));

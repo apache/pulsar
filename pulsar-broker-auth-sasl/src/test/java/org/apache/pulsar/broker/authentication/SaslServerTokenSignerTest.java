@@ -28,7 +28,7 @@ import org.testng.annotations.Test;
 @Slf4j
 public class SaslServerTokenSignerTest {
 
-    @Test
+
     public void testNoSecret() throws Exception {
         try {
             new SaslRoleTokenSigner(null);
@@ -38,7 +38,7 @@ public class SaslServerTokenSignerTest {
         }
     }
 
-    @Test
+
     public void testNullAndEmptyString() throws Exception {
         SaslRoleTokenSigner signer = new SaslRoleTokenSigner("secret".getBytes());
         try {
@@ -59,7 +59,7 @@ public class SaslServerTokenSignerTest {
         }
     }
 
-    @Test
+
     public void testSignature() throws Exception {
         SaslRoleTokenSigner signer = new SaslRoleTokenSigner("secret".getBytes());
         String s1 = signer.sign("ok");
@@ -69,7 +69,7 @@ public class SaslServerTokenSignerTest {
         Assert.assertNotSame(s1, s3);
     }
 
-    @Test
+
     public void testVerify() throws Exception {
         SaslRoleTokenSigner signer = new SaslRoleTokenSigner("secret".getBytes());
         String t = "test";
@@ -80,7 +80,7 @@ public class SaslServerTokenSignerTest {
 
     }
 
-    @Test
+
     public void testInvalidSignedText() throws Exception {
         SaslRoleTokenSigner signer = new SaslRoleTokenSigner("secret".getBytes());
         try {
@@ -93,7 +93,7 @@ public class SaslServerTokenSignerTest {
         }
     }
 
-    @Test
+
     public void testTampering() throws Exception {
         SaslRoleTokenSigner signer = new SaslRoleTokenSigner("secret".getBytes());
         String t = "test";

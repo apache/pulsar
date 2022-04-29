@@ -27,7 +27,7 @@ import org.testng.annotations.Test;
  */
 public class TopicMetadataImplTest {
 
-    @Test
+
     public void testNumPartitions() {
         TopicMetadataImpl metadata = new TopicMetadataImpl(1234);
         assertEquals(1234, metadata.numPartitions());

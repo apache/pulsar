@@ -28,7 +28,7 @@ import org.testng.annotations.Test;
 
 public class NamespaceBundleSplitAlgorithmTest {
 
-    @Test
+
     public void testOfMethodReturnCorrectValue() {
         NamespaceBundleSplitAlgorithm nullValue = NamespaceBundleSplitAlgorithm.of(null);
         Assert.assertNull(nullValue);

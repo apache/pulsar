@@ -50,7 +50,7 @@ public class RedisSinkTest {
         embeddedRedisUtils.tearDown();
     }
 
-    @Test
+
     public void TestOpenAndWriteSink() throws Exception {
         Map<String, Object> configs = new HashMap<>();
         configs.put("redisHosts", "localhost:6379");

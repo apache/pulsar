@@ -30,7 +30,7 @@ import org.testng.annotations.Test;
 
 public class InfluxDBGenericRecordSinkTest {
 
-    @Test
+
     public void openInfluxV1() throws Exception {
         Map<String, Object> map = new HashMap<>();
         map.put("influxdbUrl", "http://localhost:8086");
@@ -45,7 +45,7 @@ public class InfluxDBGenericRecordSinkTest {
         assertTrue(sink.sink instanceof org.apache.pulsar.io.influxdb.v1.InfluxDBGenericRecordSink);
     }
 
-    @Test
+
     public void openInfluxV2() throws Exception {
         Map<String, Object> map = new HashMap();
         map.put("influxdbUrl", "http://localhost:9999");
@@ -62,8 +62,6 @@ public class InfluxDBGenericRecordSinkTest {
         assertTrue(sink.sink instanceof InfluxDBSink);
     }
 
-    @Test(expectedExceptions = Exception.class,
-            expectedExceptionsMessageRegExp = "For InfluxDB V2:.*")
     public void openInvalidInfluxConfig() throws Exception {
         InfluxDBGenericRecordSink sink = new InfluxDBGenericRecordSink();
         sink.open(new HashMap<>(), mock(SinkContext.class));

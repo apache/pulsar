@@ -33,7 +33,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker-admin")
+
 @Slf4j
 public class AdminApiClusterTest extends MockedPulsarServiceBaseTest {
     private final String CLUSTER = "test";
@@ -53,14 +53,14 @@ public class AdminApiClusterTest extends MockedPulsarServiceBaseTest {
         super.internalCleanup();
     }
 
-    @Test
+
     public void testDeleteNonExistCluster() {
         String cluster = "test-non-exist-cluster-" + UUID.randomUUID();
 
         assertThrows(PulsarAdminException.NotFoundException.class, () -> admin.clusters().deleteCluster(cluster));
     }
 
-    @Test
+
     public void testDeleteExistCluster() throws PulsarAdminException {
         String cluster = "test-exist-cluster-" + UUID.randomUUID();
 
@@ -71,20 +71,20 @@ public class AdminApiClusterTest extends MockedPulsarServiceBaseTest {
         admin.clusters().deleteCluster(cluster);
     }
 
-    @Test
+
     public void testDeleteNonExistentFailureDomain() {
         assertThrows(PulsarAdminException.NotFoundException.class,
                 () -> admin.clusters().deleteFailureDomain(CLUSTER, "non-existent-failure-domain"));
     }
 
-    @Test
+
     public void testDeleteNonExistentFailureDomainInNonExistCluster() {
         assertThrows(PulsarAdminException.PreconditionFailedException.class,
                 () -> admin.clusters().deleteFailureDomain(CLUSTER + UUID.randomUUID(),
                         "non-existent-failure-domain"));
     }
 
-    @Test
+
     public void testDeleteExistFailureDomain() throws PulsarAdminException {
         String domainName = CLUSTER + "-failure-domain";
         FailureDomain domain = FailureDomain.builder()

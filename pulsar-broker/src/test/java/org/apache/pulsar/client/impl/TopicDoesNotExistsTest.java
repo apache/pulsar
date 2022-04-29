@@ -34,7 +34,7 @@ import java.util.concurrent.TimeUnit;
 /**
  * Tests for not exists topic.
  */
-@Test(groups = "broker-impl")
+
 public class TopicDoesNotExistsTest extends ProducerConsumerBase {
 
     @Override
@@ -51,7 +51,7 @@ public class TopicDoesNotExistsTest extends ProducerConsumerBase {
         super.internalCleanup();
     }
 
-    @Test
+
     public void testCreateProducerOnNotExistsTopic() throws PulsarClientException, InterruptedException {
         @Cleanup
         PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl.toString()).build();
@@ -70,7 +70,7 @@ public class TopicDoesNotExistsTest extends ProducerConsumerBase {
         Assert.assertEquals(((PulsarClientImpl) pulsarClient).producersCount(), 0);
     }
 
-    @Test
+
     public void testCreateConsumerOnNotExistsTopic() throws PulsarClientException, InterruptedException {
         @Cleanup
         PulsarClient pulsarClient = newPulsarClient(lookupUrl.toString(), 1);

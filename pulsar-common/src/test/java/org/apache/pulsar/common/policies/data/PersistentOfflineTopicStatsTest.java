@@ -24,7 +24,7 @@ import org.testng.annotations.Test;
 
 public class PersistentOfflineTopicStatsTest {
 
-    @Test
+
     public void testPersistentOfflineTopicStats() {
         PersistentOfflineTopicStats pot = new PersistentOfflineTopicStats("topic1",
                 "prod1-broker1.messaging.use.example.com");

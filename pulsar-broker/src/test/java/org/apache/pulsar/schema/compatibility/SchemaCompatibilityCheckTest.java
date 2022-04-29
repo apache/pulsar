@@ -52,7 +52,7 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Slf4j
-@Test(groups = "schema")
+
 public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
     private static final String CLUSTER_NAME = "test";
 
@@ -105,7 +105,6 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
         };
     }
 
-    @Test(dataProvider =  "CanReadLastSchemaCompatibilityStrategy")
     public void testConsumerCompatibilityCheckCanReadLastTest(SchemaCompatibilityStrategy schemaCompatibilityStrategy) throws Exception {
         final String tenant = PUBLIC_TENANT;
         final String topic = "test-consumer-compatibility";
@@ -182,7 +181,6 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
             producerTwo.close();
     }
 
-    @Test(dataProvider = "ReadAllCheckSchemaCompatibilityStrategy")
     public void testConsumerCompatibilityReadAllCheckTest(SchemaCompatibilityStrategy schemaCompatibilityStrategy) throws Exception {
         final String tenant = PUBLIC_TENANT;
         final String topic = "test-consumer-compatibility";
@@ -219,7 +217,7 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test(dataProvider = "AllCheckSchemaCompatibilityStrategy")
+    
     public void testBrokerAllowAutoUpdateSchemaDisabled(SchemaCompatibilityStrategy schemaCompatibilityStrategy)
             throws Exception {
 
@@ -304,7 +302,6 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
         producer.close();
     }
 
-    @Test(dataProvider =  "AllCheckSchemaCompatibilityStrategy")
     public void testIsAutoUpdateSchema(SchemaCompatibilityStrategy schemaCompatibilityStrategy) throws Exception {
         final String tenant = PUBLIC_TENANT;
         final String topic = "test-consumer-compatibility";
@@ -383,7 +380,7 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
         producer.close();
     }
 
-    @Test
+
     public void testSchemaComparison() throws Exception {
         final String tenant = PUBLIC_TENANT;
         final String topic = "test-schema-comparison";
@@ -430,7 +427,7 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test(dataProvider = "AllCheckSchemaCompatibilityStrategy")
+    
     public void testProducerSendWithOldSchemaAndConsumerCanRead(SchemaCompatibilityStrategy schemaCompatibilityStrategy) throws Exception {
         final String tenant = PUBLIC_TENANT;
         final String topic = "test-consumer-compatibility";
@@ -481,7 +478,7 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
 
     }
 
-    @Test
+
     public void testAutoProduceSchemaAlwaysCompatible() throws Exception {
         final String tenant = PUBLIC_TENANT;
         final String topic = "topic" + randomName(16);
@@ -503,7 +500,6 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
         consumer.close();
     }
 
-    @Test(dataProvider =  "CanReadLastSchemaCompatibilityStrategy")
     public void testConsumerWithNotCompatibilitySchema(SchemaCompatibilityStrategy schemaCompatibilityStrategy) throws Exception {
         final String tenant = PUBLIC_TENANT;
         final String topic = "test-consumer-compatibility";

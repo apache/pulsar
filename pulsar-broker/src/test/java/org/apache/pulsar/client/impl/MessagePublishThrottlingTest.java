@@ -46,7 +46,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Test
+
 public class MessagePublishThrottlingTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(MessagePublishThrottlingTest.class);
 
@@ -72,7 +72,7 @@ public class MessagePublishThrottlingTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test
+
     public void testSimplePublishMessageThrottling() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -137,7 +137,7 @@ public class MessagePublishThrottlingTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test
+
     public void testSimplePublishByteThrottling() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -199,7 +199,7 @@ public class MessagePublishThrottlingTest extends ProducerConsumerBase {
      * Broker publish throttle enabled / topic publish throttle disabled
      * @throws Exception
      */
-    @Test
+
     public void testBrokerPublishMessageThrottling() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -278,7 +278,7 @@ public class MessagePublishThrottlingTest extends ProducerConsumerBase {
      * Broker publish throttle enabled / topic publish throttle disabled
      * @throws Exception
      */
-    @Test
+
     public void testBrokerPublishByteThrottling() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -366,7 +366,7 @@ public class MessagePublishThrottlingTest extends ProducerConsumerBase {
      * 3. create 3 topics with same rate limit, publish should throttle by broker and topic limit.
      * @throws Exception
      */
-    @Test
+
     public void testBrokerTopicPublishByteThrottling() throws Exception {
         log.info("-- Starting {} test --", methodName);
 

@@ -67,7 +67,7 @@ public class GenericAvroReaderTest {
         fooV2.setField3(10);
     }
 
-    @Test
+
     public void testGenericAvroReaderByWriterSchema() {
         byte[] fooBytes = fooSchema.encode(foo);
 
@@ -78,7 +78,7 @@ public class GenericAvroReaderTest {
         assertEquals(genericRecordByWriterSchema.getField("fieldUnableNull"), "notNull");
     }
 
-    @Test
+
     public void testGenericAvroReaderByReaderSchema() {
         byte[] fooV2Bytes = fooV2Schema.encode(fooV2);
 
@@ -89,7 +89,7 @@ public class GenericAvroReaderTest {
         assertEquals(genericRecordByReaderSchema.getField("field3"), 10);
     }
 
-    @Test
+
     public void testOffsetSchema() {
         byte[] fooBytes = fooOffsetSchema.encode(foo);
         ByteBuf byteBuf = Unpooled.buffer();

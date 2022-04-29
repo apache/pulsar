@@ -34,54 +34,51 @@ public class PulsarSinksTest extends PulsarIOTestBase {
         return new Object[][]{{Boolean.TRUE}, {Boolean.FALSE}};
     }
 
-    @Test(groups = "sink")
+    
     public void testKafkaSink() throws Exception {
         final String kafkaContainerName = "kafka-" + randomName(8);
         testSink(new KafkaSinkTester(kafkaContainerName), true, new KafkaSourceTester(kafkaContainerName));
     }
 
-    @Test(enabled = false, groups = "sink")
     public void testCassandraSink() throws Exception {
         testSink(CassandraSinkTester.createTester(true), true);
     }
 
-    @Test(enabled = false, groups = "sink")
     public void testCassandraArchiveSink() throws Exception {
         testSink(CassandraSinkTester.createTester(false), false);
     }
 
-    @Test(enabled = false, groups = "sink")
     public void testHdfsSink() throws Exception {
         testSink(new HdfsSinkTester(), false);
     }
 
-    @Test(groups = "sink")
+    
     public void testJdbcSink() throws Exception {
         testSink(new JdbcPostgresSinkTester(), true);
     }
 
-    @Test(groups = "sink", dataProvider = "withSchema")
+    
     public void testElasticSearch7Sink(boolean withSchema) throws Exception {
         testSink(new ElasticSearch7SinkTester(withSchema), true);
     }
 
-    @Test(groups = "sink", dataProvider = "withSchema")
+    
     public void testElasticSearch8Sink(boolean withSchema) throws Exception {
         testSink(new ElasticSearch8SinkTester(withSchema), true);
     }
 
-    @Test(groups = "sink", dataProvider = "withSchema")
+    
     public void testOpenSearchSinkRawData(boolean withSchema) throws Exception {
         testSink(new OpenSearchSinkTester(withSchema), true);
     }
 
-    @Test(groups = "sink")
+    
     public void testRabbitMQSink() throws Exception {
         final String containerName = "rabbitmq-" + randomName(8);
         testSink(new RabbitMQSinkTester(containerName), true, new RabbitMQSourceTester(containerName));
     }
 
-    @Test(groups = "sink", dataProvider = "withSchema")
+    
     public void testKinesis(boolean withSchema) throws Exception {
         testSink(new KinesisSinkTester(withSchema), true);
     }

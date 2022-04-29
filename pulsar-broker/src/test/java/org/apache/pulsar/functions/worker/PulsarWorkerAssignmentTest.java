@@ -61,7 +61,7 @@ import org.testng.annotations.Test;
  *
  */
 @Slf4j
-@Test(groups = "functions-worker")
+
 public class PulsarWorkerAssignmentTest {
     LocalBookkeeperEnsemble bkEnsemble;
 
@@ -78,7 +78,6 @@ public class PulsarWorkerAssignmentTest {
     String workerId;
     private PulsarFunctionTestTemporaryDirectory tempDirectory;
 
-    @BeforeMethod(timeOut = 60000)
     void setup(Method method) throws Exception {
 
         log.info("--- Setting up method {} ---", method.getName());
@@ -177,7 +176,6 @@ public class PulsarWorkerAssignmentTest {
         return workerService;
     }
 
-    @Test(timeOut = 60000, enabled = false)
     public void testFunctionAssignments() throws Exception {
 
         final String namespacePortion = "assignment-test";
@@ -227,7 +225,6 @@ public class PulsarWorkerAssignmentTest {
         assertEquals(admin.topics().getStats(sinkTopic).getSubscriptions().values().iterator().next().getConsumers().size(), 1);
     }
 
-    @Test(timeOut = 60000, enabled = false)
     public void testFunctionAssignmentsWithRestart() throws Exception {
 
         final String namespacePortion = "assignment-test";

@@ -59,7 +59,7 @@ import org.slf4j.LoggerFactory;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker")
+
 public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
 
     private BrokerService brokerService;
@@ -114,7 +114,7 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
         }
     }
 
-    @Test(enabled = false)
+    
     public void testConcurrentTopicAndSubscriptionDelete() throws Exception {
         // create topic
         final PersistentTopic topic = (PersistentTopic) brokerService.getOrCreateTopic(successTopicName).get();
@@ -172,7 +172,7 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
         assertFalse(gotException.get());
     }
 
-    @Test(enabled = false)
+    
     public void testConcurrentTopicGCAndSubscriptionDelete() throws Exception {
         // create topic
         final PersistentTopic topic = (PersistentTopic) brokerService.getOrCreateTopic(successTopicName).get();
@@ -236,7 +236,7 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
         assertFalse(gotException.get());
     }
 
-    @Test(enabled = false)
+    
     public void testConcurrentTopicDeleteAndUnsubscribe() throws Exception {
         // create topic
         final PersistentTopic topic = (PersistentTopic) brokerService.getOrCreateTopic(successTopicName).get();
@@ -294,7 +294,7 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
         assertFalse(gotException.get());
     }
 
-    @Test(enabled = false)
+    
     public void testConcurrentTopicDeleteAndSubsUnsubscribe() throws Exception {
         // create topic
         final PersistentTopic topic = (PersistentTopic) brokerService.getOrCreateTopic(successTopicName).get();

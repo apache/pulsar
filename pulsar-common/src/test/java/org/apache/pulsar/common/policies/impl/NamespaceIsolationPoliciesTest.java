@@ -47,7 +47,7 @@ public class NamespaceIsolationPoliciesTest {
     private final String defaultJson =
             "{\"policy1\":{\"namespaces\":[\"pulsar/use/test.*\"],\"primary\":[\"prod1-broker[1-3].messaging.use.example.com\"],\"secondary\":[\"prod1-broker.*.use.example.com\"],\"auto_failover_policy\":{\"parameters\":{\"min_limit\":\"3\",\"usage_threshold\":\"100\"},\"policy_type\":\"min_available\"}}}";
 
-    @Test
+
     public void testJsonSerialization() throws Exception {
         // deserialize JSON string
         NamespaceIsolationPolicies policies = this.getDefaultTestPolicies();
@@ -88,7 +88,7 @@ public class NamespaceIsolationPoliciesTest {
         assertEquals(policiesMap.size(), 2);
     }
 
-    @Test
+
     public void testDefaultConstructor() throws Exception {
         NamespaceIsolationPolicies policies = new NamespaceIsolationPolicies();
         assertTrue(policies.getPolicies().isEmpty());
@@ -97,7 +97,7 @@ public class NamespaceIsolationPoliciesTest {
         assertEquals(new String(outJson), "{}");
     }
 
-    @Test
+
     public void testDeletePolicy() throws Exception {
         NamespaceIsolationPolicies policies = this.getDefaultTestPolicies();
         policies.deletePolicy("non-existing-policy");
@@ -107,7 +107,7 @@ public class NamespaceIsolationPoliciesTest {
         assertTrue(policies.getPolicies().isEmpty());
     }
 
-    @Test
+
     public void testGetNamespaceIsolationPolicyByName() throws Exception {
         NamespaceIsolationPolicies policies = this.getDefaultTestPolicies();
         NamespaceIsolationPolicy nsPolicy = policies.getPolicyByName("non-existing-policy");
@@ -117,7 +117,7 @@ public class NamespaceIsolationPoliciesTest {
         assertEquals(new NamespaceIsolationPolicyImpl(policies.getPolicies().get("policy1")), nsPolicy);
     }
 
-    @Test
+
     public void testGetNamespaceIsolationPolicyByNamespace() throws Exception {
         NamespaceIsolationPolicies policies = this.getDefaultTestPolicies();
         NamespaceIsolationPolicy nsPolicy = policies.getPolicyByNamespace(NamespaceName.get("no/such/namespace"));
@@ -127,7 +127,7 @@ public class NamespaceIsolationPoliciesTest {
         assertEquals(new NamespaceIsolationPolicyImpl(policies.getPolicies().get("policy1")), nsPolicy);
     }
 
-    @Test
+
     public void testSetPolicy() throws Exception {
         NamespaceIsolationPolicies policies = this.getDefaultTestPolicies();
         // set a new policy
@@ -153,7 +153,7 @@ public class NamespaceIsolationPoliciesTest {
                 }));
     }
 
-    @Test
+
     public void testBrokerAssignment() throws Exception {
         NamespaceIsolationPolicies policies = this.getDefaultTestPolicies();
         NamespaceName ns = NamespaceName.get("pulsar/use/testns-1");

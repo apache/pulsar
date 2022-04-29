@@ -71,7 +71,7 @@ public class CompressorCodecTest {
         };
     }
 
-    @Test(dataProvider = "codecAndText")
+    
     void testCompressDecompress(CompressionType type, String sourceText) throws IOException {
         CompressionCodec codec = CompressionCodecProvider.getCompressionCodec(type);
         byte[] data = sourceText.getBytes();
@@ -100,7 +100,7 @@ public class CompressorCodecTest {
         assertEquals(compressed.refCnt(), 0);
     }
 
-    @Test(dataProvider = "codecAndText")
+    
     void testDecompressReadonlyByteBuf(CompressionType type, String sourceText) throws IOException {
         CompressionCodec codec = CompressionCodecProvider.getCompressionCodec(type);
         byte[] data = sourceText.getBytes();
@@ -131,7 +131,7 @@ public class CompressorCodecTest {
         assertEquals(compressed.refCnt(), 0);
     }
 
-    @Test(dataProvider = "codec")
+    
     void testEmptyInput(CompressionType type, String compressedText) throws IOException {
         CompressionCodec codec = CompressionCodecProvider.getCompressionCodec(type);
 
@@ -141,7 +141,7 @@ public class CompressorCodecTest {
         assertEquals(uncompressed, Unpooled.EMPTY_BUFFER);
     }
 
-    @Test(dataProvider = "codecAndText")
+    
     void testMultpileUsages(CompressionType type, String sourceText) throws IOException {
         CompressionCodec codec = CompressionCodecProvider.getCompressionCodec(type);
         byte[] data = sourceText.getBytes();
@@ -167,7 +167,7 @@ public class CompressorCodecTest {
         }
     }
 
-    @Test(dataProvider = "codec")
+    
     void testCodecProvider(CompressionType type, String compressedText) throws IOException {
         CompressionCodec codec1 = CompressionCodecProvider.getCompressionCodec(type);
         CompressionCodec codec2 = CompressionCodecProvider.getCompressionCodec(type);
@@ -176,7 +176,7 @@ public class CompressorCodecTest {
         assertSame(codec1, codec2);
     }
 
-    @Test(dataProvider = "codec")
+    
     void testDecompressFromSampleBuffer(CompressionType type, String compressedText) throws IOException {
         CompressionCodec codec = CompressionCodecProvider.getCompressionCodec(type);
 

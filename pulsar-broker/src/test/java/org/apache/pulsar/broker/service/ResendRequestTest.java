@@ -47,7 +47,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker")
+
 public class ResendRequestTest extends BrokerTestBase {
     private static final long testTimeout = 60000; // 1 min
     private static final Logger log = LoggerFactory.getLogger(ResendRequestTest.class);
@@ -64,7 +64,7 @@ public class ResendRequestTest extends BrokerTestBase {
         super.internalCleanup();
     }
 
-    @Test(timeOut = testTimeout)
+    
     public void testExclusiveSingleAckedNormalTopic() throws Exception {
         String key = "testExclusiveSingleAckedNormalTopic";
         final String topicName = "persistent://prop/use/ns-abc/topic-" + key;
@@ -157,7 +157,7 @@ public class ResendRequestTest extends BrokerTestBase {
         }
     }
 
-    @Test(timeOut = testTimeout)
+    
     public void testSharedSingleAckedNormalTopic() throws Exception {
         String key = "testSharedSingleAckedNormalTopic";
         final String topicName = "persistent://prop/use/ns-abc/topic-" + key;
@@ -244,7 +244,7 @@ public class ResendRequestTest extends BrokerTestBase {
         assertEquals(receivedConsumer1 + receivedConsumer2, totalMessages);
     }
 
-    @Test(timeOut = testTimeout)
+    
     public void testFailoverSingleAckedNormalTopic() throws Exception {
         String key = "testFailoverSingleAckedNormalTopic";
         final String topicName = "persistent://prop/use/ns-abc/topic-" + key;
@@ -362,7 +362,7 @@ public class ResendRequestTest extends BrokerTestBase {
         assertEquals(unAcknowledgedMessages, receivedConsumer2);
     }
 
-    @Test(timeOut = testTimeout)
+    
     public void testExclusiveCumulativeAckedNormalTopic() throws Exception {
         String key = "testExclusiveCumulativeAckedNormalTopic";
         final String topicName = "persistent://prop/use/ns-abc/topic-" + key;
@@ -419,7 +419,7 @@ public class ResendRequestTest extends BrokerTestBase {
         assertEquals(numOfReceives, 2);
     }
 
-    @Test(timeOut = testTimeout)
+    
     public void testExclusiveSingleAckedPartitionedTopic() throws Exception {
         String key = "testExclusiveSingleAckedPartitionedTopic";
         final String topicName = "persistent://prop/use/ns-abc/topic-" + key;
@@ -475,7 +475,7 @@ public class ResendRequestTest extends BrokerTestBase {
         assertEquals(messageCount, totalMessages);
     }
 
-    @Test(timeOut = testTimeout)
+    
     public void testSharedSingleAckedPartitionedTopic() throws Exception {
         String key = "testSharedSingleAckedPartitionedTopic";
         final String topicName = "persistent://prop/use/ns-abc/topic-" + key;
@@ -576,7 +576,7 @@ public class ResendRequestTest extends BrokerTestBase {
         assertEquals(messageCount1 + messageCount2 + ackCount1, totalMessages);
     }
 
-    @Test(timeOut = testTimeout)
+    
     public void testFailoverSingleAckedPartitionedTopic() throws Exception {
         String key = "testFailoverSingleAckedPartitionedTopic";
         final String topicName = "persistent://prop/use/ns-abc/topic-" + key;
@@ -667,7 +667,7 @@ public class ResendRequestTest extends BrokerTestBase {
         assertEquals(messageCount2 + ackCount1, totalMessages);
     }
 
-    @Test(timeOut = testTimeout)
+    
     public void testFailoverInactiveConsumer() throws Exception {
         String key = "testFailoverInactiveConsumer";
         final String topicName = "persistent://prop/use/ns-abc/topic-" + key;

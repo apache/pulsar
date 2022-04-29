@@ -26,7 +26,7 @@ import static org.testng.Assert.assertTrue;
 
 public class AutoTopicCreationOverrideTest {
 
-    @Test
+
     public void testValidOverrideNonPartitioned() {
         AutoTopicCreationOverride override = AutoTopicCreationOverride.builder()
                 .allowAutoTopicCreation(true)
@@ -35,7 +35,7 @@ public class AutoTopicCreationOverrideTest {
         assertTrue(AutoTopicCreationOverrideImpl.validateOverride(override).isSuccess());
     }
 
-    @Test
+
     public void testValidOverridePartitioned() {
         AutoTopicCreationOverride override = AutoTopicCreationOverride.builder()
                 .allowAutoTopicCreation(true)
@@ -45,7 +45,7 @@ public class AutoTopicCreationOverrideTest {
         assertTrue(AutoTopicCreationOverrideImpl.validateOverride(override).isSuccess());
     }
 
-    @Test
+
     public void testInvalidTopicType() {
         AutoTopicCreationOverride override = AutoTopicCreationOverride.builder()
                 .allowAutoTopicCreation(true)
@@ -54,7 +54,7 @@ public class AutoTopicCreationOverrideTest {
         assertFalse(AutoTopicCreationOverrideImpl.validateOverride(override).isSuccess());
     }
 
-    @Test
+
     public void testNumPartitionsTooLow() {
         AutoTopicCreationOverride override = AutoTopicCreationOverride.builder()
                 .allowAutoTopicCreation(true)
@@ -64,7 +64,7 @@ public class AutoTopicCreationOverrideTest {
         assertFalse(AutoTopicCreationOverrideImpl.validateOverride(override).isSuccess());
     }
 
-    @Test
+
     public void testNumPartitionsNotSet() {
         AutoTopicCreationOverride override = AutoTopicCreationOverride.builder()
                 .allowAutoTopicCreation(true)
@@ -73,7 +73,7 @@ public class AutoTopicCreationOverrideTest {
         assertFalse(AutoTopicCreationOverrideImpl.validateOverride(override).isSuccess());
     }
 
-    @Test
+
     public void testNumPartitionsOnNonPartitioned() {
         AutoTopicCreationOverride override = AutoTopicCreationOverride.builder()
                 .allowAutoTopicCreation(true)

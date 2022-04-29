@@ -26,7 +26,7 @@ import org.testng.Assert;
 
 public class AuthenticationTest {
 
-    @Test
+
     public void testConfigureDefaultFormat() {
         try {
             MockAuthentication testAuthentication =
@@ -40,7 +40,7 @@ public class AuthenticationTest {
         }
     }
 
-    @Test
+
     public void testConfigureWrongFormat() {
         try {
             MockAuthentication testAuthentication =
@@ -54,7 +54,7 @@ public class AuthenticationTest {
         }
     }
 
-    @Test
+
     public void testConfigureNull() {
         try {
             MockAuthentication testAuthentication = (MockAuthentication) AuthenticationFactory.create(
@@ -67,7 +67,7 @@ public class AuthenticationTest {
         }
     }
 
-    @Test
+
     public void testConfigureEmpty() {
         try {
             MockAuthentication testAuthentication =
@@ -81,7 +81,7 @@ public class AuthenticationTest {
         }
     }
 
-    @Test
+
     public void testConfigurePluginSide() {
         try {
             MockEncodedAuthenticationParameterSupport testAuthentication =

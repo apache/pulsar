@@ -55,7 +55,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker-admin")
+
 public class AdminApiGetLastMessageIdTest extends MockedPulsarServiceBaseTest {
 
     private PersistentTopics persistentTopics;
@@ -99,7 +99,7 @@ public class AdminApiGetLastMessageIdTest extends MockedPulsarServiceBaseTest {
         super.internalCleanup();
     }
 
-    @Test
+
     public void testGetLastMessageId() throws Exception {
         final MessageId[] id = new MessageId[1];
         id[0] = null;
@@ -228,7 +228,7 @@ public class AdminApiGetLastMessageIdTest extends MockedPulsarServiceBaseTest {
      *
      * In this case, the we should return the message ID (-1, -1).
      */
-    @Test
+
     public void testGetLastMessageIdWhenTopicWithoutData() throws Exception {
         final String topic = "persistent://prop/ns-abc/testGetLastMessageIdWhenTopicWithoutData-" + UUID.randomUUID();
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)

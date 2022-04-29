@@ -25,7 +25,7 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker")
+
 public class BrokerDispatchRateLimiterTest extends BrokerTestBase {
     @BeforeClass
     @Override
@@ -39,7 +39,7 @@ public class BrokerDispatchRateLimiterTest extends BrokerTestBase {
         super.internalCleanup();
     }
 
-    @Test
+
     public void testUpdateBrokerDispatchRateLimiter() throws PulsarAdminException {
         BrokerService service = pulsar.getBrokerService();
         assertEquals(service.getBrokerDispatchRateLimiter().getAvailableDispatchRateLimitOnByte(), -1L);

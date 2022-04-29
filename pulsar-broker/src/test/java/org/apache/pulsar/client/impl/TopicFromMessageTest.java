@@ -27,7 +27,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker-impl")
+
 public class TopicFromMessageTest extends ProducerConsumerBase {
 
     private static final long TEST_TIMEOUT = 90000; // 1.5 min
@@ -46,7 +46,6 @@ public class TopicFromMessageTest extends ProducerConsumerBase {
         super.internalCleanup();
     }
 
-    @Test(timeOut = TEST_TIMEOUT)
     public void testSingleTopicConsumerNoBatchShortName() throws Exception {
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer()
                 .topic("topic1").subscriptionName("sub1").subscribe();
@@ -57,7 +56,6 @@ public class TopicFromMessageTest extends ProducerConsumerBase {
         }
     }
 
-    @Test(timeOut = TEST_TIMEOUT)
     public void testSingleTopicConsumerNoBatchFullName() throws Exception {
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer()
                 .topic("my-property/my-ns/topic1").subscriptionName("sub1").subscribe();
@@ -68,7 +66,6 @@ public class TopicFromMessageTest extends ProducerConsumerBase {
         }
     }
 
-    @Test(timeOut = TEST_TIMEOUT)
     public void testMultiTopicConsumerNoBatchShortName() throws Exception {
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer()
                 .topics(Lists.newArrayList("topic1", "topic2")).subscriptionName("sub1").subscribe();
@@ -83,7 +80,6 @@ public class TopicFromMessageTest extends ProducerConsumerBase {
         }
     }
 
-    @Test(timeOut = TEST_TIMEOUT)
     public void testSingleTopicConsumerBatchShortName() throws Exception {
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer()
                 .topic("topic1").subscriptionName("sub1").subscribe();
@@ -95,7 +91,6 @@ public class TopicFromMessageTest extends ProducerConsumerBase {
         }
     }
 
-    @Test(timeOut = TEST_TIMEOUT)
     public void testMultiTopicConsumerBatchShortName() throws Exception {
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer()
                 .topics(Lists.newArrayList("topic1", "topic2")).subscriptionName("sub1").subscribe();

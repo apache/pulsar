@@ -125,7 +125,7 @@ public class ProxyKeyStoreTlsTestWithoutAuth extends MockedPulsarServiceBaseTest
         proxyService.close();
     }
 
-    @Test
+
     public void testProducer() throws Exception {
         @Cleanup
         PulsarClient client = internalSetUpForClient(true, proxyService.getServiceUrlTls());
@@ -139,7 +139,7 @@ public class ProxyKeyStoreTlsTestWithoutAuth extends MockedPulsarServiceBaseTest
         }
     }
 
-    @Test
+
     public void testProducerFailed() throws Exception {
         @Cleanup
         PulsarClient client = internalSetUpForClient(false, proxyService.getServiceUrlTls());
@@ -157,7 +157,7 @@ public class ProxyKeyStoreTlsTestWithoutAuth extends MockedPulsarServiceBaseTest
         }
     }
 
-    @Test
+
     public void testPartitions() throws Exception {
         @Cleanup
         PulsarClient client = internalSetUpForClient(true, proxyService.getServiceUrlTls());

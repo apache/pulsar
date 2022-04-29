@@ -59,7 +59,7 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
         super(3);
     }
 
-    @Test
+
     public void testTransactionOperation() throws Exception {
         ManagedLedgerFactoryConfig factoryConf = new ManagedLedgerFactoryConfig();
         factoryConf.setMaxCacheSize(0);
@@ -133,7 +133,6 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
         return new Object[][] { { true }, { false } };
     }
 
-    @Test(dataProvider = "isUseManagedLedgerProperties")
     public void testRecoverSequenceId(boolean isUseManagedLedgerProperties) throws Exception {
         ManagedLedgerFactoryConfig factoryConf = new ManagedLedgerFactoryConfig();
         factoryConf.setMaxCacheSize(0);
@@ -188,7 +187,7 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
         assertEquals(txnID.getLeastSigBits(), 1);
     }
 
-    @Test
+
     public void testInitTransactionReader() throws Exception {
         ManagedLedgerFactoryConfig factoryConf = new ManagedLedgerFactoryConfig();
         factoryConf.setMaxCacheSize(0);
@@ -301,7 +300,7 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
         }
     }
 
-    @Test
+
     public void testDeleteLog() throws Exception {
         ManagedLedgerFactoryConfig factoryConf = new ManagedLedgerFactoryConfig();
         factoryConf.setMaxCacheSize(0);
@@ -368,7 +367,7 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
         }
     }
 
-    @Test
+
     public void testRecoverWhenDeleteFromCursor() throws Exception {
         ManagedLedgerFactoryConfig factoryConf = new ManagedLedgerFactoryConfig();
         factoryConf.setMaxCacheSize(0);
@@ -409,7 +408,7 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
         Awaitility.await().until(transactionMetadataStore::checkIfReady);
     }
 
-    @Test
+
     public void testManageLedgerWriteFailState() throws Exception {
         ManagedLedgerFactoryConfig factoryConf = new ManagedLedgerFactoryConfig();
         factoryConf.setMaxCacheSize(0);

@@ -36,7 +36,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker-impl")
+
 public class ConsumerDedupPermitsUpdateTest extends ProducerConsumerBase {
 
     @BeforeClass
@@ -66,7 +66,6 @@ public class ConsumerDedupPermitsUpdateTest extends ProducerConsumerBase {
         };
     }
 
-    @Test(timeOut = 30000, dataProvider = "combinations")
     public void testConsumerDedup(boolean batchingEnabled, int receiverQueueSize) throws Exception {
         String topic = BrokerTestUtil.newUniqueName("persistent://my-property/my-ns/my-topic");
 

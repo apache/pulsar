@@ -72,7 +72,7 @@ public class KafkaAbstractSinkTest {
         throw new AssertionError("Expected exception");
     }
 
-    @Test
+
     public void testInvalidConfigWillThrownException() throws Exception {
         KafkaAbstractSink sink = new DummySink();
         Map<String, Object> config = new HashMap<>();
@@ -202,7 +202,7 @@ public class KafkaAbstractSinkTest {
         sink.close();
     }
 
-    @Test
+
     public final void loadFromYamlFileTest() throws IOException {
         File yamlFile = getFile("kafkaSinkConfig.yaml");
         KafkaSinkConfig config = KafkaSinkConfig.load(yamlFile.getAbsolutePath());
@@ -222,7 +222,7 @@ public class KafkaAbstractSinkTest {
         assertEquals("1", props.getProperty(ProducerConfig.ACKS_CONFIG));
     }
 
-    @Test
+
     public final void loadFromSaslYamlFileTest() throws IOException {
         File yamlFile = getFile("kafkaSinkConfigSasl.yaml");
         KafkaSinkConfig config = KafkaSinkConfig.load(yamlFile.getAbsolutePath());

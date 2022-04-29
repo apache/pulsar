@@ -24,14 +24,14 @@ import org.testng.annotations.Test;
 
 public class TestPulsarConnectorConfig {
 
-    @Test
+
     public void testDefaultNamespaceDelimiterRewrite() {
         PulsarConnectorConfig connectorConfig = new PulsarConnectorConfig();
         Assert.assertFalse(connectorConfig.getNamespaceDelimiterRewriteEnable());
         Assert.assertEquals("/", connectorConfig.getRewriteNamespaceDelimiter());
     }
 
-    @Test
+
     public void testNamespaceRewriteDelimiterRestriction() {
         PulsarConnectorConfig connectorConfig = new PulsarConnectorConfig();
         try {
@@ -51,7 +51,7 @@ public class TestPulsarConnectorConfig {
         Assert.assertEquals("--&", (connectorConfig.getRewriteNamespaceDelimiter()));
     }
 
-    @Test
+
     public void testDefaultBookkeeperConfig() {
         int availableProcessors = Runtime.getRuntime().availableProcessors();
         PulsarConnectorConfig connectorConfig = new PulsarConnectorConfig();
@@ -60,7 +60,7 @@ public class TestPulsarConnectorConfig {
         Assert.assertEquals(availableProcessors, connectorConfig.getBookkeeperNumWorkerThreads());
     }
 
-    @Test
+
     public void testDefaultManagedLedgerConfig() {
         int availableProcessors = Runtime.getRuntime().availableProcessors();
         PulsarConnectorConfig connectorConfig = new PulsarConnectorConfig();
@@ -69,7 +69,7 @@ public class TestPulsarConnectorConfig {
         Assert.assertEquals(connectorConfig.getMaxSplitQueueSizeBytes(), -1);
     }
 
-    @Test
+
     public void testGetOffloadPolices() throws Exception {
         PulsarConnectorConfig connectorConfig = new PulsarConnectorConfig();
 

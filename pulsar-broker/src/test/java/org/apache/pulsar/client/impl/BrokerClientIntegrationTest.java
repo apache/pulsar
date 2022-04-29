@@ -109,7 +109,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker-impl")
+
 public class BrokerClientIntegrationTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(BrokerClientIntegrationTest.class);
 
@@ -151,7 +151,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
      * @throws Exception
      */
     @SuppressWarnings({ "rawtypes", "unchecked" })
-    @Test
+
     public void testDisconnectClientWithoutClosingConnection() throws Exception {
 
         final String ns1 = "my-property/con-ns1";
@@ -270,7 +270,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test
+
     public void testCloseBrokerService() throws Exception {
 
         final String ns1 = "my-property/brok-ns1";
@@ -322,7 +322,6 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
      * @param subType
      * @throws Exception
      */
-    @Test(dataProvider = "subType")
     public void testUnsupportedBatchMessageConsumer(SubscriptionType subType) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -414,7 +413,6 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test(dataProvider = "subType")
     public void testResetCursor(SubscriptionType subType) throws Exception {
         final RetentionPolicies policy = new RetentionPolicies(60, 52 * 1024);
         final TopicName topicName = TopicName.get("persistent://my-property/my-ns/unacked-topic");
@@ -534,7 +532,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test
+
     public void testMaxConcurrentTopicLoading() throws Exception {
         final String topicName = "persistent://prop/usw/my-ns/cocurrentLoadingTopic";
         int concurrentTopic = pulsar.getConfiguration().getMaxConcurrentTopicLoadRequest();
@@ -592,7 +590,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test
+
     public void testCloseConnectionOnInternalServerError() throws Exception {
 
         final String topicName = "persistent://prop/usw/my-ns/newTopic";
@@ -622,7 +620,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         assertFalse(cnx.channel().isActive());
     }
 
-    @Test
+
     public void testInvalidDynamicConfiguration() throws Exception {
 
         // (1) try to update invalid loadManagerClass name
@@ -667,7 +665,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         }
     }
 
-    @Test
+
     public void testCleanProducer() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -701,7 +699,6 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
      *
      * @throws PulsarClientException
      */
-    @Test(expectedExceptions = PulsarClientException.TimeoutException.class)
     public void testOperationTimeout() throws PulsarClientException {
         final String topicName = "persistent://my-property/my-ns/my-topic1";
         ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>> topics = pulsar.getBrokerService()
@@ -717,7 +714,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         }
     }
 
-    @Test
+
     public void testAddEntryOperationTimeout() throws Exception {
 
         log.info("-- Starting {} test --", methodName);
@@ -780,7 +777,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
     }
 
 
-    @Test
+
     public void testAvroSchemaProducerConsumerWithSpecifiedReaderAndWriter() throws PulsarClientException {
         final String topicName = "persistent://my-property/my-ns/my-topic1";
         TestMessageObject object = new TestMessageObject();
@@ -811,7 +808,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         }
     }
 
-    @Test
+
     public void testJsonSchemaProducerConsumerWithSpecifiedReaderAndWriter() throws PulsarClientException {
         final String topicName = "persistent://my-property/my-ns/my-topic1";
         ObjectMapper mapper = new ObjectMapper();
@@ -858,7 +855,6 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test(dataProvider = "booleanFlagProvider")
     public void testConsumerWithPooledMessages(boolean isBatchingEnabled) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -913,7 +909,6 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
      * @param isBatchingEnabled
      * @throws Exception
      */
-    @Test(dataProvider = "booleanFlagProvider")
     public void testPooledMessageWithAckTimeout(boolean isBatchingEnabled) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -952,7 +947,6 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test(dataProvider = "booleanFlagProvider")
     public void testConsumerWithPooledMessagesWithReader(boolean isBatchingEnabled) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -1002,7 +996,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         producer.close();
     }
 
-    @Test
+
     public void testActiveConsumerCleanup() throws Exception {
         log.info("-- Starting {} test --", methodName);
 

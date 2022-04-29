@@ -33,7 +33,6 @@ public class HdfsTextSinkTests extends AbstractHdfsSinkTest<String, String> {
         sink = new HdfsTextSink();
     }
 
-    @Test(enabled = false)
     public final void write100Test() throws Exception {
         map.put("filenamePrefix", "write100TestText-seq");
         map.put("fileExtension", ".seq");
@@ -49,7 +48,6 @@ public class HdfsTextSinkTests extends AbstractHdfsSinkTest<String, String> {
         sink.close();
     }
     
-    @Test(enabled = false)
     public final void write5000Test() throws Exception {
         map.put("filenamePrefix", "write5000TestText-seq");
         map.put("fileExtension", ".seq");
@@ -65,7 +63,6 @@ public class HdfsTextSinkTests extends AbstractHdfsSinkTest<String, String> {
         sink.close();
     }
     
-    @Test(enabled = false)
     public final void tenSecondTest() throws Exception {
         map.put("filenamePrefix", "tenSecondTestText-seq");
         map.put("fileExtension", ".seq");
@@ -78,7 +75,6 @@ public class HdfsTextSinkTests extends AbstractHdfsSinkTest<String, String> {
         sink.close();
     }
     
-    @Test(enabled = false)
     public final void bzip2CompressionTest() throws Exception {
         map.put("filenamePrefix", "bzip2CompressionTestText-seq");
         map.put("compression", "BZIP2");
@@ -91,7 +87,6 @@ public class HdfsTextSinkTests extends AbstractHdfsSinkTest<String, String> {
         verify(mockRecord, times(5000)).ack();
     }
     
-    @Test(enabled = false)
     public final void deflateCompressionTest() throws Exception {
         map.put("filenamePrefix", "deflateCompressionTestText-seq");
         map.put("compression", "DEFLATE");

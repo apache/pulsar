@@ -43,7 +43,7 @@ import static org.mockito.Mockito.mockStatic;
 @Slf4j
 public class ThreadRuntimeFactoryTest {
 
-    @Test
+
     public void testMemoryLimitPercent() throws Exception {
 
         ClientBuilder clientBuilder = testMemoryLimit(null, 50.0);
@@ -51,7 +51,7 @@ public class ThreadRuntimeFactoryTest {
         Mockito.verify(clientBuilder, Mockito.times(1)).memoryLimit(Mockito.eq((long) (1024 * 0.5)), Mockito.eq(SizeUnit.BYTES));
     }
 
-    @Test
+
     public void testMemoryLimitAbsolute() throws Exception {
 
         ClientBuilder clientBuilder = testMemoryLimit(512L, null);
@@ -59,22 +59,22 @@ public class ThreadRuntimeFactoryTest {
         Mockito.verify(clientBuilder, Mockito.times(1)).memoryLimit(Mockito.eq(512L), Mockito.eq(SizeUnit.BYTES));
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
+    
     public void testMemoryLimitAbsoluteNegative() throws Exception {
         testMemoryLimit(-512L, null);
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
+    
     public void testMemoryLimitPercentNegative() throws Exception {
         testMemoryLimit(null, -50.0);
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
+    
     public void testMemoryLimitPercentOver100() throws Exception {
         testMemoryLimit(null, 120.0);
     }
 
-    @Test
+
     public void testMemoryLimitNotSet() throws Exception {
 
         ClientBuilder clientBuilder = testMemoryLimit(null, null);
@@ -82,7 +82,7 @@ public class ThreadRuntimeFactoryTest {
         Mockito.verify(clientBuilder, Mockito.times(0)).memoryLimit(Mockito.anyLong(), Mockito.any());
     }
 
-    @Test
+
     public void testMemoryLimitBothSet() throws Exception {
 
         ClientBuilder clientBuilder = testMemoryLimit(512L, 100.0);

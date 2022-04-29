@@ -38,7 +38,7 @@ import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker")
+
 public class ConsumedLedgersTrimTest extends BrokerTestBase {
 
     private static final Logger LOG = LoggerFactory.getLogger(ConsumedLedgersTrimTest.class);
@@ -54,7 +54,7 @@ public class ConsumedLedgersTrimTest extends BrokerTestBase {
         super.internalCleanup();
     }
 
-    @Test
+
     public void TestConsumedLedgersTrim() throws Exception {
         conf.setRetentionCheckIntervalInSeconds(1);
         super.baseSetup();
@@ -104,7 +104,7 @@ public class ConsumedLedgersTrimTest extends BrokerTestBase {
     }
 
 
-    @Test
+
     public void testConsumedLedgersTrimNoSubscriptions() throws Exception {
         conf.setRetentionCheckIntervalInSeconds(1);
         conf.setBrokerDeleteInactiveTopicsEnabled(false);

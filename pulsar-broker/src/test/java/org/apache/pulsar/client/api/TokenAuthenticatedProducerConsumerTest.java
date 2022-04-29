@@ -51,7 +51,7 @@ import org.testng.annotations.Test;
  *    client: org.apache.pulsar.client.impl.auth.AuthenticationToken
  *    broker: org.apache.pulsar.broker.authentication.AuthenticationProviderToken
  */
-@Test(groups = "broker-api")
+
 public class TokenAuthenticatedProducerConsumerTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(TokenAuthenticatedProducerConsumerTest.class);
 
@@ -151,7 +151,7 @@ public class TokenAuthenticatedProducerConsumerTest extends ProducerConsumerBase
         consumer.close();
     }
 
-    @Test
+    
     public void testTokenProducerAndConsumer() throws Exception {
         log.info("-- Starting {} test --", methodName);
         clientSetup();

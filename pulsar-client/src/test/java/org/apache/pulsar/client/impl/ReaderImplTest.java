@@ -63,7 +63,7 @@ public class ReaderImplTest {
         }
     }
 
-    @Test
+    
     void shouldSupportCancellingReadNextAsync() {
         // given
         CompletableFuture<Message<byte[]>> future = reader.readNextAsync();

@@ -60,7 +60,7 @@ public class BookieRackAffinityMappingTest {
         store.close();
     }
 
-    @Test
+
     public void testBasic() throws Exception {
         String data = "{\"group1\": {\"" + BOOKIE1
                 + "\": {\"rack\": \"/rack0\", \"hostname\": \"bookie1.example.com\"}, \"" + BOOKIE2
@@ -82,7 +82,7 @@ public class BookieRackAffinityMappingTest {
         assertNull(racks.get(2));
     }
 
-    @Test
+
     public void testInvalidRackName() {
         String data = "{\"group1\": {\"" + BOOKIE1
                 + "\": {\"rack\": \"/\", \"hostname\": \"bookie1.example.com\"}, \"" + BOOKIE2
@@ -105,7 +105,7 @@ public class BookieRackAffinityMappingTest {
         assertNull(racks.get(2));
     }
 
-    @Test
+
     public void testNoBookieInfo() throws Exception {
         BookieRackAffinityMapping mapping = new BookieRackAffinityMapping();
         ClientConfiguration bkClientConf = new ClientConfiguration();
@@ -138,7 +138,7 @@ public class BookieRackAffinityMappingTest {
 
     }
 
-    @Test
+
     public void testBookieInfoChange() throws Exception {
         Map<String, Map<BookieSocketAddress, BookieInfo>> bookieMapping = new HashMap<>();
         Map<BookieSocketAddress, BookieInfo> mainBookieGroup = new HashMap<>();

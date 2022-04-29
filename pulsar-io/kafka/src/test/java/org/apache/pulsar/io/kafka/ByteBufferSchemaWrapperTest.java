@@ -32,7 +32,7 @@ import static org.testng.internal.junit.ArrayAsserts.assertArrayEquals;
 @Slf4j
 public class ByteBufferSchemaWrapperTest {
 
-    @Test
+
     public void testGetBytesNoCopy() throws Exception {
         byte[] originalArray = {1, 2, 3};
         ByteBuffer wrapped = ByteBuffer.wrap(originalArray);
@@ -41,7 +41,7 @@ public class ByteBufferSchemaWrapperTest {
         assertSame(ByteBufferSchemaWrapper.getBytes(wrapped), originalArray);
     }
 
-    @Test
+
     public void testGetBytesOffsetZeroDifferentLen() throws Exception {
         byte[] originalArray = {1, 2, 3};
         ByteBuffer wrapped = ByteBuffer.wrap(originalArray, 1, 2);
@@ -52,7 +52,7 @@ public class ByteBufferSchemaWrapperTest {
         assertArrayEquals(result, new byte[] {2,3});
     }
 
-    @Test
+
     public void testGetBytesOffsetNonZero() throws Exception {
         byte[] originalArray = {1, 2, 3};
         ByteBuffer wrapped = ByteBuffer.wrap(originalArray);
@@ -66,7 +66,7 @@ public class ByteBufferSchemaWrapperTest {
         assertArrayEquals(result, new byte[] {2,3});
     }
 
-    @Test
+
     public void testGetBytesOffsetZero() throws Exception {
         byte[] originalArray = {1, 2, 3};
         ByteBuffer wrapped = ByteBuffer.wrap(originalArray, 0, 2);

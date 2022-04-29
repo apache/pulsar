@@ -28,7 +28,7 @@ import org.testng.annotations.Test;
 
 public class PartitionedTopicStatsTest {
 
-    @Test
+
     public void testPartitionedTopicStats() {
         PartitionedTopicStatsImpl partitionedTopicStats = new PartitionedTopicStatsImpl();
         partitionedTopicStats.msgRateIn = 1;

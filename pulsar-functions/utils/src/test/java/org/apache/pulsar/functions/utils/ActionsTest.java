@@ -33,7 +33,7 @@ import static org.testng.Assert.assertEquals;
 
 public class ActionsTest {
 
-    @Test
+    
     public void testActionsSuccess() throws InterruptedException {
 
         // Test for success
@@ -78,7 +78,7 @@ public class ActionsTest {
     }
 
 
-    @Test
+    
     public void testActionsOneAction() throws InterruptedException {
         // test only run 1 action
         Supplier<Actions.ActionResult> supplier1 = mock(Supplier.class);
@@ -122,7 +122,7 @@ public class ActionsTest {
         verify(supplier2, times(0)).get();
     }
 
-    @Test
+    
     public void testActionsRetry() throws InterruptedException {
 
       // test retry
@@ -167,7 +167,7 @@ public class ActionsTest {
         verify(supplier2, times(1)).get();
     }
 
-  @Test
+  
   public void testActionsNoContinueOn() throws InterruptedException {
       // No continueOn
       Supplier<Actions.ActionResult>supplier1 = mock(Supplier.class);

@@ -79,7 +79,7 @@ public class ProxyServiceStarterTest extends MockedPulsarServiceBaseTest {
         return String.format("ws://localhost:%d/ws", serviceStarter.getServer().getListenPortHTTP().get());
     }
 
-    @Test
+
     public void testEnableWebSocketServer() throws Exception {
         HttpClient httpClient = new HttpClient();
         WebSocketClient webSocketClient = new WebSocketClient(httpClient);
@@ -92,7 +92,7 @@ public class ProxyServiceStarterTest extends MockedPulsarServiceBaseTest {
         assertTrue(myWebSocket.getResponse().contains("ping"));
     }
 
-    @Test
+
     public void testProducer() throws Exception {
         @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(serviceUrl)
@@ -108,7 +108,7 @@ public class ProxyServiceStarterTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-    @Test
+
     public void testProduceAndConsumeMessageWithWebsocket() throws Exception {
         HttpClient producerClient = new HttpClient();
         WebSocketClient producerWebSocketClient = new WebSocketClient(producerClient);

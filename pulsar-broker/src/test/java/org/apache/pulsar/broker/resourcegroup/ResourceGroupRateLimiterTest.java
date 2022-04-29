@@ -141,7 +141,7 @@ public class ResourceGroupRateLimiterTest extends BrokerTestBase {
         producer.close();
     }
 
-    @Test
+
     public void testResourceGroupPublishRateLimit() throws Exception {
         testRateLimit();
         testRateLimit();

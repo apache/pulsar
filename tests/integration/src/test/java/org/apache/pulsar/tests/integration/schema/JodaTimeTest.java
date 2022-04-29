@@ -92,7 +92,7 @@ public class JodaTimeTest extends PulsarTestSuite {
         long timeMicros;
     }
 
-    @Test
+
     public void testJodaTime() throws PulsarAdminException, PulsarClientException {
         final String tenant = PUBLIC_TENANT;
         final String namespace = "test-namespace-" + randomName(16);

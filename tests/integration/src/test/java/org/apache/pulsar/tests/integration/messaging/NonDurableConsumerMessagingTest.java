@@ -33,7 +33,7 @@ import org.testng.annotations.Test;
 
 public class NonDurableConsumerMessagingTest extends MessagingBase {
 
-    @Test(dataProvider = "ServiceUrls")
+    
     public void testNonDurableConsumer(Supplier<String> serviceUrl) throws Exception {
         final String topicName = getNonPartitionedTopic("test-non-durable-consumer", false);
         @Cleanup

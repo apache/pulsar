@@ -36,7 +36,7 @@ import static org.testng.AssertJUnit.assertTrue;
 
 public class AdditionalServletUtilsTest {
 
-    @Test
+
     public void testLoadEventListener() throws Exception {
         AdditionalServletDefinition def = new AdditionalServletDefinition();
         def.setAdditionalServletClass(MockAdditionalServlet.class.getName());
@@ -67,7 +67,7 @@ public class AdditionalServletUtilsTest {
         }
     }
 
-    @Test(expectedExceptions = IOException.class)
+    
     public void testLoadEventListenerWithBlankListerClass() throws Exception {
         AdditionalServletDefinition def = new AdditionalServletDefinition();
         def.setDescription("test-proxy-listener");
@@ -94,7 +94,7 @@ public class AdditionalServletUtilsTest {
         }
     }
 
-    @Test(expectedExceptions = IOException.class)
+    
     public void testLoadEventListenerWithWrongListerClass() throws Exception {
         AdditionalServletDefinition def = new AdditionalServletDefinition();
         def.setAdditionalServletClass(Runnable.class.getName());

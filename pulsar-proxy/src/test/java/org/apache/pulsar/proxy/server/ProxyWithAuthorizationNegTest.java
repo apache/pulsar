@@ -158,7 +158,7 @@ public class ProxyWithAuthorizationNegTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test
+
     public void testProxyAuthorization() throws Exception {
         log.info("-- Starting {} test --", methodName);
 

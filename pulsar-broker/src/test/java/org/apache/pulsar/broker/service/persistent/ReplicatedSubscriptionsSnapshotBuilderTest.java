@@ -44,7 +44,7 @@ import org.apache.pulsar.common.protocol.Markers;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker")
+
 public class ReplicatedSubscriptionsSnapshotBuilderTest {
 
     private final String localCluster = "a";
@@ -75,7 +75,7 @@ public class ReplicatedSubscriptionsSnapshotBuilderTest {
                 .writeMarker(any(ByteBuf.class));
     }
 
-    @Test
+
     public void testBuildSnapshotWith2Clusters() throws Exception {
         List<String> remoteClusters = Collections.singletonList("b");
 
@@ -114,7 +114,7 @@ public class ReplicatedSubscriptionsSnapshotBuilderTest {
         assertEquals(snapshot.getLocalMessageId().getEntryId(), 1);
     }
 
-    @Test
+
     public void testBuildSnapshotWith3Clusters() throws Exception {
         List<String> remoteClusters = Arrays.asList("b", "c");
 
@@ -196,7 +196,7 @@ public class ReplicatedSubscriptionsSnapshotBuilderTest {
         assertEquals(snapshot.getLocalMessageId().getEntryId(), 4);
     }
 
-    @Test
+
     public void testBuildTimeout() {
         List<String> remoteClusters = Collections.singletonList("b");
 

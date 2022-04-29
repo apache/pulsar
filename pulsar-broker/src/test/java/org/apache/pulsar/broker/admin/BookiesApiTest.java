@@ -36,7 +36,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Slf4j
-@Test(groups = "broker-admin")
+
 public class BookiesApiTest extends MockedPulsarServiceBaseTest {
 
     @BeforeMethod
@@ -51,7 +51,7 @@ public class BookiesApiTest extends MockedPulsarServiceBaseTest {
         super.internalCleanup();
     }
 
-    @Test
+
     public void testBasic() throws Exception {
         // no map
         BookiesRackConfiguration conf = (BookiesRackConfiguration) admin.bookies().getBookiesRackInfo();

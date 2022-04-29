@@ -27,7 +27,7 @@ import org.testng.annotations.Test;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-@Test(groups = "broker")
+
 public class PrecisTopicPublishRateThrottleTest extends BrokerTestBase{
 
     @Override
@@ -40,7 +40,7 @@ public class PrecisTopicPublishRateThrottleTest extends BrokerTestBase{
         //No-op
     }
 
-    @Test
+
     public void testPrecisTopicPublishRateLimitingDisabled() throws Exception {
         PublishRate publishRate = new PublishRate(1,10);
         // disable precis topic publish rate limiting
@@ -77,7 +77,7 @@ public class PrecisTopicPublishRateThrottleTest extends BrokerTestBase{
         super.internalCleanup();
     }
 
-    @Test
+
     public void testProducerBlockedByPrecisTopicPublishRateLimiting() throws Exception {
         PublishRate publishRate = new PublishRate(1,10);
         conf.setPreciseTopicPublishRateLimiterEnable(true);
@@ -106,7 +106,7 @@ public class PrecisTopicPublishRateThrottleTest extends BrokerTestBase{
         super.internalCleanup();
     }
 
-    @Test
+
     public void testPrecisTopicPublishRateLimitingProduceRefresh() throws Exception {
         PublishRate publishRate = new PublishRate(1,10);
         conf.setPreciseTopicPublishRateLimiterEnable(true);
@@ -142,7 +142,7 @@ public class PrecisTopicPublishRateThrottleTest extends BrokerTestBase{
         super.internalCleanup();
     }
 
-    @Test
+
     public void testBrokerLevelPublishRateDynamicUpdate() throws Exception{
         conf.setPreciseTopicPublishRateLimiterEnable(true);
         conf.setTopicLevelPoliciesEnabled(true);

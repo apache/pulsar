@@ -51,7 +51,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker-impl")
+
 public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
     private static final long testTimeout = 90000; // 1.5 min
     private static final Logger log = LoggerFactory.getLogger(PatternTopicsConsumerImplTest.class);
@@ -72,7 +72,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         super.internalCleanup();
     }
 
-    @Test(timeOut = testTimeout)
+    
     public void testPatternTopicsSubscribeWithBuilderFail() throws Exception {
         String key = "PatternTopicsSubscribeWithBuilderFail";
         final String subscriptionName = "my-ex-subscription-" + key;
@@ -134,7 +134,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
     }
 
     // verify consumer create success, and works well.
-    @Test(timeOut = testTimeout)
+    
     public void testBinaryProtoToGetTopicsOfNamespacePersistent() throws Exception {
         String key = "BinaryProtoToGetTopics";
         String subscriptionName = "my-ex-subscription-" + key;
@@ -225,7 +225,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         producer4.close();
     }
 
-    @Test(timeOut = testTimeout)
+    
     public void testPubRateOnNonPersistent() throws Exception {
         internalCleanup();
         conf.setMaxPublishRatePerTopicInBytes(10000L);
@@ -238,7 +238,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
     }
     
 	// verify consumer create success, and works well.
-    @Test(timeOut = testTimeout)
+    
     public void testBinaryProtoToGetTopicsOfNamespaceNonPersistent() throws Exception {
         String key = "BinaryProtoToGetTopics";
         String subscriptionName = "my-ex-subscription-" + key;
@@ -329,7 +329,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
     }
 
     // verify consumer create success, and works well.
-    @Test(timeOut = testTimeout)
+    
     public void testBinaryProtoToGetTopicsOfNamespaceAll() throws Exception {
         String key = "BinaryProtoToGetTopics";
         String subscriptionName = "my-ex-subscription-" + key;
@@ -420,7 +420,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
     }
 
     // simulate subscribe a pattern which has no topics, but then matched topics added in.
-    @Test(timeOut = testTimeout)
+    
     public void testStartEmptyPatternConsumer() throws Exception {
         String key = "StartEmptyPatternConsumerTest";
         String subscriptionName = "my-ex-subscription-" + key;
@@ -508,7 +508,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
     }
 
     // simulate subscribe a pattern which has 3 topics, but then matched topic added in.
-    @Test(timeOut = testTimeout)
+    
     public void testAutoSubscribePatternConsumer() throws Exception {
         String key = "AutoSubscribePatternConsumer";
         String subscriptionName = "my-ex-subscription-" + key;
@@ -617,7 +617,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         producer4.close();
     }
 
-    @Test(timeOut = testTimeout)
+    
     public void testAutoUnsubscribePatternConsumer() throws Exception {
         String key = "AutoUnsubscribePatternConsumer";
         String subscriptionName = "my-ex-subscription-" + key;
@@ -723,7 +723,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         producer3.close();
     }
 
-    @Test
+    
     public void testTopicDeletion() throws Exception {
         String baseTopicName = "persistent://my-property/my-ns/pattern-topic-" + System.currentTimeMillis();
         Pattern pattern = Pattern.compile(baseTopicName + ".*");

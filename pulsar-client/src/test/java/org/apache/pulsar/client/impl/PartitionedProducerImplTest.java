@@ -90,7 +90,7 @@ public class PartitionedProducerImplTest {
         });
     }
 
-    @Test
+
     public void testSinglePartitionMessageRouterImplInstance() throws NoSuchFieldException, IllegalAccessException {
         ProducerConfigurationData producerConfigurationData = new ProducerConfigurationData();
         producerConfigurationData.setMessageRoutingMode(MessageRoutingMode.SinglePartition);
@@ -99,7 +99,7 @@ public class PartitionedProducerImplTest {
         assertTrue(messageRouter instanceof SinglePartitionMessageRouterImpl);
     }
 
-    @Test
+
     public void testRoundRobinPartitionMessageRouterImplInstance() throws NoSuchFieldException, IllegalAccessException {
         ProducerConfigurationData producerConfigurationData = new ProducerConfigurationData();
         producerConfigurationData.setMessageRoutingMode(MessageRoutingMode.RoundRobinPartition);
@@ -108,7 +108,7 @@ public class PartitionedProducerImplTest {
         assertTrue(messageRouter instanceof RoundRobinPartitionMessageRouterImpl);
     }
 
-    @Test
+
     public void testCustomMessageRouterInstance() throws NoSuchFieldException, IllegalAccessException {
         ProducerConfigurationData producerConfigurationData = new ProducerConfigurationData();
         producerConfigurationData.setMessageRoutingMode(MessageRoutingMode.CustomPartition);
@@ -118,7 +118,7 @@ public class PartitionedProducerImplTest {
         assertTrue(messageRouter instanceof CustomMessageRouter);
     }
 
-    @Test
+
     public void testPartialPartition() {
         final MessageRouter router = new PartialRoundRobinMessageRouterImpl(3);
         final Set<Integer> actualSet = Sets.newHashSet();
@@ -139,7 +139,7 @@ public class PartitionedProducerImplTest {
         }
     }
 
-    @Test
+
     public void testPartialPartitionWithKey() {
         final MessageRouter router = new PartialRoundRobinMessageRouterImpl(3);
         final Hash hash = Murmur3Hash32.getInstance();
@@ -178,7 +178,7 @@ public class PartitionedProducerImplTest {
         }
     }
 
-    @Test
+
     public void testGetStats() throws Exception {
         String topicName = "test-stats";
         ClientConfigurationData conf = new ClientConfigurationData();
@@ -203,7 +203,7 @@ public class PartitionedProducerImplTest {
         impl.getStats();
     }
 
-    @Test
+
     public void testGetStatsWithoutArriveUpdateInterval() throws Exception {
         String topicName = "test-stats-without-arrive-interval";
         ClientConfigurationData conf = new ClientConfigurationData();
@@ -236,7 +236,7 @@ public class PartitionedProducerImplTest {
         assertEquals(stats.getTotalSendFailed(), 1);
     }
 
-    @Test
+
     public void testGetNumOfPartitions() throws Exception {
         String topicName = "test-get-num-of-partitions";
         ClientConfigurationData conf = new ClientConfigurationData();

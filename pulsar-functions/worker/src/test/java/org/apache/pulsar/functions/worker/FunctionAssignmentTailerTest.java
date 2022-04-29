@@ -60,7 +60,7 @@ import org.testng.annotations.Test;
 @Slf4j
 public class FunctionAssignmentTailerTest {
 
-    @Test(timeOut = 10000)
+    
     public void testErrorNotifier() throws Exception {
         WorkerConfig workerConfig = new WorkerConfig();
         workerConfig.setWorkerId("worker-1");
@@ -172,7 +172,7 @@ public class FunctionAssignmentTailerTest {
         functionAssignmentTailer.close();
     }
 
-    @Test(timeOut = 10000)
+    
     public void testProcessingAssignments() throws Exception {
         WorkerConfig workerConfig = new WorkerConfig();
         workerConfig.setWorkerId("worker-1");
@@ -296,7 +296,7 @@ public class FunctionAssignmentTailerTest {
         functionAssignmentTailer.close();
     }
 
-    @Test(timeOut = 10000)
+    
     public void testTriggerReadToTheEndAndExit() throws Exception {
         WorkerConfig workerConfig = new WorkerConfig();
         workerConfig.setWorkerId("worker-1");

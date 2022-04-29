@@ -82,7 +82,7 @@ import org.testng.annotations.Test;
  * Tests for the {@code WebService} class. Note that this test only covers the newly added ApiVersionFilter related
  * tests for now as this test class was added quite a bit after the class was written.
  */
-@Test(groups = "broker")
+
 public class WebServiceTest {
 
     private PulsarService pulsar;
@@ -94,7 +94,7 @@ public class WebServiceTest {
     private static final String TLS_CLIENT_KEY_FILE_PATH = "./src/test/resources/certificate/client.key";
 
 
-    @Test
+
     public void testWebExecutorMetrics() throws Exception {
         setupEnv(true, "1.0", true, false, false, false, -1, false);
         ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
@@ -135,7 +135,7 @@ public class WebServiceTest {
      * allowUnversionedClients to true, then making a request with no version, which should go through.
      *
      */
-    @Test
+
     public void testDefaultClientVersion() throws Exception {
         setupEnv(true, "1.0", true, false, false, false, -1, false);
       
@@ -153,7 +153,7 @@ public class WebServiceTest {
      *
      * @throws Exception
      */
-    @Test
+
     public void testTlsEnabled() throws Exception {
         setupEnv(false, "1.0", false, true, false, false, -1, false);
 
@@ -175,7 +175,7 @@ public class WebServiceTest {
      *
      * @throws Exception
      */
-    @Test
+
     public void testTlsDisabled() throws Exception {
         setupEnv(false, "1.0", false, false, false, false, -1, false);
 
@@ -199,7 +199,7 @@ public class WebServiceTest {
      *
      * @throws Exception
      */
-    @Test
+
     public void testTlsAuthAllowInsecure() throws Exception {
         setupEnv(false, "1.0", false, true, true, true, -1, false);
 
@@ -222,7 +222,7 @@ public class WebServiceTest {
      *
      * @throws Exception
      */
-    @Test
+
     public void testTlsAuthDisallowInsecure() throws Exception {
         setupEnv(false, "1.0", false, true, true, false, -1, false);
 
@@ -240,7 +240,7 @@ public class WebServiceTest {
         }
     }
 
-    @Test
+
     public void testRateLimiting() throws Exception {
         setupEnv(false, "1.0", false, false, false, false, 10.0, false);
 
@@ -261,13 +261,13 @@ public class WebServiceTest {
         }
     }
 
-    @Test
+
     public void testSplitPath() {
         String result = PulsarWebResource.splitPath("prop/cluster/ns/topic1", 4);
         Assert.assertEquals(result, "topic1");
     }
 
-    @Test
+
     public void testDisableHttpTraceAndTrackMethods() throws Exception {
         setupEnv(true, "1.0", true, false, false, false, -1, true);
 
@@ -291,7 +291,7 @@ public class WebServiceTest {
         assertEquals(res.getStatusCode(), 405);
     }
 
-    @Test
+
     public void testMaxRequestSize() throws Exception {
         setupEnv(true, "1.0", true, false, false, false, -1, false);
 
@@ -335,7 +335,7 @@ public class WebServiceTest {
         assertEquals(res3.getStatusCode(), 200);
     }
 
-    @Test
+
     public void testBrokerReady() throws Exception {
         setupEnv(true, "1.0", true, false, false, false, -1, false);
 

@@ -230,7 +230,7 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
-    @Test
+
     public void testProxyAuthorization() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -283,7 +283,6 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test(dataProvider = "hostnameVerification")
     public void testTlsHostVerificationProxyToClient(boolean hostnameVerificationEnabled) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -334,7 +333,6 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
      * @param hostnameVerificationEnabled
      * @throws Exception
      */
-    @Test(dataProvider = "hostnameVerification")
     public void testTlsHostVerificationProxyToBroker(boolean hostnameVerificationEnabled) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -378,7 +376,6 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
      * This test verifies whether the Client and Proxy honor the protocols and ciphers specified. Details description of
      * test cases can be found in protocolsCiphersProviderCodecProvider
      */
-    @Test(dataProvider = "protocolsCiphersProvider", timeOut = 5000)
     public void tlsCiphersAndProtocols(Set<String> tlsCiphers, Set<String> tlsProtocols, boolean expectFailure)
             throws Exception {
         log.info("-- Starting {} test --", methodName);

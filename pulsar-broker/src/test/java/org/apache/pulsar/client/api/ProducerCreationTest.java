@@ -30,7 +30,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker-api")
+
 public class ProducerCreationTest extends ProducerConsumerBase {
 
     @BeforeMethod
@@ -54,7 +54,7 @@ public class ProducerCreationTest extends ProducerConsumerBase {
         };
     }
 
-    @Test(dataProvider = "topicDomainProvider")
+    
     public void testExactlyOnceWithProducerNameSpecified(TopicDomain domain) throws PulsarClientException {
         Producer<byte[]> producer1 = pulsarClient.newProducer()
                 .topic(TopicName.get(domain.value(), "public", "default", "testExactlyOnceWithProducerNameSpecified").toString())
@@ -81,7 +81,7 @@ public class ProducerCreationTest extends ProducerConsumerBase {
         }
     }
 
-    @Test(dataProvider = "topicDomainProvider")
+    
     public void testGeneratedNameProducerReconnect(TopicDomain domain) throws PulsarClientException, InterruptedException {
         ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer()
                 .topic(TopicName.get(domain.value(), "public", "default", "testGeneratedNameProducerReconnect").toString())
@@ -97,7 +97,7 @@ public class ProducerCreationTest extends ProducerConsumerBase {
         Assert.assertTrue(producer.isConnected());
     }
 
-    @Test(dataProvider = "topicDomainProvider")
+    
     public void testInitialSubscriptionCreation(TopicDomain domain) throws PulsarClientException, PulsarAdminException {
         final String initialSubscriptionName = "init-sub";
         final TopicName topic = TopicName.get(domain.value(), "public", "default", "testInitialSubscriptionCreation");
@@ -138,7 +138,7 @@ public class ProducerCreationTest extends ProducerConsumerBase {
                 admin.topics().getSubscriptions(topic.toString()).contains(initialSubscriptionName));
     }
 
-    @Test
+
     public void testCreateInitialSubscriptionOnPartitionedTopic() throws PulsarAdminException, PulsarClientException {
         final TopicName topic =
                 TopicName.get("persistent", "public", "default", "testCreateInitialSubscriptionOnPartitionedTopic");
@@ -153,7 +153,7 @@ public class ProducerCreationTest extends ProducerConsumerBase {
         Assert.assertTrue(admin.topics().getSubscriptions(topic.toString()).contains(initialSubscriptionName));
     }
 
-    @Test
+
     public void testCreateInitialSubscriptionWhenExisting() throws PulsarClientException, PulsarAdminException {
         final TopicName topic =
                 TopicName.get("persistent", "public", "default", "testCreateInitialSubscriptionWhenExisting");
@@ -169,7 +169,7 @@ public class ProducerCreationTest extends ProducerConsumerBase {
         Assert.assertTrue(admin.topics().getSubscriptions(topic.toString()).contains(initialSubscriptionName));
     }
 
-    @Test
+
     public void testInitialSubscriptionCreationWithAutoCreationDisable()
             throws PulsarAdminException, PulsarClientException {
         pulsar.getConfiguration().setAllowAutoSubscriptionCreation(false);
