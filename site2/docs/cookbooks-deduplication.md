@@ -8,7 +8,7 @@ When **Message deduplication** is enabled, it ensures that each message produced
 
 Message deduplication could affect the performance of the brokers during informational snapshots.
 
-To use message deduplication in Pulsar, you need to configure your Pulsar brokers, namespaces or topics and it is recommended to modify configuration in the clients, setting send timeout to infinity.
+To use message deduplication in Pulsar, you need to configure your Pulsar brokers, namespaces, or topics. It is recommended to modify the configuration in the clients, for example, setting send timeout to infinity.
 
 ## How it works
 
