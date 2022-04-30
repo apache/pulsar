@@ -26,7 +26,7 @@ import io.netty.channel.AdaptiveRecvByteBufAllocator;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
-import io.netty.resolver.dns.DnsNameResolver;
+import io.netty.resolver.dns.DnsAddressResolverGroup;
 import io.netty.resolver.dns.DnsNameResolverBuilder;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import io.prometheus.client.Counter;
@@ -71,7 +71,7 @@ public class ProxyService implements Closeable {
 
     private final ProxyConfiguration proxyConfig;
     @Getter
-    private final DnsNameResolver dnsNameResolver;
+    private final DnsAddressResolverGroup dnsAddressResolverGroup;
     @Getter
     private final BrokerProxyValidator brokerProxyValidator;
     private String serviceUrl;
@@ -146,13 +146,13 @@ public class ProxyService implements Closeable {
         this.workerGroup = EventLoopUtil.newEventLoopGroup(numThreads, workersThreadFactory);
         this.authenticationService = authenticationService;
 
-        DnsNameResolverBuilder dnsNameResolverBuilder = new DnsNameResolverBuilder(workerGroup.next())
+        DnsNameResolverBuilder dnsNameResolverBuilder = new DnsNameResolverBuilder()
                 .channelType(EventLoopUtil.getDatagramChannelClass(workerGroup));
         DnsResolverUtil.applyJdkDnsCacheSettings(dnsNameResolverBuilder);
 
-        dnsNameResolver = dnsNameResolverBuilder.build();
+        dnsAddressResolverGroup = new DnsAddressResolverGroup(dnsNameResolverBuilder);
 
-        brokerProxyValidator = new BrokerProxyValidator(dnsNameResolver.asAddressResolver(),
+        brokerProxyValidator = new BrokerProxyValidator(dnsAddressResolverGroup.getResolver(workerGroup.next()),
                 proxyConfig.getBrokerProxyAllowedHostNames(),
                 proxyConfig.getBrokerProxyAllowedIPAddresses(),
                 proxyConfig.getBrokerProxyAllowedTargetPorts());
@@ -238,7 +238,7 @@ public class ProxyService implements Closeable {
     }
 
     public void close() throws IOException {
-        dnsNameResolver.close();
+        dnsAddressResolverGroup.close();
 
         if (discoveryProvider != null) {
             discoveryProvider.close();
