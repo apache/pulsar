@@ -265,18 +265,14 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @QueryParam("force") @DefaultValue("false") boolean force,
             int numPartitions) {
-        try {
-            validateTopicName(property, cluster, namespace, encodedTopic);
-            internalUpdatePartitionedTopicAsync(numPartitions, updateLocalTopicOnly, authoritative, force)
-                    .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
-                    .exceptionally(ex -> {
-                        resumeAsyncResponseExceptionally(asyncResponse, ex);
-                        return null;
-                    });
-        } catch (Exception e) {
-            log.error("[{}] Failed to update partitioned topic {}", clientAppId(), topicName, e);
-            resumeAsyncResponseExceptionally(asyncResponse, e);
-        }
+        validateTopicName(property, cluster, namespace, encodedTopic);
+        internalUpdatePartitionedTopicAsync(numPartitions, updateLocalTopicOnly, authoritative, force)
+                .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to update partitioned topic {}", clientAppId(), topicName, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @GET

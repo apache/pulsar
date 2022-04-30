@@ -824,20 +824,16 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "The number of partitions for the topic",
                     required = true, type = "int", defaultValue = "0")
                     int numPartitions) {
-        try {
-            validatePartitionedTopicName(tenant, namespace, encodedTopic);
-            validatePartitionedTopicMetadataAsync()
-                    .thenCompose(__ -> internalUpdatePartitionedTopicAsync(numPartitions, updateLocalTopicOnly,
-                            authoritative, force))
-                    .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
-                    .exceptionally(ex -> {
-                        resumeAsyncResponseExceptionally(asyncResponse, ex);
-                        return null;
-                    });
-        } catch (Exception e) {
-            log.error("[{}] Failed to update partitioned topic {}", clientAppId(), topicName, e);
-            resumeAsyncResponseExceptionally(asyncResponse, e);
-        }
+        validatePartitionedTopicName(tenant, namespace, encodedTopic);
+        validatePartitionedTopicMetadataAsync()
+                .thenCompose(__ -> internalUpdatePartitionedTopicAsync(numPartitions, updateLocalTopicOnly,
+                        authoritative, force))
+                .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to update partitioned topic {}", clientAppId(), topicName, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
 
