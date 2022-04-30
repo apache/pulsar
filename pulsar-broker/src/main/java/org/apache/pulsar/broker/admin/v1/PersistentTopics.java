@@ -269,7 +269,9 @@ public class PersistentTopics extends PersistentTopicsBase {
         internalUpdatePartitionedTopicAsync(numPartitions, updateLocalTopicOnly, authoritative, force)
                 .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
                 .exceptionally(ex -> {
-                    log.error("[{}] Failed to update partitioned topic {}", clientAppId(), topicName, ex);
+                    if (!isRedirectException(ex)) {
+                        log.error("[{}] Failed to update partitioned topic {}", clientAppId(), topicName, ex);
+                    }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
