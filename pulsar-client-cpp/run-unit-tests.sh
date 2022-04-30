@@ -19,6 +19,7 @@
 #
 
 set -e
+git config --global --add safe.directory /pulsar
 
 ROOT_DIR=$(git rev-parse --show-toplevel)
 cd $ROOT_DIR/pulsar-client-cpp
@@ -65,10 +66,6 @@ if [ $RES -eq 0 ]; then
     WHEEL_FILE=$(ls dist/ | grep whl)
     echo "${WHEEL_FILE}"
     echo "dist/${WHEEL_FILE}[all]"
-    # Protobuf 3.18 only works with Python3. Since we're still using Python2 in CI, 
-    # let's pin the Python version to the previous one
-    pip3 install protobuf==3.17.3
-
     pip3 install dist/${WHEEL_FILE}[all]
 
     echo "---- Running Python unit tests"
@@ -78,12 +75,9 @@ if [ $RES -eq 0 ]; then
     cp *_test.py /tmp
     pushd /tmp
 
-    # TODO: this test requires asyncio module that is supported by Python >= 3.3.
-    #  Hoeever, CI doesn't support Python3 yet, we should uncomment following
-    #  lines after Python3 CI script is added.
-    #python custom_logger_test.py
-    #RES=$?
-    #echo "custom_logger_test.py: $RES"
+    python custom_logger_test.py
+    RES=$?
+    echo "custom_logger_test.py: $RES"
 
     python3 pulsar_test.py
     RES=$?
