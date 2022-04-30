@@ -354,8 +354,12 @@ class _ClientHandle(object):  # TODO use ABC as parent class once Python 2 suppo
         self._ref_tracker.add(self)
 
     def close(self):
-        self._handle.close()
-        self._ref_tracker.discard(self)
+        try:
+            # During garbage collection, _handle may already have been removed.
+            if hasattr(self, '_handle'):
+                self._handle.close()
+        finally:
+            self._ref_tracker.discard(self)
 
     def is_connected(self):
         return self in self._ref_tracker and self._handle.is_connected()
@@ -874,6 +878,16 @@ class Client(_ClientHandle):
         _check_type(str, topic, 'topic')
         return self._handle.get_topic_partitions(topic)
 
+    def _close_children(self):
+        try:
+            refs = getattr(self, '_ref_tracker', set())
+            for child in tuple(refs):
+                if child is not self and child.is_connected():
+                    refs.pop(child)
+                    child.close()
+        except AlreadyClosed:
+            pass
+
     def shutdown(self):
         """
         Perform immediate shutdown of Pulsar client.
@@ -881,20 +895,22 @@ class Client(_ClientHandle):
         Release all resources and close all producer, consumer, and readers without waiting
         for ongoing operations to complete.
         """
-        self._handle.shutdown()
+        try:
+            self._handle.shutdown()
+        finally:
+            self._close_children()
 
     def close(self):
         """
         Close the client and all the associated producers and consumers
         """
-        super(Client, self).close()
-        while len(self._ref_tracker):
-            child = self._ref_tracker.pop()
-            child._closed = True
+        try:
+            super(Client, self).close()
+        finally:
+            self._close_children()
 
     def is_connected(self):
-        return not self in self._ref_tracker
-
+        return self in self._ref_tracker
 
 class Producer(_ClientHandle):
     """
@@ -1274,7 +1290,7 @@ class Reader(_ClientHandle):
         """
         Check if there is any message available to read from the current position.
         """
-        return self._handle.has_message_available();
+        return self._handle.has_message_available()
 
     def seek(self, messageid):
         """
