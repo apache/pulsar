@@ -21,7 +21,7 @@
 # Run C++ unit tests within a Docker container
 
 # Fail script in case of errors
-set -e
+set -e -x
 
 if [ "$1" = "--help" ]; then
     echo "Usage:"
