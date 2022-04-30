@@ -2087,7 +2087,7 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><a href="org/apache/pulsar/broker/service/ConnectionController.DefaultConnectionController.html" title="class in org.apache.pulsar.broker.service"><span class="typeNameLink">ConnectionController.DefaultConnectionController</span></a> - Class in <a href="org/apache/pulsar/broker/service/package-summary.html">org.apache.pulsar.broker.service</a></dt>
 <dd>&nbsp;</dd>
-<dt><a href="org/apache/pulsar/broker/service/ConnectionController.Sate.html" title="enum in org.apache.pulsar.broker.service"><span class="typeNameLink">ConnectionController.Sate</span></a> - Enum in <a href="org/apache/pulsar/broker/service/package-summary.html">org.apache.pulsar.broker.service</a></dt>
+<dt><a href="org/apache/pulsar/broker/service/ConnectionController.State.html" title="enum in org.apache.pulsar.broker.service"><span class="typeNameLink">ConnectionController.State</span></a> - Enum in <a href="org/apache/pulsar/broker/service/package-summary.html">org.apache.pulsar.broker.service</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="org/apache/pulsar/broker/service/ConsistentHashingStickyKeyConsumerSelector.html" title="class in org.apache.pulsar.broker.service"><span class="typeNameLink">ConsistentHashingStickyKeyConsumerSelector</span></a> - Class in <a href="org/apache/pulsar/broker/service/package-summary.html">org.apache.pulsar.broker.service</a></dt>
 <dd>
@@ -4670,6 +4670,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/AdminResource.html#getNamespaceReplicatedClusters(org.apache.pulsar.common.naming.NamespaceName)">getNamespaceReplicatedClusters(NamespaceName)</a></span> - Method in class org.apache.pulsar.broker.admin.<a href="org/apache/pulsar/broker/admin/AdminResource.html" title="class in org.apache.pulsar.broker.admin">AdminResource</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/AdminResource.html#getNamespaceReplicatedClustersAsync(org.apache.pulsar.common.naming.NamespaceName)">getNamespaceReplicatedClustersAsync(NamespaceName)</a></span> - Method in class org.apache.pulsar.broker.admin.<a href="org/apache/pulsar/broker/admin/AdminResource.html" title="class in org.apache.pulsar.broker.admin">AdminResource</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/v2/Namespaces.html#getNamespaceReplicationClusters(java.lang.String,java.lang.String)">getNamespaceReplicationClusters(String, String)</a></span> - Method in class org.apache.pulsar.broker.admin.v2.<a href="org/apache/pulsar/broker/admin/v2/Namespaces.html" title="class in org.apache.pulsar.broker.admin.v2">Namespaces</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/v1/Namespaces.html#getNamespaceReplicationClusters(java.lang.String,java.lang.String,java.lang.String)">getNamespaceReplicationClusters(String, String, String)</a></span> - Method in class org.apache.pulsar.broker.admin.v1.<a href="org/apache/pulsar/broker/admin/v1/Namespaces.html" title="class in org.apache.pulsar.broker.admin.v1">Namespaces</a></dt>
@@ -6966,6 +6968,8 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/impl/PersistentTopicsBase.html#internalGetList(java.util.Optional)">internalGetList(Optional&lt;String&gt;)</a></span> - Method in class org.apache.pulsar.broker.admin.impl.<a href="org/apache/pulsar/broker/admin/impl/PersistentTopicsBase.html" title="class in org.apache.pulsar.broker.admin.impl">PersistentTopicsBase</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/impl/PersistentTopicsBase.html#internalGetListAsync()">internalGetListAsync()</a></span> - Method in class org.apache.pulsar.broker.admin.impl.<a href="org/apache/pulsar/broker/admin/impl/PersistentTopicsBase.html" title="class in org.apache.pulsar.broker.admin.impl">PersistentTopicsBase</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/impl/PersistentTopicsBase.html#internalGetManagedLedgerInfo(javax.ws.rs.container.AsyncResponse,boolean)">internalGetManagedLedgerInfo(AsyncResponse, boolean)</a></span> - Method in class org.apache.pulsar.broker.admin.impl.<a href="org/apache/pulsar/broker/admin/impl/PersistentTopicsBase.html" title="class in org.apache.pulsar.broker.admin.impl">PersistentTopicsBase</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/impl/PersistentTopicsBase.html#internalGetManagedLedgerInfoForNonPartitionedTopic(javax.ws.rs.container.AsyncResponse)">internalGetManagedLedgerInfoForNonPartitionedTopic(AsyncResponse)</a></span> - Method in class org.apache.pulsar.broker.admin.impl.<a href="org/apache/pulsar/broker/admin/impl/PersistentTopicsBase.html" title="class in org.apache.pulsar.broker.admin.impl">PersistentTopicsBase</a></dt>
@@ -7356,7 +7360,7 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/impl/PackagesBase.html#internalUpdateMetadata(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,org.apache.pulsar.packages.management.core.common.PackageMetadata,javax.ws.rs.container.AsyncResponse)">internalUpdateMetadata(String, String, String, String, String, PackageMetadata, AsyncResponse)</a></span> - Method in class org.apache.pulsar.broker.admin.impl.<a href="org/apache/pulsar/broker/admin/impl/PackagesBase.html" title="class in org.apache.pulsar.broker.admin.impl">PackagesBase</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/impl/PersistentTopicsBase.html#internalUpdatePartitionedTopic(int,boolean,boolean,boolean)">internalUpdatePartitionedTopic(int, boolean, boolean, boolean)</a></span> - Method in class org.apache.pulsar.broker.admin.impl.<a href="org/apache/pulsar/broker/admin/impl/PersistentTopicsBase.html" title="class in org.apache.pulsar.broker.admin.impl">PersistentTopicsBase</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/impl/PersistentTopicsBase.html#internalUpdatePartitionedTopicAsync(int,boolean,boolean,boolean)">internalUpdatePartitionedTopicAsync(int, boolean, boolean, boolean)</a></span> - Method in class org.apache.pulsar.broker.admin.impl.<a href="org/apache/pulsar/broker/admin/impl/PersistentTopicsBase.html" title="class in org.apache.pulsar.broker.admin.impl">PersistentTopicsBase</a></dt>
 <dd>
 <div class="block">It updates number of partitions of an existing partitioned topic.</div>
 </dd>
@@ -8834,7 +8838,7 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/resourcegroup/ResourceGroupService.ResourceGroupOpStatus.html#OK">OK</a></span> - org.apache.pulsar.broker.resourcegroup.<a href="org/apache/pulsar/broker/resourcegroup/ResourceGroupService.ResourceGroupOpStatus.html" title="enum in org.apache.pulsar.broker.resourcegroup">ResourceGroupService.ResourceGroupOpStatus</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/ConnectionController.Sate.html#OK">OK</a></span> - org.apache.pulsar.broker.service.<a href="org/apache/pulsar/broker/service/ConnectionController.Sate.html" title="enum in org.apache.pulsar.broker.service">ConnectionController.Sate</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/ConnectionController.State.html#OK">OK</a></span> - org.apache.pulsar.broker.service.<a href="org/apache/pulsar/broker/service/ConnectionController.State.html" title="enum in org.apache.pulsar.broker.service">ConnectionController.State</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/intercept/BrokerInterceptor.BrokerInterceptorDisabled.html#onConnectionClosed(org.apache.pulsar.broker.service.ServerCnx)">onConnectionClosed(ServerCnx)</a></span> - Method in class org.apache.pulsar.broker.intercept.<a href="org/apache/pulsar/broker/intercept/BrokerInterceptor.BrokerInterceptorDisabled.html" title="class in org.apache.pulsar.broker.intercept">BrokerInterceptor.BrokerInterceptorDisabled</a></dt>
 <dd>&nbsp;</dd>
@@ -10030,9 +10034,9 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/impl/RawReaderImpl.html#%3Cinit%3E(org.apache.pulsar.client.impl.PulsarClientImpl,java.lang.String,java.lang.String,java.util.concurrent.CompletableFuture)">RawReaderImpl(PulsarClientImpl, String, String, CompletableFuture&lt;Consumer&lt;byte[]&gt;&gt;)</a></span> - Constructor for class org.apache.pulsar.client.impl.<a href="org/apache/pulsar/client/impl/RawReaderImpl.html" title="class in org.apache.pulsar.client.impl">RawReaderImpl</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/ConnectionController.Sate.html#REACH_MAX_CONNECTION">REACH_MAX_CONNECTION</a></span> - org.apache.pulsar.broker.service.<a href="org/apache/pulsar/broker/service/ConnectionController.Sate.html" title="enum in org.apache.pulsar.broker.service">ConnectionController.Sate</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/ConnectionController.State.html#REACH_MAX_CONNECTION">REACH_MAX_CONNECTION</a></span> - org.apache.pulsar.broker.service.<a href="org/apache/pulsar/broker/service/ConnectionController.State.html" title="enum in org.apache.pulsar.broker.service">ConnectionController.State</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/ConnectionController.Sate.html#REACH_MAX_CONNECTION_PER_IP">REACH_MAX_CONNECTION_PER_IP</a></span> - org.apache.pulsar.broker.service.<a href="org/apache/pulsar/broker/service/ConnectionController.Sate.html" title="enum in org.apache.pulsar.broker.service">ConnectionController.Sate</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/ConnectionController.State.html#REACH_MAX_CONNECTION_PER_IP">REACH_MAX_CONNECTION_PER_IP</a></span> - org.apache.pulsar.broker.service.<a href="org/apache/pulsar/broker/service/ConnectionController.State.html" title="enum in org.apache.pulsar.broker.service">ConnectionController.State</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/AbstractBaseDispatcher.html#reachDispatchRateLimit(org.apache.pulsar.broker.service.persistent.DispatchRateLimiter)">reachDispatchRateLimit(DispatchRateLimiter)</a></span> - Method in class org.apache.pulsar.broker.service.<a href="org/apache/pulsar/broker/service/AbstractBaseDispatcher.html" title="class in org.apache.pulsar.broker.service">AbstractBaseDispatcher</a></dt>
 <dd>&nbsp;</dd>
@@ -13100,11 +13104,11 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/v3/Packages.html#updateMeta(java.lang.String,java.lang.String,java.lang.String,java.lang.String,java.lang.String,org.apache.pulsar.packages.management.core.common.PackageMetadata,javax.ws.rs.container.AsyncResponse)">updateMeta(String, String, String, String, String, PackageMetadata, AsyncResponse)</a></span> - Method in class org.apache.pulsar.broker.admin.v3.<a href="org/apache/pulsar/broker/admin/v3/Packages.html" title="class in org.apache.pulsar.broker.admin.v3">Packages</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/v2/PersistentTopics.html#updatePartitionedTopic(java.lang.String,java.lang.String,java.lang.String,boolean,boolean,boolean,int)">updatePartitionedTopic(String, String, String, boolean, boolean, boolean, int)</a></span> - Method in class org.apache.pulsar.broker.admin.v2.<a href="org/apache/pulsar/broker/admin/v2/PersistentTopics.html" title="class in org.apache.pulsar.broker.admin.v2">PersistentTopics</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/v2/PersistentTopics.html#updatePartitionedTopic(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,boolean,boolean,boolean,int)">updatePartitionedTopic(AsyncResponse, String, String, String, boolean, boolean, boolean, int)</a></span> - Method in class org.apache.pulsar.broker.admin.v2.<a href="org/apache/pulsar/broker/admin/v2/PersistentTopics.html" title="class in org.apache.pulsar.broker.admin.v2">PersistentTopics</a></dt>
 <dd>
 <div class="block">It updates number of partitions of an existing non-global partitioned topic.</div>
 </dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/v1/PersistentTopics.html#updatePartitionedTopic(java.lang.String,java.lang.String,java.lang.String,java.lang.String,boolean,boolean,boolean,int)">updatePartitionedTopic(String, String, String, String, boolean, boolean, boolean, int)</a></span> - Method in class org.apache.pulsar.broker.admin.v1.<a href="org/apache/pulsar/broker/admin/v1/PersistentTopics.html" title="class in org.apache.pulsar.broker.admin.v1">PersistentTopics</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/v1/PersistentTopics.html#updatePartitionedTopic(javax.ws.rs.container.AsyncResponse,java.lang.String,java.lang.String,java.lang.String,java.lang.String,boolean,boolean,boolean,int)">updatePartitionedTopic(AsyncResponse, String, String, String, String, boolean, boolean, boolean, int)</a></span> - Method in class org.apache.pulsar.broker.admin.v1.<a href="org/apache/pulsar/broker/admin/v1/PersistentTopics.html" title="class in org.apache.pulsar.broker.admin.v1">PersistentTopics</a></dt>
 <dd>
 <div class="block">It updates number of partitions of an existing non-global partitioned topic.</div>
 </dd>
@@ -13278,7 +13282,7 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>
 <div class="block">Replication can't be started on root-partitioned-topic to avoid producer startup conflict.</div>
 </dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/AdminResource.html#validatePartitionedTopicMetadata(java.lang.String,java.lang.String,java.lang.String)">validatePartitionedTopicMetadata(String, String, String)</a></span> - Method in class org.apache.pulsar.broker.admin.<a href="org/apache/pulsar/broker/admin/AdminResource.html" title="class in org.apache.pulsar.broker.admin">AdminResource</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/AdminResource.html#validatePartitionedTopicMetadataAsync()">validatePartitionedTopicMetadataAsync()</a></span> - Method in class org.apache.pulsar.broker.admin.<a href="org/apache/pulsar/broker/admin/AdminResource.html" title="class in org.apache.pulsar.broker.admin">AdminResource</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/admin/AdminResource.html#validatePartitionedTopicName(java.lang.String,java.lang.String,java.lang.String)">validatePartitionedTopicName(String, String, String)</a></span> - Method in class org.apache.pulsar.broker.admin.<a href="org/apache/pulsar/broker/admin/AdminResource.html" title="class in org.apache.pulsar.broker.admin">AdminResource</a></dt>
 <dd>&nbsp;</dd>
@@ -13407,7 +13411,7 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <dd>
 <div class="block">Returns the enum constant of this type with the specified name.</div>
 </dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/ConnectionController.Sate.html#valueOf(java.lang.String)">valueOf(String)</a></span> - Static method in enum org.apache.pulsar.broker.service.<a href="org/apache/pulsar/broker/service/ConnectionController.Sate.html" title="enum in org.apache.pulsar.broker.service">ConnectionController.Sate</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/ConnectionController.State.html#valueOf(java.lang.String)">valueOf(String)</a></span> - Static method in enum org.apache.pulsar.broker.service.<a href="org/apache/pulsar/broker/service/ConnectionController.State.html" title="enum in org.apache.pulsar.broker.service">ConnectionController.State</a></dt>
 <dd>
 <div class="block">Returns the enum constant of this type with the specified name.</div>
 </dd>
@@ -13498,7 +13502,7 @@ the order they are declared.</div>
 <div class="block">Returns an array containing the constants of this enum type, in
 the order they are declared.</div>
 </dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/ConnectionController.Sate.html#values()">values()</a></span> - Static method in enum org.apache.pulsar.broker.service.<a href="org/apache/pulsar/broker/service/ConnectionController.Sate.html" title="enum in org.apache.pulsar.broker.service">ConnectionController.Sate</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/broker/service/ConnectionController.State.html#values()">values()</a></span> - Static method in enum org.apache.pulsar.broker.service.<a href="org/apache/pulsar/broker/service/ConnectionController.State.html" title="enum in org.apache.pulsar.broker.service">ConnectionController.State</a></dt>
 <dd>
 <div class="block">Returns an array containing the constants of this enum type, in
 the order they are declared.</div>
