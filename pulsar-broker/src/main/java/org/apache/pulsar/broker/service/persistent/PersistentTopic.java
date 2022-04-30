@@ -3029,7 +3029,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
         updateTopicPolicy(policies);
 
-        Optional<Policies> namespacePolicies = getNamespacePolicies();
         initializeTopicDispatchRateLimiterIfNeeded(policies);
 
         dispatchRateLimiter.ifPresent(DispatchRateLimiter::updateDispatchRate);
@@ -3069,10 +3068,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             log.error("[{}] update topic policy error: {}", topic, t.getMessage(), t);
             return null;
         });
-    }
-
-    private Optional<Policies> getNamespacePolicies() {
-        return DispatchRateLimiter.getPolicies(brokerService, topic);
     }
 
     private void initializeTopicDispatchRateLimiterIfNeeded(TopicPolicies policies) {
