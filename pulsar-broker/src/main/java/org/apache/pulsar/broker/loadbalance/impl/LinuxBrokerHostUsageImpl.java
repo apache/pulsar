@@ -18,9 +18,7 @@
  */
 package org.apache.pulsar.broker.loadbalance.impl;
 
-import static org.apache.pulsar.broker.loadbalance.LinuxInfoUtils.NICUnit;
 import static org.apache.pulsar.broker.loadbalance.LinuxInfoUtils.NICUsageType;
-import static org.apache.pulsar.broker.loadbalance.LinuxInfoUtils.UsageUnit;
 import static org.apache.pulsar.broker.loadbalance.LinuxInfoUtils.getCpuUsageForCGroup;
 import static org.apache.pulsar.broker.loadbalance.LinuxInfoUtils.getCpuUsageForEntireHost;
 import static org.apache.pulsar.broker.loadbalance.LinuxInfoUtils.getPhysicalNICs;
@@ -39,6 +37,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.loadbalance.BrokerHostUsage;
 import org.apache.pulsar.broker.loadbalance.LinuxInfoUtils;
+import org.apache.pulsar.common.util.BitRateUnit;
 import org.apache.pulsar.policies.data.loadbalancer.ResourceUsage;
 import org.apache.pulsar.policies.data.loadbalancer.SystemResourceUsage;
 
@@ -90,8 +89,8 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
     public void calculateBrokerHostUsage() {
         List<String> nics = getPhysicalNICs();
         double totalNicLimit = getTotalNicLimitWithConfiguration(nics);
-        double totalNicUsageTx = getTotalNicUsage(nics, NICUsageType.TX, UsageUnit.Kbps);
-        double totalNicUsageRx = getTotalNicUsage(nics, NICUsageType.RX, UsageUnit.Kbps);
+        double totalNicUsageTx = getTotalNicUsage(nics, NICUsageType.TX, BitRateUnit.KBPS);
+        double totalNicUsageRx = getTotalNicUsage(nics, NICUsageType.RX, BitRateUnit.KBPS);
         double totalCpuLimit = getTotalCpuLimit(isCGroupsEnabled);
         long now = System.currentTimeMillis();
         double elapsedSeconds = (now - lastCollection) / 1000d;
@@ -125,8 +124,8 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
     private double getTotalNicLimitWithConfiguration(List<String> nics) {
         // Use the override value as configured. Return the total max speed across all available NICs, converted
         // from Gbps into Kbps
-        return overrideBrokerNicSpeedGbps.map(aDouble -> aDouble * nics.size() * 1000 * 1000)
-                .orElseGet(() -> getTotalNicLimit(nics, NICUnit.Kbps));
+        return overrideBrokerNicSpeedGbps.map(BitRateUnit.GBPS::toKbps)
+                .orElseGet(() -> getTotalNicLimit(nics, BitRateUnit.KBPS));
     }
 
     private double getTotalCpuUsage(double elapsedTimeSeconds) {
