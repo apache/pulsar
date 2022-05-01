@@ -262,7 +262,7 @@ flexible messaging model and an intuitive client API.</description>
     <errorprone-slf4j.version>0.1.4</errorprone-slf4j.version>
     <j2objc-annotations.version>1.3</j2objc-annotations.version>
     <lightproto-maven-plugin.version>0.4</lightproto-maven-plugin.version>
-    <dependency-check-maven.version>6.1.6</dependency-check-maven.version>
+    <dependency-check-maven.version>7.1.0</dependency-check-maven.version>
 
     <!-- Used to configure rename.netty.native. Libs -->
     <rename.netty.native.libs>rename-netty-native-libs.sh</rename.netty.native.libs>
