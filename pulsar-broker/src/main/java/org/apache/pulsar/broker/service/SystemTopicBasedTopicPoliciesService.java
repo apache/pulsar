@@ -420,7 +420,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                             ? globalPoliciesCache.putIfAbsent(topicName, event.getPolicies())
                             : policiesCache.putIfAbsent(topicName, event.getPolicies());
                     if (old != null) {
-                        log.warn("Policy insert failed, the topic: {}' policy already exist", topicName);
+                        log.warn("Policy insert failed, the topic: {} policy already exist", topicName);
                     }
                     break;
                 case UPDATE:
