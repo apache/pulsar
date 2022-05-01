@@ -255,6 +255,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             }
             this.batchMessageContainer = (BatchMessageContainerBase) containerBuilder.build();
             this.batchMessageContainer.setProducer(this);
+            this.lastBatchSendNanoTime = System.nanoTime();
         } else {
             this.batchMessageContainer = null;
         }
