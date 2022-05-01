@@ -181,6 +181,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private Optional<Integer> webServicePortTls = Optional.empty();
 
     @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Specify the TLS provider for the web service: SunJSSE, Conscrypt and etc."
+    )
+    private String webServiceTlsProvider = "Conscrypt";
+
+    @FieldContext(
             category = CATEGORY_TLS,
             doc = "Specify the tls protocols the proxy's web service will use to negotiate during TLS Handshake.\n\n"
                     + "Example:- [TLSv1.3, TLSv1.2]"

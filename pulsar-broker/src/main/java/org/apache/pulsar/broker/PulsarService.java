@@ -1431,6 +1431,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                                 conf.getBrokerClientAuthenticationParameters());
 
                 if (conf.isBrokerClientTlsEnabled()) {
+                    builder.tlsCiphers(config.getBrokerClientTlsCiphers())
+                            .tlsProtocols(config.getBrokerClientTlsProtocols());
                     if (conf.isBrokerClientTlsEnabledWithKeyStore()) {
                         builder.useKeyStoreTls(true)
                                 .tlsTrustStoreType(conf.getBrokerClientTlsTrustStoreType())

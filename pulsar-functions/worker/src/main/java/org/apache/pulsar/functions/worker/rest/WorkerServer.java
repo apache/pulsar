@@ -31,12 +31,11 @@ import org.apache.pulsar.broker.web.Filters;
 import org.apache.pulsar.broker.web.JettyRequestLogFactory;
 import org.apache.pulsar.broker.web.RateLimitingFilter;
 import org.apache.pulsar.broker.web.WebExecutorThreadPool;
-import org.apache.pulsar.common.util.SecurityUtility;
-import org.apache.pulsar.common.util.keystoretls.KeyStoreSSLContext;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.rest.api.v2.WorkerApiV2Resource;
 import org.apache.pulsar.functions.worker.rest.api.v2.WorkerStatsApiV2Resource;
+import org.apache.pulsar.jetty.tls.JettySslContextFactory;
 import org.eclipse.jetty.server.ConnectionLimit;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Server;
@@ -132,7 +131,7 @@ public class WorkerServer {
             try {
                 SslContextFactory sslCtxFactory;
                 if (workerConfig.isTlsEnabledWithKeyStore()) {
-                    sslCtxFactory = KeyStoreSSLContext.createSslContextFactory(
+                    sslCtxFactory = JettySslContextFactory.createServerSslContextWithKeystore(
                             workerConfig.getTlsProvider(),
                             workerConfig.getTlsKeyStoreType(),
                             workerConfig.getTlsKeyStore(),
@@ -147,14 +146,17 @@ public class WorkerServer {
                             workerConfig.getTlsCertRefreshCheckDurationSec()
                     );
                 } else {
-                    sslCtxFactory = SecurityUtility.createSslContextFactory(
+                    sslCtxFactory = JettySslContextFactory.createServerSslContext(
+                            workerConfig.getTlsProvider(),
                             workerConfig.isTlsAllowInsecureConnection(),
                             workerConfig.getTlsTrustCertsFilePath(),
                             workerConfig.getTlsCertificateFilePath(),
                             workerConfig.getTlsKeyFilePath(),
                             workerConfig.isTlsRequireTrustedClientCertOnConnect(),
-                            true,
-                            workerConfig.getTlsCertRefreshCheckDurationSec());
+                            workerConfig.getWebServiceTlsCiphers(),
+                            workerConfig.getWebServiceTlsProtocols(),
+                            workerConfig.getTlsCertRefreshCheckDurationSec()
+                    );
                 }
                 httpsConnector = new ServerConnector(server, sslCtxFactory);
                 httpsConnector.setPort(this.workerConfig.getWorkerPortTls());

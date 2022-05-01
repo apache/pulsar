@@ -34,8 +34,7 @@ import org.apache.pulsar.broker.web.JettyRequestLogFactory;
 import org.apache.pulsar.broker.web.JsonMapperProvider;
 import org.apache.pulsar.broker.web.WebExecutorThreadPool;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.common.util.SecurityUtility;
-import org.apache.pulsar.common.util.keystoretls.KeyStoreSSLContext;
+import org.apache.pulsar.jetty.tls.JettySslContextFactory;
 import org.eclipse.jetty.server.ConnectionLimit;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Server;
@@ -84,7 +83,7 @@ public class ProxyServer {
             try {
                 SslContextFactory sslCtxFactory;
                 if (config.isTlsEnabledWithKeyStore()) {
-                    sslCtxFactory = KeyStoreSSLContext.createSslContextFactory(
+                    sslCtxFactory = JettySslContextFactory.createServerSslContextWithKeystore(
                             config.getTlsProvider(),
                             config.getTlsKeyStoreType(),
                             config.getTlsKeyStore(),
@@ -99,13 +98,15 @@ public class ProxyServer {
                             config.getTlsCertRefreshCheckDurationSec()
                     );
                 } else {
-                    sslCtxFactory = SecurityUtility.createSslContextFactory(
+                    sslCtxFactory = JettySslContextFactory.createServerSslContext(
+                            config.getTlsProvider(),
                             config.isTlsAllowInsecureConnection(),
                             config.getTlsTrustCertsFilePath(),
                             config.getTlsCertificateFilePath(),
                             config.getTlsKeyFilePath(),
                             config.isTlsRequireTrustedClientCertOnConnect(),
-                            true,
+                            config.getWebServiceTlsCiphers(),
+                            config.getWebServiceTlsProtocols(),
                             config.getTlsCertRefreshCheckDurationSec());
                 }
                 connectorTls = new ServerConnector(server, sslCtxFactory);
