@@ -30,7 +30,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.Collectors;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.Position;
@@ -184,8 +183,8 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                     // replay read, that containing "relayPosition", by calling readMoreEntries.
                     if (replayPosition.compareTo(minReplayedPosition) < 0) {
                         if (log.isDebugEnabled()) {
-                            log.debug("[{}] Position {} (<{}) is inserted for relay during current {} read, " +
-                                            "discard this read and retry with readMoreEntries.",
+                            log.debug("[{}] Position {} (<{}) is inserted for relay during current {} read, "
+                                            + "discard this read and retry with readMoreEntries.",
                                     name, replayPosition, minReplayedPosition, readType);
                         }
                         if (readType == ReadType.Normal) {
