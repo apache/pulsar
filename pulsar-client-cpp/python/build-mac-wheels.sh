@@ -20,12 +20,8 @@
 
 set -e
 
-ARCHS=(
-  'x86_64'
-  'arm64'
-)
-
 PYTHON_VERSIONS=(
+   '3.7  3.7.13'
    '3.8  3.8.13'
    '3.9  3.9.10'
    '3.10 3.10.2'
@@ -67,8 +63,16 @@ for line in "${PYTHON_VERSIONS[@]}"; do
 
       PY_PREFIX=$CACHE_DIR/py-$PYTHON_VERSION
       pushd Python-${PYTHON_VERSION_LONG}
-          CFLAGS="-fPIC -O3 -mmacosx-version-min=${MACOSX_DEPLOYMENT_TARGET}" \
-              ./configure --prefix=$PY_PREFIX --enable-shared --enable-universalsdk --with-universal-archs=universal2
+          if [ $PYTHON_VERSION = '3.7' ]; then
+              UNIVERSAL_ARCHS='intel-64'
+              PY_CFLAGS=" -arch x86_64"
+          else
+              UNIVERSAL_ARCHS='universal2'
+          fi
+
+          CFLAGS="-fPIC -O3 -mmacosx-version-min=${MACOSX_DEPLOYMENT_TARGET} -I${PREFIX}/include ${PY_CFLAGS}" \
+              LDFLAGS=" ${PY_CFLAGS} -L${PREFIX}/lib" \
+              ./configure --prefix=$PY_PREFIX --enable-shared --enable-universalsdk --with-universal-archs=${UNIVERSAL_ARCHS}
           make -j16
           make install
 
@@ -81,6 +85,7 @@ for line in "${PYTHON_VERSIONS[@]}"; do
       echo "Using cached Python $PYTHON_VERSION_LONG"
     fi
 done
+
 
 ###############################################################################
 if [ ! -f zlib-${ZLIB_VERSION}/.done ]; then
@@ -146,12 +151,16 @@ for line in "${PYTHON_VERSIONS[@]}"; do
         mv boost_${BOOST_VERSION_} $DIR
 
         PY_PREFIX=$CACHE_DIR/py-$PYTHON_VERSION
+        PY_INCLUDE_DIR=${PY_PREFIX}/include/python${PYTHON_VERSION}
+        if [ $PYTHON_VERSION = '3.7' ]; then
+            PY_INCLUDE_DIR=${PY_INCLUDE_DIR}m
+        fi
 
         pushd $DIR
           cat <<EOF > user-config.jam
             using python : $PYTHON_VERSION
                     : python3
-                    : ${PY_PREFIX}/include/python${PYTHON_VERSION}
+                    : ${PY_INCLUDE_DIR}
                     : ${PY_PREFIX}/lib
                   ;
 EOF
@@ -259,8 +268,15 @@ for line in "${PYTHON_VERSIONS[@]}"; do
     PY_PREFIX=$CACHE_DIR/py-$PYTHON_VERSION
     PY_EXE=$PY_PREFIX/bin/python3
 
+    PY_INCLUDE_DIR=${PY_PREFIX}/include/python${PYTHON_VERSION}
+    ARCHS='arm64;x86_64'
+    if [ $PYTHON_VERSION = '3.7' ]; then
+        PY_INCLUDE_DIR=${PY_INCLUDE_DIR}m
+        ARCHS='x86_64'
+    fi
+
     cmake . \
-            -DCMAKE_OSX_ARCHITECTURES='arm64;x86_64' \
+            -DCMAKE_OSX_ARCHITECTURES=${ARCHS} \
             -DCMAKE_OSX_DEPLOYMENT_TARGET=${MACOSX_DEPLOYMENT_TARGET} \
             -DCMAKE_OSX_SYSROOT=/Library/Developer/CommandLineTools/SDKs/MacOSX${MACOSX_DEPLOYMENT_TARGET_MAJOR}.sdk \
             -DCMAKE_INSTALL_PREFIX=$PREFIX \
@@ -271,7 +287,7 @@ for line in "${PYTHON_VERSIONS[@]}"; do
             -DCMAKE_FIND_FRAMEWORK=$PREFIX \
             -DBoost_INCLUDE_DIR=$CACHE_DIR/boost-py-$PYTHON_VERSION/include \
             -DBoost_LIBRARY_DIRS=$CACHE_DIR/boost-py-$PYTHON_VERSION/lib \
-            -DPYTHON_INCLUDE_DIR=$PY_PREFIX/include/python$PYTHON_VERSION \
+            -DPYTHON_INCLUDE_DIR=$PY_INCLUDE_DIR \
             -DPYTHON_LIBRARY=$PY_PREFIX/lib/libpython${PYTHON_VERSION}.dylib \
             -DLINK_STATIC=ON \
             -DBUILD_TESTS=OFF \
