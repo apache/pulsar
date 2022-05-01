@@ -897,7 +897,9 @@ public class PersistentTopics extends PersistentTopicsBase {
         internalGetPartitionedMetadataAsync(authoritative, checkAllowAutoCreation)
                 .thenAccept(asyncResponse::resume)
                 .exceptionally(ex -> {
-                    log.error("[{}] Failed to get partitioned metadata topic {}", clientAppId(), topicName, ex);
+                    if (!isRedirectException(ex)) {
+                        log.error("[{}] Failed to get partitioned metadata topic {}", clientAppId(), topicName, ex);
+                    }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
