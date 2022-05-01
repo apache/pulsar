@@ -519,6 +519,9 @@ public class Commands {
                 .setSequenceId(sequenceId);
         if (highestSequenceId >= 0) {
             send.setHighestSequenceId(highestSequenceId);
+        } else {
+            // For key based batching, we need to clear this field
+            send.clearHighestSequenceId();
         }
         if (numMessages > 1) {
             send.setNumMessages(numMessages);
