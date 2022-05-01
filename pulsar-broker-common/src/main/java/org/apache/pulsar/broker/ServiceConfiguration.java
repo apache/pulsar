@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.TimeUnit;
 import lombok.Getter;
 import lombok.Setter;
@@ -140,6 +141,26 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "The port for serving https requests"
     )
     private Optional<Integer> webServicePortTls = Optional.empty();
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Specify the TLS provider for the web service: SunJSSE, Conscrypt and etc."
+    )
+    private String webServiceTlsProvider = "Conscrypt";
+
+    @FieldContext(
+            category = CATEGORY_TLS,
+            doc = "Specify the tls protocols the proxy's web service will use to negotiate during TLS Handshake.\n\n"
+                    + "Example:- [TLSv1.3, TLSv1.2]"
+    )
+    private Set<String> webServiceTlsProtocols = new TreeSet<>();
+
+    @FieldContext(
+            category = CATEGORY_TLS,
+            doc = "Specify the tls cipher the proxy's web service will use to negotiate during TLS Handshake.\n\n"
+                    + "Example:- [TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256]"
+    )
+    private Set<String> webServiceTlsCiphers = new TreeSet<>();
 
     @FieldContext(
         category = CATEGORY_SERVER,
