@@ -134,7 +134,8 @@ public class InMemoryDelayedDeliveryTracker implements DelayedDeliveryTracker, T
 
     @Override
     public void resetTickTime(long tickTime) {
-        if (this.tickTimeMillis != tickTime){
+
+        if (this.tickTimeMillis != tickTime) {
             this.tickTimeMillis = tickTime;
         }
     }
@@ -199,7 +200,7 @@ public class InMemoryDelayedDeliveryTracker implements DelayedDeliveryTracker, T
 
         synchronized (dispatcher) {
             currentTimeoutTarget = -1;
-            timeout = null;
+            this.timeout = null;
             dispatcher.readMoreEntries();
         }
     }
