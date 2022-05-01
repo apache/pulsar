@@ -23,6 +23,7 @@
 
 workerId: standalone
 workerHostname: localhost
+# Set to null to disable the non-TLS service port.
 workerPort: 6750
 workerPortTls: 6751
 

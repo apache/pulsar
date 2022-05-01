@@ -87,9 +87,12 @@ public class WorkerServer {
         }
 
         List<ServerConnector> connectors = new ArrayList<>();
-        httpConnector = new ServerConnector(server);
-        httpConnector.setPort(this.workerConfig.getWorkerPort());
-        connectors.add(httpConnector);
+        if (this.workerConfig.getWorkerPort() != null) {
+            log.info("Configuring http server on port={}", this.workerConfig.getWorkerPort());
+            httpConnector = new ServerConnector(server);
+            httpConnector.setPort(this.workerConfig.getWorkerPort());
+            connectors.add(httpConnector);
+        }
 
         List<Handler> handlers = new ArrayList<>(4);
         handlers.add(newServletContextHandler("/admin",
@@ -125,6 +128,7 @@ public class WorkerServer {
         server.setHandler(stats);
 
         if (this.workerConfig.getTlsEnabled()) {
+            log.info("Configuring https server on port={}", this.workerConfig.getWorkerPortTls());
             try {
                 SslContextFactory sslCtxFactory;
                 if (workerConfig.isTlsEnabledWithKeyStore()) {

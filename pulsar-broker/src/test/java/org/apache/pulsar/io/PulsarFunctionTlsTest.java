@@ -23,6 +23,7 @@ import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Sets;
@@ -203,7 +204,7 @@ public class PulsarFunctionTlsTest {
         workerConfig.setFunctionAssignmentTopicName("assignment");
         workerConfig.setFunctionMetadataTopicName("metadata");
         workerConfig.setInstanceLivenessCheckFreqMs(100);
-        workerConfig.setWorkerPort(0);
+        workerConfig.setWorkerPort(null);
         workerConfig.setPulsarFunctionsCluster(config.getClusterName());
         String hostname = ServiceConfigurationUtils.getDefaultOrConfiguredAddress(config.getAdvertisedAddress());
         this.workerId = "c-" + config.getClusterName() + "-fw-" + hostname + "-" + workerConfig.getWorkerPort();
@@ -238,6 +239,11 @@ public class PulsarFunctionTlsTest {
         });
 
         return workerService;
+    }
+
+    @Test
+    public void testWorkerServerNonTlsNotStarted() {
+        assertFalse(workerServer.getListenPortHTTP().isPresent(), "Non-TLS worker service should not be set.");
     }
 
     @Test
