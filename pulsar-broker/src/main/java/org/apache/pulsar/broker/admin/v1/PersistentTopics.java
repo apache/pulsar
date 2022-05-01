@@ -289,18 +289,16 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @QueryParam("checkAllowAutoCreation") @DefaultValue("false") boolean checkAllowAutoCreation) {
-        try {
-            validateTopicName(property, cluster, namespace, encodedTopic);
-            internalGetPartitionedMetadataAsync(authoritative, checkAllowAutoCreation)
-                    .thenAccept(metadata -> asyncResponse.resume(metadata))
-                    .exceptionally(ex -> {
-                        resumeAsyncResponseExceptionally(asyncResponse, ex.getCause());
-                        return null;
-                    });
-        } catch (Exception e) {
-            log.error("[{}] Failed to get partitioned metadata topic {}", clientAppId(), topicName, e);
-            resumeAsyncResponseExceptionally(asyncResponse, e);
-        }
+        validateTopicName(property, cluster, namespace, encodedTopic);
+        internalGetPartitionedMetadataAsync(authoritative, checkAllowAutoCreation)
+                .thenAccept(asyncResponse::resume)
+                .exceptionally(ex -> {
+                    if (!isRedirectException(ex)) {
+                        log.error("[{}] Failed to get partitioned metadata topic {}", clientAppId(), topicName, ex);
+                    }
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @DELETE
