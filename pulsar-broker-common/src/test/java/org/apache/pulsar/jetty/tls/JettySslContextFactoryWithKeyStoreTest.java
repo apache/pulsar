@@ -16,9 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.util.keystoretls;
+package org.apache.pulsar.jetty.tls;
 
 import com.google.common.io.Resources;
+import java.io.FileInputStream;
+import java.security.KeyStore;
+import java.security.SecureRandom;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import javax.net.ssl.KeyManager;
+import javax.net.ssl.KeyManagerFactory;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLHandshakeException;
+import javax.net.ssl.TrustManagerFactory;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.config.RegistryBuilder;
@@ -36,27 +47,14 @@ import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.testng.annotations.Test;
 
-import javax.net.ssl.KeyManager;
-import javax.net.ssl.KeyManagerFactory;
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLHandshakeException;
-import javax.net.ssl.TrustManagerFactory;
-import java.io.FileInputStream;
-import java.security.KeyStore;
-import java.security.SecureRandom;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-
 @Slf4j
-public class JettySslContextFactoryWithAutoRefreshTest {
+public class JettySslContextFactoryWithKeyStoreTest {
 
     @Test
     public void testJettyTlsServerTls() throws Exception {
-        Configurator.setRootLevel(Level.INFO);
         Server server = new Server();
         List<ServerConnector> connectors = new ArrayList<>();
-        SslContextFactory.Server factory = KeyStoreSSLContext.createSslContextFactory(null,
+        SslContextFactory.Server factory = JettySslContextFactory.createServerSslContextWithKeystore(null,
                 "JKS", Resources.getResource("ssl/jetty_server_key.jks").getPath(),
                 "jetty_server_pwd", false, "JKS",
                 Resources.getResource("ssl/jetty_server_trust.jks").getPath(),
@@ -71,7 +69,8 @@ public class JettySslContextFactoryWithAutoRefreshTest {
         // client connect
         HttpClientBuilder httpClientBuilder = HttpClients.custom();
         RegistryBuilder<ConnectionSocketFactory> registryBuilder = RegistryBuilder.create();
-        registryBuilder.register("https", new SSLConnectionSocketFactory(getClientSslContext(), new NoopHostnameVerifier()));
+        registryBuilder.register("https",
+                new SSLConnectionSocketFactory(getClientSslContext(), new NoopHostnameVerifier()));
         PoolingHttpClientConnectionManager cm = new PoolingHttpClientConnectionManager(registryBuilder.build());
         httpClientBuilder.setConnectionManager(cm);
         CloseableHttpClient httpClient = httpClientBuilder.build();
@@ -86,7 +85,7 @@ public class JettySslContextFactoryWithAutoRefreshTest {
         Configurator.setRootLevel(Level.INFO);
         Server server = new Server();
         List<ServerConnector> connectors = new ArrayList<>();
-        SslContextFactory.Server factory = KeyStoreSSLContext.createSslContextFactory(null,
+        SslContextFactory.Server factory = JettySslContextFactory.createServerSslContextWithKeystore(null,
                 "JKS", Resources.getResource("ssl/jetty_server_key.jks").getPath(),
                 "jetty_server_pwd", false, "JKS",
                 Resources.getResource("ssl/jetty_server_trust.jks").getPath(),
@@ -118,10 +117,9 @@ public class JettySslContextFactoryWithAutoRefreshTest {
 
     @Test(expectedExceptions = SSLHandshakeException.class)
     public void testJettyTlsServerInvalidCipher() throws Exception {
-        Configurator.setRootLevel(Level.INFO);
         Server server = new Server();
         List<ServerConnector> connectors = new ArrayList<>();
-        SslContextFactory.Server factory = KeyStoreSSLContext.createSslContextFactory(null,
+        SslContextFactory.Server factory = JettySslContextFactory.createServerSslContextWithKeystore(null,
                 "JKS", Resources.getResource("ssl/jetty_server_key.jks").getPath(),
                 "jetty_server_pwd", false, "JKS",
                 Resources.getResource("ssl/jetty_server_trust.jks").getPath(),
@@ -145,7 +143,8 @@ public class JettySslContextFactoryWithAutoRefreshTest {
         HttpClientBuilder httpClientBuilder = HttpClients.custom();
         RegistryBuilder<ConnectionSocketFactory> registryBuilder = RegistryBuilder.create();
         registryBuilder.register("https", new SSLConnectionSocketFactory(getClientSslContext(),
-                new String[]{"TLSv1.2"}, new String[]{"TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384"}, new NoopHostnameVerifier()));
+                new String[]{"TLSv1.2"}, new String[]{"TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384"},
+                new NoopHostnameVerifier()));
         PoolingHttpClientConnectionManager cm = new PoolingHttpClientConnectionManager(registryBuilder.build());
         httpClientBuilder.setConnectionManager(cm);
         CloseableHttpClient httpClient = httpClientBuilder.build();
@@ -167,7 +166,8 @@ public class JettySslContextFactoryWithAutoRefreshTest {
         try {
             SSLContext sslContext = SSLContext.getInstance("TLS");
             // key store
-            KeyManagerFactory keyManagerFactory = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+            KeyManagerFactory keyManagerFactory =
+                    KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
             KeyStore keyStore = KeyStore.getInstance("JKS");
             try (FileInputStream inputStream = new FileInputStream(keyStorePath)) {
                 keyStore.load(inputStream, keyStorePassword.toCharArray());
@@ -175,7 +175,8 @@ public class JettySslContextFactoryWithAutoRefreshTest {
             keyManagerFactory.init(keyStore, keyStorePassword.toCharArray());
             KeyManager[] keyManagers = keyManagerFactory.getKeyManagers();
             // trust store
-            TrustManagerFactory trustManagerFactory = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+            TrustManagerFactory trustManagerFactory =
+                    TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
             KeyStore trustStore = KeyStore.getInstance("JKS");
             try (FileInputStream inputStream = new FileInputStream(trustStorePath)) {
                 trustStore.load(inputStream, trustStorePassword.toCharArray());

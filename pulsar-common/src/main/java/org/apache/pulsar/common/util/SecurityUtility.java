@@ -64,7 +64,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.tls.TlsHostnameVerifier;
-import org.eclipse.jetty.util.ssl.SslContextFactory;
 
 /**
  * Helper class for the security domain.
@@ -196,9 +195,10 @@ public class SecurityUtility {
         return provider;
     }
 
-    public static SSLContext createSslContext(boolean allowInsecureConnection, Certificate[] trustCertificates)
+    public static SSLContext createSslContext(boolean allowInsecureConnection, Certificate[] trustCertificates,
+                                              String providerName)
             throws GeneralSecurityException {
-        return createSslContext(allowInsecureConnection, trustCertificates, (Certificate[]) null, (PrivateKey) null);
+        return createSslContext(allowInsecureConnection, trustCertificates, null, null, providerName);
     }
 
     public static SslContext createNettySslContextForClient(SslProvider sslProvider, boolean allowInsecureConnection,
@@ -211,11 +211,11 @@ public class SecurityUtility {
     }
 
     public static SSLContext createSslContext(boolean allowInsecureConnection, String trustCertsFilePath,
-            String certFilePath, String keyFilePath) throws GeneralSecurityException {
+            String certFilePath, String keyFilePath, String providerName) throws GeneralSecurityException {
         X509Certificate[] trustCertificates = loadCertificatesFromPemFile(trustCertsFilePath);
         X509Certificate[] certificates = loadCertificatesFromPemFile(certFilePath);
         PrivateKey privateKey = loadPrivateKeyFromPemFile(keyFilePath);
-        return createSslContext(allowInsecureConnection, trustCertificates, certificates, privateKey);
+        return createSslContext(allowInsecureConnection, trustCertificates, certificates, privateKey, providerName);
     }
 
     /**
@@ -323,18 +323,25 @@ public class SecurityUtility {
     }
 
     public static SSLContext createSslContext(boolean allowInsecureConnection, Certificate[] trustCertficates,
-            Certificate[] certificates, PrivateKey privateKey) throws GeneralSecurityException {
+                                              Certificate[] certificates, PrivateKey privateKey)
+            throws GeneralSecurityException {
+        return createSslContext(allowInsecureConnection, trustCertficates, certificates, privateKey, null);
+    }
+
+    public static SSLContext createSslContext(boolean allowInsecureConnection, Certificate[] trustCertficates,
+                                              Certificate[] certificates, PrivateKey privateKey, String providerName)
+            throws GeneralSecurityException {
         KeyStoreHolder ksh = new KeyStoreHolder();
         TrustManager[] trustManagers = null;
         KeyManager[] keyManagers = null;
+        Provider provider = resolveProvider(providerName);
 
-        trustManagers = setupTrustCerts(ksh, allowInsecureConnection, trustCertficates, CONSCRYPT_PROVIDER);
+        trustManagers = setupTrustCerts(ksh, allowInsecureConnection, trustCertficates, provider);
         keyManagers = setupKeyManager(ksh, privateKey, certificates);
 
-        SSLContext sslCtx = CONSCRYPT_PROVIDER != null ? SSLContext.getInstance("TLS", CONSCRYPT_PROVIDER)
+        SSLContext sslCtx = provider != null ? SSLContext.getInstance("TLS", provider)
                 : SSLContext.getInstance("TLS");
         sslCtx.init(keyManagers, trustManagers, new SecureRandom());
-        sslCtx.getDefaultSSLParameters();
         return sslCtx;
     }
 
@@ -541,51 +548,16 @@ public class SecurityUtility {
         }
     }
 
-    public static SslContextFactory createSslContextFactory(boolean tlsAllowInsecureConnection,
-            String tlsTrustCertsFilePath, String tlsCertificateFilePath, String tlsKeyFilePath,
-            boolean tlsRequireTrustedClientCertOnConnect, boolean autoRefresh, long certRefreshInSec)
-            throws GeneralSecurityException, SSLException, FileNotFoundException, IOException {
-        SslContextFactory sslCtxFactory = null;
-        if (autoRefresh) {
-            sslCtxFactory = new SslContextFactoryWithAutoRefresh(tlsAllowInsecureConnection, tlsTrustCertsFilePath,
-                tlsCertificateFilePath, tlsKeyFilePath, tlsRequireTrustedClientCertOnConnect, certRefreshInSec);
-        } else {
-            sslCtxFactory = new SslContextFactory();
-            SSLContext sslCtx = createSslContext(tlsAllowInsecureConnection, tlsTrustCertsFilePath,
-                tlsCertificateFilePath, tlsKeyFilePath);
-            sslCtxFactory.setSslContext(sslCtx);
-        }
-        if (tlsRequireTrustedClientCertOnConnect) {
-            sslCtxFactory.setNeedClientAuth(true);
-        } else {
-            sslCtxFactory.setWantClientAuth(true);
-        }
-        sslCtxFactory.setTrustAll(true);
-        return sslCtxFactory;
-    }
-
-    /**
-     * {@link SslContextFactory} that auto-refresh SSLContext.
-     */
-    static class SslContextFactoryWithAutoRefresh extends SslContextFactory {
-
-        private final DefaultSslContextBuilder sslCtxRefresher;
-
-        public SslContextFactoryWithAutoRefresh(boolean tlsAllowInsecureConnection, String tlsTrustCertsFilePath,
-                String tlsCertificateFilePath, String tlsKeyFilePath, boolean tlsRequireTrustedClientCertOnConnect,
-                long certRefreshInSec)
-                throws SSLException, FileNotFoundException, GeneralSecurityException, IOException {
-            super();
-            sslCtxRefresher = new DefaultSslContextBuilder(tlsAllowInsecureConnection, tlsTrustCertsFilePath,
-                    tlsCertificateFilePath, tlsKeyFilePath, tlsRequireTrustedClientCertOnConnect, certRefreshInSec);
-            if (CONSCRYPT_PROVIDER != null) {
-                setProvider(CONSCRYPT_PROVIDER.getName());
-            }
+    public static Provider resolveProvider(String providerName) throws NoSuchAlgorithmException {
+        Provider provider = null;
+        if (!StringUtils.isEmpty(providerName)) {
+            provider = Security.getProvider(providerName);
         }
 
-        @Override
-        public SSLContext getSslContext() {
-            return sslCtxRefresher.get();
+        if (provider == null) {
+            provider = SSLContext.getDefault().getProvider();
         }
+
+        return provider;
     }
 }
