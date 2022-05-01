@@ -38,7 +38,6 @@ import javax.net.ssl.TrustManagerFactory;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.util.SecurityUtility;
-import org.eclipse.jetty.util.ssl.SslContextFactory;
 
 /**
  * KeyStoreSSLContext that mainly wrap a SSLContext to provide SSL context for both webservice and netty.
@@ -125,8 +124,10 @@ public class KeyStoreSSLContext {
 
     public SSLContext createSSLContext() throws GeneralSecurityException, IOException {
         SSLContext sslContext;
-        if (sslProviderString != null) {
-            sslContext = SSLContext.getInstance(protocol, sslProviderString);
+
+        Provider provider = SecurityUtility.resolveProvider(sslProviderString);
+        if (provider != null) {
+            sslContext = SSLContext.getInstance(protocol, provider);
         } else {
             sslContext = SSLContext.getInstance(protocol);
         }
@@ -149,8 +150,8 @@ public class KeyStoreSSLContext {
         if (this.allowInsecureConnection) {
             trustManagerFactory = InsecureTrustManagerFactory.INSTANCE;
         } else {
-            trustManagerFactory = sslProviderString != null
-                    ? TrustManagerFactory.getInstance(tmfAlgorithm, sslProviderString)
+            trustManagerFactory = provider != null
+                    ? TrustManagerFactory.getInstance(tmfAlgorithm, provider)
                     : TrustManagerFactory.getInstance(tmfAlgorithm);
             KeyStore trustStore = KeyStore.getInstance(trustStoreTypeString);
             char[] passwordChars = trustStorePassword.toCharArray();
@@ -333,48 +334,4 @@ public class KeyStoreSSLContext {
 
         return keyStoreSSLContext.createSSLContext();
     }
-
-    // for web server. autoRefresh is default true.
-    public static SslContextFactory createSslContextFactory(String sslProviderString,
-                                                            String keyStoreTypeString,
-                                                            String keyStore,
-                                                            String keyStorePassword,
-                                                            boolean allowInsecureConnection,
-                                                            String trustStoreTypeString,
-                                                            String trustStore,
-                                                            String trustStorePassword,
-                                                            boolean requireTrustedClientCertOnConnect,
-                                                            long certRefreshInSec)
-            throws GeneralSecurityException, IOException {
-        SslContextFactory sslCtxFactory;
-
-        if (sslProviderString == null) {
-            Provider provider = SecurityUtility.CONSCRYPT_PROVIDER;
-            if (provider != null) {
-                sslProviderString = provider.getName();
-            }
-        }
-
-        sslCtxFactory = new SslContextFactoryWithAutoRefresh(
-                sslProviderString,
-                keyStoreTypeString,
-                keyStore,
-                keyStorePassword,
-                allowInsecureConnection,
-                trustStoreTypeString,
-                trustStore,
-                trustStorePassword,
-                requireTrustedClientCertOnConnect,
-                certRefreshInSec);
-
-        if (requireTrustedClientCertOnConnect) {
-            sslCtxFactory.setNeedClientAuth(true);
-        } else {
-            sslCtxFactory.setWantClientAuth(true);
-        }
-        sslCtxFactory.setTrustAll(true);
-
-        return sslCtxFactory;
-    }
 }
-

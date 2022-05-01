@@ -266,15 +266,17 @@ class AdminProxyHandler extends ProxyServlet {
                     AuthenticationDataProvider authData = auth.getAuthData();
                     if (authData.hasDataForTls()) {
                         sslCtx = SecurityUtility.createSslContext(
-                            config.isTlsAllowInsecureConnection(),
-                            trustCertificates,
-                            authData.getTlsCertificates(),
-                            authData.getTlsPrivateKey()
+                                config.isTlsAllowInsecureConnection(),
+                                trustCertificates,
+                                authData.getTlsCertificates(),
+                                authData.getTlsPrivateKey(),
+                                config.getBrokerClientSslProvider()
                         );
                     } else {
                         sslCtx = SecurityUtility.createSslContext(
-                            config.isTlsAllowInsecureConnection(),
-                            trustCertificates
+                                config.isTlsAllowInsecureConnection(),
+                                trustCertificates,
+                                config.getBrokerClientSslProvider()
                         );
                     }
 
