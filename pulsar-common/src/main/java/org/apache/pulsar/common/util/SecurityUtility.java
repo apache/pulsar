@@ -110,8 +110,8 @@ public class SecurityUtility {
             return getBCProviderFromClassPath();
         } catch (Exception e) {
             log.warn("Not able to get Bouncy Castle provider for both FIPS and Non-FIPS from class path:", e);
-            throw new RuntimeException(e);
         }
+        return null;
     }
 
     private static Provider loadConscryptProvider() {
