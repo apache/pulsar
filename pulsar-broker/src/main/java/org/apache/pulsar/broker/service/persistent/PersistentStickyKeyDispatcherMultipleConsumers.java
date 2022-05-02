@@ -176,6 +176,11 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             Set<PositionImpl> messagesToReplayNow = this.getMessagesToReplayNow(1);
             if (messagesToReplayNow != null && !messagesToReplayNow.isEmpty()) {
                 PositionImpl replayPosition = messagesToReplayNow.stream().findFirst().get();
+                // We have received a message potentially from the delayed tracker and, since we're not using it
+                // right now, it needs to be added to the redelivery tracker or we won't attempt anymore to
+                // resend it (until we disconnect consumer).
+                redeliveryMessages.add(replayPosition.getLedgerId(), replayPosition.getEntryId());
+
                 if (this.minReplayedPosition != null) {
                     // If relayPosition is a new entry wither smaller position is inserted for redelivery during this
                     // async read, it is possible that this relayPosition should dispatch to consumer first. So in
@@ -199,11 +204,6 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                         readMoreEntries();
                         return;
                     }
-                } else {
-                    // We have received a message potentially from the delayed tracker and, since we're not using it
-                    // right now, it needs to be added to the redelivery tracker or we won't attempt anymore to
-                    // resend it (until we disconnect consumer).
-                    redeliveryMessages.add(replayPosition.getLedgerId(), replayPosition.getEntryId());
                 }
             }
         }
