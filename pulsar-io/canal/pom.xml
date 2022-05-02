@@ -32,6 +32,11 @@
     <artifactId>pulsar-io-canal</artifactId>
     <name>Pulsar IO :: Canal</name>
 
+    <properties>
+        <spring.version>5.3.19</spring.version>
+        <canal.version>1.1.5</canal.version>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>${project.groupId}</groupId>
