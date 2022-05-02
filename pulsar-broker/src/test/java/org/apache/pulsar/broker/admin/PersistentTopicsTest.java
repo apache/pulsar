@@ -152,7 +152,10 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         admin.clusters().createCluster("test",ClusterData.builder().serviceUrl("http://broker-use.com:8080").build());
         admin.tenants().createTenant(this.testTenant,
                 new TenantInfoImpl(Sets.newHashSet("role1", "role2"), Sets.newHashSet(testLocalCluster, "test")));
+        admin.tenants().createTenant("pulsar",
+                new TenantInfoImpl(Sets.newHashSet("role1", "role2"), Sets.newHashSet(testLocalCluster, "test")));
         admin.namespaces().createNamespace(testTenant + "/" + testNamespace, Sets.newHashSet(testLocalCluster, "test"));
+        admin.namespaces().createNamespace("pulsar/system", 4);
     }
 
     @Override
@@ -606,14 +609,68 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
         Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
 
-        List<String> persistentPartitionedTopics = persistentTopics.getPartitionedTopicList(testTenant, testNamespace);
+        response = mock(AsyncResponse.class);
+        responseCaptor = ArgumentCaptor.forClass(Response.class);
+        persistentTopics.createPartitionedTopic(response, testTenant, testNamespace, "__change_events", 3, true);
+        verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
+        Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
+
+        List<String> persistentPartitionedTopics = persistentTopics.getPartitionedTopicList(testTenant, testNamespace, false);
 
         Assert.assertEquals(persistentPartitionedTopics.size(), 1);
         Assert.assertEquals(TopicName.get(persistentPartitionedTopics.get(0)).getDomain().value(), TopicDomain.persistent.value());
+        persistentPartitionedTopics = persistentTopics.getPartitionedTopicList(testTenant, testNamespace, true);
+        Assert.assertEquals(persistentPartitionedTopics.size(), 2);
 
-        List<String> nonPersistentPartitionedTopics = nonPersistentTopic.getPartitionedTopicList(testTenant, testNamespace);
+        List<String> nonPersistentPartitionedTopics = nonPersistentTopic.getPartitionedTopicList(testTenant, testNamespace, false);
         Assert.assertEquals(nonPersistentPartitionedTopics.size(), 1);
         Assert.assertEquals(TopicName.get(nonPersistentPartitionedTopics.get(0)).getDomain().value(), TopicDomain.non_persistent.value());
+    }
+
+    @Test
+    public void testGetList() throws Exception {
+        AsyncResponse response = mock(AsyncResponse.class);
+        ArgumentCaptor<Response> responseCaptor = ArgumentCaptor.forClass(Response.class);
+        persistentTopics.createPartitionedTopic(response, testTenant, testNamespace, "test-topic-1", 1, true);
+        verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
+        Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
+
+        response = mock(AsyncResponse.class);
+        responseCaptor = ArgumentCaptor.forClass(Response.class);
+        persistentTopics.createPartitionedTopic(response, testTenant, testNamespace, "__change_events", 1, true);
+        verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
+        Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
+
+        response = mock(AsyncResponse.class);
+        responseCaptor = ArgumentCaptor.forClass(Response.class);
+        persistentTopics.getList(response, testTenant, testNamespace, null, false);
+        verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
+        List<String> topics = (List<String>) responseCaptor.getValue();
+        Assert.assertEquals(topics.size(), 1);
+
+        response = mock(AsyncResponse.class);
+        responseCaptor = ArgumentCaptor.forClass(Response.class);
+        persistentTopics.getList(response, testTenant, testNamespace, null, true);
+        verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
+        topics = (List<String>) responseCaptor.getValue();
+        Assert.assertEquals(topics.size(), 2);
+
+        nonPersistentTopic.createNonPartitionedTopic(testTenant, testNamespace, "test-topic-2", false, null);
+        nonPersistentTopic.createNonPartitionedTopic(testTenant, testNamespace, "__change_events", false, null);
+
+        response = mock(AsyncResponse.class);
+        responseCaptor = ArgumentCaptor.forClass(Response.class);
+        nonPersistentTopic.getList(response, testTenant, testNamespace, null, false);
+        verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
+        topics = (List<String>) responseCaptor.getValue();
+        Assert.assertEquals(topics.size(), 1);
+
+        response = mock(AsyncResponse.class);
+        responseCaptor = ArgumentCaptor.forClass(Response.class);
+        nonPersistentTopic.getList(response, testTenant, testNamespace, null, true);
+        verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
+        topics = (List<String>) responseCaptor.getValue();
+        Assert.assertEquals(topics.size(), 2);
     }
 
     @Test

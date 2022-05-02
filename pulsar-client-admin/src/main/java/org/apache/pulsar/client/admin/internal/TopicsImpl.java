@@ -214,14 +214,32 @@ public class TopicsImpl extends BaseResource implements Topics {
 
     @Override
     public List<String> getPartitionedTopicList(String namespace) throws PulsarAdminException {
-        return sync(() -> getPartitionedTopicListAsync(namespace));
+        return getPartitionedTopicList(namespace, Collections.emptyMap());
     }
 
     @Override
     public CompletableFuture<List<String>> getPartitionedTopicListAsync(String namespace) {
+        return getPartitionedTopicListAsync(namespace, Collections.emptyMap());
+    }
+
+    @Override
+    public List<String> getPartitionedTopicList(String namespace, Map<QueryParam, Object> params)
+            throws PulsarAdminException {
+        return sync(() -> getPartitionedTopicListAsync(namespace, params));
+    }
+
+    @Override
+    public CompletableFuture<List<String>> getPartitionedTopicListAsync(String namespace,
+                                                                        Map<QueryParam, Object> params) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget persistentPath = namespacePath("persistent", ns, "partitioned");
         WebTarget nonPersistentPath = namespacePath("non-persistent", ns, "partitioned");
+        if (params != null && !params.isEmpty()) {
+            for (Entry<QueryParam, Object> param : params.entrySet()) {
+                persistentPath = persistentPath.queryParam(param.getKey().value, param.getValue());
+                nonPersistentPath = nonPersistentPath.queryParam(param.getKey().value, param.getValue());
+            }
+        }
         final CompletableFuture<List<String>> persistentList = new CompletableFuture<>();
         final CompletableFuture<List<String>> nonPersistentList = new CompletableFuture<>();
         asyncGetRequest(persistentPath,

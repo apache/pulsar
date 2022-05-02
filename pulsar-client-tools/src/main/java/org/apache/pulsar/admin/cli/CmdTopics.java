@@ -374,11 +374,19 @@ public class CmdTopics extends CmdBase {
                 "--bundle" }, description = "Namespace bundle to get list of topics")
         private String bundle;
 
+        @Parameter(names = { "-wst",
+                "--with-system-topic" }, description = "Include system topic")
+        private boolean withSystemTopic;
+
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
-            print(getTopics().getList(namespace, topicDomain,
-                    StringUtils.isNotBlank(bundle) ? Collections.singletonMap(QueryParam.Bundle, bundle) : null));
+            Map<QueryParam, Object> queryMap = new HashMap<>();
+            if (StringUtils.isNotBlank(bundle)) {
+                queryMap.put(QueryParam.Bundle, bundle);
+            }
+            queryMap.put(QueryParam.WITH_SYSTEM_TOPIC, withSystemTopic);
+            print(getTopics().getList(namespace, topicDomain, queryMap));
         }
     }
 
@@ -387,10 +395,15 @@ public class CmdTopics extends CmdBase {
         @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
+        @Parameter(names = { "-wst",
+                "--with-system-topic" }, description = "Include system topic")
+        private boolean withSystemTopic;
+
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
-            print(getTopics().getPartitionedTopicList(namespace));
+            print(getTopics().getPartitionedTopicList(namespace,
+                    Collections.singletonMap(QueryParam.WITH_SYSTEM_TOPIC, withSystemTopic)));
         }
     }
 

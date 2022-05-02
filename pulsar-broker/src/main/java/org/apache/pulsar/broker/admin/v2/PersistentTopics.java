@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.DefaultValue;
@@ -98,10 +99,16 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Specify the namespace", required = true)
             @PathParam("namespace") String namespace,
             @ApiParam(value = "Specify the bundle name", required = false)
-            @QueryParam("bundle") String bundle) {
+            @QueryParam("bundle") String bundle,
+            @ApiParam(value = "Include system topic", required = false)
+            @QueryParam("withSystemTopic") boolean withSystemTopic) {
         try {
             validateNamespaceName(tenant, namespace);
-            asyncResponse.resume(internalGetList(Optional.ofNullable(bundle)));
+            List<String> topics = internalGetList(Optional.ofNullable(bundle))
+                    .stream()
+                    .filter(topic -> withSystemTopic ? true : !pulsar().getBrokerService().isSystemTopic(topic))
+                    .collect(Collectors.toList());
+            asyncResponse.resume(topics);
         } catch (WebApplicationException wae) {
             asyncResponse.resume(wae);
         } catch (Exception e) {
@@ -123,9 +130,14 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Specify the tenant", required = true)
             @PathParam("tenant") String tenant,
             @ApiParam(value = "Specify the namespace", required = true)
-            @PathParam("namespace") String namespace) {
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Include system topic")
+            @QueryParam("withSystemTopic") boolean withSystemTopic) {
         validateNamespaceName(tenant, namespace);
-        return internalGetPartitionedTopicList();
+        return internalGetPartitionedTopicList()
+                .stream()
+                .filter(topic -> withSystemTopic ? true : !pulsar().getBrokerService().isSystemTopic(topic))
+                .collect(Collectors.toList());
     }
 
     @GET

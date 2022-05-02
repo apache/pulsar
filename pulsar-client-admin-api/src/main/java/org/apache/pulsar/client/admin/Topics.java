@@ -52,7 +52,8 @@ import org.apache.pulsar.common.policies.data.TopicStats;
 public interface Topics {
 
     enum QueryParam {
-        Bundle("bundle");
+        Bundle("bundle"),
+        WITH_SYSTEM_TOPIC("with_system_topic");
 
         public final String value;
 
@@ -248,6 +249,49 @@ public interface Topics {
      * @return a list of partitioned topics
      */
     CompletableFuture<List<String>> getPartitionedTopicListAsync(String namespace);
+
+    /**
+     * Get the list of partitioned topics under a namespace.
+     * <p/>
+     * Response example:
+     *
+     * <pre>
+     * <code>["persistent://my-tenant/my-namespace/topic-1",
+     *  "persistent://my-tenant/my-namespace/topic-2"]</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @param params
+     *            params to filter the results
+     * @return a list of partitioned topics
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    List<String> getPartitionedTopicList(String namespace, Map<QueryParam, Object> params) throws PulsarAdminException;
+
+    /**
+     * Get the list of partitioned topics under a namespace asynchronously.
+     * <p/>
+     * Response example:
+     *
+     * <pre>
+     * <code>["persistent://my-tenant/my-namespace/topic-1",
+     *  "persistent://my-tenant/my-namespace/topic-2"]</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @param params
+     *           params to filter the results
+     * @return a list of partitioned topics
+     */
+    CompletableFuture<List<String>> getPartitionedTopicListAsync(String namespace, Map<QueryParam, Object> params);
 
     /**
      * Get list of topics exist into given bundle.
