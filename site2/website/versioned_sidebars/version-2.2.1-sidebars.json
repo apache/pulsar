@@ -2,7 +2,7 @@
   "version-2.2.1-docs": {
     "Getting Started": [
       "version-2.2.1-pulsar-2.0",
-      "version-2.2.1-standalone",
+      "version-2.2.1-getting-started-standalone",
       "version-2.2.1-getting-started-docker",
       "version-2.2.1-client-libraries"
     ],

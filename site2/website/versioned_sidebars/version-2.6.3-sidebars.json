@@ -2,7 +2,7 @@
   "version-2.6.3-docs": {
     "Get Started": [
       "version-2.6.3-pulsar-2.0",
-      "version-2.6.3-standalone",
+      "version-2.6.3-getting-started-standalone",
       "version-2.6.3-getting-started-docker",
       "version-2.6.3-getting-started-helm",
       "version-2.6.3-client-libraries"

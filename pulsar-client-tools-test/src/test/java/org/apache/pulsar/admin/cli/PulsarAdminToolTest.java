@@ -1300,8 +1300,8 @@ public class PulsarAdminToolTest {
         cmdTopics.run(split("truncate persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).truncate("persistent://myprop/clust/ns1/ds1");
 
-        cmdTopics.run(split("delete persistent://myprop/clust/ns1/ds1 -f -d"));
-        verify(mockTopics).delete("persistent://myprop/clust/ns1/ds1", true, true);
+        cmdTopics.run(split("delete persistent://myprop/clust/ns1/ds1 -f"));
+        verify(mockTopics).delete("persistent://myprop/clust/ns1/ds1", true);
 
         cmdTopics.run(split("unload persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).unload("persistent://myprop/clust/ns1/ds1");
@@ -1433,8 +1433,8 @@ public class PulsarAdminToolTest {
         cmdTopics.run(split("get-partitioned-topic-metadata persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).getPartitionedTopicMetadata("persistent://myprop/clust/ns1/ds1");
 
-        cmdTopics.run(split("delete-partitioned-topic persistent://myprop/clust/ns1/ds1 -d -f"));
-        verify(mockTopics).deletePartitionedTopic("persistent://myprop/clust/ns1/ds1", true, true);
+        cmdTopics.run(split("delete-partitioned-topic persistent://myprop/clust/ns1/ds1 -f"));
+        verify(mockTopics).deletePartitionedTopic("persistent://myprop/clust/ns1/ds1", true);
 
         cmdTopics.run(split("peek-messages persistent://myprop/clust/ns1/ds1 -s sub1 -n 3"));
         verify(mockTopics).peekMessages("persistent://myprop/clust/ns1/ds1", "sub1", 3);
@@ -2056,6 +2056,10 @@ public class PulsarAdminToolTest {
         cmdTransactions = new CmdTransactions(() -> admin);
         cmdTransactions.run(split("pending-ack-internal-stats -t test -s test"));
         verify(transactions).getPendingAckInternalStats("test", "test", false);
+
+        cmdTransactions = new CmdTransactions(() -> admin);
+        cmdTransactions.run(split("scale-transactionCoordinators -r 3"));
+        verify(transactions).scaleTransactionCoordinators(3);
     }
 
     @Test

@@ -33,8 +33,8 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.common.events.EventsTopicNames;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.common.naming.TopicName;
@@ -88,7 +88,7 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
         SystemTopicClient.Reader reader = systemTopicClientForNamespace.newReader();
 
         int partitions = admin.topics().getPartitionedTopicMetadata(
-                String.format("persistent://%s/%s", ns, EventsTopicNames.NAMESPACE_EVENTS_LOCAL_NAME)).partitions;
+                String.format("persistent://%s/%s", ns, SystemTopicNames.NAMESPACE_EVENTS_LOCAL_NAME)).partitions;
         Assert.assertEquals(admin.topics().getPartitionedTopicList(ns).size(), 1);
         Assert.assertEquals(partitions, PARTITIONS);
         Assert.assertEquals(admin.topics().getList(ns).size(), PARTITIONS);

@@ -40,6 +40,11 @@
             <outputDirectory>bin/</outputDirectory>
             <fileMode>644</fileMode>
         </file>
+        <file>
+            <source>${basedir}/../java-version-trim-agent/target/java-version-trim-agent.jar</source>
+            <destName>java-version-trim-agent.jar</destName>
+            <outputDirectory>/</outputDirectory>
+        </file>
     </files>
     <fileSets>
         <fileSet>

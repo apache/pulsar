@@ -527,6 +527,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         assertTrue(metrics.containsKey("pulsar_out_messages_total"));
         assertTrue(metrics.containsKey("pulsar_subscription_last_expire_timestamp"));
         assertTrue(metrics.containsKey("pulsar_subscription_msg_drop_rate"));
+        assertTrue(metrics.containsKey("pulsar_subscription_consumers_count"));
     }
 
     @Test

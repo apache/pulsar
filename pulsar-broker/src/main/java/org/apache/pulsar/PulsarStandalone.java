@@ -19,7 +19,7 @@
 package org.apache.pulsar;
 
 import static org.apache.pulsar.common.naming.NamespaceName.SYSTEM_NAMESPACE;
-import static org.apache.pulsar.common.naming.TopicName.TRANSACTION_COORDINATOR_ASSIGN;
+import static org.apache.pulsar.common.naming.SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN;
 import com.beust.jcommander.Parameter;
 import com.google.common.collect.Sets;
 import java.io.File;
@@ -35,6 +35,7 @@ import org.apache.pulsar.broker.resources.TenantResources;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.functions.worker.WorkerConfig;
@@ -305,10 +306,15 @@ public class PulsarStandalone implements AutoCloseable {
                 NamespaceName.get(TopicName.PUBLIC_TENANT, TopicName.DEFAULT_NAMESPACE));
         //create pulsar system namespace
         createNameSpace(cluster, SYSTEM_NAMESPACE.getTenant(), SYSTEM_NAMESPACE);
-        if (config.isTransactionCoordinatorEnabled() && !admin.namespaces()
-                .getTopics(SYSTEM_NAMESPACE.toString())
-                .contains(TRANSACTION_COORDINATOR_ASSIGN.getPartition(0).toString())) {
-            admin.topics().createPartitionedTopic(TRANSACTION_COORDINATOR_ASSIGN.toString(), 1);
+        if (config.isTransactionCoordinatorEnabled()) {
+            NamespaceResources.PartitionedTopicResources partitionedTopicResources =
+                    broker.getPulsarResources().getNamespaceResources().getPartitionedTopicResources();
+            Optional<PartitionedTopicMetadata> getResult =
+                    partitionedTopicResources.getPartitionedTopicMetadataAsync(TRANSACTION_COORDINATOR_ASSIGN).get();
+            if (!getResult.isPresent()) {
+                partitionedTopicResources.createPartitionedTopic(TRANSACTION_COORDINATOR_ASSIGN,
+                        new PartitionedTopicMetadata(1));
+            }
         }
 
         log.debug("--- setup completed ---");
