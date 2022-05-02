@@ -741,11 +741,11 @@
                 "typeFactory": {
                     "$ref": "#/definitions/TypeFactory"
                 },
-                "handlerInstantiator": {
-                    "$ref": "#/definitions/HandlerInstantiator"
-                },
                 "propertyNamingStrategy": {
                     "$ref": "#/definitions/PropertyNamingStrategy"
+                },
+                "handlerInstantiator": {
+                    "$ref": "#/definitions/HandlerInstantiator"
                 },
                 "dateFormat": {
                     "$ref": "#/definitions/DateFormat"
@@ -776,11 +776,11 @@
                 "config": {
                     "$ref": "#/definitions/DeserializationConfig"
                 },
-                "parser": {
-                    "$ref": "#/definitions/JsonParser"
-                },
                 "typeFactory": {
                     "$ref": "#/definitions/TypeFactory"
+                },
+                "parser": {
+                    "$ref": "#/definitions/JsonParser"
                 },
                 "annotationIntrospector": {
                     "$ref": "#/definitions/AnnotationIntrospector"
@@ -859,9 +859,6 @@
                 "abstract": {
                     "type": "boolean"
                 },
-                "contentType": {
-                    "$ref": "#/definitions/JavaType"
-                },
                 "bindings": {
                     "$ref": "#/definitions/TypeBindings"
                 },
@@ -912,6 +909,9 @@
                 },
                 "mapLikeType": {
                     "type": "boolean"
+                },
+                "contentType": {
+                    "$ref": "#/definitions/JavaType"
                 },
                 "typeName": {
                     "type": "string"
@@ -1032,6 +1032,10 @@
                         "type": "string"
                     }
                 },
+                "intValue": {
+                    "type": "integer",
+                    "format": "int32"
+                },
                 "booleanValue": {
                     "type": "boolean"
                 },
@@ -1057,10 +1061,6 @@
                 },
                 "closed": {
                     "type": "boolean"
-                },
-                "intValue": {
-                    "type": "integer",
-                    "format": "int32"
                 },
                 "typeId": {
                     "type": "object"
@@ -1211,11 +1211,11 @@
         "JsonSerializerObject": {
             "type": "object",
             "properties": {
-                "delegatee": {
-                    "$ref": "#/definitions/JsonSerializerObject"
-                },
                 "unwrappingSerializer": {
                     "type": "boolean"
+                },
+                "delegatee": {
+                    "$ref": "#/definitions/JsonSerializerObject"
                 }
             }
         },
@@ -1633,11 +1633,11 @@
                 "typeFactory": {
                     "$ref": "#/definitions/TypeFactory"
                 },
-                "handlerInstantiator": {
-                    "$ref": "#/definitions/HandlerInstantiator"
-                },
                 "propertyNamingStrategy": {
                     "$ref": "#/definitions/PropertyNamingStrategy"
+                },
+                "handlerInstantiator": {
+                    "$ref": "#/definitions/HandlerInstantiator"
                 },
                 "dateFormat": {
                     "$ref": "#/definitions/DateFormat"
