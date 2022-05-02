@@ -366,7 +366,7 @@ public class ProcessRuntimeTest {
         int configArg = 9;
 
         assertEquals(args.size(), totalArgs);
-        String expectedArgs = pythonPath + "python " + pythonInstanceFile
+        String expectedArgs = pythonPath + "python3 " + pythonInstanceFile
                 + " --py " + userJarFile + " --logging_directory "
                 + logDirectory + "/functions" + " --logging_file " + config.getFunctionDetails().getName()
                 + " --logging_config_file " + args.get(configArg) + " --instance_id "
