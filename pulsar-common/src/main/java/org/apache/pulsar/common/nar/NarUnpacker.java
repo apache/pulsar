@@ -33,6 +33,9 @@ import java.io.InputStream;
 import java.io.RandomAccessFile;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
+import java.nio.file.Files;
+import java.nio.file.attribute.PosixFilePermission;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
@@ -40,6 +43,7 @@ import java.util.Enumeration;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
+import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -75,6 +79,7 @@ public class NarUnpacker {
                 throw new IOException("Cannot create " + parentDirectory);
             }
         }
+        setPosixFilePermissions(parentDirectory,"rwxr-x---");
         String md5Sum = Base64.getUrlEncoder().withoutPadding().encodeToString(calculateMd5sum(nar));
         // ensure that one process can extract the files
         File lockFile = new File(parentDirectory, "." + md5Sum + ".lock");
@@ -87,6 +92,7 @@ public class NarUnpacker {
                  FileLock lock = channel.lock()) {
                 File narWorkingDirectory = new File(parentDirectory, md5Sum);
                 if (narWorkingDirectory.mkdir()) {
+                    setPosixFilePermissions(narWorkingDirectory,"rwxr-x---");
                     try {
                         log.info("Extracting {} to {}", nar, narWorkingDirectory);
                         if (extractCallback != null) {
@@ -140,6 +146,7 @@ public class NarUnpacker {
      *             if the file could not be created.
      */
     private static void makeFile(final InputStream inputStream, final File file) throws IOException {
+        setPosixFilePermissions(file,"rw-r-----");
         try (final InputStream in = inputStream; final FileOutputStream fos = new FileOutputStream(file)) {
             byte[] bytes = new byte[65536];
             int numRead;
@@ -173,6 +180,16 @@ public class NarUnpacker {
             return md5.digest();
         } catch (NoSuchAlgorithmException nsae) {
             throw new IllegalArgumentException(nsae);
+        }
+    }
+
+    private static void setPosixFilePermissions(File file, String perm){
+        Set<PosixFilePermission> perms = PosixFilePermissions.fromString(perm);
+        try{
+            Files.setPosixFilePermissions(file.toPath(), perms);
+            log.info("Set permissions on " + file.getAbsolutePath() + " with permission " + perm);
+        }catch (IOException e) {
+            log.warn("Failed to set file permissions on " + file.getAbsolutePath());
         }
     }
 }
