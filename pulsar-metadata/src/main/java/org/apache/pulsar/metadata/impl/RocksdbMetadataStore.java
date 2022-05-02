@@ -223,7 +223,7 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
         Path dataPath = FileSystems.getDefault().getPath(dataDir);
         try {
             Files.createDirectories(dataPath);
-            Set<PosixFilePermission> perms = PosixFilePermissions.fromString("rwx------");
+            Set<PosixFilePermission> perms = PosixFilePermissions.fromString("rwxr-x---");
             Files.setPosixFilePermissions(dataPath, perms);
         } catch (IOException e) {
             e.printStackTrace();
@@ -318,7 +318,7 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
             logPathSetting = FileSystems.getDefault().getPath(logPath + "/rocksdb-log");
             Files.createDirectories(logPathSetting);
             options.setDbLogDir(logPathSetting.toString());
-            Set<PosixFilePermission> perms = PosixFilePermissions.fromString("rwx------");
+            Set<PosixFilePermission> perms = PosixFilePermissions.fromString("rwxr-x---");
             Files.setPosixFilePermissions(logPathSetting, perms);
         }
 
