@@ -228,7 +228,7 @@ public class LookupProxyHandler {
                     e.getMessage(), clientRequestId));
             return;
         }
-        InetSocketAddress addr = new InetSocketAddress(brokerURI.getHost(), brokerURI.getPort());
+        InetSocketAddress addr = InetSocketAddress.createUnresolved(brokerURI.getHost(), brokerURI.getPort());
 
         if (log.isDebugEnabled()) {
             log.debug("Getting connections to '{}' for Looking up topic '{}' with clientReq Id '{}'", addr,
