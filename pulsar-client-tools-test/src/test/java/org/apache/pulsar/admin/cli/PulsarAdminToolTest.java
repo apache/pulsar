@@ -1858,7 +1858,7 @@ public class PulsarAdminToolTest {
         verify(mockTopics).createPartitionedTopic("non-persistent://myprop/ns1/ds1", 32, null);
 
         topics.run(split("list myprop/ns1"));
-        verify(mockTopics).getList("myprop/ns1", null, null);
+        verify(mockTopics).getList("myprop/ns1", null, Collections.singletonMap(Topics.QueryParam.Include_System_Topic, false));
 
         NonPersistentTopics mockNonPersistentTopics = mock(NonPersistentTopics.class);
         when(admin.nonPersistentTopics()).thenReturn(mockNonPersistentTopics);

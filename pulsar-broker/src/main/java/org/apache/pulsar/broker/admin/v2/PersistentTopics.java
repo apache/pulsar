@@ -100,13 +100,13 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("namespace") String namespace,
             @ApiParam(value = "Specify the bundle name", required = false)
             @QueryParam("bundle") String bundle,
-            @ApiParam(value = "Include system topic", required = false)
-            @QueryParam("withSystemTopic") boolean withSystemTopic) {
+            @ApiParam(value = "Include system topic")
+            @QueryParam("includeSystemTopic") boolean includeSystemTopic) {
         try {
             validateNamespaceName(tenant, namespace);
             List<String> topics = internalGetList(Optional.ofNullable(bundle))
                     .stream()
-                    .filter(topic -> withSystemTopic ? true : !pulsar().getBrokerService().isSystemTopic(topic))
+                    .filter(topic -> includeSystemTopic ? true : !pulsar().getBrokerService().isSystemTopic(topic))
                     .collect(Collectors.toList());
             asyncResponse.resume(topics);
         } catch (WebApplicationException wae) {

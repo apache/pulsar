@@ -374,9 +374,9 @@ public class CmdTopics extends CmdBase {
                 "--bundle" }, description = "Namespace bundle to get list of topics")
         private String bundle;
 
-        @Parameter(names = { "-wst",
-                "--with-system-topic" }, description = "Include system topic")
-        private boolean withSystemTopic;
+        @Parameter(names = { "-ist",
+                "--include-system-topic" }, description = "Include system topic")
+        private boolean includeSystemTopic;
 
         @Override
         void run() throws PulsarAdminException {
@@ -385,7 +385,7 @@ public class CmdTopics extends CmdBase {
             if (StringUtils.isNotBlank(bundle)) {
                 queryMap.put(QueryParam.Bundle, bundle);
             }
-            queryMap.put(QueryParam.WITH_SYSTEM_TOPIC, withSystemTopic);
+            queryMap.put(QueryParam.Include_System_Topic, includeSystemTopic);
             print(getTopics().getList(namespace, topicDomain, queryMap));
         }
     }
@@ -395,15 +395,15 @@ public class CmdTopics extends CmdBase {
         @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = { "-wst",
-                "--with-system-topic" }, description = "Include system topic")
-        private boolean withSystemTopic;
+        @Parameter(names = { "-ist",
+                "--include-system-topic" }, description = "Include system topic")
+        private boolean includeSystemTopic;
 
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
             print(getTopics().getPartitionedTopicList(namespace,
-                    Collections.singletonMap(QueryParam.WITH_SYSTEM_TOPIC, withSystemTopic)));
+                    Collections.singletonMap(QueryParam.Include_System_Topic, includeSystemTopic)));
         }
     }
 

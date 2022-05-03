@@ -378,8 +378,8 @@ public class NonPersistentTopics extends PersistentTopics {
             @PathParam("namespace") String namespace,
             @ApiParam(value = "Specify the bundle name", required = false)
             @QueryParam("bundle") String nsBundle,
-            @ApiParam(value = "Include system topic", required = false)
-            @QueryParam("withSystemTopic") boolean withSystemTopic) {
+            @ApiParam(value = "Include system topic")
+            @QueryParam("includeSystemTopic") boolean includeSystemTopic) {
         Policies policies = null;
         try {
             validateNamespaceName(tenant, namespace);
@@ -430,7 +430,7 @@ public class NonPersistentTopics extends PersistentTopics {
                 final List<String> nonPersistentTopics =
                         topics.stream()
                                 .filter(name -> !TopicName.get(name).isPersistent())
-                                .filter(topic -> withSystemTopic
+                                .filter(topic -> includeSystemTopic
                                         ? true : !pulsar().getBrokerService().isSystemTopic(topic))
                                 .collect(Collectors.toList());
                 asyncResponse.resume(nonPersistentTopics);
@@ -468,6 +468,7 @@ public class NonPersistentTopics extends PersistentTopics {
 
         // check cluster ownership for a given global namespace: redirect if peer-cluster owns it
         validateGlobalNamespaceOwnership(namespaceName);
+
         isBundleOwnedByAnyBroker(namespaceName, policies.bundles, bundleRange).thenAccept(flag -> {
             if (!flag) {
                 log.info("[{}] Namespace bundle is not owned by any broker {}/{}", clientAppId(), namespaceName,
