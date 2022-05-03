@@ -355,9 +355,7 @@ public class ProxyConfiguration implements PulsarConfiguration {
             category = CATEGORY_SASL_AUTH,
             doc = "Path to file containing the secret to be used to SaslRoleTokenSigner\n"
                     + "The secret can be specified like:\n"
-                    + "saslJaasServerRoleTokenSignerSecretPath=file:///my/saslRoleTokenSignerSecret.key\n"
-                    + "If saslJaasServerRoleTokenSignerSecretPath is empty, will use Default value "
-                    + "`SaslConstants.JAAS_DEFAULT_ROLE_TOKEN_SIGNER_SECRET` as secret."
+                    + "saslJaasServerRoleTokenSignerSecretPath=file:///my/saslRoleTokenSignerSecret.key."
     )
     private String saslJaasServerRoleTokenSignerSecretPath;
 

@@ -107,7 +107,8 @@ public class AuthenticationProviderSasl implements AuthenticationProvider {
         if (StringUtils.isNotBlank(saslJaasServerRoleTokenSignerSecretPath)) {
             secret = readSecretFromUrl(saslJaasServerRoleTokenSignerSecretPath);
         } else {
-            secret = SaslConstants.JAAS_DEFAULT_ROLE_TOKEN_SIGNER_SECRET.getBytes();
+            String msg = "saslJaasServerRoleTokenSignerSecretPath parameter is empty";
+            throw new IllegalArgumentException(msg);
         }
         this.signer = new SaslRoleTokenSigner(secret);
     }

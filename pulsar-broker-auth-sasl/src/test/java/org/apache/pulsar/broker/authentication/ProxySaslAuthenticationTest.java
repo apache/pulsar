@@ -24,6 +24,7 @@ import java.io.File;
 import java.io.FileWriter;
 import java.net.URI;
 import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
@@ -182,6 +183,10 @@ public class ProxySaslAuthenticationTest extends ProducerConsumerBase {
 		conf.setAuthenticationEnabled(true);
 		conf.setSaslJaasClientAllowedIds(".*" + localHostname + ".*");
 		conf.setSaslJaasServerSectionName("PulsarBroker");
+		File secretKeyFile = File.createTempFile("saslRoleTokenSignerSecret", ".key");
+		secretKeyFile.deleteOnExit();
+		Files.write(Paths.get(secretKeyFile.toString()), "PulsarSecret".getBytes());
+		conf.setSaslJaasServerRoleTokenSignerSecretPath(secretKeyFile.toString());
 		Set<String> providers = new HashSet<>();
 		providers.add(AuthenticationProviderSasl.class.getName());
 		conf.setAuthenticationProviders(providers);
@@ -234,7 +239,10 @@ public class ProxySaslAuthenticationTest extends ProducerConsumerBase {
 		proxyConfig.setBrokerClientAuthenticationParameters(
 			"{\"saslJaasClientSectionName\": " + "\"PulsarProxy\"," +
 				"\"serverType\": " + "\"broker\"}");
-
+		File secretKeyFile = File.createTempFile("saslRoleTokenSignerSecret", ".key");
+		secretKeyFile.deleteOnExit();
+		Files.write(Paths.get(secretKeyFile.toString()), "PulsarSecret".getBytes());
+		proxyConfig.setSaslJaasServerRoleTokenSignerSecretPath(secretKeyFile.toString());
 		// proxy as a server, it will use sasl to authn
 		Set<String> providers = new HashSet<>();
 		providers.add(AuthenticationProviderSasl.class.getName());
