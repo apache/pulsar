@@ -67,9 +67,6 @@ import org.rocksdb.TransactionDB;
 import org.rocksdb.TransactionDBOptions;
 import org.rocksdb.WriteOptions;
 
-import java.nio.file.attribute.PosixFilePermission;
-import java.nio.file.attribute.PosixFilePermissions;
-
 /**
  *
  */
@@ -223,8 +220,6 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
         Path dataPath = FileSystems.getDefault().getPath(dataDir);
         try {
             Files.createDirectories(dataPath);
-            Set<PosixFilePermission> perms = PosixFilePermissions.fromString("rwx------");
-            Files.setPosixFilePermissions(dataPath, perms);
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -318,8 +313,6 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
             logPathSetting = FileSystems.getDefault().getPath(logPath + "/rocksdb-log");
             Files.createDirectories(logPathSetting);
             options.setDbLogDir(logPathSetting.toString());
-            Set<PosixFilePermission> perms = PosixFilePermissions.fromString("rwx------");
-            Files.setPosixFilePermissions(logPathSetting, perms);
         }
 
         // Configure log level
