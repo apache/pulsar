@@ -26,10 +26,10 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelException;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
-import io.netty.resolver.dns.DnsNameResolver;
+import io.netty.resolver.AddressResolver;
+import io.netty.resolver.dns.DnsAddressResolverGroup;
 import io.netty.resolver.dns.DnsNameResolverBuilder;
 import io.netty.util.concurrent.Future;
-import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -63,7 +63,7 @@ public class ConnectionPool implements AutoCloseable {
     private final int maxConnectionsPerHosts;
     private final boolean isSniProxy;
 
-    protected final DnsNameResolver dnsResolver;
+    protected final AddressResolver<InetSocketAddress> addressResolver;
     private final boolean shouldCloseDnsResolver;
 
     public ConnectionPool(ClientConfigurationData conf, EventLoopGroup eventLoopGroup) throws PulsarClientException {
@@ -76,7 +76,8 @@ public class ConnectionPool implements AutoCloseable {
     }
 
     public ConnectionPool(ClientConfigurationData conf, EventLoopGroup eventLoopGroup,
-                             Supplier<ClientCnx> clientCnxSupplier, Optional<DnsNameResolver> dnsNameResolver)
+                          Supplier<ClientCnx> clientCnxSupplier,
+                          Optional<AddressResolver<InetSocketAddress>> addressResolver)
             throws PulsarClientException {
         this.eventLoopGroup = eventLoopGroup;
         this.clientConfig = conf;
@@ -101,12 +102,13 @@ public class ConnectionPool implements AutoCloseable {
             throw new PulsarClientException(e);
         }
 
-        this.shouldCloseDnsResolver = !dnsNameResolver.isPresent();
-        this.dnsResolver = dnsNameResolver.orElseGet(() -> createDnsNameResolver(conf, eventLoopGroup));
+        this.shouldCloseDnsResolver = !addressResolver.isPresent();
+        this.addressResolver = addressResolver.orElseGet(() -> createAddressResolver(conf, eventLoopGroup));
     }
 
-    private static DnsNameResolver createDnsNameResolver(ClientConfigurationData conf, EventLoopGroup eventLoopGroup) {
-        DnsNameResolverBuilder dnsNameResolverBuilder = new DnsNameResolverBuilder(eventLoopGroup.next())
+    private static AddressResolver<InetSocketAddress> createAddressResolver(ClientConfigurationData conf,
+                                                                            EventLoopGroup eventLoopGroup) {
+        DnsNameResolverBuilder dnsNameResolverBuilder = new DnsNameResolverBuilder()
                 .traceEnabled(true).channelType(EventLoopUtil.getDatagramChannelClass(eventLoopGroup));
         if (conf.getDnsLookupBindAddress() != null) {
             InetSocketAddress addr = new InetSocketAddress(conf.getDnsLookupBindAddress(),
@@ -114,7 +116,10 @@ public class ConnectionPool implements AutoCloseable {
             dnsNameResolverBuilder.localAddress(addr);
         }
         DnsResolverUtil.applyJdkDnsCacheSettings(dnsNameResolverBuilder);
-        return dnsNameResolverBuilder.build();
+        // use DnsAddressResolverGroup to create the AddressResolver since it contains a solution
+        // to prevent cache stampede / thundering herds problem when a DNS entry expires while the system
+        // is under high load
+        return new DnsAddressResolverGroup(dnsNameResolverBuilder).getResolver(eventLoopGroup.next());
     }
 
     private static final Random random = new Random();
@@ -239,19 +244,17 @@ public class ConnectionPool implements AutoCloseable {
      * Resolve DNS asynchronously and attempt to connect to any IP address returned by DNS server.
      */
     private CompletableFuture<Channel> createConnection(InetSocketAddress unresolvedAddress) {
-        int port;
-        CompletableFuture<List<InetAddress>> resolvedAddress;
+        CompletableFuture<List<InetSocketAddress>> resolvedAddress;
         try {
             if (isSniProxy) {
                 URI proxyURI = new URI(clientConfig.getProxyServiceUrl());
-                port = proxyURI.getPort();
-                resolvedAddress = resolveName(proxyURI.getHost());
+                resolvedAddress =
+                        resolveName(InetSocketAddress.createUnresolved(proxyURI.getHost(), proxyURI.getPort()));
             } else {
-                port = unresolvedAddress.getPort();
-                resolvedAddress = resolveName(unresolvedAddress.getHostString());
+                resolvedAddress = resolveName(unresolvedAddress);
             }
             return resolvedAddress.thenCompose(
-                    inetAddresses -> connectToResolvedAddresses(inetAddresses.iterator(), port,
+                    inetAddresses -> connectToResolvedAddresses(inetAddresses.iterator(),
                             isSniProxy ? unresolvedAddress : null));
         } catch (URISyntaxException e) {
             log.error("Invalid Proxy url {}", clientConfig.getProxyServiceUrl(), e);
@@ -264,18 +267,17 @@ public class ConnectionPool implements AutoCloseable {
      * Try to connect to a sequence of IP addresses until a successful connection can be made, or fail if no
      * address is working.
      */
-    private CompletableFuture<Channel> connectToResolvedAddresses(Iterator<InetAddress> unresolvedAddresses,
-                                                                  int port,
+    private CompletableFuture<Channel> connectToResolvedAddresses(Iterator<InetSocketAddress> unresolvedAddresses,
                                                                   InetSocketAddress sniHost) {
         CompletableFuture<Channel> future = new CompletableFuture<>();
 
         // Successfully connected to server
-        connectToAddress(unresolvedAddresses.next(), port, sniHost)
+        connectToAddress(unresolvedAddresses.next(), sniHost)
                 .thenAccept(future::complete)
                 .exceptionally(exception -> {
                     if (unresolvedAddresses.hasNext()) {
                         // Try next IP address
-                        connectToResolvedAddresses(unresolvedAddresses, port, sniHost).thenAccept(future::complete)
+                        connectToResolvedAddresses(unresolvedAddresses, sniHost).thenAccept(future::complete)
                                 .exceptionally(ex -> {
                                     // This is already unwinding the recursive call
                                     future.completeExceptionally(ex);
@@ -291,9 +293,9 @@ public class ConnectionPool implements AutoCloseable {
         return future;
     }
 
-    CompletableFuture<List<InetAddress>> resolveName(String hostname) {
-        CompletableFuture<List<InetAddress>> future = new CompletableFuture<>();
-        dnsResolver.resolveAll(hostname).addListener((Future<List<InetAddress>> resolveFuture) -> {
+    CompletableFuture<List<InetSocketAddress>> resolveName(InetSocketAddress unresolvedAddress) {
+        CompletableFuture<List<InetSocketAddress>> future = new CompletableFuture<>();
+        addressResolver.resolveAll(unresolvedAddress).addListener((Future<List<InetSocketAddress>> resolveFuture) -> {
             if (resolveFuture.isSuccess()) {
                 future.complete(resolveFuture.get());
             } else {
@@ -306,8 +308,7 @@ public class ConnectionPool implements AutoCloseable {
     /**
      * Attempt to establish a TCP connection to an already resolved single IP address.
      */
-    private CompletableFuture<Channel> connectToAddress(InetAddress ipAddress, int port, InetSocketAddress sniHost) {
-        InetSocketAddress remoteAddress = new InetSocketAddress(ipAddress, port);
+    private CompletableFuture<Channel> connectToAddress(InetSocketAddress remoteAddress, InetSocketAddress sniHost) {
         if (clientConfig.isUseTls()) {
             return toCompletableFuture(bootstrap.register())
                     .thenCompose(channel -> channelInitializerHandler
@@ -337,7 +338,7 @@ public class ConnectionPool implements AutoCloseable {
     public void close() throws Exception {
         closeAllConnections();
         if (shouldCloseDnsResolver) {
-            dnsResolver.close();
+            addressResolver.close();
         }
     }
 
