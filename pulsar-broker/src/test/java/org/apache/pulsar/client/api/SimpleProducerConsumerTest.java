@@ -2425,9 +2425,9 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/my-ns/unacked-topic")
                 .create();
 
-        // (1) First round to produce-consume messages
+        // (1) send all message at once
         int consumeMsgInParts = 4;
-        for (int i = 0; i < receiverQueueSize; i++) {
+        for (int i = 0; i < receiverQueueSize * 2; i++) {
             String message = "my-message-" + i;
             producer.send(message.getBytes());
         }
@@ -2466,13 +2466,6 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         assertEquals(messages1.size(), consumeMsgInParts);
         consumer.redeliverUnacknowledgedMessages();
         Thread.sleep(1000L);
-
-        // (2) Second round to produce-consume messages
-        for (int i = 0; i < receiverQueueSize; i++) {
-            String message = "my-message-" + i;
-            producer.send(message.getBytes());
-        }
-        producer.flush();
 
         int remainingMsgs = (2 * receiverQueueSize) - (2 * consumeMsgInParts);
         messages1.clear();
