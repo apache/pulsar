@@ -22,7 +22,7 @@ set -exuo pipefail
 
 PYTHON_VERSIONS=(
   '3.7  3.7.13 x86_64'
-  '3.7  3.7.13 arm64'
+#  '3.7  3.7.13 arm64'
   '3.8  3.8.13 x86_64;arm64'
   '3.9  3.9.10 x86_64;arm64'
   '3.10 3.10.2 x86_64;arm64'
@@ -52,13 +52,16 @@ fi
 PYENV=$CACHE_DIR/pyenv/bin/pyenv
 
 cd $CACHE_DIR
-
 PREFIX=$CACHE_DIR/install
+export SDKROOT=$(xcrun --show-sdk-path)
 
+# Many MacOS systems have extensive customization of build-related variables. The below unsets those or sets them to
+# minimal standard resource locations in hopes of increasing reproducibility so that this packaging can be run reliably
+# from different Macs.
 export CXXFLAGS=
 export PKG_CONFIG_PATH=
-
-export SDKROOT=$(xcrun --show-sdk-path)
+# The presence of Homebrew-installed openssl@3 can cause things to accumulate unexpected linker dependencies, so ensure
+# that it is not used.
 export CFLAGS="-DOPENSSL_NO_SSL3 -I${SDKROOT}/usr/include -I${PREFIX}/include"
 export CPPFLAGS="$CFLAGS"
 export LDFLAGS="-L${SDKROOT}/usr/lib -L${PREFIX}/lib"
@@ -163,6 +166,8 @@ fi
 
 BOOST_VERSION_=${BOOST_VERSION//./_}
 ###############################################################################
+# For each python/arch tuple, build Python at that version via Pyenv, then install pip/setuptools/wheel in that pyenv,
+# then install boost-python linked to the pyenv's python, then build the pulsar client in that directory.
 for line in "${PYTHON_VERSIONS[@]}"; do
     read -r -a PY <<< "$line"
     PYTHON_VERSION=${PY[0]}
@@ -195,13 +200,13 @@ for line in "${PYTHON_VERSIONS[@]}"; do
 
     pushd $PYENV_ROOT
     $PYENV local $PYTHON_VERSION_LONG
-    $PYENV exec pip install --upgrade pip
-    $PYENV exec pip install --upgrade setuptools wheel
+    $PYENV exec python -mpip install --upgrade pip
+    $PYENV exec python -mpip install --upgrade setuptools wheel
 
     DIR=boost-src-${BOOST_VERSION}-python-${PYTHON_VERSION}
 
     if [ ! -f $DIR/.done ]; then
-        echo "Building Boost for Py $PYTHON_VERSION"
+        echo "Building Boost for Py $PYTHON_VERSION at $ARCHS"
         curl -O -L https://boostorg.jfrog.io/artifactory/main/release/${BOOST_VERSION}/source/boost_${BOOST_VERSION_}.tar.gz
         tar xfz boost_${BOOST_VERSION_}.tar.gz
         mv boost_${BOOST_VERSION_} $DIR
@@ -224,10 +229,11 @@ EOF
         touch .done
         popd
     else
-        echo "Using cached Boost for Py $PYTHON_VERSION"
+        echo "Using cached Boost for Py $PYTHON_VERSION at $ARCHS"
     fi
     popd
 
+    echo "Building pulsar-client-cpp for python $PYTHON_VERSION at $ARCHS"
     pushd "${ROOT_DIR}/pulsar-client-cpp"
     $PYENV local $PYTHON_VERSION_LONG
     find . -name CMakeCache.txt | xargs -r rm
@@ -254,6 +260,7 @@ EOF
     make clean
     make _pulsar -j16
 
+    echo "Building wheel for python $PYTHON_VERSION at $ARCHS"
     pushd python
     $PYENV exec python setup.py bdist_wheel
     popd
