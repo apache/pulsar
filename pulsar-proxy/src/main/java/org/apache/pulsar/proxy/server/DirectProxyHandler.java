@@ -379,20 +379,20 @@ public class DirectProxyHandler {
                                     0, 4, 0, 4));
 
                     inboundChannel.pipeline().addBefore("handler", "inboundParser",
-                            new ParserProxyHandler(service, inboundChannel,
+                            new ParserProxyHandler(service,
                                     ParserProxyHandler.FRONTEND_CONN,
                                     connected.getMaxMessageSize(), outboundChannel.id()));
                     outboundChannel.pipeline().addBefore("proxyOutboundHandler", "outboundParser",
-                            new ParserProxyHandler(service, outboundChannel,
+                            new ParserProxyHandler(service,
                                     ParserProxyHandler.BACKEND_CONN,
                                     connected.getMaxMessageSize(), inboundChannel.id()));
                 } else {
                     inboundChannel.pipeline().addBefore("handler", "inboundParser",
-                            new ParserProxyHandler(service, inboundChannel,
+                            new ParserProxyHandler(service,
                                     ParserProxyHandler.FRONTEND_CONN,
                                     Commands.DEFAULT_MAX_MESSAGE_SIZE, outboundChannel.id()));
                     outboundChannel.pipeline().addBefore("proxyOutboundHandler", "outboundParser",
-                            new ParserProxyHandler(service, outboundChannel,
+                            new ParserProxyHandler(service,
                                     ParserProxyHandler.BACKEND_CONN,
                                     Commands.DEFAULT_MAX_MESSAGE_SIZE, inboundChannel.id()));
                 }
