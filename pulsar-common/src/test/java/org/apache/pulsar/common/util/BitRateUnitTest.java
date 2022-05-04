@@ -72,4 +72,38 @@ public class BitRateUnitTest {
         assertEquals(BitRateUnit.Byte.toGigabit(bytes), bytes / 1000 / 1000 / 1000 * 8);
     }
 
+
+    @Test
+    public void testConvert() {
+        double unit = 12334125.1234;
+        assertEquals(BitRateUnit.Bit.convert(unit, BitRateUnit.Bit), BitRateUnit.Bit.toBit(unit));
+        assertEquals(BitRateUnit.Bit.convert(unit, BitRateUnit.Kilobit), BitRateUnit.Kilobit.toBit(unit));
+        assertEquals(BitRateUnit.Bit.convert(unit, BitRateUnit.Megabit), BitRateUnit.Megabit.toBit(unit));
+        assertEquals(BitRateUnit.Bit.convert(unit, BitRateUnit.Gigabit), BitRateUnit.Gigabit.toBit(unit));
+        assertEquals(BitRateUnit.Bit.convert(unit, BitRateUnit.Byte), BitRateUnit.Byte.toBit(unit));
+
+        assertEquals(BitRateUnit.Kilobit.convert(unit, BitRateUnit.Bit),  BitRateUnit.Bit.toKilobit(unit));
+        assertEquals(BitRateUnit.Kilobit.convert(unit, BitRateUnit.Kilobit), BitRateUnit.Kilobit.toKilobit(unit));
+        assertEquals(BitRateUnit.Kilobit.convert(unit, BitRateUnit.Megabit), BitRateUnit.Megabit.toKilobit(unit));
+        assertEquals(BitRateUnit.Kilobit.convert(unit, BitRateUnit.Gigabit), BitRateUnit.Gigabit.toKilobit(unit));
+        assertEquals(BitRateUnit.Kilobit.convert(unit, BitRateUnit.Byte), BitRateUnit.Byte.toKilobit(unit));
+
+        assertEquals(BitRateUnit.Megabit.convert(unit, BitRateUnit.Bit), BitRateUnit.Bit.toMegabit(unit));
+        assertEquals(BitRateUnit.Megabit.convert(unit, BitRateUnit.Kilobit), BitRateUnit.Kilobit.toMegabit(unit));
+        assertEquals(BitRateUnit.Megabit.convert(unit, BitRateUnit.Megabit), BitRateUnit.Megabit.toMegabit(unit));
+        assertEquals(BitRateUnit.Megabit.convert(unit, BitRateUnit.Gigabit), BitRateUnit.Gigabit.toMegabit(unit));
+        assertEquals(BitRateUnit.Megabit.convert(unit, BitRateUnit.Byte), BitRateUnit.Byte.toMegabit(unit));
+
+        assertEquals(BitRateUnit.Gigabit.convert(unit, BitRateUnit.Bit), BitRateUnit.Bit.toGigabit(unit));
+        assertEquals(BitRateUnit.Gigabit.convert(unit, BitRateUnit.Kilobit), BitRateUnit.Kilobit.toGigabit(unit));
+        assertEquals(BitRateUnit.Gigabit.convert(unit, BitRateUnit.Megabit), BitRateUnit.Megabit.toGigabit(unit));
+        assertEquals(BitRateUnit.Gigabit.convert(unit, BitRateUnit.Gigabit), BitRateUnit.Gigabit.toGigabit(unit));
+        assertEquals(BitRateUnit.Gigabit.convert(unit, BitRateUnit.Byte), BitRateUnit.Byte.toGigabit(unit));
+
+        assertEquals(BitRateUnit.Byte.convert(unit, BitRateUnit.Bit), BitRateUnit.Bit.toByte(unit));
+        assertEquals(BitRateUnit.Byte.convert(unit, BitRateUnit.Kilobit), BitRateUnit.Kilobit.toByte(unit));
+        assertEquals(BitRateUnit.Byte.convert(unit, BitRateUnit.Megabit), BitRateUnit.Megabit.toByte(unit));
+        assertEquals(BitRateUnit.Byte.convert(unit, BitRateUnit.Gigabit), BitRateUnit.Gigabit.toByte(unit));
+        assertEquals(BitRateUnit.Byte.convert(unit, BitRateUnit.Byte), BitRateUnit.Byte.toByte(unit));
+    }
 }
