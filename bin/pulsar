@@ -388,7 +388,7 @@ elif [ $COMMAND == "sql" ]; then
     exec $JAVA -cp "${PRESTO_HOME}/lib/*" io.prestosql.cli.Presto --server localhost:8081 "${@}"
 elif [ $COMMAND == "sql-worker" ]; then
     check_presto_libraries
-    exec ${PRESTO_HOME}/bin/launcher --etc-dir ${PULSAR_PRESTO_CONF} "${@}"
+    exec python3 ${PRESTO_HOME}/bin/launcher.py --etc-dir ${PULSAR_PRESTO_CONF} "${@}"
 elif [ $COMMAND == "tokens" ]; then
     exec $JAVA $OPTS org.apache.pulsar.utils.auth.tokens.TokensCliUtils $@
 elif [ $COMMAND == "version" ]; then
