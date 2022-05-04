@@ -497,8 +497,8 @@
         "AuthenticationDataSource": {
             "type": "object",
             "properties": {
-                "peerAddress": {
-                    "$ref": "#/definitions/SocketAddress"
+                "subscription": {
+                    "type": "string"
                 },
                 "tlsCertificates": {
                     "type": "array",
@@ -512,8 +512,8 @@
                 "commandData": {
                     "type": "string"
                 },
-                "subscription": {
-                    "type": "string"
+                "peerAddress": {
+                    "$ref": "#/definitions/SocketAddress"
                 }
             }
         },
@@ -859,9 +859,6 @@
                 "abstract": {
                     "type": "boolean"
                 },
-                "contentType": {
-                    "$ref": "#/definitions/JavaType"
-                },
                 "bindings": {
                     "$ref": "#/definitions/TypeBindings"
                 },
@@ -913,6 +910,9 @@
                 "mapLikeType": {
                     "type": "boolean"
                 },
+                "contentType": {
+                    "$ref": "#/definitions/JavaType"
+                },
                 "typeName": {
                     "type": "string"
                 },
@@ -962,9 +962,6 @@
                 "prettyPrinter": {
                     "$ref": "#/definitions/PrettyPrinter"
                 },
-                "currentValue": {
-                    "type": "object"
-                },
                 "featureMask": {
                     "type": "integer",
                     "format": "int32"
@@ -972,6 +969,9 @@
                 "formatFeatures": {
                     "type": "integer",
                     "format": "int32"
+                },
+                "currentValue": {
+                    "type": "object"
                 },
                 "highestEscapedChar": {
                     "type": "integer",
@@ -1055,12 +1055,12 @@
                     "type": "integer",
                     "format": "int32"
                 },
-                "closed": {
-                    "type": "boolean"
-                },
                 "intValue": {
                     "type": "integer",
                     "format": "int32"
+                },
+                "closed": {
+                    "type": "boolean"
                 },
                 "typeId": {
                     "type": "object"
@@ -1095,12 +1095,6 @@
                 "tokenLocation": {
                     "$ref": "#/definitions/JsonLocation"
                 },
-                "inputSource": {
-                    "type": "object"
-                },
-                "currentValue": {
-                    "type": "object"
-                },
                 "featureMask": {
                     "type": "integer",
                     "format": "int32"
@@ -1108,23 +1102,6 @@
                 "formatFeatures": {
                     "type": "integer",
                     "format": "int32"
-                },
-                "valueAsLong": {
-                    "type": "integer",
-                    "format": "int64"
-                },
-                "valueAsDouble": {
-                    "type": "number",
-                    "format": "double"
-                },
-                "valueAsBoolean": {
-                    "type": "boolean"
-                },
-                "valueAsString": {
-                    "type": "string"
-                },
-                "objectId": {
-                    "type": "object"
                 },
                 "currentTokenId": {
                     "type": "integer",
@@ -1197,6 +1174,29 @@
                 "valueAsInt": {
                     "type": "integer",
                     "format": "int32"
+                },
+                "valueAsLong": {
+                    "type": "integer",
+                    "format": "int64"
+                },
+                "valueAsDouble": {
+                    "type": "number",
+                    "format": "double"
+                },
+                "valueAsBoolean": {
+                    "type": "boolean"
+                },
+                "valueAsString": {
+                    "type": "string"
+                },
+                "objectId": {
+                    "type": "object"
+                },
+                "inputSource": {
+                    "type": "object"
+                },
+                "currentValue": {
+                    "type": "object"
                 }
             }
         },
