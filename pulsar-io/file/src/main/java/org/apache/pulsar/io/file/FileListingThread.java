@@ -107,10 +107,11 @@ public class FileListingThread extends Thread {
     private Set<File> performListing(final File directory, final FileFilter filter,
             final boolean recurseSubdirectories) {
         Path p = directory.toPath();
-        final Set<File> queue = new HashSet<>();
         if (!Files.isReadable(p)) {
             throw new IllegalStateException("Cannot read directory: '" + directory);
         }
+
+        final Set<File> queue = new HashSet<>();
         if (!directory.exists()) {
             return queue;
         }
