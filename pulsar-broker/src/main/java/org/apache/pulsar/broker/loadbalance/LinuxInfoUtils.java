@@ -35,7 +35,7 @@ import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.SystemUtils;
-import org.apache.pulsar.common.util.BitRateUnit;
+import org.apache.pulsar.broker.BitRateUnit;
 
 @Slf4j
 public class LinuxInfoUtils {
