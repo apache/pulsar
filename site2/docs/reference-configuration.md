@@ -334,6 +334,7 @@ brokerServiceCompactionThresholdInBytes|If the estimated backlog size is greater
 |replicationConnectionsPerBroker| Max number of connections to open for each broker in a remote cluster More connections host-to-host lead to better throughput over high-latency links.  |16|
 |replicationProducerQueueSize|  Replicator producer queue size  |1000|
 |replicatorPrefix|  Replicator prefix used for replicator producer name and cursor name pulsar.repl||
+|transactionBufferClientOperationTimeoutInMills|The transaction buffer client's operation timeout in milliseconds.|3000|
 |transactionCoordinatorEnabled|Whether to enable transaction coordinator in broker.|true|
 |transactionMetadataStoreProviderClassName| |org.apache.pulsar.transaction.coordinator.impl.InMemTransactionMetadataStoreProvider|
 |defaultRetentionTimeInMinutes| Default message retention time  |0|
