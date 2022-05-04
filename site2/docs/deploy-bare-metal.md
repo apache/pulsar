@@ -40,7 +40,7 @@ To run Pulsar on bare metal, the following configuration is recommended:
 > * Broker is only supported on 64-bit JVM.
 > * If you do not have enough machines, or you want to test Pulsar in cluster mode (and expand the cluster later), You can fully deploy Pulsar on a node on which ZooKeeper, bookie and broker run.
 > * If you do not have a DNS server, you can use the multi-host format in the service URL instead.
-Each machine in your cluster needs to have [Java 17](https://adoptium.net/?variant=openjdk17) installed.
+> * Each machine in your cluster needs to have the recommended Java version installed (e.g. [Java 17](https://adoptium.net/?variant=openjdk17)). Please refer to [Pulsar Runtime Java Version Recommendation](https://github.com/apache/pulsar/blob/master/README.md#pulsar-runtime-java-version-recommendation) according to your target Pulsar version.
 
 The following is a diagram showing the basic setup:
 

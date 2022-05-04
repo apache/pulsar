@@ -85,19 +85,21 @@ components in the Pulsar ecosystem, including connectors, adapters, and other la
 
 ## Pulsar Runtime Java Version Recommendation
 
-- pulsar ver >= 2.11
+- pulsar master branch
 
 | Pulsar Components | Java Version  |
 | ----------------- |:-------------:|
 | Broker            | 17            |
+| Functions / IO    | 17            |
 | CLI               | 17            |
 | Java Client       | 8 or 11 or 17 |
 
--  2.8 <= pulsar ver < 2.11
+- 2.8 <= pulsar ver <= 2.10
 
 | Pulsar Components | Java Version  |
 | ----------------- |:-------------:|
 | Broker            | 11            |
+| Functions / IO    | 11            |
 | CLI               | 8 or 11       |
 | Java Client       | 8 or 11       |
 
@@ -161,8 +163,8 @@ Check https://pulsar.apache.org for documentation and examples.
 
 Docker images must be built with Java 8 for `branch-2.7` or previous branches because of
 [issue 8445](https://github.com/apache/pulsar/issues/8445).
-Java 11 is the recommended JDK version in `branch-2.8`, and
-Java 17 is the recommended JDK version in `branch-2.11` and `master`.
+Java 11 is the recommended JDK version in `branch-2.8`, `branch-2.9` and `branch-2.10`.
+Java 17 is the recommended JDK version in `master`.
 
 This builds the docker images `apachepulsar/pulsar-all:latest` and `apachepulsar/pulsar:latest`.
 
