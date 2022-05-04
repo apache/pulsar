@@ -31,6 +31,7 @@ import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 import lombok.extern.slf4j.Slf4j;
@@ -261,7 +262,7 @@ public class FilterEntryTest extends BrokerTestBase {
             EntryFilterWithClassLoader loader2 = spyWithClassAndConstructorArgs(EntryFilterWithClassLoader.class, filter2, narClassLoader);
             field.set(dispatcher, ImmutableList.of(loader1, loader2));
 
-            int numMessages = 10;
+            int numMessages = 200;
             for (int i = 0; i < numMessages; i++) {
                 if (i % 2 == 0) {
                     producer.newMessage()
@@ -276,35 +277,55 @@ public class FilterEntryTest extends BrokerTestBase {
                 }
             }
 
-            // assert that the consumer1 receive all the messages and that such messages
-            // are for consumer1
-            int counter = 0;
-            while (counter < numMessages / 2) {
-                Message<String> message = consumer1.receive(1, TimeUnit.MINUTES);
-                if (message != null) {
-                    log.info("received1 {} - {}", message.getValue(), message.getProperties());
-                    counter++;
-                    assertEquals("consumer-1", message.getValue());
-                    consumer1.acknowledge(message);
-                } else {
-                    fail("consumer1 did not receive all the messages");
-                }
-            }
+            CompletableFuture<Void> resultConsume1 = new CompletableFuture<>();
+            pulsar.getExecutor().submit(() -> {
+                        try {
+                            // assert that the consumer1 receive all the messages and that such messages
+                            // are for consumer1
+                            int counter = 0;
+                            while (counter < numMessages / 2) {
+                                Message<String> message = consumer1.receive(1, TimeUnit.MINUTES);
+                                if (message != null) {
+                                    log.info("received1 {} - {}", message.getValue(), message.getProperties());
+                                    counter++;
+                                    assertEquals("consumer-1", message.getValue());
+                                    consumer1.acknowledgeAsync(message);
+                                } else {
+                                    resultConsume1.completeExceptionally(
+                                            new Exception("consumer1 did not receive all the messages"));
+                                }
+                            }
+                            resultConsume1.complete(null);
+                        } catch (Throwable err) {
+                            resultConsume1.completeExceptionally(err);
+                        }
+                    });
 
-            // assert that the consumer2 receive all the messages and that such messages
-            // are for consumer1
-            counter = 0;
-            while (counter < numMessages / 2) {
-                Message<String> message = consumer2.receive(1, TimeUnit.MINUTES);
-                if (message != null) {
-                    log.info("received2 {} - {}", message.getValue(), message.getProperties());
-                    counter++;
-                    assertEquals("consumer-2", message.getValue());
-                    consumer2.acknowledge(message);
-                } else {
-                    fail("consumer2 did not receive all the messages");
+            CompletableFuture<Void> resultConsume2 = new CompletableFuture<>();
+            pulsar.getExecutor().submit(() -> {
+                try {
+                    // assert that the consumer2 receive all the messages and that such messages
+                    // are for consumer2
+                    int counter = 0;
+                    while (counter < numMessages / 2) {
+                        Message<String> message = consumer2.receive(1, TimeUnit.MINUTES);
+                        if (message != null) {
+                            log.info("received2 {} - {}", message.getValue(), message.getProperties());
+                            counter++;
+                            assertEquals("consumer-2", message.getValue());
+                            consumer2.acknowledgeAsync(message);
+                        } else {
+                            resultConsume2.completeExceptionally(
+                                    new Exception("consumer2 did not receive all the messages"));
+                        }
+                    }
+                    resultConsume2.complete(null);
+                } catch (Throwable err) {
+                    resultConsume1.completeExceptionally(err);
                 }
-            }
+            });
+            resultConsume1.get(1, TimeUnit.MINUTES);
+            resultConsume2.get(1, TimeUnit.MINUTES);
         }
     }
 }
