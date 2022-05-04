@@ -18,13 +18,14 @@
 # under the License.
 #
 
-set -e
+set -exuo pipefail
 
 PYTHON_VERSIONS=(
-   '3.7  3.7.13'
-   '3.8  3.8.13'
-   '3.9  3.9.10'
-   '3.10 3.10.2'
+  '3.7  3.7.13 x86_64'
+  '3.7  3.7.13 arm64'
+  '3.8  3.8.13 x86_64;arm64'
+  '3.9  3.9.10 x86_64;arm64'
+  '3.10 3.10.2 x86_64;arm64'
 )
 
 export MACOSX_DEPLOYMENT_TARGET=11.0
@@ -41,77 +42,36 @@ CURL_VERSION=7.61.0
 ROOT_DIR=$(git rev-parse --show-toplevel)
 cd "${ROOT_DIR}/pulsar-client-cpp"
 
-
 # Compile and cache dependencies
 CACHE_DIR=~/.pulsar-mac-wheels-cache
 mkdir -p $CACHE_DIR
+
+if [ ! -d $CACHE_DIR/pyenv ]; then
+  git clone https://github.com/pyenv/pyenv.git $CACHE_DIR/pyenv
+fi
+PYENV=$CACHE_DIR/pyenv/bin/pyenv
 
 cd $CACHE_DIR
 
 PREFIX=$CACHE_DIR/install
 
-###############################################################################
-for line in "${PYTHON_VERSIONS[@]}"; do
-    read -r -a PY <<< "$line"
-    PYTHON_VERSION=${PY[0]}
-    PYTHON_VERSION_LONG=${PY[1]}
+export CXXFLAGS=
+export PKG_CONFIG_PATH=
 
-    if [ ! -f Python-${PYTHON_VERSION_LONG}/.done ]; then
-      echo "Building Python $PYTHON_VERSION_LONG"
-      curl -O -L https://www.python.org/ftp/python/${PYTHON_VERSION_LONG}/Python-${PYTHON_VERSION_LONG}.tgz
-      tar xfz Python-${PYTHON_VERSION_LONG}.tgz
-
-      PY_PREFIX=$CACHE_DIR/py-$PYTHON_VERSION
-      pushd Python-${PYTHON_VERSION_LONG}
-          if [ $PYTHON_VERSION = '3.7' ]; then
-              UNIVERSAL_ARCHS='intel-64'
-              PY_CFLAGS=" -arch x86_64"
-          else
-              UNIVERSAL_ARCHS='universal2'
-          fi
-
-          CFLAGS="-fPIC -O3 -mmacosx-version-min=${MACOSX_DEPLOYMENT_TARGET} -I${PREFIX}/include ${PY_CFLAGS}" \
-              LDFLAGS=" ${PY_CFLAGS} -L${PREFIX}/lib" \
-              ./configure --prefix=$PY_PREFIX --enable-shared --enable-universalsdk --with-universal-archs=${UNIVERSAL_ARCHS}
-          make -j16
-          make install
-
-          curl -O -L https://files.pythonhosted.org/packages/27/d6/003e593296a85fd6ed616ed962795b2f87709c3eee2bca4f6d0fe55c6d00/wheel-0.37.1-py2.py3-none-any.whl
-          $PY_PREFIX/bin/pip3 install wheel-*.whl
-
-          touch .done
-      popd
-    else
-      echo "Using cached Python $PYTHON_VERSION_LONG"
-    fi
-done
-
-
-###############################################################################
-if [ ! -f zlib-${ZLIB_VERSION}/.done ]; then
-    echo "Building ZLib"
-    curl -O -L https://zlib.net/zlib-${ZLIB_VERSION}.tar.gz
-    tar xvfz zlib-$ZLIB_VERSION.tar.gz
-    pushd zlib-$ZLIB_VERSION
-      CFLAGS="-fPIC -O3 -arch arm64 -arch x86_64 -mmacosx-version-min=${MACOSX_DEPLOYMENT_TARGET}" ./configure --prefix=$PREFIX
-      make -j16
-      make install
-      touch .done
-    popd
-else
-    echo "Using cached ZLib"
-fi
+export SDKROOT=$(xcrun --show-sdk-path)
+export CFLAGS="-DOPENSSL_NO_SSL3 -I${SDKROOT}/usr/include -I${PREFIX}/include"
+export CPPFLAGS="$CFLAGS"
+export LDFLAGS="-L${SDKROOT}/usr/lib -L${PREFIX}/lib"
 
 ###############################################################################
 if [ ! -f openssl-OpenSSL_${OPENSSL_VERSION}.done ]; then
     echo "Building OpenSSL"
     curl -O -L https://github.com/openssl/openssl/archive/OpenSSL_${OPENSSL_VERSION}.tar.gz
-    # -arch arm64 -arch x86_64
     tar xvfz OpenSSL_${OPENSSL_VERSION}.tar.gz
     mv openssl-OpenSSL_${OPENSSL_VERSION} openssl-OpenSSL_${OPENSSL_VERSION}-arm64
     pushd openssl-OpenSSL_${OPENSSL_VERSION}-arm64
       CFLAGS="-fPIC -mmacosx-version-min=${MACOSX_DEPLOYMENT_TARGET}" \
-          ./Configure --prefix=$PREFIX no-shared darwin64-arm64-cc
+          ./Configure --openssldir=$PREFIX --prefix=$PREFIX no-shared darwin64-arm64-cc
       make -j8
       make install
     popd
@@ -120,9 +80,9 @@ if [ ! -f openssl-OpenSSL_${OPENSSL_VERSION}.done ]; then
     mv openssl-OpenSSL_${OPENSSL_VERSION} openssl-OpenSSL_${OPENSSL_VERSION}-x86_64
     pushd openssl-OpenSSL_${OPENSSL_VERSION}-x86_64
       CFLAGS="-fPIC -mmacosx-version-min=${MACOSX_DEPLOYMENT_TARGET}" \
-          ./Configure --prefix=$PREFIX no-shared darwin64-x86_64-cc
+          ./Configure --openssldir=$PREFIX --prefix=$PREFIX no-shared darwin64-x86_64-cc
       make -j8
-      make install
+      make install_sw  # Skip manpages
     popd
 
     # Create universal binaries
@@ -135,51 +95,6 @@ if [ ! -f openssl-OpenSSL_${OPENSSL_VERSION}.done ]; then
 else
     echo "Using cached OpenSSL"
 fi
-
-###############################################################################
-BOOST_VERSION_=${BOOST_VERSION//./_}
-for line in "${PYTHON_VERSIONS[@]}"; do
-    read -r -a PY <<< "$line"
-    PYTHON_VERSION=${PY[0]}
-    PYTHON_VERSION_LONG=${PY[1]}
-
-    DIR=boost-src-${BOOST_VERSION}-python-${PYTHON_VERSION}
-    if [ ! -f $DIR/.done ]; then
-        echo "Building Boost for Py $PYTHON_VERSION"
-        curl -O -L https://boostorg.jfrog.io/artifactory/main/release/${BOOST_VERSION}/source/boost_${BOOST_VERSION_}.tar.gz
-        tar xfz boost_${BOOST_VERSION_}.tar.gz
-        mv boost_${BOOST_VERSION_} $DIR
-
-        PY_PREFIX=$CACHE_DIR/py-$PYTHON_VERSION
-        PY_INCLUDE_DIR=${PY_PREFIX}/include/python${PYTHON_VERSION}
-        if [ $PYTHON_VERSION = '3.7' ]; then
-            PY_INCLUDE_DIR=${PY_INCLUDE_DIR}m
-        fi
-
-        pushd $DIR
-          cat <<EOF > user-config.jam
-            using python : $PYTHON_VERSION
-                    : python3
-                    : ${PY_INCLUDE_DIR}
-                    : ${PY_PREFIX}/lib
-                  ;
-EOF
-          ./bootstrap.sh --with-libraries=python --with-python=python3 --with-python-root=$PY_PREFIX \
-                --prefix=$CACHE_DIR/boost-py-$PYTHON_VERSION
-          ./b2 address-model=64 cxxflags="-fPIC -arch arm64 -arch x86_64 -mmacosx-version-min=${MACOSX_DEPLOYMENT_TARGET}" \
-                    link=static threading=multi \
-                    --user-config=./user-config.jam \
-                    variant=release python=${PYTHON_VERSION} \
-                    -j16 \
-                    install
-          touch .done
-        popd
-    else
-        echo "Using cached Boost for Py $PYTHON_VERSION"
-    fi
-
-done
-
 
 
 ###############################################################################
@@ -246,57 +161,101 @@ else
     echo "Using cached LibCurl"
 fi
 
+BOOST_VERSION_=${BOOST_VERSION//./_}
 ###############################################################################
-###############################################################################
-###############################################################################
-###############################################################################
-
 for line in "${PYTHON_VERSIONS[@]}"; do
     read -r -a PY <<< "$line"
     PYTHON_VERSION=${PY[0]}
     PYTHON_VERSION_LONG=${PY[1]}
-    echo '----------------------------------------------------------------------------'
-    echo '----------------------------------------------------------------------------'
-    echo '----------------------------------------------------------------------------'
-    echo "Build wheel for Python $PYTHON_VERSION"
+    ARCHS=${PY[2]}
 
-    cd "${ROOT_DIR}/pulsar-client-cpp"
-
-    find . -name CMakeCache.txt | xargs -r rm
-    find . -name CMakeFiles | xargs -r rm -rf
-
-    PY_PREFIX=$CACHE_DIR/py-$PYTHON_VERSION
-    PY_EXE=$PY_PREFIX/bin/python3
-
+    echo "Building Python $PYTHON_VERSION_LONG for $ARCHS"
+    ARCHCMD=""
+    if [ "$ARCHS" = "x86_64;arm64" ]; then
+      export PYENV_ROOT=$CACHE_DIR/python-$PYTHON_VERSION_LONG-universal
+      PYTHON_CONFIGURE_OPTS="--enable-universalsdk --with-universal-archs=universal2"
+    else
+      export PYENV_ROOT=$CACHE_DIR/Python-$PYTHON_VERSION_LONG-$ARCHS
+      PYTHON_CONFIGURE_OPTS=""
+      # Check if we need to use rosetta; this will cause failures on Intel macs as they can't crossbuild for ARM; it
+      # only goes the other direction.
+      if [ "$(arch)" != $ARCHS ]; then
+        ARCHCMD="arch -$ARCHS"
+      fi
+    fi
+    PY_PREFIX=$PYENV_ROOT/versions/$PYTHON_VERSION_LONG
     PY_INCLUDE_DIR=${PY_PREFIX}/include/python${PYTHON_VERSION}
-    ARCHS='arm64;x86_64'
     if [ $PYTHON_VERSION = '3.7' ]; then
-        PY_INCLUDE_DIR=${PY_INCLUDE_DIR}m
-        ARCHS='x86_64'
+      PY_INCLUDE_DIR=${PY_INCLUDE_DIR}m
     fi
 
+    PYTHON_CFLAGS="-fPIC -O3 -mmacosx-version-min=${MACOSX_DEPLOYMENT_TARGET} $CFLAGS" \
+      PYTHON_CONFIGURE_OPTS="--without-readline --with-openssl=$PREFIX --enable-shared $PYTHON_CONFIGURE_OPTS" \
+      $ARCHCMD $PYENV install -s $PYTHON_VERSION_LONG
+
+    pushd $PYENV_ROOT
+    $PYENV local $PYTHON_VERSION_LONG
+    $PYENV exec pip install --upgrade pip
+    $PYENV exec pip install --upgrade setuptools wheel
+
+    DIR=boost-src-${BOOST_VERSION}-python-${PYTHON_VERSION}
+
+    if [ ! -f $DIR/.done ]; then
+        echo "Building Boost for Py $PYTHON_VERSION"
+        curl -O -L https://boostorg.jfrog.io/artifactory/main/release/${BOOST_VERSION}/source/boost_${BOOST_VERSION_}.tar.gz
+        tar xfz boost_${BOOST_VERSION_}.tar.gz
+        mv boost_${BOOST_VERSION_} $DIR
+        pushd $DIR
+        cat <<EOF > user-config.jam
+            using python : $PYTHON_VERSION
+                    : python3
+                    : ${PY_INCLUDE_DIR}
+                    : ${PY_PREFIX}/lib
+                  ;
+EOF
+        ./bootstrap.sh --with-libraries=python --with-python=python3 --with-python-root=$PY_PREFIX \
+              --prefix=$CACHE_DIR/boost-py-$PYTHON_VERSION
+        ./b2 address-model=64 cxxflags="-fPIC -arch arm64 -arch x86_64 -mmacosx-version-min=${MACOSX_DEPLOYMENT_TARGET}" \
+                  link=static threading=multi \
+                  --user-config=./user-config.jam \
+                  variant=release python=${PYTHON_VERSION} \
+                  -j16 \
+                  install
+        touch .done
+        popd
+    else
+        echo "Using cached Boost for Py $PYTHON_VERSION"
+    fi
+    popd
+
+    pushd "${ROOT_DIR}/pulsar-client-cpp"
+    $PYENV local $PYTHON_VERSION_LONG
+    find . -name CMakeCache.txt | xargs -r rm
+    find . -name CMakeFiles | xargs -r rm -rf
     cmake . \
-            -DCMAKE_OSX_ARCHITECTURES=${ARCHS} \
-            -DCMAKE_OSX_DEPLOYMENT_TARGET=${MACOSX_DEPLOYMENT_TARGET} \
-            -DCMAKE_OSX_SYSROOT=/Library/Developer/CommandLineTools/SDKs/MacOSX${MACOSX_DEPLOYMENT_TARGET_MAJOR}.sdk \
-            -DCMAKE_INSTALL_PREFIX=$PREFIX \
-            -DCMAKE_INSTALL_LIBDIR=$PREFIX/lib \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_PREFIX_PATH=$PREFIX \
-            -DCMAKE_CXX_FLAGS=-I$PREFIX/include \
-            -DCMAKE_FIND_FRAMEWORK=$PREFIX \
-            -DBoost_INCLUDE_DIR=$CACHE_DIR/boost-py-$PYTHON_VERSION/include \
-            -DBoost_LIBRARY_DIRS=$CACHE_DIR/boost-py-$PYTHON_VERSION/lib \
-            -DPYTHON_INCLUDE_DIR=$PY_INCLUDE_DIR \
-            -DPYTHON_LIBRARY=$PY_PREFIX/lib/libpython${PYTHON_VERSION}.dylib \
-            -DLINK_STATIC=ON \
-            -DBUILD_TESTS=OFF \
-            -DBUILD_WIRESHARK=OFF \
-            -DPROTOC_PATH=$PREFIX/bin/protoc
+        -DCMAKE_OSX_ARCHITECTURES=${ARCHS} \
+        -DCMAKE_OSX_DEPLOYMENT_TARGET=${MACOSX_DEPLOYMENT_TARGET} \
+        -DCMAKE_OSX_SYSROOT=$SDKROOT \
+        -DCMAKE_INSTALL_PREFIX=$PREFIX \
+        -DCMAKE_INSTALL_LIBDIR=$PREFIX/lib \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_PREFIX_PATH=$PREFIX \
+        -DCMAKE_CXX_FLAGS=-I$PREFIX/include \
+        -DCMAKE_FIND_FRAMEWORK=$PREFIX \
+        -DBoost_INCLUDE_DIR=$CACHE_DIR/boost-py-$PYTHON_VERSION/include \
+        -DBoost_LIBRARY_DIRS=$CACHE_DIR/boost-py-$PYTHON_VERSION/lib \
+        -DPYTHON_INCLUDE_DIR=$PY_INCLUDE_DIR \
+        -DPYTHON_LIBRARY=$PY_PREFIX/lib/libpython${PYTHON_VERSION}.dylib \
+        -DLINK_STATIC=ON \
+        -DBUILD_TESTS=OFF \
+        -DBUILD_WIRESHARK=OFF \
+        -DPROTOC_PATH=$PREFIX/bin/protoc
 
     make clean
     make _pulsar -j16
 
-    cd python
-    $PY_EXE setup.py bdist_wheel
+    pushd python
+    $PYENV exec python setup.py bdist_wheel
+    popd
+    popd
 done

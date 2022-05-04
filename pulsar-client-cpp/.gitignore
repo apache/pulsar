@@ -87,3 +87,6 @@ CMakeSettings.json
 
 # vcpkg dependencies directory
 vcpkg_installed/
+
+# pyenv version files
+.python-version
