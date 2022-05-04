@@ -53,7 +53,7 @@ public interface Topics {
 
     enum QueryParam {
         Bundle("bundle"),
-        Include_System_Topic("include_system_topic");
+        Include_System_Topic("includeSystemTopic");
 
         public final String value;
 

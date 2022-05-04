@@ -132,11 +132,11 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Specify the namespace", required = true)
             @PathParam("namespace") String namespace,
             @ApiParam(value = "Include system topic")
-            @QueryParam("withSystemTopic") boolean withSystemTopic) {
+            @QueryParam("includeSystemTopic") boolean includeSystemTopic) {
         validateNamespaceName(tenant, namespace);
         return internalGetPartitionedTopicList()
                 .stream()
-                .filter(topic -> withSystemTopic ? true : !pulsar().getBrokerService().isSystemTopic(topic))
+                .filter(topic -> includeSystemTopic ? true : !pulsar().getBrokerService().isSystemTopic(topic))
                 .collect(Collectors.toList());
     }
 
