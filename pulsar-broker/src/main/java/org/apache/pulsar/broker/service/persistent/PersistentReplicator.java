@@ -91,11 +91,6 @@ public class PersistentReplicator extends AbstractReplicator
                     .newUpdater(PersistentReplicator.class, "havePendingRead");
     private volatile int havePendingRead = FALSE;
 
-    private volatile int cursorResetting  = FALSE;
-
-    private static final AtomicIntegerFieldUpdater<PersistentReplicator> CURSOR_RESETTING_UPDATER =
-            AtomicIntegerFieldUpdater.newUpdater(PersistentReplicator.class, "cursorResetting");
-
     private final Rate msgOut = new Rate();
     private final Rate msgExpired = new Rate();
 
@@ -225,12 +220,6 @@ public class PersistentReplicator extends AbstractReplicator
     }
 
     protected void readMoreEntries() {
-
-        if (CURSOR_RESETTING_UPDATER.get(this) == TRUE) {
-            log.warn("[{}][{} -> {}] Resetting cursor, stop read more entries.",
-                    topicName, localCluster, remoteCluster);
-            return;
-        }
 
         int availablePermits = getAvailablePermits();
 
@@ -786,7 +775,6 @@ public class PersistentReplicator extends AbstractReplicator
 
     @Override
     public CompletableFuture<Void> resetCursor(Position position) {
-        CURSOR_RESETTING_UPDATER.set(this, TRUE);
         CompletableFuture<Void> future = new CompletableFuture<>();
         cursor.asyncResetCursor(position, false, new AsyncCallbacks.ResetCursorCallback() {
 
@@ -801,7 +789,6 @@ public class PersistentReplicator extends AbstractReplicator
                     cursor.cancelPendingReadRequest();
                     PENDING_MESSAGES_UPDATER.set(PersistentReplicator.this, 0);
                     HAVE_PENDING_READ_UPDATER.set(PersistentReplicator.this, FALSE);
-                    CURSOR_RESETTING_UPDATER.set(PersistentReplicator.this, FALSE);
                     readMoreEntries();
                 });
             }
@@ -820,7 +807,6 @@ public class PersistentReplicator extends AbstractReplicator
                     future.completeExceptionally(new BrokerServiceException(exception));
                 }
                 brokerService.getPulsar().getExecutor().execute(() -> {
-                    CURSOR_RESETTING_UPDATER.set(PersistentReplicator.this, FALSE);
                     readMoreEntries();
                 });
             }

@@ -2279,7 +2279,7 @@ public class PersistentTopicsBase extends AdminResource {
         });
     }
 
-    protected CompletableFuture<Void> internalResetCursorOnPosition(String name, boolean authoritative,
+    protected CompletableFuture<Void> internalResetCursorOnPosition(String cursorName, boolean authoritative,
             MessageIdImpl messageId, boolean isExcluded, int batchIndex) {
         CompletableFuture<Void> ret;
         if (topicName.isGlobal()) {
@@ -2289,26 +2289,29 @@ public class PersistentTopicsBase extends AdminResource {
         }
         return ret.thenCompose(__ -> {
             log.info("[{}][{}] received reset cursor on {} to position {}", clientAppId(), topicName,
-                    name, messageId);
+                    cursorName, messageId);
             // If the topic name is a partition name, no need to get partition topic metadata again
             if (!topicName.isPartitioned()
                     && getPartitionedTopicMetadata(
                     topicName, authoritative, false).partitions > 0) {
-                log.warn("[{}] Not supported operation on partitioned-topic {} {}", clientAppId(), topicName, name);
+                log.warn("[{}] Not supported operation on partitioned-topic {} {}",
+                        clientAppId(), topicName, cursorName);
                 throw new RestException(Status.METHOD_NOT_ALLOWED,
                         "Reset-cursor at position is not allowed for partitioned-topic");
             }
             return validateTopicOwnershipAsync(topicName, authoritative)
-                    .thenCompose(ignore -> validateTopicOperationAsync(topicName, TopicOperation.RESET_CURSOR, name))
+                    .thenCompose(ignore -> validateTopicOperationAsync(topicName,
+                            TopicOperation.RESET_CURSOR, cursorName))
                     .thenCompose(ignore -> getTopicReferenceAsync(topicName))
                     .thenCompose(topic -> {
                         if (topic == null) {
                             throw new RestException(Status.NOT_FOUND, "Topic not found");
                         }
-                        boolean isResetReplicator = ((PersistentTopic) topic).isReplicatorName(name);
+                        boolean isResetReplicator = ((PersistentTopic) topic).isReplicatorName(cursorName);
                         if (isResetReplicator) {
                             Replicator persistentReplicator = ((PersistentTopic) topic)
-                                    .getPersistentReplicator(((PersistentTopic) topic).getReplicatorClusterName(name));
+                                    .getPersistentReplicator(((PersistentTopic) topic)
+                                            .getReplicatorClusterName(cursorName));
                             if (persistentReplicator == null) {
                                 throw new RestException(Status.NOT_FOUND, "replicator not found");
                             }
@@ -2320,7 +2323,7 @@ public class PersistentTopicsBase extends AdminResource {
                                 return persistentReplicator.resetCursor(seekPosition);
                             });
                         } else {
-                            PersistentSubscription sub = ((PersistentTopic) topic).getSubscription(name);
+                            PersistentSubscription sub = ((PersistentTopic) topic).getSubscription(cursorName);
                             if (sub == null) {
                                 throw new RestException(Status.NOT_FOUND, "Subscription not found");
                             }
