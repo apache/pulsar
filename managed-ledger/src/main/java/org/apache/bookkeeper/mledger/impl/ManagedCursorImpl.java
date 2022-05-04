@@ -2338,15 +2338,17 @@ public class ManagedCursorImpl implements ManagedCursor {
      */
     void persistPositionWhenClosing(PositionImpl position, Map<String, Long> properties,
             final AsyncCallbacks.CloseCallback callback, final Object ctx) {
+        log.info("Persistence before cursor close is in progress. position={} "
+                + "md-position={} individualDeletedMessagesSize={}", position, markDeletePosition,
+                individualDeletedMessages.size());
 
         if (shouldPersistUnackRangesToLedger()) {
             persistPositionToLedger(cursorLedger, new MarkDeleteEntry(position, properties, null, null),
                     new VoidCallback() {
                         @Override
                         public void operationComplete() {
-                            log.info("[{}][{}] Updated md-position={} into cursor-ledger {}, "
-                                            + "individualDeletedMessagesSize={}", ledger.getName(), name,
-                                    markDeletePosition, cursorLedger.getId(), individualDeletedMessages.size());
+                            log.info("[{}][{}] Updated md-position={} into cursor-ledger {}", ledger.getName(), name,
+                                    markDeletePosition, cursorLedger.getId());
                             asyncCloseCursorLedger(callback, ctx);
                         }
 
@@ -2361,8 +2363,7 @@ public class ManagedCursorImpl implements ManagedCursor {
             persistPositionMetaStore(-1, position, properties, new MetaStoreCallback<Void>() {
                 @Override
                 public void operationComplete(Void result, Stat stat) {
-                    log.info("[{}][{}] Closed cursor at md-position={} individualDeletedMessagesSize={}",
-                            ledger.getName(), name, markDeletePosition, individualDeletedMessages.size());
+                    log.info("[{}][{}] Closed cursor at md-position={}", ledger.getName(), name, markDeletePosition);
                     // At this point the position had already been safely stored in the cursor z-node
                     callback.closeComplete(ctx);
                     asyncDeleteLedger(cursorLedger);
