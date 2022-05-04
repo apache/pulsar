@@ -1316,7 +1316,7 @@ public class PulsarAdminToolTest {
         verify(mockTopics).revokePermissions("persistent://myprop/clust/ns1/ds1", "admin");
 
         cmdTopics.run(split("list myprop/clust/ns1"));
-        verify(mockTopics).getList("myprop/clust/ns1", null, null);
+        verify(mockTopics).getList("myprop/clust/ns1", null, Collections.singletonMap(Topics.QueryParam.Include_System_Topic, false));
 
         cmdTopics.run(split("lookup persistent://myprop/clust/ns1/ds1"));
         verify(mockLookup).lookupTopic("persistent://myprop/clust/ns1/ds1");
@@ -1425,7 +1425,7 @@ public class PulsarAdminToolTest {
         verify(mockTopics).createNonPartitionedTopic("persistent://myprop/clust/ns1/ds1", new HashMap<>());
 
         cmdTopics.run(split("list-partitioned-topics myprop/clust/ns1"));
-        verify(mockTopics).getPartitionedTopicList("myprop/clust/ns1");
+        verify(mockTopics).getPartitionedTopicList("myprop/clust/ns1", Collections.singletonMap(Topics.QueryParam.Include_System_Topic, false));
 
         cmdTopics.run(split("update-partitioned-topic persistent://myprop/clust/ns1/ds1 -p 6"));
         verify(mockTopics).updatePartitionedTopic("persistent://myprop/clust/ns1/ds1", 6, false, false);
