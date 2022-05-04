@@ -25,51 +25,51 @@ public class BitRateUnitTest {
     @Test
     public void testBps() {
         double bps = 1231434.12;
-        assertEquals(BitRateUnit.BPS.toBps(bps), bps);
-        assertEquals(BitRateUnit.BPS.toByte(bps), bps / 8);
-        assertEquals(BitRateUnit.BPS.toKbps(bps), bps / 1000);
-        assertEquals(BitRateUnit.BPS.toMbps(bps), bps / 1000 / 1000);
-        assertEquals(BitRateUnit.BPS.toGbps(bps), bps / 1000 / 1000 / 1000);
+        assertEquals(BitRateUnit.Bit.toBit(bps), bps);
+        assertEquals(BitRateUnit.Bit.toByte(bps), bps / 8);
+        assertEquals(BitRateUnit.Bit.toKilobit(bps), bps / 1000);
+        assertEquals(BitRateUnit.Bit.toMegabit(bps), bps / 1000 / 1000);
+        assertEquals(BitRateUnit.Bit.toGigabit(bps), bps / 1000 / 1000 / 1000);
     }
 
     @Test
     public void testKbps() {
         double kbps = 1231434.12;
-        assertEquals(BitRateUnit.KBPS.toBps(kbps), kbps * 1000);
-        assertEquals(BitRateUnit.KBPS.toByte(kbps), kbps * 1000 / 8);
-        assertEquals(BitRateUnit.KBPS.toKbps(kbps), kbps);
-        assertEquals(BitRateUnit.KBPS.toMbps(kbps), kbps / 1000);
-        assertEquals(BitRateUnit.KBPS.toGbps(kbps), kbps / 1000 / 1000);
+        assertEquals(BitRateUnit.Kilobit.toBit(kbps), kbps * 1000);
+        assertEquals(BitRateUnit.Kilobit.toByte(kbps), kbps * 1000 / 8);
+        assertEquals(BitRateUnit.Kilobit.toKilobit(kbps), kbps);
+        assertEquals(BitRateUnit.Kilobit.toMegabit(kbps), kbps / 1000);
+        assertEquals(BitRateUnit.Kilobit.toGigabit(kbps), kbps / 1000 / 1000);
     }
 
     @Test
     public void testMbps() {
         double mbps = 1231434.12;
-        assertEquals(BitRateUnit.MBPS.toBps(mbps), mbps * 1000 * 1000);
-        assertEquals(BitRateUnit.MBPS.toByte(mbps), mbps * 1000 * 1000 / 8);
-        assertEquals(BitRateUnit.MBPS.toKbps(mbps), mbps * 1000);
-        assertEquals(BitRateUnit.MBPS.toMbps(mbps), mbps);
-        assertEquals(BitRateUnit.MBPS.toGbps(mbps), mbps / 1000);
+        assertEquals(BitRateUnit.Megabit.toBit(mbps), mbps * 1000 * 1000);
+        assertEquals(BitRateUnit.Megabit.toByte(mbps), mbps * 1000 * 1000 / 8);
+        assertEquals(BitRateUnit.Megabit.toKilobit(mbps), mbps * 1000);
+        assertEquals(BitRateUnit.Megabit.toMegabit(mbps), mbps);
+        assertEquals(BitRateUnit.Megabit.toGigabit(mbps), mbps / 1000);
     }
 
     @Test
     public void testGbps() {
         double gbps = 1231434.12;
-        assertEquals(BitRateUnit.GBPS.toBps(gbps),gbps * 1000 * 1000 * 1000 );
-        assertEquals(BitRateUnit.GBPS.toByte(gbps), gbps * 1000 * 1000 * 1000 / 8);
-        assertEquals(BitRateUnit.GBPS.toKbps(gbps), gbps * 1000 * 1000);
-        assertEquals(BitRateUnit.GBPS.toMbps(gbps), gbps * 1000);
-        assertEquals(BitRateUnit.GBPS.toGbps(gbps), gbps);
+        assertEquals(BitRateUnit.Gigabit.toBit(gbps),gbps * 1000 * 1000 * 1000 );
+        assertEquals(BitRateUnit.Gigabit.toByte(gbps), gbps * 1000 * 1000 * 1000 / 8);
+        assertEquals(BitRateUnit.Gigabit.toKilobit(gbps), gbps * 1000 * 1000);
+        assertEquals(BitRateUnit.Gigabit.toMegabit(gbps), gbps * 1000);
+        assertEquals(BitRateUnit.Gigabit.toGigabit(gbps), gbps);
     }
 
     @Test
     public void testByte() {
         double bytes = 1231434.12;
-        assertEquals(BitRateUnit.BYTE.toBps(bytes), bytes * 8);
-        assertEquals(BitRateUnit.BYTE.toByte(bytes), bytes);
-        assertEquals(BitRateUnit.BYTE.toKbps(bytes), bytes / 1000 * 8);
-        assertEquals(BitRateUnit.BYTE.toMbps(bytes), bytes / 1000 / 1000 * 8);
-        assertEquals(BitRateUnit.BYTE.toGbps(bytes), bytes / 1000 / 1000 / 1000 * 8);
+        assertEquals(BitRateUnit.Byte.toBit(bytes), bytes * 8);
+        assertEquals(BitRateUnit.Byte.toByte(bytes), bytes);
+        assertEquals(BitRateUnit.Byte.toKilobit(bytes), bytes / 1000 * 8);
+        assertEquals(BitRateUnit.Byte.toMegabit(bytes), bytes / 1000 / 1000 * 8);
+        assertEquals(BitRateUnit.Byte.toGigabit(bytes), bytes / 1000 / 1000 / 1000 * 8);
     }
 
 }

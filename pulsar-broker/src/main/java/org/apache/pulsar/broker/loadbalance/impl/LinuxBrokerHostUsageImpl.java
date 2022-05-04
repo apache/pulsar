@@ -89,8 +89,8 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
     public void calculateBrokerHostUsage() {
         List<String> nics = getPhysicalNICs();
         double totalNicLimit = getTotalNicLimitWithConfiguration(nics);
-        double totalNicUsageTx = getTotalNicUsage(nics, NICUsageType.TX, BitRateUnit.KBPS);
-        double totalNicUsageRx = getTotalNicUsage(nics, NICUsageType.RX, BitRateUnit.KBPS);
+        double totalNicUsageTx = getTotalNicUsage(nics, NICUsageType.TX, BitRateUnit.Kilobit);
+        double totalNicUsageRx = getTotalNicUsage(nics, NICUsageType.RX, BitRateUnit.Kilobit);
         double totalCpuLimit = getTotalCpuLimit(isCGroupsEnabled);
         long now = System.currentTimeMillis();
         double elapsedSeconds = (now - lastCollection) / 1000d;
@@ -124,8 +124,8 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
     private double getTotalNicLimitWithConfiguration(List<String> nics) {
         // Use the override value as configured. Return the total max speed across all available NICs, converted
         // from Gbps into Kbps
-        return overrideBrokerNicSpeedGbps.map(BitRateUnit.GBPS::toKbps)
-                .orElseGet(() -> getTotalNicLimit(nics, BitRateUnit.KBPS));
+        return overrideBrokerNicSpeedGbps.map(BitRateUnit.Gigabit::toKilobit)
+                .orElseGet(() -> getTotalNicLimit(nics, BitRateUnit.Kilobit));
     }
 
     private double getTotalCpuUsage(double elapsedTimeSeconds) {

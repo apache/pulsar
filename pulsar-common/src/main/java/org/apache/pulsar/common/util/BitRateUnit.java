@@ -2,43 +2,43 @@ package org.apache.pulsar.common.util;
 
 public enum BitRateUnit {
 
-    BPS {
-        public double toBps(double bitRate) { return bitRate; }
-        public double toKbps(double bitRate) { return bitRate / C0; }
-        public double toMbps(double bitRate) { return bitRate / Math.pow(C0, 2); }
-        public double toGbps(double bitRate) { return bitRate / Math.pow(C0, 3); }
+    Bit {
+        public double toBit(double bitRate) { return bitRate; }
+        public double toKilobit(double bitRate) { return bitRate / C0; }
+        public double toMegabit(double bitRate) { return bitRate / Math.pow(C0, 2); }
+        public double toGigabit(double bitRate) { return bitRate / Math.pow(C0, 3); }
         public double toByte(double bitRate) { return bitRate / C1; }
-        public double convert(double bitRate, BitRateUnit bitRateUnit) { return bitRateUnit.toBps(bitRate); }
+        public double convert(double bitRate, BitRateUnit bitRateUnit) { return bitRateUnit.toBit(bitRate); }
     },
-    KBPS {
-        public double toBps(double bitRate) { return bitRate * C0; }
-        public double toKbps(double bitRate) { return bitRate; }
-        public double toMbps(double bitRate) { return bitRate / C0; }
-        public double toGbps(double bitRate) { return bitRate / Math.pow(C0, 2); }
+    Kilobit {
+        public double toBit(double bitRate) { return bitRate * C0; }
+        public double toKilobit(double bitRate) { return bitRate; }
+        public double toMegabit(double bitRate) { return bitRate / C0; }
+        public double toGigabit(double bitRate) { return bitRate / Math.pow(C0, 2); }
         public double toByte(double bitRate) { return bitRate * C0 / C1; }
-        public double convert(double bitRate, BitRateUnit bitRateUnit) { return bitRateUnit.toKbps(bitRate); }
+        public double convert(double bitRate, BitRateUnit bitRateUnit) { return bitRateUnit.toKilobit(bitRate); }
     },
-    MBPS {
-        public double toBps(double bitRate) { return bitRate * Math.pow(C0, 2); }
-        public double toKbps(double bitRate) { return bitRate * C0; }
-        public double toMbps(double bitRate) { return bitRate; }
-        public double toGbps(double bitRate) { return bitRate / C0; }
+    Megabit {
+        public double toBit(double bitRate) { return bitRate * Math.pow(C0, 2); }
+        public double toKilobit(double bitRate) { return bitRate * C0; }
+        public double toMegabit(double bitRate) { return bitRate; }
+        public double toGigabit(double bitRate) { return bitRate / C0; }
         public double toByte(double bitRate) { return bitRate * Math.pow(C0, 2) / C1; }
-        public double convert(double bitRate, BitRateUnit bitRateUnit) { return bitRateUnit.toMbps(bitRate); }
+        public double convert(double bitRate, BitRateUnit bitRateUnit) { return bitRateUnit.toMegabit(bitRate); }
     },
-    GBPS {
-        public double toBps(double bitRate) { return bitRate * Math.pow(C0, 3); }
-        public double toKbps(double bitRate) { return bitRate * Math.pow(C0, 2); }
-        public double toMbps(double bitRate) { return bitRate * C0; }
-        public double toGbps(double bitRate) { return bitRate; }
+    Gigabit {
+        public double toBit(double bitRate) { return bitRate * Math.pow(C0, 3); }
+        public double toKilobit(double bitRate) { return bitRate * Math.pow(C0, 2); }
+        public double toMegabit(double bitRate) { return bitRate * C0; }
+        public double toGigabit(double bitRate) { return bitRate; }
         public double toByte(double bitRate) { return bitRate * Math.pow(C0, 3) / C1; }
-        public double convert(double bitRate, BitRateUnit bitRateUnit) { return bitRateUnit.toGbps(bitRate); }
+        public double convert(double bitRate, BitRateUnit bitRateUnit) { return bitRateUnit.toGigabit(bitRate); }
     },
-    BYTE {
-        public double toBps(double bitRate) { return bitRate * C1; }
-        public double toKbps(double bitRate) { return bitRate * C1 / C0; }
-        public double toMbps(double bitRate) { return bitRate * C1 / Math.pow(C0, 2); }
-        public double toGbps(double bitRate) { return bitRate * C1 / Math.pow(C0, 3); }
+    Byte {
+        public double toBit(double bitRate) { return bitRate * C1; }
+        public double toKilobit(double bitRate) { return bitRate * C1 / C0; }
+        public double toMegabit(double bitRate) { return bitRate * C1 / Math.pow(C0, 2); }
+        public double toGigabit(double bitRate) { return bitRate * C1 / Math.pow(C0, 3); }
         public double toByte(double bitRate) { return bitRate; }
         public double convert(double bitRate, BitRateUnit bitRateUnit) { return bitRateUnit.toByte(bitRate); }
     };
@@ -46,19 +46,19 @@ public enum BitRateUnit {
     static final int C0 = 1000;
     static final int C1 = 8;
 
-    public double toBps(double bitRate) {
+    public double toBit(double bitRate) {
         throw new AbstractMethodError();
     }
 
-    public double toKbps(double bitRate) {
+    public double toKilobit(double bitRate) {
         throw new AbstractMethodError();
     }
 
-    public double toMbps(double bitRate) {
+    public double toMegabit(double bitRate) {
         throw new AbstractMethodError();
     }
 
-    public double toGbps(double bitRate) {
+    public double toGigabit(double bitRate) {
         throw new AbstractMethodError();
     }
 

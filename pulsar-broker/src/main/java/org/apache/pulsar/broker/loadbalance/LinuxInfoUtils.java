@@ -177,7 +177,7 @@ public class LinuxInfoUtils {
                 log.error("[LinuxInfo] Failed to get total nic limit.", e);
                 return 0d;
             }
-        }).sum(), BitRateUnit.BPS);
+        }).sum(), BitRateUnit.Bit);
     }
 
     /**
@@ -195,7 +195,7 @@ public class LinuxInfoUtils {
                 log.error("[LinuxInfo] Failed to read {} bytes for NIC {} ", type, nic, e);
                 return 0d;
             }
-        }).sum(), BitRateUnit.BYTE);
+        }).sum(), BitRateUnit.Byte);
     }
 
     /**
@@ -222,7 +222,7 @@ public class LinuxInfoUtils {
         if (CollectionUtils.isEmpty(physicalNICs)) {
             return false;
         }
-        double totalNicLimit = getTotalNicLimit(physicalNICs, BitRateUnit.KBPS);
+        double totalNicLimit = getTotalNicLimit(physicalNICs, BitRateUnit.Kilobit);
         return totalNicLimit > 0;
     }
 
