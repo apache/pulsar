@@ -733,8 +733,10 @@ public class NamespaceService implements AutoCloseable {
     }
 
     public CompletableFuture<Map<String, NamespaceOwnershipStatus>> getOwnedNameSpacesStatusAsync() {
-       return getLocalNamespaceIsolationPoliciesAsync()
-                .thenCompose(namespaceIsolationPolicies -> {
+       return pulsar.getPulsarResources().getNamespaceResources().getIsolationPolicies()
+               .getIsolationDataPoliciesAsync(pulsar.getConfiguration().getClusterName())
+               .thenApply(nsIsolationPoliciesOpt -> nsIsolationPoliciesOpt.orElseGet(NamespaceIsolationPolicies::new))
+               .thenCompose(namespaceIsolationPolicies -> {
                     Collection<CompletableFuture<OwnedBundle>> futures =
                             ownershipCache.getOwnedBundlesAsync().values();
                     return FutureUtil.waitForAll(futures)
