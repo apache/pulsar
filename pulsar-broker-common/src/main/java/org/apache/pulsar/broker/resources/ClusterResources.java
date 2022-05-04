@@ -83,11 +83,6 @@ public class ClusterResources extends BaseResources<ClusterData> {
         set(joinPath(BASE_CLUSTERS_PATH, clusterName), modifyFunction);
     }
 
-    public CompletableFuture<Void> updateClusterAsync(String clusterName,
-                                                      Function<ClusterData, ClusterData> modifyFunction) {
-        return setAsync(joinPath(BASE_CLUSTERS_PATH, clusterName), modifyFunction);
-    }
-
     public void deleteCluster(String clusterName) throws MetadataStoreException {
         delete(joinPath(BASE_CLUSTERS_PATH, clusterName));
     }

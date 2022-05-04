@@ -372,10 +372,7 @@ public class ClustersBase extends AdminResource {
                     // check the namespaceIsolationPolicies associated with the cluster
                     return namespaceIsolationPolicies().getIsolationDataPoliciesAsync(cluster);
                 }).thenCompose(nsIsolationPolicies -> {
-                    if (!nsIsolationPolicies.isPresent()) {
-                        return CompletableFuture.completedFuture(null);
-                    }
-                    if (!nsIsolationPolicies.get().getPolicies().isEmpty()) {
+                    if (!nsIsolationPolicies.getPolicies().isEmpty()) {
                         throw new RestException(Status.PRECONDITION_FAILED, "Cluster not empty");
                     }
                     // Need to delete the isolation policies if present
