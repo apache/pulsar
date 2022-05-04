@@ -251,6 +251,9 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
         for (EntryFilter entryFilter : entryFilters) {
             EntryFilter.FilterResult filterResult =
                     entryFilter.filterEntry(entry, filterContext);
+            if (filterResult == null) {
+                filterResult = EntryFilter.FilterResult.ACCEPT;
+            }
             if (filterResult != EntryFilter.FilterResult.ACCEPT) {
                 return filterResult;
             }
