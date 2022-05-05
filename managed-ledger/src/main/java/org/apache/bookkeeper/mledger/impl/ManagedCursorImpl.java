@@ -2550,7 +2550,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                     log.warn("[{}] Failed to persist position {} for cursor {}", ledger.getName(),
                             mdEntry.newPosition, name);
 
-                    deleteLedger(newLedgerHandle);
+                    deleteLedgerAsync(newLedgerHandle);
                     callback.operationFailed(exception);
                 }
             });
@@ -2567,7 +2567,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         ledger.asyncCreateLedger(bookkeeper, config, digestType, (rc, lh, ctx) -> {
 
             if (ledger.checkAndCompleteLedgerOpTask(rc, lh, ctx)) {
-                future.complete(null);
+                future.complete(lh);
                 return;
             }
 
@@ -2590,15 +2590,18 @@ public class ManagedCursorImpl implements ManagedCursor {
         return future;
     }
 
-    private void deleteLedger(LedgerHandle ledgerHandle) {
+    private CompletableFuture<Void> deleteLedgerAsync(LedgerHandle ledgerHandle) {
         ledger.mbean.startCursorLedgerDeleteOp();
+        CompletableFuture<Void> future = new CompletableFuture<>();
         bookkeeper.asyncDeleteLedger(ledgerHandle.getId(), (int rc, Object ctx) -> {
+            future.complete(null);
             ledger.mbean.endCursorLedgerDeleteOp();
             if (rc != BKException.Code.OK) {
                 log.warn("[{}] Failed to delete orphan ledger {}", ledger.getName(),
                         ledgerHandle.getId());
             }
         }, null);
+        return future;
     }
 
 
@@ -2789,8 +2792,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                 log.warn("[{}] Failed to update consumer {}", ledger.getName(), name, e);
                 // it means it failed to switch the newly created ledger so, it should be
                 // deleted to prevent leak
-                deleteLedger(lh);
-                callback.operationFailed(e);
+                deleteLedgerAsync(lh).thenRun(() -> callback.operationFailed(e));
             }
         }, false);
     }
