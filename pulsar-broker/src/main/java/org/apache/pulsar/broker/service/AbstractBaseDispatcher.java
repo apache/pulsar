@@ -25,6 +25,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -236,8 +237,13 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
             }
         }
         if (CollectionUtils.isNotEmpty(entriesToRedeliver)) {
-            // simulate the Consumer rejected the message
-            subscription.redeliverUnacknowledgedMessages(consumer, entriesToRedeliver);
+            this.subscription.getTopic().getBrokerService().getPulsar().getExecutor()
+                    .schedule(() -> {
+                        // simulate the Consumer rejected the message
+                        subscription
+                                .redeliverUnacknowledgedMessages(consumer, entriesToRedeliver);
+                    }, 1, TimeUnit.SECONDS);
+
         }
 
         sendMessageInfo.setTotalMessages(totalMessages);
