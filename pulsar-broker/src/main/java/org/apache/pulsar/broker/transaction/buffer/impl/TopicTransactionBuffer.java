@@ -289,8 +289,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         lowWaterMarks.compute(txnID.getMostSigBits(), (tcId, oldLowWaterMark) -> {
             if (oldLowWaterMark == null || oldLowWaterMark < lowWaterMark) {
                 return lowWaterMark;
-            }
-            else {
+            } else {
                 return oldLowWaterMark;
             }
         });
@@ -337,8 +336,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         lowWaterMarks.compute(txnID.getMostSigBits(), (tcId, oldLowWaterMark) -> {
             if (oldLowWaterMark == null || oldLowWaterMark < lowWaterMark) {
                 return lowWaterMark;
-            }
-            else {
+            } else {
                 return oldLowWaterMark;
             }
         });
