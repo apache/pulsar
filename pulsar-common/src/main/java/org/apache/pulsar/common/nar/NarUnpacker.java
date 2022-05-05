@@ -40,10 +40,10 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
 import java.util.Enumeration;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
-import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -73,13 +73,12 @@ public class NarUnpacker {
             throws IOException {
         File parentDirectory = new File(baseWorkingDirectory, nar.getName() + "-unpacked");
         if (!parentDirectory.exists()) {
-            if (parentDirectory.mkdirs()) {
+            if (createDirWithSpecialPermission(parentDirectory, "rwxr-x---", true)) {
                 log.info("Created directory {}", parentDirectory);
             } else if (!parentDirectory.exists()) {
                 throw new IOException("Cannot create " + parentDirectory);
             }
         }
-        setPosixFilePermissions(parentDirectory,"rwxr-x---");
         String md5Sum = Base64.getUrlEncoder().withoutPadding().encodeToString(calculateMd5sum(nar));
         // ensure that one process can extract the files
         File lockFile = new File(parentDirectory, "." + md5Sum + ".lock");
@@ -91,8 +90,7 @@ public class NarUnpacker {
             try (FileChannel channel = new RandomAccessFile(lockFile, "rw").getChannel();
                  FileLock lock = channel.lock()) {
                 File narWorkingDirectory = new File(parentDirectory, md5Sum);
-                if (narWorkingDirectory.mkdir()) {
-                    setPosixFilePermissions(narWorkingDirectory,"rwxr-x---");
+                if (createDirWithSpecialPermission(narWorkingDirectory,  "rwxr-x---", false)) {
                     try {
                         log.info("Extracting {} to {}", nar, narWorkingDirectory);
                         if (extractCallback != null) {
@@ -146,7 +144,7 @@ public class NarUnpacker {
      *             if the file could not be created.
      */
     private static void makeFile(final InputStream inputStream, final File file) throws IOException {
-        setPosixFilePermissions(file,"rw-r-----");
+        createFileWithSpecialPermission(file, "rw-r-----");
         try (final InputStream in = inputStream; final FileOutputStream fos = new FileOutputStream(file)) {
             byte[] bytes = new byte[65536];
             int numRead;
@@ -183,13 +181,50 @@ public class NarUnpacker {
         }
     }
 
-    private static void setPosixFilePermissions(File file, String perm){
+    private static boolean setPosixFilePermissions(File file, String perm) throws IOException {
         Set<PosixFilePermission> perms = PosixFilePermissions.fromString(perm);
-        try{
+        try {
             Files.setPosixFilePermissions(file.toPath(), perms);
             log.info("Set permissions on " + file.getAbsolutePath() + " with permission " + perm);
-        }catch (IOException e) {
+            return true;
+        } catch (IOException e) {
             log.warn("Failed to set file permissions on " + file.getAbsolutePath());
+            return false;
+        }
+    }
+
+    private static boolean createDirWithSpecialPermission(File file, String permission, boolean createParent)
+            throws IOException {
+        if (file.exists()) {
+            log.warn("Directory " + file.toString() + " exist.");
+            return false;
+        }
+        try {
+            if (createParent) {
+                File parent = file.getParentFile();
+                if (parent == null) {
+                    log.warn("Parent File is null");
+                    return false;
+                }
+                parent.mkdirs();
+            }
+            file.mkdir();
+            return setPosixFilePermissions(file, permission);
+        } catch (Exception e) {
+            throw new IOException(e.getMessage());
+        }
+    }
+
+    private static boolean createFileWithSpecialPermission(File file, String permission) throws IOException {
+        if (file.exists()){
+            log.warn("File " + file.toString() + " exist.");
+            return false;
+        }
+        try {
+            file.createNewFile();
+            return setPosixFilePermissions(file, permission);
+        } catch (Exception e) {
+            throw new IOException(e.getMessage());
         }
     }
 }
