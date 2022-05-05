@@ -1650,6 +1650,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "Number of BookKeeper client worker threads. Default is Runtime.getRuntime().availableProcessors()"
     )
     private int bookkeeperClientNumWorkerThreads = Runtime.getRuntime().availableProcessors();
+    @FieldContext(
+            category = CATEGORY_STORAGE_BK,
+            doc = "Timeout controlling wait on request send in case of unresponsive bookie(s). "
+                    + "Timeout value: negative value disables the feature, 0 to allow request to fail immediately. "
+                    + "Default is -1 (disabled)"
+    )
+    private long waitTimeoutOnBackpressureMillis = -1;
 
 
     /**** --- Managed Ledger. --- ****/
