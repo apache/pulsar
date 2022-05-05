@@ -124,7 +124,7 @@ public class PulsarJsonRowDecoderFactory implements PulsarRowDecoderFactory {
                 return createUnboundedVarcharType();
             case NULL:
                 throw new UnsupportedOperationException(format(
-                        "field '%s' NULL type code should not be reached ，"
+                        "field '%s' NULL type code should not be reached , "
                                 + "please check the schema or report the bug.", fieldname));
             case FIXED:
             case BYTES:
