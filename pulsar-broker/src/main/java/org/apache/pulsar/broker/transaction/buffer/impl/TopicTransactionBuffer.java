@@ -245,7 +245,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
     public CompletableFuture<Position> appendBufferToTxn(TxnID txnId, long sequenceId, ByteBuf buffer) {
         CompletableFuture<Position> completableFuture = new CompletableFuture<>();
         Long lowWaterMark = lowWaterMarks.get(txnId.getMostSigBits());
-        if (lowWaterMark!= null && lowWaterMark >= txnId.getLeastSigBits()) {
+        if (lowWaterMark != null && lowWaterMark >= txnId.getLeastSigBits()) {
             completableFuture.completeExceptionally(new TransactionBufferException
                     .TransactionNotFoundException("Transaction [" + txnId + "] has been ended. "
                     + "Please use a new transaction to send message."));
