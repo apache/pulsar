@@ -235,18 +235,18 @@ public class TopicsImpl extends BaseResource implements Topics {
 
     @Override
     public List<String> getPartitionedTopicList(String namespace) throws PulsarAdminException {
-        return getPartitionedTopicList(namespace, null);
-    }
-
-    @Override
-    public CompletableFuture<List<String>> getPartitionedTopicListAsync(String namespace) {
-        return getPartitionedTopicListAsync(namespace, ListTopicsOptions.EMPTY);
+        return getPartitionedTopicList(namespace, ListTopicsOptions.EMPTY);
     }
 
     @Override
     public List<String> getPartitionedTopicList(String namespace, ListTopicsOptions options)
             throws PulsarAdminException {
         return sync(() -> getPartitionedTopicListAsync(namespace, options));
+    }
+
+    @Override
+    public CompletableFuture<List<String>> getPartitionedTopicListAsync(String namespace) {
+        return getPartitionedTopicListAsync(namespace, ListTopicsOptions.EMPTY);
     }
 
     @Override
