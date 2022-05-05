@@ -109,11 +109,11 @@ public interface ManagedCursor {
      *            callback object
      * @param ctx
      *            opaque context
-     * @param maxPosition
-     *            max position can read
+     * @param maxReadPositionEnabled
+     *            max read position enabled
      */
     void asyncReadEntries(int numberOfEntriesToRead, ReadEntriesCallback callback, Object ctx,
-                          PositionImpl maxPosition);
+                          boolean maxReadPositionEnabled);
 
 
     /**
@@ -123,10 +123,11 @@ public interface ManagedCursor {
      * @param maxSizeBytes          max size in bytes of the entries to return
      * @param callback              callback object
      * @param ctx                   opaque context
-     * @param maxPosition           max position can read
+     * @param maxReadPositionEnabled
+     *            max read position enabled
      */
     void asyncReadEntries(int numberOfEntriesToRead, long maxSizeBytes, ReadEntriesCallback callback,
-                          Object ctx, PositionImpl maxPosition);
+                          Object ctx, boolean maxReadPositionEnabled);
 
     /**
      * Get 'N'th entry from the mark delete position in the cursor without updating any cursor positions.
@@ -198,11 +199,11 @@ public interface ManagedCursor {
      *            callback object
      * @param ctx
      *            opaque context
-     * @param maxPosition
-     *            max position can read
+     * @param maxReadPositionEnabled
+     *            max read position enabled
      */
     void asyncReadEntriesOrWait(int numberOfEntriesToRead, ReadEntriesCallback callback, Object ctx,
-                                PositionImpl maxPosition);
+                                boolean maxReadPositionEnabled);
 
     /**
      * Asynchronously read entries from the ManagedLedger, up to the specified number and size.
@@ -219,16 +220,16 @@ public interface ManagedCursor {
      *            callback object
      * @param ctx
      *            opaque context
-     * @param maxPosition
-     *            max position can read
+     * @param maxReadPositionEnabled
+     *            max read position enabled
      */
     void asyncReadEntriesOrWait(int maxEntries, long maxSizeBytes, ReadEntriesCallback callback, Object ctx,
-                                PositionImpl maxPosition);
+                                boolean maxReadPositionEnabled);
 
     /**
      * Cancel a previously scheduled asyncReadEntriesOrWait operation.
      *
-     * @see #asyncReadEntriesOrWait(int, ReadEntriesCallback, Object, PositionImpl)
+     * @see #asyncReadEntriesOrWait(int, ReadEntriesCallback, Object, boolean)
      * @return true if the read operation was canceled or false if there was no pending operation
      */
     boolean cancelPendingReadRequest();

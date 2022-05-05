@@ -105,7 +105,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                 .getConfiguration().getTransactionBufferSnapshotMaxTransactionCount();
         this.takeSnapshotIntervalTime = topic.getBrokerService().getPulsar()
                 .getConfiguration().getTransactionBufferSnapshotMinTimeInMillis();
-        this.maxReadPosition = (PositionImpl) topic.getManagedLedger().getLastConfirmedEntry();
+        this.maxReadPosition = PositionImpl.EARLIEST;
         this.recover();
     }
 
@@ -121,9 +121,12 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                             if (ongoingTxns.isEmpty()) {
                                 maxReadPosition = (PositionImpl) topic.getManagedLedger().getLastConfirmedEntry();
                             }
+
                             if (!changeToReadyState()) {
                                 log.error("[{}]Transaction buffer recover fail", topic.getName());
                             } else {
+                                // when topicTransaction buffer recover success, update maxReadPosition in ml
+                                topic.getManagedLedger().updateMaxReadPosition(maxReadPosition);
                                 timer.newTimeout(TopicTransactionBuffer.this,
                                         takeSnapshotIntervalTime, TimeUnit.MILLISECONDS);
                                 transactionBufferFuture.complete(null);
@@ -453,6 +456,9 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         } else {
             maxReadPosition = (PositionImpl) topic.getManagedLedger().getLastConfirmedEntry();
         }
+
+        // When maxReadPosition changes, need to synchronize to ml
+        this.topic.getManagedLedger().updateMaxReadPosition(maxReadPosition);
         if (preMaxReadPosition.compareTo(this.maxReadPosition) != 0) {
             this.changeMaxReadPositionAndAddAbortTimes.getAndIncrement();
         }
@@ -490,9 +496,14 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         synchronized (TopicTransactionBuffer.this) {
             if (checkIfNoSnapshot()) {
                 maxReadPosition = position;
+                // When maxReadPosition changes, need to synchronize to ml
+                this.topic.getManagedLedger().updateMaxReadPosition(maxReadPosition);
+                changeMaxReadPositionAndAddAbortTimes.incrementAndGet();
             } else if (checkIfReady()) {
                 if (ongoingTxns.isEmpty()) {
                     maxReadPosition = position;
+                    // When maxReadPosition changes, need to synchronize to ml
+                    this.topic.getManagedLedger().updateMaxReadPosition(maxReadPosition);
                     changeMaxReadPositionAndAddAbortTimes.incrementAndGet();
                 }
             }
@@ -708,7 +719,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
             if (entryQueue.size() < entryQueue.capacity() && outstandingReadsRequests.get() == 0) {
                 if (cursor.hasMoreEntries()) {
                     outstandingReadsRequests.incrementAndGet();
-                    cursor.asyncReadEntries(100, this, System.nanoTime(), PositionImpl.LATEST);
+                    cursor.asyncReadEntries(100, this, System.nanoTime(), false);
                 } else {
                     if (entryQueue.size() == 0) {
                         isReadable = false;

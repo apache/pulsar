@@ -60,6 +60,7 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
      */
     protected ImmutableList<EntryFilterWithClassLoader> entryFilters;
     protected final FilterContext filterContext;
+    protected final boolean maxReadPositionEnabled;
 
     protected AbstractBaseDispatcher(Subscription subscription, ServiceConfiguration serviceConfig) {
         this.subscription = subscription;
@@ -73,6 +74,7 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
             this.entryFilters = ImmutableList.of();
             this.filterContext = FilterContext.FILTER_CONTEXT_DISABLED;
         }
+        this.maxReadPositionEnabled = serviceConfig.isTransactionCoordinatorEnabled();
     }
 
     /**
