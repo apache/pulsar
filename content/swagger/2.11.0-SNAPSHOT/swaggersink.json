@@ -801,6 +801,9 @@
     "AuthenticationDataSource" : {
       "type" : "object",
       "properties" : {
+        "peerAddress" : {
+          "$ref" : "#/definitions/SocketAddress"
+        },
         "subscription" : {
           "type" : "string"
         },
@@ -810,14 +813,11 @@
             "$ref" : "#/definitions/Certificate"
           }
         },
-        "httpAuthType" : {
-          "type" : "string"
-        },
         "commandData" : {
           "type" : "string"
         },
-        "peerAddress" : {
-          "$ref" : "#/definitions/SocketAddress"
+        "httpAuthType" : {
+          "type" : "string"
         }
       }
     },
@@ -1131,11 +1131,11 @@
         "rootName" : {
           "type" : "string"
         },
-        "subtypeResolver" : {
-          "$ref" : "#/definitions/SubtypeResolver"
-        },
         "fullRootName" : {
           "$ref" : "#/definitions/PropertyName"
+        },
+        "subtypeResolver" : {
+          "$ref" : "#/definitions/SubtypeResolver"
         },
         "defaultVisibilityChecker" : {
           "$ref" : "#/definitions/VisibilityCheckerObject"
@@ -1279,6 +1279,9 @@
         "abstract" : {
           "type" : "boolean"
         },
+        "contentType" : {
+          "$ref" : "#/definitions/JavaType"
+        },
         "bindings" : {
           "$ref" : "#/definitions/TypeBindings"
         },
@@ -1329,9 +1332,6 @@
         },
         "mapLikeType" : {
           "type" : "boolean"
-        },
-        "contentType" : {
-          "$ref" : "#/definitions/JavaType"
         },
         "typeName" : {
           "type" : "string"
@@ -1475,12 +1475,12 @@
           "type" : "integer",
           "format" : "int32"
         },
+        "closed" : {
+          "type" : "boolean"
+        },
         "intValue" : {
           "type" : "integer",
           "format" : "int32"
-        },
-        "closed" : {
-          "type" : "boolean"
         },
         "typeId" : {
           "type" : "object"
@@ -1976,11 +1976,11 @@
         "rootName" : {
           "type" : "string"
         },
-        "subtypeResolver" : {
-          "$ref" : "#/definitions/SubtypeResolver"
-        },
         "fullRootName" : {
           "$ref" : "#/definitions/PropertyName"
+        },
+        "subtypeResolver" : {
+          "$ref" : "#/definitions/SubtypeResolver"
         },
         "defaultVisibilityChecker" : {
           "$ref" : "#/definitions/VisibilityCheckerObject"
