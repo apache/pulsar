@@ -28,7 +28,9 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 /**
  * This class is aimed at simplifying work with {@code CompletableFuture}.
@@ -53,6 +55,36 @@ public class FutureUtil {
      */
     public static CompletableFuture<Object> waitForAny(Collection<? extends CompletableFuture<?>> futures) {
         return CompletableFuture.anyOf(futures.toArray(new CompletableFuture[0]));
+    }
+
+    public static CompletableFuture<Object> waitForAny(Collection<? extends CompletableFuture<?>> futures,
+                                                       Predicate<Object> tester) {
+        return waitForAny(futures).thenCompose(v -> {
+            if (tester.test(v)) {
+                return CompletableFuture.completedFuture(v);
+            }
+            Collection<CompletableFuture<?>> doneFutures = futures.stream()
+                    .filter(f -> f.isDone())
+                    .collect(Collectors.toList());
+            futures.removeAll(doneFutures);
+            Optional<?> value = doneFutures.stream()
+                    .filter(f -> !f.isCompletedExceptionally())
+                    .map(CompletableFuture::join)
+                    .filter(tester)
+                    .findFirst();
+            if (!value.isPresent()) {
+                if (futures.size() == 0) {
+                    return failedFuture(new IllegalStateException("No matched predicate result"));
+                }
+                return waitForAny(futures, tester);
+            }
+            futures.forEach(f -> {
+                if (!f.isDone()) {
+                    f.cancel(true);
+                }
+            });
+            return CompletableFuture.completedFuture(value.get());
+        });
     }
 
 

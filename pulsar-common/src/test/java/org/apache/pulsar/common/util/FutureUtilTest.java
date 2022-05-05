@@ -24,6 +24,7 @@ import java.io.StringWriter;
 import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -135,5 +136,44 @@ public class FutureUtilTest {
                     assertEquals(future3Exception.size(), 1);
                     assertTrue(future3Exception.get(0) instanceof IllegalStateException);
                 });
+    }
+
+    @Test
+    public void testWaitForAny() {
+        CompletableFuture<String> f1 = new CompletableFuture<>();
+        CompletableFuture<String> f2 = new CompletableFuture<>();
+        CompletableFuture<String> f3 = new CompletableFuture<>();
+        CompletableFuture<String> f4 = new CompletableFuture<>();
+        f1.complete("1");
+        f2.complete("2");
+        f3.complete("3");
+        f4.complete("4");
+        CompletableFuture<Object> ret = FutureUtil.waitForAny(Lists.newArrayList(f1, f2, f3, f4), p -> p.equals("3"));
+        Object value = ret.join();
+        assertEquals(value, "3");
+        // test not matched predicate result
+        CompletableFuture<String> f5 = new CompletableFuture<>();
+        CompletableFuture<String> f6 = new CompletableFuture<>();
+        f5.complete("5");
+        f6.complete("6");
+        ret = FutureUtil.waitForAny(Lists.newArrayList(f5, f6), p -> p.equals("3"));
+        try {
+            ret.join();
+            fail("Should have failed");
+        } catch (CompletionException ex) {
+            assertTrue(ex.getCause() instanceof IllegalStateException);
+        }
+        // test with exception
+        CompletableFuture<String> f7 = new CompletableFuture<>();
+        CompletableFuture<String> f8 = new CompletableFuture<>();
+        f8.completeExceptionally(new RuntimeException("f7 exception"));
+        f8.completeExceptionally(new RuntimeException("f8 exception"));
+        ret = FutureUtil.waitForAny(Lists.newArrayList(f7, f8), p -> p.equals("3"));
+        try {
+            ret.join();
+            fail("Should have failed");
+        } catch (CompletionException ex) {
+            assertTrue(ex.getCause() instanceof RuntimeException);
+        }
     }
 }
