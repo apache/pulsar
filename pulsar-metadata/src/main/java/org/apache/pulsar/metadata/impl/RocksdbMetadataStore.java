@@ -26,6 +26,8 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermission;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EnumSet;
@@ -66,9 +68,6 @@ import org.rocksdb.Transaction;
 import org.rocksdb.TransactionDB;
 import org.rocksdb.TransactionDBOptions;
 import org.rocksdb.WriteOptions;
-
-import java.nio.file.attribute.PosixFilePermission;
-import java.nio.file.attribute.PosixFilePermissions;
 
 /**
  *
