@@ -35,15 +35,15 @@ import org.apache.pulsar.packages.management.core.common.PackageMetadataUtil;
 import org.apache.pulsar.packages.management.core.common.PackageName;
 import org.apache.pulsar.packages.management.core.exceptions.PackagesManagementException;
 import org.testng.Assert;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 public class PackagesManagementImplTest {
     private static PackagesStorage storage;
     private static PackagesManagement packagesManagement;
 
-    @BeforeClass
+    @BeforeMethod
     public static void setup() throws IOException {
         PackagesStorageProvider storageProvider = PackagesStorageProvider.newProvider(MockedPackagesStorageProvider.class.getName());
         DefaultPackagesStorageConfiguration packagesStorageConfiguration = new DefaultPackagesStorageConfiguration();
@@ -53,7 +53,7 @@ public class PackagesManagementImplTest {
         packagesManagement.initialize(storage);
     }
 
-    @AfterClass(alwaysRun = true)
+    @AfterMethod(alwaysRun = true)
     public static void teardown() throws ExecutionException, InterruptedException {
         storage.closeAsync().get();
     }
