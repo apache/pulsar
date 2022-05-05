@@ -113,7 +113,7 @@ public class BrokerProxyValidator {
     }
 
     public CompletableFuture<InetSocketAddress> resolveAndCheckTargetAddress(String hostAndPort) {
-        int pos = hostAndPort.indexOf(':');
+        int pos = hostAndPort.lastIndexOf(':');
         String host = hostAndPort.substring(0, pos);
         int port = Integer.parseInt(hostAndPort.substring(pos + 1));
         if (!isPortAllowed(port)) {
@@ -126,7 +126,7 @@ public class BrokerProxyValidator {
             return NettyFutureUtil.toCompletableFuture(
                             inetSocketAddressResolver.resolve(InetSocketAddress.createUnresolved(host, port)))
                     .thenCompose(resolvedAddress -> {
-                        CompletableFuture<InetSocketAddress> result = new CompletableFuture();
+                        CompletableFuture<InetSocketAddress> result = new CompletableFuture<>();
                         if (isIPAddressAllowed(resolvedAddress)) {
                             result.complete(resolvedAddress);
                         } else {

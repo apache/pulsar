@@ -109,7 +109,7 @@ To run function-worker separately, you have to configure the following parameter
 
 - `workerId`: The type is string. It is unique across clusters, which is used to identify a worker machine.
 - `workerHostname`: The hostname of the worker machine.
-- `workerPort`: The port that the worker server listens on. Keep it as default if you don't customize it.
+- `workerPort`: The port that the worker server listens on. Keep it as default if you don't customize it. Set it to `null` to disable the plaintext port.
 - `workerPortTls`: The TLS port that the worker server listens on. Keep it as default if you don't customize it.
 
 #### Function package parameter
@@ -195,13 +195,13 @@ authenticationEnabled: true
 authenticationProviders: ['org.apache.pulsar.broker.authentication.AuthenticationProviderTls']
 ```
 
-For *SASL Authentication* provider, add `saslJaasClientAllowedIds` and `saslJaasBrokerSectionName`
+For *SASL Authentication* provider, add `saslJaasClientAllowedIds` and `saslJaasServerSectionName`
 under `properties` if needed. 
 
 ```
 properties:
   saslJaasClientAllowedIds: .*pulsar.*
-  saslJaasBrokerSectionName: Broker
+  saslJaasServerSectionName: Broker
 ```
 
 For *Token Authentication* provider, add necessary settings for `properties` if needed.

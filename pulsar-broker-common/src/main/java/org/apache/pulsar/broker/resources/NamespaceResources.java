@@ -143,6 +143,11 @@ public class NamespaceResources extends BaseResources<Policies> {
                 && path.substring(BASE_POLICIES_PATH.length() + 1).contains("/");
     }
 
+    public static boolean pathIsNamespaceLocalPolicies(String path) {
+        return path.startsWith(LOCAL_POLICIES_ROOT + "/")
+                && path.substring(LOCAL_POLICIES_ROOT.length() + 1).contains("/");
+    }
+
     // clear resource of `/namespace/{namespaceName}` for zk-node
     public CompletableFuture<Void> deleteNamespaceAsync(NamespaceName ns) {
         final String namespacePath = joinPath(NAMESPACE_BASE_PATH, ns.toString());
@@ -159,6 +164,10 @@ public class NamespaceResources extends BaseResources<Policies> {
         return NamespaceName.get(path.substring(BASE_POLICIES_PATH.length() + 1));
     }
 
+    public static NamespaceName namespaceFromLocalPoliciesPath(String path) {
+        return NamespaceName.get(path.substring(LOCAL_POLICIES_ROOT.length() + 1));
+    }
+
     public static class IsolationPolicyResources extends BaseResources<Map<String, NamespaceIsolationDataImpl>> {
         private static final String NAMESPACE_ISOLATION_POLICIES = "namespaceIsolationPolicies";
 
@@ -172,6 +181,12 @@ public class NamespaceResources extends BaseResources<Policies> {
             Optional<Map<String, NamespaceIsolationDataImpl>> data =
                     super.get(joinPath(BASE_CLUSTERS_PATH, cluster, NAMESPACE_ISOLATION_POLICIES));
             return data.isPresent() ? Optional.of(new NamespaceIsolationPolicies(data.get())) : Optional.empty();
+        }
+
+        public CompletableFuture<NamespaceIsolationPolicies> getIsolationDataPoliciesAsync(String cluster) {
+            return getAsync(joinPath(BASE_CLUSTERS_PATH, cluster, NAMESPACE_ISOLATION_POLICIES))
+                    .thenApply(data -> data.map(NamespaceIsolationPolicies::new)
+                            .orElseGet(NamespaceIsolationPolicies::new));
         }
 
         public void deleteIsolationData(String cluster) throws MetadataStoreException {

@@ -139,7 +139,6 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
             if (entry == null) {
                 continue;
             }
-            totalEntries++;
             ByteBuf metadataAndPayload = entry.getDataBuffer();
             int entryWrapperIndex = i + entryWrapperOffset;
             MessageMetadata msgMetadata = entryWrapper.isPresent() && entryWrapper.get()[entryWrapperIndex] != null
@@ -196,6 +195,7 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
                 continue;
             }
 
+            totalEntries++;
             int batchSize = msgMetadata.getNumMessagesInBatch();
             totalMessages += batchSize;
             totalBytes += metadataAndPayload.readableBytes();
@@ -220,6 +220,12 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
         if (CollectionUtils.isNotEmpty(entriesToFiltered)) {
             subscription.acknowledgeMessage(entriesToFiltered, AckType.Individual,
                     Collections.emptyMap());
+
+            int filtered = entriesToFiltered.size();
+            Topic topic = subscription.getTopic();
+            if (topic instanceof AbstractTopic) {
+                ((AbstractTopic) topic).addFilteredEntriesCount(filtered);
+            }
         }
 
         sendMessageInfo.setTotalMessages(totalMessages);

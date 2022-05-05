@@ -82,9 +82,10 @@ import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
-import org.apache.pulsar.common.events.EventsTopicNames;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BacklogQuota.RetentionPolicy;
 import org.apache.pulsar.common.policies.data.ClusterData;
@@ -717,7 +718,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         assertNull(producer);
     }
 
-    @Test(priority = 5, timeOut = 30000)
+    @Test(priority = 4, timeOut = 30000)
     public void testReplicatorProducerName() throws Exception {
         log.info("--- Starting ReplicatorTest::testReplicatorProducerName ---");
         final String topicName = BrokerTestUtil.newUniqueName("persistent://pulsar/ns/testReplicatorProducerName");
@@ -739,7 +740,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         });
     }
 
-    @Test(priority = 5, timeOut = 30000)
+    @Test(priority = 4, timeOut = 30000)
     public void testReplicatorProducerNameWithUserDefinedReplicatorPrefix() throws Exception {
         log.info("--- Starting ReplicatorTest::testReplicatorProducerNameWithUserDefinedReplicatorPrefix ---");
         final String topicName = BrokerTestUtil.newUniqueName(
@@ -948,23 +949,23 @@ public class ReplicatorTest extends ReplicatorTestBase {
         admin2.topics().updatePartitionedTopic(persistentTopicName, 5);
         assertEquals(admin2.topics().getPartitionedTopicMetadata(persistentTopicName).partitions, 5);
         assertEquals((int) admin2.topics().getList(namespace).stream().filter(topic ->
-                !topic.contains(EventsTopicNames.NAMESPACE_EVENTS_LOCAL_NAME)).count(), 5);
+                !topic.contains(SystemTopicNames.NAMESPACE_EVENTS_LOCAL_NAME)).count(), 5);
         // Update partitioned topic from R3
         admin3.topics().updatePartitionedTopic(persistentTopicName, 6);
         assertEquals(admin3.topics().getPartitionedTopicMetadata(persistentTopicName).partitions, 6);
         assertEquals(admin3.topics().getList(namespace).stream().filter(topic ->
-                !topic.contains(EventsTopicNames.NAMESPACE_EVENTS_LOCAL_NAME)).count(), 6);
+                !topic.contains(SystemTopicNames.NAMESPACE_EVENTS_LOCAL_NAME)).count(), 6);
         // Update partitioned topic from R1
         admin1.topics().updatePartitionedTopic(persistentTopicName, 7);
         assertEquals(admin1.topics().getPartitionedTopicMetadata(persistentTopicName).partitions, 7);
         assertEquals(admin2.topics().getPartitionedTopicMetadata(persistentTopicName).partitions, 7);
         assertEquals(admin3.topics().getPartitionedTopicMetadata(persistentTopicName).partitions, 7);
         assertEquals(admin1.topics().getList(namespace).stream().filter(topic ->
-                !topic.contains(EventsTopicNames.NAMESPACE_EVENTS_LOCAL_NAME)).count(), 7);
+                !topic.contains(SystemTopicNames.NAMESPACE_EVENTS_LOCAL_NAME)).count(), 7);
         assertEquals(admin2.topics().getList(namespace).stream().filter(topic ->
-                !topic.contains(EventsTopicNames.NAMESPACE_EVENTS_LOCAL_NAME)).count(), 7);
+                !topic.contains(SystemTopicNames.NAMESPACE_EVENTS_LOCAL_NAME)).count(), 7);
         assertEquals(admin3.topics().getList(namespace).stream().filter(topic ->
-                !topic.contains(EventsTopicNames.NAMESPACE_EVENTS_LOCAL_NAME)).count(), 7);
+                !topic.contains(SystemTopicNames.NAMESPACE_EVENTS_LOCAL_NAME)).count(), 7);
     }
 
     /**
@@ -1299,7 +1300,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         String topic = TopicName.get("persistent", NamespaceName.get(namespace),
                 "testDoesNotReplicateSystemTopic").toString();
         String systemTopic = TopicName.get("persistent", NamespaceName.get(namespace),
-                EventsTopicNames.TRANSACTION_BUFFER_SNAPSHOT).toString();
+                SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT).toString();
         admin1.topics().createNonPartitionedTopic(topic);
         // Replicator will not replicate System Topic other than topic policies
         initTransaction(2, admin1, pulsar1.getBrokerServiceUrl(), pulsar1);
@@ -1326,8 +1327,12 @@ public class ReplicatorTest extends ReplicatorTestBase {
     private void initTransaction(int coordinatorSize, PulsarAdmin admin, String ServiceUrl,
                                  PulsarService pulsarService) throws Exception {
         admin.namespaces().createNamespace(NamespaceName.SYSTEM_NAMESPACE.toString(), coordinatorSize);
-        admin.topics().createPartitionedTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString(), coordinatorSize);
-        admin.lookups().lookupTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString());
+        pulsarService.getPulsarResources()
+                .getNamespaceResources()
+                .getPartitionedTopicResources()
+                .createPartitionedTopic(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN,
+                        new PartitionedTopicMetadata(coordinatorSize));
+        admin.lookups().lookupTopic(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN.toString());
         PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(ServiceUrl).enableTransaction(true).build();
         pulsarClient.close();
         Awaitility.await().until(() ->
@@ -1361,7 +1366,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         Awaitility.await().atMost(2, TimeUnit.SECONDS).until(() -> {
             list.clear();
             list.addAll(admin.topics().getList(namespace).stream()
-                    .filter(topic -> !topic.contains(EventsTopicNames.NAMESPACE_EVENTS_LOCAL_NAME))
+                    .filter(topic -> !topic.contains(SystemTopicNames.NAMESPACE_EVENTS_LOCAL_NAME))
                     .collect(Collectors.toList()));
             return list.size() == expectedTopicList.size();
         });
@@ -1427,4 +1432,32 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
     private static final Logger log = LoggerFactory.getLogger(ReplicatorTest.class);
 
+    @Test
+    public void testWhenUpdateReplicationCluster() throws Exception {
+        log.info("--- testWhenUpdateReplicationCluster ---");
+        String namespace = "pulsar/ns2";
+        admin1.namespaces().createNamespace(namespace);
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"));
+        final TopicName dest = TopicName.get(
+                BrokerTestUtil.newUniqueName("persistent://" + namespace + "/testWhenUpdateReplicationCluster"));
+        @Cleanup
+        MessageProducer producer1 = new MessageProducer(url1, dest);
+        log.info("--- Starting producer --- " + url1);
+
+        producer1.produce(2);
+
+        PersistentTopic topic = (PersistentTopic) pulsar1.getBrokerService().getTopic(dest.toString(), false)
+                .getNow(null).get();
+        Awaitility.await().untilAsserted(() -> {
+            assertTrue(topic.getReplicators().containsKey("r2"));
+        });
+
+        admin1.topics().setReplicationClusters(dest.toString(), Lists.newArrayList("r1"));
+
+        Awaitility.await().untilAsserted(() -> {
+            Set<String> replicationClusters = admin1.topics().getReplicationClusters(dest.toString(), false);
+            assertTrue(replicationClusters != null && replicationClusters.size() == 1);
+            assertTrue(topic.getReplicators().isEmpty());
+        });
+    }
 }

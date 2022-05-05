@@ -45,6 +45,7 @@ import org.apache.pulsar.broker.transaction.pendingack.proto.PendingAckOp;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
+import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
 import org.jctools.queues.MessagePassingQueue;
 import org.jctools.queues.SpscArrayQueue;
@@ -60,10 +61,6 @@ public class MLPendingAckStore implements PendingAckStore {
     private final ManagedLedger managedLedger;
 
     private final ManagedCursor cursor;
-
-    public static final String PENDING_ACK_STORE_SUFFIX = "__transaction_pending_ack";
-
-    public static final String PENDING_ACK_STORE_CURSOR_NAME = "__pending_ack_state";
 
     private final SpscArrayQueue<Entry> entryQueue;
 
@@ -241,8 +238,7 @@ public class MLPendingAckStore implements PendingAckStore {
                 completableFuture.complete(null);
 
                 if (!metadataPositions.isEmpty()) {
-                    PositionImpl firstPosition = metadataPositions.firstEntry().getKey();
-                    PositionImpl deletePosition = metadataPositions.firstEntry().getKey();
+                    PositionImpl deletePosition = null;
                     while (!metadataPositions.isEmpty()
                             && metadataPositions.firstKey() != null
                             && subManagedCursor.getPersistentMarkDeletedPosition() != null
@@ -252,7 +248,7 @@ public class MLPendingAckStore implements PendingAckStore {
                         metadataPositions.remove(metadataPositions.firstKey());
                     }
 
-                    if (firstPosition != deletePosition) {
+                    if (deletePosition != null) {
                         PositionImpl finalDeletePosition = deletePosition;
                         cursor.asyncMarkDelete(deletePosition,
                                 new AsyncCallbacks.MarkDeleteCallback() {
@@ -282,6 +278,10 @@ public class MLPendingAckStore implements PendingAckStore {
             public void addFailed(ManagedLedgerException exception, Object ctx) {
                 log.error("[{}][{}] MLPendingAckStore message append fail exception : {}, operation : {}",
                         managedLedger.getName(), ctx, exception, pendingAckMetadataEntry.getPendingAckOp());
+
+                if (exception instanceof ManagedLedgerException.ManagedLedgerAlreadyClosedException) {
+                    managedLedger.readyToCreateNewLedger();
+                }
                 buf.release();
                 completableFuture.completeExceptionally(new PersistenceException(exception));
             }
@@ -394,7 +394,8 @@ public class MLPendingAckStore implements PendingAckStore {
         public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
             if (managedLedger.getConfig().isAutoSkipNonRecoverableData()
                     && exception instanceof ManagedLedgerException.NonRecoverableLedgerException
-                    || exception instanceof ManagedLedgerException.ManagedLedgerFencedException) {
+                    || exception instanceof ManagedLedgerException.ManagedLedgerFencedException
+                    || exception instanceof ManagedLedgerException.CursorAlreadyClosedException) {
                 isReadable = false;
             }
             log.error("MLPendingAckStore of topic [{}] stat reply fail!", managedLedger.getName(), exception);
@@ -408,11 +409,11 @@ public class MLPendingAckStore implements PendingAckStore {
     }
 
     public static String getTransactionPendingAckStoreSuffix(String originTopicName, String subName) {
-        return TopicName.get(originTopicName) + "-" + subName + PENDING_ACK_STORE_SUFFIX;
+        return TopicName.get(originTopicName) + "-" + subName + SystemTopicNames.PENDING_ACK_STORE_SUFFIX;
     }
 
     public static String getTransactionPendingAckStoreCursorName() {
-        return PENDING_ACK_STORE_CURSOR_NAME;
+        return SystemTopicNames.PENDING_ACK_STORE_CURSOR_NAME;
     }
 
     private static final Logger log = LoggerFactory.getLogger(MLPendingAckStore.class);

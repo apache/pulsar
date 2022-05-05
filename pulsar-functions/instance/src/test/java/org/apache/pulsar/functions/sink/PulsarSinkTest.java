@@ -75,7 +75,7 @@ import org.testng.annotations.Test;
 @Slf4j
 public class PulsarSinkTest {
 
-    private static final String TOPIC = "persistent://sample/standalone/ns1/test_result";
+    private static final String TOPIC = "test_result";
 
     public static class TestSerDe implements SerDe<String> {
 
@@ -347,10 +347,6 @@ public class PulsarSinkTest {
         for (String topic : topics) {
 
             SinkRecord<String> record = new SinkRecord<>(new Record<String>() {
-                @Override
-                public Optional<String> getKey() {
-                    return Optional.empty();
-                }
 
                 @Override
                 public String getValue() {

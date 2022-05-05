@@ -76,7 +76,7 @@ public class EntryCacheTest extends MockedBookKeeperTestCase {
         entryCache.asyncReadEntry(lh, 0, 9, false, new ReadEntriesCallback() {
             public void readEntriesComplete(List<Entry> entries, Object ctx) {
                 assertEquals(entries.size(), 10);
-                entries.forEach(e -> e.release());
+                entries.forEach(Entry::release);
                 counter.countDown();
             }
 

@@ -32,9 +32,11 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace.Mode;
 import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse;
 import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse.LookupType;
+import org.apache.pulsar.common.lookup.GetTopicsResult;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
@@ -116,9 +118,9 @@ public class BinaryProtoLookupService implements LookupService {
             clientCnx.newLookup(request, requestId).whenComplete((r, t) -> {
                 if (t != null) {
                     // lookup failed
-                    log.warn("[{}] failed to send lookup request : {}", topicName.toString(), t.getMessage());
+                    log.warn("[{}] failed to send lookup request : {}", topicName, t.getMessage());
                     if (log.isDebugEnabled()) {
-                        log.warn("[{}] Lookup response exception: {}", topicName.toString(), t);
+                        log.debug("[{}] Lookup response exception: {}", topicName, t);
                     }
 
                     addressFuture.completeExceptionally(t);
@@ -143,11 +145,11 @@ public class BinaryProtoLookupService implements LookupService {
                                 // lookup failed
                                 if (redirectCount > 0) {
                                     if (log.isDebugEnabled()) {
-                                        log.debug("[{}] lookup redirection failed ({}) : {}", topicName.toString(),
+                                        log.debug("[{}] lookup redirection failed ({}) : {}", topicName,
                                                 redirectCount, lookupException.getMessage());
                                     }
                                 } else {
-                                    log.warn("[{}] lookup failed : {}", topicName.toString(),
+                                    log.warn("[{}] lookup failed : {}", topicName,
                                             lookupException.getMessage(), lookupException);
                                 }
                                 addressFuture.completeExceptionally(lookupException);
@@ -166,7 +168,7 @@ public class BinaryProtoLookupService implements LookupService {
 
                     } catch (Exception parseUrlException) {
                         // Failed to parse url
-                        log.warn("[{}] invalid url {} : {}", topicName.toString(), uri, parseUrlException.getMessage(),
+                        log.warn("[{}] invalid url {} : {}", topicName, uri, parseUrlException.getMessage(),
                             parseUrlException);
                         addressFuture.completeExceptionally(parseUrlException);
                     }
@@ -183,14 +185,14 @@ public class BinaryProtoLookupService implements LookupService {
     private CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(InetSocketAddress socketAddress,
             TopicName topicName) {
 
-        CompletableFuture<PartitionedTopicMetadata> partitionFuture = new CompletableFuture<PartitionedTopicMetadata>();
+        CompletableFuture<PartitionedTopicMetadata> partitionFuture = new CompletableFuture<>();
 
         client.getCnxPool().getConnection(socketAddress).thenAccept(clientCnx -> {
             long requestId = client.newRequestId();
             ByteBuf request = Commands.newPartitionMetadataRequest(topicName.toString(), requestId);
             clientCnx.newLookup(request, requestId).whenComplete((r, t) -> {
                 if (t != null) {
-                    log.warn("[{}] failed to get Partitioned metadata : {}", topicName.toString(),
+                    log.warn("[{}] failed to get Partitioned metadata : {}", topicName,
                         t.getMessage(), t);
                     partitionFuture.completeExceptionally(t);
                 } else {
@@ -200,7 +202,7 @@ public class BinaryProtoLookupService implements LookupService {
                         partitionFuture.completeExceptionally(new PulsarClientException.LookupException(
                             format("Failed to parse partition-response redirect=%s, topic=%s, partitions with %s,"
                                             + " error message %s",
-                                r.redirect, topicName.toString(), r.partitions,
+                                r.redirect, topicName, r.partitions,
                                 e.getMessage())));
                     }
                 }
@@ -222,16 +224,19 @@ public class BinaryProtoLookupService implements LookupService {
 
     @Override
     public CompletableFuture<Optional<SchemaInfo>> getSchema(TopicName topicName, byte[] version) {
-        InetSocketAddress socketAddress = serviceNameResolver.resolveHost();
         CompletableFuture<Optional<SchemaInfo>> schemaFuture = new CompletableFuture<>();
-
+        if (version != null && version.length == 0) {
+            schemaFuture.completeExceptionally(new SchemaSerializationException("Empty schema version"));
+            return schemaFuture;
+        }
+        InetSocketAddress socketAddress = serviceNameResolver.resolveHost();
         client.getCnxPool().getConnection(socketAddress).thenAccept(clientCnx -> {
             long requestId = client.newRequestId();
             ByteBuf request = Commands.newGetSchema(requestId, topicName.toString(),
                 Optional.ofNullable(BytesSchemaVersion.of(version)));
             clientCnx.sendGetSchema(request, requestId).whenComplete((r, t) -> {
                 if (t != null) {
-                    log.warn("[{}] failed to get schema : {}", topicName.toString(),
+                    log.warn("[{}] failed to get schema : {}", topicName,
                         t.getMessage(), t);
                     schemaFuture.completeExceptionally(t);
                 } else {
@@ -252,8 +257,11 @@ public class BinaryProtoLookupService implements LookupService {
     }
 
     @Override
-    public CompletableFuture<List<String>> getTopicsUnderNamespace(NamespaceName namespace, Mode mode) {
-        CompletableFuture<List<String>> topicsFuture = new CompletableFuture<List<String>>();
+    public CompletableFuture<GetTopicsResult> getTopicsUnderNamespace(NamespaceName namespace,
+                                                                                  Mode mode,
+                                                                                  String topicsPattern,
+                                                                                  String topicsHash) {
+        CompletableFuture<GetTopicsResult> topicsFuture = new CompletableFuture<>();
 
         AtomicLong opTimeoutMs = new AtomicLong(client.getConfiguration().getOperationTimeoutMs());
         Backoff backoff = new BackoffBuilder()
@@ -261,7 +269,8 @@ public class BinaryProtoLookupService implements LookupService {
                 .setMandatoryStop(opTimeoutMs.get() * 2, TimeUnit.MILLISECONDS)
                 .setMax(1, TimeUnit.MINUTES)
                 .create();
-        getTopicsUnderNamespace(serviceNameResolver.resolveHost(), namespace, backoff, opTimeoutMs, topicsFuture, mode);
+        getTopicsUnderNamespace(serviceNameResolver.resolveHost(), namespace, backoff, opTimeoutMs, topicsFuture, mode,
+                topicsPattern, topicsHash);
         return topicsFuture;
     }
 
@@ -269,39 +278,41 @@ public class BinaryProtoLookupService implements LookupService {
                                          NamespaceName namespace,
                                          Backoff backoff,
                                          AtomicLong remainingTime,
-                                         CompletableFuture<List<String>> topicsFuture,
-                                         Mode mode) {
+                                         CompletableFuture<GetTopicsResult> getTopicsResultFuture,
+                                         Mode mode,
+                                         String topicsPattern,
+                                         String topicsHash) {
         client.getCnxPool().getConnection(socketAddress).thenAccept(clientCnx -> {
             long requestId = client.newRequestId();
             ByteBuf request = Commands.newGetTopicsOfNamespaceRequest(
-                namespace.toString(), requestId, mode);
+                namespace.toString(), requestId, mode, topicsPattern, topicsHash);
 
             clientCnx.newGetTopicsOfNamespace(request, requestId).whenComplete((r, t) -> {
                 if (t != null) {
-                    topicsFuture.completeExceptionally(t);
+                    getTopicsResultFuture.completeExceptionally(t);
                 } else {
                     if (log.isDebugEnabled()) {
                         log.debug("[namespace: {}] Success get topics list in request: {}",
-                                namespace.toString(), requestId);
+                                namespace, requestId);
                     }
-
                     // do not keep partition part of topic name
                     List<String> result = new ArrayList<>();
-                    r.forEach(topic -> {
+                    r.getTopics().forEach(topic -> {
                         String filtered = TopicName.get(topic).getPartitionedTopicName();
                         if (!result.contains(filtered)) {
                             result.add(filtered);
                         }
                     });
 
-                    topicsFuture.complete(result);
+                    getTopicsResultFuture.complete(new GetTopicsResult(result, r.getTopicsHash(),
+                            r.isFiltered(), r.isChanged()));
                 }
                 client.getCnxPool().releaseConnection(clientCnx);
             });
         }).exceptionally((e) -> {
             long nextDelay = Math.min(backoff.next(), remainingTime.get());
             if (nextDelay <= 0) {
-                topicsFuture.completeExceptionally(
+                getTopicsResultFuture.completeExceptionally(
                     new PulsarClientException.TimeoutException(
                         format("Could not get topics of namespace %s within configured timeout",
                             namespace.toString())));
@@ -312,7 +323,8 @@ public class BinaryProtoLookupService implements LookupService {
                 log.warn("[namespace: {}] Could not get connection while getTopicsUnderNamespace -- Will try again in"
                                 + " {} ms", namespace, nextDelay);
                 remainingTime.addAndGet(-nextDelay);
-                getTopicsUnderNamespace(socketAddress, namespace, backoff, remainingTime, topicsFuture, mode);
+                getTopicsUnderNamespace(socketAddress, namespace, backoff, remainingTime, getTopicsResultFuture,
+                        mode, topicsPattern, topicsHash);
             }, nextDelay, TimeUnit.MILLISECONDS);
             return null;
         });

@@ -460,7 +460,7 @@ public class TopicsImpl extends BaseResource implements Topics {
 
     @Override
     public void deletePartitionedTopic(String topic, boolean force, boolean deleteSchema) throws PulsarAdminException {
-        sync(() -> deletePartitionedTopicAsync(topic, force, deleteSchema));
+        sync(() -> deletePartitionedTopicAsync(topic, force, true));
     }
 
     @Override
@@ -468,7 +468,7 @@ public class TopicsImpl extends BaseResource implements Topics {
         TopicName tn = validateTopic(topic);
         WebTarget path = topicPath(tn, "partitions") //
                 .queryParam("force", Boolean.toString(force)) //
-                .queryParam("deleteSchema", Boolean.toString(deleteSchema));
+                .queryParam("deleteSchema", "true");
         return asyncDeleteRequest(path);
     }
 
@@ -484,7 +484,7 @@ public class TopicsImpl extends BaseResource implements Topics {
 
     @Override
     public void delete(String topic, boolean force, boolean deleteSchema) throws PulsarAdminException {
-        sync(() -> deleteAsync(topic, force, deleteSchema));
+        sync(() -> deleteAsync(topic, force, true));
     }
 
     @Override
@@ -492,7 +492,7 @@ public class TopicsImpl extends BaseResource implements Topics {
         TopicName tn = validateTopic(topic);
         WebTarget path = topicPath(tn) //
                 .queryParam("force", Boolean.toString(force)) //
-                .queryParam("deleteSchema", Boolean.toString(deleteSchema));
+                .queryParam("deleteSchema", "true");
         return asyncDeleteRequest(path);
     }
 
@@ -1097,24 +1097,18 @@ public class TopicsImpl extends BaseResource implements Topics {
 
 
     @Override
-    public void createSubscription(String topic, String subscriptionName, MessageId messageId)
+    public void createSubscription(String topic, String subscriptionName, MessageId messageId, boolean replicated)
             throws PulsarAdminException {
-        try {
-            TopicName tn = validateTopic(topic);
-            String encodedSubName = Codec.encode(subscriptionName);
-            WebTarget path = topicPath(tn, "subscription", encodedSubName);
-            request(path).put(Entity.entity(messageId, MediaType.APPLICATION_JSON), ErrorData.class);
-        } catch (Exception e) {
-            throw getApiException(e);
-        }
+        sync(() -> createSubscriptionAsync(topic, subscriptionName, messageId, replicated));
     }
 
     @Override
     public CompletableFuture<Void> createSubscriptionAsync(String topic, String subscriptionName,
-            MessageId messageId) {
+            MessageId messageId, boolean replicated) {
         TopicName tn = validateTopic(topic);
         String encodedSubName = Codec.encode(subscriptionName);
         WebTarget path = topicPath(tn, "subscription", encodedSubName);
+        path = path.queryParam("replicated", replicated);
         return asyncPutRequest(path, Entity.entity(messageId, MediaType.APPLICATION_JSON));
     }
 

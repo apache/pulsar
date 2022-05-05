@@ -23,12 +23,12 @@ import java.util.Map;
 import java.util.Set;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.TimeAverageMessageData;
 import org.apache.pulsar.broker.loadbalance.BundleSplitStrategy;
 import org.apache.pulsar.broker.loadbalance.LoadData;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
+import org.apache.pulsar.policies.data.loadbalancer.TimeAverageMessageData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -94,9 +94,11 @@ public class BundleSplitterTask implements BundleSplitStrategy {
                         if (bundleCount < maxBundleCount) {
                             bundleCache.add(bundle);
                         } else {
-                            log.warn(
-                                    "Could not split namespace bundle {} because namespace {} has too many bundles: {}",
-                                    bundle, namespace, bundleCount);
+                            if (log.isDebugEnabled()) {
+                                log.debug(
+                                        "Could not split namespace bundle {} because namespace {} has too many bundles:"
+                                                + "{}", bundle, namespace, bundleCount);
+                            }
                         }
                     } catch (Exception e) {
                         log.warn("Error while getting bundle count for namespace {}", namespace, e);

@@ -20,10 +20,12 @@ Value / data payload | The data carried by the message. All Pulsar messages cont
 Key | Messages are optionally tagged with keys, which is useful for things like [topic compaction](concepts-topic-compaction.md).
 Properties | An optional key/value map of user-defined properties.
 Producer name | The name of the producer who produces the message. If you do not specify a producer name, the default name is used. 
-Sequence ID | Each Pulsar message belongs to an ordered sequence on its topic. The sequence ID of the message is its order in that sequence.
+Topic name | The name of the topic that the message is published to.
+Schema version | The version number of the schema that the message is produced with.
+Sequence ID | Each Pulsar message belongs to an ordered sequence on its topic. The sequence ID of a message is initially assigned by its producer, indicating its order in that sequence, and can also be customized.<br />Sequence ID can be used for message deduplication. If `brokerDeduplicationEnabled` is set to `true`, the sequence ID of each message is unique within a producer of a topic (non-partitioned) or a partition.  
+Message ID | The message ID of a message is assigned by bookies as soon as the message is persistently stored. Message ID indicates a message’s specific position in a ledger and is unique within a Pulsar cluster.
 Publish time | The timestamp of when the message is published. The timestamp is automatically applied by the producer.
 Event time | An optional timestamp attached to a message by applications. For example, applications attach a timestamp on when the message is processed. If nothing is set to event time, the value is `0`. 
-TypedMessageBuilder | It is used to construct a message. You can set message properties such as the message key, message value with `TypedMessageBuilder`. </br> When you set `TypedMessageBuilder`, set the key as a string. If you set the key as other types, for example, an AVRO object, the key is sent as bytes, and it is difficult to get the AVRO object back on the consumer.
 
 The default size of a message is 5 MB. You can configure the max size of a message with the following configurations.
 
@@ -190,6 +192,8 @@ In Shared and Key_Shared subscription types, consumers can negatively acknowledg
 
 Be aware that negative acknowledgments on ordered subscription types, such as Exclusive, Failover and Key_Shared, might cause failed messages being sent to consumers out of the original order.
 
+If you are going to use negative acknowledgment on a message, make sure it is negatively acknowledged before the acknowledgment timeout.
+
 Use the following API to negatively acknowledge message consumption.
 
 ```java
@@ -209,23 +213,34 @@ message = consumer.receive();
 consumer.acknowledge(message);
 ```
 
-> **Note**  
-> If batching is enabled, all messages in one batch are redelivered to the consumer.
-
-### Negative redelivery backoff
-
-It happens sometimes that consumers fail to process messages successfully. In this case, you can use [negative acknowledgement](#negative-acknowledgement) to redeliver the messages after consumption failures. For the Shared subscription type, the messages are redelivered to other consumers; for other subscription types, the messages are redelivered to the same consumer.
-
-But this is not flexible enough. A better way is to use the **redelivery backoff mechanism**. You can redeliver messages with different delays by setting the number of times the messages are retried.
-
+To redeliver messages with different delays, you can use the **redelivery backoff mechanism** by setting the number of retries to deliver the messages.
 Use the following API to enable `Negative Redelivery Backoff`.
 
 ```java
-consumer.negativeAckRedeliveryBackoff(MultiplierRedeliveryBackoff.builder()
-        .minDelayMs(1000)
-        .maxDelayMs(60 * 1000)
-        .build())
+Consumer<byte[]> consumer = pulsarClient.newConsumer()
+        .topic(topic)
+        .subscriptionName("sub-negative-ack")
+        .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+        .negativeAckRedeliveryBackoff(MultiplierRedeliveryBackoff.builder()
+            .minDelayMs(1000)
+            .maxDelayMs(60 * 1000)
+            .build())
+        .subscribe();
 ```
+The message redelivery behavior should be as follows.
+
+Redelivery count | Redelivery delay
+:--------------------|:-----------
+1 | 10 + 1 seconds
+2 | 10 + 2 seconds
+3 | 10 + 4 seconds
+4 | 10 + 8 seconds
+5 | 10 + 16 seconds
+6 | 10 + 32 seconds
+7 | 10 + 60 seconds
+8 | 10 + 60 seconds
+> **Note**  
+> If batching is enabled, all messages in one batch are redelivered to the consumer.
 
 ### Acknowledgement timeout
 
@@ -280,6 +295,82 @@ message = consumer.receive();
 consumer.acknowledge(message);
 ```
 
+### Retry letter topic
+
+The retry letter topic allows you to store the messages that failed to be consumed and retry consuming them later. With this method, you can customize the interval at which the messages are redelivered. Consumers on the original topic are automatically subscribed to the retry letter topic as well. Once the maximum number of retries has been reached, the unconsumed messages are moved to a [dead letter topic](#dead-letter-topic) for manual processing.
+
+The diagram below illustrates the concept of the retry letter topic.
+![](assets/retry-letter-topic.svg)
+
+The intention of using retry letter topic is different from using [delayed message delivery](#delayed-message-delivery), even though both are aiming to consume a message later. Retry letter topic serves failure handling through message redelivery to ensure critical data is not lost, while delayed message delivery is intended to deliver a message with a specified time of delay.
+
+By default, automatic retry is disabled. You can set `enableRetry` to `true` to enable automatic retry on the consumer.
+
+Use the following API to consume messages from a retry letter topic. When the value of `maxRedeliverCount` is reached, the unconsumed messages are moved to a dead letter topic.
+
+```java
+Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
+                .topic("my-topic")
+                .subscriptionName("my-subscription")
+                .subscriptionType(SubscriptionType.Shared)
+                .enableRetry(true)
+                .deadLetterPolicy(DeadLetterPolicy.builder()
+                        .maxRedeliverCount(maxRedeliveryCount)
+                        .build())
+                .subscribe();
+```
+The default retry letter topic uses this format:
+```
+<topicname>-<subscriptionname>-RETRY
+```
+Use the Java client to specify the name of the retry letter topic.
+```java
+Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
+        .topic("my-topic")
+        .subscriptionName("my-subscription")
+        .subscriptionType(SubscriptionType.Shared)
+        .enableRetry(true)
+        .deadLetterPolicy(DeadLetterPolicy.builder()
+                .maxRedeliverCount(maxRedeliveryCount)
+                .retryLetterTopic("my-retry-letter-topic-name")
+                .build())
+        .subscribe();
+```
+
+The messages in the retry letter topic contain some special properties that are automatically created by the client.
+
+Special property | Description
+:--------------------|:-----------
+`REAL_TOPIC` | The real topic name.
+`ORIGIN_MESSAGE_ID` | The origin message ID. It is crucial for message tracking.
+`RECONSUMETIMES`   | The number of retries to consume messages.
+`DELAY_TIME`      | Message retry interval in milliseconds.
+**Example**
+```
+REAL_TOPIC = persistent://public/default/my-topic
+ORIGIN_MESSAGE_ID = 1:0:-1:0
+RECONSUMETIMES = 6
+DELAY_TIME = 3000
+```
+
+Use the following API to store the messages in a retrial queue.
+
+```java
+consumer.reconsumeLater(msg, 3, TimeUnit.SECONDS);
+```
+
+Use the following API to add custom properties for the `reconsumeLater` function. In the next attempt to consume, custom properties can be get from message#getProperty.
+
+```java
+Map<String, String> customProperties = new HashMap<String, String>();
+customProperties.put("custom-key-1", "custom-value-1");
+customProperties.put("custom-key-2", "custom-value-2");
+consumer.reconsumeLater(msg, customProperties, 3, TimeUnit.SECONDS);
+```
+> **Note**    
+> *  Currently, retry letter topic is enabled in Shared subscription types.
+> *  Compared with negative acknowledgment, retry letter topic is more suitable for messages that require a large number of retries with a configurable retry interval. Because messages in the retry letter topic are persisted to BookKeeper, while messages that need to be retried due to negative acknowledgment are cached on the client side.
+
 ### Dead letter topic
 
 Dead letter topic allows you to continue message consumption even some messages are not consumed successfully. The messages that are failed to be consumed are stored in a specific topic, which is called dead letter topic. You can decide how to handle the messages in the dead letter topic.
@@ -288,7 +379,7 @@ Enable dead letter topic in a Java client using the default dead letter topic.
 
 ```java
 Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
-                .topic(topic)
+                .topic("my-topic")
                 .subscriptionName("my-subscription")
                 .subscriptionType(SubscriptionType.Shared)
                 .deadLetterPolicy(DeadLetterPolicy.builder()
@@ -306,12 +397,12 @@ Use the Java client to specify the name of the dead letter topic.
 
 ```java
 Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
-                .topic(topic)
+                .topic("my-topic")
                 .subscriptionName("my-subscription")
                 .subscriptionType(SubscriptionType.Shared)
                 .deadLetterPolicy(DeadLetterPolicy.builder()
                       .maxRedeliverCount(maxRedeliveryCount)
-                      .deadLetterTopic("your-topic-name")
+                      .deadLetterTopic("my-dead-letter-topic-name")
                       .build())
                 .subscribe();
                 
@@ -321,76 +412,21 @@ By default, there is no subscription during a DLQ topic creation. Without a just
 
 ```java
 Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
-                .topic(topic)
+                .topic("my-topic")
                 .subscriptionName("my-subscription")
                 .subscriptionType(SubscriptionType.Shared)
                 .deadLetterPolicy(DeadLetterPolicy.builder()
                       .maxRedeliverCount(maxRedeliveryCount)
-                      .deadLetterTopic("your-topic-name")
+                      .deadLetterTopic("my-dead-letter-topic-name")
                       .initialSubscriptionName("init-sub")
                       .build())
                 .subscribe();
                 
 ```
 
-Dead letter topic depends on message redelivery. Messages are redelivered either due to [acknowledgement timeout](#acknowledgement-timeout) or [negative acknowledgement](#negative-acknowledgement). If you are going to use negative acknowledgement on a message, make sure it is negatively acknowledged before the acknowledgement timeout. 
-
+Dead letter topic serves message redelivery, which is triggered by [acknowledgement timeout](#acknowledgement-timeout) or [negative acknowledgement](#negative-acknowledgement) or [retry letter topic](#retry-letter-topic) . 
 > **Note**    
-> Currently, dead letter topic is enabled in Shared and Key_Shared subscription types.
-
-### Retry letter topic
-
-For many online business systems, a message is re-consumed when exception occurs in the business logic processing. To configure the delay time for re-consuming the failed messages, you can configure the producer to send messages to both the business topic and the retry letter topic, and enable automatic retry on the consumer. With this setting, the messages that are not consumed will be stored in the retry letter topic. After the specified delay time, the consumer automatically consumes these messages from the retry letter topic.
-
-By default, automatic retry is disabled. You can set `enableRetry` to `true` to enable automatic retry on the consumer.
-
-Use the following API to consume messages from a retry letter topic.
-
-```java
-Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
-                .topic(topic)
-                .subscriptionName("my-subscription")
-                .subscriptionType(SubscriptionType.Shared)
-                .enableRetry(true)
-                .receiverQueueSize(100)
-                .deadLetterPolicy(DeadLetterPolicy.builder()
-                        .maxRedeliverCount(maxRedeliveryCount)
-                        .retryLetterTopic("persistent://my-property/my-ns/my-subscription-custom-Retry")
-                        .build())
-                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
-                .subscribe();
-```
-
-The messages in the retry letter topic contain some special properties that are automatically created by the client.
-
-Special property | Description
-:--------------------|:-----------
-`REAL_TOPIC` | The real topic name.
-`ORIGIN_MESSAGE_ID` | The origin message ID. It is crucial for message tracking.
-`RECONSUMETIMES`   | The retry consume times.
-`DELAY_TIME`      | Message delay timeMs.
-**Example**
-```
-REAL_TOPIC = persistent://public/default/my-topic
-ORIGIN_MESSAGE_ID = 1:0:-1:0
-RECONSUMETIMES = 6
-DELAY_TIME = 3000
-```
-
-Use the following API to store the messages in a retrial queue.
-
-```java
-consumer.reconsumeLater(msg, 3, TimeUnit.SECONDS);
-```
-
-Use the following API to add custom properties for the `reconsumeLater` function.
-
-```java
-Map<String, String> customProperties = new HashMap<String, String>();
-customProperties.put("custom-key-1", "custom-value-1");
-customProperties.put("custom-key-2", "custom-value-2");
-consumer.reconsumeLater(msg, customProperties, 3, TimeUnit.SECONDS);
-```
+>  * Currently, dead letter topic is enabled in Shared and Key_Shared subscription types.
 
 ## Topics
 
@@ -520,10 +556,10 @@ The subscription mode indicates the cursor type.
 
 Subscription mode | Description | Note
 |---|---|---
-`Durable`|The cursor is durable, which retains messages and persists the current position. <br></br>If a broker restarts from a failure, it can recover the cursor from the persistent storage (BookKeeper), so that messages can continue to be consumed from the last consumed position.|`Durable` is the **default** subscription mode.
-`NonDurable`|The cursor is non-durable. <br></br>Once a broker stops, the cursor is lost and can never be recovered, so that messages **can not** continue to be consumed from the last consumed position.|Reader’s subscription mode is `NonDurable` in nature and it does not prevent data in a topic from being deleted. Reader’s subscription mode **can not** be changed. 
+`Durable`|The cursor is durable, which retains messages and persists the current position. <br />If a broker restarts from a failure, it can recover the cursor from the persistent storage (BookKeeper), so that messages can continue to be consumed from the last consumed position.|`Durable` is the **default** subscription mode.
+`NonDurable`|The cursor is non-durable. <br />Once a broker stops, the cursor is lost and can never be recovered, so that messages **can not** continue to be consumed from the last consumed position.|Reader’s subscription mode is `NonDurable` in nature and it does not prevent data in a topic from being deleted. Reader’s subscription mode **can not** be changed. 
 
-A [subscription](#concepts-messaging.md/#subscriptions) can have one or more consumers. When a consumer subscribes to a topic, it must specify the subscription name. A durable subscription and a non-durable subscription can have the same name, they are independent of each other. If a consumer specifies a subscription which does not exist before, the subscription is automatically created.
+A [subscription](#subscriptions) can have one or more consumers. When a consumer subscribes to a topic, it must specify the subscription name. A durable subscription and a non-durable subscription can have the same name, they are independent of each other. If a consumer specifies a subscription which does not exist before, the subscription is automatically created.
 
 #### When to use
 

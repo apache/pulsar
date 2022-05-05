@@ -37,7 +37,7 @@ public class FileListingThreadTests extends AbstractFileTests {
     @Test
     public final void singleFileTest() throws IOException {
 
-        Map<String, Object> map = new HashMap<String, Object> ();
+        Map<String, Object> map = new HashMap<> ();
         map.put("inputDirectory", directory.toString());
 
         try {

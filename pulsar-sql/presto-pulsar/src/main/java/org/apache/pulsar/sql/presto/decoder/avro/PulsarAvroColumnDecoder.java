@@ -40,6 +40,8 @@ import io.prestosql.spi.type.ArrayType;
 import io.prestosql.spi.type.BigintType;
 import io.prestosql.spi.type.BooleanType;
 import io.prestosql.spi.type.DateType;
+import io.prestosql.spi.type.DecimalType;
+import io.prestosql.spi.type.Decimals;
 import io.prestosql.spi.type.DoubleType;
 import io.prestosql.spi.type.IntegerType;
 import io.prestosql.spi.type.MapType;
@@ -53,6 +55,7 @@ import io.prestosql.spi.type.TinyintType;
 import io.prestosql.spi.type.Type;
 import io.prestosql.spi.type.VarbinaryType;
 import io.prestosql.spi.type.VarcharType;
+import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Map;
@@ -139,7 +142,7 @@ public class PulsarAvroColumnDecoder {
     }
 
     private boolean isSupportedPrimitive(Type type) {
-        return type instanceof VarcharType || SUPPORTED_PRIMITIVE_TYPES.contains(type);
+        return type instanceof VarcharType || type instanceof DecimalType || SUPPORTED_PRIMITIVE_TYPES.contains(type);
     }
 
     public FieldValueProvider decodeField(GenericRecord avroRecord) {
@@ -205,6 +208,13 @@ public class PulsarAvroColumnDecoder {
                 return floatToIntBits((Float) value);
             }
 
+            if (columnType instanceof DecimalType) {
+                ByteBuffer buffer = (ByteBuffer) value;
+                byte[] bytes = new byte[buffer.remaining()];
+                buffer.get(bytes);
+                return new BigInteger(bytes).longValue();
+            }
+
             throw new PrestoException(DECODER_CONVERSION_NOT_SUPPORTED,
                     format("cannot decode object of '%s' as '%s' for column '%s'",
                             value.getClass(), columnType, columnName));
@@ -232,6 +242,13 @@ public class PulsarAvroColumnDecoder {
             } else if (value instanceof GenericFixed) {
                 return Slices.wrappedBuffer(((GenericFixed) value).bytes());
             }
+        }
+
+        // The returned Slice size must be equals to 18 Byte
+        if (type instanceof DecimalType) {
+            ByteBuffer buffer = (ByteBuffer) value;
+            BigInteger bigInteger = new BigInteger(buffer.array());
+            return Decimals.encodeUnscaledValue(bigInteger);
         }
 
         throw new PrestoException(DECODER_CONVERSION_NOT_SUPPORTED,
