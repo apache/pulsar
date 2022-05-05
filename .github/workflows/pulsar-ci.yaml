@@ -201,11 +201,6 @@ jobs:
         if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
         uses: apache/pulsar-test-infra/gh-actions-artifact-client/dist@master
 
-      - name: Cleanup log artifacts from possible previous failed build
-        if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
-        run: |
-          gh-actions-artifact-client.js delete "Unit-${{ matrix.group }}-surefire-reports" &>/dev/null || true
-
       - name: Restore maven build results from Github artifact cache
         if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
         run: |
@@ -396,12 +391,6 @@ jobs:
       - name: Install gh-actions-artifact-client.js
         if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
         uses: apache/pulsar-test-infra/gh-actions-artifact-client/dist@master
-
-      - name: Cleanup log artifacts from possible previous failed build
-        if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
-        run: |
-          gh-actions-artifact-client.js delete "Integration-${{ matrix.group }}-surefire-reports" &>/dev/null || true
-          gh-actions-artifact-client.js delete "Integration-${{ matrix.group }}-container-logs" &>/dev/null || true
 
       - name: Restore maven build results from Github artifact cache
         if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
@@ -645,12 +634,6 @@ jobs:
       - name: Install gh-actions-artifact-client.js
         if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
         uses: apache/pulsar-test-infra/gh-actions-artifact-client/dist@master
-
-      - name: Cleanup log artifacts from possible previous failed build
-        if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
-        run: |
-          gh-actions-artifact-client.js delete "System-${{ matrix.group }}-surefire-reports" &>/dev/null || true
-          gh-actions-artifact-client.js delete "System-${{ matrix.group }}-container-logs" &>/dev/null || true
 
       - name: Restore maven build results from Github artifact cache
         if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
