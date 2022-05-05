@@ -2646,8 +2646,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                 return rangeList.size() <= config.getMaxUnackedRangesToPersist();
             });
             this.individualDeletedMessagesSerializedSize = acksSerializedSize.get();
-            if (rangeList.size() == config.getMaxUnackedRangesToPersist()
-                    && individualDeletedMessages.size() > config.getMaxUnackedRangesToPersist()) {
+            if (rangeList.size() < individualDeletedMessages.size() ) {
                 log.warn("The current individualDeletedMessages size "
                         + "has exceeded the value of maxUnackedRangesToPersist during the persistence attempt."
                         + " individualDeletedMessages={}, maxUnackedRangesToPersist={}",
