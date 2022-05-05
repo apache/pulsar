@@ -20,10 +20,15 @@ package org.apache.pulsar.broker.systopic;
 
 import com.google.common.collect.Sets;
 import org.apache.commons.lang.RandomStringUtils;
+import org.apache.pulsar.broker.admin.impl.BrokersBase;
+import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerTestBase;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.common.events.EventsTopicNames;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.testng.Assert;
@@ -104,4 +109,17 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
         }
     }
 
+    @Test
+    public void testHealthCheckTopicNotOffload() throws Exception {
+        final String heartbeatNamespace = NamespaceService.getHeartbeatNamespace(pulsar.getAdvertisedAddress(),
+                pulsar.getConfig());
+        TopicName topicName = TopicName.get("persistent://" + heartbeatNamespace
+                        + "/" + BrokersBase.HEALTH_CHECK_TOPIC_SUFFIX);
+        PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService()
+                .getTopic(topicName.toString(), true).get().get();
+        admin.brokers().healthcheck();
+        admin.topics().triggerOffload(topicName.toString(), MessageId.earliest);
+        Assert.assertEquals(admin.topics().getStats(topicName.toString()).getMsgInCounter(), 1);
+        Assert.assertEquals(persistentTopic.getManagedLedger().getOffloadedSize(), 0);
+    }
 }
