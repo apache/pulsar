@@ -222,13 +222,6 @@ public class FunctionActioner {
 
         if (downloadFromHttp) {
             FunctionCommon.downloadFromHttpUrl(pkgLocationPath, tempPkgFile);
-        } else if (workerConfig.isFunctionsWorkerEnablePackageManagement()) {
-            try {
-                pulsarAdmin.packages().download(pkgLocationPath, tempPkgFile.getAbsolutePath());
-            } catch (PulsarAdminException e) {
-                log.error("Failed download package {} from packageMangment Service", pkgLocationPath, e);
-
-            }
         } else if (downloadFromPackageManagementService) {
             getPulsarAdmin().packages().download(pkgLocationPath, tempPkgFile.getPath());
         } else {
