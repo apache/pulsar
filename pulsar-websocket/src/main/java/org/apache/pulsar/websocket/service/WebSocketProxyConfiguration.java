@@ -195,11 +195,9 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     private boolean tlsEnabledWithKeyStore = false;
 
     @FieldContext(
-            doc = "Specify the TLS provider for the WebSocket service: \n"
-                    + "When using TLS authentication with CACert, the valid value is either OPENSSL or JDK.\n"
-                    + "When using TLS authentication with KeyStore, available values can be SunJSSE, Conscrypt and etc."
+            doc = "Specify the TLS provider for the WebSocket service: SunJSSE, Conscrypt and etc."
     )
-    private String tlsProvider = null;
+    private String tlsProvider = "Conscrypt";
 
     @FieldContext(
             doc = "TLS KeyStore type configuration in WebSocket: JKS, PKCS12"

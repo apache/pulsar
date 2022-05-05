@@ -255,6 +255,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             }
             this.batchMessageContainer = (BatchMessageContainerBase) containerBuilder.build();
             this.batchMessageContainer.setProducer(this);
+            this.lastBatchSendNanoTime = System.nanoTime();
         } else {
             this.batchMessageContainer = null;
         }
@@ -1402,15 +1403,18 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     TimeoutException te = (TimeoutException) e;
                     long sequenceId = te.getSequenceId();
                     long ns = System.nanoTime();
+                    //firstSentAt and lastSentAt maybe -1, it means that the message didn't flush to channel.
                     String errMsg = String.format(
                         "%s : createdAt %s seconds ago, firstSentAt %s seconds ago, lastSentAt %s seconds ago, "
                                 + "retryCount %s",
                         te.getMessage(),
                         RelativeTimeUtil.nsToSeconds(ns - this.createdAt),
                         RelativeTimeUtil.nsToSeconds(this.firstSentAt <= 0
-                                ? ns - this.lastSentAt
+                                ? this.firstSentAt
                                 : ns - this.firstSentAt),
-                        RelativeTimeUtil.nsToSeconds(ns - this.lastSentAt),
+                        RelativeTimeUtil.nsToSeconds(this.lastSentAt <= 0
+                                ? this.lastSentAt
+                                : ns - this.lastSentAt),
                         retryCount
                     );
 

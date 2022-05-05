@@ -100,7 +100,7 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     private String workerHostname;
     @FieldContext(
         category = CATEGORY_WORKER,
-        doc = "The port for serving worker http requests"
+        doc = "The port for serving worker http requests. Set to null to disable serving on the http port."
     )
     private Integer workerPort;
     @FieldContext(
@@ -724,7 +724,8 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
 
     public String getWorkerId() {
         if (isBlank(this.workerId)) {
-            this.workerId = String.format("%s-%s", this.getWorkerHostname(), this.getWorkerPort());
+            this.workerId = String.format("%s-%s", this.getWorkerHostname(), this.getWorkerPort() != null
+                    ? this.getWorkerPort() : this.getWorkerPortTls());
         }
         return this.workerId;
     }

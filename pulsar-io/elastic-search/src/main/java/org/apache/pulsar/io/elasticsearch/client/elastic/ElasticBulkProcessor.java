@@ -44,6 +44,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.elasticsearch.ElasticSearchConfig;
 import org.apache.pulsar.io.elasticsearch.RandomExponentialRetry;
 import org.apache.pulsar.io.elasticsearch.client.BulkProcessor;
@@ -56,7 +57,7 @@ public class ElasticBulkProcessor implements BulkProcessor {
     private final AtomicLong executionIdGen = new AtomicLong();
     private final int bulkActions;
     private final long bulkSize;
-    private final List<BulkOperationWithId> pendingOperations = new ArrayList<>();
+    private final List<BulkOperationWithPulsarRecord> pendingOperations = new ArrayList<>();
     private final BulkRequestHandler bulkRequestHandler;
     private volatile boolean closed = false;
     private final ReentrantLock lock;
@@ -99,7 +100,7 @@ public class ElasticBulkProcessor implements BulkProcessor {
         if (config.getBulkSizeInMb() > 0) {
             sourceLength = request.getDocumentSource().getBytes(StandardCharsets.UTF_8).length;
         }
-        add(BulkOperationWithId.indexOperation(indexOperation, request.getRequestId(), sourceLength));
+        add(BulkOperationWithPulsarRecord.indexOperation(indexOperation, request.getRecord(), sourceLength));
     }
 
     @Override
@@ -108,7 +109,7 @@ public class ElasticBulkProcessor implements BulkProcessor {
                 .index(request.getIndex())
                 .id(request.getDocumentId())
                 .build();
-        add(BulkOperationWithId.deleteOperation(deleteOperation, request.getRequestId()));
+        add(BulkOperationWithPulsarRecord.deleteOperation(deleteOperation, request.getRecord()));
     }
 
     protected void ensureOpen() {
@@ -169,7 +170,7 @@ public class ElasticBulkProcessor implements BulkProcessor {
         execute(false);
     }
 
-    public void add(BulkOperationWithId bulkOperation) {
+    public void add(BulkOperationWithPulsarRecord bulkOperation) {
         lock.lock();
         try {
             ensureOpen();
@@ -202,7 +203,7 @@ public class ElasticBulkProcessor implements BulkProcessor {
         }
     }
 
-    public static class BulkOperationWithId extends BulkOperation {
+    public static class BulkOperationWithPulsarRecord extends BulkOperation {
 
         /**
          * REQUEST_OVERHEAD:
@@ -211,29 +212,30 @@ public class ElasticBulkProcessor implements BulkProcessor {
          */
         private static final int REQUEST_OVERHEAD = 50;
 
-        public static BulkOperationWithId indexOperation(IndexOperation indexOperation,
-                                                         long operationId,
-                                                         long sourceLength) {
+        public static BulkOperationWithPulsarRecord indexOperation(IndexOperation indexOperation,
+                                                                   Record pulsarRecord,
+                                                                   long sourceLength) {
             long estimatedSizeInBytes = REQUEST_OVERHEAD + sourceLength;
-            return new BulkOperationWithId(indexOperation, operationId, estimatedSizeInBytes);
+            return new BulkOperationWithPulsarRecord(indexOperation, pulsarRecord, estimatedSizeInBytes);
         }
 
-        public static BulkOperationWithId deleteOperation(DeleteOperation indexOperation,
-                                                          long operationId) {
-            return new BulkOperationWithId(indexOperation, operationId, REQUEST_OVERHEAD);
+        public static BulkOperationWithPulsarRecord deleteOperation(DeleteOperation indexOperation,
+                                                                    Record pulsarRecord) {
+            return new BulkOperationWithPulsarRecord(indexOperation, pulsarRecord, REQUEST_OVERHEAD);
         }
 
-        private final long operationId;
+        private final Record pulsarRecord;
         private final long estimatedSizeInBytes;
 
-        public BulkOperationWithId(BulkOperationVariant value, long operationId, long estimatedSizeInBytes) {
+        public BulkOperationWithPulsarRecord(BulkOperationVariant value,
+                                             Record pulsarRecord, long estimatedSizeInBytes) {
             super(value);
-            this.operationId = operationId;
+            this.pulsarRecord = pulsarRecord;
             this.estimatedSizeInBytes = estimatedSizeInBytes;
         }
 
-        public long getOperationId() {
-            return operationId;
+        public Record getPulsarRecord() {
+            return pulsarRecord;
         }
 
         public long getEstimatedSizeInBytes() {
@@ -328,9 +330,9 @@ public class ElasticBulkProcessor implements BulkProcessor {
 
         private List<BulkOperationRequest> convertBulkRequest(BulkRequest bulkRequest) {
             return bulkRequest.operations().stream().map(op -> {
-                        BulkOperationWithId opWithId = (BulkOperationWithId) op;
+                        BulkOperationWithPulsarRecord opWithRecord = (BulkOperationWithPulsarRecord) op;
                         return BulkOperationRequest.builder()
-                                .operationId(opWithId.getOperationId())
+                                .pulsarRecord(opWithRecord.getPulsarRecord())
                                 .build();
                     }).collect(Collectors.toList());
         }

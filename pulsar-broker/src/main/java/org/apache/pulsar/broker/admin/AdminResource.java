@@ -27,7 +27,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import javax.servlet.ServletContext;
@@ -142,11 +141,15 @@ public abstract class AdminResource extends PulsarWebResource {
         return pulsar().getPulsarResources().getNamespaceResources().getPoliciesReadOnlyAsync()
                 .thenAccept(arePoliciesReadOnly -> {
                     if (arePoliciesReadOnly) {
-                        log.debug("Policies are read-only. Broker cannot do read-write operations");
+                        if (log.isDebugEnabled()) {
+                            log.debug("Policies are read-only. Broker cannot do read-write operations");
+                        }
                         throw new RestException(Status.FORBIDDEN, "Broker is forbidden to do read-write operations");
                     } else {
                         // Do nothing, just log the message.
-                        log.debug("Broker is allowed to make read-write operations");
+                        if (log.isDebugEnabled()) {
+                            log.debug("Broker is allowed to make read-write operations");
+                        }
                     }
                 });
     }
@@ -251,18 +254,13 @@ public abstract class AdminResource extends PulsarWebResource {
         }
     }
 
-    protected void validatePartitionedTopicMetadata(String tenant, String namespace, String encodedTopic) {
-        try {
-            PartitionedTopicMetadata partitionedTopicMetadata =
-                    pulsar().getBrokerService().fetchPartitionedTopicMetadataAsync(topicName).get();
-            if (partitionedTopicMetadata.partitions < 1) {
-                throw new RestException(Status.CONFLICT, "Topic is not partitioned topic");
-            }
-        } catch (InterruptedException | ExecutionException e) {
-            log.error("Failed to validate partitioned topic metadata {}://{}/{}/{}",
-                    domain(), tenant, namespace, topicName, e);
-            throw new RestException(Status.INTERNAL_SERVER_ERROR, "Check topic partition meta failed.");
-        }
+    protected CompletableFuture<Void> validatePartitionedTopicMetadataAsync() {
+        return pulsar().getBrokerService().fetchPartitionedTopicMetadataAsync(topicName)
+                .thenAccept(metadata -> {
+                    if (metadata.partitions < 1) {
+                        throw new RestException(Status.CONFLICT, "Topic is not partitioned topic");
+                    }
+                });
     }
 
     @Deprecated
@@ -543,6 +541,17 @@ public abstract class AdminResource extends PulsarWebResource {
             log.error("[{}] Failed to get namespace policies {}", clientAppId(), namespaceName, e);
             throw new RestException(e);
         }
+    }
+
+    protected CompletableFuture<Set<String>> getNamespaceReplicatedClustersAsync(NamespaceName namespaceName) {
+        return namespaceResources().getPoliciesAsync(namespaceName)
+                .thenApply(policies -> {
+                    if (policies.isPresent()) {
+                        return policies.get().replication_clusters;
+                    } else {
+                        throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
+                    }
+                });
     }
 
     protected List<String> getPartitionedTopicList(TopicDomain topicDomain) {

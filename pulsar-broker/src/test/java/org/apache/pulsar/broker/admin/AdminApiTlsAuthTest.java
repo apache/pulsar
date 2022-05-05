@@ -48,6 +48,8 @@ import org.apache.pulsar.client.admin.internal.JacksonConfigurator;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.common.naming.SystemTopicNames;
+import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ResourceGroup;
 import org.apache.pulsar.common.tls.NoopHostnameVerifier;
@@ -193,6 +195,24 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
                     new ResourceGroup());
             admin.resourcegroups().deleteResourceGroup("test-resource-group");
         }
+    }
+
+    @Test
+    public void testSuperUserCanUpdateScaleOfTransactionCoordinators() throws Exception {
+        getPulsar().getConfiguration().setTransactionCoordinatorEnabled(true);
+        pulsar.getPulsarResources()
+                .getNamespaceResources()
+                .getPartitionedTopicResources()
+                .createPartitionedTopic(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN,
+                        new PartitionedTopicMetadata(3));
+        PulsarAdmin admin = buildAdminClient("admin");
+        admin.transactions().scaleTransactionCoordinators(4);
+        int partitions = pulsar.getPulsarResources()
+                .getNamespaceResources()
+                .getPartitionedTopicResources()
+                .getPartitionedTopicMetadataAsync(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN)
+                .get().get().partitions;
+        Assert.assertEquals(partitions, 4);
     }
 
     @Test

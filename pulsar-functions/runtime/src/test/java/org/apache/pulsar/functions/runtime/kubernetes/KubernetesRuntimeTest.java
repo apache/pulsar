@@ -87,8 +87,8 @@ public class KubernetesRuntimeTest {
     private static final String narExtractionDirectory = "/tmp/foo";
 
     static {
-        topicsToSerDeClassName.put("persistent://sample/standalone/ns1/test_src", "");
-        topicsToSchema.put("persistent://sample/standalone/ns1/test_src",
+        topicsToSerDeClassName.put("test_src", "");
+        topicsToSchema.put("test_src",
                 ConsumerSpec.newBuilder().setSerdeClassName("").setIsRegexPattern(false).build());
     }
 
@@ -505,7 +505,7 @@ public class KubernetesRuntimeTest {
 
         assertEquals(args.size(), totalArgs,
                 "Actual args : " + StringUtils.join(args, " "));
-        String expectedArgs = pythonPath + "exec python " + pythonInstanceFile
+        String expectedArgs = pythonPath + "exec python3 " + pythonInstanceFile
                 + " --py " + pulsarRootDir + "/" + userJarFile
                 + " --logging_directory " + logDirectory
                 + " --logging_file " + config.getFunctionDetails().getName()
@@ -857,7 +857,7 @@ public class KubernetesRuntimeTest {
         assertEquals(goInstanceConfig.get("killAfterIdleMs"), 0);
         assertEquals(goInstanceConfig.get("parallelism"), 0);
         assertEquals(goInstanceConfig.get("className"), "");
-        assertEquals(goInstanceConfig.get("sourceSpecsTopic"), "persistent://sample/standalone/ns1/test_src");
+        assertEquals(goInstanceConfig.get("sourceSpecsTopic"), "test_src");
         assertEquals(goInstanceConfig.get("sourceSchemaType"), "");
         assertEquals(goInstanceConfig.get("sinkSpecsTopic"), TEST_NAME + "-output");
         assertEquals(goInstanceConfig.get("clusterName"), "standalone");

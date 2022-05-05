@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.admin.impl;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
-import static org.apache.pulsar.broker.resources.PulsarResources.DEFAULT_OPERATION_TIMEOUT_SEC;
 import static org.apache.pulsar.common.naming.SystemTopicNames.isTransactionCoordinatorAssign;
 import static org.apache.pulsar.common.naming.SystemTopicNames.isTransactionInternalName;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -184,6 +183,19 @@ public class PersistentTopicsBase extends AdminResource {
             log.error("[{}] Failed to get topics list for namespace {}", clientAppId(), namespaceName, e);
             throw new RestException(e);
         }
+    }
+
+    protected CompletableFuture<List<String>> internalGetListAsync() {
+        return validateNamespaceOperationAsync(namespaceName, NamespaceOperation.GET_TOPICS)
+                .thenCompose(__ -> namespaceResources().namespaceExistsAsync(namespaceName))
+                .thenAccept(exists -> {
+                    if (!exists) {
+                        throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
+                    }
+                })
+                .thenCompose(__ -> topicResources().listPersistentTopicsAsync(namespaceName))
+                .thenApply(topics -> topics.stream().filter(topic ->
+                        !isTransactionInternalName(TopicName.get(topic))).collect(Collectors.toList()));
     }
 
     protected List<String> internalGetPartitionedTopicList() {
@@ -418,88 +430,65 @@ public class PersistentTopicsBase extends AdminResource {
      * well. Therefore, it can violate partition ordering at producers until all producers are restarted at application.
      *
      * @param numPartitions
+     * @param updateLocalTopicOnly
+     * @param authoritative
+     * @param force
      */
-    protected void internalUpdatePartitionedTopic(int numPartitions,
-                                                  boolean updateLocalTopicOnly, boolean authoritative,
-                                                  boolean force) {
+    protected CompletableFuture<Void> internalUpdatePartitionedTopicAsync(int numPartitions,
+                                                                          boolean updateLocalTopicOnly,
+                                                                          boolean authoritative, boolean force) {
         if (numPartitions <= 0) {
-            throw new RestException(Status.NOT_ACCEPTABLE, "Number of partitions should be more than 0");
+            return FutureUtil.failedFuture(new RestException(Status.NOT_ACCEPTABLE,
+                    "Number of partitions should be more than 0"));
         }
-
-        validateTopicOwnership(topicName, authoritative);
-        validateTopicPolicyOperation(topicName, PolicyName.PARTITION, PolicyOperation.WRITE);
-        // Only do the validation if it's the first hop.
-        if (!updateLocalTopicOnly && !force) {
-            validatePartitionTopicUpdate(topicName.getLocalName(), numPartitions);
-        }
-        final int maxPartitions = pulsar().getConfig().getMaxNumPartitionsPerPartitionedTopic();
-        if (maxPartitions > 0 && numPartitions > maxPartitions) {
-            throw new RestException(Status.NOT_ACCEPTABLE,
-                    "Number of partitions should be less than or equal to " + maxPartitions);
-        }
-
-        if (topicName.isGlobal() && isNamespaceReplicated(topicName.getNamespaceObject())) {
-            Set<String> clusters = getNamespaceReplicatedClusters(topicName.getNamespaceObject());
-            if (!clusters.contains(pulsar().getConfig().getClusterName())) {
-                log.error("[{}] local cluster is not part of replicated cluster for namespace {}", clientAppId(),
-                        topicName);
-                throw new RestException(Status.FORBIDDEN, "Local cluster is not part of replicate cluster list");
-            }
-            try {
-                tryCreatePartitionsAsync(numPartitions).get(DEFAULT_OPERATION_TIMEOUT_SEC, TimeUnit.SECONDS);
-                createSubscriptions(topicName, numPartitions).get(DEFAULT_OPERATION_TIMEOUT_SEC, TimeUnit.SECONDS);
-            } catch (Exception e) {
-                if (e.getCause() instanceof RestException) {
-                    throw (RestException) e.getCause();
+        return validateTopicOwnershipAsync(topicName, authoritative)
+            .thenCompose(__ -> validateTopicPolicyOperationAsync(topicName, PolicyName.PARTITION,
+                    PolicyOperation.WRITE))
+            .thenCompose(__ -> {
+                if (!updateLocalTopicOnly && !force) {
+                    return validatePartitionTopicUpdateAsync(topicName.getLocalName(), numPartitions);
+                }  else {
+                    return CompletableFuture.completedFuture(null);
                 }
-                log.error("[{}] Failed to update partitioned topic {}", clientAppId(), topicName, e);
-                throw new RestException(e);
-            }
-            // if this cluster is the first hop which needs to coordinate with other clusters then update partitions in
-            // other clusters and then update number of partitions.
-            if (!updateLocalTopicOnly) {
-                CompletableFuture<Void> updatePartition = new CompletableFuture<>();
-                updatePartitionInOtherCluster(numPartitions, clusters).thenRun(() -> {
-                    try {
-                        namespaceResources().getPartitionedTopicResources()
-                                .updatePartitionedTopicAsync(topicName, p ->
-                            new PartitionedTopicMetadata(numPartitions)
-                        ).thenAccept(r -> updatePartition.complete(null)).exceptionally(ex -> {
-                            updatePartition.completeExceptionally(ex.getCause());
-                            return null;
-                        });
-                    } catch (Exception e) {
-                        updatePartition.completeExceptionally(e);
-                    }
-                }).exceptionally(ex -> {
-                    updatePartition.completeExceptionally(ex);
-                    return null;
-                });
-                try {
-                    updatePartition.get(DEFAULT_OPERATION_TIMEOUT_SEC, TimeUnit.SECONDS);
-                } catch (Exception e) {
-                    log.error("{} Failed to update number of partitions in zk for topic {} and partitions {}",
-                            clientAppId(), topicName, numPartitions, e);
-                    if (e.getCause() instanceof RestException) {
-                        throw (RestException) e.getCause();
-                    }
-                    throw new RestException(e);
+            })
+            .thenCompose(__ -> {
+                final int maxPartitions = pulsar().getConfig().getMaxNumPartitionsPerPartitionedTopic();
+                if (maxPartitions > 0 && numPartitions > maxPartitions) {
+                    throw new RestException(Status.NOT_ACCEPTABLE,
+                            "Number of partitions should be less than or equal to " + maxPartitions);
                 }
-            }
-            return;
-        }
-
-        try {
-            tryCreatePartitionsAsync(numPartitions).get(DEFAULT_OPERATION_TIMEOUT_SEC, TimeUnit.SECONDS);
-            updatePartitionedTopic(topicName, numPartitions, force).get(DEFAULT_OPERATION_TIMEOUT_SEC,
-                    TimeUnit.SECONDS);
-        } catch (Exception e) {
-            if (e.getCause() instanceof RestException) {
-                throw (RestException) e.getCause();
-            }
-            log.error("[{}] Failed to update partitioned topic {}", clientAppId(), topicName, e);
-            throw new RestException(e);
-        }
+                // Only do the validation if it's the first hop.
+                if (topicName.isGlobal() && isNamespaceReplicated(topicName.getNamespaceObject())) {
+                    return getNamespaceReplicatedClustersAsync(topicName.getNamespaceObject())
+                            .thenApply(clusters -> {
+                                if (!clusters.contains(pulsar().getConfig().getClusterName())) {
+                                    log.error("[{}] local cluster is not part of replicated cluster for namespace {}",
+                                    clientAppId(), topicName);
+                                    throw new RestException(Status.FORBIDDEN, "Local cluster is not part of replicate"
+                                            + " cluster list");
+                                }
+                                return clusters;
+                            })
+                            .thenCompose(clusters -> tryCreatePartitionsAsync(numPartitions).thenApply(ignore ->
+                                    clusters))
+                            .thenCompose(clusters -> createSubscriptions(topicName, numPartitions).thenApply(ignore ->
+                                    clusters))
+                            .thenCompose(clusters -> {
+                                if (!updateLocalTopicOnly) {
+                                    return updatePartitionInOtherCluster(numPartitions, clusters)
+                                        .thenCompose(v -> namespaceResources().getPartitionedTopicResources()
+                                                        .updatePartitionedTopicAsync(topicName, p ->
+                                                                new PartitionedTopicMetadata(numPartitions)
+                                                        ));
+                                } else {
+                                    return CompletableFuture.completedFuture(null);
+                                }
+                            });
+                } else {
+                    return tryCreatePartitionsAsync(numPartitions)
+                            .thenCompose(ignore -> updatePartitionedTopic(topicName, numPartitions, force));
+                }
+            });
     }
 
     protected void internalCreateMissedPartitions(AsyncResponse asyncResponse) {
@@ -4187,40 +4176,44 @@ public class PersistentTopicsBase extends AdminResource {
      *
      * @param topicName
      */
-    private void validatePartitionTopicUpdate(String topicName, int numberOfPartition) {
-        List<String> existingTopicList = internalGetList(Optional.empty());
-        TopicName partitionTopicName = TopicName.get(domain(), namespaceName, topicName);
-        PartitionedTopicMetadata metadata = getPartitionedTopicMetadata(partitionTopicName, false, false);
-        int oldPartition = metadata.partitions;
-        String prefix = partitionTopicName.getPartitionedTopicName() + TopicName.PARTITIONED_TOPIC_SUFFIX;
-        for (String exsitingTopicName : existingTopicList) {
-            if (exsitingTopicName.startsWith(prefix)) {
-                try {
-                    long suffix = Long.parseLong(exsitingTopicName.substring(
-                            exsitingTopicName.indexOf(TopicName.PARTITIONED_TOPIC_SUFFIX)
-                                    + TopicName.PARTITIONED_TOPIC_SUFFIX.length()));
-                    // Skip partition of partitioned topic by making sure
-                    // the numeric suffix greater than old partition number.
-                    if (suffix >= oldPartition && suffix <= (long) numberOfPartition) {
-                        log.warn(
-                                "[{}] Already have non partition topic {} which contains partition suffix"
-                                        + " '-partition-' and end with numeric value smaller than the new number"
-                                        + " of partition. Update of partitioned topic {} could cause conflict.",
-                                clientAppId(),
-                                exsitingTopicName, topicName);
-                        throw new RestException(Status.PRECONDITION_FAILED,
-                                "Already have non partition topic " + exsitingTopicName
-                                        + " which contains partition suffix '-partition-' "
-                                        + "and end with numeric value and end with numeric value smaller than the new "
-                                        + "number of partition. Update of partitioned topic "
-                                        + topicName + " could cause conflict.");
-                    }
-                } catch (NumberFormatException e) {
-                    // Do nothing, if value after partition suffix is not pure numeric value,
-                    // as it can't conflict with internal created partitioned topic's name.
-                }
-            }
-        }
+    private CompletableFuture<Void> validatePartitionTopicUpdateAsync(String topicName, int numberOfPartition) {
+        return internalGetListAsync().thenCompose(existingTopicList -> {
+            TopicName partitionTopicName = TopicName.get(domain(), namespaceName, topicName);
+            String prefix = partitionTopicName.getPartitionedTopicName() + TopicName.PARTITIONED_TOPIC_SUFFIX;
+            return getPartitionedTopicMetadataAsync(partitionTopicName, false, false)
+                    .thenAccept(metadata -> {
+                        int oldPartition = metadata.partitions;
+                        for (String existingTopicName : existingTopicList) {
+                            if (existingTopicName.startsWith(prefix)) {
+                                try {
+                                    long suffix = Long.parseLong(existingTopicName.substring(
+                                            existingTopicName.indexOf(TopicName.PARTITIONED_TOPIC_SUFFIX)
+                                                    + TopicName.PARTITIONED_TOPIC_SUFFIX.length()));
+                                    // Skip partition of partitioned topic by making sure
+                                    // the numeric suffix greater than old partition number.
+                                    if (suffix >= oldPartition && suffix <= (long) numberOfPartition) {
+                                        log.warn(
+                                                "[{}] Already have non partition topic {} which contains partition"
+                                                        + " suffix '-partition-' and end with numeric value smaller"
+                                                        + " than the new number of partition. Update of partitioned"
+                                                        + " topic {} could cause conflict.",
+                                                clientAppId(),
+                                                existingTopicName, topicName);
+                                        throw new RestException(Status.PRECONDITION_FAILED,
+                                                "Already have non partition topic " + existingTopicName
+                                                        + " which contains partition suffix '-partition-' "
+                                                        + "and end with numeric value and end with numeric value"
+                                                        + " smaller than the new number of partition. Update of"
+                                                        + " partitioned topic " + topicName + " could cause conflict.");
+                                    }
+                                } catch (NumberFormatException e) {
+                                    // Do nothing, if value after partition suffix is not pure numeric value,
+                                    // as it can't conflict with internal created partitioned topic's name.
+                                }
+                            }
+                        }
+                    });
+        });
     }
 
     /**

@@ -83,7 +83,7 @@ public class ElasticSearchConfigTests {
         assertEquals(config.isBulkEnabled(), false);
         assertEquals(config.getBulkActions(), 1000L);
         assertEquals(config.getBulkSizeInMb(), 5L);
-        assertEquals(config.getBulkFlushIntervalInMs(), -1L);
+        assertEquals(config.getBulkFlushIntervalInMs(), 1000L);
         assertEquals(config.getBulkConcurrentRequests(), 0L);
 
         assertEquals(config.isCompressionEnabled(), false);

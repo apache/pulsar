@@ -181,6 +181,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private Optional<Integer> webServicePortTls = Optional.empty();
 
     @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Specify the TLS provider for the web service: SunJSSE, Conscrypt and etc."
+    )
+    private String webServiceTlsProvider = "Conscrypt";
+
+    @FieldContext(
             category = CATEGORY_TLS,
             doc = "Specify the tls protocols the proxy's web service will use to negotiate during TLS Handshake.\n\n"
                     + "Example:- [TLSv1.3, TLSv1.2]"
@@ -2324,6 +2330,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int webSocketMaxTextFrameSize = 1048576;
 
     /**** --- Metrics. --- ****/
+    @FieldContext(
+            category = CATEGORY_METRICS,
+            doc = "Whether the '/metrics' endpoint requires authentication. Defaults to false."
+                    + "'authenticationEnabled' must also be set for this to take effect."
+    )
+    private boolean authenticateMetricsEndpoint = false;
     @FieldContext(
         category = CATEGORY_METRICS,
         doc = "If true, export topic level metrics otherwise namespace level"

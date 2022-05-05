@@ -28,6 +28,7 @@ import static org.apache.pulsar.common.protocol.Commands.newLookupErrorResponse;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import io.netty.buffer.ByteBuf;
+import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOption;
@@ -186,7 +187,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     private final int maxNonPersistentPendingMessages;
     private String originalPrincipal = null;
     private Set<String> proxyRoles;
-    private boolean authenticateOriginalAuthData;
     private final boolean schemaValidationEnforced;
     private String authMethod = "none";
     private final int maxMessageSize;
@@ -258,7 +258,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         this.replicatorPrefix = conf.getReplicatorPrefix();
         this.maxNonPersistentPendingMessages = conf.getMaxConcurrentNonPersistentMessagePerConnection();
         this.proxyRoles = conf.getProxyRoles();
-        this.authenticateOriginalAuthData = conf.isAuthenticateOriginalAuthData();
         this.schemaValidationEnforced = conf.isSchemaValidationEnforced();
         this.maxMessageSize = conf.getMaxMessageSize();
         this.maxPendingSendRequests = conf.getMaxPendingPublishRequestsPerConnection();
@@ -278,13 +277,13 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         super.channelActive(ctx);
-        ConnectionController.Sate sate = connectionController.increaseConnection(remoteAddress);
-        if (!sate.equals(ConnectionController.Sate.OK)) {
-            ctx.channel().writeAndFlush(Commands.newError(-1, ServerError.NotAllowedError,
-                    sate.equals(ConnectionController.Sate.REACH_MAX_CONNECTION)
-                            ? "Reached the maximum number of connections"
-                            : "Reached the maximum number of connections on address" + remoteAddress));
-            ctx.channel().close();
+        ConnectionController.State state = connectionController.increaseConnection(remoteAddress);
+        if (!state.equals(ConnectionController.State.OK)) {
+            ctx.writeAndFlush(Commands.newError(-1, ServerError.NotAllowedError,
+                            state.equals(ConnectionController.State.REACH_MAX_CONNECTION)
+                                    ? "Reached the maximum number of connections"
+                                    : "Reached the maximum number of connections on address" + remoteAddress))
+                    .addListener(ChannelFutureListener.CLOSE);
             return;
         }
         log.info("New connection from {}", remoteAddress);

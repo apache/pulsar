@@ -59,7 +59,8 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
     // This cache is used to maintain a list of active connections to iterate over them
     // We keep weak references to have the cache to be auto cleaned up when the connections
     // objects are GCed.
-    private final Cache<SocketAddress, ServerCnx> connections = Caffeine.newBuilder()
+    @VisibleForTesting
+    protected final Cache<SocketAddress, ServerCnx> connections = Caffeine.newBuilder()
             .weakKeys()
             .weakValues()
             .build();

@@ -880,7 +880,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         // Add metrics servlet
         webService.addServlet("/metrics",
                 new ServletHolder(metricsServlet),
-                false, attributeMap);
+                config.isAuthenticateMetricsEndpoint(), attributeMap);
 
         // Add websocket service
         addWebSocketServiceHandler(webService, attributeMap, config);
@@ -1431,6 +1431,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                                 conf.getBrokerClientAuthenticationParameters());
 
                 if (conf.isBrokerClientTlsEnabled()) {
+                    builder.tlsCiphers(config.getBrokerClientTlsCiphers())
+                            .tlsProtocols(config.getBrokerClientTlsProtocols());
                     if (conf.isBrokerClientTlsEnabledWithKeyStore()) {
                         builder.useKeyStoreTls(true)
                                 .tlsTrustStoreType(conf.getBrokerClientTlsTrustStoreType())
@@ -1641,10 +1643,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                                                                       String workerConfigFile) throws IOException {
         WorkerConfig workerConfig = WorkerConfig.load(workerConfigFile);
 
-        brokerConfig.getWebServicePort()
-            .map(port -> workerConfig.setWorkerPort(port));
-        brokerConfig.getWebServicePortTls()
-            .map(port -> workerConfig.setWorkerPortTls(port));
+        workerConfig.setWorkerPort(brokerConfig.getWebServicePort().orElse(null));
+        workerConfig.setWorkerPortTls(brokerConfig.getWebServicePortTls().orElse(null));
 
         // worker talks to local broker
         String hostname = ServiceConfigurationUtils.getDefaultOrConfiguredAddress(
