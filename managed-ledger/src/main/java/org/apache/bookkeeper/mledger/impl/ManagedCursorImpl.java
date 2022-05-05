@@ -2533,6 +2533,9 @@ public class ManagedCursorImpl implements ManagedCursor {
     void createNewMetadataLedger(final VoidCallback callback) {
         ledger.mbean.startCursorLedgerCreateOp();
         doCreateNewMetadataLedger().thenAccept(newLedgerHandle -> {
+            if (newLedgerHandle == null) {
+                return;
+            }
             MarkDeleteEntry mdEntry = lastMarkDeleteEntry;
             // Created the ledger, now write the last position content
             persistPositionToLedger(newLedgerHandle, mdEntry, new VoidCallback() {
@@ -2567,7 +2570,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         ledger.asyncCreateLedger(bookkeeper, config, digestType, (rc, lh, ctx) -> {
 
             if (ledger.checkAndCompleteLedgerOpTask(rc, lh, ctx)) {
-                future.complete(lh);
+                future.complete(null);
                 return;
             }
 
