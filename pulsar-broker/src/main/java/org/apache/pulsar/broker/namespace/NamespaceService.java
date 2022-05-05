@@ -54,6 +54,7 @@ import org.apache.pulsar.broker.loadbalance.LeaderElectionService;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
 import org.apache.pulsar.broker.loadbalance.ResourceUnit;
 import org.apache.pulsar.broker.lookup.LookupResult;
+import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
@@ -407,8 +408,8 @@ public class NamespaceService implements AutoCloseable {
                         });
                     }
                 } else if (nsData.get().isDisabled()) {
-                    future.completeExceptionally(
-                            new IllegalStateException(String.format("Namespace bundle %s is being unloaded", bundle)));
+                    future.completeExceptionally(new BrokerServiceException.ServerMetadataException(
+                            String.format("Namespace bundle %s is being unloaded", bundle)));
                 } else {
                     if (LOG.isDebugEnabled()) {
                         LOG.debug("Namespace bundle {} already owned by {} ", bundle, nsData);

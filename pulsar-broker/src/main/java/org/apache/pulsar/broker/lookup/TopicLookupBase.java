@@ -36,6 +36,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.namespace.LookupOptions;
+import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse.LookupType;
@@ -302,7 +303,14 @@ public class TopicLookupBase extends PulsarWebResource {
                                         requestId, shouldRedirectThroughServiceUrl(conf, lookupData)));
                             }
                         }).exceptionally(ex -> {
-                    if (ex instanceof CompletionException && ex.getCause() instanceof IllegalStateException) {
+                    if (ex instanceof CompletionException
+                            && ex.getCause() instanceof BrokerServiceException.ServerMetadataException) {
+                        log.info("Failed to lookup {} for topic {} with error {}", clientAppId,
+                                topicName.toString(), ex.getCause().getMessage());
+                        lookupfuture.complete(
+                                newLookupErrorResponse(ServerError.MetadataError, ex.getMessage(), requestId));
+                        return null;
+                    } else if (ex instanceof CompletionException && ex.getCause() instanceof IllegalStateException) {
                         log.info("Failed to lookup {} for topic {} with error {}", clientAppId,
                                 topicName.toString(), ex.getCause().getMessage());
                     } else {

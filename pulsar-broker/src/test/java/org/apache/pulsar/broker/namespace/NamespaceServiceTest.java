@@ -42,6 +42,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.bookkeeper.mledger.ManagedLedger;
@@ -51,6 +52,7 @@ import org.apache.pulsar.broker.loadbalance.LoadManager;
 import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerWrapper;
 import org.apache.pulsar.broker.lookup.LookupResult;
+import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -653,6 +655,40 @@ public class NamespaceServiceTest extends BrokerTestBase {
         NamespaceBundle namespaceBundle = pulsar.getNamespaceService().getNamespaceBundleFactory().getFullBundle(namespaceName);
         assertTrue(NamespaceService.isSystemServiceNamespace(
                         NamespaceBundle.getBundleNamespace(namespaceBundle.toString())));
+    }
+
+    /**
+     * Test get broker service url when bundle is being unloaded .
+     *
+     * @throws Exception
+     */
+    @Test
+    public void testGetBrokerServiceUrlAsyncWhenBundleUnload() throws Exception {
+        OwnershipCache MockOwnershipCache = spy(pulsar.getNamespaceService().getOwnershipCache());
+        NamespaceEphemeralData namespaceEphemeralData = new NamespaceEphemeralData(null, null, null,null, true);
+        doReturn(CompletableFuture.completedFuture(Optional.of(namespaceEphemeralData))).when(MockOwnershipCache).getOwnerAsync(any(NamespaceBundle.class));
+        Field ownership = NamespaceService.class.getDeclaredField("ownershipCache");
+        ownership.setAccessible(true);
+        ownership.set(pulsar.getNamespaceService(), MockOwnershipCache);
+
+        CompletableFuture<Boolean> future = new CompletableFuture();
+        TopicName topicName = TopicName.get("persistent://pulsar/global/ns1/topic-unload");
+        pulsar.getNamespaceService()
+                .getBrokerServiceUrlAsync(topicName, new LookupOptions(true, true, true, true, null)).thenAccept(
+                lookupResult -> {
+                    future.complete(false);
+                }
+        ).exceptionally(ex -> {
+            if (ex instanceof CompletionException &&
+                    ex.getCause() instanceof BrokerServiceException.ServerMetadataException) {
+                future.complete(true);
+            } else {
+                future.complete(false);
+            }
+            return null;
+        });
+
+        assertTrue(future.get());
     }
 
     @SuppressWarnings("unchecked")
