@@ -28,7 +28,7 @@ import org.apache.pulsar.broker.admin.impl.BrokersBase;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
-import org.apache.pulsar.client.admin.Topics;
+import org.apache.pulsar.client.admin.ListTopicsOptions;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
@@ -50,7 +50,6 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -92,11 +91,11 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
         int partitions = admin.topics().getPartitionedTopicMetadata(
                 String.format("persistent://%s/%s", ns, SystemTopicNames.NAMESPACE_EVENTS_LOCAL_NAME)).partitions;
         List<String> partitionedTopicList = admin.topics().getPartitionedTopicList(ns,
-                Collections.singletonMap(Topics.QueryParam.Include_System_Topic, true));
+                ListTopicsOptions.builder().includeSystemTopic(true).build());
         Assert.assertEquals(partitionedTopicList.size(), 1);
         Assert.assertEquals(partitions, PARTITIONS);
         Assert.assertEquals(admin.topics().getList(ns, null,
-                Collections.singletonMap(Topics.QueryParam.Include_System_Topic, true)).size(), PARTITIONS);
+                ListTopicsOptions.builder().includeSystemTopic(true).build()).size(), PARTITIONS);
         reader.close();
     }
 

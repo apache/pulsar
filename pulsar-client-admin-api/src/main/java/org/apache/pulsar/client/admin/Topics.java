@@ -52,8 +52,7 @@ import org.apache.pulsar.common.policies.data.TopicStats;
 public interface Topics {
 
     enum QueryParam {
-        Bundle("bundle"),
-        Include_System_Topic("includeSystemTopic");
+        Bundle("bundle");
 
         public final String value;
 
@@ -114,6 +113,13 @@ public interface Topics {
     List<String> getList(String namespace, TopicDomain topicDomain) throws PulsarAdminException;
 
     /**
+     * @deprecated use {@link #getList(String, TopicDomain, ListTopicsOptions)} instead.
+     */
+    @Deprecated
+    List<String> getList(String namespace, TopicDomain topicDomain, Map<QueryParam, Object> params)
+            throws PulsarAdminException;
+
+    /**
      * Get the list of topics under a namespace.
      * <p/>
      * Response example:
@@ -131,8 +137,8 @@ public interface Topics {
      *            use {@link TopicDomain#non_persistent} to get non-persistent topics
      *            Use null to get both persistent and non-persistent topics
      *
-     * @param params
-     *            params to filter the results
+     * @param options
+     *            params to query the topics
      *
      * @return a list of topics
      *
@@ -143,7 +149,7 @@ public interface Topics {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    List<String> getList(String namespace, TopicDomain topicDomain, Map<QueryParam, Object> params)
+    List<String> getList(String namespace, TopicDomain topicDomain, ListTopicsOptions options)
             throws PulsarAdminException;
 
     /**
@@ -184,7 +190,12 @@ public interface Topics {
      */
     CompletableFuture<List<String>> getListAsync(String namespace, TopicDomain topicDomain);
 
-
+    /**
+     * @deprecated use {@link #getListAsync(String, TopicDomain, ListTopicsOptions)} instead.
+     */
+    @Deprecated
+    CompletableFuture<List<String>> getListAsync(String namespace, TopicDomain topicDomain,
+                                                 Map<QueryParam, Object> params);
     /**
      * Get the list of topics under a namespace asynchronously.
      * <p/>
@@ -203,13 +214,12 @@ public interface Topics {
      *            use {@link TopicDomain#non_persistent} to get non-persistent topics
      *            Use null to get both persistent and non-persistent topics
      *
-     * @param params
-     *            params to filter the results
+     * @param options
+     *            params to get the topics
      *
      * @return a list of topics
      */
-    CompletableFuture<List<String>> getListAsync(String namespace, TopicDomain topicDomain,
-            Map<QueryParam, Object> params);
+    CompletableFuture<List<String>> getListAsync(String namespace, TopicDomain topicDomain, ListTopicsOptions options);
 
     /**
      * Get the list of partitioned topics under a namespace.
@@ -262,8 +272,8 @@ public interface Topics {
      *
      * @param namespace
      *            Namespace name
-     * @param params
-     *            params to filter the results
+     * @param options
+     *            params to get the topics
      * @return a list of partitioned topics
      *
      * @throws NotAuthorizedException
@@ -273,7 +283,7 @@ public interface Topics {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    List<String> getPartitionedTopicList(String namespace, Map<QueryParam, Object> params) throws PulsarAdminException;
+    List<String> getPartitionedTopicList(String namespace, ListTopicsOptions options) throws PulsarAdminException;
 
     /**
      * Get the list of partitioned topics under a namespace asynchronously.
@@ -287,11 +297,11 @@ public interface Topics {
      *
      * @param namespace
      *            Namespace name
-     * @param params
+     * @param options
      *           params to filter the results
      * @return a list of partitioned topics
      */
-    CompletableFuture<List<String>> getPartitionedTopicListAsync(String namespace, Map<QueryParam, Object> params);
+    CompletableFuture<List<String>> getPartitionedTopicListAsync(String namespace, ListTopicsOptions options);
 
     /**
      * Get list of topics exist into given bundle.
