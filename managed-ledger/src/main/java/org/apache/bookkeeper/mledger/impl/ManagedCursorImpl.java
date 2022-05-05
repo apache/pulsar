@@ -2338,10 +2338,6 @@ public class ManagedCursorImpl implements ManagedCursor {
      */
     void persistPositionWhenClosing(PositionImpl position, Map<String, Long> properties,
             final AsyncCallbacks.CloseCallback callback, final Object ctx) {
-        log.info("Persistence before cursor close is in progress. position={} "
-                + "md-position={} individualDeletedMessagesSize={}", position, markDeletePosition,
-                individualDeletedMessages.size());
-
         if (shouldPersistUnackRangesToLedger()) {
             persistPositionToLedger(cursorLedger, new MarkDeleteEntry(position, properties, null, null),
                     new VoidCallback() {
@@ -2650,6 +2646,13 @@ public class ManagedCursorImpl implements ManagedCursor {
                 return rangeList.size() <= config.getMaxUnackedRangesToPersist();
             });
             this.individualDeletedMessagesSerializedSize = acksSerializedSize.get();
+            if (rangeList.size() == config.getMaxUnackedRangesToPersist()
+                    && individualDeletedMessages.size() > config.getMaxUnackedRangesToPersist()) {
+                log.warn("The current individualDeletedMessages size "
+                        + "has exceeded the value of maxUnackedRangesToPersist during the persistence attempt."
+                        + " individualDeletedMessages={}, maxUnackedRangesToPersist={}",
+                        individualDeletedMessages.size(), config.getMaxUnackedRangesToPersist());
+            }
             return rangeList;
         } finally {
             lock.readLock().unlock();
