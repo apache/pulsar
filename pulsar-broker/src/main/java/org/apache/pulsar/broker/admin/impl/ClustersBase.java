@@ -370,14 +370,18 @@ public class ClustersBase extends AdminResource {
                     }
                     // check the namespaceIsolationPolicies associated with the cluster
                     return namespaceIsolationPolicies().getIsolationDataPoliciesAsync(cluster);
-                }).thenCompose(nsIsolationPolicies -> {
-                    if (!nsIsolationPolicies.getPolicies().isEmpty()) {
-                        throw new RestException(Status.PRECONDITION_FAILED, "Cluster not empty");
+                }).thenCompose(nsIsolationPoliciesOpt -> {
+                    if (nsIsolationPoliciesOpt.isPresent()) {
+                        if (!nsIsolationPoliciesOpt.get().getPolicies().isEmpty()) {
+                            throw new RestException(Status.PRECONDITION_FAILED, "Cluster not empty");
+                        }
+                        return namespaceIsolationPolicies().deleteIsolationDataAsync(cluster);
                     }
+                    return CompletableFuture.completedFuture(null);
+                }).thenCompose(unused -> {
                     // Need to delete the isolation policies if present
-                    return namespaceIsolationPolicies().deleteIsolationDataAsync(cluster)
-                            .thenCompose(__ -> clusterResources()
-                                    .getFailureDomainResources().deleteFailureDomainsAsync(cluster))
+                    return clusterResources()
+                            .getFailureDomainResources().deleteFailureDomainsAsync(cluster)
                             .thenCompose(__ -> clusterResources().deleteClusterAsync(cluster));
                 });
     }
