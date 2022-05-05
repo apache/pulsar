@@ -237,14 +237,14 @@ jobs:
           summary_title: 'Test Summary for Unit - ${{ matrix.name }}:'
 
       - name: Publish the Test reports in Junit xml format
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         if: ${{ always() && needs.changed_files_job.outputs.docs_only != 'true' }}
         with:
           name: Unit-${{ matrix.group }}-test-report
           path: test-reports
 
       - name: Upload Surefire reports
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         if: ${{ !success() && needs.changed_files_job.outputs.docs_only != 'true' }}
         with:
           name: Unit-${{ matrix.group }}-surefire-reports
@@ -439,21 +439,21 @@ jobs:
           summary_title: 'Test Summary for Integration - ${{ matrix.name }}:'
 
       - name: Publish the Test reports in Junit xml format
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         if: ${{ always() && needs.changed_files_job.outputs.docs_only != 'true' }}
         with:
           name: Integration-${{ matrix.group }}-test-report
           path: test-reports
 
       - name: Upload Surefire reports
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         if: ${{ !success() && needs.changed_files_job.outputs.docs_only != 'true' }}
         with:
           name: Integration-${{ matrix.group }}-surefire-reports
           path: surefire-reports
 
       - name: Upload container logs
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         if: ${{ !success() && needs.changed_files_job.outputs.docs_only != 'true' }}
         continue-on-error: true
         with:
@@ -688,14 +688,14 @@ jobs:
           summary_title: 'Test Summary for System - ${{ matrix.name }}:'
 
       - name: Publish the Test reports in Junit xml format
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         if: ${{ always() && needs.changed_files_job.outputs.docs_only != 'true' }}
         with:
           name: System-${{ matrix.group }}-test-report
           path: test-reports
 
       - name: Upload container logs
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         if: ${{ !success() && needs.changed_files_job.outputs.docs_only != 'true' }}
         continue-on-error: true
         with:
@@ -703,7 +703,7 @@ jobs:
           path: tests/integration/target/container-logs
 
       - name: Upload Surefire reports
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         if: ${{ !success() && needs.changed_files_job.outputs.docs_only != 'true' }}
         with:
           name: System-${{ matrix.name }}-surefire-reports
