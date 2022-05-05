@@ -19,7 +19,7 @@
 package org.apache.pulsar.broker.transaction;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStore.PENDING_ACK_STORE_SUFFIX;
+import static org.apache.pulsar.common.naming.SystemTopicNames.PENDING_ACK_STORE_SUFFIX;
 import static org.apache.pulsar.transaction.coordinator.impl.MLTransactionLogImpl.TRANSACTION_LOG_PREFIX;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -32,7 +32,6 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import io.netty.buffer.Unpooled;
 import io.netty.util.Timeout;
 import java.lang.reflect.Field;
@@ -93,10 +92,11 @@ import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.common.events.EventType;
-import org.apache.pulsar.common.events.EventsTopicNames;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.schema.SchemaInfo;
@@ -229,7 +229,7 @@ public class TransactionTest extends TransactionTestBase {
 
         Assert.assertNull(topics.get(TopicName.get(TopicDomain.persistent.value(),
                 NamespaceName.SYSTEM_NAMESPACE, TRANSACTION_LOG_PREFIX).toString() + 0));
-        Assert.assertNull(topics.get(TopicName.TRANSACTION_COORDINATOR_ASSIGN.getPartition(0).toString()));
+        Assert.assertNull(topics.get(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN.getPartition(0).toString()));
         Assert.assertNull(topics.get(MLPendingAckStore.getTransactionPendingAckStoreSuffix(topicName, subName)));
     }
 
@@ -346,7 +346,7 @@ public class TransactionTest extends TransactionTestBase {
         ReaderBuilder<TransactionBufferSnapshot> readerBuilder = pulsarClient
                 .newReader(Schema.AVRO(TransactionBufferSnapshot.class))
                 .startMessageId(MessageId.earliest)
-                .topic(NAMESPACE1 + "/" + EventsTopicNames.TRANSACTION_BUFFER_SNAPSHOT);
+                .topic(NAMESPACE1 + "/" + SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT);
         Reader<TransactionBufferSnapshot> reader = readerBuilder.create();
 
         long waitSnapShotTime = getPulsarServiceList().get(0).getConfiguration()
@@ -897,5 +897,78 @@ public class TransactionTest extends TransactionTestBase {
         });
         pulsarServiceList.forEach((pulsarService ->
                 pulsarService.getConfiguration().setAllowAutoUpdateSchemaEnabled(true)));
+    }
+
+    @Test
+    public void testPendingAckMarkDeletePosition() throws Exception {
+        String topic = NAMESPACE1 + "/test1";
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient
+                .newProducer(Schema.BYTES)
+                .topic(topic)
+                .sendTimeout(0, TimeUnit.SECONDS)
+                .create();
+
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
+                .topic(topic)
+                .subscriptionName("sub")
+                .subscribe();
+        consumer.getSubscription();
+
+        PersistentSubscription persistentSubscription = (PersistentSubscription) getPulsarServiceList()
+                .get(0)
+                .getBrokerService()
+                .getTopic(topic, false)
+                .get()
+                .get()
+                .getSubscription("sub");
+
+        ManagedCursor subscriptionCursor = persistentSubscription.getCursor();
+
+        subscriptionCursor.getMarkDeletedPosition();
+        //pendingAck add message1 and commit mark, metadata add message1
+        //PersistentMarkDeletedPosition have not updated
+        producer.newMessage()
+                .value("test".getBytes(UTF_8))
+                .send();
+        Transaction transaction = pulsarClient
+                .newTransaction()
+                .withTransactionTimeout(5, TimeUnit.MINUTES)
+                .build().get();
+
+        Message<byte[]> message1 = consumer.receive(10, TimeUnit.SECONDS);
+
+        consumer.acknowledgeAsync(message1.getMessageId(), transaction);
+        transaction.commit().get();
+        //PersistentMarkDeletedPosition of subscription have updated to message1,
+        //check whether delete markDeletedPosition of pendingAck after append entry to pendingAck
+        transaction = pulsarClient
+                .newTransaction()
+                .withTransactionTimeout(5, TimeUnit.MINUTES)
+                .build().get();
+
+        producer.newMessage()
+                .value("test".getBytes(UTF_8))
+                .send();
+        Message<byte[]> message2 = consumer.receive(10, TimeUnit.SECONDS);
+        consumer.acknowledgeAsync(message2.getMessageId(), transaction);
+
+        Awaitility.await().untilAsserted(() -> {
+            ManagedLedgerInternalStats managedLedgerInternalStats = admin
+                    .transactions()
+                    .getPendingAckInternalStats(topic, "sub", false)
+                    .pendingAckLogStats
+                    .managedLedgerInternalStats;
+            String [] markDeletePosition = managedLedgerInternalStats.cursors.get("__pending_ack_state")
+                    .markDeletePosition.split(":");
+            String [] lastConfirmedEntry = managedLedgerInternalStats.lastConfirmedEntry.split(":");
+            Assert.assertEquals(markDeletePosition[0], lastConfirmedEntry[0]);
+            //don`t contain commit mark and unCommitted message2
+            Assert.assertEquals(Integer.parseInt(markDeletePosition[1]),
+                    Integer.parseInt(lastConfirmedEntry[1]) - 2);
+        });
     }
 }

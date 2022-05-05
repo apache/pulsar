@@ -24,7 +24,7 @@ Deploying a Pulsar cluster consists of the following steps:
 
 ### Requirements
 
-Currently, Pulsar is available for 64-bit **macOS**, **Linux**, and **Windows**. To use Pulsar, you need to install 64-bit JRE/JDK 8 or later versions.
+Currently, Pulsar is available for 64-bit **macOS**, **Linux**, and **Windows**. To use Pulsar, you need to install 64-bit JRE/JDK 8 or later versions, JRE/JDK 11 is recommended.
 
 >**Tips**  
 > You can reuse existing Zookeeper clusters.
@@ -40,7 +40,7 @@ To run Pulsar on bare metal, the following configuration is recommended:
 > * Broker is only supported on 64-bit JVM.
 > * If you do not have enough machines, or you want to test Pulsar in cluster mode (and expand the cluster later), You can fully deploy Pulsar on a node on which ZooKeeper, bookie and broker run.
 > * If you do not have a DNS server, you can use the multi-host format in the service URL instead.
-Each machine in your cluster needs to have [Java 8](https://adoptium.net/?variant=openjdk8) or [Java 11](https://adoptium.net/?variant=openjdk11) installed.
+Each machine in your cluster needs to have [Java 8](https://adoptium.net/?variant=openjdk8), [Java 11](https://adoptium.net/?variant=openjdk11) or [Java 17](https://adoptium.net/?variant=openjdk17) installed.
 
 The following is a diagram showing the basic setup:
 
@@ -234,9 +234,9 @@ $ bin/pulsar-daemon start zookeeper
 
 ## Initialize cluster metadata
 
-Once you deploy ZooKeeper for your cluster, you need to write some metadata to ZooKeeper for each cluster in your instance. You only need to write this data **once**.
+Once you deploy ZooKeeper for your cluster, you need to write some metadata to ZooKeeper. You only need to write this data **once**.
 
-You can initialize this metadata using the [`initialize-cluster-metadata`](reference-cli-tools.md#pulsar-initialize-cluster-metadata) command of the [`pulsar`](reference-cli-tools.md#pulsar) CLI tool. This command can be run on any machine in your ZooKeeper cluster. The following is an example:
+You can initialize this metadata using the [`initialize-cluster-metadata`](reference-cli-tools.md#pulsar-initialize-cluster-metadata) command of the [`pulsar`](reference-cli-tools.md#pulsar) CLI tool. This command can be run on any machine in your Pulsar cluster, so the metadata can be initialized from a ZooKeeper, broker, or bookie machine. The following is an example:
 
 ```shell
 $ bin/pulsar initialize-cluster-metadata \

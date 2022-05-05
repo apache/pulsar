@@ -18,6 +18,17 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertNotNull;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
 import org.apache.pulsar.client.api.BatchReceivePolicy;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.DeadLetterPolicy;
@@ -28,19 +39,6 @@ import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.testng.annotations.BeforeTest;
 import org.testng.annotations.Test;
-
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
-import java.util.regex.Pattern;
-
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-import static org.testng.Assert.assertNotNull;
 
 /**
  * Unit tests of {@link ConsumerBuilderImpl}.
@@ -65,6 +63,13 @@ public class ConsumerBuilderImplTest {
         when(consumerBuilderImpl.subscribeAsync())
                 .thenReturn(CompletableFuture.completedFuture(consumer));
         assertNotNull(consumerBuilderImpl.topic(TOPIC_NAME).subscribe());
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void testConsumerBuilderImplWhenSchemaIsNull() {
+        PulsarClientImpl client = mock(PulsarClientImpl.class);
+        ConsumerConfigurationData consumerConfigurationData = mock(ConsumerConfigurationData.class);
+        new ConsumerBuilderImpl(client, consumerConfigurationData, null);
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
@@ -297,6 +302,12 @@ public class ConsumerBuilderImplTest {
                 .deadLetterTopic("test-dead-letter-topic")
                 .retryLetterTopic("test-retry-letter-topic")
                 .build());
+    }
+
+    @Test
+    public void testNullDeadLetterPolicy() {
+        consumerBuilderImpl.deadLetterPolicy(null);
+        verify(consumerBuilderImpl.getConf()).setDeadLetterPolicy(null);
     }
 
     @Test

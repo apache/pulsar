@@ -57,6 +57,7 @@ jobs:
               - '**/pom.xml'
               - 'src/owasp-dependency-check-false-positives.xml'
               - 'src/owasp-dependency-check-suppressions.xml'
+              - '.github/workflows/ci-owasp-dep-check.yaml'
 
       - name: Cache local Maven repository
         if: ${{ steps.changes.outputs.poms == 'true' }}
@@ -70,12 +71,12 @@ jobs:
             ${{ runner.os }}-m2-dependencies-core-modules-${{ hashFiles('**/pom.xml') }}
             ${{ runner.os }}-m2-dependencies-core-modules-
 
-      - name: Set up JDK 11
+      - name: Set up JDK 17
         uses: actions/setup-java@v2
         if: ${{ steps.changes.outputs.poms == 'true' }}
         with:
           distribution: 'temurin'
-          java-version: 11
+          java-version: 17
 
       - name: clean disk
         if: ${{ steps.changes.outputs.poms == 'true' }}
@@ -87,9 +88,9 @@ jobs:
           df -h
 
       # Projects dependent on flume, hdfs, hbase, and presto currently excluded from the scan.
-      - name: run "clean install verify" to trigger dependency check
+      - name: run "clean verify" to trigger dependency check
         if: ${{ steps.changes.outputs.poms == 'true' }}
-        run: mvn -q -B -ntp clean install verify -PskipDocker,owasp-dependency-check -DskipTests -pl '!pulsar-sql,!distribution/io,!distribution/offloaders,!tiered-storage/file-system,!pulsar-io/flume,!pulsar-io/hbase,!pulsar-io/hdfs2,!pulsar-io/hdfs3,!pulsar-io/docs'
+        run: mvn -q -B -ntp clean verify -PskipDocker,owasp-dependency-check -DskipTests -pl '!pulsar-sql,!distribution/io,!distribution/offloaders,!tiered-storage/file-system,!pulsar-io/flume,!pulsar-io/hbase,!pulsar-io/hdfs2,!pulsar-io/hdfs3,!pulsar-io/docs,!pulsar-io/jdbc/openmldb'
 
       - name: Upload report
         uses: actions/upload-artifact@v2

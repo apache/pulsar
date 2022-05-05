@@ -232,35 +232,40 @@ The Apache Software License, Version 2.0
     - commons-lang3-3.11.jar
  * Netty
     - netty-3.10.6.Final.jar
-    - netty-buffer-4.1.74.Final.jar
-    - netty-codec-4.1.74.Final.jar
-    - netty-codec-dns-4.1.74.Final.jar
-    - netty-codec-http-4.1.74.Final.jar
-    - netty-codec-haproxy-4.1.74.Final.jar
-    - netty-codec-socks-4.1.74.Final.jar
-    - netty-handler-proxy-4.1.74.Final.jar
-    - netty-common-4.1.74.Final.jar
-    - netty-handler-4.1.74.Final.jar
+    - netty-buffer-4.1.76.Final.jar
+    - netty-codec-4.1.76.Final.jar
+    - netty-codec-dns-4.1.76.Final.jar
+    - netty-codec-http-4.1.76.Final.jar
+    - netty-codec-haproxy-4.1.76.Final.jar
+    - netty-codec-socks-4.1.76.Final.jar
+    - netty-handler-proxy-4.1.76.Final.jar
+    - netty-common-4.1.76.Final.jar
+    - netty-handler-4.1.76.Final.jar
     - netty-reactive-streams-2.0.4.jar
-    - netty-resolver-4.1.74.Final.jar
-    - netty-resolver-dns-4.1.74.Final.jar
-    - netty-tcnative-boringssl-static-2.0.48.Final.jar
-    - netty-tcnative-classes-2.0.48.Final.jar
-    - netty-transport-4.1.74.Final.jar
-    - netty-transport-classes-epoll-4.1.74.Final.jar
-    - netty-transport-native-epoll-4.1.74.Final-linux-x86_64.jar
-    - netty-transport-native-unix-common-4.1.74.Final.jar
-    - netty-transport-native-unix-common-4.1.74.Final-linux-x86_64.jar
-    - netty-codec-http2-4.1.74.Final.jar
+    - netty-resolver-4.1.76.Final.jar
+    - netty-resolver-dns-4.1.76.Final.jar
+    - netty-tcnative-boringssl-static-2.0.51.Final.jar
+    - netty-tcnative-boringssl-static-2.0.51.Final-linux-aarch_64.jar
+    - netty-tcnative-boringssl-static-2.0.51.Final-linux-x86_64.jar
+    - netty-tcnative-boringssl-static-2.0.51.Final-osx-aarch_64.jar
+    - netty-tcnative-boringssl-static-2.0.51.Final-osx-x86_64.jar
+    - netty-tcnative-boringssl-static-2.0.51.Final-windows-x86_64.jar
+    - netty-tcnative-classes-2.0.51.Final.jar
+    - netty-transport-4.1.76.Final.jar
+    - netty-transport-classes-epoll-4.1.76.Final.jar
+    - netty-transport-native-epoll-4.1.76.Final-linux-x86_64.jar
+    - netty-transport-native-unix-common-4.1.76.Final.jar
+    - netty-transport-native-unix-common-4.1.76.Final-linux-x86_64.jar
+    - netty-codec-http2-4.1.76.Final.jar
  * GRPC
-    - grpc-api-1.42.1.jar
-    - grpc-context-1.42.1.jar
-    - grpc-core-1.42.1.jar
-    - grpc-grpclb-1.42.1.jar
-    - grpc-netty-1.42.1.jar
-    - grpc-protobuf-1.42.1.jar
-    - grpc-protobuf-lite-1.42.1.jar
-    - grpc-stub-1.42.1.jar
+    - grpc-api-1.45.1.jar
+    - grpc-context-1.45.1.jar
+    - grpc-core-1.45.1.jar
+    - grpc-grpclb-1.45.1.jar
+    - grpc-netty-1.45.1.jar
+    - grpc-protobuf-1.45.1.jar
+    - grpc-protobuf-lite-1.45.1.jar
+    - grpc-stub-1.45.1.jar
   * JEtcd
     - jetcd-common-0.5.11.jar
     - jetcd-core-0.5.11.jar
@@ -295,36 +300,31 @@ The Apache Software License, Version 2.0
     - aircompressor-0.20.jar
     - airline-0.8.jar
     - bootstrap-0.199.jar
-    - bootstrap-0.195.jar
-    - concurrent-0.195.jar
+    - concurrent-0.199.jar
     - configuration-0.199.jar
-    - configuration-0.195.jar
-    - discovery-0.195.jar
+    - discovery-0.199.jar
     - discovery-server-1.29.jar
-    - event-0.195.jar
-    - http-client-0.195.jar
-    - http-server-0.195.jar
-    - jmx-0.195.jar
-    - jmx-http-0.195.jar
-    - jmx-http-rpc-0.159.jar
+    - event-0.199.jar
+    - http-client-0.199.jar
+    - http-server-0.199.jar
+    - jmx-0.199.jar
+    - jmx-http-0.199.jar
+    - jmx-http-rpc-0.199.jar
     - joni-2.1.5.3.jar
     - json-0.199.jar
-    - json-0.195.jar
     - log-0.199.jar
-    - log-0.195.jar
     - log-manager-0.199.jar
-    - log-manager-0.195.jar
-    - node-0.195.jar
+    - node-0.199.jar
     - parameternames-1.4.jar
     - resolver-1.5.jar
-    - security-0.195.jar
+    - security-0.199.jar
     - slice-0.38.jar
-    - stats-0.195.jar
-    - trace-token-0.195.jar
+    - stats-0.199.jar
+    - trace-token-0.199.jar
     - units-1.6.jar
    * Apache HTTP Client
     - httpclient-4.5.13.jar
-    - httpcore-4.4.13.jar
+    - httpcore-4.4.15.jar
   * Error Prone Annotations
     - error_prone_annotations-2.5.1.jar
   * Esri Geometry API For Java
@@ -478,8 +478,8 @@ The Apache Software License, Version 2.0
 
 Protocol Buffers License
  * Protocol Buffers
-   - protobuf-java-3.16.1.jar
-   - protobuf-java-util-3.16.1.jar
+   - protobuf-java-3.19.2.jar
+   - protobuf-java-util-3.19.2.jar
    - proto-google-common-protos-2.0.1.jar
 
 BSD 3-clause "New" or "Revised" License
@@ -529,7 +529,7 @@ CDDL-1.1 -- licenses/LICENSE-CDDL-1.1.txt
    - hk2-utils-2.6.1.jar
    - aopalliance-repackaged-2.6.1.jar
  * Jersey
-    - jaxrs-0.195.jar
+    - jaxrs-0.199.jar
     - jersey-client-2.34.jar
     - jersey-container-servlet-2.34.jar
     - jersey-container-servlet-core-2.34.jar

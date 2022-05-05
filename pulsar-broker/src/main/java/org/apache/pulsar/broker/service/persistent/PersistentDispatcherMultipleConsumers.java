@@ -260,15 +260,21 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                     topic.getBrokerService().executor().execute(() -> readMoreEntries());
                 }
             } else if (BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER.get(this) == TRUE) {
-                log.warn("[{}] Dispatcher read is blocked due to unackMessages {} reached to max {}", name,
-                        totalUnackedMessages, topic.getMaxUnackedMessagesOnSubscription());
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] Dispatcher read is blocked due to unackMessages {} reached to max {}", name,
+                            totalUnackedMessages, topic.getMaxUnackedMessagesOnSubscription());
+                }
             } else if (!havePendingRead) {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Schedule read of {} messages for {} consumers", name, messagesToRead,
                             consumerList.size());
                 }
                 havePendingRead = true;
-                minReplayedPosition = getMessagesToReplayNow(1).stream().findFirst().orElse(null);
+                Set<PositionImpl> toReplay = getMessagesToReplayNow(1);
+                minReplayedPosition = toReplay.stream().findFirst().orElse(null);
+                if (minReplayedPosition != null) {
+                    redeliveryMessages.add(minReplayedPosition.getLedgerId(), minReplayedPosition.getEntryId());
+                }
                 cursor.asyncReadEntriesOrWait(messagesToRead, bytesToRead, this,
                         ReadType.Normal, topic.getMaxReadPosition());
             } else {

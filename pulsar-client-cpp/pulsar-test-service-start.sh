@@ -74,12 +74,10 @@ $PULSAR_DIR/bin/pulsar-admin clusters create \
         --broker-url pulsar://localhost:6650/ \
         --broker-url-secure pulsar+ssl://localhost:6651/
 
-# Create "public" tenant
-$PULSAR_DIR/bin/pulsar-admin tenants create public -r "anonymous" -c "standalone"
+# Update "public" tenant
+$PULSAR_DIR/bin/pulsar-admin tenants update public -r "anonymous" -c "standalone"
 
-# Create "public/default" with no auth required
-$PULSAR_DIR/bin/pulsar-admin namespaces create public/default \
-                        --clusters standalone
+# Update "public/default" with no auth required
 $PULSAR_DIR/bin/pulsar-admin namespaces grant-permission public/default \
                         --actions produce,consume \
                         --role "anonymous"
@@ -105,6 +103,10 @@ $PULSAR_DIR/bin/pulsar-admin namespaces grant-permission public/default-4 \
                         --actions produce,consume \
                         --role "anonymous"
 $PULSAR_DIR/bin/pulsar-admin namespaces set-encryption-required public/default-4 -e
+
+# Create "public/test-backlog-quotas" to test backlog quotas policy
+$PULSAR_DIR/bin/pulsar-admin namespaces create public/test-backlog-quotas \
+                        --clusters standalone
 
 # Create "private" tenant
 $PULSAR_DIR/bin/pulsar-admin tenants create private -r "" -c "standalone"

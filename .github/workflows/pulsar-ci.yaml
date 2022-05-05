@@ -92,12 +92,12 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-m2-dependencies-core-modules-
 
-      - name: Set up JDK 11
+      - name: Set up JDK 17
         uses: actions/setup-java@v2
         if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
         with:
           distribution: 'temurin'
-          java-version: 11
+          java-version: 17
 
       - name: Check source code license headers
         if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
@@ -190,12 +190,12 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-m2-dependencies-core-modules-
 
-      - name: Set up JDK ${{ matrix.jdk || '11' }}
+      - name: Set up JDK ${{ matrix.jdk || '17' }}
         uses: actions/setup-java@v2
         if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
         with:
           distribution: 'temurin'
-          java-version: ${{ matrix.jdk || '11' }}
+          java-version: ${{ matrix.jdk || '17' }}
 
       - name: Install gh-actions-artifact-client.js
         if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
@@ -264,7 +264,7 @@ jobs:
     timeout-minutes: 60
     needs: ['changed_files_job', 'build-and-license-check']
     env:
-      UBUNTU_MIRROR: mirror://mirrors.ubuntu.com/mirrors.txt
+      UBUNTU_MIRROR: http://azure.archive.ubuntu.com/ubuntu/
     steps:
       - name: checkout
         if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
@@ -292,12 +292,12 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-m2-dependencies-core-modules-
 
-      - name: Set up JDK 11
+      - name: Set up JDK 17
         uses: actions/setup-java@v2
         if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
         with:
           distribution: 'temurin'
-          java-version: 11
+          java-version: 17
 
       - name: Install gh-actions-artifact-client.js
         if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
@@ -386,12 +386,12 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-m2-dependencies-core-modules-
 
-      - name: Set up JDK 11
+      - name: Set up JDK 17
         uses: actions/setup-java@v2
         if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
         with:
           distribution: 'temurin'
-          java-version: 11
+          java-version: 17
 
       - name: Install gh-actions-artifact-client.js
         if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
@@ -497,7 +497,7 @@ jobs:
     timeout-minutes: 60
     needs: ['changed_files_job', 'build-and-license-check']
     env:
-      UBUNTU_MIRROR: mirror://mirrors.ubuntu.com/mirrors.txt
+      UBUNTU_MIRROR: http://azure.archive.ubuntu.com/ubuntu/
     steps:
       - name: checkout
         if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
@@ -530,12 +530,12 @@ jobs:
             ${{ runner.os }}-m2-dependencies-core-modules-${{ hashFiles('**/pom.xml') }}
             ${{ runner.os }}-m2-dependencies-core-modules-
 
-      - name: Set up JDK 11
+      - name: Set up JDK 17
         uses: actions/setup-java@v2
         if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
         with:
           distribution: 'temurin'
-          java-version: 11
+          java-version: 17
 
       - name: Install gh-actions-artifact-client.js
         if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
@@ -604,9 +604,8 @@ jobs:
           - name: Pulsar IO - Oracle
             group: PULSAR_IO_ORA
 
-          # disable Sql integration tests until https://github.com/apache/pulsar/issues/14951 has been resolved
-          #- name: Sql
-          #  group: SQL
+          - name: Sql
+            group: SQL
 
     steps:
       - name: checkout
@@ -636,12 +635,12 @@ jobs:
             ${{ runner.os }}-m2-dependencies-core-modules-${{ hashFiles('**/pom.xml') }}
             ${{ runner.os }}-m2-dependencies-core-modules-
 
-      - name: Set up JDK 11
+      - name: Set up JDK 17
         uses: actions/setup-java@v2
         if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
         with:
           distribution: 'temurin'
-          java-version: 11
+          java-version: 17
 
       - name: Install gh-actions-artifact-client.js
         if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
@@ -765,19 +764,3 @@ jobs:
       - name: Delete maven repository binaries from GitHub Actions Artifacts
         run: |
           gh-actions-artifact-client.js delete pulsar-maven-repository-binaries.tar.zst
-
-  # temporary workaround to make the required checks defined in .asf.yaml to pass
-  # these will be removed in later PRs once .asf.yaml has been edited
-  required-checks-workaround:
-    name: ${{ matrix.name }}
-    runs-on: ubuntu-20.04
-    strategy:
-      matrix:
-        name:
-          - CI - Integration - Function
-          - CI - Integration - Schema
-          - CI - System - Sql
-    steps:
-      - name: No-op step
-        run: |
-          echo "This is just to make the required checks to pass and will be removed in later PR to change .asf.yaml"

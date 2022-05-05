@@ -365,6 +365,7 @@ class Client:
                  tls_validate_hostname=False,
                  logger=None,
                  connection_timeout_ms=10000,
+                 listener_name=None
                  ):
         """
         Create a new Pulsar client instance.
@@ -412,6 +413,10 @@ class Client:
           Set a Python logger for this Pulsar client. Should be an instance of `logging.Logger`.
         * `connection_timeout_ms`:
           Set timeout in milliseconds on TCP connections.
+        * `listener_name`:
+          Listener name for lookup. Clients can use listenerName to choose one of the listeners
+          as the service URL to create a connection to the broker as long as the network is accessible.
+          advertisedListeners must enabled in broker side.
         """
         _check_type(str, service_url, 'service_url')
         _check_type_or_none(Authentication, authentication, 'authentication')
@@ -426,6 +431,7 @@ class Client:
         _check_type(bool, tls_allow_insecure_connection, 'tls_allow_insecure_connection')
         _check_type(bool, tls_validate_hostname, 'tls_validate_hostname')
         _check_type_or_none(logging.Logger, logger, 'logger')
+        _check_type_or_none(str, listener_name, 'listener_name')
 
         conf = _pulsar.ClientConfiguration()
         if authentication:
@@ -439,6 +445,8 @@ class Client:
             conf.log_conf_file_path(log_conf_file_path)
         if logger:
             conf.set_logger(logger)
+        if listener_name:
+            conf.listener_name(listener_name)
         if use_tls or service_url.startswith('pulsar+ssl://') or service_url.startswith('https://'):
             conf.use_tls(True)
         if tls_trust_certs_file_path:

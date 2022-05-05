@@ -352,26 +352,31 @@ The Apache Software License, Version 2.0
     - org.apache.commons-commons-compress-1.21.jar
     - org.apache.commons-commons-lang3-3.11.jar
  * Netty
-    - io.netty-netty-buffer-4.1.74.Final.jar
-    - io.netty-netty-codec-4.1.74.Final.jar
-    - io.netty-netty-codec-dns-4.1.74.Final.jar
-    - io.netty-netty-codec-http-4.1.74.Final.jar
-    - io.netty-netty-codec-http2-4.1.74.Final.jar
-    - io.netty-netty-codec-socks-4.1.74.Final.jar
-    - io.netty-netty-codec-haproxy-4.1.74.Final.jar
-    - io.netty-netty-common-4.1.74.Final.jar
-    - io.netty-netty-handler-4.1.74.Final.jar
-    - io.netty-netty-handler-proxy-4.1.74.Final.jar
-    - io.netty-netty-resolver-4.1.74.Final.jar
-    - io.netty-netty-resolver-dns-4.1.74.Final.jar
-    - io.netty-netty-transport-4.1.74.Final.jar
-    - io.netty-netty-transport-classes-epoll-4.1.74.Final.jar
-    - io.netty-netty-transport-native-epoll-4.1.74.Final-linux-x86_64.jar
-    - io.netty-netty-transport-native-epoll-4.1.74.Final.jar
-    - io.netty-netty-transport-native-unix-common-4.1.74.Final.jar
-    - io.netty-netty-transport-native-unix-common-4.1.74.Final-linux-x86_64.jar
-    - io.netty-netty-tcnative-boringssl-static-2.0.48.Final.jar
-    - io.netty-netty-tcnative-classes-2.0.48.Final.jar
+    - io.netty-netty-buffer-4.1.76.Final.jar
+    - io.netty-netty-codec-4.1.76.Final.jar
+    - io.netty-netty-codec-dns-4.1.76.Final.jar
+    - io.netty-netty-codec-http-4.1.76.Final.jar
+    - io.netty-netty-codec-http2-4.1.76.Final.jar
+    - io.netty-netty-codec-socks-4.1.76.Final.jar
+    - io.netty-netty-codec-haproxy-4.1.76.Final.jar
+    - io.netty-netty-common-4.1.76.Final.jar
+    - io.netty-netty-handler-4.1.76.Final.jar
+    - io.netty-netty-handler-proxy-4.1.76.Final.jar
+    - io.netty-netty-resolver-4.1.76.Final.jar
+    - io.netty-netty-resolver-dns-4.1.76.Final.jar
+    - io.netty-netty-transport-4.1.76.Final.jar
+    - io.netty-netty-transport-classes-epoll-4.1.76.Final.jar
+    - io.netty-netty-transport-native-epoll-4.1.76.Final-linux-x86_64.jar
+    - io.netty-netty-transport-native-epoll-4.1.76.Final.jar
+    - io.netty-netty-transport-native-unix-common-4.1.76.Final.jar
+    - io.netty-netty-transport-native-unix-common-4.1.76.Final-linux-x86_64.jar
+    - io.netty-netty-tcnative-boringssl-static-2.0.51.Final.jar
+    - io.netty-netty-tcnative-boringssl-static-2.0.51.Final-linux-aarch_64.jar
+    - io.netty-netty-tcnative-boringssl-static-2.0.51.Final-linux-x86_64.jar
+    - io.netty-netty-tcnative-boringssl-static-2.0.51.Final-osx-aarch_64.jar
+    - io.netty-netty-tcnative-boringssl-static-2.0.51.Final-osx-x86_64.jar
+    - io.netty-netty-tcnative-boringssl-static-2.0.51.Final-windows-x86_64.jar
+    - io.netty-netty-tcnative-classes-2.0.51.Final.jar
  * Prometheus client
     - io.prometheus-simpleclient-0.5.0.jar
     - io.prometheus-simpleclient_common-0.5.0.jar
@@ -419,7 +424,7 @@ The Apache Software License, Version 2.0
     - org.apache.bookkeeper.stats-codahale-metrics-provider-4.14.4.jar
   * Apache HTTP Client
     - org.apache.httpcomponents-httpclient-4.5.13.jar
-    - org.apache.httpcomponents-httpcore-4.4.13.jar
+    - org.apache.httpcomponents-httpcore-4.4.15.jar
  * AirCompressor
     - io.airlift-aircompressor-0.20.jar
  * AsyncHttpClient
@@ -461,27 +466,27 @@ The Apache Software License, Version 2.0
      - org.jetbrains.kotlin-kotlin-stdlib-jdk8-1.4.32.jar
      - org.jetbrains-annotations-13.0.jar
  * gRPC
-    - io.grpc-grpc-all-1.42.1.jar
-    - io.grpc-grpc-auth-1.42.1.jar
-    - io.grpc-grpc-context-1.42.1.jar
-    - io.grpc-grpc-core-1.42.1.jar
-    - io.grpc-grpc-netty-1.42.1.jar
-    - io.grpc-grpc-protobuf-1.42.1.jar
-    - io.grpc-grpc-protobuf-lite-1.42.1.jar
-    - io.grpc-grpc-stub-1.42.1.jar
-    - io.grpc-grpc-alts-1.42.1.jar
-    - io.grpc-grpc-api-1.42.1.jar
-    - io.grpc-grpc-grpclb-1.42.1.jar
-    - io.grpc-grpc-netty-shaded-1.42.1.jar
-    - io.grpc-grpc-services-1.42.1.jar
-    - io.grpc-grpc-xds-1.42.1.jar
-    - io.grpc-grpc-rls-1.42.1.jar
+    - io.grpc-grpc-all-1.45.1.jar
+    - io.grpc-grpc-auth-1.45.1.jar
+    - io.grpc-grpc-context-1.45.1.jar
+    - io.grpc-grpc-core-1.45.1.jar
+    - io.grpc-grpc-netty-1.45.1.jar
+    - io.grpc-grpc-protobuf-1.45.1.jar
+    - io.grpc-grpc-protobuf-lite-1.45.1.jar
+    - io.grpc-grpc-stub-1.45.1.jar
+    - io.grpc-grpc-alts-1.45.1.jar
+    - io.grpc-grpc-api-1.45.1.jar
+    - io.grpc-grpc-grpclb-1.45.1.jar
+    - io.grpc-grpc-netty-shaded-1.45.1.jar
+    - io.grpc-grpc-services-1.45.1.jar
+    - io.grpc-grpc-xds-1.45.1.jar
+    - io.grpc-grpc-rls-1.45.1.jar
     - com.google.auto.service-auto-service-annotations-1.0.jar
   * Perfmark
     - io.perfmark-perfmark-api-0.19.0.jar
   * OpenCensus
-    - io.opencensus-opencensus-api-0.18.0.jar
-    - io.opencensus-opencensus-contrib-http-util-0.24.0.jar
+    - io.opencensus-opencensus-api-0.28.0.jar
+    - io.opencensus-opencensus-contrib-http-util-0.28.0.jar
     - io.opencensus-opencensus-proto-0.2.0.jar
   * Jodah
     - net.jodah-typetools-0.5.0.jar
@@ -524,20 +529,23 @@ The Apache Software License, Version 2.0
   * Snappy Java
     - org.xerial.snappy-snappy-java-1.1.7.jar
   * Google HTTP Client
-    - com.google.http-client-google-http-client-jackson2-1.38.0.jar
-    - com.google.http-client-google-http-client-1.38.0.jar
-    - com.google.auto.value-auto-value-annotations-1.7.4.jar
+    - com.google.http-client-google-http-client-jackson2-1.41.0.jar
+    - com.google.http-client-google-http-client-gson-1.41.0.jar
+    - com.google.http-client-google-http-client-1.41.0.jar
+    - com.google.auto.value-auto-value-annotations-1.9.jar
     - com.google.re2j-re2j-1.5.jar
   * Jetcd
     - io.etcd-jetcd-common-0.5.11.jar
     - io.etcd-jetcd-core-0.5.11.jar
   * IPAddress
     - com.github.seancfoley-ipaddress-5.3.3.jar
+  * LMAX Disruptor
+    - com.lmax-disruptor-3.4.3.jar
 
 BSD 3-clause "New" or "Revised" License
  * Google auth library
-    - com.google.auth-google-auth-library-credentials-0.22.2.jar -- licenses/LICENSE-google-auth-library.txt
-    - com.google.auth-google-auth-library-oauth2-http-0.22.2.jar -- licenses/LICENSE-google-auth-library.txt
+    - com.google.auth-google-auth-library-credentials-1.4.0.jar -- licenses/LICENSE-google-auth-library.txt
+    - com.google.auth-google-auth-library-oauth2-http-1.4.0.jar -- licenses/LICENSE-google-auth-library.txt
  * LevelDB -- (included in org.rocksdb.*.jar) -- licenses/LICENSE-LevelDB.txt
  * JSR305 -- com.google.code.findbugs-jsr305-3.0.2.jar -- licenses/LICENSE-JSR305.txt
  * JLine -- jline-jline-2.14.6.jar -- licenses/LICENSE-JLine.txt
@@ -556,8 +564,8 @@ MIT License
 
 Protocol Buffers License
  * Protocol Buffers
-   - com.google.protobuf-protobuf-java-3.16.1.jar -- licenses/LICENSE-protobuf.txt
-   - com.google.protobuf-protobuf-java-util-3.16.1.jar -- licenses/LICENSE-protobuf.txt
+   - com.google.protobuf-protobuf-java-3.19.2.jar -- licenses/LICENSE-protobuf.txt
+   - com.google.protobuf-protobuf-java-util-3.19.2.jar -- licenses/LICENSE-protobuf.txt
 
 CDDL-1.1 -- licenses/LICENSE-CDDL-1.1.txt
  * Java Annotations API

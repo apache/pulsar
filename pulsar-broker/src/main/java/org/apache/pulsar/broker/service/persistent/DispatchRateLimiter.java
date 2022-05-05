@@ -346,7 +346,7 @@ public class DispatchRateLimiter {
     }
 
     /**
-     * Update dispatch rate by updating msg and byte rate-limiter. If dispatch-rate is configured < 0 then it closes
+     * Update dispatch rate by updating msg and byte rate-limiter. If dispatch-rate is configured &lt; 0 then it closes
      * the rate-limiter and disables appropriate rate-limiter.
      *
      * @param dispatchRate

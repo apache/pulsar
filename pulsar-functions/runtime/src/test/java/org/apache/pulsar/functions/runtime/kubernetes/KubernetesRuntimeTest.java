@@ -24,8 +24,6 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.protobuf.util.JsonFormat;
-import io.kubernetes.client.openapi.apis.AppsV1Api;
-import io.kubernetes.client.openapi.apis.CoreV1Api;
 import io.kubernetes.client.custom.Quantity;
 import io.kubernetes.client.openapi.models.V1Container;
 import io.kubernetes.client.openapi.models.V1PodSpec;
@@ -89,8 +87,8 @@ public class KubernetesRuntimeTest {
     private static final String narExtractionDirectory = "/tmp/foo";
 
     static {
-        topicsToSerDeClassName.put("persistent://sample/standalone/ns1/test_src", "");
-        topicsToSchema.put("persistent://sample/standalone/ns1/test_src",
+        topicsToSerDeClassName.put("test_src", "");
+        topicsToSchema.put("test_src",
                 ConsumerSpec.newBuilder().setSerdeClassName("").setIsRegexPattern(false).build());
     }
 
@@ -110,11 +108,6 @@ public class KubernetesRuntimeTest {
     }
 
     class TestSecretProviderConfigurator implements SecretsProviderConfigurator {
-
-        @Override
-        public void init(Map<String, String> config) {
-
-        }
 
         @Override
         public String getSecretsProviderClassName(FunctionDetails functionDetails) {
@@ -151,10 +144,6 @@ public class KubernetesRuntimeTest {
             return null;
         }
 
-        @Override
-        public void doAdmissionChecks(AppsV1Api appsV1Api, CoreV1Api coreV1Api, String jobNamespace, String jobName, FunctionDetails functionDetails) {
-
-        }
     }
 
     private KubernetesRuntimeFactory factory;
@@ -868,7 +857,7 @@ public class KubernetesRuntimeTest {
         assertEquals(goInstanceConfig.get("killAfterIdleMs"), 0);
         assertEquals(goInstanceConfig.get("parallelism"), 0);
         assertEquals(goInstanceConfig.get("className"), "");
-        assertEquals(goInstanceConfig.get("sourceSpecsTopic"), "persistent://sample/standalone/ns1/test_src");
+        assertEquals(goInstanceConfig.get("sourceSpecsTopic"), "test_src");
         assertEquals(goInstanceConfig.get("sourceSchemaType"), "");
         assertEquals(goInstanceConfig.get("sinkSpecsTopic"), TEST_NAME + "-output");
         assertEquals(goInstanceConfig.get("clusterName"), "standalone");

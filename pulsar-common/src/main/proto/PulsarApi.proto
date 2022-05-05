@@ -738,11 +738,19 @@ message CommandGetTopicsOfNamespace {
     required uint64 request_id    = 1;
     required string namespace    = 2;
     optional Mode mode = 3 [default = PERSISTENT];
+    optional string topics_pattern = 4;
+    optional string topics_hash    = 5;
 }
 
 message CommandGetTopicsOfNamespaceResponse {
     required uint64 request_id    = 1;
     repeated string topics         = 2;
+    // true iff the topic list was filtered by the pattern supplied by the client
+    optional bool   filtered       = 3 [default = false];
+    // hash computed from the names of matching topics
+    optional string topics_hash    = 4;
+    // if false, topics is empty and the list of matching topics has not changed
+    optional bool   changed        = 5 [default = true];
 }
 
 message CommandGetSchema {

@@ -36,3 +36,4 @@ jobs:
           max-annotations: 50
           token: ${{ secrets.GITHUB_TOKEN }}
           fail-on-error: false
+          only-summary: true

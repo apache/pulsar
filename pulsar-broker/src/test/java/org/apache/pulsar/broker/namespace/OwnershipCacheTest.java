@@ -401,7 +401,7 @@ public class OwnershipCacheTest {
         assertFalse(data3.isDisabled());
         assertNotNull(cache.getOwnedBundle(testFullBundle));
 
-        assertTrue(cache.checkOwnership(testFullBundle));
+        assertTrue(cache.checkOwnershipAsync(testFullBundle).get());
         assertEquals(data2.getNativeUrl(), selfBrokerUrl);
         assertFalse(data2.isDisabled());
         assertNotNull(cache.getOwnedBundle(testFullBundle));
