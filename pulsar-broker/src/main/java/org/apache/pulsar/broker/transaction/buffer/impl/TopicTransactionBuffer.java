@@ -244,8 +244,8 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
     @Override
     public CompletableFuture<Position> appendBufferToTxn(TxnID txnId, long sequenceId, ByteBuf buffer) {
         CompletableFuture<Position> completableFuture = new CompletableFuture<>();
-        if (lowWaterMarks.get(txnId.getMostSigBits()) != null
-                && lowWaterMarks.get(txnId.getMostSigBits()) >= txnId.getLeastSigBits()) {
+        Long lowWaterMark = lowWaterMarks.get(txnId.getMostSigBits());
+        if (lowWaterMark!= null && lowWaterMark >= txnId.getLeastSigBits()) {
             completableFuture.completeExceptionally(new TransactionBufferException
                     .TransactionNotFoundException("Transaction [" + txnId + "] has been ended. "
                     + "Please use a new transaction to send message."));
@@ -301,6 +301,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                     public void addComplete(Position position, ByteBuf entryData, Object ctx) {
                         synchronized (TopicTransactionBuffer.this) {
                             updateMaxReadPosition(txnID);
+                            handleLowWaterMark(txnID, lowWaterMark);
                             clearAbortedTransactions();
                             takeSnapshotByChangeTimes();
                         }
@@ -346,6 +347,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                         synchronized (TopicTransactionBuffer.this) {
                             aborts.put(txnID, (PositionImpl) position);
                             updateMaxReadPosition(txnID);
+                            handleLowWaterMark(txnID, lowWaterMark);
                             changeMaxReadPositionAndAddAbortTimes.getAndIncrement();
                             clearAbortedTransactions();
                             takeSnapshotByChangeTimes();
@@ -370,6 +372,33 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         return completableFuture;
     }
 
+    private void handleLowWaterMark(TxnID txnID, long lowWaterMark) {
+        if (!ongoingTxns.isEmpty()) {
+            TxnID firstTxn = ongoingTxns.firstKey();
+            if (firstTxn.getMostSigBits() == txnID.getMostSigBits() && lowWaterMark >= firstTxn.getLeastSigBits()) {
+                ByteBuf abortMarker = Markers.newTxnAbortMarker(-1L,
+                        firstTxn.getMostSigBits(), firstTxn.getLeastSigBits());
+                try {
+                    topic.getManagedLedger().asyncAddEntry(abortMarker, new AsyncCallbacks.AddEntryCallback() {
+                        @Override
+                        public void addComplete(Position position, ByteBuf entryData, Object ctx) {
+                            synchronized (TopicTransactionBuffer.this) {
+                                aborts.put(firstTxn, (PositionImpl) position);
+                                updateMaxReadPosition(firstTxn);
+                            }
+                        }
+
+                        @Override
+                        public void addFailed(ManagedLedgerException exception, Object ctx) {
+                            log.error("Failed to abort low water mark for txn {}", txnID, exception);
+                        }
+                    }, null);
+                } finally {
+                    abortMarker.release();
+                }
+            }
+        }
+    }
 
     private void takeSnapshotByChangeTimes() {
         if (changeMaxReadPositionAndAddAbortTimes.get() >= takeSnapshotIntervalNumber) {
