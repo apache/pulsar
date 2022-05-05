@@ -29,7 +29,6 @@ PYTHON_VERSIONS=(
 )
 
 export MACOSX_DEPLOYMENT_TARGET=11.0
-MACOSX_DEPLOYMENT_TARGET_MAJOR=${MACOSX_DEPLOYMENT_TARGET%%.*}
 
 ZLIB_VERSION=1.2.12
 OPENSSL_VERSION=1_1_1n
@@ -44,25 +43,31 @@ cd "${ROOT_DIR}/pulsar-client-cpp"
 
 # Compile and cache dependencies
 CACHE_DIR=~/.pulsar-mac-wheels-cache
-mkdir -p $CACHE_DIR
-
-if [ ! -d $CACHE_DIR/pyenv ]; then
-  git clone https://github.com/pyenv/pyenv.git $CACHE_DIR/pyenv
-fi
 PYENV=$CACHE_DIR/pyenv/bin/pyenv
-
-cd $CACHE_DIR
 PREFIX=$CACHE_DIR/install
-export SDKROOT=$(xcrun --show-sdk-path)
+mkdir -p $PREFIX
+cd $CACHE_DIR
 
+if [ ! -x "$PYENV" ]; then
+  git clone https://github.com/pyenv/pyenv.git pyenv
+fi
+
+if [ ! -d boost-src ]; then
+  curl -O -L https://boostorg.jfrog.io/artifactory/main/release/${BOOST_VERSION}/source/boost_${BOOST_VERSION//./_}.tar.gz
+  mkdir boost-src
+  tar xvfz boost_${BOOST_VERSION//./_}.tar.gz -C boost-src --strip-components=1
+fi
+
+export MAKEFLAGS=-j$(sysctl hw.physicalcpu | cut -d' ' -f2)
+export SDKROOT=$(xcrun --show-sdk-path)
 # Many MacOS systems have extensive customization of build-related variables. The below unsets those or sets them to
 # minimal standard resource locations in hopes of increasing reproducibility so that this packaging can be run reliably
 # from different Macs.
-export CXXFLAGS=
 export PKG_CONFIG_PATH=
-# The presence of Homebrew-installed openssl@3 can cause things to accumulate unexpected linker dependencies, so ensure
-# that it is not used.
-export CFLAGS="-DOPENSSL_NO_SSL3 -I${SDKROOT}/usr/include -I${PREFIX}/include"
+# OPENSSL_NO_SSL3: The presence of Homebrew-installed openssl@3 can cause things to accumulate unexpected linker
+# dependencies, so ensure that it is not used.
+export CFLAGS="-fPIC -O3 -DOPENSSL_NO_SSL3 -I${SDKROOT}/usr/include -I${PREFIX}/include -mmacosx-version-min=${MACOSX_DEPLOYMENT_TARGET}"
+export CXXFLAGS="$CFLAGS"
 export CPPFLAGS="$CFLAGS"
 export LDFLAGS="-L${SDKROOT}/usr/lib -L${PREFIX}/lib"
 
@@ -73,18 +78,16 @@ if [ ! -f openssl-OpenSSL_${OPENSSL_VERSION}.done ]; then
     tar xvfz OpenSSL_${OPENSSL_VERSION}.tar.gz
     mv openssl-OpenSSL_${OPENSSL_VERSION} openssl-OpenSSL_${OPENSSL_VERSION}-arm64
     pushd openssl-OpenSSL_${OPENSSL_VERSION}-arm64
-      CFLAGS="-fPIC -mmacosx-version-min=${MACOSX_DEPLOYMENT_TARGET}" \
-          ./Configure --openssldir=$PREFIX --prefix=$PREFIX no-shared darwin64-arm64-cc
-      make -j8
-      make install
+      ./Configure --openssldir=$PREFIX --prefix=$PREFIX no-shared darwin64-arm64-cc
+      make
+      make install_sw  # Skip manpages
     popd
 
     tar xvfz OpenSSL_${OPENSSL_VERSION}.tar.gz
     mv openssl-OpenSSL_${OPENSSL_VERSION} openssl-OpenSSL_${OPENSSL_VERSION}-x86_64
     pushd openssl-OpenSSL_${OPENSSL_VERSION}-x86_64
-      CFLAGS="-fPIC -mmacosx-version-min=${MACOSX_DEPLOYMENT_TARGET}" \
-          ./Configure --openssldir=$PREFIX --prefix=$PREFIX no-shared darwin64-x86_64-cc
-      make -j8
+      ./Configure --openssldir=$PREFIX --prefix=$PREFIX no-shared darwin64-x86_64-cc
+      make
       make install_sw  # Skip manpages
     popd
 
@@ -106,9 +109,9 @@ if [ ! -f protobuf-${PROTOBUF_VERSION}/.done ]; then
     curl -O -L  https://github.com/google/protobuf/releases/download/v${PROTOBUF_VERSION}/protobuf-cpp-${PROTOBUF_VERSION}.tar.gz
     tar xvfz protobuf-cpp-${PROTOBUF_VERSION}.tar.gz
     pushd protobuf-${PROTOBUF_VERSION}
-      CXXFLAGS="-fPIC -arch arm64 -arch x86_64 -mmacosx-version-min=${MACOSX_DEPLOYMENT_TARGET}" \
+      CXXFLAGS="-arch arm64 -arch x86_64 $CXXFLAGS" \
             ./configure --prefix=$PREFIX
-      make -j16
+      make
       make install
       touch .done
     popd
@@ -122,8 +125,9 @@ if [ ! -f zstd-${ZSTD_VERSION}/.done ]; then
     curl -O -L https://github.com/facebook/zstd/releases/download/v${ZSTD_VERSION}/zstd-${ZSTD_VERSION}.tar.gz
     tar xvfz zstd-${ZSTD_VERSION}.tar.gz
     pushd zstd-${ZSTD_VERSION}
-      CFLAGS="-fPIC -O3 -arch arm64 -arch x86_64 -mmacosx-version-min=${MACOSX_DEPLOYMENT_TARGET}" PREFIX=$PREFIX \
-            make -j16 install
+      CFLAGS="-arch arm64 -arch x86_64 $CFLAGS" \
+        PREFIX=$PREFIX \
+        make install
       touch .done
     popd
 else
@@ -136,9 +140,9 @@ if [ ! -f snappy-${SNAPPY_VERSION}/.done ]; then
     curl -O -L https://github.com/google/snappy/releases/download/${SNAPPY_VERSION}/snappy-${SNAPPY_VERSION}.tar.gz
     tar xvfz snappy-${SNAPPY_VERSION}.tar.gz
     pushd snappy-${SNAPPY_VERSION}
-      CXXFLAGS="-fPIC -O3 -arch arm64 -arch x86_64 -mmacosx-version-min=${MACOSX_DEPLOYMENT_TARGET}" \
+      CXXFLAGS="-arch arm64 -arch x86_64 $CXXFLAGS" \
             ./configure --prefix=$PREFIX
-      make -j16
+      make
       make install
       touch .done
     popd
@@ -153,18 +157,17 @@ if [ ! -f curl-${CURL_VERSION}/.done ]; then
     curl -O -L  https://github.com/curl/curl/releases/download/curl-${CURL_VERSION_}/curl-${CURL_VERSION}.tar.gz
     tar xfz curl-${CURL_VERSION}.tar.gz
     pushd curl-${CURL_VERSION}
-      CFLAGS="-fPIC -arch arm64 -arch x86_64 -mmacosx-version-min=${MACOSX_DEPLOYMENT_TARGET}" \
+      CFLAGS="-arch arm64 -arch x86_64 $CFLAGS" \
             ./configure --with-ssl=$PREFIX \
               --without-nghttp2 --without-libidn2 --disable-ldap \
               --prefix=$PREFIX
-      make -j16 install
+      make install
       touch .done
     popd
 else
     echo "Using cached LibCurl"
 fi
 
-BOOST_VERSION_=${BOOST_VERSION//./_}
 ###############################################################################
 # For each python/arch tuple, build Python at that version via Pyenv, then install pip/setuptools/wheel in that pyenv,
 # then install boost-python linked to the pyenv's python, then build the pulsar client in that directory.
@@ -177,6 +180,11 @@ for line in "${PYTHON_VERSIONS[@]}"; do
     echo "Building Python $PYTHON_VERSION_LONG for $ARCHS"
     ARCHCMD=""
     if [ "$ARCHS" = "x86_64;arm64" ]; then
+      # PYENV_ROOT is exported rather than set since it is a variable used by pyenv itself to determine where it should
+      # place its built python versions. Since we are building Python with nonstandard flags, we set PYENV_ROOT to
+      # pulsar-wheel-build-specific locations so we neither pollute nor accidentally use pyenv-managed Pythons provided
+      # by system-level pyenv. Without this, for example, a user who did `brew install pyenv; pyenv install 3.8.13`
+      # would cause the pulsar client build to use a non-universal-architecture-supporting Python 3.8.
       export PYENV_ROOT=$CACHE_DIR/python-$PYTHON_VERSION_LONG-universal
       PYTHON_CONFIGURE_OPTS="--enable-universalsdk --with-universal-archs=universal2"
     else
@@ -194,8 +202,7 @@ for line in "${PYTHON_VERSIONS[@]}"; do
       PY_INCLUDE_DIR=${PY_INCLUDE_DIR}m
     fi
 
-    PYTHON_CFLAGS="-fPIC -O3 -mmacosx-version-min=${MACOSX_DEPLOYMENT_TARGET} $CFLAGS" \
-      PYTHON_CONFIGURE_OPTS="--without-readline --with-openssl=$PREFIX --enable-shared $PYTHON_CONFIGURE_OPTS" \
+    PYTHON_CONFIGURE_OPTS="--without-readline --with-openssl=$PREFIX --enable-shared $PYTHON_CONFIGURE_OPTS" \
       $ARCHCMD $PYENV install -s $PYTHON_VERSION_LONG
 
     pushd $PYENV_ROOT
@@ -207,9 +214,8 @@ for line in "${PYTHON_VERSIONS[@]}"; do
 
     if [ ! -f $DIR/.done ]; then
         echo "Building Boost for Py $PYTHON_VERSION at $ARCHS"
-        curl -O -L https://boostorg.jfrog.io/artifactory/main/release/${BOOST_VERSION}/source/boost_${BOOST_VERSION_}.tar.gz
-        tar xfz boost_${BOOST_VERSION_}.tar.gz
-        mv boost_${BOOST_VERSION_} $DIR
+        rm -rf $DIR
+        cp -r "$CACHE_DIR/boost-src" $DIR
         pushd $DIR
         cat <<EOF > user-config.jam
             using python : $PYTHON_VERSION
@@ -220,11 +226,11 @@ for line in "${PYTHON_VERSIONS[@]}"; do
 EOF
         ./bootstrap.sh --with-libraries=python --with-python=python3 --with-python-root=$PY_PREFIX \
               --prefix=$CACHE_DIR/boost-py-$PYTHON_VERSION
-        ./b2 address-model=64 cxxflags="-fPIC -arch arm64 -arch x86_64 -mmacosx-version-min=${MACOSX_DEPLOYMENT_TARGET}" \
+        ./b2 address-model=64 cxxflags="-arch arm64 -arch x86_64 $CFLAGS" \
                   link=static threading=multi \
                   --user-config=./user-config.jam \
                   variant=release python=${PYTHON_VERSION} \
-                  -j16 \
+                  $MAKEFLAGS \
                   install
         touch .done
         popd
@@ -258,7 +264,7 @@ EOF
         -DPROTOC_PATH=$PREFIX/bin/protoc
 
     make clean
-    make _pulsar -j16
+    make _pulsar
 
     echo "Building wheel for python $PYTHON_VERSION at $ARCHS"
     pushd python
