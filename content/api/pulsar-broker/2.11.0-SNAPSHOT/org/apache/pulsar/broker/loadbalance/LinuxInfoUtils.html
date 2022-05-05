@@ -155,22 +155,12 @@ extends java.lang.Object</pre>
 </tr>
 <tr class="altColor">
 <td class="colFirst"><code>static class&nbsp;</code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="LinuxInfoUtils.NICUnit.html" title="enum in org.apache.pulsar.broker.loadbalance">LinuxInfoUtils.NICUnit</a></span></code></th>
-<td class="colLast">&nbsp;</td>
-</tr>
-<tr class="rowColor">
-<td class="colFirst"><code>static class&nbsp;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="LinuxInfoUtils.NICUsageType.html" title="enum in org.apache.pulsar.broker.loadbalance">LinuxInfoUtils.NICUsageType</a></span></code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr class="altColor">
-<td class="colFirst"><code>static class&nbsp;</code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="LinuxInfoUtils.ResourceUsage.html" title="class in org.apache.pulsar.broker.loadbalance">LinuxInfoUtils.ResourceUsage</a></span></code></th>
-<td class="colLast">&nbsp;</td>
-</tr>
 <tr class="rowColor">
 <td class="colFirst"><code>static class&nbsp;</code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="LinuxInfoUtils.UsageUnit.html" title="enum in org.apache.pulsar.broker.loadbalance">LinuxInfoUtils.UsageUnit</a></span></code></th>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="LinuxInfoUtils.ResourceUsage.html" title="class in org.apache.pulsar.broker.loadbalance">LinuxInfoUtils.ResourceUsage</a></span></code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 </table>
@@ -249,17 +239,17 @@ extends java.lang.Object</pre>
 </tr>
 <tr id="i5" class="rowColor">
 <td class="colFirst"><code>static double</code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getTotalNicLimit(java.util.List,org.apache.pulsar.broker.loadbalance.LinuxInfoUtils.NICUnit)">getTotalNicLimit</a></span>&#8203;(java.util.List&lt;java.lang.String&gt;&nbsp;nics,
-                <a href="LinuxInfoUtils.NICUnit.html" title="enum in org.apache.pulsar.broker.loadbalance">LinuxInfoUtils.NICUnit</a>&nbsp;nicUnit)</code></th>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getTotalNicLimit(java.util.List,org.apache.pulsar.broker.BitRateUnit)">getTotalNicLimit</a></span>&#8203;(java.util.List&lt;java.lang.String&gt;&nbsp;nics,
+                org.apache.pulsar.broker.BitRateUnit&nbsp;bitRateUnit)</code></th>
 <td class="colLast">
 <div class="block">Get all physical nic limit.</div>
 </td>
 </tr>
 <tr id="i6" class="altColor">
 <td class="colFirst"><code>static double</code></td>
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getTotalNicUsage(java.util.List,org.apache.pulsar.broker.loadbalance.LinuxInfoUtils.NICUsageType,org.apache.pulsar.broker.loadbalance.LinuxInfoUtils.UsageUnit)">getTotalNicUsage</a></span>&#8203;(java.util.List&lt;java.lang.String&gt;&nbsp;nics,
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getTotalNicUsage(java.util.List,org.apache.pulsar.broker.loadbalance.LinuxInfoUtils.NICUsageType,org.apache.pulsar.broker.BitRateUnit)">getTotalNicUsage</a></span>&#8203;(java.util.List&lt;java.lang.String&gt;&nbsp;nics,
                 <a href="LinuxInfoUtils.NICUsageType.html" title="enum in org.apache.pulsar.broker.loadbalance">LinuxInfoUtils.NICUsageType</a>&nbsp;type,
-                <a href="LinuxInfoUtils.UsageUnit.html" title="enum in org.apache.pulsar.broker.loadbalance">LinuxInfoUtils.UsageUnit</a>&nbsp;unit)</code></th>
+                org.apache.pulsar.broker.BitRateUnit&nbsp;bitRateUnit)</code></th>
 <td class="colLast">
 <div class="block">Get all physical nic usage.</div>
 </td>
@@ -393,25 +383,25 @@ extends java.lang.Object</pre>
  far. Real CPU usage should equal the sum substracting the idle cycles, this would include iowait, irq and steal.</div>
 </li>
 </ul>
-<a id="getTotalNicLimit(java.util.List,org.apache.pulsar.broker.loadbalance.LinuxInfoUtils.NICUnit)">
+<a id="getTotalNicLimit(java.util.List,org.apache.pulsar.broker.BitRateUnit)">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>getTotalNicLimit</h4>
 <pre class="methodSignature">public static&nbsp;double&nbsp;getTotalNicLimit&#8203;(java.util.List&lt;java.lang.String&gt;&nbsp;nics,
-                                      <a href="LinuxInfoUtils.NICUnit.html" title="enum in org.apache.pulsar.broker.loadbalance">LinuxInfoUtils.NICUnit</a>&nbsp;nicUnit)</pre>
+                                      org.apache.pulsar.broker.BitRateUnit&nbsp;bitRateUnit)</pre>
 <div class="block">Get all physical nic limit.</div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
 <dd><code>nics</code> - All nic path</dd>
-<dd><code>nicUnit</code> - Nic speed unit</dd>
+<dd><code>bitRateUnit</code> - Bit rate unit</dd>
 <dt><span class="returnLabel">Returns:</span></dt>
 <dd>Total nic limit</dd>
 </dl>
 </li>
 </ul>
-<a id="getTotalNicUsage(java.util.List,org.apache.pulsar.broker.loadbalance.LinuxInfoUtils.NICUsageType,org.apache.pulsar.broker.loadbalance.LinuxInfoUtils.UsageUnit)">
+<a id="getTotalNicUsage(java.util.List,org.apache.pulsar.broker.loadbalance.LinuxInfoUtils.NICUsageType,org.apache.pulsar.broker.BitRateUnit)">
 <!--   -->
 </a>
 <ul class="blockList">
@@ -419,13 +409,13 @@ extends java.lang.Object</pre>
 <h4>getTotalNicUsage</h4>
 <pre class="methodSignature">public static&nbsp;double&nbsp;getTotalNicUsage&#8203;(java.util.List&lt;java.lang.String&gt;&nbsp;nics,
                                       <a href="LinuxInfoUtils.NICUsageType.html" title="enum in org.apache.pulsar.broker.loadbalance">LinuxInfoUtils.NICUsageType</a>&nbsp;type,
-                                      <a href="LinuxInfoUtils.UsageUnit.html" title="enum in org.apache.pulsar.broker.loadbalance">LinuxInfoUtils.UsageUnit</a>&nbsp;unit)</pre>
+                                      org.apache.pulsar.broker.BitRateUnit&nbsp;bitRateUnit)</pre>
 <div class="block">Get all physical nic usage.</div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
 <dd><code>nics</code> - All nic path</dd>
 <dd><code>type</code> - Nic's usage type:  transport, receive</dd>
-<dd><code>unit</code> - Nic usage unit</dd>
+<dd><code>bitRateUnit</code> - Bit rate unit</dd>
 <dt><span class="returnLabel">Returns:</span></dt>
 <dd>Total nic usage</dd>
 </dl>
