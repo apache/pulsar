@@ -168,6 +168,17 @@ while True:
 client.close()
 ```
 
+### Create a Python client with multiple advertised listeners
+To ensure clients in both internal and external networks can connect to a Pulsar cluster, Pulsar introduces [advertisedListeners](concepts-multiple-advertised-listeners.md).
+
+The following example creates a Python client using multiple advertised listeners:
+
+```python
+import pulsar
+
+client = pulsar.Client('pulsar://localhost:6650', listener_name='external')
+```
+
 ## Schema
 
 ### Supported schema types
