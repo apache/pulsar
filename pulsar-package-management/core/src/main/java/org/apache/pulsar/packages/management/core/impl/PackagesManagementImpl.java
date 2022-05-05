@@ -243,11 +243,11 @@ public class PackagesManagementImpl implements PackagesManagement {
         return future;
     }
 
-    private String metadataPath(PackageName packageName) {
+    protected String metadataPath(PackageName packageName) {
         return packageName.toRestPath() + "/meta";
     }
 
-    private String packagePath(PackageName packageName) {
+    protected String packagePath(PackageName packageName) {
         return packageName.toRestPath() + storage.dataPath();
     }
 

@@ -21,7 +21,10 @@ package org.apache.pulsar.packages.management.core.impl;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import org.apache.pulsar.packages.management.core.MockedPackagesStorageProvider;
 import org.apache.pulsar.packages.management.core.PackagesManagement;
@@ -191,5 +194,63 @@ public class PackagesManagementImplTest {
         } catch (Exception e) {
             Assert.fail("should not throw any exception");
         }
+    }
+
+    @Test
+    public void testPackagePath() {
+        PackagesManagementImpl impl = (PackagesManagementImpl) packagesManagement;
+        PackageName pn = PackageName.get("function://public/default/test@v1");
+        String metaPath = impl.metadataPath(pn);
+        Assert.assertEquals(metaPath, "function/public/default/test/v1/meta");
+        String dataPath = impl.packagePath(pn);
+        Assert.assertEquals(dataPath, "function/public/default/test/v1");
+
+        impl.initialize(new PackagesStorage() {
+            @Override
+            public void initialize() {
+
+            }
+
+            @Override
+            public CompletableFuture<Void> writeAsync(String path, InputStream inputStream) {
+                return null;
+            }
+
+            @Override
+            public CompletableFuture<Void> readAsync(String path, OutputStream outputStream) {
+                return null;
+            }
+
+            @Override
+            public CompletableFuture<Void> deleteAsync(String path) {
+                return null;
+            }
+
+            @Override
+            public CompletableFuture<List<String>> listAsync(String path) {
+                return null;
+            }
+
+            @Override
+            public CompletableFuture<Boolean> existAsync(String path) {
+                return null;
+            }
+
+            @Override
+            public CompletableFuture<Void> closeAsync() {
+                return null;
+            }
+
+            @Override
+            public String dataPath() {
+                return "/tmp";
+            }
+        });
+
+
+        metaPath = impl.metadataPath(pn);
+        Assert.assertEquals(metaPath, "function/public/default/test/v1/meta");
+        dataPath = impl.packagePath(pn);
+        Assert.assertEquals(dataPath, "function/public/default/test/v1/tmp");
     }
 }
