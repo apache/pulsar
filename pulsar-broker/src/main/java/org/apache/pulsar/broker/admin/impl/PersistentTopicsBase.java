@@ -548,16 +548,7 @@ public class PersistentTopicsBase extends AdminResource {
 
     protected PartitionedTopicMetadata internalGetPartitionedMetadata(boolean authoritative,
                                                                       boolean checkAllowAutoCreation) {
-        try {
-            return internalGetPartitionedMetadataAsync(authoritative, checkAllowAutoCreation)
-                    .get(DEFAULT_OPERATION_TIMEOUT_SEC, TimeUnit.SECONDS);
-        } catch (InterruptedException | ExecutionException | TimeoutException ex) {
-            Throwable realCause = FutureUtil.unwrapCompletionException(ex);
-            if (realCause instanceof WebApplicationException) {
-                throw (WebApplicationException) realCause;
-            }
-            throw new RestException(Status.INTERNAL_SERVER_ERROR, "Failed to get topic metadata");
-        }
+        return sync(() -> internalGetPartitionedMetadataAsync(authoritative, checkAllowAutoCreation));
     }
 
     protected CompletableFuture<PartitionedTopicMetadata> internalGetPartitionedMetadataAsync(
@@ -4180,8 +4171,6 @@ public class PersistentTopicsBase extends AdminResource {
                                         + " is not supported"));
                     }
                 }
-            } catch (RestException re) {
-                return FutureUtil.failedFuture(re);
             } catch (Exception e) {
                 log.warn("[{}] Failed to parse version {} ", clientAppId(), userAgent);
             }

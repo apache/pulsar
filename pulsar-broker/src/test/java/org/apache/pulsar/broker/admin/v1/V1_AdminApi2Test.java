@@ -258,6 +258,7 @@ public class V1_AdminApi2Test extends MockedPulsarServiceBaseTest {
         final String partitionedTopicName = "non-persistent://prop-xyz/use/ns1/paritioned";
         try {
             admin.nonPersistentTopics().getPartitionedTopicMetadata(partitionedTopicName);
+            fail("Should have failed");
         } catch (Exception ex) {
             assertTrue(ex instanceof PulsarAdminException.NotFoundException);
         }
