@@ -270,7 +270,11 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                             consumerList.size());
                 }
                 havePendingRead = true;
-                minReplayedPosition = getMessagesToReplayNow(1).stream().findFirst().orElse(null);
+                Set<PositionImpl> toReplay = getMessagesToReplayNow(1);
+                minReplayedPosition = toReplay.stream().findFirst().orElse(null);
+                if (minReplayedPosition != null) {
+                    redeliveryMessages.add(minReplayedPosition.getLedgerId(), minReplayedPosition.getEntryId());
+                }
                 cursor.asyncReadEntriesOrWait(messagesToRead, bytesToRead, this,
                         ReadType.Normal, topic.getMaxReadPosition());
             } else {

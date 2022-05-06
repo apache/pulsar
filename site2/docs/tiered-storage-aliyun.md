@@ -24,8 +24,6 @@ This example uses Pulsar 2.8.0.
 
     **Output**
     
-    As shown from the output, Pulsar uses [Apache jclouds](https://jclouds.apache.org) to support [AWS S3](https://aws.amazon.com/s3/), [GCS](https://cloud.google.com/storage/), [Azure](https://portal.azure.com/#home), and [Aliyun OSS](https://www.aliyun.com/product/oss) for long-term storage.
-    
     ```
     tiered-storage-file-system-2.8.0.nar
     tiered-storage-jcloud-2.8.0.nar
@@ -64,8 +62,8 @@ You can configure the Aliyun OSS offloader driver in the configuration file `bro
     | --- | --- | --- |
     | `managedLedgerOffloadReadBufferSizeInBytes` | Size of block read | 1 MB |
     | `managedLedgerOffloadMaxBlockSizeInBytes` | Size of block write | 64 MB |
-    | `managedLedgerMinLedgerRolloverTimeMinutes` | Minimum time between ledger rollover for a topic<br><br>**Note**: it is not recommended that you set this configuration in the production environment. | 2 |
-    | `managedLedgerMaxEntriesPerLedger` | Maximum number of entries to append to a ledger before triggering a rollover.<br><br>**Note**: it is not recommended that you set this configuration in the production environment. | 5000 |
+    | `managedLedgerMinLedgerRolloverTimeMinutes` | Minimum time between ledger rollover for a topic<br /><br />**Note**: it is not recommended that you set this configuration in the production environment. | 2 |
+    | `managedLedgerMaxEntriesPerLedger` | Maximum number of entries to append to a ledger before triggering a rollover.<br /><br />**Note**: it is not recommended that you set this configuration in the production environment. | 5000 |
 
 #### Bucket (required)
 

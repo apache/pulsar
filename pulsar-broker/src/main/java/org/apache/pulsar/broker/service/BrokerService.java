@@ -23,7 +23,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
 import static org.apache.commons.collections.CollectionUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
-import static org.apache.pulsar.broker.PulsarService.isTransactionSystemTopic;
+import static org.apache.pulsar.common.naming.SystemTopicNames.isTransactionInternalName;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
@@ -121,7 +121,6 @@ import org.apache.pulsar.broker.service.plugin.EntryFilterWithClassLoader;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.prometheus.metrics.ObserverGauge;
 import org.apache.pulsar.broker.stats.prometheus.metrics.Summary;
-import org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStore;
 import org.apache.pulsar.broker.validator.BindAddressValidator;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
@@ -132,13 +131,13 @@ import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.configuration.BindAddress;
 import org.apache.pulsar.common.configuration.FieldContext;
-import org.apache.pulsar.common.events.EventsTopicNames;
 import org.apache.pulsar.common.intercept.AppendIndexMetadataInterceptor;
 import org.apache.pulsar.common.intercept.BrokerEntryMetadataInterceptor;
 import org.apache.pulsar.common.intercept.BrokerEntryMetadataUtils;
 import org.apache.pulsar.common.intercept.ManagedLedgerPayloadProcessor;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
@@ -156,7 +155,6 @@ import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
-import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.FieldParser;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -1014,32 +1012,12 @@ public class BrokerService implements Closeable {
         }
     }
 
-    public CompletableFuture<SchemaVersion> deleteSchemaStorage(String topic) {
-        Optional<Topic> optTopic = getTopicReference(topic);
-        if (optTopic.isPresent()) {
-            return optTopic.get().deleteSchema();
-        } else {
-            return CompletableFuture.completedFuture(null);
-        }
-    }
-
     public CompletableFuture<Void> deleteTopic(String topic, boolean forceDelete) {
-        return deleteTopic(topic, forceDelete, false);
-    }
-
-    public CompletableFuture<Void> deleteTopic(String topic, boolean forceDelete, boolean deleteSchema) {
         Optional<Topic> optTopic = getTopicReference(topic);
         if (optTopic.isPresent()) {
             Topic t = optTopic.get();
             if (forceDelete) {
-                if (deleteSchema) {
-                    return t.deleteSchema().thenCompose(schemaVersion -> {
-                        log.info("Successfully delete topic {}'s schema of version {}", t.getName(), schemaVersion);
-                        return t.deleteForcefully();
-                    });
-                } else {
-                    return t.deleteForcefully();
-                }
+                return t.deleteForcefully();
             }
 
             // v2 topics have a global name so check if the topic is replicated.
@@ -1051,14 +1029,7 @@ public class BrokerService implements Closeable {
                         new IllegalStateException("Delete forbidden topic is replicated on clusters " + clusters));
             }
 
-            if (deleteSchema) {
-                return t.deleteSchema().thenCompose(schemaVersion -> {
-                    log.info("Successfully delete topic {}'s schema of version {}", t.getName(), schemaVersion);
-                    return t.delete();
-                });
-            } else {
-                return t.delete();
-            }
+            return t.delete();
         }
 
         if (log.isDebugEnabled()) {
@@ -1187,11 +1158,6 @@ public class BrokerService implements Closeable {
         });
 
         return topicFuture;
-    }
-
-    private <T> CompletableFuture<T> futureWithDeadline() {
-        return FutureUtil.createFutureWithTimeout(FUTURE_DEADLINE_TIMEOUT_DURATION, executor(),
-                () -> FUTURE_DEADLINE_TIMEOUT_EXCEPTION);
     }
 
     public PulsarClient getReplicationClient(String cluster, Optional<ClusterData> clusterDataOp) {
@@ -1376,7 +1342,7 @@ public class BrokerService implements Closeable {
             return;
         }
 
-        if (isTransactionSystemTopic(topicName)) {
+        if (isTransactionInternalName(topicName)) {
             String msg = String.format("Can not create transaction system topic %s", topic);
             log.warn(msg);
             pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
@@ -1804,34 +1770,37 @@ public class BrokerService implements Closeable {
         });
     }
 
+    public void forEachPersistentTopic(Consumer<PersistentTopic> consumer) {
+        topics.values().stream().map(BrokerService::extractTopic)
+                .map(topicOp -> topicOp.filter(topic -> topic instanceof PersistentTopic))
+                .forEach(topicOp -> topicOp.ifPresent(topic -> consumer.accept((PersistentTopic) topic)));
+    }
+
     public BacklogQuotaManager getBacklogQuotaManager() {
         return this.backlogQuotaManager;
     }
 
     public void monitorBacklogQuota() {
-        forEachTopic(topic -> {
-            if (topic instanceof PersistentTopic) {
-                PersistentTopic persistentTopic = (PersistentTopic) topic;
-                if (persistentTopic.isSizeBacklogExceeded()) {
-                    getBacklogQuotaManager().handleExceededBacklogQuota(persistentTopic,
-                            BacklogQuota.BacklogQuotaType.destination_storage, false);
-                } else {
-                    persistentTopic.checkTimeBacklogExceeded().thenAccept(isExceeded -> {
-                        if (isExceeded) {
-                            getBacklogQuotaManager().handleExceededBacklogQuota(persistentTopic,
-                                    BacklogQuota.BacklogQuotaType.message_age,
-                                    pulsar.getConfiguration().isPreciseTimeBasedBacklogQuotaCheck());
-                        } else {
-                            if (log.isDebugEnabled()) {
-                                log.debug("quota not exceeded for [{}]", topic.getName());
-                            }
+        forEachPersistentTopic(topic -> {
+            if (topic.isSizeBacklogExceeded()) {
+                getBacklogQuotaManager().handleExceededBacklogQuota(topic,
+                        BacklogQuota.BacklogQuotaType.destination_storage, false);
+            } else {
+                topic.checkTimeBacklogExceeded().thenAccept(isExceeded -> {
+                    if (isExceeded) {
+                        getBacklogQuotaManager().handleExceededBacklogQuota(topic,
+                                BacklogQuota.BacklogQuotaType.message_age,
+                                pulsar.getConfiguration().isPreciseTimeBasedBacklogQuotaCheck());
+                    } else {
+                        if (log.isDebugEnabled()) {
+                            log.debug("quota not exceeded for [{}]", topic.getName());
                         }
-                    }).exceptionally(throwable -> {
-                        log.error("Error when checkTimeBacklogExceeded({}) in monitorBacklogQuota",
-                                persistentTopic.getName(), throwable);
-                        return null;
-                    });
-                }
+                    }
+                }).exceptionally(throwable -> {
+                    log.error("Error when checkTimeBacklogExceeded({}) in monitorBacklogQuota",
+                            topic.getName(), throwable);
+                    return null;
+                });
             }
         });
     }
@@ -1904,7 +1873,7 @@ public class BrokerService implements Closeable {
                     this.getPulsar().getTransactionMetadataStoreService();
             // if the store belongs to this bundle, remove and close the store
             this.getPulsar().getTransactionMetadataStoreService().getStores().values().stream().filter(store ->
-                    serviceUnit.includes(TopicName.TRANSACTION_COORDINATOR_ASSIGN
+                    serviceUnit.includes(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN
                             .getPartition((int) (store.getTransactionCoordinatorID().getId()))))
                     .map(TransactionMetadataStore::getTransactionCoordinatorID)
                     .forEach(tcId -> closeFutures.add(metadataStoreService.removeTransactionMetadataStore(tcId)));
@@ -2848,15 +2817,6 @@ public class BrokerService implements Closeable {
         }
     }
 
-    private void foreachCnx(Consumer<TransportCnx> consumer) {
-        Set<TransportCnx> cnxSet = new HashSet<>();
-        topics.forEach((n, t) -> {
-            Optional<Topic> topic = extractTopic(t);
-            topic.ifPresent(value -> value.getProducers().values().forEach(producer -> cnxSet.add(producer.getCnx())));
-        });
-        cnxSet.forEach(consumer);
-    }
-
     public boolean isAllowAutoTopicCreation(final String topic) {
         TopicName topicName = TopicName.get(topic);
         return isAllowAutoTopicCreation(topicName);
@@ -2936,25 +2896,8 @@ public class BrokerService implements Closeable {
     }
 
     public boolean isSystemTopic(TopicName topicName) {
-        if (topicName.getNamespaceObject().equals(NamespaceName.SYSTEM_NAMESPACE)
-                || topicName.getNamespaceObject().equals(pulsar.getHeartbeatNamespaceV1())
-                || topicName.getNamespaceObject().equals(pulsar.getHeartbeatNamespaceV2())) {
-            return true;
-        }
-
-        TopicName nonePartitionedTopicName = TopicName.get(topicName.getPartitionedTopicName());
-
-        // event topic
-        if (EventsTopicNames.checkTopicIsEventsNames(nonePartitionedTopicName)) {
-            return true;
-        }
-
-        String localName = nonePartitionedTopicName.getLocalName();
-        // transaction pending ack topic
-        if (StringUtils.endsWith(localName, MLPendingAckStore.PENDING_ACK_STORE_SUFFIX)) {
-            return true;
-        }
-        return false;
+        return NamespaceService.isSystemServiceNamespace(topicName.getNamespace())
+                || SystemTopicNames.isSystemTopic(topicName);
     }
 
     /**

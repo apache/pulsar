@@ -92,12 +92,12 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-m2-dependencies-core-modules-
 
-      - name: Set up JDK 11
+      - name: Set up JDK 17
         uses: actions/setup-java@v2
         if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
         with:
           distribution: 'temurin'
-          java-version: 11
+          java-version: 17
 
       - name: Check source code license headers
         if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
@@ -190,21 +190,16 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-m2-dependencies-core-modules-
 
-      - name: Set up JDK ${{ matrix.jdk || '11' }}
+      - name: Set up JDK ${{ matrix.jdk || '17' }}
         uses: actions/setup-java@v2
         if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
         with:
           distribution: 'temurin'
-          java-version: ${{ matrix.jdk || '11' }}
+          java-version: ${{ matrix.jdk || '17' }}
 
       - name: Install gh-actions-artifact-client.js
         if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
         uses: apache/pulsar-test-infra/gh-actions-artifact-client/dist@master
-
-      - name: Cleanup log artifacts from possible previous failed build
-        if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
-        run: |
-          gh-actions-artifact-client.js delete "Unit-${{ matrix.group }}-surefire-reports" &>/dev/null || true
 
       - name: Restore maven build results from Github artifact cache
         if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
@@ -237,18 +232,20 @@ jobs:
           summary_title: 'Test Summary for Unit - ${{ matrix.name }}:'
 
       - name: Publish the Test reports in Junit xml format
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         if: ${{ always() && needs.changed_files_job.outputs.docs_only != 'true' }}
         with:
           name: Unit-${{ matrix.group }}-test-report
           path: test-reports
+          retention-days: 7
 
       - name: Upload Surefire reports
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         if: ${{ !success() && needs.changed_files_job.outputs.docs_only != 'true' }}
         with:
           name: Unit-${{ matrix.group }}-surefire-reports
           path: surefire-reports
+          retention-days: 7
 
       - name: Wait for ssh connection when build fails
         # ssh access is enabled for builds in own forks
@@ -292,12 +289,12 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-m2-dependencies-core-modules-
 
-      - name: Set up JDK 11
+      - name: Set up JDK 17
         uses: actions/setup-java@v2
         if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
         with:
           distribution: 'temurin'
-          java-version: 11
+          java-version: 17
 
       - name: Install gh-actions-artifact-client.js
         if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
@@ -386,22 +383,16 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-m2-dependencies-core-modules-
 
-      - name: Set up JDK 11
+      - name: Set up JDK 17
         uses: actions/setup-java@v2
         if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
         with:
           distribution: 'temurin'
-          java-version: 11
+          java-version: 17
 
       - name: Install gh-actions-artifact-client.js
         if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
         uses: apache/pulsar-test-infra/gh-actions-artifact-client/dist@master
-
-      - name: Cleanup log artifacts from possible previous failed build
-        if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
-        run: |
-          gh-actions-artifact-client.js delete "Integration-${{ matrix.group }}-surefire-reports" &>/dev/null || true
-          gh-actions-artifact-client.js delete "Integration-${{ matrix.group }}-container-logs" &>/dev/null || true
 
       - name: Restore maven build results from Github artifact cache
         if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
@@ -439,26 +430,29 @@ jobs:
           summary_title: 'Test Summary for Integration - ${{ matrix.name }}:'
 
       - name: Publish the Test reports in Junit xml format
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         if: ${{ always() && needs.changed_files_job.outputs.docs_only != 'true' }}
         with:
           name: Integration-${{ matrix.group }}-test-report
           path: test-reports
+          retention-days: 7
 
       - name: Upload Surefire reports
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         if: ${{ !success() && needs.changed_files_job.outputs.docs_only != 'true' }}
         with:
           name: Integration-${{ matrix.group }}-surefire-reports
           path: surefire-reports
+          retention-days: 7
 
       - name: Upload container logs
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         if: ${{ !success() && needs.changed_files_job.outputs.docs_only != 'true' }}
         continue-on-error: true
         with:
           name: Integration-${{ matrix.group }}-container-logs
           path: tests/integration/target/container-logs
+          retention-days: 7
 
       - name: Wait for ssh connection when build fails
         # ssh access is enabled for builds in own forks
@@ -530,12 +524,12 @@ jobs:
             ${{ runner.os }}-m2-dependencies-core-modules-${{ hashFiles('**/pom.xml') }}
             ${{ runner.os }}-m2-dependencies-core-modules-
 
-      - name: Set up JDK 11
+      - name: Set up JDK 17
         uses: actions/setup-java@v2
         if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
         with:
           distribution: 'temurin'
-          java-version: 11
+          java-version: 17
 
       - name: Install gh-actions-artifact-client.js
         if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
@@ -604,9 +598,8 @@ jobs:
           - name: Pulsar IO - Oracle
             group: PULSAR_IO_ORA
 
-          # disable Sql integration tests until https://github.com/apache/pulsar/issues/14951 has been resolved
-          #- name: Sql
-          #  group: SQL
+          - name: Sql
+            group: SQL
 
     steps:
       - name: checkout
@@ -636,22 +629,16 @@ jobs:
             ${{ runner.os }}-m2-dependencies-core-modules-${{ hashFiles('**/pom.xml') }}
             ${{ runner.os }}-m2-dependencies-core-modules-
 
-      - name: Set up JDK 11
+      - name: Set up JDK 17
         uses: actions/setup-java@v2
         if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
         with:
           distribution: 'temurin'
-          java-version: 11
+          java-version: 17
 
       - name: Install gh-actions-artifact-client.js
         if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
         uses: apache/pulsar-test-infra/gh-actions-artifact-client/dist@master
-
-      - name: Cleanup log artifacts from possible previous failed build
-        if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
-        run: |
-          gh-actions-artifact-client.js delete "System-${{ matrix.group }}-surefire-reports" &>/dev/null || true
-          gh-actions-artifact-client.js delete "System-${{ matrix.group }}-container-logs" &>/dev/null || true
 
       - name: Restore maven build results from Github artifact cache
         if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
@@ -689,26 +676,29 @@ jobs:
           summary_title: 'Test Summary for System - ${{ matrix.name }}:'
 
       - name: Publish the Test reports in Junit xml format
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         if: ${{ always() && needs.changed_files_job.outputs.docs_only != 'true' }}
         with:
           name: System-${{ matrix.group }}-test-report
           path: test-reports
+          retention-days: 7
 
       - name: Upload container logs
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         if: ${{ !success() && needs.changed_files_job.outputs.docs_only != 'true' }}
         continue-on-error: true
         with:
           name: System-${{ matrix.group }}-container-logs
           path: tests/integration/target/container-logs
+          retention-days: 7
 
       - name: Upload Surefire reports
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         if: ${{ !success() && needs.changed_files_job.outputs.docs_only != 'true' }}
         with:
           name: System-${{ matrix.name }}-surefire-reports
           path: surefire-reports
+          retention-days: 7
 
       - name: Wait for ssh connection when build fails
         # ssh access is enabled for builds in own forks

@@ -460,7 +460,7 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
         });
         admin.topics().removeInactiveTopicPolicies(topic2);
         // The cache has been updated, but the system-event may not be consumed yet
-        // ，so wait for topic-policies update event
+        // , so wait for topic-policies update event
         Awaitility.await().untilAsserted(() -> {
             InactiveTopicPolicies nsPolicies = ((PersistentTopic) pulsar.getBrokerService()
                     .getTopic(topic2, false).get().get()).getInactiveTopicPolicies();
