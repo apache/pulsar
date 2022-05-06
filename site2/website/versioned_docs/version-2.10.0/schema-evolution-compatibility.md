@@ -756,7 +756,7 @@ Can read the last schema
 
 <td> 
 
-Can read the last schema
+Can read all schemas
 
 </td> 
 
