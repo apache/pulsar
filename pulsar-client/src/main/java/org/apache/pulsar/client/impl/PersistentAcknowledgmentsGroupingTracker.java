@@ -457,9 +457,16 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
     public void flush() {
         ClientCnx cnx = consumer.getClientCnx();
 
-        if (cnx == null || consumer.getState() != HandlerState.State.Ready) {
+        if (cnx == null) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Cannot flush pending acks since we're not connected to broker", consumer);
+            }
+            return;
+        }
+
+        if (consumer.getState() != HandlerState.State.Ready) {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Cannot flush pending acks since the consumer is not ready.", consumer);
             }
             return;
         }
