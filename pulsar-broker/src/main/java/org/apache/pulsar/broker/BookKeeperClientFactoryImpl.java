@@ -159,7 +159,6 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
                 bkConf.setProperty(bkExtraConfigKey, value);
             }
         });
-        bkConf.setWaitTimeoutOnBackpressureMillis(conf.getWaitTimeoutOnBackpressureMillis());
         return bkConf;
     }
 

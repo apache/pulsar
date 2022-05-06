@@ -276,18 +276,4 @@ public class BookKeeperClientFactoryImplTest {
 
     }
 
-    @Test
-    public void testWaitTimeoutOnBackpressure() {
-        BookKeeperClientFactoryImpl factory = new BookKeeperClientFactoryImpl();
-        ServiceConfiguration conf = new ServiceConfiguration();
-        conf.setWaitTimeoutOnBackpressureMillis(123L);
-        assertEquals(factory.createBkClientConfiguration(mock(MetadataStoreExtended.class), conf)
-                        .getWaitTimeoutOnBackpressureMillis(),
-                123L);
-
-        conf.setWaitTimeoutOnBackpressureMillis(-1L);
-        assertEquals(factory.createBkClientConfiguration(mock(MetadataStoreExtended.class), conf)
-                        .getWaitTimeoutOnBackpressureMillis(),
-                -1L);
-    }
 }
