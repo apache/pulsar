@@ -243,4 +243,19 @@ public interface Transactions {
     TransactionPendingAckInternalStats getPendingAckInternalStats(String topic, String subName,
                                                                   boolean metadata) throws PulsarAdminException;
 
+    /**
+     * Sets the scale of the transaction coordinators.
+     * And currently, we can only support scale-up.
+     * @param replicas the new transaction coordinators size.
+     */
+    void scaleTransactionCoordinators(int replicas) throws PulsarAdminException;
+
+    /**
+     * Asynchronously sets the size of the transaction coordinators.
+     * And currently, we can only support scale-up.
+     * @param replicas the new transaction coordinators size.
+     * @return a future that can be used to track when the transaction coordinator number is updated.
+     */
+    CompletableFuture<Void> scaleTransactionCoordinatorsAsync(int replicas);
+
 }

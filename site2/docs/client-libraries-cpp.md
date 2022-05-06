@@ -129,7 +129,7 @@ The `libpulsarwithdeps.a` does not include library openssl related libraries `li
 $ rpm -ivh apache-pulsar-client*.rpm
 ```
 
-After you install RPM successfully, Pulsar libraries are in the `/usr/lib` directory，for example：
+After you install RPM successfully, Pulsar libraries are in the `/usr/lib` directory, for example：
 ```bash
 lrwxrwxrwx 1 root root 18 Dec 30 22:21 libpulsar.so -> libpulsar.so.2.9.1
 lrwxrwxrwx 1 root root 23 Dec 30 22:21 libpulsarnossl.so -> libpulsarnossl.so.2.9.1

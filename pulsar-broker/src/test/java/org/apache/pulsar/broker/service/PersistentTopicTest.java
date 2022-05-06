@@ -108,6 +108,8 @@ import org.apache.pulsar.broker.service.persistent.PersistentDispatcherSingleAct
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.service.schema.DefaultSchemaRegistryService;
+import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
@@ -153,6 +155,7 @@ import org.testng.annotations.Test;
 public class PersistentTopicTest extends MockedBookKeeperTestCase {
     protected PulsarService pulsar;
     private BrokerService brokerService;
+    private SchemaRegistryService schemaRegistryService;
     private ManagedLedgerFactory mlFactoryMock;
     private ServerCnx serverCnx;
     private MetadataStore store;
@@ -177,11 +180,16 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         ServiceConfiguration svcConfig = spy(ServiceConfiguration.class);
         svcConfig.setAdvertisedAddress("localhost");
         svcConfig.setBrokerShutdownTimeoutMs(0L);
+        svcConfig.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
         svcConfig.setMaxUnackedMessagesPerConsumer(50000);
         svcConfig.setClusterName("pulsar-cluster");
         pulsar = spyWithClassAndConstructorArgs(PulsarService.class, svcConfig);
         doReturn(svcConfig).when(pulsar).getConfiguration();
         doReturn(mock(Compactor.class)).when(pulsar).getCompactor();
+
+        // create SchemaRegistryService for testDeleteTopic() otherwise it will fail
+        schemaRegistryService = spyWithClassAndConstructorArgs(DefaultSchemaRegistryService.class);
+        doReturn(schemaRegistryService).when(pulsar).getSchemaRegistryService();
 
         mlFactoryMock = mock(ManagedLedgerFactory.class);
         doReturn(mlFactoryMock).when(pulsar).getManagedLedgerFactory();

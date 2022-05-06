@@ -751,11 +751,12 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                         new NamingException("Subscription with reserved subscription name attempted"));
             }
 
-            if (cnx.clientAddress() != null && cnx.clientAddress().toString().contains(":")) {
+            if (cnx.clientAddress() != null && cnx.clientAddress().toString().contains(":")
+                    && subscribeRateLimiter.isPresent()) {
                 SubscribeRateLimiter.ConsumerIdentifier consumer = new SubscribeRateLimiter.ConsumerIdentifier(
                         cnx.clientAddress().toString().split(":")[0], consumerName, consumerId);
-                if (subscribeRateLimiter.isPresent() && (!subscribeRateLimiter.get().subscribeAvailable(consumer)
-                        || !subscribeRateLimiter.get().tryAcquire(consumer))) {
+                if (!subscribeRateLimiter.get().subscribeAvailable(consumer)
+                        || !subscribeRateLimiter.get().tryAcquire(consumer)) {
                     log.warn("[{}] Failed to create subscription for {} {} limited by {}, available {}",
                             topic, subscriptionName, consumer, subscribeRateLimiter.get().getSubscribeRate(),
                             subscribeRateLimiter.get().getAvailableSubscribeRateLimit(consumer));
@@ -779,7 +780,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     getDurableSubscription(subscriptionName, initialPosition, startMessageRollbackDurationSec,
                             replicatedSubscriptionState, subscriptionProperties)
                     : getNonDurableSubscription(subscriptionName, startMessageId, initialPosition,
-                    startMessageRollbackDurationSec, readCompacted);
+                    startMessageRollbackDurationSec, readCompacted, subscriptionProperties);
 
             CompletableFuture<Consumer> future = subscriptionFuture.thenCompose(subscription -> {
                 Consumer consumer = new Consumer(subscription, subType, topic, consumerId, priorityLevel,
@@ -925,8 +926,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     private CompletableFuture<? extends Subscription> getNonDurableSubscription(String subscriptionName,
             MessageId startMessageId, InitialPosition initialPosition, long startMessageRollbackDurationSec,
-            boolean isReadCompacted) {
-        log.info("[{}][{}] Creating non-durable subscription at msg id {}", topic, subscriptionName, startMessageId);
+            boolean isReadCompacted, Map<String, String> subscriptionProperties) {
+        log.info("[{}][{}] Creating non-durable subscription at msg id {} - {}",
+                topic, subscriptionName, startMessageId, subscriptionProperties);
 
         CompletableFuture<Subscription> subscriptionFuture = new CompletableFuture<>();
         if (checkMaxSubscriptionsPerTopicExceed(subscriptionName)) {
@@ -964,13 +966,19 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     return FutureUtil.failedFuture(e);
                 }
 
-                subscription = new PersistentSubscription(this, subscriptionName, cursor, false);
+                subscription = new PersistentSubscription(this, subscriptionName, cursor, false,
+                        subscriptionProperties);
                 subscriptions.put(subscriptionName, subscription);
             } else {
                 // if subscription exists, check if it's a durable subscription
                 if (subscription.getCursor() != null && subscription.getCursor().isDurable()) {
                     return FutureUtil.failedFuture(
                             new NotAllowedException("Durable subscription with the same name already exists."));
+                }
+
+                if (MapUtils.isEmpty(subscription.getSubscriptionProperties())
+                        && MapUtils.isNotEmpty(subscriptionProperties)) {
+                    subscription.getSubscriptionProperties().putAll(subscriptionProperties);
                 }
             }
 
@@ -1094,11 +1102,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         return delete(false, false, false);
     }
 
-    private CompletableFuture<Void> delete(boolean failIfHasSubscriptions,
-                                           boolean failIfHasBacklogs, boolean deleteSchema) {
-        return delete(failIfHasSubscriptions, failIfHasBacklogs, false, deleteSchema);
-    }
-
     /**
      * Forcefully close all producers/consumers/replicators and deletes the topic. this function is used when local
      * cluster is removed from global-namespace replication list. Because broker doesn't allow lookup if local cluster
@@ -1108,7 +1111,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
      */
     @Override
     public CompletableFuture<Void> deleteForcefully() {
-        return delete(false, false, true, false);
+        return delete(false, false, true);
     }
 
     /**
@@ -1122,16 +1125,13 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
      *            Flag indicate whether explicitly close connected
      *            producers/consumers/replicators before trying to delete topic.
      *            If any client is connected to a topic and if this flag is disable then this operation fails.
-     * @param deleteSchema
-     *            Flag indicating whether delete the schema defined for topic if exist.
      *
      * @return Completable future indicating completion of delete operation Completed exceptionally with:
      *         IllegalStateException if topic is still active ManagedLedgerException if ledger delete operation fails
      */
     private CompletableFuture<Void> delete(boolean failIfHasSubscriptions,
                                            boolean failIfHasBacklogs,
-                                           boolean closeIfClientsConnected,
-                                           boolean deleteSchema) {
+                                           boolean closeIfClientsConnected) {
         CompletableFuture<Void> deleteFuture = new CompletableFuture<>();
 
         lock.writeLock().lock();
@@ -1173,8 +1173,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     CompletableFuture<Void> deleteTopicAuthenticationFuture = new CompletableFuture<>();
                     brokerService.deleteTopicAuthenticationWithRetry(topic, deleteTopicAuthenticationFuture, 5);
 
-                    deleteTopicAuthenticationFuture.thenCompose(
-                                    __ -> deleteSchema ? deleteSchema() : CompletableFuture.completedFuture(null))
+                    deleteTopicAuthenticationFuture.thenCompose(__ -> deleteSchema())
                             .thenAccept(__ -> deleteTopicPolicies())
                             .thenCompose(__ -> transactionBufferCleanupAndClose())
                             .whenComplete((v, ex) -> {
@@ -2245,7 +2244,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             }
 
             replCloseFuture.thenCompose(v -> delete(deleteMode == InactiveTopicDeleteMode.delete_when_no_subscriptions,
-                deleteMode == InactiveTopicDeleteMode.delete_when_subscriptions_caught_up, true))
+                deleteMode == InactiveTopicDeleteMode.delete_when_subscriptions_caught_up, false))
                     .thenApply((res) -> tryToDeletePartitionedMetadata())
                     .thenRun(() -> log.info("[{}] Topic deleted successfully due to inactivity", topic))
                     .exceptionally(e -> {
@@ -3031,7 +3030,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
         updateTopicPolicy(policies);
 
-        Optional<Policies> namespacePolicies = getNamespacePolicies();
         initializeTopicDispatchRateLimiterIfNeeded(policies);
 
         dispatchRateLimiter.ifPresent(DispatchRateLimiter::updateDispatchRate);
@@ -3071,10 +3069,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             log.error("[{}] update topic policy error: {}", topic, t.getMessage(), t);
             return null;
         });
-    }
-
-    private Optional<Policies> getNamespacePolicies() {
-        return DispatchRateLimiter.getPolicies(brokerService, topic);
     }
 
     private void initializeTopicDispatchRateLimiterIfNeeded(TopicPolicies policies) {

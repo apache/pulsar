@@ -16,16 +16,4 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
-package org.apache.pulsar.broker.loadbalance;
-
-import org.testng.Assert;
-import org.testng.annotations.Test;
-
-
-public class LinuxInfoUtilsTest {
-    @Test
-    public void testUsageUnit() {
-        Assert.assertTrue(LinuxInfoUtils.UsageUnit.Kbps.convertBy(100) > 0);
-    }
-}
+package org.apache.pulsar.jetty.tls;

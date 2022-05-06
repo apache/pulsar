@@ -45,6 +45,7 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.TransactionBufferStats;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorInternalStats;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorStats;
@@ -431,5 +432,18 @@ public abstract class TransactionsBase extends AdminResource {
                     topic, e);
             throw new RestException(Response.Status.PRECONDITION_FAILED, "Topic name is not valid");
         }
+    }
+
+    protected CompletableFuture<Void> internalScaleTransactionCoordinators(int replicas) {
+        return validateSuperUserAccessAsync()
+                .thenCompose((ignore) -> namespaceResources().getPartitionedTopicResources()
+                        .updatePartitionedTopicAsync(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN, p -> {
+                            if (p.partitions >= replicas) {
+                                throw new RestException(Response.Status.NOT_ACCEPTABLE,
+                                        "Number of transaction coordinators should "
+                                                + "be more than the current number of transaction coordinator");
+                            }
+                            return new PartitionedTopicMetadata(replicas);
+                        }));
     }
 }

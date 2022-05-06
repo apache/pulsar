@@ -29,8 +29,8 @@ import com.google.common.hash.Hashing;
 import io.prometheus.client.Counter;
 import java.net.URI;
 import java.net.URL;
+import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -732,16 +732,21 @@ public class NamespaceService implements AutoCloseable {
         return pulsar.getLocalMetadataStore().exists(ServiceUnitUtils.path(bundle));
     }
 
-    public Map<String, NamespaceOwnershipStatus> getOwnedNameSpacesStatus() throws Exception {
-        NamespaceIsolationPolicies nsIsolationPolicies = this.getLocalNamespaceIsolationPolicies();
-        Map<String, NamespaceOwnershipStatus> ownedNsStatus = new HashMap<String, NamespaceOwnershipStatus>();
-        for (OwnedBundle nsObj : this.ownershipCache.getOwnedBundles().values()) {
-            NamespaceOwnershipStatus nsStatus = this.getNamespaceOwnershipStatus(nsObj,
-                    nsIsolationPolicies.getPolicyByNamespace(nsObj.getNamespaceBundle().getNamespaceObject()));
-            ownedNsStatus.put(nsObj.getNamespaceBundle().toString(), nsStatus);
-        }
-
-        return ownedNsStatus;
+    public CompletableFuture<Map<String, NamespaceOwnershipStatus>> getOwnedNameSpacesStatusAsync() {
+       return getLocalNamespaceIsolationPoliciesAsync()
+                .thenCompose(namespaceIsolationPolicies -> {
+                    Collection<CompletableFuture<OwnedBundle>> futures =
+                            ownershipCache.getOwnedBundlesAsync().values();
+                    return FutureUtil.waitForAll(futures)
+                            .thenApply(__ -> futures.stream()
+                                    .map(CompletableFuture::join)
+                                    .collect(Collectors.toMap(bundle -> bundle.getNamespaceBundle().toString(),
+                                            bundle -> getNamespaceOwnershipStatus(bundle,
+                                                    namespaceIsolationPolicies.getPolicyByNamespace(
+                                                            bundle.getNamespaceBundle().getNamespaceObject()))
+                                    ))
+                            );
+                });
     }
 
     private NamespaceOwnershipStatus getNamespaceOwnershipStatus(OwnedBundle nsObj,
@@ -763,14 +768,10 @@ public class NamespaceService implements AutoCloseable {
         return nsOwnedStatus;
     }
 
-    private NamespaceIsolationPolicies getLocalNamespaceIsolationPolicies() throws Exception {
+    private CompletableFuture<NamespaceIsolationPolicies> getLocalNamespaceIsolationPoliciesAsync() {
         String localCluster = pulsar.getConfiguration().getClusterName();
         return pulsar.getPulsarResources().getNamespaceResources().getIsolationPolicies()
-                .getIsolationDataPolicies(localCluster)
-                .orElseGet(() -> {
-                    // the namespace isolation policies are empty/undefined = an empty object
-                    return new NamespaceIsolationPolicies();
-                });
+                .getIsolationDataPoliciesAsync(localCluster);
     }
 
     public boolean isNamespaceBundleDisabled(NamespaceBundle bundle) throws Exception {
