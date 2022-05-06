@@ -374,8 +374,8 @@ public class MLTransactionMetadataStore
                                 if (newStatus == TxnStatus.COMMITTED || newStatus == TxnStatus.ABORTED) {
                                     transactionLog.deletePosition(txnMetaListPair.getRight()).whenComplete((v, ex) -> {
                                         if (ex != null) {
-                                            promise.completeExceptionally(ex);
-                                            return;
+                                            log.warn("Failed to delete transaction log position "
+                                                    + "at end transaction [{}]", txnID);
                                         }
                                         this.transactionMetadataStoreStats
                                                 .addTransactionExecutionLatencySample(System.currentTimeMillis()
