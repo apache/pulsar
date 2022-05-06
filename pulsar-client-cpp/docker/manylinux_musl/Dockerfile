@@ -107,8 +107,6 @@ RUN curl -O -L  https://github.com/curl/curl/releases/download/curl-7_61_0/curl-
 
 RUN pip install twine
 RUN pip install fastavro
-RUN pip install six
-RUN pip install enum34
 
 
 ENV PYTHON_INCLUDE_DIR /opt/python/${PYTHON_SPEC}/include
