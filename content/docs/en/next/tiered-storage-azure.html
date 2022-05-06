@@ -102,7 +102,6 @@ tar xvfz apache-pulsar-offloaders-2.6.2-bin.tar.gz
 ls offloaders
 </code></pre>
 <p><strong>Output</strong></p>
-<p>As shown from the output, Pulsar uses <a href="https://jclouds.apache.org">Apache jclouds</a> to support <a href="https://aws.amazon.com/s3/">AWS S3</a>,  <a href="https://cloud.google.com/storage/">GCS</a> and <a href="https://portal.azure.com/#home">Azure</a> for long term storage.</p>
 <pre><code class="hljs"><span class="hljs-selector-tag">tiered-storage-file-system-2</span><span class="hljs-selector-class">.6</span><span class="hljs-selector-class">.2</span><span class="hljs-selector-class">.nar</span>
 <span class="hljs-selector-tag">tiered-storage-jcloud-2</span><span class="hljs-selector-class">.6</span><span class="hljs-selector-class">.2</span><span class="hljs-selector-class">.nar</span>
 </code></pre>
@@ -143,8 +142,8 @@ ls offloaders
 <tbody>
 <tr><td><code>managedLedgerOffloadReadBufferSizeInBytes</code></td><td>Size of block read</td><td>1 MB</td></tr>
 <tr><td><code>managedLedgerOffloadMaxBlockSizeInBytes</code></td><td>Size of block write</td><td>64 MB</td></tr>
-<tr><td><code>managedLedgerMinLedgerRolloverTimeMinutes</code></td><td>Minimum time between ledger rollover for a topic<br><br><strong>Note</strong>: it is not recommended that you set this configuration in the production environment.</td><td>2</td></tr>
-<tr><td><code>managedLedgerMaxEntriesPerLedger</code></td><td>Maximum number of entries to append to a ledger before triggering a rollover.<br><br><strong>Note</strong>: it is not recommended that you set this configuration in the production environment.</td><td>5000</td></tr>
+<tr><td><code>managedLedgerMinLedgerRolloverTimeMinutes</code></td><td>Minimum time between ledger rollover for a topic<br /><br /><strong>Note</strong>: it is not recommended that you set this configuration in the production environment.</td><td>2</td></tr>
+<tr><td><code>managedLedgerMaxEntriesPerLedger</code></td><td>Maximum number of entries to append to a ledger before triggering a rollover.<br /><br /><strong>Note</strong>: it is not recommended that you set this configuration in the production environment.</td><td>5000</td></tr>
 </tbody>
 </table>
 </li>

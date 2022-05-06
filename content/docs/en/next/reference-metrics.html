@@ -108,7 +108,7 @@ in the <code>bookkeeper.conf</code> configuration file.</p>
 <tr><th>Name</th><th>Type</th><th>Description</th></tr>
 </thead>
 <tbody>
-<tr><td>bookie_SERVER_STATUS</td><td>Gauge</td><td>The server status for bookie server. <br><ul><li>1: the bookie is running in writable mode.</li><li>0: the bookie is running in readonly mode.</li></ul></td></tr>
+<tr><td>bookie_SERVER_STATUS</td><td>Gauge</td><td>The server status for bookie server. <br /><ul><li>1: the bookie is running in writable mode.</li><li>0: the bookie is running in readonly mode.</li></ul></td></tr>
 <tr><td>bookkeeper_server_ADD_ENTRY_count</td><td>Counter</td><td>The total number of ADD_ENTRY requests received at the bookie. The <code>success</code> label is used to distinguish successes and failures.</td></tr>
 <tr><td>bookkeeper_server_READ_ENTRY_count</td><td>Counter</td><td>The total number of READ_ENTRY requests received at the bookie. The <code>success</code> label is used to distinguish successes and failures.</td></tr>
 <tr><td>bookie_WRITE_BYTES</td><td>Counter</td><td>The total number of bytes written to the bookie.</td></tr>
@@ -193,6 +193,7 @@ in the <code>broker.conf</code> configuration file.</p>
 <li><a href="#connection-metrics">Connection metrics</a></li>
 <li><a href="#jetty-metrics">Jetty metrics</a></li>
 <li><a href="#schema-metrics">Schema metrics</a></li>
+<li><a href="#offload-metrics">Offload metrics</a></li>
 </ul></li>
 <li><a href="#pulsar-functions">Pulsar Functions</a></li>
 <li><a href="#proxy">Proxy</a></li>
@@ -230,19 +231,19 @@ in the <code>broker.conf</code> configuration file.</p>
 <tr><td>pulsar_subscriptions_count</td><td>Gauge</td><td>The number of Pulsar subscriptions of the namespace served by this broker.</td></tr>
 <tr><td>pulsar_producers_count</td><td>Gauge</td><td>The number of active producers of the namespace connected to this broker.</td></tr>
 <tr><td>pulsar_consumers_count</td><td>Gauge</td><td>The number of active consumers of the namespace connected to this broker.</td></tr>
-<tr><td>pulsar_rate_in</td><td>Gauge</td><td>The total message rate of the namespace coming into this broker (messages/second).</td></tr>
-<tr><td>pulsar_rate_out</td><td>Gauge</td><td>The total message rate of the namespace going out from this broker (messages/second).</td></tr>
-<tr><td>pulsar_throughput_in</td><td>Gauge</td><td>The total throughput of the namespace coming into this broker (bytes/second).</td></tr>
-<tr><td>pulsar_throughput_out</td><td>Gauge</td><td>The total throughput of the namespace going out from this broker (bytes/second).</td></tr>
+<tr><td>pulsar_rate_in</td><td>Gauge</td><td>The total message rate of the namespace coming into this broker (message per second).</td></tr>
+<tr><td>pulsar_rate_out</td><td>Gauge</td><td>The total message rate of the namespace going out from this broker (message per second).</td></tr>
+<tr><td>pulsar_throughput_in</td><td>Gauge</td><td>The total throughput of the namespace coming into this broker (byte per second).</td></tr>
+<tr><td>pulsar_throughput_out</td><td>Gauge</td><td>The total throughput of the namespace going out from this broker (byte per second).</td></tr>
 <tr><td>pulsar_storage_size</td><td>Gauge</td><td>The total storage size of the topics in this namespace owned by this broker (bytes).</td></tr>
 <tr><td>pulsar_storage_logical_size</td><td>Gauge</td><td>The storage size of topics in the namespace owned by the broker without replicas (in bytes).</td></tr>
 <tr><td>pulsar_storage_backlog_size</td><td>Gauge</td><td>The total backlog size of the topics of this namespace owned by this broker (messages).</td></tr>
 <tr><td>pulsar_storage_offloaded_size</td><td>Gauge</td><td>The total amount of the data in this namespace offloaded to the tiered storage (bytes).</td></tr>
-<tr><td>pulsar_storage_write_rate</td><td>Gauge</td><td>The total message batches (entries) written to the storage for this namespace (message batches / second).</td></tr>
-<tr><td>pulsar_storage_read_rate</td><td>Gauge</td><td>The total message batches (entries) read from the storage for this namespace (message batches / second).</td></tr>
+<tr><td>pulsar_storage_write_rate</td><td>Gauge</td><td>The total message batches (entries) written to the storage for this namespace (message batch per second).</td></tr>
+<tr><td>pulsar_storage_read_rate</td><td>Gauge</td><td>The total message batches (entries) read from the storage for this namespace (message batch per second).</td></tr>
 <tr><td>pulsar_subscription_delayed</td><td>Gauge</td><td>The total message batches (entries) are delayed for dispatching.</td></tr>
-<tr><td>pulsar_storage_write_latency_le_*</td><td>Histogram</td><td>The entry rate of a namespace that the storage write latency is smaller with a given threshold.<br> Available thresholds: <br><ul><li>pulsar_storage_write_latency_le_0_5: &lt;= 0.5ms </li><li>pulsar_storage_write_latency_le_1: &lt;= 1ms</li><li>pulsar_storage_write_latency_le_5: &lt;= 5ms</li><li>pulsar_storage_write_latency_le_10: &lt;= 10ms</li><li>pulsar_storage_write_latency_le_20: &lt;= 20ms</li><li>pulsar_storage_write_latency_le_50: &lt;= 50ms</li><li>pulsar_storage_write_latency_le_100: &lt;= 100ms</li><li>pulsar_storage_write_latency_le_200: &lt;= 200ms</li><li>pulsar_storage_write_latency_le_1000: &lt;= 1s</li><li>pulsar_storage_write_latency_le_overflow: &gt; 1s</li></ul></td></tr>
-<tr><td>pulsar_entry_size_le_*</td><td>Histogram</td><td>The entry rate of a namespace that the entry size is smaller with a given threshold.<br> Available thresholds: <br><ul><li>pulsar_entry_size_le_128: &lt;= 128 bytes </li><li>pulsar_entry_size_le_512: &lt;= 512 bytes</li><li>pulsar_entry_size_le_1_kb: &lt;= 1 KB</li><li>pulsar_entry_size_le_2_kb: &lt;= 2 KB</li><li>pulsar_entry_size_le_4_kb: &lt;= 4 KB</li><li>pulsar_entry_size_le_16_kb: &lt;= 16 KB</li><li>pulsar_entry_size_le_100_kb: &lt;= 100 KB</li><li>pulsar_entry_size_le_1_mb: &lt;= 1 MB</li><li>pulsar_entry_size_le_overflow: &gt; 1 MB</li></ul></td></tr>
+<tr><td>pulsar_storage_write_latency_le_*</td><td>Histogram</td><td>The entry rate of a namespace that the storage write latency is smaller with a given threshold.<br /> Available thresholds: <br /><ul><li>pulsar_storage_write_latency_le_0_5: &lt;= 0.5ms </li><li>pulsar_storage_write_latency_le_1: &lt;= 1ms</li><li>pulsar_storage_write_latency_le_5: &lt;= 5ms</li><li>pulsar_storage_write_latency_le_10: &lt;= 10ms</li><li>pulsar_storage_write_latency_le_20: &lt;= 20ms</li><li>pulsar_storage_write_latency_le_50: &lt;= 50ms</li><li>pulsar_storage_write_latency_le_100: &lt;= 100ms</li><li>pulsar_storage_write_latency_le_200: &lt;= 200ms</li><li>pulsar_storage_write_latency_le_1000: &lt;= 1s</li><li>pulsar_storage_write_latency_le_overflow: &gt; 1s</li></ul></td></tr>
+<tr><td>pulsar_entry_size_le_*</td><td>Histogram</td><td>The entry rate of a namespace that the entry size is smaller with a given threshold.<br /> Available thresholds: <br /><ul><li>pulsar_entry_size_le_128: &lt;= 128 bytes </li><li>pulsar_entry_size_le_512: &lt;= 512 bytes</li><li>pulsar_entry_size_le_1_kb: &lt;= 1 KB</li><li>pulsar_entry_size_le_2_kb: &lt;= 2 KB</li><li>pulsar_entry_size_le_4_kb: &lt;= 4 KB</li><li>pulsar_entry_size_le_16_kb: &lt;= 16 KB</li><li>pulsar_entry_size_le_100_kb: &lt;= 100 KB</li><li>pulsar_entry_size_le_1_mb: &lt;= 1 MB</li><li>pulsar_entry_size_le_overflow: &gt; 1 MB</li></ul></td></tr>
 </tbody>
 </table>
 <h4><a class="anchor" aria-hidden="true" id="replication-metrics"></a><a href="#replication-metrics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Replication metrics</h4>
@@ -253,12 +254,12 @@ in the <code>broker.conf</code> configuration file.</p>
 <tr><th>Name</th><th>Type</th><th>Description</th></tr>
 </thead>
 <tbody>
-<tr><td>pulsar_replication_rate_in</td><td>Gauge</td><td>The total message rate of the namespace replicating from remote cluster (messages/second).</td></tr>
-<tr><td>pulsar_replication_rate_out</td><td>Gauge</td><td>The total message rate of the namespace replicating to remote cluster (messages/second).</td></tr>
-<tr><td>pulsar_replication_throughput_in</td><td>Gauge</td><td>The total throughput of the namespace replicating from remote cluster (bytes/second).</td></tr>
-<tr><td>pulsar_replication_throughput_out</td><td>Gauge</td><td>The total throughput of the namespace replicating to remote cluster (bytes/second).</td></tr>
+<tr><td>pulsar_replication_rate_in</td><td>Gauge</td><td>The total message rate of the namespace replicating from remote cluster (message per second).</td></tr>
+<tr><td>pulsar_replication_rate_out</td><td>Gauge</td><td>The total message rate of the namespace replicating to remote cluster (message per second).</td></tr>
+<tr><td>pulsar_replication_throughput_in</td><td>Gauge</td><td>The total throughput of the namespace replicating from remote cluster (byte per second).</td></tr>
+<tr><td>pulsar_replication_throughput_out</td><td>Gauge</td><td>The total throughput of the namespace replicating to remote cluster (byte per second).</td></tr>
 <tr><td>pulsar_replication_backlog</td><td>Gauge</td><td>The total backlog of the namespace replicating to remote cluster (messages).</td></tr>
-<tr><td>pulsar_replication_rate_expired</td><td>Gauge</td><td>Total rate of messages expired (messages/second).</td></tr>
+<tr><td>pulsar_replication_rate_expired</td><td>Gauge</td><td>Total rate of messages expired (message per second).</td></tr>
 <tr><td>pulsar_replication_connected_count</td><td>Gauge</td><td>The count of replication-subscriber up and running to replicate to remote cluster.</td></tr>
 <tr><td>pulsar_replication_delay_in_seconds</td><td>Gauge</td><td>Time in seconds from the time a message was produced to the time when it is about to be replicated.</td></tr>
 </tbody>
@@ -281,21 +282,21 @@ in the <code>broker.conf</code> configuration file.</p>
 <tr><td>pulsar_subscriptions_count</td><td>Gauge</td><td>The number of Pulsar subscriptions of the topic served by this broker.</td></tr>
 <tr><td>pulsar_producers_count</td><td>Gauge</td><td>The number of active producers of the topic connected to this broker.</td></tr>
 <tr><td>pulsar_consumers_count</td><td>Gauge</td><td>The number of active consumers of the topic connected to this broker.</td></tr>
-<tr><td>pulsar_rate_in</td><td>Gauge</td><td>The total message rate of the topic coming into this broker (messages/second).</td></tr>
-<tr><td>pulsar_rate_out</td><td>Gauge</td><td>The total message rate of the topic going out from this broker (messages/second).</td></tr>
+<tr><td>pulsar_rate_in</td><td>Gauge</td><td>The total message rate of the topic coming into this broker (message per second).</td></tr>
+<tr><td>pulsar_rate_out</td><td>Gauge</td><td>The total message rate of the topic going out from this broker (message per second).</td></tr>
 <tr><td>pulsar_publish_rate_limit_times</td><td>Gauge</td><td>The number of times the publish rate limit is triggered.</td></tr>
-<tr><td>pulsar_throughput_in</td><td>Gauge</td><td>The total throughput of the topic coming into this broker (bytes/second).</td></tr>
-<tr><td>pulsar_throughput_out</td><td>Gauge</td><td>The total throughput of the topic going out from this broker (bytes/second).</td></tr>
+<tr><td>pulsar_throughput_in</td><td>Gauge</td><td>The total throughput of the topic coming into this broker (byte per second).</td></tr>
+<tr><td>pulsar_throughput_out</td><td>Gauge</td><td>The total throughput of the topic going out from this broker (byte per second).</td></tr>
 <tr><td>pulsar_storage_size</td><td>Gauge</td><td>The total storage size of the topics in this topic owned by this broker (bytes).</td></tr>
 <tr><td>pulsar_storage_logical_size</td><td>Gauge</td><td>The storage size of topics in the namespace owned by the broker without replicas (in bytes).</td></tr>
 <tr><td>pulsar_storage_backlog_size</td><td>Gauge</td><td>The total backlog size of the topics of this topic owned by this broker (messages).</td></tr>
 <tr><td>pulsar_storage_offloaded_size</td><td>Gauge</td><td>The total amount of the data in this topic offloaded to the tiered storage (bytes).</td></tr>
 <tr><td>pulsar_storage_backlog_quota_limit</td><td>Gauge</td><td>The total amount of the data in this topic that limit the backlog quota (bytes).</td></tr>
-<tr><td>pulsar_storage_write_rate</td><td>Gauge</td><td>The total message batches (entries) written to the storage for this topic (message batches / second).</td></tr>
-<tr><td>pulsar_storage_read_rate</td><td>Gauge</td><td>The total message batches (entries) read from the storage for this topic (message batches / second).</td></tr>
+<tr><td>pulsar_storage_write_rate</td><td>Gauge</td><td>The total message batches (entries) written to the storage for this topic (message batch per second).</td></tr>
+<tr><td>pulsar_storage_read_rate</td><td>Gauge</td><td>The total message batches (entries) read from the storage for this topic (message batch per second).</td></tr>
 <tr><td>pulsar_subscription_delayed</td><td>Gauge</td><td>The total message batches (entries) are delayed for dispatching.</td></tr>
-<tr><td>pulsar_storage_write_latency_le_*</td><td>Histogram</td><td>The entry rate of a topic that the storage write latency is smaller with a given threshold.<br> Available thresholds: <br><ul><li>pulsar_storage_write_latency_le_0_5: &lt;= 0.5ms </li><li>pulsar_storage_write_latency_le_1: &lt;= 1ms</li><li>pulsar_storage_write_latency_le_5: &lt;= 5ms</li><li>pulsar_storage_write_latency_le_10: &lt;= 10ms</li><li>pulsar_storage_write_latency_le_20: &lt;= 20ms</li><li>pulsar_storage_write_latency_le_50: &lt;= 50ms</li><li>pulsar_storage_write_latency_le_100: &lt;= 100ms</li><li>pulsar_storage_write_latency_le_200: &lt;= 200ms</li><li>pulsar_storage_write_latency_le_1000: &lt;= 1s</li><li>pulsar_storage_write_latency_le_overflow: &gt; 1s</li></ul></td></tr>
-<tr><td>pulsar_entry_size_le_*</td><td>Histogram</td><td>The entry rate of a topic that the entry size is smaller with a given threshold.<br> Available thresholds: <br><ul><li>pulsar_entry_size_le_128: &lt;= 128 bytes </li><li>pulsar_entry_size_le_512: &lt;= 512 bytes</li><li>pulsar_entry_size_le_1_kb: &lt;= 1 KB</li><li>pulsar_entry_size_le_2_kb: &lt;= 2 KB</li><li>pulsar_entry_size_le_4_kb: &lt;= 4 KB</li><li>pulsar_entry_size_le_16_kb: &lt;= 16 KB</li><li>pulsar_entry_size_le_100_kb: &lt;= 100 KB</li><li>pulsar_entry_size_le_1_mb: &lt;= 1 MB</li><li>pulsar_entry_size_le_overflow: &gt; 1 MB</li></ul></td></tr>
+<tr><td>pulsar_storage_write_latency_le_*</td><td>Histogram</td><td>The entry rate of a topic that the storage write latency is smaller with a given threshold.<br /> Available thresholds: <br /><ul><li>pulsar_storage_write_latency_le_0_5: &lt;= 0.5ms </li><li>pulsar_storage_write_latency_le_1: &lt;= 1ms</li><li>pulsar_storage_write_latency_le_5: &lt;= 5ms</li><li>pulsar_storage_write_latency_le_10: &lt;= 10ms</li><li>pulsar_storage_write_latency_le_20: &lt;= 20ms</li><li>pulsar_storage_write_latency_le_50: &lt;= 50ms</li><li>pulsar_storage_write_latency_le_100: &lt;= 100ms</li><li>pulsar_storage_write_latency_le_200: &lt;= 200ms</li><li>pulsar_storage_write_latency_le_1000: &lt;= 1s</li><li>pulsar_storage_write_latency_le_overflow: &gt; 1s</li></ul></td></tr>
+<tr><td>pulsar_entry_size_le_*</td><td>Histogram</td><td>The entry rate of a topic that the entry size is smaller with a given threshold.<br /> Available thresholds: <br /><ul><li>pulsar_entry_size_le_128: &lt;= 128 bytes </li><li>pulsar_entry_size_le_512: &lt;= 512 bytes</li><li>pulsar_entry_size_le_1_kb: &lt;= 1 KB</li><li>pulsar_entry_size_le_2_kb: &lt;= 2 KB</li><li>pulsar_entry_size_le_4_kb: &lt;= 4 KB</li><li>pulsar_entry_size_le_16_kb: &lt;= 16 KB</li><li>pulsar_entry_size_le_100_kb: &lt;= 100 KB</li><li>pulsar_entry_size_le_1_mb: &lt;= 1 MB</li><li>pulsar_entry_size_le_overflow: &gt; 1 MB</li></ul></td></tr>
 <tr><td>pulsar_in_bytes_total</td><td>Counter</td><td>The total number of messages in bytes received for this topic.</td></tr>
 <tr><td>pulsar_in_messages_total</td><td>Counter</td><td>The total number of messages received for this topic.</td></tr>
 <tr><td>pulsar_out_bytes_total</td><td>Counter</td><td>The total number of messages in bytes read from this topic.</td></tr>
@@ -306,7 +307,7 @@ in the <code>broker.conf</code> configuration file.</p>
 <tr><td>pulsar_compaction_duration_time_in_mills</td><td>Gauge</td><td>The duration time of the compaction.</td></tr>
 <tr><td>pulsar_compaction_read_throughput</td><td>Gauge</td><td>The read throughput of the compaction.</td></tr>
 <tr><td>pulsar_compaction_write_throughput</td><td>Gauge</td><td>The write throughput of the compaction.</td></tr>
-<tr><td>pulsar_compaction_latency_le_*</td><td>Histogram</td><td>The compaction latency with given quantile. <br> Available thresholds: <br><ul><li>pulsar_compaction_latency_le_0_5: &lt;= 0.5ms </li><li>pulsar_compaction_latency_le_1: &lt;= 1ms</li><li>pulsar_compaction_latency_le_5: &lt;= 5ms</li><li>pulsar_compaction_latency_le_10: &lt;= 10ms</li><li>pulsar_compaction_latency_le_20: &lt;= 20ms</li><li>pulsar_compaction_latency_le_50: &lt;= 50ms</li><li>pulsar_compaction_latency_le_100: &lt;= 100ms</li><li>pulsar_compaction_latency_le_200: &lt;= 200ms</li><li>pulsar_compaction_latency_le_1000: &lt;= 1s</li><li>pulsar_compaction_latency_le_overflow: &gt; 1s</li></ul></td></tr>
+<tr><td>pulsar_compaction_latency_le_*</td><td>Histogram</td><td>The compaction latency with given quantile. <br /> Available thresholds: <br /><ul><li>pulsar_compaction_latency_le_0_5: &lt;= 0.5ms </li><li>pulsar_compaction_latency_le_1: &lt;= 1ms</li><li>pulsar_compaction_latency_le_5: &lt;= 5ms</li><li>pulsar_compaction_latency_le_10: &lt;= 10ms</li><li>pulsar_compaction_latency_le_20: &lt;= 20ms</li><li>pulsar_compaction_latency_le_50: &lt;= 50ms</li><li>pulsar_compaction_latency_le_100: &lt;= 100ms</li><li>pulsar_compaction_latency_le_200: &lt;= 200ms</li><li>pulsar_compaction_latency_le_1000: &lt;= 1s</li><li>pulsar_compaction_latency_le_overflow: &gt; 1s</li></ul></td></tr>
 <tr><td>pulsar_compaction_compacted_entries_count</td><td>Gauge</td><td>The total number of the compacted entries.</td></tr>
 <tr><td>pulsar_compaction_compacted_entries_size</td><td>Gauge</td><td>The total size of the compacted entries.</td></tr>
 </tbody>
@@ -319,10 +320,10 @@ in the <code>broker.conf</code> configuration file.</p>
 <tr><th>Name</th><th>Type</th><th>Description</th></tr>
 </thead>
 <tbody>
-<tr><td>pulsar_replication_rate_in</td><td>Gauge</td><td>The total message rate of the topic replicating from remote cluster (messages/second).</td></tr>
-<tr><td>pulsar_replication_rate_out</td><td>Gauge</td><td>The total message rate of the topic replicating to remote cluster (messages/second).</td></tr>
-<tr><td>pulsar_replication_throughput_in</td><td>Gauge</td><td>The total throughput of the topic replicating from remote cluster (bytes/second).</td></tr>
-<tr><td>pulsar_replication_throughput_out</td><td>Gauge</td><td>The total throughput of the topic replicating to remote cluster (bytes/second).</td></tr>
+<tr><td>pulsar_replication_rate_in</td><td>Gauge</td><td>The total message rate of the topic replicating from remote cluster (message per second).</td></tr>
+<tr><td>pulsar_replication_rate_out</td><td>Gauge</td><td>The total message rate of the topic replicating to remote cluster (message per second).</td></tr>
+<tr><td>pulsar_replication_throughput_in</td><td>Gauge</td><td>The total throughput of the topic replicating from remote cluster (byte per second).</td></tr>
+<tr><td>pulsar_replication_throughput_out</td><td>Gauge</td><td>The total throughput of the topic replicating to remote cluster (byte per second).</td></tr>
 <tr><td>pulsar_replication_backlog</td><td>Gauge</td><td>The total backlog of the topic replicating to remote cluster (messages).</td></tr>
 </tbody>
 </table>
@@ -378,8 +379,8 @@ in the <code>broker.conf</code> configuration file.</p>
 <tr><th>Name</th><th>Type</th><th>Description</th></tr>
 </thead>
 <tbody>
-<tr><td>pulsar_ml_AddEntryBytesRate</td><td>Gauge</td><td>The bytes/s rate of messages added</td></tr>
-<tr><td>pulsar_ml_AddEntryWithReplicasBytesRate</td><td>Gauge</td><td>The bytes/s rate of messages added with replicas</td></tr>
+<tr><td>pulsar_ml_AddEntryBytesRate</td><td>Gauge</td><td>The B/s rate of messages added</td></tr>
+<tr><td>pulsar_ml_AddEntryWithReplicasBytesRate</td><td>Gauge</td><td>The B/s rate of messages added with replicas</td></tr>
 <tr><td>pulsar_ml_AddEntryErrors</td><td>Gauge</td><td>The number of addEntry requests that failed</td></tr>
 <tr><td>pulsar_ml_AddEntryLatencyBuckets</td><td>Histogram</td><td>The latency of adding a ledger entry with a given quantile (threshold), including time spent on waiting in queue on the broker side.<br> Available quantile: <br><ul><li> quantile=&quot;0.0_0.5&quot; is AddEntryLatency between (0.0ms, 0.5ms]</li> <li>quantile=&quot;0.5_1.0&quot; is AddEntryLatency between (0.5ms, 1.0ms]</li><li>quantile=&quot;1.0_5.0&quot; is AddEntryLatency between (1ms, 5ms]</li><li>quantile=&quot;5.0_10.0&quot; is AddEntryLatency between (5ms, 10ms]</li><li>quantile=&quot;10.0_20.0&quot; is AddEntryLatency between (10ms, 20ms]</li><li>quantile=&quot;20.0_50.0&quot; is AddEntryLatency between (20ms, 50ms]</li><li>quantile=&quot;50.0_100.0&quot; is AddEntryLatency between (50ms, 100ms]</li><li>quantile=&quot;100.0_200.0&quot; is AddEntryLatency between (100ms, 200ms]</li><li>quantile=&quot;200.0_1000.0&quot; is AddEntryLatency between (200ms, 1s]</li></ul></td></tr>
 <tr><td>pulsar_ml_AddEntryLatencyBuckets_OVERFLOW</td><td>Gauge</td><td>The number of times the AddEntryLatency is longer than 1 second</td></tr>
@@ -393,7 +394,7 @@ in the <code>broker.conf</code> configuration file.</p>
 <tr><td>pulsar_ml_LedgerAddEntryLatencyBuckets_OVERFLOW</td><td>Gauge</td><td>The number of times the LedgerAddEntryLatency is longer than 1 second</td></tr>
 <tr><td>pulsar_ml_MarkDeleteRate</td><td>Gauge</td><td>The rate of mark-delete ops/s</td></tr>
 <tr><td>pulsar_ml_NumberOfMessagesInBacklog</td><td>Gauge</td><td>The number of backlog messages for all the consumers</td></tr>
-<tr><td>pulsar_ml_ReadEntriesBytesRate</td><td>Gauge</td><td>The bytes/s rate of messages read</td></tr>
+<tr><td>pulsar_ml_ReadEntriesBytesRate</td><td>Gauge</td><td>The B/s rate of messages read</td></tr>
 <tr><td>pulsar_ml_ReadEntriesErrors</td><td>Gauge</td><td>The number of readEntries requests that failed</td></tr>
 <tr><td>pulsar_ml_ReadEntriesRate</td><td>Gauge</td><td>The msg/s rate of messages read</td></tr>
 <tr><td>pulsar_ml_ReadEntriesSucceeded</td><td>Gauge</td><td>The number of readEntries requests that succeeded</td></tr>
@@ -484,13 +485,13 @@ in the <code>broker.conf</code> configuration file.</p>
 <tr><th>Name</th><th>Type</th><th>Description</th></tr>
 </thead>
 <tbody>
-<tr><td>pulsar_bundle_msg_rate_in</td><td>Gauge</td><td>The total message rate coming into the topics in this bundle  (messages/second).</td></tr>
-<tr><td>pulsar_bundle_msg_rate_out</td><td>Gauge</td><td>The total message rate going out from the topics in this bundle  (messages/second).</td></tr>
+<tr><td>pulsar_bundle_msg_rate_in</td><td>Gauge</td><td>The total message rate coming into the topics in this bundle  (message per second).</td></tr>
+<tr><td>pulsar_bundle_msg_rate_out</td><td>Gauge</td><td>The total message rate going out from the topics in this bundle  (message per second).</td></tr>
 <tr><td>pulsar_bundle_topics_count</td><td>Gauge</td><td>The topic count in this bundle.</td></tr>
 <tr><td>pulsar_bundle_consumer_count</td><td>Gauge</td><td>The consumer count of the topics in this bundle.</td></tr>
 <tr><td>pulsar_bundle_producer_count</td><td>Gauge</td><td>The producer count of the topics in this bundle.</td></tr>
-<tr><td>pulsar_bundle_msg_throughput_in</td><td>Gauge</td><td>The total throughput coming into the topics in this bundle (bytes/second).</td></tr>
-<tr><td>pulsar_bundle_msg_throughput_out</td><td>Gauge</td><td>The total throughput going out from the topics in this bundle (bytes/second).</td></tr>
+<tr><td>pulsar_bundle_msg_throughput_in</td><td>Gauge</td><td>The total throughput coming into the topics in this bundle (byte per second).</td></tr>
+<tr><td>pulsar_bundle_msg_throughput_out</td><td>Gauge</td><td>The total throughput going out from the topics in this bundle (byte per second).</td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="subscription-metrics"></a><a href="#subscription-metrics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Subscription metrics</h3>
@@ -512,11 +513,11 @@ in the <code>broker.conf</code> configuration file.</p>
 <tr><td>pulsar_subscription_back_log</td><td>Gauge</td><td>The total backlog of a subscription (entries).</td></tr>
 <tr><td>pulsar_subscription_back_log_no_delayed</td><td>Gauge</td><td>The backlog of a subscription that do not contain the delay messages (entries).</td></tr>
 <tr><td>pulsar_subscription_delayed</td><td>Gauge</td><td>The total number of messages are delayed to be dispatched for a subscription (messages).</td></tr>
-<tr><td>pulsar_subscription_msg_rate_redeliver</td><td>Gauge</td><td>The total message rate for message being redelivered (messages/second).</td></tr>
+<tr><td>pulsar_subscription_msg_rate_redeliver</td><td>Gauge</td><td>The total message rate for message being redelivered (message per second).</td></tr>
 <tr><td>pulsar_subscription_unacked_messages</td><td>Gauge</td><td>The total number of unacknowledged messages of a subscription (messages).</td></tr>
-<tr><td>pulsar_subscription_blocked_on_unacked_messages</td><td>Gauge</td><td>Indicate whether a subscription is blocked on unacknowledged messages or not. <br> <ul><li>1 means the subscription is blocked on waiting unacknowledged messages to be acked.</li><li>0 means the subscription is not blocked on waiting unacknowledged messages to be acked.</li></ul></td></tr>
-<tr><td>pulsar_subscription_msg_rate_out</td><td>Gauge</td><td>The total message dispatch rate for a subscription (messages/second).</td></tr>
-<tr><td>pulsar_subscription_msg_throughput_out</td><td>Gauge</td><td>The total message dispatch throughput for a subscription (bytes/second).</td></tr>
+<tr><td>pulsar_subscription_blocked_on_unacked_messages</td><td>Gauge</td><td>Indicate whether a subscription is blocked on unacknowledged messages or not. <br /> <ul><li>1 means the subscription is blocked on waiting unacknowledged messages to be acked.</li><li>0 means the subscription is not blocked on waiting unacknowledged messages to be acked.</li></ul></td></tr>
+<tr><td>pulsar_subscription_msg_rate_out</td><td>Gauge</td><td>The total message dispatch rate for a subscription (message per second).</td></tr>
+<tr><td>pulsar_subscription_msg_throughput_out</td><td>Gauge</td><td>The total message dispatch throughput for a subscription (byte per second).</td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="consumer-metrics"></a><a href="#consumer-metrics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Consumer metrics</h3>
@@ -537,11 +538,11 @@ in the <code>broker.conf</code> configuration file.</p>
 <tr><th>Name</th><th>Type</th><th>Description</th></tr>
 </thead>
 <tbody>
-<tr><td>pulsar_consumer_msg_rate_redeliver</td><td>Gauge</td><td>The total message rate for message being redelivered (messages/second).</td></tr>
+<tr><td>pulsar_consumer_msg_rate_redeliver</td><td>Gauge</td><td>The total message rate for message being redelivered (message per second).</td></tr>
 <tr><td>pulsar_consumer_unacked_messages</td><td>Gauge</td><td>The total number of unacknowledged messages of a consumer (messages).</td></tr>
-<tr><td>pulsar_consumer_blocked_on_unacked_messages</td><td>Gauge</td><td>Indicate whether a consumer is blocked on unacknowledged messages or not. <br> <ul><li>1 means the consumer is blocked on waiting unacknowledged messages to be acked.</li><li>0 means the consumer is not blocked on waiting unacknowledged messages to be acked.</li></ul></td></tr>
-<tr><td>pulsar_consumer_msg_rate_out</td><td>Gauge</td><td>The total message dispatch rate for a consumer (messages/second).</td></tr>
-<tr><td>pulsar_consumer_msg_throughput_out</td><td>Gauge</td><td>The total message dispatch throughput for a consumer (bytes/second).</td></tr>
+<tr><td>pulsar_consumer_blocked_on_unacked_messages</td><td>Gauge</td><td>Indicate whether a consumer is blocked on unacknowledged messages or not. <br /> <ul><li>1 means the consumer is blocked on waiting unacknowledged messages to be acked.</li><li>0 means the consumer is not blocked on waiting unacknowledged messages to be acked.</li></ul></td></tr>
+<tr><td>pulsar_consumer_msg_rate_out</td><td>Gauge</td><td>The total message dispatch rate for a consumer (message per second).</td></tr>
+<tr><td>pulsar_consumer_msg_throughput_out</td><td>Gauge</td><td>The total message dispatch throughput for a consumer (byte per second).</td></tr>
 <tr><td>pulsar_consumer_available_permits</td><td>Gauge</td><td>The available permits for for a consumer.</td></tr>
 </tbody>
 </table>
@@ -668,6 +669,29 @@ in the <code>broker.conf</code> configuration file.</p>
 <tr><td>pulsar_schema_del_ops_latency</td><td>Summary</td><td>Latency of successful operations to delete schemas.</td></tr>
 <tr><td>pulsar_schema_get_ops_latency</td><td>Summary</td><td>Latency of successful operations to get schemas.</td></tr>
 <tr><td>pulsar_schema_put_ops_latency</td><td>Summary</td><td>Latency of successful operations to send schemas.</td></tr>
+</tbody>
+</table>
+<h3><a class="anchor" aria-hidden="true" id="offload-metrics"></a><a href="#offload-metrics" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Offload metrics</h3>
+<p>All the offload metrics are labelled with the following labels:</p>
+<ul>
+<li><em>cluster</em>: <code>cluster=${pulsar_cluster}</code>. <code>${pulsar_cluster}</code> is the cluster name that you configured in <code>broker.conf</code>.</li>
+<li><em>namespace</em>: <code>namespace=${pulsar_namespace}</code>. <code>${pulsar_namespace}</code> is the namespace name.</li>
+<li><em>topic</em>: <code>topic=${pulsar_topic}</code>. <code>${pulsar_topic}</code> is the topic name.</li>
+</ul>
+<table>
+<thead>
+<tr><th>Name</th><th>Type</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td>brk_ledgeroffloader_offload_error</td><td>Counter</td><td>The number of failed operations to offload.</td></tr>
+<tr><td>brk_ledgeroffloader_offload_rate</td><td>Gauge</td><td>The rate of offloading(byte per second).</td></tr>
+<tr><td>brk_ledgeroffloader_read_offload_error</td><td>Counter</td><td>The number of failed operations to read offload ledgers.</td></tr>
+<tr><td>brk_ledgeroffloader_read_offload_rate</td><td>Gauge</td><td>The rate of reading entries from offload ledgers(byte per second).</td></tr>
+<tr><td>brk_ledgeroffloader_write_storage_error</td><td>Counter</td><td>The number of failed operations to write to storage.</td></tr>
+<tr><td>brk_ledgeroffloader_read_offload_index_latency</td><td>Summary</td><td>The latency of reading index from offload ledgers.</td></tr>
+<tr><td>brk_ledgeroffloader_read_offload_data_latency</td><td>Summary</td><td>The latency of reading data from offload ledgers.</td></tr>
+<tr><td>brk_ledgeroffloader_read_ledger_latency</td><td>Summary</td><td>The latency of reading entries from BookKeeper.</td></tr>
+<tr><td>brk_ledgeroffloader_delete_offload_ops</td><td>Counter</td><td>The total number of successful and failed operations to delete offload ledgers.</td></tr>
 </tbody>
 </table>
 <h2><a class="anchor" aria-hidden="true" id="pulsar-functions"></a><a href="#pulsar-functions" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Pulsar Functions</h2>
@@ -811,10 +835,10 @@ in the <code>broker.conf</code> configuration file.</p>
 <tr><td>pulsar_txn_aborted_count</td><td>Counter</td><td>Number of aborted transactions of this coordinator.</td></tr>
 <tr><td>pulsar_txn_timeout_count</td><td>Counter</td><td>Number of timeout transactions.</td></tr>
 <tr><td>pulsar_txn_append_log_count</td><td>Counter</td><td>Number of append transaction logs.</td></tr>
-<tr><td>pulsar_txn_execution_latency_le_*</td><td>Histogram</td><td>Transaction execution latency. <br> Available latencies are as below: <br><ul><li> latency=&quot;10&quot; is TransactionExecutionLatency between (0ms, 10ms]</li> <li>latency=&quot;20&quot; is TransactionExecutionLatency between (10ms, 20ms]</li><li>latency=&quot;50&quot; is TransactionExecutionLatency between (20ms, 50ms]</li><li>latency=&quot;100&quot; is TransactionExecutionLatency between (50ms, 100ms]</li><li>latency=&quot;500&quot; is TransactionExecutionLatency between (100ms, 500ms]</li><li>latency=&quot;1000&quot; is TransactionExecutionLatency between (500ms, 1000ms]</li><li>latency=&quot;5000&quot; is TransactionExecutionLatency between (1s, 5s]</li><li>latency=&quot;15000&quot; is TransactionExecutionLatency between (5s, 15s]</li><li>latency=&quot;30000&quot; is TransactionExecutionLatency between (15s, 30s]</li></li><li>latency=&quot;60000&quot; is TransactionExecutionLatency between (30s, 60s]</li><li>latency=&quot;300000&quot; is TransactionExecutionLatency between (1m,5m]</li><li>latency=&quot;1500000&quot; is TransactionExecutionLatency between (5m,15m]</li><li>latency=&quot;3000000&quot; is TransactionExecutionLatency between (15m,30m]</li><li>latency=&quot;overflow&quot; is TransactionExecutionLatency between (30m,∞]</li></ul></td></tr>
+<tr><td>pulsar_txn_execution_latency_le_*</td><td>Histogram</td><td>Transaction execution latency. <br /> Available latencies are as below: <br /><ul><li> latency=&quot;10&quot; is TransactionExecutionLatency between (0ms, 10ms]</li> <li>latency=&quot;20&quot; is TransactionExecutionLatency between (10ms, 20ms]</li><li>latency=&quot;50&quot; is TransactionExecutionLatency between (20ms, 50ms]</li><li>latency=&quot;100&quot; is TransactionExecutionLatency between (50ms, 100ms]</li><li>latency=&quot;500&quot; is TransactionExecutionLatency between (100ms, 500ms]</li><li>latency=&quot;1000&quot; is TransactionExecutionLatency between (500ms, 1000ms]</li><li>latency=&quot;5000&quot; is TransactionExecutionLatency between (1s, 5s]</li><li>latency=&quot;15000&quot; is TransactionExecutionLatency between (5s, 15s]</li><li>latency=&quot;30000&quot; is TransactionExecutionLatency between (15s, 30s]</li></li><li>latency=&quot;60000&quot; is TransactionExecutionLatency between (30s, 60s]</li><li>latency=&quot;300000&quot; is TransactionExecutionLatency between (1m,5m]</li><li>latency=&quot;1500000&quot; is TransactionExecutionLatency between (5m,15m]</li><li>latency=&quot;3000000&quot; is TransactionExecutionLatency between (15m,30m]</li><li>latency=&quot;overflow&quot; is TransactionExecutionLatency between (30m,∞]</li></ul></td></tr>
 </tbody>
 </table>
-</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/en/next/reference-configuration"><span class="arrow-prev">← </span><span>Pulsar configuration</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#zookeeper">ZooKeeper</a></li><li><a href="#bookkeeper">BookKeeper</a><ul class="toc-headings"><li><a href="#server-metrics">Server metrics</a></li><li><a href="#journal-metrics">Journal metrics</a></li><li><a href="#storage-metrics">Storage metrics</a></li></ul></li><li><a href="#broker">Broker</a><ul class="toc-headings"><li><a href="#bookkeeper-client-metrics">BookKeeper client metrics</a></li><li><a href="#namespace-metrics">Namespace metrics</a></li><li><a href="#topic-metrics">Topic metrics</a></li><li><a href="#managedledgercache-metrics">ManagedLedgerCache metrics</a></li><li><a href="#managedledger-metrics">ManagedLedger metrics</a></li><li><a href="#managed-cursor-acknowledgment-state">Managed cursor acknowledgment state</a></li><li><a href="#loadbalancing-metrics">LoadBalancing metrics</a></li><li><a href="#subscription-metrics">Subscription metrics</a></li><li><a href="#consumer-metrics">Consumer metrics</a></li><li><a href="#managed-ledger-bookie-client-metrics">Managed ledger bookie client metrics</a></li><li><a href="#token-metrics">Token metrics</a></li><li><a href="#authentication-metrics">Authentication metrics</a></li><li><a href="#connection-metrics">Connection metrics</a></li><li><a href="#jetty-metrics">Jetty metrics</a></li><li><a href="#schema-metrics">Schema metrics</a></li></ul></li><li><a href="#pulsar-functions">Pulsar Functions</a></li><li><a href="#connectors">Connectors</a></li><li><a href="#proxy">Proxy</a></li><li><a href="#pulsar-sql-worker">Pulsar SQL Worker</a></li><li><a href="#pulsar-transaction">Pulsar transaction</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
+</span></div></article></div><div class="docs-prevnext"><a class="docs-prev button" href="/docs/en/next/reference-configuration"><span class="arrow-prev">← </span><span>Pulsar configuration</span></a></div></div></div><nav class="onPageNav"><ul class="toc-headings"><li><a href="#zookeeper">ZooKeeper</a></li><li><a href="#bookkeeper">BookKeeper</a><ul class="toc-headings"><li><a href="#server-metrics">Server metrics</a></li><li><a href="#journal-metrics">Journal metrics</a></li><li><a href="#storage-metrics">Storage metrics</a></li></ul></li><li><a href="#broker">Broker</a><ul class="toc-headings"><li><a href="#bookkeeper-client-metrics">BookKeeper client metrics</a></li><li><a href="#namespace-metrics">Namespace metrics</a></li><li><a href="#topic-metrics">Topic metrics</a></li><li><a href="#managedledgercache-metrics">ManagedLedgerCache metrics</a></li><li><a href="#managedledger-metrics">ManagedLedger metrics</a></li><li><a href="#managed-cursor-acknowledgment-state">Managed cursor acknowledgment state</a></li><li><a href="#loadbalancing-metrics">LoadBalancing metrics</a></li><li><a href="#subscription-metrics">Subscription metrics</a></li><li><a href="#consumer-metrics">Consumer metrics</a></li><li><a href="#managed-ledger-bookie-client-metrics">Managed ledger bookie client metrics</a></li><li><a href="#token-metrics">Token metrics</a></li><li><a href="#authentication-metrics">Authentication metrics</a></li><li><a href="#connection-metrics">Connection metrics</a></li><li><a href="#jetty-metrics">Jetty metrics</a></li><li><a href="#schema-metrics">Schema metrics</a></li><li><a href="#offload-metrics">Offload metrics</a></li></ul></li><li><a href="#pulsar-functions">Pulsar Functions</a></li><li><a href="#connectors">Connectors</a></li><li><a href="#proxy">Proxy</a></li><li><a href="#pulsar-sql-worker">Pulsar SQL Worker</a></li><li><a href="#pulsar-transaction">Pulsar transaction</a></li></ul></nav></div><footer class="nav-footer" id="footer"><section class="copyright">Copyright © 2022 The Apache Software Foundation. All Rights Reserved. Apache, Apache Pulsar and the Apache feather logo are trademarks of The Apache Software Foundation.</section><span><script>
       const community = document.querySelector("a[href='#community']").parentNode;
       const communityMenu =
         '<li>' +

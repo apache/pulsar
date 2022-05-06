@@ -110,13 +110,10 @@ tar xvfz apache-pulsar-offloaders-2.5.1-bin.tar.gz
 ls offloaders
 </code></pre>
 <p><strong>Output</strong></p>
-<p>As shown in the output, Pulsar uses <a href="https://jclouds.apache.org">Apache jclouds</a> to support GCS and AWS S3 for long term storage.</p></li>
+<pre><code class="hljs"><span class="hljs-selector-tag">tiered-storage-file-system-2</span><span class="hljs-selector-class">.5</span><span class="hljs-selector-class">.1</span><span class="hljs-selector-class">.nar</span>
+<span class="hljs-selector-tag">tiered-storage-jcloud-2</span><span class="hljs-selector-class">.5</span><span class="hljs-selector-class">.1</span><span class="hljs-selector-class">.nar</span>
+</code></pre></li>
 </ol>
-<pre><code class="hljs">```
-tiered-storage-file-system-2.5.1.nar
-tiered-storage-jcloud-2.5.1.nar
-```
-</code></pre>
 <h2><a class="anchor" aria-hidden="true" id="configuration"></a><a href="#configuration" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configuration</h2>
 <blockquote>
 <h4><a class="anchor" aria-hidden="true" id="note-1"></a><a href="#note-1" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Note</h4>
@@ -205,8 +202,8 @@ a JSON file, containing GCS credentials of a service account.</p>
 <tr><th>Configuration</th><th>Description</th></tr>
 </thead>
 <tbody>
-<tr><td><code>gcsManagedLedgerOffloadReadBufferSizeInBytes</code></td><td>Block size for each individual read when reading back data from GCS.<br><br>The <strong>default</strong> value is 1 MB.</td></tr>
-<tr><td><code>gcsManagedLedgerOffloadMaxBlockSizeInBytes</code></td><td>Maximum size of a &quot;part&quot; sent during a multipart upload to GCS. <br><br>It <strong>can not</strong> be smaller than 5 MB. <br><br>The <strong>default</strong> value is 64 MB.</td></tr>
+<tr><td><code>gcsManagedLedgerOffloadReadBufferSizeInBytes</code></td><td>Block size for each individual read when reading back data from GCS.<br /><br />The <strong>default</strong> value is 1 MB.</td></tr>
+<tr><td><code>gcsManagedLedgerOffloadMaxBlockSizeInBytes</code></td><td>Maximum size of a &quot;part&quot; sent during a multipart upload to GCS. <br /><br />It <strong>can not</strong> be smaller than 5 MB. <br /><br />The <strong>default</strong> value is 64 MB.</td></tr>
 </tbody>
 </table>
 <h3><a class="anchor" aria-hidden="true" id="configure-gcs-offloader-to-run-automatically"></a><a href="#configure-gcs-offloader-to-run-automatically" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Configure GCS offloader to run automatically</h3>

@@ -102,7 +102,6 @@ tar xvfz apache-pulsar-offloaders-2.5.1-bin.tar.gz
 ls offloaders
 </code></pre>
 <p><strong>Output</strong></p>
-<p>As shown from the output, Pulsar uses <a href="https://jclouds.apache.org">Apache jclouds</a> to support <a href="https://aws.amazon.com/s3/">AWS S3</a> and <a href="https://cloud.google.com/storage/">GCS</a> for long term storage.</p>
 <pre><code class="hljs"><span class="hljs-selector-tag">tiered-storage-file-system-2</span><span class="hljs-selector-class">.5</span><span class="hljs-selector-class">.1</span><span class="hljs-selector-class">.nar</span>
 <span class="hljs-selector-tag">tiered-storage-jcloud-2</span><span class="hljs-selector-class">.5</span><span class="hljs-selector-class">.1</span><span class="hljs-selector-class">.nar</span>
 </code></pre>
@@ -129,7 +128,7 @@ ls offloaders
 <tr><th>Required configuration</th><th>Description</th><th>Example value</th></tr>
 </thead>
 <tbody>
-<tr><td><code>managedLedgerOffloadDriver</code></td><td>Offloader driver name, which is case-insensitive. <br><br><strong>Note</strong>: there is a third driver type, S3, which is identical to AWS S3, though S3 requires that you specify an endpoint URL using <code>s3ManagedLedgerOffloadServiceEndpoint</code>. This is useful if using an S3 compatible data store other than AWS S3.</td><td>aws-s3</td></tr>
+<tr><td><code>managedLedgerOffloadDriver</code></td><td>Offloader driver name, which is case-insensitive. <br /><br /><strong>Note</strong>: there is a third driver type, S3, which is identical to AWS S3, though S3 requires that you specify an endpoint URL using <code>s3ManagedLedgerOffloadServiceEndpoint</code>. This is useful if using an S3 compatible data store other than AWS S3.</td><td>aws-s3</td></tr>
 <tr><td><code>offloadersDirectory</code></td><td>Offloader directory</td><td>offloaders</td></tr>
 <tr><td><code>s3ManagedLedgerOffloadBucket</code></td><td>Bucket</td><td>pulsar-topic-offload</td></tr>
 </tbody>
@@ -141,11 +140,11 @@ ls offloaders
 <tr><th>Optional</th><th>Description</th><th>Example value</th></tr>
 </thead>
 <tbody>
-<tr><td><code>s3ManagedLedgerOffloadRegion</code></td><td>Bucket region <br><br><strong>Note</strong>: before specifying a value for this parameter, you need to set the following configurations. Otherwise, you might get an error.<br><br>- Set <a href="https://docs.aws.amazon.com/general/latest/gr/s3.html"><code>s3ManagedLedgerOffloadServiceEndpoint</code></a>.<br><br>Example<br><code>s3ManagedLedgerOffloadServiceEndpoint=https://s3.YOUR_REGION.amazonaws.com</code><br><br>- Grant <code>GetBucketLocation</code> permission to a user.<br><br>For how to grant <code>GetBucketLocation</code> permission to a user, see <a href="https://docs.aws.amazon.com/AmazonS3/latest/dev/using-with-s3-actions.html#using-with-s3-actions-related-to-buckets">here</a>.</td><td>eu-west-3</td></tr>
+<tr><td><code>s3ManagedLedgerOffloadRegion</code></td><td>Bucket region <br /><br /><strong>Note</strong>: before specifying a value for this parameter, you need to set the following configurations. Otherwise, you might get an error.<br /><br />- Set <a href="https://docs.aws.amazon.com/general/latest/gr/s3.html"><code>s3ManagedLedgerOffloadServiceEndpoint</code></a>.<br /><br />Example<br /><code>s3ManagedLedgerOffloadServiceEndpoint=https://s3.YOUR_REGION.amazonaws.com</code><br /><br />- Grant <code>GetBucketLocation</code> permission to a user.<br /><br />For how to grant <code>GetBucketLocation</code> permission to a user, see <a href="https://docs.aws.amazon.com/AmazonS3/latest/dev/using-with-s3-actions.html#using-with-s3-actions-related-to-buckets">here</a>.</td><td>eu-west-3</td></tr>
 <tr><td><code>s3ManagedLedgerOffloadReadBufferSizeInBytes</code></td><td>Size of block read</td><td>1 MB</td></tr>
 <tr><td><code>s3ManagedLedgerOffloadMaxBlockSizeInBytes</code></td><td>Size of block write</td><td>64 MB</td></tr>
-<tr><td><code>managedLedgerMinLedgerRolloverTimeMinutes</code></td><td>Minimum time between ledger rollover for a topic<br><br><strong>Note</strong>: it is not recommended that you set this configuration in the production environment.</td><td>2</td></tr>
-<tr><td><code>managedLedgerMaxEntriesPerLedger</code></td><td>Maximum number of entries to append to a ledger before triggering a rollover.<br><br><strong>Note</strong>: it is not recommended that you set this configuration in the production environment.</td><td>5000</td></tr>
+<tr><td><code>managedLedgerMinLedgerRolloverTimeMinutes</code></td><td>Minimum time between ledger rollover for a topic<br /><br /><strong>Note</strong>: it is not recommended that you set this configuration in the production environment.</td><td>2</td></tr>
+<tr><td><code>managedLedgerMaxEntriesPerLedger</code></td><td>Maximum number of entries to append to a ledger before triggering a rollover.<br /><br /><strong>Note</strong>: it is not recommended that you set this configuration in the production environment.</td><td>5000</td></tr>
 </tbody>
 </table>
 </li>

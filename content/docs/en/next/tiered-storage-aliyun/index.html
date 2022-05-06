@@ -87,7 +87,6 @@
 <li><p>Download the Pulsar tarball, see <a href="https://pulsar.apache.org/docs/en/standalone/#install-pulsar-using-binary-release">here</a>.</p></li>
 <li><p>Download and untar the Pulsar offloaders package, then copy the Pulsar offloaders as <code>offloaders</code> in the Pulsar directory, see <a href="https://pulsar.apache.org/docs/en/standalone/#install-tiered-storage-offloaders-optional">here</a>.</p>
 <p><strong>Output</strong></p>
-<p>As shown from the output, Pulsar uses <a href="https://jclouds.apache.org">Apache jclouds</a> to support <a href="https://aws.amazon.com/s3/">AWS S3</a>, <a href="https://cloud.google.com/storage/">GCS</a>, <a href="https://portal.azure.com/#home">Azure</a>, and <a href="https://www.aliyun.com/product/oss">Aliyun OSS</a> for long-term storage.</p>
 <pre><code class="hljs"><span class="hljs-selector-tag">tiered-storage-file-system-2</span><span class="hljs-selector-class">.8</span><span class="hljs-selector-class">.0</span><span class="hljs-selector-class">.nar</span>
 <span class="hljs-selector-tag">tiered-storage-jcloud-2</span><span class="hljs-selector-class">.8</span><span class="hljs-selector-class">.0</span><span class="hljs-selector-class">.nar</span>
 </code></pre>
@@ -129,8 +128,8 @@
 <tbody>
 <tr><td><code>managedLedgerOffloadReadBufferSizeInBytes</code></td><td>Size of block read</td><td>1 MB</td></tr>
 <tr><td><code>managedLedgerOffloadMaxBlockSizeInBytes</code></td><td>Size of block write</td><td>64 MB</td></tr>
-<tr><td><code>managedLedgerMinLedgerRolloverTimeMinutes</code></td><td>Minimum time between ledger rollover for a topic<br><br><strong>Note</strong>: it is not recommended that you set this configuration in the production environment.</td><td>2</td></tr>
-<tr><td><code>managedLedgerMaxEntriesPerLedger</code></td><td>Maximum number of entries to append to a ledger before triggering a rollover.<br><br><strong>Note</strong>: it is not recommended that you set this configuration in the production environment.</td><td>5000</td></tr>
+<tr><td><code>managedLedgerMinLedgerRolloverTimeMinutes</code></td><td>Minimum time between ledger rollover for a topic<br /><br /><strong>Note</strong>: it is not recommended that you set this configuration in the production environment.</td><td>2</td></tr>
+<tr><td><code>managedLedgerMaxEntriesPerLedger</code></td><td>Maximum number of entries to append to a ledger before triggering a rollover.<br /><br /><strong>Note</strong>: it is not recommended that you set this configuration in the production environment.</td><td>5000</td></tr>
 </tbody>
 </table>
 </li>
