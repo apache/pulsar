@@ -329,6 +329,11 @@ public class MockManagedLedger implements ManagedLedger {
     }
 
     @Override
+    public boolean maybeUpdateCursorBeforeTrimmingConsumedLedger() {
+        return false;
+    }
+
+    @Override
     public void trimConsumedLedgersInBackground(CompletableFuture<?> promise) {
 
     }

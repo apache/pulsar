@@ -2296,7 +2296,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         this.waitingEntryCallBacks.add(cb);
     }
 
-    public void maybeUpdateCursorBeforeTrimmingConsumedLedger() {
+    public boolean maybeUpdateCursorBeforeTrimmingConsumedLedger() {
+        boolean maybeUpdatedCursor = false;
         for (ManagedCursor cursor : cursors) {
             PositionImpl lastAckedPosition = (PositionImpl) cursor.getMarkDeletedPosition();
             LedgerInfo currPointedLedger = ledgers.get(lastAckedPosition.getLedgerId());
@@ -2313,13 +2314,14 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     log.debug("No need to reset cursor: {}, current ledger is the last ledger.", cursor);
                 }
             } else {
-                log.warn("Cursor: {} does not exist in the managed-ledger.", cursor);
+                log.debug("No need to reset cursor: {}, current ledger maybe has removed from managed-ledger.", cursor);
             }
 
             if (!lastAckedPosition.equals((PositionImpl) cursor.getMarkDeletedPosition())) {
                 try {
                     log.info("Reset cursor:{} to {} since ledger consumed completely", cursor, lastAckedPosition);
                     updateCursor((ManagedCursorImpl) cursor, lastAckedPosition);
+                    maybeUpdatedCursor = true;
                 } catch (Exception e) {
                     log.warn("Failed to reset cursor: {} from {} to {}. Trimming thread will retry next time.",
                             cursor, cursor.getMarkDeletedPosition(), lastAckedPosition);
@@ -2327,6 +2329,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 }
             }
         }
+        return maybeUpdatedCursor;
     }
 
     private void trimConsumedLedgersInBackground() {
