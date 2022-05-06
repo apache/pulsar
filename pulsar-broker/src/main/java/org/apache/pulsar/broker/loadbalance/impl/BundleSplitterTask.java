@@ -73,7 +73,7 @@ public class BundleSplitterTask implements BundleSplitStrategy {
                 final String bundle = entry.getKey();
                 final NamespaceBundleStats stats = entry.getValue();
                 if (stats.topics < 2) {
-                    log.info("The count of topics on the bundle {} is less than 2，skip split!", bundle);
+                    log.info("The count of topics on the bundle {} is less than 2, skip split!", bundle);
                     continue;
                 }
                 double totalMessageRate = 0;
