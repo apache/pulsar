@@ -203,8 +203,7 @@ public class FunctionActioner {
         File pkgDir = pkgFile.getParentFile();
 
         if (pkgFile.exists()) {
-            log.warn("Function package exists already {} deleting it",
-                    pkgFile);
+            log.warn("Function package exists already {} deleting it", pkgFile);
             pkgFile.delete();
         }
 
@@ -212,7 +211,7 @@ public class FunctionActioner {
         do {
             tempPkgFile = new File(
                     pkgDir,
-                    pkgFile.getName() + "." + instanceId + "." + UUID.randomUUID().toString());
+                    pkgFile.getName() + "." + instanceId + "." + UUID.randomUUID());
         } while (tempPkgFile.exists() || !tempPkgFile.createNewFile());
         String pkgLocationPath = functionMetaData.getPackageLocation().getPackagePath();
         boolean downloadFromHttp = isPkgUrlProvided && pkgLocationPath.startsWith(HTTP);

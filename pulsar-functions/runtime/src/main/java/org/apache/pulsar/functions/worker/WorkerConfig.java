@@ -294,6 +294,11 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     )
     private int numFunctionPackageReplicas;
     @FieldContext(
+            category = CATEGORY_FUNC_PKG,
+            doc = "Flag indicates enabling or disabling function worker using unified PackageManagement service."
+    )
+    private boolean  functionsWorkerEnablePackageManagement = false;
+    @FieldContext(
         category = CATEGORY_FUNC_RUNTIME_MNG,
         doc = "The directory to download functions by runtime manager"
     )
