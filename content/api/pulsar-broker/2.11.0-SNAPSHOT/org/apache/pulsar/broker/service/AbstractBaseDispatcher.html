@@ -26,7 +26,7 @@
     catch(err) {
     }
 //-->
-var data = {"i0":9,"i1":10,"i2":10,"i3":6,"i4":10,"i5":10,"i6":10,"i7":6,"i8":10,"i9":10,"i10":10};
+var data = {"i0":9,"i1":10,"i2":10,"i3":10,"i4":6,"i5":10,"i6":10,"i7":10,"i8":6,"i9":10,"i10":10,"i11":10};
 var tabs = {65535:["t0","All Methods"],1:["t1","Static Methods"],2:["t2","Instance Methods"],4:["t3","Abstract Methods"],8:["t4","Concrete Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -264,39 +264,44 @@ implements <a href="Dispatcher.html" title="interface in org.apache.pulsar.broke
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr id="i3" class="rowColor">
+<td class="colFirst"><code>protected java.lang.String</code></td>
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#getSubscriptionName()">getSubscriptionName</a></span>()</code></th>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr id="i4" class="altColor">
 <td class="colFirst"><code>protected abstract boolean</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#isConsumersExceededOnSubscription()">isConsumersExceededOnSubscription</a></span>()</code></th>
 <td class="colLast">
 <div class="block">Determine whether the number of consumers on the subscription reaches the threshold.</div>
 </td>
 </tr>
-<tr id="i4" class="altColor">
+<tr id="i5" class="rowColor">
 <td class="colFirst"><code>protected boolean</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#isConsumersExceededOnSubscription(org.apache.pulsar.broker.service.AbstractTopic,int)">isConsumersExceededOnSubscription</a></span>&#8203;(<a href="AbstractTopic.html" title="class in org.apache.pulsar.broker.service">AbstractTopic</a>&nbsp;topic,
                                  int&nbsp;consumerSize)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i5" class="rowColor">
+<tr id="i6" class="altColor">
 <td class="colFirst"><code>protected byte[]</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#peekStickyKey(io.netty.buffer.ByteBuf)">peekStickyKey</a></span>&#8203;(io.netty.buffer.ByteBuf&nbsp;metadataAndPayload)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i6" class="altColor">
+<tr id="i7" class="rowColor">
 <td class="colFirst"><code>protected boolean</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#reachDispatchRateLimit(org.apache.pulsar.broker.service.persistent.DispatchRateLimiter)">reachDispatchRateLimit</a></span>&#8203;(<a href="persistent/DispatchRateLimiter.html" title="class in org.apache.pulsar.broker.service.persistent">DispatchRateLimiter</a>&nbsp;dispatchRateLimiter)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i7" class="rowColor">
+<tr id="i8" class="altColor">
 <td class="colFirst"><code>protected abstract void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#reScheduleRead()">reScheduleRead</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i8" class="altColor">
+<tr id="i9" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#resetCloseFuture()">resetCloseFuture</a></span>()</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr id="i9" class="rowColor">
+<tr id="i10" class="altColor">
 <td class="colFirst"><code>protected int</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#updateEntryWrapperWithMetadata(org.apache.pulsar.broker.service.EntryWrapper%5B%5D,java.util.List)">updateEntryWrapperWithMetadata</a></span>&#8203;(<a href="EntryWrapper.html" title="class in org.apache.pulsar.broker.service">EntryWrapper</a>[]&nbsp;entryWrappers,
                               java.util.List&lt;org.apache.bookkeeper.mledger.Entry&gt;&nbsp;entries)</code></th>
@@ -304,7 +309,7 @@ implements <a href="Dispatcher.html" title="interface in org.apache.pulsar.broke
 <div class="block">Update Entries with the metadata of each entry.</div>
 </td>
 </tr>
-<tr id="i10" class="altColor">
+<tr id="i11" class="rowColor">
 <td class="colFirst"><code>protected org.apache.commons.lang3.tuple.Pair&lt;java.lang.Integer,&#8203;java.lang.Long&gt;</code></td>
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="#updateMessagesToRead(org.apache.pulsar.broker.service.persistent.DispatchRateLimiter,int,long)">updateMessagesToRead</a></span>&#8203;(<a href="persistent/DispatchRateLimiter.html" title="class in org.apache.pulsar.broker.service.persistent">DispatchRateLimiter</a>&nbsp;dispatchRateLimiter,
                     int&nbsp;messagesToRead,
@@ -560,10 +565,19 @@ implements <a href="Dispatcher.html" title="interface in org.apache.pulsar.broke
 <a id="peekStickyKey(io.netty.buffer.ByteBuf)">
 <!--   -->
 </a>
-<ul class="blockListLast">
+<ul class="blockList">
 <li class="blockList">
 <h4>peekStickyKey</h4>
 <pre class="methodSignature">protected&nbsp;byte[]&nbsp;peekStickyKey&#8203;(io.netty.buffer.ByteBuf&nbsp;metadataAndPayload)</pre>
+</li>
+</ul>
+<a id="getSubscriptionName()">
+<!--   -->
+</a>
+<ul class="blockListLast">
+<li class="blockList">
+<h4>getSubscriptionName</h4>
+<pre class="methodSignature">protected&nbsp;java.lang.String&nbsp;getSubscriptionName()</pre>
 </li>
 </ul>
 </li>

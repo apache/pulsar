@@ -404,6 +404,7 @@
 <tr><td>replicationConnectionsPerBroker</td><td>Max number of connections to open for each broker in a remote cluster More connections host-to-host lead to better throughput over high-latency links.</td><td>16</td></tr>
 <tr><td>replicationProducerQueueSize</td><td>Replicator producer queue size</td><td>1000</td></tr>
 <tr><td>replicatorPrefix</td><td>Replicator prefix used for replicator producer name and cursor name pulsar.repl</td><td></td></tr>
+<tr><td>transactionBufferClientOperationTimeoutInMills</td><td>The transaction buffer client's operation timeout in milliseconds.</td><td>3000</td></tr>
 <tr><td>transactionCoordinatorEnabled</td><td>Whether to enable transaction coordinator in broker.</td><td>true</td></tr>
 <tr><td>transactionMetadataStoreProviderClassName</td><td></td><td>org.apache.pulsar.transaction.coordinator.impl.InMemTransactionMetadataStoreProvider</td></tr>
 <tr><td>defaultRetentionTimeInMinutes</td><td>Default message retention time</td><td>0</td></tr>
@@ -781,6 +782,7 @@
 <tr><td>replicationConnectionsPerBroker</td><td></td><td>16</td></tr>
 <tr><td>replicationProducerQueueSize</td><td></td><td>1000</td></tr>
 <tr><td>replicationPolicyCheckDurationSeconds</td><td>Duration to check replication policy to avoid replicator inconsistency due to missing ZooKeeper watch. When the value is set to 0, disable checking replication policy.</td><td>600</td></tr>
+<tr><td>transactionBufferClientOperationTimeoutInMills</td><td>The transaction buffer client's operation timeout in milliseconds.</td><td>3000</td></tr>
 <tr><td>defaultRetentionTimeInMinutes</td><td></td><td>0</td></tr>
 <tr><td>defaultRetentionSizeInMB</td><td></td><td>0</td></tr>
 <tr><td>keepAliveIntervalSeconds</td><td></td><td>30</td></tr>
@@ -906,6 +908,8 @@
 <tr><td>tokenAudienceClaim</td><td>The token audience &quot;claim&quot; name, e.g. &quot;aud&quot;. It is used to get the audience from token. If it is not set, the audience is not verified.</td><td></td></tr>
 <tr><td>tokenAudience</td><td>The token audience stands for this broker. The field <code>tokenAudienceClaim</code> of a valid token need contains this parameter.</td><td></td></tr>
 <tr><td>haProxyProtocolEnabled</td><td>Enable or disable the <a href="http://www.haproxy.org/">HAProxy</a> protocol.</td><td>false</td></tr>
+<tr><td>numIOThreads</td><td>Number of threads used for Netty IO.</td><td>2 * Runtime.getRuntime().availableProcessors()</td></tr>
+<tr><td>numAcceptorThreads</td><td>Number of threads used for Netty Acceptor.</td><td>1</td></tr>
 </tbody>
 </table>
 <h4><a class="anchor" aria-hidden="true" id="deprecated-parameters-of-pulsar-proxy"></a><a href="#deprecated-parameters-of-pulsar-proxy" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>Deprecated parameters of Pulsar proxy</h4>

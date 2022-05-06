@@ -275,30 +275,36 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr class="rowColor">
-<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="../DispatchRateLimiter.html#%3Cinit%3E(org.apache.pulsar.broker.service.persistent.PersistentTopic,org.apache.pulsar.broker.service.persistent.DispatchRateLimiter.Type)">DispatchRateLimiter</a></span>&#8203;(<a href="../PersistentTopic.html" title="class in org.apache.pulsar.broker.service.persistent">PersistentTopic</a>&nbsp;topic,
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="../DispatchRateLimiter.html#%3Cinit%3E(org.apache.pulsar.broker.service.persistent.PersistentTopic,java.lang.String,org.apache.pulsar.broker.service.persistent.DispatchRateLimiter.Type)">DispatchRateLimiter</a></span>&#8203;(<a href="../PersistentTopic.html" title="class in org.apache.pulsar.broker.service.persistent">PersistentTopic</a>&nbsp;topic,
+                   java.lang.String&nbsp;subscriptionName,
                    <a href="../DispatchRateLimiter.Type.html" title="enum in org.apache.pulsar.broker.service.persistent">DispatchRateLimiter.Type</a>&nbsp;type)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr class="altColor">
+<th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="../DispatchRateLimiter.html#%3Cinit%3E(org.apache.pulsar.broker.service.persistent.PersistentTopic,org.apache.pulsar.broker.service.persistent.DispatchRateLimiter.Type)">DispatchRateLimiter</a></span>&#8203;(<a href="../PersistentTopic.html" title="class in org.apache.pulsar.broker.service.persistent">PersistentTopic</a>&nbsp;topic,
+                   <a href="../DispatchRateLimiter.Type.html" title="enum in org.apache.pulsar.broker.service.persistent">DispatchRateLimiter.Type</a>&nbsp;type)</code></th>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr class="rowColor">
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="../MessageDeduplication.html#%3Cinit%3E(org.apache.pulsar.broker.PulsarService,org.apache.pulsar.broker.service.persistent.PersistentTopic,org.apache.bookkeeper.mledger.ManagedLedger)">MessageDeduplication</a></span>&#8203;(<a href="../../../PulsarService.html" title="class in org.apache.pulsar.broker">PulsarService</a>&nbsp;pulsar,
                     <a href="../PersistentTopic.html" title="class in org.apache.pulsar.broker.service.persistent">PersistentTopic</a>&nbsp;topic,
                     org.apache.bookkeeper.mledger.ManagedLedger&nbsp;managedLedger)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="../PersistentDispatcherMultipleConsumers.html#%3Cinit%3E(org.apache.pulsar.broker.service.persistent.PersistentTopic,org.apache.bookkeeper.mledger.ManagedCursor,org.apache.pulsar.broker.service.Subscription)">PersistentDispatcherMultipleConsumers</a></span>&#8203;(<a href="../PersistentTopic.html" title="class in org.apache.pulsar.broker.service.persistent">PersistentTopic</a>&nbsp;topic,
                                      org.apache.bookkeeper.mledger.ManagedCursor&nbsp;cursor,
                                      <a href="../../Subscription.html" title="interface in org.apache.pulsar.broker.service">Subscription</a>&nbsp;subscription)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="../PersistentDispatcherMultipleConsumers.html#%3Cinit%3E(org.apache.pulsar.broker.service.persistent.PersistentTopic,org.apache.bookkeeper.mledger.ManagedCursor,org.apache.pulsar.broker.service.Subscription,boolean)">PersistentDispatcherMultipleConsumers</a></span>&#8203;(<a href="../PersistentTopic.html" title="class in org.apache.pulsar.broker.service.persistent">PersistentTopic</a>&nbsp;topic,
                                      org.apache.bookkeeper.mledger.ManagedCursor&nbsp;cursor,
                                      <a href="../../Subscription.html" title="interface in org.apache.pulsar.broker.service">Subscription</a>&nbsp;subscription,
                                      boolean&nbsp;allowOutOfOrderDelivery)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="../PersistentDispatcherSingleActiveConsumer.html#%3Cinit%3E(org.apache.bookkeeper.mledger.ManagedCursor,org.apache.pulsar.common.api.proto.CommandSubscribe.SubType,int,org.apache.pulsar.broker.service.persistent.PersistentTopic,org.apache.pulsar.broker.service.Subscription)">PersistentDispatcherSingleActiveConsumer</a></span>&#8203;(org.apache.bookkeeper.mledger.ManagedCursor&nbsp;cursor,
                                         org.apache.pulsar.common.api.proto.CommandSubscribe.SubType&nbsp;subscriptionType,
                                         int&nbsp;partitionIndex,
@@ -306,7 +312,7 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
                                         <a href="../../Subscription.html" title="interface in org.apache.pulsar.broker.service">Subscription</a>&nbsp;subscription)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="../PersistentReplicator.html#%3Cinit%3E(org.apache.pulsar.broker.service.persistent.PersistentTopic,org.apache.bookkeeper.mledger.ManagedCursor,java.lang.String,java.lang.String,org.apache.pulsar.broker.service.BrokerService,org.apache.pulsar.client.impl.PulsarClientImpl)">PersistentReplicator</a></span>&#8203;(<a href="../PersistentTopic.html" title="class in org.apache.pulsar.broker.service.persistent">PersistentTopic</a>&nbsp;topic,
                     org.apache.bookkeeper.mledger.ManagedCursor&nbsp;cursor,
                     java.lang.String&nbsp;localCluster,
@@ -315,13 +321,13 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
                     org.apache.pulsar.client.impl.PulsarClientImpl&nbsp;replicationClient)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="../PersistentStreamingDispatcherMultipleConsumers.html#%3Cinit%3E(org.apache.pulsar.broker.service.persistent.PersistentTopic,org.apache.bookkeeper.mledger.ManagedCursor,org.apache.pulsar.broker.service.Subscription)">PersistentStreamingDispatcherMultipleConsumers</a></span>&#8203;(<a href="../PersistentTopic.html" title="class in org.apache.pulsar.broker.service.persistent">PersistentTopic</a>&nbsp;topic,
                                               org.apache.bookkeeper.mledger.ManagedCursor&nbsp;cursor,
                                               <a href="../../Subscription.html" title="interface in org.apache.pulsar.broker.service">Subscription</a>&nbsp;subscription)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="../PersistentStreamingDispatcherSingleActiveConsumer.html#%3Cinit%3E(org.apache.bookkeeper.mledger.ManagedCursor,org.apache.pulsar.common.api.proto.CommandSubscribe.SubType,int,org.apache.pulsar.broker.service.persistent.PersistentTopic,org.apache.pulsar.broker.service.Subscription)">PersistentStreamingDispatcherSingleActiveConsumer</a></span>&#8203;(org.apache.bookkeeper.mledger.ManagedCursor&nbsp;cursor,
                                                  org.apache.pulsar.common.api.proto.CommandSubscribe.SubType&nbsp;subscriptionType,
                                                  int&nbsp;partitionIndex,
@@ -329,14 +335,14 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
                                                  <a href="../../Subscription.html" title="interface in org.apache.pulsar.broker.service">Subscription</a>&nbsp;subscription)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="../PersistentSubscription.html#%3Cinit%3E(org.apache.pulsar.broker.service.persistent.PersistentTopic,java.lang.String,org.apache.bookkeeper.mledger.ManagedCursor,boolean)">PersistentSubscription</a></span>&#8203;(<a href="../PersistentTopic.html" title="class in org.apache.pulsar.broker.service.persistent">PersistentTopic</a>&nbsp;topic,
                       java.lang.String&nbsp;subscriptionName,
                       org.apache.bookkeeper.mledger.ManagedCursor&nbsp;cursor,
                       boolean&nbsp;replicated)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="../PersistentSubscription.html#%3Cinit%3E(org.apache.pulsar.broker.service.persistent.PersistentTopic,java.lang.String,org.apache.bookkeeper.mledger.ManagedCursor,boolean,java.util.Map)">PersistentSubscription</a></span>&#8203;(<a href="../PersistentTopic.html" title="class in org.apache.pulsar.broker.service.persistent">PersistentTopic</a>&nbsp;topic,
                       java.lang.String&nbsp;subscriptionName,
                       org.apache.bookkeeper.mledger.ManagedCursor&nbsp;cursor,
@@ -344,12 +350,12 @@ $('.navPadding').css('padding-top', $('.fixedNav').css("height"));
                       java.util.Map&lt;java.lang.String,&#8203;java.lang.String&gt;&nbsp;subscriptionProperties)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="../ReplicatedSubscriptionsController.html#%3Cinit%3E(org.apache.pulsar.broker.service.persistent.PersistentTopic,java.lang.String)">ReplicatedSubscriptionsController</a></span>&#8203;(<a href="../PersistentTopic.html" title="class in org.apache.pulsar.broker.service.persistent">PersistentTopic</a>&nbsp;topic,
                                  java.lang.String&nbsp;localCluster)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <th class="colSecond" scope="row"><code><span class="memberNameLink"><a href="../SubscribeRateLimiter.html#%3Cinit%3E(org.apache.pulsar.broker.service.persistent.PersistentTopic)">SubscribeRateLimiter</a></span>&#8203;(<a href="../PersistentTopic.html" title="class in org.apache.pulsar.broker.service.persistent">PersistentTopic</a>&nbsp;topic)</code></th>
 <td class="colLast">&nbsp;</td>
 </tr>
