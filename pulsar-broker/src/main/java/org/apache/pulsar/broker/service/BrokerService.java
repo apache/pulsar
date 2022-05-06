@@ -239,8 +239,10 @@ public class BrokerService implements Closeable {
     protected volatile DispatchRateLimiter brokerDispatchRateLimiter = null;
 
     private DistributedIdGenerator producerNameGenerator;
+    private DistributedIdGenerator consumerNameGenerator;
 
     public static final String PRODUCER_NAME_GENERATOR_PATH = "/counters/producer-name";
+    public static final String CONSUMER_NAME_GENERATOR_PATH = "/counters/consumer-name";
 
     private final BacklogQuotaManager backlogQuotaManager;
 
@@ -458,6 +460,8 @@ public class BrokerService implements Closeable {
     public void start() throws Exception {
         this.producerNameGenerator = new DistributedIdGenerator(pulsar.getCoordinationService(),
                 PRODUCER_NAME_GENERATOR_PATH, pulsar.getConfiguration().getClusterName());
+        this.consumerNameGenerator = new DistributedIdGenerator(pulsar.getCoordinationService(),
+                CONSUMER_NAME_GENERATOR_PATH, pulsar.getConfiguration().getClusterName());
 
         ServiceConfiguration serviceConfig = pulsar.getConfiguration();
         List<BindAddress> bindAddresses = BindAddressValidator.validateBindAddresses(serviceConfig,
@@ -2116,6 +2120,10 @@ public class BrokerService implements Closeable {
 
     public String generateUniqueProducerName() {
         return producerNameGenerator.getNextId();
+    }
+
+    public String generateUniqueConsumerName() {
+        return consumerNameGenerator.getNextId();
     }
 
     public Map<String, TopicStatsImpl> getTopicStats() {

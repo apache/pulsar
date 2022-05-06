@@ -945,7 +945,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
         final String subscriptionName = subscribe.getSubscription();
         final SubType subType = subscribe.getSubType();
-        final String consumerName = subscribe.hasConsumerName() ? subscribe.getConsumerName() : "";
+        final String consumerName = subscribe.hasConsumerName() ? subscribe.getConsumerName()
+                : service.generateUniqueConsumerName();
         final boolean isDurable = subscribe.isDurable();
         final MessageIdImpl startMessageId = subscribe.hasStartMessageId() ? new BatchMessageIdImpl(
                 subscribe.getStartMessageId().getLedgerId(), subscribe.getStartMessageId().getEntryId(),
