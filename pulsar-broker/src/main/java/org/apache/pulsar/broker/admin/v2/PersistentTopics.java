@@ -71,6 +71,7 @@ import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.policies.data.impl.BacklogQuotaImpl;
 import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
+import org.apache.pulsar.common.util.Codec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -3098,6 +3099,107 @@ public class PersistentTopics extends PersistentTopicsBase {
             })
             .exceptionally(ex -> {
                 handleTopicPolicyException("removeSubscriptionDispatchRate", ex, asyncResponse);
+                return null;
+            });
+    }
+
+    @GET
+    @Path("/{tenant}/{namespace}/{topic}/{subName}/dispatchRate")
+    @ApiOperation(value = "Get message dispatch rate configuration for specified subscription.")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 405,
+                    message = "Topic level policy is disabled, please enable the topic level policy and retry"),
+            @ApiResponse(code = 409, message = "Concurrent modification")})
+    public void getSubscriptionLevelDispatchRate(@Suspended final AsyncResponse asyncResponse,
+            @PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace,
+            @PathParam("topic") @Encoded String encodedTopic,
+            @PathParam("subName") @Encoded String encodedSubscriptionName,
+            @QueryParam("applied") @DefaultValue("false") boolean applied,
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @ApiParam(value = "Is authentication required to perform this operation")
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        preValidation(authoritative)
+            .thenCompose(__ -> internalGetSubscriptionLevelDispatchRate(
+                    Codec.decode(encodedSubscriptionName), applied, isGlobal))
+            .thenApply(asyncResponse::resume)
+            .exceptionally(ex -> {
+                handleTopicPolicyException("getSubscriptionLevelDispatchRate", ex, asyncResponse);
+                return null;
+            });
+    }
+
+    @POST
+    @Path("/{tenant}/{namespace}/{topic}/{subName}/dispatchRate")
+    @ApiOperation(value = "Set message dispatch rate configuration for specified subscription.")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 405,
+                    message = "Topic level policy is disabled, please enable the topic level policy and retry"),
+            @ApiResponse(code = 409, message = "Concurrent modification")})
+    public void setSubscriptionLevelDispatchRate(
+            @Suspended final AsyncResponse asyncResponse,
+            @PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace,
+            @PathParam("topic") @Encoded String encodedTopic,
+            @PathParam("subName") @Encoded String encodedSubscriptionName,
+            @ApiParam(value = "Is authentication required to perform this operation")
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @ApiParam(value = "Subscription message dispatch rate for the specified topic")
+                    DispatchRateImpl dispatchRate) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        preValidation(authoritative)
+            .thenCompose(__ -> internalSetSubscriptionLevelDispatchRate(
+                    Codec.decode(encodedSubscriptionName), dispatchRate, isGlobal))
+            .thenRun(() -> {
+                log.info("[{}] Successfully set subscription level dispatch rate:"
+                                + " tenant={}, namespace={}, topic={}, sub={}, dispatchRate={}",
+                        clientAppId(),
+                        tenant,
+                        namespace,
+                        topicName.getLocalName(),
+                        encodedSubscriptionName,
+                        dispatchRate);
+                asyncResponse.resume(Response.noContent().build());
+            })
+            .exceptionally(ex -> {
+                handleTopicPolicyException("setSubscriptionLevelDispatchRate", ex, asyncResponse);
+                return null;
+            });
+    }
+
+    @DELETE
+    @Path("/{tenant}/{namespace}/{topic}/{subName}/dispatchRate")
+    @ApiOperation(value = "Remove message dispatch rate configuration for specified subscription.")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Topic does not exist"),
+            @ApiResponse(code = 405,
+                    message = "Topic level policy is disabled, please enable the topic level policy and retry"),
+            @ApiResponse(code = 409, message = "Concurrent modification")})
+    public void removeSubscriptionLevelDispatchRate(
+            @Suspended final AsyncResponse asyncResponse,
+            @PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace,
+            @PathParam("topic") @Encoded String encodedTopic,
+            @PathParam("subName") @Encoded String encodedSubscriptionName,
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @ApiParam(value = "Is authentication required to perform this operation")
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        preValidation(authoritative)
+            .thenCompose(__ -> internalRemoveSubscriptionLevelDispatchRate(
+                    Codec.decode(encodedSubscriptionName), isGlobal))
+            .thenRun(() -> {
+                log.info("[{}] Successfully remove subscription level dispatch rate: "
+                                + "tenant={}, namespace={}, topic={}, sub={}",
+                        clientAppId(), tenant, namespace, topicName.getLocalName(), encodedSubscriptionName);
+                asyncResponse.resume(Response.noContent().build());
+            })
+            .exceptionally(ex -> {
+                handleTopicPolicyException("removeSubscriptionLevelDispatchRate", ex, asyncResponse);
                 return null;
             });
     }

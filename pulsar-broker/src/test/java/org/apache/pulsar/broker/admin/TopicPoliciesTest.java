@@ -1317,6 +1317,58 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    public void testSubscriptionLevelDispatchRate() throws Exception{
+        final String topic = testTopic + UUID.randomUUID();
+        admin.topics().createNonPartitionedTopic(topic);
+
+        String subscriptionName = "testSubscriptionLevelDispatchRate";
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().subscriptionName(subscriptionName).topic(topic).subscribe();
+        AbstractTopic abstractTopic = (AbstractTopic) pulsar.getBrokerService().getTopicIfExists(topic).get().get();
+
+        DispatchRate topicLevelRate = DispatchRate.builder()
+                .dispatchThrottlingRateInMsg(100)
+                .dispatchThrottlingRateInByte(1024)
+                .ratePeriodInSecond(1)
+                .build();
+        admin.topicPolicies().setSubscriptionDispatchRate(topic, topicLevelRate);
+        Awaitility.await().untilAsserted(() ->
+                Assert.assertEquals(admin.topicPolicies().getSubscriptionDispatchRate(topic), topicLevelRate));
+
+        // topic level is set, applied value should be topic level setting.
+        Assert.assertEquals(admin.topicPolicies().getSubscriptionDispatchRate(topic, subscriptionName, true),
+                topicLevelRate);
+        // subscription level setting is not set.
+        Assert.assertNull(admin.topicPolicies().getSubscriptionDispatchRate(topic, subscriptionName));
+
+        DispatchRate subLevelRate = DispatchRate.builder()
+                .dispatchThrottlingRateInMsg(1000)
+                .dispatchThrottlingRateInByte(1024 * 1024)
+                .ratePeriodInSecond(1)
+                .build();
+
+        admin.topicPolicies().setSubscriptionDispatchRate(topic, subscriptionName, subLevelRate);
+        Awaitility.await().untilAsserted(() ->
+                Assert.assertEquals(admin.topicPolicies().getSubscriptionDispatchRate(topic, subscriptionName),
+                        subLevelRate));
+
+        Awaitility.await().untilAsserted(() -> Assert.assertEquals(
+                abstractTopic.getSubscriptionDispatchRate(subscriptionName), subLevelRate));
+
+        DispatchRateLimiter dispatchRateLimiter = abstractTopic.getSubscription(subscriptionName)
+                .getDispatcher().getRateLimiter().get();
+        Assert.assertNotNull(dispatchRateLimiter);
+        Assert.assertEquals(dispatchRateLimiter.getDispatchRateOnByte(), subLevelRate.getDispatchThrottlingRateInByte());
+        Assert.assertEquals(dispatchRateLimiter.getDispatchRateOnMsg(), subLevelRate.getDispatchThrottlingRateInMsg());
+
+        admin.topicPolicies().removeSubscriptionDispatchRate(topic, subscriptionName);
+        Awaitility.await().untilAsserted(() ->
+                Assert.assertNull(admin.topicPolicies().getSubscriptionDispatchRate(topic, subscriptionName)));
+
+        admin.topics().delete(topic, true);
+    }
+
+    @Test
     public void testGetSetSubscriptionDispatchRateAfterTopicLoaded() throws Exception {
         final String topic = testTopic + UUID.randomUUID();
         admin.topics().createNonPartitionedTopic(topic);

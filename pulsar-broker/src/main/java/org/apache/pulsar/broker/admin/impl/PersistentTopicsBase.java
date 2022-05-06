@@ -125,6 +125,7 @@ import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
+import org.apache.pulsar.common.policies.data.SubscriptionPolicies;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
@@ -4380,6 +4381,60 @@ public class PersistentTopicsBase extends AdminResource {
                 }
                 TopicPolicies topicPolicies = op.get();
                 topicPolicies.setSubscriptionDispatchRate(null);
+                topicPolicies.setIsGlobal(isGlobal);
+                return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, op.get());
+            });
+    }
+
+    protected CompletableFuture<DispatchRate> internalGetSubscriptionLevelDispatchRate(String subName, boolean applied,
+                                                                                       boolean isGlobal) {
+        return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
+                .thenCompose(otp -> {
+                    DispatchRateImpl rate = otp.map(tp -> tp.getSubscriptionPolicies().get(subName))
+                            .map(SubscriptionPolicies::getDispatchRate)
+                            .orElse(null);
+                    if (applied && rate == null) {
+                        return internalGetSubscriptionDispatchRate(true, isGlobal);
+                    } else {
+                        return CompletableFuture.completedFuture(rate);
+                    }
+                });
+    }
+
+    protected CompletableFuture<Void> internalSetSubscriptionLevelDispatchRate(String subName,
+                                                                               DispatchRateImpl dispatchRate,
+                                                                               boolean isGlobal) {
+        final DispatchRateImpl newDispatchRate = DispatchRateImpl.normalize(dispatchRate);
+        if (newDispatchRate == null) {
+            return CompletableFuture.completedFuture(null);
+        }
+        return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
+                .thenCompose(op -> {
+                    TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
+                    topicPolicies.setIsGlobal(isGlobal);
+                    topicPolicies.getSubscriptionPolicies()
+                            .computeIfAbsent(subName, k -> new SubscriptionPolicies())
+                            .setDispatchRate(newDispatchRate);
+                    return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
+                });
+    }
+
+    protected CompletableFuture<Void> internalRemoveSubscriptionLevelDispatchRate(String subName, boolean isGlobal) {
+        return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
+            .thenCompose(op -> {
+                if (!op.isPresent()) {
+                    return CompletableFuture.completedFuture(null);
+                }
+                TopicPolicies topicPolicies = op.get();
+                SubscriptionPolicies sp = topicPolicies.getSubscriptionPolicies().get(subName);
+                if (sp == null) {
+                    return CompletableFuture.completedFuture(null);
+                }
+                sp.setDispatchRate(null);
+                if (sp.checkEmpty()) {
+                    // cleanup empty SubscriptionPolicies
+                    topicPolicies.getSubscriptionPolicies().remove(subName, sp);
+                }
                 topicPolicies.setIsGlobal(isGlobal);
                 return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, op.get());
             });
