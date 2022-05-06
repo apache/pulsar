@@ -23,6 +23,7 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.time.Duration;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
@@ -34,6 +35,7 @@ import org.assertj.core.util.Lists;
 import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
@@ -148,21 +150,15 @@ public class FutureUtilTest {
         f2.complete("2");
         f3.complete("3");
         f4.complete("4");
-        CompletableFuture<Object> ret = FutureUtil.waitForAny(Lists.newArrayList(f1, f2, f3, f4), p -> p.equals("3"));
-        Object value = ret.join();
-        assertEquals(value, "3");
+        CompletableFuture<Optional<Object>> ret = FutureUtil.waitForAny(Lists.newArrayList(f1, f2, f3, f4), p -> p.equals("3"));
+        assertEquals(ret.join().get(), "3");
         // test not matched predicate result
         CompletableFuture<String> f5 = new CompletableFuture<>();
         CompletableFuture<String> f6 = new CompletableFuture<>();
         f5.complete("5");
         f6.complete("6");
         ret = FutureUtil.waitForAny(Lists.newArrayList(f5, f6), p -> p.equals("3"));
-        try {
-            ret.join();
-            fail("Should have failed");
-        } catch (CompletionException ex) {
-            assertTrue(ex.getCause() instanceof IllegalStateException);
-        }
+        assertFalse(ret.join().isPresent());
         // test with exception
         CompletableFuture<String> f7 = new CompletableFuture<>();
         CompletableFuture<String> f8 = new CompletableFuture<>();

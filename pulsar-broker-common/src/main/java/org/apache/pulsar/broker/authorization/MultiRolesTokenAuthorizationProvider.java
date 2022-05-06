@@ -130,7 +130,7 @@ public class MultiRolesTokenAuthorizationProvider extends PulsarAuthorizationPro
         }
         List<CompletableFuture<Boolean>> futures = new ArrayList<>(roles.size());
         roles.forEach(r -> futures.add(authorizeFunc.apply(r)));
-        return FutureUtil.waitForAny(futures, ret -> (boolean) ret).thenApply(v -> (Boolean) v);
+        return FutureUtil.waitForAny(futures, ret -> (boolean) ret).thenApply(v -> v.isPresent());
     }
 
     /**

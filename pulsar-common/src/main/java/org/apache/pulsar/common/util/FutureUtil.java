@@ -57,11 +57,11 @@ public class FutureUtil {
         return CompletableFuture.anyOf(futures.toArray(new CompletableFuture[0]));
     }
 
-    public static CompletableFuture<Object> waitForAny(Collection<? extends CompletableFuture<?>> futures,
+    public static CompletableFuture<Optional<Object>> waitForAny(Collection<? extends CompletableFuture<?>> futures,
                                                        Predicate<Object> tester) {
         return waitForAny(futures).thenCompose(v -> {
             if (tester.test(v)) {
-                return CompletableFuture.completedFuture(v);
+                return CompletableFuture.completedFuture(Optional.of(v));
             }
             Collection<CompletableFuture<?>> doneFutures = futures.stream()
                     .filter(f -> f.isDone())
@@ -74,7 +74,7 @@ public class FutureUtil {
                     .findFirst();
             if (!value.isPresent()) {
                 if (futures.size() == 0) {
-                    return failedFuture(new IllegalStateException("No matched predicate result"));
+                    return CompletableFuture.completedFuture(Optional.empty());
                 }
                 return waitForAny(futures, tester);
             }
@@ -83,7 +83,7 @@ public class FutureUtil {
                     f.cancel(true);
                 }
             });
-            return CompletableFuture.completedFuture(value.get());
+            return CompletableFuture.completedFuture(Optional.of(value.get()));
         });
     }
 
