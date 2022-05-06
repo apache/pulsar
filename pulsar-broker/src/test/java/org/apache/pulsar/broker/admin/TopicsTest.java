@@ -65,7 +65,6 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.websocket.data.ProducerAcks;
 import org.apache.pulsar.websocket.data.ProducerMessage;
 import org.apache.pulsar.websocket.data.ProducerMessages;
-import org.awaitility.Awaitility;
 import org.mockito.ArgumentCaptor;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -126,12 +125,8 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testProduceToNonPartitionedTopic() throws Exception {
-        String topic = "persistent://" + testTenant + "/" + testNamespace + "/" + testTopicName;
-        admin.topics().createNonPartitionedTopic(topic);
-        Awaitility.await().untilAsserted(() -> {
-            List<String> persistentTopicList = admin.topics().getList(testTenant + "/" + testNamespace, TopicDomain.persistent);
-            Assert.assertTrue(persistentTopicList.contains(topic));
-        });
+        admin.topics().createNonPartitionedTopic("persistent://" + testTenant + "/"
+                + testNamespace + "/" + testTopicName);
         AsyncResponse asyncResponse = mock(AsyncResponse.class);
         Schema<String> schema = StringSchema.utf8();
         ProducerMessages producerMessages = new ProducerMessages();

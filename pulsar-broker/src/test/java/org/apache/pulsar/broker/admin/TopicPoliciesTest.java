@@ -922,8 +922,6 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         PersistencePolicies persistencePolicies = new PersistencePolicies(3, 3, 3, 0.1);
         log.info("PersistencePolicies: {} will set to the topic: {}", persistencePolicies, persistenceTopic);
         admin.topics().createNonPartitionedTopic(persistenceTopic);
-        Awaitility.await()
-                .untilAsserted(() -> Assert.assertTrue(admin.topics().getList(myNamespace).contains(persistenceTopic)));
         admin.topicPolicies().setPersistence(persistenceTopic, persistencePolicies);
 
         Awaitility.await()
@@ -1291,10 +1289,6 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
     public void testGetSetSubscriptionDispatchRate() throws Exception {
         final String topic = testTopic + UUID.randomUUID();
         admin.topics().createNonPartitionedTopic(topic);
-        Awaitility.await().untilAsserted(() -> {
-            List<String> persistentTopicList = admin.topics().getList(myNamespace, TopicDomain.persistent);
-            Assert.assertTrue(persistentTopicList.contains(topic));
-        });
         DispatchRate dispatchRate = DispatchRate.builder()
                 .dispatchThrottlingRateInMsg(1000)
                 .dispatchThrottlingRateInByte(1024 * 1024)

@@ -405,14 +405,15 @@ public class PersistentTopicsBase extends AdminResource {
                }
            })
            .thenCompose(__ -> pulsar().getBrokerService().getTopicIfExists(topicName.toString()))
-           .thenAccept(existedTopic -> {
+           .thenCompose(existedTopic -> {
                if (existedTopic.isPresent()) {
                    log.error("[{}] Topic {} already exists", clientAppId(), topicName);
                    throw new RestException(Status.CONFLICT, "This topic already exists");
                }
-               pulsar().getBrokerService().getTopic(topicName.toString(), true, properties)
-                       .thenApply(Optional::get);
-           });
+               return pulsar().getBrokerService().getTopic(topicName.toString(),
+                       pulsar().getBrokerService().isAllowAutoTopicCreation(topicName.toString()), properties);
+           })
+           .thenAccept(__ -> log.info("[{}] Successfully created non-partitioned topic {}", clientAppId(), topicName));
     }
 
     /**
@@ -4231,7 +4232,7 @@ public class PersistentTopicsBase extends AdminResource {
      * @param topicName
      */
     private CompletableFuture<Void> validateNonPartitionTopicNameAsync(String topicName) {
-        CompletableFuture<Void> ret;
+        CompletableFuture<Void> ret = CompletableFuture.completedFuture(null);
         if (topicName.contains(TopicName.PARTITIONED_TOPIC_SUFFIX)) {
             try {
                 // First check if what's after suffix "-partition-" is number or not, if not number then can create.
@@ -4267,10 +4268,7 @@ public class PersistentTopicsBase extends AdminResource {
                 // Do nothing, if value after partition suffix is not pure numeric value,
                 // as it can't conflict if user want to create partitioned topic with same
                 // topic name prefix in the future.
-                ret = CompletableFuture.completedFuture(null);
             }
-        } else {
-            ret = CompletableFuture.completedFuture(null);
         }
         return ret;
     }

@@ -107,7 +107,6 @@ import org.mockito.ArgumentMatcher;
 import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
@@ -1417,12 +1416,6 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().createNamespace(namespace, Sets.newHashSet(testLocalCluster));
 
         admin.topics().createNonPartitionedTopic(topic);
-
-        Awaitility.await().untilAsserted(() -> {
-            List<String> topicList = admin.topics().getList(namespace);
-            Assert.assertTrue(topicList.contains("persistent://" + topic));
-        });
-
         admin.topics().delete(topic);
 
         try {
