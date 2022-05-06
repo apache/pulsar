@@ -410,8 +410,7 @@ public class PersistentTopicsBase extends AdminResource {
                    log.error("[{}] Topic {} already exists", clientAppId(), topicName);
                    throw new RestException(Status.CONFLICT, "This topic already exists");
                }
-               return pulsar().getBrokerService().getTopic(topicName.toString(),
-                       pulsar().getBrokerService().isAllowAutoTopicCreation(topicName.toString()), properties);
+               return pulsar().getBrokerService().getTopic(topicName.toString(), true, properties);
            })
            .thenAccept(__ -> log.info("[{}] Successfully created non-partitioned topic {}", clientAppId(), topicName));
     }
@@ -3988,11 +3987,6 @@ public class PersistentTopicsBase extends AdminResource {
                     }
                     throw new RestException(Status.NOT_FOUND, "Partitioned Topic not found");
                 });
-    }
-
-    private Topic getOrCreateTopic(TopicName topicName, Map<String, String> properties) {
-        return pulsar().getBrokerService().getTopic(topicName.toString(), true, properties)
-                .thenApply(Optional::get).join();
     }
 
     /**
