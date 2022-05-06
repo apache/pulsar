@@ -226,21 +226,19 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("topic") @Encoded String encodedTopic,
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
-        try {
-            validateNamespaceName(tenant, cluster, namespace);
-            validateTopicName(tenant, cluster, namespace, encodedTopic);
-            validateGlobalNamespaceOwnership();
-            validateCreateTopic(topicName);
-            internalCreateNonPartitionedTopicAsync(authoritative, null)
-                    .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
-                    .exceptionally(ex -> {
-                        resumeAsyncResponseExceptionally(asyncResponse, ex.getCause());
-                        return null;
-                    });
-        } catch (Exception e) {
-            log.error("[{}] Failed to create non-partitioned topic {}", clientAppId(), topicName, e);
-            resumeAsyncResponseExceptionally(asyncResponse, e);
-        }
+        validateNamespaceName(tenant, cluster, namespace);
+        validateTopicName(tenant, cluster, namespace, encodedTopic);
+        validateGlobalNamespaceOwnership();
+        validateCreateTopic(topicName);
+        internalCreateNonPartitionedTopicAsync(authoritative, null)
+                .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
+                .exceptionally(ex -> {
+                    if (!isRedirectException(ex)) {
+                        log.error("[{}] Failed to create non-partitioned topic {}", clientAppId(), topicName, ex);
+                    }
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     /**
