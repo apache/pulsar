@@ -150,7 +150,7 @@ public class TopicsImpl extends BaseResource implements Topics {
             throws PulsarAdminException {
         ListTopicsOptions options = ListTopicsOptions
                 .builder()
-                .bundle((String) params.get(QueryParam.Bundle.value))
+                .bundle((String) params.get(QueryParam.Bundle))
                 .build();
         return getList(namespace, topicDomain, options);
     }
