@@ -755,6 +755,8 @@ The [Pulsar proxy](concepts-architecture-overview.md#pulsar-proxy) can be config
 | tokenAudience | The token audience stands for this broker. The field `tokenAudienceClaim` of a valid token need contains this parameter.| |
 | proxyLogLevel | Set the Pulsar Proxy log level. <li> If the value is set to 0, no TCP channel information is logged. <li> If the value is set to 1, only the TCP channel information and command information (without message body) are parsed and logged. <li> If the value is set to 2, all TCP channel information, command information, and message body are parsed and logged. | 0 |
 |haProxyProtocolEnabled | Enable or disable the [HAProxy](http://www.haproxy.org/) protocol. |false|
+| numIOThreads | Number of threads used for Netty IO. | 2 * Runtime.getRuntime().availableProcessors() |
+| numAcceptorThreads | Number of threads used for Netty Acceptor. | 1 |
 
 ## ZooKeeper
 
