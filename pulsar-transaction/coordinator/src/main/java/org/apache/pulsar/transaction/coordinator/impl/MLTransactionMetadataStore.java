@@ -372,23 +372,20 @@ public class MLTransactionMetadataStore
                                     this.transactionTimeoutCount.increment();
                                 }
                                 if (newStatus == TxnStatus.COMMITTED || newStatus == TxnStatus.ABORTED) {
-                                    transactionLog.deletePosition(txnMetaListPair.getRight()).whenComplete((v, ex) -> {
-                                        if (ex != null) {
-                                            promise.completeExceptionally(ex);
-                                            return;
-                                        }
-                                        this.transactionMetadataStoreStats
-                                                .addTransactionExecutionLatencySample(System.currentTimeMillis()
-                                                        - txnMetaListPair.getLeft().getOpenTimestamp());
-                                        if (newStatus == TxnStatus.COMMITTED) {
-                                            committedTransactionCount.increment();
-                                        } else {
-                                            abortedTransactionCount.increment();
-                                        }
-                                        txnMetaMap.remove(txnID.getLeastSigBits());
-                                        promise.complete(null);
+                                    this.transactionMetadataStoreStats
+                                            .addTransactionExecutionLatencySample(System.currentTimeMillis()
+                                                    - txnMetaListPair.getLeft().getOpenTimestamp());
+                                    if (newStatus == TxnStatus.COMMITTED) {
+                                        committedTransactionCount.increment();
+                                    } else {
+                                        abortedTransactionCount.increment();
+                                    }
+                                    txnMetaMap.remove(txnID.getLeastSigBits());
+                                    transactionLog.deletePosition(txnMetaListPair.getRight()).exceptionally(ex -> {
+                                        log.warn("Failed to delete transaction log position "
+                                                + "at end transaction [{}]", txnID);
+                                        return null;
                                     });
-                                    return;
                                 }
                                 promise.complete(null);
                             } catch (InvalidTxnStatusException e) {
