@@ -54,6 +54,9 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.Transaction;
+import org.apache.pulsar.client.impl.ConsumerBase;
+import org.apache.pulsar.client.impl.ConsumerImpl;
+import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.testclient.utils.PaddingDecimalFormat;
 import org.slf4j.Logger;
@@ -129,6 +132,10 @@ public class PerformanceConsumer {
         @Parameter(names = { "-p", "--receiver-queue-size-across-partitions" },
                 description = "Max total size of the receiver queue across partitions")
         public int maxTotalReceiverQueueSizeAcrossPartitions = 50000;
+
+        @Parameter(names = {"-aq", "--auto-scaled-receiver-queue-size"},
+                description = "Enable autoScaledReceiverQueueSize")
+        public boolean autoScaledReceiverQueueSize = false;
 
         @Parameter(names = { "--replicated" }, description = "Whether the subscription status should be replicated")
         public boolean replicatedSubscription = false;
@@ -342,6 +349,8 @@ public class PerformanceConsumer {
         ObjectWriter w = m.writerWithDefaultPrettyPrinter();
         log.info("Starting Pulsar performance consumer with config: {}", w.writeValueAsString(arguments));
 
+        final Recorder qRecorder = arguments.autoScaledReceiverQueueSize
+                ? new Recorder(arguments.receiverQueueSize, 5) : null;
         final RateLimiter limiter = arguments.rate > 0 ? RateLimiter.create(arguments.rate) : null;
         long startTime = System.nanoTime();
         long testEndTime = startTime + (long) (arguments.testTime * 1e9);
@@ -394,6 +403,9 @@ public class PerformanceConsumer {
                         thread.interrupt();
                     }
                 }
+                if (qRecorder != null) {
+                    qRecorder.recordValue(((ConsumerBase<?>) consumer).getTotalIncomingMessages());
+                }
                 messagesReceived.increment();
                 bytesReceived.add(msg.size());
 
@@ -444,6 +456,9 @@ public class PerformanceConsumer {
                     if (!arguments.isAbortTransaction) {
                         transaction.commit()
                                 .thenRun(() -> {
+                                    if (log.isDebugEnabled()) {
+                                        log.debug("Commit transaction {}", transaction.getTxnID());
+                                    }
                                     totalEndTxnOpSuccessNum.increment();
                                     numTxnOpSuccess.increment();
                                 })
@@ -454,11 +469,13 @@ public class PerformanceConsumer {
                                 });
                     } else {
                         transaction.abort().thenRun(() -> {
-                            log.info("Abort transaction {}", transaction.getTxnID().toString());
+                            if (log.isDebugEnabled()) {
+                                log.debug("Abort transaction {}", transaction.getTxnID());
+                            }
                             totalEndTxnOpSuccessNum.increment();
                             numTxnOpSuccess.increment();
                         }).exceptionally(exception -> {
-                            log.error("Commit transaction {} failed with exception",
+                            log.error("Abort transaction {} failed with exception",
                                     transaction.getTxnID().toString(),
                                     exception);
                             totalEndTxnOpFailNum.increment();
@@ -495,7 +512,8 @@ public class PerformanceConsumer {
                 .autoAckOldestChunkedMessageOnQueueFull(arguments.autoAckOldestChunkedMessageOnQueueFull)
                 .enableBatchIndexAcknowledgment(arguments.batchIndexAck)
                 .poolMessages(arguments.poolMessages)
-                .replicateSubscriptionState(arguments.replicatedSubscription);
+                .replicateSubscriptionState(arguments.replicatedSubscription)
+                .autoScaledReceiverQueueSizeEnabled(arguments.autoScaledReceiverQueueSize);
         if (arguments.maxPendingChunkedMessage > 0) {
             consumerBuilder.maxPendingChunkedMessage(arguments.maxPendingChunkedMessage);
         }
@@ -538,6 +556,7 @@ public class PerformanceConsumer {
         long oldTime = System.nanoTime();
 
         Histogram reportHistogram = null;
+        Histogram qHistogram = null;
         HistogramLogWriter histogramLogWriter = null;
 
         if (arguments.histogramFile != null) {
@@ -591,6 +610,28 @@ public class PerformanceConsumer {
                     reportHistogram.getValueAtPercentile(99), reportHistogram.getValueAtPercentile(99.9),
                     reportHistogram.getValueAtPercentile(99.99), reportHistogram.getMaxValue());
 
+            if (arguments.autoScaledReceiverQueueSize && log.isDebugEnabled() && qRecorder != null) {
+                qHistogram = qRecorder.getIntervalHistogram(qHistogram);
+                log.debug("ReceiverQueueUsage: cnt={},mean={}, min={},max={},25pct={},50pct={},75pct={}",
+                        qHistogram.getTotalCount(), dec.format(qHistogram.getMean()),
+                        qHistogram.getMinValue(), qHistogram.getMaxValue(),
+                        qHistogram.getValueAtPercentile(25),
+                        qHistogram.getValueAtPercentile(50),
+                        qHistogram.getValueAtPercentile(75)
+                );
+                qHistogram.reset();
+                for (Future<Consumer<ByteBuffer>> future : futures) {
+                    ConsumerBase<?> consumerBase = (ConsumerBase<?>) future.get();
+                    log.debug("[{}] CurrentReceiverQueueSize={}", consumerBase.getConsumerName(),
+                            consumerBase.getCurrentReceiverQueueSize());
+                    if (consumerBase instanceof MultiTopicsConsumerImpl) {
+                        for (ConsumerImpl<?> consumer : ((MultiTopicsConsumerImpl<?>) consumerBase).getConsumers()) {
+                            log.debug("[{}] SubConsumer.CurrentReceiverQueueSize={}", consumer.getConsumerName(),
+                                    consumer.getCurrentReceiverQueueSize());
+                        }
+                    }
+                }
+            }
             if (histogramLogWriter != null) {
                 histogramLogWriter.outputIntervalHistogram(reportHistogram);
             }

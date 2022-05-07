@@ -91,4 +91,8 @@ public interface TransactionBufferClient {
                                                     long lowWaterMark);
 
     void close();
+
+    int getAvailableRequestCredits();
+
+    int getPendingRequestsCount();
 }

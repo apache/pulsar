@@ -23,13 +23,14 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static java.lang.String.format;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.apache.pulsar.common.naming.NamespaceName.SYSTEM_NAMESPACE;
 import com.google.common.collect.Lists;
 import com.google.common.hash.Hashing;
 import io.prometheus.client.Counter;
 import java.net.URI;
 import java.net.URL;
+import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -66,6 +67,7 @@ import org.apache.pulsar.client.impl.ClientBuilderImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace.Mode;
+import org.apache.pulsar.common.lookup.GetTopicsResult;
 import org.apache.pulsar.common.lookup.data.LookupData;
 import org.apache.pulsar.common.naming.BundleSplitOption;
 import org.apache.pulsar.common.naming.NamespaceBundle;
@@ -286,7 +288,6 @@ public class NamespaceService implements AutoCloseable {
     /**
      * Register all the bootstrap name spaces including the heartbeat namespace.
      *
-     * @return
      * @throws PulsarServerException
      */
     public void registerBootstrapNamespaces() throws PulsarServerException {
@@ -731,16 +732,21 @@ public class NamespaceService implements AutoCloseable {
         return pulsar.getLocalMetadataStore().exists(ServiceUnitUtils.path(bundle));
     }
 
-    public Map<String, NamespaceOwnershipStatus> getOwnedNameSpacesStatus() throws Exception {
-        NamespaceIsolationPolicies nsIsolationPolicies = this.getLocalNamespaceIsolationPolicies();
-        Map<String, NamespaceOwnershipStatus> ownedNsStatus = new HashMap<String, NamespaceOwnershipStatus>();
-        for (OwnedBundle nsObj : this.ownershipCache.getOwnedBundles().values()) {
-            NamespaceOwnershipStatus nsStatus = this.getNamespaceOwnershipStatus(nsObj,
-                    nsIsolationPolicies.getPolicyByNamespace(nsObj.getNamespaceBundle().getNamespaceObject()));
-            ownedNsStatus.put(nsObj.getNamespaceBundle().toString(), nsStatus);
-        }
-
-        return ownedNsStatus;
+    public CompletableFuture<Map<String, NamespaceOwnershipStatus>> getOwnedNameSpacesStatusAsync() {
+       return getLocalNamespaceIsolationPoliciesAsync()
+                .thenCompose(namespaceIsolationPolicies -> {
+                    Collection<CompletableFuture<OwnedBundle>> futures =
+                            ownershipCache.getOwnedBundlesAsync().values();
+                    return FutureUtil.waitForAll(futures)
+                            .thenApply(__ -> futures.stream()
+                                    .map(CompletableFuture::join)
+                                    .collect(Collectors.toMap(bundle -> bundle.getNamespaceBundle().toString(),
+                                            bundle -> getNamespaceOwnershipStatus(bundle,
+                                                    namespaceIsolationPolicies.getPolicyByNamespace(
+                                                            bundle.getNamespaceBundle().getNamespaceObject()))
+                                    ))
+                            );
+                });
     }
 
     private NamespaceOwnershipStatus getNamespaceOwnershipStatus(OwnedBundle nsObj,
@@ -762,14 +768,10 @@ public class NamespaceService implements AutoCloseable {
         return nsOwnedStatus;
     }
 
-    private NamespaceIsolationPolicies getLocalNamespaceIsolationPolicies() throws Exception {
+    private CompletableFuture<NamespaceIsolationPolicies> getLocalNamespaceIsolationPoliciesAsync() {
         String localCluster = pulsar.getConfiguration().getClusterName();
         return pulsar.getPulsarResources().getNamespaceResources().getIsolationPolicies()
-                .getIsolationDataPolicies(localCluster)
-                .orElseGet(() -> {
-                    // the namespace isolation policies are empty/undefined = an empty object
-                    return new NamespaceIsolationPolicies();
-                });
+                .getIsolationDataPoliciesAsync(localCluster);
     }
 
     public boolean isNamespaceBundleDisabled(NamespaceBundle bundle) throws Exception {
@@ -1029,7 +1031,7 @@ public class NamespaceService implements AutoCloseable {
 
     public CompletableFuture<Boolean> checkTopicOwnership(TopicName topicName) {
         return getBundleAsync(topicName)
-                .thenApply(ownershipCache::checkOwnership);
+                .thenCompose(ownershipCache::checkOwnershipAsync);
     }
 
     public void removeOwnedServiceUnit(NamespaceBundle nsBundle) throws Exception {
@@ -1242,7 +1244,8 @@ public class NamespaceService implements AutoCloseable {
     private CompletableFuture<List<String>> getNonPersistentTopicsFromPeerCluster(ClusterDataImpl peerClusterData,
                                                                                   NamespaceName namespace) {
         PulsarClientImpl client = getNamespaceClient(peerClusterData);
-        return client.getLookup().getTopicsUnderNamespace(namespace, Mode.NON_PERSISTENT);
+        return client.getLookup().getTopicsUnderNamespace(namespace, Mode.NON_PERSISTENT, null, null)
+                .thenApply(GetTopicsResult::getTopics);
     }
 
     public PulsarClientImpl getNamespaceClient(ClusterDataImpl cluster) {
@@ -1371,9 +1374,16 @@ public class NamespaceService implements AutoCloseable {
     }
 
     public static boolean isSystemServiceNamespace(String namespace) {
+        return SYSTEM_NAMESPACE.toString().equals(namespace)
+                || SLA_NAMESPACE_PATTERN.matcher(namespace).matches()
+                || HEARTBEAT_NAMESPACE_PATTERN.matcher(namespace).matches()
+                || HEARTBEAT_NAMESPACE_PATTERN_V2.matcher(namespace).matches();
+    }
+
+    public static boolean isHeartbeatNamespace(ServiceUnitId ns) {
+        String namespace = ns.getNamespaceObject().toString();
         return HEARTBEAT_NAMESPACE_PATTERN.matcher(namespace).matches()
-                || HEARTBEAT_NAMESPACE_PATTERN_V2.matcher(namespace).matches()
-                || SLA_NAMESPACE_PATTERN.matcher(namespace).matches();
+                || HEARTBEAT_NAMESPACE_PATTERN_V2.matcher(namespace).matches();
     }
 
     public boolean registerSLANamespace() throws PulsarServerException {

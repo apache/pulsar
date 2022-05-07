@@ -19,7 +19,7 @@
 package org.apache.pulsar.common.util;
 
 import java.time.Duration;
-import java.util.List;
+import java.util.Collection;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -36,35 +36,36 @@ import java.util.function.Supplier;
 public class FutureUtil {
 
     /**
-     * Return a future that represents the completion of the futures in the provided list.
+     * Return a future that represents the completion of the futures in the provided Collection.
      *
      * @param futures futures to wait for
      * @return a new CompletableFuture that is completed when all of the given CompletableFutures complete
      */
-    public static CompletableFuture<Void> waitForAll(List<? extends CompletableFuture<?>> futures) {
+    public static CompletableFuture<Void> waitForAll(Collection<? extends CompletableFuture<?>> futures) {
         return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
     }
 
     /**
-     * Return a future that represents the completion of any future in the provided list.
+     * Return a future that represents the completion of any future in the provided Collection.
      *
      * @param futures futures to wait any
      * @return a new CompletableFuture that is completed when any of the given CompletableFutures complete
      */
-    public static CompletableFuture<Object> waitForAny(List<? extends CompletableFuture<?>> futures) {
+    public static CompletableFuture<Object> waitForAny(Collection<? extends CompletableFuture<?>> futures) {
         return CompletableFuture.anyOf(futures.toArray(new CompletableFuture[0]));
     }
 
 
     /**
-     * Return a future that represents the completion of the futures in the provided list.
+     * Return a future that represents the completion of the futures in the provided Collection.
      * The future will support {@link CompletableFuture#cancel(boolean)}. It will cancel
      * all unfinished futures when the future gets cancelled.
      *
      * @param futures futures to wait for
      * @return a new CompletableFuture that is completed when all of the given CompletableFutures complete
      */
-    public static CompletableFuture<Void> waitForAllAndSupportCancel(List<? extends CompletableFuture<?>> futures) {
+    public static CompletableFuture<Void> waitForAllAndSupportCancel(
+                                                    Collection<? extends CompletableFuture<?>> futures) {
         CompletableFuture[] futuresArray = futures.toArray(new CompletableFuture[0]);
         CompletableFuture<Void> combinedFuture = CompletableFuture.allOf(futuresArray);
         whenCancelledOrTimedOut(combinedFuture, () -> {

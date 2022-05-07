@@ -38,6 +38,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.stats.NullStatsProvider;
 import org.apache.bookkeeper.stats.StatsProvider;
 import org.apache.pulsar.PulsarVersion;
@@ -51,8 +52,9 @@ import org.apache.pulsar.common.util.SimpleTextOutputStream;
 /**
  * Generate metrics aggregated at the namespace level and optionally at a topic level and formats them out
  * in a text format suitable to be consumed by Prometheus.
- * Format specification can be found at {@link https://prometheus.io/docs/instrumenting/exposition_formats/}
+ * Format specification can be found at <a href="https://prometheus.io/docs/instrumenting/exposition_formats/">Exposition Formats</a>
  */
+@Slf4j
 public class PrometheusMetricsGenerator {
 
     static {
@@ -199,13 +201,16 @@ public class PrometheusMetricsGenerator {
                             .write("{cluster=\"").write(cluster).write('"');
                 }
 
+                //to avoid quantile label duplicated
+                boolean appendedQuantile = false;
                 for (Map.Entry<String, String> metric : metrics1.getDimensions().entrySet()) {
                     if (metric.getKey().isEmpty() || "cluster".equals(metric.getKey())) {
                         continue;
                     }
                     stream.write(", ").write(metric.getKey()).write("=\"").write(metric.getValue()).write('"');
-                    if (value != null && !value.isEmpty()) {
+                    if (value != null && !value.isEmpty() && !appendedQuantile) {
                         stream.write(", ").write("quantile=\"").write(value).write('"');
+                        appendedQuantile = true;
                     }
                 }
                 stream.write("} ").write(String.valueOf(entry.getValue()))

@@ -190,4 +190,25 @@ public class PerformanceProducerTest extends MockedPulsarServiceBaseTest {
         Assert.assertTrue(msgFormatter instanceof DefaultMessageFormatter);
     }
 
+    @Test
+    public void testMaxOutstanding() throws Exception {
+        String argString = "%s -r 10 -u %s -au %s -m 5 -o 10000";
+        String topic = testTopic + UUID.randomUUID().toString();
+        String args = String.format(argString, topic, pulsar.getBrokerServiceUrl(), pulsar.getWebServiceAddress());
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("sub")
+                .subscriptionType(SubscriptionType.Key_Shared).subscribe();
+        new Thread(() -> {
+            try {
+                PerformanceProducer.main(args.split(" "));
+            } catch (Exception e) {
+                log.error("Failed to start perf producer");
+            }
+        }).start();
+        Awaitility.await()
+                .untilAsserted(() -> {
+                    Message<byte[]> message = consumer.receive(3, TimeUnit.SECONDS);
+                    assertNotNull(message);
+                });
+        consumer.close();
+    }
 }

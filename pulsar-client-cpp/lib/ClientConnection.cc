@@ -910,13 +910,16 @@ void ClientConnection::handleIncomingCommand() {
                             if (partitionMetadataResponse.has_error()) {
                                 LOG_ERROR(cnxString_ << "Failed partition-metadata lookup req_id: "
                                                      << partitionMetadataResponse.request_id()
-                                                     << " error: " << partitionMetadataResponse.error());
+                                                     << " error: " << partitionMetadataResponse.error()
+                                                     << " msg: " << partitionMetadataResponse.message());
+                                checkServerError(partitionMetadataResponse.error());
+                                lookupDataPromise->setFailed(getResult(partitionMetadataResponse.error()));
                             } else {
                                 LOG_ERROR(cnxString_ << "Failed partition-metadata lookup req_id: "
                                                      << partitionMetadataResponse.request_id()
                                                      << " with empty response: ");
+                                lookupDataPromise->setFailed(ResultConnectError);
                             }
-                            lookupDataPromise->setFailed(ResultConnectError);
                         } else {
                             LookupDataResultPtr lookupResultPtr = std::make_shared<LookupDataResult>();
                             lookupResultPtr->setPartitions(partitionMetadataResponse.partitions());
@@ -994,13 +997,16 @@ void ClientConnection::handleIncomingCommand() {
                             if (lookupTopicResponse.has_error()) {
                                 LOG_ERROR(cnxString_
                                           << "Failed lookup req_id: " << lookupTopicResponse.request_id()
-                                          << " error: " << lookupTopicResponse.error());
+                                          << " error: " << lookupTopicResponse.error()
+                                          << " msg: " << lookupTopicResponse.message());
+                                checkServerError(lookupTopicResponse.error());
+                                lookupDataPromise->setFailed(getResult(lookupTopicResponse.error()));
                             } else {
                                 LOG_ERROR(cnxString_
                                           << "Failed lookup req_id: " << lookupTopicResponse.request_id()
                                           << " with empty response: ");
+                                lookupDataPromise->setFailed(ResultConnectError);
                             }
-                            lookupDataPromise->setFailed(ResultConnectError);
                         } else {
                             LOG_DEBUG(cnxString_
                                       << "Received lookup response from server. req_id: "
@@ -1511,15 +1517,10 @@ void ClientConnection::close(Result result) {
         return;
     }
     state_ = Disconnected;
-    boost::system::error_code err;
-    if (socket_) {
-        socket_->close(err);
-        if (err) {
-            LOG_WARN(cnxString_ << "Failed to close socket: " << err.message());
-        }
-    }
 
+    closeSocket();
     if (tlsSocket_) {
+        boost::system::error_code err;
         tlsSocket_->lowest_layer().close(err);
         if (err) {
             LOG_WARN(cnxString_ << "Failed to close TLS socket: " << err.message());
@@ -1662,6 +1663,31 @@ Future<Result, NamespaceTopicsPtr> ClientConnection::newGetTopicsOfNamespace(con
     lock.unlock();
     sendCommand(Commands::newGetTopicsOfNamespace(nsName, requestId));
     return promise.getFuture();
+}
+
+void ClientConnection::closeSocket() {
+    boost::system::error_code err;
+    if (socket_) {
+        socket_->close(err);
+        if (err) {
+            LOG_WARN(cnxString_ << "Failed to close socket: " << err.message());
+        }
+    }
+}
+
+void ClientConnection::checkServerError(const proto::ServerError& error) {
+    switch (error) {
+        case proto::ServerError::ServiceNotReady:
+            closeSocket();
+            break;
+        case proto::ServerError::TooManyRequests:
+            // TODO: Implement maxNumberOfRejectedRequestPerConnection like
+            // https://github.com/apache/pulsar/pull/274
+            closeSocket();
+            break;
+        default:
+            break;
+    }
 }
 
 }  // namespace pulsar

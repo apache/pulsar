@@ -18,9 +18,11 @@
  */
 package org.apache.pulsar.websocket.service;
 
+import static org.apache.pulsar.broker.web.Filters.addFilterClass;
 import java.net.MalformedURLException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -33,6 +35,8 @@ import org.apache.pulsar.broker.web.JsonMapperProvider;
 import org.apache.pulsar.broker.web.WebExecutorThreadPool;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.util.SecurityUtility;
+import org.apache.pulsar.common.util.keystoretls.KeyStoreSSLContext;
+import org.eclipse.jetty.server.ConnectionLimit;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
@@ -42,6 +46,7 @@ import org.eclipse.jetty.server.handler.HandlerCollection;
 import org.eclipse.jetty.server.handler.RequestLogHandler;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
+import org.eclipse.jetty.servlets.QoSFilter;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.servlet.ServletContainer;
@@ -49,6 +54,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class ProxyServer {
+    private static final String MATCH_ALL = "/*";
     private final Server server;
     private final List<Handler> handlers = new ArrayList<>();
     private final WebSocketProxyConfiguration conf;
@@ -60,8 +66,12 @@ public class ProxyServer {
     public ProxyServer(WebSocketProxyConfiguration config)
             throws PulsarClientException, MalformedURLException, PulsarServerException {
         this.conf = config;
-        executorService = new WebExecutorThreadPool(config.getNumHttpServerThreads(), "pulsar-websocket-web");
+        executorService = new WebExecutorThreadPool(config.getNumHttpServerThreads(), "pulsar-websocket-web",
+                config.getHttpServerThreadPoolQueueSize());
         this.server = new Server(executorService);
+        if (config.getMaxHttpServerConnections() > 0) {
+            server.addBean(new ConnectionLimit(config.getMaxHttpServerConnections(), server));
+        }
         List<ServerConnector> connectors = new ArrayList<>();
 
         if (config.getWebServicePort().isPresent()) {
@@ -72,15 +82,33 @@ public class ProxyServer {
         // TLS enabled connector
         if (config.getWebServicePortTls().isPresent()) {
             try {
-                SslContextFactory sslCtxFactory = SecurityUtility.createSslContextFactory(
-                        config.isTlsAllowInsecureConnection(),
-                        config.getTlsTrustCertsFilePath(),
-                        config.getTlsCertificateFilePath(),
-                        config.getTlsKeyFilePath(),
-                        config.isTlsRequireTrustedClientCertOnConnect(),
-                        true,
-                        config.getTlsCertRefreshCheckDurationSec());
-                connectorTls = new ServerConnector(server, -1, -1, sslCtxFactory);
+                SslContextFactory sslCtxFactory;
+                if (config.isTlsEnabledWithKeyStore()) {
+                    sslCtxFactory = KeyStoreSSLContext.createSslContextFactory(
+                            config.getTlsProvider(),
+                            config.getTlsKeyStoreType(),
+                            config.getTlsKeyStore(),
+                            config.getTlsKeyStorePassword(),
+                            config.isTlsAllowInsecureConnection(),
+                            config.getTlsTrustStoreType(),
+                            config.getTlsTrustStore(),
+                            config.getTlsTrustStorePassword(),
+                            config.isTlsRequireTrustedClientCertOnConnect(),
+                            config.getWebServiceTlsCiphers(),
+                            config.getWebServiceTlsProtocols(),
+                            config.getTlsCertRefreshCheckDurationSec()
+                    );
+                } else {
+                    sslCtxFactory = SecurityUtility.createSslContextFactory(
+                            config.isTlsAllowInsecureConnection(),
+                            config.getTlsTrustCertsFilePath(),
+                            config.getTlsCertificateFilePath(),
+                            config.getTlsKeyFilePath(),
+                            config.isTlsRequireTrustedClientCertOnConnect(),
+                            true,
+                            config.getTlsCertRefreshCheckDurationSec());
+                }
+                connectorTls = new ServerConnector(server, sslCtxFactory);
                 connectorTls.setPort(config.getWebServicePortTls().get());
                 connectors.add(connectorTls);
             } catch (Exception e) {
@@ -90,7 +118,7 @@ public class ProxyServer {
 
         // Limit number of concurrent HTTP connections to avoid getting out of
         // file descriptors
-        connectors.stream().forEach(c -> c.setAcceptQueueSize(1024 / connectors.size()));
+        connectors.stream().forEach(c -> c.setAcceptQueueSize(config.getHttpServerAcceptQueueSize()));
         server.setConnectors(connectors.toArray(new ServerConnector[connectors.size()]));
     }
 
@@ -99,7 +127,8 @@ public class ProxyServer {
         ServletHolder servletHolder = new ServletHolder("ws-events", socketServlet);
         ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
         context.setContextPath(basePath);
-        context.addServlet(servletHolder, "/*");
+        context.addServlet(servletHolder, MATCH_ALL);
+        addQosFilterIfNeeded(context);
         handlers.add(context);
     }
 
@@ -111,9 +140,17 @@ public class ProxyServer {
         servletHolder.setAsyncSupported(true);
         ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
         context.setContextPath(basePath);
-        context.addServlet(servletHolder, "/*");
+        context.addServlet(servletHolder, MATCH_ALL);
         context.setAttribute(attribute, attributeValue);
+        addQosFilterIfNeeded(context);
         handlers.add(context);
+    }
+
+    private void addQosFilterIfNeeded(ServletContextHandler context) {
+        if (conf.getMaxConcurrentHttpRequests() > 0) {
+            addFilterClass(context, QoSFilter.class, Collections.singletonMap("maxRequests",
+                    String.valueOf(conf.getMaxConcurrentHttpRequests())));
+        }
     }
 
     public void start() throws PulsarServerException {

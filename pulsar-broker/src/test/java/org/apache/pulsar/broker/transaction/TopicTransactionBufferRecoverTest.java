@@ -18,6 +18,16 @@
  */
 package org.apache.pulsar.broker.transaction;
 
+import static org.apache.pulsar.common.naming.SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -57,8 +67,8 @@ import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.common.events.EventType;
-import org.apache.pulsar.common.events.EventsTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.awaitility.Awaitility;
@@ -66,15 +76,6 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.mock;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.assertNull;
-import static org.testng.Assert.assertTrue;
 
 @Slf4j
 public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
@@ -250,7 +251,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         ReaderBuilder<TransactionBufferSnapshot> readerBuilder = pulsarClient
                 .newReader(Schema.AVRO(TransactionBufferSnapshot.class))
                 .startMessageId(MessageId.earliest)
-                .topic(NAMESPACE1 + "/" + EventsTopicNames.TRANSACTION_BUFFER_SNAPSHOT);
+                .topic(NAMESPACE1 + "/" + TRANSACTION_BUFFER_SNAPSHOT);
         Reader<TransactionBufferSnapshot> reader = readerBuilder.create();
 
         MessageId messageId1 = producer.newMessage(tnx1).value("test").send();
@@ -389,7 +390,6 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
     public void clearTransactionBufferSnapshotTest() throws Exception {
         String topic = NAMESPACE1 + "/tb-snapshot-delete-" + RandomUtils.nextInt();
 
-        @Cleanup
         Producer<byte[]> producer = pulsarClient
                 .newProducer()
                 .topic(topic)
@@ -402,6 +402,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         producer.newMessage(txn).value("test".getBytes()).sendAsync();
         producer.newMessage(txn).value("test".getBytes()).sendAsync();
         txn.commit().get();
+        producer.close();
 
         // take snapshot
         PersistentTopic originalTopic = (PersistentTopic) getPulsarServiceList().get(0)
@@ -451,10 +452,9 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         reader.close();
     }
 
-
     @Test(timeOut=30000)
     public void testTransactionBufferRecoverThrowPulsarClientException() throws Exception {
-        String topic = NAMESPACE1 + "/testTransactionBufferRecoverThrowBrokerMetadataException";
+        String topic = NAMESPACE1 + "/testTransactionBufferRecoverThrowPulsarClientException";
         @Cleanup
         Producer<byte[]> producer = pulsarClient
                 .newProducer()
@@ -479,6 +479,8 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
 
         doReturn(CompletableFuture.completedFuture(reader)).when(transactionBufferSnapshotService).createReader(any());
         doReturn(CompletableFuture.completedFuture(writer)).when(transactionBufferSnapshotService).createWriter(any());
+        doReturn(CompletableFuture.completedFuture(null)).when(reader).closeAsync();
+        doReturn(CompletableFuture.completedFuture(null)).when(writer).closeAsync();
         Field field = PulsarService.class.getDeclaredField("transactionBufferSnapshotService");
         field.setAccessible(true);
         TransactionBufferSnapshotService transactionBufferSnapshotServiceOriginal =
@@ -508,14 +510,14 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
                 .when(transactionBufferSnapshotService).createWriter(any());
         checkCloseTopic(pulsarClient, transactionBufferSnapshotServiceOriginal,
                 transactionBufferSnapshotService, originalTopic, field, producer);
-
     }
 
     private void checkCloseTopic(PulsarClient pulsarClient,
                                  TransactionBufferSnapshotService transactionBufferSnapshotServiceOriginal,
                                  TransactionBufferSnapshotService transactionBufferSnapshotService,
                                  PersistentTopic originalTopic,
-                                 Field field, Producer<byte[]> producer) throws Exception {
+                                 Field field,
+                                 Producer<byte[]> producer) throws Exception {
         field.set(getPulsarServiceList().get(0), transactionBufferSnapshotService);
 
         // recover again will throw then close topic
@@ -529,13 +531,31 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
 
         field.set(getPulsarServiceList().get(0), transactionBufferSnapshotServiceOriginal);
 
-        // topic recover success
         Transaction txn = pulsarClient.newTransaction()
                 .withTransactionTimeout(5, TimeUnit.SECONDS)
                 .build().get();
 
-        producer.newMessage(txn).value("test".getBytes()).sendAsync();
+        producer.newMessage(txn).value("test".getBytes()).send();
         txn.commit().get();
+    }
+
+
+    @Test
+    public void testTransactionBufferNoSnapshotCloseReader() throws Exception{
+        String topic = NAMESPACE1 + "/test";
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).producerName("testTxnTimeOut_producer")
+                .topic(topic).sendTimeout(0, TimeUnit.SECONDS).enableBatching(false).create();
+
+        admin.topics().unload(topic);
+
+        // unload success, all readers have been closed except for the compaction sub
+        producer.send("test");
+        TopicStats stats = admin.topics().getStats(NAMESPACE1 + "/" + TRANSACTION_BUFFER_SNAPSHOT);
+
+        // except for the compaction sub
+        assertEquals(stats.getSubscriptions().size(), 1);
+        assertTrue(stats.getSubscriptions().keySet().contains("__compaction"));
     }
 
 }
