@@ -430,10 +430,8 @@ public class NonPersistentTopics extends PersistentTopics {
                 final List<String> nonPersistentTopics =
                         topics.stream()
                                 .filter(name -> !TopicName.get(name).isPersistent())
-                                .filter(topic -> includeSystemTopic
-                                        ? true : !pulsar().getBrokerService().isSystemTopic(topic))
                                 .collect(Collectors.toList());
-                asyncResponse.resume(nonPersistentTopics);
+                asyncResponse.resume(filterSystemTopic(nonPersistentTopics, includeSystemTopic));
             }
         });
     }
