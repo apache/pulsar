@@ -417,18 +417,13 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
 
     @Override
-    public void initReceiverQueueSize() {
-        if (conf.isAutoScaledReceiverQueueSizeEnabled()) {
-            // turn on autoScaledReceiverQueueSize
-            int size = Math.min(INITIAL_RECEIVER_QUEUE_SIZE, maxReceiverQueueSize);
-            if (batchReceivePolicy.getMaxNumMessages() > 0) {
-                // consumerImpl may store (half-1) permits locally.
-                size = Math.max(size, 2 * batchReceivePolicy.getMaxNumMessages() - 2);
-            }
-            CURRENT_RECEIVER_QUEUE_SIZE_UPDATER.set(this, size);
-        } else {
-            CURRENT_RECEIVER_QUEUE_SIZE_UPDATER.set(this, maxReceiverQueueSize);
+    public int minReceiverQueueSize() {
+        int size = Math.min(INITIAL_RECEIVER_QUEUE_SIZE, maxReceiverQueueSize);
+        if (batchReceivePolicy.getMaxNumMessages() > 0) {
+            // consumerImpl may store (half-1) permits locally.
+            size = Math.max(size, 2 * batchReceivePolicy.getMaxNumMessages() - 2);
         }
+        return size;
     }
 
     @Override
@@ -1940,7 +1935,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     @Override
     protected void updateAutoScaleReceiverQueueHint() {
-        scaleReceiverQueueHint.set(getAvailablePermits() + incomingMessages.size() >= getCurrentReceiverQueueSize());
+        boolean prev = scaleReceiverQueueHint.getAndSet(
+                getAvailablePermits() + incomingMessages.size() >= getCurrentReceiverQueueSize());
+        if (log.isDebugEnabled() && prev != scaleReceiverQueueHint.get()) {
+            log.debug("updateAutoScaleReceiverQueueHint {} -> {}", prev, scaleReceiverQueueHint.get());
+        }
     }
 
     @Override
