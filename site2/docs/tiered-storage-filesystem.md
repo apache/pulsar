@@ -139,7 +139,7 @@ pulsar-admin namespaces set-offload-threshold --size 10M my-tenant/my-namespace
 
 > **Tip**
 >
-> For more information about the `pulsar-admin namespaces set-offload-threshold options` command, including flags, descriptions, default values, and shorthands, see [here](reference-pulsar-admin.md#set-offload-threshold). 
+> For more information about the `pulsar-admin namespaces set-offload-threshold options` command, including flags, descriptions, default values, and shorthands, see [here](https://pulsar.apache.org/tools/pulsar-admin/). 
 
 ### Run filesystem offloader manually
 
@@ -210,7 +210,7 @@ To manually trigger the filesystem offloader via CLI tools, you need to specify 
 
     > **Tip**
     >
-    > For more information about the `pulsar-admin topics offload-status options` command, including flags, descriptions, default values, and shorthands, see [here](reference-pulsar-admin.md#offload-status). 
+    > For more information about the `pulsar-admin topics offload-status options` command, including flags, descriptions, default values, and shorthands, see [here](https://pulsar.apache.org/tools/pulsar-admin/). 
 
 ## Tutorial
 
