@@ -201,14 +201,10 @@ public class NarUnpacker {
         }
         try {
             if (createParent) {
-                File parent = file.getParentFile();
-                if (parent == null) {
-                    log.warn("Parent File is null");
-                    return false;
-                }
-                parent.mkdirs();
+               file.mkdirs();
+            } else {
+               file.mkdir();
             }
-            file.mkdir();
             return setPosixFilePermissions(file, permission);
         } catch (Exception e) {
             throw new IOException(e.getMessage());
