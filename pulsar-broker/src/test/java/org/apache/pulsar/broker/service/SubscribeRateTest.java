@@ -28,27 +28,29 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
 public class SubscribeRateTest extends BrokerTestBase {
-
+    @BeforeMethod
     @Override
     protected void setup() throws Exception {
-        //No-op
+        super.baseSetup();
+        conf.setTopicLevelPoliciesEnabled(true);
+        conf.setSystemTopicEnabled(true);
+        conf.setMaxPendingPublishRequestsPerConnection(0);
     }
 
+    @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
-        //No-op
+        super.internalCleanup();
     }
 
     @Test
     public void testBrokerLevelSubscribeRateDynamicUpdate() throws Exception {
-        conf.setTopicLevelPoliciesEnabled(true);
-        conf.setSystemTopicEnabled(true);
-        conf.setMaxPendingPublishRequestsPerConnection(0);
-        super.baseSetup();
         final String topic = "persistent://prop/ns-abc/testBrokerLevelSubscribeRateDynamicUpdate";
         Producer<byte[]> producer = pulsarClient.newProducer()
             .topic(topic)
@@ -86,10 +88,7 @@ public class SubscribeRateTest extends BrokerTestBase {
 
     @Test
     public void testUpdateSubscribeRateLimiter() throws Exception {
-        conf.setTopicLevelPoliciesEnabled(true);
-        conf.setSystemTopicEnabled(true);
-        conf.setMaxPendingPublishRequestsPerConnection(0);
-        super.baseSetup();
+
         final String topic = "persistent://prop/ns-abc/testUpdateSubscribeRateLimiter";
 
         @Cleanup
