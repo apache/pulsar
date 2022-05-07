@@ -223,8 +223,8 @@ consumer.receive();
 <li><p><code>分离</code></p></li>
 </ul>
 <p>你可以在构建键/值 schema 时选择编码类型。</p>
-<div class="tabs"><div class="nav-tabs"><div id="tab-group-42546-tab-42547" class="nav-link active" data-group="group_42546" data-tab="tab-group-42546-content-42547">INLINE</div><div id="tab-group-42546-tab-42548" class="nav-link" data-group="group_42546" data-tab="tab-group-42546-content-42548">SEPARATED</div></div><div class="tab-content"><div id="tab-group-42546-content-42547" class="tab-pane active" data-group="group_42546" tabindex="-1"><div><span><p>将键/值对一起编码到消息体中。</p>
-</span></div></div><div id="tab-group-42546-content-42548" class="tab-pane" data-group="group_42546" tabindex="-1"><div><span><p>键单独编码到消息键中而值编码到消息体中。</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-42543-tab-42544" class="nav-link active" data-group="group_42543" data-tab="tab-group-42543-content-42544">INLINE</div><div id="tab-group-42543-tab-42545" class="nav-link" data-group="group_42543" data-tab="tab-group-42543-content-42545">SEPARATED</div></div><div class="tab-content"><div id="tab-group-42543-content-42544" class="tab-pane active" data-group="group_42543" tabindex="-1"><div><span><p>将键/值对一起编码到消息体中。</p>
+</span></div></div><div id="tab-group-42543-content-42545" class="tab-pane" data-group="group_42543" tabindex="-1"><div><span><p>键单独编码到消息键中而值编码到消息体中。</p>
 <p><strong>示例</strong></p>
 <p>本示例展示了如何创建一个键/值 schema，并使用它来 produce 和 consume 消息。</p>
 <ol>
@@ -258,7 +258,7 @@ consumer.receive();
 <li><p><code>通用</code></p></li>
 <li><p><code>schema定义</code></p></li>
 </ul>
-<div class="tabs"><div class="nav-tabs"><div id="tab-group-42549-tab-42550" class="nav-link active" data-group="group_42549" data-tab="tab-group-42549-content-42550">static</div><div id="tab-group-42549-tab-42551" class="nav-link" data-group="group_42549" data-tab="tab-group-42549-content-42551">generic</div><div id="tab-group-42549-tab-42552" class="nav-link" data-group="group_42549" data-tab="tab-group-42549-content-42552">SchemaDefinition</div></div><div class="tab-content"><div id="tab-group-42549-content-42550" class="tab-pane active" data-group="group_42549" tabindex="-1"><div><span><p>你可以使用Java的POJO类、Go语言的<code>struct</code>以及Avro或Protobuf等工具生成的类来预定义<code>结构</code>schema.</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-42546-tab-42547" class="nav-link active" data-group="group_42546" data-tab="tab-group-42546-content-42547">static</div><div id="tab-group-42546-tab-42548" class="nav-link" data-group="group_42546" data-tab="tab-group-42546-content-42548">generic</div><div id="tab-group-42546-tab-42549" class="nav-link" data-group="group_42546" data-tab="tab-group-42546-content-42549">SchemaDefinition</div></div><div class="tab-content"><div id="tab-group-42546-content-42547" class="tab-pane active" data-group="group_42546" tabindex="-1"><div><span><p>你可以使用Java的POJO类、Go语言的<code>struct</code>以及Avro或Protobuf等工具生成的类来预定义<code>结构</code>schema.</p>
 <p><strong>示例</strong></p>
 <p>Pulsar 使用 Avro 库从预定义<code>结构</code>中获取 schema 定义。 Schema 定义是 schema 数据，存储在 <code>SchemaInfo</code> 中。</p>
 <ol>
@@ -269,7 +269,7 @@ consumer.receive();
 <li><p>用<code>结构</code> schema 创建 consumer 并接收消息。</p>
 <pre><code class="hljs css language-java">Consumer&lt;User&gt; consumer = client.newConsumer(Schema.AVRO(User<span class="hljs-class">.<span class="hljs-keyword">class</span>)).<span class="hljs-title">subscribe</span>()</span>;<br />User user = consumer.receive();<br /></code></pre></li>
 </ol>
-</span></div></div><div id="tab-group-42549-content-42551" class="tab-pane" data-group="group_42549" tabindex="-1"><div><span><p>有时应用程序中不包含预定义 schema，则可以使用此方法来定义 schema 并访问数据。</p>
+</span></div></div><div id="tab-group-42546-content-42548" class="tab-pane" data-group="group_42546" tabindex="-1"><div><span><p>有时应用程序中不包含预定义 schema，则可以使用此方法来定义 schema 并访问数据。</p>
 <p>可以使用 <code>GenericSchemaBuilder</code> 来定义<code>结构</code> schema，使用 <code>GenericRecordBuilder</code> 来生成通用结构，并 consume 消息到 <code>GenericRecord</code>。</p>
 <p><strong>示例</strong></p>
 <ol>
@@ -278,7 +278,7 @@ consumer.receive();
 <li><p>使用 <code>RecordBuilder</code> 创建结构记录。</p>
 <pre><code class="hljs css language-java">producer.newMessage().value(schema.newRecordBuilder()<br />            .set(<span class="hljs-string">"intField"</span>, <span class="hljs-number">32</span>)<br />            .build()).send();<br /></code></pre></li>
 </ol>
-</span></div></div><div id="tab-group-42549-content-42552" class="tab-pane" data-group="group_42549" tabindex="-1"><div><span><p>你可以通过定义一个<code>Schema定义</code>来生成<code>struct</code>schema。</p>
+</span></div></div><div id="tab-group-42546-content-42549" class="tab-pane" data-group="group_42546" tabindex="-1"><div><span><p>你可以通过定义一个<code>Schema定义</code>来生成<code>struct</code>schema。</p>
 <p><strong>示例</strong></p>
 <ol>
 <li><p>Create the <em>User</em> class to define the messages sent to Pulsar topics.</p>

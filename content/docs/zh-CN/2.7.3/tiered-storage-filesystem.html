@@ -129,13 +129,13 @@ ls offloaders
 <p>此外，你还可以配置 filesystem offloader 的自动触发和手动触发机制。</p>
 <h3><a class="anchor" aria-hidden="true" id="配置-filesystem-offloader-driver"></a><a href="#配置-filesystem-offloader-driver" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>配置 filesystem offloader driver</h3>
 <p>您可以在 <code>broker.conf</code> 或 <code>standalone.conf</code> 配置文件中配置 filesystem offloader 驱动程序。</p>
-<div class="tabs"><div class="nav-tabs"><div id="tab-group-43773-tab-43774" class="nav-link active" data-group="group_43773" data-tab="tab-group-43773-content-43774">HDFS</div><div id="tab-group-43773-tab-43775" class="nav-link" data-group="group_43773" data-tab="tab-group-43773-content-43775">NFS</div></div><div class="tab-content"><div id="tab-group-43773-content-43774" class="tab-pane active" data-group="group_43773" tabindex="-1"><div><span><ul>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-43770-tab-43771" class="nav-link active" data-group="group_43770" data-tab="tab-group-43770-content-43771">HDFS</div><div id="tab-group-43770-tab-43772" class="nav-link" data-group="group_43770" data-tab="tab-group-43770-content-43772">NFS</div></div><div class="tab-content"><div id="tab-group-43770-content-43771" class="tab-pane active" data-group="group_43770" tabindex="-1"><div><span><ul>
 <li><p>以下为<strong>必选</strong> 配置。</p>
 <p>参数| 描述| 示例值 |---|---|--- <code>managedLedgerOffloadDriver</code> | Offloader 驱动程序名称，不区分大小写。 | filesystem <code>fileSystemURI</code> | 连接地址，访问默认 Hadoop 分布式文件系统的 URI。 | <a href="hdfs://127.0.0.1:9000">hdfs://127.0.0.1:9000</a> <code>offloadersDirectory</code> | Offloader directory | offloaders <code>fileSystemProfilePath</code> | Hadoop profile path. The configuration file is stored in the Hadoop profile path. 它包含了一些 Hadoop 性能调整的配置。 | ../conf/filesystem_offload_core_site.xml</p></li>
 <li><p>以下为<strong>可选</strong> 配置。</p>
 <p>参数| 描述| 示例值 |---|---|--- <code>managedLedgerMinLedgerRolloverTimeMinutes</code>| topic 的 ledger 切换的最短时间。 <br><br><strong>注意</strong>: 不建议在生产环境中设置此参数。|2 <code>managedLedgerMaxEntriesPerLedger</code>|在触发滚动之前添加到 ledger 的最大条目数。<br><br><strong>注意</strong>: 不建议在生产环境中设置此参数。|5000</p></li>
 </ul>
-</span></div></div><div id="tab-group-43773-content-43775" class="tab-pane" data-group="group_43773" tabindex="-1"><div><span><ul>
+</span></div></div><div id="tab-group-43770-content-43772" class="tab-pane" data-group="group_43770" tabindex="-1"><div><span><ul>
 <li><p>以下为<strong>必选</strong> 配置。</p>
 <p>参数| 描述| 示例值 |---|---|--- <code>managedLedgerOffloadDriver</code> | Offloader 驱动程序名称，不区分大小写。 | filesystem <code>offloadersDirectory</code> | Offloader directory | offloaders <code>fileSystemProfilePath</code> | NFS profile path. The configuration file is stored in the NFS profile path. 它包含用于性能调整的各种设置。 | ../conf/filesystem_offload_core_site.xml</p></li>
 <li><p>以下为<strong>可选</strong> 配置。</p>
@@ -202,7 +202,7 @@ Reason: <span class="hljs-builtin-name">Error</span> offloading: org.apache.book
 </ul>
 <h2><a class="anchor" aria-hidden="true" id="教程"></a><a href="#教程" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>教程</h2>
 <p>本节提供有关如何使用  filesystem offloader  将数据从 Pulsar 移动到 Hadoop 分布式文件系统（HDFS）或网络文件系统（NFS）的分步说明。</p>
-<div class="tabs"><div class="nav-tabs"><div id="tab-group-43776-tab-43777" class="nav-link active" data-group="group_43776" data-tab="tab-group-43776-content-43777">HDFS</div><div id="tab-group-43776-tab-43778" class="nav-link" data-group="group_43776" data-tab="tab-group-43776-content-43778">NFS</div></div><div class="tab-content"><div id="tab-group-43776-content-43777" class="tab-pane active" data-group="group_43776" tabindex="-1"><div><span><p>要将数据从 Pulsar 移动到 HDFS，请按照以下步骤进行。</p>
+<div class="tabs"><div class="nav-tabs"><div id="tab-group-43773-tab-43774" class="nav-link active" data-group="group_43773" data-tab="tab-group-43773-content-43774">HDFS</div><div id="tab-group-43773-tab-43775" class="nav-link" data-group="group_43773" data-tab="tab-group-43773-content-43775">NFS</div></div><div class="tab-content"><div id="tab-group-43773-content-43774" class="tab-pane active" data-group="group_43773" tabindex="-1"><div><span><p>要将数据从 Pulsar 移动到 HDFS，请按照以下步骤进行。</p>
 <h3><a class="anchor" aria-hidden="true" id="第-1-步准备-hdfs-环境"></a><a href="#第-1-步准备-hdfs-环境" aria-hidden="true" class="hash-link"><svg class="hash-link-icon" aria-hidden="true" height="16" version="1.1" viewBox="0 0 16 16" width="16"><path fill-rule="evenodd" d="M4 9h1v1H4c-1.5 0-3-1.69-3-3.5S2.55 3 4 3h4c1.45 0 3 1.69 3 3.5 0 1.41-.91 2.72-2 3.25V8.59c.58-.45 1-1.27 1-2.09C10 5.22 8.98 4 8 4H4c-.98 0-2 1.22-2 2.5S3 9 4 9zm9-3h-1v1h1c1 0 2 1.22 2 2.5S13.98 12 13 12H9c-.98 0-2-1.22-2-2.5 0-.83.42-1.64 1-2.09V6.25c-1.09.53-2 1.84-2 3.25C6 11.31 7.55 13 9 13h4c1.45 0 3-1.69 3-3.5S14.5 6 13 6z"></path></svg></a>第 1 步：准备 HDFS 环境</h3>
 <p>本教程使用 Hadoop 3.2.1设置一个 Hadoop 单个节点集群。</p>
 <blockquote>
@@ -240,7 +240,7 @@ Reason: <span class="hljs-builtin-name">Error</span> offloading: org.apache.book
 <p>为测试目的，您可以设置以下两个配置来加速 ledger 切换， 但不建议在生产环境中设置它们。</p>
 </blockquote>
 <pre><code class="hljs"><span class="hljs-attr">managedLedgerMinLedgerRolloverTimeMinutes</span>=<span class="hljs-number">1</span><br /><span class="hljs-attr">managedLedgerMaxEntriesPerLedger</span>=<span class="hljs-number">100</span><br /></code></pre>
-</span></div></div><div id="tab-group-43776-content-43778" class="tab-pane" data-group="group_43776" tabindex="-1"><div><span><blockquote>
+</span></div></div><div id="tab-group-43773-content-43775" class="tab-pane" data-group="group_43773" tabindex="-1"><div><span><blockquote>
 <p><strong>Note</strong></p>
 <p>在本节中，假定您已启用 NFS 服务并设置 NFS 服务的共享路径。 在本节中， <code>/Users/test</code> 被用作 NFS 服务的共享路径。</p>
 </blockquote>
