@@ -24,7 +24,7 @@ This example uses Pulsar 2.5.1.
 
    * Download the Pulsar tarball from the Pulsar [download page](https://pulsar.apache.org/download)
 
-   * Use the [wget](https://www.gnu.org/software/wget) command to dowload the Pulsar tarball.
+   * Use the [wget](https://www.gnu.org/software/wget) command to download the Pulsar tarball.
 
      ```shell
      wget https://archive.apache.org/dist/pulsar/pulsar-2.5.1/apache-pulsar-2.5.1-bin.tar.gz
@@ -40,7 +40,7 @@ This example uses Pulsar 2.5.1.
 
     > **Note**
     >
-    > * If you run Pulsar in a bare metal cluster, ensure that the `offloaders` tarball is unzipped in every broker's Pulsar directory.
+    > * If you run Pulsar in a bare-metal cluster, ensure that the `offloaders` tarball is unzipped in every broker's Pulsar directory.
     > 
     > * If you run Pulsar in Docker or deploying Pulsar using a Docker image (such as K8S and DCOS), you can use the `apachepulsar/pulsar-all` image. The `apachepulsar/pulsar-all` image has already bundled tiered storage offloaders.
 
@@ -61,7 +61,7 @@ This example uses Pulsar 2.5.1.
 
     > **Note**
     >
-    > * If you run Pulsar in a bare metal cluster, ensure that `offloaders` tarball is unzipped in every broker's Pulsar directory.
+    > * If you run Pulsar in a bare-metal cluster, ensure that `offloaders` tarball is unzipped in every broker's Pulsar directory.
     > 
     > * If you run Pulsar in Docker or deploying Pulsar using a Docker image (such as K8s and DCOS), you can use the `apachepulsar/pulsar-all` image. The `apachepulsar/pulsar-all` image has already bundled tiered storage offloaders.
 
@@ -153,7 +153,7 @@ To manually trigger the filesystem offloader via CLI tools, you need to specify 
 
 #### Example
 
-- This example manually run the filesystem offloader using pulsar-admin.
+- This example manually runs the filesystem offloader using pulsar-admin.
 
     ```bash
     pulsar-admin topics offload --size-threshold 10M persistent://my-tenant/my-namespace/topic1
@@ -216,18 +216,14 @@ To manually trigger the filesystem offloader via CLI tools, you need to specify 
 
 This section provides step-by-step instructions on how to use the filesystem offloader to move data from Pulsar to Hadoop Distributed File System (HDFS) or Network File system (NFS).
 
-<!--DOCUSAURUS_CODE_TABS-->
-<!--HDFS-->
-
-To move data from Pulsar to HDFS, follow these steps.
-
-### Step 1: Prepare the HDFS environment
-
-This tutorial sets up a Hadoop single node cluster and uses Hadoop 3.2.1.
+### Offload data to HDFS
 
 > **Tip**
 >
-> For details about how to set up a Hadoop single node cluster, see [here](https://hadoop.apache.org/docs/stable/hadoop-project-dist/hadoop-common/SingleCluster.html).
+> This tutorial sets up a Hadoop single node cluster and uses Hadoop 3.2.1. For details about how to set up a Hadoop single node cluster, see [here](https://hadoop.apache.org/docs/stable/hadoop-project-dist/hadoop-common/SingleCluster.html).
+
+
+#### Step 1: Prepare the HDFS environment
 
 1. Download and uncompress Hadoop 3.2.1. 
 
@@ -292,11 +288,11 @@ This tutorial sets up a Hadoop single node cluster and uses Hadoop 3.2.1.
 
         ![](assets/FileSystem-3.png)
 
-### Step 2: Install the filesystem offloader
+#### Step 2: Install the filesystem offloader
 
 For details, see [installation](#installation).
 
-### Step 3: Configure the filesystem offloader
+#### Step 3: Configure the filesystem offloader
 
 As indicated in the [configuration](#configuration) section, you need to configure some properties for the filesystem offloader driver before using it. This tutorial assumes that you have configured the filesystem offloader driver as below and run Pulsar in **standalone** mode.
 
@@ -317,74 +313,7 @@ managedLedgerMinLedgerRolloverTimeMinutes=1
 managedLedgerMaxEntriesPerLedger=100
 ```
 
-<!--NFS-->
-
-> **Note**
->
-> In this section, it is assumed that you have enabled NFS service and set the shared path of your NFS service. In this section, `/Users/test` is used as the shared path of NFS service.
-
-To offload data to NFS, follow these steps.
-
-### Step 1: Install the filesystem offloader
-
-For details, see [installation](#installation).
-
-### Step 2: Mont your NFS to your local filesystem
-
-This example mounts mounts */Users/pulsar_nfs* to */Users/test*.
-
-```
-mount -e 192.168.0.103:/Users/test/Users/pulsar_nfs
-```
-
-### Step 3: Configure the filesystem offloader driver
-
-As indicated in the [configuration](#configuration) section, you need to configure some properties for the filesystem offloader driver before using it. This tutorial assumes that you have configured the filesystem offloader driver as below and run Pulsar in **standalone** mode.
-
-1. Set the following configurations in the `conf/standalone.conf` file.
-
-    ```conf
-    managedLedgerOffloadDriver=filesystem
-    fileSystemProfilePath=../conf/filesystem_offload_core_site.xml
-    ```
-
-2. Modify the *filesystem_offload_core_site.xml* as follows.
-
-    ```
-    <property>
-        <name>fs.defaultFS</name>
-        <value>file:///</value>
-    </property>
-
-    <property>
-        <name>hadoop.tmp.dir</name>
-        <value>file:///Users/pulsar_nfs</value>
-    </property>
-
-    <property>
-        <name>io.file.buffer.size</name>
-        <value>4096</value>
-    </property>
-
-    <property>
-        <name>io.seqfile.compress.blocksize</name>
-        <value>1000000</value>
-    </property>
-    <property>
-
-        <name>io.seqfile.compression.type</name>
-        <value>BLOCK</value>
-    </property>
-
-    <property>
-        <name>io.map.index.interval</name>
-        <value>128</value>
-    </property>
-    ```
-
-<!--END_DOCUSAURUS_CODE_TABS-->
-
-### Step 4: Offload data from BookKeeper to filesystem
+#### Step 4: Offload data from BookKeeper to filesystem
 
 Execute the following commands in the repository where you download Pulsar tarball. For example, `~/path/to/apache-pulsar-2.5.1`.
 
@@ -394,7 +323,7 @@ Execute the following commands in the repository where you download Pulsar tarba
     bin/pulsar standalone -a 127.0.0.1
     ```
 
-2. To ensure the data generated is not deleted immediately, it is recommended to set the [retention policy](https://pulsar.apache.org/docs/en/next/cookbooks-retention-expiry/#retention-policies), which can be either a **size** limit or a **time** limit. The larger value you set for the retention policy, the longer the data can be retained.
+2. To ensure the data generated is not deleted immediately, it is recommended to set the [retention policy](cookbooks-retention-expiry.md/#retention-policies), which can be either a **size** limit or a **time** limit. The larger value you set for the retention policy, the longer the data can be retained.
 
     ```
     bin/pulsar-admin namespaces set-retention public/default --size 100M --time 2d
@@ -435,7 +364,7 @@ Execute the following commands in the repository where you download Pulsar tarba
     }
     ```
 
-5. Wait a second and send more messages to the topic.
+5. Wait for a second and send more messages to the topic.
 
     ```
     bin/pulsar-client produce -m "Hello FileSystem Offloader" -n 1000 public/default/fs-test
@@ -521,6 +450,75 @@ Execute the following commands in the repository where you download Pulsar tarba
     And the **Capacity Used** is changed from 4 KB to 116.46 KB.
 
     ![](assets/FileSystem-8.png)
+
+
+### Offload data to NFS
+
+> **Note**
+>
+> In this section, it is assumed that you have enabled NFS service and set the shared path of your NFS service. In this section, `/Users/test` is used as the shared path of NFS service.
+
+#### Step 1: Install the filesystem offloader
+
+For details, see [installation](#installation).
+
+#### Step 2: Mount your NFS to your local filesystem
+
+This example mounts */Users/pulsar_nfs* to */Users/test*.
+
+```
+mount -e 192.168.0.103:/Users/test/Users/pulsar_nfs
+```
+
+#### Step 3: Configure the filesystem offloader driver
+
+As indicated in the [configuration](#configuration) section, you need to configure some properties for the filesystem offloader driver before using it. This tutorial assumes that you have configured the filesystem offloader driver as below and run Pulsar in **standalone** mode.
+
+1. Set the following configurations in the `conf/standalone.conf` file.
+
+    ```conf
+    managedLedgerOffloadDriver=filesystem
+    fileSystemProfilePath=../conf/filesystem_offload_core_site.xml
+    ```
+
+2. Modify the *filesystem_offload_core_site.xml* as follows.
+
+    ```
+    <property>
+        <name>fs.defaultFS</name>
+        <value>file:///</value>
+    </property>
+
+    <property>
+        <name>hadoop.tmp.dir</name>
+        <value>file:///Users/pulsar_nfs</value>
+    </property>
+
+    <property>
+        <name>io.file.buffer.size</name>
+        <value>4096</value>
+    </property>
+
+    <property>
+        <name>io.seqfile.compress.blocksize</name>
+        <value>1000000</value>
+    </property>
+    <property>
+
+        <name>io.seqfile.compression.type</name>
+        <value>BLOCK</value>
+    </property>
+
+    <property>
+        <name>io.map.index.interval</name>
+        <value>128</value>
+    </property>
+    ```
+
+#### Step 4: Offload data from BookKeeper to filesystem
+
+Refer to the step 4 of [Offload data to HDFS](#step-4-offload-data-from-bookkeeper-to-filesystem).
+
 
 ## Read offloaded data from filesystem
 
