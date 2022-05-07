@@ -546,8 +546,9 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_WORKER_SECURITY,
-            doc = "This is a regexp, which limits the range of possible ids which can connect to the Broker using SASL.\n"
-                    + " Default value is: \".*pulsar.*\", so only clients whose id contains 'pulsar' are allowed to connect."
+            doc = "This is a regexp, which limits the range of possible ids which can connect to the Broker using SASL."
+                    + "\n Default value is: \".*pulsar.*\", so only clients whose id contains 'pulsar' are allowed to"
+                    + " connect."
     )
     private String saslJaasClientAllowedIds = SaslConstants.JAAS_CLIENT_ALLOWED_IDS_DEFAULT;
 
