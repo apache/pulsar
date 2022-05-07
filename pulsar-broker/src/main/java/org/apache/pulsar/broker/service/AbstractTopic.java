@@ -738,7 +738,43 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
                         return topicEpoch;
                     });
                 }
+                case ExclusiveWithFencing:
+                    if (hasExclusiveProducer) {
+                        producers.forEach((k, currentProducer) -> {
+                            log.info("Fencing out producer {}", currentProducer);
+                            currentProducer.close(true);
+                        });
+                    }
+                    if (producer.getTopicEpoch().isPresent()
+                            && producer.getTopicEpoch().get() < topicEpoch.orElse(-1L)) {
+                        // If a producer reconnects, but all the topic epoch has already moved forward,
+                        // this producer needs to be fenced, because a new producer had been present in between.
+                        hasExclusiveProducer = false;
+                        return FutureUtil.failedFuture(new ProducerFencedException(
+                                String.format("Topic epoch has already moved. Current epoch: %d, Producer epoch: %d",
+                                        topicEpoch.get(), producer.getTopicEpoch().get())));
+                    } else {
+                        // There are currently no existing producers
+                        hasExclusiveProducer = true;
+                        exclusiveProducerName = producer.getProducerName();
 
+                        CompletableFuture<Long> future;
+                        if (producer.getTopicEpoch().isPresent()) {
+                            future = setTopicEpoch(producer.getTopicEpoch().get());
+                        } else {
+                            future = incrementTopicEpoch(topicEpoch);
+                        }
+                        future.exceptionally(ex -> {
+                            hasExclusiveProducer = false;
+                            exclusiveProducerName = null;
+                            return null;
+                        });
+
+                        return future.thenApply(epoch -> {
+                            topicEpoch = Optional.of(epoch);
+                            return topicEpoch;
+                        });
+                    }
             case WaitForExclusive: {
                 if (hasExclusiveProducer || !producers.isEmpty()) {
                     CompletableFuture<Optional<Long>> future = new CompletableFuture<>();

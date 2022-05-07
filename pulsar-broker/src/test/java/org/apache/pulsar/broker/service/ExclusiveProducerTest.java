@@ -73,6 +73,8 @@ public class ExclusiveProducerTest extends BrokerTestBase {
                 // ProducerAccessMode, partitioned
                 { ProducerAccessMode.Exclusive, Boolean.TRUE},
                 { ProducerAccessMode.Exclusive, Boolean.FALSE },
+                { ProducerAccessMode.ExclusiveWithFencing, Boolean.TRUE},
+                { ProducerAccessMode.ExclusiveWithFencing, Boolean.FALSE },
                 { ProducerAccessMode.WaitForExclusive, Boolean.TRUE },
                 { ProducerAccessMode.WaitForExclusive, Boolean.FALSE },
         };
@@ -118,7 +120,22 @@ public class ExclusiveProducerTest extends BrokerTestBase {
                 .topic(topic)
                 .accessMode(ProducerAccessMode.Exclusive)
                 .create();
-        p2.close();
+
+        Producer<String> p3 = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .accessMode(ProducerAccessMode.ExclusiveWithFencing)
+                .create();
+
+        try {
+            p2.send("test");
+            fail("Should have failed");
+        } catch (ProducerFencedException expected) {
+        }
+
+        // this should work
+        p3.send("test");
+        p3.close();
+
     }
 
     @Test(dataProvider = "topics")
