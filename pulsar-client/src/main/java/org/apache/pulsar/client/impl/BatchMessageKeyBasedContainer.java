@@ -50,7 +50,10 @@ class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
         final BatchMessageContainerImpl batchMessageContainer = batches.computeIfAbsent(key,
                 __ -> new BatchMessageContainerImpl(producer));
         batchMessageContainer.add(msg, callback);
-        if (batchMessageContainer.isAdded()) {
+        // The `add` method fails iff the container is empty, i.e. the `msg` is the first message to add, while `msg`
+        // was failed to add. In this case, `clear` method will be called and the batch container is empty and there is
+        // no need to update the stats.
+        if (!batchMessageContainer.isEmpty()) {
             numMessagesInBatch++;
             currentBatchSizeBytes += msg.getDataBuffer().readableBytes();
         }
@@ -97,7 +100,6 @@ class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
             // `highest_sequence_id` field to allow the weak order.
             batches.values().forEach(batchMessageContainer -> {
                 batchMessageContainer.setLowestSequenceId(batchMessageContainer.getHighestSequenceId());
-                batchMessageContainer.setHighestSequenceId(-1L);
             });
             return batches.values().stream().sorted((o1, o2) ->
                     (int) (o1.getLowestSequenceId() - o2.getLowestSequenceId())

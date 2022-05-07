@@ -60,8 +60,6 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
     protected SendCallback previousCallback = null;
     // keep track of callbacks for individual messages being published in a batch
     protected SendCallback firstCallback;
-    @Getter
-    private boolean added = false;
 
     public BatchMessageContainerImpl() {
     }
@@ -95,12 +93,7 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
                     currentTxnidLeastBits = msg.getMessageBuilder().getTxnidLeastBits();
                 }
             } catch (Throwable e) {
-                added = false;
                 log.error("construct first message failed, exception is ", e);
-                if (batchedMessageMetadataAndPayload != null) {
-                    // if payload has been allocated release it
-                    batchedMessageMetadataAndPayload.release();
-                }
                 discard(new PulsarClientException(e));
                 return false;
             }
@@ -119,7 +112,6 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
         }
         highestSequenceId = msg.getSequenceId();
         ProducerImpl.LAST_SEQ_ID_PUSHED_UPDATER.getAndUpdate(producer, prev -> Math.max(prev, msg.getSequenceId()));
-        added = true;
         return isBatchFull();
     }
 

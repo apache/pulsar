@@ -519,8 +519,6 @@ public class Commands {
                 .setSequenceId(sequenceId);
         if (highestSequenceId >= 0) {
             send.setHighestSequenceId(highestSequenceId);
-        } else {
-            send.clearHighestSequenceId();
         }
         if (numMessages > 1) {
             send.setNumMessages(numMessages);
