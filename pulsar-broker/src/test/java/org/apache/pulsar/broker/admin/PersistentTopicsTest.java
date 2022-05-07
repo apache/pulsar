@@ -51,6 +51,7 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriInfo;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.admin.v2.NonPersistentTopics;
 import org.apache.pulsar.broker.admin.v2.PersistentTopics;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -394,7 +395,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testNonPartitionedTopics() {
-        final String nonPartitionTopic = "non-partitioned-topic";
+        final String nonPartitionTopic = BrokerTestUtil.newUniqueName("non-partitioned-topic");
         AsyncResponse response = mock(AsyncResponse.class);
         persistentTopics.createSubscription(response, testTenant, testNamespace, nonPartitionTopic, "test", true,
                 new ResetCursorData(MessageId.latest), false);
@@ -403,52 +404,67 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
 
         response = mock(AsyncResponse.class);
+        ArgumentCaptor<RestException> errorCaptor = ArgumentCaptor.forClass(RestException.class);
         persistentTopics.getSubscriptions(response, testTenant, testNamespace, nonPartitionTopic + "-partition-0",
                 true);
-        ArgumentCaptor<RestException> errorCaptor = ArgumentCaptor.forClass(RestException.class);
         verify(response, timeout(5000).times(1)).resume(errorCaptor.capture());
         Assert.assertTrue(errorCaptor.getValue().getMessage().contains("zero partitions"));
         response = mock(AsyncResponse.class);
-        final String nonPartitionTopic2 = "secondary-non-partitioned-topic";
+        final String nonPartitionTopic2 = BrokerTestUtil.newUniqueName("secondary-non-partitioned-topic");
         persistentTopics.createNonPartitionedTopic(response, testTenant, testNamespace, nonPartitionTopic2, true, null);
+        Awaitility.await().untilAsserted(() -> {
+            Assert.assertTrue(admin.topics().getList(testTenant + "/" + testNamespace)
+                    .contains("persistent://" + testTenant + "/" + testNamespace + "/" + nonPartitionTopic2));
+        });
+
         AsyncResponse metaResponse = mock(AsyncResponse.class);
         ArgumentCaptor<PartitionedTopicMetadata> metaResponseCaptor = ArgumentCaptor.forClass(PartitionedTopicMetadata.class);
         persistentTopics.getPartitionedMetadata(metaResponse, testTenant, testNamespace, nonPartitionTopic, true, false);
+        verify(metaResponse, timeout(5000).times(1)).resume(metaResponseCaptor.capture());
         Assert.assertEquals(metaResponseCaptor.getValue().partitions, 0);
+
         metaResponse = mock(AsyncResponse.class);
         metaResponseCaptor = ArgumentCaptor.forClass(PartitionedTopicMetadata.class);
-        verify(metaResponse, timeout(5000).times(1)).resume(metaResponseCaptor.capture());
         persistentTopics.getPartitionedMetadata(metaResponse, testTenant, testNamespace, nonPartitionTopic, true, true);
+        verify(metaResponse, timeout(5000).times(1)).resume(metaResponseCaptor.capture());
         Assert.assertEquals(metaResponseCaptor.getValue().partitions, 0);
     }
 
     @Test
     public void testCreateNonPartitionedTopic() {
-        final String topicName = "standard-topic-partition-a";
+        final String topic = "standard-topic-partition-a";
+        TopicName topicName = TopicName.get(TopicDomain.persistent.value(), testTenant, testNamespace, topic);
         AsyncResponse response = mock(AsyncResponse.class);
-        persistentTopics.createNonPartitionedTopic(response, testTenant, testNamespace, topicName, true, null);
+        persistentTopics.createNonPartitionedTopic(response, testTenant, testNamespace, topic, true, null);
+        Awaitility.await().untilAsserted(() -> {
+            Assert.assertTrue(admin.topics().getList(testTenant + "/" + testNamespace).contains(topicName.toString()));
+        });
         AsyncResponse metaResponse = mock(AsyncResponse.class);
         ArgumentCaptor<PartitionedTopicMetadata> metaResponseCaptor = ArgumentCaptor.forClass(PartitionedTopicMetadata.class);
-        persistentTopics.getPartitionedMetadata(metaResponse, testTenant, testNamespace, topicName, true, false);
+        persistentTopics.getPartitionedMetadata(metaResponse, testTenant, testNamespace, topic, true, false);
         verify(metaResponse, timeout(5000).times(1)).resume(metaResponseCaptor.capture());
-        Assert.assertEquals(metaResponseCaptor.getValue(), 0);
+        Assert.assertEquals(metaResponseCaptor.getValue().partitions, 0);
 
         metaResponse = mock(AsyncResponse.class);
         metaResponseCaptor = ArgumentCaptor.forClass(PartitionedTopicMetadata.class);
         persistentTopics.getPartitionedMetadata(metaResponse,
-                testTenant, testNamespace, topicName, true, true);
+                testTenant, testNamespace, topic, true, true);
         verify(metaResponse, timeout(5000).times(1)).resume(metaResponseCaptor.capture());
         Assert.assertEquals(metaResponseCaptor.getValue().partitions, 0);
 
         response = mock(AsyncResponse.class);
         metaResponse = mock(AsyncResponse.class);
         metaResponseCaptor = ArgumentCaptor.forClass(PartitionedTopicMetadata.class);
-        final String topicName2 = "standard-topic-partition-b";
+        final String topic2 = "standard-topic-partition-b";
+        TopicName topicName2 = TopicName.get(TopicDomain.persistent.value(), testTenant, testNamespace, topic2);
         Map<String, String> topicMetadata = Maps.newHashMap();
         topicMetadata.put("key1", "value1");
-        persistentTopics.createNonPartitionedTopic(response, testTenant, testNamespace, topicName2, true, topicMetadata);
+        persistentTopics.createNonPartitionedTopic(response, testTenant, testNamespace, topic2, true, topicMetadata);
+        Awaitility.await().untilAsserted(() -> {
+            Assert.assertTrue(admin.topics().getList(testTenant + "/" + testNamespace).contains(topicName2.toString()));
+        });
         persistentTopics.getPartitionedMetadata(metaResponse,
-                testTenant, testNamespace, topicName2, true, false);
+                testTenant, testNamespace, topic2, true, false);
         verify(metaResponse, timeout(5000).times(1)).resume(metaResponseCaptor.capture());
         Assert.assertNull(metaResponseCaptor.getValue().properties);
     }
@@ -508,7 +524,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         Assert.assertTrue(errCaptor.getValue().getMessage().contains("Namespace not found"));
     }
 
-    @Test(expectedExceptions = RestException.class)
+    @Test
     public void testCreateNonPartitionedTopicWithInvalidName() {
         final String topicName = "standard-topic-partition-10";
         doAnswer(invocation -> {
