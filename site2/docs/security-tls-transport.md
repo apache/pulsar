@@ -14,15 +14,15 @@ You can also configure TLS for both encryption and authentication. Use this guid
 
 ## TLS concepts
 
-TLS is a form of [public key cryptography](https://en.wikipedia.org/wiki/Public-key_cryptography). Using key pairs consisting of a public key and a private key can perform the encryption. The public key encrpyts the messages and the private key decrypts the messages.
+TLS is a form of [public key cryptography](https://en.wikipedia.org/wiki/Public-key_cryptography). Using key pairs consisting of a public key and a private key can perform the encryption. The public key encrypts the messages and the private key decrypts the messages.
 
 To use TLS transport encryption, you need two kinds of key pairs, **server key pairs** and a **certificate authority**.
 
 You can use a third kind of key pair, **client key pairs**, for [client authentication](security-tls-authentication.md).
 
-You should store the **certificate authority** private key in a very secure location (a fully encrypted, disconnected, air gapped computer). As for the certificate authority public key, the **trust cert**, you can freely shared it.
+You should store the **certificate authority** private key in a very secure location (a fully encrypted, disconnected, air-gapped computer). As for the certificate authority public key, the **trust cert**, you can freely share it.
 
-For both client and server key pairs, the administrator first generates a private key and a certificate request, then uses the certificate authority private key to sign the certificate request, finally generates a certificate. This certificate is the public key for the server/client key pair.
+For both client and server key pairs, the administrator first generates a private key and a certificate request, then uses the certificate authority private key to sign the certificate request, and finally generates a certificate. This certificate is the public key for the server/client key pair.
 
 For TLS transport encryption, the clients can use the **trust cert** to verify that the server has a key pair that the certificate authority signed when the clients are talking to the server. A man-in-the-middle attacker does not have access to the certificate authority, so they couldn't create a server with such a key pair.
 
@@ -38,7 +38,7 @@ Follow the guide below to set up a certificate authority. You can also refer to 
 
 ### Certificate authority
 
-1. Create the certificate for the CA. You can use CA to sign both the broker and client certificates. This ensures that each party will trust the others. You should store CA in a very secure location (ideally completely disconnected from networks, air gapped, and fully encrypted).
+1. Create the certificate for the CA. You can use CA to sign both the broker and client certificates. This ensures that each party will trust the others. You should store CA in a very secure location (ideally completely disconnected from networks, air-gapped, and fully encrypted).
 
 2. Entering the following command to create a directory for your CA, and place [this openssl configuration file](https://github.com/apache/pulsar/tree/master/site2/website/static/examples/openssl.cnf) in the directory. You may want to modify the default answers for company name and department in the configuration file. Export the location of the CA directory to the environment variable, CA_HOME. The configuration file uses this environment variable to find the rest of the files and directories that the CA needs.
 
@@ -79,7 +79,7 @@ chmod 444 certs/ca.cert.pem
 
 4. After you answer the question prompts, CA-related files are stored in the `./my-ca` directory. Within that directory:
 
-* `certs/ca.cert.pem` is the public certificate. This public certificates is meant to be distributed to all parties involved.
+* `certs/ca.cert.pem` is the public certificate. This public certificate is meant to be distributed to all parties involved.
 * `private/ca.key.pem` is the private key. You only need it when you are signing a new certificate for either broker or clients and you must safely guard this private key.
 
 ### Server certificate
@@ -146,7 +146,7 @@ tlsTrustCertsFilePath=/path/to/ca.cert.pem
 > 
 ### TLS Protocol Version and Cipher
 
-You can configure the broker (and proxy) to require specific TLS protocol versions and ciphers for TLS negiotation. You can use the TLS protocol versions and ciphers to stop clients from requesting downgraded TLS protocol versions or ciphers that may have weaknesses.
+You can configure the broker (and proxy) to require specific TLS protocol versions and ciphers for TLS negotiation. You can use the TLS protocol versions and ciphers to stop clients from requesting downgraded TLS protocol versions or ciphers that may have weaknesses.
 
 Both the TLS protocol versions and cipher properties can take multiple values, separated by commas. The possible values for protocol version and ciphers depend on the TLS provider that you are using. Pulsar uses OpenSSL if the OpenSSL is available, but if the OpenSSL is not available, Pulsar defaults back to the JDK implementation.
 
@@ -155,7 +155,7 @@ tlsProtocols=TLSv1.3,TLSv1.2
 tlsCiphers=TLS_DH_RSA_WITH_AES_256_GCM_SHA384,TLS_DH_RSA_WITH_AES_256_CBC_SHA
 ```
 
-OpenSSL currently supports ```TLSv1.1```, ```TLSv1.2``` and ```TLSv1.3``` for the protocol version. You can acquire a list of supported cipher from the openssl ciphers command, i.e. ```openssl ciphers -tls1_3```.
+OpenSSL currently supports ```TLSv1.1```, ```TLSv1.2``` and ```TLSv1.3``` for the protocol version. You can acquire a list of supported ciphers from the openssl ciphers command, i.e. ```openssl ciphers -tls1_3```.
 
 For JDK 11, you can obtain a list of supported values from the documentation:
 - [TLS protocol](https://docs.oracle.com/en/java/javase/11/security/oracle-providers.html#GUID-7093246A-31A3-4304-AC5F-5FB6400405E2__SUNJSSEPROVIDERPROTOCOLPARAMETERS-BBF75009)
@@ -181,7 +181,7 @@ brokerClientTrustCertsFilePath=/path/to/ca.cert.pem
 
 When you enable the TLS transport encryption, you need to configure the client to use ```https://``` and port 8443 for the web service URL, and ```pulsar+ssl://``` and port 6651 for the broker service URL.
 
-As the server certificate that you generated above does not belong to any of the default trust chains, you also need to either specify the path the **trust cert** (recommended), or tell the client to allow untrusted server certs.
+As the server certificate that you generated above does not belong to any of the default trust chains, you also need to either specify the path of the **trust cert** (recommended), or tell the client to allow untrusted server certs.
 
 ### Hostname verification
 
@@ -273,3 +273,49 @@ var client = PulsarClient.Builder()
                          .Build();
 ```
 > Note that `VerifyCertificateName` refers to the configuration of hostname verification in the C# client.
+
+#### WebSocket API
+
+
+```python
+import websockets
+import asyncio
+import base64
+import json
+import ssl
+
+ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+client_pem = pathlib.PATH(__file__).with_name("pulsar_client.pem")
+ssl_context.load_verify_locations(client_pem)
+
+# websocket producer uri wss, not ws
+uri = "wss://localhost:8080/ws/v2/producer/persistent/public/default/testtopic"
+
+# encode message
+s = "Hello World"
+firstEncoded = s.encode("UTF-8")
+binaryEncoded = base64.b64encode(firstEncoded)
+payloadString = binaryEncoded.decode('UTF-8')
+
+async def producer_handler(websocket):
+    await websocket.send(json.dumps({
+            'payload' : payloadString,
+            'properties': {
+                'key1' : 'value1',
+                'key2' : 'value2'
+            },
+            'context' : 5
+        }))
+
+async def test():
+    async with websockets.connect(uri) as websocket:
+        await producer_handler(websocket)
+        message = await websocket.recv()
+        print(f"< {message}")
+
+asyncio.run(test())
+```
+
+> **Note**
+>
+> In addition to the [required configurations](#cli-tools) in the `conf/client.conf` file, you need to configure more parameters in the `conf/broker.conf` file to enable TLS encryption on WebSocket service. For more details, see [security settings for WebSocket](client-libraries-websocket.md/#security-settings).

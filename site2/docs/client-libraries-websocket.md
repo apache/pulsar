@@ -44,7 +44,7 @@ clusterName=my-cluster
 
 ### Security settings
 
-To enable TLS encryption on WebSocket service:
+To enable TLS encryption on WebSocket service, configure the following parameters in the `conf/broker.conf` file.
 ```properties
 tlsEnabled=true
 tlsAllowInsecureConnection=false
@@ -71,7 +71,7 @@ All exchanges via the WebSocket API use JSON.
 
 #### Browser javascript WebSocket client
 
-Use the query param `token` transport the authentication token.
+Use the query param `token` to transport the authentication token.
 
 ```http
 ws://broker-service-url:8080/path?token=token
@@ -170,9 +170,9 @@ Key | Type | Required? | Explanation
 `negativeAckRedeliveryDelay` | int | no | When a message is negatively acknowledged, the delay time before the message is redelivered (in milliseconds). The default value is 60000.
 `token` | string | no | Authentication token, this is used for the browser javascript client
 
-NB: these parameter (except `pullMode`) apply to the internal consumer of the WebSocket service.
-So messages will be subject to the redelivery settings as soon as the get into the receive queue,
-even if the client doesn't consume on the WebSocket.
+> **Note**
+>
+> These parameters (except `pullMode`) apply to the internal consumer of the WebSocket service. So messages are subject to the redelivery settings as soon as they get into the receive queue, even if the client doesn't consume on the WebSocket.
 
 ##### Receiving messages
 
@@ -267,7 +267,7 @@ Key | Type | Required? | Explanation
 
 By default (`pullMode=false`), the consumer endpoint will use the `receiverQueueSize` parameter both to size its
 internal receive queue and to limit the number of unacknowledged messages that are passed to the WebSocket client.
-In this mode, if you don't send acknowledgements, the Pulsar WebSocket service will stop sending messages after reaching
+In this mode, if you don't send acknowledgments, the Pulsar WebSocket service will stop sending messages after reaching
 `receiverQueueSize` unacked messages sent to the WebSocket client.
 
 ##### Pull Mode
@@ -287,11 +287,13 @@ Key | Type | Required? | Explanation
 `type`| string | yes | Type of command. Must be `permit`
 `permitMessages`| int | yes | Number of messages to permit
 
-NB: in this mode it's possible to acknowledge messages in a different connection.
+> **Note**
+>
+> In this mode, it's possible to acknowledge messages in a different connection.
 
 #### Check if reach end of topic
 
-Consumer can check if it has reached end of topic by sending `isEndOfTopic` request.
+Consumer can check if it has reached the end of a topic by sending `isEndOfTopic` request.
 
 **Request**
 ```json
@@ -353,9 +355,8 @@ Key | Type | Required? | Explanation
 
 #### Acknowledging the message
 
-**In WebSocket**, Reader needs to acknowledge the successful processing of the message to
-have the Pulsar WebSocket service update the number of pending messages.
-If you don't send acknowledgements, Pulsar WebSocket service will stop sending messages after reaching the pendingMessages limit.
+**In WebSocket**, Reader needs to acknowledge the successful processing of the message to have the Pulsar WebSocket service update the number of pending messages.
+If you don't send acknowledgments, Pulsar WebSocket service will stop sending messages after reaching the `maxPendingMessages` limit.
 
 ```json
 {
