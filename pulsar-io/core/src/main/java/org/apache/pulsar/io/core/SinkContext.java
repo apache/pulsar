@@ -48,7 +48,8 @@ public interface SinkContext extends BaseContext {
     Collection<String> getInputTopics();
 
     /**
-     * Get sink config at startup
+     * Get sink config at startup.
+     *
      * @return sink config
      */
     SinkConfig getSinkConfig();
