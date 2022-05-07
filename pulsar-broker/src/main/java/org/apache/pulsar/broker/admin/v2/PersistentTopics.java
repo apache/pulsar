@@ -20,11 +20,15 @@ package org.apache.pulsar.broker.admin.v2;
 
 import static org.apache.pulsar.common.util.Codec.decode;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.type.MapType;
+import com.fasterxml.jackson.databind.type.TypeFactory;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
+
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -71,6 +75,7 @@ import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.policies.data.impl.BacklogQuotaImpl;
 import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 import org.apache.pulsar.common.util.Codec;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -1465,7 +1470,9 @@ public class PersistentTopics extends PersistentTopicsBase {
             )
                     ResetCursorData resetCursorData,
             @ApiParam(value = "Is replicated required to perform this operation")
-            @QueryParam("replicated") boolean replicated
+            @QueryParam("replicated") boolean replicated,
+            @ApiParam(value = "JSON encoded list of properties for the Subscription")
+            @QueryParam("properties") String properties
     ) {
         try {
             validateTopicName(tenant, namespace, topic);
@@ -1476,7 +1483,15 @@ public class PersistentTopics extends PersistentTopicsBase {
             MessageIdImpl messageId = resetCursorData == null ? null :
                     new MessageIdImpl(resetCursorData.getLedgerId(), resetCursorData.getEntryId(),
                             resetCursorData.getPartitionIndex());
-            internalCreateSubscription(asyncResponse, decode(encodedSubName), messageId, authoritative, replicated);
+            Map<String, String> subscriptionProperties = null;
+
+            if (properties != null && !properties.isEmpty()) {
+                TypeFactory factory = TypeFactory.defaultInstance();
+                MapType type = factory.constructMapType(HashMap.class, String.class, String.class);
+                subscriptionProperties = ObjectMapperFactory.getThreadLocal().readValue(properties, type);
+            }
+            internalCreateSubscription(asyncResponse, decode(encodedSubName), messageId, authoritative,
+                    replicated, subscriptionProperties);
         } catch (WebApplicationException wae) {
             asyncResponse.resume(wae);
         } catch (Exception e) {

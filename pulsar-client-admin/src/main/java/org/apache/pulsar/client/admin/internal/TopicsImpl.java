@@ -19,6 +19,8 @@
 package org.apache.pulsar.client.admin.internal;
 
 import static com.google.common.base.Preconditions.checkArgument;
+
+import com.fasterxml.jackson.core.JacksonException;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import java.io.InputStream;
@@ -42,6 +44,9 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
+
+import io.netty.handler.codec.http.QueryStringDecoder;
+import io.netty.handler.codec.http.QueryStringEncoder;
 import org.apache.pulsar.client.admin.GetStatsOptions;
 import org.apache.pulsar.client.admin.ListTopicsOptions;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
@@ -90,6 +95,8 @@ import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.DateFormatter;
+import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -1131,18 +1138,27 @@ public class TopicsImpl extends BaseResource implements Topics {
 
 
     @Override
-    public void createSubscription(String topic, String subscriptionName, MessageId messageId, boolean replicated)
+    public void createSubscription(String topic, String subscriptionName, MessageId messageId, boolean replicated,
+                                   Map<String, String> properties)
             throws PulsarAdminException {
-        sync(() -> createSubscriptionAsync(topic, subscriptionName, messageId, replicated));
+        sync(() -> createSubscriptionAsync(topic, subscriptionName, messageId, replicated, properties));
     }
 
     @Override
     public CompletableFuture<Void> createSubscriptionAsync(String topic, String subscriptionName,
-            MessageId messageId, boolean replicated) {
+            MessageId messageId, boolean replicated, Map<String, String> properties) {
         TopicName tn = validateTopic(topic);
         String encodedSubName = Codec.encode(subscriptionName);
         WebTarget path = topicPath(tn, "subscription", encodedSubName);
         path = path.queryParam("replicated", replicated);
+        if (properties != null && !properties.isEmpty()) {
+            try {
+                path = path.queryParam("properties",
+                        ObjectMapperFactory.getThreadLocal().writeValueAsString(properties));
+            } catch (JacksonException err) {
+                return FutureUtil.failedFuture(err);
+            }
+        }
         return asyncPutRequest(path, Entity.entity(messageId, MediaType.APPLICATION_JSON));
     }
 

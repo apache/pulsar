@@ -27,7 +27,10 @@ import com.google.gson.GsonBuilder;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
+
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
@@ -508,6 +511,9 @@ public class CmdPersistentTopics extends CmdBase {
                 + "It can be either 'latest', 'earliest' or (ledgerId:entryId)", required = false)
         private String messageIdStr = "latest";
 
+        @Parameter(names = {"--properties", "-p"}, description = "key value pair properties(a=a,b=b,c=c)")
+        private java.util.List<String> properties;
+
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
@@ -519,8 +525,23 @@ public class CmdPersistentTopics extends CmdBase {
             } else {
                 messageId = validateMessageIdString(messageIdStr);
             }
-
-            getPersistentTopics().createSubscription(persistentTopic, subscriptionName, messageId);
+            Map<String, String> map = new HashMap<>();
+            if (properties != null) {
+                for (String property : properties) {
+                    if (!property.contains("=")) {
+                        throw new ParameterException(String.format("Invalid key value pair '%s', "
+                                + "valid format like 'a=a,b=b,c=c'.", property));
+                    } else {
+                        String[] keyValue = property.split("=");
+                        if (keyValue.length != 2) {
+                            throw new ParameterException(String.format("Invalid key value pair '%s', "
+                                    + "valid format like 'a=a,b=b,c=c'.", property));
+                        }
+                        map.put(keyValue[0], keyValue[1]);
+                    }
+                }
+            }
+            getPersistentTopics().createSubscription(persistentTopic, subscriptionName, messageId, map);
         }
     }
 
