@@ -117,7 +117,7 @@ public class MultiRolesTokenAuthorizationProvider extends PulsarAuthorizationPro
                 if (list != null) {
                     return list;
                 }
-            } catch (RequiredTypeException ignore) {
+            } catch (RequiredTypeException requiredTypeException1) {
                 return Collections.emptyList();
             }
         }
