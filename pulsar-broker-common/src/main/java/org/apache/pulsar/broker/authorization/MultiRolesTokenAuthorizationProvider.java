@@ -110,15 +110,18 @@ public class MultiRolesTokenAuthorizationProvider extends PulsarAuthorizationPro
 
         Jwt<?, Claims> jwt = parser.parseClaimsJwt(unsignedToken);
         try {
-            return Collections.singletonList(jwt.getBody().get(roleClaim, String.class));
+            Collections.singletonList(jwt.getBody().get(roleClaim, String.class));
         } catch (RequiredTypeException requiredTypeException) {
             try {
                 List list = jwt.getBody().get(roleClaim, List.class);
                 if (list != null) {
                     return list;
                 }
-            } catch (RequiredTypeException ignore) {}
+            } catch (RequiredTypeException ignore) {
+                return Collections.emptyList();
+            }
         }
+
         return Collections.emptyList();
     }
 

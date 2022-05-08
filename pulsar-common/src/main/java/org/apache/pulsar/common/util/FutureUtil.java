@@ -57,10 +57,22 @@ public class FutureUtil {
         return CompletableFuture.anyOf(futures.toArray(new CompletableFuture[0]));
     }
 
+    /**
+     * Return a future that represents the completion of any future that match the predicate in the provided Collection.
+     *
+     * @param futures futures to wait any
+     * @param tester if any future match the predicate
+     * @return a new CompletableFuture that is completed when any of the given CompletableFutures match the tester
+     */
     public static CompletableFuture<Optional<Object>> waitForAny(Collection<? extends CompletableFuture<?>> futures,
                                                        Predicate<Object> tester) {
         return waitForAny(futures).thenCompose(v -> {
             if (tester.test(v)) {
+                futures.forEach(f -> {
+                    if (!f.isDone()) {
+                        f.cancel(true);
+                    }
+                });
                 return CompletableFuture.completedFuture(Optional.of(v));
             }
             Collection<CompletableFuture<?>> doneFutures = futures.stream()

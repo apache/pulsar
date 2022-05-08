@@ -159,6 +159,13 @@ public class FutureUtilTest {
         f6.complete("6");
         ret = FutureUtil.waitForAny(Lists.newArrayList(f5, f6), p -> p.equals("3"));
         assertFalse(ret.join().isPresent());
+        // test one complete, others are cancelled.
+        CompletableFuture<String> f55 = new CompletableFuture<>();
+        CompletableFuture<String> f66 = new CompletableFuture<>();
+        f55.complete("55");
+        ret = FutureUtil.waitForAny(Lists.newArrayList(f55, f66), p -> p.equals("55"));
+        assertTrue(ret.join().isPresent());
+        assertTrue(f66.isCancelled());
         // test with exception
         CompletableFuture<String> f7 = new CompletableFuture<>();
         CompletableFuture<String> f8 = new CompletableFuture<>();
