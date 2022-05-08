@@ -71,7 +71,6 @@ public abstract class CassandraAbstractSink<K, V> implements Sink<byte[]> {
 
     @Override
     public void write(Record<byte[]> record) {
-        Optional<Message<byte[]>> message = record.getMessage();
         KeyValue<K, V> keyValue = extractKeyValue(record);
         BoundStatement bound = statement.bind(keyValue.getKey(), keyValue.getValue());
         ResultSetFuture future = session.executeAsync(bound);
