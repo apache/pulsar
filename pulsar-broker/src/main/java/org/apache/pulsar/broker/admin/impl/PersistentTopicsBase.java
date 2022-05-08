@@ -392,7 +392,7 @@ public class PersistentTopicsBase extends AdminResource {
                                                      Map<String, String> properties) {
         CompletableFuture<Void> ret = validateNonPartitionTopicNameAsync(topicName.getLocalName());
         if (topicName.isGlobal()) {
-            ret.thenCompose(__ -> validateGlobalNamespaceOwnershipAsync(namespaceName));
+            ret = ret.thenCompose(__ -> validateGlobalNamespaceOwnershipAsync(namespaceName));
         }
         return ret.thenCompose(__ -> validateTopicOwnershipAsync(topicName, authoritative))
            .thenCompose(__ -> validateNamespaceOperationAsync(topicName.getNamespaceObject(),
