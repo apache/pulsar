@@ -29,6 +29,7 @@ import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
 import org.apache.pulsar.client.impl.schema.KeyValueSchemaImpl;
 import org.apache.pulsar.functions.api.KVRecord;
 import org.apache.pulsar.functions.api.Record;
+import org.apache.pulsar.functions.source.PulsarRecord;
 
 @Slf4j
 @Data
@@ -80,6 +81,20 @@ public class SinkRecord<T> implements Record<T> {
     @Override
     public void ack() {
         sourceRecord.ack();
+    }
+
+    /**
+     * Some sink sometimes wants to control the ack type.
+     *
+     * @param cumulative
+     */
+    public void ack(boolean cumulative) {
+        if (sourceRecord instanceof PulsarRecord) {
+            PulsarRecord pulsarRecord = (PulsarRecord) sourceRecord;
+            pulsarRecord.ack(cumulative);
+        } else {
+            throw new RuntimeException("SourceRecord class type must equals PulsarRecord");
+        }
     }
 
     @Override

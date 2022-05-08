@@ -20,6 +20,7 @@ package org.apache.pulsar.functions.source;
 
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Consumer;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -44,6 +45,7 @@ public class PulsarRecord<T> implements RecordWithEncryptionContext<T> {
 
     private final Runnable failFunction;
     private final Runnable ackFunction;
+    private final Consumer<Boolean> customAckFunction;
 
     @Override
     public Optional<String> getKey() {
@@ -93,6 +95,15 @@ public class PulsarRecord<T> implements RecordWithEncryptionContext<T> {
         }
     }
 
+    /**
+     * Some sink sometimes wants to control the ack type.
+     *
+     * @param cumulative
+     */
+    public void ack(boolean cumulative) {
+        this.customAckFunction.accept(cumulative);
+    }
+
     @Override
     public Optional<EncryptionContext> getEncryptionCtx() {
         return message.getEncryptionCtx();
@@ -121,4 +132,5 @@ public class PulsarRecord<T> implements RecordWithEncryptionContext<T> {
     public Optional<Message<T>> getMessage() {
         return Optional.of(message);
     }
+
 }

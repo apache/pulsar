@@ -132,6 +132,17 @@ public abstract class PulsarSource<T> implements Source<T> {
                 .message(message)
                 .schema(schema)
                 .topicName(message.getTopicName())
+                .customAckFunction(cumulative -> {
+                    try {
+                        if (cumulative) {
+                            consumer.acknowledgeCumulativeAsync(message);
+                        } else {
+                            consumer.acknowledgeAsync(message);
+                        }
+                    } finally {
+                        message.release();
+                    }
+                })
                 .ackFunction(() -> {
                     try {
                         if (pulsarSourceConfig
