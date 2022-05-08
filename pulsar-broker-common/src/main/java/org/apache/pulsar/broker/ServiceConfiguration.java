@@ -49,6 +49,7 @@ import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.sasl.SaslConstants;
+import org.apache.pulsar.common.util.DirectMemoryUtils;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 
 /**
@@ -1166,7 +1167,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + " It's shared across all the topics running in the same broker.\n\n"
             + " Use -1 to disable the memory limitation. Default is 1/2 of direct memory.\n\n")
     private int maxMessagePublishBufferSizeInMB = Math.max(64,
-        (int) (io.netty.util.internal.PlatformDependent.estimateMaxDirectMemory() / 2 / (1024 * 1024)));
+        (int) (DirectMemoryUtils.JVM_MAX_DIRECT_MEMORY / 2 / (1024 * 1024)));
 
     @FieldContext(
         category = CATEGORY_SERVER,

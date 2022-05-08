@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar;
 
-// CHECKSTYLE.OFF: IllegalImport
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 import static org.apache.commons.lang3.StringUtils.isBlank;
@@ -29,7 +28,6 @@ import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
 import com.google.common.annotations.VisibleForTesting;
-import io.netty.util.internal.PlatformDependent;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStream;
@@ -58,13 +56,13 @@ import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.naming.NamespaceBundleSplitAlgorithm;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.CmdGenerateDocs;
+import org.apache.pulsar.common.util.DirectMemoryUtils;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.service.WorkerServiceLoader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.bridge.SLF4JBridgeHandler;
-// CHECKSTYLE.ON: IllegalImport
 
 public class PulsarBrokerStarter {
 
@@ -175,7 +173,7 @@ public class PulsarBrokerStarter {
             }
 
             int maxFrameSize = brokerConfig.getMaxMessageSize() + Commands.MESSAGE_SIZE_FRAME_PADDING;
-            if (maxFrameSize >= PlatformDependent.estimateMaxDirectMemory()) {
+            if (maxFrameSize >= DirectMemoryUtils.JVM_MAX_DIRECT_MEMORY) {
                 throw new IllegalArgumentException("Max message size need smaller than jvm directMemory");
             }
 

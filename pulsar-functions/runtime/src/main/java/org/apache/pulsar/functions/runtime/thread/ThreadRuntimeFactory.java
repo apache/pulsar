@@ -27,6 +27,7 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.common.util.DirectMemoryUtils;
 import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.functions.auth.FunctionAuthProvider;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
@@ -145,7 +146,7 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
     }
 
     private long getBytesPercentDirectMem(double percent) {
-        return (long) (io.netty.util.internal.PlatformDependent.estimateMaxDirectMemory() * (percent / 100));
+        return (long) (DirectMemoryUtils.JVM_MAX_DIRECT_MEMORY * (percent / 100));
     }
 
 
