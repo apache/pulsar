@@ -58,7 +58,7 @@ public class MultiRolesTokenAuthorizationProvider extends PulsarAuthorizationPro
     // The token's claim that corresponds to the "role" string
     static final String CONF_TOKEN_AUTH_CLAIM = "tokenAuthClaim";
 
-    private JwtParser parser;
+    private final JwtParser parser;
     private String roleClaim;
 
     public MultiRolesTokenAuthorizationProvider() {
@@ -106,11 +106,15 @@ public class MultiRolesTokenAuthorizationProvider extends PulsarAuthorizationPro
             return Collections.emptyList();
 
         String[] splitToken = token.split("\\.");
+        if (splitToken.length < 2) {
+            log.warn("Unable to extract additional roles from JWT token");
+            return Collections.emptyList();
+        }
         String unsignedToken = splitToken[0] + "." + splitToken[1] + ".";
 
         Jwt<?, Claims> jwt = parser.parseClaimsJwt(unsignedToken);
         try {
-            Collections.singletonList(jwt.getBody().get(roleClaim, String.class));
+            return Collections.singletonList(jwt.getBody().get(roleClaim, String.class));
         } catch (RequiredTypeException requiredTypeException) {
             try {
                 List list = jwt.getBody().get(roleClaim, List.class);
