@@ -318,7 +318,7 @@ public class ClustersBase extends AdminResource {
                 .thenAccept(clusterOpt -> {
                     ClusterData clusterData =
                             clusterOpt.orElseThrow(() -> new RestException(Status.NOT_FOUND, "Cluster does not exist"));
-                    asyncResponse.resume(clusterData);
+                    asyncResponse.resume(clusterData.getPeerClusterNames());
                 }).exceptionally(ex -> {
                     log.error("[{}] Failed to get cluster {}", clientAppId(), cluster, ex);
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
