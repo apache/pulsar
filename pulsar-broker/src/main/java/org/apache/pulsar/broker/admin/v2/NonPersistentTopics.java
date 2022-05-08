@@ -378,7 +378,9 @@ public class NonPersistentTopics extends PersistentTopics {
             @ApiParam(value = "Specify the namespace", required = true)
             @PathParam("namespace") String namespace,
             @ApiParam(value = "Specify the bundle name", required = false)
-            @QueryParam("bundle") String nsBundle) {
+            @QueryParam("bundle") String nsBundle,
+            @ApiParam(value = "Include system topic")
+            @QueryParam("includeSystemTopic") boolean includeSystemTopic) {
         Policies policies = null;
         try {
             validateNamespaceName(tenant, namespace);
@@ -430,7 +432,7 @@ public class NonPersistentTopics extends PersistentTopics {
                         topics.stream()
                                 .filter(name -> !TopicName.get(name).isPersistent())
                                 .collect(Collectors.toList());
-                asyncResponse.resume(nonPersistentTopics);
+                asyncResponse.resume(filterSystemTopic(nonPersistentTopics, includeSystemTopic));
             }
         });
     }

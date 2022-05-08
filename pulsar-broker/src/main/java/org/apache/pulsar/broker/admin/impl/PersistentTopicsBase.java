@@ -4990,4 +4990,10 @@ public class PersistentTopicsBase extends AdminResource {
                                     .updateTopicPoliciesAsync(topicName, topicPolicies);
                         }));
     }
+
+    protected List<String> filterSystemTopic(List<String> topics, boolean includeSystemTopic) {
+        return topics.stream()
+                .filter(topic -> includeSystemTopic ? true : !pulsar().getBrokerService().isSystemTopic(topic))
+                .collect(Collectors.toList());
+    }
 }
