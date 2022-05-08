@@ -7426,6 +7426,11 @@
 <td>null</td>
 </tr>
 <tr>
+<td><code>-ist, --include-system-topic</code></td>
+<td>Include system topic</td>
+<td>false</td>
+</tr>
+<tr>
 <td><code>-td, --topic-domain</code></td>
 <td>Allowed topic domain (persistent, non_persistent).</td>
 <td>null</td>
@@ -7438,6 +7443,23 @@
 <hr>
 <pre class="code-block example"><code class="lang-shell">$ <span class="hljs-string">pulsar-admin </span><span class="hljs-string">topics </span><span class="hljs-built_in">list-partitioned-topics</span> <span class="hljs-string">options</span>
 </code></pre>
+<p>Options</p>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-ist, --include-system-topic</code></td>
+<td>Include system topic</td>
+<td>false</td>
+</tr>
+</tbody>
+</table>
 <h2 id="-em-permissions-em--57"><em>permissions</em></h2>
 <p>Get the permissions on a topic. Retrieve the effective permissions for a topic. These permissions are defined by the permissions set at the namespace level combined (union) with any eventual specific permission set on the topic.</p>
 <h3 id="usage">Usage</h3>

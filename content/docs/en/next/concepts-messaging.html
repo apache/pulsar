@@ -85,7 +85,7 @@
 </thead>
 <tbody>
 <tr><td style="text-align:left">Value / data payload</td><td style="text-align:left">The data carried by the message. All Pulsar messages contain raw bytes, although message data can also conform to data <a href="/docs/en/next/schema-get-started">schemas</a>.</td></tr>
-<tr><td style="text-align:left">Key</td><td style="text-align:left">Messages are optionally tagged with keys, which is useful for things like <a href="/docs/en/next/concepts-topic-compaction">topic compaction</a>.</td></tr>
+<tr><td style="text-align:left">Key</td><td style="text-align:left">The key (string type) of the message. It is a short name of message key or partition key. Messages are optionally tagged with keys, which is useful for features like <a href="/docs/en/next/concepts-topic-compaction">topic compaction</a>.</td></tr>
 <tr><td style="text-align:left">Properties</td><td style="text-align:left">An optional key/value map of user-defined properties.</td></tr>
 <tr><td style="text-align:left">Producer name</td><td style="text-align:left">The name of the producer who produces the message. If you do not specify a producer name, the default name is used.</td></tr>
 <tr><td style="text-align:left">Topic name</td><td style="text-align:left">The name of the topic that the message is published to.</td></tr>
