@@ -65,7 +65,7 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
     }
 
     public BatchMessageContainerImpl(ProducerImpl<?> producer) {
-        super();
+        this();
         setProducer(producer);
     }
 
