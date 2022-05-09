@@ -24,6 +24,8 @@ set -e
 set -o pipefail
 set -o errexit
 
+JAVA_MAJOR_VERSION="$(java -version 2>&1 |grep " version " | awk -F\" '{ print $2 }' | awk -F. '{ if ($1=="1") { print $2 } else { print $1 } }')"
+
 # lists all active maven modules with given parameters
 # parses the modules from the "mvn initialize" output
 # returns a CSV value
@@ -95,7 +97,13 @@ test_group_shade_build() {
 }
 
 test_group_shade_run() {
-  mvn_run_integration_test --skip-build-deps "$@" -Denforcer.skip=true -DShadeTests -DtestForkCount=1 -DtestReuseFork=false -Dmaven.compiler.source=8 -Dmaven.compiler.target=8
+  local additional_args
+  if [[ $JAVA_MAJOR_VERSION == "8" ]]; then
+    additional_args="-Dmaven.compiler.source=8 -Dmaven.compiler.target=8 -Dmaven.compiler.release= -Dtest.additional.args="
+  elif [[ $JAVA_MAJOR_VERSION -lt 17 ]]; then
+    additional_args="-Dmaven.compiler.source=$JAVA_MAJOR_VERSION -Dmaven.compiler.target=$JAVA_MAJOR_VERSION"
+  fi
+  mvn_run_integration_test --skip-build-deps "$@" -Denforcer.skip=true -DShadeTests -DtestForkCount=1 -DtestReuseFork=false $additional_args
 }
 
 test_group_backwards_compat() {
