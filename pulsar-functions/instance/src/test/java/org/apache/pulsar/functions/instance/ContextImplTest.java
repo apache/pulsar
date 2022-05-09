@@ -80,7 +80,7 @@ public class ContextImplTest {
     private ContextImpl context;
     private Producer producer = mock(Producer.class);
 
-    @BeforeMethod
+    @BeforeMethod(alwaysRun = true)
     public void setup() throws PulsarClientException {
         config = new InstanceConfig();
         config.setExposePulsarAdminClientEnabled(true);

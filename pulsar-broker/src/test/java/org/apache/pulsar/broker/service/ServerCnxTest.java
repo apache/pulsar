@@ -148,7 +148,7 @@ public class ServerCnxTest {
     private OrderedExecutor executor;
     private EventLoopGroup eventLoopGroup;
 
-    @BeforeMethod
+    @BeforeMethod(alwaysRun = true)
     public void setup() throws Exception {
         eventLoopGroup = new NioEventLoopGroup();
         executor = OrderedExecutor.newBuilder().numThreads(1).build();
@@ -206,8 +206,12 @@ public class ServerCnxTest {
 
     @AfterMethod(alwaysRun = true)
     public void teardown() throws Exception {
-        serverCnx.close();
-        channel.close();
+        if (serverCnx != null) {
+            serverCnx.close();
+        }
+        if (channel != null) {
+            channel.close();
+        }
         pulsar.close();
         brokerService.close();
         executor.shutdownNow();

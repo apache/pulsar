@@ -67,7 +67,7 @@ public class PartitionedProducerImplTest {
     private ProducerInterceptors producerInterceptors;
     private CompletableFuture<Producer> producerCreatedFuture;
 
-    @BeforeTest
+    @BeforeTest(alwaysRun = true)
     public void setup() {
         client = mock(PulsarClientImpl.class);
         schema = mock(Schema.class);

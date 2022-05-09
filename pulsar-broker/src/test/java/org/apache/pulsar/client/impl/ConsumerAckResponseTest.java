@@ -44,7 +44,7 @@ public class ConsumerAckResponseTest extends ProducerConsumerBase {
 
     private static final TransactionImpl transaction = mock(TransactionImpl.class);
 
-    @BeforeClass
+    @BeforeClass(alwaysRun = true)
     public void setup() throws Exception {
         super.internalSetup();
         super.producerBaseSetup();
