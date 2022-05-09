@@ -34,7 +34,7 @@ public enum ProducerAccessMode {
     Exclusive,
 
     /**
-     * Require exclusive access for producer. Fence out the old producer.
+     * Acquire exclusive access for the producer. Any existing producer will be immediately.
      */
     ExclusiveWithFencing,
 
