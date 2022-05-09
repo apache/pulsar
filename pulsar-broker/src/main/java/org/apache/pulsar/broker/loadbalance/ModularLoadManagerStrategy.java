@@ -63,8 +63,9 @@ public interface ModularLoadManagerStrategy {
             if (loadManagerStrategyInstance instanceof ModularLoadManagerStrategy) {
                 return (ModularLoadManagerStrategy) loadManagerStrategyInstance;
             } else {
-                LOG.error("create load manager strategy failed. using LeastLongTermMessageRate instead.");
-                return new LeastLongTermMessageRate();
+                LOG.error("Create load manager strategy failed.");
+                throw new IllegalArgumentException("Invalid load balancer load manager strategy: "
+                        + conf.getLoadBalancerLoadManagerStrategy());
             }
         } catch (Exception e) {
             LOG.error("Error when trying to create load manager strategy: ", e);
