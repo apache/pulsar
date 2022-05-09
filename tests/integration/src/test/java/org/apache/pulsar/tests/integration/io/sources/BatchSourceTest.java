@@ -55,7 +55,7 @@ public class BatchSourceTest extends PulsarStandaloneTestSuite {
     private static final String BATCH_CONFIG = "{\"discoveryTriggererConfig\": {\"__CRON__\": \"* * * * * *\"}, " +
             "\"discoveryTriggererClassName\": \"org.apache.pulsar.io.batchdiscovery.CronTriggerer\"}";
 
-    @Test(groups = {"source"})
+    @Test(enabled = false, groups = {"source"})
     public void testGenericRecordSource() throws Exception {
         String outputTopicName = "test-state-source-output-" + randomName(8);
         String sourceName = "test-state-source-" + randomName(8);
