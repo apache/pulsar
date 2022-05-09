@@ -65,7 +65,10 @@ DISABLE_COLOR_OUTPUT=""
 if [ "$GTEST_COLOR" = "no" ]; then
   DISABLE_COLOR_OUTPUT="| cat"
 fi
-$DOCKER_CMD bash -c "set -o pipefail; cd /pulsar/pulsar-client-cpp && ./run-unit-tests.sh ${tests} $DISABLE_COLOR_OUTPUT"
+
+# Java17 is required for CLI e.g) bin/pulsar create-token
+$DOCKER_CMD bash -c "apt-get -y install openjdk-17-jre-headless &&\
+ set -o pipefail; cd /pulsar/pulsar-client-cpp && ./run-unit-tests.sh ${tests} $DISABLE_COLOR_OUTPUT"
 RES=$?
 if [ $RES -ne 0 ]; then
   (
