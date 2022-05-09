@@ -23,6 +23,8 @@ import com.fasterxml.jackson.core.JacksonException;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import java.io.InputStream;
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collections;
@@ -1150,8 +1152,9 @@ public class TopicsImpl extends BaseResource implements Topics {
         if (properties != null && !properties.isEmpty()) {
             try {
                 path = path.queryParam("properties",
-                        ObjectMapperFactory.getThreadLocal().writeValueAsString(properties));
-            } catch (JacksonException err) {
+                        URLEncoder.encode(ObjectMapperFactory.getThreadLocal().writeValueAsString(properties), "UTF-8")
+                );
+            } catch (JacksonException | UnsupportedEncodingException err) {
                 return FutureUtil.failedFuture(err);
             }
         }

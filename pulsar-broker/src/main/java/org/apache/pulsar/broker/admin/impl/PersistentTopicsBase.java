@@ -2136,8 +2136,8 @@ public class PersistentTopicsBase extends AdminResource {
         }
         ret.thenAccept(__ -> {
             final MessageIdImpl targetMessageId = messageId == null ? (MessageIdImpl) MessageId.latest : messageId;
-            log.info("[{}][{}] Creating subscription {} at message id {}", clientAppId(), topicName, subscriptionName,
-                    targetMessageId);
+            log.info("[{}][{}] Creating subscription {} at message id {} with properties {}", clientAppId(),
+                    topicName, subscriptionName, targetMessageId, properties);
             // If the topic name is a partition name, no need to get partition topic metadata again
             if (topicName.isPartitioned()) {
                 internalCreateSubscriptionForNonPartitionedTopic(asyncResponse,
