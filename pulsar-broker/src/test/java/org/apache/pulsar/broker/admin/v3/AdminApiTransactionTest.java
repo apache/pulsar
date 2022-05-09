@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.admin.v3;
 
 import com.google.common.collect.Sets;
+import java.util.Set;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.http.HttpStatus;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -60,6 +61,9 @@ import org.testng.annotations.Test;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
@@ -518,6 +522,49 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
             admin.transactions().getCoordinatorInternalStats(1, false);
         } catch (PulsarAdminException ex) {
             assertEquals(ex.getStatusCode(), HttpStatus.SC_SERVICE_UNAVAILABLE);
+        }
+        try {
+            admin.transactions().scaleTransactionCoordinators(1);
+        } catch (PulsarAdminException ex) {
+            assertEquals(ex.getStatusCode(), HttpStatus.SC_SERVICE_UNAVAILABLE);
+        }
+    }
+
+    @Test
+    public void testUpdateTransactionCoordinatorNumber() throws Exception {
+        int coordinatorSize = 3;
+        pulsar.getPulsarResources()
+                .getNamespaceResources()
+                .getPartitionedTopicResources()
+                .createPartitionedTopic(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN,
+                        new PartitionedTopicMetadata(coordinatorSize));
+        try {
+            admin.transactions().scaleTransactionCoordinators(coordinatorSize - 1);
+            fail();
+        } catch (PulsarAdminException pulsarAdminException) {
+            assertEquals(pulsarAdminException.getStatusCode(), HttpStatus.SC_NOT_ACCEPTABLE);
+        }
+        try {
+            admin.transactions().scaleTransactionCoordinators(-1);
+            fail();
+        } catch (PulsarAdminException pulsarAdminException) {
+            assertEquals(pulsarAdminException.getCause().getMessage(),
+                    "Number of transaction coordinators must be more than 0");
+        }
+
+        admin.transactions().scaleTransactionCoordinators(coordinatorSize * 2);
+        pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl.toString()).enableTransaction(true).build();
+        pulsarClient.close();
+        Awaitility.await().until(() -> pulsar.getTransactionMetadataStoreService().getStores().size() ==
+                        coordinatorSize * 2);
+        pulsar.getConfiguration().setAuthenticationEnabled(true);
+        Set<String> proxyRoles = spy(Set.class);
+        doReturn(true).when(proxyRoles).contains(any());
+        pulsar.getConfiguration().setProxyRoles(proxyRoles);
+        try {
+            admin.transactions().scaleTransactionCoordinators(coordinatorSize * 2 + 1);
+            fail();
+        } catch (PulsarAdminException.NotAuthorizedException ignored) {
         }
     }
 

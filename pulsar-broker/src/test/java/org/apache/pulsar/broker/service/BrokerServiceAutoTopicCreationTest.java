@@ -142,6 +142,7 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
             assertFalse(admin.namespaces().getTopics("prop/ns-abc").contains(topicString + "-partition-" + i));
         }
         assertTrue(admin.namespaces().getTopics("prop/ns-abc").contains(topicString));
+        admin.topics().delete(topicString, true);
     }
 
     /**

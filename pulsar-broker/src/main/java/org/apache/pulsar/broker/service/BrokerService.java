@@ -155,7 +155,6 @@ import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
-import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.FieldParser;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -1013,32 +1012,12 @@ public class BrokerService implements Closeable {
         }
     }
 
-    public CompletableFuture<SchemaVersion> deleteSchemaStorage(String topic) {
-        Optional<Topic> optTopic = getTopicReference(topic);
-        if (optTopic.isPresent()) {
-            return optTopic.get().deleteSchema();
-        } else {
-            return CompletableFuture.completedFuture(null);
-        }
-    }
-
     public CompletableFuture<Void> deleteTopic(String topic, boolean forceDelete) {
-        return deleteTopic(topic, forceDelete, false);
-    }
-
-    public CompletableFuture<Void> deleteTopic(String topic, boolean forceDelete, boolean deleteSchema) {
         Optional<Topic> optTopic = getTopicReference(topic);
         if (optTopic.isPresent()) {
             Topic t = optTopic.get();
             if (forceDelete) {
-                if (deleteSchema) {
-                    return t.deleteSchema().thenCompose(schemaVersion -> {
-                        log.info("Successfully delete topic {}'s schema of version {}", t.getName(), schemaVersion);
-                        return t.deleteForcefully();
-                    });
-                } else {
-                    return t.deleteForcefully();
-                }
+                return t.deleteForcefully();
             }
 
             // v2 topics have a global name so check if the topic is replicated.
@@ -1050,14 +1029,7 @@ public class BrokerService implements Closeable {
                         new IllegalStateException("Delete forbidden topic is replicated on clusters " + clusters));
             }
 
-            if (deleteSchema) {
-                return t.deleteSchema().thenCompose(schemaVersion -> {
-                    log.info("Successfully delete topic {}'s schema of version {}", t.getName(), schemaVersion);
-                    return t.delete();
-                });
-            } else {
-                return t.delete();
-            }
+            return t.delete();
         }
 
         if (log.isDebugEnabled()) {
@@ -1186,11 +1158,6 @@ public class BrokerService implements Closeable {
         });
 
         return topicFuture;
-    }
-
-    private <T> CompletableFuture<T> futureWithDeadline() {
-        return FutureUtil.createFutureWithTimeout(FUTURE_DEADLINE_TIMEOUT_DURATION, executor(),
-                () -> FUTURE_DEADLINE_TIMEOUT_EXCEPTION);
     }
 
     public PulsarClient getReplicationClient(String cluster, Optional<ClusterData> clusterDataOp) {
@@ -1803,34 +1770,37 @@ public class BrokerService implements Closeable {
         });
     }
 
+    public void forEachPersistentTopic(Consumer<PersistentTopic> consumer) {
+        topics.values().stream().map(BrokerService::extractTopic)
+                .map(topicOp -> topicOp.filter(topic -> topic instanceof PersistentTopic))
+                .forEach(topicOp -> topicOp.ifPresent(topic -> consumer.accept((PersistentTopic) topic)));
+    }
+
     public BacklogQuotaManager getBacklogQuotaManager() {
         return this.backlogQuotaManager;
     }
 
     public void monitorBacklogQuota() {
-        forEachTopic(topic -> {
-            if (topic instanceof PersistentTopic) {
-                PersistentTopic persistentTopic = (PersistentTopic) topic;
-                if (persistentTopic.isSizeBacklogExceeded()) {
-                    getBacklogQuotaManager().handleExceededBacklogQuota(persistentTopic,
-                            BacklogQuota.BacklogQuotaType.destination_storage, false);
-                } else {
-                    persistentTopic.checkTimeBacklogExceeded().thenAccept(isExceeded -> {
-                        if (isExceeded) {
-                            getBacklogQuotaManager().handleExceededBacklogQuota(persistentTopic,
-                                    BacklogQuota.BacklogQuotaType.message_age,
-                                    pulsar.getConfiguration().isPreciseTimeBasedBacklogQuotaCheck());
-                        } else {
-                            if (log.isDebugEnabled()) {
-                                log.debug("quota not exceeded for [{}]", topic.getName());
-                            }
+        forEachPersistentTopic(topic -> {
+            if (topic.isSizeBacklogExceeded()) {
+                getBacklogQuotaManager().handleExceededBacklogQuota(topic,
+                        BacklogQuota.BacklogQuotaType.destination_storage, false);
+            } else {
+                topic.checkTimeBacklogExceeded().thenAccept(isExceeded -> {
+                    if (isExceeded) {
+                        getBacklogQuotaManager().handleExceededBacklogQuota(topic,
+                                BacklogQuota.BacklogQuotaType.message_age,
+                                pulsar.getConfiguration().isPreciseTimeBasedBacklogQuotaCheck());
+                    } else {
+                        if (log.isDebugEnabled()) {
+                            log.debug("quota not exceeded for [{}]", topic.getName());
                         }
-                    }).exceptionally(throwable -> {
-                        log.error("Error when checkTimeBacklogExceeded({}) in monitorBacklogQuota",
-                                persistentTopic.getName(), throwable);
-                        return null;
-                    });
-                }
+                    }
+                }).exceptionally(throwable -> {
+                    log.error("Error when checkTimeBacklogExceeded({}) in monitorBacklogQuota",
+                            topic.getName(), throwable);
+                    return null;
+                });
             }
         });
     }
@@ -2845,15 +2815,6 @@ public class BrokerService implements Closeable {
         } else {
             return Optional.empty();
         }
-    }
-
-    private void foreachCnx(Consumer<TransportCnx> consumer) {
-        Set<TransportCnx> cnxSet = new HashSet<>();
-        topics.forEach((n, t) -> {
-            Optional<Topic> topic = extractTopic(t);
-            topic.ifPresent(value -> value.getProducers().values().forEach(producer -> cnxSet.add(producer.getCnx())));
-        });
-        cnxSet.forEach(consumer);
     }
 
     public boolean isAllowAutoTopicCreation(final String topic) {

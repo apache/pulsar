@@ -273,7 +273,7 @@ OPTS="$OPTS -Djute.maxbuffer=10485760 -Djava.net.preferIPv4Stack=true"
 
 # Allow Netty to use reflection access
 OPTS="$OPTS -Dio.netty.tryReflectionSetAccessible=true"
-IS_JAVA_8=`java -version 2>&1 |grep version|grep '"1\.8'`
+IS_JAVA_8=`$JAVA -version 2>&1 |grep version|grep '"1\.8'`
 # Start --add-opens options
 # '--add-opens' option is not supported in jdk8
 if [[ -z "$IS_JAVA_8" ]]; then
@@ -388,7 +388,7 @@ elif [ $COMMAND == "sql" ]; then
     exec $JAVA -cp "${PRESTO_HOME}/lib/*" io.prestosql.cli.Presto --server localhost:8081 "${@}"
 elif [ $COMMAND == "sql-worker" ]; then
     check_presto_libraries
-    exec ${PRESTO_HOME}/bin/launcher --etc-dir ${PULSAR_PRESTO_CONF} "${@}"
+    exec python3 ${PRESTO_HOME}/bin/launcher.py --etc-dir ${PULSAR_PRESTO_CONF} "${@}"
 elif [ $COMMAND == "tokens" ]; then
     exec $JAVA $OPTS org.apache.pulsar.utils.auth.tokens.TokensCliUtils $@
 elif [ $COMMAND == "version" ]; then

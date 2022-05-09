@@ -260,6 +260,12 @@ public class ProxyConfiguration implements PulsarConfiguration {
     private Optional<Integer> webServicePortTls = Optional.empty();
 
     @FieldContext(
+            category = CATEGORY_KEYSTORE_TLS,
+            doc = "Specify the TLS provider for the web service, available values can be SunJSSE, Conscrypt and etc."
+    )
+    private String webServiceTlsProvider = "Conscrypt";
+
+    @FieldContext(
             category = CATEGORY_TLS,
             doc = "Specify the tls protocols the proxy's web service will use to negotiate during TLS Handshake.\n\n"
                     + "Example:- [TLSv1.3, TLSv1.2]"
@@ -630,14 +636,14 @@ public class ProxyConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_SERVER,
-            doc = "Number of threads to use for Netty IO."
+            doc = "Number of threads used for Netty IO."
                     + " Default is set to `2 * Runtime.getRuntime().availableProcessors()`"
     )
     private int numIOThreads = 2 * Runtime.getRuntime().availableProcessors();
 
     @FieldContext(
             category = CATEGORY_SERVER,
-            doc = "Number of threads to use for Netty Acceptor."
+            doc = "Number of threads used for Netty Acceptor."
                     + " Default is set to `1`"
     )
     private int numAcceptorThreads = 1;

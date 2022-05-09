@@ -54,7 +54,6 @@ import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.NonPersistentTopicStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
@@ -88,7 +87,8 @@ public class NonPersistentTopics extends PersistentTopics {
             @ApiResponse(code = 500, message = "Internal server error"),
             @ApiResponse(code = 503, message = "Failed to validate cluster configuration")
     })
-    public PartitionedTopicMetadata getPartitionedMetadata(
+    public void getPartitionedMetadata(
+            @Suspended final AsyncResponse asyncResponse,
             @ApiParam(value = "Specify the tenant", required = true)
             @PathParam("tenant") String tenant,
             @ApiParam(value = "Specify the namespace", required = true)
@@ -99,7 +99,8 @@ public class NonPersistentTopics extends PersistentTopics {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @ApiParam(value = "Is check configuration required to automatically create topic")
             @QueryParam("checkAllowAutoCreation") @DefaultValue("false") boolean checkAllowAutoCreation) {
-        return super.getPartitionedMetadata(tenant, namespace, encodedTopic, authoritative, checkAllowAutoCreation);
+        super.getPartitionedMetadata(asyncResponse, tenant, namespace, encodedTopic, authoritative,
+                checkAllowAutoCreation);
     }
 
     @GET
@@ -377,7 +378,9 @@ public class NonPersistentTopics extends PersistentTopics {
             @ApiParam(value = "Specify the namespace", required = true)
             @PathParam("namespace") String namespace,
             @ApiParam(value = "Specify the bundle name", required = false)
-            @QueryParam("bundle") String nsBundle) {
+            @QueryParam("bundle") String nsBundle,
+            @ApiParam(value = "Include system topic")
+            @QueryParam("includeSystemTopic") boolean includeSystemTopic) {
         Policies policies = null;
         try {
             validateNamespaceName(tenant, namespace);
@@ -429,7 +432,7 @@ public class NonPersistentTopics extends PersistentTopics {
                         topics.stream()
                                 .filter(name -> !TopicName.get(name).isPersistent())
                                 .collect(Collectors.toList());
-                asyncResponse.resume(nonPersistentTopics);
+                asyncResponse.resume(filterSystemTopic(nonPersistentTopics, includeSystemTopic));
             }
         });
     }

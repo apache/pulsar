@@ -250,6 +250,10 @@ public class OwnershipCache {
         return this.ownedBundlesCache.synchronous().asMap();
     }
 
+    public Map<NamespaceBundle, CompletableFuture<OwnedBundle>> getOwnedBundlesAsync() {
+        return ownedBundlesCache.asMap();
+    }
+
     /**
      * Checked whether a particular bundle is currently owned by this broker.
      *

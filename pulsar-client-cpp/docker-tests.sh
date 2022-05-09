@@ -21,7 +21,7 @@
 # Run C++ unit tests within a Docker container
 
 # Fail script in case of errors
-set -e
+set -e -x
 
 if [ "$1" = "--help" ]; then
     echo "Usage:"
@@ -34,7 +34,7 @@ ROOT_DIR=$(git rev-parse --show-toplevel)
 cd $ROOT_DIR/pulsar-client-cpp
 
 BUILD_IMAGE_NAME="${BUILD_IMAGE_NAME:-apachepulsar/pulsar-build}"
-BUILD_IMAGE_VERSION="${BUILD_IMAGE_VERSION:-ubuntu-16.04-pb3}"
+BUILD_IMAGE_VERSION="${BUILD_IMAGE_VERSION:-ubuntu-20.04}"
 
 IMAGE="$BUILD_IMAGE_NAME:$BUILD_IMAGE_VERSION"
 

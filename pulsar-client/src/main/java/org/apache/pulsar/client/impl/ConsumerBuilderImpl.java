@@ -77,6 +77,7 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     }
 
     ConsumerBuilderImpl(PulsarClientImpl client, ConsumerConfigurationData<T> conf, Schema<T> schema) {
+        checkArgument(schema != null, "Schema should not be null.");
         this.client = client;
         this.conf = conf;
         this.schema = schema;

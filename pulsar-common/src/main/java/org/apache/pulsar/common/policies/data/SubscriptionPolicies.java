@@ -17,15 +17,29 @@
  * under the License.
  */
 
-package org.apache.pulsar.broker.loadbalance;
+package org.apache.pulsar.common.policies.data;
 
-import org.testng.Assert;
-import org.testng.annotations.Test;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 
+/**
+ * Subscription policies.
+ */
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class SubscriptionPolicies {
+    private DispatchRateImpl dispatchRate;
 
-public class LinuxInfoUtilsTest {
-    @Test
-    public void testUsageUnit() {
-        Assert.assertTrue(LinuxInfoUtils.UsageUnit.Kbps.convertBy(100) > 0);
+    /**
+     * Check if this SubscriptionPolicies is empty. Empty SubscriptionPolicies can be auto removed from TopicPolicies.
+     * @return true if this SubscriptionPolicies is empty.
+     */
+    public boolean checkEmpty() {
+        return dispatchRate == null;
     }
 }

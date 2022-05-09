@@ -2425,9 +2425,9 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/my-ns/unacked-topic")
                 .create();
 
-        // (1) First round to produce-consume messages
+        // (1) send all message at once
         int consumeMsgInParts = 4;
-        for (int i = 0; i < receiverQueueSize; i++) {
+        for (int i = 0; i < receiverQueueSize * 2; i++) {
             String message = "my-message-" + i;
             producer.send(message.getBytes());
         }
@@ -2436,7 +2436,9 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         Message<byte[]> msg;
         List<Message<byte[]>> messages1 = Lists.newArrayList();
         for (int i = 0; i < consumeMsgInParts; i++) {
-            msg = consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            //There is some detailed info about this case.
+            //https://github.com/apache/pulsar/pull/15088#issuecomment-1113521990
+            msg = consumer.receive();
             if (msg != null) {
                 messages1.add(msg);
                 consumer.acknowledge(msg);
@@ -2452,7 +2454,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         // (1.b) consume second consumeMsgInParts msgs and trigger redeliver
         messages1.clear();
         for (int i = 0; i < consumeMsgInParts; i++) {
-            msg = consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            msg = consumer.receive();
             if (msg != null) {
                 messages1.add(msg);
                 consumer.acknowledge(msg);
@@ -2465,17 +2467,10 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         consumer.redeliverUnacknowledgedMessages();
         Thread.sleep(1000L);
 
-        // (2) Second round to produce-consume messages
-        for (int i = 0; i < receiverQueueSize; i++) {
-            String message = "my-message-" + i;
-            producer.send(message.getBytes());
-        }
-        producer.flush();
-
         int remainingMsgs = (2 * receiverQueueSize) - (2 * consumeMsgInParts);
         messages1.clear();
         for (int i = 0; i < remainingMsgs; i++) {
-            msg = consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            msg = consumer.receive();
             if (msg != null) {
                 messages1.add(msg);
                 consumer.acknowledge(msg);
