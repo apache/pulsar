@@ -538,7 +538,7 @@ void ClientImpl::handleClose(Result result, SharedInt numberOfOpenHandlers, Resu
         Lock lock(mutex_);
         if (state_ == Closed) {
             LOG_DEBUG("Client is already shutting down, possible race condition in handleClose");
-            return lock.unlock();
+            return;
         } else {
             state_ = Closed;
             lock.unlock();
