@@ -59,7 +59,7 @@ public interface ModularLoadManagerStrategy {
     static ModularLoadManagerStrategy create(final ServiceConfiguration conf) {
         try {
             Class<?> loadManagerStrategyClass = Class.forName(conf.getLoadBalancerLoadManagerStrategy());
-            Object loadManagerStrategyInstance = loadManagerStrategyClass.newInstance();
+            Object loadManagerStrategyInstance = loadManagerStrategyClass.getDeclaredConstructor().newInstance();
             if (loadManagerStrategyInstance instanceof ModularLoadManagerStrategy) {
                 return (ModularLoadManagerStrategy) loadManagerStrategyInstance;
             } else {
