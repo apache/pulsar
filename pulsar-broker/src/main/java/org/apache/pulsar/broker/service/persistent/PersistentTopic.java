@@ -1490,7 +1490,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         return isCompactionEnabled()
                 // If a topic has a compaction policy setup, we must make sure that the compaction cursor
                 // is pre-created, in order to ensure all the data will be seen by the compactor.
-                ? createSubscription(COMPACTION_SUBSCRIPTION, CommandSubscribe.InitialPosition.Earliest, false)
+                ? createSubscription(COMPACTION_SUBSCRIPTION, CommandSubscribe.InitialPosition.Earliest, false, null)
                         .thenCompose(__ -> CompletableFuture.completedFuture(null))
                 : CompletableFuture.completedFuture(null);
     }

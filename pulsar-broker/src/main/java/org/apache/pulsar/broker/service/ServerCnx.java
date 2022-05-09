@@ -1316,7 +1316,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                 }
                                 createInitSubFuture =
                                         topic.createSubscription(initialSubscriptionName, InitialPosition.Earliest,
-                                                false);
+                                                false, null);
                             } else {
                                 createInitSubFuture = CompletableFuture.completedFuture(null);
                             }

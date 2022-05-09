@@ -4023,7 +4023,7 @@ public class PersistentTopicsBase extends AdminResource {
             Subscription sub = topic.getSubscription(subName);
             if (sub == null) {
                 sub = topic.createSubscription(subName,
-                        InitialPosition.Earliest, false).get();
+                        InitialPosition.Earliest, false, null).get();
             }
 
             return checkNotNull(sub);
