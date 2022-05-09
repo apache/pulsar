@@ -27,7 +27,6 @@ import com.google.gson.GsonBuilder;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
-
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -541,7 +540,7 @@ public class CmdPersistentTopics extends CmdBase {
                     }
                 }
             }
-            getPersistentTopics().createSubscription(persistentTopic, subscriptionName, messageId, map);
+            getPersistentTopics().createSubscription(persistentTopic, subscriptionName, messageId, false, map);
         }
     }
 

@@ -964,6 +964,9 @@ public class CmdTopics extends CmdBase {
         @Parameter(names = { "-r", "--replicated" }, description = "replicated subscriptions", required = false)
         private boolean replicated = false;
 
+        @Parameter(names = {"--properties", "-p"}, description = "key value pair properties(a=a,b=b,c=c)")
+        private java.util.List<String> properties;
+
         @Override
         void run() throws PulsarAdminException {
             String topic = validateTopicName(params);
@@ -975,8 +978,23 @@ public class CmdTopics extends CmdBase {
             } else {
                 messageId = validateMessageIdString(messageIdStr);
             }
-
-            getTopics().createSubscription(topic, subscriptionName, messageId, replicated);
+            Map<String, String> map = new HashMap<>();
+            if (properties != null) {
+                for (String property : properties) {
+                    if (!property.contains("=")) {
+                        throw new ParameterException(String.format("Invalid key value pair '%s', "
+                                + "valid format like 'a=a,b=b,c=c'.", property));
+                    } else {
+                        String[] keyValue = property.split("=");
+                        if (keyValue.length != 2) {
+                            throw new ParameterException(String.format("Invalid key value pair '%s', "
+                                    + "valid format like 'a=a,b=b,c=c'.", property));
+                        }
+                        map.put(keyValue[0], keyValue[1]);
+                    }
+                }
+            }
+            getTopics().createSubscription(topic, subscriptionName, messageId, replicated, map);
         }
     }
 
