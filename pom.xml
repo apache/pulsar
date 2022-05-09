@@ -79,6 +79,7 @@ flexible messaging model and an intuitive client API.</description>
   <properties>
     <maven.compiler.source>17</maven.compiler.source>
     <maven.compiler.target>17</maven.compiler.target>
+    <pulsar.broker.compiler.release>${maven.compiler.target}</pulsar.broker.compiler.release>
     <pulsar.client.compiler.release>8</pulsar.client.compiler.release>
 
     <!--config keys to configure test selection -->
@@ -90,7 +91,12 @@ flexible messaging model and an intuitive client API.</description>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     <redirectTestOutputToFile>true</redirectTestOutputToFile>
-    <test.additional.args></test.additional.args>
+    <!-- required for running tests on JDK11+ -->
+    <test.additional.args>
+      --add-opens java.base/jdk.internal.loader=ALL-UNNAMED
+      --add-opens java.base/java.lang=ALL-UNNAMED <!--Mockito-->
+      --add-opens java.base/java.io=ALL-UNNAMED <!--Bookkeeper NativeIO -->
+    </test.additional.args>
     <testReuseFork>true</testReuseFork>
     <testForkCount>4</testForkCount>
     <testRealAWS>false</testRealAWS>
@@ -238,13 +244,13 @@ flexible messaging model and an intuitive client API.</description>
     <exec-maven-plugin.version>3.0.0</exec-maven-plugin.version>
     <license-maven-plugin.version>4.0.rc2</license-maven-plugin.version>
     <directory-maven-plugin.version>1.0</directory-maven-plugin.version>
-    <maven-enforcer-plugin.version>3.0.0-M3</maven-enforcer-plugin.version>
+    <maven-enforcer-plugin.version>3.0.0</maven-enforcer-plugin.version>
     <!-- surefire.version is defined in apache parent pom -->
     <!-- it is used for surefire, failsafe and surefire-report plugins -->
     <!-- do not upgrade surefire.version to 3.0.0-M5 since it runs slowly and breaks tests. -->
     <surefire.version>3.0.0-M3</surefire.version>
     <maven-assembly-plugin.version>3.3.0</maven-assembly-plugin.version>
-    <maven-compiler-plugin.version>3.9.0</maven-compiler-plugin.version>
+    <maven-compiler-plugin.version>3.10.1</maven-compiler-plugin.version>
     <maven-dependency-plugin.version>3.1.2</maven-dependency-plugin.version>
     <maven-modernizer-plugin.version>2.3.0</maven-modernizer-plugin.version>
     <maven-shade-plugin>3.3.0</maven-shade-plugin>
@@ -1703,10 +1709,11 @@ flexible messaging model and an intuitive client API.</description>
               <configuration>
                 <rules>
                   <requireJavaVersion>
-                    <version>[1.8.0,)</version>
+                    <version>17</version>
+                    <message>Java 17+ is required to build Pulsar.</message>
                   </requireJavaVersion>
                   <requireMavenVersion>
-                    <version>[3.3.9,)</version>
+                    <version>3.6.1</version>
                   </requireMavenVersion>
                 </rules>
               </configuration>
@@ -1749,6 +1756,9 @@ flexible messaging model and an intuitive client API.</description>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-compiler-plugin</artifactId>
           <version>${maven-compiler-plugin.version}</version>
+          <configuration>
+            <release>${pulsar.broker.compiler.release}</release>
+          </configuration>
         </plugin>
         <plugin>
           <groupId>org.gaul</groupId>
@@ -1878,35 +1888,18 @@ flexible messaging model and an intuitive client API.</description>
 
   <profiles>
     <profile>
-      <id>jdk11</id>
+      <!-- used for running integration tests on Java 8 -->
+      <id>integration-test-java8</id>
       <activation>
-        <jdk>[11,)</jdk>
+        <jdk>1.8</jdk>
       </activation>
       <properties>
-        <!-- prevents silent NoSuchMethodErrors that happen at runtime on Java 8 -->
-        <!-- see https://github.com/apache/pulsar/issues/8445 -->
-        <maven.compiler.release>${maven.compiler.target}</maven.compiler.release>
-        <!-- required for running tests on JDK11+ -->
-        <test.additional.args>
-          --add-opens java.base/jdk.internal.loader=ALL-UNNAMED
-          --add-opens java.base/java.lang=ALL-UNNAMED <!--Mockito-->
-          --add-opens java.base/java.io=ALL-UNNAMED <!--Bookkeeper NativeIO -->
-        </test.additional.args>
+        <test.additional.args/>
+        <maven.compiler.source>8</maven.compiler.source>
+        <maven.compiler.target>8</maven.compiler.target>
+        <pulsar.broker.compiler.release></pulsar.broker.compiler.release>
+        <pulsar.client.compiler.release></pulsar.client.compiler.release>
       </properties>
-      <build>
-        <pluginManagement>
-          <plugins>
-            <plugin>
-              <groupId>org.apache.maven.plugins</groupId>
-              <artifactId>maven-compiler-plugin</artifactId>
-              <configuration>
-                <!-- for some reason, setting maven.compiler.release property alone doesn't work -->
-                <release>${maven.compiler.release}</release>
-              </configuration>
-            </plugin>
-          </plugins>
-        </pluginManagement>
-      </build>
     </profile>
     <profile>
       <id>coverage</id>
@@ -2169,21 +2162,18 @@ flexible messaging model and an intuitive client API.</description>
     <!--
          Configure Google Error Prone static code analyser, http://errorprone.info
 
-         consists of 3 maven profiles: errorprone, errorprone-jdk8 and errorprone-jdk11
-
          usage:
-         activate profiles "errorprone" and either "errorprone-jdk8" or "errorprone-jdk11"
-         depending on the JVM version
+         activate profile "errorprone"
 
          It is required to add "lombok.addJavaxGeneratedAnnotation = true" to lombok.config
          temporarily before running the analysis.
 
          usage example:
          echo lombok.addJavaxGeneratedAnnotation=true >> lombok.config
-         mvn -Perrorprone,errorprone-jdk11,main compile
+         mvn -Perrorprone,main compile
 
          Revisiting warnings and errors is possible in IntelliJ after activating
-         errorprone, errorprone-jdk11 and main in "Maven->Profiles" and choosing
+         errorprone and main in "Maven->Profiles" and choosing
          "Build->Rebuild Project"
          Compiling all Pulsar projects in IntelliJ requires some manual tweaks to get the
          shaded projects to pass compilation. In some cases, it's better to mark the project
@@ -2208,7 +2198,7 @@ flexible messaging model and an intuitive client API.</description>
                 <arg>-Xlint:-options</arg>
                 <!-- configure Error Prone . Disable some checks that crash the compiler or are annoying -->
                 <!-- the following argument must be kept on one line when building with JDK8 -->
-                <arg>-Xplugin:ErrorProne -XepExcludedPaths:.*/target/generated-sources/.* -XepDisableWarningsInGeneratedCode -Xep:UnusedVariable:OFF -Xep:FallThrough:OFF -Xep:OverrideThrowableToString:OFF -Xep:UnusedMethod:OFF -Xep:StringSplitter:OFF -Xep:CanonicalDuration:OFF ${errorprone.arguments.jdk11}</arg>
+                <arg>-Xplugin:ErrorProne -XepExcludedPaths:.*/target/generated-sources/.* -XepDisableWarningsInGeneratedCode -Xep:UnusedVariable:OFF -Xep:FallThrough:OFF -Xep:OverrideThrowableToString:OFF -Xep:UnusedMethod:OFF -Xep:StringSplitter:OFF -Xep:CanonicalDuration:OFF -Xep:Slf4jDoNotLogMessageOfExceptionExplicitly:WARN -Xep:Slf4jSignOnlyFormat:WARN -Xep:Slf4jFormatShouldBeConst:WARN -Xep:Slf4jLoggerShouldBePrivate:WARN -Xep:Slf4jLoggerShouldBeNonStatic:OFF</arg>
               </compilerArgs>
               <annotationProcessorPaths combine.children="append">
                 <path>
@@ -2221,53 +2211,8 @@ flexible messaging model and an intuitive client API.</description>
                   <artifactId>mockito-errorprone</artifactId>
                   <version>${mockito.version}</version>
                 </path>
-              </annotationProcessorPaths>
-            </configuration>
-          </plugin>
-        </plugins>
-      </build>
-    </profile>
-    <!-- running errorprone on JDK 8 requires special javac configuration -->
-    <profile>
-      <id>errorprone-jdk8</id>
-      <build>
-        <plugins>
-          <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-compiler-plugin</artifactId>
-            <configuration>
-              <compilerArgs combine.children="append">
-                <arg>
-                  -J-Xbootclasspath/p:${settings.localRepository}/com/google/errorprone/javac/${errorprone.javac.version}/javac-${errorprone.javac.version}.jar</arg>
-              </compilerArgs>
-              <annotationProcessorPaths combine.children="append">
-                <path>
-                  <groupId>com.google.errorprone</groupId>
-                  <artifactId>javac</artifactId>
-                  <version>${errorprone.javac.version}</version>
-                </path>
-              </annotationProcessorPaths>
-            </configuration>
-          </plugin>
-        </plugins>
-      </build>
-    </profile>
-    <profile>
-      <id>errorprone-jdk11</id>
-      <properties>
-        <!-- pass the additional properties to -Xplugin:ErrorProne argument defined in errorprone profile -->
-        <!-- change configuration of slf4j checks to be more permissive -->
-        <errorprone.arguments.jdk11>-Xep:Slf4jDoNotLogMessageOfExceptionExplicitly:WARN -Xep:Slf4jSignOnlyFormat:WARN -Xep:Slf4jFormatShouldBeConst:WARN -Xep:Slf4jLoggerShouldBePrivate:WARN -Xep:Slf4jLoggerShouldBeNonStatic:OFF</errorprone.arguments.jdk11>
-      </properties>
-      <build>
-        <plugins>
-          <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-compiler-plugin</artifactId>
-            <configuration>
-              <annotationProcessorPaths combine.children="append">
                 <!-- add https://github.com/KengoTODA/errorprone-slf4j Error Prone plugin -->
-                <!-- detects slf4j misusage. Doesn't run on Java 8, so this is why it's in the errorprone-jdk11 profile -->
+                <!-- detects slf4j misusage. -->
                 <path>
                   <groupId>jp.skypencil.errorprone.slf4j</groupId>
                   <artifactId>errorprone-slf4j</artifactId>
