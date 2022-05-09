@@ -23,10 +23,15 @@ import io.jsonwebtoken.Jwt;
 import io.jsonwebtoken.JwtParser;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.RequiredTypeException;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
-import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
@@ -38,14 +43,6 @@ import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.function.Function;
 
 public class MultiRolesTokenAuthorizationProvider extends PulsarAuthorizationProvider {
     private static final Logger log = LoggerFactory.getLogger(MultiRolesTokenAuthorizationProvider.class);
@@ -137,27 +134,7 @@ public class MultiRolesTokenAuthorizationProvider extends PulsarAuthorizationPro
         }
         List<CompletableFuture<Boolean>> futures = new ArrayList<>(roles.size());
         roles.forEach(r -> futures.add(authorizeFunc.apply(r)));
-        return CompletableFuture.supplyAsync(() -> {
-            do {
-                try {
-                    List<CompletableFuture<Boolean>> doneFutures = new ArrayList<>();
-                    FutureUtil.waitForAny(futures).get();
-                    for (CompletableFuture<Boolean> future : futures) {
-                        if (!future.isDone()) continue;
-                        doneFutures.add(future);
-                        if (future.get()) {
-                            futures.forEach(f -> {
-                                if (!f.isDone()) f.cancel(false);
-                            });
-                            return true;
-                        }
-                    }
-                    futures.removeAll(doneFutures);
-                } catch (InterruptedException | ExecutionException ignored) {
-                }
-            } while (!futures.isEmpty());
-            return false;
-        });
+        return FutureUtil.waitForAny(futures, ret -> (boolean) ret).thenApply(v -> v.isPresent());
     }
 
     /**
