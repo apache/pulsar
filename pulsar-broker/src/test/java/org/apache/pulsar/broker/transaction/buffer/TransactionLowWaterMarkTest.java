@@ -34,16 +34,14 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.collections4.map.LinkedMap;
 import org.apache.pulsar.broker.service.BrokerService;
-import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
-import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.transaction.TransactionTestBase;
-import org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBuffer;
 import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleImpl;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.Transaction;
@@ -290,19 +288,41 @@ public class TransactionLowWaterMarkTest extends TransactionTestBase {
     }
 
     @Test
-    public void testTBLowWaterMark() throws Exception {
-        PersistentTopic persistentTopic = (PersistentTopic) getPulsarServiceList().get(0)
-                .getBrokerService()
-                .getTopic(NAMESPACE1 + "/test", true)
-                .get().get();
-        TopicTransactionBuffer topicTransactionBuffer = new TopicTransactionBuffer(persistentTopic);
-        TxnID txnID = new TxnID(1, 1);
-        topicTransactionBuffer.commitTxn(txnID, txnID.getLeastSigBits()).get();
+    public void testTBLowWaterMarkEndToEnd() throws Exception {
+        Transaction txn1 = pulsarClient.newTransaction()
+                .withTransactionTimeout(500, TimeUnit.SECONDS)
+                .build().get();
+        Transaction txn2 = pulsarClient.newTransaction()
+                .withTransactionTimeout(500, TimeUnit.SECONDS)
+                .build().get();
+        while (txn2.getTxnID().getMostSigBits() != txn1.getTxnID().getMostSigBits()) {
+            txn2 = pulsarClient.newTransaction()
+                    .withTransactionTimeout(500, TimeUnit.SECONDS)
+                    .build().get();
+        }
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient
+                .newProducer()
+                .topic(TOPIC)
+                .sendTimeout(0, TimeUnit.SECONDS)
+                .enableBatching(false)
+                .create();
+
+        producer.newMessage(txn1).send();
+        producer.newMessage(txn2).send();
+
+        txn1.commit().get();
+        txn2.commit().get();
+
+        Field field = TransactionImpl.class.getDeclaredField("state");
+        field.setAccessible(true);
+        field.set(txn1, TransactionImpl.State.OPEN);
         try {
-            topicTransactionBuffer.appendBufferToTxn(txnID, 0L, null).get();
+            producer.newMessage(txn1).send();
             fail();
-        } catch (Exception e) {
-            Assert.assertTrue(e.getCause() instanceof BrokerServiceException.NotAllowedException);
+        } catch (PulsarClientException.NotAllowedException ignore) {
+            // no-op
         }
     }
 }
