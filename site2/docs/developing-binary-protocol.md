@@ -418,7 +418,24 @@ Parameters:
  * `txnid_least_bits` -> *(optional)* The ID of the transaction opened in a TC,
    `txnid_most_bits` and `txnid_least_bits`uniquely identify a transaction.
  * `request_id` -> *(optional)* ID for handling response and timeout.
-   
+
+##### Command CommandAckResponse
+
+This is the broker's response to ack request by the client. It contains the `consumer_id` sent in the request. 
+If transaction is used, it will also contain the transactionId and requestID sent in the request.
+The client will process the specific request according to the request ID.
+If the `error` field is set, it indicates that the request has failed.
+
+Example of ack response with redirection:
+
+```protobuf
+message CommandAckResponse {
+    "consumer_id" : 1,
+    "txnid_least_bits" = 0,
+    "txnid_most_bits" = 1,
+    request_id = 5
+}
+```
 
 ##### Command CloseConsumer
 
