@@ -1823,7 +1823,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         nsStats.msgRateOut += topicStatsHelper.aggMsgRateOut;
         nsStats.msgThroughputIn += topicStatsHelper.aggMsgThroughputIn;
         nsStats.msgThroughputOut += topicStatsHelper.aggMsgThroughputOut;
-        nsStats.storageSize += ledger.getEstimatedBacklogSize();
+        nsStats.storageSize += ledger.getTotalSize();
 
         bundleStats.msgRateIn += topicStatsHelper.aggMsgRateIn;
         bundleStats.msgRateOut += topicStatsHelper.aggMsgRateOut;
