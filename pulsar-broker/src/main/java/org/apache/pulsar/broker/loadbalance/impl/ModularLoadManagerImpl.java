@@ -523,6 +523,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
     // load management decisions may be made.
     private void updateBundleData() {
         final Map<String, BundleData> bundleData = loadData.getBundleData();
+        final Set<String> activeBundles = new HashSet<>();
         // Iterate over the broker data.
         for (Map.Entry<String, BrokerData> brokerEntry : loadData.getBrokerData().entrySet()) {
             final String broker = brokerEntry.getKey();
@@ -534,6 +535,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
             for (Map.Entry<String, NamespaceBundleStats> entry : statsMap.entrySet()) {
                 final String bundle = entry.getKey();
                 final NamespaceBundleStats stats = entry.getValue();
+                activeBundles.add(bundle);
                 if (bundleData.containsKey(bundle)) {
                     // If we recognize the bundle, add these stats as a new sample.
                     bundleData.get(bundle).update(stats);
@@ -543,6 +545,16 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                     BundleData currentBundleData = getBundleDataOrDefault(bundle);
                     currentBundleData.update(stats);
                     bundleData.put(bundle, currentBundleData);
+                }
+            }
+
+            //Remove not active bundle from loadData
+            for (String bundle : bundleData.keySet()) {
+                if (!activeBundles.contains(bundle)){
+                    bundleData.remove(bundle);
+                    if (pulsar.getLeaderElectionService().isLeader()){
+                        deleteBundleDataFromMetadataStore(bundle);
+                    }
                 }
             }
 
