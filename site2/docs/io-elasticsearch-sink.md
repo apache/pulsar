@@ -8,9 +8,9 @@ The Elasticsearch sink connector pulls messages from Pulsar topics and persists 
 
 ## Requirements
 
-To deploy an Elasticsearch sink connector, the following are required:
+To deploy an ElasticSearch sink connector, the following are required:
 
-- ElasticSearch 7 - ElasticSearch 8 is not currently supported in Pulsar 2.10.
+- ElasticSearch 7 (ElasticSearch 8 is not currently supported in Pulsar 2.10)
 - OpenSearch 1.x
 
 The `compatibilityMode` configuration property specifies compatibility with ElasticSearch and OpenSearch clusters.
