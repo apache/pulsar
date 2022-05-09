@@ -49,7 +49,7 @@ public class ProducerBuilderImplTest {
     private PulsarClientImpl client;
     private ProducerBuilderImpl producerBuilderImpl;
 
-    @BeforeTest
+    @BeforeTest(alwaysRun = true)
     public void setup() {
         Producer producer = mock(Producer.class);
         client = mock(PulsarClientImpl.class);
