@@ -433,7 +433,7 @@ message CommandAckResponse {
     "consumer_id" : 1,
     "txnid_least_bits" = 0,
     "txnid_most_bits" = 1,
-    request_id = 5
+    “request_id” = 5
 }
 ```
 
