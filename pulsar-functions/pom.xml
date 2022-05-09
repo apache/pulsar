@@ -53,6 +53,7 @@
           <module>secrets</module>
           <module>localrun</module>
           <module>localrun-shaded</module>
+          <module>transforms</module>
         </modules>
     </profile>
 
@@ -69,6 +70,7 @@
         <module>worker</module>
         <module>secrets</module>
         <module>localrun</module>
+        <module>transforms</module>
       </modules>
   </profile>
 
