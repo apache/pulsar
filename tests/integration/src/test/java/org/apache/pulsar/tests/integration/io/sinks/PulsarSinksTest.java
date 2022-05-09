@@ -75,7 +75,7 @@ public class PulsarSinksTest extends PulsarIOTestBase {
         testSink(new OpenSearchSinkTester(withSchema), true);
     }
 
-    @Test(groups = "sink")
+    @Test(enabled = false, groups = "sink")
     public void testRabbitMQSink() throws Exception {
         final String containerName = "rabbitmq-" + randomName(8);
         testSink(new RabbitMQSinkTester(containerName), true, new RabbitMQSourceTester(containerName));
