@@ -2422,11 +2422,6 @@ flexible messaging model and an intuitive client API.</description>
         <enabled>false</enabled>
       </snapshots>
     </repository>
-    <repository>
-      <id>apache-tmp-repo</id>
-      <name>BK 4.15 Test Repo</name>
-      <url>https://repository.apache.org/content/repositories/orgapachebookkeeper-1066/</url>
-    </repository>
   </repositories>
 
 </project>
