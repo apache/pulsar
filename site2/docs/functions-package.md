@@ -73,7 +73,8 @@ To package a function in Java, complete the following steps.
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-compiler-plugin</artifactId>
                     <configuration>
-                        <release>17</release>
+                        <source>11</source>
+                        <target>11</target>
                     </configuration>
                 </plugin>
             </plugins>
