@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.admin;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -881,6 +882,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         CompletableFuture<List<String>> future = new CompletableFuture();
         future.completeExceptionally(new RuntimeException("500 error contains error message"));
         doReturn(future).when(ns).getListOfTopics(namespaceName, CommandGetTopicsOfNamespace.Mode.ALL);
+        doReturn(new Policies()).when(persistentTopics).getNamespacePolicies(any());
         persistentTopics.createPartitionedTopic(response1, property, cluster, namespace, partitionedTopicName, 5, false);
         verify(response1, timeout(5000).times(1)).resume(responseCaptor.capture());
         Assert.assertEquals(responseCaptor.getValue().getResponse().getStatus(), Status.INTERNAL_SERVER_ERROR.getStatusCode());
