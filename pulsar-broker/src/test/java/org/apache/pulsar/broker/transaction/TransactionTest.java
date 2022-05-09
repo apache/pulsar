@@ -69,7 +69,6 @@ import org.apache.pulsar.broker.systopic.NamespaceEventsSystemTopicFactory;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBufferState;
-import org.apache.pulsar.broker.transaction.exception.buffer.TransactionBufferException;
 import org.apache.pulsar.broker.transaction.pendingack.PendingAckStore;
 import org.apache.pulsar.broker.transaction.buffer.matadata.TransactionBufferSnapshot;
 import org.apache.pulsar.broker.transaction.pendingack.TransactionPendingAckStoreProvider;
@@ -972,23 +971,6 @@ public class TransactionTest extends TransactionTestBase {
             Assert.assertEquals(Integer.parseInt(markDeletePosition[1]),
                     Integer.parseInt(lastConfirmedEntry[1]) - 2);
         });
-    }
-
-    @Test
-    public void testTBLowWaterMark() throws Exception {
-        PersistentTopic persistentTopic = (PersistentTopic) getPulsarServiceList().get(0)
-                .getBrokerService()
-                .getTopic(NAMESPACE1 + "/test", true)
-                .get().get();
-        TopicTransactionBuffer topicTransactionBuffer = new TopicTransactionBuffer(persistentTopic);
-        TxnID txnID = new TxnID(1, 1);
-        topicTransactionBuffer.commitTxn(txnID, txnID.getLeastSigBits()).get();
-        try {
-            topicTransactionBuffer.appendBufferToTxn(txnID, 0L, null).get();
-            fail();
-        } catch (Exception e) {
-            Assert.assertTrue(e.getCause() instanceof TransactionBufferException.TransactionNotFoundException);
-        }
     }
 
     @Test

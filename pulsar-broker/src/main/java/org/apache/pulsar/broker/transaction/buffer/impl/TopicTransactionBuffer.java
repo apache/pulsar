@@ -47,7 +47,6 @@ import org.apache.pulsar.broker.transaction.buffer.TransactionBufferReader;
 import org.apache.pulsar.broker.transaction.buffer.TransactionMeta;
 import org.apache.pulsar.broker.transaction.buffer.matadata.AbortTxnMetadata;
 import org.apache.pulsar.broker.transaction.buffer.matadata.TransactionBufferSnapshot;
-import org.apache.pulsar.broker.transaction.exception.buffer.TransactionBufferException;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.TxnID;
@@ -246,8 +245,8 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         CompletableFuture<Position> completableFuture = new CompletableFuture<>();
         Long lowWaterMark = lowWaterMarks.get(txnId.getMostSigBits());
         if (lowWaterMark != null && lowWaterMark >= txnId.getLeastSigBits()) {
-            completableFuture.completeExceptionally(new TransactionBufferException
-                    .TransactionNotFoundException("Transaction [" + txnId + "] has been ended. "
+            completableFuture.completeExceptionally(new BrokerServiceException
+                    .NotAllowedException("Transaction [" + txnId + "] has been ended. "
                     + "Please use a new transaction to send message."));
             return completableFuture;
         }
