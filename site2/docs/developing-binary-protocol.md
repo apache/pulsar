@@ -419,11 +419,11 @@ Parameters:
    `txnid_most_bits` and `txnid_least_bits`uniquely identify a transaction.
  * `request_id` -> *(optional)* ID for handling response and timeout.
 
-##### Command CommandAckResponse
+##### Command AckResponse
 
-This is the broker's response to ack request by the client. It contains the `consumer_id` sent in the request. 
-If transaction is used, it will also contain the transactionId and requestID sent in the request.
-The client will process the specific request according to the request ID.
+An `AckResponse` is the broker’s response to acknowledge a request sent by the client. It contains the `consumer_id` sent in the request.
+If a transaction is used, it contains both Transaction ID and Request ID that are sent in the request.
+The client finishes the specific request according to the Request ID.
 If the `error` field is set, it indicates that the request has failed.
 
 Example of ack response with redirection:
@@ -433,7 +433,7 @@ message CommandAckResponse {
     "consumer_id" : 1,
     "txnid_least_bits" = 0,
     "txnid_most_bits" = 1,
-    “request_id” = 5
+    "request_id" = 5
 }
 ```
 
