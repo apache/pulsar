@@ -72,6 +72,12 @@ public class TopicPolicies {
     private DispatchRateImpl replicatorDispatchRate;
     private SchemaCompatibilityStrategy schemaCompatibilityStrategy;
 
+    /**
+     * Subscription level policies for specific subscription.
+     */
+    @Builder.Default
+    private Map<String/*subscription*/, SubscriptionPolicies> subscriptionPolicies = new HashMap<>();
+
     public boolean isGlobalPolicies() {
         return isGlobal != null && isGlobal;
     }

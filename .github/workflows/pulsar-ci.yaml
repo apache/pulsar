@@ -150,9 +150,6 @@ jobs:
             group: BROKER_GROUP_2
           - name: Brokers - Broker Group 3
             group: BROKER_GROUP_3
-          - name: Brokers - JDK 8
-            group: BROKER_JDK8
-            jdk: 8
           - name: Brokers - Client Api
             group: BROKER_CLIENT_API
           - name: Brokers - Client Impl
@@ -201,11 +198,6 @@ jobs:
         if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
         uses: apache/pulsar-test-infra/gh-actions-artifact-client/dist@master
 
-      - name: Cleanup log artifacts from possible previous failed build
-        if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
-        run: |
-          gh-actions-artifact-client.js delete "Unit-${{ matrix.group }}-surefire-reports" &>/dev/null || true
-
       - name: Restore maven build results from Github artifact cache
         if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
         run: |
@@ -237,18 +229,20 @@ jobs:
           summary_title: 'Test Summary for Unit - ${{ matrix.name }}:'
 
       - name: Publish the Test reports in Junit xml format
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         if: ${{ always() && needs.changed_files_job.outputs.docs_only != 'true' }}
         with:
           name: Unit-${{ matrix.group }}-test-report
           path: test-reports
+          retention-days: 7
 
       - name: Upload Surefire reports
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         if: ${{ !success() && needs.changed_files_job.outputs.docs_only != 'true' }}
         with:
           name: Unit-${{ matrix.group }}-surefire-reports
           path: surefire-reports
+          retention-days: 7
 
       - name: Wait for ssh connection when build fails
         # ssh access is enabled for builds in own forks
@@ -350,8 +344,19 @@ jobs:
           - name: Messaging
             group: MESSAGING
 
-          - name: Shade
-            group: SHADE
+          - name: Shade on Java 8
+            group: SHADE_RUN
+            runtime_jdk: 8
+            setup: ./build/run_integration_group.sh SHADE_BUILD
+
+          - name: Shade on Java 11
+            group: SHADE_RUN
+            runtime_jdk: 11
+            setup: ./build/run_integration_group.sh SHADE_BUILD
+
+          - name: Shade on Java 17
+            group: SHADE_RUN
+            setup: ./build/run_integration_group.sh SHADE_BUILD
 
           - name: Standalone
             group: STANDALONE
@@ -397,12 +402,6 @@ jobs:
         if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
         uses: apache/pulsar-test-infra/gh-actions-artifact-client/dist@master
 
-      - name: Cleanup log artifacts from possible previous failed build
-        if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
-        run: |
-          gh-actions-artifact-client.js delete "Integration-${{ matrix.group }}-surefire-reports" &>/dev/null || true
-          gh-actions-artifact-client.js delete "Integration-${{ matrix.group }}-container-logs" &>/dev/null || true
-
       - name: Restore maven build results from Github artifact cache
         if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
         run: |
@@ -418,6 +417,13 @@ jobs:
         if: ${{ matrix.setup && needs.changed_files_job.outputs.docs_only != 'true' }}
         run: |
           ${{ matrix.setup }}
+
+      - name: Set up runtime JDK ${{ matrix.runtime_jdk }}
+        uses: actions/setup-java@v2
+        if: ${{ matrix.runtime_jdk && needs.changed_files_job.outputs.docs_only != 'true' }}
+        with:
+          distribution: 'temurin'
+          java-version: ${{ matrix.runtime_jdk }}
 
       - name: Run integration test group '${{ matrix.group }}'
         if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
@@ -439,26 +445,29 @@ jobs:
           summary_title: 'Test Summary for Integration - ${{ matrix.name }}:'
 
       - name: Publish the Test reports in Junit xml format
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         if: ${{ always() && needs.changed_files_job.outputs.docs_only != 'true' }}
         with:
           name: Integration-${{ matrix.group }}-test-report
           path: test-reports
+          retention-days: 7
 
       - name: Upload Surefire reports
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         if: ${{ !success() && needs.changed_files_job.outputs.docs_only != 'true' }}
         with:
           name: Integration-${{ matrix.group }}-surefire-reports
           path: surefire-reports
+          retention-days: 7
 
       - name: Upload container logs
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         if: ${{ !success() && needs.changed_files_job.outputs.docs_only != 'true' }}
         continue-on-error: true
         with:
           name: Integration-${{ matrix.group }}-container-logs
           path: tests/integration/target/container-logs
+          retention-days: 7
 
       - name: Wait for ssh connection when build fails
         # ssh access is enabled for builds in own forks
@@ -604,9 +613,8 @@ jobs:
           - name: Pulsar IO - Oracle
             group: PULSAR_IO_ORA
 
-          # disable Sql integration tests until https://github.com/apache/pulsar/issues/14951 has been resolved
-          #- name: Sql
-          #  group: SQL
+          - name: Sql
+            group: SQL
 
     steps:
       - name: checkout
@@ -647,12 +655,6 @@ jobs:
         if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
         uses: apache/pulsar-test-infra/gh-actions-artifact-client/dist@master
 
-      - name: Cleanup log artifacts from possible previous failed build
-        if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
-        run: |
-          gh-actions-artifact-client.js delete "System-${{ matrix.group }}-surefire-reports" &>/dev/null || true
-          gh-actions-artifact-client.js delete "System-${{ matrix.group }}-container-logs" &>/dev/null || true
-
       - name: Restore maven build results from Github artifact cache
         if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
         run: |
@@ -689,26 +691,29 @@ jobs:
           summary_title: 'Test Summary for System - ${{ matrix.name }}:'
 
       - name: Publish the Test reports in Junit xml format
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         if: ${{ always() && needs.changed_files_job.outputs.docs_only != 'true' }}
         with:
           name: System-${{ matrix.group }}-test-report
           path: test-reports
+          retention-days: 7
 
       - name: Upload container logs
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         if: ${{ !success() && needs.changed_files_job.outputs.docs_only != 'true' }}
         continue-on-error: true
         with:
           name: System-${{ matrix.group }}-container-logs
           path: tests/integration/target/container-logs
+          retention-days: 7
 
       - name: Upload Surefire reports
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         if: ${{ !success() && needs.changed_files_job.outputs.docs_only != 'true' }}
         with:
           name: System-${{ matrix.name }}-surefire-reports
           path: surefire-reports
+          retention-days: 7
 
       - name: Wait for ssh connection when build fails
         # ssh access is enabled for builds in own forks

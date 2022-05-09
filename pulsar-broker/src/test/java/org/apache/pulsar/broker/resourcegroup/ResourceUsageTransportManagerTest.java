@@ -24,6 +24,7 @@ import org.apache.pulsar.broker.service.resource.usage.NetworkUsage;
 import org.apache.pulsar.broker.service.resource.usage.ResourceUsage;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.testng.annotations.AfterClass;
@@ -55,7 +56,7 @@ public class ResourceUsageTransportManagerTest extends MockedPulsarServiceBaseTe
 
     @Test
     public void testNamespaceCreation() throws Exception {
-        TopicName topicName = TopicName.get(ResourceUsageTopicTransportManager.RESOURCE_USAGE_TOPIC_NAME);
+        TopicName topicName = SystemTopicNames.RESOURCE_USAGE_TOPIC;
 
         assertTrue(admin.tenants().getTenants().contains(topicName.getTenant()));
         assertTrue(admin.namespaces().getNamespaces(topicName.getTenant()).contains(topicName.getNamespace()));

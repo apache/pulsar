@@ -46,7 +46,7 @@ BookKeeper is a replicated log storage system that Pulsar uses for durable stora
 |logSizeLimit|Max file size of the entry logger, in bytes. A new entry log file will be created when the old one reaches the file size limitation.|2147483648|
 |minorCompactionThreshold|Threshold of minor compaction. Entry log files whose remaining size percentage reaches below this threshold will be compacted in a minor compaction. If set to less than zero, the minor compaction is disabled.|0.2|
 |minorCompactionInterval|Time interval to run minor compaction, in seconds. If set to less than zero, the minor compaction is disabled. Note: should be greater than gcWaitTime. |3600|
-|majorCompactionThreshold|The threshold of major compaction. Entry log files whose remaining size percentage reaches below this threshold will be compacted in a major compaction. Those entry log files whose remaining size percentage is still higher than the threshold will never be compacted. If set to less than zero, the minor compaction is disabled.|0.5|
+|majorCompactionThreshold|The threshold of major compaction. Entry log files whose remaining size percentage reaches below this threshold will be compacted in a major compaction. Those entry log files whose remaining size percentage is still higher than the threshold will never be compacted. If set to less than zero, the major compaction is disabled.|0.5|
 |majorCompactionInterval|The time interval to run major compaction, in seconds. If set to less than zero, the major compaction is disabled. Note: should be greater than gcWaitTime. |86400|
 |readOnlyModeEnabled|If `readOnlyModeEnabled=true`, then on all full ledger disks, bookie will be converted to read-only mode and serve only read requests. Otherwise the bookie will be shutdown.|true|
 |forceReadOnlyBookie|Whether the bookie is force started in read only mode.|false|
@@ -329,11 +329,12 @@ brokerServiceCompactionThresholdInBytes|If the estimated backlog size is greater
 |loadBalancerNamespaceBundleMaxMsgRate| maximum msgRate (in + out) in a bundle, otherwise bundle split will be triggered  |1000|
 |loadBalancerNamespaceBundleMaxBandwidthMbytes| maximum bandwidth (in + out) in a bundle, otherwise bundle split will be triggered  |100|
 |loadBalancerNamespaceMaximumBundles| maximum number of bundles in a namespace  |128|
-|loadBalancerLoadSheddingStrategy | The shedding strategy of load balance. <br /><br />Available values: <li>`org.apache.pulsar.broker.loadbalance.impl.ThresholdShedder`</li><li>`org.apache.pulsar.broker.loadbalance.impl.OverloadShedder`</li><li>`org.apache.pulsar.broker.loadbalance.impl.UniformLoadShedder`</li><br />For the comparisons of the shedding strategies, see [here](administration-load-balance/#shed-load-automatically).|`org.apache.pulsar.broker.loadbalance.impl.ThresholdShedder`
+|loadBalancerLoadSheddingStrategy | The shedding strategy of load balance. <br /><br />Available values: <li>`org.apache.pulsar.broker.loadbalance.impl.ThresholdShedder`</li><li>`org.apache.pulsar.broker.loadbalance.impl.OverloadShedder`</li><li>`org.apache.pulsar.broker.loadbalance.impl.UniformLoadShedder`</li><br />For the comparisons of the shedding strategies, see [here](administration-load-balance/#shed-load-automatically).<br />**Note**: You need to restart brokers if this configuration is [dynamically updated](admin-api-brokers.md/#dynamic-broker-configuration). |`org.apache.pulsar.broker.loadbalance.impl.ThresholdShedder`
 |replicationMetricsEnabled| Enable replication metrics  |true|
 |replicationConnectionsPerBroker| Max number of connections to open for each broker in a remote cluster More connections host-to-host lead to better throughput over high-latency links.  |16|
 |replicationProducerQueueSize|  Replicator producer queue size  |1000|
 |replicatorPrefix|  Replicator prefix used for replicator producer name and cursor name pulsar.repl||
+|transactionBufferClientOperationTimeoutInMills|The transaction buffer client's operation timeout in milliseconds.|3000|
 |transactionCoordinatorEnabled|Whether to enable transaction coordinator in broker.|true|
 |transactionMetadataStoreProviderClassName| |org.apache.pulsar.transaction.coordinator.impl.InMemTransactionMetadataStoreProvider|
 |defaultRetentionTimeInMinutes| Default message retention time  |0|
@@ -702,6 +703,7 @@ You can set the log level and configuration in the  [log4j2.yaml](https://github
 |replicationConnectionsPerBroker|   |16|
 |replicationProducerQueueSize|    |1000|
 | replicationPolicyCheckDurationSeconds | Duration to check replication policy to avoid replicator inconsistency due to missing ZooKeeper watch. When the value is set to 0, disable checking replication policy. | 600 |
+|transactionBufferClientOperationTimeoutInMills|The transaction buffer client's operation timeout in milliseconds.|3000|
 |defaultRetentionTimeInMinutes|   |0|
 |defaultRetentionSizeInMB|    |0|
 |keepAliveIntervalSeconds|    |30|
@@ -817,6 +819,8 @@ The [Pulsar proxy](concepts-architecture-overview.md#pulsar-proxy) can be config
 |tokenAudienceClaim| The token audience "claim" name, e.g. "aud". It is used to get the audience from token. If it is not set, the audience is not verified. ||
 | tokenAudience | The token audience stands for this broker. The field `tokenAudienceClaim` of a valid token need contains this parameter.| |
 |haProxyProtocolEnabled | Enable or disable the [HAProxy](http://www.haproxy.org/) protocol. |false|
+| numIOThreads | Number of threads used for Netty IO. | 2 * Runtime.getRuntime().availableProcessors() |
+| numAcceptorThreads | Number of threads used for Netty Acceptor. | 1 |
 
 #### Deprecated parameters of Pulsar proxy
 The following parameters have been deprecated in the `conf/proxy.conf` file.

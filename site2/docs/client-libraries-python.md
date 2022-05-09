@@ -40,8 +40,9 @@ Installation via PyPi is available for the following Python versions:
 
 Platform | Supported Python versions
 :--------|:-------------------------
-MacOS <br />  10.13 (High Sierra), 10.14 (Mojave) <br /> | 2.7, 3.7, 3.8, 3.9
-Linux | 2.7, 3.4, 3.5, 3.6, 3.7, 3.8, 3.9
+MacOS >= 11.0 | 3.7, 3.8, 3.9 and 3.10
+Linux (including Alpine Linux) | 3.7, 3.8, 3.9 and 3.10
+
 
 ### Install from source
 
@@ -165,6 +166,17 @@ while True:
         # Message failed to be processed
         consumer.negative_acknowledge(msg)
 client.close()
+```
+
+### Create a Python client with multiple advertised listeners
+To ensure clients in both internal and external networks can connect to a Pulsar cluster, Pulsar introduces [advertisedListeners](concepts-multiple-advertised-listeners.md).
+
+The following example creates a Python client using multiple advertised listeners:
+
+```python
+import pulsar
+
+client = pulsar.Client('pulsar://localhost:6650', listener_name='external')
 ```
 
 ## Schema

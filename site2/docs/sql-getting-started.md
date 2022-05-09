@@ -51,9 +51,8 @@ presto> show schemas in pulsar;
 -----------------------
  information_schema    
  public/default        
- public/functions      
- sample/standalone/ns1 
-(4 rows)
+ public/functions
+(3 rows)
 
 Query 20180829_211818_00005_7qpwh, FINISHED, 1 node
 Splits: 19 total, 19 done (100.00%)

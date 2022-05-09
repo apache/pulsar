@@ -100,7 +100,7 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     private String workerHostname;
     @FieldContext(
         category = CATEGORY_WORKER,
-        doc = "The port for serving worker http requests"
+        doc = "The port for serving worker http requests. Set to null to disable serving on the http port."
     )
     private Integer workerPort;
     @FieldContext(
@@ -293,6 +293,11 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
         doc = "The number of replicas for storing functions"
     )
     private int numFunctionPackageReplicas;
+    @FieldContext(
+            category = CATEGORY_FUNC_PKG,
+            doc = "Flag indicates enabling or disabling function worker using unified PackageManagement service."
+    )
+    private boolean  functionsWorkerEnablePackageManagement = false;
     @FieldContext(
         category = CATEGORY_FUNC_RUNTIME_MNG,
         doc = "The directory to download functions by runtime manager"
@@ -724,7 +729,8 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
 
     public String getWorkerId() {
         if (isBlank(this.workerId)) {
-            this.workerId = String.format("%s-%s", this.getWorkerHostname(), this.getWorkerPort());
+            this.workerId = String.format("%s-%s", this.getWorkerHostname(), this.getWorkerPort() != null
+                    ? this.getWorkerPort() : this.getWorkerPortTls());
         }
         return this.workerId;
     }

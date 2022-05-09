@@ -101,7 +101,7 @@ public class SinkApiV3ResourceTest {
     private static final Map<String, String> topicsToSerDeClassName = new HashMap<>();
 
     static {
-        topicsToSerDeClassName.put("persistent://sample/standalone/ns1/test_src", DEFAULT_SERDE);
+        topicsToSerDeClassName.put("test_src", DEFAULT_SERDE);
     }
 
     private static final String subscriptionName = "test-subscription";

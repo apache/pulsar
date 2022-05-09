@@ -32,12 +32,12 @@ import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.assertTrue;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.EventLoopGroup;
 import java.lang.reflect.Field;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
@@ -167,11 +167,14 @@ public class MessageDuplicationTest {
         MessageDeduplication messageDeduplication = spyWithClassAndConstructorArgs(MessageDeduplication.class, pulsarService, topic, managedLedger);
         doReturn(true).when(messageDeduplication).isEnabled();
 
+        ManagedCursor managedCursor = mock(ManagedCursor.class);
+        doReturn(managedCursor).when(messageDeduplication).getManagedCursor();
+
         Topic.PublishContext publishContext = mock(Topic.PublishContext.class);
 
         Field field = MessageDeduplication.class.getDeclaredField("inactiveProducers");
         field.setAccessible(true);
-        Map<String, Long> map = (Map<String, Long>) field.get(messageDeduplication);
+        Map<String, Long> inactiveProducers = (Map<String, Long>) field.get(messageDeduplication);
 
         String producerName1 = "test1";
         when(publishContext.getHighestSequenceId()).thenReturn(2L);
@@ -187,18 +190,23 @@ public class MessageDuplicationTest {
         when(publishContext.getProducerName()).thenReturn(producerName3);
         messageDeduplication.isDuplicate(publishContext, null);
 
+        // All 3 are added to the inactiveProducers list
         messageDeduplication.producerRemoved(producerName1);
-        assertTrue(map.containsKey(producerName1));
-        messageDeduplication.producerAdded(producerName1);
-        assertFalse(map.containsKey(producerName1));
-        messageDeduplication.purgeInactiveProducers();
-        // messageDeduplication.purgeInactiveProducers() will remove producer2 and producer3
-        map.put(producerName2, System.currentTimeMillis() - 70000);
-        map.put(producerName3, System.currentTimeMillis() - 70000);
-        messageDeduplication.purgeInactiveProducers();
-        assertFalse(map.containsKey(producerName2));
-        assertFalse(map.containsKey(producerName3));
+        messageDeduplication.producerRemoved(producerName2);
+        messageDeduplication.producerRemoved(producerName3);
 
+        // Try first purgeInactive, all producer not inactive.
+        messageDeduplication.purgeInactiveProducers();
+        assertEquals(inactiveProducers.size(), 3);
+
+        // Modify the inactive time of produce2 and produce3
+        // messageDeduplication.purgeInactiveProducers() will remove producer2 and producer3
+        inactiveProducers.put(producerName2, System.currentTimeMillis() - 70000);
+        inactiveProducers.put(producerName3, System.currentTimeMillis() - 70000);
+        // Try second purgeInactive, produce2 and produce3 is inactive.
+        messageDeduplication.purgeInactiveProducers();
+        assertFalse(inactiveProducers.containsKey(producerName2));
+        assertFalse(inactiveProducers.containsKey(producerName3));
         field = MessageDeduplication.class.getDeclaredField("highestSequencedPushed");
         field.setAccessible(true);
         ConcurrentOpenHashMap<String, Long> highestSequencedPushed = (ConcurrentOpenHashMap<String, Long>) field.get(messageDeduplication);
@@ -206,7 +214,6 @@ public class MessageDuplicationTest {
         assertEquals((long) highestSequencedPushed.get(producerName1), 2L);
         assertFalse(highestSequencedPushed.containsKey(producerName2));
         assertFalse(highestSequencedPushed.containsKey(producerName3));
-
     }
 
     @Test

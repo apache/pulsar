@@ -53,6 +53,7 @@ public class TokenClient implements ClientCredentialsExchanger {
     TokenClient(URL tokenUrl, AsyncHttpClient httpClient) {
         if (httpClient == null) {
             DefaultAsyncHttpClientConfig.Builder confBuilder = new DefaultAsyncHttpClientConfig.Builder();
+            confBuilder.setUseProxyProperties(true);
             confBuilder.setFollowRedirect(true);
             confBuilder.setConnectTimeout(DEFAULT_CONNECT_TIMEOUT_IN_SECONDS * 1000);
             confBuilder.setReadTimeout(DEFAULT_READ_TIMEOUT_IN_SECONDS * 1000);

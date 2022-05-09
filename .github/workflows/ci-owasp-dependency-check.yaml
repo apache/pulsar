@@ -79,7 +79,7 @@ jobs:
         run: mvn -B -ntp -Pmain,skip-all,skipDocker,owasp-dependency-check initialize verify -pl distribution/offloaders,distribution/io,pulsar-sql/presto-distribution
 
       - name: Upload OWASP Dependency Check reports
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         if: always()
         with:
           name: owasp-dependency-check-reports-${{ matrix.checkout_branch }}

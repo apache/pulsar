@@ -91,7 +91,6 @@ jobs:
         if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
         run: |
           echo "Build C++ client library"
-          export CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Debug -DBUILD_DYNAMIC_LIB=OFF -DPYTHON_INCLUDE_DIR=/usr/include/python2.7 -DPYTHON_LIBRARY=/usr/lib/x86_64-linux-gnu/libpython2.7.so"
           pulsar-client-cpp/docker-build.sh
 
       - name: run c++ tests
@@ -99,7 +98,7 @@ jobs:
         run: pulsar-client-cpp/docker-tests.sh
 
       - name: Upload test-logs
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         if: failure()
         continue-on-error: true
         with:

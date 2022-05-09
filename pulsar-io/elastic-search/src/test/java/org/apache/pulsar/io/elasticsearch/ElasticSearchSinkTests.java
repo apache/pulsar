@@ -19,11 +19,13 @@
 package org.apache.pulsar.io.elasticsearch;
 
 import co.elastic.clients.transport.ElasticsearchTransport;
+import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.GenericSchema;
+import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -35,11 +37,13 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 
+import java.nio.charset.StandardCharsets;
+import java.util.concurrent.TimeUnit;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
-
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.elasticsearch.client.BulkProcessor;
@@ -60,8 +64,6 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-import java.util.Locale;
-import java.util.concurrent.TimeUnit;
 
 import static org.testng.Assert.assertNull;
 
@@ -207,6 +209,41 @@ public abstract class ElasticSearchSinkTests extends ElasticSearchTestBase {
     }
 
     @Test
+    public final void sendNoSchemaTest() throws Exception {
+
+        when(mockRecord.getMessage()).thenAnswer(new Answer<Optional<Message<String>>>() {
+            @Override
+            public Optional<Message<String>> answer(InvocationOnMock invocation) throws Throwable {
+                final MessageImpl mock = mock(MessageImpl.class);
+                when(mock.getData()).thenReturn("{\"a\":1}".getBytes(StandardCharsets.UTF_8));
+                return Optional.of(mock);
+            }
+        });
+
+        when(mockRecord.getKey()).thenAnswer(new Answer<Optional<String>>() {
+            public Optional<String> answer(InvocationOnMock invocation) throws Throwable {
+                return null;
+            }});
+
+
+        when(mockRecord.getValue()).thenAnswer(new Answer<String>() {
+            public String answer(InvocationOnMock invocation) throws Throwable {
+                return "hello";
+            }});
+
+        when(mockRecord.getSchema()).thenAnswer(new Answer<Schema>() {
+            public Schema answer(InvocationOnMock invocation) throws Throwable {
+                return Schema.STRING;
+            }});
+
+        map.put("indexName", "test-index");
+        map.put("schemaEnable", "false");
+        sink.open(map, mockSinkContext);
+        sink.write(mockRecord);
+        verify(mockRecord, times(1)).ack();
+    }
+
+    @Test(enabled = true)
     public final void sendKeyIgnoreSingleField() throws Exception {
         final String index = "testkeyignore";
         map.put("indexName", index);
