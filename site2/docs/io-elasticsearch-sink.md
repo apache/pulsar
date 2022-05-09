@@ -80,7 +80,7 @@ The configuration of the Elasticsearch sink connector has the following properti
 | `compatibilityMode` | enum (AUTO,ELASTICSEARCH,ELASTICSEARCH_7,OPENSEARCH) | AUTO |  | Specify compatibility mode with the ElasticSearch cluster. `AUTO` value will try to auto detect the correct compatibility mode to use. Use `ELASTICSEARCH_7` if the target cluster is running ElasticSearch 7 or prior. Use `ELASTICSEARCH` if the target cluster is running ElasticSearch 8 or higher. Use `OPENSEARCH` if the target cluster is running OpenSearch. |
 | `token` | String| false | " " (empty string)|The token used by the connector to connect to the ElasticSearch cluster. Only one between basic/token/apiKey authentication mode must be configured. |
 | `apiKey` | String| false | " " (empty string)|The apiKey used by the connector to connect to the ElasticSearch cluster. Only one between basic/token/apiKey authentication mode must be configured. |
-| `stripNonPrintableCharacters` | Boolean| false | true|If `stripNonPrintableCharacters` is true, all non-printable characters are removed from the document. |
+| `stripNonPrintableCharacters` | Boolean| false | true| Whether to remove all non-printable characters from the document or not. If it is set to true, all non-printable characters are removed from the document. |
 
 ### Definition of ElasticSearchSslConfig structure:
 
