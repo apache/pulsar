@@ -149,7 +149,7 @@ All the namespace metrics are labelled with the following labels:
 | pulsar_throughput_out | Gauge | The total throughput of the namespace going out from this broker (byte per second). |
 | pulsar_storage_size | Gauge | The total storage size of the topics in this namespace owned by this broker (bytes). |
 | pulsar_storage_logical_size | Gauge | The storage size of topics in the namespace owned by the broker without replicas (in bytes). |
-| pulsar_storage_backlog_size | Gauge | The total backlog size of the topics of this namespace owned by this broker (messages). |
+| pulsar_storage_backlog_size | Gauge | The total backlog size of the topics of this namespace owned by this broker (in bytes). |
 | pulsar_storage_offloaded_size | Gauge | The total amount of the data in this namespace offloaded to the tiered storage (bytes). |
 | pulsar_storage_write_rate | Gauge | The total message batches (entries) written to the storage for this namespace (message batch per second). |
 | pulsar_storage_read_rate | Gauge | The total message batches (entries) read from the storage for this namespace (message batch per second). |
@@ -197,7 +197,7 @@ All the topic metrics are labelled with the following labels:
 | pulsar_throughput_out | Gauge | The total throughput of the topic going out from this broker (byte per second). |
 | pulsar_storage_size | Gauge | The total storage size of the topics in this topic owned by this broker (bytes). |
 | pulsar_storage_logical_size | Gauge | The storage size of topics in the namespace owned by the broker without replicas (in bytes). |
-| pulsar_storage_backlog_size | Gauge | The total backlog size of the topics of this topic owned by this broker (messages). |
+| pulsar_storage_backlog_size | Gauge | The total backlog size of the topics of this topic owned by this broker (in bytes). |
 | pulsar_storage_offloaded_size | Gauge | The total amount of the data in this topic offloaded to the tiered storage (bytes). |
 | pulsar_storage_backlog_quota_limit | Gauge | The total amount of the data in this topic that limit the backlog quota (bytes). |
 | pulsar_storage_write_rate | Gauge | The total message batches (entries) written to the storage for this topic (message batch per second). |
