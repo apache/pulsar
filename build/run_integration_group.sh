@@ -103,9 +103,7 @@ test_group_shade_build() {
 
 test_group_shade_run() {
   local additional_args
-  if [[ $JAVA_MAJOR_VERSION == "8" ]]; then
-    additional_args="-Dmaven.compiler.source=8 -Dmaven.compiler.target=8 -Dmaven.compiler.release= -Dtest.additional.args="
-  elif [[ $JAVA_MAJOR_VERSION -lt 17 ]]; then
+  if [[ $JAVA_MAJOR_VERSION -gt 8 && $JAVA_MAJOR_VERSION -lt 17 ]]; then
     additional_args="-Dmaven.compiler.source=$JAVA_MAJOR_VERSION -Dmaven.compiler.target=$JAVA_MAJOR_VERSION"
   fi
   mvn_run_integration_test --skip-build-deps --clean "$@" -Denforcer.skip=true -DShadeTests -DtestForkCount=1 -DtestReuseFork=false $additional_args

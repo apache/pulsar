@@ -79,7 +79,7 @@ flexible messaging model and an intuitive client API.</description>
   <properties>
     <maven.compiler.source>17</maven.compiler.source>
     <maven.compiler.target>17</maven.compiler.target>
-    <maven.compiler.release>${maven.compiler.target}</maven.compiler.release>
+    <pulsar.broker.compiler.release>${maven.compiler.target}</pulsar.broker.compiler.release>
     <pulsar.client.compiler.release>8</pulsar.client.compiler.release>
 
     <!--config keys to configure test selection -->
@@ -1757,8 +1757,7 @@ flexible messaging model and an intuitive client API.</description>
           <artifactId>maven-compiler-plugin</artifactId>
           <version>${maven-compiler-plugin.version}</version>
           <configuration>
-            <!-- for some reason, setting maven.compiler.release property alone doesn't work -->
-            <release>${maven.compiler.release}</release>
+            <release>${pulsar.broker.compiler.release}</release>
           </configuration>
         </plugin>
         <plugin>
@@ -1888,6 +1887,20 @@ flexible messaging model and an intuitive client API.</description>
   </build>
 
   <profiles>
+    <profile>
+      <!-- used for running integration tests on Java 8 -->
+      <id>integration-test-java8</id>
+      <activation>
+        <jdk>1.8</jdk>
+      </activation>
+      <properties>
+        <test.additional.args/>
+        <maven.compiler.source>8</maven.compiler.source>
+        <maven.compiler.target>8</maven.compiler.target>
+        <pulsar.broker.compiler.release></pulsar.broker.compiler.release>
+        <pulsar.client.compiler.release></pulsar.client.compiler.release>
+      </properties>
+    </profile>
     <profile>
       <id>coverage</id>
       <properties>
