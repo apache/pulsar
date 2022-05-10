@@ -220,7 +220,7 @@ All the topic metrics are labelled with the following labels:
 | pulsar_compaction_compacted_entries_size |Gauge  | The total size of the compacted entries. |
 | pulsar_txn_tb_active_count | Gauge | The number of active transactions on this topic. |
 | pulsar_txn_tb_aborted_count | Counter | The number of aborted transactions on the topic. |
-| pulsar_txn_tb_committed_count | Counter | The number of committed transaction on the topic. |
+| pulsar_txn_tb_committed_count | Counter | The number of committed transactions on the topic. |
 
 #### Replication metrics
 
