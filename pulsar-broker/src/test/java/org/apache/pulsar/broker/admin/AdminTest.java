@@ -223,7 +223,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
 
         // Check deleting non-existing cluster
         try {
-            clusters.deleteCluster("usc");
+            asynRequests(ctx -> clusters.deleteCluster(ctx, "usc"));
             fail("should have failed");
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), Status.NOT_FOUND.getStatusCode());
@@ -262,7 +262,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         clusters.getNamespaceIsolationPolicies("use");
 
         try {
-            clusters.deleteCluster("use");
+            asynRequests(ctx -> clusters.deleteCluster(ctx, "use"));
             fail("should have failed");
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), 412);
@@ -271,7 +271,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         clusters.deleteNamespaceIsolationPolicy("use", "policy1");
         assertTrue(clusters.getNamespaceIsolationPolicies("use").isEmpty());
 
-        clusters.deleteCluster("use");
+        asynRequests(ctx -> clusters.deleteCluster(ctx, "use"));
         assertEquals(asynRequests(ctx -> clusters.getClusters(ctx)), Sets.newHashSet());
 
         try {
@@ -359,7 +359,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
             });
 
         try {
-            clusters.deleteCluster("use");
+            asynRequests(ctx -> clusters.deleteCluster(ctx, "use"));
             fail("should have failed");
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), Status.INTERNAL_SERVER_ERROR.getStatusCode());
@@ -373,7 +373,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         isolationPolicyCache.invalidateAll();
         store.invalidateAll();
         try {
-            clusters.deleteCluster("use");
+            asynRequests(ctx -> clusters.deleteCluster(ctx, "use"));
             fail("should have failed");
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), Status.INTERNAL_SERVER_ERROR.getStatusCode());
@@ -406,8 +406,8 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), Status.PRECONDITION_FAILED.getStatusCode());
         }
-        verify(clusters, times(13)).validateSuperUserAccessAsync();
-        verify(clusters, times(11)).validateSuperUserAccess();
+        verify(clusters, times(18)).validateSuperUserAccessAsync();
+        verify(clusters, times(6)).validateSuperUserAccess();
     }
 
     Object asynRequests(Consumer<TestAsyncResponse> function) throws Exception {

@@ -566,7 +566,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 EntryBatchIndexesAcks batchIndexesAcks = EntryBatchIndexesAcks.get(entriesForThisConsumer.size());
                 totalEntries += filterEntriesForConsumer(Optional.ofNullable(entryWrappers), start,
                         entriesForThisConsumer, batchSizes, sendMessageInfo, batchIndexesAcks, cursor,
-                        readType == ReadType.Replay);
+                        readType == ReadType.Replay, c);
 
                 c.sendMessages(entriesForThisConsumer, batchSizes, batchIndexesAcks, sendMessageInfo.getTotalMessages(),
                         sendMessageInfo.getTotalBytes(), sendMessageInfo.getTotalChunkedMessages(), redeliveryTracker);

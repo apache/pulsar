@@ -1416,7 +1416,6 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().createNamespace(namespace, Sets.newHashSet(testLocalCluster));
 
         admin.topics().createNonPartitionedTopic(topic);
-
         admin.topics().delete(topic);
 
         try {

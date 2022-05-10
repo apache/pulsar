@@ -24,6 +24,8 @@ set -e
 set -o pipefail
 set -o errexit
 
+JAVA_MAJOR_VERSION="$(java -version 2>&1 |grep " version " | awk -F\" '{ print $2 }' | awk -F. '{ if ($1=="1") { print $2 } else { print $1 } }')"
+
 # lists all active maven modules with given parameters
 # parses the modules from the "mvn initialize" output
 # returns a CSV value
@@ -55,31 +57,56 @@ mvn_run_integration_test() {
     RETRY=""
     shift
   fi
+  # skip test run if next parameter is "--build-only"
+  build_only=0
+  if [[ "$1" == "--build-only" ]]; then
+      build_only=1
+      shift
+  fi
   skip_build_deps=0
   while [[ "$1" == "--skip-build-deps" ]]; do
     skip_build_deps=1
     shift
   done
+  local clean_arg=""
+  if [[ "$1" == "--clean" ]]; then
+      clean_arg="clean"
+      shift
+  fi
   cd "$SCRIPT_DIR"/../tests
   modules=$(mvn_list_modules -DskipDocker "$@")
   cd ..
   set -x
   if [ $skip_build_deps -ne 1 ]; then
     echo "::group::Build dependencies for $modules"
-    mvn -B -T 1C -ntp -pl "$modules" -DskipDocker -DskipSourceReleaseAssembly=true -Dspotbugs.skip=true -Dlicense.skip=true -Dmaven.test.skip=true -Dcheckstyle.skip=true -Drat.skip=true -am install "$@"
+    mvn -B -T 1C -ntp -pl "$modules" -DskipDocker -DskipSourceReleaseAssembly=true -Dspotbugs.skip=true -Dlicense.skip=true -Dmaven.test.skip=true -Dcheckstyle.skip=true -Drat.skip=true -am $clean_arg install "$@"
     echo "::endgroup::"
   fi
-  echo "::group::Run tests for " "$@"
-  # use "verify" instead of "test"
-  $RETRY mvn -B -ntp -pl "$modules" -DskipDocker -DskipSourceReleaseAssembly=true -Dspotbugs.skip=true -Dlicense.skip=true -Dcheckstyle.skip=true -Drat.skip=true -DredirectTestOutputToFile=false verify "$@"
-  echo "::endgroup::"
-  set +x
-  "$SCRIPT_DIR/pulsar_ci_tool.sh" move_test_reports
+  if [[ $build_only -ne 1 ]]; then
+    echo "::group::Run tests for " "$@"
+    # use "verify" instead of "test"
+    $RETRY mvn -B -ntp -pl "$modules" -DskipDocker -DskipSourceReleaseAssembly=true -Dspotbugs.skip=true -Dlicense.skip=true -Dcheckstyle.skip=true -Drat.skip=true -DredirectTestOutputToFile=false $clean_arg verify "$@"
+    echo "::endgroup::"
+    set +x
+    "$SCRIPT_DIR/pulsar_ci_tool.sh" move_test_reports
+  fi
   )
 }
 
 test_group_shade() {
   mvn_run_integration_test "$@" -DShadeTests -DtestForkCount=1 -DtestReuseFork=false
+}
+
+test_group_shade_build() {
+  mvn_run_integration_test --build-only "$@" -DShadeTests -DtestForkCount=1 -DtestReuseFork=false
+}
+
+test_group_shade_run() {
+  local additional_args
+  if [[ $JAVA_MAJOR_VERSION -gt 8 && $JAVA_MAJOR_VERSION -lt 17 ]]; then
+    additional_args="-Dmaven.compiler.source=$JAVA_MAJOR_VERSION -Dmaven.compiler.target=$JAVA_MAJOR_VERSION"
+  fi
+  mvn_run_integration_test --skip-build-deps --clean "$@" -Denforcer.skip=true -DShadeTests -DtestForkCount=1 -DtestReuseFork=false $additional_args
 }
 
 test_group_backwards_compat() {

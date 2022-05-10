@@ -48,6 +48,7 @@ import org.apache.pulsar.client.admin.Bookies;
 import org.apache.pulsar.client.admin.BrokerStats;
 import org.apache.pulsar.client.admin.Brokers;
 import org.apache.pulsar.client.admin.Clusters;
+import org.apache.pulsar.client.admin.ListTopicsOptions;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.Lookup;
 import org.apache.pulsar.client.admin.Namespaces;
@@ -1316,7 +1317,7 @@ public class PulsarAdminToolTest {
         verify(mockTopics).revokePermissions("persistent://myprop/clust/ns1/ds1", "admin");
 
         cmdTopics.run(split("list myprop/clust/ns1"));
-        verify(mockTopics).getList("myprop/clust/ns1", null, null);
+        verify(mockTopics).getList("myprop/clust/ns1", null, ListTopicsOptions.EMPTY);
 
         cmdTopics.run(split("lookup persistent://myprop/clust/ns1/ds1"));
         verify(mockLookup).lookupTopic("persistent://myprop/clust/ns1/ds1");
@@ -1425,7 +1426,7 @@ public class PulsarAdminToolTest {
         verify(mockTopics).createNonPartitionedTopic("persistent://myprop/clust/ns1/ds1", new HashMap<>());
 
         cmdTopics.run(split("list-partitioned-topics myprop/clust/ns1"));
-        verify(mockTopics).getPartitionedTopicList("myprop/clust/ns1");
+        verify(mockTopics).getPartitionedTopicList("myprop/clust/ns1", ListTopicsOptions.EMPTY);
 
         cmdTopics.run(split("update-partitioned-topic persistent://myprop/clust/ns1/ds1 -p 6"));
         verify(mockTopics).updatePartitionedTopic("persistent://myprop/clust/ns1/ds1", 6, false, false);
@@ -1858,7 +1859,7 @@ public class PulsarAdminToolTest {
         verify(mockTopics).createPartitionedTopic("non-persistent://myprop/ns1/ds1", 32, null);
 
         topics.run(split("list myprop/ns1"));
-        verify(mockTopics).getList("myprop/ns1", null, null);
+        verify(mockTopics).getList("myprop/ns1", null, ListTopicsOptions.EMPTY);
 
         NonPersistentTopics mockNonPersistentTopics = mock(NonPersistentTopics.class);
         when(admin.nonPersistentTopics()).thenReturn(mockNonPersistentTopics);

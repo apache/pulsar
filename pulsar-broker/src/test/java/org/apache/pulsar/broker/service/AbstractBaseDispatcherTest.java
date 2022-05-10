@@ -72,7 +72,7 @@ public class AbstractBaseDispatcherTest {
         SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
         EntryBatchSizes batchSizes = EntryBatchSizes.get(entries.size());
 
-        int size = this.helper.filterEntriesForConsumer(entries, batchSizes, sendMessageInfo, null, null, false);
+        int size = this.helper.filterEntriesForConsumer(entries, batchSizes, sendMessageInfo, null, null, false, null);
         assertEquals(size, 0);
     }
 
@@ -99,7 +99,7 @@ public class AbstractBaseDispatcherTest {
         SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
         EntryBatchSizes batchSizes = EntryBatchSizes.get(entries.size());
         //
-        int size = this.helper.filterEntriesForConsumer(entries, batchSizes, sendMessageInfo, null, null, false);
+        int size = this.helper.filterEntriesForConsumer(entries, batchSizes, sendMessageInfo, null, null, false, null);
         assertEquals(size, 0);
     }
 
@@ -110,7 +110,7 @@ public class AbstractBaseDispatcherTest {
 
         SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
         EntryBatchSizes batchSizes = EntryBatchSizes.get(entries.size());
-        int size = this.helper.filterEntriesForConsumer(entries, batchSizes, sendMessageInfo, null, null, false);
+        int size = this.helper.filterEntriesForConsumer(entries, batchSizes, sendMessageInfo, null, null, false, null);
         assertEquals(size, 0);
     }
 
@@ -126,7 +126,7 @@ public class AbstractBaseDispatcherTest {
 
         SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
         EntryBatchSizes batchSizes = EntryBatchSizes.get(entries.size());
-        int size = this.helper.filterEntriesForConsumer(entries, batchSizes, sendMessageInfo, null, null, false);
+        int size = this.helper.filterEntriesForConsumer(entries, batchSizes, sendMessageInfo, null, null, false, null);
         assertEquals(size, 0);
     }
 
@@ -139,7 +139,7 @@ public class AbstractBaseDispatcherTest {
 
         SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
         EntryBatchSizes batchSizes = EntryBatchSizes.get(entries.size());
-        int size = this.helper.filterEntriesForConsumer(entries, batchSizes, sendMessageInfo, null, null, false);
+        int size = this.helper.filterEntriesForConsumer(entries, batchSizes, sendMessageInfo, null, null, false, null);
         assertEquals(size, 0);
     }
 
@@ -150,7 +150,7 @@ public class AbstractBaseDispatcherTest {
 
         SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
         EntryBatchSizes batchSizes = EntryBatchSizes.get(entries.size());
-        int size = this.helper.filterEntriesForConsumer(entries, batchSizes, sendMessageInfo, null, null, false);
+        int size = this.helper.filterEntriesForConsumer(entries, batchSizes, sendMessageInfo, null, null, false, null);
         assertEquals(size, 0);
     }
 

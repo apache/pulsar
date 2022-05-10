@@ -16,24 +16,25 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.service.plugin;
+package org.apache.pulsar.client.admin;
 
+import lombok.Builder;
 import lombok.Data;
-import org.apache.pulsar.broker.service.Consumer;
-import org.apache.pulsar.broker.service.Subscription;
-import org.apache.pulsar.common.api.proto.MessageMetadata;
 
 @Data
-public class FilterContext {
-    private Subscription subscription;
-    private MessageMetadata msgMetadata;
-    private Consumer consumer;
+@Builder
+public class ListTopicsOptions {
 
-    public void reset() {
-        subscription = null;
-        msgMetadata = null;
-        consumer = null;
-    }
+    public static final ListTopicsOptions EMPTY = ListTopicsOptions.builder().build();
 
-    public static final FilterContext FILTER_CONTEXT_DISABLED = new FilterContext();
+    /**
+     * Namespace bundle.
+     */
+    private final String bundle;
+
+    /**
+     * Set to true to get topics including system topic, otherwise not.
+     */
+    private final boolean includeSystemTopic;
+
 }
