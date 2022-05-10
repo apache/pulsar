@@ -522,9 +522,8 @@ public class ClustersBase extends AdminResource {
             NamespaceIsolationPolicyImpl nsPolicyImpl = new NamespaceIsolationPolicyImpl(policyData);
             if (nsPolicyImpl.isPrimaryBroker(broker) || nsPolicyImpl.isSecondaryBroker(broker)) {
                 namespaceRegexes.addAll(policyData.getNamespaces());
-                if (nsPolicyImpl.isPrimaryBroker(broker)) {
-                    brokerIsolationData.primary(true);
-                }
+                brokerIsolationData.primary(nsPolicyImpl.isPrimaryBroker(broker));
+                brokerIsolationData.policyName(name);
             }
         });
         brokerIsolationData.namespaceRegex(namespaceRegexes);
