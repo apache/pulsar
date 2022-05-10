@@ -595,10 +595,10 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                                     callBack.noNeedToRecover();
                                     return;
                                 }
-                            } catch (PulsarClientException pulsarClientException) {
-                                log.error("[{}]Transaction buffer recover fail when read "
-                                        + "transactionBufferSnapshot!", topic.getName(), pulsarClientException);
-                                callBack.recoverExceptionally(pulsarClientException);
+                            } catch (Exception ex) {
+                                log.error("[{}] Transaction buffer recover fail when read "
+                                        + "transactionBufferSnapshot!", topic.getName(), ex);
+                                callBack.recoverExceptionally(ex);
                                 closeReader(reader);
                                 return;
                             }
