@@ -1,22 +1,28 @@
 package org.apache.pulsar.functions.transforms;
 
+import lombok.AllArgsConstructor;
+import lombok.Data;
 import lombok.Getter;
-import org.apache.avro.generic.GenericRecord;
+import lombok.Value;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.common.schema.KeyValueEncodingType;
 
-@Getter
+@Data
+@AllArgsConstructor
 public class TransformResult {
-    private final Schema<?> schema;
-    private final GenericRecord avroValue;
-    private final Object value;
+    private Schema<?> keySchema;
+    private Object keyObject;
+    private Boolean keyModified;
+    private Schema<?> valueSchema;
+    private Object valueObject;
+    private Boolean valueModified;
+    private KeyValueEncodingType keyValueEncodingType;
 
-    public TransformResult(Schema<?> schema, Object value) {
-        this(schema, value, null);
+    public TransformResult(Schema keySchema, Object key, Schema valueSchema, Object value, KeyValueEncodingType keyValueEncodingType) {
+        this(keySchema, key, false, valueSchema, value, false, keyValueEncodingType);
     }
 
-    public TransformResult(Schema<?> schema, Object value, GenericRecord avroValue) {
-        this.schema = schema;
-        this.value = value;
-        this.avroValue = avroValue;
+    public TransformResult(Schema<?> schema, Object value) {
+        this(null, null, schema, value, null);
     }
 }

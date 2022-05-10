@@ -34,11 +34,11 @@ public class TransformFunction implements Function<GenericObject, Void> {
                 currentRecord.getMessage().get().getSchemaVersion(),
                 currentRecord);
 
-        TransformResult transformResult = new TransformResult(schema, nativeObject);
+        TransformResult transformResult = TransformUtils.newTransformResult(schema, nativeObject);
         for (Map<String, String> step : steps) {
             String type = step.get("type");
             if ("drop-field".equals(type)) {
-                transformResult = TransformUtils.dropValueField(step.get("field"), transformResult);
+                TransformUtils.dropValueField(step.get("field"), transformResult);
             }
         }
         TransformUtils.sendMessage(context, transformResult);

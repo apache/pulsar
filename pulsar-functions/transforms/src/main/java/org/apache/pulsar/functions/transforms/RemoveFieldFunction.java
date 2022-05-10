@@ -43,13 +43,13 @@ public class RemoveFieldFunction implements Function<GenericObject, Void> {
         Record<?> currentRecord = context.getCurrentRecord();
         Schema<?> schema = currentRecord.getSchema();
         Object nativeObject = genericObject.getNativeObject();
-        log.info("apply to {} {}", genericObject, nativeObject);
-        log.info("record with schema {} version {} {}", schema,
+        log.debug("apply to {} {}", genericObject, nativeObject);
+        log.debug("record with schema {} version {} {}", schema,
                 currentRecord.getMessage().get().getSchemaVersion(),
                 currentRecord);
 
-        TransformResult transformResult =
-                TransformUtils.dropValueField(field, new TransformResult(schema, nativeObject));
+        TransformResult transformResult = TransformUtils.newTransformResult(schema, nativeObject);
+        TransformUtils.dropValueField(field, transformResult);
         TransformUtils.sendMessage(context, transformResult);
         return null;
     }
