@@ -78,7 +78,7 @@ public class TenantResources extends BaseResources<TenantInfo> {
     }
 
     public CompletableFuture<Boolean> tenantExistsAsync(String tenantName) {
-        return getCache().exists(joinPath(BASE_POLICIES_PATH, tenantName));
+        return existsAsync(joinPath(BASE_POLICIES_PATH, tenantName));
     }
 
     public List<String> getListOfNamespaces(String tenant) throws MetadataStoreException {
@@ -108,6 +108,40 @@ public class TenantResources extends BaseResources<TenantInfo> {
         }
 
         return namespaces;
+    }
+
+    public CompletableFuture<List<String>> getListOfNamespacesAsync(String tenant) {
+        List<String> namespaces = new ArrayList<>();
+        // this will return a cluster in v1 and a namespace in v2
+        CompletableFuture<List<CompletableFuture<Void>>> result = getChildrenAsync(joinPath(BASE_POLICIES_PATH, tenant))
+                .thenApply(clusterOrNamespaces -> clusterOrNamespaces.stream().map(key ->
+                        getChildrenAsync(joinPath(BASE_POLICIES_PATH, tenant, key))
+                                .thenCompose(children -> {
+                                    CompletableFuture<Void> ret = CompletableFuture.completedFuture(null);
+                                    if (children == null || children.isEmpty()) {
+                                        String namespace = NamespaceName.get(tenant, key).toString();
+                                        // if the length is 0 then this is probably a leftover cluster from namespace
+                                        // created with the v1 admin format (prop/cluster/ns) and then deleted, so no
+                                        // need to add it to the list
+                                        ret = ret.thenCompose(__ -> getAsync(joinPath(BASE_POLICIES_PATH, namespace))
+                                                        .thenAccept(opt -> opt.map(k -> namespaces.add(namespace)))
+                                                        .exceptionally(ex -> {
+                                                            Throwable cause = FutureUtil.unwrapCompletionException(ex);
+                                                            if (cause instanceof MetadataStoreException
+                                                                    .ContentDeserializationException) {
+                                                                return null;
+                                                            }
+                                                            throw FutureUtil.wrapToCompletionException(ex);
+                                                        }));
+                                    } else {
+                                        children.forEach(ns -> {
+                                            namespaces.add(NamespaceName.get(tenant, key, ns).toString());
+                                        });
+                                    }
+                                    return ret;
+                                })).collect(Collectors.toList())
+                );
+        return result.thenCompose(futures -> FutureUtil.waitForAll(futures)).thenApply(__ -> namespaces);
     }
 
     public CompletableFuture<List<String>> getActiveNamespaces(String tenant, String cluster) {

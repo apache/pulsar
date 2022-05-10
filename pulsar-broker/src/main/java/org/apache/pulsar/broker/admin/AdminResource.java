@@ -534,6 +534,11 @@ public abstract class AdminResource extends PulsarWebResource {
         }
     }
 
+    protected CompletableFuture<List<String>> getPartitionedTopicListAsync(TopicDomain topicDomain) {
+        return namespaceResources().getPartitionedTopicResources()
+                .listPartitionedTopicsAsync(namespaceName, topicDomain);
+    }
+
     protected List<String> getTopicPartitionList(TopicDomain topicDomain) {
         try {
             return getPulsarResources().getTopicResources().getExistingPartitions(topicName)
