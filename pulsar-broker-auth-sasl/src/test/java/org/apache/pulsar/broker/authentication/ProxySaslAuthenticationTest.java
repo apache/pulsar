@@ -65,6 +65,8 @@ public class ProxySaslAuthenticationTest extends ProducerConsumerBase {
 
 	public static File kdcDir;
 	public static File kerberosWorkDir;
+	public static File brokerSecretKeyFile;
+	public static File proxySecretKeyFile;
 
 	private static MiniKdc kdc;
 	private static Properties properties;
@@ -183,10 +185,9 @@ public class ProxySaslAuthenticationTest extends ProducerConsumerBase {
 		conf.setAuthenticationEnabled(true);
 		conf.setSaslJaasClientAllowedIds(".*" + localHostname + ".*");
 		conf.setSaslJaasServerSectionName("PulsarBroker");
-		File secretKeyFile = File.createTempFile("saslRoleTokenSignerSecret", ".key");
-		secretKeyFile.deleteOnExit();
-		Files.write(Paths.get(secretKeyFile.toString()), "PulsarSecret".getBytes());
-		conf.setSaslJaasServerRoleTokenSignerSecretPath(secretKeyFile.toString());
+		brokerSecretKeyFile = File.createTempFile("saslRoleTokenSignerSecret", ".key");
+		Files.write(Paths.get(brokerSecretKeyFile.toString()), "PulsarSecret".getBytes());
+		conf.setSaslJaasServerRoleTokenSignerSecretPath(brokerSecretKeyFile.toString());
 		Set<String> providers = new HashSet<>();
 		providers.add(AuthenticationProviderSasl.class.getName());
 		conf.setAuthenticationProviders(providers);
@@ -213,6 +214,10 @@ public class ProxySaslAuthenticationTest extends ProducerConsumerBase {
 	@Override
 	@AfterMethod(alwaysRun = true)
 	protected void cleanup() throws Exception {
+		FileUtils.deleteQuietly(brokerSecretKeyFile);
+		Assert.assertFalse(brokerSecretKeyFile.exists());
+		FileUtils.deleteQuietly(proxySecretKeyFile);
+		Assert.assertFalse(proxySecretKeyFile.exists());
 		super.internalCleanup();
 	}
 
@@ -239,10 +244,9 @@ public class ProxySaslAuthenticationTest extends ProducerConsumerBase {
 		proxyConfig.setBrokerClientAuthenticationParameters(
 			"{\"saslJaasClientSectionName\": " + "\"PulsarProxy\"," +
 				"\"serverType\": " + "\"broker\"}");
-		File secretKeyFile = File.createTempFile("saslRoleTokenSignerSecret", ".key");
-		secretKeyFile.deleteOnExit();
-		Files.write(Paths.get(secretKeyFile.toString()), "PulsarSecret".getBytes());
-		proxyConfig.setSaslJaasServerRoleTokenSignerSecretPath(secretKeyFile.toString());
+		proxySecretKeyFile = File.createTempFile("saslRoleTokenSignerSecret", ".key");
+		Files.write(Paths.get(proxySecretKeyFile.toString()), "PulsarSecret".getBytes());
+		proxyConfig.setSaslJaasServerRoleTokenSignerSecretPath(proxySecretKeyFile.toString());
 		// proxy as a server, it will use sasl to authn
 		Set<String> providers = new HashSet<>();
 		providers.add(AuthenticationProviderSasl.class.getName());

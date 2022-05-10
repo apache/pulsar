@@ -54,6 +54,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.impl.auth.AuthenticationSasl;
 import org.apache.pulsar.common.api.AuthData;
 import org.apache.pulsar.common.sasl.SaslConstants;
+import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
@@ -64,6 +65,7 @@ import org.testng.annotations.Test;
 public class SaslAuthenticateTest extends ProducerConsumerBase {
     public static File kdcDir;
     public static File kerberosWorkDir;
+    public static File secretKeyFile;
 
     private static MiniKdc kdc;
     private static Properties properties;
@@ -171,8 +173,7 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
         conf.setAuthenticationEnabled(true);
         conf.setSaslJaasClientAllowedIds(".*" + "client" + ".*");
         conf.setSaslJaasServerSectionName("PulsarBroker");
-        File secretKeyFile = File.createTempFile("saslRoleTokenSignerSecret", ".key");
-        secretKeyFile.deleteOnExit();
+        secretKeyFile = File.createTempFile("saslRoleTokenSignerSecret", ".key");
         Files.write(Paths.get(secretKeyFile.toString()), "PulsarSecret".getBytes());
         conf.setSaslJaasServerRoleTokenSignerSecretPath(secretKeyFile.toString());
         Set<String> providers = new HashSet<>();
@@ -207,6 +208,8 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
     @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
+        FileUtils.deleteQuietly(secretKeyFile);
+        Assert.assertFalse(secretKeyFile.exists());
         super.internalCleanup();
     }
 
