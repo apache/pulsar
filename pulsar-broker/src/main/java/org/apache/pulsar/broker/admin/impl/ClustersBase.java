@@ -633,7 +633,7 @@ public class ClustersBase extends AdminResource {
                                         .thenApply(__ -> new NamespaceIsolationPolicies()))
                 ).thenCompose(nsIsolationPolicies -> namespaceIsolationPolicies()
                         .setIsolationDataAsync(cluster, old -> nsIsolationPolicies.getPolicies())
-                ).thenAccept(__ -> filterAndUnloadMatchedNamespaceAsync(policyData))
+                ).thenCompose(__ -> filterAndUnloadMatchedNamespaceAsync(policyData))
                 .thenAccept(__ -> {
                     log.info("[{}] Successful to update clusters/{}/namespaceIsolationPolicies/{}.",
                             clientAppId(), cluster, policyName);
