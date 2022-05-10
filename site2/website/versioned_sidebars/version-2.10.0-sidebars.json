@@ -1,7 +1,7 @@
 {
   "version-2.10.0-docs": {
     "Get Started": [
-      "version-2.10.0-standalone",
+      "version-2.10.0-getting-started-standalone",
       "version-2.10.0-getting-started-docker",
       "version-2.10.0-getting-started-helm"
     ],

@@ -181,6 +181,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private Optional<Integer> webServicePortTls = Optional.empty();
 
     @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Specify the TLS provider for the web service: SunJSSE, Conscrypt and etc."
+    )
+    private String webServiceTlsProvider = "Conscrypt";
+
+    @FieldContext(
             category = CATEGORY_TLS,
             doc = "Specify the tls protocols the proxy's web service will use to negotiate during TLS Handshake.\n\n"
                     + "Example:- [TLSv1.3, TLSv1.2]"
@@ -1905,6 +1911,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "If value is invalid or NONE, then save the ManagedLedgerInfo bytes data directly.")
     private String managedLedgerInfoCompressionType = "NONE";
 
+    @FieldContext(category = CATEGORY_STORAGE_ML,
+            doc = "ManagedCursorInfo compression type, option values (NONE, LZ4, ZLIB, ZSTD, SNAPPY). \n"
+                    + "If value is NONE, then save the ManagedCursorInfo bytes data directly.")
+    private String managedCursorInfoCompressionType = "NONE";
+
     /*** --- Load balancer. --- ****/
     @FieldContext(
             category = CATEGORY_LOAD_BALANCER,
@@ -2320,6 +2331,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     /**** --- Metrics. --- ****/
     @FieldContext(
+            category = CATEGORY_METRICS,
+            doc = "Whether the '/metrics' endpoint requires authentication. Defaults to false."
+                    + "'authenticationEnabled' must also be set for this to take effect."
+    )
+    private boolean authenticateMetricsEndpoint = false;
+    @FieldContext(
         category = CATEGORY_METRICS,
         doc = "If true, export topic level metrics otherwise namespace level"
     )
@@ -2401,6 +2418,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "The nar package for the function worker service"
     )
     private String functionsWorkerServiceNarPackage = "";
+
+    @FieldContext(
+            category = CATEGORY_FUNCTIONS,
+            doc = "Flag indicates enabling or disabling function worker using unified PackageManagement service."
+    )
+    private boolean functionsWorkerEnablePackageManagement = false;
 
     /**** --- Broker Web Stats. --- ****/
     @FieldContext(
@@ -2542,7 +2565,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_KEYSTORE_TLS,
-            doc = "TLS Provider for Specify the SSL provider for the broker service: \n"
+            doc = "Specify the TLS provider for the broker service: \n"
                     + "When using TLS authentication with CACert, the valid value is either OPENSSL or JDK.\n"
                     + "When using TLS authentication with KeyStore, available values can be SunJSSE, Conscrypt and etc."
     )

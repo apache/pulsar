@@ -137,6 +137,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     private final int partitionIndex;
     private final boolean hasParentConsumer;
+    private final boolean parentConsumerHasListener;
 
     private final UnAckedMessageTracker unAckedMessageTracker;
     private final AcknowledgmentsGroupingTracker acknowledgmentsGroupingTracker;
@@ -208,7 +209,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                                Schema<T> schema,
                                                ConsumerInterceptors<T> interceptors,
                                                boolean createTopicIfDoesNotExist) {
-        return newConsumerImpl(client, topic, conf, executorProvider, partitionIndex, hasParentConsumer,
+        return newConsumerImpl(client, topic, conf, executorProvider, partitionIndex, hasParentConsumer, false,
                 subscribeFuture, startMessageId, schema, interceptors, createTopicIfDoesNotExist, 0);
     }
 
@@ -218,6 +219,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                                ExecutorProvider executorProvider,
                                                int partitionIndex,
                                                boolean hasParentConsumer,
+                                               boolean parentConsumerHasListener,
                                                CompletableFuture<Consumer<T>> subscribeFuture,
                                                MessageId startMessageId,
                                                Schema<T> schema,
@@ -231,6 +233,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     createTopicIfDoesNotExist);
         } else {
             return new ConsumerImpl<>(client, topic, conf, executorProvider, partitionIndex, hasParentConsumer,
+                    parentConsumerHasListener,
                     subscribeFuture, startMessageId,
                     startMessageRollbackDurationInSec /* rollback time in sec to start msgId */,
                     schema, interceptors, createTopicIfDoesNotExist);
@@ -239,7 +242,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     protected ConsumerImpl(PulsarClientImpl client, String topic, ConsumerConfigurationData<T> conf,
            ExecutorProvider executorProvider, int partitionIndex, boolean hasParentConsumer,
-           CompletableFuture<Consumer<T>> subscribeFuture, MessageId startMessageId,
+           boolean parentConsumerHasListener, CompletableFuture<Consumer<T>> subscribeFuture, MessageId startMessageId,
            long startMessageRollbackDurationInSec, Schema<T> schema, ConsumerInterceptors<T> interceptors,
            boolean createTopicIfDoesNotExist) {
         super(client, topic, conf, conf.getReceiverQueueSize(), executorProvider, subscribeFuture, schema,
@@ -253,6 +256,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         this.lookupDeadline = System.currentTimeMillis() + client.getConfiguration().getLookupTimeoutMs();
         this.partitionIndex = partitionIndex;
         this.hasParentConsumer = hasParentConsumer;
+        this.parentConsumerHasListener = parentConsumerHasListener;
         this.priorityLevel = conf.getPriorityLevel();
         this.readCompacted = conf.isReadCompacted();
         this.subscriptionInitialPosition = conf.getSubscriptionInitialPosition();
@@ -413,18 +417,13 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
 
     @Override
-    public void initReceiverQueueSize() {
-        if (conf.isAutoScaledReceiverQueueSizeEnabled()) {
-            // turn on autoScaledReceiverQueueSize
-            int size = Math.min(INITIAL_RECEIVER_QUEUE_SIZE, maxReceiverQueueSize);
-            if (batchReceivePolicy.getMaxNumMessages() > 0) {
-                // consumerImpl may store (half-1) permits locally.
-                size = Math.max(size, 2 * batchReceivePolicy.getMaxNumMessages() - 2);
-            }
-            CURRENT_RECEIVER_QUEUE_SIZE_UPDATER.set(this, size);
-        } else {
-            CURRENT_RECEIVER_QUEUE_SIZE_UPDATER.set(this, maxReceiverQueueSize);
+    public int minReceiverQueueSize() {
+        int size = Math.min(INITIAL_RECEIVER_QUEUE_SIZE, maxReceiverQueueSize);
+        if (batchReceivePolicy.getMaxNumMessages() > 0) {
+            // consumerImpl may store (half-1) permits locally.
+            size = Math.max(size, 2 * batchReceivePolicy.getMaxNumMessages() - 2);
         }
+        return size;
     }
 
     @Override
@@ -1570,7 +1569,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         if (msgCnx != currentCnx) {
             // The processed message did belong to the old queue that was cleared after reconnection.
         } else {
-            increaseAvailablePermits(currentCnx);
+            if (listener == null && !parentConsumerHasListener) {
+                increaseAvailablePermits(currentCnx);
+            }
             stats.updateNumMsgsReceived(msg);
 
             trackMessage(msg);
@@ -1605,13 +1606,20 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
     }
 
+    void increaseAvailablePermits(MessageImpl<?> msg) {
+        ClientCnx currentCnx = cnx();
+        ClientCnx msgCnx = msg.getCnx();
+        if (msgCnx == currentCnx) {
+            increaseAvailablePermits(currentCnx);
+        }
+    }
+
     void increaseAvailablePermits(ClientCnx currentCnx) {
         increaseAvailablePermits(currentCnx, 1);
     }
 
     protected void increaseAvailablePermits(ClientCnx currentCnx, int delta) {
         int available = AVAILABLE_PERMITS_UPDATER.addAndGet(this, delta);
-
         while (available >= getCurrentReceiverQueueSize() / 2 && !paused) {
             if (AVAILABLE_PERMITS_UPDATER.compareAndSet(this, available, 0)) {
                 sendFlowPermitsToBroker(currentCnx, available);
@@ -1927,7 +1935,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     @Override
     protected void updateAutoScaleReceiverQueueHint() {
-        scaleReceiverQueueHint.set(getAvailablePermits() + incomingMessages.size() >= getCurrentReceiverQueueSize());
+        boolean prev = scaleReceiverQueueHint.getAndSet(
+                getAvailablePermits() + incomingMessages.size() >= getCurrentReceiverQueueSize());
+        if (log.isDebugEnabled() && prev != scaleReceiverQueueHint.get()) {
+            log.debug("updateAutoScaleReceiverQueueHint {} -> {}", prev, scaleReceiverQueueHint.get());
+        }
     }
 
     @Override

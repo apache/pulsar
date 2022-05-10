@@ -51,9 +51,14 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
              CompletableFuture<Consumer<T>> subscribeFuture, MessageId startMessageId, Schema<T> schema,
              ConsumerInterceptors<T> interceptors,
              boolean createTopicIfDoesNotExist) {
-        super(client, topic, conf, executorProvider, partitionIndex, hasParentConsumer, subscribeFuture,
+        super(client, topic, conf, executorProvider, partitionIndex, hasParentConsumer, false, subscribeFuture,
                 startMessageId, 0 /* startMessageRollbackDurationInSec */, schema, interceptors,
                 createTopicIfDoesNotExist);
+    }
+
+    @Override
+    public int minReceiverQueueSize() {
+        return 0;
     }
 
     @Override
@@ -63,7 +68,6 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
         } else {
             CURRENT_RECEIVER_QUEUE_SIZE_UPDATER.set(this, 0);
         }
-
     }
 
     @Override

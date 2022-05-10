@@ -25,10 +25,11 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 
 import java.net.URL;
+import java.util.Locale;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.pulsar.functions.auth.KubernetesSecretsTokenAuthProvider;
 import org.apache.pulsar.functions.runtime.kubernetes.KubernetesRuntimeFactory;
-import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.testng.annotations.Test;
 
 /**
@@ -120,5 +121,20 @@ public class WorkerApiV2ResourceConfigTest {
         assertEquals(newK8SWc.getFunctionInstanceResourceGranularities().getDisk().longValue(), 10737418240L);
 
         assertTrue(newK8SWc.isFunctionInstanceResourceChangeInLockStep());
+    }
+
+    @Test
+    public void testPasswordsNotLeakedOnToString() throws Exception {
+        URL yamlUrl = getClass().getClassLoader().getResource("test_worker_config.yml");
+        WorkerConfig wc = WorkerConfig.load(yamlUrl.toURI().getPath());
+        assertFalse(wc.toString().toLowerCase(Locale.ROOT).contains("password"), "Stringified config must not contain password");
+    }
+
+    @Test
+    public void testPasswordsPresentOnObjectMapping() throws Exception {
+        URL yamlUrl = getClass().getClassLoader().getResource("test_worker_config.yml");
+        WorkerConfig wc = WorkerConfig.load(yamlUrl.toURI().getPath());
+        assertTrue((new ObjectMapper().writeValueAsString(wc)).toLowerCase(Locale.ROOT).contains("password"),
+                "ObjectMapper output must include passwords for proper serialization");
     }
 }

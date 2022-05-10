@@ -361,7 +361,7 @@ message CommandFlow {
 ```
 
 Parameters:
-* `consumer_id` → Id of an already established consumer
+* `consumer_id` → ID of an already established consumer
 * `messagePermits` → Number of additional permits to grant to the broker for
     pushing more messages
 
@@ -406,12 +406,36 @@ message CommandAck {
 ```
 
 Parameters:
- * `consumer_id` → Id of an already established consumer
+ * `consumer_id` → ID of an already established consumer
  * `ack_type` → Type of acknowledgment: `Individual` or `Cumulative`
- * `message_id` → Id of the message to acknowledge
+ * `message_id` → ID of the message to acknowledge
  * `validation_error` → *(optional)* Indicates that the consumer has discarded
    the messages due to: `UncompressedSizeCorruption`,
    `DecompressionError`, `ChecksumMismatch`, `BatchDeSerializeError`
+ * `properties` -> *(optional)* Reserved configuration items
+ * `txnid_most_bits` -> *(optional)* Same as TC ID, `txnid_most_bits` and `txnid_least_bits`
+   uniquely identify a transaction.
+ * `txnid_least_bits` -> *(optional)* The ID of the transaction opened in a TC,
+   `txnid_most_bits` and `txnid_least_bits`uniquely identify a transaction.
+ * `request_id` -> *(optional)* ID for handling response and timeout.
+
+##### Command AckResponse
+
+An `AckResponse` is the broker’s response to acknowledge a request sent by the client. It contains the `consumer_id` sent in the request.
+If a transaction is used, it contains both Transaction ID and Request ID that are sent in the request.
+The client finishes the specific request according to the Request ID.
+If the `error` field is set, it indicates that the request has failed.
+
+Example of ack response with redirection:
+
+```protobuf
+message CommandAckResponse {
+    "consumer_id" : 1,
+    "txnid_least_bits" = 0,
+    "txnid_most_bits" = 1,
+    "request_id" = 5
+}
+```
 
 ##### Command CloseConsumer
 
@@ -446,9 +470,9 @@ messages are coming from the consumer.
 This command is sent by the client to retrieve Subscriber and Consumer level 
 stats from the broker.
 Parameters:
- * `request_id` → Id of the request, used to correlate the request 
+ * `request_id` → ID of the request, used to correlate the request 
       and the response.
- * `consumer_id` → Id of an already established consumer.
+ * `consumer_id` → ID of an already established consumer.
 
 ##### Command ConsumerStatsResponse
 
@@ -460,8 +484,8 @@ If the `error_code` or the `error_message` field is set it indicates that the re
 
 This command is sent by the client to unsubscribe the `consumer_id` from the associated topic.
 Parameters:
- * `request_id` → Id of the request.
- * `consumer_id` → Id of an already established consumer which needs to unsubscribe.
+ * `request_id` → ID of the request.
+ * `consumer_id` → ID of an already established consumer which needs to unsubscribe.
 
 
 ## Service discovery
@@ -504,7 +528,7 @@ message CommandLookupTopic {
 
 Fields:
  * `topic` → Topic name to lookup
- * `request_id` → Id of the request that will be passed with its response
+ * `request_id` → ID of the request that will be passed with its response
  * `authoritative` → Initial lookup request should use false. When following a
    redirect response, client should pass the same value contained in the
    response
@@ -566,7 +590,7 @@ message CommandPartitionedTopicMetadata {
 
 Fields:
  * `topic` → the topic for which to check the partitions metadata
- * `request_id` → Id of the request that will be passed with its response
+ * `request_id` → ID of the request that will be passed with its response
 
 
 ##### Command PartitionedTopicMetadataResponse

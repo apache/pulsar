@@ -65,6 +65,11 @@
     </dependency>
 
     <dependency>
+      <groupId>com.lmax</groupId>
+      <artifactId>disruptor</artifactId>
+    </dependency>
+
+    <dependency>
       <groupId>org.apache.zookeeper</groupId>
       <artifactId>zookeeper-prometheus-metrics</artifactId>
       <version>${zookeeper.version}</version>

@@ -45,7 +45,7 @@ Clusters can replicate amongst themselves using [geo-replication](concepts-repli
 
 ## Metadata store
 
-The Pulsar metadata store maintains all the metadata of a Pulsar cluster, such as topic metadata, schema, broker load data, and so on. Pulsar uses [Apache ZooKeeper](https://zookeeper.apache.org/) for metadata storage, cluster configuration, and coordination. The Pulsar metadata store can be deployed on a separate ZooKeeper cluster or deployed on an existing ZooKeeper cluster. You can use one ZooKeeper cluster for both Pulsar metadata store and [BookKeeper metadata store](https://bookkeeper.apache.org/docs/latest/getting-started/concepts/#metadata-storage). If you want to deploy Pulsar brokers connected to an existing BookKeeper cluster, you need to deploy separate ZooKeeper clusters for Pulsar metadata store and BookKeeper metadata store respectively.
+The Pulsar metadata store maintains all the metadata of a Pulsar cluster, such as topic metadata, schema, broker load data, and so on. Pulsar uses [Apache ZooKeeper](https://zookeeper.apache.org/) for metadata storage, cluster configuration, and coordination. The Pulsar metadata store can be deployed on a separate ZooKeeper cluster or deployed on an existing ZooKeeper cluster. You can use one ZooKeeper cluster for both Pulsar metadata store and BookKeeper metadata store. If you want to deploy Pulsar brokers connected to an existing BookKeeper cluster, you need to deploy separate ZooKeeper clusters for Pulsar metadata store and BookKeeper metadata store respectively.
 
 > Pulsar also supports more metadata backend services, including [ETCD](https://etcd.io/) and [RocksDB](http://rocksdb.org/) (for standalone Pulsar only). 
 

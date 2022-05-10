@@ -22,7 +22,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.broker.resourcegroup.ResourceUsageTransportManager.DISABLE_RESOURCE_USAGE_TRANSPORT_MANAGER;
-import static org.apache.pulsar.common.naming.TopicName.TRANSACTION_COORDINATOR_LOG;
+import static org.apache.pulsar.common.naming.SystemTopicNames.isTransactionInternalName;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
@@ -113,7 +113,6 @@ import org.apache.pulsar.broker.storage.ManagedLedgerStorage;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBufferProvider;
 import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferClientImpl;
 import org.apache.pulsar.broker.transaction.pendingack.TransactionPendingAckStoreProvider;
-import org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStore;
 import org.apache.pulsar.broker.validator.MultipleListenerValidator;
 import org.apache.pulsar.broker.web.WebService;
 import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServlet;
@@ -273,8 +272,6 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private volatile CompletableFuture<Void> closeFuture;
     // key is listener name, value is pulsar address and pulsar ssl address
     private Map<String, AdvertisedListener> advertisedListeners;
-    private NamespaceName heartbeatNamespaceV1;
-    private NamespaceName heartbeatNamespaceV2;
 
     public PulsarService(ServiceConfiguration config) {
         this(config, Optional.empty(), (exitCode) -> {
@@ -655,6 +652,26 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                         + "authenticationEnabled=true when authorization is enabled with authorizationEnabled=true.");
             }
 
+            if (config.getDefaultRetentionSizeInMB() > 0
+                    && config.getBacklogQuotaDefaultLimitBytes() > 0
+                    && config.getBacklogQuotaDefaultLimitBytes()
+                    >= (config.getDefaultRetentionSizeInMB() * 1024L * 1024L)) {
+                throw new IllegalArgumentException(String.format("The retention size must > the backlog quota limit "
+                                + "size, but the configured backlog quota limit bytes is %d, the retention size is %d",
+                        config.getBacklogQuotaDefaultLimitBytes(),
+                        config.getDefaultRetentionSizeInMB() * 1024L * 1024L));
+            }
+
+            if (config.getDefaultRetentionTimeInMinutes() > 0
+                    && config.getBacklogQuotaDefaultLimitSecond() > 0
+                    && config.getBacklogQuotaDefaultLimitSecond() >= config.getDefaultRetentionTimeInMinutes() * 60) {
+                throw new IllegalArgumentException(String.format("The retention time must > the backlog quota limit "
+                                + "time, but the configured backlog quota limit time duration is %d, "
+                                + "the retention time duration is %d",
+                        config.getBacklogQuotaDefaultLimitSecond(),
+                        config.getDefaultRetentionTimeInMinutes() * 60));
+            }
+
             if (!config.getLoadBalancerOverrideBrokerNicSpeedGbps().isPresent()
                     && config.isLoadBalancerEnabled()
                     && LinuxInfoUtils.isLinux()
@@ -723,8 +740,6 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             createMetricsServlet();
             this.addWebServerHandlers(webService, metricsServlet, this.config);
             this.webService.start();
-            heartbeatNamespaceV1 = NamespaceService.getHeartbeatNamespace(this.advertisedAddress, this.config);
-            heartbeatNamespaceV2 = NamespaceService.getHeartbeatNamespaceV2(this.advertisedAddress, this.config);
 
             // Refresh addresses and update configuration, since the port might have been dynamically assigned
             if (config.getBrokerServicePort().equals(Optional.of(0))) {
@@ -885,7 +900,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         // Add metrics servlet
         webService.addServlet("/metrics",
                 new ServletHolder(metricsServlet),
-                false, attributeMap);
+                config.isAuthenticateMetricsEndpoint(), attributeMap);
 
         // Add websocket service
         addWebSocketServiceHandler(webService, attributeMap, config);
@@ -1129,7 +1144,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                     .get(config.getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS)) {
                 try {
                     TopicName topicName = TopicName.get(topic);
-                    if (bundle.includes(topicName) && !isTransactionSystemTopic(topicName)) {
+                    if (bundle.includes(topicName) && !isTransactionInternalName(topicName)) {
                         CompletableFuture<Optional<Topic>> future = brokerService.getTopicIfExists(topic);
                         if (future != null) {
                             persistentTopics.add(future);
@@ -1436,6 +1451,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                                 conf.getBrokerClientAuthenticationParameters());
 
                 if (conf.isBrokerClientTlsEnabled()) {
+                    builder.tlsCiphers(config.getBrokerClientTlsCiphers())
+                            .tlsProtocols(config.getBrokerClientTlsProtocols());
                     if (conf.isBrokerClientTlsEnabledWithKeyStore()) {
                         builder.useKeyStoreTls(true)
                                 .tlsTrustStoreType(conf.getBrokerClientTlsTrustStoreType())
@@ -1646,10 +1663,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                                                                       String workerConfigFile) throws IOException {
         WorkerConfig workerConfig = WorkerConfig.load(workerConfigFile);
 
-        brokerConfig.getWebServicePort()
-            .map(port -> workerConfig.setWorkerPort(port));
-        brokerConfig.getWebServicePortTls()
-            .map(port -> workerConfig.setWorkerPortTls(port));
+        workerConfig.setWorkerPort(brokerConfig.getWebServicePort().orElse(null));
+        workerConfig.setWorkerPortTls(brokerConfig.getWebServicePortTls().orElse(null));
 
         // worker talks to local broker
         String hostname = ServiceConfigurationUtils.getDefaultOrConfiguredAddress(
@@ -1676,6 +1691,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
         // inherit super users
         workerConfig.setSuperUserRoles(brokerConfig.getSuperUserRoles());
+        workerConfig.setFunctionsWorkerEnablePackageManagement(brokerConfig.isFunctionsWorkerEnablePackageManagement());
 
         // inherit the nar package locations
         if (isBlank(workerConfig.getFunctionsWorkerServiceNarPackage())) {
@@ -1707,20 +1723,6 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         }
 
         processTerminator.accept(-1);
-    }
-
-
-    public static boolean isTransactionSystemTopic(TopicName topicName) {
-        String topic = topicName.toString();
-        return topic.startsWith(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString())
-                || topic.startsWith(TRANSACTION_COORDINATOR_LOG.toString())
-                || topic.endsWith(MLPendingAckStore.PENDING_ACK_STORE_SUFFIX);
-    }
-
-    public static boolean isTransactionInternalName(TopicName topicName) {
-        String topic = topicName.toString();
-        return topic.startsWith(TRANSACTION_COORDINATOR_LOG.toString())
-                || topic.endsWith(MLPendingAckStore.PENDING_ACK_STORE_SUFFIX);
     }
 
     @VisibleForTesting

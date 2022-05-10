@@ -143,6 +143,9 @@ loadBalancerSheddingGracePeriodMinutes=30
 
 Pulsar supports the following types of shedding strategies. From Pulsar 2.10, the **default** shedding strategy is `ThresholdShedder`.
 
+> **Note**<br /> 
+> You need to restart brokers if the shedding strategy is [dynamically updated](admin-api-brokers.md/#dynamic-broker-configuration). 
+
 ##### ThresholdShedder
 This strategy tends to shed the bundles if any broker's usage is above the configured threshold. It does this by first computing the average resource usage per broker for the whole cluster. The resource usage for each broker is calculated using the following method: LocalBrokerData#getMaxResourceUsageWithWeight. The weights for each resource are configurable. Historical observations are included in the running average based on the broker's setting for loadBalancerHistoryResourcePercentage. Once the average resource usage is calculated, a broker's current/historical usage is compared to the average broker usage. If a broker's usage is greater than the average usage per broker plus the loadBalancerBrokerThresholdShedderPercentage, this load shedder proposes removing enough bundles to bring the unloaded broker 5% below the current average broker usage. Note that recently unloaded bundles are not unloaded again. Configure broker with below value to use this strategy.
 `loadBalancerLoadSheddingStrategy=org.apache.pulsar.broker.loadbalance.impl.ThresholdShedder`
@@ -156,7 +159,7 @@ This strategy will attempt to shed exactly one bundle on brokers which are overl
 ![Shedding strategy - OverloadShedder](assets/OverloadShedder.png)
 
 ##### UniformLoadShedder
-This strategy tends to distribute load uniformly across all brokers. This strategy checks laod difference between broker with highest load and broker with lowest load. If the difference is higher than configured thresholds `loadBalancerMsgRateDifferenceShedderThreshold` and `loadBalancerMsgThroughputMultiplierDifferenceShedderThreshold` then it finds out bundles which can be unloaded to distribute traffic evenly across all brokers. Configure broker with below value to use this strategy.
+This strategy tends to distribute load uniformly across all brokers. This strategy checks load difference between broker with highest load and broker with lowest load. If the difference is higher than configured thresholds `loadBalancerMsgRateDifferenceShedderThreshold` and `loadBalancerMsgThroughputMultiplierDifferenceShedderThreshold` then it finds out bundles which can be unloaded to distribute traffic evenly across all brokers. Configure broker with below value to use this strategy.
 `loadBalancerLoadSheddingStrategy=org.apache.pulsar.broker.loadbalance.impl.UniformLoadShedder`
 
 ![Shedding strategy - UniformLoadShedder](assets/UniformLoadShedder.png)
