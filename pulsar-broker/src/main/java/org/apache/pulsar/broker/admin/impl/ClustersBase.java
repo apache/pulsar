@@ -258,7 +258,7 @@ public class ClustersBase extends AdminResource {
                 .thenAccept(__ -> {
                     log.info("[{}] Successfully added peer-cluster {} for {}",
                             clientAppId(), peerClusterNames, cluster);
-                    asyncResponse.resume(Response.ok().build());
+                    asyncResponse.resume(Response.noContent().build());
                 }).exceptionally(ex -> {
                     Throwable realCause = FutureUtil.unwrapCompletionException(ex);
                     log.error("[{}] Failed to validate peer-cluster list {}, {}", clientAppId(), peerClusterNames, ex);
@@ -347,7 +347,7 @@ public class ClustersBase extends AdminResource {
                 .thenCompose(__ -> internalDeleteClusterAsync(cluster))
                 .thenAccept(__ -> {
                     log.info("[{}] Deleted cluster {}", clientAppId(), cluster);
-                    asyncResponse.resume(Response.ok().build());
+                    asyncResponse.resume(Response.noContent().build());
                 }).exceptionally(ex -> {
                     Throwable realCause = FutureUtil.unwrapCompletionException(ex);
                     if (realCause instanceof NotFoundException) {
@@ -375,15 +375,13 @@ public class ClustersBase extends AdminResource {
                         if (!nsIsolationPoliciesOpt.get().getPolicies().isEmpty()) {
                             throw new RestException(Status.PRECONDITION_FAILED, "Cluster not empty");
                         }
+                        // Need to delete the isolation policies if present
                         return namespaceIsolationPolicies().deleteIsolationDataAsync(cluster);
                     }
                     return CompletableFuture.completedFuture(null);
-                }).thenCompose(unused -> {
-                    // Need to delete the isolation policies if present
-                    return clusterResources()
-                            .getFailureDomainResources().deleteFailureDomainsAsync(cluster)
-                            .thenCompose(__ -> clusterResources().deleteClusterAsync(cluster));
-                });
+                }).thenCompose(unused -> clusterResources()
+                        .getFailureDomainResources().deleteFailureDomainsAsync(cluster)
+                        .thenCompose(__ -> clusterResources().deleteClusterAsync(cluster)));
     }
 
     @GET
