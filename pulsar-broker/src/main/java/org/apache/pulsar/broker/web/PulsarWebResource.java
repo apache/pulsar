@@ -415,6 +415,21 @@ public abstract class PulsarWebResource {
         log.info("Successfully validated clusters on tenant [{}]", tenant);
     }
 
+    protected CompletableFuture<Void> validateClusterForTenantAsync(String tenant, String cluster) {
+        return pulsar().getPulsarResources().getTenantResources().getTenantAsync(tenant)
+                .thenAccept(tenantInfo -> {
+                    if (!tenantInfo.isPresent()) {
+                        throw new RestException(Status.NOT_FOUND, "Tenant does not exist");
+                    }
+                    if (!tenantInfo.get().getAllowedClusters().contains(cluster)) {
+                        String msg = String.format("Cluster [%s] is not in the list of allowed clusters list"
+                                        + " for tenant [%s]", cluster, tenant);
+                        log.info(msg);
+                        throw new RestException(Status.FORBIDDEN, msg);
+                    }
+                });
+    }
+
     protected CompletableFuture<Void> validateClusterOwnershipAsync(String cluster) {
         return getClusterDataIfDifferentCluster(pulsar(), cluster, clientAppId())
                 .thenAccept(differentClusterData -> {

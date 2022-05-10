@@ -168,6 +168,7 @@ public class Namespaces extends NamespacesBase {
                     if (root instanceof MetadataStoreException.AlreadyExistsException) {
                         response.resume(new RestException(Response.Status.CONFLICT, "Namespace already exists"));
                     } else {
+                        log.error("[{}] Failed to create namespace {}", clientAppId(), namespaceName, ex);
                         resumeAsyncResponseExceptionally(response, ex);
                     }
                     return null;

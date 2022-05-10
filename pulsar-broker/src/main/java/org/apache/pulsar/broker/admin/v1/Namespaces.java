@@ -28,6 +28,7 @@ import io.swagger.annotations.ApiResponses;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.DefaultValue;
@@ -190,35 +191,39 @@ public class Namespaces extends NamespacesBase {
                                 BundlesData initialBundles) {
         validateNamespaceName(property, cluster, namespace);
 
+        CompletableFuture<Void> ret;
         if (!namespaceName.isGlobal()) {
             // If the namespace is non global, make sure property has the access on the cluster. For global namespace,
             // same check is made at the time of setting replication.
-            validateClusterForTenant(namespaceName.getTenant(), namespaceName.getCluster());
-        }
-
-        Policies policies = new Policies();
-        if (initialBundles != null && initialBundles.getNumBundles() > 0) {
-            if (initialBundles.getBoundaries() == null || initialBundles.getBoundaries().size() == 0) {
-                policies.bundles = getBundles(initialBundles.getNumBundles());
-            } else {
-                policies.bundles = validateBundlesData(initialBundles);
-            }
+            ret = validateClusterForTenantAsync(namespaceName.getTenant(), namespaceName.getCluster());
         } else {
-            int defaultNumberOfBundles = config().getDefaultNumberOfNamespaceBundles();
-            policies.bundles = getBundles(defaultNumberOfBundles);
+            ret = CompletableFuture.completedFuture(null);
         }
-
-        internalCreateNamespace(policies)
-                .thenAccept(__ -> response.resume(Response.noContent().build()))
-                .exceptionally(ex -> {
-                    Throwable root = FutureUtil.unwrapCompletionException(ex);
-                    if (root instanceof MetadataStoreException.AlreadyExistsException) {
-                        response.resume(new RestException(Status.CONFLICT, "Namespace already exists"));
-                    } else {
-                        resumeAsyncResponseExceptionally(response, ex);
-                    }
-                    return null;
-                });
+        ret.thenApply(__ -> {
+            Policies policies = new Policies();
+            if (initialBundles != null && initialBundles.getNumBundles() > 0) {
+                if (initialBundles.getBoundaries() == null || initialBundles.getBoundaries().size() == 0) {
+                    policies.bundles = getBundles(initialBundles.getNumBundles());
+                } else {
+                    policies.bundles = validateBundlesData(initialBundles);
+                }
+            } else {
+                int defaultNumberOfBundles = config().getDefaultNumberOfNamespaceBundles();
+                policies.bundles = getBundles(defaultNumberOfBundles);
+            }
+            return policies;
+        }).thenCompose(this::internalCreateNamespace)
+          .thenAccept(__ -> response.resume(Response.noContent().build()))
+          .exceptionally(ex -> {
+                Throwable root = FutureUtil.unwrapCompletionException(ex);
+                if (root instanceof MetadataStoreException.AlreadyExistsException) {
+                    response.resume(new RestException(Status.CONFLICT, "Namespace already exists"));
+                } else {
+                    log.error("[{}] Failed to create namespace {}", clientAppId(), namespaceName, ex);
+                    resumeAsyncResponseExceptionally(response, ex);
+                }
+                return null;
+           });
     }
 
     @DELETE
