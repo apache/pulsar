@@ -183,14 +183,17 @@ public class NamespaceResources extends BaseResources<Policies> {
             return data.isPresent() ? Optional.of(new NamespaceIsolationPolicies(data.get())) : Optional.empty();
         }
 
-        public CompletableFuture<NamespaceIsolationPolicies> getIsolationDataPoliciesAsync(String cluster) {
+        public CompletableFuture<Optional<NamespaceIsolationPolicies>> getIsolationDataPoliciesAsync(String cluster) {
             return getAsync(joinPath(BASE_CLUSTERS_PATH, cluster, NAMESPACE_ISOLATION_POLICIES))
-                    .thenApply(data -> data.map(NamespaceIsolationPolicies::new)
-                            .orElseGet(NamespaceIsolationPolicies::new));
+                    .thenApply(data -> data.map(NamespaceIsolationPolicies::new));
         }
 
         public void deleteIsolationData(String cluster) throws MetadataStoreException {
             delete(joinPath(BASE_CLUSTERS_PATH, cluster, NAMESPACE_ISOLATION_POLICIES));
+        }
+
+        public CompletableFuture<Void> deleteIsolationDataAsync(String cluster) {
+            return deleteAsync(joinPath(BASE_CLUSTERS_PATH, cluster, NAMESPACE_ISOLATION_POLICIES));
         }
 
         public void createIsolationData(String cluster, Map<String, NamespaceIsolationDataImpl> id)
