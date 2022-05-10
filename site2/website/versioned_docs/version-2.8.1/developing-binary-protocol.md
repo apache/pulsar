@@ -225,7 +225,7 @@ Parameters:
  * `producer_id` → id of an existing producer
  * `sequence_id` → each message has an associated sequence id which is expected
    to be implemented with a counter starting at 0. The `SendReceipt` that
-   acknowledges the effective publishing of a messages will refer to it by
+   acknowledges the effective publishing of messages will refer to it by
    its sequence id.
  * `num_messages` → *(optional)* Used when publishing a batch of messages at
    once.
@@ -382,18 +382,18 @@ Parameters:
  * `validation_error` → *(optional)* Indicates that the consumer has discarded
    the messages due to: `UncompressedSizeCorruption`,
    `DecompressionError`, `ChecksumMismatch`, `BatchDeSerializeError`
- * `properties` -> *(optional)* Reserved configuration items
- * `txnid_most_bits` -> *(optional)* Same as TC ID, `txnid_most_bits` and `txnid_least_bits`
+ * `properties` → *(optional)* Reserved configuration items
+ * `txnid_most_bits`  → *(optional)* Same as Transaction Coordinator ID, `txnid_most_bits` and `txnid_least_bits`
    uniquely identify a transaction.
- * `txnid_least_bits` -> *(optional)* The ID of the transaction opened in a TC,
+ * `txnid_least_bits` → *(optional)* The ID of the transaction opened in a transaction coordinator,
    `txnid_most_bits` and `txnid_least_bits`uniquely identify a transaction.
- * `request_id` -> *(optional)* ID for handling response and timeout.
+ * `request_id` → *(optional)* ID for handling response and timeout.
 
 
  ##### Command AckResponse
 
 An `AckResponse` is the broker’s response to acknowledge a request sent by the client. It contains the `consumer_id` sent in the request.
-If a transaction is used, it contains both Transaction ID and Request ID that are sent in the request. The client finishes the specific request according to the Request ID. If the `error` field is set, it indicates that the request has failed.
+If a transaction is used, it contains both the Transaction ID and the Request ID that are sent in the request. The client finishes the specific request according to the Request ID. If the `error` field is set, it indicates that the request has failed.
 
 An example of `AckResponse` with redirection:
 
