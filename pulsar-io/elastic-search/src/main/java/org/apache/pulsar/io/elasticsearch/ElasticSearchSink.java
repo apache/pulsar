@@ -37,6 +37,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.regex.Pattern;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.Message;
@@ -68,6 +69,7 @@ public class ElasticSearchSink implements Sink<GenericObject> {
     private ObjectMapper sortedObjectMapper;
     private List<String> primaryFields = null;
     private final Base64.Encoder base64Encoder = Base64.getEncoder().withoutPadding();
+    private final Pattern nonPrintableCharactersPattern = Pattern.compile("[\\p{C}]");
 
     @Override
     public void open(Map<String, Object> config, SinkContext sinkContext) throws Exception {
@@ -252,13 +254,25 @@ public class ElasticSearchSink implements Sink<GenericObject> {
                         id,
                         doc);
             }
+            doc = sanitizeValue(doc);
             return Pair.of(id, doc);
     } else {
-        return Pair.of(null, new String(
-                record.getMessage()
-                        .orElseThrow(() -> new IllegalArgumentException("Record does not carry message information"))
-                        .getData(), StandardCharsets.UTF_8));
+            final byte[] data = record
+                    .getMessage()
+                    .orElseThrow(() -> new IllegalArgumentException("Record does not carry message information"))
+                    .getData();
+            String doc = new String(data, StandardCharsets.UTF_8);
+            doc = sanitizeValue(doc);
+            return Pair.of(null, doc);
         }
+    }
+
+    private String sanitizeValue(String value) {
+        if (value == null || !elasticSearchConfig.isStripNonPrintableCharacters()) {
+            return value;
+        }
+        return nonPrintableCharactersPattern.matcher(value).replaceAll("");
+
     }
 
     public String stringifyKey(Schema<?> schema, Object val) throws JsonProcessingException {

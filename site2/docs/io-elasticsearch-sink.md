@@ -81,6 +81,7 @@ The configuration of the Elasticsearch sink connector has the following properti
 | `token` | String| false | " " (empty string)|The token used by the connector to connect to the ElasticSearch cluster. Only one between basic/token/apiKey authentication mode must be configured. |
 | `apiKey` | String| false | " " (empty string)|The apiKey used by the connector to connect to the ElasticSearch cluster. Only one between basic/token/apiKey authentication mode must be configured. |
 | `idHashingAlgorithm` | enum(NONE,SHA256,SHA512)| false | NONE|Hashing algorithm to use for the document id. This is useful in order to be compliant with the ElasticSearch _id hard limit of 512 bytes. |
+| `stripNonPrintableCharacters` | Boolean| false | true|If stripNonPrintableCharacters is true, all non-printable characters will be removed from the document. |
 
 ### Definition of ElasticSearchSslConfig structure:
 
