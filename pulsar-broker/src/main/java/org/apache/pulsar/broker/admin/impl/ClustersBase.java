@@ -631,9 +631,11 @@ public class ClustersBase extends AdminResource {
                                 .orElseGet(() -> namespaceIsolationPolicies()
                                         .setIsolationDataWithCreateAsync(cluster, (p) -> Collections.emptyMap())
                                         .thenApply(__ -> new NamespaceIsolationPolicies()))
-                ).thenCompose(nsIsolationPolicies -> namespaceIsolationPolicies()
-                        .setIsolationDataAsync(cluster, old -> nsIsolationPolicies.getPolicies())
-                ).thenCompose(__ -> filterAndUnloadMatchedNamespaceAsync(policyData))
+                ).thenCompose(nsIsolationPolicies -> {
+                    nsIsolationPolicies.setPolicy(policyName, policyData);
+                    return namespaceIsolationPolicies()
+                                    .setIsolationDataAsync(cluster, old -> nsIsolationPolicies.getPolicies());
+                }).thenCompose(__ -> filterAndUnloadMatchedNamespaceAsync(policyData))
                 .thenAccept(__ -> {
                     log.info("[{}] Successful to update clusters/{}/namespaceIsolationPolicies/{}.",
                             clientAppId(), cluster, policyName);
