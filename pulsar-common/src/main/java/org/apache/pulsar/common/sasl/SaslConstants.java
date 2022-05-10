@@ -33,6 +33,7 @@ public class SaslConstants {
     public static final String JAAS_SERVER_SECTION_NAME = "saslJaasServerSectionName";
     public static final String JAAS_DEFAULT_BROKER_SECTION_NAME = "PulsarBroker";
     public static final String JAAS_DEFAULT_PROXY_SECTION_NAME = "PulsarProxy";
+    public static final String JAAS_DEFAULT_FUNCTION_SECTION_NAME = "PulsarFunction";
 
     // Client principal
     public static final String JAAS_CLIENT_SECTION_NAME = "saslJaasClientSectionName";

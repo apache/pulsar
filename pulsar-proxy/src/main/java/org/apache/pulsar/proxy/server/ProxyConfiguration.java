@@ -364,6 +364,14 @@ public class ProxyConfiguration implements PulsarConfiguration {
     private String saslJaasServerSectionName = SaslConstants.JAAS_DEFAULT_PROXY_SECTION_NAME;
 
     @FieldContext(
+            category = CATEGORY_SASL_AUTH,
+            doc = "Path to file containing the secret to be used to SaslRoleTokenSigner\n"
+                    + "The secret can be specified like:\n"
+                    + "saslJaasServerRoleTokenSignerSecretPath=file:///my/saslRoleTokenSignerSecret.key."
+    )
+    private String saslJaasServerRoleTokenSignerSecretPath;
+
+    @FieldContext(
         category = CATEGORY_SASL_AUTH,
         doc = "kerberos kinit command."
     )
