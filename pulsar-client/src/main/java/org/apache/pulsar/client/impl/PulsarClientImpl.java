@@ -47,6 +47,7 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Predicate;
 import lombok.Builder;
 import lombok.Getter;
 import org.apache.commons.lang3.StringUtils;
@@ -182,8 +183,8 @@ public class PulsarClientImpl implements PulsarClient {
             this.conf = conf;
             clientClock = conf.getClock();
             conf.getAuthentication().start();
-            connectionPoolReference =
-                    connectionPool != null ? connectionPool : new ConnectionPool(conf, this.eventLoopGroup);
+            connectionPoolReference = connectionPool != null ? connectionPool :
+                    new ConnectionPool(conf, this.eventLoopGroup, new UsefulConnectionPredicate());
             this.cnxPool = connectionPoolReference;
             this.externalExecutorProvider = externalExecutorProvider != null ? externalExecutorProvider :
                     new ExecutorProvider(conf.getNumListenerThreads(), "pulsar-external-listener");
@@ -1144,5 +1145,57 @@ public class PulsarClientImpl implements PulsarClient {
             throw new PulsarClientException.InvalidConfigurationException("Transactions are not enabled");
         }
         return new TransactionBuilderImpl(this, tcClient);
+    }
+
+    class UsefulConnectionPredicate implements Predicate<ClientCnx> {
+
+        @Override
+        public boolean test(ClientCnx clientCnx) {
+            // consumer connection
+            for (ConsumerBase consumerBase : PulsarClientImpl.this.consumers){
+                if (consumerBase instanceof ConsumerImpl){
+                    ConsumerImpl consumerImpl = (ConsumerImpl) consumerBase;
+                    if (clientCnx == consumerImpl.cnx()){
+                        return true;
+                    }
+                }
+                if (consumerBase instanceof MultiTopicsConsumerImpl){
+                    MultiTopicsConsumerImpl patternMultiTopicsConsumer = (MultiTopicsConsumerImpl) consumerBase;
+                    List<ConsumerImpl> consumerList = patternMultiTopicsConsumer.getConsumers();
+                    for (ConsumerImpl consumerImpl : consumerList){
+                        if (clientCnx == consumerImpl.cnx()){
+                            return true;
+                        }
+                    }
+                }
+            }
+            // producer connection
+            for (ProducerBase producerBase : PulsarClientImpl.this.producers){
+                if (producerBase instanceof ProducerImpl){
+                    ProducerImpl producerImpl = (ProducerImpl) producerBase;
+                    if (producerImpl.cnx() == clientCnx){
+                        return true;
+                    }
+                }
+                if (producerBase instanceof PartitionedProducerImpl){
+                    PartitionedProducerImpl partitionedProducer = (PartitionedProducerImpl) producerBase;
+                    List<ProducerImpl> producerList = partitionedProducer.getProducers();
+                    for (ProducerImpl producerImpl : producerList){
+                        if (clientCnx == producerImpl.cnx()){
+                            return true;
+                        }
+                    }
+                }
+            }
+            // transaction connection
+            if (tcClient != null && tcClient.getHandlers() != null) {
+                for (TransactionMetaStoreHandler transactionMetaStoreHandler : tcClient.getHandlers()) {
+                    if (clientCnx == transactionMetaStoreHandler.cnx()) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
     }
 }

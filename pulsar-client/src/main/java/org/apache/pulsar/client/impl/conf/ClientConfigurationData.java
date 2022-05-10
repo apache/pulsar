@@ -125,6 +125,24 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     private int connectionsPerBroker = 1;
 
     @ApiModelProperty(
+            name = "autoReleaseIdleConnectionsEnabled",
+            value = "Do you want to automatically clean up unused connections"
+    )
+    private boolean autoReleaseIdleConnectionsEnabled = true;
+
+    @ApiModelProperty(
+            name = "connectionMaxIdleSeconds",
+            value = "Release the connection if it is not used for more than [connectionMaxIdleSeconds] seconds"
+    )
+    private int connectionMaxIdleSeconds = 180;
+
+    @ApiModelProperty(
+            name = "connectionIdleDetectionIntervalSeconds",
+            value = "How often check idle connections"
+    )
+    private int connectionIdleDetectionIntervalSeconds = 60;
+
+    @ApiModelProperty(
             name = "useTcpNoDelay",
             value = "Whether to use TCP NoDelay option."
     )

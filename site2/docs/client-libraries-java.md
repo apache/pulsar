@@ -111,6 +111,8 @@ If you create a client, you can use the `loadConf` configuration. The following 
 `authPluginClassName` | String | Name of the authentication plugin | None
  `authParams` | String | Parameters for the authentication plugin <br /><br />**Example**<br /> key1:val1,key2:val2|None
 `operationTimeoutMs`|long|`operationTimeoutMs`|Operation timeout |30000
+`autoReleaseIdleConnectionsEnabled`|boolean|Do you want to automatically clean up unused connections.|true
+`connectionMaxIdleSeconds`|int|Release the connection if it is not used for more than `connectionMaxIdleSeconds` seconds.|180
 `statsIntervalSeconds`|long|Interval between each stats information<br /><br />Stats is activated with positive `statsInterval`<br /><br />Set `statsIntervalSeconds` to 1 second at least. |60
 `numIoThreads`| int| The number of threads used for handling connections to brokers | 1 
 `numListenerThreads`|int|The number of threads used for handling message listeners. The listener thread pool is shared across all the consumers and readers using the "listener" model to get messages. For a given consumer, the listener is always invoked from the same thread to ensure ordering. If you want multiple threads to process a single topic, you need to create a [`shared`](https://pulsar.apache.org/docs/en/next/concepts-messaging/#shared) subscription and multiple consumers for this subscription. This does not ensure ordering.| 1 

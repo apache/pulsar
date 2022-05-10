@@ -524,6 +524,8 @@ public class ProxyConnection extends PulsarHandler {
 
     ClientConfigurationData createClientConfiguration() {
         ClientConfigurationData clientConf = new ClientConfigurationData();
+        /** The proxy service does not need to automatically clean up invalid connections, so set false. **/
+        clientConf.setAutoReleaseIdleConnectionsEnabled(false);
         clientConf.setServiceUrl(service.getServiceUrl());
         ProxyConfiguration proxyConfig = service.getConfiguration();
         clientConf.setAuthentication(this.getClientAuthentication());

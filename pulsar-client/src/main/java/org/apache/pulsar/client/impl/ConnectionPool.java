@@ -33,6 +33,7 @@ import io.netty.util.concurrent.Future;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -41,7 +42,13 @@ import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
+import lombok.Getter;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.InvalidServiceURL;
@@ -54,7 +61,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class ConnectionPool implements AutoCloseable {
-    protected final ConcurrentHashMap<InetSocketAddress, ConcurrentMap<Integer, CompletableFuture<ClientCnx>>> pool;
+
+    private static final int MAX_IDLE_SECOND_DEFAULT = 180;
+
+    private static final int IDLE_DETECTION_INTERVAL_SECONDS_DEFAULT = 60;
+
+    protected final ConcurrentHashMap<InetSocketAddress, ConcurrentMap<Integer, CompletableFuture<ClientCnxWrap>>> pool;
 
     private final Bootstrap bootstrap;
     private final PulsarChannelInitializer channelInitializerHandler;
@@ -66,18 +78,42 @@ public class ConnectionPool implements AutoCloseable {
     protected final AddressResolver<InetSocketAddress> addressResolver;
     private final boolean shouldCloseDnsResolver;
 
+
+    /** Maximum idle time, released if exceeded. **/
+    @VisibleForTesting
+    int maxIdleSeconds;
+    /** How often to check for idle connections. **/
+    private int idleDetectionIntervalSeconds;
+    /** Do you want to automatically clean up unused connections. **/
+    private boolean autoReleaseIdleConnectionsEnabled;
+    /** Use to check whether the connection is in use. **/
+    private Predicate<ClientCnx> usefulConnectionPredicate;
+
     public ConnectionPool(ClientConfigurationData conf, EventLoopGroup eventLoopGroup) throws PulsarClientException {
         this(conf, eventLoopGroup, () -> new ClientCnx(conf, eventLoopGroup));
     }
 
     public ConnectionPool(ClientConfigurationData conf, EventLoopGroup eventLoopGroup,
                           Supplier<ClientCnx> clientCnxSupplier) throws PulsarClientException {
-        this(conf, eventLoopGroup, clientCnxSupplier, Optional.empty());
+        this(conf, eventLoopGroup, clientCnxSupplier, Optional.empty(), c -> false);
+    }
+
+    public ConnectionPool(ClientConfigurationData conf, EventLoopGroup eventLoopGroup,
+                          Predicate<ClientCnx> usefulConnectionPredicate) throws PulsarClientException {
+        this(conf, eventLoopGroup, () -> new ClientCnx(conf, eventLoopGroup), Optional.empty(),
+                usefulConnectionPredicate);
     }
 
     public ConnectionPool(ClientConfigurationData conf, EventLoopGroup eventLoopGroup,
                           Supplier<ClientCnx> clientCnxSupplier,
-                          Optional<AddressResolver<InetSocketAddress>> addressResolver)
+                          Optional<AddressResolver<InetSocketAddress>> addressResolver) throws PulsarClientException {
+        this(conf, eventLoopGroup, clientCnxSupplier, addressResolver, null);
+    }
+
+    public ConnectionPool(ClientConfigurationData conf, EventLoopGroup eventLoopGroup,
+                          Supplier<ClientCnx> clientCnxSupplier,
+                          Optional<AddressResolver<InetSocketAddress>> addressResolver,
+                          Predicate<ClientCnx> usefulConnectionPredicate)
             throws PulsarClientException {
         this.eventLoopGroup = eventLoopGroup;
         this.clientConfig = conf;
@@ -104,6 +140,32 @@ public class ConnectionPool implements AutoCloseable {
 
         this.shouldCloseDnsResolver = !addressResolver.isPresent();
         this.addressResolver = addressResolver.orElseGet(() -> createAddressResolver(conf, eventLoopGroup));
+        if (conf.getConnectionMaxIdleSeconds() <= 0){
+            log.warn("Connection max idle seconds at least 1, but actual value is {}, "
+                            + "use default value : " + MAX_IDLE_SECOND_DEFAULT,
+                    conf.getConnectionMaxIdleSeconds());
+            this.maxIdleSeconds = MAX_IDLE_SECOND_DEFAULT;
+        } else {
+            this.maxIdleSeconds = conf.getConnectionMaxIdleSeconds();
+        }
+        if (conf.getConnectionIdleDetectionIntervalSeconds() < 30){
+            log.warn("Connection idle detect interval seconds at least 30, but actual value is {}, "
+                            + "use default value : " + IDLE_DETECTION_INTERVAL_SECONDS_DEFAULT,
+                    conf.getConnectionMaxIdleSeconds());
+            this.idleDetectionIntervalSeconds = IDLE_DETECTION_INTERVAL_SECONDS_DEFAULT;
+        }
+        this.idleDetectionIntervalSeconds = conf.getConnectionIdleDetectionIntervalSeconds();
+        this.usefulConnectionPredicate = usefulConnectionPredicate;
+        this.autoReleaseIdleConnectionsEnabled = conf.isAutoReleaseIdleConnectionsEnabled();
+        if (conf.isAutoReleaseIdleConnectionsEnabled() && this.usefulConnectionPredicate != null) {
+            Executors.newScheduledThreadPool(1).scheduleAtFixedRate(() -> {
+                try {
+                    doMarkAndReleaseUselessConnections();
+                } catch (Exception e) {
+                    log.error("", e);
+                }
+            }, idleDetectionIntervalSeconds, idleDetectionIntervalSeconds, TimeUnit.SECONDS);
+        }
     }
 
     private static AddressResolver<InetSocketAddress> createAddressResolver(ClientConfigurationData conf,
@@ -133,14 +195,14 @@ public class ConnectionPool implements AutoCloseable {
             if (future.isDone()) {
                 if (!future.isCompletedExceptionally()) {
                     // Connection was already created successfully, the join will not throw any exception
-                    future.join().close();
+                    future.join().clientCnx.close();
                 } else {
                     // If the future already failed, there's nothing we have to do
                 }
             } else {
                 // The future is still pending: just register to make sure it gets closed if the operation will
                 // succeed
-                future.thenAccept(ClientCnx::close);
+                future.thenAccept(wrap -> wrap.clientCnx.close());
             }
         }));
     }
@@ -166,22 +228,44 @@ public class ConnectionPool implements AutoCloseable {
             InetSocketAddress physicalAddress) {
         if (maxConnectionsPerHosts == 0) {
             // Disable pooling
-            return createConnection(logicalAddress, physicalAddress, -1);
+            return createConnection(logicalAddress, physicalAddress, -1)
+                    .thenApply(clientCnxWrap -> clientCnxWrap.clientCnx);
         }
 
         final int randomKey = signSafeMod(random.nextInt(), maxConnectionsPerHosts);
 
-        return pool.computeIfAbsent(logicalAddress, a -> new ConcurrentHashMap<>()) //
+        final ConcurrentMap<Integer, CompletableFuture<ClientCnxWrap>> innerPool =
+                pool.computeIfAbsent(logicalAddress, a -> new ConcurrentHashMap<>());
+        CompletableFuture<ClientCnxWrap> completableFuture = innerPool
                 .computeIfAbsent(randomKey, k -> createConnection(logicalAddress, physicalAddress, randomKey));
+        return completableFuture.thenCompose(clientCnxWrap -> {
+            // If connection already release, create a new one.
+            if (clientCnxWrap.alreadyRelease()){
+                return innerPool
+                        .computeIfAbsent(randomKey, k -> createConnection(logicalAddress, physicalAddress, randomKey))
+                        .thenApply(w -> w.clientCnx);
+            }
+            // Try use exists connection.
+            if (clientCnxWrap.tryMarkReuse()){
+                return CompletableFuture.completedFuture(clientCnxWrap.clientCnx);
+            } else {
+                // Clean invalid connection.
+                innerPool.remove(randomKey, completableFuture);
+                // Create new connection.
+                return innerPool.computeIfAbsent(randomKey,
+                                k -> createConnection(logicalAddress, physicalAddress, randomKey))
+                        .thenApply(w -> w.clientCnx);
+            }
+        });
     }
 
-    private CompletableFuture<ClientCnx> createConnection(InetSocketAddress logicalAddress,
+    private CompletableFuture<ClientCnxWrap> createConnection(InetSocketAddress logicalAddress,
             InetSocketAddress physicalAddress, int connectionKey) {
         if (log.isDebugEnabled()) {
             log.debug("Connection for {} not found in cache", logicalAddress);
         }
 
-        final CompletableFuture<ClientCnx> cnxFuture = new CompletableFuture<>();
+        final CompletableFuture<ClientCnxWrap> cnxFuture = new CompletableFuture<>();
 
         // Trigger async connect to broker
         createConnection(physicalAddress).thenAccept(channel -> {
@@ -220,7 +304,7 @@ public class ConnectionPool implements AutoCloseable {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Connection handshake completed", cnx.channel());
                 }
-                cnxFuture.complete(cnx);
+                cnxFuture.complete(new ClientCnxWrap(cnx));
             }).exceptionally(exception -> {
                 log.warn("[{}] Connection handshake failed: {}", cnx.channel(), exception.getMessage());
                 cnxFuture.completeExceptionally(exception);
@@ -343,8 +427,8 @@ public class ConnectionPool implements AutoCloseable {
     }
 
     private void cleanupConnection(InetSocketAddress address, int connectionKey,
-            CompletableFuture<ClientCnx> connectionFuture) {
-        ConcurrentMap<Integer, CompletableFuture<ClientCnx>> map = pool.get(address);
+            CompletableFuture<ClientCnxWrap> connectionFuture) {
+        ConcurrentMap<Integer, CompletableFuture<ClientCnxWrap>> map = pool.get(address);
         if (map != null) {
             map.remove(connectionKey, connectionFuture);
         }
@@ -357,5 +441,155 @@ public class ConnectionPool implements AutoCloseable {
 
     private static final Logger log = LoggerFactory.getLogger(ConnectionPool.class);
 
+    public void doMarkAndReleaseUselessConnections(){
+        if (!autoReleaseIdleConnectionsEnabled){
+            return;
+        }
+        if (usefulConnectionPredicate == null) {
+            return;
+        }
+        List<Runnable> releaseIdleConnectionTaskList = new ArrayList<>();
+        for (Map.Entry<InetSocketAddress, ConcurrentMap<Integer, CompletableFuture<ClientCnxWrap>>> entry :
+                pool.entrySet()){
+            ConcurrentMap<Integer, CompletableFuture<ClientCnxWrap>> innerPool = entry.getValue();
+            for (Map.Entry<Integer, CompletableFuture<ClientCnxWrap>> entry0 : innerPool.entrySet()){
+                CompletableFuture<ClientCnxWrap> future = entry0.getValue();
+                if (!future.isDone()){
+                    continue;
+                }
+                if (future.isCompletedExceptionally()){
+                    continue;
+                }
+                try {
+                    final ClientCnxWrap clientCnxWrap = future.get();
+                    if (clientCnxWrap == null) {
+                        continue;
+                    }
+                    clientCnxWrap.doIdleDetect(usefulConnectionPredicate, maxIdleSeconds);
+                    if (clientCnxWrap.isWillBeRelease()) {
+                        releaseIdleConnectionTaskList.add(() -> {
+                            if (clientCnxWrap.tryRelease()) {
+                                cleanupConnection(entry.getKey(), entry0.getKey(), future);
+                            }
+                        });
+                    }
+                } catch (InterruptedException | ExecutionException e){
+                    // It will not go through this case because it has already been verified
+                    log.error("It will not go through this case because it has already been verified", e);
+                }
+            }
+        }
+        // Do release idle connections.
+        releaseIdleConnectionTaskList.forEach(Runnable::run);
+    }
+
+    public static class ClientCnxWrap {
+
+        @Getter
+        private final ClientCnx clientCnx;
+
+        /** It has been borrowed, but it is not known if it is currently in use. **/
+        private static final int STATUS_MAYBE_USING = 0;
+        /**
+         * When a connection is found to be idle, the state is marked idle.
+         * It is possible that the connection will be used again. When the connection is used again,
+         * the state will be changed to 'maybe_using'.
+         **/
+        private static final int STATUS_IDLE = 1;
+        /**
+         * Connection already exceeds the threshold, Before release.
+         * When the connection is used again, the state will be changed to 'maybe_using'.
+         **/
+        private static final int STATUS_WILL_BE_RELEASE = 2;
+        /**
+         * When the idle time of a connection exceeds the threshold,
+         * the connection is released and cannot be used anymore.
+         **/
+        private static final int STATUS_RELEASED = 3;
+
+        @Getter
+        private final long createTime;
+        /** Marks the connection to be release. **/
+        private long markIdleStartTime;
+        /** Marks the connection to be release. **/
+        private AtomicInteger status;
+
+        public ClientCnxWrap(ClientCnx clientCnx){
+            this.clientCnx = clientCnx;
+            this.createTime = System.currentTimeMillis();
+            this.status = new AtomicInteger(STATUS_MAYBE_USING);
+        }
+
+        public boolean isIdle(){
+            return this.status.get() == STATUS_IDLE;
+        }
+
+        public boolean isWillBeRelease(){
+            return this.status.get() == STATUS_WILL_BE_RELEASE;
+        }
+
+        public boolean alreadyRelease(){
+            return this.status.get() == STATUS_RELEASED;
+        }
+
+        public boolean tryMarkReuse(){
+            while (true){
+                // Ensure not released
+                if (alreadyRelease()){
+                    return false;
+                }
+                // Try mark release
+                if (this.status.compareAndSet(STATUS_IDLE, STATUS_MAYBE_USING)){
+                    this.markIdleStartTime = 0;
+                    return true;
+                }
+                if (this.status.compareAndSet(STATUS_WILL_BE_RELEASE, STATUS_MAYBE_USING)){
+                    this.markIdleStartTime = 0;
+                    return true;
+                }
+                if (status.get() == STATUS_MAYBE_USING){
+                    return true;
+                }
+            }
+        }
+
+        public boolean tryRelease(){
+            if (!this.status.compareAndSet(STATUS_WILL_BE_RELEASE, STATUS_RELEASED)){
+                return false;
+            }
+            if (this.clientCnx != null) {
+                this.clientCnx.close();
+            }
+            return true;
+        }
+
+        public boolean tryMarkWillBeRelease(){
+            return this.status.compareAndSet(STATUS_IDLE, STATUS_WILL_BE_RELEASE);
+        }
+
+        public boolean tryMarkIdle(){
+            if (!this.status.compareAndSet(STATUS_MAYBE_USING, STATUS_IDLE)){
+                return isIdle();
+            }
+            this.markIdleStartTime = System.currentTimeMillis();
+            return true;
+        }
+
+        public void doIdleDetect(Predicate<ClientCnx> usefulConnectionPredicate, long maxIdleSeconds){
+            if (isWillBeRelease()){
+                return;
+            }
+            if (isIdle()){
+                if (maxIdleSeconds * 1000 + markIdleStartTime < System.currentTimeMillis()){
+                    tryMarkWillBeRelease();
+                }
+                return;
+            }
+            if (usefulConnectionPredicate.test(this.clientCnx)){
+                return;
+            }
+            tryMarkIdle();
+        }
+    }
 }
 
