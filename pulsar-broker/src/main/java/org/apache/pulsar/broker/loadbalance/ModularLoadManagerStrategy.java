@@ -68,7 +68,8 @@ public interface ModularLoadManagerStrategy {
                         + conf.getLoadBalancerLoadManagerStrategy());
             }
         } catch (Exception e) {
-            LOG.error("Error when trying to create load manager strategy: ", e);
+            LOG.error("Error when trying to create load manager strategy, " +
+                    "using default strategy: LeastLongTermMessageRate", e);
         }
         return new LeastLongTermMessageRate();
     }
