@@ -23,9 +23,14 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.security.KeyStore;
 
-// Main removes the password from the keystore or truststore
-public class Main {
+// RemoveJksPassword removes the password from the keystore or truststore
+public class RemoveJksPassword {
     public static void main(String[] args) {
+        if (args.length != 3) {
+            System.out.println("USAGE: RemoveJksPassword.java [input] [password] [output]");
+            return;
+        }
+
         String path = args[0];
         String password = args[1];
         String outputPath = args[2];
