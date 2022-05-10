@@ -2333,6 +2333,7 @@ public class ManagedCursorImpl implements ManagedCursor {
      */
     void persistPositionWhenClosing(PositionImpl position, Map<String, Long> properties,
             final AsyncCallbacks.CloseCallback callback, final Object ctx) {
+
         if (shouldPersistUnackRangesToLedger()) {
             persistPositionToLedger(cursorLedger, new MarkDeleteEntry(position, properties, null, null),
                     new VoidCallback() {
