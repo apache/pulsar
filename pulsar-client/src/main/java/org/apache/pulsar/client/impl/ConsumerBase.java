@@ -549,6 +549,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
             txnImpl = (TransactionImpl) txn;
             CompletableFuture<Void> completableFuture = new CompletableFuture<>();
            if (!txnImpl.checkIfOpen(completableFuture)) {
+               redeliverUnacknowledgedMessages(Collections.singleton(messageId));
                return completableFuture;
            }
         }

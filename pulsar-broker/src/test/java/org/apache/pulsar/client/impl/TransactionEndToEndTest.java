@@ -1052,13 +1052,16 @@ public class TransactionEndToEndTest extends TransactionTestBase {
             Assert.assertTrue(e.getCause().getCause() instanceof TransactionCoordinatorClientException
                     .InvalidTxnStatusException);
         }
+        Message<String> message = null;
         try {
-            Message<String> message = consumer.receive();
+            message = consumer.receive();
             consumer.acknowledgeAsync(message.getMessageId(), transaction).get();
             Assert.fail();
         } catch (Exception e) {
             Assert.assertTrue(e.getCause() instanceof TransactionCoordinatorClientException
                     .InvalidTxnStatusException);
         }
+        Message<String> message1 = consumer.receive();
+        Assert.assertEquals(message.getMessageId(), message1.getMessageId());
     }
 }
