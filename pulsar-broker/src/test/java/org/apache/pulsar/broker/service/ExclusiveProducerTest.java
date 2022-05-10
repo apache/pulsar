@@ -78,7 +78,7 @@ public class ExclusiveProducerTest extends BrokerTestBase {
                 { ProducerAccessMode.ExclusiveWithFencing, Boolean.TRUE},
                 { ProducerAccessMode.ExclusiveWithFencing, Boolean.FALSE },
                 { ProducerAccessMode.WaitForExclusive, Boolean.TRUE },
-                { ProducerAccessMode.WaitForExclusive, Boolean.FALSE },
+                { ProducerAccessMode.WaitForExclusive, Boolean.FALSE }
         };
     }
 
