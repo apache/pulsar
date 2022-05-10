@@ -146,7 +146,7 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
     }
 
     private long getBytesPercentDirectMem(double percent) {
-        return (long) (DirectMemoryUtils.JVM_MAX_DIRECT_MEMORY * (percent / 100));
+        return (long) (DirectMemoryUtils.jvmMaxDirectMemory() * (percent / 100));
     }
 
 

@@ -191,7 +191,7 @@ public class WorkerStatsManager {
       Gauge.build("jvm_memory_direct_bytes_max", "-").create().setChild(new Gauge.Child() {
         @Override
         public double get() {
-          return DirectMemoryUtils.JVM_MAX_DIRECT_MEMORY;
+          return DirectMemoryUtils.jvmMaxDirectMemory();
         }
       }).register(CollectorRegistry.defaultRegistry);
     }

@@ -173,7 +173,7 @@ public class PulsarBrokerStarter {
             }
 
             int maxFrameSize = brokerConfig.getMaxMessageSize() + Commands.MESSAGE_SIZE_FRAME_PADDING;
-            if (maxFrameSize >= DirectMemoryUtils.JVM_MAX_DIRECT_MEMORY) {
+            if (maxFrameSize >= DirectMemoryUtils.jvmMaxDirectMemory()) {
                 throw new IllegalArgumentException("Max message size need smaller than jvm directMemory");
             }
 

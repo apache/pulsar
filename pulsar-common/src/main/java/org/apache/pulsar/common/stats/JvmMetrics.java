@@ -104,7 +104,7 @@ public class JvmMetrics {
         m.put("jvm_total_memory", r.totalMemory());
 
         m.put("jvm_direct_memory_used", getJvmDirectMemoryUsed());
-        m.put("jvm_max_direct_memory", DirectMemoryUtils.JVM_MAX_DIRECT_MEMORY);
+        m.put("jvm_max_direct_memory", DirectMemoryUtils.jvmMaxDirectMemory());
         m.put("jvm_thread_cnt", getThreadCount());
 
         this.gcLogger.logMetrics(m);

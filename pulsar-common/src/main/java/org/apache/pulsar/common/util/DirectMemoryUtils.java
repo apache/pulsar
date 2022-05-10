@@ -28,6 +28,10 @@ public class DirectMemoryUtils {
      * PlatformDependent.maxDirectMemory can be inaccurate if java property `io.netty.maxDirectMemory` are setted.
      * Cache the result in this field.
      */
-    public static final long JVM_MAX_DIRECT_MEMORY = PlatformDependent.estimateMaxDirectMemory();
+    private static final long JVM_MAX_DIRECT_MEMORY = PlatformDependent.estimateMaxDirectMemory();
+
+    public static long jvmMaxDirectMemory() {
+        return JVM_MAX_DIRECT_MEMORY;
+    }
 
 }
