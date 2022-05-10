@@ -169,6 +169,9 @@ public class ExclusiveProducerTest extends BrokerTestBase {
                 .accessMode(ProducerAccessMode.WaitForExclusive)
                 .createAsync();
 
+        // wait for all the Producers to be enqueued in order to prevent races
+        Thread.sleep(2000);
+
         // p6 fences out all the current producers, even p5
         Producer<String> p6 = pulsarClient.newProducer(Schema.STRING)
                 .topic(topic)
