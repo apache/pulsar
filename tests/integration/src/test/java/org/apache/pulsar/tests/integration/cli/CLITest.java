@@ -185,7 +185,8 @@ public class CLITest extends PulsarTestSuite {
                     PulsarCluster.ADMIN_SCRIPT,
                     "topics",
                     "create-subscription",
-                    "--properties a=b,c=d",
+                    "--properties",
+                    "a=b,c=d",
                     "persistent://public/default/" + topic,
                     "--subscription",
                     "" + subscriptionPrefix + i
