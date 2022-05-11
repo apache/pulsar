@@ -60,7 +60,18 @@ source://my-tenant/my-ns/mysql-cdc-source@2.3
 
 ## Package management in Pulsar
 
-You can use the command line tools, REST API, or the Java client to manage your package resources in Pulsar. More specifically, you can use these tools to [upload](#upload-a-package), [download](#download-a-package), and [delete](#delete-a-package) a package, [get the metadata](#get-the-metadata-of-a-package) and [update the metadata](#update-the-metadata-of-a-package) of a package, [get the versions](#list-all-versions-of-a-package) of a package, and [get all packages of a specific type under a namespace](#list-all-packages-of-a-specific-type-under-a-namespace).  
+You can use the command line tools, REST API, or the Java client to manage your package resources in Pulsar. More specifically, you can use these tools to [upload](#upload-a-package), [download](#download-a-package), and [delete](#delete-a-package) a package, [get the metadata](#get-the-metadata-of-a-package) and [update the metadata](#update-the-metadata-of-a-package) of a package, [get the versions](#list-all-versions-of-a-package) of a package, and [get all packages of a specific type under a namespace](#list-all-packages-of-a-specific-type-under-a-namespace).
+
+To use package management service, ensure that the package management service has been enabled in your cluster by setting the following properties in `broker.conf`.
+
+> Note: Package management service is not enabled by default.
+
+```yaml
+enablePackagesManagement=true
+packagesManagementStorageProvider=org.apache.pulsar.packages.management.storage.bookkeeper.BookKeeperPackagesStorageProvider
+packagesReplicas=1
+packagesManagementLedgerRootPath=/ledgers
+```
 
 ### Upload a package
 
