@@ -1164,6 +1164,9 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
             }
         } else {
             log.info("Disabling publish throttling for {}", this.topic);
+            if (topicPublishRateLimiter != null) {
+                topicPublishRateLimiter.close();
+            }
             this.topicPublishRateLimiter = PublishRateLimiter.DISABLED_RATE_LIMITER;
             enableProducerReadForPublishRateLimiting();
         }
