@@ -1111,6 +1111,8 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         Message<String> message1 = consumer1.receive(5, TimeUnit.SECONDS);
         Message<String> message2 = consumer2.receive(5, TimeUnit.SECONDS);
         Assert.assertTrue(message1.getMessageId().equals(message.getMessageId())
-                || message2.getMessageId().equals(message.getMessageId()));
+                && !message2.getMessageId().equals(message.getMessageId())
+                || message2.getMessageId().equals(message.getMessageId())
+                && !message1.getMessageId().equals(message.getMessageId()));
     }
 }
