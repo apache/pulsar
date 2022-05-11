@@ -112,7 +112,7 @@ public class PrometheusMetricsGenerator {
                                              boolean splitTopicAndPartitionIndexLabel, OutputStream out,
                                              List<PrometheusRawMetricsProvider> metricsProviders) throws IOException {
         ByteBuf buffer;
-        boolean exposeBufferMetrics = pulsar.getConfiguration().isEnableExposeBufferMetrics();
+        boolean exposeBufferMetrics = pulsar.getConfiguration().isMetricsBufferResponse();
 
         if (!exposeBufferMetrics) {
             buffer = generate0(pulsar, includeTopicMetrics, includeConsumerMetrics, includeProducerMetrics,

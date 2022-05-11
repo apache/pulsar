@@ -2345,7 +2345,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             category = CATEGORY_METRICS,
             doc = "If true, export buffered metrics"
     )
-    private boolean enableExposeBufferMetrics = false;
+    private boolean metricsBufferResponse = false;
     @FieldContext(
         category = CATEGORY_METRICS,
         doc = "If true, export consumer level metrics otherwise namespace level"
