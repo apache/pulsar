@@ -63,7 +63,7 @@ public class PublishRateLimiterDisable implements PublishRateLimiter {
     }
 
     @Override
-    public void close() throws Exception {
+    public void close() {
         // No-op
     }
 }
