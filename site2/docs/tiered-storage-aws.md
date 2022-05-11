@@ -47,8 +47,6 @@ This example uses Pulsar 2.5.1.
 
     **Output**
 
-    As shown from the output, Pulsar uses [Apache jclouds](https://jclouds.apache.org) to support [AWS S3](https://aws.amazon.com/s3/) and [GCS](https://cloud.google.com/storage/) for long term storage. 
-
     ```
     tiered-storage-file-system-2.5.1.nar
     tiered-storage-jcloud-2.5.1.nar
@@ -76,7 +74,7 @@ You can configure the AWS S3 offloader driver in the configuration file `broker.
   
     Required configuration | Description | Example value
     |---|---|---
-    `managedLedgerOffloadDriver` | Offloader driver name, which is case-insensitive. <br><br>**Note**: there is a third driver type, S3, which is identical to AWS S3, though S3 requires that you specify an endpoint URL using `s3ManagedLedgerOffloadServiceEndpoint`. This is useful if using an S3 compatible data store other than AWS S3. | aws-s3
+    `managedLedgerOffloadDriver` | Offloader driver name, which is case-insensitive. <br /><br />**Note**: there is a third driver type, S3, which is identical to AWS S3, though S3 requires that you specify an endpoint URL using `s3ManagedLedgerOffloadServiceEndpoint`. This is useful if using an S3 compatible data store other than AWS S3. | aws-s3
     `offloadersDirectory` | Offloader directory | offloaders
     `s3ManagedLedgerOffloadBucket` | Bucket | pulsar-topic-offload
 
@@ -84,11 +82,11 @@ You can configure the AWS S3 offloader driver in the configuration file `broker.
 
     Optional | Description | Example value
     |---|---|---
-    `s3ManagedLedgerOffloadRegion` | Bucket region <br><br>**Note**: before specifying a value for this parameter, you need to set the following configurations. Otherwise, you might get an error.<br><br>- Set [`s3ManagedLedgerOffloadServiceEndpoint`](https://docs.aws.amazon.com/general/latest/gr/s3.html).<br><br>Example<br>`s3ManagedLedgerOffloadServiceEndpoint=https://s3.YOUR_REGION.amazonaws.com`<br><br>- Grant `GetBucketLocation` permission to a user.<br><br>For how to grant `GetBucketLocation` permission to a user, see [here](https://docs.aws.amazon.com/AmazonS3/latest/dev/using-with-s3-actions.html#using-with-s3-actions-related-to-buckets).| eu-west-3
+    `s3ManagedLedgerOffloadRegion` | Bucket region <br /><br />**Note**: before specifying a value for this parameter, you need to set the following configurations. Otherwise, you might get an error.<br /><br />- Set [`s3ManagedLedgerOffloadServiceEndpoint`](https://docs.aws.amazon.com/general/latest/gr/s3.html).<br /><br />Example<br />`s3ManagedLedgerOffloadServiceEndpoint=https://s3.YOUR_REGION.amazonaws.com`<br /><br />- Grant `GetBucketLocation` permission to a user.<br /><br />For how to grant `GetBucketLocation` permission to a user, see [here](https://docs.aws.amazon.com/AmazonS3/latest/dev/using-with-s3-actions.html#using-with-s3-actions-related-to-buckets).| eu-west-3
     `s3ManagedLedgerOffloadReadBufferSizeInBytes`|Size of block read|1 MB
     `s3ManagedLedgerOffloadMaxBlockSizeInBytes`|Size of block write|64 MB
-    `managedLedgerMinLedgerRolloverTimeMinutes`|Minimum time between ledger rollover for a topic<br><br>**Note**: it is not recommended that you set this configuration in the production environment.|2
-    `managedLedgerMaxEntriesPerLedger`|Maximum number of entries to append to a ledger before triggering a rollover.<br><br>**Note**: it is not recommended that you set this configuration in the production environment.|5000
+    `managedLedgerMinLedgerRolloverTimeMinutes`|Minimum time between ledger rollover for a topic<br /><br />**Note**: it is not recommended that you set this configuration in the production environment.|2
+    `managedLedgerMaxEntriesPerLedger`|Maximum number of entries to append to a ledger before triggering a rollover.<br /><br />**Note**: it is not recommended that you set this configuration in the production environment.|5000
 
 #### Bucket (required)
 

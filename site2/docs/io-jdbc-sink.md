@@ -47,7 +47,7 @@ The configuration of all JDBC sink connectors has the following properties.
     tenant: "public"
     namespace: "default"
     name: "jdbc-clickhouse-sink"
-    topicName: "persistent://public/default/jdbc-clickhouse-topic"
+    inputs: [ "persistent://public/default/jdbc-clickhouse-topic" ]
     sinkType: "jdbc-clickhouse"    
     configs:
         userName: "clickhouse"
@@ -77,7 +77,7 @@ The configuration of all JDBC sink connectors has the following properties.
     tenant: "public"
     namespace: "default"
     name: "jdbc-mariadb-sink"
-    topicName: "persistent://public/default/jdbc-mariadb-topic"
+    inputs: [ "persistent://public/default/jdbc-mariadb-topic" ]
     sinkType: "jdbc-mariadb"    
     configs:
         userName: "mariadb"
@@ -105,7 +105,7 @@ The configuration of all JDBC sink connectors has the following properties.
     tenant: "public"
     namespace: "default"
     name: "jdbc-openmldb-sink"
-    topicName: "persistent://public/default/jdbc-openmldb-topic"
+    inputs: [ "persistent://public/default/jdbc-openmldb-topic" ]
     sinkType: "jdbc-openmldb"    
     configs:
         jdbcUrl: "jdbc:openmldb:///pulsar_openmldb_db?zk=localhost:6181&zkPath=/openmldb"
@@ -135,7 +135,7 @@ Before using the JDBC PostgreSQL sink connector, you need to create a configurat
     tenant: "public"
     namespace: "default"
     name: "jdbc-postgres-sink"
-    topicName: "persistent://public/default/jdbc-postgres-topic"
+    inputs: [ "persistent://public/default/jdbc-postgres-topic" ]
     sinkType: "jdbc-postgres"    
     configs:
         userName: "postgres"
@@ -165,7 +165,7 @@ For more information on **how to use this JDBC sink connector**, see [connect Pu
     tenant: "public"
     namespace: "default"
     name: "jdbc-sqlite-sink"
-    topicName: "persistent://public/default/jdbc-sqlite-topic"
+    inputs: [ "persistent://public/default/jdbc-sqlite-topic" ]
     sinkType: "jdbc-sqlite"    
     configs:
         jdbcUrl: "jdbc:sqlite:db.sqlite"

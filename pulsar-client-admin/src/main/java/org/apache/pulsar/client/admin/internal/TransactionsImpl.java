@@ -18,11 +18,14 @@
  */
 package org.apache.pulsar.client.admin.internal;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
+import javax.ws.rs.core.MediaType;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.Transactions;
 import org.apache.pulsar.client.api.Authentication;
@@ -333,6 +336,19 @@ public class TransactionsImpl extends BaseResource implements Transactions {
                                                                          String subName,
                                                                          boolean metadata) throws PulsarAdminException {
         return sync(() -> getPendingAckInternalStatsAsync(topic, subName, metadata));
+    }
+
+    @Override
+    public void scaleTransactionCoordinators(int replicas) throws PulsarAdminException {
+         sync(() -> scaleTransactionCoordinatorsAsync(replicas));
+    }
+
+    @Override
+    public CompletableFuture<Void> scaleTransactionCoordinatorsAsync(int replicas) {
+        checkArgument(replicas > 0, "Number of transaction coordinators must be more than 0");
+        WebTarget path = adminV3Transactions.path("transactionCoordinator");
+        path = path.path("replicas");
+        return asyncPostRequest(path, Entity.entity(replicas, MediaType.APPLICATION_JSON));
     }
 
 }

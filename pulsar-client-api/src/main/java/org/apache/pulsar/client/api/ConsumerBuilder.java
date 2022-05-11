@@ -658,7 +658,7 @@ public interface ConsumerBuilder<T> extends Cloneable {
 
     /**
      * If enabled, the consumer will auto retry message.
-     * default unabled.
+     * default disabled.
      *
      * @param retryEnable
      *            whether to auto retry message
@@ -798,4 +798,18 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * @default false
      */
     ConsumerBuilder<T> startPaused(boolean paused);
+
+    /**
+     * If this is enabled, consumer receiver queue size is init as a very small value, 1 by default,
+     * and it will double itself until it reaches the value set by {@link #receiverQueueSize(int)}, if and only if
+     * 1) User calls receive() and there is no messages in receiver queue.
+     * 2) The last message we put in the receiver queue took the last space available in receiver queue.
+     *
+     * This is disabled by default and currentReceiverQueueSize is init as maxReceiverQueueSize.
+     *
+     * The feature should be able to reduce client memory usage.
+     *
+     * @param enabled whether to enable AutoScaledReceiverQueueSize.
+     */
+    ConsumerBuilder<T> autoScaledReceiverQueueSizeEnabled(boolean enabled);
 }

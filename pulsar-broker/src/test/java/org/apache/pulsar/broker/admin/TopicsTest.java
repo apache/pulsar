@@ -383,7 +383,7 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
         topics.produceOnPersistentTopic(asyncResponse, testTenant, testNamespace, testTopicName, false, producerMessages);
         ArgumentCaptor<RestException> responseCaptor = ArgumentCaptor.forClass(RestException.class);
         verify(asyncResponse, timeout(5000).times(1)).resume(responseCaptor.capture());
-        Assert.assertEquals(responseCaptor.getValue().getMessage(), "Fail to publish message: Topic not exist");
+        Assert.assertTrue(responseCaptor.getValue().getMessage().contains("Topic not exist"));
     }
 
     @Test

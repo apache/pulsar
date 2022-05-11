@@ -162,6 +162,8 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
 
     private boolean startPaused = false;
 
+    private boolean autoScaledReceiverQueueSizeEnabled = false;
+
     public void setAutoUpdatePartitionsIntervalSeconds(int interval, TimeUnit timeUnit) {
         checkArgument(interval > 0, "interval needs to be > 0");
         this.autoUpdatePartitionsIntervalSeconds = timeUnit.toSeconds(interval);

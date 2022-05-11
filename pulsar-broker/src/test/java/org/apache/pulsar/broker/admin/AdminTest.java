@@ -89,6 +89,7 @@ import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.stats.AllocatorStats;
 import org.apache.pulsar.common.stats.Metrics;
+import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.metadata.cache.impl.MetadataCacheImpl;
 import org.apache.pulsar.metadata.impl.AbstractMetadataStore;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
@@ -194,25 +195,27 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
                 conf.getConfigurationMetadataStoreUrl(),
                 new ClientConfiguration().getZkLedgersRootPath(),
                 conf.isBookkeeperMetadataStoreSeparated() ? conf.getBookkeeperMetadataStoreUrl() : null,
-                pulsar.getWorkerConfig().map(wc -> wc.getStateStorageServiceUrl()).orElse(null));
-
-        assertEquals(brokers.getInternalConfigurationData(), expectedData);
+                pulsar.getWorkerConfig().map(WorkerConfig::getStateStorageServiceUrl).orElse(null));
+        Object response = asynRequests(ctx -> brokers.getInternalConfigurationData(ctx));
+        assertTrue(response instanceof InternalConfigurationData);
+        assertEquals(response, expectedData);
     }
 
     @Test
     public void clusters() throws Exception {
-        assertEquals(clusters.getClusters(), Lists.newArrayList());
-        verify(clusters, never()).validateSuperUserAccess();
+        assertEquals(asynRequests(ctx -> clusters.getClusters(ctx)), Sets.newHashSet());
+        verify(clusters, never()).validateSuperUserAccessAsync();
 
-        clusters.createCluster("use", ClusterDataImpl.builder().serviceUrl("http://broker.messaging.use.example.com:8080").build());
-        verify(clusters, times(1)).validateSuperUserAccess();
+        asynRequests(ctx -> clusters.createCluster(ctx,
+                "use", ClusterDataImpl.builder().serviceUrl("http://broker.messaging.use.example.com:8080").build()));
         // ensure to read from ZooKeeper directly
         //clusters.clustersListCache().clear();
-        assertEquals(clusters.getClusters(), Lists.newArrayList("use"));
+        assertEquals(asynRequests(ctx -> clusters.getClusters(ctx)), Sets.newHashSet("use"));
 
         // Check creating existing cluster
         try {
-            clusters.createCluster("use", ClusterDataImpl.builder().serviceUrl("http://broker.messaging.use.example.com:8080").build());
+            asynRequests(ctx -> clusters.createCluster(ctx, "use",
+                    ClusterDataImpl.builder().serviceUrl("http://broker.messaging.use.example.com:8080").build()));
             fail("should have failed");
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), Status.CONFLICT.getStatusCode());
@@ -220,20 +223,20 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
 
         // Check deleting non-existing cluster
         try {
-            clusters.deleteCluster("usc");
+            asynRequests(ctx -> clusters.deleteCluster(ctx, "usc"));
             fail("should have failed");
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), Status.NOT_FOUND.getStatusCode());
         }
 
-        assertEquals(clusters.getCluster("use"), ClusterDataImpl.builder().serviceUrl("http://broker.messaging.use.example.com:8080").build());
-        verify(clusters, times(4)).validateSuperUserAccess();
+        assertEquals(asynRequests(ctx -> clusters.getCluster(ctx, "use")),
+                ClusterDataImpl.builder().serviceUrl("http://broker.messaging.use.example.com:8080").build());
 
-        clusters.updateCluster("use", ClusterDataImpl.builder().serviceUrl("http://new-broker.messaging.use.example.com:8080").build());
-        verify(clusters, times(5)).validateSuperUserAccess();
+        asynRequests(ctx -> clusters.updateCluster(ctx, "use",
+                ClusterDataImpl.builder().serviceUrl("http://new-broker.messaging.use.example.com:8080").build()));
 
-        assertEquals(clusters.getCluster("use"), ClusterData.builder().serviceUrl("http://new-broker.messaging.use.example.com:8080").build());
-        verify(clusters, times(6)).validateSuperUserAccess();
+        assertEquals(asynRequests(ctx -> clusters.getCluster(ctx, "use")),
+                ClusterData.builder().serviceUrl("http://new-broker.messaging.use.example.com:8080").build());
 
         try {
             clusters.getNamespaceIsolationPolicies("use");
@@ -259,7 +262,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         clusters.getNamespaceIsolationPolicies("use");
 
         try {
-            clusters.deleteCluster("use");
+            asynRequests(ctx -> clusters.deleteCluster(ctx, "use"));
             fail("should have failed");
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), 412);
@@ -268,19 +271,18 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         clusters.deleteNamespaceIsolationPolicy("use", "policy1");
         assertTrue(clusters.getNamespaceIsolationPolicies("use").isEmpty());
 
-        clusters.deleteCluster("use");
-        verify(clusters, times(13)).validateSuperUserAccess();
-        assertEquals(clusters.getClusters(), Lists.newArrayList());
+        asynRequests(ctx -> clusters.deleteCluster(ctx, "use"));
+        assertEquals(asynRequests(ctx -> clusters.getClusters(ctx)), Sets.newHashSet());
 
         try {
-            clusters.getCluster("use");
+            asynRequests(ctx -> clusters.getCluster(ctx, "use"));
             fail("should have failed");
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), 404);
         }
 
         try {
-            clusters.updateCluster("use", ClusterDataImpl.builder().build());
+            asynRequests(ctx -> clusters.updateCluster(ctx, "use", ClusterDataImpl.builder().build()));
             fail("should have failed");
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), 404);
@@ -307,7 +309,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         clusterCache.invalidateAll();
         store.invalidateAll();
         try {
-            clusters.getClusters();
+            asynRequests(ctx -> clusters.getClusters(ctx));
             fail("should have failed");
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), Status.INTERNAL_SERVER_ERROR.getStatusCode());
@@ -318,7 +320,8 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
                     && path.equals("/admin/clusters/test");
             });
         try {
-            clusters.createCluster("test", ClusterDataImpl.builder().serviceUrl("http://broker.messaging.test.example.com:8080").build());
+            asynRequests(ctx -> clusters.createCluster(ctx, "test",
+                    ClusterDataImpl.builder().serviceUrl("http://broker.messaging.test.example.com:8080").build()));
             fail("should have failed");
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), Status.INTERNAL_SERVER_ERROR.getStatusCode());
@@ -331,7 +334,8 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         clusterCache.invalidateAll();
         store.invalidateAll();
         try {
-            clusters.updateCluster("test", ClusterDataImpl.builder().serviceUrl("http://broker.messaging.test.example.com").build());
+            asynRequests(ctx -> clusters.updateCluster(ctx, "test",
+                    ClusterDataImpl.builder().serviceUrl("http://broker.messaging.test.example.com").build()));
             fail("should have failed");
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), Status.INTERNAL_SERVER_ERROR.getStatusCode());
@@ -343,7 +347,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
             });
 
         try {
-            clusters.getCluster("test");
+            asynRequests(ctx -> clusters.getCluster(ctx, "test"));
             fail("should have failed");
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), Status.INTERNAL_SERVER_ERROR.getStatusCode());
@@ -355,7 +359,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
             });
 
         try {
-            clusters.deleteCluster("use");
+            asynRequests(ctx -> clusters.deleteCluster(ctx, "use"));
             fail("should have failed");
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), Status.INTERNAL_SERVER_ERROR.getStatusCode());
@@ -369,7 +373,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         isolationPolicyCache.invalidateAll();
         store.invalidateAll();
         try {
-            clusters.deleteCluster("use");
+            asynRequests(ctx -> clusters.deleteCluster(ctx, "use"));
             fail("should have failed");
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), Status.INTERNAL_SERVER_ERROR.getStatusCode());
@@ -377,7 +381,8 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
 
         // Check name validations
         try {
-            clusters.createCluster("bf@", ClusterDataImpl.builder().serviceUrl("http://dummy.messaging.example.com").build());
+            asynRequests(ctx -> clusters.createCluster(ctx, "bf@",
+                    ClusterDataImpl.builder().serviceUrl("http://dummy.messaging.example.com").build()));
             fail("should have filed");
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), Status.PRECONDITION_FAILED.getStatusCode());
@@ -385,7 +390,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
 
         // Check authentication and listener name
         try {
-            clusters.createCluster("auth", ClusterDataImpl.builder()
+            asynRequests(ctx -> clusters.createCluster(ctx, "auth", ClusterDataImpl.builder()
                     .serviceUrl("http://dummy.web.example.com")
                     .serviceUrlTls("")
                     .brokerServiceUrl("http://dummy.messaging.example.com")
@@ -393,14 +398,16 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
                     .authenticationPlugin("authenticationPlugin")
                     .authenticationParameters("authenticationParameters")
                     .listenerName("listenerName")
-                    .build());
-            ClusterData cluster = clusters.getCluster("auth");
+                    .build()));
+            ClusterData cluster = (ClusterData) asynRequests(ctx -> clusters.getCluster(ctx, "auth"));
             assertEquals(cluster.getAuthenticationPlugin(), "authenticationPlugin");
             assertEquals(cluster.getAuthenticationParameters(), "authenticationParameters");
             assertEquals(cluster.getListenerName(), "listenerName");
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), Status.PRECONDITION_FAILED.getStatusCode());
         }
+        verify(clusters, times(18)).validateSuperUserAccessAsync();
+        verify(clusters, times(6)).validateSuperUserAccess();
     }
 
     Object asynRequests(Consumer<TestAsyncResponse> function) throws Exception {
@@ -419,7 +426,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         verify(properties, times(1)).validateSuperUserAccess();
 
         // create local cluster
-        clusters.createCluster(configClusterName, ClusterDataImpl.builder().build());
+        asynRequests(ctx -> clusters.createCluster(ctx, configClusterName, ClusterDataImpl.builder().build()));
 
         Set<String> allowedClusters = Sets.newHashSet();
         allowedClusters.add(configClusterName);
@@ -633,10 +640,10 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
     @Test
     @SuppressWarnings("unchecked")
     public void brokers() throws Exception {
-        clusters.createCluster("use", ClusterDataImpl.builder()
+        asynRequests(ctx -> clusters.createCluster(ctx, "use", ClusterDataImpl.builder()
                 .serviceUrl("http://broker.messaging.use.example.com")
                 .serviceUrlTls("https://broker.messaging.use.example.com:4443")
-                .build());
+                .build()));
 
         URI requestUri = new URI(
                 "http://broker.messaging.use.example.com:8080/admin/brokers/use");
@@ -698,7 +705,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
                 .allowedClusters(Collections.singleton(cluster))
                 .build();
         ClusterDataImpl clusterData = ClusterDataImpl.builder().serviceUrl(cluster).build();
-        clusters.createCluster(cluster, clusterData );
+        asynRequests(ctx -> clusters.createCluster(ctx, cluster, clusterData ));
         asynRequests(ctx -> properties.createTenant(ctx, property, admin));
 
         // customized bandwidth for this namespace
@@ -780,20 +787,33 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         // grant permission
         final Set<AuthAction> actions = Sets.newHashSet(AuthAction.produce);
         final String role = "test-role";
-        persistentTopics.grantPermissionsOnTopic(property, cluster, namespace, topic, role, actions);
+        response = mock(AsyncResponse.class);
+        responseCaptor = ArgumentCaptor.forClass(Response.class);
+        persistentTopics.grantPermissionsOnTopic(response, property, cluster, namespace, topic, role, actions);
+        verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
+        Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
         // verify permission
-        Map<String, Set<AuthAction>> permission = persistentTopics.getPermissionsOnTopic(property, cluster,
-                namespace, topic);
+        response = mock(AsyncResponse.class);
+        responseCaptor = ArgumentCaptor.forClass(Response.class);
+        persistentTopics.getPermissionsOnTopic(response, property, cluster, namespace, topic);
+        verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
+        Map<String, Set<AuthAction>> permission = (Map<String, Set<AuthAction>>) responseCaptor.getValue();
         assertEquals(permission.get(role), actions);
         // remove permission
-        persistentTopics.revokePermissionsOnTopic(property, cluster, namespace, topic, role);
-
+        response = mock(AsyncResponse.class);
+        persistentTopics.revokePermissionsOnTopic(response, property, cluster, namespace, topic, role);
+        responseCaptor = ArgumentCaptor.forClass(Response.class);
+        verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
+        Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
         // verify removed permission
         Awaitility.await().untilAsserted(() -> {
-            Map<String, Set<AuthAction>> p = persistentTopics.getPermissionsOnTopic(property, cluster, namespace, topic);
+            AsyncResponse response1 = mock(AsyncResponse.class);
+            ArgumentCaptor<Response> responseCaptor1 = ArgumentCaptor.forClass(Response.class);
+            persistentTopics.getPermissionsOnTopic(response1, property, cluster, namespace, topic);
+            verify(response1, timeout(5000).times(1)).resume(responseCaptor1.capture());
+            Map<String, Set<AuthAction>> p = (Map<String, Set<AuthAction>>) responseCaptor1.getValue();
             assertTrue(p.isEmpty());
         });
-
     }
 
     @Test
@@ -829,7 +849,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         verify(response2, timeout(5000).times(1)).resume(responseCaptor.capture());
         Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
 
-        persistentTopics.updatePartitionedTopic(property, cluster, namespace, partitionedTopicName2, false, false,
+        persistentTopics.updatePartitionedTopic(response2, property, cluster, namespace, partitionedTopicName2, false, false,
                 false, 10);
     }
 

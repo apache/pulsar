@@ -528,6 +528,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         assertTrue(metrics.containsKey("pulsar_out_messages_total"));
         assertTrue(metrics.containsKey("pulsar_subscription_last_expire_timestamp"));
         assertTrue(metrics.containsKey("pulsar_subscription_msg_drop_rate"));
+        assertTrue(metrics.containsKey("pulsar_subscription_consumers_count"));
     }
 
     @Test
@@ -1486,8 +1487,8 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         // Example of lines are
         // jvm_threads_current{cluster="standalone",} 203.0
         // or
-        // pulsar_subscriptions_count{cluster="standalone", namespace="sample/standalone/ns1",
-        // topic="persistent://sample/standalone/ns1/test-2"} 0.0 1517945780897
+        // pulsar_subscriptions_count{cluster="standalone", namespace="public/default",
+        // topic="persistent://public/default/test-2"} 0.0 1517945780897
         Pattern pattern = Pattern.compile("^(\\w+)\\{([^\\}]+)\\}\\s([+-]?[\\d\\w\\.-]+)(\\s(\\d+))?$");
         Pattern tagsPattern = Pattern.compile("(\\w+)=\"([^\"]+)\"(,\\s?)?");
 
