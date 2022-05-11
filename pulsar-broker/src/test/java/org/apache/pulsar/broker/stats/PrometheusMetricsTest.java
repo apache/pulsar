@@ -47,6 +47,7 @@ import java.util.Random;
 import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.crypto.SecretKey;
@@ -379,7 +380,8 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         p2.close();
         // Let the message expire
         for (String topic : topicList) {
-            PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topic).get().get();
+            PersistentTopic persistentTopic =
+                    (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topic).get().get();
             persistentTopic.getBrokerService().getPulsar().getConfiguration().setTtlDurationDefaultInSeconds(-1);
             persistentTopic.getHierarchyTopicPolicies().getMessageTTLInSeconds().updateBrokerValue(-1);
         }
@@ -466,7 +468,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
         pulsar.getBrokerService().updateRates();
         Awaitility.await().untilAsserted(() -> assertTrue(pulsar.getBrokerService().getBundleStats().size() > 0));
-        ModularLoadManagerWrapper loadManager = (ModularLoadManagerWrapper)pulsar.getLoadManager().get();
+        ModularLoadManagerWrapper loadManager = (ModularLoadManagerWrapper) pulsar.getLoadManager().get();
         loadManager.getLoadManager().updateLocalBrokerData();
 
         ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
@@ -756,17 +758,22 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         c2.close();
     }
 
-    /** Checks for duplicate type definitions for a metric in the Prometheus metrics output. If the Prometheus parser
-     finds a TYPE definition for the same metric more than once, it errors out:
-     https://github.com/prometheus/prometheus/blob/f04b1b5559a80a4fd1745cf891ce392a056460c9/vendor/github.com/prometheus/common/expfmt/text_parse.go#L499-L502
-     This can happen when including topic metrics, since the same metric is reported multiple times with different labels. For example:
-
-     # TYPE pulsar_subscriptions_count gauge
-     pulsar_subscriptions_count{cluster="standalone"} 0 1556372982118
-     pulsar_subscriptions_count{cluster="standalone",namespace="public/functions",topic="persistent://public/functions/metadata"} 1.0 1556372982118
-     pulsar_subscriptions_count{cluster="standalone",namespace="public/functions",topic="persistent://public/functions/coordinate"} 1.0 1556372982118
-     pulsar_subscriptions_count{cluster="standalone",namespace="public/functions",topic="persistent://public/functions/assignments"} 1.0 1556372982118
-
+    /**
+     * Checks for duplicate type definitions for a metric in the Prometheus metrics output. If the Prometheus parser
+     * finds a TYPE definition for the same metric more than once, it errors out:
+     * https://github.com/prometheus/prometheus/blob/f04b1b5559a80a4fd1745cf891ce392a056460c9/vendor/github
+     * .com/prometheus/common/expfmt/text_parse.go#L499-L502
+     * This can happen when including topic metrics, since the same metric is reported multiple times with different
+     * labels. For example:
+     *
+     * # TYPE pulsar_subscriptions_count gauge
+     * pulsar_subscriptions_count{cluster="standalone"} 0 1556372982118
+     * pulsar_subscriptions_count{cluster="standalone",namespace="public/functions",
+     * topic="persistent://public/functions/metadata"} 1.0 1556372982118
+     * pulsar_subscriptions_count{cluster="standalone",namespace="public/functions",
+     * topic="persistent://public/functions/coordinate"} 1.0 1556372982118
+     * pulsar_subscriptions_count{cluster="standalone",namespace="public/functions",
+     * topic="persistent://public/functions/assignments"} 1.0 1556372982118
      **/
     // Running the test twice to make sure types are present when generated multiple times
     @Test(invocationCount = 2)
@@ -810,7 +817,8 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
                 }
                 // From https://github.com/prometheus/docs/blob/master/content/docs/instrumenting/exposition_formats.md
-                // "The TYPE line for a metric name must appear before the first sample is reported for that metric name."
+                // "The TYPE line for a metric name must appear before the first sample is reported for that metric
+                // name."
                 if (metricNames.containsKey(metricName)) {
                     System.out.println(metricsStr);
                     fail("TYPE definition for " + metricName + " appears after first sample");
@@ -891,8 +899,10 @@ public class PrometheusMetricsTest extends BrokerTestBase {
     public void testManagedLedgerStats() throws Exception {
         Producer<byte[]> p1 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic1").create();
         Producer<byte[]> p2 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic2").create();
-        Producer<byte[]> p3 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns2/my-topic1").create();
-        Producer<byte[]> p4 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns2/my-topic2").create();
+        Producer<byte[]> p3 =
+                pulsarClient.newProducer().topic("persistent://my-property/use/my-ns2/my-topic1").create();
+        Producer<byte[]> p4 =
+                pulsarClient.newProducer().topic("persistent://my-property/use/my-ns2/my-topic2").create();
         for (int i = 0; i < 10; i++) {
             String message = "my-message-" + i;
             p1.send(message.getBytes());
@@ -936,7 +946,8 @@ public class PrometheusMetricsTest extends BrokerTestBase {
                     fail("Duplicate type definition found for TYPE definition " + metricName);
                 }
                 // From https://github.com/prometheus/docs/blob/master/content/docs/instrumenting/exposition_formats.md
-                // "The TYPE line for a metric name must appear before the first sample is reported for that metric name."
+                // "The TYPE line for a metric name must appear before the first sample is reported for that metric
+                // name."
                 if (metricNames.containsKey(metricName)) {
                     fail("TYPE definition for " + metricName + " appears after first sample");
                 }
@@ -989,7 +1000,8 @@ public class PrometheusMetricsTest extends BrokerTestBase {
                 System.out.println(e.getKey() + ": " + e.getValue())
         );
 
-        List<Metric> cm = (List<Metric>) metrics.get("pulsar_managedLedger_client_bookkeeper_ml_scheduler_completed_tasks_0");
+        List<Metric> cm =
+                (List<Metric>) metrics.get("pulsar_managedLedger_client_bookkeeper_ml_scheduler_completed_tasks_0");
         assertEquals(cm.size(), 1);
         assertEquals(cm.get(0).tags.get("cluster"), "test");
 
@@ -1174,7 +1186,8 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
     @Test
     public void testParsingWithPositiveInfinityValue() {
-        Multimap<String, Metric> metrics = parseMetrics("pulsar_broker_publish_latency{cluster=\"test\",quantile=\"0.0\"} +Inf");
+        Multimap<String, Metric> metrics =
+                parseMetrics("pulsar_broker_publish_latency{cluster=\"test\",quantile=\"0.0\"} +Inf");
         List<Metric> cm = (List<Metric>) metrics.get("pulsar_broker_publish_latency");
         assertEquals(cm.size(), 1);
         assertEquals(cm.get(0).tags.get("cluster"), "test");
@@ -1184,7 +1197,8 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
     @Test
     public void testParsingWithNegativeInfinityValue() {
-        Multimap<String, Metric> metrics = parseMetrics("pulsar_broker_publish_latency{cluster=\"test\",quantile=\"0.0\"} -Inf");
+        Multimap<String, Metric> metrics =
+                parseMetrics("pulsar_broker_publish_latency{cluster=\"test\",quantile=\"0.0\"} -Inf");
         List<Metric> cm = (List<Metric>) metrics.get("pulsar_broker_publish_latency");
         assertEquals(cm.size(), 1);
         assertEquals(cm.get(0).tags.get("cluster"), "test");
@@ -1358,7 +1372,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         Random r = new Random(0);
         for (int j = 0; j < numMessages; j++) {
             int keyIndex = r.nextInt(maxKeys);
-            String key = "key"+keyIndex;
+            String key = "key" + keyIndex;
             byte[] data = ("my-message-" + key + "-" + j).getBytes();
             producer.newMessage()
                     .key(key)
@@ -1423,7 +1437,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
                 .subscribe();
         @Cleanup
         ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
-        PrometheusMetricsGenerator.generate(pulsar, true, false, false, true,  statsOut);
+        PrometheusMetricsGenerator.generate(pulsar, true, false, false, true, statsOut);
         String metricsStr = statsOut.toString();
         Multimap<String, Metric> metrics = parseMetrics(metricsStr);
         Collection<Metric> metric = metrics.get("pulsar_consumers_count");
@@ -1441,11 +1455,57 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         consumer2.close();
     }
 
-    private void compareCompactionStateCount(List<Metric> cm, double count) {
-        assertEquals(cm.size(), 1);
-        assertEquals(cm.get(0).tags.get("cluster"), "test");
-        assertEquals(cm.get(0).tags.get("broker"), "localhost");
-        assertEquals(cm.get(0).value, count);
+    @Test
+    public void testMetricsGroupedByTypeDefinitions() throws Exception {
+        Producer<byte[]> p1 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic1").create();
+        Producer<byte[]> p2 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic2").create();
+        for (int i = 0; i < 10; i++) {
+            String message = "my-message-" + i;
+            p1.send(message.getBytes());
+            p2.send(message.getBytes());
+        }
+
+        ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
+        PrometheusMetricsGenerator.generate(pulsar, false, false, false, statsOut);
+        String metricsStr = statsOut.toString();
+
+        Pattern typePattern = Pattern.compile("^#\\s+TYPE\\s+(\\w+)\\s+(\\w+)");
+        Pattern metricNamePattern = Pattern.compile("^(\\w+)\\{.+");
+
+        AtomicReference<String> currentMetric = new AtomicReference<>();
+        Splitter.on("\n").split(metricsStr).forEach(line -> {
+            if (line.isEmpty()) {
+                return;
+            }
+            if (line.startsWith("#")) {
+                // Get the current type definition
+                Matcher typeMatcher = typePattern.matcher(line);
+                checkArgument(typeMatcher.matches());
+                String metricName = typeMatcher.group(1);
+                currentMetric.set(metricName);
+            } else {
+                Matcher metricMatcher = metricNamePattern.matcher(line);
+                checkArgument(metricMatcher.matches());
+                String metricName = metricMatcher.group(1);
+
+                if (metricName.endsWith("_bucket")) {
+                    metricName = metricName.substring(0, metricName.indexOf("_bucket"));
+                } else if (metricName.endsWith("_count") && !currentMetric.get().endsWith("_count")) {
+                    metricName = metricName.substring(0, metricName.indexOf("_count"));
+                } else if (metricName.endsWith("_sum") && !currentMetric.get().endsWith("_sum")) {
+                    metricName = metricName.substring(0, metricName.indexOf("_sum"));
+                }
+
+                if (!metricName.equals(currentMetric.get())) {
+                    System.out.println(metricsStr);
+                    fail("Metric not grouped under it's type definition: " + line);
+                }
+
+            }
+        });
+
+        p1.close();
+        p2.close();
     }
 
     /**
