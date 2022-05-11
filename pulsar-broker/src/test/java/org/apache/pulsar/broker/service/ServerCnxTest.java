@@ -143,8 +143,8 @@ public class ServerCnxTest {
     private final String nonExistentTopicName = "persistent://nonexistent-prop/nonexistent-cluster/nonexistent-namespace/successNonExistentTopic";
     private final String topicWithNonLocalCluster = "persistent://prop/usw/ns-abc/successTopic";
 
-    private final ManagedLedger ledgerMock = mock(ManagedLedger.class);
-    private final ManagedCursor cursorMock = mock(ManagedCursor.class);
+    private ManagedLedger ledgerMock;
+    private ManagedCursor cursorMock;
     private OrderedExecutor executor;
     private EventLoopGroup eventLoopGroup;
 
@@ -1603,6 +1603,8 @@ public class ServerCnxTest {
     }
 
     private void setupMLAsyncCallbackMocks() {
+        ledgerMock = mock(ManagedLedger.class);
+        cursorMock = mock(ManagedCursor.class);
         doReturn(new ArrayList<Object>()).when(ledgerMock).getCursors();
 
         // call openLedgerComplete with ledgerMock on ML factory asyncOpen
