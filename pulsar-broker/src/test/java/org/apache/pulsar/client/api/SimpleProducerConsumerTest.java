@@ -820,10 +820,11 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
     // This is to test that the flow control counter doesn't get corrupted while concurrent receives during
     // reconnections
-    @Test(timeOut = 100000, dataProvider = "batch", groups = "quarantine")
+    @Test(timeOut = 100_000, dataProvider = "batch", groups = "quarantine")
     public void testConcurrentConsumerReceiveWhileReconnect(int batchMessageDelayMs) throws Exception {
         final int recvQueueSize = 100;
         final int numConsumersThreads = 10;
+        final int receiveTimeoutSeconds = 100;
 
         String subName = UUID.randomUUID().toString();
         final Consumer<byte[]> consumer = pulsarClient.newConsumer()
@@ -837,12 +838,11 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         for (int i = 0; i < numConsumersThreads; i++) {
             executor.submit((Callable<Void>) () -> {
                 barrier.await();
-                consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+                consumer.receive(receiveTimeoutSeconds, TimeUnit.SECONDS);
                 return null;
             });
         }
-
-        barrier.await();
+        barrier.await(); // the last thread reach barrier, start consume messages
 
         // we restart the broker to reconnect
         restartBroker();
@@ -878,7 +878,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                 return null;
             });
         }
-        barrier.await();
+        barrier.await(); // the last thread reach barrier, start consume messages
 
         Awaitility.await().untilAsserted(() -> {
             // The available permits should be 20 and num messages in the queue should be 80
@@ -908,7 +908,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                 return null;
             });
         }
-        barrier.await();
+        barrier.await(); // the last thread reach barrier, start consume messages
 
         restartBroker();
 
