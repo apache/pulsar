@@ -595,10 +595,10 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                                     callBack.noNeedToRecover();
                                     return;
                                 }
-                            } catch (PulsarClientException pulsarClientException) {
-                                log.error("[{}]Transaction buffer recover fail when read "
-                                        + "transactionBufferSnapshot!", topic.getName(), pulsarClientException);
-                                callBack.recoverExceptionally(pulsarClientException);
+                            } catch (Exception ex) {
+                                log.error("[{}] Transaction buffer recover fail when read "
+                                        + "transactionBufferSnapshot!", topic.getName(), ex);
+                                callBack.recoverExceptionally(ex);
                                 closeReader(reader);
                                 return;
                             }
@@ -698,6 +698,8 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
 
         private volatile boolean isReadable = true;
 
+        private static final int NUMBER_OF_PER_READ_ENTRY = 100;
+
         private FillEntryQueueCallback(SpscArrayQueue<Entry> entryQueue, ManagedCursor cursor,
                                        TopicTransactionBufferRecover recover) {
             this.entryQueue = entryQueue;
@@ -705,10 +707,12 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
             this.recover = recover;
         }
         boolean fillQueue() {
-            if (entryQueue.size() < entryQueue.capacity() && outstandingReadsRequests.get() == 0) {
+            if (entryQueue.size() + NUMBER_OF_PER_READ_ENTRY < entryQueue.capacity()
+                    && outstandingReadsRequests.get() == 0) {
                 if (cursor.hasMoreEntries()) {
                     outstandingReadsRequests.incrementAndGet();
-                    cursor.asyncReadEntries(100, this, System.nanoTime(), PositionImpl.LATEST);
+                    cursor.asyncReadEntries(NUMBER_OF_PER_READ_ENTRY,
+                            this, System.nanoTime(), PositionImpl.LATEST);
                 } else {
                     if (entryQueue.size() == 0) {
                         isReadable = false;

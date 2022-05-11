@@ -140,7 +140,7 @@ public class LedgerManagerIteratorTest extends BaseMetadataStoreTest {
         return ledgersReadAsync;
     }
 
-    @Test(dataProvider = "impl")
+    @Test(timeOut = 30000, dataProvider = "impl")
     public void testIterateNoLedgers(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
         MetadataStoreExtended store =
@@ -157,7 +157,7 @@ public class LedgerManagerIteratorTest extends BaseMetadataStoreTest {
         assertEquals(false, lri.hasNext());
     }
 
-    @Test(dataProvider = "impl")
+    @Test(timeOut = 30000, dataProvider = "impl")
     public void testSingleLedger(String provider, Supplier<String> urlSupplier) throws Throwable {
         @Cleanup
         MetadataStoreExtended store =
@@ -179,7 +179,7 @@ public class LedgerManagerIteratorTest extends BaseMetadataStoreTest {
         assertEquals("Comparing LedgersIds read asynchronously", lids, ledgersReadAsync);
     }
 
-    @Test(dataProvider = "impl")
+    @Test(timeOut = 30000, dataProvider = "impl")
     public void testTwoLedgers(String provider, Supplier<String> urlSupplier) throws Throwable {
         @Cleanup
         MetadataStoreExtended store =
@@ -202,7 +202,7 @@ public class LedgerManagerIteratorTest extends BaseMetadataStoreTest {
         assertEquals("Comparing LedgersIds read asynchronously", ids, ledgersReadAsync);
     }
 
-    @Test(dataProvider = "impl")
+    @Test(timeOut = 240000, dataProvider = "impl")
     public void testSeveralContiguousLedgers(String provider, Supplier<String> urlSupplier) throws Throwable {
         @Cleanup
         MetadataStoreExtended store =
@@ -229,7 +229,7 @@ public class LedgerManagerIteratorTest extends BaseMetadataStoreTest {
         assertEquals("Comparing LedgersIds read asynchronously", ids, ledgersReadAsync);
     }
 
-    @Test(dataProvider = "impl")
+    @Test(timeOut = 30000, dataProvider = "impl")
     public void testRemovalOfNodeJustTraversed(String provider, Supplier<String> urlSupplier) throws Throwable {
         @Cleanup
         MetadataStoreExtended store =
@@ -283,7 +283,7 @@ public class LedgerManagerIteratorTest extends BaseMetadataStoreTest {
         }
     }
 
-    @Test(dataProvider = "impl")
+    @Test(timeOut = 30000, dataProvider = "impl")
     public void validateEmptyL4PathSkipped(String provider, Supplier<String> urlSupplier) throws Throwable {
         @Cleanup
         MetadataStoreExtended store =
@@ -331,7 +331,7 @@ public class LedgerManagerIteratorTest extends BaseMetadataStoreTest {
         assertEquals(0, emptyRanges);
     }
 
-    @Test(dataProvider = "impl")
+    @Test(timeOut = 30000, dataProvider = "impl")
     public void testWithSeveralIncompletePaths(String provider, Supplier<String> urlSupplier) throws Throwable {
         @Cleanup
         MetadataStoreExtended store =
@@ -373,7 +373,7 @@ public class LedgerManagerIteratorTest extends BaseMetadataStoreTest {
         assertEquals("Comparing LedgersIds read asynchronously", ids, ledgersReadAsync);
     }
 
-    @Test(dataProvider = "impl")
+    @Test(timeOut = 30000, dataProvider = "impl")
     public void checkConcurrentModifications(String provider, Supplier<String> urlSupplier) throws Throwable {
         @Cleanup
         MetadataStoreExtended store =
@@ -460,7 +460,7 @@ public class LedgerManagerIteratorTest extends BaseMetadataStoreTest {
         executor.shutdownNow();
     }
 
-    @Test(dataProvider = "impl")
+    @Test(timeOut = 30000, dataProvider = "impl")
     public void hierarchicalLedgerManagerAsyncProcessLedgersTest(String provider, Supplier<String> urlSupplier)
             throws Throwable {
         @Cleanup

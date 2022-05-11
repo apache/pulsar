@@ -36,6 +36,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
@@ -54,6 +55,7 @@ import org.apache.pulsar.metadata.BaseMetadataStoreTest;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
 
@@ -122,7 +124,7 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
      * Ensure that getLedgerToReplicate will block until it a ledger
      * becomes available.
      */
-    @Test(dataProvider = "impl")
+    @Test(timeOut = 60000, dataProvider = "impl")
     public void testBasicInteraction(String provider, Supplier<String> urlSupplier) throws Exception {
         methodSetup(urlSupplier);
 
@@ -160,7 +162,7 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
         assertEquals("Should have got the one just added", newl, f.get(5, TimeUnit.SECONDS));
     }
 
-    @Test(dataProvider = "impl")
+    @Test(timeOut = 60000, dataProvider = "impl")
     public void testGetList(String provider, Supplier<String> urlSupplier) throws Exception {
         methodSetup(urlSupplier);
 
@@ -191,7 +193,7 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
      * client shouldn't be able to get it. If the first client dies
      * however, the second client should be able to get it.
      */
-    @Test(dataProvider = "impl")
+    @Test(timeOut = 60000, dataProvider = "impl")
     public void testLocking(String provider, Supplier<String> urlSupplier) throws Exception {
         methodSetup(urlSupplier);
 
@@ -233,7 +235,7 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
      * acquire a ledger, and that it's not the one that was previously
      * marked as replicated.
      */
-    @Test(dataProvider = "impl")
+    @Test(timeOut = 240000, dataProvider = "impl")
     public void testMarkingAsReplicated(String provider, Supplier<String> urlSupplier) throws Exception {
         methodSetup(urlSupplier);
 
@@ -249,16 +251,22 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
         m1.markLedgerUnderreplicated(ledgerA, missingReplica);
         m1.markLedgerUnderreplicated(ledgerB, missingReplica);
 
-        Future<Long> fA = getLedgerToReplicate(m1);
-        Future<Long> fB = getLedgerToReplicate(m1);
+        AtomicReference<Long> lA = new AtomicReference<>();
+        AtomicReference<Long> lB = new AtomicReference<>();
 
-        Long lA = fA.get(5, TimeUnit.SECONDS);
-        Long lB = fB.get(5, TimeUnit.SECONDS);
+        Awaitility.await().untilAsserted(() -> {
+            Future<Long> fA = getLedgerToReplicate(m1);
+            Future<Long> fB = getLedgerToReplicate(m1);
 
-        assertTrue("Should be the ledgers I just marked",
-                (lA.equals(ledgerA) && lB.equals(ledgerB))
-                        || (lA.equals(ledgerB) && lB.equals(ledgerA)));
+            Long a = fA.get(5, TimeUnit.SECONDS);
+            Long b = fB.get(5, TimeUnit.SECONDS);
 
+            assertTrue("Should be the ledgers I just marked",
+                    (a.equals(ledgerA) && b.equals(ledgerB))
+                            || (a.equals(ledgerB) && b.equals(ledgerA)));
+            lA.set(a);
+            lB.set(b);
+        });
         Future<Long> f = getLedgerToReplicate(m2);
         try {
             f.get(1, TimeUnit.SECONDS);
@@ -266,13 +274,13 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
         } catch (TimeoutException te) {
             // correct behaviour
         }
-        m1.markLedgerReplicated(lA);
+        m1.markLedgerReplicated(lA.get());
 
         // Release the locks
         m1.close();
 
         Long l = f.get(5, TimeUnit.SECONDS);
-        assertEquals("Should be the ledger I marked", lB, l);
+        assertEquals("Should be the ledger I marked", lB.get(), l);
     }
 
     /**
@@ -282,7 +290,7 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
      * When a client releases a previously acquired ledger, another
      * client should then be able to acquire it.
      */
-    @Test(dataProvider = "impl")
+    @Test(timeOut = 60000, dataProvider = "impl")
     public void testRelease(String provider, Supplier<String> urlSupplier) throws Exception {
         methodSetup(urlSupplier);
 
@@ -329,7 +337,7 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
      * under replicated ledger list when first rereplicating client marks
      * it as replicated.
      */
-    @Test(dataProvider = "impl")
+    @Test(timeOut = 60000, dataProvider = "impl")
     public void testManyFailures(String provider, Supplier<String> urlSupplier) throws Exception {
         methodSetup(urlSupplier);
 
@@ -363,7 +371,7 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
      *
      * @throws Exception
      */
-    @Test(dataProvider = "impl")
+    @Test(timeOut = 60000, dataProvider = "impl")
     public void testGetReplicationWorkerIdRereplicatingLedger(String provider, Supplier<String> urlSupplier)
             throws Exception {
         methodSetup(urlSupplier);
@@ -400,7 +408,7 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
      * the same missing replica twice, only marking as replicated
      * will be enough to remove it from the list.
      */
-    @Test(dataProvider = "impl")
+    @Test(timeOut = 60000, dataProvider = "impl")
     public void test2reportSame(String provider, Supplier<String> urlSupplier)
             throws Exception {
         methodSetup(urlSupplier);
@@ -444,7 +452,7 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
      * Test that multiple LedgerUnderreplicationManagers should be able to take
      * lock and release for same ledger.
      */
-    @Test(dataProvider = "impl")
+    @Test(timeOut = 240000, dataProvider = "impl")
     public void testMultipleManagersShouldBeAbleToTakeAndReleaseLock(String provider, Supplier<String> urlSupplier)
             throws Exception {
         methodSetup(urlSupplier);
@@ -490,7 +498,7 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
      * localhost:3181, localhost:318, localhost:31812
      * *******************************************************************
      */
-    @Test(dataProvider = "impl")
+    @Test(timeOut = 60000, dataProvider = "impl")
     public void testMarkSimilarMissingReplica(String provider, Supplier<String> urlSupplier)
             throws Exception {
         methodSetup(urlSupplier);
@@ -509,7 +517,7 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
      * Test multiple bookie failures for a ledger and marked as underreplicated
      * one after another.
      */
-    @Test(dataProvider = "impl")
+    @Test(timeOut = 60000, dataProvider = "impl")
     public void testManyFailuresInAnEnsemble(String provider, Supplier<String> urlSupplier)
             throws Exception {
         methodSetup(urlSupplier);
@@ -524,7 +532,7 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
      * able to getLedgerToRereplicate(). This calls will enter into infinite
      * waiting until enabling rereplication process
      */
-    @Test(dataProvider = "impl")
+    @Test(timeOut = 60000, dataProvider = "impl")
     public void testDisableLedgerReplication(String provider, Supplier<String> urlSupplier)
             throws Exception {
         methodSetup(urlSupplier);
@@ -556,7 +564,7 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
      * Test enabling the ledger re-replication. After enableLedegerReplication,
      * should continue getLedgerToRereplicate() task
      */
-    @Test(dataProvider = "impl")
+    @Test(timeOut = 60000, dataProvider = "impl")
     public void testEnableLedgerReplication(String provider, Supplier<String> urlSupplier)
             throws Exception {
         methodSetup(urlSupplier);
@@ -615,7 +623,7 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
         }
     }
 
-    @Test(dataProvider = "impl")
+    @Test(timeOut = 60000, dataProvider = "impl")
     public void testCheckAllLedgersCTime(String provider, Supplier<String> urlSupplier)
             throws Exception {
         methodSetup(urlSupplier);
@@ -632,7 +640,7 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
         assertEquals(curTime, underReplicaMgr1.getCheckAllLedgersCTime());
     }
 
-    @Test(dataProvider = "impl")
+    @Test(timeOut = 60000, dataProvider = "impl")
     public void testPlacementPolicyCheckCTime(String provider, Supplier<String> urlSupplier)
             throws Exception {
         methodSetup(urlSupplier);
@@ -653,7 +661,7 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
         assertEquals(curTime, underReplicaMgr1.getPlacementPolicyCheckCTime());
     }
 
-    @Test(dataProvider = "impl")
+    @Test(timeOut = 60000, dataProvider = "impl")
     public void testReplicasCheckCTime(String provider, Supplier<String> urlSupplier)
             throws Exception {
         methodSetup(urlSupplier);

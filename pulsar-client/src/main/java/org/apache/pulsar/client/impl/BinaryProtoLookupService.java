@@ -118,9 +118,9 @@ public class BinaryProtoLookupService implements LookupService {
             clientCnx.newLookup(request, requestId).whenComplete((r, t) -> {
                 if (t != null) {
                     // lookup failed
-                    log.warn("[{}] failed to send lookup request : {}", topicName.toString(), t.getMessage());
+                    log.warn("[{}] failed to send lookup request : {}", topicName, t.getMessage());
                     if (log.isDebugEnabled()) {
-                        log.debug("[{}] Lookup response exception: {}", topicName.toString(), t);
+                        log.debug("[{}] Lookup response exception: {}", topicName, t);
                     }
 
                     addressFuture.completeExceptionally(t);
@@ -145,11 +145,11 @@ public class BinaryProtoLookupService implements LookupService {
                                 // lookup failed
                                 if (redirectCount > 0) {
                                     if (log.isDebugEnabled()) {
-                                        log.debug("[{}] lookup redirection failed ({}) : {}", topicName.toString(),
+                                        log.debug("[{}] lookup redirection failed ({}) : {}", topicName,
                                                 redirectCount, lookupException.getMessage());
                                     }
                                 } else {
-                                    log.warn("[{}] lookup failed : {}", topicName.toString(),
+                                    log.warn("[{}] lookup failed : {}", topicName,
                                             lookupException.getMessage(), lookupException);
                                 }
                                 addressFuture.completeExceptionally(lookupException);
@@ -168,7 +168,7 @@ public class BinaryProtoLookupService implements LookupService {
 
                     } catch (Exception parseUrlException) {
                         // Failed to parse url
-                        log.warn("[{}] invalid url {} : {}", topicName.toString(), uri, parseUrlException.getMessage(),
+                        log.warn("[{}] invalid url {} : {}", topicName, uri, parseUrlException.getMessage(),
                             parseUrlException);
                         addressFuture.completeExceptionally(parseUrlException);
                     }
@@ -185,14 +185,14 @@ public class BinaryProtoLookupService implements LookupService {
     private CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(InetSocketAddress socketAddress,
             TopicName topicName) {
 
-        CompletableFuture<PartitionedTopicMetadata> partitionFuture = new CompletableFuture<PartitionedTopicMetadata>();
+        CompletableFuture<PartitionedTopicMetadata> partitionFuture = new CompletableFuture<>();
 
         client.getCnxPool().getConnection(socketAddress).thenAccept(clientCnx -> {
             long requestId = client.newRequestId();
             ByteBuf request = Commands.newPartitionMetadataRequest(topicName.toString(), requestId);
             clientCnx.newLookup(request, requestId).whenComplete((r, t) -> {
                 if (t != null) {
-                    log.warn("[{}] failed to get Partitioned metadata : {}", topicName.toString(),
+                    log.warn("[{}] failed to get Partitioned metadata : {}", topicName,
                         t.getMessage(), t);
                     partitionFuture.completeExceptionally(t);
                 } else {
@@ -202,7 +202,7 @@ public class BinaryProtoLookupService implements LookupService {
                         partitionFuture.completeExceptionally(new PulsarClientException.LookupException(
                             format("Failed to parse partition-response redirect=%s, topic=%s, partitions with %s,"
                                             + " error message %s",
-                                r.redirect, topicName.toString(), r.partitions,
+                                r.redirect, topicName, r.partitions,
                                 e.getMessage())));
                     }
                 }
@@ -236,7 +236,7 @@ public class BinaryProtoLookupService implements LookupService {
                 Optional.ofNullable(BytesSchemaVersion.of(version)));
             clientCnx.sendGetSchema(request, requestId).whenComplete((r, t) -> {
                 if (t != null) {
-                    log.warn("[{}] failed to get schema : {}", topicName.toString(),
+                    log.warn("[{}] failed to get schema : {}", topicName,
                         t.getMessage(), t);
                     schemaFuture.completeExceptionally(t);
                 } else {
@@ -293,7 +293,7 @@ public class BinaryProtoLookupService implements LookupService {
                 } else {
                     if (log.isDebugEnabled()) {
                         log.debug("[namespace: {}] Success get topics list in request: {}",
-                                namespace.toString(), requestId);
+                                namespace, requestId);
                     }
                     // do not keep partition part of topic name
                     List<String> result = new ArrayList<>();

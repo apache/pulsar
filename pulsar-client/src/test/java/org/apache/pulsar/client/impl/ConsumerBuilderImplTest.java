@@ -66,6 +66,13 @@ public class ConsumerBuilderImplTest {
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
+    public void testConsumerBuilderImplWhenSchemaIsNull() {
+        PulsarClientImpl client = mock(PulsarClientImpl.class);
+        ConsumerConfigurationData consumerConfigurationData = mock(ConsumerConfigurationData.class);
+        new ConsumerBuilderImpl(client, consumerConfigurationData, null);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
     public void testConsumerBuilderImplWhenTopicNamesVarargsIsNull() {
         consumerBuilderImpl.topic(null);
     }

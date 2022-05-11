@@ -28,6 +28,7 @@ import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timer;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -92,6 +93,7 @@ public class PulsarClientImpl implements PulsarClient {
 
     private static final Logger log = LoggerFactory.getLogger(PulsarClientImpl.class);
     private static final int CLOSE_TIMEOUT_SECONDS = 60;
+    private static final double THRESHOLD_FOR_CONSUMER_RECEIVER_QUEUE_SIZE_SHRINKING = 0.95;
 
     protected final ClientConfigurationData conf;
     private final boolean createdExecutorProviders;
@@ -210,13 +212,21 @@ public class PulsarClientImpl implements PulsarClient {
                 }
             }
 
-            memoryLimitController = new MemoryLimitController(conf.getMemoryLimitBytes());
+            memoryLimitController = new MemoryLimitController(conf.getMemoryLimitBytes(),
+                    (long) (conf.getMemoryLimitBytes() * THRESHOLD_FOR_CONSUMER_RECEIVER_QUEUE_SIZE_SHRINKING),
+                    this::reduceConsumerReceiverQueueSize);
             state.set(State.Open);
         } catch (Throwable t) {
             shutdown();
             shutdownEventLoopGroup(eventLoopGroupReference);
             closeCnxPool(connectionPoolReference);
             throw t;
+        }
+    }
+
+    private void reduceConsumerReceiverQueueSize() {
+        for (ConsumerBase<?> consumer : consumers) {
+            consumer.reduceCurrentReceiverQueueSize();
         }
     }
 
@@ -906,7 +916,12 @@ public class PulsarClientImpl implements PulsarClient {
     public CompletableFuture<ClientCnx> getConnection(final String topic) {
         TopicName topicName = TopicName.get(topic);
         return lookup.getBroker(topicName)
-                .thenCompose(pair -> cnxPool.getConnection(pair.getLeft(), pair.getRight()));
+                .thenCompose(pair -> getConnection(pair.getLeft(), pair.getRight()));
+    }
+
+    public CompletableFuture<ClientCnx> getConnection(final InetSocketAddress logicalAddress,
+                                                      final InetSocketAddress physicalAddress) {
+        return cnxPool.getConnection(logicalAddress, physicalAddress);
     }
 
     /** visible for pulsar-functions. **/

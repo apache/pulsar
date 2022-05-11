@@ -527,6 +527,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         assertTrue(metrics.containsKey("pulsar_out_messages_total"));
         assertTrue(metrics.containsKey("pulsar_subscription_last_expire_timestamp"));
         assertTrue(metrics.containsKey("pulsar_subscription_msg_drop_rate"));
+        assertTrue(metrics.containsKey("pulsar_subscription_consumers_count"));
     }
 
     @Test
@@ -988,17 +989,38 @@ public class PrometheusMetricsTest extends BrokerTestBase {
                 System.out.println(e.getKey() + ": " + e.getValue())
         );
 
-        List<Metric> cm = (List<Metric>) metrics.get("pulsar_managedLedger_client_bookkeeper_ml_scheduler_completed_tasks_0");
+        List<Metric> cm = (List<Metric>) metrics.get(keyNameBySubstrings(metrics,
+                "pulsar_managedLedger_client", "bookkeeper_ml_scheduler_completed_tasks"));
         assertEquals(cm.size(), 1);
         assertEquals(cm.get(0).tags.get("cluster"), "test");
 
-        cm = (List<Metric>) metrics.get("pulsar_managedLedger_client_bookkeeper_ml_scheduler_queue_0");
+        cm = (List<Metric>) metrics.get(
+                keyNameBySubstrings(metrics,
+                        "pulsar_managedLedger_client", "bookkeeper_ml_scheduler_queue"));
         assertEquals(cm.size(), 1);
         assertEquals(cm.get(0).tags.get("cluster"), "test");
 
-        cm = (List<Metric>) metrics.get("pulsar_managedLedger_client_bookkeeper_ml_scheduler_total_tasks_0");
+        cm = (List<Metric>) metrics.get(
+                keyNameBySubstrings(metrics,
+                        "pulsar_managedLedger_client", "bookkeeper_ml_scheduler_total_tasks"));
         assertEquals(cm.size(), 1);
         assertEquals(cm.get(0).tags.get("cluster"), "test");
+    }
+
+    private static String keyNameBySubstrings(Multimap<String, Metric> metrics, String... substrings) {
+        for (String key: metrics.keys()) {
+            boolean found = true;
+            for (String s: substrings) {
+                if (!key.contains(s)) {
+                    found = false;
+                    break;
+                }
+            }
+            if (found) {
+                return key;
+            }
+        }
+        return null;
     }
 
     @Test
@@ -1456,8 +1478,8 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         // Example of lines are
         // jvm_threads_current{cluster="standalone",} 203.0
         // or
-        // pulsar_subscriptions_count{cluster="standalone", namespace="sample/standalone/ns1",
-        // topic="persistent://sample/standalone/ns1/test-2"} 0.0 1517945780897
+        // pulsar_subscriptions_count{cluster="standalone", namespace="public/default",
+        // topic="persistent://public/default/test-2"} 0.0 1517945780897
         Pattern pattern = Pattern.compile("^(\\w+)\\{([^\\}]+)\\}\\s([+-]?[\\d\\w\\.-]+)(\\s(\\d+))?$");
         Pattern tagsPattern = Pattern.compile("(\\w+)=\"([^\"]+)\"(,\\s?)?");
 
@@ -1493,9 +1515,9 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         return parsed;
     }
 
-    static class Metric {
-        Map<String, String> tags = new TreeMap<>();
-        double value;
+    public static class Metric {
+        public Map<String, String> tags = new TreeMap<>();
+        public double value;
 
         @Override
         public String toString() {

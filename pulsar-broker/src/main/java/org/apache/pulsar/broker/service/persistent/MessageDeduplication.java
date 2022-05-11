@@ -35,6 +35,7 @@ import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.Topic.PublishContext;
@@ -401,7 +402,7 @@ public class MessageDeduplication {
         }
     }
 
-    private void takeSnapshot(PositionImpl position) {
+    private void takeSnapshot(Position position) {
         if (log.isDebugEnabled()) {
             log.debug("[{}] Taking snapshot of sequence ids map", topic.getName());
         }
@@ -412,7 +413,7 @@ public class MessageDeduplication {
             }
         });
 
-        managedCursor.asyncMarkDelete(position, snapshot, new MarkDeleteCallback() {
+        getManagedCursor().asyncMarkDelete(position, snapshot, new MarkDeleteCallback() {
             @Override
             public void markDeleteComplete(Object ctx) {
                 if (log.isDebugEnabled()) {
@@ -456,18 +457,22 @@ public class MessageDeduplication {
                 .toMillis(pulsar.getConfiguration().getBrokerDeduplicationProducerInactivityTimeoutMinutes());
 
         Iterator<java.util.Map.Entry<String, Long>> mapIterator = inactiveProducers.entrySet().iterator();
+        boolean hasInactive = false;
         while (mapIterator.hasNext()) {
             java.util.Map.Entry<String, Long> entry = mapIterator.next();
             String producerName = entry.getKey();
             long lastActiveTimestamp = entry.getValue();
 
-            mapIterator.remove();
-
             if (lastActiveTimestamp < minimumActiveTimestamp) {
                 log.info("[{}] Purging dedup information for producer {}", topic.getName(), producerName);
+                mapIterator.remove();
                 highestSequencedPushed.remove(producerName);
                 highestSequencedPersisted.remove(producerName);
+                hasInactive = true;
             }
+        }
+        if (hasInactive) {
+            takeSnapshot(getManagedCursor().getMarkDeletedPosition());
         }
     }
 

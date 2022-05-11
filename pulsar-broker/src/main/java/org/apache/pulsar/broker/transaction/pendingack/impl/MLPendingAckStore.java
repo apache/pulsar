@@ -46,6 +46,7 @@ import org.apache.pulsar.broker.transaction.util.LogIndexLagBackoff;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
+import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
 import org.jctools.queues.MessagePassingQueue;
 import org.jctools.queues.SpscArrayQueue;
@@ -61,10 +62,6 @@ public class MLPendingAckStore implements PendingAckStore {
     private final ManagedLedger managedLedger;
 
     private final ManagedCursor cursor;
-
-    public static final String PENDING_ACK_STORE_SUFFIX = "__transaction_pending_ack";
-
-    public static final String PENDING_ACK_STORE_CURSOR_NAME = "__pending_ack_state";
 
     private final SpscArrayQueue<Entry> entryQueue;
 
@@ -369,12 +366,14 @@ public class MLPendingAckStore implements PendingAckStore {
 
         private volatile boolean isReadable = true;
         private final AtomicLong outstandingReadsRequests = new AtomicLong(0);
+        private static final int NUMBER_OF_PER_READ_ENTRY = 100;
 
         boolean fillQueue() {
-            if (entryQueue.size() < entryQueue.capacity() && outstandingReadsRequests.get() == 0) {
+            if (entryQueue.size() + NUMBER_OF_PER_READ_ENTRY < entryQueue.capacity()
+                    && outstandingReadsRequests.get() == 0) {
                 if (cursor.hasMoreEntries()) {
                     outstandingReadsRequests.incrementAndGet();
-                    readAsync(100, this);
+                    readAsync(NUMBER_OF_PER_READ_ENTRY, this);
                 }
             }
             return isReadable;
@@ -414,11 +413,11 @@ public class MLPendingAckStore implements PendingAckStore {
     }
 
     public static String getTransactionPendingAckStoreSuffix(String originTopicName, String subName) {
-        return TopicName.get(originTopicName) + "-" + subName + PENDING_ACK_STORE_SUFFIX;
+        return TopicName.get(originTopicName) + "-" + subName + SystemTopicNames.PENDING_ACK_STORE_SUFFIX;
     }
 
     public static String getTransactionPendingAckStoreCursorName() {
-        return PENDING_ACK_STORE_CURSOR_NAME;
+        return SystemTopicNames.PENDING_ACK_STORE_CURSOR_NAME;
     }
 
     private static final Logger log = LoggerFactory.getLogger(MLPendingAckStore.class);

@@ -1123,6 +1123,22 @@ pulsarClient.newReader()
 Total hash range size is 65536, so the max end of the range should be less than or equal to 65535.
 
 
+### Configure chunking
+
+Configuring chuncking for readers is similar to that for consumers. See [configure chunking for consumers](#configure-chunking) for more information.
+
+The following is an example of how to configure message chunking for a reader.
+
+```java
+Reader<byte[]> reader = pulsarClient.newReader()
+        .topic(topicName)
+        .startMessageId(MessageId.earliest)
+        .maxPendingChunkedMessage(12)
+        .autoAckOldestChunkedMessageOnQueueFull(true)
+        .expireTimeOfIncompleteChunkedMessage(12, TimeUnit.MILLISECONDS)
+        .create();
+```
+
 ## TableView
 
 The TableView interface serves an encapsulated access pattern, providing a continuously updated key-value map view of the compacted topic data. Messages without keys will be ignored.
