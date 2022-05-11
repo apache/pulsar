@@ -33,6 +33,8 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -74,7 +76,7 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
                 log.error("Error getting ledger id", e);
                 return -1L;
             }
-        });
+        }, executor);
     }
 
     private MetadataStoreExtended store;
@@ -84,8 +86,10 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
 
     private String basePath;
     private String urLedgerPath;
+    private ExecutorService executor;
 
     private void methodSetup(Supplier<String> urlSupplier) throws Exception {
+        this.executor = Executors.newSingleThreadExecutor();
         String ledgersRoot = "/ledgers-" + UUID.randomUUID();
         this.store = MetadataStoreExtended.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
         this.layoutManager = new PulsarLayoutManager(store, ledgersRoot);
@@ -112,6 +116,15 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
         }
         if (store != null) {
             store.close();
+        }
+        if (executor != null) {
+            try {
+                executor.shutdownNow();
+                executor.awaitTermination(5, TimeUnit.SECONDS);
+            } catch (InterruptedException ex) {
+                Thread.currentThread().interrupt();
+            }
+            executor = null;
         }
     }
 
