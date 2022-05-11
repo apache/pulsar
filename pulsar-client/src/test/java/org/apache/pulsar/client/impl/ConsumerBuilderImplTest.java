@@ -37,7 +37,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
-import org.testng.annotations.BeforeTest;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 /**
@@ -48,7 +48,7 @@ public class ConsumerBuilderImplTest {
     private static final String TOPIC_NAME = "testTopicName";
     private ConsumerBuilderImpl consumerBuilderImpl;
 
-    @BeforeTest
+    @BeforeMethod(alwaysRun = true)
     public void setup() {
         PulsarClientImpl client = mock(PulsarClientImpl.class);
         ConsumerConfigurationData consumerConfigurationData = mock(ConsumerConfigurationData.class);
