@@ -283,6 +283,9 @@ if [[ -z "$IS_JAVA_8" ]]; then
   # https://github.com/netty/netty/blob/4.1/common/src/main/java/io/netty/util/internal/PlatformDependent0.java
   # https://github.com/netty/netty/issues/12265
   OPTS="$OPTS --add-opens java.base/java.nio=ALL-UNNAMED --add-opens java.base/jdk.internal.misc=ALL-UNNAMED"
+  # netty.DnsResolverUtil
+  # JvmDefaultGCMetricsLogger
+  OPTS="$OPTS --add-opens java.base/sun.net=ALL-UNNAMED --add-opens java.management/sun.management=ALL-UNNAMED"
 fi
 
 OPTS="-cp $PULSAR_CLASSPATH $OPTS"
