@@ -133,7 +133,7 @@ public class PrecisPublishLimiter implements PublishRateLimiter {
     }
 
     @Override
-    public void close() throws Exception {
+    public void close() {
         rateLimitFunction.apply();
         replaceLimiters(null);
     }
