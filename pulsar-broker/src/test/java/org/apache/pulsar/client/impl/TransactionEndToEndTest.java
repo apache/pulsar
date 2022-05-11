@@ -1061,7 +1061,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
             Assert.assertTrue(e.getCause() instanceof TransactionCoordinatorClientException
                     .InvalidTxnStatusException);
         }
-        Message<String> message1 = consumer.receive();
+        Message<String> message1 = consumer.receive(5, TimeUnit.SECONDS);
         Assert.assertEquals(message.getMessageId(), message1.getMessageId());
     }
 }
