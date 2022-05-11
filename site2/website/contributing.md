@@ -190,7 +190,7 @@ gh pr create --repo=your_github_id/pulsar --base master --head your-pr-branch -f
 ```
 B.) You can also create a PR to your own fork in the GitHub UI when opening
 a new PR. To do so, first click on "compare across forks" and then choose
-your own fork as both the fork repository and head repository.
+your own fork as both the forked repository and head repository.
 
 #### Stay in-sync with apache/pulsar:master
 
@@ -199,7 +199,7 @@ so that the PR diff will be reasonable in your own fork.
 
 Here's one way to sync your fork's master branch with apache/pulsar's
 master branch:
-Let's say if you have git remotes called "upstream" for apache/pulsar and
+Let's say you have git remotes called "upstream" for apache/pulsar and
 "forked" for your fork, with these commands,
 you synchronize your fork's remote master branch with apache/pulsar's
 master branch:
@@ -220,9 +220,9 @@ details):
 gh pr create --repo=apache/pulsar --base master --head your-pr-branch --web
 ```
 
-#### ssh to CI Jobs
+#### SSH to CI Jobs
 
-The additional benefit of the "Personal CI" is that you get ssh access to the build VMs when the build is running.
+The additional benefit of the "Personal CI" is that you get SSH access to the build VMs when the build is running.
 That is handled by this logic in the pulsar-ci.yaml GitHub Actions workflow file:
 `pulsar/.github/workflows/pulsar-ci.yaml`
 
@@ -236,9 +236,9 @@ That is handled by this logic in the pulsar-ci.yaml GitHub Actions workflow file
   limit-access-to-actor: true
 ```
 and inline composite action [implementation](https://github.com/apache/pulsar/blob/master/.github/actions/ssh-access/action.yml).
-The ssh acccess is secured with the ssh key registered in Github.
+The SSH access is secured with the SSH key registered in GitHub.
 For example, your public keys are https://github.com/horizonzy.keys.
-You will first have to register a ssh public key in GitHub for that to work.
+You will first have to register an SSH public key in GitHub for that to work.
 
 ### Licensing
 
