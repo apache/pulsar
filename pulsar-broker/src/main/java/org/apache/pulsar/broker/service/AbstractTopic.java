@@ -834,9 +834,7 @@ public abstract class AbstractTopic implements Topic {
         }
 
         // attach the resource-group level rate limiters, if set
-        String rgName = policies != null && policies.resource_group_name != null
-          ? policies.resource_group_name
-          : null;
+        String rgName = policies.resource_group_name;
         if (rgName != null) {
             final ResourceGroup resourceGroup =
               brokerService.getPulsar().getResourceGroupServiceManager().resourceGroupGet(rgName);
