@@ -820,11 +820,11 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
     // This is to test that the flow control counter doesn't get corrupted while concurrent receives during
     // reconnections
-    @Test(timeOut = 60_000, dataProvider = "batch", groups = "quarantine")
+    @Test(timeOut = 100_000, dataProvider = "batch", groups = "quarantine")
     public void testConcurrentConsumerReceiveWhileReconnect(int batchMessageDelayMs) throws Exception {
         final int recvQueueSize = 100;
         final int numConsumersThreads = 10;
-        final int receiveTimeoutSeconds = 60;
+        final int receiveTimeoutSeconds = 100;
 
         String subName = UUID.randomUUID().toString();
         final Consumer<byte[]> consumer = pulsarClient.newConsumer()
