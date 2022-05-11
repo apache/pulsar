@@ -160,7 +160,9 @@ public class AdminApiSubscriptionTest extends MockedPulsarServiceBaseTest {
                 assertTrue(subscriptionStats.getSubscriptionProperties().isEmpty());
             }
 
-            SubscriptionStats subscriptionStats = admin.topics().getStats(topic).getSubscriptions().get(subscriptionName);
+            // aggregated properties
+            SubscriptionStats subscriptionStats = admin.topics().getPartitionedStats(topic, false)
+                    .getSubscriptions().get(subscriptionName);
             assertEquals(value, subscriptionStats.getSubscriptionProperties().get("foo"));
 
         } else {
