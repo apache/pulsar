@@ -33,7 +33,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -86,7 +86,7 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
 
     private String basePath;
     private String urLedgerPath;
-    private Executor executor;
+    private ExecutorService executor;
 
     private void methodSetup(Supplier<String> urlSupplier) throws Exception {
         this.executor = Executors.newSingleThreadExecutor();
@@ -116,6 +116,15 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
         }
         if (store != null) {
             store.close();
+        }
+        if (executor != null) {
+            try {
+                executor.shutdownNow();
+                executor.awaitTermination(5, TimeUnit.SECONDS);
+            } catch (InterruptedException ex) {
+                Thread.currentThread().interrupt();
+            }
+            executor = null;
         }
     }
 
