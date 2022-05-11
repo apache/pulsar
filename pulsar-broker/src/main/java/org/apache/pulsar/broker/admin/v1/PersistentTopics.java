@@ -51,7 +51,6 @@ import org.apache.pulsar.client.impl.ResetCursorData;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
-import org.apache.pulsar.common.policies.data.TopicStats;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -393,13 +392,24 @@ public class PersistentTopics extends PersistentTopicsBase {
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic does not exist") })
-    public TopicStats getStats(@PathParam("property") String property, @PathParam("cluster") String cluster,
+            @ApiResponse(code = 404, message = "Topic does not exist")})
+    public void getStats(
+            @Suspended final AsyncResponse asyncResponse,
+            @PathParam("property") String property, @PathParam("cluster") String cluster,
             @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @QueryParam("getPreciseBacklog") @DefaultValue("false") boolean getPreciseBacklog) {
         validateTopicName(property, cluster, namespace, encodedTopic);
-        return internalGetStats(authoritative, getPreciseBacklog, false, false);
+        internalGetStatsAsync(authoritative, getPreciseBacklog, false, false)
+                .thenAccept(asyncResponse::resume)
+                .exceptionally(ex -> {
+                    // If the exception is not redirect exception we need to log it.
+                    if (!isRedirectException(ex)) {
+                        log.error("[{}] Failed to get stats for {}", clientAppId(), topicName, ex);
+                    }
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @GET
