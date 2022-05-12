@@ -43,6 +43,7 @@ import org.apache.pulsar.common.protocol.Commands;
 public class PulsarConnectorConfig implements AutoCloseable {
 
     private String brokerServiceUrl = "http://localhost:8080";
+    private String brokerBinaryServiceUrl = "pulsar://localhost:6650/";
     private String webServiceUrl = ""; //leave empty
     private String zookeeperUri = "localhost:2181";
     private int entryReadBatchSize = 100;
@@ -62,6 +63,8 @@ public class PulsarConnectorConfig implements AutoCloseable {
 
     private boolean namespaceDelimiterRewriteEnable = false;
     private String rewriteNamespaceDelimiter = "/";
+
+    private boolean authorizationEnable = false;
 
     // --- Ledger Offloading ---
     private String managedLedgerOffloadDriver = null;
@@ -101,6 +104,14 @@ public class PulsarConnectorConfig implements AutoCloseable {
     @Config("pulsar.broker-service-url")
     public PulsarConnectorConfig setBrokerServiceUrl(String brokerServiceUrl) {
         this.brokerServiceUrl = brokerServiceUrl;
+        return this;
+    }
+    public String getBrokerBinaryServiceUrl() {
+        return this.brokerBinaryServiceUrl;
+    }
+    @Config("pulsar.broker-binary-service-url")
+    public PulsarConnectorConfig setBrokerBinaryServiceUrl(String brokerBinaryServiceUrl) {
+        this.brokerBinaryServiceUrl = brokerBinaryServiceUrl;
         return this;
     }
     @Config("pulsar.web-service-url")
@@ -235,6 +246,16 @@ public class PulsarConnectorConfig implements AutoCloseable {
     @Config("pulsar.namespace-delimiter-rewrite-enable")
     public PulsarConnectorConfig setNamespaceDelimiterRewriteEnable(boolean namespaceDelimiterRewriteEnable) {
         this.namespaceDelimiterRewriteEnable = namespaceDelimiterRewriteEnable;
+        return this;
+    }
+
+    public boolean getAuthorizationEnable() {
+        return authorizationEnable;
+    }
+
+    @Config("pulsar.authorization-enable")
+    public PulsarConnectorConfig setAuthorizationEnable(boolean authorizationEnable) {
+        this.authorizationEnable = authorizationEnable;
         return this;
     }
 
