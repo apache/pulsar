@@ -1,7 +1,7 @@
 ---
 title: "The Apache Pulsar Community Welcomes 500th Contributor!"
-date: 2022-02-24
-author: "Matteo Merli", "Karin Landers", "Alice Bi"
+date: 2022-05-11
+author: "Matteo Merli, Karin Landers, Alice Bi"
 ---
 
 

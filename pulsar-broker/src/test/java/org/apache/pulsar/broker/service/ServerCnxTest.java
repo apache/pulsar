@@ -157,12 +157,12 @@ public class ServerCnxTest {
             "persistent://use/ns-abc/topic-2",
             "persistent://use/ns-abc/topic");
 
-    private final ManagedLedger ledgerMock = mock(ManagedLedger.class);
-    private final ManagedCursor cursorMock = mock(ManagedCursor.class);
+    private ManagedLedger ledgerMock;
+    private ManagedCursor cursorMock;
     private OrderedExecutor executor;
     private EventLoopGroup eventLoopGroup;
 
-    @BeforeMethod
+    @BeforeMethod(alwaysRun = true)
     public void setup() throws Exception {
         eventLoopGroup = new NioEventLoopGroup();
         executor = OrderedExecutor.newBuilder().numThreads(1).build();
@@ -223,8 +223,12 @@ public class ServerCnxTest {
 
     @AfterMethod(alwaysRun = true)
     public void teardown() throws Exception {
-        serverCnx.close();
-        channel.close();
+        if (serverCnx != null) {
+            serverCnx.close();
+        }
+        if (channel != null) {
+            channel.close();
+        }
         pulsar.close();
         brokerService.close();
         executor.shutdownNow();
@@ -1636,6 +1640,8 @@ public class ServerCnxTest {
     }
 
     private void setupMLAsyncCallbackMocks() {
+        ledgerMock = mock(ManagedLedger.class);
+        cursorMock = mock(ManagedCursor.class);
         doReturn(new ArrayList<Object>()).when(ledgerMock).getCursors();
 
         // call openLedgerComplete with ledgerMock on ML factory asyncOpen

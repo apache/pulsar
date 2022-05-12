@@ -111,11 +111,11 @@ flexible messaging model and an intuitive client API.</description>
     <!-- apache commons -->
     <commons-compress.version>1.21</commons-compress.version>
 
-    <bookkeeper.version>4.14.4</bookkeeper.version>
+    <bookkeeper.version>4.15.0</bookkeeper.version>
     <zookeeper.version>3.8.0</zookeeper.version>
     <commons-cli.version>1.5.0</commons-cli.version>
     <snappy.version>1.1.7</snappy.version> <!-- ZooKeeper server -->
-    <dropwizardmetrics.version>3.2.5</dropwizardmetrics.version> <!-- ZooKeeper server -->
+    <dropwizardmetrics.version>4.1.12.1</dropwizardmetrics.version> <!-- ZooKeeper server -->
     <curator.version>5.1.0</curator.version>
     <netty.version>4.1.76.Final</netty.version>
     <netty-tc-native.version>2.0.51.Final</netty-tc-native.version>
@@ -125,7 +125,7 @@ flexible messaging model and an intuitive client API.</description>
     <athenz.version>1.10.50</athenz.version>
     <prometheus.version>0.5.0</prometheus.version>
     <vertx.version>3.9.8</vertx.version>
-    <rocksdb.version>6.10.2</rocksdb.version>
+    <rocksdb.version>6.29.4.1</rocksdb.version>
     <slf4j.version>1.7.32</slf4j.version>
     <commons.collections.version>3.2.2</commons.collections.version>
     <log4j2.version>2.17.1</log4j2.version>
@@ -150,7 +150,7 @@ flexible messaging model and an intuitive client API.</description>
     <cassandra-driver-core.version>3.6.0</cassandra-driver-core.version>
     <aerospike-client.version>4.4.20</aerospike-client.version>
     <kafka-client.version>2.7.2</kafka-client.version>
-    <rabbitmq-client.version>5.1.1</rabbitmq-client.version>
+    <rabbitmq-client.version>5.5.3</rabbitmq-client.version>
     <aws-sdk.version>1.11.774</aws-sdk.version>
     <avro.version>1.10.2</avro.version>
     <joda.version>2.10.5</joda.version>
