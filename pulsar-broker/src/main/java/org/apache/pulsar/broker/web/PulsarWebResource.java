@@ -1205,8 +1205,8 @@ public abstract class PulsarWebResource {
     }
 
     public static boolean isSpecificRestException(Throwable ex, Status status) {
-        return ex instanceof WebApplicationException &&
-                ((WebApplicationException) ex).getResponse().getStatus() == status.getStatusCode();
+        return ex instanceof WebApplicationException
+                && ((WebApplicationException) ex).getResponse().getStatus() == status.getStatusCode();
     }
 
     protected static void resumeAsyncResponseExceptionally(AsyncResponse asyncResponse, Throwable exception) {

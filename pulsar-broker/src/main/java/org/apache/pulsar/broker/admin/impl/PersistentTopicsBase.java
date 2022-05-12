@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.admin.impl;
 
-import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.pulsar.common.naming.SystemTopicNames.isTransactionCoordinatorAssign;
 import static org.apache.pulsar.common.naming.SystemTopicNames.isTransactionInternalName;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -3908,9 +3907,9 @@ public class PersistentTopicsBase extends AdminResource {
                     }
                     return CompletableFuture.completedFuture(null);
                 }).thenCompose(__ ->
-                    // validates global-namespace contains local/peer cluster: if peer/local cluster present then lookup can
-                    // serve/redirect request else fail partitioned-metadata-request so, client fails while creating
-                    // producer/consumer
+                    // validates global-namespace contains local/peer cluster: if peer/local cluster present
+                    // then lookup can serve/redirect request else fail partitioned-metadata-request
+                    // so, client fails while creating producer/consumer.
                     checkLocalOrGetPeerReplicationCluster(pulsar, topicName.getNamespaceObject())
                     .thenCompose(res ->
                             pulsar.getBrokerService()
