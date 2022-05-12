@@ -48,8 +48,6 @@ import org.apache.pulsar.metadata.bookkeeper.BKCluster;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.pulsar.packages.management.storage.filesystem.FileSystemPackagesStorageProvider;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 @Slf4j
 public class PulsarStandalone implements AutoCloseable {
@@ -262,7 +260,7 @@ public class PulsarStandalone implements AutoCloseable {
     @Parameter(names = { "-h", "--help" }, description = "Show this help message")
     private boolean help = false;
 
-    private boolean usingNewDefaults_PIP117;
+    private boolean usingNewDefaultsPIP117;
 
     public void start() throws Exception {
         String forceUseZookeeperEnv = System.getenv(PULSAR_STANDALONE_USE_ZOOKEEPER);
@@ -270,14 +268,14 @@ public class PulsarStandalone implements AutoCloseable {
         // Allow forcing to use ZK mode via an env variable. eg:
         // PULSAR_STANDALONE_USE_ZOOKEEPER=1
         if (StringUtils.equalsAnyIgnoreCase(forceUseZookeeperEnv, "1", "true")) {
-            usingNewDefaults_PIP117 = false;
+            usingNewDefaultsPIP117 = false;
             log.info("Forcing to chose ZooKeeper metadata through environment variable");
         } else if (Paths.get(zkDir).toFile().exists()) {
             log.info("Found existing ZooKeeper metadata. Continuing with ZooKeeper");
-            usingNewDefaults_PIP117 = false;
+            usingNewDefaultsPIP117 = false;
         } else {
             // There's no existing ZK data directory, or we're already using RocksDB for metadata
-            usingNewDefaults_PIP117 = true;
+            usingNewDefaultsPIP117 = true;
         }
 
         if (config == null) {
@@ -288,7 +286,7 @@ public class PulsarStandalone implements AutoCloseable {
         log.debug("--- setup PulsarStandaloneStarter ---");
 
         if (!this.isOnlyBroker()) {
-            if (usingNewDefaults_PIP117) {
+            if (usingNewDefaultsPIP117) {
                 startBookieWithRocksDB();
             } else {
                 startBookieWithZookeeper();
@@ -303,7 +301,7 @@ public class PulsarStandalone implements AutoCloseable {
         if (!this.isNoFunctionsWorker()) {
             workerConfig = PulsarService.initializeWorkerConfigFromBrokerConfig(
                 config, this.getFnWorkerConfigFile());
-            if (usingNewDefaults_PIP117) {
+            if (usingNewDefaultsPIP117) {
                 workerConfig.setStateStorageProviderImplementation(
                         PulsarMetadataStateStoreProviderImpl.class.getName());
 
@@ -326,7 +324,7 @@ public class PulsarStandalone implements AutoCloseable {
 
         config.setRunningStandalone(true);
 
-        if (!usingNewDefaults_PIP117) {
+        if (!usingNewDefaultsPIP117) {
             final String metadataStoreUrl =
                     ZKMetadataStore.ZK_SCHEME_IDENTIFIER + "localhost:" + this.getZkPort();
             config.setMetadataStoreUrl(metadataStoreUrl);
