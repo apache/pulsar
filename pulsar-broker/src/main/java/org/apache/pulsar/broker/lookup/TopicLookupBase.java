@@ -192,143 +192,102 @@ public class TopicLookupBase extends PulsarWebResource {
      * d. If current-broker receives request to own the namespace-bundle then
      *    it owns a bundle and returns success(connect)
      *    response to client.
-     *
-     * @param pulsarService
-     * @param topicName
-     * @param authoritative
-     * @param clientAppId
-     * @param requestId
-     * @param advertisedListenerName
-     * @return
      */
     public static CompletableFuture<ByteBuf> lookupTopicAsync(PulsarService pulsarService, TopicName topicName,
                                                               boolean authoritative, String clientAppId,
                                                               AuthenticationDataSource authenticationData,
                                                               long requestId, final String advertisedListenerName) {
-
-        final CompletableFuture<ByteBuf> validationFuture = new CompletableFuture<>();
-        final CompletableFuture<ByteBuf> lookupfuture = new CompletableFuture<>();
         final String cluster = topicName.getCluster();
-
         // (1) validate cluster
-        getClusterDataIfDifferentCluster(pulsarService, cluster, clientAppId).thenAccept(differentClusterData -> {
-
-            if (differentClusterData != null) {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] Redirecting the lookup call to {}/{} cluster={}", clientAppId,
-                            differentClusterData.getBrokerServiceUrl(), differentClusterData.getBrokerServiceUrlTls(),
-                            cluster);
+        return getClusterDataIfDifferentCluster(pulsarService, cluster, clientAppId)
+            .thenCompose(differentClusterData -> {
+                if (differentClusterData != null) {
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] Redirecting the lookup call to {}/{} cluster={}", clientAppId,
+                                differentClusterData.getBrokerServiceUrl(),
+                                differentClusterData.getBrokerServiceUrlTls(), cluster);
+                    }
+                    return CompletableFuture.completedFuture(Optional.of(
+                            newLookupResponse(differentClusterData.getBrokerServiceUrl(),
+                                    differentClusterData.getBrokerServiceUrlTls(), true,
+                                    LookupType.Redirect, requestId, false)));
                 }
-                validationFuture.complete(newLookupResponse(differentClusterData.getBrokerServiceUrl(),
-                        differentClusterData.getBrokerServiceUrlTls(), true, LookupType.Redirect, requestId, false));
-            } else {
                 // (2) authorize client
-                try {
-                    checkAuthorization(pulsarService, topicName, clientAppId, authenticationData);
-                } catch (RestException authException) {
-                    log.warn("Failed to authorized {} on cluster {}", clientAppId, topicName.toString());
-                    validationFuture.complete(newLookupErrorResponse(ServerError.AuthorizationError,
-                            authException.getMessage(), requestId));
-                    return;
-                } catch (Exception e) {
-                    log.warn("Unknown error while authorizing {} on cluster {}", clientAppId, topicName.toString());
-                    validationFuture.completeExceptionally(e);
-                    return;
+                return validateTopicOperationAsync(pulsarService, topicName,
+                        clientAppId, TopicOperation.LOOKUP, authenticationData)
+                        // (3) validate global namespace
+                        .thenCompose(__ ->
+                            checkLocalOrGetPeerReplicationCluster(pulsarService, topicName.getNamespaceObject())
+                                .thenApply(peerClusterData -> {
+                                    if (peerClusterData != null) {
+                                        // if peer-cluster-data is present it means namespace is owned by
+                                        // that peer-cluster and request should be redirect to the peer-cluster
+                                        if (StringUtils.isBlank(peerClusterData.getBrokerServiceUrl())
+                                                && StringUtils.isBlank(peerClusterData.getBrokerServiceUrlTls())) {
+                                            return Optional.of(newLookupErrorResponse(ServerError.MetadataError,
+                                                        "Redirected cluster's brokerService url is not configured",
+                                                            requestId));
+                                        }
+                                        return Optional.of(newLookupResponse(peerClusterData.getBrokerServiceUrl(),
+                                                peerClusterData.getBrokerServiceUrlTls(), true,
+                                                        LookupType.Redirect, requestId, false));
+                                    }
+                                    // (4) all validation passed: initiate lookup
+                                    return Optional.empty();
+                                }).exceptionally(ex ->
+                                        Optional.of(newLookupErrorResponse(ServerError.MetadataError,
+                                                ex.getMessage(), requestId)))
+                        );
+            }).exceptionally(ex -> {
+                Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+                if (isSpecificRestException(realCause, Response.Status.UNAUTHORIZED)) {
+                    log.warn("Failed to authorized {} on cluster {}", clientAppId, topicName);
+                    return Optional.of(newLookupErrorResponse(ServerError.AuthorizationError,
+                            realCause.getMessage(), requestId));
                 }
-                // (3) validate global namespace
-                checkLocalOrGetPeerReplicationCluster(pulsarService, topicName.getNamespaceObject())
-                        .thenAccept(peerClusterData -> {
-                            if (peerClusterData == null) {
-                                // (4) all validation passed: initiate lookup
-                                validationFuture.complete(null);
-                                return;
-                            }
-                            // if peer-cluster-data is present it means namespace is owned by that peer-cluster and
-                            // request should be redirect to the peer-cluster
-                            if (StringUtils.isBlank(peerClusterData.getBrokerServiceUrl())
-                                    && StringUtils.isBlank(peerClusterData.getBrokerServiceUrlTls())) {
-                                validationFuture.complete(newLookupErrorResponse(ServerError.MetadataError,
-                                        "Redirected cluster's brokerService url is not configured", requestId));
-                                return;
-                            }
-                            validationFuture.complete(newLookupResponse(peerClusterData.getBrokerServiceUrl(),
-                                    peerClusterData.getBrokerServiceUrlTls(), true, LookupType.Redirect, requestId,
-                                    false));
-
-                        }).exceptionally(ex -> {
-                    validationFuture.complete(
-                            newLookupErrorResponse(ServerError.MetadataError, ex.getMessage(), requestId));
-                    return null;
-                });
-            }
-        }).exceptionally(ex -> {
-            validationFuture.completeExceptionally(ex);
-            return null;
-        });
-
-        // Initiate lookup once validation completes
-        validationFuture.thenAccept(validationFailureResponse -> {
-            if (validationFailureResponse != null) {
-                lookupfuture.complete(validationFailureResponse);
-            } else {
+                throw FutureUtil.wrapToCompletionException(ex);
+            // Initiate lookup once validation completes
+            }).thenCompose(validationFailureResponse -> {
+                if (validationFailureResponse.isPresent()) {
+                    return CompletableFuture.completedFuture((ByteBuf) validationFailureResponse.get());
+                }
                 LookupOptions options = LookupOptions.builder()
                         .authoritative(authoritative)
                         .advertisedListenerName(advertisedListenerName)
                         .loadTopicsInBundle(true)
                         .build();
-                pulsarService.getNamespaceService().getBrokerServiceUrlAsync(topicName, options)
-                        .thenAccept(lookupResult -> {
-
+                return pulsarService.getNamespaceService().getBrokerServiceUrlAsync(topicName, options)
+                        .thenApply(lookupResult -> {
                             if (log.isDebugEnabled()) {
-                                log.debug("[{}] Lookup result {}", topicName.toString(), lookupResult);
+                                log.debug("[{}] Lookup result {}", topicName, lookupResult);
                             }
-
                             if (!lookupResult.isPresent()) {
-                                lookupfuture.complete(newLookupErrorResponse(ServerError.ServiceNotReady,
-                                        "No broker was available to own " + topicName, requestId));
-                                return;
+                                return newLookupErrorResponse(ServerError.ServiceNotReady,
+                                        "No broker was available to own " + topicName, requestId);
                             }
-
                             LookupData lookupData = lookupResult.get().getLookupData();
                             if (lookupResult.get().isRedirect()) {
                                 boolean newAuthoritative = lookupResult.get().isAuthoritativeRedirect();
-                                lookupfuture.complete(
-                                        newLookupResponse(lookupData.getBrokerUrl(), lookupData.getBrokerUrlTls(),
-                                                newAuthoritative, LookupType.Redirect, requestId, false));
+                                return newLookupResponse(lookupData.getBrokerUrl(), lookupData.getBrokerUrlTls(),
+                                                newAuthoritative, LookupType.Redirect, requestId, false);
                             } else {
                                 ServiceConfiguration conf = pulsarService.getConfiguration();
-                                lookupfuture.complete(newLookupResponse(lookupData.getBrokerUrl(),
+                                return newLookupResponse(lookupData.getBrokerUrl(),
                                         lookupData.getBrokerUrlTls(), true /* authoritative */, LookupType.Connect,
-                                        requestId, shouldRedirectThroughServiceUrl(conf, lookupData)));
+                                        requestId, shouldRedirectThroughServiceUrl(conf, lookupData));
                             }
-                        }).exceptionally(ex -> {
-                    if (ex instanceof CompletionException && ex.getCause() instanceof IllegalStateException) {
-                        log.info("Failed to lookup {} for topic {} with error {}", clientAppId,
-                                topicName.toString(), ex.getCause().getMessage());
-                    } else {
-                        log.warn("Failed to lookup {} for topic {} with error {}", clientAppId,
-                                topicName.toString(), ex.getMessage(), ex);
-                    }
-                    lookupfuture.complete(
-                            newLookupErrorResponse(ServerError.ServiceNotReady, ex.getMessage(), requestId));
-                    return null;
-                });
-            }
-
+                        });
         }).exceptionally(ex -> {
-            if (ex instanceof CompletionException && ex.getCause() instanceof IllegalStateException) {
-                log.info("Failed to lookup {} for topic {} with error {}", clientAppId, topicName.toString(),
-                        ex.getCause().getMessage());
+            Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+            if (realCause instanceof IllegalStateException) {
+                log.info("Failed to lookup {} for topic {} with error {}", clientAppId,
+                        topicName, ex.getCause().getMessage());
             } else {
-                log.warn("Failed to lookup {} for topic {} with error {}", clientAppId, topicName.toString(),
-                        ex.getMessage(), ex);
+                log.warn("Failed to lookup {} for topic {} with error {}", clientAppId,
+                        topicName, ex.getMessage(), ex);
             }
-
-            lookupfuture.complete(newLookupErrorResponse(ServerError.ServiceNotReady, ex.getMessage(), requestId));
-            return null;
+            return newLookupErrorResponse(ServerError.ServiceNotReady, ex.getMessage(), requestId);
         });
-
-        return lookupfuture;
     }
 
     protected void completeLookupResponseExceptionally(AsyncResponse asyncResponse, Throwable t) {

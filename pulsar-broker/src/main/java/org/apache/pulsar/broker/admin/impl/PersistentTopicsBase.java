@@ -3878,48 +3878,51 @@ public class PersistentTopicsBase extends AdminResource {
     public static CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(
             PulsarService pulsar, String clientAppId, String originalPrincipal,
             AuthenticationDataSource authenticationData, TopicName topicName) {
-        CompletableFuture<PartitionedTopicMetadata> metadataFuture = new CompletableFuture<>();
-        try {
-            // (1) authorize client
-            try {
-                checkAuthorization(pulsar, topicName, clientAppId, authenticationData);
-            } catch (RestException e) {
-                try {
-                    validateAdminAccessForTenant(pulsar,
-                            clientAppId, originalPrincipal, topicName.getTenant(), authenticationData,
-                            pulsar.getConfiguration().getMetadataStoreOperationTimeoutSeconds(), SECONDS);
-                } catch (RestException authException) {
-                    log.warn("Failed to authorize {} on topic {}", clientAppId, topicName);
-                    throw new PulsarClientException(String.format("Authorization failed %s on topic %s with error %s",
-                            clientAppId, topicName, authException.getMessage()));
-                }
-            } catch (Exception ex) {
-                // throw without wrapping to PulsarClientException that considers: unknown error marked as internal
-                // server error
-                log.warn("Failed to authorize {} on topic {}", clientAppId, topicName, ex);
-                throw ex;
-            }
-
-            // validates global-namespace contains local/peer cluster: if peer/local cluster present then lookup can
-            // serve/redirect request else fail partitioned-metadata-request so, client fails while creating
-            // producer/consumer
-            checkLocalOrGetPeerReplicationCluster(pulsar, topicName.getNamespaceObject())
-                    .thenCompose(res -> pulsar.getBrokerService()
-                            .fetchPartitionedTopicMetadataCheckAllowAutoCreationAsync(topicName))
-                    .thenAccept(metadata -> {
-                        if (log.isDebugEnabled()) {
-                            log.debug("[{}] Total number of partitions for topic {} is {}", clientAppId, topicName,
-                                    metadata.partitions);
+        // (1) authorize client
+        return validateTopicOperationAsync(pulsar, topicName, clientAppId, TopicOperation.LOOKUP, authenticationData)
+                .handle((__, ex) -> {
+                    if (ex != null) {
+                        if (isSpecificRestException(FutureUtil.unwrapCompletionException(ex), Status.UNAUTHORIZED)) {
+                            return false; // Operational verification failed.
                         }
-                        metadataFuture.complete(metadata);
-                    }).exceptionally(ex -> {
-                        metadataFuture.completeExceptionally(ex.getCause());
-                        return null;
-                    });
-        } catch (Exception ex) {
-            metadataFuture.completeExceptionally(ex);
-        }
-        return metadataFuture;
+                        // throw without wrapping to PulsarClientException that considers:
+                        // unknown error marked as internal server error
+                        log.warn("Failed to authorize {} on topic {}", clientAppId, topicName, ex);
+                        throw FutureUtil.wrapToCompletionException(ex);
+                    }
+                    return true; // Operational verification succeeded.
+                }).thenCompose(verificationSuccess -> {
+                    if (!verificationSuccess) {
+                        // Check if it has admin access
+                        return validateAdminAccessForTenantAsync(pulsar,
+                                clientAppId, originalPrincipal, topicName.getTenant(), authenticationData)
+                                .exceptionally(ex -> {
+                                    Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+                                    if (realCause instanceof RestException) {
+                                        log.warn("Failed to authorize {} on topic {}", clientAppId, topicName);
+                                        throw FutureUtil.wrapToCompletionException(new PulsarClientException(
+                                                String.format("Authorization failed %s on topic %s with error %s",
+                                                clientAppId, topicName, realCause.getMessage())));
+                                    }
+                                    return null;
+                                });
+                    }
+                    return CompletableFuture.completedFuture(null);
+                }).thenCompose(__ ->
+                    // validates global-namespace contains local/peer cluster: if peer/local cluster present then lookup can
+                    // serve/redirect request else fail partitioned-metadata-request so, client fails while creating
+                    // producer/consumer
+                    checkLocalOrGetPeerReplicationCluster(pulsar, topicName.getNamespaceObject())
+                    .thenCompose(res ->
+                            pulsar.getBrokerService()
+                                    .fetchPartitionedTopicMetadataCheckAllowAutoCreationAsync(topicName))
+                ).thenApply(metadata -> {
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] Total number of partitions for topic {} is {}", clientAppId, topicName,
+                                metadata.partitions);
+                    }
+                    return metadata;
+                });
     }
 
     /**

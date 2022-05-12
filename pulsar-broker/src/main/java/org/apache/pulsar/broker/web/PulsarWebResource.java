@@ -877,18 +877,24 @@ public abstract class PulsarWebResource {
         return null;
     }
 
-    protected static void checkAuthorization(PulsarService pulsarService, TopicName topicName, String role,
-            AuthenticationDataSource authenticationData) throws Exception {
+    protected static CompletableFuture<Void> validateTopicOperationAsync(PulsarService pulsarService,
+                                                                         TopicName topicName, String role,
+                                                                         TopicOperation operation,
+                                                                         AuthenticationDataSource authenticationData) {
         if (!pulsarService.getConfiguration().isAuthorizationEnabled()) {
             // No enforcing of authorization policies
-            return;
+            return CompletableFuture.completedFuture(null);
         }
-        // get zk policy manager
-        if (!pulsarService.getBrokerService().getAuthorizationService().allowTopicOperation(topicName,
-                TopicOperation.LOOKUP, null, role, authenticationData)) {
-            log.warn("[{}] Role {} is not allowed to lookup topic", topicName, role);
-            throw new RestException(Status.UNAUTHORIZED, "Don't have permission to connect to this namespace");
-        }
+        return pulsarService.getBrokerService()
+                .getAuthorizationService()
+                .allowTopicOperationAsync(topicName, operation, null, role, authenticationData)
+                .thenAccept(hasAuthorization -> {
+                    if (!hasAuthorization) {
+                        log.warn("[{}] Role {} is not allowed to lookup topic", topicName, role);
+                        throw new RestException(Status.UNAUTHORIZED,
+                                "Don't have permission to connect to this namespace");
+                    }
+                });
     }
 
     // Used for unit tests access
@@ -1196,6 +1202,11 @@ public abstract class PulsarWebResource {
             Thread.currentThread().interrupt();
             throw new RestException(ex);
         }
+    }
+
+    public static boolean isSpecificRestException(Throwable ex, Status status) {
+        return ex instanceof WebApplicationException &&
+                ((WebApplicationException) ex).getResponse().getStatus() == status.getStatusCode();
     }
 
     protected static void resumeAsyncResponseExceptionally(AsyncResponse asyncResponse, Throwable exception) {
