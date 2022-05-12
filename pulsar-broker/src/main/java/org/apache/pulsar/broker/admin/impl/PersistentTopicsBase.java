@@ -3882,7 +3882,7 @@ public class PersistentTopicsBase extends AdminResource {
         return validateTopicOperationAsync(pulsar, topicName, clientAppId, TopicOperation.LOOKUP, authenticationData)
                 .handle((__, ex) -> {
                     if (ex != null) {
-                        if (isSpecificRestException(FutureUtil.unwrapCompletionException(ex), Status.UNAUTHORIZED)) {
+                        if (FutureUtil.unwrapCompletionException(ex) instanceof RestException) {
                             return false; // Operational verification failed.
                         }
                         // throw without wrapping to PulsarClientException that considers:
@@ -3897,12 +3897,11 @@ public class PersistentTopicsBase extends AdminResource {
                         return validateAdminAccessForTenantAsync(pulsar,
                                 clientAppId, originalPrincipal, topicName.getTenant(), authenticationData)
                                 .exceptionally(ex -> {
-                                    Throwable realCause = FutureUtil.unwrapCompletionException(ex);
-                                    if (realCause instanceof RestException) {
+                                    if (FutureUtil.unwrapCompletionException(ex) instanceof RestException) {
                                         log.warn("Failed to authorize {} on topic {}", clientAppId, topicName);
                                         throw FutureUtil.wrapToCompletionException(new PulsarClientException(
                                                 String.format("Authorization failed %s on topic %s with error %s",
-                                                clientAppId, topicName, realCause.getMessage())));
+                                                clientAppId, topicName, ex.getMessage())));
                                     }
                                     return null;
                                 });
