@@ -19,12 +19,13 @@ import org.apache.pulsar.functions.api.Context;
 @Slf4j
 public class TransformUtils {
 
-    public static TransformRecord newTransformRecord(Schema<?> schema, Object nativeObject) {
+    public static TransformRecord newTransformRecord(Context context, Schema<?> schema, Object nativeObject) {
         TransformRecord transformRecord;
         if (schema instanceof KeyValueSchema && nativeObject instanceof KeyValue) {
             KeyValueSchema kvSchema = (KeyValueSchema) schema;
             KeyValue kv = (KeyValue) nativeObject;
             transformRecord = new TransformRecord(
+                    context,
                     kvSchema.getKeySchema(),
                     kv.getKey(),
                     kvSchema.getValueSchema(),
@@ -32,12 +33,13 @@ public class TransformUtils {
                     kvSchema.getKeyValueEncodingType()
             );
         } else {
-            transformRecord = new TransformRecord(schema, nativeObject);
+            transformRecord = new TransformRecord(context, schema, nativeObject);
         }
         return transformRecord;
     }
 
-    public static void sendMessage(Context context, TransformRecord transformRecord) throws IOException {
+    public static void sendMessage(TransformRecord transformRecord) throws IOException {
+        Context context = transformRecord.getContext();
         if (transformRecord.getKeyModified()
                 && transformRecord.getKeySchema().getSchemaInfo().getType() == SchemaType.AVRO) {
             GenericRecord genericRecord = (GenericRecord) transformRecord.getKeyObject();
@@ -72,7 +74,7 @@ public class TransformUtils {
         if (log.isDebugEnabled()) {
             log.debug("output {} schema {}", outputObject, outputSchema);
         }
-        context.newOutputMessage(context.getOutputTopic(), outputSchema)
+        context.newOutputMessage(transformRecord.getOutputTopic(), outputSchema)
                 .value(outputObject).send();
     }
 

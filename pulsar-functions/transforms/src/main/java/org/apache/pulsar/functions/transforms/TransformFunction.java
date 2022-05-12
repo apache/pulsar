@@ -68,9 +68,9 @@ public class TransformFunction implements Function<GenericObject, Void> {
                     currentRecord);
         }
 
-        TransformRecord transformRecord = TransformUtils.newTransformRecord(schema, nativeObject);
+        TransformRecord transformRecord = TransformUtils.newTransformRecord(context, schema, nativeObject);
         steps.forEach(step -> step.process(transformRecord));
-        TransformUtils.sendMessage(context, transformRecord);
+        TransformUtils.sendMessage(transformRecord);
         return null;
     }
 }

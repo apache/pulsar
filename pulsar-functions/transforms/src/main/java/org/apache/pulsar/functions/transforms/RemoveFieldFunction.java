@@ -73,9 +73,9 @@ public class RemoveFieldFunction implements Function<GenericObject, Void>, Trans
                     currentRecord);
         }
 
-        TransformRecord transformRecord = TransformUtils.newTransformRecord(schema, nativeObject);
+        TransformRecord transformRecord = TransformUtils.newTransformRecord(context, schema, nativeObject);
         process(transformRecord);
-        TransformUtils.sendMessage(context, transformRecord);
+        TransformUtils.sendMessage(transformRecord);
         return null;
     }
 
