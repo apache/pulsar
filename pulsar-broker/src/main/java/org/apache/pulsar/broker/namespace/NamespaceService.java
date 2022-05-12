@@ -770,13 +770,6 @@ public class NamespaceService implements AutoCloseable {
         return nsOwnedStatus;
     }
 
-    private CompletableFuture<NamespaceIsolationPolicies> getLocalNamespaceIsolationPoliciesAsync() {
-        String localCluster = pulsar.getConfiguration().getClusterName();
-        return pulsar.getPulsarResources().getNamespaceResources().getIsolationPolicies()
-                .getIsolationDataPoliciesAsync(localCluster)
-                .thenApply(nsIsolationPolicies -> nsIsolationPolicies.orElseGet(NamespaceIsolationPolicies::new));
-    }
-
     public boolean isNamespaceBundleDisabled(NamespaceBundle bundle) throws Exception {
         try {
             // Does ZooKeeper says that the namespace is disabled?
