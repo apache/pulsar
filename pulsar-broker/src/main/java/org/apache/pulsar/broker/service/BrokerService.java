@@ -2285,6 +2285,10 @@ public class BrokerService implements Closeable {
         // add listener to notify topic subscriptionTypesEnabled changed.
         registerConfigurationListener("subscriptionTypesEnabled", this::updateBrokerSubscriptionTypesEnabled);
 
+        //add listener to notify pulsarservice update broker-interceptors
+        registerConfigurationListener("interceptors",
+                interceptors -> this.pulsar().updateBrokerInterceptor(interceptors));
+
         // add more listeners here
     }
 

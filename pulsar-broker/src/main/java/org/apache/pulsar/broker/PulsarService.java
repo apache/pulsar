@@ -39,14 +39,7 @@ import java.lang.reflect.Method;
 import java.net.InetSocketAddress;
 import java.net.MalformedURLException;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -83,6 +76,7 @@ import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
+import org.apache.pulsar.broker.intercept.BrokerInterceptorDelegator;
 import org.apache.pulsar.broker.intercept.BrokerInterceptors;
 import org.apache.pulsar.broker.loadbalance.LeaderElectionService;
 import org.apache.pulsar.broker.loadbalance.LinuxInfoUtils;
@@ -728,7 +722,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
             this.defaultOffloader = createManagedLedgerOffloader(
                     OffloadPoliciesImpl.create(this.getConfiguration().getProperties()));
-            this.brokerInterceptor = BrokerInterceptors.load(config);
+            this.brokerInterceptor = BrokerInterceptorDelegator.create(BrokerInterceptors.load(config));
             brokerService.setInterceptor(getBrokerInterceptor());
             this.brokerInterceptor.initialize(this);
             brokerService.start();
@@ -1723,6 +1717,18 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         }
 
         processTerminator.accept(-1);
+    }
+
+    public void updateBrokerInterceptor(Object object) {
+        if (!(object instanceof TreeSet)) {
+            return;
+        }
+
+        @SuppressWarnings("unchecked")
+        TreeSet<String> interceptors = (TreeSet<String>) object;
+        this.getConfig().setBrokerInterceptors(interceptors);
+        BrokerInterceptor interceptor = BrokerInterceptors.load(this.getConfig());
+        //todo
     }
 
     @VisibleForTesting

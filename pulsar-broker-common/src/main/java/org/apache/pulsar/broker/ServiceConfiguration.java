@@ -1201,6 +1201,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private String brokerInterceptorsDirectory = "./interceptors";
 
     @FieldContext(
+            dynamic = true,
             category = CATEGORY_SERVER,
             doc = "List of broker interceptor to load, which is a list of broker interceptor names"
     )
