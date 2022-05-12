@@ -141,7 +141,8 @@ public class ContextImplTest {
     @Test
     public void testGetSinkConfig() {
         SinkContext sinkContext = context;
-        Assert.assertNotNull(sinkContext.getSinkConfig());
+        SinkConfig sinkConfig = sinkContext.getSinkConfig();
+        Assert.assertNotNull(sinkConfig);
     }
 
     @Test
