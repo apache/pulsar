@@ -48,7 +48,6 @@ public class ProducerBuilderImplTest {
     private static final String TOPIC_NAME = "testTopicName";
     private PulsarClientImpl client;
     private ProducerBuilderImpl producerBuilderImpl;
-
   
     @BeforeClass(alwaysRun = true)
     public void setup() {
