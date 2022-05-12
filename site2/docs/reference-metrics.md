@@ -113,6 +113,7 @@ The following metrics are available for broker:
   - [Jetty metrics](#jetty-metrics)
   - [Schema metrics](#schema-metrics)
   - [Offload metrics](#offload-metrics)
+  - [Web service executor metrics](#web-service-executor-metrics)
 - [Pulsar Functions](#pulsar-functions)
 - [Proxy](#proxy)
 - [Pulsar SQL Worker](#pulsar-sql-worker)
@@ -149,7 +150,7 @@ All the namespace metrics are labelled with the following labels:
 | pulsar_throughput_out | Gauge | The total throughput of the namespace going out from this broker (byte per second). |
 | pulsar_storage_size | Gauge | The total storage size of the topics in this namespace owned by this broker (bytes). |
 | pulsar_storage_logical_size | Gauge | The storage size of topics in the namespace owned by the broker without replicas (in bytes). |
-| pulsar_storage_backlog_size | Gauge | The total backlog size of the topics of this namespace owned by this broker (messages). |
+| pulsar_storage_backlog_size | Gauge | The total backlog size of the topics of this namespace owned by this broker (in bytes). |
 | pulsar_storage_offloaded_size | Gauge | The total amount of the data in this namespace offloaded to the tiered storage (bytes). |
 | pulsar_storage_write_rate | Gauge | The total message batches (entries) written to the storage for this namespace (message batch per second). |
 | pulsar_storage_read_rate | Gauge | The total message batches (entries) read from the storage for this namespace (message batch per second). |
@@ -197,7 +198,7 @@ All the topic metrics are labelled with the following labels:
 | pulsar_throughput_out | Gauge | The total throughput of the topic going out from this broker (byte per second). |
 | pulsar_storage_size | Gauge | The total storage size of the topics in this topic owned by this broker (bytes). |
 | pulsar_storage_logical_size | Gauge | The storage size of topics in the namespace owned by the broker without replicas (in bytes). |
-| pulsar_storage_backlog_size | Gauge | The total backlog size of the topics of this topic owned by this broker (messages). |
+| pulsar_storage_backlog_size | Gauge | The total backlog size of the topics of this topic owned by this broker (in bytes). |
 | pulsar_storage_offloaded_size | Gauge | The total amount of the data in this topic offloaded to the tiered storage (bytes). |
 | pulsar_storage_backlog_quota_limit | Gauge | The total amount of the data in this topic that limit the backlog quota (bytes). |
 | pulsar_storage_write_rate | Gauge | The total message batches (entries) written to the storage for this topic (message batch per second). |
@@ -536,6 +537,22 @@ All the offload metrics are labelled with the following labels:
 | brk_ledgeroffloader_read_ledger_latency        | Summary | The latency of reading entries from BookKeeper.                                 |
 | brk_ledgeroffloader_delete_offload_ops         | Counter | The total number of successful and failed operations to delete offload ledgers. |
 
+
+### Web service executor metrics
+
+> For functions workers running separately from brokers, their Jetty metrics are only exposed when `includeStandardPrometheusMetrics` is set to `true`.
+
+All the web service executor metrics are labelled with the following labels:
+
+- *cluster*: `cluster=${pulsar_cluster}`. `${pulsar_cluster}` is the cluster name that you have configured in the `broker.conf` file.
+
+| Name | Type | Description |
+|---|---|---|
+| pulsar_web_executor_max_threads | GAUGE | The max threads of pulsar-web  thread pool |
+| pulsar_web_executor_min_threads | GAUGE | The min threads of pulsar-web thread pool |
+| pulsar_web_executor_idle_threads | GAUGE | The idle threads of pulsar-web thread pool |
+| pulsar_web_executor_active_threads | GAUGE | The number of threads performing tasks of pulsar-web thread pool |
+| pulsar_web_executor_current_threads | GAUGE | The number of threads in the pulsar-web thread pool |
 
 ## Pulsar Functions
 

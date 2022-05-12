@@ -28,6 +28,7 @@ import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
 import com.google.common.annotations.VisibleForTesting;
+import io.netty.util.internal.PlatformDependent;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStream;
@@ -38,12 +39,14 @@ import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import org.apache.bookkeeper.common.component.ComponentStarter;
+import org.apache.bookkeeper.common.component.LifecycleComponent;
 import org.apache.bookkeeper.common.util.ReflectionUtils;
 import org.apache.bookkeeper.conf.ServerConfiguration;
-import org.apache.bookkeeper.proto.BookieServer;
 import org.apache.bookkeeper.replication.AutoRecoveryMain;
+import org.apache.bookkeeper.server.conf.BookieConfiguration;
 import org.apache.bookkeeper.stats.StatsProvider;
-import org.apache.bookkeeper.util.DirectMemoryUtils;
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.core.util.datetime.FixedDateFormat;
@@ -134,7 +137,8 @@ public class PulsarBrokerStarter {
     private static class BrokerStarter {
         private final ServiceConfiguration brokerConfig;
         private final PulsarService pulsarService;
-        private final BookieServer bookieServer;
+        private final LifecycleComponent bookieServer;
+        private volatile CompletableFuture<Void> bookieStartFuture;
         private final AutoRecoveryMain autoRecoveryMain;
         private final StatsProvider bookieStatsProvider;
         private final ServerConfiguration bookieConfig;
@@ -169,7 +173,7 @@ public class PulsarBrokerStarter {
             }
 
             int maxFrameSize = brokerConfig.getMaxMessageSize() + Commands.MESSAGE_SIZE_FRAME_PADDING;
-            if (maxFrameSize >= DirectMemoryUtils.maxDirectMemory()) {
+            if (maxFrameSize >= PlatformDependent.estimateMaxDirectMemory()) {
                 throw new IllegalArgumentException("Max message size need smaller than jvm directMemory");
             }
 
@@ -241,8 +245,8 @@ public class PulsarBrokerStarter {
             if (starterArguments.runBookie) {
                 checkNotNull(bookieConfig, "No ServerConfiguration for Bookie");
                 checkNotNull(bookieStatsProvider, "No Stats Provider for Bookie");
-                bookieServer = new BookieServer(
-                        bookieConfig, bookieStatsProvider.getStatsLogger(""), null);
+                bookieServer = org.apache.bookkeeper.server.Main
+                        .buildBookieServer(new BookieConfiguration(bookieConfig));
             } else {
                 bookieServer = null;
             }
@@ -262,7 +266,7 @@ public class PulsarBrokerStarter {
                 log.info("started bookieStatsProvider.");
             }
             if (bookieServer != null) {
-                bookieServer.start();
+                bookieStartFuture = ComponentStarter.startComponent(bookieServer);
                 log.info("started bookieServer.");
             }
             if (autoRecoveryMain != null) {
@@ -283,8 +287,9 @@ public class PulsarBrokerStarter {
                 throw new RuntimeException();
             }
 
-            if (bookieServer != null) {
-                bookieServer.join();
+            if (bookieStartFuture != null) {
+                bookieStartFuture.join();
+                bookieStartFuture = null;
             }
             if (autoRecoveryMain != null) {
                 autoRecoveryMain.join();
@@ -305,7 +310,7 @@ public class PulsarBrokerStarter {
                 log.info("Shut down bookieStatsProvider successfully.");
             }
             if (bookieServer != null) {
-                bookieServer.shutdown();
+                bookieServer.close();
                 log.info("Shut down bookieServer successfully.");
             }
             if (autoRecoveryMain != null) {

@@ -150,9 +150,6 @@ jobs:
             group: BROKER_GROUP_2
           - name: Brokers - Broker Group 3
             group: BROKER_GROUP_3
-          - name: Brokers - JDK 8
-            group: BROKER_JDK8
-            jdk: 8
           - name: Brokers - Client Api
             group: BROKER_CLIENT_API
           - name: Brokers - Client Impl
@@ -347,8 +344,19 @@ jobs:
           - name: Messaging
             group: MESSAGING
 
-          - name: Shade
-            group: SHADE
+          - name: Shade on Java 8
+            group: SHADE_RUN
+            runtime_jdk: 8
+            setup: ./build/run_integration_group.sh SHADE_BUILD
+
+          - name: Shade on Java 11
+            group: SHADE_RUN
+            runtime_jdk: 11
+            setup: ./build/run_integration_group.sh SHADE_BUILD
+
+          - name: Shade on Java 17
+            group: SHADE_RUN
+            setup: ./build/run_integration_group.sh SHADE_BUILD
 
           - name: Standalone
             group: STANDALONE
@@ -409,6 +417,13 @@ jobs:
         if: ${{ matrix.setup && needs.changed_files_job.outputs.docs_only != 'true' }}
         run: |
           ${{ matrix.setup }}
+
+      - name: Set up runtime JDK ${{ matrix.runtime_jdk }}
+        uses: actions/setup-java@v2
+        if: ${{ matrix.runtime_jdk && needs.changed_files_job.outputs.docs_only != 'true' }}
+        with:
+          distribution: 'temurin'
+          java-version: ${{ matrix.runtime_jdk }}
 
       - name: Run integration test group '${{ matrix.group }}'
         if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}

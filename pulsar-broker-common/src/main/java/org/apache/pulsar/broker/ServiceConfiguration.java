@@ -1464,6 +1464,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private String saslJaasServerSectionName = SaslConstants.JAAS_DEFAULT_BROKER_SECTION_NAME;
 
     @FieldContext(
+            category = CATEGORY_SASL_AUTH,
+            doc = "Path to file containing the secret to be used to SaslRoleTokenSigner\n"
+                    + "The secret can be specified like:\n"
+                    + "saslJaasServerRoleTokenSignerSecretPath=file:///my/saslRoleTokenSignerSecret.key."
+    )
+    private String saslJaasServerRoleTokenSignerSecretPath;
+
+    @FieldContext(
         category = CATEGORY_SASL_AUTH,
         doc = "kerberos kinit command."
     )
@@ -2342,6 +2350,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "If true, export topic level metrics otherwise namespace level"
     )
     private boolean exposeTopicLevelMetricsInPrometheus = true;
+    @FieldContext(
+            category = CATEGORY_METRICS,
+            doc = "If true, export buffered metrics"
+    )
+    private boolean metricsBufferResponse = false;
     @FieldContext(
         category = CATEGORY_METRICS,
         doc = "If true, export consumer level metrics otherwise namespace level"

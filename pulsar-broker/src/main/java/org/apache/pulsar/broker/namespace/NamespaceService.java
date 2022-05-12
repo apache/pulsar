@@ -771,7 +771,8 @@ public class NamespaceService implements AutoCloseable {
     private CompletableFuture<NamespaceIsolationPolicies> getLocalNamespaceIsolationPoliciesAsync() {
         String localCluster = pulsar.getConfiguration().getClusterName();
         return pulsar.getPulsarResources().getNamespaceResources().getIsolationPolicies()
-                .getIsolationDataPoliciesAsync(localCluster);
+                .getIsolationDataPoliciesAsync(localCluster)
+                .thenApply(nsIsolationPolicies -> nsIsolationPolicies.orElseGet(NamespaceIsolationPolicies::new));
     }
 
     public boolean isNamespaceBundleDisabled(NamespaceBundle bundle) throws Exception {

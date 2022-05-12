@@ -76,9 +76,9 @@ public class ContextImplTest {
     private PulsarClientImpl client;
     private PulsarAdmin pulsarAdmin;
     private ContextImpl context;
-    private Producer producer = mock(Producer.class);
+    private Producer producer;
 
-    @BeforeMethod
+    @BeforeMethod(alwaysRun = true)
     public void setup() throws PulsarClientException {
         config = new InstanceConfig();
         config.setExposePulsarAdminClientEnabled(true);
@@ -89,6 +89,7 @@ public class ContextImplTest {
         logger = mock(Logger.class);
         pulsarAdmin = mock(PulsarAdmin.class);
 
+        producer = mock(Producer.class);
         client = mock(PulsarClientImpl.class);
         when(client.newProducer()).thenReturn(new ProducerBuilderImpl(client, Schema.BYTES));
         when(client.createProducerAsync(any(ProducerConfigurationData.class), any(), any()))
