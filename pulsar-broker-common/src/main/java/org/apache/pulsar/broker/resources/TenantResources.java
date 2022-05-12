@@ -114,7 +114,7 @@ public class TenantResources extends BaseResources<TenantInfo> {
     public CompletableFuture<List<String>> getListOfNamespacesAsync(String tenant) {
         // this will return a cluster in v1 and a namespace in v2
         return getChildrenAsync(joinPath(BASE_POLICIES_PATH, tenant))
-                .thenApply(clusterOrNamespaces -> clusterOrNamespaces.stream().map(key ->
+                .thenCompose(clusterOrNamespaces -> clusterOrNamespaces.stream().map(key ->
                         getChildrenAsync(joinPath(BASE_POLICIES_PATH, tenant, key))
                                 .thenCompose(children -> {
                                     CompletableFuture<List<String>> ret = new CompletableFuture();
@@ -130,7 +130,7 @@ public class TenantResources extends BaseResources<TenantInfo> {
                                                 Throwable cause = FutureUtil.unwrapCompletionException(ex);
                                                 if (cause instanceof MetadataStoreException
                                                         .ContentDeserializationException) {
-                                                    return null;
+                                                    return new ArrayList<>();
                                                 }
                                                 throw FutureUtil.wrapToCompletionException(ex);
                                             });
@@ -139,15 +139,11 @@ public class TenantResources extends BaseResources<TenantInfo> {
                                                 .toString()).collect(Collectors.toList()));
                                     }
                                     return ret;
-                                })).collect(Collectors.toList())
-                )
-                .thenCompose(futures -> FutureUtil.waitForAll(futures)
-                        .thenApply(__ -> futures.stream().map(CompletableFuture::join).filter(f -> f != null)
-                        .reduce(new ArrayList<>(), (a, b) -> {
-                            a.addAll(b);
-                            return a;
-                        })
-                ));
+                                })).reduce(CompletableFuture.completedFuture(new ArrayList<>()),
+                                        (accumulator, n) -> accumulator.thenCompose(namespaces -> n.thenCompose(m -> {
+                                            namespaces.addAll(m);
+                                            return CompletableFuture.completedFuture(namespaces);
+                                    }))));
     }
 
     public CompletableFuture<List<String>> getActiveNamespaces(String tenant, String cluster) {
