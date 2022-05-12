@@ -68,7 +68,7 @@ Pulsar documents are written in English. Documentation related pages are placed 
 
 We welcome contributions to help improve Pulsar documentation. The documents are written in [Markdown](http://daringfireball.net/projects/markdown/syntax) and follow [Google Developer Documentation Style Guide](https://developers.google.com/style/). If you are not familiar with the writing styles, we are happy to guide you along the way.
 
-For workflow on how to contribute to Pulsar, refer to [contribution](http://pulsar.apache.org/en/contributing/) guidelines.
+For workflow on how to contribute to Pulsar, refer to [contribution](https://pulsar.apache.org/community#section-contribute/) guidelines.
 
 To learn more about Pulsar documents, read the following instructions.
 

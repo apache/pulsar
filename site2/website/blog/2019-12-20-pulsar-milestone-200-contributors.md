@@ -23,4 +23,4 @@ Pulsar aims to empower the next generation of event streaming systems by deliver
 
 P.S. want to be a Pulsar contributor? 
 
-Get started today by [reading contribution guidelines](http://pulsar.apache.org/en/contributing/) and [submitting a PR](https://github.com/apache/pulsar), any contribution on codes, docs or other is highly appreciated. Thank you.
+Get started today by [reading contribution guidelines](https://pulsar.apache.org/community#section-contribute/) and [submitting a PR](https://github.com/apache/pulsar), any contribution on codes, docs or other is highly appreciated. Thank you.
