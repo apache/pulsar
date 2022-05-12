@@ -2,6 +2,7 @@ package org.apache.pulsar.functions.transforms;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.List;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.generic.GenericData;
@@ -18,44 +19,59 @@ import org.apache.pulsar.functions.api.Context;
 @Slf4j
 public class TransformUtils {
 
-    public static TransformResult newTransformResult(Schema<?> schema, Object nativeObject) {
-        TransformResult transformResult;
+    public static TransformRecord newTransformRecord(Schema<?> schema, Object nativeObject) {
+        TransformRecord transformRecord;
         if (schema instanceof KeyValueSchema && nativeObject instanceof KeyValue) {
             KeyValueSchema kvSchema = (KeyValueSchema) schema;
             KeyValue kv = (KeyValue) nativeObject;
-            transformResult = new TransformResult(kvSchema.getKeySchema(), kv.getKey(), kvSchema.getValueSchema(), kv.getValue(), kvSchema.getKeyValueEncodingType());
+            transformRecord = new TransformRecord(
+                    kvSchema.getKeySchema(),
+                    kv.getKey(),
+                    kvSchema.getValueSchema(),
+                    kv.getValue(),
+                    kvSchema.getKeyValueEncodingType()
+            );
         } else {
-            transformResult = new TransformResult(schema, nativeObject);
+            transformRecord = new TransformRecord(schema, nativeObject);
         }
-        return transformResult;
+        return transformRecord;
     }
 
-    public static void sendMessage(Context context, TransformResult transformResult) throws IOException {
-        if (transformResult.getKeyModified() && transformResult.getKeySchema().getSchemaInfo().getType() == SchemaType.AVRO) {
-            org.apache.avro.generic.GenericRecord genericRecord = (org.apache.avro.generic.GenericRecord) transformResult.getKeyObject();
-            transformResult.setKeySchema(Schema.NATIVE_AVRO(genericRecord.getSchema()));
-            transformResult.setKeyObject(serializeGenericRecord(genericRecord));
+    public static void sendMessage(Context context, TransformRecord transformRecord) throws IOException {
+        if (transformRecord.getKeyModified()
+                && transformRecord.getKeySchema().getSchemaInfo().getType() == SchemaType.AVRO) {
+            GenericRecord genericRecord = (GenericRecord) transformRecord.getKeyObject();
+            transformRecord.setKeySchema(Schema.NATIVE_AVRO(genericRecord.getSchema()));
+            transformRecord.setKeyObject(serializeGenericRecord(genericRecord));
         }
-        if (transformResult.getValueModified() && transformResult.getValueSchema().getSchemaInfo().getType() == SchemaType.AVRO) {
-            org.apache.avro.generic.GenericRecord genericRecord = (GenericRecord) transformResult.getValueObject();
-            transformResult.setValueSchema(Schema.NATIVE_AVRO(genericRecord.getSchema()));
-            transformResult.setValueObject(serializeGenericRecord(genericRecord));
+        if (transformRecord.getValueModified()
+                && transformRecord.getValueSchema().getSchemaInfo().getType() == SchemaType.AVRO) {
+            GenericRecord genericRecord = (GenericRecord) transformRecord.getValueObject();
+            transformRecord.setValueSchema(Schema.NATIVE_AVRO(genericRecord.getSchema()));
+            transformRecord.setValueObject(serializeGenericRecord(genericRecord));
         }
 
         Schema outputSchema;
         Object outputObject;
-        if (transformResult.getKeySchema() != null) {
-            outputSchema = Schema.KeyValue(transformResult.getKeySchema(), transformResult.getValueSchema(), transformResult.getKeyValueEncodingType());
-            outputObject = new KeyValue(transformResult.getKeyObject(), transformResult.getValueObject());
+        if (transformRecord.getKeySchema() != null) {
+            outputSchema = Schema.KeyValue(
+                    transformRecord.getKeySchema(),
+                    transformRecord.getValueSchema(),
+                    transformRecord.getKeyValueEncodingType()
+            );
+            outputObject = new KeyValue(transformRecord.getKeyObject(), transformRecord.getValueObject());
         } else {
-            outputSchema = transformResult.getValueSchema();
+            outputSchema = transformRecord.getValueSchema();
             // GenericRecord must stay wrapped while primitives must be unwrapped
-            outputObject = !transformResult.getValueModified() && transformResult.getValueSchema().getSchemaInfo().getType().isStruct()
+            outputObject = !transformRecord.getValueModified()
+                    && transformRecord.getValueSchema().getSchemaInfo().getType().isStruct()
                     ? context.getCurrentRecord().getValue()
-                    : transformResult.getValueObject();
+                    : transformRecord.getValueObject();
         }
 
-        log.info("output {} schema {}", outputObject, outputSchema);
+        if (log.isDebugEnabled()) {
+            log.debug("output {} schema {}", outputObject, outputSchema);
+        }
         context.newOutputMessage(context.getOutputTopic(), outputSchema)
                 .value(outputObject).send();
     }
@@ -68,24 +84,33 @@ public class TransformUtils {
         return oo.toByteArray();
     }
 
-    public static void dropValueField(String fieldName, TransformResult record) {
+    public static void dropValueFields(List<String> fields, TransformRecord record) {
         if (record.getValueSchema().getSchemaInfo().getType() == SchemaType.AVRO) {
             org.apache.avro.generic.GenericRecord newRecord =
-                    dropField(fieldName, (org.apache.avro.generic.GenericRecord) record.getValueObject());
+                    dropFields(fields, (org.apache.avro.generic.GenericRecord) record.getValueObject());
             record.setValueModified(true);
             record.setValueObject(newRecord);
         }
     }
 
-    private static org.apache.avro.generic.GenericRecord dropField(String fieldName,
-                                                                   org.apache.avro.generic.GenericRecord record) {
+    public static void dropKeyFields(List<String> fields, TransformRecord record) {
+        if (record.getKeyObject() != null && record.getValueSchema().getSchemaInfo().getType() == SchemaType.AVRO) {
+            org.apache.avro.generic.GenericRecord newRecord =
+                    dropFields(fields, (org.apache.avro.generic.GenericRecord) record.getKeyObject());
+            record.setKeyModified(true);
+            record.setKeyObject(newRecord);
+        }
+    }
+
+    private static org.apache.avro.generic.GenericRecord dropFields(List<String> fields,
+                                                                    org.apache.avro.generic.GenericRecord record) {
         org.apache.avro.Schema avroSchema = record.getSchema();
-        if (avroSchema.getField(fieldName) != null) {
+        if (fields.stream().anyMatch(field -> avroSchema.getField(field) != null)) {
             org.apache.avro.Schema modified = org.apache.avro.Schema.createRecord(
                     avroSchema.getName(), avroSchema.getDoc(), avroSchema.getNamespace(), avroSchema.isError(),
-                    avroSchema.getFields().
-                            stream()
-                            .filter(f -> !f.name().equals(fieldName))
+                    avroSchema.getFields()
+                            .stream()
+                            .filter(f -> fields.contains(f.name()))
                             .map(f -> new org.apache.avro.Schema.Field(f.name(), f.schema(), f.doc(), f.defaultVal(),
                                     f.order()))
                             .collect(Collectors.toList()));

@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.functions.transforms;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.GenericObject;
@@ -29,13 +32,33 @@ import org.apache.pulsar.functions.api.Record;
  * This function removes a "field" from a message.
  */
 @Slf4j
-public class RemoveFieldFunction implements Function<GenericObject, Void> {
+public class RemoveFieldFunction implements Function<GenericObject, Void>, TransformStep {
 
-    private String field;
+    private List<String> keyFields;
+    private List<String> valueFields;
+
+    public RemoveFieldFunction() {}
+
+    public RemoveFieldFunction(List<String> keyFields, List<String> valueFields) {
+        this.keyFields = keyFields;
+        this.valueFields = valueFields;
+    }
 
     @Override
     public void initialize(Context context) {
-        this.field = (String) context.getUserConfigValue("field").get();
+        this.keyFields = getConfig(context, "key-fields");
+        this.valueFields = getConfig(context, "value-fields");
+    }
+
+    private List<String> getConfig(Context context, String fieldName) {
+        return context.getUserConfigValue(fieldName)
+                .map(fields -> {
+                    if (fields instanceof String) {
+                        return Arrays.asList(((String) fields).split(","));
+                    }
+                    throw new IllegalArgumentException(fieldName + " must be of type String");
+                })
+                .orElse(new ArrayList<>());
     }
 
     @Override
@@ -43,14 +66,22 @@ public class RemoveFieldFunction implements Function<GenericObject, Void> {
         Record<?> currentRecord = context.getCurrentRecord();
         Schema<?> schema = currentRecord.getSchema();
         Object nativeObject = genericObject.getNativeObject();
-        log.debug("apply to {} {}", genericObject, nativeObject);
-        log.debug("record with schema {} version {} {}", schema,
-                currentRecord.getMessage().get().getSchemaVersion(),
-                currentRecord);
+        if (log.isDebugEnabled()) {
+            log.debug("apply to {} {}", genericObject, nativeObject);
+            log.debug("record with schema {} version {} {}", schema,
+                    currentRecord.getMessage().get().getSchemaVersion(),
+                    currentRecord);
+        }
 
-        TransformResult transformResult = TransformUtils.newTransformResult(schema, nativeObject);
-        TransformUtils.dropValueField(field, transformResult);
-        TransformUtils.sendMessage(context, transformResult);
+        TransformRecord transformRecord = TransformUtils.newTransformRecord(schema, nativeObject);
+        process(transformRecord);
+        TransformUtils.sendMessage(context, transformRecord);
         return null;
+    }
+
+    @Override
+    public void process(TransformRecord transformRecord) {
+        TransformUtils.dropKeyFields(keyFields, transformRecord);
+        TransformUtils.dropValueFields(valueFields, transformRecord);
     }
 }
