@@ -21,6 +21,7 @@ package org.apache.pulsar.functions.transforms;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.GenericObject;
@@ -73,15 +74,33 @@ public class RemoveFieldFunction implements Function<GenericObject, Void>, Trans
                     currentRecord);
         }
 
-        TransformRecord transformRecord = TransformUtils.newTransformRecord(context, schema, nativeObject);
-        process(transformRecord);
-        TransformUtils.sendMessage(transformRecord);
+        TransformContext transformContext = new TransformContext(context, nativeObject);
+        process(transformContext);
+        transformContext.send();
         return null;
     }
 
     @Override
-    public void process(TransformRecord transformRecord) {
-        TransformUtils.dropKeyFields(keyFields, transformRecord);
-        TransformUtils.dropValueFields(valueFields, transformRecord);
+    public void process(TransformContext transformContext) {
+        TransformUtils.dropKeyFields(keyFields, transformContext);
+        TransformUtils.dropValueFields(valueFields, transformContext);
+    }
+
+    public static RemoveFieldFunction of(Map<String, String> step) {
+        String fields = step.get("fields");
+        if (fields == null || fields.isEmpty()) {
+            throw new IllegalArgumentException("missing required 'fields' parameter");
+        }
+        List<String> fieldList = Arrays.asList(fields.split(","));
+        String part = step.get("part");
+        if (part == null) {
+            return new RemoveFieldFunction(fieldList, fieldList);
+        } else if (part.equals("key")) {
+            return new RemoveFieldFunction(fieldList, new ArrayList<>());
+        } else if (part.equals("value")) {
+            return new RemoveFieldFunction(new ArrayList<>(), fieldList);
+        } else {
+            throw new IllegalArgumentException("invalid 'part' parameter: " + part);
+        }
     }
 }

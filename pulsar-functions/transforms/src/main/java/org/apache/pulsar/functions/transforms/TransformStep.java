@@ -1,5 +1,5 @@
 package org.apache.pulsar.functions.transforms;
 
 public interface TransformStep {
-    void process(TransformRecord transformRecord);
+    void process(TransformContext transformContext) throws Exception;
 }

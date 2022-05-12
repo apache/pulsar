@@ -3,7 +3,6 @@ package org.apache.pulsar.functions.transforms;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -34,21 +33,7 @@ public class TransformFunction implements Function<GenericObject, Void> {
         for (Map<String, String> step : stepsConfig) {
             String type = step.get("type");
             if ("drop-fields".equals(type)) {
-                String fields = step.get("fields");
-                if (fields == null) {
-                    throw new IllegalArgumentException("missing required drop-fields 'fields' parameter");
-                }
-                List<String> fieldList = Arrays.asList(fields.split(","));
-                String part = step.get("part");
-                if (part == null) {
-                    steps.add(new RemoveFieldFunction(fieldList, fieldList));
-                } else if (part.equals("key")) {
-                    steps.add(new RemoveFieldFunction(fieldList, new ArrayList<>()));
-                } else if (part.equals("value")) {
-                    steps.add(new RemoveFieldFunction(new ArrayList<>(), fieldList));
-                } else {
-                    throw new IllegalArgumentException("invalid drop-fields 'part' parameter: " + part);
-                }
+                steps.add(RemoveFieldFunction.of(step));
             } else {
                 throw new IllegalArgumentException("invalid step type: " + type);
             }
@@ -68,9 +53,11 @@ public class TransformFunction implements Function<GenericObject, Void> {
                     currentRecord);
         }
 
-        TransformRecord transformRecord = TransformUtils.newTransformRecord(context, schema, nativeObject);
-        steps.forEach(step -> step.process(transformRecord));
-        TransformUtils.sendMessage(transformRecord);
+        TransformContext transformContext = new TransformContext(context, nativeObject);
+        for (TransformStep step : steps) {
+            step.process(transformContext);
+        }
+        transformContext.send();
         return null;
     }
 }
