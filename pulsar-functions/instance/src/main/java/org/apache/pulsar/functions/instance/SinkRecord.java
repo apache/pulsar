@@ -93,7 +93,7 @@ public class SinkRecord<T> implements Record<T> {
             PulsarRecord pulsarRecord = (PulsarRecord) sourceRecord;
             pulsarRecord.ack(cumulative);
         } else {
-            throw new RuntimeException("SourceRecord class type must equals PulsarRecord");
+            throw new RuntimeException("SourceRecord class type must be PulsarRecord");
         }
     }
 

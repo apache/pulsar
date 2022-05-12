@@ -369,6 +369,9 @@ public class PulsarSourceTest {
         PulsarSource pulsarSource = getPulsarSource(pulsarSourceConfig);
         Message message = Mockito.mock(Message.class);
         Consumer consumer = Mockito.mock(Consumer.class);
+        Mockito.when(consumer.acknowledgeAsync(message)).thenReturn(CompletableFuture.completedFuture(null));
+        Mockito.when(consumer.acknowledgeCumulativeAsync(message)).thenReturn(CompletableFuture.completedFuture(null));
+
         PulsarRecord record = (PulsarRecord) pulsarSource.buildRecord(consumer, message);
 
         record.ack(true);
