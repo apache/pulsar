@@ -95,9 +95,9 @@ public class ResourceGroupConfigListener implements Consumer<Notification> {
         });
     }
 
-    private List<String> loadAllResourceGroups() {
+    private void loadAllResourceGroups() {
         try {
-            return loadAllResourceGroupsAsync().get();
+            loadAllResourceGroupsAsync().get();
         } catch (InterruptedException | ExecutionException e) {
             throw new RuntimeException("Load all resource groups error", e);
         }
