@@ -1,5 +1,5 @@
 ---
-title: ""What’s New in Apache Pulsar 2.10""
+title: "What’s New in Apache Pulsar 2.10"
 date: 2022-05-11
 author: "Penghui Li, Dave Duggins"
 ---
