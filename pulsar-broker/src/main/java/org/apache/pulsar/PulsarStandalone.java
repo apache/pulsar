@@ -26,7 +26,9 @@ import java.io.File;
 import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.Optional;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.conf.ServerConfiguration;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -49,9 +51,10 @@ import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+@Slf4j
 public class PulsarStandalone implements AutoCloseable {
 
-    private static final Logger log = LoggerFactory.getLogger(PulsarStandalone.class);
+    private static final String PULSAR_STANDALONE_USE_ZOOKEEPER = "PULSAR_STANDALONE_USE_ZOOKEEPER";
 
     PulsarService broker;
 
@@ -259,10 +262,23 @@ public class PulsarStandalone implements AutoCloseable {
     @Parameter(names = { "-h", "--help" }, description = "Show this help message")
     private boolean help = false;
 
-    private boolean usingNew211Defaults;
+    private boolean usingNewDefaults_PIP117;
 
     public void start() throws Exception {
-        usingNew211Defaults = !Paths.get(zkDir).toFile().exists();
+        String forceUseZookeeperEnv = System.getenv(PULSAR_STANDALONE_USE_ZOOKEEPER);
+
+        // Allow forcing to use ZK mode via an env variable. eg:
+        // PULSAR_STANDALONE_USE_ZOOKEEPER=1
+        if (StringUtils.equalsAnyIgnoreCase(forceUseZookeeperEnv, "1", "true")) {
+            usingNewDefaults_PIP117 = false;
+            log.info("Forcing to chose ZooKeeper metadata through environment variable");
+        } else if (Paths.get(zkDir).toFile().exists()) {
+            log.info("Found existing ZooKeeper metadata. Continuing with ZooKeeper");
+            usingNewDefaults_PIP117 = false;
+        } else {
+            // There's no existing ZK data directory, or we're already using RocksDB for metadata
+            usingNewDefaults_PIP117 = true;
+        }
 
         if (config == null) {
             log.error("Failed to load configuration");
@@ -272,7 +288,7 @@ public class PulsarStandalone implements AutoCloseable {
         log.debug("--- setup PulsarStandaloneStarter ---");
 
         if (!this.isOnlyBroker()) {
-            if (usingNew211Defaults) {
+            if (usingNewDefaults_PIP117) {
                 startBookieWithRocksDB();
             } else {
                 startBookieWithZookeeper();
@@ -287,7 +303,7 @@ public class PulsarStandalone implements AutoCloseable {
         if (!this.isNoFunctionsWorker()) {
             workerConfig = PulsarService.initializeWorkerConfigFromBrokerConfig(
                 config, this.getFnWorkerConfigFile());
-            if (usingNew211Defaults) {
+            if (usingNewDefaults_PIP117) {
                 workerConfig.setStateStorageProviderImplementation(
                         PulsarMetadataStateStoreProviderImpl.class.getName());
 
@@ -310,7 +326,7 @@ public class PulsarStandalone implements AutoCloseable {
 
         config.setRunningStandalone(true);
 
-        if (!usingNew211Defaults) {
+        if (!usingNewDefaults_PIP117) {
             final String metadataStoreUrl =
                     ZKMetadataStore.ZK_SCHEME_IDENTIFIER + "localhost:" + this.getZkPort();
             config.setMetadataStoreUrl(metadataStoreUrl);
