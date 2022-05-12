@@ -1,11 +1,14 @@
 package org.apache.pulsar.functions.transforms;
 
-import static org.apache.pulsar.functions.transforms.TransformUtils.serializeGenericRecord;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Map;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.avro.io.BinaryEncoder;
+import org.apache.avro.io.EncoderFactory;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.client.api.schema.KeyValueSchema;
@@ -21,10 +24,10 @@ public class TransformContext {
     private Context context;
     private Schema<?> keySchema;
     private Object keyObject;
-    private Boolean keyModified;
+    private boolean keyModified;
     private Schema<?> valueSchema;
     private Object valueObject;
-    private Boolean valueModified;
+    private boolean valueModified;
     private KeyValueEncodingType keyValueEncodingType;
     private String key;
     private Map<String, String> properties;
@@ -39,9 +42,18 @@ public class TransformContext {
             KeyValueSchema kvSchema = (KeyValueSchema) schema;
             KeyValue kv = (KeyValue) value;
             this.keySchema = kvSchema.getKeySchema();
-            this.keyObject = kv.getKey();
+            if (this.keySchema.getSchemaInfo().getType() == SchemaType.AVRO) {
+                this.keyObject = ((org.apache.pulsar.client.api.schema.GenericRecord) kv.getKey()).getNativeObject();
+            } else {
+                this.keyObject = kv.getKey();
+            }
             this.valueSchema = kvSchema.getKeySchema();
-            this.valueObject = kv.getValue();
+            if (this.valueSchema.getSchemaInfo().getType() == SchemaType.AVRO) {
+                this.valueObject =
+                        ((org.apache.pulsar.client.api.schema.GenericRecord) kv.getValue()).getNativeObject();
+            } else {
+                this.valueObject = kv.getValue();
+            }
             this.keyValueEncodingType = kvSchema.getKeyValueEncodingType();
         } else {
             this.valueSchema = schema;
@@ -87,5 +99,13 @@ public class TransformContext {
             message.key(key);
         }
         message.send();
+    }
+
+    public static byte[] serializeGenericRecord(org.apache.avro.generic.GenericRecord record) throws IOException {
+        GenericDatumWriter writer = new GenericDatumWriter(record.getSchema());
+        ByteArrayOutputStream oo = new ByteArrayOutputStream();
+        BinaryEncoder encoder = EncoderFactory.get().directBinaryEncoder(oo, null);
+        writer.write(record, encoder);
+        return oo.toByteArray();
     }
 }

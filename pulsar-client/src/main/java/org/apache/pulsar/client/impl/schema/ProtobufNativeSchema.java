@@ -32,6 +32,7 @@ import java.util.Optional;
 import java.util.function.Consumer;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+import org.apache.avro.Schema;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.schema.reader.ProtobufNativeReader;
 import org.apache.pulsar.client.impl.schema.writer.ProtobufNativeWriter;
