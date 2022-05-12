@@ -1,5 +1,5 @@
 ---
-title: "What’s New in Apache Pulsar 2.10"
+title: ""What’s New in Apache Pulsar 2.10""
 date: 2022-05-11
 author: "Penghui Li, Dave Duggins"
 ---
@@ -157,7 +157,7 @@ key for received messages. This is common when constructing a local cache of the
 - Added two new paths to REST API to reduce compatibility issues.
 
 ***
-Metadata Store
+#### Metadata Store
 ***
 ##### Added Etcd MetadataStore implementation #13225
 
