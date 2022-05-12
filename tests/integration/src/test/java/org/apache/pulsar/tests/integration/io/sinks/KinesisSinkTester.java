@@ -21,7 +21,6 @@ package org.apache.pulsar.tests.integration.io.sinks;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.google.common.collect.ImmutableMap;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
