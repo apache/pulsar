@@ -2956,8 +2956,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             return;
         }
         if (isExceedMaximumMessageSize(headersAndPayload.readableBytes(), publishContext)) {
-            publishContext.completed(new NotAllowedException("Exceed maximum message size")
-                    , -1, -1);
+            publishContext.completed(new NotAllowedException("Exceed maximum message size"), -1, -1);
             decrementPendingWriteOpsAndCheck();
             return;
         }
@@ -2978,7 +2977,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                         })
                         .exceptionally(throwable -> {
                             throwable = throwable.getCause();
-                            if (!(throwable instanceof ManagedLedgerException)) {
+                            if (throwable instanceof NotAllowedException) {
+                              publishContext.completed((NotAllowedException) throwable, -1, -1);
+                              return null;
+                            } else if (!(throwable instanceof ManagedLedgerException)) {
                                 throwable = new ManagedLedgerException(throwable);
                             }
                             addFailed((ManagedLedgerException) throwable, publishContext);
