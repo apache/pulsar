@@ -41,7 +41,7 @@ brew install sdkman
 ```properties
 sdkman_rosetta2_compatible=true
 ```
-3. Close the current shell / terminal window and open a new one
+3. Close the current shell / terminal window and open a new one.
 4. Make sure you don't have any previously installed JVM of same version by listing existing installed versions:
 ```shell
 sdk list java|grep installed
