@@ -1142,6 +1142,8 @@ Reader<byte[]> reader = pulsarClient.newReader()
 
 Pulsar reader interceptor intercepts and possibly mutates messages with user-defined processing before [Pulsar reader](concepts-clients.md#reader-interface) reads them. With reader interceptors, you can apply unified messaging processes before messages can be read, such as modifying messages, adding properties, collecting statistics and etc, without creating similar mechanisms respectively.
 
+![Reader interceptor](assets/reader-interceptor.svg)
+
 Pulsar reader interceptor works on top of Pulsar consumer interceptor. The plugin interface `ReaderInterceptor` can be treated as a subset of `ConsumerInterceptor` and it has two main events.
 * `beforeRead` is triggered before readers read messages. You can modify messages within this event.
 * `onPartitionsChange` is triggered when changes on partitions have been detected.
@@ -1188,7 +1190,6 @@ The following figure illustrates the dynamic construction of a TableView updated
 ### Configure TableView
  
 The following is an example of how to configure a TableView.
-
 ```java
 TableView<String> tv = client.newTableViewBuilder(Schema.STRING)
   .topic("my-tableview")
@@ -1207,7 +1208,6 @@ You can use the available parameters in the `loadConf` configuration or related 
 You can register listeners for both existing messages on a topic and new messages coming into the topic by using `forEachAndListen`, and specify to perform operations for all existing messages by using `forEach`.
 
 The following is an example of how to register listeners with TableView.
-
 ```java
 // Register listeners for all existing and incoming messages
 tv.forEachAndListen((key, value) -> /*operations on all existing and incoming messages*/)
