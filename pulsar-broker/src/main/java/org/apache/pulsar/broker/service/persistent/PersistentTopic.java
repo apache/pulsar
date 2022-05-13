@@ -2430,10 +2430,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 CompletableFuture<Void> persistentPoliciesFuture = checkPersistencePolicies();
                 // update rate-limiter if policies updated
                 dispatchRateLimiter.ifPresent(DispatchRateLimiter::updateDispatchRate);
-                if (this.subscribeRateLimiter.isPresent()) {
-                    subscribeRateLimiter.get().onSubscribeRateUpdate(getSubscribeRate());
-                }
-
                 return CompletableFuture.allOf(replicationFuture, dedupFuture, persistentPoliciesFuture,
                         preCreateSubscriptionForCompactionIfNeeded());
             });
@@ -3049,10 +3045,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         FutureUtil.waitForAll(consumerCheckFutures).thenRun(() -> {
             updatePublishDispatcher();
             updateSubscribeRateLimiter();
-            if (this.subscribeRateLimiter.isPresent()) {
-                subscribeRateLimiter.ifPresent(subscribeRateLimiter ->
-                        subscribeRateLimiter.onSubscribeRateUpdate(getSubscribeRate()));
-            }
             replicators.forEach((name, replicator) -> replicator.getRateLimiter()
                     .ifPresent(DispatchRateLimiter::updateDispatchRate));
 
