@@ -29,7 +29,11 @@ In the current version, Pulsar uses a BookKeeper version which in turn uses Rock
 
 One of the ways to easily install an x86 JDK is to use [SDKMan](http://sdkman.io) as outlined in the following steps:
 
-1. Install [SDKMan](http://sdkman.io) following instructions on their website, or if you have [Homebrew](https://brew.sh) installed then type:
+1. Install [SDKMan](http://sdkman.io).
+
+ * Method 1: follow instructions on the SDKMan website.
+ 
+ * Method 2: if you have [Homebrew](https://brew.sh) installed, enter the following command.
 ```shell
 brew install sdkman
 ```
