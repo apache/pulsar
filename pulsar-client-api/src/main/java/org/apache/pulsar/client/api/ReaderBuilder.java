@@ -311,7 +311,7 @@ public interface ReaderBuilder<T> extends Cloneable {
      *            the time unit of the interval.
      * @return the reader builder instance
      */
-    ReaderBuilder<T> autoUpdatePartitionsInterval(int interval, TimeUnit unit);
+    ReaderBuilder<T> autoUpdatePartitionsInterval(long interval, TimeUnit unit);
 
     /**
      * Intercept {@link Reader}.
