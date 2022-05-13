@@ -328,8 +328,8 @@ Options
 
 |Flag|Description|Default|
 |---|---|---|
-|`-f`, `--files`|Comma-separated file paths to send; either -m or -f must be specified|[]|
-|`-m`, `--messages`|Comma-separated string of messages to send; either -m or -f must be specified|[]|
+|`-f`, `--files`|Comma separated file paths to send, either -m or -f or --null must be specified.|[]|
+|`-m`, `--messages`|Messages to send, either -m or -f or --null must be specified. The default separator is comma|[]|
 |`-n`, `--num-produce`|The number of times to send the message(s); the count of messages/files * num-produce should be below 1000|1|
 |`-r`, `--rate`|Rate (in messages per second) at which to produce; a value 0 means to produce messages as fast as possible|0.0|
 |`-db`, `--disable-batching`|Disable batch sending of messages|false|
@@ -339,6 +339,7 @@ Options
 |`-p`, `--properties`|Properties to add. If you want to add multiple properties, use the comma as the separator, e.g. `k1=v1,k2=v2`.| |
 |`-ekn`, `--encryption-key-name`|The public key name to encrypt payload.| |
 |`-ekv`, `--encryption-key-value`|The URI of public key to encrypt payload. For example, `file:///path/to/public.key` or `data:application/x-pem-file;base64,*****`.| |
+|`--null`|Send a message with the body is null|false|
 
 
 ### `consume`
