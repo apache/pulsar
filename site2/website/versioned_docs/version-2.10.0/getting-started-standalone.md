@@ -25,7 +25,7 @@ Currently, Pulsar is available for 64-bit **macOS**, **Linux**, and **Windows**.
 > Broker is only supported on 64-bit JVM.
 
 #### Install JDK on M1
-In current version, Pulsar uses a BookKeeper version which in turn uses RocksDB which was compiled to work on x86 architecture and not ARM therefore it can only work with x86 JDK. This is planned to be fixed in future versions of Pulsar.
+In the current version, Pulsar uses a BookKeeper version which in turn uses RocksDB. RocksDB is compiled to work on x86 architecture and not ARM. Therefore, Pulsar can only work with x86 JDK. This is planned to be fixed in future versions of Pulsar.
 
 One of the ways to easily install an x86 JDK is to use [SDKMan](http://sdkman.io) as outlined in the following steps:
 
