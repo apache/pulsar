@@ -21,6 +21,7 @@ package org.apache.pulsar;
 import static org.apache.pulsar.common.naming.NamespaceName.SYSTEM_NAMESPACE;
 import static org.apache.pulsar.common.naming.SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN;
 import com.beust.jcommander.Parameter;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Sets;
 import java.io.File;
 import java.nio.file.Paths;
@@ -30,12 +31,14 @@ import org.apache.bookkeeper.conf.ServerConfiguration;
 import org.apache.logging.log4j.LogManager;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.resources.ClusterResources;
 import org.apache.pulsar.broker.resources.NamespaceResources;
 import org.apache.pulsar.broker.resources.TenantResources;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
+import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.functions.worker.WorkerConfig;
@@ -320,9 +323,21 @@ public class PulsarStandalone implements AutoCloseable {
         log.debug("--- setup completed ---");
     }
 
-    private void createNameSpace(String cluster, String publicTenant, NamespaceName ns) throws Exception {
+    @VisibleForTesting
+    void createNameSpace(String cluster, String publicTenant, NamespaceName ns) throws Exception {
+        ClusterResources cr = broker.getPulsarResources().getClusterResources();
         TenantResources tr = broker.getPulsarResources().getTenantResources();
         NamespaceResources nsr = broker.getPulsarResources().getNamespaceResources();
+
+        if (!cr.clusterExists(cluster)) {
+            cr.createCluster(cluster,
+                    ClusterData.builder()
+                            .serviceUrl(broker.getWebServiceAddress())
+                            .serviceUrlTls(broker.getWebServiceAddressTls())
+                            .brokerServiceUrl(broker.getBrokerServiceUrl())
+                            .brokerServiceUrlTls(broker.getBrokerServiceUrlTls())
+                            .build());
+        }
 
         if (!tr.tenantExists(publicTenant)) {
             tr.createTenant(publicTenant,
