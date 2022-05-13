@@ -1227,16 +1227,14 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         resendMessages(cnx, this.connectionHandler.getEpoch());
     }
 
-    protected synchronized void recoverNotAllowedError(long sequenceId) {
+    protected synchronized void recoverNotAllowedError(long sequenceId, String errorMsg) {
         OpSendMsg op = pendingMessages.peek();
         if (op != null && sequenceId == getHighestSequenceId(op)) {
             pendingMessages.remove();
             releaseSemaphoreForSendOp(op);
             try {
                 op.sendComplete(
-                        new PulsarClientException.NotAllowedException(
-                                format("The size of the message which is produced by producer %s to the topic "
-                                        + "%s is not allowed", producerName, topic)));
+                        new PulsarClientException.NotAllowedException(errorMsg));
             } catch (Throwable t) {
                 log.warn("[{}] [{}] Got exception while completing the callback for msg {}:", topic,
                         producerName, sequenceId, t);
