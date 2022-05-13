@@ -307,6 +307,7 @@ public class PulsarStandalone implements AutoCloseable {
 
                 config.setEnablePackagesManagement(true);
                 config.setFunctionsWorkerEnablePackageManagement(true);
+                workerConfig.setFunctionsWorkerEnablePackageManagement(true);
                 config.setPackagesManagementStorageProvider(FileSystemPackagesStorageProvider.class.getName());
             } else {
                 // worker talks to local broker
