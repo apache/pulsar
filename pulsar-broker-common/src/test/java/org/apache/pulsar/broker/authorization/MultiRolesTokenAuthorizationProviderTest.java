@@ -19,6 +19,8 @@
 package org.apache.pulsar.broker.authorization;
 
 import static org.mockito.Mockito.mock;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import java.util.Properties;
@@ -26,7 +28,6 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
 import org.apache.pulsar.broker.resources.PulsarResources;
-import org.junit.Assert;
 import org.testng.annotations.Test;
 
 import javax.crypto.SecretKey;
@@ -59,18 +60,18 @@ public class MultiRolesTokenAuthorizationProviderTest {
             }
         };
 
-        Assert.assertTrue(provider.authorize(ads, role -> {
+        assertTrue(provider.authorize(ads, role -> {
             if (role.equals(userB)) {
                 return CompletableFuture.completedFuture(true); // only userB has permission
             }
             return CompletableFuture.completedFuture(false);
         }).get());
 
-        Assert.assertTrue(provider.authorize(ads, role -> {
+        assertTrue(provider.authorize(ads, role -> {
             return CompletableFuture.completedFuture(true); // all users has permission
         }).get());
 
-        Assert.assertFalse(provider.authorize(ads, role -> {
+        assertFalse(provider.authorize(ads, role -> {
             return CompletableFuture.completedFuture(false); // all users has no permission
         }).get());
     }
@@ -98,7 +99,7 @@ public class MultiRolesTokenAuthorizationProviderTest {
             }
         };
 
-        Assert.assertFalse(provider.authorize(ads, role -> CompletableFuture.completedFuture(false)).get());
+        assertFalse(provider.authorize(ads, role -> CompletableFuture.completedFuture(false)).get());
     }
 
     @Test
@@ -125,7 +126,7 @@ public class MultiRolesTokenAuthorizationProviderTest {
             }
         };
 
-        Assert.assertTrue(provider.authorize(ads, role -> {
+        assertTrue(provider.authorize(ads, role -> {
             if (role.equals(testRole)) {
                 return CompletableFuture.completedFuture(true);
             }
@@ -155,7 +156,7 @@ public class MultiRolesTokenAuthorizationProviderTest {
             }
         };
 
-        Assert.assertFalse(provider.authorize(ads, role -> CompletableFuture.completedFuture(false)).get());
+        assertFalse(provider.authorize(ads, role -> CompletableFuture.completedFuture(false)).get());
     }
 
     @Test
@@ -190,7 +191,7 @@ public class MultiRolesTokenAuthorizationProviderTest {
             }
         };
 
-        Assert.assertTrue(provider.authorize(ads, role -> {
+        assertTrue(provider.authorize(ads, role -> {
             if (role.equals(testRole)) {
                 return CompletableFuture.completedFuture(true);
             }
