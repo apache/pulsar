@@ -384,13 +384,7 @@ public class PendingAckPersistentTest extends TransactionTestBase {
         Message<byte[]> message1 = consumer.receive(5, TimeUnit.SECONDS);
         consumer.acknowledgeAsync(message1.getMessageId(), transaction1);
         transaction1.commit().get();
-        Message<byte[]> message2 = consumer.receive(5, TimeUnit.SECONDS);
 
-        Field field = TransactionImpl.class.getDeclaredField("state");
-        field.setAccessible(true);
-        field.set(transaction1, TransactionImpl.State.OPEN);
-
-        consumer.acknowledgeAsync(message2.getMessageId(), transaction1);
 
         Transaction transaction2 = pulsarClient.newTransaction()
                 .withTransactionTimeout(5, TimeUnit.SECONDS)
@@ -403,9 +397,36 @@ public class PendingAckPersistentTest extends TransactionTestBase {
                     .get();
         }
 
+        Transaction transaction3 = pulsarClient.newTransaction()
+                .withTransactionTimeout(5, TimeUnit.SECONDS)
+                .build()
+                .get();
+        while (transaction1.getTxnID().getMostSigBits() != transaction3.getTxnID().getMostSigBits()) {
+            transaction3 = pulsarClient.newTransaction()
+                    .withTransactionTimeout(5, TimeUnit.SECONDS)
+                    .build()
+                    .get();
+        }
+
         Message<byte[]> message3 = consumer.receive(5, TimeUnit.SECONDS);
         consumer.acknowledgeAsync(message3.getMessageId(), transaction2);
         transaction2.commit().get();
+
+        Message<byte[]> message2 = consumer.receive(5, TimeUnit.SECONDS);
+
+        Field field = TransactionImpl.class.getDeclaredField("state");
+        field.setAccessible(true);
+        field.set(transaction1, TransactionImpl.State.OPEN);
+
+        consumer.acknowledgeAsync(message2.getMessageId(), transaction1).get();
+        Message<byte[]> message4 = consumer.receive(5, TimeUnit.SECONDS);
+        field.set(transaction2, TransactionImpl.State.OPEN);
+        consumer.acknowledgeAsync(message4.getMessageId(), transaction2).get();
+
+        Message<byte[]> message5 = consumer.receive(5, TimeUnit.SECONDS);
+        consumer.acknowledgeAsync(message5.getMessageId(), transaction3);
+        transaction3.commit().get();
+
 
         PersistentTopic persistentTopic =
                 (PersistentTopic) getPulsarServiceList()
@@ -438,6 +459,7 @@ public class PendingAckPersistentTest extends TransactionTestBase {
                 (LinkedMap<TxnID, HashMap<PositionImpl, PositionImpl>>) field2.get(pendingAckHandle);
 
         assertFalse(individualAckOfTransaction.containsKey(transaction1.getTxnID()));
+        assertFalse(individualAckOfTransaction.containsKey(transaction2.getTxnID()));
 
     }
 }

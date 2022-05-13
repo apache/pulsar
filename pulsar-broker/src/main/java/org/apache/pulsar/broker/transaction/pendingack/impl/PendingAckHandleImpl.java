@@ -603,8 +603,6 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                 abortTxn(firstTxn, null, lowWaterMark).thenRun(() -> {
                     log.warn("[{}] Transaction pending ack handle low water mark success! txnId : [{}], "
                             + "lowWaterMark : [{}]", topicName, txnID, lowWaterMark);
-                    individualAckOfTransaction.remove(firstTxn);
-                    handleLowWaterMark(txnID, lowWaterMark);
                 }).exceptionally(e -> {
                     log.warn("[{}] Transaction pending ack handle low water mark fail! txnId : [{}], "
                             + "lowWaterMark : [{}]", topicName, txnID, lowWaterMark);
