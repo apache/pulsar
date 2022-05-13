@@ -196,7 +196,7 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
             foundLedgers.add(ul.getLedgerId());
         }
 
-        assertEquals(ledgers, foundLedgers);
+        assertEquals(foundLedgers, ledgers);
     }
 
     /**
