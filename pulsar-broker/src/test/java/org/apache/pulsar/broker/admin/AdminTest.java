@@ -235,7 +235,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
                 ClusterData.builder().serviceUrl("http://new-broker.messaging.use.example.com:8080").build());
 
         try {
-            asynRequests(ctx -> clusters.getNamespaceIsolationPolicies(ctx, "use"));
+            asyncRequests(ctx -> clusters.getNamespaceIsolationPolicies(ctx, "use"));
             fail("should have failed");
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), 404);
@@ -255,7 +255,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
                 .build();
         AsyncResponse response = mock(AsyncResponse.class);
         clusters.setNamespaceIsolationPolicy(response,"use", "policy1", policyData);
-        asynRequests(ctx -> clusters.getNamespaceIsolationPolicies(ctx, "use"));
+        asyncRequests(ctx -> clusters.getNamespaceIsolationPolicies(ctx, "use"));
 
         try {
             asyncRequests(ctx -> clusters.deleteCluster(ctx, "use"));
@@ -265,7 +265,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         }
 
         clusters.deleteNamespaceIsolationPolicy("use", "policy1");
-        assertTrue(((Map<String, NamespaceIsolationDataImpl>) asynRequests(ctx ->
+        assertTrue(((Map<String, NamespaceIsolationDataImpl>) asyncRequests(ctx ->
                 clusters.getNamespaceIsolationPolicies(ctx, "use"))).isEmpty());
 
         asyncRequests(ctx -> clusters.deleteCluster(ctx, "use"));
@@ -286,7 +286,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         }
 
         try {
-            asynRequests(ctx -> clusters.getNamespaceIsolationPolicies(ctx, "use"));
+            asyncRequests(ctx -> clusters.getNamespaceIsolationPolicies(ctx, "use"));
             fail("should have failed");
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), 404);
