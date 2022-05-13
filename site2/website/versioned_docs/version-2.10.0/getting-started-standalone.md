@@ -52,7 +52,7 @@ Example output:
                | >>> | 17.0.3.6.1   | amzn    | installed  | 17.0.3.6.1-amzn
 ```
 
-If you have any Java 17 version installed, uninstall it:
+If you have any Java 17 version installed, uninstall it.
 ```shell
 sdk uinstall java 17.0.3.6.1
 ```
