@@ -18,18 +18,13 @@
  */
 package org.apache.pulsar.broker.stats.prometheus;
 
-import static org.apache.pulsar.broker.stats.prometheus.NamespaceStatsAggregator.addMetric;
 import static org.apache.pulsar.common.naming.TopicName.PARTITIONED_TOPIC_SUFFIX;
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufAllocator;
-import java.nio.charset.StandardCharsets;
+import io.prometheus.client.Collector;
+import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.function.Consumer;
 import org.apache.bookkeeper.mledger.util.StatsBuckets;
-import org.apache.pulsar.common.util.SimpleTextOutputStream;
 import org.apache.pulsar.compaction.CompactionRecord;
 import org.apache.pulsar.compaction.CompactorMXBean;
 
@@ -112,7 +107,8 @@ class TopicStats {
         metricWithTypeDefinition.clear();
     }
 
-    static void printTopicStats(Map<String, List<String>> metrics, String cluster, String namespace, String topic,
+    static void buildTopicStats(Map<String, Collector.MetricFamilySamples> metrics, String cluster, String namespace,
+                                String topic,
                                 TopicStats stats, Optional<CompactorMXBean> compactorMXBean,
                                 boolean splitTopicAndPartitionIndexLabel) {
         metric(metrics, cluster, namespace, topic, "pulsar_subscriptions_count", stats.subscriptionsCount,
@@ -380,126 +376,84 @@ class TopicStats {
         }
     }
 
-    static void metricType(SimpleTextOutputStream stream, String name) {
-
-        if (!metricWithTypeDefinition.containsKey(name)) {
-            metricWithTypeDefinition.put(name, "gauge");
-            stream.write("# TYPE ").write(name).write(" gauge\n");
-        }
-
+    private static void metric(Map<String, Collector.MetricFamilySamples> metrics, String cluster, String namespace,
+                               String topic, String name, double value, boolean splitTopicAndPartitionIndexLabel) {
+        Map<String, String> labels = buildLabels(cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
+        addMetric(metrics, labels, name, value);
     }
 
-    private static void metric(Map<String, List<String>> metrics, String cluster, String namespace, String topic,
-                               String name, double value, boolean splitTopicAndPartitionIndexLabel) {
-        writeMetric(metrics, name, stream -> {
-            writeRequiredLabels(stream, cluster, namespace, topic, name, splitTopicAndPartitionIndexLabel);
-            stream.write("\"} ")
-                    .write(value);
-            writeEndings(stream);
-        });
-    }
-
-    private static void metric(Map<String, List<String>> metrics, String cluster, String namespace, String topic,
-                               String subscription, String name, long value, boolean splitTopicAndPartitionIndexLabel) {
-        writeMetric(metrics, name, stream -> {
-            writeRequiredLabels(stream, cluster, namespace, topic, name, splitTopicAndPartitionIndexLabel);
-            stream.write("\",subscription=\"").write(subscription)
-                    .write("\"} ")
-                    .write(value);
-            writeEndings(stream);
-        });
-    }
-
-    private static void metric(Map<String, List<String>> metrics, String cluster, String namespace, String topic,
-                               String producerName, long produceId, String name, double value,
+    private static void metric(Map<String, Collector.MetricFamilySamples> metrics, String cluster, String namespace,
+                               String topic, String subscription, String name, long value,
                                boolean splitTopicAndPartitionIndexLabel) {
-        writeMetric(metrics, name, stream -> {
-            writeRequiredLabels(stream, cluster, namespace, topic, name, splitTopicAndPartitionIndexLabel);
-            stream.write("\",producer_name=\"").write(producerName)
-                    .write("\",producer_id=\"").write(produceId)
-                    .write("\"} ")
-                    .write(value);
-            writeEndings(stream);
-        });
+        Map<String, String> labels = buildLabels(cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
+        labels.put("subscription", subscription);
+        addMetric(metrics, labels, name, value);
     }
 
-    private static void metric(Map<String, List<String>> metrics, String cluster, String namespace, String topic,
-                               String subscription, String name, double value,
+    private static void metric(Map<String, Collector.MetricFamilySamples> metrics, String cluster, String namespace,
+                               String topic, String producerName, long produceId, String name, double value,
                                boolean splitTopicAndPartitionIndexLabel) {
-        writeMetric(metrics, name, stream -> {
-            writeRequiredLabels(stream, cluster, namespace, topic, name, splitTopicAndPartitionIndexLabel);
-            stream.write("\",subscription=\"").write(subscription)
-                    .write("\"} ")
-                    .write(value);
-            writeEndings(stream);
-        });
+        Map<String, String> labels = buildLabels(cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
+        labels.put("producer_name", producerName);
+        labels.put("producer_id", String.valueOf(produceId));
+        addMetric(metrics, labels, name, value);
     }
 
-    private static void metric(Map<String, List<String>> metrics, String cluster, String namespace, String topic,
-                               String subscription, String consumerName, long consumerId, String name, long value,
+    private static void metric(Map<String, Collector.MetricFamilySamples> metrics, String cluster, String namespace,
+                               String topic, String subscription, String name, double value,
                                boolean splitTopicAndPartitionIndexLabel) {
-        writeMetric(metrics, name, stream -> {
-            writeRequiredLabels(stream, cluster, namespace, topic, name, splitTopicAndPartitionIndexLabel);
-            stream.write("\",subscription=\"").write(subscription)
-                    .write("\",consumer_name=\"").write(consumerName).write("\",consumer_id=\"").write(consumerId)
-                    .write("\"} ")
-                    .write(value);
-            writeEndings(stream);
-        });
+        Map<String, String> labels = buildLabels(cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
+        labels.put("subscription", subscription);
+        addMetric(metrics, labels, name, value);
     }
 
-    private static void metric(Map<String, List<String>> metrics, String cluster, String namespace, String topic,
-                               String subscription, String consumerName, long consumerId, String name, double value,
-                               boolean splitTopicAndPartitionIndexLabel) {
-        writeMetric(metrics, name, stream -> {
-            writeRequiredLabels(stream, cluster, namespace, topic, name, splitTopicAndPartitionIndexLabel);
-            stream.write("\",subscription=\"").write(subscription)
-                    .write("\",consumer_name=\"").write(consumerName).write("\",consumer_id=\"")
-                    .write(consumerId).write("\"} ")
-                    .write(value);
-            writeEndings(stream);
-        });
+    private static void metric(Map<String, Collector.MetricFamilySamples> metrics, String cluster, String namespace,
+                               String topic, String subscription, String consumerName, long consumerId, String name,
+                               double value, boolean splitTopicAndPartitionIndexLabel) {
+        Map<String, String> labels = buildLabels(cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
+        labels.put("subscription", subscription);
+        labels.put("consumer_name", consumerName);
+        labels.put("consumer_id", String.valueOf(consumerId));
+        addMetric(metrics, labels, name, value);
     }
 
-    private static void metricWithRemoteCluster(Map<String, List<String>> metrics, String cluster, String namespace,
-                                                String topic, String name, String remoteCluster, double value,
-                                                boolean splitTopicAndPartitionIndexLabel) {
-        writeMetric(metrics, name, stream -> {
-            writeRequiredLabels(stream, cluster, namespace, topic, name, splitTopicAndPartitionIndexLabel);
-            stream.write("\",remote_cluster=\"").write(remoteCluster).write("\"} ").write(value);
-            writeEndings(stream);
-        });
+    private static void metricWithRemoteCluster(Map<String, Collector.MetricFamilySamples> metrics, String cluster,
+                                                String namespace, String topic, String name, String remoteCluster,
+                                                double value, boolean splitTopicAndPartitionIndexLabel) {
+        Map<String, String> labels = buildLabels(cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
+        labels.put("remote_cluster", remoteCluster);
+        addMetric(metrics, labels, name, value);
     }
 
-    private static void writeMetric(Map<String, List<String>> metrics, String name,
-                                    Consumer<SimpleTextOutputStream> metricWriter) {
-        ByteBuf buf = ByteBufAllocator.DEFAULT.heapBuffer();
-        try {
-            SimpleTextOutputStream stream = new SimpleTextOutputStream(buf);
-            metricWriter.accept(stream);
-            addMetric(metrics, name, buf.toString(StandardCharsets.UTF_8));
-        } finally {
-            buf.release();
-        }
-    }
-
-    private static void writeRequiredLabels(SimpleTextOutputStream stream, String cluster, String namespace,
-                                            String topic, String name, boolean splitTopicAndPartitionIndexLabel) {
-        stream.write(name).write("{cluster=\"").write(cluster).write("\",namespace=\"").write(namespace);
+    private static Map<String, String> buildLabels(String cluster, String namespace, String topic,
+                                                   boolean splitTopicAndPartitionIndexLabel) {
+        Map<String, String> labels = new HashMap<>();
+        labels.put("cluster", cluster);
+        labels.put("namespace", namespace);
         if (splitTopicAndPartitionIndexLabel) {
             int index = topic.indexOf(PARTITIONED_TOPIC_SUFFIX);
             if (index > 0) {
-                stream.write("\",topic=\"").write(topic.substring(0, index)).write("\",partition=\"")
-                        .write(topic.substring(index + PARTITIONED_TOPIC_SUFFIX.length()));
+                labels.put("topic", topic.substring(0, index));
+                labels.put("partition", topic.substring(index + PARTITIONED_TOPIC_SUFFIX.length()));
             } else {
-                stream.write("\",topic=\"").write(topic).write("\",partition=\"").write("-1");
+                labels.put("topic", topic);
+                labels.put("partition", "-1");
             }
         } else {
-            stream.write("\",topic=\"").write(topic);
+            labels.put("topic", topic);
         }
+        return labels;
     }
 
-    private static void writeEndings(SimpleTextOutputStream stream) {
-        stream.write(' ').write(System.currentTimeMillis()).write('\n');
+    static void addMetric(Map<String, Collector.MetricFamilySamples> metrics, Map<String, String> labels,
+                          String name, double value) {
+        Collector.MetricFamilySamples familySamples = metrics.getOrDefault(name,
+                new Collector.MetricFamilySamples(name, Collector.Type.GAUGE, null, new ArrayList<>()));
+        familySamples.samples.add(new Collector.MetricFamilySamples.Sample(name,
+                labels.keySet().stream().toList(),
+                labels.values().stream().toList(),
+                value,
+                System.currentTimeMillis()));
+        metrics.put(name, familySamples);
     }
 }

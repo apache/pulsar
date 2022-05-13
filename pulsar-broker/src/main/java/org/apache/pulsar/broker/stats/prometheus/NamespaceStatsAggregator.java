@@ -18,10 +18,10 @@
  */
 package org.apache.pulsar.broker.stats.prometheus;
 
+import static org.apache.pulsar.broker.stats.prometheus.TopicStats.addMetric;
 import io.netty.util.concurrent.FastThreadLocal;
-import java.util.ArrayList;
+import io.prometheus.client.Collector;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.LongAdder;
@@ -33,6 +33,7 @@ import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.stats.prometheus.metrics.PrometheusTextFormatUtil;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.stats.ConsumerStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.NonPersistentSubscriptionStatsImpl;
@@ -49,14 +50,14 @@ import org.apache.pulsar.compaction.CompactorMXBean;
 public class NamespaceStatsAggregator {
 
     private static FastThreadLocal<AggregatedNamespaceStats> localNamespaceStats =
-            new FastThreadLocal<AggregatedNamespaceStats>() {
+            new FastThreadLocal<>() {
                 @Override
                 protected AggregatedNamespaceStats initialValue() throws Exception {
                     return new AggregatedNamespaceStats();
                 }
             };
 
-    private static FastThreadLocal<TopicStats> localTopicStats = new FastThreadLocal<TopicStats>() {
+    private static FastThreadLocal<TopicStats> localTopicStats = new FastThreadLocal<>() {
         @Override
         protected TopicStats initialValue() throws Exception {
             return new TopicStats();
@@ -71,9 +72,9 @@ public class NamespaceStatsAggregator {
         TopicStats.resetTypes();
         TopicStats topicStats = localTopicStats.get();
 
-        Map<String, List<String>> metrics = new HashMap<>();
+        Map<String, Collector.MetricFamilySamples> metrics = new HashMap<>();
 
-        printDefaultBrokerStats(metrics, cluster);
+        buildDefaultBrokerStats(metrics, cluster);
 
         Optional<CompactorMXBean> compactorMXBean = getCompactorMXBean(pulsar);
         LongAdder topicsCount = new LongAdder();
@@ -90,7 +91,7 @@ public class NamespaceStatsAggregator {
 
                 if (includeTopicMetrics) {
                     topicsCount.add(1);
-                    TopicStats.printTopicStats(metrics, cluster, namespace, name, topicStats, compactorMXBean,
+                    TopicStats.buildTopicStats(metrics, cluster, namespace, name, topicStats, compactorMXBean,
                             splitTopicAndPartitionIndexLabel);
                 } else {
                     namespaceStats.updateStats(topicStats);
@@ -106,10 +107,7 @@ public class NamespaceStatsAggregator {
             }
         });
 
-        metrics.forEach((type, lines) -> {
-            TopicStats.metricType(stream, type);
-            lines.forEach(stream::write);
-        });
+        PrometheusTextFormatUtil.writeMetrics(stream, metrics.values());
     }
 
     private static Optional<CompactorMXBean> getCompactorMXBean(PulsarService pulsar) {
@@ -305,7 +303,7 @@ public class NamespaceStatsAggregator {
                 });
     }
 
-    private static void printDefaultBrokerStats(Map<String, List<String>> metrics, String cluster) {
+    private static void buildDefaultBrokerStats(Map<String, Collector.MetricFamilySamples> metrics, String cluster) {
         // Print metrics with 0 values. This is necessary to have the available brokers being
         // reported in the brokers dashboard even if they don't have any topic or traffic
         metric(metrics, cluster, "pulsar_topics_count", 0);
@@ -323,12 +321,14 @@ public class NamespaceStatsAggregator {
         metric(metrics, cluster, "pulsar_msg_backlog", 0);
     }
 
-    private static void printTopicsCountStats(Map<String, List<String>> metrics, String cluster, String namespace,
+    private static void printTopicsCountStats(Map<String, Collector.MetricFamilySamples> metrics, String cluster,
+                                              String namespace,
                                               LongAdder topicsCount) {
         metric(metrics, cluster, namespace, "pulsar_topics_count", topicsCount.sum());
     }
 
-    private static void printNamespaceStats(Map<String, List<String>> metrics, String cluster, String namespace,
+    private static void printNamespaceStats(Map<String, Collector.MetricFamilySamples> metrics, String cluster,
+                                            String namespace,
                                             AggregatedNamespaceStats stats) {
         metric(metrics, cluster, namespace, "pulsar_topics_count", stats.topicsCount);
         metric(metrics, cluster, namespace, "pulsar_subscriptions_count", stats.subscriptionsCount);
@@ -433,35 +433,24 @@ public class NamespaceStatsAggregator {
         }
     }
 
-    private static void metric(Map<String, List<String>> metrics, String cluster, String name,
+    private static void metric(Map<String, Collector.MetricFamilySamples> metrics, String cluster, String name,
                                long value) {
-        addMetric(metrics, name,
-                name + "{cluster=\"" + cluster + "\"} " + value + ' ' + System.currentTimeMillis() + '\n');
+        addMetric(metrics, Map.of("cluster", cluster), name, value);
     }
 
-    private static void metric(Map<String, List<String>> metrics, String cluster, String namespace, String name,
-                               long value) {
-        addMetric(metrics, name, name + "{cluster=\"" + cluster + "\",namespace=\"" + namespace + "\"} " + value + ' '
-                + System.currentTimeMillis() + '\n');
+    private static void metric(Map<String, Collector.MetricFamilySamples> metrics, String cluster, String namespace,
+                               String name, long value) {
+        addMetric(metrics, Map.of("cluster", cluster, "namespace", namespace), name, value);
     }
 
-    private static void metric(Map<String, List<String>> metrics, String cluster, String namespace, String name,
-                               double value) {
-        addMetric(metrics, name, name + "{cluster=\"" + cluster + "\",namespace=\"" + namespace + "\"} " + value + ' '
-                + System.currentTimeMillis() + '\n');
+    private static void metric(Map<String, Collector.MetricFamilySamples> metrics, String cluster, String namespace,
+                               String name, double value) {
+        addMetric(metrics, Map.of("cluster", cluster, "namespace", namespace), name, value);
     }
 
-    private static void metricWithRemoteCluster(Map<String, List<String>> metrics, String cluster, String namespace,
-                                                String name, String remoteCluster, double value) {
-        addMetric(metrics, name,
-                name + "{cluster=\"" + cluster + "\",namespace=\"" + namespace + "\",remote_cluster=\"" + remoteCluster
-                        + "\"} " + value + ' ' + System.currentTimeMillis() + '\n');
-    }
-
-    static void addMetric(Map<String, List<String>> metrics, String type, String metricLine) {
-        if (!metrics.containsKey(type)) {
-            metrics.put(type, new ArrayList<>());
-        }
-        metrics.get(type).add(metricLine);
+    private static void metricWithRemoteCluster(Map<String, Collector.MetricFamilySamples> metrics, String cluster,
+                                                String namespace, String name, String remoteCluster, double value) {
+        addMetric(metrics, Map.of("cluster", cluster, "namespace", namespace, "remote_cluster", remoteCluster), name,
+                value);
     }
 }
