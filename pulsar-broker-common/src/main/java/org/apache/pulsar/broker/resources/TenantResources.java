@@ -117,13 +117,12 @@ public class TenantResources extends BaseResources<TenantInfo> {
                 .thenCompose(clusterOrNamespaces -> clusterOrNamespaces.stream().map(key ->
                         getChildrenAsync(joinPath(BASE_POLICIES_PATH, tenant, key))
                                 .thenCompose(children -> {
-                                    CompletableFuture<List<String>> ret = new CompletableFuture();
                                     if (children == null || children.isEmpty()) {
                                         String namespace = NamespaceName.get(tenant, key).toString();
                                         // if the length is 0 then this is probably a leftover cluster from namespace
                                         // created with the v1 admin format (prop/cluster/ns) and then deleted, so no
                                         // need to add it to the list
-                                        ret = getAsync(joinPath(BASE_POLICIES_PATH, namespace))
+                                        return getAsync(joinPath(BASE_POLICIES_PATH, namespace))
                                            .thenApply(opt -> opt.isPresent() ? Collections.singletonList(namespace)
                                                    : new ArrayList<String>())
                                            .exceptionally(ex -> {
@@ -135,10 +134,11 @@ public class TenantResources extends BaseResources<TenantInfo> {
                                                 throw FutureUtil.wrapToCompletionException(ex);
                                             });
                                     } else {
+                                        CompletableFuture<List<String>> ret = new CompletableFuture();
                                         ret.complete(children.stream().map(ns -> NamespaceName.get(tenant, key, ns)
                                                 .toString()).collect(Collectors.toList()));
+                                        return ret;
                                     }
-                                    return ret;
                                 })).reduce(CompletableFuture.completedFuture(new ArrayList<>()),
                                         (accumulator, n) -> accumulator.thenCompose(namespaces -> n.thenCompose(m -> {
                                             namespaces.addAll(m);
