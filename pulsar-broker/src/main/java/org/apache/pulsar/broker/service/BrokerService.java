@@ -1423,9 +1423,10 @@ public class BrokerService implements Closeable {
                                             if (topicFuture.isCompletedExceptionally()) {
                                                 log.warn("{} future is already completed with failure {}, closing the"
                                                         + " topic", topic, FutureUtil.getException(topicFuture));
-                                                persistentTopic.stopReplProducers().whenComplete((v, exception) -> {
-                                                    topics.remove(topic, topicFuture);
-                                                });
+                                                persistentTopic.stopReplProducers()
+                                                        .whenCompleteAsync((v, exception) -> {
+                                                            topics.remove(topic, topicFuture);
+                                                        }, executor());
                                             } else {
                                                 addTopicToStatsMaps(topicName, persistentTopic);
                                                 topicFuture.complete(Optional.of(persistentTopic));
@@ -1434,10 +1435,10 @@ public class BrokerService implements Closeable {
                                         .exceptionally((ex) -> {
                                             log.warn("Replication or dedup check failed."
                                                     + " Removing topic from topics list {}, {}", topic, ex);
-                                            persistentTopic.stopReplProducers().whenComplete((v, exception) -> {
+                                            persistentTopic.stopReplProducers().whenCompleteAsync((v, exception) -> {
                                                 topics.remove(topic, topicFuture);
                                                 topicFuture.completeExceptionally(ex);
-                                            });
+                                            }, executor());
                                             return null;
                                         });
                             } catch (PulsarServerException e) {
