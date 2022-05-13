@@ -600,21 +600,13 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
 
             if (firstTxn.getMostSigBits() == txnID.getMostSigBits()
                     && firstTxn.getLeastSigBits() <= lowWaterMark) {
-                this.pendingAckStoreFuture.whenComplete((pendingAckStore, throwable) -> {
-                    if (throwable == null) {
-                        pendingAckStore.appendAbortMark(txnID, AckType.Individual).thenAccept(v -> {
-                            synchronized (PendingAckHandleImpl.this) {
-                                log.warn("[{}] Transaction pending ack handle low water mark success! txnId : [{}], "
-                                        + "lowWaterMark : [{}]", topicName, txnID, lowWaterMark);
-                                individualAckOfTransaction.remove(firstTxn);
-                                handleLowWaterMark(txnID, lowWaterMark);
-                            }
-                        }).exceptionally(e -> {
-                            log.warn("[{}] Transaction pending ack handle low water mark fail! txnId : [{}], "
-                                    + "lowWaterMark : [{}]", topicName, txnID, lowWaterMark);
-                            return null;
-                        });
-                    }
+                abortTxn(firstTxn, null, lowWaterMark).thenRun(() -> {
+                    log.warn("[{}] Transaction pending ack handle low water mark success! txnId : [{}], "
+                            + "lowWaterMark : [{}]", topicName, txnID, lowWaterMark);
+                }).exceptionally(e -> {
+                    log.warn("[{}] Transaction pending ack handle low water mark fail! txnId : [{}], "
+                            + "lowWaterMark : [{}]", topicName, txnID, lowWaterMark);
+                    return null;
                 });
             }
         }
