@@ -20,12 +20,11 @@ package org.apache.pulsar.broker.stats.prometheus.metrics;
 
 import io.prometheus.client.Collector;
 import io.prometheus.client.Collector.MetricFamilySamples;
-import io.prometheus.client.Collector.MetricFamilySamples.Sample;
-import io.prometheus.client.CollectorRegistry;
 import java.io.IOException;
 import java.io.Writer;
-import java.util.Enumeration;
+import java.util.Collection;
 import org.apache.bookkeeper.stats.Counter;
+import org.apache.pulsar.common.util.SimpleTextOutputStream;
 
 /**
  * Logic to write metrics in Prometheus text format.
@@ -141,29 +140,32 @@ public class PrometheusTextFormatUtil {
                 .append(Double.toString(opStat.getSum(success))).append('\n');
     }
 
-    public static void writeMetricsCollectedByPrometheusClient(Writer w, CollectorRegistry registry)
-            throws IOException {
-        Enumeration<MetricFamilySamples> metricFamilySamples = registry.metricFamilySamples();
-        while (metricFamilySamples.hasMoreElements()) {
-            MetricFamilySamples metricFamily = metricFamilySamples.nextElement();
-
-            for (int i = 0; i < metricFamily.samples.size(); i++) {
-                Sample sample = metricFamily.samples.get(i);
-                w.write(sample.name);
-                w.write('{');
-                for (int j = 0; j < sample.labelNames.size(); j++) {
-                    if (j != 0) {
-                        w.write(", ");
+    public static void writeMetrics(SimpleTextOutputStream stream, Collection<MetricFamilySamples> familySamples) {
+        for (MetricFamilySamples familySample : familySamples) {
+            stream.write("# TYPE ");
+            stream.write(familySample.name);
+            stream.write(' ');
+            stream.write(familySample.type.name().toLowerCase());
+            stream.write('\n');
+            for (Collector.MetricFamilySamples.Sample sample : familySample.samples) {
+                stream.write(sample.name);
+                if (sample.labelNames.size() > 0) {
+                    stream.write('{');
+                    for (int i = 0; i < sample.labelNames.size(); ++i) {
+                        stream.write(sample.labelNames.get(i));
+                        stream.write("=\"");
+                        stream.write(sample.labelValues.get(i));
+                        stream.write("\",");
                     }
-                    w.write(sample.labelNames.get(j));
-                    w.write("=\"");
-                    w.write(sample.labelValues.get(j));
-                    w.write('"');
+                    stream.write('}');
                 }
-
-                w.write("} ");
-                w.write(Collector.doubleToGoString(sample.value));
-                w.write('\n');
+                stream.write(' ');
+                stream.write(sample.value);
+                if (sample.timestampMs != null) {
+                    stream.write(' ');
+                    stream.write(sample.timestampMs.toString());
+                }
+                stream.write('\n');
             }
         }
     }
