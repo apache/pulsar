@@ -26,8 +26,8 @@ import org.apache.pulsar.tests.integration.containers.PulsarContainer;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.io.sources.SourceTester;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
-import org.junit.Assert;
 import org.testcontainers.shaded.com.google.common.base.Preconditions;
+import org.testng.Assert;
 import org.testng.util.Strings;
 
 import java.io.Closeable;

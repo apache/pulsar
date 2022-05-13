@@ -366,7 +366,7 @@ In this setting, the principal of Pulsar Broker and keyTab file indicates the ro
 
 ## Regarding authentication between BookKeeper and Broker
 
-Pulsar Broker acts as a Kerberos client when you authenticate with Bookie. According to [BookKeeper document](http://bookkeeper.apache.org/docs/latest/security/sasl/), you need to add `bookkeeperClientAuthenticationPlugin` parameter in `broker.conf`:
+Pulsar Broker acts as a Kerberos client when you authenticate with Bookie. According to [BookKeeper document](https://bookkeeper.apache.org/docs/next/security/sasl/), you need to add `bookkeeperClientAuthenticationPlugin` parameter in `broker.conf`:
 
 ```
 bookkeeperClientAuthenticationPlugin=org.apache.bookkeeper.sasl.SASLClientProviderFactory
