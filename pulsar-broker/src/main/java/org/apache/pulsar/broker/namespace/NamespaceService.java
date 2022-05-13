@@ -733,8 +733,10 @@ public class NamespaceService implements AutoCloseable {
     }
 
     public CompletableFuture<Map<String, NamespaceOwnershipStatus>> getOwnedNameSpacesStatusAsync() {
-       return getLocalNamespaceIsolationPoliciesAsync()
-                .thenCompose(namespaceIsolationPolicies -> {
+       return pulsar.getPulsarResources().getNamespaceResources().getIsolationPolicies()
+               .getIsolationDataPoliciesAsync(pulsar.getConfiguration().getClusterName())
+               .thenApply(nsIsolationPoliciesOpt -> nsIsolationPoliciesOpt.orElseGet(NamespaceIsolationPolicies::new))
+               .thenCompose(namespaceIsolationPolicies -> {
                     Collection<CompletableFuture<OwnedBundle>> futures =
                             ownershipCache.getOwnedBundlesAsync().values();
                     return FutureUtil.waitForAll(futures)
@@ -766,13 +768,6 @@ public class NamespaceService implements AutoCloseable {
         }
 
         return nsOwnedStatus;
-    }
-
-    private CompletableFuture<NamespaceIsolationPolicies> getLocalNamespaceIsolationPoliciesAsync() {
-        String localCluster = pulsar.getConfiguration().getClusterName();
-        return pulsar.getPulsarResources().getNamespaceResources().getIsolationPolicies()
-                .getIsolationDataPoliciesAsync(localCluster)
-                .thenApply(nsIsolationPolicies -> nsIsolationPolicies.orElseGet(NamespaceIsolationPolicies::new));
     }
 
     public boolean isNamespaceBundleDisabled(NamespaceBundle bundle) throws Exception {
