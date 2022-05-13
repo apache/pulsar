@@ -41,7 +41,7 @@ public class SinkRecordTest {
             Assert.fail("Should throw runtime exception");
         } catch (Exception e) {
             Assert.assertTrue(e instanceof RuntimeException);
-            Assert.assertEquals(e.getMessage(), "SourceRecord class type must equals PulsarRecord");
+            Assert.assertEquals(e.getMessage(), "SourceRecord class type must be PulsarRecord");
         }
     }
 }
