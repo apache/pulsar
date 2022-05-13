@@ -57,22 +57,7 @@ public class RemoveFieldFunctionTest {
                 .set("age", 42)
                 .build();
 
-        Record<GenericRecord> record = new Record<GenericRecord>() {
-            @Override
-            public Optional<String> getKey() {
-                return Optional.of("test-key");
-            }
-
-            @Override
-            public Schema<GenericRecord> getSchema() {
-                return genericSchema;
-            }
-
-            @Override
-            public GenericRecord getValue() {
-                return genericRecord;
-            }
-        };
+        Record<GenericRecord> record = new TestRecord<>(genericSchema, genericRecord, "test-key");
         Map<String, Object> config = ImmutableMap.of("value-fields", "firstName,lastName");
         TestContext context = new TestContext(record, config);
 
@@ -177,7 +162,6 @@ public class RemoveFieldFunctionTest {
 
         // Schema was modified by process operation
         KeyValueSchema recordSchema = (KeyValueSchema) record.getSchema();
-        KeyValue recordValue = record.getValue();
         assertNotSame(messageSchema.getKeySchema().getNativeSchema().get(), recordSchema.getKeySchema().getNativeSchema().get());
         assertNotSame(messageSchema.getValueSchema().getNativeSchema().get(), recordSchema.getValueSchema().getNativeSchema().get());
 
@@ -186,7 +170,37 @@ public class RemoveFieldFunctionTest {
                 newMessageSchema.getKeySchema().getNativeSchema().get());
         assertSame(messageSchema.getValueSchema().getNativeSchema().get(),
                 newMessageSchema.getValueSchema().getNativeSchema().get());
+    }
 
+    @Test
+    void testKeyValuePrimitives() throws Exception {
+        Schema<KeyValue<String, Integer>> keyValueSchema =
+                Schema.KeyValue(Schema.STRING, Schema.INT32, KeyValueEncodingType.SEPARATED);
+
+        KeyValue<String, Integer> keyValue = new KeyValue<>("key", 42);
+
+        Record<KeyValue<String, Integer>> record = new TestRecord<>(keyValueSchema, keyValue, null);
+        Map<String, Object> config = ImmutableMap.of(
+                "value-fields", "value",
+                "key-fields", "key");
+        TestContext context = new TestContext(record, config);
+
+        RemoveFieldFunction removeFieldFunction = new RemoveFieldFunction();
+        removeFieldFunction.initialize(context);
+        removeFieldFunction.process(
+                AutoConsumeSchema.wrapPrimitiveObject(record.getValue(), SchemaType.KEY_VALUE, new byte[]{}),
+                context);
+
+        TestTypedMessageBuilder<?> message = context.getOutputMessage();
+        KeyValueSchema messageSchema = (KeyValueSchema) message.getSchema();
+        KeyValue messageValue = (KeyValue) message.getValue();
+
+        KeyValueSchema recordSchema = (KeyValueSchema) record.getSchema();
+        KeyValue recordValue = record.getValue();
+        assertSame(messageSchema.getKeySchema(), recordSchema.getKeySchema());
+        assertSame(messageSchema.getValueSchema(), recordSchema.getValueSchema());
+        assertSame(messageValue.getKey(), recordValue.getKey());
+        assertSame(messageValue.getValue(), recordValue.getValue());
     }
 
     private Record<KeyValue<GenericRecord, GenericRecord>> createTestAvroKeyValueRecord() {
@@ -219,22 +233,7 @@ public class RemoveFieldFunctionTest {
 
         KeyValue<GenericRecord, GenericRecord> keyValue = new KeyValue<>(keyRecord, valueRecord);
 
-        return new Record<KeyValue<GenericRecord, GenericRecord>>() {
-            @Override
-            public Optional<String> getKey() {
-                return Optional.empty();
-            }
-
-            @Override
-            public Schema<KeyValue<GenericRecord, GenericRecord>> getSchema() {
-                return keyValueSchema;
-            }
-
-            @Override
-            public KeyValue<GenericRecord, GenericRecord> getValue() {
-                return keyValue;
-            }
-        };
+        return new TestRecord<>(keyValueSchema, keyValue, null);
     }
 
     private GenericData.Record getRecord(Schema<?> schema, byte[] value)
@@ -243,6 +242,33 @@ public class RemoveFieldFunctionTest {
                 new GenericDatumReader<>((org.apache.avro.Schema) schema.getNativeSchema().get());
         Decoder decoder = DecoderFactory.get().binaryDecoder(value, null);
         return reader.read(null, decoder);
+    }
+
+    private static class TestRecord<T> implements Record<T> {
+        private final Schema<T> schema;
+        private final T value;
+        private final String key;
+
+        private TestRecord(Schema<T> schema, T value, String key) {
+            this.schema = schema;
+            this.value = value;
+            this.key = key;
+        }
+
+        @Override
+        public Optional<String> getKey() {
+            return Optional.ofNullable(key);
+        }
+
+        @Override
+        public Schema<T> getSchema() {
+            return schema;
+        }
+
+        @Override
+        public T getValue() {
+            return value;
+        }
     }
 
     private static class TestTypedMessageBuilder<T> implements TypedMessageBuilder<T> {
