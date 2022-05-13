@@ -57,7 +57,7 @@ If you have any Java 17 version installed, uninstall it.
 sdk uinstall java 17.0.3.6.1
 ```
 
-5. Install any java versions greater than 8:
+5. Install any Java versions greater than Java 8.
 ```shell
  sdk install java 17.0.3.6.1-amzn
 ```
