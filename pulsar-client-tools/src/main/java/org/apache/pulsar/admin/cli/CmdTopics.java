@@ -933,7 +933,7 @@ public class CmdTopics extends CmdBase {
         @Parameter(names = { "-r", "--replicated" }, description = "replicated subscriptions", required = false)
         private boolean replicated = false;
 
-        @Parameter(names = {"--properties", "-p"}, description = "key value pair properties(a=a,b=b,c=c)")
+        @Parameter(names = {"--property", "-p"}, description = "key value pair properties(-p a=b -p c=d)")
         private java.util.List<String> properties;
 
         @Override

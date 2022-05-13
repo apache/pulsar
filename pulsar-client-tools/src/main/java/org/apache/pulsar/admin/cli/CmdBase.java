@@ -121,12 +121,12 @@ public abstract class CmdBase {
         if (metadata != null && !metadata.isEmpty()) {
             map = new HashMap<>();
             for (String property : metadata) {
-                String[] keyValue = property.split("=");
-                if (keyValue.length != 2) {
+                int pos = property.indexOf('=');
+                if (pos <= 0) {
                     throw new ParameterException(String.format("Invalid key value pair '%s', "
-                            + "valid format like 'a=a,b=b,c=c'.", property));
+                            + "valid format like 'a=b'.", property));
                 }
-                map.put(keyValue[0], keyValue[1]);
+                map.put(property.substring(0, pos), property.substring(pos + 1));
             }
         }
         return map;
