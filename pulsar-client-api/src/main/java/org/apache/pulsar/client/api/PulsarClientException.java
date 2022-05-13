@@ -148,6 +148,17 @@ public class PulsarClientException extends IOException {
      */
     public static class InvalidServiceURL extends PulsarClientException {
         /**
+         * Constructs an {@code InvalidServiceURL} with the specified detail message.
+         *
+         * @param msg
+         *        The detail message (which is saved for later retrieval
+         *        by the {@link #getMessage()} method)
+         */
+        public InvalidServiceURL(String msg) {
+            super(msg);
+        }
+
+        /**
          * Constructs an {@code InvalidServiceURL} with the specified cause.
          *
          * @param t
@@ -642,6 +653,10 @@ public class PulsarClientException extends IOException {
         public NotConnectedException(long sequenceId) {
             super("Not connected to broker", sequenceId);
         }
+
+        public NotConnectedException(String msg) {
+            super(msg);
+        }
     }
 
     /**
@@ -964,11 +979,13 @@ public class PulsarClientException extends IOException {
         } else if (t instanceof ConsumerBusyException) {
             return new ConsumerBusyException(msg);
         } else if (t instanceof NotConnectedException) {
-            return new NotConnectedException();
+            return new NotConnectedException(msg);
         } else if (t instanceof InvalidMessageException) {
             return new InvalidMessageException(msg);
         } else if (t instanceof InvalidTopicNameException) {
             return new InvalidTopicNameException(msg);
+        } else if (t instanceof InvalidServiceURL) {
+            return new InvalidServiceURL(msg);
         } else if (t instanceof NotSupportedException) {
             return new NotSupportedException(msg);
         } else if (t instanceof NotAllowedException) {
@@ -1056,11 +1073,13 @@ public class PulsarClientException extends IOException {
         } else if (cause instanceof ConsumerBusyException) {
             newException = new ConsumerBusyException(msg);
         } else if (cause instanceof NotConnectedException) {
-            newException = new NotConnectedException();
+            newException = new NotConnectedException(msg);
         } else if (cause instanceof InvalidMessageException) {
             newException = new InvalidMessageException(msg);
         } else if (cause instanceof InvalidTopicNameException) {
             newException = new InvalidTopicNameException(msg);
+        } else if (cause instanceof InvalidServiceURL) {
+            newException = new InvalidServiceURL(msg);
         } else if (cause instanceof NotSupportedException) {
             newException = new NotSupportedException(msg);
         } else if (cause instanceof NotAllowedException) {

@@ -314,8 +314,8 @@ public class AuthenticationSasl implements Authentication, EncodedAuthentication
 
                 if (response.getStatus() != HttpURLConnection.HTTP_OK) {
                     log.warn("HTTP get request failed: {}", response.getStatusInfo());
-                    authFuture.completeExceptionally(new PulsarClientException("Sasl Auth request failed: "
-                            + response.getStatus()));
+                    String errorMessage = "Sasl Auth request failed: " + response.getStatus();
+                    authFuture.completeExceptionally(new PulsarClientException.AuthenticationException(errorMessage));
                     return;
                 } else {
                     if (response.getHeaderString(SASL_AUTH_ROLE_TOKEN) != null) {

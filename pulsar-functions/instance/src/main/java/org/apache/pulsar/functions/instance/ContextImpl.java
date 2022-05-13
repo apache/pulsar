@@ -803,7 +803,7 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
     @VisibleForTesting
     Consumer<?> getConsumer(String topic, int partition) throws PulsarClientException {
         if (inputConsumers == null) {
-            throw new PulsarClientException("Getting consumer is not supported");
+            throw new PulsarClientException.NotSupportedException("Getting consumer is not supported");
         }
 
         Consumer<?> consumer = tryGetConsumer(topic, partition);
@@ -818,7 +818,7 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
         if (consumer != null) {
             return consumer;
         }
-        throw new PulsarClientException("Consumer for topic " + topic
+        throw new PulsarClientException.NotFoundException("Consumer for topic " + topic
                 + " partition " + partition + " is not found");
     }
 }

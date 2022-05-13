@@ -448,7 +448,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         TopicMessageIdImpl topicMessageId = (TopicMessageIdImpl) messageId;
 
         if (getState() != State.Ready) {
-            return FutureUtil.failedFuture(new PulsarClientException("Consumer already closed"));
+            return FutureUtil.failedFuture(new PulsarClientException.AlreadyClosedException("Consumer already closed"));
         }
 
         if (ackType == AckType.Cumulative) {
@@ -480,7 +480,8 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             return CompletableFuture.allOf(resultFutures.toArray(new CompletableFuture[0]));
         } else {
             if (getState() != State.Ready) {
-                return FutureUtil.failedFuture(new PulsarClientException("Consumer already closed"));
+                return FutureUtil.failedFuture(
+                        new PulsarClientException.AlreadyClosedException("Consumer already closed"));
             }
             Map<String, List<MessageId>> topicToMessageIdMap = new HashMap<>();
             for (MessageId messageId : messageIdList) {
@@ -514,7 +515,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         checkArgument(messageId instanceof TopicMessageIdImpl);
         TopicMessageIdImpl topicMessageId = (TopicMessageIdImpl) messageId;
         if (getState() != State.Ready) {
-            return FutureUtil.failedFuture(new PulsarClientException("Consumer already closed"));
+            return FutureUtil.failedFuture(new PulsarClientException.AlreadyClosedException("Consumer already closed"));
         }
 
         if (ackType == AckType.Cumulative) {

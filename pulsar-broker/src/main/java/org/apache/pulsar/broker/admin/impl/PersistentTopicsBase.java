@@ -4301,10 +4301,11 @@ public class PersistentTopicsBase extends AdminResource {
                                 }).exceptionally(ex -> {
                                     Throwable throwable2 = FutureUtil.unwrapCompletionException(ex);
                                     if (throwable2 instanceof RestException) {
-                                        log.warn("Failed to authorize {} on topic {}", clientAppId, topicName);
-                                        authorizationFuture.completeExceptionally(new PulsarClientException(
-                                                String.format("Authorization failed %s on topic %s with error %s",
-                                                clientAppId, topicName, throwable2.getMessage())));
+                                        String errorMessage = String.format("Authorization failed %s on topic %s " +
+                                         "with error %s", clientAppId, topicName, throwable2.getMessage());
+                                        log.warn(errorMessage);
+                                        authorizationFuture.completeExceptionally(
+                                                new PulsarClientException.AuthorizationException(errorMessage));
                                     } else {
                                         authorizationFuture.completeExceptionally(throwable2);
                                     }

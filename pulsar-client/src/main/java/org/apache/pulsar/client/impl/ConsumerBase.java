@@ -417,7 +417,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     public void reconsumeLater(Message<?> message, Map<String, String> customProperties, long delayTime, TimeUnit unit)
             throws PulsarClientException {
         if (!conf.isRetryEnable()) {
-            throw new PulsarClientException(RECONSUME_LATER_ERROR_MSG);
+            throw new PulsarClientException.NotSupportedException(RECONSUME_LATER_ERROR_MSG);
         }
         try {
             reconsumeLaterAsync(message, customProperties, delayTime, unit).get();
@@ -525,7 +525,8 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     public CompletableFuture<Void> reconsumeLaterAsync(
             Message<?> message, Map<String, String> customProperties, long delayTime, TimeUnit unit) {
         if (!conf.isRetryEnable()) {
-            return FutureUtil.failedFuture(new PulsarClientException(RECONSUME_LATER_ERROR_MSG));
+            return FutureUtil.failedFuture(new PulsarClientException.NotSupportedException(
+                    RECONSUME_LATER_ERROR_MSG));
         }
         try {
             validateMessageId(message);
@@ -567,7 +568,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     public CompletableFuture<Void> reconsumeLaterCumulativeAsync(
             Message<?> message, Map<String, String> customProperties, long delayTime, TimeUnit unit) {
         if (!conf.isRetryEnable()) {
-            return FutureUtil.failedFuture(new PulsarClientException(RECONSUME_LATER_ERROR_MSG));
+            return FutureUtil.failedFuture(new PulsarClientException.NotSupportedException(RECONSUME_LATER_ERROR_MSG));
         }
         if (!isCumulativeAcknowledgementAllowed(conf.getSubscriptionType())) {
             return FutureUtil.failedFuture(new PulsarClientException.InvalidConfigurationException(
