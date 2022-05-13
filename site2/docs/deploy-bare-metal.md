@@ -430,8 +430,6 @@ $ bin/pulsar-client produce \
   -m "Hello Pulsar"
 ```
 
-> You may need to use a different cluster name in the topic if you specify a cluster name other than `pulsar-cluster-1`.
-
 This command publishes a single message to the Pulsar topic. In addition, you can subscribe to the Pulsar topic in a different terminal before publishing messages as below:
 
 ```bash
