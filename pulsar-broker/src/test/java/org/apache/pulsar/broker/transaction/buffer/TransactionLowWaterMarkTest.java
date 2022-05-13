@@ -36,7 +36,9 @@ import org.apache.commons.collections4.map.LinkedMap;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.transaction.TransactionTestBase;
+import org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBuffer;
 import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleImpl;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -324,5 +326,128 @@ public class TransactionLowWaterMarkTest extends TransactionTestBase {
         } catch (PulsarClientException.NotAllowedException ignore) {
             // no-op
         }
+    }
+
+    @Test
+    public void testLowWaterMarkForDifferentTC() throws Exception {
+        String subName = "sub";
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(TOPIC)
+                .sendTimeout(0, TimeUnit.SECONDS)
+                .create();
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(TOPIC)
+                .subscriptionName(subName)
+                .subscribe();
+
+        Transaction txn1 = pulsarClient.newTransaction()
+                .withTransactionTimeout(500, TimeUnit.SECONDS)
+                .build().get();
+        Transaction txn2 = pulsarClient.newTransaction()
+                .withTransactionTimeout(500, TimeUnit.SECONDS)
+                .build().get();
+        while (txn2.getTxnID().getMostSigBits() == txn1.getTxnID().getMostSigBits()) {
+            txn2 = pulsarClient.newTransaction()
+                    .withTransactionTimeout(500, TimeUnit.SECONDS)
+                    .build().get();
+        }
+        Transaction txn3 = pulsarClient.newTransaction()
+                .withTransactionTimeout(500, TimeUnit.SECONDS)
+                .build().get();
+        while (txn3.getTxnID().getMostSigBits() != txn1.getTxnID().getMostSigBits()) {
+            txn3 = pulsarClient.newTransaction()
+                    .withTransactionTimeout(500, TimeUnit.SECONDS)
+                    .build().get();
+        }
+
+        Transaction txn4 = pulsarClient.newTransaction()
+                .withTransactionTimeout(500, TimeUnit.SECONDS)
+                .build().get();
+        while (txn4.getTxnID().getMostSigBits() != txn2.getTxnID().getMostSigBits()) {
+            txn4 = pulsarClient.newTransaction()
+                    .withTransactionTimeout(500, TimeUnit.SECONDS)
+                    .build().get();
+        }
+
+        for (int i = 0; i < 10; i++) {
+            producer.newMessage().send();
+        }
+
+        producer.newMessage(txn1).send();
+        producer.newMessage(txn2).send();
+        producer.newMessage(txn3).send();
+        producer.newMessage(txn4).send();
+
+
+
+        Message<byte[]> message1 = consumer.receive(5, TimeUnit.SECONDS);
+        consumer.acknowledgeAsync(message1.getMessageId(), txn1);
+        Message<byte[]> message2 = consumer.receive(5, TimeUnit.SECONDS);
+        consumer.acknowledgeAsync(message2.getMessageId(), txn2);
+        Message<byte[]> message3 = consumer.receive(5, TimeUnit.SECONDS);
+        consumer.acknowledgeAsync(message3.getMessageId(), txn3);
+        Message<byte[]> message4 = consumer.receive(5, TimeUnit.SECONDS);
+        consumer.acknowledgeAsync(message4.getMessageId(), txn4);
+
+        txn1.commit().get();
+        txn2.commit().get();
+
+        Field field = TransactionImpl.class.getDeclaredField("state");
+        field.setAccessible(true);
+        field.set(txn1, TransactionImpl.State.OPEN);
+        field.set(txn2, TransactionImpl.State.OPEN);
+
+        producer.newMessage(txn1).send();
+        producer.newMessage(txn2).send();
+
+        Message<byte[]> message5 = consumer.receive(5, TimeUnit.SECONDS);
+        consumer.acknowledgeAsync(message5.getMessageId(), txn1);
+        Message<byte[]> message6 = consumer.receive(5, TimeUnit.SECONDS);
+        consumer.acknowledgeAsync(message6.getMessageId(), txn2);
+
+        txn3.commit().get();
+        txn4.commit().get();
+
+
+        Transaction txn5 = pulsarClient.newTransaction()
+                .withTransactionTimeout(500, TimeUnit.SECONDS)
+                .build().get();
+        producer.newMessage(txn5).send();
+        Message<byte[]> message7 = consumer.receive(5, TimeUnit.SECONDS);
+        consumer.acknowledgeAsync(message7.getMessageId(), txn5);
+
+        txn5.commit().get();
+
+        PersistentTopic persistentTopic = (PersistentTopic) getPulsarServiceList().get(0)
+                .getBrokerService()
+                .getTopic(TOPIC, false)
+                .get().get();
+
+        TopicTransactionBuffer topicTransactionBuffer = (TopicTransactionBuffer) persistentTopic.getTransactionBuffer();
+        PersistentSubscription persistentSubscription = persistentTopic.getSubscription(subName);
+
+
+        Field field1 = PersistentSubscription.class.getDeclaredField("pendingAckHandle");
+        field1.setAccessible(true);
+        PendingAckHandleImpl pendingAckHandle = (PendingAckHandleImpl) field1.get(persistentSubscription);
+
+        Field field2 = PendingAckHandleImpl.class.getDeclaredField("individualAckOfTransaction");
+        field2.setAccessible(true);
+        LinkedMap<TxnID, HashMap<PositionImpl, PositionImpl>> individualAckOfTransaction =
+                (LinkedMap<TxnID, HashMap<PositionImpl, PositionImpl>>) field2.get(pendingAckHandle);
+
+        Field field3 = TopicTransactionBuffer.class.getDeclaredField("ongoingTxns");
+        field3.setAccessible(true);
+        LinkedMap<TxnID, PositionImpl> ongoingTxns =
+                (LinkedMap<TxnID, PositionImpl>) field3.get(topicTransactionBuffer);
+
+        assertFalse(individualAckOfTransaction.containsKey(txn1.getTxnID()));
+        assertFalse(individualAckOfTransaction.containsKey(txn2.getTxnID()));
+
+        assertFalse(ongoingTxns.containsKey(txn1.getTxnID()));
+        assertFalse(ongoingTxns.containsKey(txn2.getTxnID()));
+
     }
 }
