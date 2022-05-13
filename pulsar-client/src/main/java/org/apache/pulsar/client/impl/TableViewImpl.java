@@ -63,7 +63,7 @@ public class TableViewImpl<T> implements TableView<T> {
                 .topic(conf.getTopicName())
                 .startMessageId(MessageId.earliest)
                 .autoUpdatePartitions(true)
-                .autoUpdatePartitionsInterval(conf.getAutoUpdatePartitionsSeconds(), TimeUnit.SECONDS)
+                .autoUpdatePartitionsInterval((int) conf.getAutoUpdatePartitionsSeconds(), TimeUnit.SECONDS)
                 .readCompacted(true)
                 .poolMessages(true)
                 .createAsync();

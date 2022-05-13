@@ -238,7 +238,7 @@ public class ReaderBuilderImpl<T> implements ReaderBuilder<T> {
     }
 
     @Override
-    public ReaderBuilder<T> autoUpdatePartitionsInterval(long interval, TimeUnit unit) {
+    public ReaderBuilder<T> autoUpdatePartitionsInterval(int interval, TimeUnit unit) {
         long intervalSeconds = unit.toSeconds(interval);
         checkArgument(intervalSeconds >= 1, "Auto update partition interval needs to be >= 1 second");
         this.conf.setAutoUpdatePartitionsIntervalSeconds(intervalSeconds);
