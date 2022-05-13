@@ -524,22 +524,7 @@ public class CmdPersistentTopics extends CmdBase {
             } else {
                 messageId = validateMessageIdString(messageIdStr);
             }
-            Map<String, String> map = new HashMap<>();
-            if (properties != null) {
-                for (String property : properties) {
-                    if (!property.contains("=")) {
-                        throw new ParameterException(String.format("Invalid key value pair '%s', "
-                                + "valid format like 'a=a,b=b,c=c'.", property));
-                    } else {
-                        String[] keyValue = property.split("=");
-                        if (keyValue.length != 2) {
-                            throw new ParameterException(String.format("Invalid key value pair '%s', "
-                                    + "valid format like 'a=a,b=b,c=c'.", property));
-                        }
-                        map.put(keyValue[0], keyValue[1]);
-                    }
-                }
-            }
+            Map<String, String> map = parseListKeyValueMap(properties);
             getPersistentTopics().createSubscription(persistentTopic, subscriptionName, messageId, false, map);
         }
     }

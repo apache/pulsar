@@ -23,6 +23,10 @@ import com.beust.jcommander.IUsageFormatter;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.function.Supplier;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -109,5 +113,22 @@ public abstract class CmdBase {
             admin = adminSupplier.get();
         }
         return admin;
+    }
+
+
+    static Map<String, String> parseListKeyValueMap(List<String> metadata) {
+        Map<String, String> map = null;
+        if (metadata != null && !metadata.isEmpty()) {
+            map = new HashMap<>();
+            for (String property : metadata) {
+                String[] keyValue = property.split("=");
+                if (keyValue.length != 2) {
+                    throw new ParameterException(String.format("Invalid key value pair '%s', "
+                            + "valid format like 'a=a,b=b,c=c'.", property));
+                }
+                map.put(keyValue[0], keyValue[1]);
+            }
+        }
+        return map;
     }
 }
