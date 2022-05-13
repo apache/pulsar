@@ -377,14 +377,19 @@ The Apache Software License, Version 2.0
     - io.netty-netty-tcnative-boringssl-static-2.0.52.Final-windows-x86_64.jar
     - io.netty-netty-tcnative-classes-2.0.52.Final.jar
  * Prometheus client
-    - io.prometheus-simpleclient-0.5.0.jar
-    - io.prometheus-simpleclient_common-0.5.0.jar
-    - io.prometheus-simpleclient_hotspot-0.5.0.jar
-    - io.prometheus-simpleclient_servlet-0.5.0.jar
-    - io.prometheus-simpleclient_log4j2-0.5.0.jar
-    - io.prometheus-simpleclient_jetty-0.5.0.jar
-    - io.prometheus.jmx-collector-0.14.0.jar
-    - io.prometheus-simpleclient_caffeine-0.5.0.jar
+    - io.prometheus.jmx-collector-0.16.1.jar
+    - io.prometheus-simpleclient-0.15.0.jar
+    - io.prometheus-simpleclient_caffeine-0.15.0.jar
+    - io.prometheus-simpleclient_common-0.15.0.jar
+    - io.prometheus-simpleclient_hotspot-0.15.0.jar
+    - io.prometheus-simpleclient_httpserver-0.15.0.jar
+    - io.prometheus-simpleclient_jetty-0.15.0.jar
+    - io.prometheus-simpleclient_log4j2-0.15.0.jar
+    - io.prometheus-simpleclient_servlet-0.15.0.jar
+    - io.prometheus-simpleclient_servlet_common-0.15.0.jar
+    - io.prometheus-simpleclient_tracer_common-0.15.0.jar
+    - io.prometheus-simpleclient_tracer_otel-0.15.0.jar
+    - io.prometheus-simpleclient_tracer_otel_agent-0.15.0.jar
  * Jakarta Bean Validation API
     - jakarta.validation-jakarta.validation-api-2.0.2.jar
     - javax.validation-validation-api-1.1.0.Final.jar
@@ -508,7 +513,7 @@ The Apache Software License, Version 2.0
     - io.dropwizard.metrics-metrics-jvm-4.1.12.1.jar
     - io.dropwizard.metrics-metrics-jmx-4.1.12.1.jar
   * Prometheus
-    - io.prometheus-simpleclient_httpserver-0.5.0.jar
+    - io.prometheus-simpleclient_httpserver-0.15.0.jar
   * Java JSON WebTokens
     - io.jsonwebtoken-jjwt-api-0.11.1.jar
     - io.jsonwebtoken-jjwt-impl-0.11.1.jar

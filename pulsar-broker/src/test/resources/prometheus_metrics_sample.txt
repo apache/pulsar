@@ -665,8 +665,8 @@ pulsar_function_worker_total_function_count{cluster="use",} 1
 pulsar_function_worker_total_expected_instance_count{cluster="use",} 1
 pulsar_function_worker_is_leader{cluster="use",} 1
 pulsar_function_last_invocation{tenant="external-repl-prop",namespace="external-repl-prop/io",name="PulsarSink-test",instance_id="0",cluster="use",fqfn="external-repl-prop/io/PulsarSink-test",} 0.0
-pulsar_function_processed_successfully_total_1min{tenant="external-repl-prop",namespace="external-repl-prop/io",name="PulsarSink-test",instance_id="0",cluster="use",fqfn="external-repl-prop/io/PulsarSink-test",} 0.0
-pulsar_function_received_total_1min{tenant="external-repl-prop",namespace="external-repl-prop/io",name="PulsarSink-test",instance_id="0",cluster="use",fqfn="external-repl-prop/io/PulsarSink-test",} 0.0
+pulsar_function_processed_successfully_1min_total{tenant="external-repl-prop",namespace="external-repl-prop/io",name="PulsarSink-test",instance_id="0",cluster="use",fqfn="external-repl-prop/io/PulsarSink-test",} 0.0
+pulsar_function_received_1min_total{tenant="external-repl-prop",namespace="external-repl-prop/io",name="PulsarSink-test",instance_id="0",cluster="use",fqfn="external-repl-prop/io/PulsarSink-test",} 0.0
 pulsar_function_user_exceptions_total{tenant="external-repl-prop",namespace="external-repl-prop/io",name="PulsarSink-test",instance_id="0",cluster="use",fqfn="external-repl-prop/io/PulsarSink-test",} 0.0
 pulsar_function_process_latency_ms_1min{tenant="external-repl-prop",namespace="external-repl-prop/io",name="PulsarSink-test",instance_id="0",cluster="use",fqfn="external-repl-prop/io/PulsarSink-test",quantile="0.5",} NaN
 pulsar_function_process_latency_ms_1min{tenant="external-repl-prop",namespace="external-repl-prop/io",name="PulsarSink-test",instance_id="0",cluster="use",fqfn="external-repl-prop/io/PulsarSink-test",quantile="0.9",} NaN
@@ -683,8 +683,8 @@ pulsar_function_process_latency_ms{tenant="external-repl-prop",namespace="extern
 pulsar_function_process_latency_ms{tenant="external-repl-prop",namespace="external-repl-prop/io",name="PulsarSink-test",instance_id="0",cluster="use",fqfn="external-repl-prop/io/PulsarSink-test",quantile="0.999",} NaN
 pulsar_function_process_latency_ms_count{tenant="external-repl-prop",namespace="external-repl-prop/io",name="PulsarSink-test",instance_id="0",cluster="use",fqfn="external-repl-prop/io/PulsarSink-test",} 0.0
 pulsar_function_process_latency_ms_sum{tenant="external-repl-prop",namespace="external-repl-prop/io",name="PulsarSink-test",instance_id="0",cluster="use",fqfn="external-repl-prop/io/PulsarSink-test",} 0.0
-pulsar_function_system_exceptions_total_1min{tenant="external-repl-prop",namespace="external-repl-prop/io",name="PulsarSink-test",instance_id="0",cluster="use",fqfn="external-repl-prop/io/PulsarSink-test",} 0.0
-pulsar_function_user_exceptions_total_1min{tenant="external-repl-prop",namespace="external-repl-prop/io",name="PulsarSink-test",instance_id="0",cluster="use",fqfn="external-repl-prop/io/PulsarSink-test",} 0.0
+pulsar_function_system_exceptions_1min_total{tenant="external-repl-prop",namespace="external-repl-prop/io",name="PulsarSink-test",instance_id="0",cluster="use",fqfn="external-repl-prop/io/PulsarSink-test",} 0.0
+pulsar_function_user_exceptions_1min_total{tenant="external-repl-prop",namespace="external-repl-prop/io",name="PulsarSink-test",instance_id="0",cluster="use",fqfn="external-repl-prop/io/PulsarSink-test",} 0.0
 # TYPE pulsar_ml_cache_evictions gauge
 pulsar_ml_cache_evictions{cluster="use"} 0 1617950344971
 # TYPE pulsar_ml_cache_hits_rate gauge

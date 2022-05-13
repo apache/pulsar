@@ -98,9 +98,9 @@ public class PrometheusMetricsGeneratorUtils {
                 return "summary";
             case HISTOGRAM:
                 return "histogram";
-            case UNTYPED:
+            case UNKNOWN:
             default:
-                return "untyped";
+                return "unknown";
         }
     }
 
