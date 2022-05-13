@@ -140,9 +140,9 @@ public class TenantResources extends BaseResources<TenantInfo> {
                                         return ret;
                                     }
                                 })).reduce(CompletableFuture.completedFuture(new ArrayList<>()),
-                                        (accumulator, n) -> accumulator.thenCompose(namespaces -> n.thenCompose(m -> {
+                                        (accumulator, n) -> accumulator.thenCompose(namespaces -> n.thenApply(m -> {
                                             namespaces.addAll(m);
-                                            return CompletableFuture.completedFuture(namespaces);
+                                            return namespaces;
                                     }))));
     }
 

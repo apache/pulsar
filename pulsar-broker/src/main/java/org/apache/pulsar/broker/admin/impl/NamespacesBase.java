@@ -135,11 +135,10 @@ public abstract class NamespacesBase extends AdminResource {
                 .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
                 .thenAccept(__ -> validatePolicies(namespaceName, policies))
                 .thenCompose(__ -> {
-                    CompletableFuture<Void> ret = CompletableFuture.completedFuture(null);
                     int maxNamespacesPerTenant = pulsar().getConfiguration().getMaxNamespacesPerTenant();
                     // no distributed locks are added here.In a concurrent scenario, the threshold will be exceeded.
                     if (maxNamespacesPerTenant > 0) {
-                        ret = tenantResources().getListOfNamespacesAsync(namespaceName.getTenant())
+                        return tenantResources().getListOfNamespacesAsync(namespaceName.getTenant())
                                 .thenAccept(namespaces -> {
                                     if (namespaces != null && namespaces.size() > maxNamespacesPerTenant) {
                                         throw new RestException(Status.PRECONDITION_FAILED,
@@ -148,7 +147,7 @@ public abstract class NamespacesBase extends AdminResource {
                                     }
                                 });
                     }
-                    return ret;
+                    return CompletableFuture.completedFuture(null);
                 })
                 .thenCompose(__ -> namespaceResources().createPoliciesAsync(namespaceName, policies))
                 .thenAccept(__ -> log.info("[{}] Created namespace {}", clientAppId(), namespaceName));
