@@ -1051,9 +1051,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         }
 
         // attach the resource-group level rate limiters, if set
-        String rgName = policies.resource_group_name != null
-          ? policies.resource_group_name
-          : null;
+        String rgName = policies.resource_group_name;
         if (rgName != null) {
             final ResourceGroup resourceGroup =
               brokerService.getPulsar().getResourceGroupServiceManager().resourceGroupGet(rgName);
@@ -1166,6 +1164,9 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
             }
         } else {
             log.info("Disabling publish throttling for {}", this.topic);
+            if (topicPublishRateLimiter != null) {
+                topicPublishRateLimiter.close();
+            }
             this.topicPublishRateLimiter = PublishRateLimiter.DISABLED_RATE_LIMITER;
             enableProducerReadForPublishRateLimiting();
         }

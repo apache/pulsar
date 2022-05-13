@@ -1052,13 +1052,67 @@ public class TransactionEndToEndTest extends TransactionTestBase {
             Assert.assertTrue(e.getCause().getCause() instanceof TransactionCoordinatorClientException
                     .InvalidTxnStatusException);
         }
+        Message<String> message = null;
         try {
-            Message<String> message = consumer.receive();
+            message = consumer.receive();
             consumer.acknowledgeAsync(message.getMessageId(), transaction).get();
             Assert.fail();
         } catch (Exception e) {
             Assert.assertTrue(e.getCause() instanceof TransactionCoordinatorClientException
                     .InvalidTxnStatusException);
         }
+        Message<String> message1 = consumer.receive(5, TimeUnit.SECONDS);
+        Assert.assertEquals(message.getMessageId(), message1.getMessageId());
+    }
+
+    @Test
+    public void testTxnTimeRedeliverForShareSub() throws Exception{
+        String topic = NAMESPACE1 + "/testTxnTimeOutInClient";
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).producerName("testTxnTimeOut_producer")
+                .topic(topic).sendTimeout(0, TimeUnit.SECONDS).enableBatching(false).create();
+        @Cleanup
+        Consumer<String> consumer1 = pulsarClient.newConsumer(Schema.STRING)
+                .consumerName("testTxnTimeOut_consumer1")
+                .topic(topic)
+                .subscriptionName("testTxnTimeOut_sub1")
+                .subscriptionType(SubscriptionType.Shared)
+                .subscribe();
+
+        @Cleanup
+        Consumer<String> consumer2 = pulsarClient.newConsumer(Schema.STRING)
+                .consumerName("testTxnTimeOut_consumer2")
+                .topic(topic)
+                .subscriptionName("testTxnTimeOut_sub2")
+                .subscriptionType(SubscriptionType.Shared)
+                .subscribe();
+
+        Transaction transaction = pulsarClient.newTransaction().withTransactionTimeout(1, TimeUnit.SECONDS)
+                .build().get();
+        for (int i = 0; i < 5; i++) {
+            producer.newMessage().send();
+        }
+
+        Awaitility.await().untilAsserted(() -> {
+            Assert.assertEquals(((TransactionImpl)transaction).getState(), TransactionImpl.State.TIMEOUT);
+        });
+
+
+        Message<String> message = null;
+        try {
+            message = consumer1.receive();
+            consumer1.acknowledgeAsync(message.getMessageId(), transaction).get();
+            Assert.fail();
+        } catch (Exception e) {
+            Assert.assertTrue(e.getCause() instanceof TransactionCoordinatorClientException
+                    .InvalidTxnStatusException);
+        }
+
+        Message<String> message1 = consumer1.receive(5, TimeUnit.SECONDS);
+        Message<String> message2 = consumer2.receive(5, TimeUnit.SECONDS);
+        Assert.assertTrue(message1.getMessageId().equals(message.getMessageId())
+                && !message2.getMessageId().equals(message.getMessageId())
+                || message2.getMessageId().equals(message.getMessageId())
+                && !message1.getMessageId().equals(message.getMessageId()));
     }
 }
