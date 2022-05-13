@@ -26,7 +26,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.generic.GenericData;
-import org.apache.commons.lang3.tuple.Pair;
+import org.apache.avro.generic.GenericRecord;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -43,7 +43,8 @@ public class RemoveFieldFunction implements Function<GenericObject, Void>, Trans
 
     private List<String> keyFields;
     private List<String> valueFields;
-    private final Map<org.apache.avro.Schema, org.apache.avro.Schema> schemaCache = new HashMap<>();
+    private final Map<org.apache.avro.Schema, org.apache.avro.Schema> keySchemaCache = new HashMap<>();
+    private final Map<org.apache.avro.Schema, org.apache.avro.Schema> valueSchemaCache = new HashMap<>();
 
     public RemoveFieldFunction() {}
 
@@ -113,24 +114,31 @@ public class RemoveFieldFunction implements Function<GenericObject, Void>, Trans
 
     public void dropValueFields(List<String> fields, TransformContext record) {
         if (record.getValueSchema().getSchemaInfo().getType() == SchemaType.AVRO) {
-            org.apache.avro.generic.GenericRecord newRecord =
-                    dropFields(fields, (org.apache.avro.generic.GenericRecord) record.getValueObject());
-            record.setValueModified(true);
+            GenericRecord avroRecord = (GenericRecord) record.getValueObject();
+            GenericRecord newRecord = dropFields(fields, avroRecord, valueSchemaCache);
+            if (avroRecord != newRecord) {
+                record.setValueModified(true);
+            }
             record.setValueObject(newRecord);
         }
     }
 
     public void dropKeyFields(List<String> fields, TransformContext record) {
         if (record.getKeyObject() != null && record.getValueSchema().getSchemaInfo().getType() == SchemaType.AVRO) {
-            org.apache.avro.generic.GenericRecord newRecord =
-                    dropFields(fields, (org.apache.avro.generic.GenericRecord) record.getKeyObject());
-            record.setKeyModified(true);
+            GenericRecord avroRecord = (GenericRecord) record.getKeyObject();
+            GenericRecord newRecord = dropFields(fields, avroRecord, keySchemaCache);
+            if (avroRecord != newRecord) {
+                record.setKeyModified(true);
+            }
             record.setKeyObject(newRecord);
         }
     }
 
-    private org.apache.avro.generic.GenericRecord dropFields(List<String> fields,
-                                                                    org.apache.avro.generic.GenericRecord record) {
+    private GenericRecord dropFields(
+            List<String> fields,
+            GenericRecord record,
+            Map<org.apache.avro.Schema, org.apache.avro.Schema> schemaCache
+    ) {
         org.apache.avro.Schema avroSchema = record.getSchema();
         org.apache.avro.Schema modified = schemaCache.get(avroSchema);
         if (modified != null || fields.stream().anyMatch(field -> avroSchema.getField(field) != null)) {
@@ -147,7 +155,7 @@ public class RemoveFieldFunction implements Function<GenericObject, Void>, Trans
                 schemaCache.put(avroSchema, modified);
             }
 
-            org.apache.avro.generic.GenericRecord newRecord = new GenericData.Record(modified);
+            GenericRecord newRecord = new GenericData.Record(modified);
             for (org.apache.avro.Schema.Field field : modified.getFields()) {
                 newRecord.put(field.name(), record.get(field.name()));
             }

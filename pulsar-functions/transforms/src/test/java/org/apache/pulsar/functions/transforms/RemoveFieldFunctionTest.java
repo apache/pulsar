@@ -1,6 +1,8 @@
 package org.apache.pulsar.functions.transforms;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertSame;
+import static org.testng.Assert.assertNotSame;
 import static org.testng.AssertJUnit.assertNull;
 import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
@@ -89,6 +91,105 @@ public class RemoveFieldFunctionTest {
 
     @Test
     void testKeyValueAvro() throws Exception {
+        Record<KeyValue<GenericRecord, GenericRecord>> record = createTestAvroKeyValueRecord();
+        Map<String, Object> config = ImmutableMap.of(
+                "value-fields", "valueField1,valueField2",
+                "key-fields", "keyField1,keyField2");
+        TestContext context = new TestContext(record, config);
+
+        RemoveFieldFunction removeFieldFunction = new RemoveFieldFunction();
+        removeFieldFunction.initialize(context);
+        removeFieldFunction.process(
+                AutoConsumeSchema.wrapPrimitiveObject(record.getValue(), SchemaType.KEY_VALUE, new byte[]{}),
+                context);
+
+        TestTypedMessageBuilder<?> message = context.getOutputMessage();
+        KeyValueSchema messageSchema = (KeyValueSchema) message.getSchema();
+        KeyValue messageValue = (KeyValue) message.getValue();
+
+        GenericData.Record keyAvroRecord = getRecord(messageSchema.getKeySchema(), (byte[]) messageValue.getKey());
+        assertEquals(keyAvroRecord.get("keyField3"), new Utf8("key3"));
+        assertNull(keyAvroRecord.getSchema().getField("keyField1"));
+        assertNull(keyAvroRecord.getSchema().getField("keyField2"));
+
+        GenericData.Record valueAvroRecord =
+                getRecord(messageSchema.getValueSchema(), (byte[]) messageValue.getValue());
+        assertEquals(valueAvroRecord.get("valueField3"), new Utf8("value3"));
+        assertNull(valueAvroRecord.getSchema().getField("valueField1"));
+        assertNull(valueAvroRecord.getSchema().getField("valueField2"));
+
+        assertEquals(messageSchema.getKeyValueEncodingType(), KeyValueEncodingType.SEPARATED);
+    }
+
+    @Test
+    void testKeyValueAvroNotModified() throws Exception {
+        Record<KeyValue<GenericRecord, GenericRecord>> record = createTestAvroKeyValueRecord();
+        Map<String, Object> config = ImmutableMap.of(
+                "value-fields", "otherValue",
+                "key-fields", "otherKey");
+        TestContext context = new TestContext(record, config);
+
+        RemoveFieldFunction removeFieldFunction = new RemoveFieldFunction();
+        removeFieldFunction.initialize(context);
+        removeFieldFunction.process(
+                AutoConsumeSchema.wrapPrimitiveObject(record.getValue(), SchemaType.KEY_VALUE, new byte[]{}),
+                context);
+
+        TestTypedMessageBuilder<?> message = context.getOutputMessage();
+        KeyValueSchema messageSchema = (KeyValueSchema) message.getSchema();
+        KeyValue messageValue = (KeyValue) message.getValue();
+
+        KeyValueSchema recordSchema = (KeyValueSchema) record.getSchema();
+        KeyValue recordValue = record.getValue();
+        assertSame(messageSchema.getKeySchema(), recordSchema.getKeySchema());
+        assertSame(messageSchema.getValueSchema(), recordSchema.getValueSchema());
+        assertSame(messageValue.getKey(), ((GenericRecord) recordValue.getKey()).getNativeObject());
+        assertSame(messageValue.getValue(), ((GenericRecord) recordValue.getValue()).getNativeObject());
+    }
+
+    @Test
+    void testKeyValueAvroCached() throws Exception {
+        Record<KeyValue<GenericRecord, GenericRecord>> record = createTestAvroKeyValueRecord();
+        Map<String, Object> config = ImmutableMap.of(
+                "value-fields", "valueField1,valueField2",
+                "key-fields", "keyField1,keyField2");
+        TestContext context = new TestContext(record, config);
+
+        RemoveFieldFunction removeFieldFunction = new RemoveFieldFunction();
+        removeFieldFunction.initialize(context);
+        removeFieldFunction.process(
+                AutoConsumeSchema.wrapPrimitiveObject(record.getValue(), SchemaType.KEY_VALUE, new byte[]{}),
+                context);
+
+        TestTypedMessageBuilder<?> message = context.getOutputMessage();
+        KeyValueSchema messageSchema = (KeyValueSchema) message.getSchema();
+
+        Record<KeyValue<GenericRecord, GenericRecord>> newRecord = createTestAvroKeyValueRecord();
+
+        context.setCurrentRecord(newRecord);
+
+        removeFieldFunction.process(
+                AutoConsumeSchema.wrapPrimitiveObject(newRecord.getValue(), SchemaType.KEY_VALUE, new byte[]{}),
+                context);
+
+        message = context.getOutputMessage();
+        KeyValueSchema newMessageSchema = (KeyValueSchema) message.getSchema();
+
+        // Schema was modified by process operation
+        KeyValueSchema recordSchema = (KeyValueSchema) record.getSchema();
+        KeyValue recordValue = record.getValue();
+        assertNotSame(messageSchema.getKeySchema().getNativeSchema().get(), recordSchema.getKeySchema().getNativeSchema().get());
+        assertNotSame(messageSchema.getValueSchema().getNativeSchema().get(), recordSchema.getValueSchema().getNativeSchema().get());
+
+        // Multiple process output the same cached schema
+        assertSame(messageSchema.getKeySchema().getNativeSchema().get(),
+                newMessageSchema.getKeySchema().getNativeSchema().get());
+        assertSame(messageSchema.getValueSchema().getNativeSchema().get(),
+                newMessageSchema.getValueSchema().getNativeSchema().get());
+
+    }
+
+    private Record<KeyValue<GenericRecord, GenericRecord>> createTestAvroKeyValueRecord() {
         RecordSchemaBuilder keySchemaBuilder = org.apache.pulsar.client.api.schema.SchemaBuilder.record("record");
         keySchemaBuilder.field("keyField1").type(SchemaType.STRING);
         keySchemaBuilder.field("keyField2").type(SchemaType.STRING);
@@ -118,7 +219,7 @@ public class RemoveFieldFunctionTest {
 
         KeyValue<GenericRecord, GenericRecord> keyValue = new KeyValue<>(keyRecord, valueRecord);
 
-        Record<KeyValue<GenericRecord, GenericRecord>> record = new Record<KeyValue<GenericRecord, GenericRecord>>() {
+        return new Record<KeyValue<GenericRecord, GenericRecord>>() {
             @Override
             public Optional<String> getKey() {
                 return Optional.empty();
@@ -134,33 +235,6 @@ public class RemoveFieldFunctionTest {
                 return keyValue;
             }
         };
-        Map<String, Object> config = ImmutableMap.of(
-                "value-fields", "valueField1,valueField2",
-                "key-fields", "keyField1,keyField2");
-        TestContext context = new TestContext(record, config);
-
-        RemoveFieldFunction removeFieldFunction = new RemoveFieldFunction();
-        removeFieldFunction.initialize(context);
-        removeFieldFunction.process(
-                AutoConsumeSchema.wrapPrimitiveObject(keyValue, SchemaType.KEY_VALUE, new byte[]{}),
-                context);
-
-        TestTypedMessageBuilder<?> message = context.getOutputMessage();
-        KeyValueSchema messageSchema = (KeyValueSchema) message.getSchema();
-        KeyValue messageValue = (KeyValue) message.getValue();
-
-        GenericData.Record keyAvroRecord = getRecord(messageSchema.getKeySchema(), (byte[]) messageValue.getKey());
-        assertEquals(keyAvroRecord.get("keyField3"), new Utf8("key3"));
-        assertNull(keyAvroRecord.getSchema().getField("keyField1"));
-        assertNull(keyAvroRecord.getSchema().getField("keyField2"));
-
-        GenericData.Record valueAvroRecord =
-                getRecord(messageSchema.getValueSchema(), (byte[]) messageValue.getValue());
-        assertEquals(valueAvroRecord.get("valueField3"), new Utf8("value3"));
-        assertNull(valueAvroRecord.getSchema().getField("valueField1"));
-        assertNull(valueAvroRecord.getSchema().getField("valueField2"));
-
-        assertEquals(messageSchema.getKeyValueEncodingType(), KeyValueEncodingType.SEPARATED);
     }
 
     private GenericData.Record getRecord(Schema<?> schema, byte[] value)
@@ -284,13 +358,17 @@ public class RemoveFieldFunctionTest {
     }
 
     public static class TestContext implements Context {
-        private final Record<?> currentRecord;
+        private Record<?> currentRecord;
         private final Map<String, Object> userConfig;
         private TestTypedMessageBuilder<?> outputMessage;
 
         public TestContext(Record<?> currentRecord, Map<String, Object> userConfig) {
             this.currentRecord = currentRecord;
             this.userConfig = userConfig;
+        }
+
+        public void setCurrentRecord(Record<?> currentRecord) {
+            this.currentRecord = currentRecord;
         }
 
         @Override

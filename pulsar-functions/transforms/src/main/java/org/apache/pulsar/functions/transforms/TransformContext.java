@@ -47,7 +47,7 @@ public class TransformContext {
             } else {
                 this.keyObject = kv.getKey();
             }
-            this.valueSchema = kvSchema.getKeySchema();
+            this.valueSchema = kvSchema.getValueSchema();
             if (this.valueSchema.getSchemaInfo().getType() == SchemaType.AVRO) {
                 this.valueObject =
                         ((org.apache.pulsar.client.api.schema.GenericRecord) kv.getValue()).getNativeObject();
@@ -101,7 +101,7 @@ public class TransformContext {
         message.send();
     }
 
-    public static byte[] serializeGenericRecord(org.apache.avro.generic.GenericRecord record) throws IOException {
+    public static byte[] serializeGenericRecord(GenericRecord record) throws IOException {
         GenericDatumWriter writer = new GenericDatumWriter(record.getSchema());
         ByteArrayOutputStream oo = new ByteArrayOutputStream();
         BinaryEncoder encoder = EncoderFactory.get().directBinaryEncoder(oo, null);
