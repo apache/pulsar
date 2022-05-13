@@ -267,6 +267,48 @@ public class Namespaces extends NamespacesBase {
         internalRevokePermissionsOnSubscription(subscription, role);
     }
 
+    @PUT
+    @Path("/{property}/{namespace}/implicitPermissionOnSubscription")
+    @ApiOperation(hidden = true, value = "Allow a consumer's role to have implicit permission to consume from a"
+            + " subscription.")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist"),
+            @ApiResponse(code = 409, message = "Concurrent modification"),
+            @ApiResponse(code = 501, message = "Authorization is not enabled")})
+    public void grantImplicitPermissionOnSubscription(
+            @PathParam("property") String property,
+            @PathParam("namespace") String namespace) {
+        validateNamespaceName(property, namespace);
+        internalSetImplicitPermissionOnSubscription(true);
+    }
+
+    @DELETE
+    @Path("/{property}/{namespace}/implicitPermissionOnSubscription")
+    @ApiOperation(hidden = true, value = "Require a consumer's role to have explicit permission to consume from a"
+            + " subscription.")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist"),
+            @ApiResponse(code = 409, message = "Concurrent modification"),
+            @ApiResponse(code = 501, message = "Authorization is not enabled")})
+    public void revokeImplicitPermissionOnSubscription(
+            @PathParam("property") String property,
+            @PathParam("namespace") String namespace) {
+        validateNamespaceName(property, namespace);
+        internalSetImplicitPermissionOnSubscription(false);
+    }
+
+    @GET
+    @Path("/{property}/{namespace}/implicitPermissionOnSubscription")
+    @ApiOperation(value = "Get permission on subscription required for namespace.")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist"),
+            @ApiResponse(code = 409, message = "Namespace is not empty")})
+    public boolean getRequirePermissionOnSubscriptions(@PathParam("property") String property,
+                                                       @PathParam("namespace") String namespace) {
+        validateNamespaceName(property, namespace);
+        return getImplicitPermissionOnSubscription();
+    }
+
     @GET
     @Path("/{tenant}/{namespace}/replication")
     @ApiOperation(value = "Get the replication clusters for a namespace.",

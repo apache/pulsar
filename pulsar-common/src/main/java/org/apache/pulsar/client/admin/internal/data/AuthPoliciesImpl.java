@@ -42,6 +42,10 @@ public final class AuthPoliciesImpl implements AuthPolicies {
     @JsonProperty("subscription_auth_roles")
     private Map<String, Set<String>> subscriptionAuthentication = new TreeMap<>();
 
+    // Default value is set in the builder
+    @JsonProperty(value = "implicit_subscription_auth")
+    private boolean implicitSubscriptionAuth;
+
     public static AuthPolicies.Builder builder() {
         return new AuthPoliciesImplBuilder();
     }
@@ -51,6 +55,7 @@ public final class AuthPoliciesImpl implements AuthPolicies {
         private Map<String, Set<AuthAction>> namespaceAuthentication = new TreeMap<>();
         private Map<String, Map<String, Set<AuthAction>>> topicAuthentication = new TreeMap<>();;
         private Map<String, Set<String>> subscriptionAuthentication = new TreeMap<>();;
+        private boolean implicitSubscriptionAuth = true;
 
         AuthPoliciesImplBuilder() {
         }
@@ -73,14 +78,21 @@ public final class AuthPoliciesImpl implements AuthPolicies {
             return this;
         }
 
+        public AuthPoliciesImplBuilder implicitSubscriptionAuth(boolean implicitSubscriptionAuth) {
+            this.implicitSubscriptionAuth = implicitSubscriptionAuth;
+            return this;
+        }
+
         public AuthPoliciesImpl build() {
-            return new AuthPoliciesImpl(namespaceAuthentication, topicAuthentication, subscriptionAuthentication);
+            return new AuthPoliciesImpl(namespaceAuthentication, topicAuthentication, subscriptionAuthentication,
+                    implicitSubscriptionAuth);
         }
 
         public String toString() {
             return "AuthPoliciesImpl.AuthPoliciesImplBuilder(namespaceAuthentication=" + this.namespaceAuthentication
                     + ", topicAuthentication=" + this.topicAuthentication + ", subscriptionAuthentication="
-                    + this.subscriptionAuthentication + ")";
+                    + this.subscriptionAuthentication + ", implicitSubscriptionAuth="
+                    + this.implicitSubscriptionAuth + ")";
         }
     }
 }

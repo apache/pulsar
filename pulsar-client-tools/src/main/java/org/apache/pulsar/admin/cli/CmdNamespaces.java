@@ -290,6 +290,45 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription =
+            "Get whether a namespace allows implicit permission to consume from a subscription.")
+    private class ImplicitSubscriptionPermission extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            print(getAdmin().namespaces().getImplicitPermissionOnSubscription(namespace));
+        }
+    }
+
+    @Parameters(commandDescription = "Grant all roles implicit permission to consume from a subscription if no "
+            + "subscription permission is defined for that subscription in the namespace.")
+    private class GrantImplicitSubscriptionPermission extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            getAdmin().namespaces().grantImplicitPermissionOnSubscription(namespace);
+        }
+    }
+
+    @Parameters(commandDescription = "Revoke implicit permission for any role to consume from a subscription if no "
+            + "subscription permission is defined for that subscription in the namespace.")
+    private class RevokeImplicitSubscriptionPermission extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            getAdmin().namespaces().revokeImplicitPermissionOnSubscription(namespace);
+        }
+    }
+
     @Parameters(commandDescription = "Get the permissions on a namespace")
     private class Permissions extends CliCommand {
         @Parameter(description = "tenant/namespace", required = true)
@@ -2580,6 +2619,10 @@ public class CmdNamespaces extends CmdBase {
         jcommander.addCommand("subscription-permission", new SubscriptionPermissions());
         jcommander.addCommand("grant-subscription-permission", new GrantSubscriptionPermissions());
         jcommander.addCommand("revoke-subscription-permission", new RevokeSubscriptionPermissions());
+
+        jcommander.addCommand("implicit-subscription-permission", new ImplicitSubscriptionPermission());
+        jcommander.addCommand("grant-implicit-subscription-permission", new GrantImplicitSubscriptionPermission());
+        jcommander.addCommand("revoke-implicit-subscription-permission", new RevokeImplicitSubscriptionPermission());
 
         jcommander.addCommand("set-clusters", new SetReplicationClusters());
         jcommander.addCommand("get-clusters", new GetReplicationClusters());

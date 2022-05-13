@@ -426,6 +426,55 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
+    public void grantImplicitPermissionOnSubscription(String namespace) throws PulsarAdminException {
+        sync(() -> grantImplicitPermissionOnSubscriptionAsync(namespace));
+    }
+
+    @Override
+    public CompletableFuture<Void> grantImplicitPermissionOnSubscriptionAsync(String namespace) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        WebTarget path = namespacePath(ns, "implicitPermissionOnSubscription");
+        return asyncPutRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public void revokeImplicitPermissionOnSubscription(String namespace) throws PulsarAdminException {
+        sync(() -> revokeImplicitPermissionOnSubscriptionAsync(namespace));
+    }
+
+    @Override
+    public CompletableFuture<Void> revokeImplicitPermissionOnSubscriptionAsync(String namespace) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        WebTarget path = namespacePath(ns, "implicitPermissionOnSubscription");
+        return asyncDeleteRequest(path);
+    }
+
+    @Override
+    public boolean getImplicitPermissionOnSubscription(String namespace) throws PulsarAdminException {
+        return sync(() -> getImplicitPermissionOnSubscriptionAsync(namespace));
+    }
+
+    @Override
+    public CompletableFuture<Boolean> getImplicitPermissionOnSubscriptionAsync(String namespace) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        WebTarget path = namespacePath(ns, "implicitPermissionOnSubscription");
+        final CompletableFuture<Boolean> future = new CompletableFuture<>();
+        asyncGetRequest(path,
+                new InvocationCallback<Boolean>() {
+                    @Override
+                    public void completed(Boolean enabled) {
+                        future.complete(enabled);
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+        return future;
+    }
+
+    @Override
     public List<String> getNamespaceReplicationClusters(String namespace) throws PulsarAdminException {
         return sync(() -> getNamespaceReplicationClustersAsync(namespace));
     }

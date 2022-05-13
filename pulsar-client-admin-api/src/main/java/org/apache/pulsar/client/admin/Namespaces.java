@@ -738,6 +738,57 @@ public interface Namespaces {
     CompletableFuture<Void> revokePermissionOnSubscriptionAsync(String namespace, String subscription, String role);
 
     /**
+     * Get whether a namespace allows implicit permission to consume from a subscription.
+     *
+     * @param namespace Pulsar namespace name
+     * @return
+     * @throws PulsarAdminException
+     */
+    boolean getImplicitPermissionOnSubscription(String namespace) throws PulsarAdminException;
+
+    /**
+     * Get whether a namespace allows implicit permission to consume from a subscription.
+     * @param namespace Pulsar namespace name
+     * @return
+     */
+    CompletableFuture<Boolean> getImplicitPermissionOnSubscriptionAsync(String namespace);
+
+    /**
+     * Grant all roles implicit permission to consume from a subscription if no subscription permission is defined
+     * for that subscription in the namespace.
+     * @param namespace Pulsar namespace name
+     * @throws PulsarAdminException
+     */
+    void grantImplicitPermissionOnSubscription(String namespace)
+            throws PulsarAdminException;
+
+    /**
+     * Grant all roles implicit permission to consume from a subscription if no subscription permission is defined
+     * for that subscription in the namespace.
+     * @param namespace Pulsar namespace name
+     * @return
+     */
+    CompletableFuture<Void> grantImplicitPermissionOnSubscriptionAsync(String namespace);
+
+    /**
+     * Revoke implicit permission for any role to consume from a subscription if no subscription permission is defined
+     * for that subscription in the namespace.
+     * @param namespace Pulsar namespace name
+     * @throws PulsarAdminException
+     */
+    void revokeImplicitPermissionOnSubscription(String namespace)
+            throws PulsarAdminException;
+
+    /**
+     * Revoke implicit permission for any role to consume from a subscription if no subscription permission is defined
+     * for that subscription in the namespace.
+     * @param namespace Pulsar namespace name
+     * @return
+     */
+    CompletableFuture<Void> revokeImplicitPermissionOnSubscriptionAsync(String namespace);
+
+
+    /**
      * Get the replication clusters for a namespace.
      * <p/>
      * Response example:
