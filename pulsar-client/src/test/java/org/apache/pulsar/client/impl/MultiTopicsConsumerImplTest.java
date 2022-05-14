@@ -28,6 +28,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.expectThrows;
 import com.google.common.collect.Sets;
@@ -35,7 +36,9 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timer;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import java.nio.ByteBuffer;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -46,12 +49,15 @@ import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Messages;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.util.ExecutorProvider;
+import org.apache.pulsar.common.api.proto.CommandAck;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.awaitility.Awaitility;
@@ -243,4 +249,74 @@ public class MultiTopicsConsumerImplTest {
         verify(clientMock, times(3)).getPartitionedTopicMetadata(any());
     }
 
+    @Test
+    public void testReconsumeLaterWhenRetryDisabled() {
+        MultiTopicsConsumerImpl<byte[]> consumer = createMultiTopicsConsumer();
+
+        MessageId messageId = new TopicMessageIdImpl("topic-partition-1", "topic",
+                new MessageIdImpl(0, 0, 0));
+        ByteBuffer payload = ByteBuffer.wrap(new byte[0]);
+        MessageImpl<?> msg = MessageImpl.create(new MessageMetadata(), payload, Schema.BYTES, null);
+        msg.setMessageId(messageId);
+        Throwable cause1 = null;
+        try {
+            consumer.reconsumeLater(msg, null, 1, TimeUnit.MINUTES);
+        } catch (PulsarClientException e) {
+            cause1 = e;
+        }
+        assertNotNull(cause1);
+        assertEquals(cause1.getClass(), PulsarClientException.NotSupportedException.class);
+
+        CompletableFuture<Void> future2 = consumer.reconsumeLaterAsync(msg, null, 1, TimeUnit.MINUTES);
+        Throwable cause2 = getExceptionallyFutureCause(future2);
+        assertEquals(cause2.getClass(), PulsarClientException.NotSupportedException.class);
+
+        CompletableFuture<Void> future3 = consumer.reconsumeLaterCumulativeAsync(msg, null, 1, TimeUnit.MINUTES);
+        Throwable cause3 = getExceptionallyFutureCause(future3);
+        assertEquals(cause3.getClass(), PulsarClientException.NotSupportedException.class);
+    }
+
+    @Test
+    public void testDoReconsumeLaterWhenClosed() {
+        MultiTopicsConsumerImpl<byte[]> consumer = createMultiTopicsConsumer();
+        consumer.setState(HandlerState.State.Closed);
+
+        MessageId messageId = new TopicMessageIdImpl("topic-partition-1", "topic",
+                new MessageIdImpl(0, 0, 0));
+        ByteBuffer payload = ByteBuffer.wrap(new byte[0]);
+        MessageImpl<?> msg = MessageImpl.create(new MessageMetadata(), payload, Schema.BYTES, null);
+        msg.setMessageId(messageId);
+        CompletableFuture<Void> future = consumer.doReconsumeLater(msg, CommandAck.AckType.Cumulative, null, 1,
+                TimeUnit.MINUTES);
+        Throwable cause = getExceptionallyFutureCause(future);
+        assertEquals(cause.getClass(), PulsarClientException.AlreadyClosedException.class);
+    }
+
+    @Test
+    public void testAcknowledgeWhenClosed() {
+        MultiTopicsConsumerImpl<byte[]> consumer = createMultiTopicsConsumer();
+        consumer.setState(HandlerState.State.Closed);
+
+        MessageId messageId = new TopicMessageIdImpl("topic-partition-1", "topic",
+                new MessageIdImpl(0, 0, 0));
+        CompletableFuture<Void> future1 = consumer.doAcknowledge(messageId, CommandAck.AckType.Cumulative, null, null);
+        Throwable cause1 = getExceptionallyFutureCause(future1);
+        assertEquals(cause1.getClass(), PulsarClientException.AlreadyClosedException.class);
+
+        CompletableFuture<Void> future2 = consumer.doAcknowledge(Collections.singletonList(messageId),
+                CommandAck.AckType.Cumulative, null, null);
+        Throwable cause2 = getExceptionallyFutureCause(future2);
+        assertEquals(cause2.getClass(), PulsarClientException.AlreadyClosedException.class);
+    }
+
+    private Throwable getExceptionallyFutureCause(CompletableFuture<Void> future) {
+        assertTrue(future.isCompletedExceptionally(), "future should completed exceptionally");
+        Exception ex = null;
+        try {
+            future.join();
+        } catch (Exception e) {
+            ex = e;
+        }
+        return ex.getCause();
+    }
 }

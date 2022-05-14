@@ -35,6 +35,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Messages;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -256,5 +257,17 @@ public class ConsumerImplTest {
         createConsumer(consumerConf);
 
         assertThat(consumer.getPriorityLevel()).isEqualTo(1);
+    }
+
+    @Test(expectedExceptions = PulsarClientException.NotConnectedException.class)
+    public void testUnsubscribeWhenDisconnected() throws PulsarClientException {
+        Assert.assertFalse(consumer.isConnected());
+        consumer.unsubscribe();
+    }
+
+    @Test(expectedExceptions = PulsarClientException.NotConnectedException.class)
+    public void testSeekWhenDisconnected() throws PulsarClientException {
+        Assert.assertFalse(consumer.isConnected());
+        consumer.seek(MessageId.latest);
     }
 }
