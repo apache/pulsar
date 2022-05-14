@@ -323,6 +323,11 @@ public abstract class AdminResource extends PulsarWebResource {
                         return FutureUtil.failedFuture(new RestException(e));
                     }
                     policies.get().bundles = bundleData != null ? bundleData : policies.get().bundles;
+                    if (policies.get().is_allow_auto_update_schema == null) {
+                        // the type changed from boolean to Boolean. return broker value here for keeping compatibility.
+                        policies.get().is_allow_auto_update_schema = pulsar().getConfig()
+                                .isAllowAutoUpdateSchemaEnabled();
+                    }
                     return CompletableFuture.completedFuture(policies.get());
                 });
             } else {
@@ -532,6 +537,11 @@ public abstract class AdminResource extends PulsarWebResource {
                     namespaceName.toString(), e);
             throw new RestException(e);
         }
+    }
+
+    protected CompletableFuture<List<String>> getPartitionedTopicListAsync(TopicDomain topicDomain) {
+        return namespaceResources().getPartitionedTopicResources()
+                .listPartitionedTopicsAsync(namespaceName, topicDomain);
     }
 
     protected List<String> getTopicPartitionList(TopicDomain topicDomain) {
