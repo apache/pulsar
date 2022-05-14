@@ -10,6 +10,7 @@ import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.GenericObject;
+import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.Record;
@@ -33,10 +34,18 @@ public class TransformFunction implements Function<GenericObject, Void> {
         }
         for (Map<String, String> step : stepsConfig) {
             String type = step.get("type");
-            if ("drop-fields".equals(type)) {
-                steps.add(newRemoveFieldFunction(step));
-            } else {
-                throw new IllegalArgumentException("invalid step type: " + type);
+            switch (type) {
+                case "drop-fields":
+                    steps.add(newRemoveFieldFunction(step));
+                    break;
+                case "cast":
+                    steps.add(newCastFunction(step));
+                    break;
+                case "merge-key-value":
+                    steps.add(new MergeKeyValueFunction());
+                    break;
+                default:
+                    throw new IllegalArgumentException("invalid step type: " + type);
             }
         }
 
@@ -75,6 +84,24 @@ public class TransformFunction implements Function<GenericObject, Void> {
             return new RemoveFieldFunction(fieldList, new ArrayList<>());
         } else if (part.equals("value")) {
             return new RemoveFieldFunction(new ArrayList<>(), fieldList);
+        } else {
+            throw new IllegalArgumentException("invalid 'part' parameter: " + part);
+        }
+    }
+
+    public static CastFunction newCastFunction(Map<String, String> step) {
+        String schemaTypeParam = step.get("schema-type");
+        if (schemaTypeParam == null || schemaTypeParam.isEmpty()) {
+            throw new IllegalArgumentException("missing required 'schema' parameter");
+        }
+        SchemaType schemaType = SchemaType.valueOf(schemaTypeParam);
+        String part = step.get("part");
+        if (part == null) {
+            return new CastFunction(schemaType, schemaType);
+        } else if (part.equals("key")) {
+            return new CastFunction(schemaType, null);
+        } else if (part.equals("value")) {
+            return new CastFunction(null, schemaType);
         } else {
             throw new IllegalArgumentException("invalid 'part' parameter: " + part);
         }

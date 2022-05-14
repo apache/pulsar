@@ -65,12 +65,12 @@ public class TransformContext {
     }
 
     public void send() throws IOException {
-        if (keyModified && keySchema.getSchemaInfo().getType() == SchemaType.AVRO) {
+        if (keyModified && keySchema != null && keySchema.getSchemaInfo().getType() == SchemaType.AVRO) {
             GenericRecord genericRecord = (GenericRecord) keyObject;
             keySchema = Schema.NATIVE_AVRO(genericRecord.getSchema());
             keyObject = serializeGenericRecord(genericRecord);
         }
-        if (valueModified && valueSchema.getSchemaInfo().getType() == SchemaType.AVRO) {
+        if (valueModified && valueSchema != null && valueSchema.getSchemaInfo().getType() == SchemaType.AVRO) {
             GenericRecord genericRecord = (GenericRecord) valueObject;
             valueSchema = Schema.NATIVE_AVRO(genericRecord.getSchema());
             valueObject = serializeGenericRecord(genericRecord);

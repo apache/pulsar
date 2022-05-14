@@ -97,4 +97,29 @@ public class TransformFunctionTest {
         assertNull(valueAvroRecord.getSchema().getField("valueField1"));
         assertNull(valueAvroRecord.getSchema().getField("valueField3"));
     }
+
+    // TODO: just for demo. To be removed
+    @Test
+    void testRemoveMergeAndToString() throws Exception {
+        String userConfig = (""
+                + "{'steps': ["
+                + "    {'type': 'drop-fields', 'fields': 'keyField1'},"
+                + "    {'type': 'merge-key-value'},"
+                + "    {'type': 'cast', 'schema-type': 'STRING'}"
+                + "]}").replace("'", "\"");
+        Map<String, Object> config = new Gson().fromJson(userConfig, new TypeToken<Map<String, Object>>() {}.getType());
+        TransformFunction transformFunction = new TransformFunction();
+
+        Record<KeyValue<GenericRecord, GenericRecord>> record = createTestAvroKeyValueRecord();
+        Utils.TestContext context = new Utils.TestContext(record, config);
+        transformFunction.initialize(context);
+        transformFunction.process(
+                AutoConsumeSchema.wrapPrimitiveObject(record.getValue(), SchemaType.KEY_VALUE, new byte[]{}),
+                context);
+
+        Utils.TestTypedMessageBuilder<?> message = context.getOutputMessage();
+        assertEquals(message.getValue(), "{\"keyField2\": \"key2\", \"keyField3\": \"key3\", \"valueField1\": "
+                + "\"value1\", \"valueField2\": \"value2\", \"valueField3\": \"value3\"}");
+    }
+
 }
