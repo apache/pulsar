@@ -25,6 +25,9 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.attribute.PosixFilePermission;
+import java.nio.file.attribute.PosixFilePermissions;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -156,5 +159,18 @@ public class NarUnpackerTest {
         File javaHome = new File(System.getProperty("java.home"));
         File javaExe = new File(javaHome, "bin/java" + (SystemUtils.IS_OS_WINDOWS ? ".exe" : ""));
         return javaExe;
+    }
+    @Test
+    public void testForPermissionSet() throws IOException{
+        File file = File.createTempFile("TestFilePerm", "test");
+	file.delete();
+        File dir = Files.createTempDirectory("TestDirectoryPerm").toFile();
+	dir.delete();
+	Set<PosixFilePermission> fileperms = PosixFilePermissions.fromString("rw-r-----");
+        NarUnpacker.createFileWithSpecialPermission(file, "rw-r-----");
+        assertEquals(Files.getPosixFilePermissions(file.toPath()), fileperms);
+	Set<PosixFilePermission> dirperms = PosixFilePermissions.fromString("rwxr-x---");
+        NarUnpacker.createDirWithSpecialPermission(dir, "rwxr-x---",false);
+        assertEquals(Files.getPosixFilePermissions(dir.toPath()), dirperms);
     }
 }

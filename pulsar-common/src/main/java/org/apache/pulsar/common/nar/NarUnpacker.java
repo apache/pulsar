@@ -192,8 +192,8 @@ public class NarUnpacker {
             return false;
         }
     }
-
-    private static boolean createDirWithSpecialPermission(File file, String permission, boolean createParent)
+    @VisibleForTesting
+    static boolean createDirWithSpecialPermission(File file, String permission, boolean createParent)
             throws IOException {
         if (file.exists()) {
             log.warn("Directory " + file.toString() + " exist.");
@@ -210,8 +210,8 @@ public class NarUnpacker {
             throw new IOException(e.getMessage());
         }
     }
-
-    private static boolean createFileWithSpecialPermission(File file, String permission) throws IOException {
+    @VisibleForTesting
+    static boolean createFileWithSpecialPermission(File file, String permission) throws IOException {
         if (file.exists()){
             log.warn("File " + file.toString() + " exist.");
             return false;
