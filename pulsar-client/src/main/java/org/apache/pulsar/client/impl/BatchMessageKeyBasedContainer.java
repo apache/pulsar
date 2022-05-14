@@ -18,23 +18,12 @@
  */
 package org.apache.pulsar.client.impl;
 
-import com.google.common.collect.ComparisonChain;
-import io.netty.buffer.ByteBuf;
-import io.netty.util.ReferenceCountUtil;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
-import org.apache.pulsar.common.api.proto.CompressionType;
-import org.apache.pulsar.common.api.proto.MessageMetadata;
-import org.apache.pulsar.common.compression.CompressionCodec;
-import org.apache.pulsar.common.protocol.ByteBufPair;
-import org.apache.pulsar.common.protocol.Commands;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,7 +38,7 @@ import org.slf4j.LoggerFactory;
  */
 class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
 
-    private Map<String, KeyedBatch> batches = new HashMap<>();
+    private final Map<String, BatchMessageContainerImpl> batches = new HashMap<>();
 
     @Override
     public boolean add(MessageImpl<?> msg, SendCallback callback) {
@@ -57,29 +46,16 @@ class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
             log.debug("[{}] [{}] add message to batch, num messages in batch so far is {}", topicName, producerName,
                     numMessagesInBatch);
         }
-        numMessagesInBatch++;
-        currentBatchSizeBytes += msg.getDataBuffer().readableBytes();
         String key = getKey(msg);
-        KeyedBatch part = batches.get(key);
-        if (part == null) {
-            part = new KeyedBatch();
-            part.addMsg(msg, callback);
-            part.compressionType = compressionType;
-            part.compressor = compressor;
-            part.maxBatchSize = maxBatchSize;
-            part.topicName = topicName;
-            part.producerName = producerName;
-            batches.putIfAbsent(key, part);
-
-            if (msg.getMessageBuilder().hasTxnidMostBits() && currentTxnidMostBits == -1) {
-                currentTxnidMostBits = msg.getMessageBuilder().getTxnidMostBits();
-            }
-            if (msg.getMessageBuilder().hasTxnidLeastBits() && currentTxnidLeastBits == -1) {
-                currentTxnidLeastBits = msg.getMessageBuilder().getTxnidLeastBits();
-            }
-
-        } else {
-            part.addMsg(msg, callback);
+        final BatchMessageContainerImpl batchMessageContainer = batches.computeIfAbsent(key,
+                __ -> new BatchMessageContainerImpl(producer));
+        batchMessageContainer.add(msg, callback);
+        // The `add` method fails iff the container is empty, i.e. the `msg` is the first message to add, while `msg`
+        // was failed to add. In this case, `clear` method will be called and the batch container is empty and there is
+        // no need to update the stats.
+        if (!batchMessageContainer.isEmpty()) {
+            numMessagesInBatch++;
+            currentBatchSizeBytes += msg.getDataBuffer().readableBytes();
         }
         return isBatchFull();
     }
@@ -88,7 +64,7 @@ class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
     public void clear() {
         numMessagesInBatch = 0;
         currentBatchSizeBytes = 0;
-        batches = new HashMap<>();
+        batches.clear();
         currentTxnidMostBits = -1L;
         currentTxnidLeastBits = -1L;
     }
@@ -100,13 +76,7 @@ class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
 
     @Override
     public void discard(Exception ex) {
-        try {
-            // Need to protect ourselves from any exception being thrown in the future handler from the application
-            batches.forEach((k, v) -> v.firstCallback.sendComplete(ex));
-        } catch (Throwable t) {
-            log.warn("[{}] [{}] Got exception while completing the callback", topicName, producerName, t);
-        }
-        batches.forEach((k, v) -> ReferenceCountUtil.safeRelease(v.batchedMessageMetadataAndPayload));
+        batches.forEach((k, v) -> v.discard(ex));
         clear();
     }
 
@@ -115,66 +85,45 @@ class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
         return true;
     }
 
-    private ProducerImpl.OpSendMsg createOpSendMsg(KeyedBatch keyedBatch) throws IOException {
-        ByteBuf encryptedPayload = producer.encryptMessage(keyedBatch.messageMetadata,
-                keyedBatch.getCompressedBatchMetadataAndPayload());
-        if (encryptedPayload.readableBytes() > ClientCnx.getMaxMessageSize()) {
-            keyedBatch.discard(new PulsarClientException.InvalidMessageException(
-                    "Message size is bigger than " + ClientCnx.getMaxMessageSize() + " bytes"));
-            return null;
-        }
-
-        final int numMessagesInBatch = keyedBatch.messages.size();
-        long currentBatchSizeBytes = 0;
-        for (MessageImpl<?> message : keyedBatch.messages) {
-            currentBatchSizeBytes += message.getDataBuffer().readableBytes();
-        }
-        keyedBatch.messageMetadata.setNumMessagesInBatch(numMessagesInBatch);
-        if (currentTxnidMostBits != -1) {
-            keyedBatch.messageMetadata.setTxnidMostBits(currentTxnidMostBits);
-        }
-        if (currentTxnidLeastBits != -1) {
-            keyedBatch.messageMetadata.setTxnidLeastBits(currentTxnidLeastBits);
-        }
-        ByteBufPair cmd = producer.sendMessage(producer.producerId, keyedBatch.sequenceId, numMessagesInBatch,
-                keyedBatch.messageMetadata, encryptedPayload);
-
-        ProducerImpl.OpSendMsg op = ProducerImpl.OpSendMsg.create(
-                keyedBatch.messages, cmd, keyedBatch.sequenceId, keyedBatch.firstCallback);
-
-        op.setNumMessagesInBatch(numMessagesInBatch);
-        op.setBatchSizeByte(currentBatchSizeBytes);
-        return op;
-    }
-
     @Override
     public List<ProducerImpl.OpSendMsg> createOpSendMsgs() throws IOException {
-        List<ProducerImpl.OpSendMsg> result = new ArrayList<>();
-        List<KeyedBatch> list = new ArrayList<>(batches.values());
-        list.sort(((o1, o2) -> ComparisonChain.start()
-                .compare(o1.sequenceId, o2.sequenceId)
-                .result()));
-        for (KeyedBatch keyedBatch : list) {
-            ProducerImpl.OpSendMsg op = createOpSendMsg(keyedBatch);
-            if (op != null) {
-                result.add(op);
+        try {
+            // In key based batching, the sequence ids might not be ordered, for example,
+            // | key | sequence id list |
+            // | :-- | :--------------- |
+            // | A | 0, 3, 4 |
+            // | B | 1, 2 |
+            // The message order should be 1, 2, 0, 3, 4 so that a message with a sequence id <= 4 should be dropped.
+            // However, for a MessageMetadata with both `sequence_id` and `highest_sequence_id` fields, the broker will
+            // expect a strict order so that the batch of key "A" (0, 3, 4) will be dropped.
+            // Therefore, we should update the `sequence_id` field to the highest sequence id and remove the
+            // `highest_sequence_id` field to allow the weak order.
+            batches.values().forEach(batchMessageContainer -> {
+                batchMessageContainer.setLowestSequenceId(batchMessageContainer.getHighestSequenceId());
+            });
+            return batches.values().stream().sorted((o1, o2) ->
+                    (int) (o1.getLowestSequenceId() - o2.getLowestSequenceId())
+            ).map(batchMessageContainer -> {
+                try {
+                    return batchMessageContainer.createOpSendMsg();
+                } catch (IOException e) {
+                    throw new IllegalStateException(e);
+                }
+            }).collect(Collectors.toList());
+        } catch (IllegalStateException e) {
+            if (e.getCause() instanceof IOException) {
+                throw (IOException) e.getCause();
+            } else {
+                throw e;
             }
         }
-        return result;
     }
 
     @Override
     public boolean hasSameSchema(MessageImpl<?> msg) {
         String key = getKey(msg);
-        KeyedBatch part = batches.get(key);
-        if (part == null || part.messages.isEmpty()) {
-            return true;
-        }
-        if (!part.messageMetadata.hasSchemaVersion()) {
-            return msg.getSchemaVersion() == null;
-        }
-        return Arrays.equals(msg.getSchemaVersion(),
-                             part.messageMetadata.getSchemaVersion());
+        BatchMessageContainerImpl batchMessageContainer = batches.get(key);
+        return batchMessageContainer == null || batchMessageContainer.hasSameSchema(msg);
     }
 
     private String getKey(MessageImpl<?> msg) {
@@ -182,78 +131,6 @@ class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
             return Base64.getEncoder().encodeToString(msg.getOrderingKey());
         }
         return msg.getKey();
-    }
-
-    private static class KeyedBatch {
-        private final MessageMetadata messageMetadata = new MessageMetadata();
-        // sequence id for this batch which will be persisted as a single entry by broker
-        private long sequenceId = -1;
-        private ByteBuf batchedMessageMetadataAndPayload;
-        private List<MessageImpl<?>> messages = new ArrayList<>();
-        private SendCallback previousCallback = null;
-        private CompressionType compressionType;
-        private CompressionCodec compressor;
-        private int maxBatchSize;
-        private String topicName;
-        private String producerName;
-
-        // keep track of callbacks for individual messages being published in a batch
-        private SendCallback firstCallback;
-
-        private ByteBuf getCompressedBatchMetadataAndPayload() {
-            for (MessageImpl<?> msg : messages) {
-                batchedMessageMetadataAndPayload = Commands.serializeSingleMessageInBatchWithPayload(
-                        msg.getMessageBuilder(), msg.getDataBuffer(), batchedMessageMetadataAndPayload);
-            }
-            int uncompressedSize = batchedMessageMetadataAndPayload.readableBytes();
-            ByteBuf compressedPayload = compressor.encode(batchedMessageMetadataAndPayload);
-            batchedMessageMetadataAndPayload.release();
-            if (compressionType != CompressionType.NONE) {
-                messageMetadata.setCompression(compressionType);
-                messageMetadata.setUncompressedSize(uncompressedSize);
-            }
-
-            // Update the current max batch size using the uncompressed size, which is what we need in any case to
-            // accumulate the batch content
-            maxBatchSize = Math.max(maxBatchSize, uncompressedSize);
-            return compressedPayload;
-        }
-
-        private void addMsg(MessageImpl<?> msg, SendCallback callback) {
-            if (messages.size() == 0) {
-                sequenceId = Commands.initBatchMessageMetadata(messageMetadata, msg.getMessageBuilder());
-                batchedMessageMetadataAndPayload = PulsarByteBufAllocator.DEFAULT
-                        .buffer(Math.min(maxBatchSize, ClientCnx.getMaxMessageSize()));
-                firstCallback = callback;
-            }
-            if (previousCallback != null) {
-                previousCallback.addCallback(msg, callback);
-            }
-            previousCallback = callback;
-            messages.add(msg);
-        }
-
-        public void discard(Exception ex) {
-            try {
-                // Need to protect ourselves from any exception being thrown in the future handler from the application
-                if (firstCallback != null) {
-                    firstCallback.sendComplete(ex);
-                }
-            } catch (Throwable t) {
-                log.warn("[{}] [{}] Got exception while completing the callback for msg {}:", topicName, producerName,
-                        sequenceId, t);
-            }
-            clear();
-        }
-
-        public void clear() {
-            messages = new ArrayList<>();
-            firstCallback = null;
-            previousCallback = null;
-            messageMetadata.clear();
-            sequenceId = -1;
-            batchedMessageMetadataAndPayload = null;
-        }
     }
 
     private static final Logger log = LoggerFactory.getLogger(BatchMessageKeyBasedContainer.class);

@@ -45,15 +45,12 @@ import javax.ws.rs.core.Response.Status;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.service.Topic;
-import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.common.naming.Constants;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
-import org.apache.pulsar.common.policies.data.NonPersistentTopicStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TopicOperation;
@@ -77,37 +74,16 @@ public class NonPersistentTopics extends PersistentTopics {
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
             @ApiResponse(code = 403, message = "Don't have admin permission")})
-    public PartitionedTopicMetadata getPartitionedMetadata(@PathParam("property") String property,
-                                                           @PathParam("cluster") String cluster,
-                                                           @PathParam("namespace") String namespace,
-                                                           @PathParam("topic") @Encoded String encodedTopic,
-                                                           @QueryParam("authoritative") @DefaultValue("false")
-                                                                       boolean authoritative,
-                                                           @QueryParam("checkAllowAutoCreation") @DefaultValue("false")
-                                                                       boolean checkAllowAutoCreation) {
-        validateTopicName(property, cluster, namespace, encodedTopic);
-        return getPartitionedTopicMetadata(topicName, authoritative, checkAllowAutoCreation);
-    }
-
-    @GET
-    @Path("{property}/{cluster}/{namespace}/{topic}/stats")
-    @ApiOperation(hidden = true, value = "Get the stats for the topic.")
-    @ApiResponses(value = {
-            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),
-            @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Topic does not exist")})
-    public NonPersistentTopicStats getStats(@PathParam("property") String property,
-                                            @PathParam("cluster") String cluster,
-                                            @PathParam("namespace") String namespace,
-                                            @PathParam("topic") @Encoded String encodedTopic,
-                                            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
-                                            @QueryParam("getPreciseBacklog") @DefaultValue("false")
-                                                                       boolean getPreciseBacklog) {
-        validateTopicName(property, cluster, namespace, encodedTopic);
-        validateTopicOwnership(topicName, authoritative);
-        validateTopicOperation(topicName, TopicOperation.GET_STATS);
-        Topic topic = getTopicReference(topicName);
-        return ((NonPersistentTopic) topic).getStats(getPreciseBacklog, false, false);
+    public void getPartitionedMetadata(
+            @Suspended final AsyncResponse asyncResponse,
+            @PathParam("property") String property,
+            @PathParam("cluster") String cluster,
+            @PathParam("namespace") String namespace,
+            @PathParam("topic") @Encoded String encodedTopic,
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+            @QueryParam("checkAllowAutoCreation") @DefaultValue("false") boolean checkAllowAutoCreation) {
+        super.getPartitionedMetadata(asyncResponse, property, cluster, namespace, encodedTopic, authoritative,
+                checkAllowAutoCreation);
     }
 
     @GET

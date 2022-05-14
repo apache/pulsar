@@ -50,6 +50,7 @@ import org.apache.pulsar.client.impl.ProducerBuilderImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.TypedMessageBuilderImpl;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
+import org.apache.pulsar.common.io.SinkConfig;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.instance.state.BKStateStoreImpl;
@@ -76,9 +77,9 @@ public class ContextImplTest {
     private PulsarClientImpl client;
     private PulsarAdmin pulsarAdmin;
     private ContextImpl context;
-    private Producer producer = mock(Producer.class);
+    private Producer producer;
 
-    @BeforeMethod
+    @BeforeMethod(alwaysRun = true)
     public void setup() throws PulsarClientException {
         config = new InstanceConfig();
         config.setExposePulsarAdminClientEnabled(true);
@@ -89,6 +90,7 @@ public class ContextImplTest {
         logger = mock(Logger.class);
         pulsarAdmin = mock(PulsarAdmin.class);
 
+        producer = mock(Producer.class);
         client = mock(PulsarClientImpl.class);
         when(client.newProducer()).thenReturn(new ProducerBuilderImpl(client, Schema.BYTES));
         when(client.createProducerAsync(any(ProducerConfigurationData.class), any(), any()))
@@ -135,6 +137,13 @@ public class ContextImplTest {
     @Test(expectedExceptions = IllegalStateException.class)
     public void testGetStateStateDisabled() {
         context.getState("test-key");
+    }
+
+    @Test
+    public void testGetSinkConfig() {
+        SinkContext sinkContext = context;
+        SinkConfig sinkConfig = sinkContext.getSinkConfig();
+        Assert.assertNotNull(sinkConfig);
     }
 
     @Test

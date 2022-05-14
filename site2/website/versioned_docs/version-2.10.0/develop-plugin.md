@@ -58,7 +58,7 @@ For how to create a Maven project, see [here](https://maven.apache.org/guides/ge
 
 3. Describe a NAR file.
 
-    Create an `entry_filter.yaml` file in the `resources/META-INF/services` directory to describe a NAR file.
+    Create an `entry_filter.yml` file in the `resources/META-INF/services` directory to describe a NAR file.
 
     ```conf
     # Entry filter name, which should be configured in the broker.conf file later

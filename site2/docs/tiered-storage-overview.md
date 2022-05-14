@@ -7,7 +7,7 @@ sidebar_label: Overview
 Pulsar's **Tiered Storage** feature allows older backlog data to be moved from BookKeeper to long term and cheaper storage, while still allowing clients to access the backlog as if nothing has changed. 
 
 * Tiered storage uses [Apache jclouds](https://jclouds.apache.org) to support
-[Amazon S3](https://aws.amazon.com/s3/) and [GCS (Google Cloud Storage)](https://cloud.google.com/storage/) for long term storage. 
+[Amazon S3](https://aws.amazon.com/s3/), [GCS (Google Cloud Storage)](https://cloud.google.com/storage/), [Azure](https://azure.microsoft.com/en-us/services/storage/blobs/) and [Aliyun OSS](https://www.aliyun.com/product/oss) for long term storage. 
 
     With jclouds, it is easy to add support for more
 [cloud storage providers](https://jclouds.apache.org/reference/providers/#blobstore-providers) in the future.
@@ -17,6 +17,10 @@ Pulsar's **Tiered Storage** feature allows older backlog data to be moved from B
     > For more information about how to use the AWS S3 offloader with Pulsar, see [here](tiered-storage-aws.md).
     > 
     > For more information about how to use the GCS offloader with Pulsar, see [here](tiered-storage-gcs.md).
+    >
+    > For more information about how to use the Azure offloader with Pulsar, see [here](tiered-storage-azure.md).
+    > 
+    > For more information about how to use the Aliyun OSS offloader with Pulsar, see [here](tiered-storage-aliyun.md).
 
 * Tiered storage uses [Apache Hadoop](http://hadoop.apache.org/) to support filesystems for long term storage. 
 
@@ -47,3 +51,5 @@ Before offloading ledgers to long term storage, you need to configure buckets, c
 After offloading ledgers to long term storage, you can still query data in the offloaded ledgers with Pulsar SQL.
 
 For more information about tiered storage for Pulsar topics, see [here](https://github.com/apache/pulsar/wiki/PIP-17:-Tiered-storage-for-Pulsar-topics).
+
+For more information about offload metrics, see [here](reference-metrics.md#offload-metrics).

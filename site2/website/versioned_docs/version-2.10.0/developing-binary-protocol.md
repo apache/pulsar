@@ -184,7 +184,7 @@ a producer, the broker will first verify that this particular client is
 authorized to publish on the topic.
 
 Once the client gets confirmation of the producer creation, it can publish
-messages to the broker, referring to the producer id negotiated before.
+messages to the broker, referring to the producer ID negotiated before.
 
 ![Producer interaction](assets/binary-protocol-producer.png)
 
@@ -227,7 +227,7 @@ message CommandProducerSuccess {
 ```
 
 Parameters:
- * `request_id` → Original id of the `CreateProducer` request
+ * `request_id` → The original ID of the `CreateProducer` request
  * `producer_name` → Generated globally unique producer name or the name
     specified by the client, if any.
 
@@ -248,8 +248,8 @@ message CommandSend {
 ```
 
 Parameters:
- * `producer_id` → id of an existing producer
- * `sequence_id` → each message has an associated sequence id which is expected
+ * `producer_id` → The ID of an existing producer
+ * `sequence_id` → Each message has an associated sequence ID which is expected
    to be implemented with a counter starting at 0. The `SendReceipt` that
    acknowledges the effective publishing of a messages will refer to it by
    its sequence id.
@@ -274,11 +274,11 @@ message CommandSendReceipt {
 ```
 
 Parameters:
- * `producer_id` → id of producer originating the send request
- * `sequence_id` → sequence id of the published message
- * `message_id` → message id assigned by the system to the published message
-   Unique within a single cluster. Message id is composed of 2 longs, `ledgerId`
-   and `entryId`, that reflect that this unique id is assigned when appending
+ * `producer_id` → The ID of producer originating the send request
+ * `sequence_id` → The sequence ID of the published message
+ * `message_id` → The message ID assigned by the system to the published message
+   Unique within a single cluster. Message ID is composed of 2 longs, `ledgerId`
+   and `entryId`, that reflect that this unique ID is assigned when appending
    to a BookKeeper ledger
 
 
@@ -413,6 +413,29 @@ Parameters:
  * `validation_error` → *(optional)* Indicates that the consumer has discarded
    the messages due to: `UncompressedSizeCorruption`,
    `DecompressionError`, `ChecksumMismatch`, `BatchDeSerializeError`
+ * `properties` → *(optional)* Reserved configuration items
+ * `txnid_most_bits`  → *(optional)* Same as Transaction Coordinator ID, `txnid_most_bits` and `txnid_least_bits`
+   uniquely identify a transaction.
+ * `txnid_least_bits` → *(optional)* The ID of the transaction opened in a transaction coordinator,
+   `txnid_most_bits` and `txnid_least_bits`uniquely identify a transaction.
+ * `request_id` → *(optional)* The ID for handling response and timeout.
+
+
+ ##### Command AckResponse
+
+An `AckResponse` is the broker’s response to acknowledge a request sent by the client. It contains the `consumer_id` sent in the request.
+If a transaction is used, it contains both the Transaction ID and the Request ID that are sent in the request. The client finishes the specific request according to the Request ID. If the `error` field is set, it indicates that the request has failed.
+
+An example of `AckResponse` with redirection:
+
+```protobuf
+message CommandAckResponse {
+    "consumer_id" : 1,
+    "txnid_least_bits" = 0,
+    "txnid_most_bits" = 1,
+    "request_id" = 5
+}
+```
 
 ##### Command CloseConsumer
 

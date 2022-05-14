@@ -60,5 +60,7 @@ public class AggregatedSubscriptionStats {
 
     double msgDropRate;
 
+    long consumersCount;
+
     public Map<Consumer, AggregatedConsumerStats> consumerStat = new HashMap<>();
 }

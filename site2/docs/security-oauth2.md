@@ -195,6 +195,20 @@ This example shows how to configure OAuth2 authentication in Node.js client.
 ```
 > Note: The support for OAuth2 authentication is only available in Node.js client 1.6.2 and later versions.
 
+## Broker configuration
+To enable OAuth2 authentication in brokers, add the following parameters to the `broker.conf` or `standalone.conf` file.
+```properties
+# Configuration to enable authentication
+authenticationEnabled=true
+authenticationProviders=org.apache.pulsar.broker.authentication.AuthenticationProviderToken
+tokenPublicKey=/path/to/publicKey
+# Authentication settings of the broker itself. Used when the broker connects to other brokers,
+# either in same or other clusters
+brokerClientAuthenticationPlugin=org.apache.pulsar.client.impl.auth.oauth2.AuthenticationOAuth2
+brokerClientAuthenticationParameters={"privateKey":"/path/to/privateKey",\
+  "audience":"https://dev-kt-aa9ne.us.auth0.com/api/v2/","issuerUrl":"https://dev-kt-aa9ne.us.auth0.com"}
+```
+
 ## CLI configuration
 
 This section describes how to use Pulsar CLI tools to connect a cluster through OAuth2 authentication plugin.

@@ -85,29 +85,10 @@ class NegativeAcksTracker implements Closeable {
     }
 
     public synchronized void add(MessageId messageId) {
-        if (messageId instanceof BatchMessageIdImpl) {
-            BatchMessageIdImpl batchMessageId = (BatchMessageIdImpl) messageId;
-            messageId = new MessageIdImpl(batchMessageId.getLedgerId(), batchMessageId.getEntryId(),
-                    batchMessageId.getPartitionIndex());
-        }
-
-        if (nackedMessages == null) {
-            nackedMessages = new HashMap<>();
-        }
-        nackedMessages.put(messageId, System.nanoTime() + nackDelayNanos);
-
-        if (this.timeout == null) {
-            // Schedule a task and group all the redeliveries for same period. Leave a small buffer to allow for
-            // nack immediately following the current one will be batched into the same redeliver request.
-            this.timeout = timer.newTimeout(this::triggerRedelivery, timerIntervalNanos, TimeUnit.NANOSECONDS);
-        }
+        add(messageId, 0);
     }
 
     public synchronized void add(Message<?> message) {
-        if (negativeAckRedeliveryBackoff == null) {
-            add(message.getMessageId());
-            return;
-        }
         add(message.getMessageId(), message.getRedeliveryCount());
     }
 
@@ -127,7 +108,12 @@ class NegativeAcksTracker implements Closeable {
             nackedMessages = new HashMap<>();
         }
 
-        long backoffNs = TimeUnit.MILLISECONDS.toNanos(negativeAckRedeliveryBackoff.next(redeliveryCount));
+        long backoffNs;
+        if (negativeAckRedeliveryBackoff != null) {
+            backoffNs = TimeUnit.MILLISECONDS.toNanos(negativeAckRedeliveryBackoff.next(redeliveryCount));
+        } else {
+            backoffNs = nackDelayNanos;
+        }
         nackedMessages.put(messageId, System.nanoTime() + backoffNs);
 
         if (this.timeout == null) {

@@ -6,6 +6,12 @@ sidebar_label: Elasticsearch sink connector
 
 The Elasticsearch sink connector pulls messages from Pulsar topics and persists the messages to indexes.
 
+## Requirements
+
+To deploy an Elasticsearch sink connector, the following are required:
+
+- Elasticsearch 7 (Elasticsearch 8 will be supported in the future)
+- OpenSearch 1.x
 
 ## Feature 
 
@@ -60,7 +66,7 @@ The configuration of the Elasticsearch sink connector has the following properti
 | `bulkActions` | Integer | false | 1000 | The maximum number of actions per elasticsearch bulk request. Use -1 to disable it. |
 | `bulkSizeInMb` | Integer | false |5 | The maximum size in megabytes of elasticsearch bulk requests. Use -1 to disable it. |
 | `bulkConcurrentRequests` | Integer | false | 0 | The maximum number of in flight elasticsearch bulk requests. The default 0 allows the execution of a single request. A value of 1 means 1 concurrent request is allowed to be executed while accumulating new bulk requests. |
-| `bulkFlushIntervalInMs` | Integer | false | -1 | The maximum period of time to wait for flushing pending writes when bulk writes are enabled. Default is -1 meaning not set. |
+| `bulkFlushIntervalInMs` | Long | false | 1000 | The maximum period of time to wait for flushing pending writes when bulk writes are enabled. -1 or zero means the scheduled flushing is disabled. |
 | `compressionEnabled` | Boolean | false |false | Enable elasticsearch request compression. |
 | `connectTimeoutInMs` | Integer | false |5000 | The elasticsearch client connection timeout in milliseconds. |
 | `connectionRequestTimeoutInMs` | Integer | false |1000 | The time in milliseconds for getting a connection from the elasticsearch connection pool. |
@@ -78,6 +84,8 @@ The configuration of the Elasticsearch sink connector has the following properti
 | `password` | String| false | " " (empty string)|The password used by the connector to connect to the elastic search cluster. <br><br>If `username` is set, then `password` should also be provided.  |
 | `ssl` | ElasticSearchSslConfig | false |  | Configuration for TLS encrypted communication |
 | `compatibilityMode` | enum (AUTO,ELASTICSEARCH,ELASTICSEARCH_7,OPENSEARCH) | AUTO |  | Specify compatibility mode with the ElasticSearch cluster. `AUTO` value will try to auto detect the correct compatibility mode to use. Use `ELASTICSEARCH_7` if the target cluster is running ElasticSearch 7 or prior. Use `ELASTICSEARCH` if the target cluster is running ElasticSearch 8 or higher. Use `OPENSEARCH` if the target cluster is running OpenSearch. |
+| `token` | String| false | " " (empty string)|The token used by the connector to connect to the ElasticSearch cluster. Only one between basic/token/apiKey authentication mode must be configured. |
+| `apiKey` | String| false | " " (empty string)|The apiKey used by the connector to connect to the ElasticSearch cluster. Only one between basic/token/apiKey authentication mode must be configured. |
 
 ### Definition of ElasticSearchSslConfig structure:
 

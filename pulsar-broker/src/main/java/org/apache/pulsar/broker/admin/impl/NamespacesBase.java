@@ -103,7 +103,6 @@ import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
-import org.apache.pulsar.metadata.api.MetadataStoreException.AlreadyExistsException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
 import org.slf4j.Logger;
@@ -111,52 +110,47 @@ import org.slf4j.LoggerFactory;
 
 public abstract class NamespacesBase extends AdminResource {
 
-    protected List<String> internalGetTenantNamespaces(String tenant) {
-        checkNotNull(tenant, "Tenant should not be null");
+    protected CompletableFuture<List<String>> internalGetTenantNamespaces(String tenant) {
+        if (tenant == null) {
+            return FutureUtil.failedFuture(new RestException(Status.BAD_REQUEST, "Tenant should not be null"));
+        }
         try {
             NamedEntity.checkName(tenant);
         } catch (IllegalArgumentException e) {
             log.warn("[{}] Tenant name is invalid {}", clientAppId(), tenant, e);
-            throw new RestException(Status.PRECONDITION_FAILED, "Tenant name is not valid");
+            return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED, "Tenant name is not valid"));
         }
-        validateTenantOperation(tenant, TenantOperation.LIST_NAMESPACES);
-
-        try {
-            if (!tenantResources().tenantExists(tenant)) {
-                throw new RestException(Status.NOT_FOUND, "Tenant not found");
-            }
-
-            return tenantResources().getListOfNamespaces(tenant);
-        } catch (Exception e) {
-            log.error("[{}] Failed to get namespaces list: {}", clientAppId(), e);
-            throw new RestException(e);
-        }
+        return validateTenantOperationAsync(tenant, TenantOperation.LIST_NAMESPACES)
+                .thenCompose(__ -> tenantResources().tenantExistsAsync(tenant))
+                .thenCompose(existed -> {
+                    if (!existed) {
+                        throw new RestException(Status.NOT_FOUND, "Tenant not found");
+                    }
+                    return tenantResources().getListOfNamespacesAsync(tenant);
+                });
     }
 
-    protected void internalCreateNamespace(Policies policies) {
-        validateTenantOperation(namespaceName.getTenant(), TenantOperation.CREATE_NAMESPACE);
-        validatePoliciesReadOnlyAccess();
-        validatePolicies(namespaceName, policies);
-
-        try {
-            int maxNamespacesPerTenant = pulsar().getConfiguration().getMaxNamespacesPerTenant();
-            // no distributed locks are added here.In a concurrent scenario, the threshold will be exceeded.
-            if (maxNamespacesPerTenant > 0) {
-                List<String> namespaces = tenantResources().getListOfNamespaces(namespaceName.getTenant());
-                if (namespaces != null && namespaces.size() > maxNamespacesPerTenant) {
-                    throw new RestException(Status.PRECONDITION_FAILED,
-                            "Exceed the maximum number of namespace in tenant :" + namespaceName.getTenant());
-                }
-            }
-            namespaceResources().createPolicies(namespaceName, policies);
-            log.info("[{}] Created namespace {}", clientAppId(), namespaceName);
-        } catch (AlreadyExistsException e) {
-            log.warn("[{}] Failed to create namespace {} - already exists", clientAppId(), namespaceName);
-            throw new RestException(Status.CONFLICT, "Namespace already exists");
-        } catch (Exception e) {
-            log.error("[{}] Failed to create namespace {}", clientAppId(), namespaceName, e);
-            throw new RestException(e);
-        }
+    protected CompletableFuture<Void> internalCreateNamespace(Policies policies) {
+        return validateTenantOperationAsync(namespaceName.getTenant(), TenantOperation.CREATE_NAMESPACE)
+                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
+                .thenAccept(__ -> validatePolicies(namespaceName, policies))
+                .thenCompose(__ -> {
+                    int maxNamespacesPerTenant = pulsar().getConfiguration().getMaxNamespacesPerTenant();
+                    // no distributed locks are added here.In a concurrent scenario, the threshold will be exceeded.
+                    if (maxNamespacesPerTenant > 0) {
+                        return tenantResources().getListOfNamespacesAsync(namespaceName.getTenant())
+                                .thenAccept(namespaces -> {
+                                    if (namespaces != null && namespaces.size() > maxNamespacesPerTenant) {
+                                        throw new RestException(Status.PRECONDITION_FAILED,
+                                                "Exceed the maximum number of namespace in tenant :"
+                                                        + namespaceName.getTenant());
+                                    }
+                                });
+                    }
+                    return CompletableFuture.completedFuture(null);
+                })
+                .thenCompose(__ -> namespaceResources().createPoliciesAsync(namespaceName, policies))
+                .thenAccept(__ -> log.info("[{}] Created namespace {}", clientAppId(), namespaceName));
     }
 
     protected void internalDeleteNamespace(AsyncResponse asyncResponse, boolean authoritative, boolean force) {

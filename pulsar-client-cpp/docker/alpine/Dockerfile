@@ -59,12 +59,12 @@ RUN curl -O -L https://github.com/openssl/openssl/archive/OpenSSL_1_1_0j.tar.gz 
    rm -rf /OpenSSL_1_1_0j.tar.gz /openssl-OpenSSL_1_1_0j
 
 # Download and copile protoubf
-RUN curl -O -L  https://github.com/google/protobuf/releases/download/v3.11.3/protobuf-cpp-3.11.3.tar.gz && \
-    tar xvfz protobuf-cpp-3.11.3.tar.gz && \
-    cd protobuf-3.11.3/ && \
+RUN curl -O -L  https://github.com/google/protobuf/releases/download/v3.20.0/protobuf-cpp-3.20.0.tar.gz && \
+    tar xvfz protobuf-cpp-3.20.0.tar.gz && \
+    cd protobuf-3.20.0/ && \
     CXXFLAGS=-fPIC ./configure && \
     make -j8 && make install && \
-    rm -rf /protobuf-cpp-3.11.3.tar.gz /protobuf-3.11.3
+    rm -rf /protobuf-cpp-3.20.0.tar.gz /protobuf-3.20.0
 
 # LibCurl
 RUN curl -O -L  https://github.com/curl/curl/releases/download/curl-7_61_0/curl-7.61.0.tar.gz && \

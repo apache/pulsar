@@ -30,7 +30,7 @@ The configuration of the RabbitMQ sink connector has the following properties.
 | `handshakeTimeout` | int|false | 10000 | The timeout of AMQP0-9-1 protocol handshake in milliseconds. |
 | `requestedHeartbeat` | int|false | 60 | The exchange to publish messages. |
 | `exchangeName` | String|true | " " (empty string) | The maximum number of messages that the server delivers.<br><br> 0 means unlimited. |
-| `prefetchGlobal` |String|true | " " (empty string) |The routing key used to publish messages. |
+| `routingKey` |String|true | " " (empty string) |The routing key used to publish messages. |
 
 
 ### Example
@@ -66,7 +66,7 @@ Before using the RabbitMQ sink connector, you need to create a configuration fil
     configs:
         host: "localhost"
         port: 5672
-        virtualHost: "/",
+        virtualHost: "/"
         username: "guest"
         password: "guest"
         queueName: "test-queue"

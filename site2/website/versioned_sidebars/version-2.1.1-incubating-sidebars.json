@@ -2,7 +2,7 @@
   "version-2.1.1-incubating-docs": {
     "Getting Started": [
       "version-2.1.1-incubating-pulsar-2.0",
-      "version-2.1.1-incubating-standalone",
+      "version-2.1.1-incubating-getting-started-standalone",
       "version-2.1.1-incubating-getting-started-docker",
       "version-2.1.1-incubating-client-libraries"
     ],

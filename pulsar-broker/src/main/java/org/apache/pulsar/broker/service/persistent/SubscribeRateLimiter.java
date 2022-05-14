@@ -140,6 +140,9 @@ public class SubscribeRateLimiter {
     }
 
     public void onSubscribeRateUpdate(SubscribeRate subscribeRate) {
+        if (this.subscribeRate.equals(subscribeRate)) {
+            return;
+        }
         this.subscribeRate = subscribeRate;
         stopResetTask();
         for (ConsumerIdentifier consumerIdentifier : this.subscribeRateLimiter.keySet()) {
