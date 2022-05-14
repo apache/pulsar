@@ -39,14 +39,14 @@ BookKeeper is a replicated log storage system that Pulsar uses for durable stora
 |journalDirectory|The directory where BookKeeper outputs its write-ahead log (WAL).|data/bookkeeper/journal|
 |journalDirectories|Directories that BookKeeper outputs its write ahead log. Multiple directories are available, being separated by `,`. For example: `journalDirectories=/tmp/bk-journal1,/tmp/bk-journal2`. If `journalDirectories` is set, the bookies skip `journalDirectory` and use this setting directory.|/tmp/bk-journal|
 |ledgerDirectories|The directory where BookKeeper outputs ledger snapshots. This could define multiple directories to store snapshots separated by `,`, for example `ledgerDirectories=/tmp/bk1-data,/tmp/bk2-data`. Ideally, ledger dirs and the journal dir are each in a different device, which reduces the contention between random I/O and sequential write. It is possible to run with a single disk, but performance will be significantly lower.|data/bookkeeper/ledgers|
-|ledgerManagerType|The type of ledger manager used to manage how ledgers are stored, managed, and garbage collected. See [BookKeeper Internals](http://bookkeeper.apache.org/docs/latest/getting-started/concepts) for more info.|hierarchical|
+|ledgerManagerType|The type of ledger manager used to manage how ledgers are stored, managed, and garbage collected. See [BookKeeper Internals](https://bookkeeper.apache.org/docs/next/getting-started/concepts) for more info.|hierarchical|
 |zkLedgersRootPath|The root ZooKeeper path used to store ledger metadata. This parameter is used by the ZooKeeper-based ledger manager as a root znode to store all ledgers.|/ledgers|
 |ledgerStorageClass|Ledger storage implementation class|org.apache.bookkeeper.bookie.storage.ldb.DbLedgerStorage|
 |entryLogFilePreallocationEnabled|Enable or disable entry logger preallocation|true|
 |logSizeLimit|Max file size of the entry logger, in bytes. A new entry log file will be created when the old one reaches the file size limitation.|2147483648|
 |minorCompactionThreshold|Threshold of minor compaction. Entry log files whose remaining size percentage reaches below this threshold will be compacted in a minor compaction. If set to less than zero, the minor compaction is disabled.|0.2|
 |minorCompactionInterval|Time interval to run minor compaction, in seconds. If set to less than zero, the minor compaction is disabled. Note: should be greater than gcWaitTime. |3600|
-|majorCompactionThreshold|The threshold of major compaction. Entry log files whose remaining size percentage reaches below this threshold will be compacted in a major compaction. Those entry log files whose remaining size percentage is still higher than the threshold will never be compacted. If set to less than zero, the minor compaction is disabled.|0.5|
+|majorCompactionThreshold|The threshold of major compaction. Entry log files whose remaining size percentage reaches below this threshold will be compacted in a major compaction. Those entry log files whose remaining size percentage is still higher than the threshold will never be compacted. If set to less than zero, the major compaction is disabled.|0.5|
 |majorCompactionInterval|The time interval to run major compaction, in seconds. If set to less than zero, the major compaction is disabled. Note: should be greater than gcWaitTime. |86400|
 |readOnlyModeEnabled|If `readOnlyModeEnabled=true`, then on all full ledger disks, bookie will be converted to read-only mode and serve only read requests. Otherwise the bookie will be shutdown.|true|
 |forceReadOnlyBookie|Whether the bookie is force started in read only mode.|false|
@@ -308,6 +308,11 @@ brokerServiceCompactionThresholdInBytes|If the estimated backlog size is greater
 |managedLedgerCursorMaxEntriesPerLedger|  Max number of entries to append to a cursor ledger  |50000|
 |managedLedgerCursorRolloverTimeInSeconds|  Max time before triggering a rollover on a cursor ledger  |14400|
 |managedLedgerMaxUnackedRangesToPersist|  Max number of “acknowledgment holes” that are going to be persistently stored. When acknowledging out of order, a consumer will leave holes that are supposed to be quickly filled by acking all the messages. The information of which messages are acknowledged is persisted by compressing in “ranges” of messages that were acknowledged. After the max number of ranges is reached, the information will only be tracked in memory and messages will be redelivered in case of crashes.  |1000|
+| managedLedgerMaxUnackedRangesToPersistInMetadataStore | Maximum number of "acknowledgment holes" that can be stored in metadata store. If the number of unacknowledged message range is higher than this limit, the broker persists unacknowledged ranges into BookKeeper to avoid additional data overhead into metadata store. | 1000 |
+| managedLedgerMetadataOperationsTimeoutSeconds | Operation timeout while updating managed-ledger metadata. | 60 |
+| managedLedgerReadEntryTimeoutSeconds | Read entries timeout when the broker tries to read messages from BookKeeper. | 0 |
+| managedLedgerAddEntryTimeoutSeconds | Add entry timeout when the broker tries to publish messages to BookKeeper. | 0 |
+| managedLedgerNewEntriesCheckDelayInMillis | New entries check delay for the cursor under the managed ledger. If no new messages in the topic, the cursor tries to check again after the delay time. For consumption latency sensitive scenarios, you can set the value to a smaller value or 0. A smaller value may degrade consumption throughput.|10|
 |autoSkipNonRecoverableData|  Skip reading non-recoverable/unreadable data-ledger under managed-ledger’s list.It helps when data-ledgers gets corrupted at bookkeeper and managed-cursor is stuck at that ledger. |false|
 |loadBalancerEnabled| Enable load balancer  |true|
 |loadBalancerPlacementStrategy| Strategy to assign a new bundle weightedRandomSelection ||
@@ -327,11 +332,12 @@ brokerServiceCompactionThresholdInBytes|If the estimated backlog size is greater
 |loadBalancerNamespaceBundleMaxMsgRate| maximum msgRate (in + out) in a bundle, otherwise bundle split will be triggered  |1000|
 |loadBalancerNamespaceBundleMaxBandwidthMbytes| maximum bandwidth (in + out) in a bundle, otherwise bundle split will be triggered  |100|
 |loadBalancerNamespaceMaximumBundles| maximum number of bundles in a namespace  |128|
-|loadBalancerLoadSheddingStrategy | The shedding strategy of load balance. <br /><br />Available values: <li>`org.apache.pulsar.broker.loadbalance.impl.ThresholdShedder`</li><li>`org.apache.pulsar.broker.loadbalance.impl.OverloadShedder`</li><li>`org.apache.pulsar.broker.loadbalance.impl.UniformLoadShedder`</li><br />For the comparisons of the shedding strategies, see [here](administration-load-balance/#shed-load-automatically).|`org.apache.pulsar.broker.loadbalance.impl.ThresholdShedder`
+|loadBalancerLoadSheddingStrategy | The shedding strategy of load balance. <br /><br />Available values: <li>`org.apache.pulsar.broker.loadbalance.impl.ThresholdShedder`</li><li>`org.apache.pulsar.broker.loadbalance.impl.OverloadShedder`</li><li>`org.apache.pulsar.broker.loadbalance.impl.UniformLoadShedder`</li><br />For the comparisons of the shedding strategies, see [here](administration-load-balance/#shed-load-automatically).<br />**Note**: You need to restart brokers if this configuration is [dynamically updated](admin-api-brokers.md/#dynamic-broker-configuration). |`org.apache.pulsar.broker.loadbalance.impl.ThresholdShedder`
 |replicationMetricsEnabled| Enable replication metrics  |true|
 |replicationConnectionsPerBroker| Max number of connections to open for each broker in a remote cluster More connections host-to-host lead to better throughput over high-latency links.  |16|
 |replicationProducerQueueSize|  Replicator producer queue size  |1000|
 |replicatorPrefix|  Replicator prefix used for replicator producer name and cursor name pulsar.repl||
+|transactionBufferClientOperationTimeoutInMills|The transaction buffer client's operation timeout in milliseconds.|3000|
 |transactionCoordinatorEnabled|Whether to enable transaction coordinator in broker.|true|
 |transactionMetadataStoreProviderClassName| |org.apache.pulsar.transaction.coordinator.impl.InMemTransactionMetadataStoreProvider|
 |defaultRetentionTimeInMinutes| Default message retention time  |0|
@@ -381,6 +387,7 @@ brokerServiceCompactionThresholdInBytes|If the estimated backlog size is greater
 | additionalServletDirectory | Location of broker additional servlet NAR directory | ./brokerAdditionalServlet |
 | brokerEntryMetadataInterceptors | Set broker entry metadata interceptors.<br /><br />Multiple interceptors should be separated by commas. <br /><br />Available values:<li>org.apache.pulsar.common.intercept.AppendBrokerTimestampMetadataInterceptor</li><li>org.apache.pulsar.common.intercept.AppendIndexMetadataInterceptor</li> <br /><br />Example<br />brokerEntryMetadataInterceptors=org.apache.pulsar.common.intercept.AppendBrokerTimestampMetadataInterceptor, org.apache.pulsar.common.intercept.AppendIndexMetadataInterceptor|N/A |
 | enableExposingBrokerEntryMetadataToClient|Whether to expose broker entry metadata to client or not.<br /><br />Available values:<li>true</li><li>false</li><br />Example<br />enableExposingBrokerEntryMetadataToClient=true  | false |
+| metricsBufferResponse | The configuration is for those broker which there are more than one metrics system access the `/metrics` endpoint. For the purpose of reduce `CPU` and `Memory` usage, metrics data will be generated once in the interval(`managedLedgerStatsPeriodSeconds`) and it will be cached, all `/metrics` requests in the `interval` will return same metrics | false |
 | strictBookieAffinityEnabled | Enable or disable the strict bookie isolation strategy. If enabled, <br /> - `bookie-ensemble` first tries to choose bookies that belong to a namespace's affinity group. If the number of bookies is not enough, then the rest bookies are chosen. <br /> - If namespace has no affinity group, `bookie-ensemble` only chooses bookies that belong to no region. If the number of bookies is not enough, `BKNotEnoughBookiesException` is thrown.| false |
 
 
@@ -398,7 +405,7 @@ The following parameters have been deprecated in the `conf/broker.conf` file.
 |configurationStoreServers| Configuration store connection string (as a comma-separated list). Use `configurationMetadataStoreUrl` instead. |N/A|
 |zooKeeperSessionTimeoutMillis| Zookeeper session timeout in milliseconds. Use `metadataStoreSessionTimeoutMillis` instead. |30000|
 |zooKeeperCacheExpirySeconds|ZooKeeper cache expiry time in seconds. Use `metadataStoreCacheExpirySeconds` instead.|300|
-
+| managedLedgerMaxUnackedRangesToPersistInZooKeeper | Maximum number of "acknowledgment holes" that can be stored in ZooKeeper. Use `managedLedgerMaxUnackedRangesToPersistInMetadataStore` instead. | 1000 |
 
 ## Client
 
@@ -659,15 +666,14 @@ You can set the log level and configuration in the  [log4j2.yaml](https://github
 |managedLedgerCursorRolloverTimeInSeconds|    |14400|
 | managedLedgerMaxSizePerLedgerMbytes | Maximum ledger size before triggering a rollover for a topic. | 2048 |
 | managedLedgerMaxUnackedRangesToPersist | Maximum number of "acknowledgment holes" that are going to be persistently stored. When acknowledging out of order, a consumer leaves holes that are supposed to be quickly filled by acknowledging all the messages. The information of which messages are acknowledged is persisted by compressing in "ranges" of messages that were acknowledged. After the max number of ranges is reached, the information is only tracked in memory and messages are redelivered in case of crashes. | 10000 |
-| managedLedgerMaxUnackedRangesToPersistInZooKeeper | Maximum number of "acknowledgment holes" that can be stored in Zookeeper. If the number of unacknowledged message range is higher than this limit, the broker persists unacknowledged ranges into bookkeeper to avoid additional data overhead into Zookeeper. | 1000 |
+| managedLedgerMaxUnackedRangesToPersistInMetadataStore | Maximum number of "acknowledgment holes" that can be stored in metadata store. If the number of unacknowledged message range is higher than this limit, the broker persists unacknowledged ranges into BookKeeper to avoid additional data overhead into metadata store. | 1000 |
 |autoSkipNonRecoverableData|    |false|
 | managedLedgerMetadataOperationsTimeoutSeconds | Operation timeout while updating managed-ledger metadata. | 60 |
 | managedLedgerReadEntryTimeoutSeconds | Read entries timeout when the broker tries to read messages from BookKeeper. | 0 |
-| managedLedgerAddEntryTimeoutSeconds | Add entry timeout when the broker tries to publish message to BookKeeper. | 0 |
-| managedLedgerNewEntriesCheckDelayInMillis | New entries check delay for the cursor under the managed ledger. If no new messages in the topic, the cursor tries to check again after the delay time. For consumption latency sensitive scenario, you can set the value to a smaller value or 0. Of course, a smaller value may degrade consumption throughput.|10 ms|
+| managedLedgerAddEntryTimeoutSeconds | Add entry timeout when the broker tries to publish messages to BookKeeper. | 0 |
+| managedLedgerNewEntriesCheckDelayInMillis | New entries check delay for the cursor under the managed ledger. If no new messages in the topic, the cursor tries to check again after the delay time. For consumption latency sensitive scenarios, you can set the value to a smaller value or 0. Of course, a smaller value may degrade consumption throughput.|10|
 | managedLedgerPrometheusStatsLatencyRolloverSeconds | Managed ledger prometheus stats latency rollover seconds.  | 60 |
 | managedLedgerTraceTaskExecution | Whether to trace managed ledger task execution time. | true |
-|managedLedgerNewEntriesCheckDelayInMillis|New entries check delay for the cursor under the managed ledger. If no new messages in the topic, the cursor will try to check again after the delay time. For consumption latency sensitive scenario, it can be set to a smaller value or 0. A smaller value degrades consumption throughput. By default, it is 10ms.|10|
 |loadBalancerEnabled|   |false|
 |loadBalancerPlacementStrategy|   |weightedRandomSelection|
 |loadBalancerReportUpdateThresholdPercentage|   |10|
@@ -702,6 +708,7 @@ You can set the log level and configuration in the  [log4j2.yaml](https://github
 |replicationConnectionsPerBroker|   |16|
 |replicationProducerQueueSize|    |1000|
 | replicationPolicyCheckDurationSeconds | Duration to check replication policy to avoid replicator inconsistency due to missing ZooKeeper watch. When the value is set to 0, disable checking replication policy. | 600 |
+|transactionBufferClientOperationTimeoutInMills|The transaction buffer client's operation timeout in milliseconds.|3000|
 |defaultRetentionTimeInMinutes|   |0|
 |defaultRetentionSizeInMB|    |0|
 |keepAliveIntervalSeconds|    |30|
@@ -725,6 +732,7 @@ The following parameters have been deprecated in the `conf/standalone.conf` file
 |zooKeeperOperationTimeoutSeconds|ZooKeeper operation timeout in seconds. Use `metadataStoreOperationTimeoutSeconds` instead. |30|
 |zooKeeperCacheExpirySeconds|ZooKeeper cache expiry time in seconds. Use `metadataStoreCacheExpirySeconds` instead. |300|
 |zooKeeperSessionTimeoutMillis| The ZooKeeper session timeout, in milliseconds. Use `metadataStoreSessionTimeoutMillis` instead. |30000|
+| managedLedgerMaxUnackedRangesToPersistInZooKeeper | Maximum number of "acknowledgment holes" that can be stored in ZooKeeper. Use `managedLedgerMaxUnackedRangesToPersistInMetadataStore` instead. | 1000 |
 
 ## WebSocket
 
@@ -816,6 +824,8 @@ The [Pulsar proxy](concepts-architecture-overview.md#pulsar-proxy) can be config
 |tokenAudienceClaim| The token audience "claim" name, e.g. "aud". It is used to get the audience from token. If it is not set, the audience is not verified. ||
 | tokenAudience | The token audience stands for this broker. The field `tokenAudienceClaim` of a valid token need contains this parameter.| |
 |haProxyProtocolEnabled | Enable or disable the [HAProxy](http://www.haproxy.org/) protocol. |false|
+| numIOThreads | Number of threads used for Netty IO. | 2 * Runtime.getRuntime().availableProcessors() |
+| numAcceptorThreads | Number of threads used for Netty Acceptor. | 1 |
 
 #### Deprecated parameters of Pulsar proxy
 The following parameters have been deprecated in the `conf/proxy.conf` file.

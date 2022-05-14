@@ -2709,10 +2709,10 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testNamespaceNotExist() {
-        final String nonPartitionedtopic = "persistent://prop-xyz/no-exist/non-partitioned-topic";
+        final String nonPartitionedTopic = "persistent://prop-xyz/no-exist/non-partitioned-topic";
         try {
-            admin.topics().createNonPartitionedTopic(nonPartitionedtopic);
-            fail("should falied for namespaces not exist");
+            admin.topics().createNonPartitionedTopic(nonPartitionedTopic);
+            fail("should failed for namespaces not exist");
         } catch (Exception e) {
             assertTrue(e instanceof NotFoundException);
             assertTrue(e.getMessage().equals("Namespace not found"));

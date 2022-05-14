@@ -131,8 +131,8 @@ public class ProxyPrometheusMetricsTest extends MockedPulsarServiceBaseTest {
         // Example of lines are
         // jvm_threads_current{cluster="standalone",} 203.0
         // or
-        // pulsar_subscriptions_count{cluster="standalone", namespace="sample/standalone/ns1",
-        // topic="persistent://sample/standalone/ns1/test-2"} 0.0 1517945780897
+        // pulsar_subscriptions_count{cluster="standalone", namespace="public/default",
+        // topic="persistent://public/default/test-2"} 0.0 1517945780897
         Pattern pattern = Pattern.compile("^(\\w+)\\{([^\\}]+)\\}\\s([+-]?[\\d\\w\\.-]+)(\\s(\\d+))?$");
         Pattern tagsPattern = Pattern.compile("(\\w+)=\"([^\"]+)\"(,\\s?)?");
 

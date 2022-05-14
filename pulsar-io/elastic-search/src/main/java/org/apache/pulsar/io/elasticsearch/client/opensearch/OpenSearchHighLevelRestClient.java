@@ -23,18 +23,15 @@ import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.http.HttpHost;
+import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.elasticsearch.ElasticSearchConfig;
 import org.apache.pulsar.io.elasticsearch.RandomExponentialRetry;
 import org.apache.pulsar.io.elasticsearch.client.BulkProcessor;
 import org.apache.pulsar.io.elasticsearch.client.RestClient;
-import org.elasticsearch.client.Node;
-import org.opensearch.action.DocWriteRequest;
 import org.opensearch.action.DocWriteResponse;
 import org.opensearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.opensearch.action.admin.indices.refresh.RefreshRequest;
@@ -65,9 +62,43 @@ import org.opensearch.search.builder.SearchSourceBuilder;
 @Slf4j
 public class OpenSearchHighLevelRestClient extends RestClient implements BulkProcessor {
 
+    private interface DocWriteRequestWithPulsarRecord {
+        Record getPulsarRecord();
+    }
+
+    private static class IndexRequestWithPulsarRecord extends IndexRequest implements DocWriteRequestWithPulsarRecord {
+        private Record pulsarRecord;
+
+        public IndexRequestWithPulsarRecord(String index, Record pulsarRecord) {
+            super(index);
+            this.pulsarRecord = pulsarRecord;
+        }
+
+        @Override
+        public Record getPulsarRecord() {
+            return pulsarRecord;
+        }
+    }
+
+
+    private static class DeleteRequestWithPulsarRecord
+            extends DeleteRequest
+            implements DocWriteRequestWithPulsarRecord {
+        private Record pulsarRecord;
+
+        public DeleteRequestWithPulsarRecord(String index, Record pulsarRecord) {
+            super(index);
+            this.pulsarRecord = pulsarRecord;
+        }
+
+        @Override
+        public Record getPulsarRecord() {
+            return pulsarRecord;
+        }
+    }
+
     private RestHighLevelClient client;
     private org.opensearch.action.bulk.BulkProcessor internalBulkProcessor;
-    private final ConcurrentMap<DocWriteRequest<?>, Long> bulkRequestMappings = new ConcurrentHashMap<>();
 
     public OpenSearchHighLevelRestClient(ElasticSearchConfig elasticSearchConfig,
                                          BulkProcessor.Listener bulkProcessorListener) {
@@ -83,7 +114,8 @@ public class OpenSearchHighLevelRestClient extends RestClient implements BulkPro
                         .setSocketTimeout(config.getSocketTimeoutInMs()))
                 .setHttpClientConfigCallback(this.configCallback)
                 .setFailureListener(new org.opensearch.client.RestClient.FailureListener() {
-                    public void onFailure(Node node) {
+                    @Override
+                    public void onFailure(org.opensearch.client.Node node) {
                         log.warn("Node host={} failed", node.getHost());
                     }
                 });
@@ -101,9 +133,17 @@ public class OpenSearchHighLevelRestClient extends RestClient implements BulkPro
                                 private List<BulkProcessor.BulkOperationRequest>
                                         convertBulkRequest(BulkRequest bulkRequest) {
                                     return bulkRequest.requests().stream().map(docWriteRequest -> {
-                                        long requestId = bulkRequestMappings.get(docWriteRequest);
+                                        final Record pulsarRecord;
+                                        if (docWriteRequest instanceof DocWriteRequestWithPulsarRecord) {
+                                            DocWriteRequestWithPulsarRecord requestWithId =
+                                                    (DocWriteRequestWithPulsarRecord) docWriteRequest;
+                                            pulsarRecord = requestWithId.getPulsarRecord();
+                                        } else {
+                                            throw new UnsupportedOperationException("Unexpected bulk request of type: "
+                                                    + docWriteRequest.getClass());
+                                        }
                                         return BulkProcessor.BulkOperationRequest.builder()
-                                                .operationId(requestId)
+                                                .pulsarRecord(pulsarRecord)
                                                 .build();
                                     }).collect(Collectors.toList());
                                 }
@@ -235,25 +275,22 @@ public class OpenSearchHighLevelRestClient extends RestClient implements BulkPro
         return this;
     }
 
-
     @Override
     public void appendIndexRequest(BulkProcessor.BulkIndexRequest request) throws IOException {
-        IndexRequest indexRequest = Requests.indexRequest(request.getIndex());
+        IndexRequest indexRequest = new IndexRequestWithPulsarRecord(request.getIndex(), request.getRecord());
         if (!Strings.isNullOrEmpty(request.getDocumentId())) {
             indexRequest.id(request.getDocumentId());
         }
         indexRequest.type(config.getTypeName());
         indexRequest.source(request.getDocumentSource(), XContentType.JSON);
-        bulkRequestMappings.put(indexRequest, request.getRequestId());
         internalBulkProcessor.add(indexRequest);
     }
 
     @Override
     public void appendDeleteRequest(BulkProcessor.BulkDeleteRequest request) throws IOException {
-        DeleteRequest deleteRequest = Requests.deleteRequest(request.getIndex());
+        DeleteRequest deleteRequest = new DeleteRequestWithPulsarRecord(request.getIndex(), request.getRecord());
         deleteRequest.id(request.getDocumentId());
         deleteRequest.type(config.getTypeName());
-        bulkRequestMappings.put(deleteRequest, request.getRequestId());
         internalBulkProcessor.add(deleteRequest);
     }
 

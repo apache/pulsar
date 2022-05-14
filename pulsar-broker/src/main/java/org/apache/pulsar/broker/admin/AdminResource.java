@@ -27,7 +27,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import javax.servlet.ServletContext;
@@ -142,11 +141,15 @@ public abstract class AdminResource extends PulsarWebResource {
         return pulsar().getPulsarResources().getNamespaceResources().getPoliciesReadOnlyAsync()
                 .thenAccept(arePoliciesReadOnly -> {
                     if (arePoliciesReadOnly) {
-                        log.debug("Policies are read-only. Broker cannot do read-write operations");
+                        if (log.isDebugEnabled()) {
+                            log.debug("Policies are read-only. Broker cannot do read-write operations");
+                        }
                         throw new RestException(Status.FORBIDDEN, "Broker is forbidden to do read-write operations");
                     } else {
                         // Do nothing, just log the message.
-                        log.debug("Broker is allowed to make read-write operations");
+                        if (log.isDebugEnabled()) {
+                            log.debug("Broker is allowed to make read-write operations");
+                        }
                     }
                 });
     }
@@ -251,18 +254,13 @@ public abstract class AdminResource extends PulsarWebResource {
         }
     }
 
-    protected void validatePartitionedTopicMetadata(String tenant, String namespace, String encodedTopic) {
-        try {
-            PartitionedTopicMetadata partitionedTopicMetadata =
-                    pulsar().getBrokerService().fetchPartitionedTopicMetadataAsync(topicName).get();
-            if (partitionedTopicMetadata.partitions < 1) {
-                throw new RestException(Status.CONFLICT, "Topic is not partitioned topic");
-            }
-        } catch (InterruptedException | ExecutionException e) {
-            log.error("Failed to validate partitioned topic metadata {}://{}/{}/{}",
-                    domain(), tenant, namespace, topicName, e);
-            throw new RestException(Status.INTERNAL_SERVER_ERROR, "Check topic partition meta failed.");
-        }
+    protected CompletableFuture<Void> validatePartitionedTopicMetadataAsync() {
+        return pulsar().getBrokerService().fetchPartitionedTopicMetadataAsync(topicName)
+                .thenAccept(metadata -> {
+                    if (metadata.partitions < 1) {
+                        throw new RestException(Status.CONFLICT, "Topic is not partitioned topic");
+                    }
+                });
     }
 
     @Deprecated
@@ -325,6 +323,11 @@ public abstract class AdminResource extends PulsarWebResource {
                         return FutureUtil.failedFuture(new RestException(e));
                     }
                     policies.get().bundles = bundleData != null ? bundleData : policies.get().bundles;
+                    if (policies.get().is_allow_auto_update_schema == null) {
+                        // the type changed from boolean to Boolean. return broker value here for keeping compatibility.
+                        policies.get().is_allow_auto_update_schema = pulsar().getConfig()
+                                .isAllowAutoUpdateSchemaEnabled();
+                    }
                     return CompletableFuture.completedFuture(policies.get());
                 });
             } else {
@@ -429,21 +432,20 @@ public abstract class AdminResource extends PulsarWebResource {
         this.servletContext = servletContext;
     }
 
+    protected PartitionedTopicMetadata getPartitionedTopicMetadata(TopicName topicName,
+                                                                   boolean authoritative,
+                                                                   boolean checkAllowAutoCreation) {
+        return sync(() -> getPartitionedTopicMetadataAsync(topicName, authoritative, checkAllowAutoCreation));
+    }
+
     protected CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadataAsync(
             TopicName topicName, boolean authoritative, boolean checkAllowAutoCreation) {
-        try {
-            validateClusterOwnership(topicName.getCluster());
-        } catch (Exception e) {
-            return FutureUtil.failedFuture(e);
-        }
-
         // validates global-namespace contains local/peer cluster: if peer/local cluster present then lookup can
         // serve/redirect request else fail partitioned-metadata-request so, client fails while creating
         // producer/consumer
-        return validateGlobalNamespaceOwnershipAsync(topicName.getNamespaceObject())
-                .thenRun(() -> {
-                    validateTopicOperation(topicName, TopicOperation.LOOKUP);
-                })
+        return validateClusterOwnershipAsync(topicName.getCluster())
+                .thenCompose(__ -> validateGlobalNamespaceOwnershipAsync(topicName.getNamespaceObject()))
+                .thenCompose(__ -> validateTopicOperationAsync(topicName, TopicOperation.LOOKUP))
                 .thenCompose(__ -> {
                     if (checkAllowAutoCreation) {
                         return pulsar().getBrokerService()
@@ -452,37 +454,6 @@ public abstract class AdminResource extends PulsarWebResource {
                         return pulsar().getBrokerService().fetchPartitionedTopicMetadataAsync(topicName);
                     }
                 });
-    }
-
-    protected PartitionedTopicMetadata getPartitionedTopicMetadata(TopicName topicName,
-            boolean authoritative, boolean checkAllowAutoCreation) {
-        validateClusterOwnership(topicName.getCluster());
-        // validates global-namespace contains local/peer cluster: if peer/local cluster present then lookup can
-        // serve/redirect request else fail partitioned-metadata-request so, client fails while creating
-        // producer/consumer
-        validateGlobalNamespaceOwnership(topicName.getNamespaceObject());
-
-        try {
-            validateTopicOperation(topicName, TopicOperation.LOOKUP);
-        } catch (Exception e) {
-            // unknown error marked as internal server error
-            log.warn("Unexpected error while authorizing lookup. topic={}, role={}. Error: {}", topicName,
-                    clientAppId(), e.getMessage(), e);
-            throw new RestException(e);
-        }
-
-        PartitionedTopicMetadata partitionMetadata;
-        if (checkAllowAutoCreation) {
-            partitionMetadata = fetchPartitionedTopicMetadataCheckAllowAutoCreation(pulsar(), topicName);
-        } else {
-            partitionMetadata = fetchPartitionedTopicMetadata(pulsar(), topicName);
-        }
-
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] Total number of partitions for topic {} is {}", clientAppId(), topicName,
-                    partitionMetadata.partitions);
-        }
-        return partitionMetadata;
     }
 
     protected static PartitionedTopicMetadata fetchPartitionedTopicMetadata(PulsarService pulsar, TopicName topicName) {
@@ -545,6 +516,17 @@ public abstract class AdminResource extends PulsarWebResource {
         }
     }
 
+    protected CompletableFuture<Set<String>> getNamespaceReplicatedClustersAsync(NamespaceName namespaceName) {
+        return namespaceResources().getPoliciesAsync(namespaceName)
+                .thenApply(policies -> {
+                    if (policies.isPresent()) {
+                        return policies.get().replication_clusters;
+                    } else {
+                        throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
+                    }
+                });
+    }
+
     protected List<String> getPartitionedTopicList(TopicDomain topicDomain) {
         try {
             return namespaceResources().getPartitionedTopicResources()
@@ -555,6 +537,11 @@ public abstract class AdminResource extends PulsarWebResource {
                     namespaceName.toString(), e);
             throw new RestException(e);
         }
+    }
+
+    protected CompletableFuture<List<String>> getPartitionedTopicListAsync(TopicDomain topicDomain) {
+        return namespaceResources().getPartitionedTopicResources()
+                .listPartitionedTopicsAsync(namespaceName, topicDomain);
     }
 
     protected List<String> getTopicPartitionList(TopicDomain topicDomain) {

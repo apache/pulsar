@@ -93,6 +93,7 @@ public class PulsarClientImpl implements PulsarClient {
 
     private static final Logger log = LoggerFactory.getLogger(PulsarClientImpl.class);
     private static final int CLOSE_TIMEOUT_SECONDS = 60;
+    private static final double THRESHOLD_FOR_CONSUMER_RECEIVER_QUEUE_SIZE_SHRINKING = 0.95;
 
     protected final ClientConfigurationData conf;
     private final boolean createdExecutorProviders;
@@ -211,13 +212,21 @@ public class PulsarClientImpl implements PulsarClient {
                 }
             }
 
-            memoryLimitController = new MemoryLimitController(conf.getMemoryLimitBytes());
+            memoryLimitController = new MemoryLimitController(conf.getMemoryLimitBytes(),
+                    (long) (conf.getMemoryLimitBytes() * THRESHOLD_FOR_CONSUMER_RECEIVER_QUEUE_SIZE_SHRINKING),
+                    this::reduceConsumerReceiverQueueSize);
             state.set(State.Open);
         } catch (Throwable t) {
             shutdown();
             shutdownEventLoopGroup(eventLoopGroupReference);
             closeCnxPool(connectionPoolReference);
             throw t;
+        }
+    }
+
+    private void reduceConsumerReceiverQueueSize() {
+        for (ConsumerBase<?> consumer : consumers) {
+            consumer.reduceCurrentReceiverQueueSize();
         }
     }
 

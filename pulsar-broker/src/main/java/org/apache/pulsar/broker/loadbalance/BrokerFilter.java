@@ -19,8 +19,8 @@
 package org.apache.pulsar.broker.loadbalance;
 
 import java.util.Set;
-import org.apache.pulsar.broker.BundleData;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.policies.data.loadbalancer.BundleData;
 
 /**
  * Load management component which determines what brokers should not be considered for topic placement by the placement

@@ -31,17 +31,19 @@ import java.util.List;
 import java.util.Map;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.bookkeeper.bookie.Bookie;
+import org.apache.bookkeeper.bookie.BookieImpl;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.common.allocator.PoolingPolicy;
+import org.apache.bookkeeper.common.component.ComponentStarter;
+import org.apache.bookkeeper.common.component.Lifecycle;
+import org.apache.bookkeeper.common.component.LifecycleComponent;
+import org.apache.bookkeeper.common.component.LifecycleComponentStack;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.conf.ServerConfiguration;
 import org.apache.bookkeeper.net.BookieId;
 import org.apache.bookkeeper.proto.BookieServer;
 import org.apache.bookkeeper.replication.AutoRecoveryMain;
-import org.apache.bookkeeper.replication.ReplicationException.CompatibilityException;
-import org.apache.bookkeeper.replication.ReplicationException.UnavailableException;
-import org.apache.bookkeeper.stats.NullStatsLogger;
+import org.apache.bookkeeper.server.conf.BookieConfiguration;
 import org.apache.bookkeeper.util.IOUtils;
 import org.apache.bookkeeper.util.PortManager;
 import org.apache.commons.io.FileUtils;
@@ -62,7 +64,7 @@ public class BKCluster implements AutoCloseable {
 
     // BookKeeper related variables
     private final List<File> tmpDirs = new ArrayList<>();
-    private final List<BookieServer> bs = new ArrayList<>();
+    private final List<LifecycleComponentStack> bookieComponents = new ArrayList<>();
     private final List<ServerConfiguration> bsConfs = new ArrayList<>();
 
     protected final ServerConfiguration baseConf = newBaseServerConfiguration();
@@ -87,7 +89,6 @@ public class BKCluster implements AutoCloseable {
 
     @Override
     public void close() throws Exception {
-        boolean failed = false;
         // stop bookkeeper service
         try {
             stopBKCluster();
@@ -140,16 +141,8 @@ public class BKCluster implements AutoCloseable {
      * @throws Exception
      */
     protected void stopBKCluster() throws Exception {
-        for (BookieServer server : bs) {
-            server.shutdown();
-            AutoRecoveryMain autoRecovery = autoRecoveryProcesses.get(server);
-            if (autoRecovery != null && isAutoRecoveryEnabled()) {
-                autoRecovery.shutdown();
-                log.debug("Shutdown auto recovery for bookieserver:"
-                        + server.getBookieId());
-            }
-        }
-        bs.clear();
+        bookieComponents.forEach(LifecycleComponentStack::close);
+        bookieComponents.clear();
     }
 
     protected void cleanupTempDirs() throws Exception {
@@ -162,11 +155,16 @@ public class BKCluster implements AutoCloseable {
         File f = createTempDir("bookie", "test");
 
         int port;
-        if (baseConf.isEnableLocalTransport() || !baseConf.getAllowEphemeralPorts()) {
-            port = PortManager.nextFreePort();
-        } else {
-            port = 0;
-        }
+        /*
+            // bk 4.15 cookie validation finds the same ip:port in case of port 0
+            // and 2nd bookie's cookie validation fails
+            if (baseConf.isEnableLocalTransport() || !baseConf.getAllowEphemeralPorts()) {
+                port = PortManager.nextFreePort();
+            } else {
+                port = 0;
+            }
+        */
+        port = PortManager.nextFreePort();
         return newServerConfiguration(port, f, new File[]{f});
     }
 
@@ -193,16 +191,14 @@ public class BKCluster implements AutoCloseable {
     }
 
     protected void stopAllBookies(boolean shutdownClient) throws Exception {
-        for (BookieServer server : bs) {
-            server.shutdown();
-        }
+        bookieComponents.forEach(LifecycleComponent::close);
+        bookieComponents.clear();
         bsConfs.clear();
-        bs.clear();
     }
 
     protected void startAllBookies() throws Exception {
         for (ServerConfiguration conf : bsConfs) {
-            bs.add(startBookie(conf));
+            bookieComponents.add(startBookie(conf));
         }
     }
 
@@ -216,12 +212,11 @@ public class BKCluster implements AutoCloseable {
     public int startNewBookie()
             throws Exception {
         ServerConfiguration conf = newServerConfiguration();
-
         bsConfs.add(conf);
         log.info("Starting new bookie on port: {}", conf.getBookiePort());
-        BookieServer server = startBookie(conf);
-        bs.add(server);
-        return server.getLocalAddress().getPort();
+        LifecycleComponentStack server = startBookie(conf);
+        bookieComponents.add(server);
+        return conf.getBookiePort();
     }
 
     /**
@@ -232,35 +227,29 @@ public class BKCluster implements AutoCloseable {
      *            Server Configuration Object
      *
      */
-    protected BookieServer startBookie(ServerConfiguration conf)
+    protected LifecycleComponentStack startBookie(ServerConfiguration conf)
             throws Exception {
-        BookieServer server = new BookieServer(conf, NullStatsLogger.INSTANCE, null);
-        BookieId address = Bookie.getBookieId(conf);
+        LifecycleComponentStack server =
+                org.apache.bookkeeper.server.Main.buildBookieServer(new BookieConfiguration(conf));
 
-        server.start();
+        BookieId address = BookieImpl.getBookieId(conf);
+        ComponentStarter.startComponent(server);
 
         // Wait for up to 30 seconds for the bookie to start
         for (int i = 0; i < 3000; i++) {
-            if (server.isRunning()) {
+            if (server.lifecycleState() == Lifecycle.State.STARTED) {
                 break;
             }
 
             Thread.sleep(10);
         }
 
-        if (!server.isRunning()) {
+        if (server.lifecycleState() != Lifecycle.State.STARTED) {
             throw new RuntimeException("Bookie failed to start within timeout period");
         }
 
         log.info("New bookie '{}' has been created.", address);
 
-        try {
-            startAutoRecovery(server, conf);
-        } catch (CompatibilityException ce) {
-            log.error("Exception while starting AutoRecovery!", ce);
-        } catch (UnavailableException ue) {
-            log.error("Exception while starting AutoRecovery!", ue);
-        }
         return server;
     }
 

@@ -45,7 +45,6 @@ import org.slf4j.LoggerFactory;
 public class ParserProxyHandler extends ChannelInboundHandlerAdapter {
 
 
-    private final Channel channel;
     //inbound
     protected static final String FRONTEND_CONN = "frontendconn";
     //outbound
@@ -68,10 +67,9 @@ public class ParserProxyHandler extends ChannelInboundHandlerAdapter {
      */
     private static final Map<String, String> consumerHashMap = new ConcurrentHashMap<>();
 
-    public ParserProxyHandler(ProxyService service, Channel channel, String type, int maxMessageSize,
+    public ParserProxyHandler(ProxyService service, String type, int maxMessageSize,
                               ChannelId peerChannelId) {
         this.service = service;
-        this.channel = channel;
         this.connType = type;
         this.maxMessageSize = maxMessageSize;
         this.peerChannelId = peerChannelId;

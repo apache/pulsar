@@ -18,19 +18,23 @@
  */
 package org.apache.pulsar.broker.admin.impl;
 
-import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
 import com.google.common.collect.Maps;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
+import java.lang.management.ManagementFactory;
+import java.lang.management.ThreadInfo;
+import java.lang.management.ThreadMXBean;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.DefaultValue;
 import javax.ws.rs.GET;
@@ -64,6 +68,7 @@ import org.apache.pulsar.common.naming.TopicVersion;
 import org.apache.pulsar.common.policies.data.BrokerInfo;
 import org.apache.pulsar.common.policies.data.NamespaceOwnershipStatus;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.ThreadDumpUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -73,6 +78,10 @@ import org.slf4j.LoggerFactory;
 public class BrokersBase extends AdminResource {
     private static final Logger LOG = LoggerFactory.getLogger(BrokersBase.class);
     public static final String HEALTH_CHECK_TOPIC_SUFFIX = "healthcheck";
+    // log a full thread dump when a deadlock is detected in healthcheck once every 10 minutes
+    // to prevent excessive logging
+    private static final long LOG_THREADDUMP_INTERVAL_WHEN_DEADLOCK_DETECTED = 600000L;
+    private volatile long threadDumpLoggedTimestamp;
 
     @GET
     @Path("/{cluster}")
@@ -138,20 +147,23 @@ public class BrokersBase extends AdminResource {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the cluster"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Cluster doesn't exist") })
-    public Map<String, NamespaceOwnershipStatus> getOwnedNamespaces(@PathParam("clusterName") String cluster,
-            @PathParam("broker-webserviceurl") String broker) throws Exception {
-        validateSuperUserAccess();
-        validateClusterOwnership(cluster);
-        validateBrokerName(broker);
-
-        try {
-            // now we validated that this is the broker specified in the request
-            return pulsar().getNamespaceService().getOwnedNameSpacesStatus();
-        } catch (Exception e) {
-            LOG.error("[{}] Failed to get the namespace ownership status. cluster={}, broker={}", clientAppId(),
-                    cluster, broker);
-            throw new RestException(e);
-        }
+    public void getOwnedNamespaces(@Suspended final AsyncResponse asyncResponse,
+                                   @PathParam("clusterName") String cluster,
+                                   @PathParam("broker-webserviceurl") String broker) {
+        validateSuperUserAccessAsync()
+                .thenAccept(__ -> validateBrokerName(broker))
+                .thenCompose(__ -> validateClusterOwnershipAsync(cluster))
+                .thenCompose(__ -> pulsar().getNamespaceService().getOwnedNameSpacesStatusAsync())
+                .thenAccept(asyncResponse::resume)
+                .exceptionally(ex -> {
+                    // If the exception is not redirect exception we need to log it.
+                    if (!isRedirectException(ex)) {
+                        LOG.error("[{}] Failed to get the namespace ownership status. cluster={}, broker={}",
+                                clientAppId(), cluster, broker);
+                    }
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @POST
@@ -210,17 +222,15 @@ public class BrokersBase extends AdminResource {
         @ApiResponse(code = 403, message = "You don't have admin permission to view configuration"),
         @ApiResponse(code = 404, message = "Configuration not found"),
         @ApiResponse(code = 500, message = "Internal server error")})
-    public Map<String, String> getAllDynamicConfigurations() throws Exception {
-        validateSuperUserAccess();
-        try {
-            return dynamicConfigurationResources().getDynamicConfiguration().orElseGet(Collections::emptyMap);
-        } catch (RestException e) {
-            LOG.error("[{}] couldn't find any configuration in zk {}", clientAppId(), e.getMessage(), e);
-            throw e;
-        } catch (Exception e) {
-            LOG.error("[{}] Failed to retrieve configuration from zk {}", clientAppId(), e.getMessage(), e);
-            throw new RestException(e);
-        }
+    public void getAllDynamicConfigurations(@Suspended AsyncResponse asyncResponse) {
+        validateSuperUserAccessAsync()
+                .thenCompose(__ -> dynamicConfigurationResources().getDynamicConfigurationAsync())
+                .thenAccept(configOpt -> asyncResponse.resume(configOpt.orElseGet(Collections::emptyMap)))
+                .exceptionally(ex -> {
+                    LOG.error("[{}] Failed to get all dynamic configuration.", clientAppId(), ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @GET
@@ -228,18 +238,28 @@ public class BrokersBase extends AdminResource {
     @ApiOperation(value = "Get all updatable dynamic configurations's name")
     @ApiResponses(value = {
             @ApiResponse(code = 403, message = "You don't have admin permission to get configuration")})
-    public List<String> getDynamicConfigurationName() {
-        validateSuperUserAccess();
-        return BrokerService.getDynamicConfiguration();
+    public void getDynamicConfigurationName(@Suspended AsyncResponse asyncResponse) {
+        validateSuperUserAccessAsync()
+                .thenAccept(__ -> asyncResponse.resume(BrokerService.getDynamicConfiguration()))
+                .exceptionally(ex -> {
+                    LOG.error("[{}] Failed to get all dynamic configuration names.", clientAppId(), ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @GET
     @Path("/configuration/runtime")
     @ApiOperation(value = "Get all runtime configurations. This operation requires Pulsar super-user privileges.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
-    public Map<String, String> getRuntimeConfiguration() {
-        validateSuperUserAccess();
-        return pulsar().getBrokerService().getRuntimeConfiguration();
+    public void getRuntimeConfiguration(@Suspended AsyncResponse asyncResponse) {
+        validateSuperUserAccessAsync()
+                .thenAccept(__ -> asyncResponse.resume(pulsar().getBrokerService().getRuntimeConfiguration()))
+                .exceptionally(ex -> {
+                    LOG.error("[{}] Failed to get runtime configuration.", clientAppId(), ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     /**
@@ -273,9 +293,14 @@ public class BrokersBase extends AdminResource {
     @Path("/internal-configuration")
     @ApiOperation(value = "Get the internal configuration data", response = InternalConfigurationData.class)
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
-    public InternalConfigurationData getInternalConfigurationData() {
-        validateSuperUserAccess();
-        return pulsar().getInternalConfigurationData();
+    public void getInternalConfigurationData(@Suspended AsyncResponse asyncResponse) {
+        validateSuperUserAccessAsync()
+                .thenAccept(__ -> asyncResponse.resume(pulsar().getInternalConfigurationData()))
+                .exceptionally(ex -> {
+                    LOG.error("[{}] Failed to get internal configuration data.", clientAppId(), ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @GET
@@ -286,16 +311,16 @@ public class BrokersBase extends AdminResource {
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 500, message = "Internal server error")})
     public void backlogQuotaCheck(@Suspended AsyncResponse asyncResponse) {
-        validateSuperUserAccess();
-        pulsar().getBrokerService().getBacklogQuotaChecker().execute(safeRun(()->{
-            try {
-                pulsar().getBrokerService().monitorBacklogQuota();
-                asyncResponse.resume(Response.noContent().build());
-            } catch (Exception e) {
-                LOG.error("trigger backlogQuotaCheck fail", e);
-                asyncResponse.resume(new RestException(e));
-            }
-        }));
+        validateSuperUserAccessAsync()
+                .thenAcceptAsync(__ -> {
+                    pulsar().getBrokerService().monitorBacklogQuota();
+                    asyncResponse.resume(Response.noContent().build());
+                } , pulsar().getBrokerService().getBacklogQuotaChecker())
+                .exceptionally(ex -> {
+                    LOG.error("[{}] Failed to trigger backlog quota check.", clientAppId(), ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @GET
@@ -324,6 +349,7 @@ public class BrokersBase extends AdminResource {
     public void healthCheck(@Suspended AsyncResponse asyncResponse,
                             @QueryParam("topicVersion") TopicVersion topicVersion) {
         validateSuperUserAccessAsync()
+                .thenAccept(__ -> checkDeadlockedThreads())
                 .thenCompose(__ -> internalRunHealthCheck(topicVersion))
                 .thenAccept(__ -> {
                     LOG.info("[{}] Successfully run health check.", clientAppId());
@@ -334,6 +360,27 @@ public class BrokersBase extends AdminResource {
                     return null;
                 });
     }
+
+    private void checkDeadlockedThreads() {
+        ThreadMXBean threadBean = ManagementFactory.getThreadMXBean();
+        long[] threadIds = threadBean.findDeadlockedThreads();
+        if (threadIds != null && threadIds.length > 0) {
+            ThreadInfo[] threadInfos = threadBean.getThreadInfo(threadIds, false, false);
+            String threadNames = Arrays.stream(threadInfos)
+                    .map(threadInfo -> threadInfo.getThreadName() + "(tid=" + threadInfo.getThreadId() + ")").collect(
+                            Collectors.joining(", "));
+            if (System.currentTimeMillis() - threadDumpLoggedTimestamp
+                    > LOG_THREADDUMP_INTERVAL_WHEN_DEADLOCK_DETECTED) {
+                threadDumpLoggedTimestamp = System.currentTimeMillis();
+                LOG.error("Deadlocked threads detected. {}\n{}", threadNames,
+                        ThreadDumpUtil.buildThreadDiagnosticString());
+            } else {
+                LOG.error("Deadlocked threads detected. {}", threadNames);
+            }
+            throw new IllegalStateException("Deadlocked threads detected. " + threadNames);
+        }
+    }
+
 
     private CompletableFuture<Void> internalRunHealthCheck(TopicVersion topicVersion) {
         NamespaceName namespaceName = (topicVersion == TopicVersion.V2)

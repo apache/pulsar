@@ -1233,8 +1233,9 @@ public class CmdNamespaces extends CmdBase {
         private String limitStr;
 
         @Parameter(names = { "-lt", "--limitTime" },
-                description = "Time limit in second, non-positive number for disabling time limit.")
-        private int limitTime = -1;
+                description = "Time limit in second (or minutes, hours, days, weeks eg: 100m, 3h, 2d, 5w), "
+                        + "non-positive number for disabling time limit.")
+        private String limitTimeStr = null;
 
         @Parameter(names = { "-p", "--policy" }, description = "Retention policy to enforce when the limit is reached. "
                 + "Valid options are: [producer_request_hold, producer_exception, consumer_backlog_eviction]",
@@ -1268,10 +1269,23 @@ public class CmdNamespaces extends CmdBase {
                         backlogQuotaTypeStr, Arrays.toString(BacklogQuota.BacklogQuotaType.values())));
             }
 
+            long limitTimeInSec = -1;
+            if (limitTimeStr != null) {
+                try {
+                    limitTimeInSec = RelativeTimeUtil.parseRelativeTimeInSeconds(limitTimeStr);
+                } catch (IllegalArgumentException e) {
+                    throw new ParameterException(e.getMessage());
+                }
+            }
+            if (limitTimeInSec > Integer.MAX_VALUE) {
+                throw new ParameterException(
+                        String.format("Time limit cannot be greater than %d seconds", Integer.MAX_VALUE));
+            }
+
             String namespace = validateNamespace(params);
             getAdmin().namespaces().setBacklogQuota(namespace,
                     BacklogQuota.builder().limitSize(limit)
-                            .limitTime(limitTime)
+                            .limitTime((int) limitTimeInSec)
                             .retentionPolicy(policy)
                             .build(),
                     backlogQuotaType);
