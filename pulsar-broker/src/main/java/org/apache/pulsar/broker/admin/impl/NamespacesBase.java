@@ -797,7 +797,7 @@ public abstract class NamespacesBase extends AdminResource {
                 .thenAccept(__ -> {
                     if (messageTTL != null && messageTTL < 0) {
                         throw new RestException(Status.PRECONDITION_FAILED,
-                                "Invalid value for message TTL");
+                                "Invalid value for message TTL, message TTL must >= 0");
                     }
                 }).thenCompose(__ -> updatePoliciesAsync(namespaceName, policies -> {
                     policies.message_ttl_in_seconds = messageTTL;

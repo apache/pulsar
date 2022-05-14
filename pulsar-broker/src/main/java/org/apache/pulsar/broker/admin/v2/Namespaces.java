@@ -341,6 +341,7 @@ public class Namespaces extends NamespacesBase {
                 .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
                 .thenAccept(policies -> asyncResponse.resume(policies.message_ttl_in_seconds))
                 .exceptionally(ex -> {
+                    log.error("Failed to get namespace message TTL for namespace {}", namespaceName, ex);
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
@@ -360,6 +361,7 @@ public class Namespaces extends NamespacesBase {
         internalSetNamespaceMessageTTLAsync(messageTTL)
                 .thenAccept(__ -> asyncResponse.resume(Response.ok().build()))
                 .exceptionally(ex -> {
+                    log.error("Failed to set namespace message TTL for namespace {}", namespaceName, ex);
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
@@ -367,7 +369,7 @@ public class Namespaces extends NamespacesBase {
 
     @DELETE
     @Path("/{tenant}/{namespace}/messageTTL")
-    @ApiOperation(value = "Set message TTL in seconds for namespace")
+    @ApiOperation(value = "Remove message TTL in seconds for namespace")
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist"),
             @ApiResponse(code = 412, message = "Invalid TTL")})
@@ -378,6 +380,7 @@ public class Namespaces extends NamespacesBase {
         internalSetNamespaceMessageTTLAsync(null)
                 .thenAccept(__ -> asyncResponse.resume(Response.ok().build()))
                 .exceptionally(ex -> {
+                    log.error("Failed to remove namespace message TTL for namespace {}", namespaceName, ex);
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
