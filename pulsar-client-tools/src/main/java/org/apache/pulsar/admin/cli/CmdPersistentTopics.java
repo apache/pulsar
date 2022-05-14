@@ -454,12 +454,18 @@ public class CmdPersistentTopics extends CmdBase {
                 "--subscription" }, description = "Subscription to be skip messages on", required = true)
         private String subName;
 
-        @Parameter(names = { "-t", "--expireTime" },
-                description = "Expire messages older than time in seconds", required = true)
-        private long expireTimeInSeconds;
+        @Parameter(names = { "-t", "--expireTime" }, description = "Expire messages older than time in seconds "
+                + "(or minutes, hours, days, weeks eg: 100m, 3h, 2d, 5w)", required = true)
+        private String expireTimeStr;
 
         @Override
         void run() throws PulsarAdminException {
+            long expireTimeInSeconds;
+            try {
+                expireTimeInSeconds = RelativeTimeUtil.parseRelativeTimeInSeconds(expireTimeStr);
+            } catch (IllegalArgumentException e) {
+                throw new ParameterException(e.getMessage());
+            }
             String persistentTopic = validatePersistentTopic(params);
             getPersistentTopics().expireMessages(persistentTopic, subName, expireTimeInSeconds);
         }
@@ -471,12 +477,18 @@ public class CmdPersistentTopics extends CmdBase {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = { "-t", "--expireTime" },
-                description = "Expire messages older than time in seconds", required = true)
-        private long expireTimeInSeconds;
+        @Parameter(names = { "-t", "--expireTime" }, description = "Expire messages older than time in seconds "
+                + "(or minutes, hours, days, weeks eg: 100m, 3h, 2d, 5w)", required = true)
+        private String expireTimeStr;
 
         @Override
         void run() throws PulsarAdminException {
+            long expireTimeInSeconds;
+            try {
+                expireTimeInSeconds = RelativeTimeUtil.parseRelativeTimeInSeconds(expireTimeStr);
+            } catch (IllegalArgumentException e) {
+                throw new ParameterException(e.getMessage());
+            }
             String persistentTopic = validatePersistentTopic(params);
             getPersistentTopics().expireMessagesForAllSubscriptions(persistentTopic, expireTimeInSeconds);
         }
