@@ -53,24 +53,6 @@ public class RemoveFieldFunction implements Function<GenericObject, Void>, Trans
         this.valueFields = valueFields;
     }
 
-    public static RemoveFieldFunction of(Map<String, String> step) {
-        String fields = step.get("fields");
-        if (fields == null || fields.isEmpty()) {
-            throw new IllegalArgumentException("missing required 'fields' parameter");
-        }
-        List<String> fieldList = Arrays.asList(fields.split(","));
-        String part = step.get("part");
-        if (part == null) {
-            return new RemoveFieldFunction(fieldList, fieldList);
-        } else if (part.equals("key")) {
-            return new RemoveFieldFunction(fieldList, new ArrayList<>());
-        } else if (part.equals("value")) {
-            return new RemoveFieldFunction(new ArrayList<>(), fieldList);
-        } else {
-            throw new IllegalArgumentException("invalid 'part' parameter: " + part);
-        }
-    }
-
     @Override
     public void initialize(Context context) {
         this.keyFields = getConfig(context, "key-fields");

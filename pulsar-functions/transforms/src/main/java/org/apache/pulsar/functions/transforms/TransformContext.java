@@ -84,9 +84,11 @@ public class TransformContext {
         } else {
             outputSchema = valueSchema;
             // GenericRecord must stay wrapped while primitives must be unwrapped
-            outputObject = !valueModified && valueSchema.getSchemaInfo().getType().isStruct()
-                    ? context.getCurrentRecord().getValue()
-                    : valueObject;
+            if (!valueModified && valueSchema.getSchemaInfo().getType().isStruct()) {
+                outputObject = context.getCurrentRecord().getValue();
+            } else {
+                outputObject = valueObject;
+            }
         }
 
         if (log.isDebugEnabled()) {
