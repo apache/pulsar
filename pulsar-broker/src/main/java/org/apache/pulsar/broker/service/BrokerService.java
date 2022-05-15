@@ -1400,9 +1400,12 @@ public class BrokerService implements Closeable {
                                             if (topicFuture.isCompletedExceptionally()) {
                                                 log.warn("{} future is already completed with failure {}, closing the"
                                                         + " topic", topic, FutureUtil.getException(topicFuture));
-                                                persistentTopic.stopReplProducers().whenComplete((v, exception) -> {
-                                                    topics.remove(topic, topicFuture);
-                                                });
+                                                persistentTopic.stopReplProducers(false).whenCompleteAsync((v, exception) -> {
+                                                    synchronized(topics) {
+                                                        topics.remove(topic, topicFuture);
+                                                        topicFuture.completeExceptionally(exception);
+                                                    }
+                                                }, workerGroup);
                                             } else {
                                                 addTopicToStatsMaps(topicName, persistentTopic);
                                                 topicFuture.complete(Optional.of(persistentTopic));
@@ -1411,10 +1414,12 @@ public class BrokerService implements Closeable {
                                         .exceptionally((ex) -> {
                                             log.warn("Replication or dedup check failed."
                                                     + " Removing topic from topics list {}, {}", topic, ex);
-                                            persistentTopic.stopReplProducers().whenComplete((v, exception) -> {
-                                                topics.remove(topic, topicFuture);
-                                                topicFuture.completeExceptionally(ex);
-                                            });
+                                            persistentTopic.stopReplProducers().whenCompleteAsync((v, exception) -> {
+                                                synchronized(topics) {
+                                                    topics.remove(topic, topicFuture);
+                                                    topicFuture.completeExceptionally(ex);
+                                                }
+                                            }, workerGroup);
                                             return null;
                                         });
                             } catch (PulsarServerException e) {
