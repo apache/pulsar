@@ -34,6 +34,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
@@ -644,15 +645,10 @@ public class ClustersBase extends AdminResource {
         }
         return adminClient.tenants().getTenantsAsync()
                 .thenCompose(tenants -> {
-                    List<CompletableFuture<List<String>>> namespaceFutures = tenants.stream()
-                            .map(tenant -> adminClient.namespaces().getNamespacesAsync(tenant))
-                            .collect(Collectors.toList());
-                    return FutureUtil.waitForAll(namespaceFutures)
-                            .thenApply(__ -> {
-                                List<String> namespaces = namespaceFutures.stream()
-                                        .map(CompletableFuture::join)
-                                        .flatMap(List::stream)
-                                        .collect(Collectors.toList());
+                    Stream<CompletableFuture<List<String>>> completableFutureStream = tenants.stream()
+                            .map(tenant -> adminClient.namespaces().getNamespacesAsync(tenant));
+                    return FutureUtil.waitForAll(completableFutureStream)
+                            .thenApply(namespaces -> {
                                 // if namespace match any policy regex, add it to ns list to be unload.
                                 return namespaces.stream()
                                         .filter(namespaceName ->
