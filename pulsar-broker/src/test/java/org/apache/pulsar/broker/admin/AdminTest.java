@@ -672,17 +672,18 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         String bundleRange = "0x00000000_0xffffffff";
         Policies policies = new Policies();
         doReturn(policies).when(resourceQuotas).getNamespacePolicies(NamespaceName.get(property, cluster, namespace));
+        doReturn(CompletableFuture.completedFuture(policies)).when(resourceQuotas).getNamespacePoliciesAsync(NamespaceName.get(property, cluster, namespace));
         doReturn("client-id").when(resourceQuotas).clientAppId();
 
         try {
-            resourceQuotas.setNamespaceBundleResourceQuota(property, cluster, namespace, bundleRange, quota);
+            asyncRequests(ctx -> resourceQuotas.setNamespaceBundleResourceQuota(ctx, property, cluster, namespace, bundleRange, quota));
             fail();
         } catch (Exception e) {
             // OK : should fail without creating policies
         }
 
         try {
-            resourceQuotas.removeNamespaceBundleResourceQuota(property, cluster, namespace, bundleRange);
+            asyncRequests(ctx -> resourceQuotas.removeNamespaceBundleResourceQuota(ctx, property, cluster, namespace, bundleRange));
             fail();
         } catch (Exception e) {
             // OK : should fail without creating policies
@@ -702,14 +703,14 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         quota.setBandwidthOut(customizeBandwidth);
 
         // set and get Resource Quota
-        resourceQuotas.setNamespaceBundleResourceQuota(property, cluster, namespace, bundleRange, quota);
-        ResourceQuota bundleQuota = resourceQuotas.getNamespaceBundleResourceQuota(property, cluster, namespace,
-                bundleRange);
+        asyncRequests(ctx -> resourceQuotas.setNamespaceBundleResourceQuota(ctx, property, cluster, namespace, bundleRange, quota));
+        ResourceQuota bundleQuota = (ResourceQuota) asyncRequests(ctx -> resourceQuotas.getNamespaceBundleResourceQuota(ctx, property, cluster, namespace,
+                bundleRange));
         assertEquals(quota, bundleQuota);
 
         // remove quota which sets to default quota
-        resourceQuotas.removeNamespaceBundleResourceQuota(property, cluster, namespace, bundleRange);
-        bundleQuota = resourceQuotas.getNamespaceBundleResourceQuota(property, cluster, namespace, bundleRange);
+        asyncRequests(ctx -> resourceQuotas.removeNamespaceBundleResourceQuota(ctx, property, cluster, namespace, bundleRange));
+        bundleQuota = (ResourceQuota) asyncRequests(ctx -> resourceQuotas.getNamespaceBundleResourceQuota(ctx, property, cluster, namespace, bundleRange));
         assertEquals(defaultBandwidth, bundleQuota.getBandwidthIn());
         assertEquals(defaultBandwidth, bundleQuota.getBandwidthOut());
     }
