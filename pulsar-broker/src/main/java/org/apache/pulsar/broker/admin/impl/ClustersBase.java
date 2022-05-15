@@ -511,27 +511,6 @@ public class ClustersBase extends AdminResource {
                 });
     }
 
-    private BrokerNamespaceIsolationData internalGetBrokerNsIsolationData(
-                                                                    String broker,
-                                                                    Map<String, NamespaceIsolationDataImpl> policies) {
-        BrokerNamespaceIsolationData.Builder brokerIsolationData =
-                BrokerNamespaceIsolationData.builder().brokerName(broker);
-        if (policies == null) {
-            return brokerIsolationData.build();
-        }
-        List<String> namespaceRegexes = new ArrayList<>();
-        policies.forEach((name, policyData) -> {
-            NamespaceIsolationPolicyImpl nsPolicyImpl = new NamespaceIsolationPolicyImpl(policyData);
-            if (nsPolicyImpl.isPrimaryBroker(broker) || nsPolicyImpl.isSecondaryBroker(broker)) {
-                namespaceRegexes.addAll(policyData.getNamespaces());
-                brokerIsolationData.primary(nsPolicyImpl.isPrimaryBroker(broker));
-                brokerIsolationData.policyName(name);
-            }
-        });
-        brokerIsolationData.namespaceRegex(namespaceRegexes);
-        return brokerIsolationData.build();
-    }
-
     @GET
     @Path("/{cluster}/namespaceIsolationPolicies/brokers/{broker}")
     @ApiOperation(
@@ -586,17 +565,6 @@ public class ClustersBase extends AdminResource {
         return brokerIsolationData.build();
     }
 
-    private CompletableFuture<Map<String, NamespaceIsolationDataImpl>> internalGetNamespaceIsolationPolicies(
-            String cluster) {
-        return namespaceIsolationPolicies().getIsolationDataPoliciesAsync(cluster)
-                .thenApply(namespaceIsolationPolicies -> {
-                    if (!namespaceIsolationPolicies.isPresent()) {
-                        throw new RestException(Status.NOT_FOUND,
-                                "NamespaceIsolationPolicies for cluster " + cluster + " does not exist");
-                    }
-                    return namespaceIsolationPolicies.get().getPolicies();
-                });
-    }
     @POST
     @Path("/{cluster}/namespaceIsolationPolicies/{policyName}")
     @ApiOperation(
@@ -978,19 +946,4 @@ public class ClustersBase extends AdminResource {
     }
 
     private static final Logger log = LoggerFactory.getLogger(ClustersBase.class);
-
-    /**
-     * Verify that the cluster exists.
-     * For compatibility to avoid breaking changes, we can specify a REST status code when it doesn't exist.
-     * @param cluster Cluster name
-     * @param notExistStatus REST status code
-     */
-    private CompletableFuture<Void> validateClusterExistAsync(String cluster, Status notExistStatus) {
-        return clusterResources().clusterExistsAsync(cluster)
-                .thenAccept(clusterExist -> {
-                    if (!clusterExist) {
-                        throw new RestException(notExistStatus, "Cluster " + cluster + " does not exist.");
-                    }
-                });
-    }
 }
