@@ -180,7 +180,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         position.ackSet = null;
         return position;
     };
-    private final LongPairRangeSet<PositionImpl> individualDeletedMessages;
+    private final RangeSetWrapper<PositionImpl> individualDeletedMessages;
 
     // Maintain the deletion status for batch messages
     // (ledgerId, entryId) -> deletion indexes
@@ -284,9 +284,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         this.config = config;
         this.ledger = ledger;
         this.name = cursorName;
-        this.individualDeletedMessages = config.isUnackedRangesOpenCacheSetEnabled()
-                ? new ConcurrentOpenLongPairRangeSet<>(4096, positionRangeConverter)
-                : new LongPairRangeSet.DefaultRangeSet<>(positionRangeConverter);
+        this.individualDeletedMessages = new RangeSetWrapper<>(positionRangeConverter, this);
         if (config.isDeletionAtBatchIndexLevelEnabled()) {
             this.batchDeletedIndexes = new ConcurrentSkipListMap<>();
         } else {
@@ -2649,6 +2647,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                 return rangeList.size() <= config.getMaxUnackedRangesToPersist();
             });
             this.individualDeletedMessagesSerializedSize = acksSerializedSize.get();
+            individualDeletedMessages.resetDirtyKeys();
             return rangeList;
         } finally {
             lock.readLock().unlock();
@@ -3196,4 +3195,8 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     private static final Logger log = LoggerFactory.getLogger(ManagedCursorImpl.class);
+
+    public ManagedLedgerConfig getConfig() {
+        return config;
+    }
 }
