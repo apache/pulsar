@@ -513,10 +513,17 @@ public class Namespaces extends NamespacesBase {
     @ApiOperation(hidden = true, value = "Enable or disable broker side deduplication for all topics in a namespace")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist") })
-    public void modifyDeduplication(@PathParam("property") String property, @PathParam("cluster") String cluster,
-            @PathParam("namespace") String namespace, boolean enableDeduplication) {
+    public void modifyDeduplication(@Suspended AsyncResponse asyncResponse, @PathParam("property") String property,
+                                    @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
+                                    boolean enableDeduplication) {
         validateNamespaceName(property, cluster, namespace);
-        internalModifyDeduplication(enableDeduplication);
+        internalModifyDeduplicationAsync(enableDeduplication)
+                .thenAccept(__ -> asyncResponse.resume(Response.ok().build()))
+                .exceptionally(ex -> {
+                    log.error("Fail modify broker deduplication config for namespace {}", namespaceName, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @GET
