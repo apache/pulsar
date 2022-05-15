@@ -51,9 +51,9 @@ public class RangeSetWrapper<T extends Comparable<T>> implements LongPairRangeSe
         checkNotNull(managedCursor);
         this.config = managedCursor.getConfig();
         this.rangeConverter = rangeConverter;
-        this.rangeSet = config.isUnackedRangesOpenCacheSetEnabled() ?
-                new ConcurrentOpenLongPairRangeSet<>(4096, rangeConverter) :
-                new LongPairRangeSet.DefaultRangeSet<>(rangeConverter);
+        this.rangeSet = config.isUnackedRangesOpenCacheSetEnabled()
+                ? new ConcurrentOpenLongPairRangeSet<>(4096, rangeConverter)
+                : new LongPairRangeSet.DefaultRangeSet<>(rangeConverter);
         this.enableMultiEntry = config.isEnableMultiEntriesToPersistUnackedRanges();
     }
 
