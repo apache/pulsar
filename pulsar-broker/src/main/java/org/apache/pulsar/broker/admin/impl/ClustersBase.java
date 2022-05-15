@@ -634,7 +634,7 @@ public class ClustersBase extends AdminResource {
     }
 
     /**
-     * Get matched namespaces; call unload for each namespaces;
+     * Get matched namespaces; call unload for each namespaces.
      */
     private CompletableFuture<Void> filterAndUnloadMatchedNamespaceAsync(NamespaceIsolationDataImpl policyData) {
         PulsarAdmin adminClient;
