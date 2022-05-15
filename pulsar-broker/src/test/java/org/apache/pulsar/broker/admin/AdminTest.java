@@ -403,8 +403,8 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), Status.PRECONDITION_FAILED.getStatusCode());
         }
-        verify(clusters, times(22)).validateSuperUserAccessAsync();
-        verify(clusters, times(2)).validateSuperUserAccess();
+        verify(clusters, times(23)).validateSuperUserAccessAsync();
+        verify(clusters, times(1)).validateSuperUserAccess();
     }
 
     @Test
