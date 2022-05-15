@@ -36,7 +36,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
  *
  * @param <T>
  */
-public class RangeSetWrapper<T extends Comparable<T>> implements LongPairRangeSet<T>{
+public class RangeSetWrapper<T extends Comparable<T>> implements LongPairRangeSet<T> {
 
     private final LongPairRangeSet<T> rangeSet;
     private final LongPairConsumer<T> rangeConverter;

@@ -405,7 +405,8 @@ public class RangeSetWrapperTest {
         set.remove(Range.openClosed(new LongPair(0, 0), new LongPair(0, Integer.MAX_VALUE - 1)));
         ranges = new ArrayList<>(set.asRanges());
         count = 0;
-        assertEquals(ranges.get(count++), (Range.openClosed(new LongPair(0, Integer.MAX_VALUE - 1), new LongPair(1, 5))));
+        assertEquals(ranges.get(count++),
+                (Range.openClosed(new LongPair(0, Integer.MAX_VALUE - 1), new LongPair(1, 5))));
         assertEquals(ranges.get(count++), (Range.openClosed(new LongPair(1, 10), new LongPair(1, 15))));
         assertEquals(ranges.get(count++), (Range.openClosed(new LongPair(1, 20), new LongPair(2, 10))));
         assertEquals(ranges.get(count), (Range.openClosed(new LongPair(2, 25), new LongPair(2, 28))));
@@ -493,7 +494,8 @@ public class RangeSetWrapperTest {
                     : previousUpper.getValue() - 1);
             int currentLowerValue = (int) (range.lowerBoundType().equals(BoundType.CLOSED) ? currentLower.getValue()
                     : currentLower.getValue() + 1);
-            boolean connected = previousUpper.getKey() == currentLower.getKey() && (previousUpperValue >= currentLowerValue);
+            boolean connected =
+                    previousUpper.getKey() == currentLower.getKey() && (previousUpperValue >= currentLowerValue);
             if (connected) {
                 lastRange = Range.closed(lastRange.lowerEndpoint(), range.upperEndpoint());
             } else {
