@@ -198,7 +198,7 @@ public class TenantsBase extends PulsarWebResource {
             @QueryParam("force") @DefaultValue("false") boolean force) {
         validateSuperUserAccessAsync()
                 .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
-                .thenAccept(__ -> internalDeleteTenant(tenant, force))
+                .thenCompose(__ -> internalDeleteTenant(tenant, force))
                 .thenAccept(__ -> {
                     log.info("[{}] Deleted tenant {}", clientAppId(), tenant);
                     asyncResponse.resume(Response.noContent().build());
