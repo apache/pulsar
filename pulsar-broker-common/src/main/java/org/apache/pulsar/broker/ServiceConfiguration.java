@@ -1840,8 +1840,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int managedLedgerMaxUnackedRangesToPersist = 10000;
     @FieldContext(
         category = CATEGORY_STORAGE_ML,
-        doc = "If enabled, the maximum \"acknowledgment holes\" will not be limited and \"acknowledgment holes\" " +
-                "are stored in multiple entries.")
+        doc = "If enabled, the maximum \"acknowledgment holes\" will not be limited and \"acknowledgment holes\" "
+                + "are stored in multiple entries.")
     private boolean enableMultiEntriesToPersistUnackedRanges = false;
     @Deprecated
     @FieldContext(
