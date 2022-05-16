@@ -475,8 +475,8 @@ public class ManagedLedgerConfig {
         return persistentUnackedRangesWithMultipleEntriesEnabled;
     }
 
-    public void setPersistentUnackedRangesWithMultipleEntriesEnabled(boolean persistentUnackedRangesWithMultipleEntriesEnabled) {
-        this.persistentUnackedRangesWithMultipleEntriesEnabled = persistentUnackedRangesWithMultipleEntriesEnabled;
+    public void setPersistentUnackedRangesWithMultipleEntriesEnabled(boolean multipleEntriesEnabled) {
+        this.persistentUnackedRangesWithMultipleEntriesEnabled = multipleEntriesEnabled;
     }
 
     /**
