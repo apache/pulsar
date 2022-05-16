@@ -387,14 +387,18 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
             if (!ongoingTxns.isEmpty()) {
                 TxnID firstTxn = ongoingTxns.firstKey();
                 long tCId = firstTxn.getMostSigBits();
-                if (lowWaterMarks.get(tCId) != null && firstTxn.getLeastSigBits() <= lowWaterMarks.get(tCId)) {
-                    abortTxn(firstTxn, lowWaterMarks.get(tCId))
+                Long lowWaterMarkOfFirstTxnId = lowWaterMarks.get(tCId);
+                if (lowWaterMarkOfFirstTxnId != null && firstTxn.getLeastSigBits() <= lowWaterMarkOfFirstTxnId) {
+                    abortTxn(firstTxn, lowWaterMarkOfFirstTxnId)
                             .thenRun(() -> {
-                                log.warn("Successed to abort low water mark for txn {}", firstTxn);
+                                log.warn("Successes to abort low water mark for txn [{}], topic [{}],"
+                                        + " lowWaterMark [{}]", firstTxn, topic.getName(), lowWaterMarkOfFirstTxnId);
                                 handleLowWaterMark.release();
                             })
                             .exceptionally(ex -> {
-                                log.warn("Failed to abort low water mark for txn {}", firstTxn, ex);
+                                log.warn("Failed to abort low water mark for txn {}, topic [{}], "
+                                        + "lowWaterMark [{}], ", firstTxn, topic.getName(), lowWaterMarkOfFirstTxnId,
+                                        ex);
                                 handleLowWaterMark.release();
                                 return null;
                             });
