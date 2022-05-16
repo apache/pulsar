@@ -137,14 +137,6 @@
                                     <shadedPattern>org.apache.pulsar.functions.runtime.shaded.javax.servlet</shadedPattern>
                                 </relocation>
                                 <relocation>
-                                    <pattern>org.junit</pattern>
-                                    <shadedPattern>org.apache.pulsar.functions.runtime.shaded.org.junit</shadedPattern>
-                                </relocation>
-                                <relocation>
-                                    <pattern>junit</pattern>
-                                    <shadedPattern>org.apache.pulsar.functions.runtime.shaded.junit</shadedPattern>
-                                </relocation>
-                                <relocation>
                                     <pattern>net.jodah</pattern>
                                     <shadedPattern>org.apache.pulsar.functions.runtime.shaded.net.jodah</shadedPattern>
                                 </relocation>
