@@ -29,9 +29,11 @@ import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
 import org.apache.pulsar.client.impl.schema.KeyValueSchemaImpl;
+import org.apache.pulsar.io.kafka.connect.schema.KafkaConnectData;
 import org.apache.pulsar.io.kafka.connect.schema.PulsarSchemaToKafkaSchema;
 import org.testng.annotations.Test;
 
+import java.math.BigInteger;
 import java.util.List;
 
 import static org.testng.Assert.assertEquals;
@@ -165,6 +167,37 @@ public class PulsarSchemaToKafkaSchemaTest {
         for (String name: STRUCT_FIELDS) {
             assertEquals(kafkaSchema.field(name).name(), name);
         }
+    }
+
+    @Test
+    public void castToKafkaSchemaTest() {
+        assertEquals(Byte.class,
+                KafkaConnectData.castToKafkaSchema(100L,
+                        org.apache.kafka.connect.data.Schema.INT8_SCHEMA).getClass());
+
+        assertEquals(Short.class,
+                KafkaConnectData.castToKafkaSchema(100.0d,
+                        org.apache.kafka.connect.data.Schema.INT16_SCHEMA).getClass());
+
+        assertEquals(Integer.class,
+                KafkaConnectData.castToKafkaSchema((byte)5,
+                        org.apache.kafka.connect.data.Schema.INT32_SCHEMA).getClass());
+
+        assertEquals(Long.class,
+                KafkaConnectData.castToKafkaSchema((short)5,
+                        org.apache.kafka.connect.data.Schema.INT64_SCHEMA).getClass());
+
+        assertEquals(Float.class,
+                KafkaConnectData.castToKafkaSchema(1.0d,
+                        org.apache.kafka.connect.data.Schema.FLOAT32_SCHEMA).getClass());
+
+        assertEquals(Double.class,
+                KafkaConnectData.castToKafkaSchema(1.5f,
+                        org.apache.kafka.connect.data.Schema.FLOAT64_SCHEMA).getClass());
+
+        assertEquals(Double.class,
+                KafkaConnectData.castToKafkaSchema(new BigInteger("100"),
+                        org.apache.kafka.connect.data.Schema.FLOAT64_SCHEMA).getClass());
     }
 
     @Test
