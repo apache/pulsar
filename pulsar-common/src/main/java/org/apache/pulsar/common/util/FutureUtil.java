@@ -58,10 +58,6 @@ public class FutureUtil {
                 })));
     }
 
-    public static <T> CompletableFuture<List<T>> waitForAll(List<CompletableFuture<List<T>>> futures) {
-        return waitForAll(futures.stream());
-    }
-
     /**
      * Return a future that represents the completion of any future in the provided Collection.
      *
