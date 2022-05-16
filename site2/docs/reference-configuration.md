@@ -152,7 +152,7 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 |brokerServicePortTls|  Broker data port for TLS  |6651|
 |webServicePort|  Port to use to server HTTP request  |8080|
 |webServicePortTls| Port to use to server HTTPS request |8443|
-|webServiceTlsProvider | The TLS provider for the web service. Available values: `SunJSSE`, `Conscrypt` and etc. | Conscrypt |
+|webServiceTlsProvider | The TLS provider for the web service. Available values: `SunJSSE`, `Conscrypt`, and so on. | Conscrypt |
 |webSocketServiceEnabled| Enable the WebSocket API service in broker  |false|
 |webSocketNumIoThreads|The number of IO threads in Pulsar Client used in WebSocket proxy.|Runtime.getRuntime().availableProcessors()|
 |webSocketConnectionsPerBroker|The number of connections per Broker in Pulsar Client used in WebSocket proxy.|Runtime.getRuntime().availableProcessors()|
@@ -484,7 +484,7 @@ You can set the log level and configuration in the  [log4j2.yaml](https://github
 |configurationMetadataStoreUrl| Configuration store connection string (as a comma-separated list) ||
 |brokerServicePort| The port on which the standalone broker listens for connections |6650|
 |webServicePort|  The port used by the standalone broker for HTTP requests  |8080|
-|webServiceTlsProvider | The TLS provider for the web service. Available values: `SunJSSE`, `Conscrypt` and etc. | Conscrypt |
+|webServiceTlsProvider | The TLS provider for the web service. Available values: `SunJSSE`, `Conscrypt`, and so on. | Conscrypt |
 |bindAddress| The hostname or IP address on which the standalone service binds  |0.0.0.0|
 |bindAddresses| Additional Hostname or IP addresses the service binds on: `listener_name:scheme://host:port,...`.  ||
 |advertisedAddress| The hostname or IP address that the standalone service advertises to the outside world. If not set, the value of `InetAddress.getLocalHost().getHostName()` is used.  ||
@@ -761,7 +761,7 @@ The following parameters have been deprecated in the `conf/standalone.conf` file
 |tlsCertificateFilePath|||
 |tlsKeyFilePath |||
 |tlsTrustCertsFilePath|||
-|tlsProvider | The TLS provider for websocket. Available values: `SunJSSE`, `Conscrypt` and etc. | Conscrypt |
+|tlsProvider | The TLS provider for websocket. Available values: `SunJSSE`, `Conscrypt`, and so on. | Conscrypt |
 
 
 #### Deprecated parameters of WebSocket
@@ -830,7 +830,7 @@ The [Pulsar proxy](concepts-architecture-overview.md#pulsar-proxy) can be config
 |haProxyProtocolEnabled | Enable or disable the [HAProxy](http://www.haproxy.org/) protocol. |false|
 | numIOThreads | Number of threads used for Netty IO. | 2 * Runtime.getRuntime().availableProcessors() |
 | numAcceptorThreads | Number of threads used for Netty Acceptor. | 1 |
-|webServiceTlsProvider | The TLS provider for the web service. Available values: `SunJSSE`, `Conscrypt` and etc. | Conscrypt |
+|webServiceTlsProvider | The TLS provider for the web service. Available values: `SunJSSE`, `Conscrypt`, and so on. | Conscrypt |
 
 
 #### Deprecated parameters of Pulsar proxy
