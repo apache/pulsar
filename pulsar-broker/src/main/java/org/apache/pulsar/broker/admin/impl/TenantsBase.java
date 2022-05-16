@@ -63,6 +63,7 @@ public class TenantsBase extends PulsarWebResource {
     @ApiResponses(value = {@ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
             @ApiResponse(code = 404, message = "Tenant doesn't exist")})
     public void getTenants(@Suspended final AsyncResponse asyncResponse) {
+        final String clientAppId = clientAppId();
         validateSuperUserAccessAsync()
                 .thenCompose(__ -> tenantResources().listTenantsAsync())
                 .thenAccept(tenants -> {
@@ -71,7 +72,7 @@ public class TenantsBase extends PulsarWebResource {
                     deepCopy.sort(null);
                     asyncResponse.resume(deepCopy);
                 }).exceptionally(ex -> {
-                    log.error("[{}] Failed to get tenants list", clientAppId(), ex);
+                    log.error("[{}] Failed to get tenants list", clientAppId, ex);
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
@@ -84,6 +85,7 @@ public class TenantsBase extends PulsarWebResource {
             @ApiResponse(code = 404, message = "Tenant does not exist")})
     public void getTenantAdmin(@Suspended final AsyncResponse asyncResponse,
             @ApiParam(value = "The tenant name") @PathParam("tenant") String tenant) {
+        final String clientAppId = clientAppId();
         validateSuperUserAccessAsync()
                 .thenCompose(__ -> tenantResources().getTenantAsync(tenant))
                 .thenApply(tenantInfo -> {
@@ -94,7 +96,7 @@ public class TenantsBase extends PulsarWebResource {
                 })
                 .thenAccept(asyncResponse::resume)
                 .exceptionally(ex -> {
-                    log.error("[{}] Failed to get tenant admin {}", clientAppId(), ex);
+                    log.error("[{}] Failed to get tenant admin {}", clientAppId, ex);
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
@@ -111,11 +113,11 @@ public class TenantsBase extends PulsarWebResource {
     public void createTenant(@Suspended final AsyncResponse asyncResponse,
             @ApiParam(value = "The tenant name") @PathParam("tenant") String tenant,
             @ApiParam(value = "TenantInfo") TenantInfoImpl tenantInfo) {
-
+        final String clientAppId = clientAppId();
         try {
             NamedEntity.checkName(tenant);
         } catch (IllegalArgumentException e) {
-            log.warn("[{}] Failed to create tenant with invalid name {}", clientAppId(), tenant, e);
+            log.warn("[{}] Failed to create tenant with invalid name {}", clientAppId, tenant, e);
             asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED, "Tenant name is not valid"));
             return;
         }
@@ -141,11 +143,11 @@ public class TenantsBase extends PulsarWebResource {
                 })
                 .thenCompose(__ -> tenantResources().createTenantAsync(tenant, tenantInfo))
                 .thenAccept(__ -> {
-                    log.info("[{}] Created tenant {}", clientAppId(), tenant);
+                    log.info("[{}] Created tenant {}", clientAppId, tenant);
                     asyncResponse.resume(Response.noContent().build());
                 })
                 .exceptionally(ex -> {
-                    log.error("[{}] Failed to create tenant {}", clientAppId(), tenant, ex);
+                    log.error("[{}] Failed to create tenant {}", clientAppId, tenant, ex);
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
@@ -163,6 +165,7 @@ public class TenantsBase extends PulsarWebResource {
     public void updateTenant(@Suspended final AsyncResponse asyncResponse,
             @ApiParam(value = "The tenant name") @PathParam("tenant") String tenant,
             @ApiParam(value = "TenantInfo") TenantInfoImpl newTenantAdmin) {
+        final String clientAppId = clientAppId();
         validateSuperUserAccessAsync()
                 .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
                 .thenCompose(__ -> validateClustersAsync(newTenantAdmin))
@@ -177,10 +180,10 @@ public class TenantsBase extends PulsarWebResource {
                 })
                 .thenCompose(__ -> tenantResources().updateTenantAsync(tenant, old -> newTenantAdmin))
                 .thenAccept(__ -> {
-                    log.info("Successfully updated tenant info {}", tenant);
+                    log.info("[{}] Successfully updated tenant info {}", clientAppId, tenant);
                     asyncResponse.resume(Response.noContent().build());
                 }).exceptionally(ex -> {
-                    log.warn("Failed to update tenant {}", tenant, ex);
+                    log.warn("[{}] Failed to update tenant {}", clientAppId, tenant, ex);
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
@@ -196,16 +199,17 @@ public class TenantsBase extends PulsarWebResource {
     public void deleteTenant(@Suspended final AsyncResponse asyncResponse,
             @PathParam("tenant") @ApiParam(value = "The tenant name") String tenant,
             @QueryParam("force") @DefaultValue("false") boolean force) {
+        final String clientAppId = clientAppId();
         validateSuperUserAccessAsync()
                 .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
                 .thenCompose(__ -> internalDeleteTenant(tenant, force))
                 .thenAccept(__ -> {
-                    log.info("[{}] Deleted tenant {}", clientAppId(), tenant);
+                    log.info("[{}] Deleted tenant {}", clientAppId, tenant);
                     asyncResponse.resume(Response.noContent().build());
                 })
                 .exceptionally(ex -> {
                     Throwable cause = FutureUtil.unwrapCompletionException(ex);
-                    log.error("[{}] Failed to delete tenant {}", clientAppId(), tenant, cause);
+                    log.error("[{}] Failed to delete tenant {}", clientAppId, tenant, cause);
                     if (cause instanceof IllegalStateException) {
                         asyncResponse.resume(new RestException(Status.CONFLICT, cause));
                     } else {
