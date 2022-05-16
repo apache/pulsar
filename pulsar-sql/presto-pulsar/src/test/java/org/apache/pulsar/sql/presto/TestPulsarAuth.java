@@ -1,6 +1,25 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 package org.apache.pulsar.sql.presto;
 
 import static io.prestosql.spi.StandardErrorCode.PERMISSION_DENIED;
+import static io.prestosql.spi.StandardErrorCode.QUERY_REJECTED;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import com.google.common.collect.Sets;
@@ -72,6 +91,54 @@ public class TestPulsarAuth extends MockedPulsarServiceBaseTest {
         pulsarConnectorConfig.setBrokerBinaryServiceUrl("");
 
         new PulsarAuth(pulsarConnectorConfig);
+    }
+
+    @Test
+    public void testEmptyExtraCredentials() {
+        PulsarConnectorConfig pulsarConnectorConfig = mock(PulsarConnectorConfig.class);
+
+        doReturn(true).when(pulsarConnectorConfig).getAuthorizationEnable();
+        doReturn(pulsar.getBrokerServiceUrl()).when(pulsarConnectorConfig).getBrokerBinaryServiceUrl();
+
+        PulsarAuth pulsarAuth = new PulsarAuth(pulsarConnectorConfig);
+
+        ConnectorSession session = mock(ConnectorSession.class);
+        ConnectorIdentity identity = mock(ConnectorIdentity.class);
+        doReturn("query-1").when(session).getQueryId();
+        doReturn(identity).when(session).getIdentity();
+
+        // Test empty extra credentials map
+        doReturn(new HashMap<String, String>()).when(identity).getExtraCredentials();
+        try {
+            pulsarAuth.checkTopicAuth(session, "test");
+            Assert.fail(); // should fail
+        } catch (PrestoException e) {
+            Assert.assertEquals(QUERY_REJECTED.toErrorCode(), e.getErrorCode());
+            Assert.assertTrue(e.getMessage().contains("The credential information is empty"));
+        }
+
+        // Test empty extra credentials parameters
+        doReturn(new HashMap<String, String>() {{
+            put("auth-plugin", "org.apache.pulsar.client.impl.auth.AuthenticationToken");
+        }}).when(identity).getExtraCredentials();
+        try {
+            pulsarAuth.checkTopicAuth(session, "test");
+            Assert.fail(); // should fail
+        } catch (PrestoException e) {
+            Assert.assertEquals(QUERY_REJECTED.toErrorCode(), e.getErrorCode());
+            Assert.assertTrue(e.getMessage().contains("Please specify the auth-method and auth-params"));
+        }
+
+        doReturn(new HashMap<String, String>() {{
+            put("auth-params", "test-token");
+        }}).when(identity).getExtraCredentials();
+        try {
+            pulsarAuth.checkTopicAuth(session, "test");
+            Assert.fail(); // should fail
+        } catch (PrestoException e) {
+            Assert.assertEquals(QUERY_REJECTED.toErrorCode(), e.getErrorCode());
+            Assert.assertTrue(e.getMessage().contains("Please specify the auth-method and auth-params"));
+        }
     }
 
     @Test

@@ -25,6 +25,7 @@ import com.google.inject.Inject;
 import io.airlift.log.Logger;
 import io.prestosql.spi.PrestoException;
 import io.prestosql.spi.connector.ConnectorSession;
+import java.io.IOException;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -34,6 +35,12 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 
+/**
+ * This class implements the authentication and authorization integration between the Pulsar SQL worker and the
+ * Pulsar broker.
+ *
+ * The same topic will only be checked once during the same session.
+ */
 public class PulsarAuth {
 
     private static final Logger log = Logger.get(PulsarAuth.class);
@@ -54,6 +61,11 @@ public class PulsarAuth {
         }
     }
 
+    /**
+     * Check if the session has read access to the topic.
+     * It will try to subscribe to that topic using the Pulsar Reader to check the consumption privilege.
+     * The same topic will only be checked once during the same session.
+     */
     public void checkTopicAuth(ConnectorSession session, String topic) {
         Set<String> authorizedTopics =
                 authorizedQueryTopicsMap.computeIfAbsent(session.getQueryId(), query -> new HashSet<>());
@@ -67,7 +79,7 @@ public class PulsarAuth {
             log.debug("Checking the authorization for the topic: %s", topic);
         }
         Map<String, String> extraCredentials = session.getIdentity().getExtraCredentials();
-        if (extraCredentials.isEmpty()) {
+        if (extraCredentials.isEmpty()) { // the extraCredentials won't be null
             throw new PrestoException(QUERY_REJECTED,
                     String.format(
                             "Failed to check the authorization for topic %s: The credential information is empty.",
@@ -88,7 +100,7 @@ public class PulsarAuth {
                     .serviceUrl(pulsarConnectorConfig.getBrokerBinaryServiceUrl())
                     .authentication(authMethod, authParams)
                     .build();
-            client.newReader().topic(topic).startMessageId(MessageId.earliest).create();
+            client.newReader().topic(topic).receiverQueueSize(0).startMessageId(MessageId.earliest).create().close();
             authorizedQueryTopicsMap.computeIfPresent(session.getQueryId(), (query, topics) -> {
                 topics.add(topic);
                 return topics;
@@ -99,12 +111,15 @@ public class PulsarAuth {
         } catch (PulsarClientException.AuthenticationException | PulsarClientException.AuthorizationException e) {
             throw new PrestoException(PERMISSION_DENIED,
                     String.format("Failed to access topic %s: %s", topic, e.getLocalizedMessage()));
-        } catch (PulsarClientException e) {
+        } catch (IOException e) {
             throw new PrestoException(QUERY_REJECTED,
                     String.format("Failed to check authorization for topic %s: %s", topic, e.getLocalizedMessage()));
         }
     }
 
+    /**
+     * When the session is closed, this method needs to be called to clear the session's auth verification status.
+     */
     public void cleanSession(ConnectorSession session) {
         authorizedQueryTopicsMap.remove(session.getQueryId());
     }
