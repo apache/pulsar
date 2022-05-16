@@ -359,7 +359,7 @@ public class Namespaces extends NamespacesBase {
                                                int messageTTL) {
         validateNamespaceName(tenant, namespace);
         internalSetNamespaceMessageTTLAsync(messageTTL)
-                .thenAccept(__ -> asyncResponse.resume(Response.ok().build()))
+                .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
                 .exceptionally(ex -> {
                     log.error("Failed to set namespace message TTL for namespace {}", namespaceName, ex);
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
@@ -378,7 +378,7 @@ public class Namespaces extends NamespacesBase {
                                           @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
         internalSetNamespaceMessageTTLAsync(null)
-                .thenAccept(__ -> asyncResponse.resume(Response.ok().build()))
+                .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
                 .exceptionally(ex -> {
                     log.error("Failed to remove namespace message TTL for namespace {}", namespaceName, ex);
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
