@@ -260,7 +260,6 @@ public class PulsarMetadata implements ConnectorMetadata {
         requireNonNull(prefix, "prefix is null");
 
         ImmutableMap.Builder<SchemaTableName, List<ColumnMetadata>> columns = ImmutableMap.builder();
-        log.debug("List table columns %s", columns);
 
         List<SchemaTableName> tableNames;
         if (!prefix.getTable().isPresent()) {

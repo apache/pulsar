@@ -39,7 +39,8 @@ import org.apache.pulsar.client.api.PulsarClientException;
  * This class implements the authentication and authorization integration between the Pulsar SQL worker and the
  * Pulsar broker.
  *
- * The same topic will only be checked once during the same session.
+ * It will check permissions against the session-topic pair by trying to subscribe to a topic using the Pulsar Reader
+ * to check the consumption privilege. The same topic will only be checked once during the same session.
  */
 public class PulsarAuth {
 
