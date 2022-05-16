@@ -81,7 +81,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         conf.setPackagesManagementStorageProvider(MockedPackagesStorageProvider.class.getName());
         conf.setTransactionCoordinatorEnabled(true);
         conf.setSystemTopicEnabled(true);
-        conf.setTransactionBufferSnapshotMaxTransactionCount(1);
+        conf.setTransactionBufferSnapshotMinTransactionCount(1);
         super.internalSetup();
         admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
         TenantInfoImpl tenantInfo = new TenantInfoImpl(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));

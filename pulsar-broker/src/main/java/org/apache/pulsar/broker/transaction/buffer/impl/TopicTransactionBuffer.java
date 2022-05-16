@@ -105,7 +105,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                 .getTransactionBufferSnapshotService().createWriter(TopicName.get(topic.getName()));
         this.timer = topic.getBrokerService().getPulsar().getTransactionTimer();
         this.takeSnapshotIntervalNumber = topic.getBrokerService().getPulsar()
-                .getConfiguration().getTransactionBufferSnapshotMaxTransactionCount();
+                .getConfiguration().getTransactionBufferSnapshotMinTransactionCount();
         this.takeSnapshotIntervalTime = topic.getBrokerService().getPulsar()
                 .getConfiguration().getTransactionBufferSnapshotMinTimeInMillis();
         this.maxReadPosition = (PositionImpl) topic.getManagedLedger().getLastConfirmedEntry();
