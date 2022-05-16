@@ -22,6 +22,7 @@ package org.apache.pulsar.io.kafka.sink;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.config.ConfigException;
 import org.apache.kafka.common.security.auth.SecurityProtocol;
+import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.io.SinkConfig;
 import org.apache.pulsar.functions.api.Record;
@@ -178,6 +179,11 @@ public class KafkaAbstractSinkTest {
 
             @Override
             public PulsarClient getPulsarClient() {
+                return null;
+            }
+
+            @Override
+            public PulsarAdmin getPulsarAdmin() {
                 return null;
             }
         };

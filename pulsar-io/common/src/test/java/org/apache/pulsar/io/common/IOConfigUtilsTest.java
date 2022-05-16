@@ -21,6 +21,7 @@ package org.apache.pulsar.io.common;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.ConsumerBuilder;
+import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
@@ -210,6 +211,11 @@ public class IOConfigUtilsTest {
         public PulsarClient getPulsarClient() {
             return null;
         }
+
+        @Override
+        public PulsarAdmin getPulsarAdmin() {
+            return null;
+        }
     }
 
     @Test
@@ -366,6 +372,11 @@ public class IOConfigUtilsTest {
 
         @Override
         public PulsarClient getPulsarClient() {
+            return null;
+        }
+
+        @Override
+        public PulsarAdmin getPulsarAdmin() {
             return null;
         }
     }
