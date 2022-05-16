@@ -176,7 +176,8 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         verify(response, timeout(5000).times(1)).resume(errorCaptor.capture());
         Assert.assertEquals(errorCaptor.getValue().getResponse().getStatus(),
                 Response.Status.NOT_FOUND.getStatusCode());
-        Assert.assertEquals(errorCaptor.getValue().getMessage(), "Topic not found");
+        Assert.assertEquals(errorCaptor.getValue().getMessage(), String.format("Topic %s not found",
+                "persistent://my-tenant/my-namespace/topic-not-found"));
 
         // 2) Confirm that the partitioned topic does not exist
         response = mock(AsyncResponse.class);
