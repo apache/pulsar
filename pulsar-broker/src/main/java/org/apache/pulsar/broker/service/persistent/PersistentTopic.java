@@ -184,6 +184,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     public boolean msgChunkPublished;
 
     private Optional<DispatchRateLimiter> dispatchRateLimiter = Optional.empty();
+    private final Object dispatchRateLimiterLock = new Object();
     private Optional<SubscribeRateLimiter> subscribeRateLimiter = Optional.empty();
     private final long backloggedCursorThresholdEntries;
     public static final int MESSAGE_RATE_BACKOFF_MS = 1000;
@@ -371,7 +372,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     private void initializeRateLimiterIfNeeded(Optional<Policies> policies) {
-        synchronized (dispatchRateLimiter) {
+        synchronized (dispatchRateLimiterLock) {
             // dispatch rate limiter for topic
             if (!dispatchRateLimiter.isPresent() && DispatchRateLimiter
                     .isDispatchRateNeeded(brokerService, policies, topic, Type.TOPIC)) {
@@ -3096,7 +3097,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     private void initializeTopicDispatchRateLimiterIfNeeded(TopicPolicies policies) {
-        synchronized (dispatchRateLimiter) {
+        synchronized (dispatchRateLimiterLock) {
             if (!dispatchRateLimiter.isPresent() && policies.getDispatchRate() != null) {
                 this.dispatchRateLimiter = Optional.of(new DispatchRateLimiter(this, Type.TOPIC));
             }
