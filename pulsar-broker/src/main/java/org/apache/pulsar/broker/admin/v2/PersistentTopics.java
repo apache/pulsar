@@ -20,14 +20,11 @@ package org.apache.pulsar.broker.admin.v2;
 
 import static org.apache.pulsar.common.util.Codec.decode;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.type.MapType;
-import com.fasterxml.jackson.databind.type.TypeFactory;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -1462,8 +1459,8 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("subscriptionName") String encodedSubName,
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
-            @ApiParam(name = "payload", value = "JSON encoded messageId where to create the subscription " +
-                    "and subscription properties. "
+            @ApiParam(name = "payload", value = "JSON encoded messageId where to create the subscription "
+                    + "and subscription properties. "
                     + "The message id can be 'latest', 'earliest' or (ledgerId:entryId)",
                     defaultValue = "latest",
                     allowableValues = "latest, earliest, ledgerId:entryId"
@@ -1485,7 +1482,8 @@ public class PersistentTopics extends PersistentTopicsBase {
                     Map<String, Object> messageIdEncoded = (Map<String, Object>) payload.get("messageId");
                     if (messageIdEncoded != null) {
                         ResetCursorData resetCursorData =
-                                ObjectMapperFactory.getThreadLocal().convertValue(messageIdEncoded, ResetCursorData.class);
+                                ObjectMapperFactory.getThreadLocal()
+                                        .convertValue(messageIdEncoded, ResetCursorData.class);
                         messageId = new MessageIdImpl(resetCursorData.getLedgerId(), resetCursorData.getEntryId(),
                                 resetCursorData.getPartitionIndex());
                     }

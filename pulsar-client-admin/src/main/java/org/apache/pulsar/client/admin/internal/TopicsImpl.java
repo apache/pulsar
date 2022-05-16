@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.admin.internal;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import com.fasterxml.jackson.core.JacksonException;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import java.io.InputStream;
@@ -91,7 +90,6 @@ import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.DateFormatter;
-import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -1147,12 +1145,16 @@ public class TopicsImpl extends BaseResource implements Topics {
         String encodedSubName = Codec.encode(subscriptionName);
         WebTarget path = topicPath(tn, "subscription", encodedSubName);
         path = path.queryParam("replicated", replicated);
-        Object payload = messageId;
+        Map<String, Object> payload = new HashMap<>();
+        if (messageId != null) {
+            payload.putAll(ObjectMapperFactory.getThreadLocal()
+                    .convertValue(messageId, Map.class));
+        }
         if (properties != null && !properties.isEmpty()) {
-            Map<String, Object> complexPayload = new HashMap<>();
-            complexPayload.put("messageId", messageId);
-            complexPayload.put("properties", properties);
-            payload = complexPayload;
+            payload.put("properties", properties);
+        }
+        if (payload.isEmpty()) {
+            payload = null;
         }
         return asyncPutRequest(path, Entity.entity(payload, MediaType.APPLICATION_JSON));
     }
