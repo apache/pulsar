@@ -1256,7 +1256,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             category = CATEGORY_SERVER,
             doc = "Enable or disable system topic.")
-    private boolean systemTopicEnabled = false;
+    private boolean systemTopicEnabled = true;
 
     @FieldContext(
             category = CATEGORY_SCHEMA,
@@ -1269,7 +1269,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_SERVER,
         doc = "Enable or disable topic level policies, topic level policies depends on the system topic, "
                 + "please enable the system topic first.")
-    private boolean topicLevelPoliciesEnabled = false;
+    private boolean topicLevelPoliciesEnabled = true;
 
     @FieldContext(
             category = CATEGORY_SERVER,
