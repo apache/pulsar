@@ -325,6 +325,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 this);
 
         this.topicName = TopicName.get(topic);
+        this.topicNameWithoutPartition = topicName.getPartitionedTopicName();
         if (this.topicName.isPersistent()) {
             this.acknowledgmentsGroupingTracker =
                 new PersistentAcknowledgmentsGroupingTracker(this, conf, client.eventLoopGroup());
@@ -335,26 +336,23 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
         if (conf.getDeadLetterPolicy() != null) {
             possibleSendToDeadLetterTopicMessages = new ConcurrentHashMap<>();
-            if (StringUtils.isNotBlank(conf.getDeadLetterPolicy().getDeadLetterTopic())) {
-                this.deadLetterPolicy = DeadLetterPolicy.builder()
-                        .maxRedeliverCount(conf.getDeadLetterPolicy().getMaxRedeliverCount())
-                        .deadLetterTopic(conf.getDeadLetterPolicy().getDeadLetterTopic())
-                        .build();
-            } else {
-                this.deadLetterPolicy = DeadLetterPolicy.builder()
-                        .maxRedeliverCount(conf.getDeadLetterPolicy().getMaxRedeliverCount())
-                        .deadLetterTopic(String.format("%s-%s" + RetryMessageUtil.DLQ_GROUP_TOPIC_SUFFIX,
-                                topic, subscription))
-                        .build();
-            }
 
-            if (StringUtils.isNotBlank(conf.getDeadLetterPolicy().getRetryLetterTopic())) {
-                this.deadLetterPolicy.setRetryLetterTopic(conf.getDeadLetterPolicy().getRetryLetterTopic());
-            } else {
-                this.deadLetterPolicy.setRetryLetterTopic(String.format(
-                        "%s-%s" + RetryMessageUtil.RETRY_GROUP_TOPIC_SUFFIX,
-                        topic, subscription));
+            String deadLetterTopic = String.format("%s-%s" + RetryMessageUtil.DLQ_GROUP_TOPIC_SUFFIX,
+                    this.topicNameWithoutPartition, subscription);
+            if (StringUtils.isNotBlank(conf.getDeadLetterPolicy().getDeadLetterTopic())) {
+                deadLetterTopic = conf.getDeadLetterPolicy().getDeadLetterTopic();
             }
+            this.deadLetterPolicy = DeadLetterPolicy.builder()
+                    .maxRedeliverCount(conf.getDeadLetterPolicy().getMaxRedeliverCount())
+                    .deadLetterTopic(deadLetterTopic)
+                    .build();
+
+            String retryLetterTopic = String.format("%s-%s" + RetryMessageUtil.RETRY_GROUP_TOPIC_SUFFIX,
+                    this.topicNameWithoutPartition, subscription);
+            if (StringUtils.isNotBlank(conf.getDeadLetterPolicy().getRetryLetterTopic())) {
+                retryLetterTopic = conf.getDeadLetterPolicy().getRetryLetterTopic();
+            }
+            this.deadLetterPolicy.setRetryLetterTopic(retryLetterTopic);
 
             if (StringUtils.isNotBlank(conf.getDeadLetterPolicy().getInitialSubscriptionName())) {
                 this.deadLetterPolicy.setInitialSubscriptionName(
@@ -365,8 +363,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             deadLetterPolicy = null;
             possibleSendToDeadLetterTopicMessages = null;
         }
-
-        topicNameWithoutPartition = topicName.getPartitionedTopicName();
 
         grabCnx();
     }

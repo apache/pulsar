@@ -72,6 +72,7 @@ import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -89,6 +90,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.ConnectionPool;
+import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.PulsarServiceNameResolver;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
@@ -1424,5 +1426,25 @@ public class BrokerServiceTest extends BrokerTestBase {
         NamespaceName heartbeatNamespaceV2 = NamespaceService.getHeartbeatNamespaceV2(pulsar.getAdvertisedAddress(), pulsar.getConfig());
         assertTrue(brokerService.isSystemTopic("persistent://" + heartbeatNamespaceV1.toString() + "/healthcheck"));
         assertTrue(brokerService.isSystemTopic(heartbeatNamespaceV2.toString() + "/healthcheck"));
+    }
+
+    @Test
+    public void testShouldFailIfGetPartitionsForNotExistInvalidTopic() throws Exception {
+        ServiceConfiguration config = pulsar.getConfig();
+        config.setAllowAutoTopicCreation(true);
+        config.setAllowAutoTopicCreationType("partitioned");
+
+        String invalidPartitionedTopic = "persistent://prop/ns-abc/a-not-exist-topic-partition-0-sub-DLQ";
+        try {
+            PulsarClientImpl client = (PulsarClientImpl) PulsarClient.builder()
+                    .serviceUrl(pulsar.getBrokerServiceUrl())
+                    .build();
+            client.getNumberOfPartitions(invalidPartitionedTopic).get();
+            fail("Should throw a InvalidTopicNameException");
+        } catch (ExecutionException e) {
+            Throwable cause = e.getCause();
+            assertEquals(cause.getClass(), PulsarClientException.InvalidTopicNameException.class);
+            assertTrue(cause.getMessage().contains("Partitioned Topic Name should not contain '-partition-'"));
+        }
     }
 }

@@ -65,6 +65,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.commons.lang3.mutable.MutableLong;
+import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.TransactionMetadataStoreService;
@@ -532,10 +533,13 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                     } else {
                                         log.warn("Failed to get Partitioned Metadata [{}] {}: {}", remoteAddress,
                                                 topicName, ex.getMessage(), ex);
-                                        ServerError error = (ex instanceof RestException)
-                                                && ((RestException) ex).getResponse().getStatus() < 500
-                                                        ? ServerError.MetadataError
-                                                        : ServerError.ServiceNotReady;
+                                        ServerError error = ServerError.ServiceNotReady;
+                                        if ((ex instanceof RestException)
+                                                && ((RestException) ex).getResponse().getStatus() < 500) {
+                                            error = ServerError.MetadataError;
+                                        } else if (ex instanceof PulsarServerException.InvalidTopicNameException) {
+                                            error = ServerError.InvalidTopicName;
+                                        }
                                         commandSender.sendPartitionMetadataResponse(error, ex.getMessage(), requestId);
                                     }
                                 }

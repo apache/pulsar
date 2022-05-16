@@ -2616,6 +2616,12 @@ public class BrokerService implements Closeable {
                                             && !topicName.isPartitioned()
                                             && pulsar.getBrokerService().isAllowAutoTopicCreation(topicName)
                                             && pulsar.getBrokerService().isDefaultTopicTypePartitioned(topicName)) {
+                                        if (topicName.toString().contains(TopicName.PARTITIONED_TOPIC_SUFFIX)) {
+                                            String msg = "Partitioned Topic Name should not contain '-partition-'";
+                                            future.completeExceptionally(
+                                                    new PulsarServerException.InvalidTopicNameException(msg));
+                                            return;
+                                        }
 
                                         pulsar.getBrokerService().createDefaultPartitionedTopicAsync(topicName)
                                                 .thenAccept(md -> future.complete(md))
