@@ -58,14 +58,15 @@ github:
           - CI - Unit - Brokers - Broker Group 3
           - CI - Unit - Brokers - Client Api
           - CI - Unit - Brokers - Client Impl
-          - CI - Unit - Brokers - JDK 8
           - CI - Unit - Other
           - CI - Unit - Proxy
           - Build Pulsar java-test-image docker image
           - CI - Integration - Backwards Compatibility
           - CI - Integration - Cli
           - CI - Integration - Messaging
-          - CI - Integration - Shade
+          - CI - Integration - Shade on Java 8
+          - CI - Integration - Shade on Java 11
+          - CI - Integration - Shade on Java 17
           - CI - Integration - Standalone
           - CI - Integration - Transaction
           - Build Pulsar docker image

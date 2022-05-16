@@ -98,12 +98,12 @@ jobs:
           # on growing from old entries which wouldn't never expire if the old
           # cache would be used as the starting point for a new cache entry
 
-      - name: Set up JDK 11
+      - name: Set up JDK 17
         uses: actions/setup-java@v2
         if: ${{ (github.event_name == 'schedule' || steps.changes.outputs.poms == 'true') && steps.cache.outputs.cache-hit != 'true' }}
         with:
           distribution: 'temurin'
-          java-version: 11
+          java-version: 17
 
       - name: Download dependencies
         if: ${{ (github.event_name == 'schedule' || steps.changes.outputs.poms == 'true') && steps.cache.outputs.cache-hit != 'true' }}

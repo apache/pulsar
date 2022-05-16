@@ -25,6 +25,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -121,25 +122,25 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
      */
     public int filterEntriesForConsumer(List<Entry> entries, EntryBatchSizes batchSizes,
             SendMessageInfo sendMessageInfo, EntryBatchIndexesAcks indexesAcks,
-            ManagedCursor cursor, boolean isReplayRead) {
+            ManagedCursor cursor, boolean isReplayRead, Consumer consumer) {
         return filterEntriesForConsumer(Optional.empty(), 0, entries, batchSizes, sendMessageInfo, indexesAcks, cursor,
-                isReplayRead);
+                isReplayRead, consumer);
     }
 
     public int filterEntriesForConsumer(Optional<EntryWrapper[]> entryWrapper, int entryWrapperOffset,
              List<Entry> entries, EntryBatchSizes batchSizes, SendMessageInfo sendMessageInfo,
-             EntryBatchIndexesAcks indexesAcks, ManagedCursor cursor, boolean isReplayRead) {
+             EntryBatchIndexesAcks indexesAcks, ManagedCursor cursor, boolean isReplayRead, Consumer consumer) {
         int totalMessages = 0;
         long totalBytes = 0;
         int totalChunkedMessages = 0;
         int totalEntries = 0;
         List<Position> entriesToFiltered = CollectionUtils.isNotEmpty(entryFilters) ? new ArrayList<>() : null;
+        List<PositionImpl> entriesToRedeliver = CollectionUtils.isNotEmpty(entryFilters) ? new ArrayList<>() : null;
         for (int i = 0, entriesSize = entries.size(); i < entriesSize; i++) {
             Entry entry = entries.get(i);
             if (entry == null) {
                 continue;
             }
-            totalEntries++;
             ByteBuf metadataAndPayload = entry.getDataBuffer();
             int entryWrapperIndex = i + entryWrapperOffset;
             MessageMetadata msgMetadata = entryWrapper.isPresent() && entryWrapper.get()[entryWrapperIndex] != null
@@ -148,10 +149,17 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
             msgMetadata = msgMetadata == null
                     ? Commands.peekMessageMetadata(metadataAndPayload, subscription.toString(), -1)
                     : msgMetadata;
+            EntryFilter.FilterResult filterResult = EntryFilter.FilterResult.ACCEPT;
             if (CollectionUtils.isNotEmpty(entryFilters)) {
-                fillContext(filterContext, msgMetadata, subscription);
-                if (EntryFilter.FilterResult.REJECT == getFilterResult(filterContext, entry, entryFilters)) {
+                fillContext(filterContext, msgMetadata, subscription, consumer);
+                filterResult = getFilterResult(filterContext, entry, entryFilters);
+                if (filterResult == EntryFilter.FilterResult.REJECT) {
                     entriesToFiltered.add(entry.getPosition());
+                    entries.set(i, null);
+                    entry.release();
+                    continue;
+                } else if (filterResult == EntryFilter.FilterResult.RESCHEDULE) {
+                    entriesToRedeliver.add((PositionImpl) entry.getPosition());
                     entries.set(i, null);
                     entry.release();
                     continue;
@@ -196,6 +204,7 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
                 continue;
             }
 
+            totalEntries++;
             int batchSize = msgMetadata.getNumMessagesInBatch();
             totalMessages += batchSize;
             totalBytes += metadataAndPayload.readableBytes();
@@ -227,6 +236,15 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
                 ((AbstractTopic) topic).addFilteredEntriesCount(filtered);
             }
         }
+        if (CollectionUtils.isNotEmpty(entriesToRedeliver)) {
+            this.subscription.getTopic().getBrokerService().getPulsar().getExecutor()
+                    .schedule(() -> {
+                        // simulate the Consumer rejected the message
+                        subscription
+                                .redeliverUnacknowledgedMessages(consumer, entriesToRedeliver);
+                    }, 1, TimeUnit.SECONDS);
+
+        }
 
         sendMessageInfo.setTotalMessages(totalMessages);
         sendMessageInfo.setTotalBytes(totalBytes);
@@ -236,21 +254,25 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
 
     private static EntryFilter.FilterResult getFilterResult(FilterContext filterContext, Entry entry,
                                                             ImmutableList<EntryFilterWithClassLoader> entryFilters) {
-        EntryFilter.FilterResult result = EntryFilter.FilterResult.ACCEPT;
         for (EntryFilter entryFilter : entryFilters) {
-            if (entryFilter.filterEntry(entry, filterContext) == EntryFilter.FilterResult.REJECT) {
-                result = EntryFilter.FilterResult.REJECT;
-                break;
+            EntryFilter.FilterResult filterResult =
+                    entryFilter.filterEntry(entry, filterContext);
+            if (filterResult == null) {
+                filterResult = EntryFilter.FilterResult.ACCEPT;
+            }
+            if (filterResult != EntryFilter.FilterResult.ACCEPT) {
+                return filterResult;
             }
         }
-        return result;
+        return EntryFilter.FilterResult.ACCEPT;
     }
 
     private void fillContext(FilterContext context, MessageMetadata msgMetadata,
-                             Subscription subscription) {
+                             Subscription subscription, Consumer consumer) {
         context.reset();
         context.setMsgMetadata(msgMetadata);
         context.setSubscription(subscription);
+        context.setConsumer(consumer);
     }
 
     /**
@@ -316,5 +338,9 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
 
     protected byte[] peekStickyKey(ByteBuf metadataAndPayload) {
         return Commands.peekStickyKey(metadataAndPayload, subscription.getTopicName(), subscription.getName());
+    }
+
+    protected String getSubscriptionName() {
+        return subscription == null ? null : subscription.getName();
     }
 }

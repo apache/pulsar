@@ -3829,12 +3829,13 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
         OpAddEntry opAddEntry = pendingAddEntries.peek();
         if (opAddEntry != null) {
+            final long finalAddOpCount = opAddEntry.addOpCount;
             boolean isTimedOut = opAddEntry.lastInitTime != -1
                     && TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - opAddEntry.lastInitTime) >= timeoutSec;
             if (isTimedOut) {
                 log.error("Failed to add entry for ledger {} in time-out {} sec",
                         (opAddEntry.ledger != null ? opAddEntry.ledger.getId() : -1), timeoutSec);
-                opAddEntry.handleAddTimeoutFailure(opAddEntry.ledger, opAddEntry.addOpCount);
+                opAddEntry.handleAddTimeoutFailure(opAddEntry.ledger, finalAddOpCount);
             }
         }
     }

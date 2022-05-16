@@ -150,7 +150,7 @@ public class PerformanceConsumer {
 
         @Parameter(names = { "-c",
                 "--max-connections" }, description = "Max number of TCP connections to a single broker")
-        public int maxConnections = 100;
+        public int maxConnections = 1;
 
         @Parameter(names = { "-i",
                 "--stats-interval-seconds" },

@@ -51,11 +51,6 @@ then
     . "$PULSAR_HOME/conf/pulsar_env.sh"
 fi
 
-PULSAR_LOG_DIR=${PULSAR_LOG_DIR:-"$PULSAR_HOME/logs"}
-PULSAR_LOG_APPENDER=${PULSAR_LOG_APPENDER:-"RollingFile"}
-PULSAR_STOP_TIMEOUT=${PULSAR_STOP_TIMEOUT:-30}
-PULSAR_PID_DIR=${PULSAR_PID_DIR:-$PULSAR_HOME/bin}
-
 if [ $# = 0 ]; then
     usage
     exit 1
@@ -74,6 +69,16 @@ startStop=$1
 shift
 command=$1
 shift
+
+if [[ "$command" = "bookie" ]]
+then
+  PULSAR_LOG_DIR=${BOOKIE_LOG_DIR:-"$PULSAR_HOME/logs"}
+else
+  PULSAR_LOG_DIR=${PULSAR_LOG_DIR:-"$PULSAR_HOME/logs"}
+fi
+PULSAR_LOG_APPENDER=${PULSAR_LOG_APPENDER:-"RollingFile"}
+PULSAR_STOP_TIMEOUT=${PULSAR_STOP_TIMEOUT:-30}
+PULSAR_PID_DIR=${PULSAR_PID_DIR:-$PULSAR_HOME/bin}
 
 case $command in
     (broker)

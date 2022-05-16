@@ -149,6 +149,97 @@ Then you can push your local, committed changes to your (forked) repository on G
 
 All code should have appropriate unit testing coverage. New code should have new tests in the same contribution. Bug fixes should include a regression test to prevent the issue from reoccurring.
 
+
+### CI Testing in your Fork
+
+The following is copied from the
+[thread](https://lists.apache.org/thread/1ofdbd9j1hhj4c0rw3o7vv8y6rbsxrp0) and [#15385](https://github.com/apache/pulsar/pull/15385).
+
+
+#### Each PR triggers many CI Jobs
+Since we cannot add more resources to Pulsar CI, we need to find other ways
+to reduce the load on Pulsar CI.
+Every developer can help reduce the load on Pulsar CI.
+Please don't open a PR to apache/pulsar when the work is in very initial
+stages.
+Every push to the pull request branch will trigger a lot of concurrent
+builds (about 25).
+By reducing the amount of PR pushes you can reduce the load on Pulsar CI.
+
+#### Run CI from Fork
+You don't have to stop developing and using CI for getting feedback. There
+is a better way to get CI feedback for early stages of development. The
+secret is that everyone has their personal CI on GitHub!
+Please take use of it when you have large changes which stay in WIP for
+long periods of time, and you push a lot of changes before the actual
+reviews start.
+
+Here are instructions to use your personal CI on GitHub.
+
+1. Push your intended pull request changes to a new branch in your fork
+   (the usual way you do it).
+2. Open a pull request to your own fork.
+
+A.) These are the instructions for CLI:
+
+Install GitHub CLI from https://cli.github.com/ and configure it.
+With GH CLI, there's an easy way to open the PR to your own fork with a
+single command:
+```
+gh pr create --repo=your_github_id/pulsar --base master --head your-pr-branch -f
+```
+B.) You can also create a PR to your own fork in the GitHub UI when opening
+a new PR. To do so, first click on "compare across forks" and then choose
+your own fork as both the forked repository and head repository.
+
+#### Stay in-sync with apache/pulsar:master
+
+It's worth keeping your master branch in sync with apache/pulsar's master
+so that the PR diff will be reasonable in your own fork.
+
+Here's one way to sync your fork's master branch with apache/pulsar's
+master branch:
+Let's say you have git remotes called "upstream" for apache/pulsar and
+"forked" for your fork, with these commands,
+you synchronize your fork's remote master branch with apache/pulsar's
+master branch:
+
+- replace "upstream" with the name of the git remote for apache/pulsar
+- replace "forked" with the name of the git remote for your fork of pulsar
+
+```
+git fetch upstream
+git push -f forked upstream/master:master
+```
+
+
+When you finally want to create a PR to apache/pulsar, it can be started
+from the command line (this will open a browser for filling in the PR
+details):
+```
+gh pr create --repo=apache/pulsar --base master --head your-pr-branch --web
+```
+
+#### SSH to CI Jobs
+
+The additional benefit of the "Personal CI" is that you get SSH access to the build VMs when the build is running.
+That is handled by this logic in the pulsar-ci.yaml GitHub Actions workflow file:
+`pulsar/.github/workflows/pulsar-ci.yaml`
+
+
+```
+- name: Setup ssh access to build runner VM
+  # ssh access is enabled for builds in own forks
+  if: ${{ github.repository != 'apache/pulsar' && needs.changed_files_job.outputs.docs_only != 'true' }}
+  uses: ./.github/actions/ssh-access
+  with:
+  limit-access-to-actor: true
+```
+and inline composite action [implementation](https://github.com/apache/pulsar/blob/master/.github/actions/ssh-access/action.yml).
+The SSH access is secured with the SSH key registered in GitHub.
+For example, your public keys are https://github.com/horizonzy.keys.
+You will first have to register an SSH public key in GitHub for that to work.
+
 ### Licensing
 
 All code contributed to Pulsar will be licensed under [Apache License V2](https://www.apache.org/licenses/LICENSE-2.0). You need to ensure every new files you are adding have the right

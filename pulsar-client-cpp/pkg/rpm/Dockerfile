@@ -41,12 +41,12 @@ RUN curl -O -L https://github.com/Kitware/CMake/archive/v3.8.2.tar.gz && \
     rm -rf /v3.8.2.tar.gz /CMake-3.8.2
 
 # Download and copile protoubf
-RUN curl -O -L  https://github.com/google/protobuf/releases/download/v3.3.0/protobuf-cpp-3.3.0.tar.gz && \
-    tar xvfz protobuf-cpp-3.3.0.tar.gz && \
-    cd protobuf-3.3.0/ && \
+RUN curl -O -L  https://github.com/google/protobuf/releases/download/v3.20.0/protobuf-cpp-3.20.0.tar.gz && \
+    tar xvfz protobuf-cpp-3.20.0.tar.gz && \
+    cd protobuf-3.20.0/ && \
     CXXFLAGS=-fPIC ./configure && \
     make && make install && ldconfig && \
-    rm -rf /protobuf-cpp-3.3.0.tar.gz /protobuf-3.3.0
+    rm -rf /protobuf-cpp-3.20.0.tar.gz /protobuf-3.20.0
 
 # ZLib
 RUN curl -O -L https://github.com/madler/zlib/archive/v1.2.12.tar.gz && \
