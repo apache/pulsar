@@ -84,8 +84,8 @@ public class NonPersistentSubscription implements Subscription {
         IS_FENCED_UPDATER.set(this, FALSE);
         this.lastActive = System.currentTimeMillis();
         this.isDurable = isDurable;
-        this.subscriptionProperties = properties != null ?
-                Collections.unmodifiableMap(properties) : Collections.emptyMap();
+        this.subscriptionProperties = properties != null
+                ? Collections.unmodifiableMap(properties) : Collections.emptyMap();
     }
 
     @Override
