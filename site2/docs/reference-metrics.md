@@ -95,11 +95,11 @@ The following metrics are available for broker:
   - [Journal metrics](#journal-metrics)
   - [Storage metrics](#storage-metrics)
 - [Broker](#broker)
+  - [Broker metrics](#broker-metrics)
   - [Namespace metrics](#namespace-metrics)
     - [Replication metrics](#replication-metrics)
   - [Topic metrics](#topic-metrics)
     - [Replication metrics](#replication-metrics-1)
-  - [ManagedLedgerCache metrics](#managedledgercache-metrics)
   - [ManagedLedger metrics](#managedledger-metrics)
   - [LoadBalancing metrics](#loadbalancing-metrics)
     - [BundleUnloading metrics](#bundleunloading-metrics)
@@ -118,6 +118,34 @@ The following metrics are available for broker:
 - [Proxy](#proxy)
 - [Pulsar SQL Worker](#pulsar-sql-worker)
 - [Pulsar transaction](#pulsar-transaction)
+
+### Broker metrics
+All the broker metrics are labelled with the following labels:
+- cluster: cluster=${pulsar_cluster}. ${pulsar_cluster} is the cluster name that you have configured in the `broker.conf` file.
+
+| Name | Type   | Description                                          |
+|---|---|---|
+| pulsar_ml_cache_evictions | Gauge  | The number of cache evictions during the last minute. |
+| pulsar_ml_cache_hits_rate | Gauge  | The number of cache hits per second on the broker side. |
+| pulsar_ml_cache_hits_throughput | Gauge  | The amount of data (byte per second) retrieved from the cache on the broker side. |
+| pulsar_ml_cache_misses_rate | Gauge  | The number of cache missed per second on the broker side. |
+| pulsar_ml_cache_misses_throughput | Gauge  | The amount of data (byte per second) that cannot be retrieved from the cache on the broker side. |
+| pulsar_ml_cache_pool_active_allocations | Gauge  | The number of currently active allocations in direct arena. |
+| pulsar_ml_cache_pool_active_allocations_huge | Gauge  | The number of currently active huge allocation in direct arena. |
+| pulsar_ml_cache_pool_active_allocations_normal | Gauge  | The number of currently active normal allocations in direct arena. |
+| pulsar_ml_cache_pool_active_allocations_small | Gauge  | The number of currently active small allocations in direct arena. |
+| pulsar_ml_cache_pool_allocated | Gauge  | The total allocated memory of chunk lists in direct arena. |
+| pulsar_ml_cache_pool_used | Gauge  | The total used memory of chunk lists in direct arena. |
+| pulsar_ml_cache_used_size | Gauge  | The size used to store the payloads of entries (in bytes). |
+| pulsar_ml_count | Gauge  | The number of currently opened managed ledgers. |
+| topic_load_times | Summary | The topic load latency calculated in milliseconds. |
+| pulsar_active_connections| Gauge | The number of active connections. |
+| pulsar_connection_created_total_count | Gauge | The total number of connections. |
+| pulsar_connection_create_success_count | Gauge | The number of successfully created connections. |
+| pulsar_connection_create_fail_count | Gauge | The number of failed connections. |
+| pulsar_connection_closed_total_count | Gauge | The total number of closed connections. |
+| pulsar_broker_throttled_connections | Gauge | The number of throttled connections. |
+| pulsar_broker_throttled_connections_global_limit | Gauge | The number of throttled connections due to per-connection limit. |
 
 ### BookKeeper client metrics
 
@@ -245,26 +273,6 @@ All the replication metrics are labelled with `remoteCluster=${pulsar_remote_clu
 | pulsar_broker_lookup_failures | Gauge | The number of lookup failures. |
 | pulsar_broker_lookup_pending_requests | Gauge | The number of pending lookups in broker. When it is up to the threshold, new requests are rejected. |
 | pulsar_broker_topic_load_pending_requests | Gauge | The load of pending topic operations. |
-
-### ManagedLedgerCache metrics
-All the ManagedLedgerCache metrics are labelled with the following labels:
-- cluster: cluster=${pulsar_cluster}. ${pulsar_cluster} is the cluster name that you have configured in the `broker.conf` file.
-
-| Name | Type | Description |
-| --- | --- | --- |
-| pulsar_ml_cache_evictions | Gauge | The number of cache evictions during the last minute. |
-| pulsar_ml_cache_hits_rate | Gauge | The number of cache hits per second on the broker side. |
-| pulsar_ml_cache_hits_throughput | Gauge | The amount of data is retrieved from the cache on the broker side (in byte/s).  |
-| pulsar_ml_cache_misses_rate | Gauge | The number of cache misses per second on the broker side. |
-| pulsar_ml_cache_misses_throughput | Gauge | The amount of data is not retrieved from the cache on the broker side (in byte/s). |
-| pulsar_ml_cache_pool_active_allocations | Gauge | The number of currently active allocations in direct arena |
-| pulsar_ml_cache_pool_active_allocations_huge | Gauge | The number of currently active huge allocation in direct arena |
-| pulsar_ml_cache_pool_active_allocations_normal | Gauge | The number of currently active normal allocations in direct arena |
-| pulsar_ml_cache_pool_active_allocations_small | Gauge | The number of currently active small allocations in direct arena |
-| pulsar_ml_cache_pool_allocated | Gauge | The total allocated memory of chunk lists in direct arena |
-| pulsar_ml_cache_pool_used | Gauge | The total used memory of chunk lists in direct arena |
-| pulsar_ml_cache_used_size | Gauge | The size in byte used to store the entries payloads |
-| pulsar_ml_count | Gauge | The number of currently opened managed ledgers  |
 
 ### ManagedLedger metrics
 All the managedLedger metrics are labelled with the following labels:
@@ -450,24 +458,6 @@ All the authentication metrics are labelled with the following labels:
 |---|---|---|
 | pulsar_authentication_success_count| Counter | The number of successful authentication operations. |
 | pulsar_authentication_failures_count | Counter | The number of failing authentication operations. |
-
-### Connection metrics
-
-All the connection metrics are labelled with the following labels:
-
-- *cluster*: `cluster=${pulsar_cluster}`. `${pulsar_cluster}` is the cluster name that you have configured in the `broker.conf` file.
-- *broker*: `broker=${advertised_address}`. `${advertised_address}` is the advertised address of the broker.
-- *metric*: `metric=${metric}`. `${metric}` is the connection metric collective name.
-
-| Name | Type | Description |
-|---|---|---|
-| pulsar_active_connections| Gauge | The number of active connections. |
-| pulsar_connection_created_total_count | Gauge | The total number of connections. |
-| pulsar_connection_create_success_count | Gauge | The number of successfully created connections. |
-| pulsar_connection_create_fail_count | Gauge | The number of failed connections. |
-| pulsar_connection_closed_total_count | Gauge | The total number of closed connections. |
-| pulsar_broker_throttled_connections | Gauge | The number of throttled connections. |
-| pulsar_broker_throttled_connections_global_limit | Gauge | The number of throttled connections because of per-connection limit. |
 
 ### Jetty metrics
 
