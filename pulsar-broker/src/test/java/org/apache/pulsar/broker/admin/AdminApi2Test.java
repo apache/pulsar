@@ -1029,6 +1029,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         assertEquals(brokerIsolationDataList.get(0).getBrokerName(), brokerAddress);
         assertEquals(brokerIsolationDataList.get(0).getNamespaceRegex().size(), 1);
         assertEquals(brokerIsolationDataList.get(0).getNamespaceRegex().get(0), namespaceRegex);
+        assertEquals(brokerIsolationDataList.get(0).getPolicyName(), policyName1);
 
         BrokerNamespaceIsolationDataImpl brokerIsolationData = (BrokerNamespaceIsolationDataImpl) admin.clusters()
                 .getBrokerWithNamespaceIsolationPolicy(cluster, brokerAddress);

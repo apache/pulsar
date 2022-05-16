@@ -652,6 +652,26 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                         + "authenticationEnabled=true when authorization is enabled with authorizationEnabled=true.");
             }
 
+            if (config.getDefaultRetentionSizeInMB() > 0
+                    && config.getBacklogQuotaDefaultLimitBytes() > 0
+                    && config.getBacklogQuotaDefaultLimitBytes()
+                    >= (config.getDefaultRetentionSizeInMB() * 1024L * 1024L)) {
+                throw new IllegalArgumentException(String.format("The retention size must > the backlog quota limit "
+                                + "size, but the configured backlog quota limit bytes is %d, the retention size is %d",
+                        config.getBacklogQuotaDefaultLimitBytes(),
+                        config.getDefaultRetentionSizeInMB() * 1024L * 1024L));
+            }
+
+            if (config.getDefaultRetentionTimeInMinutes() > 0
+                    && config.getBacklogQuotaDefaultLimitSecond() > 0
+                    && config.getBacklogQuotaDefaultLimitSecond() >= config.getDefaultRetentionTimeInMinutes() * 60) {
+                throw new IllegalArgumentException(String.format("The retention time must > the backlog quota limit "
+                                + "time, but the configured backlog quota limit time duration is %d, "
+                                + "the retention time duration is %d",
+                        config.getBacklogQuotaDefaultLimitSecond(),
+                        config.getDefaultRetentionTimeInMinutes() * 60));
+            }
+
             if (!config.getLoadBalancerOverrideBrokerNicSpeedGbps().isPresent()
                     && config.isLoadBalancerEnabled()
                     && LinuxInfoUtils.isLinux()
@@ -880,7 +900,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         // Add metrics servlet
         webService.addServlet("/metrics",
                 new ServletHolder(metricsServlet),
-                false, attributeMap);
+                config.isAuthenticateMetricsEndpoint(), attributeMap);
 
         // Add websocket service
         addWebSocketServiceHandler(webService, attributeMap, config);
@@ -1431,6 +1451,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                                 conf.getBrokerClientAuthenticationParameters());
 
                 if (conf.isBrokerClientTlsEnabled()) {
+                    builder.tlsCiphers(config.getBrokerClientTlsCiphers())
+                            .tlsProtocols(config.getBrokerClientTlsProtocols());
                     if (conf.isBrokerClientTlsEnabledWithKeyStore()) {
                         builder.useKeyStoreTls(true)
                                 .tlsTrustStoreType(conf.getBrokerClientTlsTrustStoreType())
@@ -1641,10 +1663,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                                                                       String workerConfigFile) throws IOException {
         WorkerConfig workerConfig = WorkerConfig.load(workerConfigFile);
 
-        brokerConfig.getWebServicePort()
-            .map(port -> workerConfig.setWorkerPort(port));
-        brokerConfig.getWebServicePortTls()
-            .map(port -> workerConfig.setWorkerPortTls(port));
+        workerConfig.setWorkerPort(brokerConfig.getWebServicePort().orElse(null));
+        workerConfig.setWorkerPortTls(brokerConfig.getWebServicePortTls().orElse(null));
 
         // worker talks to local broker
         String hostname = ServiceConfigurationUtils.getDefaultOrConfiguredAddress(
@@ -1671,6 +1691,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
         // inherit super users
         workerConfig.setSuperUserRoles(brokerConfig.getSuperUserRoles());
+        workerConfig.setFunctionsWorkerEnablePackageManagement(brokerConfig.isFunctionsWorkerEnablePackageManagement());
 
         // inherit the nar package locations
         if (isBlank(workerConfig.getFunctionsWorkerServiceNarPackage())) {

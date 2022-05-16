@@ -56,6 +56,7 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
 import org.apache.pulsar.client.impl.ProducerBuilderImpl;
+import org.apache.pulsar.common.io.SinkConfig;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.functions.api.Context;
@@ -73,6 +74,7 @@ import org.apache.pulsar.functions.proto.Function.SinkSpec;
 import org.apache.pulsar.functions.secretsprovider.SecretsProvider;
 import org.apache.pulsar.functions.source.TopicSchema;
 import org.apache.pulsar.functions.utils.FunctionCommon;
+import org.apache.pulsar.functions.utils.SinkConfigUtils;
 import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.core.SourceContext;
 import org.slf4j.Logger;
@@ -249,6 +251,11 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
     @Override
     public Collection<String> getInputTopics() {
         return config.getFunctionDetails().getSource().getInputSpecsMap().keySet();
+    }
+
+    @Override
+    public SinkConfig getSinkConfig() {
+        return SinkConfigUtils.convertFromDetails(config.getFunctionDetails());
     }
 
     @Override

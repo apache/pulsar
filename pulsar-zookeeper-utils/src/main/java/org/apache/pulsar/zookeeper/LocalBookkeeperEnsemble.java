@@ -44,7 +44,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
-import org.apache.bookkeeper.bookie.BookieException.InvalidCookieException;
+import org.apache.bookkeeper.bookie.BookieException;
 import org.apache.bookkeeper.bookie.storage.ldb.DbLedgerStorage;
 import org.apache.bookkeeper.clients.StorageClientBuilder;
 import org.apache.bookkeeper.clients.admin.StorageAdminClient;
@@ -52,12 +52,16 @@ import org.apache.bookkeeper.clients.config.StorageClientSettings;
 import org.apache.bookkeeper.clients.exceptions.NamespaceExistsException;
 import org.apache.bookkeeper.clients.exceptions.NamespaceNotFoundException;
 import org.apache.bookkeeper.common.allocator.PoolingPolicy;
+import org.apache.bookkeeper.common.component.ComponentStarter;
+import org.apache.bookkeeper.common.component.LifecycleComponent;
+import org.apache.bookkeeper.common.component.LifecycleComponentStack;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
 import org.apache.bookkeeper.common.util.Backoff;
 import org.apache.bookkeeper.common.util.Backoff.Jitter.Type;
 import org.apache.bookkeeper.conf.ServerConfiguration;
 import org.apache.bookkeeper.proto.BookieServer;
 import org.apache.bookkeeper.server.conf.BookieConfiguration;
+import org.apache.bookkeeper.server.service.BookieService;
 import org.apache.bookkeeper.stats.NullStatsLogger;
 import org.apache.bookkeeper.stream.proto.NamespaceConfiguration;
 import org.apache.bookkeeper.stream.proto.NamespaceProperties;
@@ -164,7 +168,7 @@ public class LocalBookkeeperEnsemble {
 
     // BookKeeper variables
     String bkDataDirName;
-    BookieServer bs[];
+    LifecycleComponentStack[] bookieComponents;
     ServerConfiguration bsConfs[];
 
     // Stream/Table Storage
@@ -278,7 +282,7 @@ public class LocalBookkeeperEnsemble {
         LOG.info("Starting Bookie(s)");
         // Create Bookie Servers (B1, B2, B3)
 
-        bs = new BookieServer[numberOfBookies];
+        bookieComponents = new LifecycleComponentStack[numberOfBookies];
         bsConfs = new ServerConfiguration[numberOfBookies];
 
         for (int i = 0; i < numberOfBookies; i++) {
@@ -307,31 +311,17 @@ public class LocalBookkeeperEnsemble {
             bsConfs[i] = new ServerConfiguration(baseConf);
             // override settings
             bsConfs[i].setBookiePort(bookiePort);
-            bsConfs[i].setZkServers("127.0.0.1:" + zkPort);
+            String zkServers = "127.0.0.1:" + zkPort;
+            String metadataServiceUriStr = "zk://" + zkServers + "/ledgers";
+
+            // zookeeper servers
+            bsConfs[i].setProperty("metadataServiceUri", metadataServiceUriStr);
             bsConfs[i].setJournalDirName(bkDataDir.getPath());
             bsConfs[i].setLedgerDirNames(new String[] { bkDataDir.getPath() });
             bsConfs[i].setAllocatorPoolingPolicy(PoolingPolicy.UnpooledHeap);
             bsConfs[i].setAllowEphemeralPorts(true);
 
-            try {
-                bs[i] = new BookieServer(bsConfs[i], NullStatsLogger.INSTANCE, null);
-            } catch (InvalidCookieException e) {
-                // InvalidCookieException can happen if the machine IP has changed
-                // Since we are running here a local bookie that is always accessed
-                // from localhost, we can ignore the error
-                for (String path : zkc.getChildren("/ledgers/cookies", false)) {
-                    zkc.delete("/ledgers/cookies/" + path, -1);
-                }
-
-                // Also clean the on-disk cookie
-                new File(new File(bkDataDir, "current"), "VERSION").delete();
-
-                // Retry to start the bookie after cleaning the old left cookie
-                bs[i] = new BookieServer(bsConfs[i], NullStatsLogger.INSTANCE, null);
-            }
-            bs[i].start();
-            LOG.debug("Local BK[{}] started (port: {}, data_directory: {})", i, bookiePort,
-                    bkDataDir.getAbsolutePath());
+            startBK(i);
         }
     }
 
@@ -449,35 +439,46 @@ public class LocalBookkeeperEnsemble {
     }
 
     public void stopBK(int i) {
-        bs[i].shutdown();
+        bookieComponents[i].close();
     }
 
     public void stopBK() {
         LOG.debug("Local ZK/BK stopping ...");
-        for (BookieServer bookie : bs) {
-            bookie.shutdown();
+        for (LifecycleComponent bookie : bookieComponents) {
+            bookie.close();
         }
     }
 
     public void startBK(int i) throws Exception {
+        File bkDataDir = new File(bsConfs[i].getLedgerDirNames()[0]);
+
         try {
-            bs[i] = new BookieServer(bsConfs[i], NullStatsLogger.INSTANCE, null);
-        } catch (InvalidCookieException e) {
+            bookieComponents[i] = org.apache.bookkeeper.server.Main
+                    .buildBookieServer(new BookieConfiguration(bsConfs[i]));
+            ComponentStarter.startComponent(bookieComponents[i]);
+        } catch (BookieException.InvalidCookieException ice) {
             // InvalidCookieException can happen if the machine IP has changed
             // Since we are running here a local bookie that is always accessed
             // from localhost, we can ignore the error
             for (String path : zkc.getChildren("/ledgers/cookies", false)) {
+                LOG.info("deleting zk node {}", "/ledgers/cookies/" + path);
                 zkc.delete("/ledgers/cookies/" + path, -1);
             }
 
-            // Also clean the on-disk cookie
-            new File(new File(bsConfs[i].getJournalDirNames()[0], "current"), "VERSION").delete();
+            // Also clean the on-disk directory and cookie,
+            // cookie validation fails on non-empty dirs
+            // even if the cookie file is deleted
+            LOG.info("Recursively deleting data directory {}", bkDataDir);
+            FileUtils.deleteDirectory(bkDataDir);
 
-            // Retry to start the bookie after cleaning the old left cookie
-            bs[i] = new BookieServer(bsConfs[i], NullStatsLogger.INSTANCE, null);
-
+            bookieComponents[i] = org.apache.bookkeeper.server.Main
+                    .buildBookieServer(new BookieConfiguration(bsConfs[i]));
+            ComponentStarter.startComponent(bookieComponents[i]);
         }
-        bs[i].start();
+
+
+        LOG.info("Local BK[{}] started (port: {}, data_directory: {})", i, bsConfs[i].getBookiePort(),
+                bkDataDir.getAbsolutePath());
     }
 
     public void startBK() throws Exception {
@@ -493,9 +494,9 @@ public class LocalBookkeeperEnsemble {
         }
 
         LOG.debug("Local ZK/BK stopping ...");
-        for (BookieServer bookie : bs) {
+        for (LifecycleComponent bookie : bookieComponents) {
             try {
-                bookie.shutdown();
+                bookie.close();
             } catch (Exception e) {
                 LOG.warn("failed to shutdown bookie", e);
             }
@@ -590,8 +591,25 @@ public class LocalBookkeeperEnsemble {
         return zks;
     }
 
+    /**
+     * just for testing, avoid direct access to the bookie to start/stop etc.
+     * @return bookies
+     */
     public BookieServer[] getBookies() {
-        return bs;
+        BookieServer[] bookies = new BookieServer[bookieComponents.length];
+        int i = 0;
+        for (LifecycleComponentStack stack: bookieComponents) {
+            for (int numComp = 0; numComp < stack.getNumComponents(); numComp++) {
+                LifecycleComponent subcomp = stack.getComponent(numComp);
+                if (subcomp instanceof BookieService) {
+                    BookieService svc = (BookieService) subcomp;
+                    bookies[i] = svc.getServer();
+                    break;
+                }
+            }
+            i++;
+        }
+        return bookies;
     }
 
     public int getZookeeperPort() {

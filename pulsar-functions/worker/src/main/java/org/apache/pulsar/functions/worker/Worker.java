@@ -56,7 +56,7 @@ public class Worker {
         workerService.start(getAuthenticationService(), getAuthorizationService(), errorNotifier);
         server = new WorkerServer(workerService, getAuthenticationService());
         server.start();
-        log.info("/** Started worker server on port={} **/", this.workerConfig.getWorkerPort());
+        log.info("/** Started worker server **/");
 
         try {
             errorNotifier.waitForError();

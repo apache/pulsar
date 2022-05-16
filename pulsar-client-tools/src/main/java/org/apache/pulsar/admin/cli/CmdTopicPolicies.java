@@ -883,8 +883,9 @@ public class CmdTopicPolicies extends CmdBase {
         private String limitStr = "-1";
 
         @Parameter(names = { "-lt", "--limitTime" },
-                description = "Time limit in second, non-positive number for disabling time limit.")
-        private int limitTime = -1;
+                description = "Time limit in second (or minutes, hours, days, weeks eg: 100m, 3h, 2d, 5w), "
+                        + "non-positive number for disabling time limit.")
+        private String limitTimeStr = null;
 
         @Parameter(names = { "-p", "--policy" }, description = "Retention policy to enforce when the limit is reached. "
                 + "Valid options are: [producer_request_hold, producer_exception, consumer_backlog_eviction]",
@@ -924,10 +925,23 @@ public class CmdTopicPolicies extends CmdBase {
                         backlogQuotaTypeStr, Arrays.toString(BacklogQuota.BacklogQuotaType.values())));
             }
 
+            long limitTimeInSec = -1;
+            if (limitTimeStr != null) {
+                try {
+                    limitTimeInSec = RelativeTimeUtil.parseRelativeTimeInSeconds(limitTimeStr);
+                } catch (IllegalArgumentException e) {
+                    throw new ParameterException(e.getMessage());
+                }
+            }
+            if (limitTimeInSec > Integer.MAX_VALUE) {
+                throw new ParameterException(
+                        String.format("Time limit cannot be greater than %d seconds", Integer.MAX_VALUE));
+            }
+
             String persistentTopic = validatePersistentTopic(params);
             getTopicPolicies(isGlobal).setBacklogQuota(persistentTopic,
                     BacklogQuota.builder().limitSize(limit)
-                            .limitTime(limitTime)
+                            .limitTime((int) limitTimeInSec)
                             .retentionPolicy(policy)
                             .build(),
                     backlogQuotaType);

@@ -338,16 +338,15 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     }
 
     @Override
-    public void initReceiverQueueSize() {
-        if (conf.isAutoScaledReceiverQueueSizeEnabled()) {
-            int size = Math.min(INITIAL_RECEIVER_QUEUE_SIZE, maxReceiverQueueSize);
-            if (batchReceivePolicy.getMaxNumMessages() > 0) {
-                size = Math.max(size, batchReceivePolicy.getMaxNumMessages());
-            }
-            CURRENT_RECEIVER_QUEUE_SIZE_UPDATER.set(this, size);
-        } else {
-            CURRENT_RECEIVER_QUEUE_SIZE_UPDATER.set(this, maxReceiverQueueSize);
+    public int minReceiverQueueSize() {
+        int size = Math.min(INITIAL_RECEIVER_QUEUE_SIZE, maxReceiverQueueSize);
+        if (batchReceivePolicy.getMaxNumMessages() > 0) {
+            size = Math.max(size, batchReceivePolicy.getMaxNumMessages());
         }
+        if (allTopicPartitionsNumber != null) {
+            size = Math.max(allTopicPartitionsNumber.get(), size);
+        }
+        return size;
     }
 
     @Override

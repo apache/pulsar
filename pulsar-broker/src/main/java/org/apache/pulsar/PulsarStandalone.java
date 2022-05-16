@@ -21,23 +21,26 @@ package org.apache.pulsar;
 import static org.apache.pulsar.common.naming.NamespaceName.SYSTEM_NAMESPACE;
 import static org.apache.pulsar.common.naming.SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN;
 import com.beust.jcommander.Parameter;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Sets;
 import java.io.File;
 import java.nio.file.Paths;
-import java.util.List;
+import java.util.Collections;
 import java.util.Optional;
 import org.apache.bookkeeper.conf.ServerConfiguration;
 import org.apache.logging.log4j.LogManager;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.resources.ClusterResources;
 import org.apache.pulsar.broker.resources.NamespaceResources;
+import org.apache.pulsar.broker.resources.TenantResources;
 import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TenantInfo;
-import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.service.WorkerServiceLoader;
@@ -301,18 +304,11 @@ public class PulsarStandalone implements AutoCloseable {
 
         admin = broker.getAdminClient();
 
-        ClusterData clusterData = ClusterData.builder()
-                .serviceUrl(broker.getWebServiceAddress())
-                .serviceUrlTls(broker.getWebServiceAddressTls())
-                .brokerServiceUrl(broker.getBrokerServiceUrl())
-                .brokerServiceUrlTls(broker.getBrokerServiceUrlTls())
-                .build();
-        createSampleNameSpace(clusterData, cluster);
-
         //create default namespace
-        createNameSpace(cluster, TopicName.PUBLIC_TENANT, TopicName.PUBLIC_TENANT + "/" + TopicName.DEFAULT_NAMESPACE);
+        createNameSpace(cluster, TopicName.PUBLIC_TENANT,
+                NamespaceName.get(TopicName.PUBLIC_TENANT, TopicName.DEFAULT_NAMESPACE));
         //create pulsar system namespace
-        createNameSpace(cluster, SYSTEM_NAMESPACE.getTenant(), SYSTEM_NAMESPACE.toString());
+        createNameSpace(cluster, SYSTEM_NAMESPACE.getTenant(), SYSTEM_NAMESPACE);
         if (config.isTransactionCoordinatorEnabled()) {
             NamespaceResources.PartitionedTopicResources partitionedTopicResources =
                     broker.getPulsarResources().getNamespaceResources().getPartitionedTopicResources();
@@ -327,52 +323,34 @@ public class PulsarStandalone implements AutoCloseable {
         log.debug("--- setup completed ---");
     }
 
-    private void createNameSpace(String cluster, String publicTenant, String defaultNamespace) {
-        try {
-            if (!admin.tenants().getTenants().contains(publicTenant)) {
-                admin.tenants().createTenant(publicTenant,
-                        TenantInfo.builder()
-                                .adminRoles(Sets.newHashSet(config.getSuperUserRoles()))
-                                .allowedClusters(Sets.newHashSet(cluster))
-                                .build());
-            }
-            if (!admin.namespaces().getNamespaces(publicTenant).contains(defaultNamespace)) {
-                admin.namespaces().createNamespace(defaultNamespace);
-                admin.namespaces().setNamespaceReplicationClusters(
-                        defaultNamespace, Sets.newHashSet(config.getClusterName()));
-            }
-        } catch (PulsarAdminException e) {
-            log.info(e.getMessage(), e);
+    @VisibleForTesting
+    void createNameSpace(String cluster, String publicTenant, NamespaceName ns) throws Exception {
+        ClusterResources cr = broker.getPulsarResources().getClusterResources();
+        TenantResources tr = broker.getPulsarResources().getTenantResources();
+        NamespaceResources nsr = broker.getPulsarResources().getNamespaceResources();
+
+        if (!cr.clusterExists(cluster)) {
+            cr.createCluster(cluster,
+                    ClusterData.builder()
+                            .serviceUrl(broker.getWebServiceAddress())
+                            .serviceUrlTls(broker.getWebServiceAddressTls())
+                            .brokerServiceUrl(broker.getBrokerServiceUrl())
+                            .brokerServiceUrlTls(broker.getBrokerServiceUrlTls())
+                            .build());
         }
-    }
 
-    private void createSampleNameSpace(ClusterData clusterData, String cluster) {
-        // Create a sample namespace
-        final String tenant = "sample";
-        final String globalCluster = "global";
-        final String namespace = tenant + "/ns1";
-        try {
-            List<String> clusters = admin.clusters().getClusters();
-            if (!clusters.contains(cluster)) {
-                admin.clusters().createCluster(cluster, clusterData);
-            } else {
-                admin.clusters().updateCluster(cluster, clusterData);
-            }
-            // Create marker for "global" cluster
-            if (!clusters.contains(globalCluster)) {
-                admin.clusters().createCluster(globalCluster, ClusterData.builder().build());
-            }
+        if (!tr.tenantExists(publicTenant)) {
+            tr.createTenant(publicTenant,
+                    TenantInfo.builder()
+                            .adminRoles(Sets.newHashSet(config.getSuperUserRoles()))
+                            .allowedClusters(Sets.newHashSet(cluster))
+                            .build());
+        }
 
-            if (!admin.tenants().getTenants().contains(tenant)) {
-                admin.tenants().createTenant(tenant,
-                        new TenantInfoImpl(Sets.newHashSet(config.getSuperUserRoles()), Sets.newHashSet(cluster)));
-            }
-
-            if (!admin.namespaces().getNamespaces(tenant).contains(namespace)) {
-                admin.namespaces().createNamespace(namespace);
-            }
-        } catch (PulsarAdminException e) {
-            log.warn(e.getMessage(), e);
+        if (!nsr.namespaceExists(ns)) {
+            Policies nsp = new Policies();
+            nsp.replication_clusters = Collections.singleton(config.getClusterName());
+            nsr.createPolicies(ns, nsp);
         }
     }
 

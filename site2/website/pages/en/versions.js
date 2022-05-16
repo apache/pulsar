@@ -35,7 +35,7 @@ function Versions(props) {
                 <th>{latestStableVersion}</th>
                 <td>
                   <a
-                    href={`${siteConfig.baseUrl}docs/${props.language}/standalone`}>
+                    href={`${siteConfig.baseUrl}docs/${props.language}/getting-started-standalone`}>
                     <translate>
                     Documentation
                     </translate>
@@ -61,7 +61,7 @@ function Versions(props) {
                 <th>master</th>
                 <td>
                   <a
-                    href={`${siteConfig.baseUrl}docs/${props.language}/next/standalone`}>
+                    href={`${siteConfig.baseUrl}docs/${props.language}/next/getting-started-standalone`}>
                     <translate>Documentation</translate>
                   </a>
                 </td>
@@ -86,7 +86,7 @@ function Versions(props) {
                       <th>{version}</th>
                       <td>
                         <a
-                          href={`${siteConfig.baseUrl}docs/${props.language}/${version}/standalone`}>
+                          href={`${siteConfig.baseUrl}docs/${props.language}/${version}/getting-started-standalone`}>
                           <translate>Documentation</translate>
                         </a>
                       </td>

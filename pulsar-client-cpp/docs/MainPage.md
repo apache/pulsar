@@ -111,7 +111,7 @@ $ make
 Client client("pulsar://localhost:6650");
 
 Consumer consumer;
-Result result = client.subscribe("persistent://sample/standalone/ns1/my-topic", "my-subscribtion-name", consumer);
+Result result = client.subscribe("persistent://public/default/my-topic", "my-subscribtion-name", consumer);
 if (result != ResultOk) {
     LOG_ERROR("Failed to subscribe: " << result);
     return -1;
@@ -136,7 +136,7 @@ client.close();
 Client client("pulsar://localhost:6650");
 
 Producer producer;
-Result result = client.createProducer("persistent://sample/standalone/ns1/my-topic", producer);
+Result result = client.createProducer("persistent://public/default/my-topic", producer);
 if (result != ResultOk) {
     LOG_ERROR("Error creating producer: " << result);
     return -1;

@@ -74,7 +74,7 @@ You can upgrade all ZooKeeper servers one by one by following steps in canary te
 ## Upgrade bookies
 
 While you upgrade bookies, you can do canary test first, and then upgrade all bookies in the cluster.
-For more details, you can read Apache BookKeeper [Upgrade guide](http://bookkeeper.apache.org/docs/latest/admin/upgrade).
+For more details, you can read Apache BookKeeper [Upgrade guide](https://bookkeeper.apache.org/docs/next/admin/upgrade).
 
 ### Canary test
 

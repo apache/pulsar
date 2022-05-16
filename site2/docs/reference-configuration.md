@@ -39,7 +39,7 @@ BookKeeper is a replicated log storage system that Pulsar uses for durable stora
 |journalDirectory|The directory where BookKeeper outputs its write-ahead log (WAL).|data/bookkeeper/journal|
 |journalDirectories|Directories that BookKeeper outputs its write ahead log. Multiple directories are available, being separated by `,`. For example: `journalDirectories=/tmp/bk-journal1,/tmp/bk-journal2`. If `journalDirectories` is set, the bookies skip `journalDirectory` and use this setting directory.|/tmp/bk-journal|
 |ledgerDirectories|The directory where BookKeeper outputs ledger snapshots. This could define multiple directories to store snapshots separated by `,`, for example `ledgerDirectories=/tmp/bk1-data,/tmp/bk2-data`. Ideally, ledger dirs and the journal dir are each in a different device, which reduces the contention between random I/O and sequential write. It is possible to run with a single disk, but performance will be significantly lower.|data/bookkeeper/ledgers|
-|ledgerManagerType|The type of ledger manager used to manage how ledgers are stored, managed, and garbage collected. See [BookKeeper Internals](http://bookkeeper.apache.org/docs/latest/getting-started/concepts) for more info.|hierarchical|
+|ledgerManagerType|The type of ledger manager used to manage how ledgers are stored, managed, and garbage collected. See [BookKeeper Internals](https://bookkeeper.apache.org/docs/next/getting-started/concepts) for more info.|hierarchical|
 |zkLedgersRootPath|The root ZooKeeper path used to store ledger metadata. This parameter is used by the ZooKeeper-based ledger manager as a root znode to store all ledgers.|/ledgers|
 |ledgerStorageClass|Ledger storage implementation class|org.apache.bookkeeper.bookie.storage.ldb.DbLedgerStorage|
 |entryLogFilePreallocationEnabled|Enable or disable entry logger preallocation|true|
@@ -329,11 +329,12 @@ brokerServiceCompactionThresholdInBytes|If the estimated backlog size is greater
 |loadBalancerNamespaceBundleMaxMsgRate| maximum msgRate (in + out) in a bundle, otherwise bundle split will be triggered  |1000|
 |loadBalancerNamespaceBundleMaxBandwidthMbytes| maximum bandwidth (in + out) in a bundle, otherwise bundle split will be triggered  |100|
 |loadBalancerNamespaceMaximumBundles| maximum number of bundles in a namespace  |128|
-|loadBalancerLoadSheddingStrategy | The shedding strategy of load balance. <br /><br />Available values: <li>`org.apache.pulsar.broker.loadbalance.impl.ThresholdShedder`</li><li>`org.apache.pulsar.broker.loadbalance.impl.OverloadShedder`</li><li>`org.apache.pulsar.broker.loadbalance.impl.UniformLoadShedder`</li><br />For the comparisons of the shedding strategies, see [here](administration-load-balance/#shed-load-automatically).|`org.apache.pulsar.broker.loadbalance.impl.ThresholdShedder`
+|loadBalancerLoadSheddingStrategy | The shedding strategy of load balance. <br /><br />Available values: <li>`org.apache.pulsar.broker.loadbalance.impl.ThresholdShedder`</li><li>`org.apache.pulsar.broker.loadbalance.impl.OverloadShedder`</li><li>`org.apache.pulsar.broker.loadbalance.impl.UniformLoadShedder`</li><br />For the comparisons of the shedding strategies, see [here](administration-load-balance/#shed-load-automatically).<br />**Note**: You need to restart brokers if this configuration is [dynamically updated](admin-api-brokers.md/#dynamic-broker-configuration). |`org.apache.pulsar.broker.loadbalance.impl.ThresholdShedder`
 |replicationMetricsEnabled| Enable replication metrics  |true|
 |replicationConnectionsPerBroker| Max number of connections to open for each broker in a remote cluster More connections host-to-host lead to better throughput over high-latency links.  |16|
 |replicationProducerQueueSize|  Replicator producer queue size  |1000|
 |replicatorPrefix|  Replicator prefix used for replicator producer name and cursor name pulsar.repl||
+|transactionBufferClientOperationTimeoutInMills|The transaction buffer client's operation timeout in milliseconds.|3000|
 |transactionCoordinatorEnabled|Whether to enable transaction coordinator in broker.|true|
 |transactionMetadataStoreProviderClassName| |org.apache.pulsar.transaction.coordinator.impl.InMemTransactionMetadataStoreProvider|
 |defaultRetentionTimeInMinutes| Default message retention time  |0|
@@ -383,6 +384,7 @@ brokerServiceCompactionThresholdInBytes|If the estimated backlog size is greater
 | additionalServletDirectory | Location of broker additional servlet NAR directory | ./brokerAdditionalServlet |
 | brokerEntryMetadataInterceptors | Set broker entry metadata interceptors.<br /><br />Multiple interceptors should be separated by commas. <br /><br />Available values:<li>org.apache.pulsar.common.intercept.AppendBrokerTimestampMetadataInterceptor</li><li>org.apache.pulsar.common.intercept.AppendIndexMetadataInterceptor</li> <br /><br />Example<br />brokerEntryMetadataInterceptors=org.apache.pulsar.common.intercept.AppendBrokerTimestampMetadataInterceptor, org.apache.pulsar.common.intercept.AppendIndexMetadataInterceptor|N/A |
 | enableExposingBrokerEntryMetadataToClient|Whether to expose broker entry metadata to client or not.<br /><br />Available values:<li>true</li><li>false</li><br />Example<br />enableExposingBrokerEntryMetadataToClient=true  | false |
+| metricsBufferResponse | The configuration is for those broker which there are more than one metrics system access the `/metrics` endpoint. For the purpose of reduce `CPU` and `Memory` usage, metrics data will be generated once in the interval(`managedLedgerStatsPeriodSeconds`) and it will be cached, all `/metrics` requests in the `interval` will return same metrics | false |
 | strictBookieAffinityEnabled | Enable or disable the strict bookie isolation strategy. If enabled, <br /> - `bookie-ensemble` first tries to choose bookies that belong to a namespace's affinity group. If the number of bookies is not enough, then the rest bookies are chosen. <br /> - If namespace has no affinity group, `bookie-ensemble` only chooses bookies that belong to no region. If the number of bookies is not enough, `BKNotEnoughBookiesException` is thrown.| false |
 
 
@@ -702,6 +704,7 @@ You can set the log level and configuration in the  [log4j2.yaml](https://github
 |replicationConnectionsPerBroker|   |16|
 |replicationProducerQueueSize|    |1000|
 | replicationPolicyCheckDurationSeconds | Duration to check replication policy to avoid replicator inconsistency due to missing ZooKeeper watch. When the value is set to 0, disable checking replication policy. | 600 |
+|transactionBufferClientOperationTimeoutInMills|The transaction buffer client's operation timeout in milliseconds.|3000|
 |defaultRetentionTimeInMinutes|   |0|
 |defaultRetentionSizeInMB|    |0|
 |keepAliveIntervalSeconds|    |30|
@@ -817,6 +820,8 @@ The [Pulsar proxy](concepts-architecture-overview.md#pulsar-proxy) can be config
 |tokenAudienceClaim| The token audience "claim" name, e.g. "aud". It is used to get the audience from token. If it is not set, the audience is not verified. ||
 | tokenAudience | The token audience stands for this broker. The field `tokenAudienceClaim` of a valid token need contains this parameter.| |
 |haProxyProtocolEnabled | Enable or disable the [HAProxy](http://www.haproxy.org/) protocol. |false|
+| numIOThreads | Number of threads used for Netty IO. | 2 * Runtime.getRuntime().availableProcessors() |
+| numAcceptorThreads | Number of threads used for Netty Acceptor. | 1 |
 
 #### Deprecated parameters of Pulsar proxy
 The following parameters have been deprecated in the `conf/proxy.conf` file.

@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.lookup.http.v2;
 
-import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Response;
 import org.apache.pulsar.broker.lookup.v2.TopicLookup;
 import org.apache.pulsar.broker.web.PulsarWebResourceTest;
@@ -26,7 +25,7 @@ import org.apache.pulsar.common.lookup.data.LookupData;
 import org.apache.pulsar.common.naming.TopicName;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.testng.annotations.Test;
-
+import java.util.concurrent.CompletableFuture;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 
@@ -70,10 +69,10 @@ public class TopicLookupTest extends PulsarWebResourceTest {
         private String actualListenerName;
 
         @Override
-        protected void internalLookupTopicAsync(TopicName topicName, boolean authoritative, AsyncResponse asyncResponse,
-                String listenerName) {
+        protected CompletableFuture<LookupData> internalLookupTopicAsync(TopicName topicName, boolean authoritative,
+                                                                         String listenerName) {
             this.actualListenerName = listenerName;
-            asyncResponse.resume(new LookupData());
+            return CompletableFuture.completedFuture(new LookupData());
         }
     }
 }

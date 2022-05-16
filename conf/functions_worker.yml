@@ -23,6 +23,7 @@
 
 workerId: standalone
 workerHostname: localhost
+# Set to null to disable the non-TLS service port.
 workerPort: 6750
 workerPortTls: 6751
 
@@ -48,6 +49,8 @@ metadataStoreCacheExpirySeconds: 300
 
 numFunctionPackageReplicas: 1
 downloadDirectory: download/pulsar_functions
+#Enable Functions Worker to use packageManagement Service to store package.
+functionsWorkerEnablePackageManagement: false
 # Classname of Pluggable JVM GC metrics logger that can log GC specific metrics
 # jvmGCMetricsLoggerClassName:
 
@@ -321,11 +324,11 @@ tlsCertRefreshCheckDurationSec: 300
 # certificate isn't trusted.
 tlsRequireTrustedClientCertOnConnect: false
 
-### --- KeyStore TLS config variables --- ###
+### --- TLS config variables --- ###
 ## Note that some of the above TLS configs also apply to the KeyStore TLS configuration.
 
-# TLS Provider for KeyStore type
-tlsProvider:
+# Specify the TLS provider for the web service: SunJSSE, Conscrypt and etc.
+tlsProvider: Conscrypt
 
 # Enable TLS with KeyStore type configuration in function worker.
 tlsEnabledWithKeyStore: false
@@ -357,6 +360,22 @@ webServiceTlsProtocols:
 # (a comma-separated list of ciphers).
 # Examples:- [TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256]
 webServiceTlsCiphers:
+
+### --- SASL Authentication Provider --- ###
+
+# This is a regexp, which limits the range of possible ids which can connect to the Broker using SASL.
+# Default value: `SaslConstants.JAAS_CLIENT_ALLOWED_IDS_DEFAULT`, which is ".*pulsar.*",
+# so only clients whose id contains 'pulsar' are allowed to connect.
+saslJaasClientAllowedIds: .*pulsar.*
+
+# Service Principal, for login context name.
+# Default value `SaslConstants.JAAS_DEFAULT_BROKER_SECTION_NAME`, which is "PulsarFunction".
+saslJaasServerSectionName: PulsarFunction
+
+# Path to file containing the secret to be used to SaslRoleTokenSigner
+# The Path can be specified like:
+# saslJaasServerRoleTokenSignerSecretPath=file:///my/saslRoleTokenSignerSecret.key
+saslJaasServerRoleTokenSignerSecretPath:
 
 ########################
 # State Management
