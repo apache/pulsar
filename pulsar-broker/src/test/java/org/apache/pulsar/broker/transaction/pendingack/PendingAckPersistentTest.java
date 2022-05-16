@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
@@ -47,6 +48,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.Transaction;
+import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -54,6 +56,7 @@ import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.awaitility.Awaitility;
+import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -197,6 +200,8 @@ public class PendingAckPersistentTest extends TransactionTestBase {
     @Test
     public void cumulativePendingAckReplayTest() throws Exception {
         int messageCount = 1000;
+        getPulsarServiceList().get(0).getConfig().setTransactionPendingAckLogIndexMinLag(4 * messageCount + 2);
+        getPulsarServiceList().get(0).getConfiguration().setManagedLedgerDefaultMarkDeleteRateLimit(10);
         String subName = "cumulative-test";
 
         @Cleanup
@@ -349,6 +354,106 @@ public class PendingAckPersistentTest extends TransactionTestBase {
         assertFalse(topics.contains(MLPendingAckStore.getTransactionPendingAckStoreSuffix(topic, subName1)));
         assertFalse(topics.contains(MLPendingAckStore.getTransactionPendingAckStoreSuffix(topic, subName2)));
         assertFalse(topics.contains(topic));
+    }
+
+    @Test
+    public void testDeleteUselessLogDataWhenSubCursorMoved() throws Exception {
+        getPulsarServiceList().get(0).getConfig().setTransactionPendingAckLogIndexMinLag(5);
+        getPulsarServiceList().get(0).getConfiguration().setManagedLedgerDefaultMarkDeleteRateLimit(5);
+        String subName = "test-log-delete";
+        String topic = TopicName.get(TopicDomain.persistent.toString(),
+                NamespaceName.get(NAMESPACE1), "test-log-delete").toString();
+
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topic)
+                .subscriptionName(subName)
+                .subscribe();
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topic)
+                .sendTimeout(0, TimeUnit.SECONDS)
+                .enableBatching(false)
+                .create();
+
+        for (int i = 0; i < 20; i++) {
+            producer.newMessage().send();
+        }
+        // init
+        Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
+        Transaction transaction = pulsarClient.newTransaction()
+                .withTransactionTimeout(5, TimeUnit.SECONDS)
+                .build()
+                .get();
+        consumer.acknowledgeAsync(message.getMessageId(), transaction).get();
+
+        PersistentTopic persistentTopic = (PersistentTopic) getPulsarServiceList().get(0)
+                .getBrokerService().getTopic(topic, false).get().get();
+
+        PersistentSubscription persistentSubscription = persistentTopic.getSubscription(subName);
+        Field field = PersistentSubscription.class.getDeclaredField("pendingAckHandle");
+        field.setAccessible(true);
+        PendingAckHandleImpl pendingAckHandle = (PendingAckHandleImpl) field.get(persistentSubscription);
+        Field field1 = PendingAckHandleImpl.class.getDeclaredField("pendingAckStoreFuture");
+        field1.setAccessible(true);
+        PendingAckStore pendingAckStore = ((CompletableFuture<PendingAckStore>) field1.get(pendingAckHandle)).get();
+
+        Field field3 = MLPendingAckStore.class.getDeclaredField("pendingAckLogIndex");
+        Field field4 = MLPendingAckStore.class.getDeclaredField("maxIndexLag");
+
+        field3.setAccessible(true);
+        field4.setAccessible(true);
+
+        ConcurrentSkipListMap<PositionImpl, PositionImpl> pendingAckLogIndex =
+                (ConcurrentSkipListMap<PositionImpl, PositionImpl>) field3.get(pendingAckStore);
+        long maxIndexLag = (long) field4.get(pendingAckStore);
+        Assert.assertEquals(pendingAckLogIndex.size(), 0);
+        Assert.assertEquals(maxIndexLag, 5);
+        transaction.commit().get();
+
+        Awaitility.await().untilAsserted(() ->
+                Assert.assertEquals(persistentSubscription.getCursor().getPersistentMarkDeletedPosition().getEntryId(),
+                        ((MessageIdImpl)message.getMessageId()).getEntryId()));
+        // 7 more acks. Will find that there are still only two records in the map.
+        Transaction transaction1 = pulsarClient.newTransaction()
+                .withTransactionTimeout(5, TimeUnit.SECONDS)
+                .build()
+                .get();
+        Message<byte[]> message0 = null;
+        //remove previous index
+        for (int i = 0; i < 4; i++) {
+            message0 = consumer.receive(5, TimeUnit.SECONDS);
+            consumer.acknowledgeAsync(message0.getMessageId(), transaction1).get();
+        }
+        Assert.assertEquals(pendingAckLogIndex.size(), 1);
+        maxIndexLag = (long) field4.get(pendingAckStore);
+        Assert.assertEquals(maxIndexLag, 5);
+        //add new index
+        for (int i = 0; i < 9; i++) {
+            message0= consumer.receive(5, TimeUnit.SECONDS);
+            consumer.acknowledgeAsync(message0.getMessageId(), transaction1).get();
+        }
+
+        Assert.assertEquals(pendingAckLogIndex.size(), 2);
+        maxIndexLag = (long) field4.get(pendingAckStore);
+        Assert.assertEquals(maxIndexLag, 10);
+
+        transaction1.commit().get();
+        Message<byte[]> message1 = message0;
+        Awaitility.await().untilAsserted(() ->
+                Assert.assertEquals(persistentSubscription.getCursor().getPersistentMarkDeletedPosition().getEntryId(),
+                        ((MessageIdImpl)message1.getMessageId()).getEntryId()));
+
+        Transaction transaction2 = pulsarClient.newTransaction()
+                .withTransactionTimeout(5, TimeUnit.SECONDS)
+                .build()
+                .get();
+        Message<byte[]> message2 = consumer.receive(5, TimeUnit.SECONDS);
+        consumer.acknowledgeAsync(message2.getMessageId(), transaction2).get();
+
+        Assert.assertEquals(pendingAckLogIndex.size(), 0);
+        maxIndexLag = (long) field4.get(pendingAckStore);
+        Assert.assertEquals(maxIndexLag, 5);
     }
 
     @Test
