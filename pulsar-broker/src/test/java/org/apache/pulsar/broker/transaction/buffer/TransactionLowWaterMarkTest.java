@@ -52,6 +52,7 @@ import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.common.naming.SystemTopicNames;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
@@ -71,7 +72,7 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class TransactionLowWaterMarkTest extends TransactionTestBase {
 
-    private static final String TOPIC = NAMESPACE1 + "/test-topic";
+    private static final String TOPIC = "persistent://" + NAMESPACE1 + "/test-topic";
 
     @BeforeMethod(alwaysRun = true)
     protected void setup() throws Exception {
@@ -356,7 +357,7 @@ public class TransactionLowWaterMarkTest extends TransactionTestBase {
         Transaction txn3 = pulsarClient.newTransaction()
                 .withTransactionTimeout(500, TimeUnit.SECONDS)
                 .build().get();
-        while (txn3.getTxnID().getMostSigBits() != txn1.getTxnID().getMostSigBits()) {
+        while (txn3.getTxnID().getMostSigBits() != txn2.getTxnID().getMostSigBits()) {
             txn3 = pulsarClient.newTransaction()
                     .withTransactionTimeout(500, TimeUnit.SECONDS)
                     .build().get();
@@ -365,7 +366,7 @@ public class TransactionLowWaterMarkTest extends TransactionTestBase {
         Transaction txn4 = pulsarClient.newTransaction()
                 .withTransactionTimeout(500, TimeUnit.SECONDS)
                 .build().get();
-        while (txn4.getTxnID().getMostSigBits() != txn2.getTxnID().getMostSigBits()) {
+        while (txn4.getTxnID().getMostSigBits() != txn1.getTxnID().getMostSigBits()) {
             txn4 = pulsarClient.newTransaction()
                     .withTransactionTimeout(500, TimeUnit.SECONDS)
                     .build().get();
@@ -379,8 +380,6 @@ public class TransactionLowWaterMarkTest extends TransactionTestBase {
         producer.newMessage(txn2).send();
         producer.newMessage(txn3).send();
         producer.newMessage(txn4).send();
-
-
 
         Message<byte[]> message1 = consumer.receive(5, TimeUnit.SECONDS);
         consumer.acknowledgeAsync(message1.getMessageId(), txn1);
@@ -408,26 +407,32 @@ public class TransactionLowWaterMarkTest extends TransactionTestBase {
         consumer.acknowledgeAsync(message6.getMessageId(), txn2);
 
         txn3.commit().get();
+        TxnID txnID1 = txn1.getTxnID();
+        TxnID txnID2 = txn2.getTxnID();
+        Awaitility.await().untilAsserted(() -> {
+            assertTrue(checkTxnIsOngoingInTP(txnID1, subName));
+            assertTrue(checkTxnIsOngoingInTP(txnID2, subName));
+            assertTrue(checkTxnIsOngoingInTB(txnID1));
+            assertTrue(checkTxnIsOngoingInTB(txnID2));
+        });
+
         txn4.commit().get();
 
+        Awaitility.await().untilAsserted(() -> {
+            assertFalse(checkTxnIsOngoingInTP(txnID1, subName));
+            assertFalse(checkTxnIsOngoingInTP(txnID2, subName));
+            assertFalse(checkTxnIsOngoingInTB(txnID1));
+            assertFalse(checkTxnIsOngoingInTB(txnID2));
+        });
+    }
 
-        Transaction txn5 = pulsarClient.newTransaction()
-                .withTransactionTimeout(500, TimeUnit.SECONDS)
-                .build().get();
-        producer.newMessage(txn5).send();
-        Message<byte[]> message7 = consumer.receive(5, TimeUnit.SECONDS);
-        consumer.acknowledgeAsync(message7.getMessageId(), txn5);
-
-        txn5.commit().get();
-
+    private boolean checkTxnIsOngoingInTP(TxnID txnID, String subName) throws Exception {
         PersistentTopic persistentTopic = (PersistentTopic) getPulsarServiceList().get(0)
                 .getBrokerService()
-                .getTopic(TOPIC, false)
+                .getTopic(TopicName.get(TOPIC).toString(), false)
                 .get().get();
 
-        TopicTransactionBuffer topicTransactionBuffer = (TopicTransactionBuffer) persistentTopic.getTransactionBuffer();
         PersistentSubscription persistentSubscription = persistentTopic.getSubscription(subName);
-
 
         Field field1 = PersistentSubscription.class.getDeclaredField("pendingAckHandle");
         field1.setAccessible(true);
@@ -437,17 +442,24 @@ public class TransactionLowWaterMarkTest extends TransactionTestBase {
         field2.setAccessible(true);
         LinkedMap<TxnID, HashMap<PositionImpl, PositionImpl>> individualAckOfTransaction =
                 (LinkedMap<TxnID, HashMap<PositionImpl, PositionImpl>>) field2.get(pendingAckHandle);
+        return individualAckOfTransaction.containsKey(txnID);
+    }
 
+    private boolean checkTxnIsOngoingInTB(TxnID txnID) throws Exception {
+        PersistentTopic persistentTopic = (PersistentTopic) getPulsarServiceList().get(0)
+                .getBrokerService()
+                .getTopic(TopicName.get(TOPIC).toString(), false)
+                .get().get();
+
+        TopicTransactionBuffer topicTransactionBuffer =
+                (TopicTransactionBuffer) persistentTopic.getTransactionBuffer();
         Field field3 = TopicTransactionBuffer.class.getDeclaredField("ongoingTxns");
         field3.setAccessible(true);
         LinkedMap<TxnID, PositionImpl> ongoingTxns =
                 (LinkedMap<TxnID, PositionImpl>) field3.get(topicTransactionBuffer);
-
-        assertFalse(individualAckOfTransaction.containsKey(txn1.getTxnID()));
-        assertFalse(individualAckOfTransaction.containsKey(txn2.getTxnID()));
-
-        assertFalse(ongoingTxns.containsKey(txn1.getTxnID()));
-        assertFalse(ongoingTxns.containsKey(txn2.getTxnID()));
+        return ongoingTxns.containsKey(txnID);
 
     }
+
+
 }
