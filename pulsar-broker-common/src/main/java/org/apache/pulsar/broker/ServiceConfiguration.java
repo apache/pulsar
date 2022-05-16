@@ -2570,6 +2570,15 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private long transactionBufferClientOperationTimeoutInMills = 3000L;
 
+    @FieldContext(
+            category = CATEGORY_TRANSACTION,
+            doc = "MLPendingAckStore maintain a ConcurrentSkipListMap pendingAckLogIndex`,"
+                    + "it store the position in pendingAckStore as value and save a position used to determine"
+                    + "whether the previous data can be cleaned up as a key."
+                    + "transactionPendingAckLogIndexMinLag is used to configure the minimum lag between indexes"
+    )
+    private long transactionPendingAckLogIndexMinLag = 500L;
+
     /**** --- KeyStore TLS config variables. --- ****/
     @FieldContext(
             category = CATEGORY_KEYSTORE_TLS,
