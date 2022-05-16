@@ -892,6 +892,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         try {
             admin.topics().skipAllMessages(persistentTopicName, subName);
         } catch (NotFoundException e) {
+            assertTrue(e.getMessage().contains(subName));
         }
 
         admin.topics().delete(persistentTopicName);
@@ -900,6 +901,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
             admin.topics().delete(persistentTopicName);
             fail("Should have received 404");
         } catch (NotFoundException e) {
+            assertTrue(e.getMessage().contains(persistentTopicName));
         }
 
         assertEquals(admin.topics().getList("prop-xyz/ns1"), Lists.newArrayList());
@@ -1100,6 +1102,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
             admin.topics().deletePartitionedTopic(anotherTopic);
             fail("Should have failed as the partitioned topic was not created");
         } catch (NotFoundException nfe) {
+            assertTrue(nfe.getMessage().contains(anotherTopic));
         }
 
         admin.topics().deletePartitionedTopic(partitionedTopicName);
@@ -1933,7 +1936,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
             admin.topics().getStats("persistent://prop-xyz/ns1/ghostTopic");
             fail("The topic doesn't exist");
         } catch (NotFoundException e) {
-            // OK
+            assertTrue(e.getMessage().contains("persistent://prop-xyz/ns1/ghostTopic"));
         }
     }
 
@@ -2022,6 +2025,20 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         assertEquals(admin.topics().getList("prop-xyz/ns1"), Lists.newArrayList());
 
         topicName = "persistent://prop-xyz/ns1/" + topicName;
+
+        try {
+            admin.topics().resetCursor(topicName, "my-sub", System.currentTimeMillis());
+        } catch (PulsarAdminException.NotFoundException e) {
+            assertTrue(e.getMessage().contains(topicName));
+        }
+
+        admin.topics().createNonPartitionedTopic(topicName);
+
+        try {
+            admin.topics().resetCursor(topicName, "my-sub", System.currentTimeMillis());
+        } catch (PulsarAdminException.NotFoundException e) {
+            assertTrue(e.getMessage().contains("my-sub"));
+        }
 
         // create consumer and subscription
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName)
@@ -2215,7 +2232,19 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().setRetention("prop-xyz/ns1", new RetentionPolicies(10, 10));
         topicName = "persistent://prop-xyz/ns1/" + topicName;
 
+        try {
+            admin.topics().resetCursor(topicName, "my-sub", System.currentTimeMillis());
+        } catch (PulsarAdminException.NotFoundException e) {
+            assertTrue(e.getMessage().contains(topicName));
+        }
+
         admin.topics().createPartitionedTopic(topicName, 4);
+
+        try {
+            admin.topics().resetCursor(topicName, "my-sub", System.currentTimeMillis());
+        } catch (PulsarAdminException.NotFoundException e) {
+            assertTrue(e.getMessage().contains("my-sub"));
+        }
 
         // create consumer and subscription
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName)

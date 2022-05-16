@@ -383,7 +383,9 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
         topics.produceOnPersistentTopic(asyncResponse, testTenant, testNamespace, testTopicName, false, producerMessages);
         ArgumentCaptor<RestException> responseCaptor = ArgumentCaptor.forClass(RestException.class);
         verify(asyncResponse, timeout(5000).times(1)).resume(responseCaptor.capture());
-        Assert.assertTrue(responseCaptor.getValue().getMessage().contains("Topic not exist"));
+        System.out.println(responseCaptor.getValue().getMessage());
+        Assert.assertTrue(responseCaptor.getValue().getMessage()
+                .contains(String.format("Topic %s not found", topicName)));
     }
 
     @Test
