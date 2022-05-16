@@ -36,6 +36,19 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 public class SslContextTest {
+    final static String brokerKeyStorePath =
+            Resources.getResource("certificate-authority/jks/broker.keystore.jks").getPath();
+    final static String brokerTrustStorePath =
+            Resources.getResource("certificate-authority/jks/broker.truststore.jks").getPath();
+    final static String keyStoreType = "JKS";
+    final static String keyStorePassword = "111111";
+
+    final static String caCertPath = Resources.getResource("certificate-authority/certs/ca.cert.pem").getPath();
+    final static String brokerCertPath =
+            Resources.getResource("certificate-authority/server-keys/broker.cert.pem").getPath();
+    final static String brokerKeyPath =
+            Resources.getResource("certificate-authority/server-keys/broker.key-pk8.pem").getPath();
+
     @DataProvider(name = "caCertSslContextDataProvider")
     public static Object[][] getSslContextDataProvider() {
         Set<String> ciphers = new HashSet<>();
@@ -72,11 +85,11 @@ public class SslContextTest {
 
     @Test(dataProvider = "cipherDataProvider")
     public void testServerKeyStoreSSLContext(Set<String> cipher) throws Exception {
-        NettySSLContextAutoRefreshBuilder contextAutoRefreshBuilder = new NettySSLContextAutoRefreshBuilder(null,
-                "JKS", Resources.getResource("ssl/jetty_server_key.jks").getPath(),
-                "jetty_server_pwd", false, "JKS",
-                Resources.getResource("ssl/jetty_server_trust.jks").getPath(),
-                "jetty_server_pwd", true, cipher,
+        NettySSLContextAutoRefreshBuilder contextAutoRefreshBuilder = new NettySSLContextAutoRefreshBuilder(
+                null,
+                keyStoreType, brokerKeyStorePath, keyStorePassword, false,
+                keyStoreType, brokerTrustStorePath, keyStorePassword,
+                true, cipher,
                 null, 600);
         contextAutoRefreshBuilder.update();
     }
@@ -90,9 +103,11 @@ public class SslContextTest {
 
     @Test(dataProvider = "cipherDataProvider")
     public void testClientKeyStoreSSLContext(Set<String> cipher) throws Exception {
-        NettySSLContextAutoRefreshBuilder contextAutoRefreshBuilder = new NettySSLContextAutoRefreshBuilder(null,
-                false, "JKS", Resources.getResource("ssl/jetty_server_trust.jks").getPath(),
-                "jetty_server_pwd", cipher, null, 0, new ClientAuthenticationData());
+        NettySSLContextAutoRefreshBuilder contextAutoRefreshBuilder = new NettySSLContextAutoRefreshBuilder(
+                null,
+                false,
+                keyStoreType, brokerTrustStorePath, keyStorePassword,
+                cipher, null, 0, new ClientAuthenticationData());
         contextAutoRefreshBuilder.update();
     }
 
@@ -100,9 +115,8 @@ public class SslContextTest {
     public void testServerCaCertSslContextWithSslProvider(SslProvider sslProvider, Set<String> ciphers)
             throws GeneralSecurityException, IOException {
         NettyServerSslContextBuilder sslContext = new NettyServerSslContextBuilder(sslProvider,
-                true, Resources.getResource("ssl/my-ca/ca.pem").getPath(),
-                Resources.getResource("ssl/my-ca/server-ca.pem").getPath(),
-                Resources.getResource("ssl/my-ca/server-key.pem").getPath(),
+                true,
+                caCertPath, brokerCertPath, brokerKeyPath,
                 ciphers,
                 null,
                 true, 60);
@@ -119,7 +133,7 @@ public class SslContextTest {
     public void testClientCaCertSslContextWithSslProvider(SslProvider sslProvider, Set<String> ciphers)
             throws GeneralSecurityException, IOException {
         NettyClientSslContextRefresher sslContext = new NettyClientSslContextRefresher(sslProvider,
-                true, Resources.getResource("ssl/my-ca/ca.pem").getPath(),
+                true, caCertPath,
                 null, ciphers, null, 0);
         if (ciphers != null) {
             if (sslProvider == null || sslProvider == SslProvider.OPENSSL) {
