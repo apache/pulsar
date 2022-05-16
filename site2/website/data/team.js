@@ -184,6 +184,12 @@ module.exports = {
       roles: 'Committer'
     },
     {
+      name: 'Nicolò Boschi',
+      apacheId: 'nicoloboschi',
+      org: 'DataStax',
+      roles: 'Committer'
+    },
+    {
       name: 'Nozomi Kurihara',
       apacheId: 'nkurihar',
       org: 'Yahoo Japan Corporation',

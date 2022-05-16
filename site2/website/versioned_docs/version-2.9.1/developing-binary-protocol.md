@@ -382,6 +382,30 @@ Parameters:
  * `validation_error` → *(optional)* Indicates that the consumer has discarded
    the messages due to: `UncompressedSizeCorruption`,
    `DecompressionError`, `ChecksumMismatch`, `BatchDeSerializeError`
+ * `properties` → *(optional)* Reserved configuration items
+ * `txnid_most_bits` → *(optional)* Same as Transaction Coordinator ID, `txnid_most_bits` and `txnid_least_bits`
+   uniquely identify a transaction.
+ * `txnid_least_bits` → *(optional)* The ID of the transaction opened in a transaction coordinator,
+   `txnid_most_bits` and `txnid_least_bits`uniquely identify a transaction.
+ * `request_id` → *(optional)* ID for handling response and timeout.
+
+
+ ##### Command AckResponse
+
+An `AckResponse` is the broker’s response to acknowledge a request sent by the client. It contains the `consumer_id` sent in the request.
+If a transaction is used, it contains both the Transaction ID and the Request ID that are sent in the request. The client finishes the specific request according to the Request ID. If the `error` field is set, it indicates that the request has failed.
+
+An example of `AckResponse` with redirection:
+
+```protobuf
+message CommandAckResponse {
+    "consumer_id" : 1,
+    "txnid_least_bits" = 0,
+    "txnid_most_bits" = 1,
+    "request_id" = 5
+}
+```
+
 
 ##### Command CloseConsumer
 

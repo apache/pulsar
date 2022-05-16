@@ -18,10 +18,10 @@
  */
 package org.apache.pulsar.metadata.bookkeeper;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -84,13 +84,13 @@ public class PulsarLedgerAuditorManagerTest extends BaseMetadataStoreTest {
             log.info("---- LAM-1 - Received auditor event: {}", auditorEvent);
         });
 
-        assertEquals(BookieId.parse("bookie-1:3181"), lam1.getCurrentAuditor());
+        assertEquals(lam1.getCurrentAuditor(), BookieId.parse("bookie-1:3181"));
 
         @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newCachedThreadPool();
 
         LedgerAuditorManager lam2 = new PulsarLedgerAuditorManager(store2, ledgersRootPath);
-        assertEquals(BookieId.parse("bookie-1:3181"), lam2.getCurrentAuditor());
+        assertEquals(lam2.getCurrentAuditor(), BookieId.parse("bookie-1:3181"));
 
         CountDownLatch latch = new CountDownLatch(1);
         executor.execute(() -> {
@@ -109,14 +109,14 @@ public class PulsarLedgerAuditorManagerTest extends BaseMetadataStoreTest {
         // LAM2 will be kept waiting until LAM1 goes away
         assertFalse(latch.await(1, TimeUnit.SECONDS));
 
-        assertEquals(BookieId.parse("bookie-1:3181"), lam1.getCurrentAuditor());
-        assertEquals(BookieId.parse("bookie-1:3181"), lam2.getCurrentAuditor());
+        assertEquals(lam1.getCurrentAuditor(), BookieId.parse("bookie-1:3181"));
+        assertEquals(lam2.getCurrentAuditor(), BookieId.parse("bookie-1:3181"));
 
         lam1.close();
 
         // Now LAM2 will take over
         assertTrue(latch.await(10, TimeUnit.SECONDS));
-        assertEquals(BookieId.parse("bookie-2:3181"), lam2.getCurrentAuditor());
+        assertEquals(lam2.getCurrentAuditor(), BookieId.parse("bookie-2:3181"));
     }
 
 }

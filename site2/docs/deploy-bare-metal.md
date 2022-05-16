@@ -24,7 +24,8 @@ Deploying a Pulsar cluster consists of the following steps:
 
 ### Requirements
 
-Currently, Pulsar is available for 64-bit **macOS**, **Linux**, and **Windows**. To use Pulsar, you need to install 64-bit JRE/JDK 8 or later versions, JRE/JDK 11 is recommended.
+Currently, Pulsar is available for 64-bit **macOS**, **Linux**, and **Windows**. To use Pulsar, you need to install 64-bit JRE/JDK.
+For the runtime Java version, please refer to [Pulsar Runtime Java Version Recommendation](https://github.com/apache/pulsar/blob/master/README.md#pulsar-runtime-java-version-recommendation) according to your target Pulsar version.
 
 >**Tips**  
 > You can reuse existing Zookeeper clusters.
@@ -40,7 +41,7 @@ To run Pulsar on bare metal, the following configuration is recommended:
 > * Broker is only supported on 64-bit JVM.
 > * If you do not have enough machines, or you want to test Pulsar in cluster mode (and expand the cluster later), You can fully deploy Pulsar on a node on which ZooKeeper, bookie and broker run.
 > * If you do not have a DNS server, you can use the multi-host format in the service URL instead.
-Each machine in your cluster needs to have [Java 8](https://adoptium.net/?variant=openjdk8), [Java 11](https://adoptium.net/?variant=openjdk11) or [Java 17](https://adoptium.net/?variant=openjdk17) installed.
+> * Each machine in your cluster needs to have the recommended Java version installed (e.g. [Java 17](https://adoptium.net/?variant=openjdk17)). Please refer to [Pulsar Runtime Java Version Recommendation](https://github.com/apache/pulsar/blob/master/README.md#pulsar-runtime-java-version-recommendation) according to your target Pulsar version.
 
 The following is a diagram showing the basic setup:
 
@@ -292,7 +293,7 @@ You can configure BookKeeper bookies using the [`conf/bookkeeper.conf`](referenc
 zkServers=zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.example.com:2181
 ```
 
-Once you appropriately modify the `zkServers` parameter, you can make any other configuration changes that you require. You can find a full listing of the available BookKeeper configuration parameters [here](reference-configuration.md#bookkeeper). However, consulting the [BookKeeper documentation](http://bookkeeper.apache.org/docs/latest/reference/config/) for a more in-depth guide might be a better choice.
+Once you appropriately modify the `zkServers` parameter, you can make any other configuration changes that you require. You can find a full listing of the available BookKeeper configuration parameters [here](reference-configuration.md#bookkeeper). However, consulting the [BookKeeper documentation](https://bookkeeper.apache.org/docs/next/reference/config/) for a more in-depth guide might be a better choice.
 
 Once you apply the desired configuration in `conf/bookkeeper.conf`, you can start up a bookie on each of your BookKeeper hosts. You can start up each bookie either in the background, using [nohup](https://en.wikipedia.org/wiki/Nohup), or in the foreground.
 
@@ -428,8 +429,6 @@ $ bin/pulsar-client produce \
   -n 1 \
   -m "Hello Pulsar"
 ```
-
-> You may need to use a different cluster name in the topic if you specify a cluster name other than `pulsar-cluster-1`.
 
 This command publishes a single message to the Pulsar topic. In addition, you can subscribe to the Pulsar topic in a different terminal before publishing messages as below:
 
