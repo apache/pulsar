@@ -87,6 +87,7 @@ import org.apache.pulsar.common.naming.NamespaceBundles;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AuthAction;
+import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
@@ -98,6 +99,7 @@ import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.policies.data.impl.AutoTopicCreationOverrideImpl;
 import org.apache.pulsar.metadata.cache.impl.MetadataCacheImpl;
 import org.apache.pulsar.metadata.impl.AbstractMetadataStore;
 import org.apache.zookeeper.KeeperException.Code;
@@ -108,6 +110,7 @@ import org.mockito.ArgumentMatcher;
 import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
@@ -1673,6 +1676,44 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         assertInvalidRetentionPolicyAsPartOfAllPolicies(policies, 0, -1);
         assertInvalidRetentionPolicyAsPartOfAllPolicies(policies, -2, 1);
         assertInvalidRetentionPolicyAsPartOfAllPolicies(policies, 1, -2);
+    }
+
+    @Test
+    public void testOptionsAutoTopicCreation() throws Exception {
+        String namespace = "auto_topic_namespace";
+        AutoTopicCreationOverride autoTopicCreationOverride =
+                AutoTopicCreationOverride.builder().allowAutoTopicCreation(true).topicType("partitioned")
+                        .defaultNumPartitions(4).build();
+        try {
+            asyncRequests(response -> namespaces.setAutoTopicCreation(response, this.testTenant, this.testLocalCluster,
+                    namespace, autoTopicCreationOverride));
+            fail("should have failed");
+        } catch (RestException e) {
+            assertEquals(e.getResponse().getStatus(), Status.NOT_FOUND.getStatusCode());
+        }
+
+        asyncRequests(response -> namespaces.createNamespace(response, this.testTenant, this.testLocalCluster,
+                namespace, BundlesData.builder().build()));
+
+        // 1. set auto topic creation
+        asyncRequests(response -> namespaces.setAutoTopicCreation(response, this.testTenant, this.testLocalCluster,
+                namespace, autoTopicCreationOverride));
+
+        // 2. assert get auto topic creation
+        AutoTopicCreationOverride autoTopicCreationOverrideRsp = (AutoTopicCreationOverride) asyncRequests(
+                response -> namespaces.getAutoTopicCreation(response, this.testTenant, this.testLocalCluster,
+                        namespace));
+        assertEquals(autoTopicCreationOverride.getTopicType(), autoTopicCreationOverrideRsp.getTopicType());
+        assertEquals(autoTopicCreationOverride.getDefaultNumPartitions(),
+                                          autoTopicCreationOverrideRsp.getDefaultNumPartitions());
+        assertEquals(autoTopicCreationOverride.isAllowAutoTopicCreation(),
+                                          autoTopicCreationOverrideRsp.isAllowAutoTopicCreation());
+        // 2. remove auto topic creation and assert get null
+        asyncRequests(response -> namespaces.removeAutoTopicCreation(response, this.testTenant,
+                this.testLocalCluster, namespace));
+        assertNull(asyncRequests(
+                response -> namespaces.getAutoTopicCreation(response, this.testTenant, this.testLocalCluster,
+                        namespace)));
     }
 
     @Test
