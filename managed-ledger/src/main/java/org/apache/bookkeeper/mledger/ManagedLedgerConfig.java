@@ -44,7 +44,7 @@ public class ManagedLedgerConfig {
     private boolean createIfMissing = true;
     private int maxUnackedRangesToPersist = 10000;
     private int maxBatchDeletedIndexToPersist = 10000;
-    private boolean enableMultiEntriesToPersistUnackedRanges = false;
+    private boolean persistentUnackedRangesWithMultipleEntriesEnabled = false;
     private boolean deletionAtBatchIndexLevelEnabled = true;
     private int maxUnackedRangesToPersistInMetadataStore = 1000;
     private int maxEntriesPerLedger = 50000;
@@ -471,12 +471,12 @@ public class ManagedLedgerConfig {
         return maxBatchDeletedIndexToPersist;
     }
 
-    public boolean isEnableMultiEntriesToPersistUnackedRanges() {
-        return enableMultiEntriesToPersistUnackedRanges;
+    public boolean isPersistentUnackedRangesWithMultipleEntriesEnabled() {
+        return persistentUnackedRangesWithMultipleEntriesEnabled;
     }
 
-    public void setEnableMultiEntriesToPersistUnackedRanges(boolean enableMultiEntriesToPersistUnackedRanges) {
-        this.enableMultiEntriesToPersistUnackedRanges = enableMultiEntriesToPersistUnackedRanges;
+    public void setPersistentUnackedRangesWithMultipleEntriesEnabled(boolean persistentUnackedRangesWithMultipleEntriesEnabled) {
+        this.persistentUnackedRangesWithMultipleEntriesEnabled = persistentUnackedRangesWithMultipleEntriesEnabled;
     }
 
     /**

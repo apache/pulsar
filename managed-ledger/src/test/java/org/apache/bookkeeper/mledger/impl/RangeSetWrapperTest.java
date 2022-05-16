@@ -59,7 +59,7 @@ public class RangeSetWrapperTest {
     private void initManagedLedgerConfig() {
         managedLedgerConfig = new ManagedLedgerConfig();
         managedLedgerConfig.setUnackedRangesOpenCacheSetEnabled(true);
-        managedLedgerConfig.setEnableMultiEntriesToPersistUnackedRanges(true);
+        managedLedgerConfig.setPersistentUnackedRangesWithMultipleEntriesEnabled(true);
     }
 
     @AfterMethod

@@ -1851,7 +1851,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_STORAGE_ML,
         doc = "If enabled, the maximum \"acknowledgment holes\" will not be limited and \"acknowledgment holes\" "
                 + "are stored in multiple entries.")
-    private boolean enableMultiEntriesToPersistUnackedRanges = false;
+    private boolean persistentUnackedRangesWithMultipleEntriesEnabled = false;
     @Deprecated
     @FieldContext(
         category = CATEGORY_STORAGE_ML,
