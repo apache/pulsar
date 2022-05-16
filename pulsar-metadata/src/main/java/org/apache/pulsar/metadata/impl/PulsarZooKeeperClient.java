@@ -61,6 +61,7 @@ import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.Watcher.Event.EventType;
 import org.apache.zookeeper.Watcher.Event.KeeperState;
 import org.apache.zookeeper.ZooKeeper;
+import org.apache.zookeeper.client.ZKClientConfig;
 import org.apache.zookeeper.data.ACL;
 import org.apache.zookeeper.data.Stat;
 
@@ -336,7 +337,9 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
     }
 
     protected ZooKeeper createZooKeeper() throws IOException {
-        return new ZooKeeper(connectString, sessionTimeoutMs, watcherManager, allowReadOnlyMode);
+        ZooKeeper zkClient = new ZooKeeper(connectString, sessionTimeoutMs, watcherManager, allowReadOnlyMode);
+        zkClient.getClientConfig().setProperty(ZKClientConfig.ZOOKEEPER_SERVER_PRINCIPAL, "zookeeper/" + connectString);
+        return zkClient;
     }
 
     @Override
