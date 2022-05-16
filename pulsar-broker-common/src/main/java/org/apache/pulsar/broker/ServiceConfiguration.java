@@ -2550,7 +2550,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             category = CATEGORY_TRANSACTION,
             doc = "Transaction buffer take snapshot transaction count"
     )
-    private int transactionBufferSnapshotMinTransactionCount = 1000;
+    private int transactionBufferSnapshotMaxTransactionCount = 1000;
 
     @FieldContext(
             category = CATEGORY_TRANSACTION,
