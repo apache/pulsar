@@ -417,7 +417,7 @@ public class Namespaces extends NamespacesBase {
         internalGetDeduplicationAsync()
                 .thenAccept(deduplication -> asyncResponse.resume(deduplication))
                 .exceptionally(ex -> {
-                    log.error("Fail get broker deduplication config for namespace {}", namespace, ex);
+                    log.error("Failed to get broker deduplication config for namespace {}", namespace, ex);
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
@@ -435,9 +435,9 @@ public class Namespaces extends NamespacesBase {
                                             boolean enableDeduplication) {
         validateNamespaceName(tenant, namespace);
         internalModifyDeduplicationAsync(enableDeduplication)
-                .thenAccept(__ -> asyncResponse.resume(Response.ok().build()))
+                .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
                 .exceptionally(ex -> {
-                    log.error("Fail modify broker deduplication config for namespace {}", namespaceName, ex);
+                    log.error("Failed to modify broker deduplication config for namespace {}", namespaceName, ex);
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
@@ -452,9 +452,9 @@ public class Namespaces extends NamespacesBase {
                                     @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
         internalModifyDeduplicationAsync(null)
-                .thenAccept(__ -> asyncResponse.resume(Response.ok().build()))
+                .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
                 .exceptionally(ex -> {
-                    log.error("Fail remove broker deduplication config for namespace {}", namespaceName, ex);
+                    log.error("Failed to remove broker deduplication config for namespace {}", namespaceName, ex);
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });

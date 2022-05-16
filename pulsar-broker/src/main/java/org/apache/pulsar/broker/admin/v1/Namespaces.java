@@ -518,9 +518,9 @@ public class Namespaces extends NamespacesBase {
                                     boolean enableDeduplication) {
         validateNamespaceName(property, cluster, namespace);
         internalModifyDeduplicationAsync(enableDeduplication)
-                .thenAccept(__ -> asyncResponse.resume(Response.ok().build()))
+                .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
                 .exceptionally(ex -> {
-                    log.error("Fail modify broker deduplication config for namespace {}", namespaceName, ex);
+                    log.error("Failed to modify broker deduplication config for namespace {}", namespaceName, ex);
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
