@@ -135,7 +135,8 @@ public class AdminApiSubscriptionTest extends MockedPulsarServiceBaseTest {
 
         String subscriptionName = "sub";
         Map<String, String> properties = new HashMap<>();
-        String value = "bar{}€/&:[]";
+        // test characters that often have problems in query strings
+        String value = "bar{}€/&:#[] ?'\"";
         properties.put("foo", value);
         admin.topics().createSubscription(topic, subscriptionName,
                 MessageId.latest, false, properties);

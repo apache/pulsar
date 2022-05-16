@@ -1462,16 +1462,15 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("subscriptionName") String encodedSubName,
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
-            @ApiParam(name = "messageId", value = "messageId where to create the subscription. "
-                    + "It can be 'latest', 'earliest' or (ledgerId:entryId)",
+            @ApiParam(name = "payload", value = "JSON encoded messageId where to create the subscription " +
+                    "and subscription properties. "
+                    + "The message id can be 'latest', 'earliest' or (ledgerId:entryId)",
                     defaultValue = "latest",
                     allowableValues = "latest, earliest, ledgerId:entryId"
             )
-                    ResetCursorData resetCursorData,
+            Map<String, Object> payload,
             @ApiParam(value = "Is replicated required to perform this operation")
-            @QueryParam("replicated") boolean replicated,
-            @ApiParam(value = "JSON encoded list of properties for the Subscription")
-            @QueryParam("properties") String properties
+            @QueryParam("replicated") boolean replicated
     ) {
         try {
             validateTopicName(tenant, namespace, topic);
@@ -1479,15 +1478,24 @@ public class PersistentTopics extends PersistentTopicsBase {
                 throw new RestException(Response.Status.BAD_REQUEST, "Create subscription on non-persistent topic "
                         + "can only be done through client");
             }
-            MessageIdImpl messageId = resetCursorData == null ? null :
-                    new MessageIdImpl(resetCursorData.getLedgerId(), resetCursorData.getEntryId(),
-                            resetCursorData.getPartitionIndex());
+            MessageIdImpl messageId = null;
             Map<String, String> subscriptionProperties = null;
-
-            if (properties != null && !properties.isEmpty()) {
-                TypeFactory factory = TypeFactory.defaultInstance();
-                MapType type = factory.constructMapType(HashMap.class, String.class, String.class);
-                subscriptionProperties = ObjectMapperFactory.getThreadLocal().readValue(properties, type);
+            if (payload != null) {
+                if (payload.containsKey("properties")) {
+                    Map<String, Object> messageIdEncoded = (Map<String, Object>) payload.get("messageId");
+                    if (messageIdEncoded != null) {
+                        ResetCursorData resetCursorData =
+                                ObjectMapperFactory.getThreadLocal().convertValue(messageIdEncoded, ResetCursorData.class);
+                        messageId = new MessageIdImpl(resetCursorData.getLedgerId(), resetCursorData.getEntryId(),
+                                resetCursorData.getPartitionIndex());
+                    }
+                    subscriptionProperties = (Map<String, String>) payload.get("properties");
+                } else {
+                    ResetCursorData resetCursorData =
+                            ObjectMapperFactory.getThreadLocal().convertValue(payload, ResetCursorData.class);
+                    messageId = new MessageIdImpl(resetCursorData.getLedgerId(), resetCursorData.getEntryId(),
+                                    resetCursorData.getPartitionIndex());
+                }
             }
             internalCreateSubscription(asyncResponse, decode(encodedSubName), messageId, authoritative,
                     replicated, subscriptionProperties);

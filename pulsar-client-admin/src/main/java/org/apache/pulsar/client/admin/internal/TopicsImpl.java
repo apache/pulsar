@@ -23,8 +23,6 @@ import com.fasterxml.jackson.core.JacksonException;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import java.io.InputStream;
-import java.io.UnsupportedEncodingException;
-import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collections;
@@ -1149,16 +1147,14 @@ public class TopicsImpl extends BaseResource implements Topics {
         String encodedSubName = Codec.encode(subscriptionName);
         WebTarget path = topicPath(tn, "subscription", encodedSubName);
         path = path.queryParam("replicated", replicated);
+        Object payload = messageId;
         if (properties != null && !properties.isEmpty()) {
-            try {
-                path = path.queryParam("properties",
-                        URLEncoder.encode(ObjectMapperFactory.getThreadLocal().writeValueAsString(properties), "UTF-8")
-                );
-            } catch (JacksonException | UnsupportedEncodingException err) {
-                return FutureUtil.failedFuture(err);
-            }
+            Map<String, Object> complexPayload = new HashMap<>();
+            complexPayload.put("messageId", messageId);
+            complexPayload.put("properties", properties);
+            payload = complexPayload;
         }
-        return asyncPutRequest(path, Entity.entity(messageId, MediaType.APPLICATION_JSON));
+        return asyncPutRequest(path, Entity.entity(payload, MediaType.APPLICATION_JSON));
     }
 
     @Override
