@@ -661,10 +661,7 @@ public class ClustersBase extends AdminResource {
                             .map(namespaceName -> adminClient.namespaces().unloadAsync(namespaceName))
                             .collect(Collectors.toList());
                     return FutureUtil.waitForAll(futures)
-                            // Because triggering a write load report is a synchronous method,
-                            // We should use the common pool to handle it to avoid impacting the metadata thread until
-                            // load management is refactored into an asynchronous method.
-                            .thenAcceptAsync(__ -> {
+                            .thenAccept(__ -> {
                                 try {
                                     // write load info to load manager to make the load happens fast
                                     pulsar().getLoadManager().get().writeLoadReportOnZookeeper(true);
