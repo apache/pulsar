@@ -156,6 +156,8 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
     @BeforeMethod
     public void setup() throws Exception {
         resetConfig();
+        conf.setTopicLevelPoliciesEnabled(false);
+        conf.setSystemTopicEnabled(false);
         conf.setClusterName(testLocalCluster);
         super.internalSetup();
 
