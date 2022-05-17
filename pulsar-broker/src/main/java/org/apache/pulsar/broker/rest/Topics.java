@@ -61,14 +61,14 @@ public class Topics extends TopicsBase {
                                @PathParam("topic") @Encoded String encodedTopic,
                                @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
                                ProducerMessages producerMessages) {
-        try {
-            validateTopicName(tenant, namespace, encodedTopic);
-            validateProducePermission();
-            publishMessages(asyncResponse, producerMessages, authoritative);
-        } catch (Exception e) {
-            log.error("[{}] Failed to produce on topic {}", clientAppId(), topicName, e);
-            resumeAsyncResponseExceptionally(asyncResponse, e);
-        }
+        validateTopicName(tenant, namespace, encodedTopic);
+        validateProducePermissionAsync()
+                .thenCompose(__ -> publishMessages(producerMessages, authoritative))
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to produce on topic {}", clientAppId(), topicName, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @POST
@@ -120,7 +120,7 @@ public class Topics extends TopicsBase {
         try {
             validateTopicName(tenant, namespace, encodedTopic);
             validateProducePermission();
-            publishMessages(asyncResponse, producerMessages, authoritative);
+            publishMessages(producerMessages, authoritative);
         } catch (Exception e) {
             log.error("[{}] Failed to produce on topic {}", clientAppId(), topicName, e);
             resumeAsyncResponseExceptionally(asyncResponse, e);
