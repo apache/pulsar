@@ -1448,8 +1448,11 @@ public class PulsarAdminToolTest {
         cmdTopics.run(split("create-subscription persistent://myprop/clust/ns1/ds1 -s sub1 --messageId earliest"));
         verify(mockTopics).createSubscription("persistent://myprop/clust/ns1/ds1", "sub1", MessageId.earliest, false, new HashMap<>());
 
-        cmdTopics.run(split("create-subscription persistent://myprop/clust/ns1/ds1 -s sub1 --messageId earliest --properties a=b"));
+        // jcommander is stateful, you cannot parse the same command twice
+        cmdTopics = new CmdTopics(() -> admin);
+        cmdTopics.run(split("create-subscription persistent://myprop/clust/ns1/ds1 -s sub1 --messageId earliest --property a=b"));
         Map<String, String> props = new HashMap<>();
+        props.put("a", "b");
         verify(mockTopics).createSubscription("persistent://myprop/clust/ns1/ds1", "sub1", MessageId.earliest, false, props);
 
         cmdTopics = new CmdTopics(() -> admin);

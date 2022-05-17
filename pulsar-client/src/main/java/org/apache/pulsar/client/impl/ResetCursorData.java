@@ -23,6 +23,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.apache.pulsar.client.api.MessageId;
 
+import java.util.Map;
+
 @Data
 @NoArgsConstructor
 public class ResetCursorData {
@@ -31,6 +33,7 @@ public class ResetCursorData {
     protected int partitionIndex = -1;
     protected boolean isExcluded = false;
     protected int batchIndex = -1;
+    protected Map<String, String> properties;
 
     public ResetCursorData(long ledgerId, long entryId) {
         this.ledgerId = ledgerId;
@@ -41,6 +44,13 @@ public class ResetCursorData {
         this.ledgerId = ledgerId;
         this.entryId = entryId;
         this.isExcluded = isExcluded;
+    }
+
+    public ResetCursorData(long ledgerId, long entryId, boolean isExcluded, Map<String, String> properties) {
+        this.ledgerId = ledgerId;
+        this.entryId = entryId;
+        this.isExcluded = isExcluded;
+        this.properties = properties;
     }
 
     // Private constructor used only for json deserialization

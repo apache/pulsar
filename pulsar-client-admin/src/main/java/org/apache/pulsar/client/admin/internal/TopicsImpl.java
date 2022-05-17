@@ -1145,16 +1145,12 @@ public class TopicsImpl extends BaseResource implements Topics {
         String encodedSubName = Codec.encode(subscriptionName);
         WebTarget path = topicPath(tn, "subscription", encodedSubName);
         path = path.queryParam("replicated", replicated);
-        Map<String, Object> payload = new HashMap<>();
-        if (messageId != null) {
-            payload.putAll(ObjectMapperFactory.getThreadLocal()
-                    .convertValue(messageId, Map.class));
-        }
+        Object payload = messageId;
         if (properties != null && !properties.isEmpty()) {
-            payload.put("properties", properties);
-        }
-        if (payload.isEmpty()) {
-            payload = null;
+            ResetCursorData resetCursorData = messageId != null
+                    ? new ResetCursorData(messageId) : new ResetCursorData(MessageId.latest);
+            resetCursorData.setProperties(properties);
+            payload = resetCursorData;
         }
         return asyncPutRequest(path, Entity.entity(payload, MediaType.APPLICATION_JSON));
     }

@@ -71,7 +71,6 @@ import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.policies.data.impl.BacklogQuotaImpl;
 import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 import org.apache.pulsar.common.util.Codec;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -1459,13 +1458,12 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("subscriptionName") String encodedSubName,
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
-            @ApiParam(name = "payload", value = "JSON encoded messageId where to create the subscription "
-                    + "and subscription properties. "
-                    + "The message id can be 'latest', 'earliest' or (ledgerId:entryId)",
+            @ApiParam(name = "messageId", value = "messageId where to create the subscription. "
+                    + "It can be 'latest', 'earliest' or (ledgerId:entryId)",
                     defaultValue = "latest",
                     allowableValues = "latest, earliest, ledgerId:entryId"
             )
-            Map<String, Object> payload,
+                    ResetCursorData resetCursorData,
             @ApiParam(value = "Is replicated required to perform this operation")
             @QueryParam("replicated") boolean replicated
     ) {
@@ -1475,26 +1473,10 @@ public class PersistentTopics extends PersistentTopicsBase {
                 throw new RestException(Response.Status.BAD_REQUEST, "Create subscription on non-persistent topic "
                         + "can only be done through client");
             }
-            MessageIdImpl messageId = null;
-            Map<String, String> subscriptionProperties = null;
-            if (payload != null) {
-                if (payload.containsKey("properties")) {
-                    Map<String, Object> messageIdEncoded = (Map<String, Object>) payload.get("messageId");
-                    if (messageIdEncoded != null) {
-                        ResetCursorData resetCursorData =
-                                ObjectMapperFactory.getThreadLocal()
-                                        .convertValue(messageIdEncoded, ResetCursorData.class);
-                        messageId = new MessageIdImpl(resetCursorData.getLedgerId(), resetCursorData.getEntryId(),
-                                resetCursorData.getPartitionIndex());
-                    }
-                    subscriptionProperties = (Map<String, String>) payload.get("properties");
-                } else {
-                    ResetCursorData resetCursorData =
-                            ObjectMapperFactory.getThreadLocal().convertValue(payload, ResetCursorData.class);
-                    messageId = new MessageIdImpl(resetCursorData.getLedgerId(), resetCursorData.getEntryId(),
-                                    resetCursorData.getPartitionIndex());
-                }
-            }
+            Map<String, String> subscriptionProperties = resetCursorData == null ? null : resetCursorData.getProperties();
+            MessageIdImpl messageId = resetCursorData == null ? null :
+                    new MessageIdImpl(resetCursorData.getLedgerId(), resetCursorData.getEntryId(),
+                            resetCursorData.getPartitionIndex());
             internalCreateSubscription(asyncResponse, decode(encodedSubName), messageId, authoritative,
                     replicated, subscriptionProperties);
         } catch (WebApplicationException wae) {
