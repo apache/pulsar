@@ -69,14 +69,14 @@ public class AdvertisedListenersTest extends MultiBrokerBaseTest {
         int httpsPort = PortManager.nextFreePort();
 
         // Use invalid domain name as identifier and instead make sure the advertised listeners work as intended
-        this.conf.setAdvertisedAddress(advertisedAddress);
-        this.conf.setAdvertisedListeners(
+        conf.setAdvertisedAddress(advertisedAddress);
+        conf.setAdvertisedListeners(
                 "public:pulsar://localhost:" + pulsarPort +
                         ",public_http:http://localhost:" + httpPort +
                         ",public_https:https://localhost:" + httpsPort);
-        this.conf.setBrokerServicePort(Optional.of(pulsarPort));
-        this.conf.setWebServicePort(Optional.of(httpPort));
-        this.conf.setWebServicePortTls(Optional.of(httpsPort));
+        conf.setBrokerServicePort(Optional.of(pulsarPort));
+        conf.setWebServicePort(Optional.of(httpPort));
+        conf.setWebServicePortTls(Optional.of(httpsPort));
     }
 
     @Test
@@ -112,6 +112,7 @@ public class AdvertisedListenersTest extends MultiBrokerBaseTest {
         // Verify we can get the correct HTTP redirect to the advertised listener
         for (PulsarAdmin a : getAllAdmins()) {
             TopicStats s = a.topics().getStats("my-topic");
+            a.lookups().lookupTopic("my-topic");
             assertEquals(s.getPublishers().size(), 1);
         }
     }

@@ -19,18 +19,30 @@
 package org.apache.pulsar.broker.loadbalance.impl;
 
 import com.google.common.base.MoreObjects;
+import java.util.Map;
 import org.apache.pulsar.broker.loadbalance.ResourceDescription;
 import org.apache.pulsar.broker.loadbalance.ResourceUnit;
 
 public class SimpleResourceUnit implements ResourceUnit {
 
-    private String resourceId;
-    private ResourceDescription resourceDescription;
+    private final String resourceId;
+    private final ResourceDescription resourceDescription;
+
+    private final Map<String, Object> properties;
 
     public SimpleResourceUnit(String resourceId, ResourceDescription resourceDescription) {
         this.resourceId = resourceId;
         this.resourceDescription = resourceDescription;
+        this.properties = null;
     }
+
+    public SimpleResourceUnit(String resourceId, ResourceDescription resourceDescription,
+                              Map<String, Object> properties) {
+        this.resourceId = resourceId;
+        this.resourceDescription = resourceDescription;
+        this.properties = properties;
+    }
+
 
     @Override
     public String getResourceId() {
@@ -48,6 +60,11 @@ public class SimpleResourceUnit implements ResourceUnit {
     public boolean canFit(ResourceDescription resourceDescription) {
         // TODO Auto-generated method stub
         return this.resourceDescription.compareTo(resourceDescription) > 0;
+    }
+
+    @Override
+    public Object getProperty(String key) {
+        return properties == null ? null : properties.get(key);
     }
 
     @Override
