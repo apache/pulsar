@@ -337,8 +337,28 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
         assertEquals(expectedKeySchema, result.get("keySchema"));
         assertEquals(expectedSchema, result.get("valueSchema"));
 
-        SinkRecord sinkRecord = sink.toSinkRecord(record);
-        return sinkRecord;
+        if (schema.getSchemaInfo().getType().isPrimitive()) {
+            // to test cast of primitive values
+            Message msgOut = mock(MessageImpl.class);
+            when(msgOut.getValue()).thenReturn(getGenericRecord(result.get("value"), schema));
+            when(msgOut.getKey()).thenReturn(result.get("key").toString());
+            when(msgOut.hasKey()).thenReturn(true);
+            when(msgOut.getMessageId()).thenReturn(new MessageIdImpl(1, 0, 0));
+
+            Record<GenericObject> recordOut = PulsarRecord.<String>builder()
+                    .topicName("fake-topic")
+                    .message(msgOut)
+                    .schema(schema)
+                    .ackFunction(status::incrementAndGet)
+                    .failFunction(status::decrementAndGet)
+                    .build();
+
+            SinkRecord sinkRecord = sink.toSinkRecord(recordOut);
+            return sinkRecord;
+        } else {
+            SinkRecord sinkRecord = sink.toSinkRecord(record);
+            return sinkRecord;
+        }
     }
 
     private GenericRecord getGenericRecord(Object value, Schema schema) {
@@ -364,71 +384,135 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
         return rec;
     }
 
+
+    @Test
+    public void genericRecordCastTest() throws Exception {
+        props.put("kafkaConnectorSinkClass", SchemaedFileStreamSinkConnector.class.getCanonicalName());
+
+        KafkaConnectSink sink = new KafkaConnectSink();
+        sink.open(props, context);
+
+        AvroSchema<PulsarSchemaToKafkaSchemaTest.StructWithAnnotations> pulsarAvroSchema
+                = AvroSchema.of(PulsarSchemaToKafkaSchemaTest.StructWithAnnotations.class);
+
+        final GenericData.Record obj = new GenericData.Record(pulsarAvroSchema.getAvroSchema());
+        // schema type INT32
+        obj.put("field1", (byte)10);
+        // schema type STRING
+        obj.put("field2", "test");
+        // schema type INT64
+        obj.put("field3", (short)100);
+
+        final GenericRecord rec = getGenericRecord(obj, pulsarAvroSchema);
+        Message msg = mock(MessageImpl.class);
+        when(msg.getValue()).thenReturn(rec);
+        when(msg.getKey()).thenReturn("key");
+        when(msg.hasKey()).thenReturn(true);
+        when(msg.getMessageId()).thenReturn(new MessageIdImpl(1, 0, 0));
+
+        final AtomicInteger status = new AtomicInteger(0);
+        Record<GenericObject> record = PulsarRecord.<String>builder()
+                .topicName("fake-topic")
+                .message(msg)
+                .schema(pulsarAvroSchema)
+                .ackFunction(status::incrementAndGet)
+                .failFunction(status::decrementAndGet)
+                .build();
+
+        SinkRecord sinkRecord = sink.toSinkRecord(record);
+
+        Struct out = (Struct) sinkRecord.value();
+        Assert.assertEquals(out.get("field1").getClass(), Integer.class);
+        Assert.assertEquals(out.get("field2").getClass(), String.class);
+        Assert.assertEquals(out.get("field3").getClass(), Long.class);
+
+        Assert.assertEquals(out.get("field1"), 10);
+        Assert.assertEquals(out.get("field2"), "test");
+        Assert.assertEquals(out.get("field3"), 100L);
+
+        sink.close();
+    }
+
     @Test
     public void bytesRecordSchemaTest() throws Exception {
         byte[] in = "val".getBytes(StandardCharsets.US_ASCII);
         SinkRecord sinkRecord = recordSchemaTest(in, Schema.BYTES, "val", "BYTES");
-        byte[] out = (byte[]) sinkRecord.value();
-        Assert.assertEquals(out, in);
+        // test/mock writes it as string
+        Assert.assertEquals(sinkRecord.value(), "val");
     }
 
     @Test
     public void stringRecordSchemaTest() throws Exception {
         SinkRecord sinkRecord = recordSchemaTest("val", Schema.STRING, "val", "STRING");
-        String out = (String) sinkRecord.value();
-        Assert.assertEquals(out, "val");
+        Assert.assertEquals(sinkRecord.value().getClass(), String.class);
+        Assert.assertEquals(sinkRecord.value(), "val");
     }
 
     @Test
     public void booleanRecordSchemaTest() throws Exception {
         SinkRecord sinkRecord = recordSchemaTest(true, Schema.BOOL, true, "BOOLEAN");
-        boolean out = (boolean) sinkRecord.value();
-        Assert.assertEquals(out, true);
+        Assert.assertEquals(sinkRecord.value().getClass(), Boolean.class);
+        Assert.assertEquals(sinkRecord.value(), true);
     }
 
     @Test
     public void byteRecordSchemaTest() throws Exception {
         // int 1 is coming back from ObjectMapper
         SinkRecord sinkRecord = recordSchemaTest((byte)1, Schema.INT8, 1, "INT8");
-        byte out = (byte) sinkRecord.value();
-        Assert.assertEquals(out, 1);
+        Assert.assertEquals(sinkRecord.value().getClass(), Byte.class);
+        Assert.assertEquals(sinkRecord.value(), (byte)1);
     }
 
     @Test
     public void shortRecordSchemaTest() throws Exception {
         // int 1 is coming back from ObjectMapper
         SinkRecord sinkRecord = recordSchemaTest((short)1, Schema.INT16, 1, "INT16");
-        short out = (short) sinkRecord.value();
-        Assert.assertEquals(out, 1);
+        Assert.assertEquals(sinkRecord.value().getClass(), Short.class);
+        Assert.assertEquals(sinkRecord.value(), (short)1);
     }
 
     @Test
     public void integerRecordSchemaTest() throws Exception {
         SinkRecord sinkRecord = recordSchemaTest(Integer.MAX_VALUE, Schema.INT32, Integer.MAX_VALUE, "INT32");
-        int out = (int) sinkRecord.value();
-        Assert.assertEquals(out, Integer.MAX_VALUE);
+        Assert.assertEquals(sinkRecord.value().getClass(), Integer.class);
+        Assert.assertEquals(sinkRecord.value(), Integer.MAX_VALUE);
     }
 
     @Test
     public void longRecordSchemaTest() throws Exception {
         SinkRecord sinkRecord = recordSchemaTest(Long.MAX_VALUE, Schema.INT64, Long.MAX_VALUE, "INT64");
-        long out = (long) sinkRecord.value();
-        Assert.assertEquals(out, Long.MAX_VALUE);
+        Assert.assertEquals(sinkRecord.value().getClass(), Long.class);
+        Assert.assertEquals(sinkRecord.value(), Long.MAX_VALUE);
+    }
+
+    @Test
+    public void longRecordSchemaTestCast() throws Exception {
+        // int 1 is coming from ObjectMapper, expect Long (as in schema) from sinkRecord
+        SinkRecord sinkRecord = recordSchemaTest(1L, Schema.INT64, 1, "INT64");
+        Assert.assertEquals(sinkRecord.value().getClass(), Long.class);
+        Assert.assertEquals(sinkRecord.value(), 1L);
     }
 
     @Test
     public void floatRecordSchemaTest() throws Exception {
-        // 1.0d is coming back from ObjectMapper
+        // 1.0d is coming back from ObjectMapper, expect Float (as in schema) from sinkRecord
         SinkRecord sinkRecord = recordSchemaTest(1.0f, Schema.FLOAT, 1.0d, "FLOAT32");
-        float out = (float) sinkRecord.value();
-        Assert.assertEquals(out, 1.0d);
+        Assert.assertEquals(sinkRecord.value().getClass(), Float.class);
+        Assert.assertEquals(sinkRecord.value(), 1.0f);
     }
 
     @Test
     public void doubleRecordSchemaTest() throws Exception {
         SinkRecord sinkRecord = recordSchemaTest(Double.MAX_VALUE, Schema.DOUBLE, Double.MAX_VALUE, "FLOAT64");
-        double out = (double) sinkRecord.value();
-        Assert.assertEquals(out, Double.MAX_VALUE);
+        Assert.assertEquals(sinkRecord.value().getClass(), Double.class);
+        Assert.assertEquals(sinkRecord.value(), Double.MAX_VALUE);
+    }
+
+    @Test
+    public void doubleRecordSchemaTestCast() throws Exception {
+        SinkRecord sinkRecord = recordSchemaTest(1.0d, Schema.DOUBLE, 1.0d, "FLOAT64");
+        Assert.assertEquals(sinkRecord.value().getClass(), Double.class);
+        Assert.assertEquals(sinkRecord.value(), 1.0d);
     }
 
     @Test
@@ -455,9 +539,12 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
         SinkRecord sinkRecord = recordSchemaTest(jsonNode, jsonSchema, expected, "STRUCT");
 
         Struct out = (Struct) sinkRecord.value();
-        Assert.assertEquals((int)out.get("field1"), 10);
-        Assert.assertEquals((String)out.get("field2"), "test");
-        Assert.assertEquals((long)out.get("field3"), 100L);
+        Assert.assertEquals(out.get("field1").getClass(), Integer.class);
+        Assert.assertEquals(out.get("field1"), 10);
+        Assert.assertEquals(out.get("field2").getClass(), String.class);
+        Assert.assertEquals(out.get("field2"), "test");
+        Assert.assertEquals(out.get("field3").getClass(), Long.class);
+        Assert.assertEquals(out.get("field3"), 100L);
     }
 
     @Test
@@ -479,9 +566,9 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
         SinkRecord sinkRecord = recordSchemaTest(obj, pulsarAvroSchema, expected, "STRUCT");
 
         Struct out = (Struct) sinkRecord.value();
-        Assert.assertEquals((int)out.get("field1"), 10);
-        Assert.assertEquals((String)out.get("field2"), "test");
-        Assert.assertEquals((long)out.get("field3"), 100L);
+        Assert.assertEquals(out.get("field1"), 10);
+        Assert.assertEquals(out.get("field2"), "test");
+        Assert.assertEquals(out.get("field3"), 100L);
     }
 
     @Test

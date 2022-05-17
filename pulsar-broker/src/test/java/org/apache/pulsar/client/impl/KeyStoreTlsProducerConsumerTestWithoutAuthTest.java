@@ -48,22 +48,6 @@ import org.testng.annotations.Test;
 @Slf4j
 @Test(groups = "broker-impl")
 public class KeyStoreTlsProducerConsumerTestWithoutAuthTest extends ProducerConsumerBase {
-    protected final String BROKER_KEYSTORE_FILE_PATH =
-            "./src/test/resources/authentication/keystoretls/broker.keystore.jks";
-    protected final String BROKER_TRUSTSTORE_FILE_PATH =
-            "./src/test/resources/authentication/keystoretls/broker.truststore.jks";
-    protected final String BROKER_KEYSTORE_PW = "111111";
-    protected final String BROKER_TRUSTSTORE_PW = "111111";
-
-    protected final String CLIENT_KEYSTORE_FILE_PATH =
-            "./src/test/resources/authentication/keystoretls/client.keystore.jks";
-    protected final String CLIENT_TRUSTSTORE_FILE_PATH =
-            "./src/test/resources/authentication/keystoretls/client.truststore.jks";
-    protected final String CLIENT_KEYSTORE_PW = "111111";
-    protected final String CLIENT_TRUSTSTORE_PW = "111111";
-
-    protected final String KEYSTORE_TYPE = "JKS";
-
     private final String clusterName = "use";
     Set<String> tlsProtocols = Sets.newConcurrentHashSet();
 
@@ -148,7 +132,7 @@ public class KeyStoreTlsProducerConsumerTestWithoutAuthTest extends ProducerCons
                 .brokerServiceUrlTls(pulsar.getBrokerServiceUrlTls())
                 .build());
         admin.tenants().createTenant("my-property",
-                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
+                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet(clusterName)));
         admin.namespaces().createNamespace("my-property/my-ns");
     }
 
