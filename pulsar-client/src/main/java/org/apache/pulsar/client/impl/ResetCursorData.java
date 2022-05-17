@@ -18,9 +18,9 @@
  */
 package org.apache.pulsar.client.impl;
 
+import java.util.Map;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import java.util.Map;
 import org.apache.pulsar.client.api.MessageId;
 
 @Data
