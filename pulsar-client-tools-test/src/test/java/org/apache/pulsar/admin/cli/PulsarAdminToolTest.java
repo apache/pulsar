@@ -1446,7 +1446,7 @@ public class PulsarAdminToolTest {
         verify(mockTopics).expireMessagesForAllSubscriptions("persistent://myprop/clust/ns1/ds1", 60 * 60 * 24);
 
         cmdTopics.run(split("create-subscription persistent://myprop/clust/ns1/ds1 -s sub1 --messageId earliest"));
-        verify(mockTopics).createSubscription("persistent://myprop/clust/ns1/ds1", "sub1", MessageId.earliest, false, new HashMap<>());
+        verify(mockTopics).createSubscription("persistent://myprop/clust/ns1/ds1", "sub1", MessageId.earliest, false, null);
 
         // jcommander is stateful, you cannot parse the same command twice
         cmdTopics = new CmdTopics(() -> admin);
@@ -1457,7 +1457,7 @@ public class PulsarAdminToolTest {
 
         cmdTopics = new CmdTopics(() -> admin);
         cmdTopics.run(split("create-subscription persistent://myprop/clust/ns1/ds1 -s sub1 --messageId earliest -r"));
-        verify(mockTopics).createSubscription("persistent://myprop/clust/ns1/ds1", "sub1", MessageId.earliest, true, new HashMap<>());
+        verify(mockTopics).createSubscription("persistent://myprop/clust/ns1/ds1", "sub1", MessageId.earliest, true, null);
 
         cmdTopics.run(split("create-partitioned-topic persistent://myprop/clust/ns1/ds1 --partitions 32"));
         verify(mockTopics).createPartitionedTopic("persistent://myprop/clust/ns1/ds1", 32, null);
@@ -1466,7 +1466,7 @@ public class PulsarAdminToolTest {
         verify(mockTopics).createMissedPartitions("persistent://myprop/clust/ns1/ds1");
 
         cmdTopics.run(split("create persistent://myprop/clust/ns1/ds1"));
-        verify(mockTopics).createNonPartitionedTopic("persistent://myprop/clust/ns1/ds1", new HashMap<>());
+        verify(mockTopics).createNonPartitionedTopic("persistent://myprop/clust/ns1/ds1", null);
 
         cmdTopics.run(split("list-partitioned-topics myprop/clust/ns1"));
         verify(mockTopics).getPartitionedTopicList("myprop/clust/ns1", ListTopicsOptions.EMPTY);
