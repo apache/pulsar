@@ -55,7 +55,7 @@ else
   IS_JAVA_8=`$JAVA_HOME/bin/java -version 2>&1 |grep version|grep '"1\.8'`
 fi
 # java version has space, use [[ -n $PARAM ]] to judge if variable exists
-PULSAR_GC_LOG_DIR = ${PULSAR_LOG_DIR:-"logs"}
+PULSAR_GC_LOG_DIR=${PULSAR_LOG_DIR:-"logs"}
 if [[ -n $IS_JAVA_8 ]]; then
   PULSAR_GC_LOG=${PULSAR_GC_LOG:-"-Xloggc:$PULSAR_GC_LOG_DIR/pulsar_gc_%p.log -XX:+PrintGCDetails -XX:+PrintGCDateStamps -XX:+UseGCLogFileRotation -XX:NumberOfGCLogFiles=10 -XX:GCLogFileSize=20M"}
 else
