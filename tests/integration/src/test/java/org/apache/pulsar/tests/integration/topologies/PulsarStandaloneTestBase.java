@@ -82,7 +82,7 @@ public abstract class PulsarStandaloneTestBase extends PulsarTestBase {
         container = new StandaloneContainer(clusterName, pulsarImageName)
             .withNetwork(network)
             .withNetworkAliases(StandaloneContainer.NAME + "-" + clusterName)
-            .withEnv("PF_stateStorageServiceUrl", "bk://localhost:4181");
+            .withEnv("PF_stateStorageServiceUrl", "bk://localhost:4181")
             .withEnv("PULSAR_STANDALONE_USE_ZOOKEEPER", "true")
         container.start();
         log.info("Pulsar cluster {} is up running:", clusterName);
