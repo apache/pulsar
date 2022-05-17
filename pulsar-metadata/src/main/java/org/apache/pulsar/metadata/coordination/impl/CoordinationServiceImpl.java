@@ -33,6 +33,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
+import org.apache.pulsar.common.util.GracefulExecutorServicesShutdown;
 import org.apache.pulsar.metadata.api.MetadataSerde;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.coordination.CoordinationService;
@@ -63,6 +64,10 @@ public class CoordinationServiceImpl implements CoordinationService {
     public void close() throws Exception {
         try {
             List<CompletableFuture<Void>> futures = new ArrayList<>();
+            futures.add(GracefulExecutorServicesShutdown
+                    .initiate()
+                    .shutdown(executor)
+                    .handle());
 
             for (LeaderElection<?> le : leaderElections.values()) {
                 futures.add(le.asyncClose());
@@ -71,6 +76,7 @@ public class CoordinationServiceImpl implements CoordinationService {
             for (LockManager<?> lm : lockManagers.values()) {
                 futures.add(lm.asyncClose());
             }
+
 
             FutureUtils.collect(futures).get(CLOSE_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
         } catch (CompletionException ce) {

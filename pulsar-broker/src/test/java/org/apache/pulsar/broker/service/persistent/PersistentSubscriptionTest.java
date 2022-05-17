@@ -33,6 +33,7 @@ import static org.testng.Assert.fail;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import java.lang.reflect.Field;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -68,6 +69,8 @@ import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.GracefulExecutorServicesShutdown;
 import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
@@ -208,19 +211,20 @@ public class PersistentSubscriptionTest {
 
     @AfterMethod(alwaysRun = true)
     public void teardown() throws Exception {
-        brokerMock.close(); //to clear pulsarStats
-        try {
-            pulsarMock.close();
-        } catch (Exception e) {
-            log.warn("Failed to close pulsar service", e);
-            throw e;
-        }
-
         store.close();
-        executor.shutdownNow();
-        if (eventLoopGroup != null) {
-            eventLoopGroup.shutdownGracefully().get();
-        }
+        List<CompletableFuture<Void>> futures = new ArrayList<>();
+        futures.add(brokerMock.closeAsync());
+        futures.add(pulsarMock.closeAsync());
+        futures.add(GracefulExecutorServicesShutdown.initiate()
+                .timeout(Duration.ZERO)
+                .shutdown(executor)
+                .handle());
+        final CompletableFuture<Void> eventLoopGroupCloseFuture = new CompletableFuture<>();
+        eventLoopGroup.shutdownGracefully().sync().addListener(f -> {
+            eventLoopGroupCloseFuture.complete(null);
+        });
+        futures.add(eventLoopGroupCloseFuture);
+        FutureUtil.waitForAll(futures).get();
     }
 
     @Test

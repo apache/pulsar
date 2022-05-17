@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.service;
+package org.apache.pulsar.common.util;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -27,7 +27,6 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.common.util.FutureUtil;
 
 /**
  * Waits for termination of {@link ExecutorService}s that have been shutdown.

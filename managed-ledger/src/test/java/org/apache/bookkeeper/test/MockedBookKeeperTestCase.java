@@ -22,6 +22,8 @@ import java.lang.reflect.Method;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import lombok.SneakyThrows;
 import org.apache.bookkeeper.client.PulsarMockBookKeeper;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
@@ -87,6 +89,7 @@ public abstract class MockedBookKeeperTestCase {
     }
 
     @AfterMethod(alwaysRun = true)
+    @SneakyThrows
     public final void tearDown(Method method) {
         try {
             cleanUpTestCase();
@@ -95,7 +98,8 @@ public abstract class MockedBookKeeperTestCase {
         }
         try {
             LOG.info("@@@@@@@@@ stopping " + method);
-            factory.shutdown();
+            metadataStore.close();
+            factory.shutdownAsync().get(10, TimeUnit.SECONDS);
             factory = null;
             stopBookKeeper();
             LOG.info("--------- stopped {}", method);

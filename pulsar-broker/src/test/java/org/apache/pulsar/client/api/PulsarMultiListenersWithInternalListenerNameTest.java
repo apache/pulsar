@@ -23,7 +23,10 @@ import java.io.UncheckedIOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
+import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -46,6 +49,8 @@ import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.GracefulExecutorServicesShutdown;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -190,12 +195,18 @@ public class PulsarMultiListenersWithInternalListenerNameTest extends MockedPuls
     @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
-        if (this.executorService != null) {
-            this.executorService.shutdownNow();
-        }
-        if (eventExecutors != null) {
-            eventExecutors.shutdownGracefully();
-        }
+        List<CompletableFuture<Void>> futures = new ArrayList<>();
+        futures.add(pulsar.closeAsync());
+        futures.add(GracefulExecutorServicesShutdown.initiate()
+                .timeout(Duration.ZERO)
+                .shutdown(executorService)
+                .handle());
+        final CompletableFuture<Void> eventLoopGroupCloseFuture = new CompletableFuture<>();
+        eventExecutors.shutdownGracefully().sync().addListener(f -> {
+            eventLoopGroupCloseFuture.complete(null);
+        });
+        futures.add(eventLoopGroupCloseFuture);
+        FutureUtil.waitForAll(futures).get();
         super.internalCleanup();
     }
 }

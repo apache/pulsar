@@ -118,6 +118,7 @@ public class OwnershipCacheTest {
         store.close();
         otherStore.close();
         zookeeperServer.close();
+        coordinationService.close();
     }
 
     @Test
