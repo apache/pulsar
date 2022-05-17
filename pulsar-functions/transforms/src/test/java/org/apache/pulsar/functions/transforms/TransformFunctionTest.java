@@ -28,6 +28,9 @@ public class TransformFunctionTest {
                 {"{'steps': [{'type': 'drop-fields', 'fields': 'some-field'}]}"},
                 {"{'steps': [{'type': 'drop-fields', 'fields': 'some-field', 'part': 'key'}]}"},
                 {"{'steps': [{'type': 'drop-fields', 'fields': 'some-field', 'part': 'value'}]}"},
+                {"{'steps': [{'type': 'unwrap-key-value'}]}"},
+                {"{'steps': [{'type': 'unwrap-key-value', 'unwrap-key': false}]}"},
+                {"{'steps': [{'type': 'unwrap-key-value', 'unwrap-key': true}]}"},
         };
     }
 
@@ -49,6 +52,7 @@ public class TransformFunctionTest {
                 {"{'steps': [{'type': 'drop-fields'}]}"},
                 {"{'steps': [{'type': 'drop-fields', 'fields': ''}]}"},
                 {"{'steps': [{'type': 'drop-fields', 'fields': 'some-field', 'part': 'invalid'}]}"},
+                {"{'steps': [{'type': 'unwrap-key-value', 'unwrap-key': 'invalid'}]}"},
         };
     }
 
@@ -105,6 +109,7 @@ public class TransformFunctionTest {
                 + "{'steps': ["
                 + "    {'type': 'drop-fields', 'fields': 'keyField1'},"
                 + "    {'type': 'merge-key-value'},"
+                + "    {'type': 'unwrap-key-value'},"
                 + "    {'type': 'cast', 'schema-type': 'STRING'}"
                 + "]}").replace("'", "\"");
         Map<String, Object> config = new Gson().fromJson(userConfig, new TypeToken<Map<String, Object>>() {}.getType());

@@ -3,9 +3,7 @@ package org.apache.pulsar.functions.transforms;
 import static org.apache.pulsar.functions.transforms.Utils.createTestAvroKeyValueRecord;
 import static org.apache.pulsar.functions.transforms.Utils.getRecord;
 import static org.testng.Assert.assertEquals;
-import static org.testng.AssertJUnit.assertNull;
-import com.google.common.collect.ImmutableMap;
-import java.util.Map;
+import static org.testng.Assert.assertSame;
 import org.apache.avro.generic.GenericData;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.KeyValueSchema;
@@ -29,9 +27,16 @@ public class MergeKeyValueFunctionTest {
                 context);
 
         Utils.TestTypedMessageBuilder<?> message = context.getOutputMessage();
+        KeyValueSchema messageSchema = (KeyValueSchema) message.getSchema();
+        KeyValue messageValue = (KeyValue) message.getValue();
 
-        GenericData.Record read = getRecord(message.getSchema(), (byte[]) message.getValue());
+        GenericData.Record read = getRecord(messageSchema.getValueSchema(), (byte[]) messageValue.getValue());
         assertEquals(read.toString(), "{\"keyField1\": \"key1\", \"keyField2\": \"key2\", \"keyField3\": \"key3\", "
                 + "\"valueField1\": \"value1\", \"valueField2\": \"value2\", \"valueField3\": \"value3\"}");
+
+        KeyValueSchema recordSchema = (KeyValueSchema) record.getSchema();
+        KeyValue recordValue = record.getValue();
+        assertSame(messageSchema.getKeySchema(), recordSchema.getKeySchema());
+        assertSame(messageValue.getKey(), ((GenericRecord) recordValue.getKey()).getNativeObject());
     }
 }

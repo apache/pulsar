@@ -8,15 +8,11 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.functions.api.Context;
-import org.apache.pulsar.functions.api.Function;
-import org.apache.pulsar.functions.api.Record;
 
 @Slf4j
-public class TransformFunction implements Function<GenericObject, Void> {
+public class TransformFunction extends AbstractTransformStepFunction {
 
     private final List<TransformStep> steps = new ArrayList<>();
     private final Gson gson = new Gson();
@@ -25,15 +21,15 @@ public class TransformFunction implements Function<GenericObject, Void> {
     public void initialize(Context context) {
         Object config = context.getUserConfigValue("steps")
                 .orElseThrow(() -> new IllegalArgumentException("missing required 'steps' parameter"));
-        LinkedList<Map<String, String>> stepsConfig;
+        LinkedList<Map<String, Object>> stepsConfig;
         try {
-            TypeToken<LinkedList<Map<String, String>>> typeToken = new TypeToken<LinkedList<Map<String, String>>>(){};
+            TypeToken<LinkedList<Map<String, Object>>> typeToken = new TypeToken<LinkedList<Map<String, Object>>>(){};
             stepsConfig = gson.fromJson((gson.toJson(config)), typeToken.getType());
         } catch (Exception e) {
             throw new IllegalArgumentException("could not parse configuration", e);
         }
-        for (Map<String, String> step : stepsConfig) {
-            String type = step.get("type");
+        for (Map<String, Object> step : stepsConfig) {
+            String type = getRequiredStringConfig(step, "type");
             switch (type) {
                 case "drop-fields":
                     steps.add(newRemoveFieldFunction(step));
@@ -44,6 +40,9 @@ public class TransformFunction implements Function<GenericObject, Void> {
                 case "merge-key-value":
                     steps.add(new MergeKeyValueFunction());
                     break;
+                case "unwrap-key-value":
+                    steps.add(newUnwrapKeyValueFunction(step));
+                    break;
                 default:
                     throw new IllegalArgumentException("invalid step type: " + type);
             }
@@ -52,32 +51,16 @@ public class TransformFunction implements Function<GenericObject, Void> {
     }
 
     @Override
-    public Void process(GenericObject genericObject, Context context) throws Exception {
-        Record<?> currentRecord = context.getCurrentRecord();
-        Schema<?> schema = currentRecord.getSchema();
-        Object nativeObject = genericObject.getNativeObject();
-        if (log.isDebugEnabled()) {
-            log.debug("apply to {} {}", genericObject, nativeObject);
-            log.debug("record with schema {} version {} {}", schema,
-                    currentRecord.getMessage().get().getSchemaVersion(),
-                    currentRecord);
-        }
-
-        TransformContext transformContext = new TransformContext(context, nativeObject);
+    public void process(TransformContext transformContext) throws Exception {
         for (TransformStep step : steps) {
             step.process(transformContext);
         }
-        transformContext.send();
-        return null;
     }
 
-    public static RemoveFieldFunction newRemoveFieldFunction(Map<String, String> step) {
-        String fields = step.get("fields");
-        if (fields == null || fields.isEmpty()) {
-            throw new IllegalArgumentException("missing required 'fields' parameter");
-        }
+    public static RemoveFieldFunction newRemoveFieldFunction(Map<String, Object> step) {
+        String fields = getRequiredStringConfig(step, "fields");
         List<String> fieldList = Arrays.asList(fields.split(","));
-        String part = step.get("part");
+        String part = getStringConfig(step, "part");
         if (part == null) {
             return new RemoveFieldFunction(fieldList, fieldList);
         } else if (part.equals("key")) {
@@ -89,13 +72,10 @@ public class TransformFunction implements Function<GenericObject, Void> {
         }
     }
 
-    public static CastFunction newCastFunction(Map<String, String> step) {
-        String schemaTypeParam = step.get("schema-type");
-        if (schemaTypeParam == null || schemaTypeParam.isEmpty()) {
-            throw new IllegalArgumentException("missing required 'schema' parameter");
-        }
+    public static CastFunction newCastFunction(Map<String, Object> step) {
+        String schemaTypeParam = getRequiredStringConfig(step, "schema-type");
         SchemaType schemaType = SchemaType.valueOf(schemaTypeParam);
-        String part = step.get("part");
+        String part = getStringConfig(step, "part");
         if (part == null) {
             return new CastFunction(schemaType, schemaType);
         } else if (part.equals("key")) {
@@ -105,5 +85,47 @@ public class TransformFunction implements Function<GenericObject, Void> {
         } else {
             throw new IllegalArgumentException("invalid 'part' parameter: " + part);
         }
+    }
+
+    private static UnwrapKeyValueFunction newUnwrapKeyValueFunction(Map<String, Object> step) {
+        Boolean unwrapKey = getBooleanConfig(step, "unwrap-key");
+        return new UnwrapKeyValueFunction(unwrapKey != null && unwrapKey);
+    }
+
+    private static String getStringConfig(Map<String, Object> config, String fieldName) {
+        Object fieldObject = config.get(fieldName);
+        if (fieldObject == null) {
+            return null;
+        }
+        if (fieldObject instanceof String) {
+            return (String) fieldObject;
+        }
+        throw new IllegalArgumentException("field '" + fieldName + "' must be a string");
+    }
+
+    private static String getRequiredStringConfig(Map<String, Object> config, String fieldName) {
+        Object fieldObject = config.get(fieldName);
+        if (fieldObject == null) {
+            throw new IllegalArgumentException("missing required '" + fieldName + "' parameter");
+        }
+        if (fieldObject instanceof String) {
+            String field = (String) fieldObject;
+            if (field.isEmpty()) {
+                throw new IllegalArgumentException("field '" + fieldName + "' must not be empty");
+            }
+            return field;
+        }
+        throw new IllegalArgumentException("field '" + fieldName + "' must be a string");
+    }
+
+    private static Boolean getBooleanConfig(Map<String, Object> config, String fieldName) {
+        Object fieldObject = config.get(fieldName);
+        if (fieldObject == null) {
+            return null;
+        }
+        if (fieldObject instanceof Boolean) {
+            return (Boolean) fieldObject;
+        }
+        throw new IllegalArgumentException("field '" + fieldName + "' must be a boolean");
     }
 }

@@ -27,19 +27,15 @@ import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
-import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.functions.api.Context;
-import org.apache.pulsar.functions.api.Function;
-import org.apache.pulsar.functions.api.Record;
 
 
 /**
  * This function removes a "field" from a message.
  */
 @Slf4j
-public class RemoveFieldFunction implements Function<GenericObject, Void>, TransformStep {
+public class RemoveFieldFunction extends AbstractTransformStepFunction {
 
     private List<String> keyFields;
     private List<String> valueFields;
@@ -68,24 +64,6 @@ public class RemoveFieldFunction implements Function<GenericObject, Void>, Trans
                     throw new IllegalArgumentException(fieldName + " must be of type String");
                 })
                 .orElse(new ArrayList<>());
-    }
-
-    @Override
-    public Void process(GenericObject genericObject, Context context) throws Exception {
-        Record<?> currentRecord = context.getCurrentRecord();
-        Schema<?> schema = currentRecord.getSchema();
-        Object nativeObject = genericObject.getNativeObject();
-        if (log.isDebugEnabled()) {
-            log.debug("apply to {} {}", genericObject, nativeObject);
-            log.debug("record with schema {} version {} {}", schema,
-                    currentRecord.getMessage().get().getSchemaVersion(),
-                    currentRecord);
-        }
-
-        TransformContext transformContext = new TransformContext(context, nativeObject);
-        process(transformContext);
-        transformContext.send();
-        return null;
     }
 
     @Override
