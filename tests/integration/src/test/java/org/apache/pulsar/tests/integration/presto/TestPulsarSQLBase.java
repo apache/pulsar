@@ -274,11 +274,12 @@ public class TestPulsarSQLBase extends PulsarSQLTestSuite {
     public ContainerExecResult execQuery(final String query, Map<String, String> extraCredentials) throws Exception {
         ContainerExecResult containerExecResult;
 
-        String extraCredentialsString = " ";
+        StringBuilder extraCredentialsString = new StringBuilder(" ");
 
         if (extraCredentials != null) {
             for (Map.Entry<String, String> entry : extraCredentials.entrySet()) {
-                extraCredentialsString += String.format("--extra-credential %s=%s ", entry.getKey(), entry.getValue());
+                extraCredentialsString.append(
+                        String.format("--extra-credential %s=%s ", entry.getKey(), entry.getValue()));
             }
         }
 
