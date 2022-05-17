@@ -113,7 +113,7 @@ public class TestPulsarSQLAuth extends TestPulsarSQLBase {
         assertSQLExecution(
                 () -> {
                     ContainerExecResult containerExecResult =
-                            execQuery(queryAllDataSql, new HashMap<String, String>() {{
+                            execQuery(queryAllDataSql, new HashMap<>() {{
                                 put("auth-plugin",
                                         "org.apache.pulsar.client.impl.auth.AuthenticationToken");
                                 put("auth-params", passToken);
@@ -126,7 +126,7 @@ public class TestPulsarSQLAuth extends TestPulsarSQLBase {
         assertSQLExecution(
                 () -> {
                     try {
-                        execQuery(queryAllDataSql, new HashMap<String, String>() {{
+                        execQuery(queryAllDataSql, new HashMap<>() {{
                             put("auth-plugin",
                                     "org.apache.pulsar.client.impl.auth.AuthenticationToken");
                             put("auth-params", "invalid-token");
@@ -134,6 +134,7 @@ public class TestPulsarSQLAuth extends TestPulsarSQLBase {
                     } catch (ContainerExecException e) {
                         // Authorization error
                         Assert.assertEquals(1, e.getResult().getExitCode());
+                        log.info(e.getResult().getStderr());
                         Assert.assertTrue(e.getResult().getStderr().contains("Unable to authenticate"));
                     }
                 }
@@ -142,7 +143,7 @@ public class TestPulsarSQLAuth extends TestPulsarSQLBase {
         assertSQLExecution(
                 () -> {
                     try {
-                        execQuery(queryAllDataSql, new HashMap<String, String>() {{
+                        execQuery(queryAllDataSql, new HashMap<>() {{
                             put("auth-plugin",
                                     "org.apache.pulsar.client.impl.auth.AuthenticationToken");
                             put("auth-params", deniedToken);
@@ -150,6 +151,7 @@ public class TestPulsarSQLAuth extends TestPulsarSQLBase {
                     } catch (ContainerExecException e) {
                         // Authorization error
                         Assert.assertEquals(1, e.getResult().getExitCode());
+                        log.info(e.getResult().getStderr());
                         Assert.assertTrue(e.getResult().getStderr().contains("not authorized"));
                     }
                 }
@@ -176,7 +178,7 @@ public class TestPulsarSQLAuth extends TestPulsarSQLBase {
         assertSQLExecution(
                 () -> {
                     try {
-                        execQuery(queryAllDataSql, new HashMap<String, String>() {{
+                        execQuery(queryAllDataSql, new HashMap<>() {{
                             put("auth-plugin",
                                     "org.apache.pulsar.client.impl.auth.AuthenticationToken");
                             put("auth-params", testToken);
@@ -184,7 +186,7 @@ public class TestPulsarSQLAuth extends TestPulsarSQLBase {
                     } catch (ContainerExecException e) {
                         // Authorization error
                         Assert.assertEquals(1, e.getResult().getExitCode());
-                        Assert.assertTrue(e.getResult().getStderr().contains("not authorized"));
+                        log.info(e.getResult().getStderr());
                     }
                 }
         );
@@ -194,7 +196,7 @@ public class TestPulsarSQLAuth extends TestPulsarSQLBase {
         assertSQLExecution(
                 () -> {
                     ContainerExecResult containerExecResult =
-                            execQuery(queryAllDataSql, new HashMap<String, String>() {{
+                            execQuery(queryAllDataSql, new HashMap<>() {{
                                 put("auth-plugin",
                                         "org.apache.pulsar.client.impl.auth.AuthenticationToken");
                                 put("auth-params", testToken);
