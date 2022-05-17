@@ -112,14 +112,17 @@ public class TestPulsarSQLAuth extends TestPulsarSQLBase {
 
         assertSQLExecution(
                 () -> {
-                    ContainerExecResult containerExecResult =
-                            execQuery(queryAllDataSql, new HashMap<>() {{
-                                put("auth-plugin",
-                                        "org.apache.pulsar.client.impl.auth.AuthenticationToken");
-                                put("auth-params", passToken);
-                            }});
-
-                    Assert.assertEquals(0, containerExecResult.getExitCode());
+                    try {
+                        ContainerExecResult containerExecResult =
+                                execQuery(queryAllDataSql, new HashMap<>() {{
+                                    put("auth-plugin",
+                                            "org.apache.pulsar.client.impl.auth.AuthenticationToken");
+                                    put("auth-params", passToken);
+                                }});
+                        Assert.assertEquals(0, containerExecResult.getExitCode());
+                    } catch (ContainerExecException e) {
+                        Assert.fail(String.format("assertSQLExecution fail: %s", e.getLocalizedMessage()));
+                    }
                 }
         );
 
@@ -131,6 +134,7 @@ public class TestPulsarSQLAuth extends TestPulsarSQLBase {
                                     "org.apache.pulsar.client.impl.auth.AuthenticationToken");
                             put("auth-params", "invalid-token");
                         }});
+                        Assert.fail("Should not pass");
                     } catch (ContainerExecException e) {
                         // Authorization error
                         Assert.assertEquals(1, e.getResult().getExitCode());
@@ -148,6 +152,7 @@ public class TestPulsarSQLAuth extends TestPulsarSQLBase {
                                     "org.apache.pulsar.client.impl.auth.AuthenticationToken");
                             put("auth-params", deniedToken);
                         }});
+                        Assert.fail("Should not pass");
                     } catch (ContainerExecException e) {
                         // Authorization error
                         Assert.assertEquals(1, e.getResult().getExitCode());
@@ -183,6 +188,7 @@ public class TestPulsarSQLAuth extends TestPulsarSQLBase {
                                     "org.apache.pulsar.client.impl.auth.AuthenticationToken");
                             put("auth-params", testToken);
                         }});
+                        Assert.fail("Should not pass");
                     } catch (ContainerExecException e) {
                         // Authorization error
                         Assert.assertEquals(1, e.getResult().getExitCode());
@@ -195,14 +201,18 @@ public class TestPulsarSQLAuth extends TestPulsarSQLBase {
 
         assertSQLExecution(
                 () -> {
-                    ContainerExecResult containerExecResult =
-                            execQuery(queryAllDataSql, new HashMap<>() {{
-                                put("auth-plugin",
-                                        "org.apache.pulsar.client.impl.auth.AuthenticationToken");
-                                put("auth-params", testToken);
-                            }});
+                    try {
+                        ContainerExecResult containerExecResult =
+                                execQuery(queryAllDataSql, new HashMap<>() {{
+                                    put("auth-plugin",
+                                            "org.apache.pulsar.client.impl.auth.AuthenticationToken");
+                                    put("auth-params", testToken);
+                                }});
 
-                    Assert.assertEquals(0, containerExecResult.getExitCode());
+                        Assert.assertEquals(0, containerExecResult.getExitCode());
+                    } catch (ContainerExecException e) {
+                        Assert.fail(String.format("assertSQLExecution fail: %s", e.getLocalizedMessage()));
+                    }
                 }
         );
     }
