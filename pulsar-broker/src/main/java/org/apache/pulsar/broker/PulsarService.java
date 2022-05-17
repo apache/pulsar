@@ -39,7 +39,15 @@ import java.lang.reflect.Method;
 import java.net.InetSocketAddress;
 import java.net.MalformedURLException;
 import java.time.Duration;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.TreeSet;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -1719,16 +1727,30 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         processTerminator.accept(-1);
     }
 
+    /**
+     * Reload broker interceptors.
+     *
+     * @param object broker-interceptors' names.
+     */
     public void updateBrokerInterceptor(Object object) {
-        if (!(object instanceof TreeSet)) {
+        if (!(object instanceof TreeSet) || !(this.brokerInterceptor instanceof BrokerInterceptorDelegator)) {
             return;
         }
 
         @SuppressWarnings("unchecked")
         TreeSet<String> interceptors = (TreeSet<String>) object;
         this.getConfig().setBrokerInterceptors(interceptors);
-        BrokerInterceptor interceptor = BrokerInterceptors.load(this.getConfig());
-        //todo
+
+        BrokerInterceptorDelegator delegator = (BrokerInterceptorDelegator) this.brokerInterceptor;
+        try {
+            BrokerInterceptor newInterceptor = BrokerInterceptors.load(this.getConfig());
+            BrokerInterceptor oldInterceptor = delegator.getBrokerInterceptor();
+            newInterceptor.initialize(this);
+            delegator.updateBrokerInterceptor(newInterceptor);
+            oldInterceptor.close();
+        } catch (Exception ioe) {
+            LOG.error("Failed to load or initialize broker interceptors", ioe);
+        }
     }
 
     @VisibleForTesting

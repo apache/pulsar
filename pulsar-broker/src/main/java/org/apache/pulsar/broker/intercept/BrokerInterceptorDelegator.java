@@ -21,7 +21,11 @@ package org.apache.pulsar.broker.intercept;
 import io.netty.buffer.ByteBuf;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.broker.service.*;
+import org.apache.pulsar.broker.service.Consumer;
+import org.apache.pulsar.broker.service.Producer;
+import org.apache.pulsar.broker.service.ServerCnx;
+import org.apache.pulsar.broker.service.Subscription;
+import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.CommandAck;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
@@ -36,7 +40,7 @@ import java.util.Map;
 
 public class BrokerInterceptorDelegator implements BrokerInterceptor {
 
-    private final BrokerInterceptor interceptor;
+    private volatile BrokerInterceptor interceptor;
 
     BrokerInterceptorDelegator(BrokerInterceptor interceptor) {
         if (null == interceptor)
@@ -127,5 +131,14 @@ public class BrokerInterceptorDelegator implements BrokerInterceptor {
     @Override
     public void close() {
         this.interceptor.close();
+    }
+
+
+    public void updateBrokerInterceptor(BrokerInterceptor interceptor) {
+        this.interceptor = interceptor;
+    }
+
+    public BrokerInterceptor getBrokerInterceptor() {
+        return this.interceptor;
     }
 }
