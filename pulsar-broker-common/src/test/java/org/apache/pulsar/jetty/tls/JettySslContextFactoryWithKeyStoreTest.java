@@ -49,16 +49,24 @@ import org.testng.annotations.Test;
 
 @Slf4j
 public class JettySslContextFactoryWithKeyStoreTest {
+    final static String brokerKeyStorePath =
+            Resources.getResource("certificate-authority/jks/broker.keystore.jks").getPath();
+    final static String brokerTrustStorePath =
+            Resources.getResource("certificate-authority/jks/broker.truststore.jks").getPath();
+    final static String clientKeyStorePath =
+            Resources.getResource("certificate-authority/jks/client.keystore.jks").getPath();
+    final static String clientTrustStorePath =
+            Resources.getResource("certificate-authority/jks/client.truststore.jks").getPath();
+    final static String keyStoreType = "JKS";
+    final static String keyStorePassword = "111111";
 
     @Test
     public void testJettyTlsServerTls() throws Exception {
         Server server = new Server();
         List<ServerConnector> connectors = new ArrayList<>();
         SslContextFactory.Server factory = JettySslContextFactory.createServerSslContextWithKeystore(null,
-                "JKS", Resources.getResource("ssl/jetty_server_key.jks").getPath(),
-                "jetty_server_pwd", false, "JKS",
-                Resources.getResource("ssl/jetty_server_trust.jks").getPath(),
-                "jetty_server_pwd", true, null,
+                keyStoreType, brokerKeyStorePath, keyStorePassword, false, keyStoreType,
+                clientTrustStorePath, keyStorePassword, true, null,
                 null, 600);
         factory.setHostnameVerifier((s, sslSession) -> true);
         ServerConnector connector = new ServerConnector(server, factory);
@@ -86,10 +94,8 @@ public class JettySslContextFactoryWithKeyStoreTest {
         Server server = new Server();
         List<ServerConnector> connectors = new ArrayList<>();
         SslContextFactory.Server factory = JettySslContextFactory.createServerSslContextWithKeystore(null,
-                "JKS", Resources.getResource("ssl/jetty_server_key.jks").getPath(),
-                "jetty_server_pwd", false, "JKS",
-                Resources.getResource("ssl/jetty_server_trust.jks").getPath(),
-                "jetty_server_pwd", true, null,
+                keyStoreType, brokerKeyStorePath, keyStorePassword, false, keyStoreType, clientTrustStorePath,
+                keyStorePassword, true, null,
                 new HashSet<String>() {
                     {
                         this.add("TLSv1.3");
@@ -120,10 +126,8 @@ public class JettySslContextFactoryWithKeyStoreTest {
         Server server = new Server();
         List<ServerConnector> connectors = new ArrayList<>();
         SslContextFactory.Server factory = JettySslContextFactory.createServerSslContextWithKeystore(null,
-                "JKS", Resources.getResource("ssl/jetty_server_key.jks").getPath(),
-                "jetty_server_pwd", false, "JKS",
-                Resources.getResource("ssl/jetty_server_trust.jks").getPath(),
-                "jetty_server_pwd", true, new HashSet<String>() {
+                keyStoreType, brokerKeyStorePath, keyStorePassword, false, keyStoreType, clientTrustStorePath,
+                keyStorePassword, true, new HashSet<String>() {
                     {
                         this.add("TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256");
                     }
@@ -155,10 +159,7 @@ public class JettySslContextFactoryWithKeyStoreTest {
     }
 
     private static SSLContext getClientSslContext() {
-        return getSslContext(Resources.getResource("ssl/jetty_client_key.jks").getPath(),
-                "jetty_client_pwd",
-                Resources.getResource("ssl/jetty_client_trust.jks").getPath(),
-                "jetty_client_pwd");
+        return getSslContext(clientKeyStorePath, keyStorePassword, brokerTrustStorePath, keyStorePassword);
     }
 
     private static SSLContext getSslContext(String keyStorePath, String keyStorePassword,
@@ -189,5 +190,4 @@ public class JettySslContextFactoryWithKeyStoreTest {
             return null;
         }
     }
-
 }

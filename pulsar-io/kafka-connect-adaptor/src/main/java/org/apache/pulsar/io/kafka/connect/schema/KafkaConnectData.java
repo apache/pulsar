@@ -27,6 +27,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.generic.GenericData;
 import org.apache.kafka.connect.data.Field;
 import org.apache.kafka.connect.data.Schema;
@@ -34,14 +35,11 @@ import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.errors.DataException;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 
+@Slf4j
 public class KafkaConnectData {
     public static Object getKafkaConnectData(Object nativeObject, Schema kafkaSchema) {
         if (kafkaSchema == null) {
             return nativeObject;
-        }
-
-        if (nativeObject == null) {
-            return defaultOrThrow(kafkaSchema);
         }
 
         if (nativeObject instanceof JsonNode) {
@@ -54,6 +52,73 @@ public class KafkaConnectData {
             // Pulsar's GenericRecord
             GenericRecord pulsarGenericRecord = (GenericRecord) nativeObject;
             return pulsarGenericRecordAsConnectData(pulsarGenericRecord, kafkaSchema);
+        }
+
+        return castToKafkaSchema(nativeObject, kafkaSchema);
+    }
+
+    public static Object castToKafkaSchema(Object nativeObject, Schema kafkaSchema) {
+        if (nativeObject == null) {
+            return defaultOrThrow(kafkaSchema);
+        }
+
+        if (nativeObject instanceof Number) {
+            // This is needed in case
+            // jackson decided to fit value into some other type internally
+            // (e.g. Double instead of Float).
+            // Kafka's ConnectSchema expects exact type
+            // https://github.com/apache/kafka/blob/trunk/connect/api/src/main/java/org/apache/kafka/connect/data/ConnectSchema.java#L47-L71
+            Number num = (Number) nativeObject;
+            switch (kafkaSchema.type()) {
+                case INT8:
+                    if (!(nativeObject instanceof Byte)) {
+                        if (log.isDebugEnabled()) {
+                            log.debug("nativeObject of type {} converted to Byte", nativeObject.getClass());
+                        }
+                        return num.byteValue();
+                    }
+                    break;
+                case INT16:
+                    if (!(nativeObject instanceof Short)) {
+                        if (log.isDebugEnabled()) {
+                            log.debug("nativeObject of type {} converted to Short", nativeObject.getClass());
+                        }
+                        return num.shortValue();
+                    }
+                    break;
+                case INT32:
+                    if (!(nativeObject instanceof Integer)) {
+                        if (log.isDebugEnabled()) {
+                            log.debug("nativeObject of type {} converted to Integer", nativeObject.getClass());
+                        }
+                        return num.intValue();
+                    }
+                    break;
+                case INT64:
+                    if (!(nativeObject instanceof Long)) {
+                        if (log.isDebugEnabled()) {
+                            log.debug("nativeObject of type {} converted to Long", nativeObject.getClass());
+                        }
+                        return num.longValue();
+                    }
+                    break;
+                case FLOAT32:
+                    if (!(nativeObject instanceof Float)) {
+                        if (log.isDebugEnabled()) {
+                            log.debug("nativeObject of type {} converted to Float", nativeObject.getClass());
+                        }
+                        return num.floatValue();
+                    }
+                    break;
+                case FLOAT64:
+                    if (!(nativeObject instanceof Double)) {
+                        if (log.isDebugEnabled()) {
+                            log.debug("nativeObject of type {} converted to Double", nativeObject.getClass());
+                        }
+                        return num.doubleValue();
+                    }
+                    break;
+            }
         }
 
         return nativeObject;
@@ -106,9 +171,9 @@ public class KafkaConnectData {
                 case BOOLEAN:
                     return jsonNode.booleanValue();
                 case NUMBER:
-                    jsonNode.doubleValue();
+                    return jsonNode.doubleValue();
                 case STRING:
-                    jsonNode.textValue();
+                    return jsonNode.textValue();
                 default:
                     throw new DataException("Don't know how to convert " + jsonNode
                             + " to Connect data (schema is null).");
