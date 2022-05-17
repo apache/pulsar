@@ -509,7 +509,8 @@ public class CmdPersistentTopics extends CmdBase {
                 + "It can be either 'latest', 'earliest' or (ledgerId:entryId)", required = false)
         private String messageIdStr = "latest";
 
-        @Parameter(names = {"--properties", "-p"}, description = "key value pair properties(a=a,b=b,c=c)")
+        @Parameter(names = {"--property", "-p"}, description = "key value pair properties(-p a=b -p c=d)",
+                required = false)
         private java.util.List<String> properties;
 
         @Override
