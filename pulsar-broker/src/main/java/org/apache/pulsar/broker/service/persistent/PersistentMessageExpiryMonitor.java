@@ -75,6 +75,18 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback {
 
             cursor.asyncFindNewestMatching(ManagedCursor.FindPositionConstraint.SearchActiveEntries, entry -> {
                 try {
+                    // When the time of the delayed message is greater than the time specified by TTL, we should
+                    // give up checking the TTL of the current delayed message, because the time of the delayed
+                    // message has not yet arrived, we cannot delete these messages.
+                    long delayTime = MessageImpl.getDelayTime(entry.getDataBuffer());
+                    if (delayTime / 1000L - messageTTLInSeconds > 0) {
+                        if (log.isDebugEnabled()) {
+                            log.debug("TTL policy can't expire delay messages, delayTime: {} - ttlTime: {}",
+                                    delayTime / 1000L, messageTTLInSeconds);
+                        }
+                        return false;
+                    }
+
                     long entryTimestamp = Commands.getEntryTimestamp(entry.getDataBuffer());
                     return MessageImpl.isEntryExpired(messageTTLInSeconds, entryTimestamp);
                 } catch (Exception e) {

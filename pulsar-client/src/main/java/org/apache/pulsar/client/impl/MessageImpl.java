@@ -273,6 +273,15 @@ public class MessageImpl<T> implements Message<T> {
         return msg;
     }
 
+    public static long getDelayTime(ByteBuf headersAndPayloadWithBrokerEntryMetadata) throws IOException {
+        MessageMetadata messageMetadata = Commands.parseMessageMetadata(headersAndPayloadWithBrokerEntryMetadata);
+        long deliverAtTime = 0;
+        if (messageMetadata.hasDeliverAtTime()) {
+            deliverAtTime = messageMetadata.getDeliverAtTime();
+        }
+        return deliverAtTime;
+    }
+
     public static boolean isEntryExpired(int messageTTLInSeconds, long entryTimestamp) {
         return messageTTLInSeconds != 0
                 && (System.currentTimeMillis() > entryTimestamp + TimeUnit.SECONDS.toMillis(messageTTLInSeconds));
