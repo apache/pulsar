@@ -93,6 +93,10 @@ public class NamespaceResources extends BaseResources<Policies> {
         create(joinPath(BASE_POLICIES_PATH, ns.toString()), policies);
     }
 
+    public CompletableFuture<Void> createPoliciesAsync(NamespaceName ns, Policies policies) {
+        return createAsync(joinPath(BASE_POLICIES_PATH, ns.toString()), policies);
+    }
+
     public boolean namespaceExists(NamespaceName ns) throws MetadataStoreException {
         String path = joinPath(BASE_POLICIES_PATH, ns.toString());
         return super.exists(path) && super.getChildren(path).isEmpty();

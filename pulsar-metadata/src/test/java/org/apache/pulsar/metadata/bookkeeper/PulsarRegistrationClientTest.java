@@ -19,8 +19,8 @@
 package org.apache.pulsar.metadata.bookkeeper;
 
 import static org.apache.bookkeeper.common.concurrent.FutureUtils.result;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.mockito.Mockito.mock;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -84,7 +84,7 @@ public class PulsarRegistrationClientTest extends BaseMetadataStoreTest {
 
         Versioned<Set<BookieId>> result = result(rc.getWritableBookies());
 
-        assertEquals(addresses.size(), result.getValue().size());
+        assertEquals(result.getValue().size(), addresses.size());
     }
 
 
@@ -111,7 +111,7 @@ public class PulsarRegistrationClientTest extends BaseMetadataStoreTest {
 
         Versioned<Set<BookieId>> result = result(rc.getReadOnlyBookies());
 
-        assertEquals(addresses.size(), result.getValue().size());
+        assertEquals(result.getValue().size(), addresses.size());
     }
 
     @Test(dataProvider = "impl")
@@ -137,7 +137,7 @@ public class PulsarRegistrationClientTest extends BaseMetadataStoreTest {
         }
 
         Versioned<Set<BookieId>> result = result(rc.getAllBookies());
-        assertEquals(addresses.size(), result.getValue().size());
+        assertEquals(result.getValue().size(), addresses.size());
     }
 
     @Test(dataProvider = "impl")
@@ -190,7 +190,7 @@ public class PulsarRegistrationClientTest extends BaseMetadataStoreTest {
 
         Awaitility.await().untilAsserted(() -> {
             assertFalse(updates.isEmpty());
-            assertEquals(BOOKIES, bookies.size());
+            assertEquals(bookies.size(), BOOKIES);
         });
     }
 

@@ -617,7 +617,7 @@ public class TransactionTest extends TransactionTestBase {
 
         TransactionPendingAckStoreProvider pendingAckStoreProvider = mock(TransactionPendingAckStoreProvider.class);
         doReturn(CompletableFuture.completedFuture(
-                new MLPendingAckStore(persistentTopic.getManagedLedger(), managedCursor, null)))
+                new MLPendingAckStore(persistentTopic.getManagedLedger(), managedCursor, null, 500)))
                 .when(pendingAckStoreProvider).newPendingAckStore(any());
         doReturn(CompletableFuture.completedFuture(true)).when(pendingAckStoreProvider).checkInitializedBefore(any());
 
@@ -902,6 +902,8 @@ public class TransactionTest extends TransactionTestBase {
 
     @Test
     public void testPendingAckMarkDeletePosition() throws Exception {
+        getPulsarServiceList().get(0).getConfig().setTransactionPendingAckLogIndexMinLag(1);
+        getPulsarServiceList().get(0).getConfiguration().setManagedLedgerDefaultMarkDeleteRateLimit(5);
         String topic = NAMESPACE1 + "/test1";
 
         @Cleanup
