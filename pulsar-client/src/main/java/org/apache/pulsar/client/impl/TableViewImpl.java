@@ -19,11 +19,9 @@
 
 package org.apache.pulsar.client.impl;
 
-import io.netty.util.Timeout;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -34,7 +32,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.BiConsumer;
-import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
@@ -42,76 +39,39 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TableView;
-import org.apache.pulsar.common.util.FutureUtil;
 
 @Slf4j
 public class TableViewImpl<T> implements TableView<T> {
 
-    private final PulsarClientImpl client;
-    private final Schema<T> schema;
     private final TableViewConfigurationData conf;
 
     private final ConcurrentMap<String, T> data;
     private final Map<String, T> immutableData;
 
-    private final ConcurrentMap<String, Reader<T>> readers;
+    private final CompletableFuture<Reader<T>> reader;
 
     private final List<BiConsumer<String, T>> listeners;
     private final ReentrantLock listenersMutex;
 
     TableViewImpl(PulsarClientImpl client, Schema<T> schema, TableViewConfigurationData conf) {
-        this.client = client;
-        this.schema = schema;
         this.conf = conf;
         this.data = new ConcurrentHashMap<>();
         this.immutableData = Collections.unmodifiableMap(data);
-        this.readers = new ConcurrentHashMap<>();
         this.listeners = new ArrayList<>();
         this.listenersMutex = new ReentrantLock();
+        this.reader = client.newReader(schema)
+                .topic(conf.getTopicName())
+                .startMessageId(MessageId.earliest)
+                .autoUpdatePartitions(true)
+                .autoUpdatePartitionsInterval((int) conf.getAutoUpdatePartitionsSeconds(), TimeUnit.SECONDS)
+                .readCompacted(true)
+                .poolMessages(true)
+                .createAsync();
     }
 
     CompletableFuture<TableView<T>> start() {
-        return client.getPartitionsForTopic(conf.getTopicName())
-                .thenCompose(partitions -> {
-                    Set<String> partitionsSet = new HashSet<>(partitions);
-                    List<CompletableFuture<?>> futures = new ArrayList<>();
-
-                    // Add new Partitions
-                    partitions.forEach(partition -> {
-                        if (!readers.containsKey(partition)) {
-                            futures.add(newReader(partition));
-                        }
-                    });
-
-                    // Remove partitions that are not used anymore
-                    readers.forEach((existingPartition, existingReader) -> {
-                        if (!partitionsSet.contains(existingPartition)) {
-                            futures.add(existingReader.closeAsync()
-                                    .thenRun(() -> readers.remove(existingPartition, existingReader)));
-                        }
-                    });
-
-                    return FutureUtil.waitForAll(futures)
-                            .thenRun(() -> schedulePartitionsCheck());
-                }).thenApply(__ -> this);
-    }
-
-    private void schedulePartitionsCheck() {
-        client.timer()
-                .newTimeout(this::checkForPartitionsChanges, conf.getAutoUpdatePartitionsSeconds(), TimeUnit.SECONDS);
-    }
-
-    private void checkForPartitionsChanges(Timeout timeout) {
-        if (timeout.isCancelled()) {
-            return;
-        }
-
-        start().whenComplete((tw, ex) -> {
-           if (ex != null) {
-               log.warn("Failed to check for changes in number of partitions:", ex);
-               schedulePartitionsCheck();
-           }
-        });
+        return reader.thenCompose(this::readAllExistingMessages)
+                .thenApply(__ -> this);
     }
 
     @Override
@@ -171,11 +131,7 @@ public class TableViewImpl<T> implements TableView<T> {
 
     @Override
     public CompletableFuture<Void> closeAsync() {
-        return FutureUtil.waitForAll(
-                readers.values().stream()
-                        .map(Reader::closeAsync)
-                        .collect(Collectors.toList())
-        );
+        return reader.thenCompose(Reader::closeAsync);
     }
 
     @Override
@@ -215,30 +171,6 @@ public class TableViewImpl<T> implements TableView<T> {
         } finally {
             msg.release();
         }
-    }
-
-    private CompletableFuture<Reader<T>> newReader(String partition) {
-        return client.newReader(schema)
-                .topic(partition)
-                .startMessageId(MessageId.earliest)
-                .readCompacted(true)
-                .poolMessages(true)
-                .createAsync()
-                .thenCompose(this::cacheNewReader)
-                .thenCompose(this::readAllExistingMessages);
-    }
-
-    private CompletableFuture<Reader<T>> cacheNewReader(Reader<T> reader) {
-        CompletableFuture<Reader<T>> future = new CompletableFuture<>();
-        if (this.readers.containsKey(reader.getTopic())) {
-            future.completeExceptionally(
-                    new IllegalArgumentException("reader on partition " + reader.getTopic() + " already existed"));
-        } else {
-            this.readers.put(reader.getTopic(), reader);
-            future.complete(reader);
-        }
-
-        return future;
     }
 
     private CompletableFuture<Reader<T>> readAllExistingMessages(Reader<T> reader) {
