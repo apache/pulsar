@@ -18,12 +18,10 @@
  */
 package org.apache.pulsar.client.impl;
 
-
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.apache.pulsar.client.api.MessageId;
-
 import java.util.Map;
+import org.apache.pulsar.client.api.MessageId;
 
 @Data
 @NoArgsConstructor
