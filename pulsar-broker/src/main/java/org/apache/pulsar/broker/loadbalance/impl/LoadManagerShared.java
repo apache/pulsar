@@ -41,6 +41,7 @@ import org.apache.pulsar.broker.loadbalance.LoadData;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.ServiceUnitId;
+import org.apache.pulsar.common.util.DirectMemoryUtils;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
@@ -225,7 +226,7 @@ public class LoadManagerShared {
 
         // Collect JVM direct memory
         systemResourceUsage.setDirectMemory(new ResourceUsage((double) (getJvmDirectMemoryUsed() / MIBI),
-                (double) (io.netty.util.internal.PlatformDependent.maxDirectMemory() / MIBI)));
+                (double) (DirectMemoryUtils.jvmMaxDirectMemory() / MIBI)));
 
         return systemResourceUsage;
     }

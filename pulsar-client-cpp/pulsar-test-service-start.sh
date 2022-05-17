@@ -66,13 +66,14 @@ echo "-- Pulsar service is ready -- Configure permissions"
 
 export PULSAR_CLIENT_CONF=$SRC_DIR/pulsar-client-cpp/test-conf/client-ssl.conf
 
-# Create "standalone" cluster
-$PULSAR_DIR/bin/pulsar-admin clusters create \
-        standalone \
-        --url http://localhost:8080/ \
-        --url-secure https://localhost:8443/ \
-        --broker-url pulsar://localhost:6650/ \
-        --broker-url-secure pulsar+ssl://localhost:6651/
+# Create "standalone" cluster if it does not exist
+$PULSAR_DIR/bin/pulsar-admin clusters list | grep -q '^standalone$' ||
+        $PULSAR_DIR/bin/pulsar-admin clusters create \
+                standalone \
+                --url http://localhost:8080/ \
+                --url-secure https://localhost:8443/ \
+                --broker-url pulsar://localhost:6650/ \
+                --broker-url-secure pulsar+ssl://localhost:6651/
 
 # Update "public" tenant
 $PULSAR_DIR/bin/pulsar-admin tenants update public -r "anonymous" -c "standalone"

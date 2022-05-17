@@ -29,6 +29,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
+import static org.testng.Assert.fail;
 import java.lang.reflect.Field;
 import java.net.URI;
 import java.util.ArrayList;
@@ -53,7 +54,6 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.awaitility.Awaitility;
-import org.junit.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -285,12 +285,12 @@ public class PersistentTopicTest extends BrokerTestBase {
             @Cleanup
             Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
                     .create();
-            Assert.fail("unexpected operation");
+            fail("unexpected operation");
         } catch (PulsarClientException ex) {
-            Assert.assertTrue(ex.getMessage()
+           assertTrue(ex.getMessage()
                     .contains("Invalid topic name"));
         }
-        Assert.assertEquals(admin.topics().getList(ns).size(), 0);
+        assertEquals(admin.topics().getList(ns).size(), 0);
         URI tcpLookupUrl = new URI(pulsar.getBrokerServiceUrl());
         PulsarClient client = PulsarClient.builder()
                 .serviceUrl(tcpLookupUrl.toString())
@@ -300,12 +300,12 @@ public class PersistentTopicTest extends BrokerTestBase {
             Producer<byte[]> producer = client.newProducer()
                     .topic(topicName)
                     .create();
-            Assert.fail("unexpected operation");
+            fail("unexpected operation");
         } catch (PulsarClientException ex) {
-            Assert.assertTrue(ex.getMessage()
+            assertTrue(ex.getMessage()
                     .contains("Invalid topic name"));
         }
-        Assert.assertEquals(admin.topics().getList(ns).size(), 0);
+        assertEquals(admin.topics().getList(ns).size(), 0);
         pulsar.getConfiguration().setAllowAutoTopicCreationType("non-partitioned");
     }
 }

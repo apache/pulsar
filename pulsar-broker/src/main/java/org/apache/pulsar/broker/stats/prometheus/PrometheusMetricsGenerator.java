@@ -52,6 +52,7 @@ import org.apache.pulsar.broker.stats.metrics.ManagedCursorMetrics;
 import org.apache.pulsar.broker.stats.metrics.ManagedLedgerCacheMetrics;
 import org.apache.pulsar.broker.stats.metrics.ManagedLedgerMetrics;
 import org.apache.pulsar.common.stats.Metrics;
+import org.apache.pulsar.common.util.DirectMemoryUtils;
 import org.apache.pulsar.common.util.SimpleTextOutputStream;
 import org.eclipse.jetty.server.HttpOutput;
 
@@ -78,7 +79,7 @@ public class PrometheusMetricsGenerator {
         Gauge.build("jvm_memory_direct_bytes_max", "-").create().setChild(new Child() {
             @Override
             public double get() {
-                return io.netty.util.internal.PlatformDependent.maxDirectMemory();
+                return DirectMemoryUtils.jvmMaxDirectMemory();
             }
         }).register(CollectorRegistry.defaultRegistry);
 
