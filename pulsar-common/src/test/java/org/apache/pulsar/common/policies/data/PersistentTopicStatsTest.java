@@ -19,6 +19,7 @@
 package org.apache.pulsar.common.policies.data;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 
 import org.apache.pulsar.common.policies.data.stats.PublisherStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.ReplicatorStatsImpl;
@@ -235,4 +236,41 @@ public class PersistentTopicStatsTest {
         assertEquals(target.replication.size(), 1);
     }
 
+    @Test
+    public void testPersistentTopicStatsByNullProducerName() {
+        final TopicStatsImpl topicStats1 = new TopicStatsImpl();
+        final PublisherStatsImpl publisherStats1 = new PublisherStatsImpl();
+        publisherStats1.setSupportsPartialProducer(false);
+        publisherStats1.setProducerName(null);
+        final PublisherStatsImpl publisherStats2 = new PublisherStatsImpl();
+        publisherStats2.setSupportsPartialProducer(false);
+        publisherStats2.setProducerName(null);
+        topicStats1.addPublisher(publisherStats1);
+        topicStats1.addPublisher(publisherStats2);
+
+        assertEquals(topicStats1.getPublishers().size(), 2);
+        assertFalse(topicStats1.getPublishers().get(0).isSupportsPartialProducer());
+        assertFalse(topicStats1.getPublishers().get(1).isSupportsPartialProducer());
+
+        final TopicStatsImpl topicStats2 = new TopicStatsImpl();
+        final PublisherStatsImpl publisherStats3 = new PublisherStatsImpl();
+        publisherStats3.setSupportsPartialProducer(true);
+        publisherStats3.setProducerName(null);
+        final PublisherStatsImpl publisherStats4 = new PublisherStatsImpl();
+        publisherStats4.setSupportsPartialProducer(true);
+        publisherStats4.setProducerName(null);
+        topicStats2.addPublisher(publisherStats3);
+        topicStats2.addPublisher(publisherStats4);
+
+        assertEquals(topicStats2.getPublishers().size(), 2);
+        // when the producerName is null, fall back to false
+        assertFalse(topicStats2.getPublishers().get(0).isSupportsPartialProducer());
+        assertFalse(topicStats2.getPublishers().get(1).isSupportsPartialProducer());
+
+        final TopicStatsImpl target = new TopicStatsImpl();
+        target.add(topicStats1);
+        target.add(topicStats2);
+
+        assertEquals(target.getPublishers().size(), 2);
+    }
 }

@@ -75,7 +75,7 @@ import org.testng.annotations.Test;
 @Slf4j
 public class PulsarSinkTest {
 
-    private static final String TOPIC = "persistent://sample/standalone/ns1/test_result";
+    private static final String TOPIC = "test_result";
 
     public static class TestSerDe implements SerDe<String> {
 

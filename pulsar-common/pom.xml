@@ -137,11 +137,6 @@
     </dependency>
 
     <dependency>
-      <groupId>org.eclipse.jetty</groupId>
-      <artifactId>jetty-util</artifactId>
-    </dependency>
-
-    <dependency>
       <groupId>org.apache.commons</groupId>
       <artifactId>commons-lang3</artifactId>
     </dependency>
@@ -169,12 +164,6 @@
     </dependency>
 
     <!-- test -->
-    <dependency>
-      <groupId>org.eclipse.jetty</groupId>
-      <artifactId>jetty-server</artifactId>
-      <scope>test</scope>
-    </dependency>
-
     <dependency>
       <groupId>org.bouncycastle</groupId>
       <artifactId>bc-fips</artifactId>
@@ -221,6 +210,14 @@
 
   <build>
   <plugins>
+    <plugin>
+      <groupId>org.apache.maven.plugins</groupId>
+      <artifactId>maven-compiler-plugin</artifactId>
+      <configuration>
+        <release>${pulsar.client.compiler.release}</release>
+      </configuration>
+    </plugin>
+
     <plugin>
       <groupId>org.gaul</groupId>
       <artifactId>modernizer-maven-plugin</artifactId>

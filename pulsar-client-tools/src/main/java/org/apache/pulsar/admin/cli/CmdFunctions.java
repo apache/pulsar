@@ -1101,7 +1101,7 @@ public class CmdFunctions extends CmdBase {
         protected String sourceFile;
         @Parameter(
                 names = "--path",
-                description = "Path where the contents need to be stored",
+                description = "Path or functionPkgUrl where the contents need to be stored",
                 listConverter = StringConverter.class, required = true)
         protected String path;
 
@@ -1138,7 +1138,7 @@ public class CmdFunctions extends CmdBase {
         protected String destinationFile;
         @Parameter(
                 names = "--path",
-                description = "Path to store the content",
+                description = "Path or functionPkgUrl to store the content",
                 listConverter = StringConverter.class, required = false, hidden = true)
         protected String path;
 

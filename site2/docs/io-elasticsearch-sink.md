@@ -6,6 +6,12 @@ sidebar_label: Elasticsearch sink connector
 
 The Elasticsearch sink connector pulls messages from Pulsar topics and persists the messages to indexes.
 
+## Requirements
+
+To deploy an Elasticsearch sink connector, the following are required:
+
+- Elasticsearch 7 (Elasticsearch 8 will be supported in the future)
+- OpenSearch 1.x
 
 ## Feature 
 
@@ -60,7 +66,7 @@ The configuration of the Elasticsearch sink connector has the following properti
 | `bulkActions` | Integer | false | 1000 | The maximum number of actions per elasticsearch bulk request. Use -1 to disable it. |
 | `bulkSizeInMb` | Integer | false |5 | The maximum size in megabytes of elasticsearch bulk requests. Use -1 to disable it. |
 | `bulkConcurrentRequests` | Integer | false | 0 | The maximum number of in flight elasticsearch bulk requests. The default 0 allows the execution of a single request. A value of 1 means 1 concurrent request is allowed to be executed while accumulating new bulk requests. |
-| `bulkFlushIntervalInMs` | Integer | false | -1 | The maximum period of time to wait for flushing pending writes when bulk writes are enabled. Default is -1 meaning not set. |
+| `bulkFlushIntervalInMs` | Long | false | 1000 | The maximum period of time to wait for flushing pending writes when bulk writes are enabled. -1 or zero means the scheduled flushing is disabled. |
 | `compressionEnabled` | Boolean | false |false | Enable elasticsearch request compression. |
 | `connectTimeoutInMs` | Integer | false |5000 | The elasticsearch client connection timeout in milliseconds. |
 | `connectionRequestTimeoutInMs` | Integer | false |1000 | The time in milliseconds for getting a connection from the elasticsearch connection pool. |

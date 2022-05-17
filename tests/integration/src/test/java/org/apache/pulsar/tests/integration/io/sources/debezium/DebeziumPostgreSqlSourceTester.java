@@ -139,7 +139,7 @@ public class DebeziumPostgreSqlSourceTester extends SourceTester<DebeziumPostgre
             String lastConfirmedFlushLsn = res.getStdout();
             log.info("Current confirmedFlushLsn: \n{} \nLast confirmedFlushLsn: \n{}",
                     confirmedFlushLsn.get(), lastConfirmedFlushLsn);
-            org.junit.Assert.assertNotEquals(confirmedFlushLsn.get(), lastConfirmedFlushLsn);
+            Assert.assertNotEquals(confirmedFlushLsn.get(), lastConfirmedFlushLsn);
             confirmedFlushLsn.set(lastConfirmedFlushLsn);
         } catch (Exception e) {
             Assert.fail("failed to get flush lsn", e);

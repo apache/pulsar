@@ -23,6 +23,7 @@ import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.config.ConfigException;
 import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.common.io.SinkConfig;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.KeyValue;
 import org.apache.pulsar.io.core.SinkContext;
@@ -94,6 +95,11 @@ public class KafkaAbstractSinkTest {
 
             @Override
             public Collection<String> getInputTopics() {
+                return null;
+            }
+
+            @Override
+            public SinkConfig getSinkConfig() {
                 return null;
             }
 
