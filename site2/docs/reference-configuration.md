@@ -1,17 +1,13 @@
 ---
 id: reference-configuration
 title: Pulsar configuration
-sidebar_label: Pulsar configuration
+sidebar_label: "Pulsar configuration"
 ---
 
-<style type="text/css">
-  table{
-    font-size: 80%;
-  }
-</style>
 
 
-You can manage Pulsar configuration by configuration files in the [`conf`](https://github.com/apache/pulsar/tree/master/conf) directory of a Pulsar [installation](getting-started-standalone.md).
+
+You can manage Pulsar configuration by configuration files in the [`conf`](https://github.com/apache/pulsar/tree/master/conf) directory of a Pulsar [installation](getting-started-standalone).
 
 - [BookKeeper](#bookkeeper)
 - [Broker](#broker)
@@ -195,7 +191,7 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 |defaultNumPartitions| The number of partitioned topics that is allowed to be automatically created if `allowAutoTopicCreationType` is partitioned |1|
 |brokerDeleteInactiveTopicsEnabled| Enable the deletion of inactive topics. If topics are not consumed for some while, these inactive topics might be cleaned up. Deleting inactive topics is enabled by default. The default period is 1 minute.  |true|
 |brokerDeleteInactiveTopicsFrequencySeconds|  How often to check for inactive topics  |60|
-| brokerDeleteInactiveTopicsMode | Set the mode to delete inactive topics. <li> `delete_when_no_subscriptions`: delete the topic which has no subscriptions or active producers. <li> `delete_when_subscriptions_caught_up`: delete the topic whose subscriptions have no backlogs and which has no active producers or consumers. | `delete_when_no_subscriptions` |
+| brokerDeleteInactiveTopicsMode | Set the mode to delete inactive topics. <li> `delete_when_no_subscriptions`: delete the topic which has no subscriptions or active producers. </li><li> `delete_when_subscriptions_caught_up`: delete the topic whose subscriptions have no backlogs and which has no active producers or consumers. </li>| `delete_when_no_subscriptions` |
 | brokerDeleteInactiveTopicsMaxInactiveDurationSeconds | Set the maximum duration for inactive topics. If it is not specified, the `brokerDeleteInactiveTopicsFrequencySeconds` parameter is adopted. | N/A |
 |forceDeleteTenantAllowed| Enable you to delete a tenant forcefully. |false|
 |forceDeleteNamespaceAllowed| Enable you to delete a namespace forcefully. |false|
@@ -421,7 +417,7 @@ You can use the [`pulsar-client`](reference-cli-tools.md#pulsar-client) CLI tool
 | tlsEnableHostnameVerification | Whether the server hostname must match the common name of the certificate that is used by the server. | false |
 |tlsTrustCertsFilePath|||
 | useKeyStoreTls | Enable TLS with KeyStore type configuration in the broker. | false |
-| tlsTrustStoreType | TLS TrustStore type configuration. <li>JKS <li>PKCS12 |JKS|
+| tlsTrustStoreType | TLS TrustStore type configuration. <li>JKS </li><li>PKCS12 </li>|JKS|
 | tlsTrustStore | TLS TrustStore path. | |
 | tlsTrustStorePassword | TLS TrustStore password. | |
 
@@ -573,15 +569,15 @@ You can set the log level and configuration in the  [log4j2.yaml](https://github
 | tlsRequireTrustedClientCertOnConnect | Trusted client certificates are required for to connect TLS. Reject the Connection if the client certificate is not trusted. In effect, this requires that all connecting clients perform TLS client authentication. | false |
 | tlsEnabledWithKeyStore | Enable TLS with KeyStore type configuration in broker. | false |
 |tlsProvider| The TLS provider for the broker service. <br />When TLS authentication with CACert is used, the valid value is either `OPENSSL` or `JDK`.<br />When TLS authentication with KeyStore is used, available options can be `SunJSSE`, `Conscrypt` and so on. | N/A
-| tlsKeyStoreType | TLS KeyStore type configuration in the broker.<li>JKS <li>PKCS12 |JKS|
+| tlsKeyStoreType | TLS KeyStore type configuration in the broker.<li>JKS </li><li>PKCS12 </li>|JKS|
 | tlsKeyStore | TLS KeyStore path in the broker. | |
 | tlsKeyStorePassword | TLS KeyStore password for the broker. | |
-| tlsTrustStoreType | TLS TrustStore type configuration in the broker<li>JKS <li>PKCS12 |JKS|
+| tlsTrustStoreType | TLS TrustStore type configuration in the broker<li>JKS </li><li>PKCS12 </li>|JKS|
 | tlsTrustStore | TLS TrustStore path in the broker. | |
 | tlsTrustStorePassword | TLS TrustStore password for the broker. | |
 | brokerClientTlsEnabledWithKeyStore | Configure whether the internal client uses the KeyStore type to authenticate with Pulsar brokers. | false |
 | brokerClientSslProvider | The TLS Provider used by the internal client to authenticate with other Pulsar brokers. | |
-| brokerClientTlsTrustStoreType | TLS TrustStore type configuration for the internal client to authenticate with Pulsar brokers. <li>JKS <li>PKCS12 | JKS |
+| brokerClientTlsTrustStoreType | TLS TrustStore type configuration for the internal client to authenticate with Pulsar brokers. <li>JKS </li><li>PKCS12 </li>| JKS |
 | brokerClientTlsTrustStore | TLS TrustStore path for the internal client to authenticate with Pulsar brokers. | |
 | brokerClientTlsTrustStorePassword | TLS TrustStore password for the internal client to authenticate with Pulsar brokers. | |
 | brokerClientTlsCiphers | Specify the TLS cipher that the internal client uses to negotiate during TLS Handshake. | |
@@ -795,7 +791,7 @@ The [Pulsar proxy](concepts-architecture-overview.md#pulsar-proxy) can be config
 |servicePort| The port to use for server binary Protobuf requests |6650|
 |servicePortTls|  The port to use to server binary Protobuf TLS requests  |6651|
 |statusFilePath|  Path for the file used to determine the rotation status for the proxy instance when responding to service discovery health checks ||
-| proxyLogLevel | Proxy log level <li>0: Do not log any TCP channel information. <li>1: Parse and log any TCP channel information and command information without message body. <li>2: Parse and log channel information, command information and message body.| 0 |
+| proxyLogLevel | Proxy log level <li>0: Do not log any TCP channel information. </li><li>1: Parse and log any TCP channel information and command information without message body. </li><li>2: Parse and log channel information, command information and message body.</li>| 0 |
 |authenticationEnabled| Whether authentication is enabled for the Pulsar proxy  |false|
 |authenticateMetricsEndpoint| Whether the '/metrics' endpoint requires authentication. Defaults to true. 'authenticationEnabled' must also be set for this to take effect. |true|
 |authenticationProviders| Authentication provider name list (a comma-separated list of class names) ||
@@ -868,9 +864,11 @@ In addition to the parameters in the table above, configuring ZooKeeper for Puls
 a `server.N` line to the `conf/zookeeper.conf` file for each node in the ZooKeeper cluster, where `N` is the number of the ZooKeeper node. Here's an example for a three-node ZooKeeper cluster:
 
 ```properties
+
 server.1=zk1.us-west.example.com:2888:3888
 server.2=zk2.us-west.example.com:2888:3888
 server.3=zk3.us-west.example.com:2888:3888
+
 ```
 
 > We strongly recommend consulting the [ZooKeeper Administrator's Guide](https://zookeeper.apache.org/doc/current/zookeeperAdmin.html) for a more thorough and comprehensive introduction to ZooKeeper configuration

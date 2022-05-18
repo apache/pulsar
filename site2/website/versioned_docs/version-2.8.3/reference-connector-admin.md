@@ -1,7 +1,7 @@
 ---
-id: version-2.8.3-reference-connector-admin
+id: reference-connector-admin
 title: Connector Admin CLI
-sidebar_label: Connector Admin CLI
+sidebar_label: "Connector Admin CLI"
 original_id: reference-connector-admin
 ---
 

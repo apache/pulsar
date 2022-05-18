@@ -1,7 +1,7 @@
 ---
 id: txn-what
 title: What are transactions?
-sidebar_label: What are transactions?
+sidebar_label: "What are transactions?"
 ---
 
 Transactions strengthen the message delivery semantics of Apache Pulsar and [processing guarantees of Pulsar Functions](https://pulsar.apache.org/docs/en/next/functions-overview/#processing-guarantees). The Pulsar Transaction API supports atomic writes and acknowledgments across multiple topics. 
@@ -27,9 +27,9 @@ Pulsar transactions have the following semantics:
 * A group of messages in a transaction can be received from, produced to, and acknowledged by multiple partitions.
   
   * Consumers are only allowed to read committed (acked) messages. In other words, the broker does not deliver transactional messages which are part of an open transaction or messages which are part of an aborted transaction.
-    
+  
   * Message writes across multiple partitions are atomic.
-    
+  
   * Message acks across multiple subscriptions are atomic. A message is acked successfully only once by a consumer under the subscription when acknowledging the message with the transaction ID.
 
 ## Transactions and stream processing
@@ -42,7 +42,7 @@ Stream processing on Pulsar is a `consume-process-produce` operation on Pulsar t
   
 * `Produce`: a sink operator that runs a Pulsar producer writes the resulting messages to one or multiple Pulsar topics.
 
-![](assets/txn-2.png)
+![](/assets/txn-2.png)
 
 Pulsar transactions support end-to-end exactly-once stream processing, which means messages are not lost from a source operator and messages are not duplicated to a sink operator.
 
@@ -52,8 +52,8 @@ Prior to Pulsar 2.8.0, there was no easy way to build stream processing applicat
 
 * [Pulsar Flink connector](https://flink.apache.org/2021/01/07/pulsar-flink-connector-270.html)
 
-    Prior to Pulsar 2.8.0, if you want to build stream applications using Pulsar and Flink, the Pulsar Flink connector only supported exactly-once source connector and at-least-once sink connector, which means the highest processing guarantee for end-to-end was at-least-once, there was possibility that the resulting messages from streaming applications produce duplicated messages to the resulting topics in Pulsar.
+  Prior to Pulsar 2.8.0, if you want to build stream applications using Pulsar and Flink, the Pulsar Flink connector only supported exactly-once source connector and at-least-once sink connector, which means the highest processing guarantee for end-to-end was at-least-once, there was possibility that the resulting messages from streaming applications produce duplicated messages to the resulting topics in Pulsar.
 
-    With the transaction introduced in Pulsar 2.8.0, the Pulsar Flink sink connector can support exactly-once semantics by implementing the designated `TwoPhaseCommitSinkFunction` and hooking up the Flink sink message lifecycle with Pulsar transaction API. 
+  With the transaction introduced in Pulsar 2.8.0, the Pulsar Flink sink connector can support exactly-once semantics by implementing the designated `TwoPhaseCommitSinkFunction` and hooking up the Flink sink message lifecycle with Pulsar transaction API. 
 
 * Support for Pulsar Functions and other connectors will be added in the future releases.

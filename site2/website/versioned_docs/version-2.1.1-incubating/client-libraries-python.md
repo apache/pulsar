@@ -1,11 +1,11 @@
 ---
-id: version-2.1.1-incubating-client-libraries-python
+id: client-libraries-python
 title: The Pulsar Python client
-sidebar_label: Python
+sidebar_label: "Python"
 original_id: client-libraries-python
 ---
 
-The Pulsar Python client library is a wrapper over the existing [C++ client library](client-libraries-cpp.md) and exposes all of the [same features](/api/cpp). You can find the code in the [`python` subdirectory](https://github.com/apache/incubator-pulsar/tree/master/pulsar-client-cpp/python) of the C++ client code.
+The Pulsar Python client library is a wrapper over the existing [C++ client library](client-libraries-cpp) and exposes all of the [same features](/api/cpp). You can find the code in the [`python` subdirectory](https://github.com/apache/incubator-pulsar/tree/master/pulsar-client-cpp/python) of the C++ client code.
 
 ## Installation
 
@@ -16,7 +16,9 @@ You can install the [`pulsar-client`](https://pypi.python.org/pypi/pulsar-client
 To install the `pulsar-client` library as a pre-built package using the [pip](https://pip.pypa.io/en/stable/) package manager:
 
 ```shell
-$ pip install pulsar-client=={{pulsar:version_number}}
+
+$ pip install pulsar-client==@pulsar:version_number@
+
 ```
 
 Installation via PyPi is available for the following Python versions:
@@ -33,9 +35,11 @@ To install the `pulsar-client` library by building from source, follow [these in
 To install the built Python bindings:
 
 ```shell
+
 $ git clone https://github.com/apache/pulsar
 $ cd pulsar/pulsar-client-cpp/python
 $ sudo python setup.py install
+
 ```
 
 ## API Reference
@@ -51,6 +55,7 @@ Below you'll find a variety of Python code examples for the `pulsar-client` libr
 This creates a Python producer for the `my-topic` topic and send 10 messages on that topic:
 
 ```python
+
 import pulsar
 
 client = pulsar.Client('pulsar://localhost:6650')
@@ -61,6 +66,7 @@ for i in range(10):
     producer.send(('Hello-%d' % i).encode('utf-8'))
 
 client.close()
+
 ```
 
 ### Consumer example
@@ -68,6 +74,7 @@ client.close()
 This creates a consumer with the `my-subscription` subscription on the `my-topic` topic, listen for incoming messages, print the content and ID of messages that arrive, and acknowledge each message to the Pulsar broker:
 
 ```python
+
 import pulsar
 
 client = pulsar.Client('pulsar://localhost:6650')
@@ -80,6 +87,7 @@ while True:
     consumer.acknowledge(msg)
 
 client.close()
+
 ```
 
 ### Reader interface example
@@ -87,6 +95,7 @@ client.close()
 You can use the Pulsar Python API to use the Pulsar [reader interface](concepts-clients.md#reader-interface). Here's an example:
 
 ```python
+
 # MessageId taken from a previously fetched message
 msg_id = msg.message_id()
 
@@ -96,4 +105,6 @@ while True:
     msg = reader.read_next()
     print("Received message '{}' id='{}'".format(msg.data(), msg.message_id()))
     # No acknowledgment
+
 ```
+
