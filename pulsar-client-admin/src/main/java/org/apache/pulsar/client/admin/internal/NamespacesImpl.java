@@ -426,38 +426,28 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
-    public void grantImplicitPermissionOnSubscription(String namespace) throws PulsarAdminException {
-        sync(() -> grantImplicitPermissionOnSubscriptionAsync(namespace));
+    public void setPermissionOnSubscriptionRequired(String namespace, boolean permissionOnSubscriptionRequired)
+            throws PulsarAdminException {
+        sync(() -> setPermissionOnSubscriptionRequiredAsync(namespace, permissionOnSubscriptionRequired));
     }
 
     @Override
-    public CompletableFuture<Void> grantImplicitPermissionOnSubscriptionAsync(String namespace) {
+    public CompletableFuture<Void> setPermissionOnSubscriptionRequiredAsync(String namespace,
+                                                                            boolean permissionOnSubscriptionRequired) {
         NamespaceName ns = NamespaceName.get(namespace);
-        WebTarget path = namespacePath(ns, "implicitPermissionOnSubscription");
-        return asyncPutRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
+        WebTarget path = namespacePath(ns, "permissionOnSubscriptionRequired");
+        return asyncPutRequest(path, Entity.entity(permissionOnSubscriptionRequired, MediaType.APPLICATION_JSON));
     }
 
     @Override
-    public void revokeImplicitPermissionOnSubscription(String namespace) throws PulsarAdminException {
-        sync(() -> revokeImplicitPermissionOnSubscriptionAsync(namespace));
+    public boolean getPermissionOnSubscriptionRequired(String namespace) throws PulsarAdminException {
+        return sync(() -> getPermissionOnSubscriptionRequiredAsync(namespace));
     }
 
     @Override
-    public CompletableFuture<Void> revokeImplicitPermissionOnSubscriptionAsync(String namespace) {
+    public CompletableFuture<Boolean> getPermissionOnSubscriptionRequiredAsync(String namespace) {
         NamespaceName ns = NamespaceName.get(namespace);
-        WebTarget path = namespacePath(ns, "implicitPermissionOnSubscription");
-        return asyncDeleteRequest(path);
-    }
-
-    @Override
-    public boolean getImplicitPermissionOnSubscription(String namespace) throws PulsarAdminException {
-        return sync(() -> getImplicitPermissionOnSubscriptionAsync(namespace));
-    }
-
-    @Override
-    public CompletableFuture<Boolean> getImplicitPermissionOnSubscriptionAsync(String namespace) {
-        NamespaceName ns = NamespaceName.get(namespace);
-        WebTarget path = namespacePath(ns, "implicitPermissionOnSubscription");
+        WebTarget path = namespacePath(ns, "permissionOnSubscriptionRequired");
         final CompletableFuture<Boolean> future = new CompletableFuture<>();
         asyncGetRequest(path,
                 new InvocationCallback<Boolean>() {

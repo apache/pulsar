@@ -32,11 +32,11 @@ public interface AuthPolicies {
 
     /**
      * Whether an empty set of subscription authentication roles returned by {@link #getSubscriptionAuthentication()}
-     * implicitly grants permission to consume from the target subscription.
+     * requires explicit permission to consume from the target subscription.
      * @return
      */
-    boolean isImplicitSubscriptionAuth();
-    void setImplicitSubscriptionAuth(boolean implicitSubscriptionAuth);
+    boolean isSubscriptionAuthRequired();
+    void setSubscriptionAuthRequired(boolean subscriptionAuthRequired);
 
     static Builder builder() {
         return ReflectionUtils.newBuilder("org.apache.pulsar.client.admin.internal.data.AuthPoliciesImpl");
@@ -47,6 +47,6 @@ public interface AuthPolicies {
         Builder namespaceAuthentication(Map<String, Set<AuthAction>> namespaceAuthentication);
         Builder topicAuthentication(Map<String, Map<String, Set<AuthAction>>> topicAuthentication);
         Builder subscriptionAuthentication(Map<String, Set<String>> subscriptionAuthentication);
-        Builder implicitSubscriptionAuth(boolean implicitSubscriptionAuth);
+        Builder subscriptionAuthRequired(boolean subscriptionAuthRequired);
     }
 }

@@ -698,21 +698,21 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
-    protected boolean getImplicitPermissionOnSubscription() {
+    protected boolean getPermissionOnSubscriptionRequired() {
         validateNamespaceOperation(namespaceName, NamespaceOperation.GET_PERMISSION);
         Policies policies = getNamespacePolicies(namespaceName);
-        return policies.auth_policies.isImplicitSubscriptionAuth();
+        return policies.auth_policies.isSubscriptionAuthRequired();
     }
 
-    protected void internalSetImplicitPermissionOnSubscription(boolean isImplicitPermissionOnSubscription) {
-        if (isImplicitPermissionOnSubscription) {
-            validateNamespaceOperation(namespaceName, NamespaceOperation.GRANT_PERMISSION);
-        } else {
+    protected void internalSetPermissionOnSubscriptionRequired(boolean permissionOnSubscriptionRequired) {
+        if (permissionOnSubscriptionRequired) {
             validateNamespaceOperation(namespaceName, NamespaceOperation.REVOKE_PERMISSION);
+        } else {
+            validateNamespaceOperation(namespaceName, NamespaceOperation.GRANT_PERMISSION);
         }
         validatePoliciesReadOnlyAccess();
         updatePolicies(namespaceName, policies -> {
-            policies.auth_policies.setImplicitSubscriptionAuth(isImplicitPermissionOnSubscription);
+            policies.auth_policies.setSubscriptionAuthRequired(permissionOnSubscriptionRequired);
             return policies;
         });
     }

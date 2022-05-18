@@ -315,46 +315,32 @@ public class Namespaces extends NamespacesBase {
     }
 
     @PUT
-    @Path("/{property}/{cluster}/{namespace}/implicitPermissionOnSubscription")
-    @ApiOperation(hidden = true, value = "Allow a consumer's role to have implicit permission to consume from a"
-            + " subscription.")
+    @Path("/{property}/{cluster}/{namespace}/permissionOnSubscriptionRequired")
+    @ApiOperation(hidden = true, value = "Set whether a role requires explicit permission to consume from a "
+            + "subscription that has no subscription permission defined in the namespace.")
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist"),
             @ApiResponse(code = 409, message = "Concurrent modification"),
             @ApiResponse(code = 501, message = "Authorization is not enabled")})
-    public void grantImplicitPermissionOnSubscription(
+    public void setPermissionOnSubscriptionRequired(
             @PathParam("property") String property, @PathParam("cluster") String cluster,
-            @PathParam("namespace") String namespace) {
+            @PathParam("namespace") String namespace, boolean permissionOnSubscriptionRequired) {
         validateNamespaceName(property, cluster, namespace);
-        internalSetImplicitPermissionOnSubscription(true);
-    }
-
-    @DELETE
-    @Path("/{property}/{cluster}/{namespace}/implicitPermissionOnSubscription")
-    @ApiOperation(hidden = true, value = "Require a consumer's role to have explicit permission to consume from a"
-            + " subscription.")
-    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist"),
-            @ApiResponse(code = 409, message = "Concurrent modification"),
-            @ApiResponse(code = 501, message = "Authorization is not enabled")})
-    public void revokeImplicitPermissionOnSubscription(
-            @PathParam("property") String property, @PathParam("cluster") String cluster,
-            @PathParam("namespace") String namespace) {
-        validateNamespaceName(property, cluster, namespace);
-        internalSetImplicitPermissionOnSubscription(false);
+        internalSetPermissionOnSubscriptionRequired(permissionOnSubscriptionRequired);
     }
 
     @GET
-    @Path("/{property}/{cluster}/{namespace}/implicitPermissionOnSubscription")
-    @ApiOperation(value = "Get permission on subscription required for namespace.")
+    @Path("/{property}/{cluster}/{namespace}/permissionOnSubscriptionRequired")
+    @ApiOperation(value = "Get whether a role requires explicit permission to consume from a "
+            + "subscription that has no subscription permission defined in the namespace.")
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist"),
             @ApiResponse(code = 409, message = "Namespace is not empty")})
-    public boolean getImplicitPermissionOnSubscription(@PathParam("property") String property,
+    public boolean getPermissionOnSubscriptionRequired(@PathParam("property") String property,
                                                        @PathParam("cluster") String cluster,
                                                        @PathParam("namespace") String namespace) {
         validateNamespaceName(property, cluster, namespace);
-        return getImplicitPermissionOnSubscription();
+        return getPermissionOnSubscriptionRequired();
     }
 
     @GET

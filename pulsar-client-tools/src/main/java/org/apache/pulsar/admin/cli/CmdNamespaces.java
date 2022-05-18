@@ -291,41 +291,38 @@ public class CmdNamespaces extends CmdBase {
     }
 
     @Parameters(commandDescription =
-            "Get whether a namespace allows implicit permission to consume from a subscription.")
-    private class ImplicitSubscriptionPermission extends CliCommand {
+            "Get whether a namespace requires explicit permission to consume from a subscription when no permission is "
+                    + "defined.")
+    private class GetSubscriptionPermissionRequired extends CliCommand {
         @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
-            print(getAdmin().namespaces().getImplicitPermissionOnSubscription(namespace));
+            print(getAdmin().namespaces().getPermissionOnSubscriptionRequired(namespace));
         }
     }
 
-    @Parameters(commandDescription = "Grant all roles implicit permission to consume from a subscription if no "
-            + "subscription permission is defined for that subscription in the namespace.")
-    private class GrantImplicitSubscriptionPermission extends CliCommand {
+    @Parameters(commandDescription = "Set whether a role requires explicit permission to consume from a subscription "
+            + "that has no subscription permission defined in the namespace.")
+    private class SetSubscriptionPermissionRequired extends CliCommand {
         @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
+
+        @Parameter(names = { "--enable", "-e" }, description = "Enable message encryption required")
+        private boolean enable = false;
+
+        @Parameter(names = { "--disable", "-d" }, description = "Disable message encryption required")
+        private boolean disable = false;
 
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
-            getAdmin().namespaces().grantImplicitPermissionOnSubscription(namespace);
-        }
-    }
-
-    @Parameters(commandDescription = "Revoke implicit permission for any role to consume from a subscription if no "
-            + "subscription permission is defined for that subscription in the namespace.")
-    private class RevokeImplicitSubscriptionPermission extends CliCommand {
-        @Parameter(description = "tenant/namespace", required = true)
-        private java.util.List<String> params;
-
-        @Override
-        void run() throws PulsarAdminException {
-            String namespace = validateNamespace(params);
-            getAdmin().namespaces().revokeImplicitPermissionOnSubscription(namespace);
+            if (enable == disable) {
+                throw new ParameterException("Need to specify either --enable or --disable");
+            }
+            getAdmin().namespaces().setPermissionOnSubscriptionRequired(namespace, enable);
         }
     }
 
@@ -2620,9 +2617,8 @@ public class CmdNamespaces extends CmdBase {
         jcommander.addCommand("grant-subscription-permission", new GrantSubscriptionPermissions());
         jcommander.addCommand("revoke-subscription-permission", new RevokeSubscriptionPermissions());
 
-        jcommander.addCommand("implicit-subscription-permission", new ImplicitSubscriptionPermission());
-        jcommander.addCommand("grant-implicit-subscription-permission", new GrantImplicitSubscriptionPermission());
-        jcommander.addCommand("revoke-implicit-subscription-permission", new RevokeImplicitSubscriptionPermission());
+        jcommander.addCommand("get-subscription-permission-required", new GetSubscriptionPermissionRequired());
+        jcommander.addCommand("set-subscription-permission-required", new SetSubscriptionPermissionRequired());
 
         jcommander.addCommand("set-clusters", new SetReplicationClusters());
         jcommander.addCommand("get-clusters", new GetReplicationClusters());

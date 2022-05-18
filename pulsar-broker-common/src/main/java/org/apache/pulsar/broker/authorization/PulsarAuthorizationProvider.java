@@ -114,13 +114,13 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                     } else {
                         if (isNotBlank(subscription)) {
                             // Reject request if role is unauthorized to access subscription.
-                            // If implicitSubscriptionAuthentication is enabled, set of roles must be null or empty, or
-                            // role must be in set of roles. Otherwise, role must be in the set of roles.
+                            // If subscriptionAuthRequired is enabled, role must be in the set of roles.
+                            // Otherwise, set of roles must be null or empty, or role must be in set of roles.
                             Set<String> roles = policies.get().auth_policies
                                     .getSubscriptionAuthentication().get(subscription);
-                            boolean isUnauthorized = policies.get().auth_policies.isImplicitSubscriptionAuth()
-                                    ? (roles != null && !roles.isEmpty() && !roles.contains(role))
-                                    : (roles == null || roles.isEmpty() || !roles.contains(role));
+                            boolean isUnauthorized = policies.get().auth_policies.isSubscriptionAuthRequired()
+                                    ? (roles == null || roles.isEmpty() || !roles.contains(role))
+                                    : (roles != null && !roles.isEmpty() && !roles.contains(role));
                             if (isUnauthorized) {
                                 log.warn("[{}] is not authorized to subscribe on {}-{}", role, topicName, subscription);
                                 return CompletableFuture.completedFuture(false);
