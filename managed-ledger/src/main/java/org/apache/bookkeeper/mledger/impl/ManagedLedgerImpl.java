@@ -216,6 +216,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     private final CallbackMutex trimmerMutex = new CallbackMutex();
 
     private final CallbackMutex offloadMutex = new CallbackMutex();
+
+    private final CallbackMutex deleteMutex = new CallbackMutex();
+
     private static final CompletableFuture<PositionImpl> NULL_OFFLOAD_PROMISE = CompletableFuture
             .completedFuture(PositionImpl.LATEST);
     private volatile LedgerHandle currentLedger;
@@ -2479,8 +2482,12 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     }
                     break;
                 }
+                //The offload process not completed, shouldn't delete it.
+                if (ls.hasOffloadContext() && !ls.getOffloadContext().getComplete()) {
+                    continue;
+                }
                 // if truncate, all ledgers besides currentLedger are going to be deleted
-                if (isTruncate){
+                if (isTruncate) {
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] Ledger {} will be truncated with ts {}",
                                 name, ls.getLedgerId(), ls.getTimestamp());
@@ -2753,29 +2760,19 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             cleanupOffloaded(ledgerId, uuid,
                     OffloadUtils.getOffloadDriverName(info, config.getLedgerOffloader().getOffloadDriverName()),
                     OffloadUtils.getOffloadDriverMetadata(info, config.getLedgerOffloader().getOffloadDriverMetadata()),
-                    "Trimming", retry, callback);
+                    "Trimming", retry, Optional.of(callback));
         }
     }
 
     private void asyncDeleteLedger(long ledgerId, long retry) {
-        asyncDeleteLedger(ledgerId, retry, new DeleteLedgerCallback() {
-            @Override
-            public void deleteLedgerComplete(Object ctx) {
-
-            }
-
-            @Override
-            public void deleteLedgerFailed(ManagedLedgerException exception, Object ctx) {
-
-            }
-        }, 0, null);
+        asyncDeleteLedger(ledgerId, retry, Optional.empty(), 0, null);
     }
 
     private void asyncDeleteLedger(
-            long ledgerId, long retry, DeleteLedgerCallback callback, int lastRc, Object lastCtx) {
+            long ledgerId, long retry, Optional<DeleteLedgerCallback> callback, int lastRc, Object lastCtx) {
         if (retry <= 0) {
             log.warn("[{}] Failed to delete ledger after retries {}", name, ledgerId);
-            callback.deleteLedgerFailed(createManagedLedgerException(lastRc), lastCtx);
+            callback.ifPresent(deleteCallback -> deleteCallback.deleteLedgerFailed(createManagedLedgerException(lastRc), lastCtx));
             return;
         }
         bookKeeper.asyncDeleteLedger(ledgerId, (rc, ctx) -> {
@@ -2792,7 +2789,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     log.debug("[{}] Deleted ledger {}", name, ledgerId);
                 }
             }
-            callback.deleteLedgerComplete(ctx);
+            callback.ifPresent(deleteCallback -> deleteCallback.deleteLedgerComplete(ctx));
         }, null);
     }
 
@@ -3188,35 +3185,19 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     private void cleanupOffloaded(long ledgerId, UUID uuid, String offloadDriverName,
                                   Map<String, String> offloadDriverMetadata, String cleanupReason) {
-        cleanupOffloaded(
-                ledgerId,
-                uuid,
-                offloadDriverName,
-                offloadDriverMetadata,
-                cleanupReason,
-                DEFAULT_LEDGER_DELETE_RETRIES,
-                new DeleteLedgerCallback() {
-                    @Override
-                    public void deleteLedgerComplete(Object ctx) {
-
-                    }
-
-                    @Override
-                    public void deleteLedgerFailed(ManagedLedgerException exception, Object ctx) {
-
-                    }
-                });
+        cleanupOffloaded(ledgerId, uuid, offloadDriverName, offloadDriverMetadata, cleanupReason,
+                DEFAULT_LEDGER_DELETE_RETRIES, Optional.empty());
     }
 
     private void cleanupOffloaded(long ledgerId, UUID uuid, String offloadDriverName, /*
                                                                                        * TODO: use driver name to
                                                                                        * identify offloader
                                                                                        */
-            Map<String, String> offloadDriverMetadata, String cleanupReason, int retry, DeleteLedgerCallback callback) {
+            Map<String, String> offloadDriverMetadata, String cleanupReason, int retry, Optional<DeleteLedgerCallback> callback) {
         if (retry <= 0) {
             log.warn("[{}] Failed to delete offloaded ledger after retries {} / {}", name, ledgerId, uuid);
-            callback.deleteLedgerFailed(
-                    new ManagedLedgerException("Failed to delete offloaded ledger after retries"), null);
+            callback.ifPresent(deleteCallback -> deleteCallback.deleteLedgerFailed(
+                    new ManagedLedgerException("Failed to delete offloaded ledger after retries"), null));
             return;
         }
 
@@ -3245,7 +3226,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                     DEFAULT_LEDGER_DELETE_BACKOFF_TIME_SEC, TimeUnit.SECONDS);
                             return;
                         }
-                        callback.deleteLedgerComplete(null);
+                        callback.ifPresent(deleteCallback -> deleteCallback.deleteLedgerComplete(null));
                     });
         } catch (Exception e) {
             log.warn("[{}] Failed to cleanup offloaded ledgers.", name, e);
@@ -4204,7 +4185,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
         for (Long deletableLedger : deletableLedgers) {
             asyncDeleteLedger(deletableLedger, DEFAULT_LEDGER_DELETE_RETRIES,
-                    new DeleteLedgerCallback() {
+                    Optional.of(new DeleteLedgerCallback() {
                         @Override
                         public void deleteLedgerComplete(Object ctx) {
                             counter.countDown();
@@ -4220,7 +4201,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                             finishedDeletedLedgers.add(deletableLedger);
                             failDeletedLedgers.add(deletableLedger);
                         }
-                    }, 0, null);
+                    }), 0, null);
         }
 
         for (Long deletableOffloadedLedger : deletableOffloadedLedgers) {
@@ -4326,11 +4307,13 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     private void tryRemoveAllDeletableLedgers() {
-        if (!metadataMutex.tryLock()) {
-            scheduledExecutor.schedule(safeRun(() -> tryRemoveAllDeletableLedgers()), 100, TimeUnit.MILLISECONDS);
-        } else {
+        if (!deleteMutex.tryLock()) {
+            return;
+        }
+        try {
             removeAllDeletableLedgers();
-            metadataMutex.unlock();
+        } finally {
+            deleteMutex.unlock();
         }
     }
 
