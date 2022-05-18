@@ -74,8 +74,8 @@ public class TestPulsarSQLAuth extends TestPulsarSQLBase {
         PrestoWorkerContainer prestoWorkerContainer = pulsarCluster.getPrestoWorkerContainer();
 
         prestoWorkerContainer
-                .withEnv("pulsar.auth-plugin ", "org.apache.pulsar.client.impl.auth.AuthenticationToken")
-                .withEnv("pulsar.auth-params ", adminToken)
+                .withEnv("SQL_PREFIX_pulsar.auth-plugin", "org.apache.pulsar.client.impl.auth.AuthenticationToken")
+                .withEnv("SQL_PREFIX_pulsar.auth-params", adminToken)
                 .withEnv("pulsar.broker-binary-service-url", "pulsar://pulsar-broker-0:6650")
                 .withEnv("pulsar.authorization-enable", "true");
 
