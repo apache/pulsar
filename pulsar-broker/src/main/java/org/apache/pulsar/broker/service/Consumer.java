@@ -84,7 +84,7 @@ public class Consumer {
     private final Rate msgRedeliver;
     private final LongAdder msgOutCounter;
     private final LongAdder bytesOutCounter;
-    private final LongAdder messageAckCounter;
+    private final Rate messageAck;
 
     private long lastConsumedTimestamp;
     private long lastAckedTimestamp;
@@ -160,7 +160,7 @@ public class Consumer {
         this.msgRedeliver = new Rate();
         this.bytesOutCounter = new LongAdder();
         this.msgOutCounter = new LongAdder();
-        this.messageAckCounter = new LongAdder();
+        this.messageAck = new Rate();
         this.appId = appId;
 
         // Ensure we start from compacted view
@@ -418,7 +418,7 @@ public class Consumer {
         return future
                 .whenComplete((__, t) -> {
                     if (t == null) {
-                        this.messageAckCounter.increment();
+                        this.messageAck.recordEvent();
                     }
                 });
     }
@@ -750,7 +750,10 @@ public class Consumer {
         msgOut.calculateRate();
         chunkedMessageRate.calculateRate();
         msgRedeliver.calculateRate();
+        messageAck.calculateRate();
+
         stats.msgRateOut = msgOut.getRate();
+        stats.messageAck = messageAck.getRate();
         stats.msgThroughputOut = msgOut.getValueRate();
         stats.msgRateRedeliver = msgRedeliver.getRate();
         stats.chunkedMessageRate = chunkedMessageRate.getRate();
@@ -763,7 +766,7 @@ public class Consumer {
         lastAckedTimestamp = consumerStats.lastAckedTimestamp;
         lastConsumedTimestamp = consumerStats.lastConsumedTimestamp;
         MESSAGE_PERMITS_UPDATER.set(this, consumerStats.availablePermits);
-        if (log.isDebugEnabled()){
+        if (log.isDebugEnabled()) {
             log.debug("[{}-{}] Setting broker.service.Consumer's messagePermits to {} for consumer {}", topicName,
                     subscription, consumerStats.availablePermits, consumerId);
         }
