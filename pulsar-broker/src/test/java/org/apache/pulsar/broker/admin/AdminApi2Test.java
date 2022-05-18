@@ -45,6 +45,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import javax.ws.rs.NotAcceptableException;
 import javax.ws.rs.core.Response.Status;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
@@ -84,6 +85,7 @@ import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyData;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyType;
+import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationData;
 import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationDataImpl;
@@ -1708,6 +1710,48 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         }
     }
 
+    @Test
+    public void testAutoTopicCreationOverrideWithMaxNumPartitionsLimit() throws Exception{
+        super.internalCleanup();
+        conf.setMaxNumPartitionsPerPartitionedTopic(10);
+        super.internalSetup();
+        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
+        TenantInfoImpl tenantInfo = new TenantInfoImpl(
+                Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
+        admin.tenants().createTenant("testTenant", tenantInfo);
+        // test non-partitioned
+        admin.namespaces().createNamespace("testTenant/ns1", Sets.newHashSet("test"));
+        AutoTopicCreationOverride overridePolicy = AutoTopicCreationOverride
+                .builder().allowAutoTopicCreation(true)
+                .topicType("non-partitioned")
+                .build();
+        admin.namespaces().setAutoTopicCreation("testTenant/ns1", overridePolicy);
+        AutoTopicCreationOverride newOverridePolicy =
+                admin.namespaces().getAutoTopicCreation("testTenant/ns1");
+        assertEquals(overridePolicy, newOverridePolicy);
+        // test partitioned
+        AutoTopicCreationOverride partitionedOverridePolicy = AutoTopicCreationOverride
+                .builder().allowAutoTopicCreation(true)
+                .topicType("partitioned")
+                .defaultNumPartitions(10)
+                .build();
+        admin.namespaces().setAutoTopicCreation("testTenant/ns1", partitionedOverridePolicy);
+        AutoTopicCreationOverride partitionedNewOverridePolicy =
+                admin.namespaces().getAutoTopicCreation("testTenant/ns1");
+        assertEquals(partitionedOverridePolicy, partitionedNewOverridePolicy);
+        // test partitioned with error
+        AutoTopicCreationOverride partitionedWrongOverridePolicy = AutoTopicCreationOverride
+                .builder().allowAutoTopicCreation(true)
+                .topicType("partitioned")
+                .defaultNumPartitions(123)
+                .build();
+        try {
+            admin.namespaces().setAutoTopicCreation("testTenant/ns1", partitionedWrongOverridePolicy);
+            fail();
+        } catch (Exception ex) {
+            assertTrue(ex.getCause() instanceof NotAcceptableException);
+        }
+    }
     @Test
     public void testMaxTopicsPerNamespace() throws Exception {
         super.internalCleanup();
