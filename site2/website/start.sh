@@ -5,6 +5,7 @@ mkdir -p .preview
 cd .preview
 
 if [ -d "$ROOT_DIR/site2/.preview/pulsar-site" ]; then
+    git checkout .
     git pull origin main
 else
     git clone -b main --depth 1 https://github.com/apache/pulsar-site.git
