@@ -283,6 +283,7 @@ import asyncio
 import base64
 import json
 import ssl
+import pathlib
 
 ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
 client_pem = pathlib.PATH(__file__).with_name("pulsar_client.pem")
