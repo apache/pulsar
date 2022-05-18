@@ -124,7 +124,7 @@ The request parameter in curl command:
 
 When using binary packages for direct deployment, you can follow these steps.
 
-- Download and unzip the binary package, which is available on the [Pulsar Download](https://pulsar.apache.org/en/download/) page.
+- Download and unzip the binary package, which is available on the [Pulsar Download](https://pulsar.apache.org/download/) page.
 
   ```bash
 	wget https://dist.apache.org/repos/dist/release/pulsar/pulsar-manager/pulsar-manager-0.2.0/apache-pulsar-manager-0.2.0-bin.tar.gz
