@@ -1,11 +1,11 @@
 ---
-id: version-2.6.3-client-libraries-python
+id: client-libraries-python
 title: Pulsar Python client
-sidebar_label: Python
+sidebar_label: "Python"
 original_id: client-libraries-python
 ---
 
-Pulsar Python client library is a wrapper over the existing [C++ client library](client-libraries-cpp.md) and exposes all of the [same features](/api/cpp). You can find the code in the [`python` subdirectory](https://github.com/apache/pulsar/tree/master/pulsar-client-cpp/python) of the C++ client code.
+Pulsar Python client library is a wrapper over the existing [C++ client library](client-libraries-cpp) and exposes all of the [same features](/api/cpp). You can find the code in the [`python` subdirectory](https://github.com/apache/pulsar/tree/master/pulsar-client-cpp/python) of the C++ client code.
 
 All the methods in producer, consumer, and reader of a Python client are thread-safe.
 
@@ -20,7 +20,9 @@ You can install the [`pulsar-client`](https://pypi.python.org/pypi/pulsar-client
 To install the `pulsar-client` library as a pre-built package using the [pip](https://pip.pypa.io/en/stable/) package manager:
 
 ```shell
-$ pip install pulsar-client=={{pulsar:version_number}}
+
+$ pip install pulsar-client==@pulsar:version_number@
+
 ```
 
 Installation via PyPi is available for the following Python versions:
@@ -37,9 +39,11 @@ To install the `pulsar-client` library by building from source, follow [instruct
 To install the built Python bindings:
 
 ```shell
+
 $ git clone https://github.com/apache/pulsar
 $ cd pulsar/pulsar-client-cpp/python
 $ sudo python setup.py install
+
 ```
 
 ## API Reference
@@ -55,6 +59,7 @@ You can find a variety of Python code examples for the `pulsar-client` library.
 The following example creates a Python producer for the `my-topic` topic and sends 10 messages on that topic:
 
 ```python
+
 import pulsar
 
 client = pulsar.Client('pulsar://localhost:6650')
@@ -65,6 +70,7 @@ for i in range(10):
     producer.send(('Hello-%d' % i).encode('utf-8'))
 
 client.close()
+
 ```
 
 ### Consumer example
@@ -72,6 +78,7 @@ client.close()
 The following example creates a consumer with the `my-subscription` subscription name on the `my-topic` topic, receives incoming messages, prints the content and ID of messages that arrive, and acknowledges each message to the Pulsar broker.
 
 ```python
+
 import pulsar
 
 client = pulsar.Client('pulsar://localhost:6650')
@@ -89,6 +96,7 @@ while True:
         consumer.negative_acknowledge(msg)
 
 client.close()
+
 ```
 
 ### Reader interface example
@@ -96,6 +104,7 @@ client.close()
 You can use the Pulsar Python API to use the Pulsar [reader interface](concepts-clients.md#reader-interface). Here's an example:
 
 ```python
+
 # MessageId taken from a previously fetched message
 msg_id = msg.message_id()
 
@@ -105,7 +114,9 @@ while True:
     msg = reader.read_next()
     print("Received message '{}' id='{}'".format(msg.data(), msg.message_id()))
     # No acknowledgment
+
 ```
+
 ### Multi-topic subscriptions
 
 In addition to subscribing a consumer to a single Pulsar topic, you can also subscribe to multiple topics simultaneously. To use multi-topic subscriptions, you can supply a regular expression (regex) or a `List` of topics. If you select topics via regex, all topics must be within the same Pulsar namespace.
@@ -113,6 +124,7 @@ In addition to subscribing a consumer to a single Pulsar topic, you can also sub
 The following is an example. 
 
 ```python
+
 import re
 consumer = client.subscribe(re.compile('persistent://public/default/topic-*'), 'my-subscription')
 while True:
@@ -125,6 +137,7 @@ while True:
         # Message failed to be processed
         consumer.negative_acknowledge(msg)
 client.close()
+
 ```
 
 ## Schema
@@ -136,22 +149,26 @@ from `pulsar.schema.Record` and defines the fields as
 class variables. For example:
 
 ```python
+
 from pulsar.schema import *
 
 class Example(Record):
     a = String()
     b = Integer()
     c = Boolean()
+
 ```
 
 With this simple schema definition, you can create producers, consumers and readers instances that refer to that.
 
 ```python
+
 producer = client.create_producer(
                     topic='my-topic',
                     schema=AvroSchema(Example) )
 
 producer.send(Example(a='Hello', b=1))
+
 ```
 
 After creating the producer, the Pulsar broker validates that the existing topic schema is indeed of "Avro" type and that the format is compatible with the schema definition of the `Example` class.
@@ -167,6 +184,7 @@ object, instance of the schema record class, rather than the raw
 bytes:
 
 ```python
+
 consumer = client.subscribe(
                   topic='my-topic',
                   subscription_name='my-subscription',
@@ -182,6 +200,7 @@ while True:
     except:
         # Message failed to be processed
         consumer.negative_acknowledge(msg)
+
 ```
 
 ### Supported schema types
@@ -232,16 +251,19 @@ When adding a field, you can use these parameters in the constructor.
 ##### Simple definition
 
 ```python
+
 class Example(Record):
     a = String()
     b = Integer()
     c = Array(String())
     i = Map(String())
+
 ```
 
 ##### Using enums
 
 ```python
+
 from enum import Enum
 
 class Color(Enum):
@@ -252,11 +274,13 @@ class Color(Enum):
 class Example(Record):
     name = String()
     color = Color
+
 ```
 
 ##### Complex types
 
 ```python
+
 class MySubRecord(Record):
     x = Integer()
     y = Long()
@@ -265,4 +289,6 @@ class MySubRecord(Record):
 class Example(Record):
     a = String()
     sub = MySubRecord()
+
 ```
+

@@ -1,7 +1,7 @@
 ---
-id: version-2.6.3-security-encryption
+id: security-encryption
 title: Pulsar Encryption
-sidebar_label: End-to-End Encryption
+sidebar_label: "End-to-End Encryption"
 original_id: security-encryption
 ---
 
@@ -20,18 +20,20 @@ You can encrypt a message with more than one key. Any one of the keys used for e
 Pulsar does not store the encryption key anywhere in the Pulsar service. If you lose or delete the private key, your message is irretrievably lost, and is unrecoverable.
 
 ## Producer
-![alt text](assets/pulsar-encryption-producer.jpg "Pulsar Encryption Producer")
+![alt text](/assets/pulsar-encryption-producer.jpg "Pulsar Encryption Producer")
 
 ## Consumer
-![alt text](assets/pulsar-encryption-consumer.jpg "Pulsar Encryption Consumer")
+![alt text](/assets/pulsar-encryption-consumer.jpg "Pulsar Encryption Consumer")
 
 ## Get started
 
 1. Enter the commands below to create your ECDSA or RSA public and private key pair.
 
 ```shell
+
 openssl ecparam -name secp521r1 -genkey -param_enc explicit -out test_ecdsa_privkey.pem
 openssl ec -in test_ecdsa_privkey.pem -pubout -outform pem -out test_ecdsa_pubkey.pem
+
 ```
 
 2. Add the public and private key to the key management and configure your producers to retrieve public keys and consumers clients to retrieve private keys.
@@ -45,6 +47,7 @@ openssl ec -in test_ecdsa_privkey.pem -pubout -outform pem -out test_ecdsa_pubke
 6. Sample producer application:
 
 ```java
+
 class RawFileKeyReader implements CryptoKeyReader {
 
     String publicKeyFile = "";
@@ -94,10 +97,13 @@ for (int i = 0; i < 10; i++) {
 
 producer.close();
 pulsarClient.close();
+
 ```
+
 7. Sample Consumer Application:
 
 ```java
+
 class RawFileKeyReader implements CryptoKeyReader {
 
     String publicKeyFile = "";
@@ -151,6 +157,7 @@ for (int i = 0; i < 10; i++) {
 consumer.acknowledgeCumulative(msg);
 consumer.close();
 pulsarClient.close();
+
 ```
 
 ## Key rotation
@@ -166,8 +173,11 @@ When producers want to encrypt the messages with multiple keys, producers add al
 If you need to encrypt the messages using 2 keys (myapp.messagekey1 and myapp.messagekey2), refer to the following example.
 
 ```java
+
 PulsarClient.newProducer().addEncryptionKey("myapp.messagekey1").addEncryptionKey("myapp.messagekey2");
+
 ```
+
 ## Decrypt encrypted messages at the consumer application
 Consumers require access one of the private keys to decrypt messages that the producer produces. If you want to receive encrypted messages, create a public or private key and give your public key to the producer application to encrypt messages using your public key.
 
