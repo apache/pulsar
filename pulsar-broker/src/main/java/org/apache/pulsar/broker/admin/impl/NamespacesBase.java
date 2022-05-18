@@ -698,23 +698,39 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
-    protected boolean getPermissionOnSubscriptionRequired() {
-        validateNamespaceOperation(namespaceName, NamespaceOperation.GET_PERMISSION);
-        Policies policies = getNamespacePolicies(namespaceName);
-        return policies.auth_policies.isSubscriptionAuthRequired();
+    protected void getPermissionOnSubscriptionRequired(AsyncResponse asyncResponse) {
+        validateNamespaceOperationAsync(namespaceName, NamespaceOperation.GET_PERMISSION)
+                .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName).thenApply(policies ->
+                        asyncResponse.resume(Response.ok(policies.auth_policies.isSubscriptionAuthRequired()).build())
+                )).exceptionally(ex -> {
+                    log.error("[{}] Failed to get PermissionOnSubscriptionRequired", clientAppId(), ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
-    protected void internalSetPermissionOnSubscriptionRequired(boolean permissionOnSubscriptionRequired) {
+    protected void internalSetPermissionOnSubscriptionRequired(AsyncResponse asyncResponse,
+                                                               boolean permissionOnSubscriptionRequired) {
+        CompletableFuture<Void> isAuthorized;
         if (permissionOnSubscriptionRequired) {
-            validateNamespaceOperation(namespaceName, NamespaceOperation.REVOKE_PERMISSION);
+            isAuthorized = validateNamespaceOperationAsync(namespaceName, NamespaceOperation.REVOKE_PERMISSION);
         } else {
-            validateNamespaceOperation(namespaceName, NamespaceOperation.GRANT_PERMISSION);
+            isAuthorized = validateNamespaceOperationAsync(namespaceName, NamespaceOperation.GRANT_PERMISSION);
         }
-        validatePoliciesReadOnlyAccess();
-        updatePolicies(namespaceName, policies -> {
-            policies.auth_policies.setSubscriptionAuthRequired(permissionOnSubscriptionRequired);
-            return policies;
-        });
+        isAuthorized
+                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
+                .thenCompose(__ -> updatePoliciesAsync(namespaceName, policies -> {
+                    policies.auth_policies.setSubscriptionAuthRequired(permissionOnSubscriptionRequired);
+                    return policies;
+                })).thenAccept(__ -> {
+                    log.info("[{}] Updated PermissionOnSubscriptionRequired for namespace {} to {}", clientAppId(),
+                            namespaceName, permissionOnSubscriptionRequired);
+                    asyncResponse.resume(Response.ok().build());
+                }).exceptionally(ex -> {
+                    log.error("[{}] Failed to update PermissionOnSubscriptionRequired", clientAppId(), ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     protected void internalGrantPermissionOnSubscription(String subscription, Set<String> roles) {

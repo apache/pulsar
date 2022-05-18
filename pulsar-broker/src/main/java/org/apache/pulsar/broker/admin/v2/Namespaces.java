@@ -276,11 +276,12 @@ public class Namespaces extends NamespacesBase {
             @ApiResponse(code = 409, message = "Concurrent modification"),
             @ApiResponse(code = 501, message = "Authorization is not enabled")})
     public void setPermissionOnSubscriptionRequired(
+            @Suspended final AsyncResponse asyncResponse,
             @PathParam("property") String property,
             @PathParam("namespace") String namespace,
             boolean required) {
         validateNamespaceName(property, namespace);
-        internalSetPermissionOnSubscriptionRequired(required);
+        internalSetPermissionOnSubscriptionRequired(asyncResponse, required);
     }
 
     @GET
@@ -289,10 +290,11 @@ public class Namespaces extends NamespacesBase {
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist"),
             @ApiResponse(code = 409, message = "Namespace is not empty")})
-    public boolean getPermissionOnSubscriptionRequired(@PathParam("property") String property,
+    public void getPermissionOnSubscriptionRequired(@Suspended final AsyncResponse asyncResponse,
+                                                       @PathParam("property") String property,
                                                        @PathParam("namespace") String namespace) {
         validateNamespaceName(property, namespace);
-        return getPermissionOnSubscriptionRequired();
+        getPermissionOnSubscriptionRequired(asyncResponse);
     }
 
     @GET
