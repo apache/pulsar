@@ -176,7 +176,8 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         verify(response, timeout(5000).times(1)).resume(errorCaptor.capture());
         Assert.assertEquals(errorCaptor.getValue().getResponse().getStatus(),
                 Response.Status.NOT_FOUND.getStatusCode());
-        Assert.assertEquals(errorCaptor.getValue().getMessage(), "Topic not found");
+        Assert.assertEquals(errorCaptor.getValue().getMessage(), String.format("Topic %s not found",
+                "persistent://my-tenant/my-namespace/topic-not-found"));
 
         // 2) Confirm that the partitioned topic does not exist
         response = mock(AsyncResponse.class);
@@ -280,7 +281,12 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         ArgumentCaptor<Response> responseCaptor = ArgumentCaptor.forClass(Response.class);
         verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
         Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
-        TopicStats topicStats = persistentTopics.getStats(testTenant, testNamespace, testLocalTopicName, true, true, false, false);
+
+        response = mock(AsyncResponse.class);
+        persistentTopics.getStats(response, testTenant, testNamespace, testLocalTopicName, true, true, false, false);
+        ArgumentCaptor<TopicStats> statCaptor = ArgumentCaptor.forClass(TopicStats.class);
+        verify(response, timeout(5000).times(1)).resume(statCaptor.capture());
+        TopicStats topicStats = statCaptor.getValue();
         long msgBacklog = topicStats.getSubscriptions().get(SUB_EARLIEST).getMsgBacklog();
         System.out.println("Message back log for " + SUB_EARLIEST + " is :" + msgBacklog);
         Assert.assertEquals(msgBacklog, numberOfMessages);
@@ -293,7 +299,12 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         responseCaptor = ArgumentCaptor.forClass(Response.class);
         verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
         Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
-        topicStats = persistentTopics.getStats(testTenant, testNamespace, testLocalTopicName, true, true, false, false);
+
+        response = mock(AsyncResponse.class);
+        persistentTopics.getStats(response, testTenant, testNamespace, testLocalTopicName, true, true, false, false);
+        statCaptor = ArgumentCaptor.forClass(TopicStats.class);
+        verify(response, timeout(5000).times(1)).resume(statCaptor.capture());
+        topicStats = statCaptor.getValue();
         msgBacklog = topicStats.getSubscriptions().get(SUB_LATEST).getMsgBacklog();
         System.out.println("Message back log for " + SUB_LATEST + " is :" + msgBacklog);
         Assert.assertEquals(msgBacklog, 0);
@@ -306,7 +317,12 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         responseCaptor = ArgumentCaptor.forClass(Response.class);
         verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
         Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
-        topicStats = persistentTopics.getStats(testTenant, testNamespace, testLocalTopicName, true, true, false, false);
+
+        response = mock(AsyncResponse.class);
+        persistentTopics.getStats(response, testTenant, testNamespace, testLocalTopicName, true, true, false, false);
+        statCaptor = ArgumentCaptor.forClass(TopicStats.class);
+        verify(response, timeout(5000).times(1)).resume(statCaptor.capture());
+        topicStats = statCaptor.getValue();
         msgBacklog = topicStats.getSubscriptions().get(SUB_NONE_MESSAGE_ID).getMsgBacklog();
         System.out.println("Message back log for " + SUB_NONE_MESSAGE_ID + " is :" + msgBacklog);
         Assert.assertEquals(msgBacklog, 0);
@@ -319,9 +335,14 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         responseCaptor = ArgumentCaptor.forClass(Response.class);
         verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
         Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
-        TopicStats stats = persistentTopics.getStats(testTenant, testNamespace, testLocalTopicName, true, true, false, false);
-        Assert.assertNotNull(stats.getSubscriptions().get(replicateSubName));
-        Assert.assertTrue(stats.getSubscriptions().get(replicateSubName).isReplicated());
+
+        response = mock(AsyncResponse.class);
+        persistentTopics.getStats(response,testTenant, testNamespace, testLocalTopicName, true, true, false, false);
+        statCaptor = ArgumentCaptor.forClass(TopicStats.class);
+        verify(response, timeout(5000).times(1)).resume(statCaptor.capture());
+        topicStats = statCaptor.getValue();
+        Assert.assertNotNull(topicStats.getSubscriptions().get(replicateSubName));
+        Assert.assertTrue(topicStats.getSubscriptions().get(replicateSubName).isReplicated());
         producer.close();
     }
 

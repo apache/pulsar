@@ -1,7 +1,7 @@
 ---
 author: Jia Zhai
 authorURL: https://twitter.com/Jia_Zhai
-title: Apache Pulsar 2.5.2
+title: "Apache Pulsar 2.5.2"
 ---
 
 We are proud to publish Apache Pulsar 2.5.2. This is the result of a huge effort from the community, with over 56 commits, general improvements and bug fixes.
@@ -96,7 +96,9 @@ If messages are sent to a partitioned topic, the `partition` field of the messag
 In previous releases, Pulsar Functions does not support the Async mode, such as the user passed in a Function in the following format:
 
 ```
+
 Function<I, CompletableFuture<O>>
+
 ```
 
 This kind of function is useful if the Pulsar Functions use RPCs to call external systems. Therefore, in Pulsar 2.5.2, we introduce Async mode support for Pulsar Functions.

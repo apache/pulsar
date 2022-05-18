@@ -1,7 +1,7 @@
 ---
-id: version-2.6.4-security-oauth2
+id: security-oauth2
 title: Client authentication using OAuth 2.0 access tokens
-sidebar_label: Authentication using OAuth 2.0 access tokens
+sidebar_label: "Authentication using OAuth 2.0 access tokens"
 original_id: security-oauth2
 ---
 
@@ -28,12 +28,13 @@ The following table lists parameters supported for the `client credentials` auth
 | --- | --- | --- | --- |
 | `type` | Oauth 2.0 authentication type. |  `client_credentials` (default) | Optional |
 | `issuerUrl` | URL of the authentication provider which allows the Pulsar client to obtain an access token | `https://accounts.google.com` | Required |
-| `privateKey` | URL to a JSON credentials file  | Support the following pattern formats: <br> <li> `file:///path/to/file` <li>`file:/path/to/file` <li> `data:application/json;base64,<base64-encoded value>` | Required |
+| `privateKey` | URL to a JSON credentials file  | Support the following pattern formats: <br /> <li> `file:///path/to/file` </li><li>`file:/path/to/file` </li><li> `data:application/json;base64,<base64-encoded value>` </li>| Required |
 | `audience`  | An OAuth 2.0 "resource server" identifier for the Pulsar cluster | `https://broker.example.com` | Required |
 
 The credentials file contains service account credentials used with the client authentication type. The following shows an example of a credentials file `credentials_file.json`.
 
 ```json
+
 {
   "type": "client_credentials",
   "client_id": "d9ZyX97q1ef8Cr81WHVC4hFQ64vSlDK3",
@@ -41,6 +42,7 @@ The credentials file contains service account credentials used with the client a
   "client_email": "1234567890-abcdefghijklmnopqrstuvwxyz@developer.gserviceaccount.com",
   "issuer_url": "https://accounts.google.com"
 }
+
 ```
 
 In the above example, the authentication type is set to `client_credentials` by default. And the fields "client_id" and "client_secret" are required.
@@ -50,6 +52,7 @@ In the above example, the authentication type is set to `client_credentials` by 
 The following shows a typical original Oauth2 request, which is used to obtain the access token from the Oauth2 server.
 
 ```bash
+
 curl --request POST \
   --url https://dev-kt-aa9ne.us.auth0.com/oauth/token \
   --header 'content-type: application/json' \
@@ -58,6 +61,7 @@ curl --request POST \
   "client_secret":"rT7ps7WY8uhdVuBTKWZkttwLdQotmdEliaM5rLfmgNibvqziZ-g07ZH52N_poGAb",
   "audience":"https://dev-kt-aa9ne.us.auth0.com/api/v2/",
   "grant_type":"client_credentials"}'
+
 ```
 
 In the above example, the mapping relationship is shown as below.
@@ -75,6 +79,7 @@ You can use the Oauth2 authentication provider with the following Pulsar clients
 You can use the factory method to configure authentication for Pulsar Java client.
 
 ```java
+
 String issuerUrl = "https://dev-kt-aa9ne.us.auth0.com/oauth/token";
 String credentialsUrl = "file:///path/to/KeyFile.json";
 String audience = "https://dev-kt-aa9ne.us.auth0.com/api/v2/";
@@ -84,17 +89,20 @@ PulsarClient client = PulsarClient.builder()
     .authentication(
         AuthenticationFactoryOAuth2.clientCredentials(issuerUrl, credentialsUrl, audience))
     .build();
+
 ```
 
 In addition, you can also use the encoded parameters to configure authentication for Pulsar Java client.
 
 ```java
+
 Authentication auth = AuthenticationFactory
     .create(AuthenticationOAuth2.class.getName(), "{"type":"client_credentials","privateKey":"./key/path/..","issuerUrl":"...","audience":"..."}");
 PulsarClient client = PulsarClient.builder()
     .serviceUrl("pulsar://broker.example.com:6650/")
     .authentication(auth)
     .build();
+
 ```
 
 ### C++ client
@@ -102,6 +110,7 @@ PulsarClient client = PulsarClient.builder()
 The C++ client is similar to the Java client. You need to provide parameters of `issuerUrl`, `private_key` (the credentials file path), and the audience.
 
 ```c++
+
 #include <pulsar/Client.h>
 
 pulsar::ClientConfiguration config;
@@ -113,6 +122,7 @@ std::string params = R"({
 config.setAuth(pulsar::AuthOauth2::create(params));
 
 pulsar::Client client("pulsar://broker.example.com:6650/", config);
+
 ```
 
 ### Go client
@@ -121,6 +131,7 @@ To enable OAuth2 authentication in Go client, you need to configure OAuth2 authe
 This example shows how to configure OAuth2 authentication in Go client. 
 
 ```go
+
 oauth := pulsar.NewAuthenticationOAuth2(map[string]string{
 		"type":       "client_credentials",
 		"issuerUrl":  "https://dev-kt-aa9ne.us.auth0.com/oauth/token",
@@ -132,6 +143,7 @@ client, err := pulsar.NewClient(pulsar.ClientOptions{
 		URL:              "puslar://my-cluster:6650",
 		Authentication:   oauth,
 })
+
 ```
 
 ### Python client
@@ -140,6 +152,7 @@ To enable OAuth2 authentication in Python client, you need to configure OAuth2 a
 This example shows how to configure OAuth2 authentication in Python client.
 
 ```python
+
 from pulsar import Client, AuthenticationOauth2
 
 params = '''
@@ -151,4 +164,6 @@ params = '''
 '''
 
 client = Client("puslar://my-cluster:6650", authentication=AuthenticationOauth2(params))
+
 ```
+

@@ -64,6 +64,9 @@ github:
           - CI - Integration - Backwards Compatibility
           - CI - Integration - Cli
           - CI - Integration - Messaging
+          - CI - Integration - Shade on Java 8
+          - CI - Integration - Shade on Java 11
+          - CI - Integration - Shade on Java 17
           - CI - Integration - Standalone
           - CI - Integration - Transaction
           - Build Pulsar docker image
