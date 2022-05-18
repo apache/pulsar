@@ -19,6 +19,12 @@
 package org.apache.pulsar.broker.intercept;
 
 import io.netty.buffer.ByteBuf;
+import java.io.IOException;
+import java.util.Map;
+import javax.servlet.FilterChain;
+import javax.servlet.ServletException;
+import javax.servlet.ServletRequest;
+import javax.servlet.ServletResponse;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.Consumer;
@@ -31,20 +37,14 @@ import org.apache.pulsar.common.api.proto.CommandAck;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.intercept.InterceptException;
 
-import javax.servlet.FilterChain;
-import javax.servlet.ServletException;
-import javax.servlet.ServletRequest;
-import javax.servlet.ServletResponse;
-import java.io.IOException;
-import java.util.Map;
-
 public class BrokerInterceptorDelegator implements BrokerInterceptor {
 
     private volatile BrokerInterceptor interceptor;
 
     BrokerInterceptorDelegator(BrokerInterceptor interceptor) {
-        if (null == interceptor)
+        if (null == interceptor) {
             throw new IllegalArgumentException("Argument [interceptor] is required");
+        }
 
         this.interceptor = interceptor;
     }
@@ -74,12 +74,14 @@ public class BrokerInterceptorDelegator implements BrokerInterceptor {
     }
 
     @Override
-    public void messageProduced(ServerCnx cnx, Producer producer, long startTimeNs, long ledgerId, long entryId, Topic.PublishContext publishContext) {
+    public void messageProduced(ServerCnx cnx, Producer producer, long startTimeNs, long ledgerId, long entryId,
+                                Topic.PublishContext publishContext) {
         this.interceptor.messageProduced(cnx, producer, startTimeNs, ledgerId, entryId, publishContext);
     }
 
     @Override
-    public void messageDispatched(ServerCnx cnx, Consumer consumer, long ledgerId, long entryId, ByteBuf headersAndPayload) {
+    public void messageDispatched(ServerCnx cnx, Consumer consumer, long ledgerId, long entryId,
+                                  ByteBuf headersAndPayload) {
         this.interceptor.messageDispatched(cnx, consumer, ledgerId, entryId, headersAndPayload);
     }
 
@@ -114,12 +116,14 @@ public class BrokerInterceptorDelegator implements BrokerInterceptor {
     }
 
     @Override
-    public void onWebserviceResponse(ServletRequest request, ServletResponse response) throws IOException, ServletException {
+    public void onWebserviceResponse(ServletRequest request, ServletResponse response)
+            throws IOException, ServletException {
         this.interceptor.onWebserviceResponse(request, response);
     }
 
     @Override
-    public void onFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
+    public void onFilter(ServletRequest request, ServletResponse response, FilterChain chain)
+            throws IOException, ServletException {
         this.interceptor.onFilter(request, response, chain);
     }
 
