@@ -372,6 +372,9 @@ public class PulsarAdminToolTest {
         namespaces.run(split("get-clusters myprop/clust/ns1"));
         verify(mockNamespaces).getNamespaceReplicationClusters("myprop/clust/ns1");
 
+        namespaces.run(split("remove-clusters myprop/clust/ns1"));
+        verify(mockNamespaces).removeNamespaceReplicationClusters("myprop/clust/ns1");
+
         namespaces.run(split("set-subscription-types-enabled myprop/clust/ns1 -t Shared,Failover"));
         verify(mockNamespaces).setSubscriptionTypesEnabled("myprop/clust/ns1",
                 Sets.newHashSet(SubscriptionType.Shared, SubscriptionType.Failover));

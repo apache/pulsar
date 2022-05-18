@@ -791,6 +791,20 @@ public abstract class NamespacesBase extends AdminResource {
         });
     }
 
+    protected void internalRemoveNamespaceReplicationClusters() {
+        validateNamespacePolicyOperation(namespaceName, PolicyName.REPLICATION, PolicyOperation.WRITE);
+        validatePoliciesReadOnlyAccess();
+
+        Set<String> replicationClusterSet = namespaceName.isV2()
+                ? Sets.newHashSet(config().getClusterName())
+                : Sets.newHashSet();
+
+        updatePolicies(namespaceName, policies -> {
+            policies.replication_clusters = replicationClusterSet;
+            return policies;
+        });
+    }
+
     protected void internalSetNamespaceMessageTTL(Integer messageTTL) {
         validateNamespacePolicyOperation(namespaceName, PolicyName.TTL, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();

@@ -775,6 +775,22 @@ public interface Namespaces {
     CompletableFuture<List<String>> getNamespaceReplicationClustersAsync(String namespace);
 
     /**
+     * Remove the replication clusters for a namespace.
+     *
+     * @param namespace
+     * @throws PulsarAdminException
+     */
+    void removeNamespaceReplicationClusters(String namespace) throws PulsarAdminException;
+
+    /**
+     * Remove the replication clusters for a namespace asynchronously.
+     *
+     * @param namespace
+     * @return
+     */
+    CompletableFuture<Void> removeNamespaceReplicationClustersAsync(String namespace);
+
+    /**
      * Set the replication clusters for a namespace.
      * <p/>
      * Request example:

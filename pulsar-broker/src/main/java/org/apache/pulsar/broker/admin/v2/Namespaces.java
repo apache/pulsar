@@ -328,6 +328,18 @@ public class Namespaces extends NamespacesBase {
         internalSetNamespaceReplicationClusters(clusterIds);
     }
 
+    @DELETE
+    @Path("/{tenant}/{namespace}/replication")
+    @ApiOperation(value = "Remove the replication clusters for namespace")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist"),
+            @ApiResponse(code = 412, message = "Namespace is not global")})
+    public void removeNamespaceReplicationClusters(@PathParam("tenant") String tenant,
+                                                    @PathParam("namespace") String namespace) {
+        validateNamespaceName(tenant, namespace);
+        internalRemoveNamespaceReplicationClusters();
+    }
+
     @GET
     @Path("/{tenant}/{namespace}/messageTTL")
     @ApiOperation(value = "Get the message TTL for the namespace")

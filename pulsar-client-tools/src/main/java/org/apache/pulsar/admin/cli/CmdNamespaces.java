@@ -331,6 +331,18 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Remove replication clusters for a namespace")
+    private class RemoveReplicationClusters extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            getAdmin().namespaces().removeNamespaceReplicationClusters(namespace);
+        }
+    }
+
     @Parameters(commandDescription = "Set subscription types enabled for a namespace")
     private class SetSubscriptionTypesEnabled extends CliCommand {
         @Parameter(description = "tenant/namespace", required = true)
@@ -2597,6 +2609,7 @@ public class CmdNamespaces extends CmdBase {
 
         jcommander.addCommand("set-clusters", new SetReplicationClusters());
         jcommander.addCommand("get-clusters", new GetReplicationClusters());
+        jcommander.addCommand("remove-clusters", new RemoveReplicationClusters());
 
         jcommander.addCommand("set-subscription-types-enabled", new SetSubscriptionTypesEnabled());
         jcommander.addCommand("get-subscription-types-enabled", new GetSubscriptionTypesEnabled());
