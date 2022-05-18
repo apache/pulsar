@@ -490,7 +490,7 @@ public class Namespaces extends NamespacesBase {
                                                           @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
         internalGetAutoTopicCreationAsync()
-                .thenAccept(autoTopicCreationOverride -> asyncResponse.resume(autoTopicCreationOverride))
+                .thenAccept(asyncResponse::resume)
                 .exceptionally(ex -> {
                     log.error("Failed to get autoTopicCreation info for namespace {}", namespaceName, ex);
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
@@ -524,10 +524,11 @@ public class Namespaces extends NamespacesBase {
                     log.error("[{}] Failed to set autoTopicCreation status on namespace {}", clientAppId(),
                             namespaceName,
                             e.getCause());
-                    if (e.getCause() instanceof MetadataStoreException.NotFoundException) {
+                    if (FutureUtil.unwrapCompletionException(e) instanceof MetadataStoreException.NotFoundException) {
                         asyncResponse.resume(new RestException(Response.Status.NOT_FOUND, "Namespace does not exist"));
+                    } else {
+                        resumeAsyncResponseExceptionally(asyncResponse, e);
                     }
-                    resumeAsyncResponseExceptionally(asyncResponse, e);
                     return null;
                 });
     }
@@ -542,17 +543,19 @@ public class Namespaces extends NamespacesBase {
         validateNamespaceName(tenant, namespace);
         internalSetAutoTopicCreationAsync(null)
                 .thenAccept(__ -> {
-                    log.info("[{}] Successfully remove autoTopicCreation on namespace {}", clientAppId());
+                    log.info("[{}] Successfully remove autoTopicCreation on namespace {}",
+                            clientAppId(), namespaceName);
                     asyncResponse.resume(Response.noContent().build());
                 })
                 .exceptionally(e -> {
                     log.error("[{}] Failed to remove autoTopicCreation status on namespace {}", clientAppId(),
                             namespaceName,
                             e.getCause());
-                    if (e.getCause() instanceof MetadataStoreException.NotFoundException) {
+                    if (FutureUtil.unwrapCompletionException(e) instanceof MetadataStoreException.NotFoundException) {
                         asyncResponse.resume(new RestException(Response.Status.NOT_FOUND, "Namespace does not exist"));
+                    } else {
+                        resumeAsyncResponseExceptionally(asyncResponse, e);
                     }
-                    resumeAsyncResponseExceptionally(asyncResponse, e);
                     return null;
                 });
     }
