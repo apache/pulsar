@@ -75,6 +75,8 @@ public class MLTransactionMetadataStore
     private final LongAdder appendLogCount;
     private final MLTransactionSequenceIdGenerator sequenceIdGenerator;
     private final ExecutorService internalPinnedExecutor;
+    //Store transaction pendingAck recovery start time and end time. The left is start time and the right is end time.
+    public final MutablePair<Long, Long> recoverTimePair = new MutablePair<>(0L, 0L);
 
     public MLTransactionMetadataStore(TransactionCoordinatorID tcID,
                                       MLTransactionLogImpl mlTransactionLog,
@@ -101,6 +103,7 @@ public class MLTransactionMetadataStore
             log.error("Managed ledger transaction metadata store change state error when init it");
             return;
         }
+        recoverTimePair.setLeft(System.currentTimeMillis());
 
         internalPinnedExecutor.execute(() -> transactionLog.replayAsync(new TransactionLogReplayCallback() {
 
@@ -113,6 +116,7 @@ public class MLTransactionMetadataStore
                     recoverTracker.handleCommittingAndAbortingTransaction();
                     timeoutTracker.start();
                 }
+                recoverTimePair.setRight(System.currentTimeMillis());
             }
 
             @Override
@@ -424,6 +428,8 @@ public class MLTransactionMetadataStore
         transactionCoordinatorstats.setLowWaterMark(getLowWaterMark());
         transactionCoordinatorstats.setState(getState().name());
         transactionCoordinatorstats.setLeastSigBits(sequenceIdGenerator.getCurrentSequenceId());
+        transactionCoordinatorstats.recoverStartTime = recoverTimePair.getLeft();
+        transactionCoordinatorstats.recoverEndTime = recoverTimePair.getRight();
         return transactionCoordinatorstats;
     }
 

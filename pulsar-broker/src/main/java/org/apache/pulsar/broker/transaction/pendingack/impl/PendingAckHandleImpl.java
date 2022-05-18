@@ -117,6 +117,9 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
     @Getter
     private final ExecutorService internalPinnedExecutor;
 
+    //Store transaction pendingAck recovery start time and end time. The left is start time and the right is end time.
+    public final MutablePair<Long, Long> recoverTimePair = new MutablePair<>(0L, 0L);
+
 
     public PendingAckHandleImpl(PersistentSubscription persistentSubscription) {
         super(State.None);
@@ -147,6 +150,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                 this.pendingAckStoreFuture =
                         pendingAckStoreProvider.newPendingAckStore(persistentSubscription);
                 this.pendingAckStoreFuture.thenAccept(pendingAckStore -> {
+                    recoverTimePair.setLeft(System.currentTimeMillis());
                     pendingAckStore.replayAsync(this,
                             (ScheduledExecutorService) internalPinnedExecutor);
                 }).exceptionally(e -> {
@@ -861,6 +865,8 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
     public TransactionPendingAckStats getStats() {
         TransactionPendingAckStats transactionPendingAckStats = new TransactionPendingAckStats();
         transactionPendingAckStats.state = this.getState().name();
+        transactionPendingAckStats.recoverStartTime = recoverTimePair.getLeft();
+        transactionPendingAckStats.recoverEndTime = recoverTimePair.getRight();
         return transactionPendingAckStats;
     }
 
@@ -868,11 +874,17 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
         if (!this.pendingAckHandleCompletableFuture.isDone()) {
             this.pendingAckHandleCompletableFuture.complete(PendingAckHandleImpl.this);
         }
+        if (recoverTimePair.getLeft() == 0L) {
+            return;
+        } else {
+            recoverTimePair.setRight(System.currentTimeMillis());
+        }
     }
 
     public synchronized void exceptionHandleFuture(Throwable t) {
         if (!this.pendingAckHandleCompletableFuture.isDone()) {
             this.pendingAckHandleCompletableFuture.completeExceptionally(t);
+            recoverTimePair.setRight(-1L);
         }
     }
 

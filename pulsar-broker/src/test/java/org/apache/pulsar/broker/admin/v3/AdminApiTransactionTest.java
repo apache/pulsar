@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.admin.v3;
 
 import com.google.common.collect.Sets;
 import java.util.Set;
+import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.http.HttpStatus;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -65,6 +66,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertFalse;
@@ -566,6 +568,61 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
             fail();
         } catch (PulsarAdminException.NotAuthorizedException ignored) {
         }
+    }
+
+    @Test
+    public void testGetRecoveryTime() throws Exception {
+        initTransaction(1);
+        final String topic = "persistent://public/default/testGetRecoveryTime";
+        final String subName = "test";
+
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .subscriptionName(subName)
+                .topic(topic)
+                .subscribe();
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .sendTimeout(0, TimeUnit.SECONDS)
+                .topic(topic)
+                .create();
+
+        Awaitility.await().untilAsserted(() -> {
+            Map<Integer, TransactionCoordinatorStats> transactionCoordinatorStatsMap =
+                    admin.transactions().getCoordinatorStats();
+            assertNotEquals(transactionCoordinatorStatsMap.get(0).recoverStartTime, 0L);
+            assertNotEquals(transactionCoordinatorStatsMap.get(0).recoverEndTime, 0L);
+            assertNotEquals(transactionCoordinatorStatsMap.get(0).recoverEndTime, -1L);
+        });
+        Awaitility.await().untilAsserted(() -> {
+            TransactionBufferStats transactionBufferStats = admin.transactions().getTransactionBufferStats(topic);
+            assertNotEquals(transactionBufferStats.recoverStartTime, 0L);
+            assertNotEquals(transactionBufferStats.recoverEndTime, 0L);
+            assertNotEquals(transactionBufferStats.recoverEndTime, -1L);
+        });
+
+        TransactionPendingAckStats transactionPendingAckStats =
+                admin.transactions().getPendingAckStats(topic, subName);
+        assertEquals(transactionPendingAckStats.recoverStartTime, 0L);
+        assertEquals(transactionPendingAckStats.recoverEndTime, 0L);
+
+        Transaction transaction1 = pulsarClient.newTransaction()
+                .withTransactionTimeout(5, TimeUnit.MINUTES)
+                .build()
+                .get();
+
+        producer.newMessage().send();
+        Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
+
+        consumer.acknowledgeAsync(message.getMessageId(), transaction1);
+        transaction1.commit().get();
+
+        transactionPendingAckStats =
+                admin.transactions().getPendingAckStats(topic, subName);
+        assertNotEquals(transactionPendingAckStats.recoverStartTime, 0L);
+        assertNotEquals(transactionPendingAckStats.recoverEndTime, 0L);
+        assertNotEquals(transactionPendingAckStats.recoverEndTime, -1L);
     }
 
     private static void verifyCoordinatorStats(String state,

@@ -38,6 +38,7 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.collections4.map.LinkedMap;
+import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -98,6 +99,9 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
 
     private final ConcurrentHashMap<Long, Long> lowWaterMarks = new ConcurrentHashMap<>();
 
+    //Store transaction buffer recovery start time and end time. The left is start time and the right is end time.
+    public final MutablePair<Long, Long> recoverTimePair = new MutablePair<>(0L, 0L);
+
     public TopicTransactionBuffer(PersistentTopic topic) {
         super(State.None);
         this.topic = topic;
@@ -113,6 +117,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
     }
 
     private void recover() {
+        recoverTimePair.setLeft(System.currentTimeMillis());
         this.topic.getBrokerService().getPulsar().getTransactionExecutorProvider().getExecutor(this)
                 .execute(new TopicTransactionBufferRecover(new TopicTransactionBufferRecoverCallBack() {
                     @Override
@@ -130,6 +135,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                                 timer.newTimeout(TopicTransactionBuffer.this,
                                         takeSnapshotIntervalTime, TimeUnit.MILLISECONDS);
                                 transactionBufferFuture.complete(null);
+                                recoverTimePair.setRight(System.currentTimeMillis());
                             }
                         }
                     }
@@ -145,6 +151,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                                 log.error("[{}]Transaction buffer recover fail", topic.getName());
                             } else {
                                 transactionBufferFuture.complete(null);
+                                recoverTimePair.setRight(System.currentTimeMillis());
                             }
                         }
                     }
@@ -198,6 +205,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                         } else {
                             transactionBufferFuture.completeExceptionally(e);
                         }
+                        recoverTimePair.setRight(-1L);
                         topic.close(true);
                     }
                 }, this.topic, this, takeSnapshotWriter));
@@ -548,6 +556,8 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         transactionBufferStats.lastSnapshotTimestamps = this.lastSnapshotTimestamps;
         transactionBufferStats.state = this.getState().name();
         transactionBufferStats.maxReadPosition = this.maxReadPosition.toString();
+        transactionBufferStats.recoverStartTime = recoverTimePair.getLeft();
+        transactionBufferStats.recoverEndTime = recoverTimePair.getRight();
         return transactionBufferStats;
     }
 
