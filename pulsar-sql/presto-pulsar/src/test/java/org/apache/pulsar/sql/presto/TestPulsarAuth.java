@@ -147,10 +147,13 @@ public class TestPulsarAuth extends MockedPulsarServiceBaseTest {
         String deniedRole = RandomStringUtils.randomAlphabetic(4) + "-denied";
         String topic = "persistent://p1/c1/ns1/" + RandomStringUtils.randomAlphabetic(4);
         String otherTopic = "persistent://p1/c1/ns1/" + RandomStringUtils.randomAlphabetic(4) + "-other";
+        String partitionedTopic = "persistent://p1/c1/ns1/" + RandomStringUtils.randomAlphabetic(4);
         String passToken = AuthTokenUtils.createToken(secretKey, passRole, Optional.empty());
         String deniedToken = AuthTokenUtils.createToken(secretKey, deniedRole, Optional.empty());
 
         admin.topics().grantPermission(topic, passRole, EnumSet.of(AuthAction.consume));
+        admin.topics().createPartitionedTopic(partitionedTopic, 2);
+        admin.topics().grantPermission(partitionedTopic, passRole, EnumSet.of(AuthAction.consume));
         waitForChange();
 
         ConnectorSession session = mock(ConnectorSession.class);
@@ -225,6 +228,14 @@ public class TestPulsarAuth extends MockedPulsarServiceBaseTest {
             Assert.assertEquals(PERMISSION_DENIED.toErrorCode(), e.getErrorCode());
             Assert.assertTrue(e.getMessage().contains("not authorized"));
         }
+
+        pulsarAuth.cleanSession(session);
+
+        doReturn(new HashMap<String, String>() {{
+            put("auth-plugin", "org.apache.pulsar.client.impl.auth.AuthenticationToken");
+            put("auth-params", passToken);
+        }}).when(identity).getExtraCredentials();
+        pulsarAuth.checkTopicAuth(session, topic); // should pass for the partitioned topic case
 
         pulsarAuth.cleanSession(session);
         Assert.assertTrue(pulsarAuth.authorizedQueryTopicsMap.isEmpty());

@@ -101,7 +101,11 @@ public class PulsarAuth {
                     .serviceUrl(pulsarConnectorConfig.getBrokerBinaryServiceUrl())
                     .authentication(authMethod, authParams)
                     .build();
-            client.newReader().topic(topic).receiverQueueSize(0).startMessageId(MessageId.earliest).create().close();
+            client.newReader().topic(topic)
+                    // For the case of the partitioned topic, the receiverQueueSize must be greater than 0.
+                    .receiverQueueSize(1)
+                    .startMessageId(MessageId.earliest)
+                    .create().close();
             authorizedQueryTopicsMap.computeIfPresent(session.getQueryId(), (query, topics) -> {
                 topics.add(topic);
                 return topics;
