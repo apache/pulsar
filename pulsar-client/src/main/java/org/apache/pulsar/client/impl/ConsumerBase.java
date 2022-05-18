@@ -99,7 +99,8 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
             AtomicLongFieldUpdater.newUpdater(ConsumerBase.class, "consumerEpoch");
 
     private static final String RECONSUME_LATER_ERROR_MSG =
-      "reconsumeLater method not supported because retryEnabled is set to false. You can enable it via ConsumerBuilder.";
+            "reconsumeLater method not supported because retryEnabled is set to false. "
+          + "You can enable it via ConsumerBuilder.";
 
     @Setter
     @Getter
