@@ -493,7 +493,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         doThrow(new RuntimeException("test")).when(reader).hasMoreEvents();
         // check reader close topic
         checkCloseTopic(pulsarClient, transactionBufferSnapshotServiceOriginal,
-                transactionBufferSnapshotService, originalTopic, field, producer);
+                transactionBufferSnapshotService, originalTopic, field);
         doReturn(true).when(reader).hasMoreEvents();
 
         // mock reader can't read snapshot fail throw PulsarClientException
