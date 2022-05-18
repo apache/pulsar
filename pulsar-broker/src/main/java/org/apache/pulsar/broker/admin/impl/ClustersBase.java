@@ -32,7 +32,6 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
@@ -47,6 +46,7 @@ import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.resources.ClusterResources.FailureDomainResources;
 import org.apache.pulsar.broker.web.RestException;
@@ -238,68 +238,62 @@ public class ClustersBase extends AdminResource {
             @ApiResponse(code = 412, message = "Peer cluster doesn't exist."),
             @ApiResponse(code = 500, message = "Internal server error.")
     })
-    public void setPeerClusterNames(
-        @ApiParam(
-            value = "The cluster name",
-            required = true
-        )
-        @PathParam("cluster") String cluster,
-        @ApiParam(
-            value = "The list of peer cluster names",
-            required = true,
-            examples = @Example(
-                value = @ExampleProperty(
-                    mediaType = MediaType.APPLICATION_JSON,
-                    value =
-                          "[\n"
-                        + "   'cluster-a',\n"
-                        + "   'cluster-b'\n"
-                        + "]"
-                )
-            )
-        )
-        LinkedHashSet<String> peerClusterNames
-    ) {
-        validateSuperUserAccess();
-        validatePoliciesReadOnlyAccess();
-
-        // validate if peer-cluster exist
-        if (peerClusterNames != null && !peerClusterNames.isEmpty()) {
-            for (String peerCluster : peerClusterNames) {
-                try {
-                    if (cluster.equalsIgnoreCase(peerCluster)) {
-                        throw new RestException(Status.PRECONDITION_FAILED,
-                                cluster + " itself can't be part of peer-list");
+    public void setPeerClusterNames(@Suspended AsyncResponse asyncResponse,
+                                    @ApiParam(value = "The cluster name", required = true)
+                                    @PathParam("cluster") String cluster,
+                                    @ApiParam(
+                                        value = "The list of peer cluster names",
+                                        required = true,
+                                        examples = @Example(
+                                        value = @ExampleProperty(mediaType = MediaType.APPLICATION_JSON,
+                                        value = "[\n"
+                                                + "   'cluster-a',\n"
+                                                + "   'cluster-b'\n"
+                                                + "]")))
+                                    LinkedHashSet<String> peerClusterNames) {
+        validateSuperUserAccessAsync()
+                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
+                .thenCompose(__ -> innerSetPeerClusterNamesAsync(cluster, peerClusterNames))
+                .thenAccept(__ -> {
+                    log.info("[{}] Successfully added peer-cluster {} for {}",
+                            clientAppId(), peerClusterNames, cluster);
+                    asyncResponse.resume(Response.noContent().build());
+                }).exceptionally(ex -> {
+                    Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+                    log.error("[{}] Failed to validate peer-cluster list {}, {}", clientAppId(), peerClusterNames, ex);
+                    if (realCause instanceof NotFoundException) {
+                        asyncResponse.resume(new RestException(Status.NOT_FOUND, "Cluster does not exist"));
+                        return null;
                     }
-                    clusterResources().getCluster(peerCluster)
-                            .orElseThrow(() -> new RestException(Status.PRECONDITION_FAILED,
-                                    "Peer cluster " + peerCluster + " does not exist"));
-                } catch (RestException e) {
-                    log.warn("[{}] Peer cluster doesn't exist from {}, {}", clientAppId(), peerClusterNames,
-                            e.getMessage());
-                    throw e;
-                } catch (Exception e) {
-                    log.warn("[{}] Failed to validate peer-cluster list {}, {}", clientAppId(), peerClusterNames,
-                            e.getMessage());
-                    throw new RestException(e);
-                }
-            }
-        }
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
 
-        try {
-            clusterResources().updateCluster(cluster, old ->
-                old.clone()
-                        .peerClusterNames(peerClusterNames)
-                        .build()
-            );
-            log.info("[{}] Successfully added peer-cluster {} for {}", clientAppId(), peerClusterNames, cluster);
-        } catch (NotFoundException e) {
-            log.warn("[{}] Failed to update cluster {}: Does not exist", clientAppId(), cluster);
-            throw new RestException(Status.NOT_FOUND, "Cluster does not exist");
-        } catch (Exception e) {
-            log.error("[{}] Failed to update cluster {}", clientAppId(), cluster, e);
-            throw new RestException(e);
+    }
+
+    private CompletableFuture<Void> innerSetPeerClusterNamesAsync(String cluster,
+                                                                LinkedHashSet<String> peerClusterNames) {
+        // validate if peer-cluster exist
+        CompletableFuture<Void> future;
+        if (CollectionUtils.isNotEmpty(peerClusterNames)) {
+            future = FutureUtil.waitForAll(peerClusterNames.stream().map(peerCluster -> {
+                if (cluster.equalsIgnoreCase(peerCluster)) {
+                    return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED,
+                            cluster + " itself can't be part of peer-list"));
+                }
+                return clusterResources().getClusterAsync(peerCluster)
+                        .thenAccept(peerClusterOpt -> {
+                            if (!peerClusterOpt.isPresent()) {
+                                throw new RestException(Status.PRECONDITION_FAILED,
+                                        "Peer cluster " + peerCluster + " does not exist");
+                            }
+                        });
+            }).collect(Collectors.toList()));
+        } else {
+            future = CompletableFuture.completedFuture(null);
         }
+        return future.thenCompose(__ -> clusterResources().updateClusterAsync(cluster,
+                old -> old.clone().peerClusterNames(peerClusterNames).build()));
     }
 
     @GET
@@ -315,22 +309,20 @@ public class ClustersBase extends AdminResource {
             @ApiResponse(code = 404, message = "Cluster doesn't exist."),
             @ApiResponse(code = 500, message = "Internal server error.")
     })
-    public Set<String> getPeerCluster(
-            @ApiParam(
-                    value = "The cluster name",
-                    required = true
-            )
-            @PathParam("cluster") String cluster
-    ) {
-        validateSuperUserAccess();
-        try {
-            ClusterData clusterData = clusterResources().getCluster(cluster)
-                    .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Cluster does not exist"));
-            return clusterData.getPeerClusterNames();
-        } catch (Exception e) {
-            log.error("[{}] Failed to get cluster {}", clientAppId(), cluster, e);
-            throw new RestException(e);
-        }
+    public void getPeerCluster(@Suspended AsyncResponse asyncResponse,
+                               @ApiParam(value = "The cluster name", required = true)
+                               @PathParam("cluster") String cluster) {
+        validateSuperUserAccessAsync()
+                .thenCompose(__ -> clusterResources().getClusterAsync(cluster))
+                .thenAccept(clusterOpt -> {
+                    ClusterData clusterData =
+                            clusterOpt.orElseThrow(() -> new RestException(Status.NOT_FOUND, "Cluster does not exist"));
+                    asyncResponse.resume(clusterData.getPeerClusterNames());
+                }).exceptionally(ex -> {
+                    log.error("[{}] Failed to get cluster {}", clientAppId(), cluster, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @DELETE
@@ -346,54 +338,49 @@ public class ClustersBase extends AdminResource {
             @ApiResponse(code = 412, message = "Cluster is not empty."),
             @ApiResponse(code = 500, message = "Internal server error.")
     })
-    public void deleteCluster(
-        @ApiParam(
-            value = "The cluster name",
-            required = true
-        )
-        @PathParam("cluster") String cluster
-    ) {
-        validateSuperUserAccess();
-        validatePoliciesReadOnlyAccess();
+    public void deleteCluster(@Suspended AsyncResponse asyncResponse,
+                              @ApiParam(value = "The cluster name", required = true)
+                              @PathParam("cluster") String cluster) {
+        validateSuperUserAccessAsync()
+                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
+                .thenCompose(__ -> internalDeleteClusterAsync(cluster))
+                .thenAccept(__ -> {
+                    log.info("[{}] Deleted cluster {}", clientAppId(), cluster);
+                    asyncResponse.resume(Response.noContent().build());
+                }).exceptionally(ex -> {
+                    Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+                    if (realCause instanceof NotFoundException) {
+                        log.warn("[{}] Failed to delete cluster {} - Does not exist", clientAppId(), cluster);
+                        asyncResponse.resume(new RestException(Status.NOT_FOUND, "Cluster does not exist"));
+                        return null;
+                    }
+                    log.error("[{}] Failed to delete cluster {}", clientAppId(), cluster, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
+    }
 
+    private CompletableFuture<Void> internalDeleteClusterAsync(String cluster) {
         // Check that the cluster is not used by any tenant (eg: no namespaces provisioned there)
-        boolean isClusterUsed = false;
-        try {
-            isClusterUsed = pulsar().getPulsarResources().getClusterResources().isClusterUsed(cluster);
-
-            // check the namespaceIsolationPolicies associated with the cluster
-            Optional<NamespaceIsolationPolicies> nsIsolationPolicies =
-                    namespaceIsolationPolicies().getIsolationDataPolicies(cluster);
-
-            // Need to delete the isolation policies if present
-            if (nsIsolationPolicies.isPresent()) {
-                if (nsIsolationPolicies.get().getPolicies().isEmpty()) {
-                    namespaceIsolationPolicies().deleteIsolationData(cluster);
-                } else {
-                    isClusterUsed = true;
-                }
-            }
-        } catch (Exception e) {
-            log.error("[{}] Failed to get cluster usage {}", clientAppId(), cluster, e);
-            throw new RestException(e);
-        }
-
-        if (isClusterUsed) {
-            log.warn("[{}] Failed to delete cluster {} - Cluster not empty", clientAppId(), cluster);
-            throw new RestException(Status.PRECONDITION_FAILED, "Cluster not empty");
-        }
-
-        try {
-            clusterResources().getFailureDomainResources().deleteFailureDomains(cluster);
-            clusterResources().deleteCluster(cluster);
-            log.info("[{}] Deleted cluster {}", clientAppId(), cluster);
-        } catch (NotFoundException e) {
-            log.warn("[{}] Failed to delete cluster {} - Does not exist", clientAppId(), cluster);
-            throw new RestException(Status.NOT_FOUND, "Cluster does not exist");
-        } catch (Exception e) {
-            log.error("[{}] Failed to delete cluster {}", clientAppId(), cluster, e);
-            throw new RestException(e);
-        }
+        return pulsar().getPulsarResources().getClusterResources().isClusterUsedAsync(cluster)
+                .thenCompose(isClusterUsed -> {
+                    if (isClusterUsed) {
+                        throw new RestException(Status.PRECONDITION_FAILED, "Cluster not empty");
+                    }
+                    // check the namespaceIsolationPolicies associated with the cluster
+                    return namespaceIsolationPolicies().getIsolationDataPoliciesAsync(cluster);
+                }).thenCompose(nsIsolationPoliciesOpt -> {
+                    if (nsIsolationPoliciesOpt.isPresent()) {
+                        if (!nsIsolationPoliciesOpt.get().getPolicies().isEmpty()) {
+                            throw new RestException(Status.PRECONDITION_FAILED, "Cluster not empty");
+                        }
+                        // Need to delete the isolation policies if present
+                        return namespaceIsolationPolicies().deleteIsolationDataAsync(cluster);
+                    }
+                    return CompletableFuture.completedFuture(null);
+                }).thenCompose(unused -> clusterResources()
+                        .getFailureDomainResources().deleteFailureDomainsAsync(cluster)
+                        .thenCompose(__ -> clusterResources().deleteClusterAsync(cluster)));
     }
 
     @GET
@@ -409,30 +396,48 @@ public class ClustersBase extends AdminResource {
             @ApiResponse(code = 404, message = "Cluster doesn't exist."),
             @ApiResponse(code = 500, message = "Internal server error.")
     })
-    public Map<String, ? extends NamespaceIsolationData> getNamespaceIsolationPolicies(
-        @ApiParam(
-            value = "The cluster name",
-            required = true
-        )
-        @PathParam("cluster") String cluster
-    ) throws Exception {
-        validateSuperUserAccess();
-        if (!clusterResources().clusterExists(cluster)) {
-            throw new RestException(Status.NOT_FOUND, "Cluster " + cluster + " does not exist.");
-        }
-
-        try {
-            NamespaceIsolationPolicies nsIsolationPolicies = namespaceIsolationPolicies()
-                    .getIsolationDataPolicies(cluster)
-                    .orElseThrow(() -> new RestException(Status.NOT_FOUND,
-                            "NamespaceIsolationPolicies for cluster " + cluster + " does not exist"));
-            // construct the response to Namespace isolation data map
-            return nsIsolationPolicies.getPolicies();
-        } catch (Exception e) {
-            log.error("[{}] Failed to get clusters/{}/namespaceIsolationPolicies", clientAppId(), cluster, e);
-            throw new RestException(e);
-        }
+    public void getNamespaceIsolationPolicies(
+        @Suspended AsyncResponse asyncResponse,
+        @ApiParam(value = "The cluster name", required = true) @PathParam("cluster") String cluster
+    ) {
+        validateSuperUserAccessAsync()
+                .thenCompose(__ -> validateClusterExistAsync(cluster, Status.NOT_FOUND))
+                .thenCompose(__ -> internalGetNamespaceIsolationPolicies(cluster))
+                .thenAccept(asyncResponse::resume)
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to get clusters/{}/namespaceIsolationPolicies", clientAppId(), cluster, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
+
+    /**
+     * Verify that the cluster exists.
+     * For compatibility to avoid breaking changes, we can specify a REST status code when it doesn't exist.
+     * @param cluster Cluster name
+     * @param notExistStatus REST status code
+     */
+    private CompletableFuture<Void> validateClusterExistAsync(String cluster, Status notExistStatus) {
+        return clusterResources().clusterExistsAsync(cluster)
+                .thenAccept(clusterExist -> {
+                    if (!clusterExist) {
+                        throw new RestException(notExistStatus, "Cluster " + cluster + " does not exist.");
+                    }
+                });
+    }
+
+    private CompletableFuture<Map<String, NamespaceIsolationDataImpl>> internalGetNamespaceIsolationPolicies(
+            String cluster) {
+            return namespaceIsolationPolicies().getIsolationDataPoliciesAsync(cluster)
+                    .thenApply(namespaceIsolationPolicies -> {
+                        if (!namespaceIsolationPolicies.isPresent()) {
+                            throw new RestException(Status.NOT_FOUND,
+                                    "NamespaceIsolationPolicies for cluster " + cluster + " does not exist");
+                        }
+                        return namespaceIsolationPolicies.get().getPolicies();
+                    });
+    }
+
 
     @GET
     @Path("/{cluster}/namespaceIsolationPolicies/{policyName}")
@@ -447,40 +452,28 @@ public class ClustersBase extends AdminResource {
             @ApiResponse(code = 412, message = "Cluster doesn't exist."),
             @ApiResponse(code = 500, message = "Internal server error.")
     })
-    public NamespaceIsolationData getNamespaceIsolationPolicy(
-        @ApiParam(
-            value = "The cluster name",
-            required = true
-        )
-        @PathParam("cluster") String cluster,
-        @ApiParam(
-            value = "The name of the namespace isolation policy",
-            required = true
-        )
+    public void getNamespaceIsolationPolicy(
+        @Suspended AsyncResponse asyncResponse,
+        @ApiParam(value = "The cluster name", required = true) @PathParam("cluster") String cluster,
+        @ApiParam(value = "The name of the namespace isolation policy", required = true)
         @PathParam("policyName") String policyName
-    ) throws Exception {
-        validateSuperUserAccess();
-        validateClusterExists(cluster);
-
-        try {
-            NamespaceIsolationPolicies nsIsolationPolicies = namespaceIsolationPolicies()
-                    .getIsolationDataPolicies(cluster)
-                    .orElseThrow(() -> new RestException(Status.NOT_FOUND,
-                            "NamespaceIsolationPolicies for cluster " + cluster + " does not exist"));
-            // construct the response to Namespace isolation data map
-            if (!nsIsolationPolicies.getPolicies().containsKey(policyName)) {
-                log.info("[{}] Cannot find NamespaceIsolationPolicy {} for cluster {}",
-                        clientAppId(), policyName, cluster);
-                throw new RestException(Status.NOT_FOUND,
-                        "Cannot find NamespaceIsolationPolicy " + policyName + " for cluster " + cluster);
-            }
-            return nsIsolationPolicies.getPolicies().get(policyName);
-        } catch (RestException re) {
-            throw re;
-        } catch (Exception e) {
-            log.error("[{}] Failed to get clusters/{}/namespaceIsolationPolicies/{}", clientAppId(), cluster, e);
-            throw new RestException(e);
-        }
+    ) {
+        validateSuperUserAccessAsync()
+                .thenCompose(__ -> validateClusterExistAsync(cluster, Status.PRECONDITION_FAILED))
+                .thenCompose(__ -> internalGetNamespaceIsolationPolicies(cluster))
+                .thenAccept(policies -> {
+                    // construct the response to Namespace isolation data map
+                    if (!policies.containsKey(policyName)) {
+                        throw new RestException(Status.NOT_FOUND,
+                                "Cannot find NamespaceIsolationPolicy " + policyName + " for cluster " + cluster);
+                    }
+                    asyncResponse.resume(policies.get(policyName));
+                }).exceptionally(ex -> {
+                    log.error("[{}] Failed to get clusters/{}/namespaceIsolationPolicies/{}",
+                            clientAppId(), cluster, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @GET
@@ -497,53 +490,44 @@ public class ClustersBase extends AdminResource {
         @ApiResponse(code = 412, message = "Cluster doesn't exist."),
         @ApiResponse(code = 500, message = "Internal server error.")
     })
-    public List<BrokerNamespaceIsolationData> getBrokersWithNamespaceIsolationPolicy(
-            @ApiParam(
-                value = "The cluster name",
-                required = true
-            )
+    public void getBrokersWithNamespaceIsolationPolicy(
+            @Suspended AsyncResponse asyncResponse,
+            @ApiParam(value = "The cluster name", required = true)
             @PathParam("cluster") String cluster) {
-        validateSuperUserAccess();
-        validateClusterExists(cluster);
-
-        Set<String> availableBrokers;
-        Map<String, ? extends NamespaceIsolationData> nsPolicies;
-        try {
-            availableBrokers = pulsar().getLoadManager().get().getAvailableBrokers();
-        } catch (Exception e) {
-            log.error("[{}] Failed to get list of brokers in cluster {}", clientAppId(), cluster, e);
-            throw new RestException(e);
-        }
-        try {
-            Optional<NamespaceIsolationPolicies> nsPoliciesResult = namespaceIsolationPolicies()
-                    .getIsolationDataPolicies(cluster);
-            if (!nsPoliciesResult.isPresent()) {
-                throw new RestException(Status.NOT_FOUND, "namespace-isolation policies not found for " + cluster);
-            }
-            nsPolicies = nsPoliciesResult.get().getPolicies();
-        } catch (Exception e) {
-            log.error("[{}] Failed to get namespace isolation-policies {}", clientAppId(), cluster, e);
-            throw new RestException(e);
-        }
-        return availableBrokers.stream().map(broker -> {
-            BrokerNamespaceIsolationData.Builder brokerIsolationData = BrokerNamespaceIsolationData.builder()
-                    .brokerName(broker);
-            if (nsPolicies != null) {
-                List<String> namespaceRegexes = new ArrayList<>();
-                nsPolicies.forEach((name, policyData) -> {
-                    NamespaceIsolationPolicyImpl nsPolicyImpl = new NamespaceIsolationPolicyImpl(policyData);
-                    if (nsPolicyImpl.isPrimaryBroker(broker) || nsPolicyImpl.isSecondaryBroker(broker)) {
-                        namespaceRegexes.addAll(policyData.getNamespaces());
-                        if (nsPolicyImpl.isPrimaryBroker(broker)) {
-                            brokerIsolationData.primary(true);
-                        }
-                    }
+        validateSuperUserAccessAsync()
+                .thenCompose(__ -> validateClusterExistAsync(cluster, Status.PRECONDITION_FAILED))
+                .thenCompose(__ -> pulsar().getLoadManager().get().getAvailableBrokersAsync())
+                .thenCompose(availableBrokers -> internalGetNamespaceIsolationPolicies(cluster)
+                        .thenApply(policies -> availableBrokers.stream()
+                                .map(broker -> internalGetBrokerNsIsolationData(broker, policies))
+                                .collect(Collectors.toList())))
+                .thenAccept(asyncResponse::resume)
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to get namespace isolation-policies {}", clientAppId(), cluster, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
                 });
+    }
 
-                brokerIsolationData.namespaceRegex(namespaceRegexes);
-            }
+    private BrokerNamespaceIsolationData internalGetBrokerNsIsolationData(
+                                                                    String broker,
+                                                                    Map<String, NamespaceIsolationDataImpl> policies) {
+        BrokerNamespaceIsolationData.Builder brokerIsolationData =
+                BrokerNamespaceIsolationData.builder().brokerName(broker);
+        if (policies == null) {
             return brokerIsolationData.build();
-        }).collect(Collectors.toList());
+        }
+        List<String> namespaceRegexes = new ArrayList<>();
+        policies.forEach((name, policyData) -> {
+            NamespaceIsolationPolicyImpl nsPolicyImpl = new NamespaceIsolationPolicyImpl(policyData);
+            if (nsPolicyImpl.isPrimaryBroker(broker) || nsPolicyImpl.isSecondaryBroker(broker)) {
+                namespaceRegexes.addAll(policyData.getNamespaces());
+                brokerIsolationData.primary(nsPolicyImpl.isPrimaryBroker(broker));
+                brokerIsolationData.policyName(name);
+            }
+        });
+        brokerIsolationData.namespaceRegex(namespaceRegexes);
+        return brokerIsolationData.build();
     }
 
     @GET

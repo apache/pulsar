@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.common.policies.data.stats;
 
+import static java.util.Comparator.naturalOrder;
+import static java.util.Comparator.nullsLast;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
@@ -62,10 +64,10 @@ public class NonPersistentTopicStatsImpl extends TopicStatsImpl implements NonPe
 
     @JsonProperty("publishers")
     public List<NonPersistentPublisherStats> getNonPersistentPublishers() {
-        return Stream.concat(nonPersistentPublishers.stream()
-                                .sorted(Comparator.comparing(NonPersistentPublisherStats::getProducerName)),
-                nonPersistentPublishersMap.values().stream()
-                        .sorted(Comparator.comparing(NonPersistentPublisherStats::getProducerName)))
+        return Stream.concat(nonPersistentPublishers.stream().sorted(
+                        Comparator.comparing(NonPersistentPublisherStats::getProducerName, nullsLast(naturalOrder()))),
+                nonPersistentPublishersMap.values().stream().sorted(
+                        Comparator.comparing(NonPersistentPublisherStats::getProducerName, nullsLast(naturalOrder()))))
                 .collect(Collectors.toList());
     }
 
@@ -92,10 +94,10 @@ public class NonPersistentTopicStatsImpl extends TopicStatsImpl implements NonPe
 
     @SuppressFBWarnings(value = "MF_CLASS_MASKS_FIELD", justification = "expected to override")
     public List<NonPersistentPublisherStats> getPublishers() {
-        return Stream.concat(nonPersistentPublishers.stream()
-                                .sorted(Comparator.comparing(NonPersistentPublisherStats::getProducerName)),
-                nonPersistentPublishersMap.values()
-                        .stream().sorted(Comparator.comparing(NonPersistentPublisherStats::getProducerName)))
+        return Stream.concat(nonPersistentPublishers.stream().sorted(
+                        Comparator.comparing(NonPersistentPublisherStats::getProducerName, nullsLast(naturalOrder()))),
+                nonPersistentPublishersMap.values().stream().sorted(
+                        Comparator.comparing(NonPersistentPublisherStats::getProducerName, nullsLast(naturalOrder()))))
                 .collect(Collectors.toList());
     }
 
@@ -106,9 +108,10 @@ public class NonPersistentTopicStatsImpl extends TopicStatsImpl implements NonPe
     }
 
     public void addPublisher(NonPersistentPublisherStatsImpl stats) {
-        if (stats.isSupportsPartialProducer()) {
+        if (stats.isSupportsPartialProducer() && stats.getProducerName() != null) {
             nonPersistentPublishersMap.put(stats.getProducerName(), stats);
         } else {
+            stats.setSupportsPartialProducer(false); // setter method with side effect
             nonPersistentPublishers.add(stats);
         }
     }
@@ -153,7 +156,7 @@ public class NonPersistentTopicStatsImpl extends TopicStatsImpl implements NonPe
         this.msgDropRate += stats.msgDropRate;
 
         stats.getNonPersistentPublishers().forEach(s -> {
-            if (s.isSupportsPartialProducer()) {
+            if (s.isSupportsPartialProducer() && s.getProducerName() != null) {
                 ((NonPersistentPublisherStatsImpl) this.nonPersistentPublishersMap
                         .computeIfAbsent(s.getProducerName(), key -> {
                             final NonPersistentPublisherStatsImpl newStats = new NonPersistentPublisherStatsImpl();

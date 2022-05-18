@@ -215,6 +215,7 @@ public class ProxyService implements Closeable {
         }
 
         ServerBootstrap bootstrap = new ServerBootstrap();
+        bootstrap.option(ChannelOption.SO_REUSEADDR, true);
         bootstrap.childOption(ChannelOption.ALLOCATOR, PulsarByteBufAllocator.DEFAULT);
         bootstrap.group(acceptorGroup, workerGroup);
         bootstrap.childOption(ChannelOption.TCP_NODELAY, true);
@@ -302,6 +303,7 @@ public class ProxyService implements Closeable {
         boolean useSeparateThreadPool = proxyConfig.isUseSeparateThreadPoolForProxyExtensions();
         if (useSeparateThreadPool) {
             bootstrap = new ServerBootstrap();
+            bootstrap.option(ChannelOption.SO_REUSEADDR, true);
             bootstrap.childOption(ChannelOption.ALLOCATOR, PulsarByteBufAllocator.DEFAULT);
             bootstrap.childOption(ChannelOption.TCP_NODELAY, true);
             bootstrap.childOption(ChannelOption.RCVBUF_ALLOCATOR,

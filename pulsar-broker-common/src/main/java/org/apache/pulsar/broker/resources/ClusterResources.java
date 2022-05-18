@@ -25,9 +25,12 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 import lombok.Getter;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.FailureDomainImpl;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.Notification;
@@ -84,6 +87,25 @@ public class ClusterResources extends BaseResources<ClusterData> {
         delete(joinPath(BASE_CLUSTERS_PATH, clusterName));
     }
 
+    public CompletableFuture<Void> deleteClusterAsync(String clusterName) {
+        return deleteAsync(joinPath(BASE_CLUSTERS_PATH, clusterName));
+    }
+
+    public CompletableFuture<Boolean> isClusterUsedAsync(String clusterName) {
+        return getCache().getChildren(BASE_POLICIES_PATH)
+                .thenCompose(tenants -> {
+                    List<CompletableFuture<List<String>>> futures = tenants.stream()
+                            .map(tenant -> getCache().getChildren(joinPath(BASE_POLICIES_PATH, tenant, clusterName)))
+                            .collect(Collectors.toList());
+                    return FutureUtil.waitForAll(futures)
+                            .thenApply(__ -> {
+                                // We found a tenant that has at least a namespace in this cluster
+                                return futures.stream().map(CompletableFuture::join)
+                                        .anyMatch(CollectionUtils::isNotEmpty);
+                            });
+                });
+    }
+
     public boolean isClusterUsed(String clusterName) throws MetadataStoreException {
         for (String tenant : getCache().getChildren(BASE_POLICIES_PATH).join()) {
             if (!getCache().getChildren(joinPath(BASE_POLICIES_PATH, tenant, clusterName)).join().isEmpty()) {
@@ -131,6 +153,21 @@ public class ClusterResources extends BaseResources<ClusterData> {
         public void deleteFailureDomain(String clusterName, String domainName) throws MetadataStoreException {
             String path = joinPath(BASE_CLUSTERS_PATH, clusterName, FAILURE_DOMAIN, domainName);
             delete(path);
+        }
+
+        public CompletableFuture<Void> deleteFailureDomainsAsync(String clusterName) {
+            String failureDomainPath = joinPath(BASE_CLUSTERS_PATH, clusterName, FAILURE_DOMAIN);
+            return existsAsync(failureDomainPath)
+                    .thenCompose(exists -> {
+                        if (!exists) {
+                            return CompletableFuture.completedFuture(null);
+                        }
+                        return getChildrenAsync(failureDomainPath)
+                                .thenCompose(children -> FutureUtil.waitForAll(children.stream()
+                                        .map(domain -> deleteAsync(joinPath(failureDomainPath, domain)))
+                                        .collect(Collectors.toList())))
+                                .thenCompose(__ -> deleteAsync(failureDomainPath));
+                    });
         }
 
         public void deleteFailureDomains(String clusterName) throws MetadataStoreException {

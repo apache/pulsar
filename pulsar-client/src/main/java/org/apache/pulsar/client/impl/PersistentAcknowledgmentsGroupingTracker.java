@@ -118,10 +118,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
     @Override
     public boolean isDuplicate(@NonNull MessageId messageId) {
         final MessageId messageIdOfLastAck = lastCumulativeAck.messageId;
-        if (messageIdOfLastAck == null) {
-            return false;
-        }
-        if (messageId.compareTo(messageIdOfLastAck) <= 0) {
+        if (messageIdOfLastAck != null && messageId.compareTo(messageIdOfLastAck) <= 0) {
             // Already included in a cumulative ack
             return true;
         } else {

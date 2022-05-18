@@ -579,6 +579,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
             admin.topics().resetCursor(topicName + "invalid", "my-sub", messageId);
             fail("It should have failed due to invalid topic name");
         } catch (PulsarAdminException.NotFoundException e) {
+            assertTrue(e.getMessage().contains(topicName));
             // Ok
         }
 
@@ -587,6 +588,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
             admin.topics().resetCursor(topicName, "invalid-sub", messageId);
             fail("It should have failed due to invalid subscription name");
         } catch (PulsarAdminException.NotFoundException e) {
+            assertTrue(e.getMessage().contains("invalid-sub"));
             // Ok
         }
 
@@ -1029,6 +1031,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         assertEquals(brokerIsolationDataList.get(0).getBrokerName(), brokerAddress);
         assertEquals(brokerIsolationDataList.get(0).getNamespaceRegex().size(), 1);
         assertEquals(brokerIsolationDataList.get(0).getNamespaceRegex().get(0), namespaceRegex);
+        assertEquals(brokerIsolationDataList.get(0).getPolicyName(), policyName1);
 
         BrokerNamespaceIsolationDataImpl brokerIsolationData = (BrokerNamespaceIsolationDataImpl) admin.clusters()
                 .getBrokerWithNamespaceIsolationPolicy(cluster, brokerAddress);

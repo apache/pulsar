@@ -12,9 +12,11 @@ The configuration of the Kinesis sink connector has the following property.
 
 ### Property
 
-| Name | Type|Required | Default | Description
+| Name | Type | Required | Default | Description
 |------|----------|----------|---------|-------------|
 `messageFormat`|MessageFormat|true|ONLY_RAW_PAYLOAD|Message format in which Kinesis sink converts Pulsar messages and publishes to Kinesis streams.<br/><br/>Below are the available options:<br/><br/><li>`ONLY_RAW_PAYLOAD`: Kinesis sink directly publishes Pulsar message payload as a message into the configured Kinesis stream. <br/><br/><li>`FULL_MESSAGE_IN_JSON`: Kinesis sink creates a JSON payload with Pulsar message payload, properties and encryptionCtx, and publishes JSON payload into the configured Kinesis stream.<br/><br/><li>`FULL_MESSAGE_IN_FB`: Kinesis sink creates a flatbuffer serialized payload with Pulsar message payload, properties and encryptionCtx, and publishes flatbuffer payload into the configured Kinesis stream.<br/><br/><li>`FULL_MESSAGE_IN_JSON_EXPAND_VALUE`: Kinesis sink sends a JSON structure containing the record topic name, key, payload, properties and event time. The record schema is used to convert the value to JSON.
+`jsonIncludeNonNulls`|boolean|false|true|Only the properties with non-null values are included when the message format is `FULL_MESSAGE_IN_JSON_EXPAND_VALUE`.
+`jsonFlatten`|boolean|false|false|When it is set to `true` and the message format is `FULL_MESSAGE_IN_JSON_EXPAND_VALUE`, the output JSON is flattened.
 `retainOrdering`|boolean|false|false|Whether Pulsar connectors to retain ordering when moving messages from Pulsar to Kinesis or not.
 `awsEndpoint`|String|false|" " (empty string)|The Kinesis end-point URL, which can be found at [here](https://docs.aws.amazon.com/general/latest/gr/rande.html).
 `awsRegion`|String|false|" " (empty string)|The AWS region. <br/><br/>**Example**<br/> us-west-1, us-west-2

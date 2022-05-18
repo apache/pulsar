@@ -77,11 +77,17 @@ public class KinesisSinkConfig extends BaseKinesisConfig implements Serializable
     private MessageFormat messageFormat = MessageFormat.ONLY_RAW_PAYLOAD; // default : ONLY_RAW_PAYLOAD
 
     @FieldDoc(
-        defaultValue = "true",
-        help = "Value that indicates that only properties with non-null values are to be included when using "
-            + "MessageFormat.FULL_MESSAGE_IN_JSON_EXPAND_VALUE."
+            defaultValue = "true",
+            help = "Value that indicates that only properties with non-null values are to be included when using "
+                + "MessageFormat.FULL_MESSAGE_IN_JSON_EXPAND_VALUE."
     )
     private boolean jsonIncludeNonNulls = true;
+
+    @FieldDoc(
+            defaultValue = "false",
+            help = "When set to true and the message format is FULL_MESSAGE_IN_JSON_EXPAND_VALUE the output JSON will be flattened."
+    )
+    private boolean jsonFlatten = false;
 
     @FieldDoc(
         defaultValue = "false",
