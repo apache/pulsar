@@ -436,7 +436,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
                                                                             boolean permissionOnSubscriptionRequired) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget path = namespacePath(ns, "permissionOnSubscriptionRequired");
-        return asyncPutRequest(path, Entity.entity(permissionOnSubscriptionRequired, MediaType.APPLICATION_JSON));
+        return asyncPostRequest(path, Entity.entity(permissionOnSubscriptionRequired, MediaType.APPLICATION_JSON));
     }
 
     @Override

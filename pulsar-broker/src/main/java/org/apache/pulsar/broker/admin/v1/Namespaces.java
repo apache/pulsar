@@ -314,7 +314,7 @@ public class Namespaces extends NamespacesBase {
         internalRevokePermissionsOnSubscription(subscription, role);
     }
 
-    @PUT
+    @POST
     @Path("/{property}/{cluster}/{namespace}/permissionOnSubscriptionRequired")
     @ApiOperation(hidden = true, value = "Set whether a role requires explicit permission to consume from a "
             + "subscription that has no subscription permission defined in the namespace.")

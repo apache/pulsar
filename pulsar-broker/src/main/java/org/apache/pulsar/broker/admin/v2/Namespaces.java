@@ -267,7 +267,7 @@ public class Namespaces extends NamespacesBase {
         internalRevokePermissionsOnSubscription(subscription, role);
     }
 
-    @PUT
+    @POST
     @Path("/{property}/{namespace}/permissionOnSubscriptionRequired")
     @ApiOperation(hidden = true, value = "Allow a consumer's role to have implicit permission to consume from a"
             + " subscription.")
