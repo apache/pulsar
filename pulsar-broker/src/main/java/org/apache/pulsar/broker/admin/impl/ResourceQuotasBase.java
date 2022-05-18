@@ -35,7 +35,7 @@ public abstract class ResourceQuotasBase extends NamespacesBase {
                 .thenCompose(__ -> pulsar().getBrokerService().getBundlesQuotas().getDefaultResourceQuota());
     }
 
-    public CompletableFuture<Void> setDefaultResourceQuota(ResourceQuota quota) {
+    public CompletableFuture<Void> setDefaultResourceQuotaAsync(ResourceQuota quota) {
         return validateSuperUserAccessAsync()
                 .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
                 .thenCompose(__ -> pulsar().getBrokerService().getBundlesQuotas().setDefaultResourceQuota(quota));

@@ -662,9 +662,11 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         double defaultBandwidth = 1000;
         quota.setBandwidthIn(defaultBandwidth);
         quota.setBandwidthOut(defaultBandwidth);
-        resourceQuotas.setDefaultResourceQuota(quota);
-        assertEquals(defaultBandwidth, resourceQuotas.getDefaultResourceQuota().getBandwidthIn());
-        assertEquals(defaultBandwidth, resourceQuotas.getDefaultResourceQuota().getBandwidthOut());
+        resourceQuotas.setDefaultResourceQuotaAsync(quota);
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(defaultBandwidth, resourceQuotas.getDefaultResourceQuota().getBandwidthIn()));
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(defaultBandwidth, resourceQuotas.getDefaultResourceQuota().getBandwidthOut()));
 
         String property = "prop-xyz";
         String cluster = "use";

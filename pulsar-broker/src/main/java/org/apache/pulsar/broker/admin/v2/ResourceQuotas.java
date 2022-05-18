@@ -64,7 +64,7 @@ public class ResourceQuotas extends ResourceQuotasBase {
     public void setDefaultResourceQuota(
             @Suspended AsyncResponse response,
             @ApiParam(value = "Default resource quota") ResourceQuota quota) {
-        setDefaultResourceQuota(quota)
+        setDefaultResourceQuotaAsync(quota)
                 .thenAccept(__ -> response.resume(Response.noContent().build()))
                 .exceptionally(ex -> {
                     log.error("[{}] Failed to set default resource quota", clientAppId());
