@@ -333,7 +333,11 @@ brokerServiceCompactionThresholdInBytes|If the estimated backlog size is greater
 |replicatorPrefix|  Replicator prefix used for replicator producer name and cursor name pulsar.repl||
 |transactionBufferClientOperationTimeoutInMills|The transaction buffer client's operation timeout in milliseconds.|3000|
 |transactionCoordinatorEnabled|Whether to enable transaction coordinator in broker.|true|
-|transactionMetadataStoreProviderClassName| |org.apache.pulsar.transaction.coordinator.impl.InMemTransactionMetadataStoreProvider|
+|transactionMetadataStoreProviderClassName|The class name of transactionMetadataStoreProvider.|org.apache.pulsar.transaction.coordinator.impl.MLTransactionMetadataStoreProvider|
+|transactionBufferSnapshotMaxTransactionCount|Transaction buffer takes a snapshot after the number of transaction operations reaches this value.|1000|
+|transactionBufferSnapshotMinTimeInMillis| The interval between two snapshots that the transaction buffer takes (in milliseconds).|5000|
+|transactionPendingAckLogIndexMinLag| The minimum lag between transaction pendingAck log indexes (keys). It can be used to determine the cleanup frequency of transaction pendingAck logs. Setting a larger lag leads to more consumption of hard disk resources; setting a smaller lag leads to more memory consumption. |500|
+|transactionBufferClientMaxConcurrentRequests|The max concurrent requests for transaction buffer client.|1000|
 |defaultRetentionTimeInMinutes| Default message retention time  |0|
 |defaultRetentionSizeInMB|  Default retention size  |0|
 |keepAliveIntervalSeconds|  How often to check whether the connections are still alive  |30|
@@ -703,7 +707,11 @@ You can set the log level and configuration in the  [log4j2.yaml](https://github
 |replicationConnectionsPerBroker|   |16|
 |replicationProducerQueueSize|    |1000|
 | replicationPolicyCheckDurationSeconds | Duration to check replication policy to avoid replicator inconsistency due to missing ZooKeeper watch. When the value is set to 0, disable checking replication policy. | 600 |
-|transactionBufferClientOperationTimeoutInMills|The transaction buffer client's operation timeout in milliseconds.|3000|
+|transactionCoordinatorEnabled| Whether to enable transaction coordinator in broker.|false|                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            
+|transactionMetadataStoreProviderClassName| The class name of transactionMetadataStoreProvider.|org.apache.pulsar.transaction.coordinator.impl.MLTransactionMetadataStoreProvider|
+|transactionBufferClientOperationTimeoutInMills| The transaction buffer client's operation timeout in milliseconds.|3000|
+|transactionBufferSnapshotMaxTransactionCount| Transaction buffer takes a snapshot after the number of transaction operations reaches this value.|1000|
+|transactionBufferSnapshotMinTimeInMillis| The interval between two snapshots that the transaction buffer takes (in milliseconds).|5000|
 |defaultRetentionTimeInMinutes|   |0|
 |defaultRetentionSizeInMB|    |0|
 |keepAliveIntervalSeconds|    |30|
