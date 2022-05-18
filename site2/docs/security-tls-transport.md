@@ -283,9 +283,10 @@ import asyncio
 import base64
 import json
 import ssl
+import pathlib
 
 ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-client_pem = pathlib.PATH(__file__).with_name("pulsar_client.pem")
+client_pem = pathlib.Path(__file__).with_name("pulsar_client.pem")
 ssl_context.load_verify_locations(client_pem)
 
 # websocket producer uri wss, not ws
