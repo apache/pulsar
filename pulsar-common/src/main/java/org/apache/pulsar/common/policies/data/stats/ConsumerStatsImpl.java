@@ -48,7 +48,7 @@ public class ConsumerStatsImpl implements ConsumerStats {
     /**
      * Total rate of message ack(msg/s).
      */
-    public double messageAck;
+    public double messageAckRate;
 
     /** The total rate of chunked messages delivered to this consumer. */
     public double chunkedMessageRate;
@@ -108,7 +108,7 @@ public class ConsumerStatsImpl implements ConsumerStats {
     public ConsumerStatsImpl add(ConsumerStatsImpl stats) {
         Objects.requireNonNull(stats);
         this.msgRateOut += stats.msgRateOut;
-        this.messageAck += stats.messageAck;
+        this.messageAckRate += stats.messageAckRate;
         this.msgThroughputOut += stats.msgThroughputOut;
         this.bytesOutCounter += stats.bytesOutCounter;
         this.msgOutCounter += stats.msgOutCounter;

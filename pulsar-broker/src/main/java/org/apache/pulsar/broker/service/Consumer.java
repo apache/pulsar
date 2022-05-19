@@ -84,7 +84,7 @@ public class Consumer {
     private final Rate msgRedeliver;
     private final LongAdder msgOutCounter;
     private final LongAdder bytesOutCounter;
-    private final Rate messageAck;
+    private final Rate messageAckRate;
 
     private long lastConsumedTimestamp;
     private long lastAckedTimestamp;
@@ -160,7 +160,7 @@ public class Consumer {
         this.msgRedeliver = new Rate();
         this.bytesOutCounter = new LongAdder();
         this.msgOutCounter = new LongAdder();
-        this.messageAck = new Rate();
+        this.messageAckRate = new Rate();
         this.appId = appId;
 
         // Ensure we start from compacted view
@@ -418,7 +418,7 @@ public class Consumer {
         return future
                 .whenComplete((__, t) -> {
                     if (t == null) {
-                        this.messageAck.recordEvent();
+                        this.messageAckRate.recordEvent();
                     }
                 });
     }
@@ -750,10 +750,10 @@ public class Consumer {
         msgOut.calculateRate();
         chunkedMessageRate.calculateRate();
         msgRedeliver.calculateRate();
-        messageAck.calculateRate();
+        messageAckRate.calculateRate();
 
         stats.msgRateOut = msgOut.getRate();
-        stats.messageAck = messageAck.getRate();
+        stats.messageAckRate = messageAckRate.getRate();
         stats.msgThroughputOut = msgOut.getValueRate();
         stats.msgRateRedeliver = msgRedeliver.getRate();
         stats.chunkedMessageRate = chunkedMessageRate.getRate();

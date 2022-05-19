@@ -132,6 +132,7 @@ public class NamespaceStatsAggregator {
             subsStats.unackedMessages += cStats.unackedMessages;
             subsStats.msgRateRedeliver += cStats.msgRateRedeliver;
             subsStats.msgRateOut += cStats.msgRateOut;
+            subsStats.messageAckRate += cStats.messageAckRate;
             subsStats.msgThroughputOut += cStats.msgThroughputOut;
             subsStats.bytesOutCounter += cStats.bytesOutCounter;
             subsStats.msgOutCounter += cStats.msgOutCounter;
@@ -241,6 +242,7 @@ public class NamespaceStatsAggregator {
                     consumerStats.unackedMessages = conStats.unackedMessages;
                     consumerStats.msgRateRedeliver = conStats.msgRateRedeliver;
                     consumerStats.msgRateOut = conStats.msgRateOut;
+                    consumerStats.msgAckRate = conStats.messageAckRate;
                     consumerStats.msgThroughputOut = conStats.msgThroughputOut;
                     consumerStats.bytesOutCounter = conStats.bytesOutCounter;
                     consumerStats.msgOutCounter = conStats.msgOutCounter;

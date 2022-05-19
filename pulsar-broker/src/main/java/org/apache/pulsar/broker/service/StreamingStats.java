@@ -65,7 +65,7 @@ public class StreamingStats {
         statsStream.writePair("msgThroughputOut", stats.msgThroughputOut);
         statsStream.writePair("msgRateRedeliver", stats.msgRateRedeliver);
         statsStream.writePair("avgMessagesPerEntry", stats.avgMessagesPerEntry);
-        statsStream.writePair("messageAckRate", stats.messageAck);
+        statsStream.writePair("messageAckRate", stats.messageAckRate);
 
         if (Subscription.isIndividualAckMode(subType)) {
             statsStream.writePair("unackedMessages", stats.unackedMessages);
