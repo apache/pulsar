@@ -133,7 +133,7 @@ public abstract class NamespacesBase extends AdminResource {
     protected CompletableFuture<Void> internalCreateNamespace(Policies policies) {
         return validateTenantOperationAsync(namespaceName.getTenant(), TenantOperation.CREATE_NAMESPACE)
                 .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
-                .thenAccept(__ -> validatePolicies(namespaceName, policies))
+                .thenCompose(__ -> validatePoliciesAsync(namespaceName, policies))
                 .thenCompose(__ -> {
                     int maxNamespacesPerTenant = pulsar().getConfiguration().getMaxNamespacesPerTenant();
                     // no distributed locks are added here.In a concurrent scenario, the threshold will be exceeded.
@@ -2089,6 +2089,42 @@ public abstract class NamespacesBase extends AdminResource {
         if (policies.retention_policies != null) {
             validateRetentionPolicies(policies.retention_policies);
         }
+    }
+
+    private CompletableFuture<Void> validatePoliciesAsync(NamespaceName ns, Policies policies) {
+        if (ns.isV2() && policies.replication_clusters.isEmpty()) {
+            // Default to local cluster
+            policies.replication_clusters = Collections.singleton(config().getClusterName());
+        }
+
+        // Validate cluster names and permissions
+        return policies.replication_clusters.stream()
+                    .map(cluster -> validateClusterForTenantAsync(ns.getTenant(), cluster))
+                    .reduce(CompletableFuture.completedFuture(null), (a, b) -> a.thenCompose(ignore -> b))
+            .thenAccept(__ -> {
+                if (policies.message_ttl_in_seconds != null && policies.message_ttl_in_seconds < 0) {
+                    throw new RestException(Status.PRECONDITION_FAILED, "Invalid value for message TTL");
+                }
+
+                if (policies.bundles != null && policies.bundles.getNumBundles() > 0) {
+                    if (policies.bundles.getBoundaries() == null || policies.bundles.getBoundaries().size() == 0) {
+                        policies.bundles = getBundles(policies.bundles.getNumBundles());
+                    } else {
+                        policies.bundles = validateBundlesData(policies.bundles);
+                    }
+                } else {
+                    int defaultNumberOfBundles = config().getDefaultNumberOfNamespaceBundles();
+                    policies.bundles = getBundles(defaultNumberOfBundles);
+                }
+
+                if (policies.persistence != null) {
+                    validatePersistencePolicies(policies.persistence);
+                }
+
+                if (policies.retention_policies != null) {
+                    validateRetentionPolicies(policies.retention_policies);
+                }
+            });
     }
 
     protected void validateRetentionPolicies(RetentionPolicies retention) {
