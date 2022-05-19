@@ -2476,10 +2476,12 @@ flexible messaging model and an intuitive client API.</description>
                 </goals>
                 <!-- Prevent gpg from using pinentry programs. Fixes: gpg: signing
                  failed: Inappropriate ioctl for device -->
-                <gpgArguments>
-                  <arg>--pinentry-mode</arg>
-                  <arg>loopback</arg>
-                </gpgArguments>
+                <configuration>
+                  <gpgArguments>
+                    <arg>--pinentry-mode</arg>
+                    <arg>loopback</arg>
+                  </gpgArguments>
+                </configuration>
               </execution>
             </executions>
           </plugin>
