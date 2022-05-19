@@ -96,7 +96,8 @@ public class ClusterMetadataTearDownTest extends TestRetrySupport {
                 MetadataStoreConfig.builder().build());
 
         driver = MetadataDrivers.getBookieDriver(URI.create(metadataServiceUri));
-        driver.initialize(new ServerConfiguration().setMetadataServiceUri(metadataServiceUri), () -> {}, NullStatsLogger.INSTANCE);
+        driver.initialize(new ServerConfiguration().setMetadataServiceUri(metadataServiceUri),
+                NullStatsLogger.INSTANCE);
         ledgerManager = driver.getLedgerManagerFactory().newLedgerManager();
 
         client = PulsarClient.builder().serviceUrl(pulsarCluster.getPlainTextServiceUrl()).build();

@@ -111,6 +111,7 @@ public class AntiAffinityNamespaceGroupTest {
         config1.setWebServicePort(Optional.of(0));
         config1.setMetadataStoreUrl("zk:127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
         config1.setBrokerShutdownTimeoutMs(0L);
+        config1.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
         config1.setBrokerServicePort(Optional.of(0));
         config1.setFailureDomainsEnabled(true);
         config1.setLoadBalancerEnabled(true);
@@ -132,6 +133,7 @@ public class AntiAffinityNamespaceGroupTest {
         config2.setWebServicePort(Optional.of(0));
         config2.setMetadataStoreUrl("zk:127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
         config2.setBrokerShutdownTimeoutMs(0L);
+        config2.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
         config2.setBrokerServicePort(Optional.of(0));
         config2.setFailureDomainsEnabled(true);
         config2.setAdvertisedAddress("localhost");

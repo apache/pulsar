@@ -31,7 +31,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.collections4.map.LinkedMap;
 import org.apache.pulsar.broker.service.BrokerService;
@@ -42,6 +41,7 @@ import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleImpl
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.Transaction;
@@ -49,9 +49,8 @@ import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientExce
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
-import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
-
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
@@ -144,7 +143,7 @@ public class TransactionLowWaterMarkTest extends TransactionTestBase {
 
         PartitionedTopicMetadata partitionedTopicMetadata =
                 ((PulsarClientImpl) pulsarClient).getLookup()
-                        .getPartitionedTopicMetadata(TopicName.TRANSACTION_COORDINATOR_ASSIGN).get();
+                        .getPartitionedTopicMetadata(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN).get();
         Transaction lowWaterMarkTxn = null;
         for (int i = 0; i < partitionedTopicMetadata.partitions; i++) {
             lowWaterMarkTxn = pulsarClient.newTransaction()
@@ -249,7 +248,7 @@ public class TransactionLowWaterMarkTest extends TransactionTestBase {
 
         PartitionedTopicMetadata partitionedTopicMetadata =
                 ((PulsarClientImpl) pulsarClient).getLookup()
-                        .getPartitionedTopicMetadata(TopicName.TRANSACTION_COORDINATOR_ASSIGN).get();
+                        .getPartitionedTopicMetadata(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN).get();
         Transaction lowWaterMarkTxn = null;
         for (int i = 0; i < partitionedTopicMetadata.partitions; i++) {
             lowWaterMarkTxn = pulsarClient.newTransaction()
@@ -285,6 +284,45 @@ public class TransactionLowWaterMarkTest extends TransactionTestBase {
 
         } else {
             fail();
+        }
+    }
+
+    @Test
+    public void testTBLowWaterMarkEndToEnd() throws Exception {
+        Transaction txn1 = pulsarClient.newTransaction()
+                .withTransactionTimeout(500, TimeUnit.SECONDS)
+                .build().get();
+        Transaction txn2 = pulsarClient.newTransaction()
+                .withTransactionTimeout(500, TimeUnit.SECONDS)
+                .build().get();
+        while (txn2.getTxnID().getMostSigBits() != txn1.getTxnID().getMostSigBits()) {
+            txn2 = pulsarClient.newTransaction()
+                    .withTransactionTimeout(500, TimeUnit.SECONDS)
+                    .build().get();
+        }
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient
+                .newProducer()
+                .topic(TOPIC)
+                .sendTimeout(0, TimeUnit.SECONDS)
+                .enableBatching(false)
+                .create();
+
+        producer.newMessage(txn1).send();
+        producer.newMessage(txn2).send();
+
+        txn1.commit().get();
+        txn2.commit().get();
+
+        Field field = TransactionImpl.class.getDeclaredField("state");
+        field.setAccessible(true);
+        field.set(txn1, TransactionImpl.State.OPEN);
+        try {
+            producer.newMessage(txn1).send();
+            fail();
+        } catch (PulsarClientException.NotAllowedException ignore) {
+            // no-op
         }
     }
 }

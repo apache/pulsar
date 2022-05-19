@@ -21,7 +21,6 @@ package org.apache.pulsar.io.batchdatagenerator;
 import io.codearte.jfairy.Fairy;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
-import java.util.Optional;
 import java.util.function.Consumer;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.api.Record;
@@ -63,17 +62,7 @@ public class BatchDataGeneratorSource implements BatchSource<Person> {
     public Record<Person> readNext() throws Exception {
         if (iteration++ < maxRecordsPerCycle) {
             Thread.sleep(50);
-            return new Record<Person>() {
-                @Override
-                public Optional<String> getKey() {
-                    return Optional.empty();
-                }
-
-                @Override
-                public Person getValue() {
-                    return new Person(fairy.person());
-                }
-            };
+            return () -> new Person(fairy.person());
         }
         return null;
     }

@@ -65,6 +65,7 @@ import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
+import org.apache.pulsar.common.policies.data.SubscriptionPolicies;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
@@ -138,6 +139,8 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
             AtomicLongFieldUpdater.newUpdater(AbstractTopic.class, "usageCount");
     private volatile long usageCount = 0;
 
+    private Map<String/*subscription*/, SubscriptionPolicies> subscriptionPolicies = Collections.emptyMap();
+
     public AbstractTopic(String topic, BrokerService brokerService) {
         this.topic = topic;
         this.brokerService = brokerService;
@@ -157,8 +160,11 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         return this.topicPolicies.getSubscribeRate().get();
     }
 
-    public DispatchRateImpl getSubscriptionDispatchRate() {
-        return this.topicPolicies.getSubscriptionDispatchRate().get();
+    public DispatchRateImpl getSubscriptionDispatchRate(String subscriptionName) {
+        return Optional.ofNullable(subscriptionPolicies.get(subscriptionName))
+                .map(SubscriptionPolicies::getDispatchRate)
+                .map(DispatchRateImpl::normalize)
+                .orElse(this.topicPolicies.getSubscriptionDispatchRate().get());
     }
 
     public SchemaCompatibilityStrategy getSchemaCompatibilityStrategy() {
@@ -214,6 +220,8 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
             DispatchRateImpl.normalize(data.getSubscriptionDispatchRate()));
         topicPolicies.getCompactionThreshold().updateTopicValue(data.getCompactionThreshold());
         topicPolicies.getDispatchRate().updateTopicValue(DispatchRateImpl.normalize(data.getDispatchRate()));
+
+        this.subscriptionPolicies = data.getSubscriptionPolicies();
     }
 
     protected void updateTopicPolicyByNamespacePolicy(Policies namespacePolicies) {
@@ -608,6 +616,9 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
     }
 
     private boolean allowAutoUpdateSchema() {
+        if (brokerService.isSystemTopic(topic)) {
+            return true;
+        }
         if (isAllowAutoUpdateSchema == null) {
             return brokerService.pulsar().getConfig().isAllowAutoUpdateSchemaEnabled();
         }
@@ -1040,9 +1051,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         }
 
         // attach the resource-group level rate limiters, if set
-        String rgName = policies.resource_group_name != null
-          ? policies.resource_group_name
-          : null;
+        String rgName = policies.resource_group_name;
         if (rgName != null) {
             final ResourceGroup resourceGroup =
               brokerService.getPulsar().getResourceGroupServiceManager().resourceGroupGet(rgName);
@@ -1155,6 +1164,9 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
             }
         } else {
             log.info("Disabling publish throttling for {}", this.topic);
+            if (topicPublishRateLimiter != null) {
+                topicPublishRateLimiter.close();
+            }
             this.topicPublishRateLimiter = PublishRateLimiter.DISABLED_RATE_LIMITER;
             enableProducerReadForPublishRateLimiting();
         }
@@ -1197,5 +1209,10 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
     public void updateBrokerPublishRate() {
         topicPolicies.getPublishRate().updateBrokerValue(
             publishRateInBroker(brokerService.pulsar().getConfiguration()));
+    }
+
+    public void updateBrokerSubscribeRate() {
+        topicPolicies.getSubscribeRate().updateBrokerValue(
+            subscribeRateInBroker(brokerService.pulsar().getConfiguration()));
     }
 }

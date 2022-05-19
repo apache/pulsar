@@ -41,20 +41,20 @@ RUN curl -O -L https://github.com/Kitware/CMake/archive/v3.8.2.tar.gz && \
     rm -rf /v3.8.2.tar.gz /CMake-3.8.2
 
 # Download and copile protoubf
-RUN curl -O -L  https://github.com/google/protobuf/releases/download/v3.3.0/protobuf-cpp-3.3.0.tar.gz && \
-    tar xvfz protobuf-cpp-3.3.0.tar.gz && \
-    cd protobuf-3.3.0/ && \
+RUN curl -O -L  https://github.com/google/protobuf/releases/download/v3.20.0/protobuf-cpp-3.20.0.tar.gz && \
+    tar xvfz protobuf-cpp-3.20.0.tar.gz && \
+    cd protobuf-3.20.0/ && \
     CXXFLAGS=-fPIC ./configure && \
     make && make install && ldconfig && \
-    rm -rf /protobuf-cpp-3.3.0.tar.gz /protobuf-3.3.0
+    rm -rf /protobuf-cpp-3.20.0.tar.gz /protobuf-3.20.0
 
 # ZLib
-RUN curl -O -L https://github.com/madler/zlib/archive/v1.2.11.tar.gz && \
-    tar xvfz v1.2.11.tar.gz && \
-    cd zlib-1.2.11 && \
+RUN curl -O -L https://github.com/madler/zlib/archive/v1.2.12.tar.gz && \
+    tar xvfz v1.2.12.tar.gz && \
+    cd zlib-1.2.12 && \
     CFLAGS="-fPIC -O3" ./configure && \
     make && make install && \
-    rm -rf /v1.2.11.tar.gz /zlib-1.2.11
+    rm -rf /v1.2.12.tar.gz /zlib-1.2.12
 
 # Zstandard
 RUN curl -O -L https://github.com/facebook/zstd/releases/download/v1.3.7/zstd-1.3.7.tar.gz && \

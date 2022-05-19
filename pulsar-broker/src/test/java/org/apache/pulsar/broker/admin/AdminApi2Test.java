@@ -579,6 +579,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
             admin.topics().resetCursor(topicName + "invalid", "my-sub", messageId);
             fail("It should have failed due to invalid topic name");
         } catch (PulsarAdminException.NotFoundException e) {
+            assertTrue(e.getMessage().contains(topicName));
             // Ok
         }
 
@@ -587,6 +588,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
             admin.topics().resetCursor(topicName, "invalid-sub", messageId);
             fail("It should have failed due to invalid subscription name");
         } catch (PulsarAdminException.NotFoundException e) {
+            assertTrue(e.getMessage().contains("invalid-sub"));
             // Ok
         }
 
@@ -1029,6 +1031,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         assertEquals(brokerIsolationDataList.get(0).getBrokerName(), brokerAddress);
         assertEquals(brokerIsolationDataList.get(0).getNamespaceRegex().size(), 1);
         assertEquals(brokerIsolationDataList.get(0).getNamespaceRegex().get(0), namespaceRegex);
+        assertEquals(brokerIsolationDataList.get(0).getPolicyName(), policyName1);
 
         BrokerNamespaceIsolationDataImpl brokerIsolationData = (BrokerNamespaceIsolationDataImpl) admin.clusters()
                 .getBrokerWithNamespaceIsolationPolicy(cluster, brokerAddress);
@@ -1291,7 +1294,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         assertEquals(topicStats.getSubscriptions().get(subName).getMsgBacklog(), 10);
 
         topicStats = admin.topics().getStats(topic, true, true);
-        assertEquals(topicStats.getSubscriptions().get(subName).getBacklogSize(), 43);
+        assertEquals(topicStats.getSubscriptions().get(subName).getBacklogSize(), 40);
         assertEquals(topicStats.getSubscriptions().get(subName).getMsgBacklog(), 1);
         consumer.acknowledge(message);
 
@@ -1545,7 +1548,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
 
         topicStats = admin.topics().getPartitionedStats(topic, false, true, true);
         assertEquals(topicStats.getSubscriptions().get(subName).getMsgBacklog(), 1);
-        assertEquals(topicStats.getSubscriptions().get(subName).getBacklogSize(), 43);
+        assertEquals(topicStats.getSubscriptions().get(subName).getBacklogSize(), 40);
     }
 
     @Test(timeOut = 30000)
@@ -1584,7 +1587,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
 
         TopicStats topicStats = admin.topics().getPartitionedStats(topic, false, true, true);
         assertEquals(topicStats.getSubscriptions().get(subName).getMsgBacklog(), 10);
-        assertEquals(topicStats.getSubscriptions().get(subName).getBacklogSize(), 470);
+        assertEquals(topicStats.getSubscriptions().get(subName).getBacklogSize(), 440);
         assertEquals(topicStats.getSubscriptions().get(subName).getMsgBacklogNoDelayed(), 5);
 
         for (int i = 0; i < 5; i++) {
@@ -1594,7 +1597,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         Awaitility.await().untilAsserted(() -> {
             TopicStats topicStats2 = admin.topics().getPartitionedStats(topic, false, true, true);
             assertEquals(topicStats2.getSubscriptions().get(subName).getMsgBacklog(), 5);
-            assertEquals(topicStats2.getSubscriptions().get(subName).getBacklogSize(), 238);
+            assertEquals(topicStats2.getSubscriptions().get(subName).getBacklogSize(), 223);
             assertEquals(topicStats2.getSubscriptions().get(subName).getMsgBacklogNoDelayed(), 0);
         });
 

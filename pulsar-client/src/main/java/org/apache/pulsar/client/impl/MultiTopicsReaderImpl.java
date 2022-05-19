@@ -24,6 +24,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.Consumer;
@@ -41,6 +42,7 @@ import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.conf.ReaderConfigurationData;
 import org.apache.pulsar.client.util.ExecutorProvider;
 
+@Slf4j
 public class MultiTopicsReaderImpl<T> implements Reader<T> {
 
     private final MultiTopicsConsumerImpl<T> multiTopicsConsumer;
@@ -65,6 +67,13 @@ public class MultiTopicsReaderImpl<T> implements Reader<T> {
         consumerConfiguration.setReceiverQueueSize(readerConfiguration.getReceiverQueueSize());
         consumerConfiguration.setReadCompacted(readerConfiguration.isReadCompacted());
         consumerConfiguration.setPoolMessages(readerConfiguration.isPoolMessages());
+
+        // chunking configuration
+        consumerConfiguration.setMaxPendingChunkedMessage(readerConfiguration.getMaxPendingChunkedMessage());
+        consumerConfiguration.setAutoAckOldestChunkedMessageOnQueueFull(
+                readerConfiguration.isAutoAckOldestChunkedMessageOnQueueFull());
+        consumerConfiguration.setExpireTimeOfIncompleteChunkedMessageMillis(
+                readerConfiguration.getExpireTimeOfIncompleteChunkedMessageMillis());
 
         if (readerConfiguration.getReaderListener() != null) {
             ReaderListener<T> readerListener = readerConfiguration.getReaderListener();
@@ -138,7 +147,12 @@ public class MultiTopicsReaderImpl<T> implements Reader<T> {
     @Override
     public CompletableFuture<Message<T>> readNextAsync() {
         return multiTopicsConsumer.receiveAsync().thenApply(msg -> {
-            multiTopicsConsumer.acknowledgeCumulativeAsync(msg);
+            multiTopicsConsumer.acknowledgeCumulativeAsync(msg)
+                    .exceptionally(ex -> {
+                        log.warn("[{}][{}] acknowledge message {} cumulative fail.", getTopic(),
+                                getMultiTopicsConsumer().getSubscription(), msg.getMessageId(), ex);
+                        return null;
+                    });
             return msg;
         });
     }

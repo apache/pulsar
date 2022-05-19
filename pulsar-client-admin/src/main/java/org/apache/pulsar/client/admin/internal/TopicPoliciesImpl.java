@@ -21,9 +21,6 @@ package org.apache.pulsar.client.admin.internal;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
@@ -81,18 +78,6 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
         } catch (Exception e) {
             throw getApiException(e);
         }
-    }
-
-
-    @Override
-    public void setBacklogQuota(String topic, BacklogQuota backlogQuota) throws PulsarAdminException {
-        TopicPolicies.super.setBacklogQuota(topic, backlogQuota);
-    }
-
-
-    @Override
-    public void removeBacklogQuota(String topic) throws PulsarAdminException {
-        TopicPolicies.super.removeBacklogQuota(topic);
     }
 
     @Override
@@ -769,6 +754,70 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
     }
 
     @Override
+    public void setSubscriptionDispatchRate(String topic, String subscriptionName, DispatchRate dispatchRate)
+            throws PulsarAdminException {
+        sync(() -> setSubscriptionDispatchRateAsync(topic, subscriptionName, dispatchRate));
+    }
+
+    @Override
+    public CompletableFuture<Void> setSubscriptionDispatchRateAsync(String topic, String subscriptionName,
+                                                                    DispatchRate dispatchRate) {
+        TopicName topicName = validateTopic(topic);
+        WebTarget path = topicPath(topicName, subscriptionName, "dispatchRate");
+        return asyncPostRequest(path, Entity.entity(dispatchRate, MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public DispatchRate getSubscriptionDispatchRate(String topic, String subscriptionName, boolean applied)
+            throws PulsarAdminException {
+        return sync(() -> getSubscriptionDispatchRateAsync(topic, subscriptionName, applied));
+    }
+
+    @Override
+    public CompletableFuture<DispatchRate> getSubscriptionDispatchRateAsync(String topic, String subscriptionName,
+                                                                            boolean applied) {
+        TopicName topicName = validateTopic(topic);
+        WebTarget path = topicPath(topicName, subscriptionName, "dispatchRate");
+        path = path.queryParam("applied", applied);
+        final CompletableFuture<DispatchRate> future = new CompletableFuture<>();
+        asyncGetRequest(path,
+                new InvocationCallback<DispatchRate>() {
+                    @Override
+                    public void completed(DispatchRate dispatchRate) {
+                        future.complete(dispatchRate);
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+        return future;
+    }
+
+    @Override
+    public DispatchRate getSubscriptionDispatchRate(String topic, String subscriptionName) throws PulsarAdminException {
+        return sync(() -> getSubscriptionDispatchRateAsync(topic, subscriptionName));
+    }
+
+    @Override
+    public CompletableFuture<DispatchRate> getSubscriptionDispatchRateAsync(String topic, String subscriptionName) {
+        return getSubscriptionDispatchRateAsync(topic, subscriptionName, false);
+    }
+
+    @Override
+    public void removeSubscriptionDispatchRate(String topic, String subscriptionName) throws PulsarAdminException {
+        sync(() -> removeSubscriptionDispatchRateAsync(topic, subscriptionName));
+    }
+
+    @Override
+    public CompletableFuture<Void> removeSubscriptionDispatchRateAsync(String topic, String subscriptionName) {
+        TopicName topicName = validateTopic(topic);
+        WebTarget path = topicPath(topicName, subscriptionName, "dispatchRate");
+        return asyncDeleteRequest(path);
+    }
+
+    @Override
     public Long getCompactionThreshold(String topic) throws PulsarAdminException {
         return getCompactionThreshold(topic, false);
     }
@@ -1237,17 +1286,7 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
 
     @Override
     public void removeSubscriptionTypesEnabled(String topic) throws PulsarAdminException {
-        try {
-            removeSubscriptionTypesEnabledAsync(topic)
-                    .get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-            throw (PulsarAdminException) e.getCause();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarAdminException(e);
-        } catch (TimeoutException e) {
-            throw new PulsarAdminException.TimeoutException(e);
-        }
+        sync(() -> removeSubscriptionTypesEnabledAsync(topic));
     }
 
     @Override

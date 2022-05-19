@@ -1,17 +1,17 @@
 ---
-id: version-2.7.4-pulsar-2.0
+id: pulsar-2.0
 title: Pulsar 2.0
-sidebar_label: Pulsar 2.0
+sidebar_label: "Pulsar 2.0"
 original_id: pulsar-2.0
 ---
 
-Pulsar 2.0 is a major new release for Pulsar that brings some bold changes to the platform, including [simplified topic names](#topic-names), the addition of the [Pulsar Functions](functions-overview.md) feature, some terminology changes, and more.
+Pulsar 2.0 is a major new release for Pulsar that brings some bold changes to the platform, including [simplified topic names](#topic-names), the addition of the [Pulsar Functions](functions-overview) feature, some terminology changes, and more.
 
 ## New features in Pulsar 2.0
 
 Feature | Description
 :-------|:-----------
-[Pulsar Functions](functions-overview.md) | A lightweight compute option for Pulsar
+[Pulsar Functions](functions-overview) | A lightweight compute option for Pulsar
 
 ## Major changes
 
@@ -26,8 +26,11 @@ Previously, Pulsar had a concept of properties. A property is essentially the ex
 Prior to version 2.0, *all* Pulsar topics had the following form:
 
 ```http
+
 {persistent|non-persistent}://property/cluster/namespace/topic
+
 ```
+
 Two important changes have been made in Pulsar 2.0:
 
 * There is no longer a [cluster component](#no-cluster)
@@ -40,7 +43,9 @@ Two important changes have been made in Pulsar 2.0:
 The cluster component has been removed from topic names. Thus, all topic names now have the following form:
 
 ```http
+
 {persistent|non-persistent}://tenant/namespace/topic
+
 ```
 
 > Existing topics that use the legacy name format will continue to work without any change, and there are no plans to change that.

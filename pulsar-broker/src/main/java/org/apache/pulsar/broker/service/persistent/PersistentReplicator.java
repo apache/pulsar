@@ -503,7 +503,7 @@ public class PersistentReplicator extends AbstractReplicator
 
         @Override
         public CompletableFuture<MessageId> getFuture() {
-            return null;
+            return CompletableFuture.completedFuture(null);
         }
     }
 

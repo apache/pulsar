@@ -237,7 +237,7 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
         String jarFilePathUrl = getPulsarApiExamplesJar().toURI().toString();
         admin.functions().createFunctionWithUrl(functionConfig, jarFilePathUrl);
 
-        // 5 Function should only read compacted value，so we will only receive compacted messages
+        // 5 Function should only read compacted value, so we will only receive compacted messages
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(sinkTopic).subscriptionName("sink-sub").subscribe();
         int count = 0;
         while (true) {

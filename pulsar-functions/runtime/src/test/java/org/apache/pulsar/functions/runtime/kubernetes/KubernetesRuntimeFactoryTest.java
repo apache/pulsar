@@ -19,7 +19,6 @@
 
 package org.apache.pulsar.functions.runtime.kubernetes;
 
-import io.kubernetes.client.openapi.apis.AppsV1Api;
 import io.kubernetes.client.openapi.apis.CoreV1Api;
 import io.kubernetes.client.openapi.models.V1ConfigMap;
 import io.kubernetes.client.openapi.models.V1PodSpec;
@@ -65,11 +64,6 @@ public class KubernetesRuntimeFactoryTest {
     class TestSecretProviderConfigurator implements SecretsProviderConfigurator {
 
         @Override
-        public void init(Map<String, String> config) {
-
-        }
-
-        @Override
         public String getSecretsProviderClassName(FunctionDetails functionDetails) {
             if (!StringUtils.isEmpty(functionDetails.getSecretsMap())) {
                 if (functionDetails.getRuntime() == FunctionDetails.Runtime.JAVA) {
@@ -104,10 +98,6 @@ public class KubernetesRuntimeFactoryTest {
             return null;
         }
 
-        @Override
-        public void doAdmissionChecks(AppsV1Api appsV1Api, CoreV1Api coreV1Api, String jobNamespace, String jobName, FunctionDetails functionDetails) {
-
-        }
     }
 
     private KubernetesRuntimeFactory factory;

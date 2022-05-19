@@ -30,12 +30,16 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 
 // see https://www.elastic.co/guide/en/elasticsearch/reference/current/security-settings.html#ssl-tls-settings
-public class ElasticSearchClientSslTests extends ElasticSearchTestBase {
+public abstract class ElasticSearchClientSslTests extends ElasticSearchTestBase {
 
     final static String INDEX = "myindex";
 
     final static String sslResourceDir = MountableFile.forClasspathResource("ssl").getFilesystemPath();
     final static  String configDir = "/usr/share/elasticsearch/config";
+
+    public ElasticSearchClientSslTests(String elasticImageName) {
+        super(elasticImageName);
+    }
 
     @Test
     public void testSslBasic() throws IOException {
@@ -67,8 +71,7 @@ public class ElasticSearchClientSslTests extends ElasticSearchTestBase {
                             .setEnabled(true)
                             .setTruststorePath(sslResourceDir + "/truststore.jks")
                             .setTruststorePassword("changeit"));
-            ElasticSearchClient client = new ElasticSearchClient(config);
-            testIndexExists(client);
+            testClientWithConfig(config);
         }
     }
 
@@ -105,8 +108,7 @@ public class ElasticSearchClientSslTests extends ElasticSearchTestBase {
                             .setHostnameVerification(true)
                             .setTruststorePath(sslResourceDir + "/truststore.jks")
                             .setTruststorePassword("changeit"));
-            ElasticSearchClient client = new ElasticSearchClient(config);
-            testIndexExists(client);
+            testClientWithConfig(config);
         }
     }
 
@@ -143,11 +145,15 @@ public class ElasticSearchClientSslTests extends ElasticSearchTestBase {
                             .setTruststorePassword("changeit")
                             .setKeystorePath(sslResourceDir + "/keystore.jks")
                             .setKeystorePassword("changeit"));
-            ElasticSearchClient client = new ElasticSearchClient(config);
-            testIndexExists(client);
+            testClientWithConfig(config);
         }
     }
 
+    private void testClientWithConfig(ElasticSearchConfig config) throws IOException {
+        try (ElasticSearchClient client = new ElasticSearchClient(config);) {
+            testIndexExists(client);
+        }
+    }
 
     private void testIndexExists(ElasticSearchClient client) throws IOException {
         assertFalse(client.indexExists("mynewindex"));
