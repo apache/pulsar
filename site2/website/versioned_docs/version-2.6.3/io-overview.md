@@ -1,9 +1,15 @@
 ---
-id: version-2.6.3-io-overview
+id: io-overview
 title: Pulsar connector overview
-sidebar_label: Overview
+sidebar_label: "Overview"
 original_id: io-overview
 ---
+
+````mdx-code-block
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+````
+
 
 Messaging systems are most powerful when you can easily use them with external systems like databases and other messaging systems.
 
@@ -16,7 +22,7 @@ Pulsar IO connectors come in two types: **source** and **sink**.
 
 This diagram illustrates the relationship between source, Pulsar, and sink:
 
-![Pulsar IO diagram](assets/pulsar-io.png "Pulsar IO connectors (sources and sinks)")
+![Pulsar IO diagram](/assets/pulsar-io.png "Pulsar IO connectors (sources and sinks)")
 
 
 ### Source
@@ -67,29 +73,40 @@ When creating a connector, you can set the processing guarantee with the followi
 
 Here takes **Admin CLI** as an example. For more information about **REST API** or **JAVA Admin API**, see [here](io-use.md#create). 
 
-<!--DOCUSAURUS_CODE_TABS-->
+````mdx-code-block
+<Tabs 
+  defaultValue="Source"
+  values={[{"label":"Source","value":"Source"},{"label":"Sink","value":"Sink"}]}>
 
-<!--Source-->
+<TabItem value="Source">
 
 ```bash
+
 $ bin/pulsar-admin sources create \
   --processing-guarantees ATMOST_ONCE \
   # Other source configs
+
 ```
 
 For more information about the options of `pulsar-admin sources create`, see [here](reference-connector-admin.md#create).
 
-<!--Sink-->
+</TabItem>
+<TabItem value="Sink">
 
 ```bash
+
 $ bin/pulsar-admin sinks create \
   --processing-guarantees EFFECTIVELY_ONCE \
   # Other sink configs
+
 ```
 
 For more information about the options of `pulsar-admin sinks create`, see [here](reference-connector-admin.md#create-1).
 
-<!--END_DOCUSAURUS_CODE_TABS-->
+</TabItem>
+
+</Tabs>
+````
 
 ### Update 
 
@@ -103,34 +120,45 @@ After creating a connector, you can update the processing guarantee with the fol
   
 Here takes **Admin CLI** as an example. For more information about **REST API** or **JAVA Admin API**, see [here](io-use.md#create). 
 
-<!--DOCUSAURUS_CODE_TABS-->
+````mdx-code-block
+<Tabs 
+  defaultValue="Source"
+  values={[{"label":"Source","value":"Source"},{"label":"Sink","value":"Sink"}]}>
 
-<!--Source-->
+<TabItem value="Source">
 
 ```bash
+
 $ bin/pulsar-admin sources update \
   --processing-guarantees EFFECTIVELY_ONCE \
   # Other source configs
+
 ```
 
 For more information about the options of `pulsar-admin sources update`, see [here](reference-connector-admin.md#update).
 
-<!--Sink-->
+</TabItem>
+<TabItem value="Sink">
 
 ```bash
+
 $ bin/pulsar-admin sinks update \
   --processing-guarantees ATMOST_ONCE \
   # Other sink configs
+
 ```
 
 For more information about the options of `pulsar-admin sinks update`, see [here](reference-connector-admin.md#update-1).
 
-<!--END_DOCUSAURUS_CODE_TABS-->
+</TabItem>
+
+</Tabs>
+````
 
 
 ## Work with connector
 
-You can manage Pulsar connectors (for example, create, update, start, stop, restart, reload, delete and perform other operations on connectors) via the [Connector Admin CLI](reference-connector-admin.md) with [sources](reference-connector-admin.md#sources) and [sinks](reference-connector-admin.md#sinks) subcommands.
+You can manage Pulsar connectors (for example, create, update, start, stop, restart, reload, delete and perform other operations on connectors) via the [Connector Admin CLI](reference-connector-admin) with [sources](reference-connector-admin.md#sources) and [sinks](reference-connector-admin.md#sinks) subcommands.
 
-Connectors (sources and sinks) and Functions are components of instances, and they all run on Functions workers. When managing a source, sink or function via [Connector Admin CLI](reference-connector-admin.md) or [Functions Admin CLI](functions-cli.md), an instance is started on a worker. For more information, see [Functions worker](functions-worker.md#run-functions-worker-separately).
+Connectors (sources and sinks) and Functions are components of instances, and they all run on Functions workers. When managing a source, sink or function via [Connector Admin CLI](reference-connector-admin.md) or [Functions Admin CLI](functions-cli), an instance is started on a worker. For more information, see [Functions worker](functions-worker.md#run-functions-worker-separately).
 

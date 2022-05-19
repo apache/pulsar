@@ -29,7 +29,6 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import static org.testng.internal.junit.ArrayAsserts.assertArrayEquals;
 
-import com.google.common.base.Throwables;
 import lombok.EqualsAndHashCode;
 import org.apache.avro.Schema.Parser;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -1207,7 +1206,7 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         stopBroker();
         isTcpLookup = false;
         setup();
-        testEmptySchema();
+        testIncompatibleSchema();
     }
 
     @Test
@@ -1215,10 +1214,10 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         stopBroker();
         isTcpLookup = true;
         setup();
-        testEmptySchema();
+        testIncompatibleSchema();
     }
 
-    private void testEmptySchema() throws Exception {
+    private void testIncompatibleSchema() throws Exception {
         final String namespace = "test-namespace-" + randomName(16);
         String ns = PUBLIC_TENANT + "/" + namespace;
         admin.namespaces().createNamespace(ns, Sets.newHashSet(CLUSTER_NAME));
@@ -1252,12 +1251,14 @@ public class SchemaTest extends MockedPulsarServiceBaseTest {
         producer.send("test".getBytes(StandardCharsets.UTF_8));
         Message<User> message1 = consumer.receive();
         Assert.assertEquals(test, message1.getValue());
+        Message<User> message2 = consumer.receive();
         try {
-            Message<User> message2 = consumer.receive();
             message2.getValue();
-        } catch (Throwable ex) {
-            Assert.assertTrue(Throwables.getRootCause(ex) instanceof SchemaSerializationException);
-            Assert.assertEquals(Throwables.getRootCause(ex).getMessage(),"Empty schema version");
+        } catch (SchemaSerializationException e) {
+            final String schemaString =
+                    new String(Schema.AVRO(User.class).getSchemaInfo().getSchema(), StandardCharsets.UTF_8);
+            Assert.assertTrue(e.getMessage().contains(schemaString));
+            Assert.assertTrue(e.getMessage().contains("payload (4 bytes)"));
         }
     }
 

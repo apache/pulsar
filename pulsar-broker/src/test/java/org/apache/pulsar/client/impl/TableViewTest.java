@@ -30,16 +30,12 @@ import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
-import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TableView;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
-import org.apache.pulsar.common.util.FutureUtil;
 import org.awaitility.Awaitility;
-import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -176,59 +172,6 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
         // Send more data to partition 3, which is not in the current TableView, need update partitions
         Set<String> keys2 =
                 this.publishMessages(topicName.getPartition(3).toString(), count * 2, false);
-        Awaitility.await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> {
-            log.info("Current tv size: {}", tv.size());
-            Assert.assertEquals(tv.size(), count * 2);
-        });
-        Assert.assertEquals(tv.keySet(), keys2);
-    }
-
-
-    @Test(timeOut = 30 * 1000)
-    // Regression test for making sure partition changes are always periodically checked even after a check returned
-    // exceptionally.
-    public void testTableViewUpdatePartitionsTriggeredDespiteExceptions() throws Exception {
-        String topic = "persistent://public/default/tableview-test-update-partitions-triggered-despite-exceptions";
-        admin.topics().createPartitionedTopic(topic, 3);
-        int count = 20;
-        Set<String> keys = this.publishMessages(topic, count, false);
-        PulsarClient spyPulsarClient = Mockito.spy(pulsarClient);
-        @Cleanup
-        TableView<byte[]> tv = spyPulsarClient.newTableViewBuilder(Schema.BYTES)
-                .topic(topic)
-                .autoUpdatePartitionsInterval(5, TimeUnit.SECONDS)
-                .create();
-        log.info("start tv size: {}", tv.size());
-        tv.forEachAndListen((k, v) -> log.info("{} -> {}", k, new String(v)));
-        Awaitility.await().untilAsserted(() -> {
-            log.info("Current tv size: {}", tv.size());
-            Assert.assertEquals(tv.size(), count);
-        });
-        Assert.assertEquals(tv.keySet(), keys);
-        tv.forEachAndListen((k, v) -> log.info("checkpoint {} -> {}", k, new String(v)));
-
-        // Let update partition check throw an exception
-        Mockito.doReturn(FutureUtil.failedFuture(new PulsarClientException("")))
-                .when(spyPulsarClient)
-                .getPartitionsForTopic(Mockito.any());
-
-        admin.topics().updatePartitionedTopic(topic, 4);
-        TopicName topicName = TopicName.get(topic);
-
-        // Make sure the get partitions callback is called; it should throw an exception
-        Mockito.verify(spyPulsarClient).getPartitionsForTopic(Mockito.any());
-
-        // Send more data to partition 3, which is not in the current TableView, need update partitions
-        Set<String> keys2 =
-                this.publishMessages(topicName.getPartition(3).toString(), count * 2, false);
-
-        // Wait for 10 seconds; verify that the messages haven't arrived, which would have happened if the partitions
-        // has been updated
-        TimeUnit.SECONDS.sleep(10);
-        Assert.assertEquals(tv.size(), count);
-
-        // Let update partition check succeed, and check the messages eventually arrives
-        Mockito.doCallRealMethod().when(spyPulsarClient).getPartitionsForTopic(Mockito.any());
         Awaitility.await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> {
             log.info("Current tv size: {}", tv.size());
             Assert.assertEquals(tv.size(), count * 2);

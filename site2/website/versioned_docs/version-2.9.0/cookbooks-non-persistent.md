@@ -1,7 +1,7 @@
 ---
-id: version-2.9.0-cookbooks-non-persistent
+id: cookbooks-non-persistent
 title: Non-persistent messaging
-sidebar_label: Non-persistent messaging
+sidebar_label: "Non-persistent messaging"
 original_id: cookbooks-non-persistent
 ---
 
@@ -20,7 +20,9 @@ Pulsar also, however, supports **non-persistent topics**, which are topics on wh
 Non-persistent topics have names of this form (note the `non-persistent` in the name):
 
 ```http
+
 non-persistent://tenant/namespace/topic
+
 ```
 
 > For more high-level information about non-persistent topics, see the [Concepts and Architecture](concepts-messaging.md#non-persistent-topics) documentation.
@@ -32,12 +34,14 @@ non-persistent://tenant/namespace/topic
 In order to use non-persistent topics, you only need to differentiate them by name when interacting with them. This [`pulsar-client produce`](reference-cli-tools.md#pulsar-client-produce) command, for example, would produce one message on a non-persistent topic in a standalone cluster:
 
 ```bash
+
 $ bin/pulsar-client produce non-persistent://public/default/example-np-topic \
   --num-produce 1 \
   --messages "This message will be stored only in memory"
+
 ```
 
-> For a more thorough guide to non-persistent topics from an administrative perspective, see the [Non-persistent topics](admin-api-topics.md) guide.
+> For a more thorough guide to non-persistent topics from an administrative perspective, see the [Non-persistent topics](admin-api-topics) guide.
 
 ## Enabling
 
@@ -51,7 +55,7 @@ If you'd like to enable *only* non-persistent topics in a broker, you can set th
 
 ## Managing with cli
 
-Non-persistent topics can be managed using the [`pulsar-admin non-persistent`](reference-pulsar-admin.md#non-persistent) command-line interface. With that interface you can perform actions like [create a partitioned non-persistent topic](reference-pulsar-admin.md#non-persistent-create-partitioned-topic), get [stats](reference-pulsar-admin.md#non-persistent-stats) for a non-persistent topic, [list](reference-pulsar-admin.md) non-persistent topics under a namespace, and more.
+Non-persistent topics can be managed using the [`pulsar-admin non-persistent`](reference-pulsar-admin.md#non-persistent) command-line interface. With that interface you can perform actions like [create a partitioned non-persistent topic](reference-pulsar-admin.md#non-persistent-create-partitioned-topic), get [stats](reference-pulsar-admin.md#non-persistent-stats) for a non-persistent topic, [list](reference-pulsar-admin) non-persistent topics under a namespace, and more.
 
 ## Using with Pulsar clients
 
