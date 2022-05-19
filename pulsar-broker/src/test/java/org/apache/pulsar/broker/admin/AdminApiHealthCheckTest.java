@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.broker.admin;
 
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
 import com.google.common.collect.Sets;
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadMXBean;
@@ -35,7 +38,6 @@ import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.compaction.Compactor;
 import org.awaitility.Awaitility;
-import org.junit.Assert;
 import org.springframework.util.CollectionUtils;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -89,10 +91,10 @@ public class AdminApiHealthCheckTest extends MockedPulsarServiceBaseTest {
         final String testHealthCheckTopic = String.format("persistent://pulsar/test/localhost:%s/healthcheck",
                 pulsar.getConfig().getWebServicePort().get());
         Awaitility.await().untilAsserted(() -> {
-            Assert.assertFalse(future.isCompletedExceptionally());
+            assertFalse(future.isCompletedExceptionally());
         });
         Awaitility.await().untilAsserted(() ->
-                Assert.assertTrue(CollectionUtils.isEmpty(admin.topics()
+                assertTrue(CollectionUtils.isEmpty(admin.topics()
                         .getSubscriptions(testHealthCheckTopic).stream()
                         // All system topics are using compaction, even though is not explicitly set in the policies.
                         .filter(v -> !v.equals(Compactor.COMPACTION_SUBSCRIPTION))
@@ -166,7 +168,7 @@ public class AdminApiHealthCheckTest extends MockedPulsarServiceBaseTest {
         for (int i=0; i < 1000; i++) {
             long[] threadIds = threadBean.findDeadlockedThreads();
             // assert that there's no deadlock
-            Assert.assertNull(threadIds);
+            assertNull(threadIds);
         }
     }
 
@@ -190,11 +192,11 @@ public class AdminApiHealthCheckTest extends MockedPulsarServiceBaseTest {
         final String testHealthCheckTopic = String.format("persistent://pulsar/test/localhost:%s/healthcheck",
                 pulsar.getConfig().getWebServicePort().get());
         Awaitility.await().untilAsserted(() -> {
-            Assert.assertFalse(future.isCompletedExceptionally());
+            assertFalse(future.isCompletedExceptionally());
         });
         // To ensure we don't have any subscription
         Awaitility.await().untilAsserted(() ->
-                Assert.assertTrue(CollectionUtils.isEmpty(admin.topics()
+                assertTrue(CollectionUtils.isEmpty(admin.topics()
                         .getSubscriptions(testHealthCheckTopic).stream()
                         // All system topics are using compaction, even though is not explicitly set in the policies.
                         .filter(v -> !v.equals(Compactor.COMPACTION_SUBSCRIPTION))
@@ -223,11 +225,11 @@ public class AdminApiHealthCheckTest extends MockedPulsarServiceBaseTest {
         final String testHealthCheckTopic = String.format("persistent://pulsar/localhost:%s/healthcheck",
                 pulsar.getConfig().getWebServicePort().get());
         Awaitility.await().untilAsserted(() -> {
-            Assert.assertFalse(future.isCompletedExceptionally());
+            assertFalse(future.isCompletedExceptionally());
         });
         // To ensure we don't have any subscription
         Awaitility.await().untilAsserted(() ->
-                Assert.assertTrue(CollectionUtils.isEmpty(admin.topics()
+                assertTrue(CollectionUtils.isEmpty(admin.topics()
                         .getSubscriptions(testHealthCheckTopic).stream()
                         // All system topics are using compaction, even though is not explicitly set in the policies.
                         .filter(v -> !v.equals(Compactor.COMPACTION_SUBSCRIPTION))

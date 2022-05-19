@@ -1,15 +1,15 @@
 ---
-id: version-2.9.2-security-encryption
+id: security-encryption
 title: Pulsar Encryption
-sidebar_label: End-to-End Encryption
+sidebar_label: "End-to-End Encryption"
 original_id: security-encryption
 ---
 
-Applications can use Pulsar encryption to encrypt messages at the producer side and decrypt messages at the consumer side. You can use the public and private key pair that the application configures to perform encryption. Only the consumers with a valid key can decrypt the encrypted messages.
+Applications can use Pulsar encryption to encrypt messages on the producer side and decrypt messages on the consumer side. You can use the public and private key pair that the application configures to perform encryption. Only the consumers with a valid key can decrypt the encrypted messages.
 
 ## Asymmetric and symmetric encryption
 
-Pulsar uses dynamically generated symmetric AES key to encrypt messages(data). You can use the application provided ECDSA/RSA key pair to encrypt the AES key(data key), so you do not have to share the secret with everyone.
+Pulsar uses a dynamically generated symmetric AES key to encrypt messages(data). You can use the application-provided ECDSA (Elliptic Curve Digital Signature Algorithm) or RSA (Rivest–Shamir–Adleman) key pair to encrypt the AES key(data key), so you do not have to share the secret with everyone.
 
 Key is a public and private key pair used for encryption or decryption. The producer key is the public key of the key pair, and the consumer key is the private key of the key pair.
 
@@ -20,31 +20,44 @@ You can encrypt a message with more than one key. Any one of the keys used for e
 Pulsar does not store the encryption key anywhere in the Pulsar service. If you lose or delete the private key, your message is irretrievably lost, and is unrecoverable.
 
 ## Producer
-![alt text](assets/pulsar-encryption-producer.jpg "Pulsar Encryption Producer")
+![alt text](/assets/pulsar-encryption-producer.jpg "Pulsar Encryption Producer")
 
 ## Consumer
-![alt text](assets/pulsar-encryption-consumer.jpg "Pulsar Encryption Consumer")
+![alt text](/assets/pulsar-encryption-consumer.jpg "Pulsar Encryption Consumer")
 
 ## Get started
 
-1. Enter the commands below to create your ECDSA or RSA public and private key pair.
+1. Create your ECDSA or RSA public and private key pair by using the following commands.
+  * ECDSA（for Java clients only)
 
-```shell
-openssl ecparam -name secp521r1 -genkey -param_enc explicit -out test_ecdsa_privkey.pem
-openssl ec -in test_ecdsa_privkey.pem -pubout -outform pem -out test_ecdsa_pubkey.pem
-```
+   ```shell
+   
+   openssl ecparam -name secp521r1 -genkey -param_enc explicit -out test_ecdsa_privkey.pem
+   openssl ec -in test_ecdsa_privkey.pem -pubout -outform pem -out test_ecdsa_pubkey.pem
+   
+   ```
+
+  * RSA (for C++, Python and Node.js clients)
+
+   ```shell
+   
+   openssl genrsa -out test_rsa_privkey.pem 2048
+   openssl rsa -in test_rsa_privkey.pem -pubout -outform pkcs8 -out test_rsa_pubkey.pem
+   
+   ```
 
 2. Add the public and private key to the key management and configure your producers to retrieve public keys and consumers clients to retrieve private keys.
 
-3. Implement the CryptoKeyReader interface, specifically CryptoKeyReader.getPublicKey() for producer and CryptoKeyReader.getPrivateKey() for consumer, which Pulsar client invokes to load the key.
+3. Implement the `CryptoKeyReader` interface, specifically `CryptoKeyReader.getPublicKey()` for producer and `CryptoKeyReader.getPrivateKey()` for consumer, which Pulsar client invokes to load the key.
 
-4. Add encryption key name to producer builder: PulsarClient.newProducer().addEncryptionKey("myapp.key").
+4. Add the encryption key name to the producer builder: PulsarClient.newProducer().addEncryptionKey("myapp.key").
 
 5. Add CryptoKeyReader implementation to producer or consumer builder: PulsarClient.newProducer().cryptoKeyReader(keyReader) / PulsarClient.newConsumer().cryptoKeyReader(keyReader).
 
 6. Sample producer application:
 
 ```java
+
 class RawFileKeyReader implements CryptoKeyReader {
 
     String publicKeyFile = "";
@@ -94,10 +107,13 @@ for (int i = 0; i < 10; i++) {
 
 producer.close();
 pulsarClient.close();
+
 ```
+
 7. Sample Consumer Application:
 
 ```java
+
 class RawFileKeyReader implements CryptoKeyReader {
 
     String publicKeyFile = "";
@@ -151,6 +167,7 @@ for (int i = 0; i < 10; i++) {
 consumer.acknowledgeCumulative(msg);
 consumer.close();
 pulsarClient.close();
+
 ```
 
 ## Key rotation
@@ -163,18 +180,21 @@ If you produce messages that are consumed across application boundaries, you nee
 
 When producers want to encrypt the messages with multiple keys, producers add all such keys to the config. Consumer can decrypt the message as long as the consumer has access to at least one of the keys.
 
-If you need to encrypt the messages using 2 keys (myapp.messagekey1 and myapp.messagekey2), refer to the following example.
+If you need to encrypt the messages using 2 keys (`myapp.messagekey1` and `myapp.messagekey2`), refer to the following example.
 
 ```java
+
 PulsarClient.newProducer().addEncryptionKey("myapp.messagekey1").addEncryptionKey("myapp.messagekey2");
+
 ```
+
 ## Decrypt encrypted messages at the consumer application
-Consumers require access one of the private keys to decrypt messages that the producer produces. If you want to receive encrypted messages, create a public or private key and give your public key to the producer application to encrypt messages using your public key.
+Consumers require to access one of the private keys to decrypt messages that the producer produces. If you want to receive encrypted messages, create a public or private key and give your public key to the producer application to encrypt messages using your public key.
 
 ## Handle failures
-* Producer/ Consumer loses access to the key
-  * Producer action fails indicating the cause of the failure. Application has the option to proceed with sending unencrypted message in such cases. Call PulsarClient.newProducer().cryptoFailureAction(ProducerCryptoFailureAction) to control the producer behavior. The default behavior is to fail the request.
-  * If consumption fails due to decryption failure or missing keys in consumer, application has the option to consume the encrypted message or discard it. Call PulsarClient.newConsumer().cryptoFailureAction(ConsumerCryptoFailureAction) to control the consumer behavior. The default behavior is to fail the request. Application is never able to decrypt the messages if the private key is permanently lost.
+* Producer/Consumer loses access to the key
+  * Producer action fails to indicate the cause of the failure. Application has the option to proceed with sending unencrypted messages in such cases. Call `PulsarClient.newProducer().cryptoFailureAction(ProducerCryptoFailureAction)` to control the producer behavior. The default behavior is to fail the request.
+  * If consumption fails due to decryption failure or missing keys in consumer, the application has the option to consume the encrypted message or discard it. Call `PulsarClient.newConsumer().cryptoFailureAction(ConsumerCryptoFailureAction)` to control the consumer behavior. The default behavior is to fail the request. Application is never able to decrypt the messages if the private key is permanently lost.
 * Batch messaging
-  * If decryption fails and the message contains batch messages, client is not able to retrieve individual messages in the batch, hence message consumption fails even if cryptoFailureAction() is set to ConsumerCryptoFailureAction.CONSUME.
-* If decryption fails, the message consumption stops and application notices backlog growth in addition to decryption failure messages in the client log. If application does not have access to the private key to decrypt the message, the only option is to skip or discard backlogged messages. 
+  * If decryption fails and the message contains batch messages, client is not able to retrieve individual messages in the batch, hence message consumption fails even if cryptoFailureAction() is set to `ConsumerCryptoFailureAction.CONSUME`.
+* If decryption fails, the message consumption stops and the application notices backlog growth in addition to decryption failure messages in the client log. If the application does not have access to the private key to decrypt the message, the only option is to skip or discard backlogged messages. 

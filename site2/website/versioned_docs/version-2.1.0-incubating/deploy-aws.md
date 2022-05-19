@@ -1,11 +1,11 @@
 ---
-id: version-2.1.0-incubating-deploy-aws
+id: deploy-aws
 title: Deploying a Pulsar cluster on AWS using Terraform and Ansible
-sidebar_label: Amazon Web Services
+sidebar_label: "Amazon Web Services"
 original_id: deploy-aws
 ---
 
-> For instructions on deploying a single Pulsar cluster manually rather than using Terraform and Ansible, see [Deploying a Pulsar cluster on bare metal](deploy-bare-metal.md). For instructions on manually deploying a multi-cluster Pulsar instance, see [Deploying a Pulsar instance on bare metal](deploy-bare-metal-multi-cluster.md).
+> For instructions on deploying a single Pulsar cluster manually rather than using Terraform and Ansible, see [Deploying a Pulsar cluster on bare metal](deploy-bare-metal.md). For instructions on manually deploying a multi-cluster Pulsar instance, see [Deploying a Pulsar instance on bare metal](deploy-bare-metal-multi-cluster).
 
 One of the easiest ways to get a Pulsar [cluster](reference-terminology.md#cluster) running on [Amazon Web Services](https://aws.amazon.com/) (AWS) is to use the the [Terraform](https://terraform.io) infrastructure provisioning tool and the [Ansible](https://www.ansible.com) server automation tool. Terraform can create the resources necessary to run the Pulsar cluster---[EC2](https://aws.amazon.com/ec2/) instances, networking and security infrastructure, etc.---while Ansible can install and run Pulsar on the provisioned resources.
 
@@ -20,7 +20,9 @@ In order install a Pulsar cluster on AWS using Terraform and Ansible, you'll nee
 You'll also need to make sure that you're currently logged into your AWS account via the `aws` tool:
 
 ```bash
+
 $ aws configure
+
 ```
 
 ## Installation
@@ -28,7 +30,9 @@ $ aws configure
 You can install Ansible on Linux or macOS using pip.
 
 ```bash
+
 $ pip install ansible
+
 ```
 
 You can install Terraform using the instructions [here](https://learn.hashicorp.com/tutorials/terraform/install-cli).
@@ -36,8 +40,10 @@ You can install Terraform using the instructions [here](https://learn.hashicorp.
 You'll also need to have the Terraform and Ansible configurations for Pulsar locally on your machine. They're contained in Pulsar's [GitHub repository](https://github.com/apache/incubator-pulsar), which you can fetch using Git:
 
 ```bash
+
 $ git clone https://github.com/apache/incubator-pulsar
 $ cd incubator-pulsar/deployment/terraform-ansible/aws
+
 ```
 
 ## SSH setup
@@ -50,27 +56,41 @@ $ cd incubator-pulsar/deployment/terraform-ansible/aws
 >
 > 1. update `ansible.cfg` with following values:
 >
+
 > ```shell
+> 
 > private_key_file=~/.ssh/pulsar_aws
+>
+> 
 > ```
+
 >
 > 2. update `terraform.tfvars` with following values:
 >
+
 > ```shell
+> 
 > public_key_path=~/.ssh/pulsar_aws.pub
+>
+> 
 > ```
+
 
 In order to create the necessary AWS resources using Terraform, you'll need to create an SSH key. To create a private SSH key in `~/.ssh/id_rsa` and a public key in `~/.ssh/id_rsa.pub`:
 
 ```bash
+
 $ ssh-keygen -t rsa
+
 ```
 
 Do *not* enter a passphrase (hit **Enter** when prompted instead). To verify that a key has been created:
 
 ```bash
+
 $ ls ~/.ssh
 id_rsa               id_rsa.pub
+
 ```
 
 ## Creating AWS resources using Terraform
@@ -78,24 +98,30 @@ id_rsa               id_rsa.pub
 To get started building AWS resources with Terraform, you'll need to install all Terraform dependencies:
 
 ```bash
+
 $ terraform init
 # This will create a .terraform folder
+
 ```
 
 Once you've done that, you can apply the default Terraform configuration:
 
 ```bash
+
 $ terraform apply
+
 ```
 
 You should then see this prompt:
 
 ```bash
+
 Do you want to perform these actions?
   Terraform will perform the actions described above.
   Only 'yes' will be accepted to approve.
 
   Enter a value:
+
 ```
 
 Type `yes` and hit **Enter**. Applying the configuration could take several minutes. When it's finished, you should see `Apply complete!` along with some other information, including the number of resources created.
@@ -139,13 +165,17 @@ All EC2 instances for the cluster will run in the [us-west-2](http://docs.aws.am
 When you apply the Terraform configuration by running `terraform apply`, Terraform will output a value for the `pulsar_service_url`. It should look something like this:
 
 ```
+
 pulsar://pulsar-elb-1800761694.us-west-2.elb.amazonaws.com:6650
+
 ```
 
 You can fetch that value at any time by running `terraform output pulsar_service_url` or parsing the `terraform.tstate` file (which is JSON, even though the filename doesn't reflect that):
 
 ```bash
+
 $ cat terraform.tfstate | jq .modules[0].outputs.pulsar_service_url.value
+
 ```
 
 ### Destroying your cluster
@@ -153,7 +183,9 @@ $ cat terraform.tfstate | jq .modules[0].outputs.pulsar_service_url.value
 At any point, you can destroy all AWS resources associated with your cluster using Terraform's `destroy` command:
 
 ```bash
+
 $ terraform destroy
+
 ```
 
 ## Setup Disks
@@ -165,10 +197,12 @@ config, you need to update the task defined in `setup-disk.yaml` file.
 To setup disks on bookie nodes, use this command:
 
 ```bash
+
 $ ansible-playbook \
   --user='ec2-user' \
   --inventory=`which terraform-inventory` \
   setup-disk.yaml
+
 ```
 
 After running this command, the disks will be mounted under `/mnt/journal` as journal disk, and `/mnt/storage` as ledger disk.
@@ -180,20 +214,24 @@ it might be potentially erase your disks again and cause the bookies to fail to 
 Once you've created the necessary AWS resources using Terraform, you can install and run Pulsar on the Terraform-created EC2 instances using Ansible. To do so, use this command:
 
 ```bash
+
 $ ansible-playbook \
   --user='ec2-user' \
   --inventory=`which terraform-inventory` \
   ../deploy-pulsar.yaml
+
 ```
 
 If you've created a private SSH key at a location different from `~/.ssh/id_rsa`, you can specify the different location using the `--private-key` flag:
 
 ```bash
+
 $ ansible-playbook \
   --user='ec2-user' \
   --inventory=`which terraform-inventory` \
   --private-key="~/.ssh/some-non-default-key" \
   ../deploy-pulsar.yaml
+
 ```
 
 ## Accessing the cluster
@@ -203,24 +241,30 @@ You can now access your running Pulsar using the unique Pulsar connection URL fo
 For a quick demonstration of accessing the cluster, we can use the Python client for Pulsar and the Python shell. First, install the Pulsar Python module using pip:
 
 ```bash
+
 $ pip install pulsar-client
+
 ```
 
 Now, open up the Python shell using the `python` command:
 
 ```bash
+
 $ python
+
 ```
 
 Once in the shell, run the following:
 
 ```python
+
 >>> import pulsar
 >>> client = pulsar.Client('pulsar://pulsar-elb-1800761694.us-west-2.elb.amazonaws.com:6650')
 # Make sure to use your connection URL
 >>> producer = client.create_producer('persistent://public/default/test-topic')
 >>> producer.send('Hello world')
 >>> client.close()
+
 ```
 
 If all of these commands are successful, your cluster can now be used by Pulsar clients!

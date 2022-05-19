@@ -1,15 +1,18 @@
 ---
-id: version-2.1.1-incubating-reference-pulsar-admin
+id: reference-pulsar-admin
 title: Pulsar admin CLI
-sidebar_label: Pulsar Admin CLI
+sidebar_label: "Pulsar Admin CLI"
 original_id: reference-pulsar-admin
 ---
 
 The `pulsar-admin` tool enables you to manage Pulsar installations, including clusters, brokers, namespaces, tenants, and more.
 
 Usage
+
 ```bash
+
 $ pulsar-admin command
+
 ```
 
 Commands
@@ -31,7 +34,9 @@ Commands
 Operations to collect broker statistics
 
 ```bash
+
 $ pulsar-admin broker-stats subcommand
+
 ```
 
 Subcommands
@@ -47,8 +52,11 @@ Subcommands
 Dump allocator stats
 
 Usage
+
 ```bash
+
 $ pulsar-admin broker-stats allocator-stats allocator-name
+
 ```
 
 ### `destinations`
@@ -56,8 +64,11 @@ $ pulsar-admin broker-stats allocator-stats allocator-name
 Dump topic stats
 
 Usage
+
 ```bash
+
 $ pulsar-admin broker-stats destinations options
+
 ```
 
 Options
@@ -71,8 +82,11 @@ Options
 Dump Mbean stats
 
 Usage
+
 ```bash
+
 $ pulsar-admin broker-stats mbeans options
+
 ```
 
 Options
@@ -87,8 +101,11 @@ Options
 Dump metrics for monitoring
 
 Usage
+
 ```bash
+
 $ pulsar-admin broker-stats monitoring-metrics options
+
 ```
 
 Options
@@ -103,8 +120,11 @@ Options
 Dump topic stats
 
 Usage
+
 ```bash
+
 $ pulsar-admin broker-stats topics options
+
 ```
 
 Options
@@ -119,7 +139,9 @@ Options
 Operations about brokers
 
 ```bash
+
 $ pulsar-admin brokers subcommand
+
 ```
 
 Subcommands
@@ -134,16 +156,22 @@ Subcommands
 List active brokers of the cluster
 
 Usage
+
 ```bash
+
 $ pulsar-admin brokers list cluster-name
+
 ```
 
 ### `namespaces`
 List namespaces owned by the broker
 
 Usage
+
 ```bash
+
 $ pulsar-admin brokers namespaces cluster-name options
+
 ```
 
 Options
@@ -157,8 +185,11 @@ Options
 Update a broker's dynamic service configuration
 
 Usage
+
 ```bash
+
 $ pulsar-admin brokers update-dynamic-config options
+
 ```
 
 Options
@@ -173,33 +204,44 @@ Options
 Get list of updatable configuration name
 
 Usage
+
 ```bash
+
 $ pulsar-admin brokers list-dynamic-config
+
 ```
 
 ### `get-all-dynamic-config`
 Get all overridden dynamic-configuration values
 
 Usage
+
 ```bash
+
 $ pulsar-admin brokers get-all-dynamic-config
+
 ```
 
 ### `get-internal-config`
 Get internal configuration information
 
 Usage
-```bash
-$ pulsar-admin brokers get-internal-config
-```
 
+```bash
+
+$ pulsar-admin brokers get-internal-config
+
+```
 
 ## `clusters`
 Operations about clusters
 
 Usage
+
 ```bash
+
 $ pulsar-admin clusters subcommand
+
 ```
 
 Subcommands
@@ -215,16 +257,22 @@ Subcommands
 Get the configuration data for the specified cluster
 
 Usage
+
 ```bash
+
 $ pulsar-admin clusters get cluster-name
+
 ```
 
 ### `create`
 Provisions a new cluster. This operation requires Pulsar super-user privileges.
 
 Usage
+
 ```bash
+
 $ pulsar-admin clusters create cluster-name options
+
 ```
 
 Options
@@ -241,8 +289,11 @@ Options
 Update the configuration for a cluster
 
 Usage
+
 ```bash
+
 $ pulsar-admin clusters update cluster-name options
+
 ```
 
 Options
@@ -259,24 +310,33 @@ Options
 Deletes an existing cluster
 
 Usage
+
 ```bash
+
 $ pulsar-admin clusters delete cluster-name
+
 ```
 
 ### `list`
 List the existing clusters
 
 Usage
+
 ```bash
+
 $ pulsar-admin clusters list
+
 ```
 
 ### `update-peer-clusters`
 Update peer cluster names
 
 Usage
+
 ```bash
+
 $ pulsar-admin clusters update-peer-clusters peer-cluster-names
+
 ```
 
 ## `functions`
@@ -284,8 +344,11 @@ $ pulsar-admin clusters update-peer-clusters peer-cluster-names
 A command-line interface for Pulsar Functions
 
 Usage
+
 ```bash
+
 $ pulsar-admin functions subcommand
+
 ```
 
 Subcommands
@@ -305,8 +368,11 @@ Run a Pulsar Function locally
 
 
 Usage
+
 ```bash
+
 $ pulsar-admin functions localrun options
+
 ```
 
 Options
@@ -340,8 +406,11 @@ Options
 Creates a new Pulsar Function on the target infrastructure
 
 Usage
+
 ```
+
 $ pulsar-admin functions create options
+
 ```
 
 Options
@@ -375,8 +444,11 @@ Options
 Deletes an existing Pulsar Function
 
 Usage
+
 ```bash
+
 $ pulsar-admin functions delete options
+
 ```
 
 Options
@@ -392,10 +464,12 @@ Options
 Updates an existing Pulsar Function
 
 Usage
-```bash
-$ pulsar-admin functions update options
-```
 
+```bash
+
+$ pulsar-admin functions update options
+
+```
 
 Options
 
@@ -422,8 +496,11 @@ Options
 Fetch information about an existing Pulsar Function
 
 Usage
+
 ```bash
+
 $ pulsar-admin functions get options
+
 ```
 
 Options
@@ -439,8 +516,11 @@ Options
 Get the status of an existing Pulsar Function
 
 Usage
+
 ```bash
+
 $ pulsar-admin functions getstatus options
+
 ```
 
 Options
@@ -456,8 +536,11 @@ Options
 List all Pulsar Functions for a specific tenant and namespace
 
 Usage
+
 ```bash
+
 $ pulsar-admin functions list options
+
 ```
 
 Options
@@ -472,8 +555,11 @@ Options
 Retrieve the current state of a Pulsar Function by key
 
 Usage
+
 ```bash
+
 $ pulsar-admin functions querystate options
+
 ```
 
 Options
@@ -492,8 +578,11 @@ Options
 Triggers the specified Pulsar Function with a supplied value or file data
 
 Usage
+
 ```bash
+
 $ pulsar-admin functions trigger options
+
 ```
 
 Options
@@ -511,9 +600,10 @@ Options
 
 Operations for managing namespaces
 
-
 ```bash
+
 $ pulsar-admin namespaces subcommand
+
 ```
 
 Subcommands
@@ -551,40 +641,55 @@ Subcommands
 Get the namespaces for a tenant
 
 Usage
+
 ```bash
+
 $ pulsar-admin namespaces list tenant-name
+
 ```
 
 ### `list-cluster`
 Get the namespaces for a tenant in the cluster
 
 Usage
+
 ```bash
+
 $ pulsar-admin namespaces list-cluster tenant/cluster
+
 ```
 
 ### `destinations`
 Get the destinations for a namespace
 
 Usage
+
 ```bash
+
 $ pulsar-admin namespaces destinations tenant/cluster/namespace
+
 ```
 
 ### `policies`
 Get the policies of a namespace
 
 Usage
+
 ```bash
+
 $ pulsar-admin namespaces policies tenant/cluster/namespace
+
 ```
 
 ### `create`
 Create a new namespace
 
 Usage
+
 ```bash
+
 $ pulsar-admin namespaces create tenant/cluster/namespace options
+
 ```
 
 Options
@@ -598,16 +703,22 @@ Options
 Deletes a namespace
 
 Usage
+
 ```bash
+
 $ pulsar-admin namespaces delete tenant/cluster/namespace
+
 ```
 
 ### `set-deduplication`
 Enable or disable message deduplication on a namespace
 
 Usage
+
 ```bash
+
 $ pulsar-admin namespaces set-deduplication tenant/cluster/namespace options
+
 ```
 
 Options
@@ -622,16 +733,22 @@ Options
 Get the permissions on a namespace
 
 Usage
+
 ```bash
+
 $ pulsar-admin namespaces permissions tenant/cluster/namespace
+
 ```
 
 ### `grant-permission`
 Grant permissions on a namespace
 
 Usage
+
 ```bash
+
 $ pulsar-admin namespaces grant-permission tenant/cluster/namespace options
+
 ```
 
 Options
@@ -646,8 +763,11 @@ Options
 Revoke permissions on a namespace
 
 Usage
+
 ```bash
+
 $ pulsar-admin namespaces revoke-permission tenant/cluster/namespace options
+
 ```
 
 Options
@@ -661,8 +781,11 @@ Options
 Set replication clusters for a namespace
 
 Usage
+
 ```bash
+
 $ pulsar-admin namespaces set-clusters tenant/cluster/namespace options
+
 ```
 
 Options
@@ -676,24 +799,33 @@ Options
 Get replication clusters for a namespace
 
 Usage
+
 ```bash
+
 $ pulsar-admin namespaces get-clusters tenant/cluster/namespace
+
 ```
 
 ### `get-backlog-quotas`
 Get the backlog quota policies for a namespace
 
 Usage
+
 ```bash
+
 $ pulsar-admin namespaces get-backlog-quotas tenant/cluster/namespace
+
 ```
 
 ### `set-backlog-quota`
 Set a backlog quota for a namespace
 
 Usage
+
 ```bash
+
 $ pulsar-admin namespaces set-backlog-quota tenant/cluster/namespace options
+
 ```
 
 Options
@@ -704,34 +836,46 @@ Options
 |`-p`, `--policy`|The retention policy to enforce when the limit is reached. The valid options are: `producer_request_hold`, `producer_exception` or `consumer_backlog_eviction`|
 
 Example
+
 ```bash
+
 $ pulsar-admin namespaces set-backlog-quota my-prop/my-cluster/my-ns \
 --limit 2G \
 --policy producer_request_hold
+
 ```
 
 ### `remove-backlog-quota`
 Remove a backlog quota policy from a namespace
 
 Usage
+
 ```bash
+
 $ pulsar-admin namespaces remove-backlog-quota tenant/cluster/namespace
+
 ```
 
 ### `get-persistence`
 Get the persistence policies for a namespace
 
 Usage
+
 ```bash
+
 $ pulsar-admin namespaces get-persistence tenant/cluster/namespace
+
 ```
 
 ### `set-persistence`
 Set the persistence policies for a namespace
 
 Usage
+
 ```bash
+
 $ pulsar-admin namespaces set-persistence tenant/cluster/namespace options
+
 ```
 
 Options
@@ -748,16 +892,22 @@ Options
 Get the message TTL for a namespace
 
 Usage
+
 ```bash
+
 $ pulsar-admin namespaces get-message-ttl tenant/cluster/namespace
+
 ```
 
 ### `set-message-ttl`
 Set the message TTL for a namespace
 
 Usage
+
 ```bash
+
 $ pulsar-admin namespaces set-message-ttl options
+
 ```
 
 Options
@@ -771,16 +921,22 @@ Options
 Get the retention policy for a namespace
 
 Usage
+
 ```bash
+
 $ pulsar-admin namespaces get-retention tenant/cluster/namespace
+
 ```
 
 ### `set-retention`
 Set the retention policy for a namespace
 
 Usage
+
 ```bash
+
 $ pulsar-admin namespaces set-retention tenant/cluster/namespace options
+
 ```
 
 Options
@@ -795,8 +951,11 @@ Options
 Unload a namespace or namespace bundle from the current serving broker.
 
 Usage
+
 ```bash
+
 $ pulsar-admin namespaces unload tenant/cluster/namespace options
+
 ```
 
 Options
@@ -810,8 +969,11 @@ Options
 Clear the backlog for a namespace
 
 Usage
+
 ```bash
+
 $ pulsar-admin namespaces clear-backlog tenant/cluster/namespace options
+
 ```
 
 Options
@@ -827,8 +989,11 @@ Options
 Unsubscribe the given subscription on all destinations on a namespace
 
 Usage
+
 ```bash
+
 $ pulsar-admin namespaces unsubscribe tenant/cluster/namespace options
+
 ```
 
 Options
@@ -843,16 +1008,22 @@ Options
 Get compactionThreshold for a namespace
 
 Usage
+
 ```bash
+
 $ pulsar-admin namespaces get-compaction-threshold tenant/namespace
+
 ```
 
 ### `set-compaction-threshold`
 Set compactionThreshold for a namespace
 
 Usage
+
 ```bash
+
 $ pulsar-admin namespaces set-compaction-threshold tenant/namespace options
+
 ```
 
 Options
@@ -866,8 +1037,11 @@ Options
 Get offloadThreshold for a namespace
 
 Usage
+
 ```bash
+
 $ pulsar-admin namespaces get-offload-threshold tenant/namespace
+
 ```
 
 Options
@@ -882,8 +1056,11 @@ Options
 Operations for managing namespace isolation policies.
 
 Usage
+
 ```bash
+
 $ pulsar-admin ns-isolation-policy subcommand
+
 ```
 
 Subcommands
@@ -896,8 +1073,11 @@ Subcommands
 Create/update a namespace isolation policy for a cluster. This operation requires Pulsar superuser privileges.
 
 Usage
+
 ```bash
+
 $ pulsar-admin ns-isolation-policy set cluster-name policy-name options
+
 ```
 
 Options
@@ -915,34 +1095,45 @@ Options
 Get the namespace isolation policy of a cluster. This operation requires Pulsar superuser privileges.
 
 Usage
+
 ```bash
+
 $ pulsar-admin ns-isolation-policy get cluster-name policy-name
+
 ```
 
 ### `list`
 List all namespace isolation policies of a cluster. This operation requires Pulsar superuser privileges.
 
 Usage
+
 ```bash
+
 $ pulsar-admin ns-isolation-policy list cluster-name
+
 ```
 
 ### `delete`
 Delete namespace isolation policy of a cluster. This operation requires superuser privileges.
 
 Usage
-```bash
-$ pulsar-admin ns-isolation-policy delete
-```
 
+```bash
+
+$ pulsar-admin ns-isolation-policy delete
+
+```
 
 ## `sink`
 
 An interface for managing Pulsar IO sinks (egress data from Pulsar)
 
 Usage
+
 ```bash
+
 $ pulsar-admin sink subcommand
+
 ```
 
 Subcommands
@@ -955,8 +1146,11 @@ Subcommands
 Submit a Pulsar IO sink connector to run in a Pulsar cluster
 
 Usage
+
 ```bash
+
 $ pulsar-admin sink create options
+
 ```
 
 Options
@@ -983,8 +1177,11 @@ Options
 Stops a Pulsar IO sink
 
 Usage
+
 ```bash
+
 $ pulsar-admin sink delete options
+
 ```
 
 Options
@@ -1000,8 +1197,11 @@ Options
 Run the Pulsar sink locally (rather than in the Pulsar cluster)
 
 Usage
+
 ```bash
+
 $ pulsar-admin sink localrun options
+
 ```
 
 Options
@@ -1030,8 +1230,11 @@ Options
 An interface for managing Pulsar IO sources (ingress data into Pulsar)
 
 Usage
+
 ```bash
+
 $ pulsar-admin source subcommand
+
 ```
 
 Subcommands
@@ -1044,8 +1247,11 @@ Subcommands
 Submit a Pulsar IO source connector to run in a Pulsar cluster
 
 Usage
+
 ```bash
+
 $ pulsar-admin source create options
+
 ```
 
 Options
@@ -1072,8 +1278,11 @@ Options
 Stops a Pulsar IO source
 
 Usage
+
 ```bash
+
 $ pulsar-admin source delete options
+
 ```
 
 Options
@@ -1089,8 +1298,11 @@ Options
 Run the Pulsar source locally (rather than in the Pulsar cluster)
 
 Usage
+
 ```bash
+
 $ pulsar-admin source localrun options
+
 ```
 
 Options
@@ -1118,8 +1330,11 @@ Options
 Operations for managing Pulsar topics (both persistent and non persistent)
 
 Usage
+
 ```bash
+
 $ pulsar-admin topics subcommand
+
 ```
 
 Subcommands
@@ -1159,16 +1374,22 @@ Subcommands
 Run compaction on the specified topic (persistent topics only)
 
 Usage
+
 ```
+
 $ pulsar-admin topics compact persistent://tenant/namespace/topic
+
 ```
 
 ### `compaction-status`
 Check the status of a topic compaction (persistent topics only)
 
 Usage
+
 ```bash
+
 $ pulsar-admin topics compaction-status persistent://tenant/namespace/topic
+
 ```
 
 Options
@@ -1182,8 +1403,11 @@ Options
 Trigger offload of data from a topic to long-term storage (e.g. Amazon S3)
 
 Usage
+
 ```bash
+
 $ pulsar-admin topics offload persistent://tenant/namespace/topic options
+
 ```
 
 Options
@@ -1197,8 +1421,11 @@ Options
 Check the status of data offloading from a topic to long-term storage
 
 Usage
+
 ```bash
+
 $ pulsar-admin topics offload-status persistent://tenant/namespace/topic op
+
 ```
 
 Options
@@ -1212,8 +1439,11 @@ Options
 Create a partitioned topic. A partitioned topic must be created before producers can publish to it.
 
 Usage
+
 ```bash
+
 $ pulsar-admin topics create-partitioned-topic {persistent|non-persistent}://tenant/namespace/topic options
+
 ```
 
 Options
@@ -1227,24 +1457,33 @@ Options
 Delete a partitioned topic. This will also delete all the partitions of the topic if they exist.
 
 Usage
+
 ```bash
+
 $ pulsar-admin topics delete-partitioned-topic {persistent|non-persistent}
+
 ```
 
 ### `get-partitioned-topic-metadata`
 Get the partitioned topic metadata. If the topic is not created or is a non-partitioned topic, this will return an empty topic with zero partitions.
 
 Usage
+
 ```bash
+
 $ pulsar-admin topics get-partitioned-topic-metadata {persistent|non-persistent}://tenant/namespace/topic
+
 ```
 
 ### `update-partitioned-topic`
 Update existing non-global partitioned topic. New updating number of partitions must be greater than existing number of partitions.
 
 Usage
+
 ```bash
+
 $ pulsar-admin topics update-partitioned-topic {persistent|non-persistent}://tenant/namespace/topic options
+
 ```
 
 Options
@@ -1257,16 +1496,22 @@ Options
 Get the list of topics under a namespace
 
 Usage
+
 ```
+
 $ pulsar-admin topics list tenant/cluster/namespace
+
 ```
 
 ### `list-in-bundle`
 Get a list of non-persistent topics present under a namespace bundle
 
 Usage
+
 ```
+
 $ pulsar-admin topics list-in-bundle tenant/namespace options
+
 ```
 
 Options
@@ -1280,24 +1525,33 @@ Options
 Terminate a persistent topic (disallow further messages from being published on the topic)
 
 Usage
+
 ```bash
+
 $ pulsar-admin topics terminate persistent://tenant/namespace/topic
+
 ```
 
 ### `permissions`
 Get the permissions on a topic. Retrieve the effective permissions for a destination. These permissions are defined by the permissions set at the namespace level combined (union) with any eventual specific permissions set on the topic.
 
 Usage
+
 ```bash
+
 $ pulsar-admin topics permissions topic
+
 ```
 
 ### `grant-permission`
 Grant a new permission to a client role on a single topic
 
 Usage
+
 ```bash
+
 $ pulsar-admin topics grant-permission {persistent|non-persistent}://tenant/namespace/topic options
+
 ```
 
 Options
@@ -1312,56 +1566,77 @@ Options
 Revoke permissions to a client role on a single topic. If the permission was not set at the topic level, but rather at the namespace level, this operation will return an error (HTTP status code 412).
 
 Usage
+
 ```bash
+
 $ pulsar-admin topics revoke-permission topic
+
 ```
 
 ### `lookup`
 Look up a topic from the current serving broker
 
 Usage
+
 ```bash
+
 $ pulsar-admin topics lookup topic
+
 ```
 
 ### `bundle-range`
 Get the namespace bundle which contains the given topic
 
 Usage
+
 ```bash
+
 $ pulsar-admin topics bundle-range topic
+
 ```
 
 ### `delete`
 Delete a topic. The topic cannot be deleted if there are any active subscriptions or producers connected to the topic.
 
 Usage
+
 ```bash
+
 $ pulsar-admin topics delete topic
+
 ```
 
 ### `unload`
 Unload a topic
 
 Usage
+
 ```bash
+
 $ pulsar-admin topics unload topic
+
 ```
 
 ### `subscriptions`
 Get the list of subscriptions on the topic
 
 Usage
+
 ```bash
+
 $ pulsar-admin topics subscriptions topic
+
 ```
 
 ### `unsubscribe`
 Delete a durable subscriber from a topic
 
 Usage
+
 ```bash
+
 $ pulsar-admin topics unsubscribe topic options
+
 ```
 
 Options
@@ -1375,32 +1650,44 @@ Options
 Get the stats for the topic and its connected producers and consumers. All rates are computed over a 1-minute window and are relative to the last completed 1-minute period.
 
 Usage
+
 ```bash
+
 $ pulsar-admin topics stats topic
+
 ```
 
 ### `stats-internal`
 Get the internal stats for the topic
 
 Usage
+
 ```bash
+
 $ pulsar-admin topics stats-internal topic
+
 ```
 
 ### `info-internal`
 Get the internal metadata info for the topic
 
 Usage
+
 ```bash
+
 $ pulsar-admin topics info-internal topic
+
 ```
 
 ### `partitioned-stats`
 Get the stats for the partitioned topic and its connected producers and consumers. All rates are computed over a 1-minute window and are relative to the last completed 1-minute period.
 
 Usage
+
 ```bash
+
 $ pulsar-admin topics partitioned-stats topic options
+
 ```
 
 Options
@@ -1414,8 +1701,11 @@ Options
 Skip some messages for the subscription
 
 Usage
+
 ```bash
+
 $ pulsar-admin topics skip topic options
+
 ```
 
 Options
@@ -1430,8 +1720,11 @@ Options
 Skip all the messages for the subscription
 
 Usage
+
 ```bash
+
 $ pulsar-admin topics skip-all topic options
+
 ```
 
 Options
@@ -1445,8 +1738,11 @@ Options
 Expire messages that are older than the given expiry time (in seconds) for the subscription.
 
 Usage
+
 ```bash
+
 $ pulsar-admin topics expire-messages topic options
+
 ```
 
 Options
@@ -1461,8 +1757,11 @@ Options
 Expire messages older than the given expiry time (in seconds) for all subscriptions
 
 Usage
+
 ```bash
+
 $ pulsar-admin topics expire-messages-all-subscriptions topic options
+
 ```
 
 Options
@@ -1476,8 +1775,11 @@ Options
 Peek some messages for the subscription.
 
 Usage
+
 ```bash
+
 $ pulsar-admin topics peek-messages topic options
+
 ```
 
 Options
@@ -1492,8 +1794,11 @@ Options
 Reset position for subscription to closest to timestamp
 
 Usage
+
 ```bash
+
 $ pulsar-admin topics reset-cursor topic options
+
 ```
 
 Options
@@ -1509,8 +1814,11 @@ Options
 Operations for managing tenants
 
 Usage
+
 ```bash
+
 $ pulsar-admin tenants subcommand
+
 ```
 
 Subcommands
@@ -1524,24 +1832,33 @@ Subcommands
 List the existing tenants
 
 Usage
+
 ```bash
+
 $ pulsar-admin tenants list
+
 ```
 
 ### `get`
 Gets the configuration of a tenant
 
 Usage
+
 ```bash
+
 $ pulsar-admin tenants get tenant-name
+
 ```
 
 ### `create`
 Creates a new tenant
 
 Usage
+
 ```bash
+
 $ pulsar-admin tenants create tenant-name options
+
 ```
 
 Options
@@ -1555,8 +1872,11 @@ Options
 Updates a tenant
 
 Usage
+
 ```bash
+
 $ pulsar-admin tenants update tenant-name options
+
 ```
 
 Options
@@ -1571,17 +1891,22 @@ Options
 Deletes an existing tenant
 
 Usage
-```bash
-$ pulsar-admin tenants delete tenant-name
-```
 
+```bash
+
+$ pulsar-admin tenants delete tenant-name
+
+```
 
 ## `resource-quotas`
 Operations for managing resource quotas
 
 Usage
+
 ```bash
+
 $ pulsar-admin resource-quotas subcommand
+
 ```
 
 Subcommands
@@ -1594,8 +1919,11 @@ Subcommands
 Get the resource quota for a specified namespace bundle, or default quota if no namespace/bundle is specified.
 
 Usage
+
 ```bash
+
 $ pulsar-admin resource-quotas get options
+
 ```
 
 Options
@@ -1610,8 +1938,11 @@ Options
 Set the resource quota for the specified namespace bundle, or default quota if no namespace/bundle is specified.
 
 Usage
+
 ```bash
+
 $ pulsar-admin resource-quotas set options
+
 ```
 
 Options
@@ -1632,8 +1963,11 @@ Options
 Reset the specified namespace bundle's resource quota to a default value.
 
 Usage
+
 ```bash
+
 $ pulsar-admin resource-quotas reset-namespace-bundle-quota options
+
 ```
 
 Options
@@ -1649,8 +1983,11 @@ Options
 Operations related to Schemas associated with Pulsar topics.
 
 Usage
+
 ```
+
 $ pulsar-admin schemas subcommand
+
 ```
 
 Subcommands
@@ -1663,8 +2000,11 @@ Subcommands
 Upload the schema definition for a topic
 
 Usage
+
 ```bash
+
 $ pulsar-admin schemas upload persistent://tenant/namespace/topic options
+
 ```
 
 Options
@@ -1678,17 +2018,22 @@ Options
 Delete the schema definition associated with a topic
 
 Usage
-```bash
-$ pulsar-admin schemas delete persistent://tenant/namespace/topic
-```
 
+```bash
+
+$ pulsar-admin schemas delete persistent://tenant/namespace/topic
+
+```
 
 ### `get`
 Retrieve the schema definition associated with a topic (at a given version if version is supplied).
 
 Usage
+
 ```bash
+
 $ pulsar-admin schemas get persistent://tenant/namespace/topic options
+
 ```
 
 Options
