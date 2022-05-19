@@ -32,10 +32,12 @@ import org.apache.pulsar.client.admin.ListTopicsOptions;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.SystemTopicNames;
+import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.common.naming.TopicName;
@@ -66,6 +68,10 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
         conf.setAllowAutoTopicCreation(false);
         conf.setAllowAutoTopicCreationType("partitioned");
         conf.setDefaultNumPartitions(PARTITIONS);
+        conf.setManagedLedgerMaxEntriesPerLedger(1);
+        conf.setManagedLedgerMinLedgerRolloverTimeMinutes(1);
+        conf.setManagedLedgerMaxLedgerRolloverTimeMinutes(1);
+        conf.setBrokerDeleteInactiveTopicsEnabled(false);
 
         super.baseSetup();
     }
@@ -171,4 +177,49 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
         });
     }
 
+    @Test
+    private void testSetBacklogCausedCreatingProducerFailure() throws Exception {
+        final String ns = "prop/ns-test";
+        final String topic = ns + "/topic-1";
+
+        admin.namespaces().createNamespace(ns, 2);
+        admin.topics().createPartitionedTopic(String.format("persistent://%s", topic), 1);
+        BacklogQuota quota = BacklogQuota.builder()
+                .limitTime(30)
+                .limitSize(-1)
+                .retentionPolicy(BacklogQuota.RetentionPolicy.producer_exception)
+                .build();
+        admin.namespaces().setBacklogQuota(ns, quota, BacklogQuota.BacklogQuotaType.message_age);
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .create();
+        String msg1 = "msg-1";
+        producer.send(msg1);
+        Thread.sleep(60 * 1000);
+
+        Consumer<String> consumer2 = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("sub-1")
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .subscribe();
+
+        Message<String> receive = consumer2.receive();
+        consumer2.acknowledge(receive);
+
+        Thread.sleep(62 * 1000);
+
+        int producerCount = 30;
+        for (int i = 0; i < producerCount; i++) {
+            try {
+                Thread.sleep(1000);
+                Producer<String> producerN = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
+                producerN.close();
+            } catch (Exception ex) {
+                Assert.fail("failed to create producer");
+            }
+        }
+    }
 }

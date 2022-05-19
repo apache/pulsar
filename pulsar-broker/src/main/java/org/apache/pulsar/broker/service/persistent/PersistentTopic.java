@@ -2551,13 +2551,18 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     }, null);
             return future;
         } else {
-            Long ledgerId = ((ManagedCursorContainer) ledger.getCursors()).getSlowestReaderPosition().getLedgerId();
+            PositionImpl slowestPosition = ((ManagedCursorContainer) ledger.getCursors()).getSlowestReaderPosition();
+            Long ledgerId = slowestPosition.getLedgerId();
+            if (((ManagedLedgerImpl) ledger).getLedgersInfo().lastKey().equals(ledgerId)) {
+                return CompletableFuture.completedFuture(false);
+            }
             try {
                 org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo
                         ledgerInfo = ledger.getLedgerInfo(ledgerId).get();
                 if (ledgerInfo != null && ledgerInfo.hasTimestamp() && ledgerInfo.getTimestamp() > 0
                         && ((ManagedLedgerImpl) ledger).getClock().millis() - ledgerInfo.getTimestamp()
-                        > backlogQuotaLimitInSecond * 1000) {
+                        > backlogQuotaLimitInSecond * 1000 && slowestPosition.compareTo(
+                                new PositionImpl(ledgerInfo.getLedgerId(), ledgerInfo.getEntries() - 1)) < 0) {
                     if (log.isDebugEnabled()) {
                         log.debug("Time based backlog quota exceeded, quota {}, age of ledger "
                                         + "slowest cursor currently on {}", backlogQuotaLimitInSecond * 1000,
