@@ -29,6 +29,7 @@ import org.apache.avro.io.BinaryEncoder;
 import org.apache.avro.io.EncoderFactory;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
+import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.client.api.schema.KeyValueSchema;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
@@ -55,30 +56,25 @@ public class TransformContext {
         Record<?> currentRecord = context.getCurrentRecord();
         this.context = context;
         this.outputTopic = context.getOutputTopic();
-        Schema<?> schema = context.getCurrentRecord().getSchema();
+        Schema<?> schema = currentRecord.getSchema();
+        //TODO: should we make a copy ?
+        this.properties = currentRecord.getProperties();
         if (schema instanceof KeyValueSchema && value instanceof KeyValue) {
             KeyValueSchema kvSchema = (KeyValueSchema) schema;
             KeyValue kv = (KeyValue) value;
             this.keySchema = kvSchema.getKeySchema();
-            if (this.keySchema.getSchemaInfo().getType() == SchemaType.AVRO) {
-                this.keyObject = ((org.apache.pulsar.client.api.schema.GenericRecord) kv.getKey()).getNativeObject();
-            } else {
-                this.keyObject = kv.getKey();
-            }
+            this.keyObject = this.keySchema.getSchemaInfo().getType() == SchemaType.AVRO
+                    ? ((org.apache.pulsar.client.api.schema.GenericRecord) kv.getKey()).getNativeObject()
+                    : kv.getKey();
             this.valueSchema = kvSchema.getValueSchema();
-            if (this.valueSchema.getSchemaInfo().getType() == SchemaType.AVRO) {
-                this.valueObject =
-                        ((org.apache.pulsar.client.api.schema.GenericRecord) kv.getValue()).getNativeObject();
-            } else {
-                this.valueObject = kv.getValue();
-            }
+            this.valueObject = this.valueSchema.getSchemaInfo().getType() == SchemaType.AVRO
+                    ? ((org.apache.pulsar.client.api.schema.GenericRecord) kv.getValue()).getNativeObject()
+                    : kv.getValue();
             this.keyValueEncodingType = kvSchema.getKeyValueEncodingType();
         } else {
             this.valueSchema = schema;
             this.valueObject = value;
             this.key = currentRecord.getKey().orElse(null);
-            //TODO: should we make a copy ?
-            this.properties = currentRecord.getProperties();
         }
     }
 
@@ -96,17 +92,21 @@ public class TransformContext {
 
         Schema outputSchema;
         Object outputObject;
+        GenericObject recordValue = (GenericObject) context.getCurrentRecord().getValue();
         if (keySchema != null) {
             outputSchema = Schema.KeyValue(keySchema, valueSchema, keyValueEncodingType);
-            outputObject = new KeyValue(keyObject, valueObject);
+            Object outputKeyObject = !keyModified && keySchema.getSchemaInfo().getType().isStruct()
+                    ? ((KeyValue) recordValue.getNativeObject()).getKey()
+                    : keyObject;
+            Object outputValueObject = !valueModified && valueSchema.getSchemaInfo().getType().isStruct()
+                    ? ((KeyValue) recordValue.getNativeObject()).getValue()
+                    : valueObject;
+            outputObject = new KeyValue(outputKeyObject, outputValueObject);
         } else {
             outputSchema = valueSchema;
-            // GenericRecord must stay wrapped while primitives must be unwrapped
-            if (!valueModified && valueSchema.getSchemaInfo().getType().isStruct()) {
-                outputObject = context.getCurrentRecord().getValue();
-            } else {
-                outputObject = valueObject;
-            }
+            outputObject = !valueModified && valueSchema.getSchemaInfo().getType().isStruct()
+                    ? recordValue
+                    : valueObject;
         }
 
         if (log.isDebugEnabled()) {

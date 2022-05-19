@@ -26,16 +26,15 @@ import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.Record;
 
 @Slf4j
-public abstract class AbstractTransformStepFunction implements Function<GenericObject, Void>, TransformStep{
+public abstract class AbstractTransformStepFunction implements Function<GenericObject, Void>, TransformStep {
 
     @Override
     public Void process(GenericObject input, Context context) throws Exception {
-        Record<?> currentRecord = context.getCurrentRecord();
-        Schema<?> schema = currentRecord.getSchema();
         Object nativeObject = input.getNativeObject();
         if (log.isDebugEnabled()) {
+            Record<?> currentRecord = context.getCurrentRecord();
             log.debug("apply to {} {}", input, nativeObject);
-            log.debug("record with schema {} version {} {}", schema,
+            log.debug("record with schema {} version {} {}", currentRecord.getSchema(),
                     currentRecord.getMessage().get().getSchemaVersion(),
                     currentRecord);
         }
