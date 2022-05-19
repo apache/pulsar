@@ -183,6 +183,7 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
                 "msgThroughputOut",
                 "bytesOutCounter",
                 "msgOutCounter",
+                "messageAckRate",
                 "msgRateRedeliver",
                 "chunkedMessageRate",
                 "consumerName",
