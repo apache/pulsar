@@ -671,7 +671,8 @@ public class CmdFunctions extends CmdBase {
                         + " be specified for the function. Please specify one.");
             }
 
-            if (!isBlank(functionConfig.getJar()) && !Utils.isFunctionPackageUrlSupported(functionConfig.getJar())
+            if (!isBlank(functionConfig.getJar()) && !functionConfig.getJar().startsWith("builtin://")
+                    && !Utils.isFunctionPackageUrlSupported(functionConfig.getJar())
                     && !new File(functionConfig.getJar()).exists()) {
                 throw new ParameterException("The specified jar file does not exist");
             }
