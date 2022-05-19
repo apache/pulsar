@@ -237,6 +237,10 @@ public class ProxyConfiguration implements PulsarConfiguration {
             doc = "Enable or disable the proxy protocol.")
     private boolean haProxyProtocolEnabled;
 
+    @FieldContext(category = CATEGORY_SERVER,
+            doc = "Enable or disable the zero-copy of NIC to NIC.")
+    private boolean zeroCopyModeEnabled = true;
+
     @FieldContext(
         category = CATEGORY_SERVER,
         doc = "The port for serving binary protobuf request"

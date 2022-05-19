@@ -31,6 +31,9 @@ import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
+import io.netty.channel.epoll.EpollChannelOption;
+import io.netty.channel.epoll.EpollMode;
+import io.netty.channel.epoll.EpollSocketChannel;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import io.netty.handler.codec.haproxy.HAProxyCommand;
@@ -109,6 +112,10 @@ public class DirectProxyHandler {
         b.group(inboundChannel.eventLoop())
                 .channel(inboundChannel.getClass());
 
+        if (service.zeroCopyModeEnabled) {
+            b.option(EpollChannelOption.EPOLL_MODE, EpollMode.LEVEL_TRIGGERED);
+        }
+
         String remoteHost;
         try {
             remoteHost = parseHost(brokerHostAndPort);
@@ -132,7 +139,7 @@ public class DirectProxyHandler {
                 ch.pipeline().addLast("frameDecoder", new LengthFieldBasedFrameDecoder(
                     Commands.DEFAULT_MAX_MESSAGE_SIZE + Commands.MESSAGE_SIZE_FRAME_PADDING, 0, 4, 0, 4));
                 ch.pipeline().addLast("proxyOutboundHandler",
-                        new ProxyBackendHandler(config, protocolVersion, remoteHost));
+                        (ChannelHandler) new ProxyBackendHandler(config, protocolVersion, remoteHost));
             }
         });
 
@@ -281,6 +288,14 @@ public class DirectProxyHandler {
                 }
                 inboundChannel.writeAndFlush(msg)
                         .addListener(ChannelFutureListener.FIRE_EXCEPTION_ON_FAILURE);
+
+                if (service.zeroCopyModeEnabled && service.proxyLogLevel == 0) {
+                    if (!ProxyConnection.isTlsChannel(ctx.channel()) && !ProxyConnection.isTlsChannel(inboundChannel)) {
+                        DirectProxyHandler.this.proxyConnection.spliceNIC2NIC((EpollSocketChannel) ctx.channel(),
+                                (EpollSocketChannel) inboundChannel);
+                    }
+                }
+
                 break;
 
             default:

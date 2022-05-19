@@ -21,9 +21,12 @@ package org.apache.pulsar.proxy.server;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import io.netty.buffer.ByteBuf;
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelPromise;
+import io.netty.channel.epoll.EpollSocketChannel;
 import io.netty.handler.codec.haproxy.HAProxyMessage;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.resolver.dns.DnsAddressResolverGroup;
@@ -99,6 +102,7 @@ public class ProxyConnection extends PulsarHandler {
     private String proxyToBrokerUrl;
     private HAProxyMessage haProxyMessage;
 
+    private static final Integer SPLICE_BYTES = 1024 * 1024 * 1024;
     private static final byte[] EMPTY_CREDENTIALS = new byte[0];
 
     enum State {
@@ -243,6 +247,14 @@ public class ProxyConnection extends PulsarHandler {
                 }
                 directProxyHandler.outboundChannel.writeAndFlush(msg)
                         .addListener(ChannelFutureListener.FIRE_EXCEPTION_ON_FAILURE);
+
+                if (service.isZeroCopyModeEnabled() && service.proxyLogLevel == 0) {
+                    if (!ProxyConnection.isTlsChannel(ctx.channel())
+                            && !ProxyConnection.isTlsChannel(directProxyHandler.outboundChannel)) {
+                        spliceNIC2NIC((EpollSocketChannel) ctx.channel(),
+                                (EpollSocketChannel) directProxyHandler.outboundChannel);
+                    }
+                }
             } else {
                 LOG.warn("Received message of type {} while connection to broker is missing in state {}. "
                                 + "Dropping the input message (readable bytes={}).", msg.getClass(), state,
@@ -257,6 +269,33 @@ public class ProxyConnection extends PulsarHandler {
         default:
             break;
         }
+    }
+
+    /**
+     * Use splice to zero-copy of NIC to NIC.
+     * @param inboundChannel input channel
+     * @param outboundChannel output channel
+     */
+    protected void spliceNIC2NIC(EpollSocketChannel inboundChannel, EpollSocketChannel outboundChannel) {
+        inboundChannel.config().setAutoRead(false);
+
+        ChannelPromise promise = ctx.newPromise();
+        inboundChannel.spliceTo(outboundChannel, SPLICE_BYTES, promise);
+        promise.addListener((ChannelFutureListener) future -> {
+            if (!future.isSuccess()) {
+                future.channel().pipeline().fireExceptionCaught(future.cause());
+            } else {
+                ProxyService.OPS_COUNTER.inc();
+                directProxyHandler.getInboundChannelRequestsRate().recordEvent(SPLICE_BYTES);
+                ProxyService.BYTES_COUNTER.inc(SPLICE_BYTES);
+            }
+        });
+
+        inboundChannel.config().setAutoRead(true);
+    }
+
+    protected static boolean isTlsChannel(Channel channel) {
+        return channel.pipeline().get(ServiceChannelInitializer.TLS_HANDLER) != null;
     }
 
     private synchronized void completeConnect(AuthData clientData) throws PulsarClientException {
