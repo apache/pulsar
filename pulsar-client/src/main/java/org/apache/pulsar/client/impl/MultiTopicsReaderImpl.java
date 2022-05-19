@@ -67,6 +67,7 @@ public class MultiTopicsReaderImpl<T> implements Reader<T> {
         consumerConfiguration.setReceiverQueueSize(readerConfiguration.getReceiverQueueSize());
         consumerConfiguration.setReadCompacted(readerConfiguration.isReadCompacted());
         consumerConfiguration.setPoolMessages(readerConfiguration.isPoolMessages());
+        consumerConfiguration.setStartPaused(readerConfiguration.isStartPaused());
 
         // chunking configuration
         consumerConfiguration.setMaxPendingChunkedMessage(readerConfiguration.getMaxPendingChunkedMessage());
@@ -205,6 +206,16 @@ public class MultiTopicsReaderImpl<T> implements Reader<T> {
     @Override
     public CompletableFuture<Void> seekAsync(long timestamp) {
         return multiTopicsConsumer.seekAsync(timestamp);
+    }
+
+    @Override
+    public void pause() {
+        multiTopicsConsumer.pause();
+    }
+
+    @Override
+    public void resume() {
+        multiTopicsConsumer.resume();
     }
 
     @Override

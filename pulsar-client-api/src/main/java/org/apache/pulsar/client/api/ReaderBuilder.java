@@ -367,4 +367,15 @@ public interface ReaderBuilder<T> extends Cloneable {
      */
     ReaderBuilder<T> expireTimeOfIncompleteChunkedMessage(long duration, TimeUnit unit);
 
+    /**
+     * Start the reader in a paused state. When enabled, the reader does not immediately fetch messages when
+     * {@link #create()} is called. Instead, the reader waits to fetch messages until {@link Reader#resume()} is
+     * called.
+     * <p/>
+     * See also {@link Reader#pause()}.
+     *
+     * @default false
+     */
+    ReaderBuilder<T> startPaused(boolean paused);
+
 }

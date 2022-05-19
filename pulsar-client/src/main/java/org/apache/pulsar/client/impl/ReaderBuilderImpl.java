@@ -271,4 +271,9 @@ public class ReaderBuilderImpl<T> implements ReaderBuilder<T> {
         return this;
     }
 
+    @Override
+    public ReaderBuilder<T> startPaused(boolean paused) {
+        conf.setStartPaused(paused);
+        return this;
+    }
 }

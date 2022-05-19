@@ -211,6 +211,16 @@ public class ReaderHandlerTest {
         }
 
         @Override
+        public void pause() {
+
+        }
+
+        @Override
+        public void resume() {
+
+        }
+
+        @Override
         public void close() throws IOException {
 
         }

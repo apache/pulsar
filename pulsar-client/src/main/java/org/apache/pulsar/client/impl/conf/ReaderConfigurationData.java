@@ -75,6 +75,8 @@ public class ReaderConfigurationData<T> implements Serializable, Cloneable {
 
     private long expireTimeOfIncompleteChunkedMessageMillis = TimeUnit.MINUTES.toMillis(1);
 
+    private boolean startPaused = false;
+
     @JsonIgnore
     public String getTopicName() {
         if (topicNames.size() > 1) {

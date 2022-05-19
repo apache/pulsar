@@ -77,4 +77,29 @@ public class ReaderImplTest {
         // then
         assertFalse(reader.getConsumer().hasNextPendingReceive());
     }
+
+    @Test
+    public void testReaderCreatedWhilePaused() {
+        PulsarClientImpl client = ClientTestFixtures.createPulsarClientMock(executorProvider, internalExecutor);
+        String topic = "non-persistent://tenant/ns1/my-topic";
+
+        ReaderConfigurationData<byte[]> readerConf = new ReaderConfigurationData<>();
+
+        readerConf.setStartPaused(true);
+        readerConf.setTopicName(topic);
+
+        ReaderImpl<byte[]> reader =
+                new ReaderImpl<>(client, readerConf, ClientTestFixtures.createMockedExecutorProvider(),
+                        new CompletableFuture<>(), Schema.BYTES);
+
+        assertTrue(reader.getConsumer().paused);
+
+        MultiTopicsReaderImpl<byte[]> multiTopicsReader =
+                new MultiTopicsReaderImpl<>(client, readerConf, ClientTestFixtures.createMockedExecutorProvider(),
+                        new CompletableFuture<>(), Schema.BYTES);
+
+        for (ConsumerImpl<byte[]> consumer : multiTopicsReader.getMultiTopicsConsumer().getConsumers()) {
+            assertTrue(consumer.paused);
+        }
+    }
 }

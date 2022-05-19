@@ -215,4 +215,15 @@ public interface Reader<T> extends Closeable {
      * @return a future to track the completion of the seek operation
      */
     CompletableFuture<Void> seekAsync(long timestamp);
+
+    /**
+     * Stop requesting new messages from the broker until {@link #resume()} is called. Note that this might cause
+     * {@link #readNext()} to block until {@link #resume()} is called and new messages are pushed by the broker.
+     */
+    void pause();
+
+    /**
+     * Resume requesting messages from the broker.
+     */
+    void resume();
 }
