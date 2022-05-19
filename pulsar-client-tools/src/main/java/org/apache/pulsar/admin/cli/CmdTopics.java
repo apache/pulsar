@@ -1653,7 +1653,8 @@ public class CmdTopics extends CmdBase {
             }
 
             if (messageTTLInSecond < 0 || messageTTLInSecond > Integer.MAX_VALUE) {
-                throw new ParameterException(String.format("Invalid retention policy type '%d'. ", messageTTLInSecond));
+                throw new ParameterException(
+                        String.format("Message TTL cannot be negative or greater than %d seconds", Integer.MAX_VALUE));
             }
 
             String persistentTopic = validatePersistentTopic(params);

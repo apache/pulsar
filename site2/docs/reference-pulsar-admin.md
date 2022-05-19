@@ -1465,7 +1465,7 @@ Options
 
 |Flag|Description|Default|
 |----|---|---|
-|`-ttl`, `--messageTTL`|Message TTL in seconds. When the value is set to `0`, TTL is disabled. TTL is disabled by default. |0|
+|`-ttl`, `--messageTTL`|Message TTL in seconds (or minutes, hours, days, weeks eg: 100m, 3h, 2d, 5w). When the value is set to `0`, TTL is disabled. TTL is disabled by default. |0|
 
 ### `remove-message-ttl`
 Remove the message TTL for a namespace.
