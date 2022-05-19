@@ -232,10 +232,10 @@ public class TransactionStablePositionTest extends TransactionTestBase {
         Awaitility.await().until(() -> {
             if (clientEnableTransaction) {
                 // recover success, client enable transaction will change to Ready State
-                return topicTransactionBuffer.getStats().state.equals(Ready.name());
+                return topicTransactionBuffer.getStats(false).state.equals(Ready.name());
             } else {
                 // recover success, client disable transaction will change to NoSnapshot State
-                return topicTransactionBuffer.getStats().state.equals(NoSnapshot.name());
+                return topicTransactionBuffer.getStats(false).state.equals(NoSnapshot.name());
             }
         });
     }

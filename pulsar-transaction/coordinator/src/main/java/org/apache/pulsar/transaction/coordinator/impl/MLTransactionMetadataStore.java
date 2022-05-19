@@ -424,6 +424,7 @@ public class MLTransactionMetadataStore
         transactionCoordinatorstats.setLowWaterMark(getLowWaterMark());
         transactionCoordinatorstats.setState(getState().name());
         transactionCoordinatorstats.setLeastSigBits(sequenceIdGenerator.getCurrentSequenceId());
+        transactionCoordinatorstats.ongoningTxns = txnMetaMap.size();
         return transactionCoordinatorstats;
     }
 

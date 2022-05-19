@@ -565,7 +565,7 @@ public class TransactionTest extends TransactionTestBase {
 
         TransactionBuffer buffer2 = new TopicTransactionBuffer(persistentTopic);
         Awaitility.await().atMost(30, TimeUnit.SECONDS).untilAsserted(() ->
-                assertEquals(buffer2.getStats().state, "Ready"));
+                assertEquals(buffer2.getStats(false).state, "Ready"));
         managedCursors.removeCursor("transaction-buffer-sub");
 
         doAnswer(invocation -> {
@@ -577,7 +577,7 @@ public class TransactionTest extends TransactionTestBase {
         managedCursors.add(managedCursor);
         TransactionBuffer buffer3 = new TopicTransactionBuffer(persistentTopic);
         Awaitility.await().atMost(30, TimeUnit.SECONDS).untilAsserted(() ->
-                assertEquals(buffer3.getStats().state, "Ready"));
+                assertEquals(buffer3.getStats(false).state, "Ready"));
         persistentTopic.getInternalStats(false).thenAccept(internalStats -> {
             assertTrue(internalStats.cursors.isEmpty());
         });
@@ -628,7 +628,7 @@ public class TransactionTest extends TransactionTestBase {
 
         PendingAckHandleImpl pendingAckHandle1 = new PendingAckHandleImpl(persistentSubscription);
         Awaitility.await().untilAsserted(() ->
-                assertEquals(pendingAckHandle1.getStats().state, "Ready"));
+                assertEquals(pendingAckHandle1.getStats(false).state, "Ready"));
 
         doAnswer(invocation -> {
             AsyncCallbacks.ReadEntriesCallback callback = invocation.getArgument(1);
@@ -638,7 +638,7 @@ public class TransactionTest extends TransactionTestBase {
 
         PendingAckHandleImpl pendingAckHandle2 = new PendingAckHandleImpl(persistentSubscription);
         Awaitility.await().untilAsserted(() ->
-                assertEquals(pendingAckHandle2.getStats().state, "Ready"));
+                assertEquals(pendingAckHandle2.getStats(false).state, "Ready"));
 
         doAnswer(invocation -> {
             AsyncCallbacks.ReadEntriesCallback callback = invocation.getArgument(1);
@@ -649,7 +649,7 @@ public class TransactionTest extends TransactionTestBase {
         PendingAckHandleImpl pendingAckHandle3 = new PendingAckHandleImpl(persistentSubscription);
 
         Awaitility.await().untilAsserted(() ->
-                assertEquals(pendingAckHandle3.getStats().state, "Ready"));
+                assertEquals(pendingAckHandle3.getStats(false).state, "Ready"));
     }
 
     @Test

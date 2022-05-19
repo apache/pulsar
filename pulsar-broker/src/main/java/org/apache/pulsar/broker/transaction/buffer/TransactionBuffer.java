@@ -167,7 +167,7 @@ public interface TransactionBuffer {
      * Get transaction stats in buffer.
      * @return the transaction stats in buffer.
      */
-    TransactionBufferStats getStats();
+    TransactionBufferStats getStats(boolean lowWaterMarks);
 
     /**
      * Wait TransactionBuffer Recovers completely.

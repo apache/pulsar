@@ -181,6 +181,16 @@ public class NamespaceService implements AutoCloseable {
         }
     }
 
+    public Optional<LookupResult> getBrokerServiceUrl(TopicName topicName, LookupOptions options) {
+        try {
+            return getBrokerServiceUrlAsync(topicName, options).get();
+        } catch (Exception e) {
+            // Just log the exception, nothing else to do
+            LOG.warn("getBrokerServiceUrl [{}]", e.getMessage(), e);
+        }
+        return Optional.empty();
+    }
+
     public CompletableFuture<Optional<LookupResult>> getBrokerServiceUrlAsync(TopicName topic, LookupOptions options) {
         long startTime = System.nanoTime();
 

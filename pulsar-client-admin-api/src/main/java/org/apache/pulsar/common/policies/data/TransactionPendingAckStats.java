@@ -18,8 +18,25 @@
  */
 package org.apache.pulsar.common.policies.data;
 
+import java.util.concurrent.ConcurrentHashMap;
+
 public class TransactionPendingAckStats {
 
     /** The state of this pending ack. */
     public String state;
+
+    /**
+     * The owner broker url of the transaction pending ack.
+     */
+    public String brokerOwnerURL;
+
+    /**
+     * (Optional) The lowWaterMark details of the transaction pending ack.
+     */
+    public ConcurrentHashMap<Long, Long> lowWaterMarks;
+
+    /**
+     * The total number of ongoing transactions in this transaction pending ack.
+     */
+    public long ongoingTxns;
 }

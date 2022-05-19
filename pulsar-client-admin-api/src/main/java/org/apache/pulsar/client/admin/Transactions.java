@@ -121,35 +121,41 @@ public interface Transactions {
      * Get transaction buffer stats.
      *
      * @param topic the topic of getting transaction buffer stats
+     * @param  lowWaterMarks Whether to get information about lowWaterMarks stored in transaction pending ack.
      * @return the future stats of transaction buffer in topic.
      */
-    CompletableFuture<TransactionBufferStats> getTransactionBufferStatsAsync(String topic);
+    CompletableFuture<TransactionBufferStats> getTransactionBufferStatsAsync(String topic, boolean lowWaterMarks);
 
     /**
      * Get transaction buffer stats.
      *
      * @param topic the topic of getting transaction buffer stats
+     * @param  lowWaterMarks Whether to get information about lowWaterMarks stored in transaction buffer.
      * @return the stats of transaction buffer in topic.
      */
-    TransactionBufferStats getTransactionBufferStats(String topic) throws PulsarAdminException;
+    TransactionBufferStats getTransactionBufferStats(String topic, boolean lowWaterMarks) throws PulsarAdminException;
 
     /**
      * Get transaction pending ack stats.
      *
      * @param topic the topic of this transaction pending ack stats
      * @param subName the subscription name of this transaction pending ack stats
+     * @param  lowWaterMarks Whether to get information about lowWaterMarks stored in transaction pending ack.
      * @return the stats of transaction pending ack.
      */
-    CompletableFuture<TransactionPendingAckStats> getPendingAckStatsAsync(String topic, String subName);
+    CompletableFuture<TransactionPendingAckStats> getPendingAckStatsAsync(String topic, String subName,
+                                                                          boolean lowWaterMarks);
 
     /**
      * Get transaction pending ack stats.
      *
      * @param topic the topic of this transaction pending ack stats
      * @param subName the subscription name of this transaction pending ack stats
+     * @param  lowWaterMarks Whether to get information about lowWaterMarks stored in transaction pending ack.
      * @return the stats of transaction pending ack.
      */
-    TransactionPendingAckStats getPendingAckStats(String topic, String subName) throws PulsarAdminException;
+    TransactionPendingAckStats getPendingAckStats(String topic, String subName, boolean lowWaterMarks)
+            throws PulsarAdminException;
 
     /**
      * Get slow transactions by coordinator id.
