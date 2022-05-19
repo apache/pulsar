@@ -1382,10 +1382,6 @@ public abstract class NamespacesBase extends AdminResource {
             });
             log.info("[{}] Successfully updated the subscribeRate for cluster on namespace {}", clientAppId(),
                     namespaceName);
-        }).exceptionally(ex -> {
-            log.error("[{}] Failed to update the subscribeRate for cluster on namespace {}", clientAppId(),
-                    namespaceName, ex);
-            throw new RestException(ex);
         });
     }
 
@@ -1397,10 +1393,6 @@ public abstract class NamespacesBase extends AdminResource {
             });
             log.info("[{}] Successfully delete the subscribeRate for cluster on namespace {}", clientAppId(),
                     namespaceName);
-        }).exceptionally(ex -> {
-            log.error("[{}] Failed to delete the subscribeRate for cluster on namespace {}", clientAppId(),
-                    namespaceName, ex);
-            throw new RestException(ex);
         });
     }
 

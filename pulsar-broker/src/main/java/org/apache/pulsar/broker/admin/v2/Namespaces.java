@@ -808,7 +808,7 @@ public class Namespaces extends NamespacesBase {
         internalSetSubscribeRateAsync(subscribeRate)
                 .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
                 .exceptionally(ex -> {
-                    log.error("Failed to delete the subscribeRate for cluster on namespace {}", namespaceName, ex);
+                    log.error("Failed to update the subscribeRate for cluster on namespace {}", namespaceName, ex);
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
