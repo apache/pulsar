@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.loadbalance.impl;
 
 import com.google.common.base.MoreObjects;
+import java.util.Collections;
 import java.util.Map;
 import org.apache.pulsar.broker.loadbalance.ResourceDescription;
 import org.apache.pulsar.broker.loadbalance.ResourceUnit;
@@ -33,14 +34,14 @@ public class SimpleResourceUnit implements ResourceUnit {
     public SimpleResourceUnit(String resourceId, ResourceDescription resourceDescription) {
         this.resourceId = resourceId;
         this.resourceDescription = resourceDescription;
-        this.properties = null;
+        this.properties = Collections.emptyMap();
     }
 
     public SimpleResourceUnit(String resourceId, ResourceDescription resourceDescription,
                               Map<String, Object> properties) {
         this.resourceId = resourceId;
         this.resourceDescription = resourceDescription;
-        this.properties = properties;
+        this.properties = properties == null ? Collections.emptyMap() : properties;
     }
 
 
@@ -64,7 +65,7 @@ public class SimpleResourceUnit implements ResourceUnit {
 
     @Override
     public Object getProperty(String key) {
-        return properties == null ? null : properties.get(key);
+        return properties.get(key);
     }
 
     @Override
