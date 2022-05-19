@@ -217,7 +217,7 @@ public class TransactionLowWaterMarkTest extends TransactionTestBase {
             ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>> topics =
                     (ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>>) field
                             .get(getPulsarServiceList().get(i).getBrokerService());
-            CompletableFuture<Optional<Topic>> completableFuture = topics.get("persistent://" + TOPIC);
+            CompletableFuture<Optional<Topic>> completableFuture = topics.get(TOPIC);
             if (completableFuture != null) {
                 Optional<Topic> topic = completableFuture.get();
                 if (topic.isPresent()) {
