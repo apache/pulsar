@@ -138,19 +138,15 @@ public class RangeSetWrapper<T extends Comparable<T>> implements LongPairRangeSe
         if (!(rangeSet instanceof ConcurrentOpenLongPairRangeSet)) {
             throw new UnsupportedOperationException("Only ConcurrentOpenLongPairRangeSet support this method");
         }
-        ConcurrentOpenLongPairRangeSet<LongPair> set = (ConcurrentOpenLongPairRangeSet<LongPair>) rangeSet;
-        set.add(range);
+        ((ConcurrentOpenLongPairRangeSet<T>) rangeSet).add(range);
     }
 
     @VisibleForTesting
     void remove(Range<T> range) {
         if (rangeSet instanceof ConcurrentOpenLongPairRangeSet) {
-            ConcurrentOpenLongPairRangeSet<T> set = (ConcurrentOpenLongPairRangeSet<T>) rangeSet;
-            Range<LongPair> longPairRange = (Range<LongPair>) range;
-            set.remove(longPairRange);
+            ((ConcurrentOpenLongPairRangeSet<T>) rangeSet).remove((Range<LongPair>) range);
         } else {
-            LongPairRangeSet.DefaultRangeSet<T> set = (LongPairRangeSet.DefaultRangeSet<T>) rangeSet;
-            set.remove(range);
+            ((DefaultRangeSet<T>) rangeSet).remove(range);
         }
     }
 
