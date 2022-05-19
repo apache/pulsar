@@ -171,7 +171,8 @@ public class CmdFunctionsTest {
             "--namespace", "ns1",
             "--className", DummyFunction.class.getName(),
             "--dead-letter-topic", "test-dead-letter-topic",
-            "--custom-runtime-options", "custom-runtime-options"
+            "--custom-runtime-options", "custom-runtime-options",
+            "--user-config", "{\"key\": [\"value1\", \"value2\"]}"
         });
 
         CreateFunction creater = cmd.getCreater();
