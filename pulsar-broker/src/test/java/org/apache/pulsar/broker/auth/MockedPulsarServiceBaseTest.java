@@ -100,6 +100,8 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
 
     protected boolean enableBrokerInterceptor = false;
 
+    protected boolean mockBrokerInterceptor = true;
+
     public MockedPulsarServiceBaseTest() {
         resetConfig();
     }
@@ -327,7 +329,10 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         doReturn(namespaceServiceSupplier).when(pulsar).getNamespaceServiceProvider();
 
         doReturn(sameThreadOrderedSafeExecutor).when(pulsar).getOrderedExecutor();
-        doReturn(new CounterBrokerInterceptor()).when(pulsar).getBrokerInterceptor();
+
+        if (mockBrokerInterceptor) {
+            doReturn(new CounterBrokerInterceptor()).when(pulsar).getBrokerInterceptor();
+        }
 
         doAnswer((invocation) -> spy(invocation.callRealMethod())).when(pulsar).newCompactor();
         if (enableBrokerInterceptor) {
