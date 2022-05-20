@@ -97,6 +97,7 @@ import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
 import org.apache.pulsar.common.policies.data.TenantOperation;
 import org.apache.pulsar.common.policies.data.TopicHashPositions;
+import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.policies.data.ValidateResult;
 import org.apache.pulsar.common.policies.data.impl.AutoTopicCreationOverrideImpl;
 import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
@@ -836,9 +837,11 @@ public abstract class NamespacesBase extends AdminResource {
                         "Invalid configuration for autoTopicCreationOverride. the detail is "
                                 + validateResult.getErrorInfo());
             }
-            if (maxPartitions > 0 && autoTopicCreationOverride.getDefaultNumPartitions() > maxPartitions) {
-                throw new RestException(Status.NOT_ACCEPTABLE,
-                        "Number of partitions should be less than or equal to " + maxPartitions);
+            if (Objects.equals(autoTopicCreationOverride.getTopicType(), TopicType.PARTITIONED.toString())) {
+                if (maxPartitions > 0 && autoTopicCreationOverride.getDefaultNumPartitions() > maxPartitions) {
+                    throw new RestException(Status.NOT_ACCEPTABLE,
+                            "Number of partitions should be less than or equal to " + maxPartitions);
+                }
             }
         }
         // Force to read the data s.t. the watch to the cache content is setup.
