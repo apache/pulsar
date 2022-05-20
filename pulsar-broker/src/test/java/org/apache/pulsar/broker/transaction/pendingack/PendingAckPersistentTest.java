@@ -559,10 +559,10 @@ public class PendingAckPersistentTest extends TransactionTestBase {
 
         Field field3 = PendingAckHandleImpl.class.getDeclaredField("pendingAckStoreFuture");
         field3.setAccessible(true);
-        CompletableFuture<PendingAckStore> completableFuture =
-                (CompletableFuture<PendingAckStore>) field3.get(pendingAckHandle);
 
         Awaitility.await().until(() -> {
+            CompletableFuture<PendingAckStore> completableFuture =
+                    (CompletableFuture<PendingAckStore>) field3.get(pendingAckHandle);
             completableFuture.get();
             return true;
         });
