@@ -19,7 +19,9 @@
 package org.apache.pulsar.common.util;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -31,6 +33,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * This class is aimed at simplifying work with {@code CompletableFuture}.
@@ -45,6 +48,14 @@ public class FutureUtil {
      */
     public static CompletableFuture<Void> waitForAll(Collection<? extends CompletableFuture<?>> futures) {
         return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
+    }
+
+    public static <T> CompletableFuture<List<T>> waitForAll(Stream<CompletableFuture<List<T>>> futures) {
+        return futures.reduce(CompletableFuture.completedFuture(new ArrayList<>()),
+                (pre, curr) -> pre.thenCompose(preV -> curr.thenApply(currV -> {
+                    preV.addAll(currV);
+                    return preV;
+                })));
     }
 
     /**
