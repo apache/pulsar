@@ -402,24 +402,24 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
             // close the service in reverse order v.s. in which they are started
             if (this.resourceUsageTransportManager != null) {
-                close(resourceUsageTransportManager, shutdownExecutor);
+                close(resourceUsageTransportManager, "resourceUsageTransportManager", shutdownExecutor);
                 this.resourceUsageTransportManager = null;
             }
 
             if (this.webService != null) {
-                close(webService, shutdownExecutor);
+                close(webService, "webService", shutdownExecutor);
                 this.webService = null;
             }
 
             resetMetricsServlet();
 
             if (this.webSocketService != null) {
-                close(webSocketService, shutdownExecutor);
+                close(webSocketService, "webSocketService", shutdownExecutor);
                 this.webSocketService = null;
             }
 
             if (brokerAdditionalServlets != null) {
-                close(brokerAdditionalServlets, shutdownExecutor);
+                close(brokerAdditionalServlets, "brokerAdditionalServlets", shutdownExecutor);
                 brokerAdditionalServlets = null;
             }
 
@@ -455,7 +455,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             }
 
             if (this.managedLedgerClientFactory != null) {
-                close(managedLedgerClientFactory, shutdownExecutor);
+                close(managedLedgerClientFactory, "managedLedgerClientFactory", shutdownExecutor);
                 this.managedLedgerClientFactory = null;
             }
 
@@ -465,27 +465,27 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             }
 
             if (this.leaderElectionService != null) {
-                close(leaderElectionService, shutdownExecutor);
+                close(leaderElectionService, "leaderElectionService", shutdownExecutor);
                 this.leaderElectionService = null;
             }
 
             if (adminClient != null) {
-                close(adminClient, shutdownExecutor);
+                close(adminClient, "adminClient", shutdownExecutor);
                 adminClient = null;
             }
 
             if (transactionBufferSnapshotService != null) {
-                close(transactionBufferSnapshotService, shutdownExecutor);
+                close(transactionBufferSnapshotService, "transactionBufferSnapshotService", shutdownExecutor);
                 transactionBufferSnapshotService = null;
             }
 
             if (client != null) {
-                close(client, shutdownExecutor);
+                close(client, "client", shutdownExecutor);
                 client = null;
             }
 
             if (nsService != null) {
-                close(nsService, shutdownExecutor);
+                close(nsService, "nsService", shutdownExecutor);
                 nsService = null;
             }
 
@@ -498,30 +498,30 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
 
             if (schemaRegistryService != null) {
-                close(schemaRegistryService, shutdownExecutor);
+                close(schemaRegistryService, "schemaRegistryService", shutdownExecutor);
                 schemaRegistryService = null;
             }
 
             offloadersCache.close();
 
             if (protocolHandlers != null) {
-                close(protocolHandlers, shutdownExecutor);
+                close(protocolHandlers, "protocolHandlers", shutdownExecutor);
                 protocolHandlers = null;
             }
 
             if (transactionBufferClient != null) {
-                close(transactionBufferClient, shutdownExecutor);
+                close(transactionBufferClient, "transactionBufferClient", shutdownExecutor);
                 transactionBufferClient = null;
             }
 
             if (coordinationService != null) {
-                close(coordinationService, shutdownExecutor);
+                close(coordinationService, "coordinationService", shutdownExecutor);
                 coordinationService = null;
             }
 
             closeLocalMetadataStore();
             if (configurationMetadataStore != null && shouldShutdownConfigurationMetadataStore) {
-                close(configurationMetadataStore, shutdownExecutor);
+                close(configurationMetadataStore, "configurationMetadataStore", shutdownExecutor);
                 configurationMetadataStore = null;
             }
 
@@ -529,7 +529,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 transactionExecutorProvider.shutdownNow();
             }
             if (this.offloaderStats != null) {
-                close(offloaderStats, shutdownExecutor);
+                close(offloaderStats, "offloaderStats", shutdownExecutor);
             }
 
             brokerClientSharedExternalExecutorProvider.shutdownNow();
@@ -574,20 +574,20 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         }
     }
 
-    private void close(AutoCloseable closeable, ScheduledExecutorService shutdownExecutor) {
+    private void close(AutoCloseable closeable, String resource, ScheduledExecutorService shutdownExecutor) {
         final CompletableFuture<Void> future = new CompletableFuture<>();
         shutdownExecutor.execute(() -> {
             try {
                 closeable.close();
                 future.complete(null);
             } catch (Exception e) {
-                LOG.warn("Failed in close", e.getMessage());
-                future.completeExceptionally(new IllegalStateException("Failed in close"));
+                LOG.warn("Failed to close {}", resource, e.getMessage());
+                future.completeExceptionally(new IllegalStateException("Failed to close " + resource));
             }
         });
         CompletableFuture<Void> result = FutureUtil.addTimeoutHandling(future,
                 Duration.ofMillis(Math.max(1L, config.getBrokerShutdownTimeoutMs())), shutdownExecutor,
-                () -> new TimeoutException("Timeout in close"));
+                () -> new TimeoutException("Timeout to close " + resource));
         try {
             result.join();
         } catch (Exception ignore) {}
