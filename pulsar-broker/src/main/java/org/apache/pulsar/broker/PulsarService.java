@@ -464,7 +464,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 CompletableFuture<Void> closeFuture = closeManagedLedgerClientFactory();
                 try {
                     closeFuture.join();
-                } catch (IllegalStateException ignore) {}
+                } catch (Exception ignore) {}
                 this.managedLedgerClientFactory = null;
             }
 
