@@ -771,7 +771,7 @@ public class ClustersBase extends AdminResource {
         @ApiResponse(code = 403, message = "Don't have admin permission"),
         @ApiResponse(code = 500, message = "Internal server error")
     })
-    public Map<String, FailureDomainImpl> getFailureDomains(
+    public void getFailureDomains(
         @Suspended AsyncResponse asyncResponse,
         @ApiParam(value = "The cluster name", required = true)
         @PathParam("cluster") String cluster
@@ -793,7 +793,7 @@ public class ClustersBase extends AdminResource {
                                             .map(CompletableFuture::join)
                                             .filter(Objects::nonNull)
                                             .filter(v -> v.getRight().isPresent())
-                                            .collect(Collectors.toMap(Pair::getLeft, Pair::getRight)))
+                                            .collect(Collectors.toMap(Pair::getLeft, v -> v.getRight().get())));
                         }).exceptionally(ex -> {
                             Throwable realCause = FutureUtil.unwrapCompletionException(ex);
                             if (realCause instanceof NotFoundException) {
@@ -803,8 +803,9 @@ public class ClustersBase extends AdminResource {
                             }
                             throw FutureUtil.wrapToCompletionException(ex);
                         })
-                ).thenAccept(asyncResponse::resume).exceptionally(ex -> {
-                    log.error("[{}] Failed to get failure-domains for cluster {}", clientAppId(), cluster, e);
+                ).thenAccept(asyncResponse::resume)
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to get failure-domains for cluster {}", clientAppId(), cluster, ex);
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
