@@ -73,12 +73,15 @@ shift
 if [[ "$command" = "bookie" ]]
 then
   PULSAR_LOG_DIR=${BOOKIE_LOG_DIR:-"$PULSAR_HOME/logs"}
+  PULSAR_PID_DIR=${BOOKIE_PID_DIR:-"$PULSAR_HOME/bin"}
 else
   PULSAR_LOG_DIR=${PULSAR_LOG_DIR:-"$PULSAR_HOME/logs"}
+  PULSAR_PID_DIR=${PULSAR_PID_DIR:-"$PULSAR_HOME/bin"}
 fi
 PULSAR_LOG_APPENDER=${PULSAR_LOG_APPENDER:-"RollingFile"}
 PULSAR_STOP_TIMEOUT=${PULSAR_STOP_TIMEOUT:-30}
-PULSAR_PID_DIR=${PULSAR_PID_DIR:-$PULSAR_HOME/bin}
+mkdir -p "$PULSAR_LOG_DIR"
+mkdir -p "$PULSAR_PID_DIR"
 
 case $command in
     (broker)
@@ -212,8 +215,6 @@ stop ()
       echo no "$command to stop"
     fi
 }
-
-mkdir -p "$PULSAR_LOG_DIR"
 
 case $startStop in
   (start)
