@@ -18,8 +18,8 @@
  */
 package org.apache.pulsar.broker.loadbalance.impl;
 
+import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -70,7 +70,8 @@ public class ModularLoadManagerWrapper implements LoadManager {
             String webServiceUrl = getBrokerWebServiceUrl(s);
             String brokerZnodeName = getBrokerZnodeName(s, webServiceUrl);
             return new SimpleResourceUnit(webServiceUrl,
-                new PulsarResourceDescription(), Map.of(ResourceUnit.PROPERTY_KEY_BROKER_ZNODE_NAME, brokerZnodeName));
+                new PulsarResourceDescription(),
+                    Collections.singletonMap(ResourceUnit.PROPERTY_KEY_BROKER_ZNODE_NAME, brokerZnodeName));
         });
     }
 
