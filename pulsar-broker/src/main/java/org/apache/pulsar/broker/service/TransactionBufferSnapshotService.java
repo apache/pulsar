@@ -25,7 +25,7 @@ import org.apache.pulsar.broker.systopic.TransactionBufferSystemTopicClient;
 import org.apache.pulsar.broker.transaction.buffer.matadata.TransactionBufferSnapshot;
 import org.apache.pulsar.common.naming.TopicName;
 
-public interface TransactionBufferSnapshotService {
+public interface TransactionBufferSnapshotService extends AutoCloseable {
 
     /**
      * Create a transaction buffer snapshot writer.

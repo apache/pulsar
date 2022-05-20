@@ -28,7 +28,7 @@ import org.apache.pulsar.common.classification.InterfaceStability;
  */
 @InterfaceAudience.Private
 @InterfaceStability.Evolving
-public interface TransactionBufferClient {
+public interface TransactionBufferClient extends AutoCloseable {
 
     /**
      * Commit the transaction associated with the topic.
