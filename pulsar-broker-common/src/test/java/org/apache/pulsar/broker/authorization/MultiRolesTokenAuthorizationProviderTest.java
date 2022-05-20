@@ -25,7 +25,7 @@ import java.util.Properties;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
-import org.apache.pulsar.broker.resources.PulsarResources;
+import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.junit.Assert;
 import org.testng.annotations.Test;
 
@@ -172,7 +172,7 @@ public class MultiRolesTokenAuthorizationProviderTest {
         conf.setProperties(properties);
 
         MultiRolesTokenAuthorizationProvider provider = new MultiRolesTokenAuthorizationProvider();
-        provider.initialize(conf, mock(PulsarResources.class));
+        provider.initialize(conf, mock(ConfigurationCacheService.class));
 
         AuthenticationDataSource ads = new AuthenticationDataSource() {
             @Override
