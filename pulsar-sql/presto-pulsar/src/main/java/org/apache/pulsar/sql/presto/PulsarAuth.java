@@ -55,10 +55,10 @@ public class PulsarAuth {
     @Inject
     public PulsarAuth(PulsarConnectorConfig pulsarConnectorConfig) {
         this.pulsarConnectorConfig = pulsarConnectorConfig;
-        if (pulsarConnectorConfig.getAuthorizationEnable() && StringUtils.isEmpty(
+        if (pulsarConnectorConfig.getAuthorizationEnabled() && StringUtils.isEmpty(
                 pulsarConnectorConfig.getBrokerBinaryServiceUrl())) {
             throw new IllegalArgumentException(
-                    "pulsar.broker-binary-service-url must be presented when the pulsar.authorization-enable is true.");
+                    "pulsar.broker-binary-service-url must be present when the pulsar.authorization-enable is true.");
         }
     }
 

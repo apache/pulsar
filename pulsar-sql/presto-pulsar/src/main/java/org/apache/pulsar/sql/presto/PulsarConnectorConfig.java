@@ -64,7 +64,7 @@ public class PulsarConnectorConfig implements AutoCloseable {
     private boolean namespaceDelimiterRewriteEnable = false;
     private String rewriteNamespaceDelimiter = "/";
 
-    private boolean authorizationEnable = false;
+    private boolean authorizationEnabled = false;
 
     // --- Ledger Offloading ---
     private String managedLedgerOffloadDriver = null;
@@ -249,13 +249,13 @@ public class PulsarConnectorConfig implements AutoCloseable {
         return this;
     }
 
-    public boolean getAuthorizationEnable() {
-        return authorizationEnable;
+    public boolean getAuthorizationEnabled() {
+        return authorizationEnabled;
     }
 
-    @Config("pulsar.authorization-enable")
-    public PulsarConnectorConfig setAuthorizationEnable(boolean authorizationEnable) {
-        this.authorizationEnable = authorizationEnable;
+    @Config("pulsar.authorization-enabled")
+    public PulsarConnectorConfig setAuthorizationEnabled(boolean authorizationEnabled) {
+        this.authorizationEnabled = authorizationEnabled;
         return this;
     }
 

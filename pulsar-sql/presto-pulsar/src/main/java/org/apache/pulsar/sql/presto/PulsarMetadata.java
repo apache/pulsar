@@ -130,7 +130,6 @@ public class PulsarMetadata implements ConnectorMetadata {
     @Override
     public ConnectorTableHandle getTableHandle(ConnectorSession session, SchemaTableName tableName) {
         TopicName topicName = getMatchedTopicName(tableName);
-        checkTopicAuthorization(session, topicName.toString());
         return new PulsarTableHandle(
                 this.connectorId,
                 tableName.getSchemaName(),
@@ -144,7 +143,6 @@ public class PulsarMetadata implements ConnectorMetadata {
                                                             Optional<Set<ColumnHandle>> desiredColumns) {
 
         PulsarTableHandle handle = convertTableHandle(table);
-        checkTopicAuthorization(session, handle.getTopicName());
         ConnectorTableLayout layout = new ConnectorTableLayout(
             new PulsarTableLayoutHandle(handle, constraint.getSummary()));
         return ImmutableList.of(new ConnectorTableLayoutResult(layout, constraint.getSummary()));
@@ -208,7 +206,6 @@ public class PulsarMetadata implements ConnectorMetadata {
     @Override
     public Map<String, ColumnHandle> getColumnHandles(ConnectorSession session, ConnectorTableHandle tableHandle) {
         PulsarTableHandle pulsarTableHandle = convertTableHandle(tableHandle);
-        checkTopicAuthorization(session, pulsarTableHandle.getTopicName());
 
         ConnectorTableMetadata tableMetaData = getTableMetadata(session, pulsarTableHandle.toSchemaTableName(), false);
         if (tableMetaData == null) {
@@ -249,7 +246,6 @@ public class PulsarMetadata implements ConnectorMetadata {
     public ColumnMetadata getColumnMetadata(ConnectorSession session, ConnectorTableHandle tableHandle, ColumnHandle
             columnHandle) {
         PulsarTableHandle handle = convertTableHandle(tableHandle);
-        checkTopicAuthorization(session, handle.getTopicName());
         return convertColumnHandle(columnHandle).getColumnMetadata();
     }
 
@@ -280,7 +276,7 @@ public class PulsarMetadata implements ConnectorMetadata {
 
     @Override
     public void cleanupQuery(ConnectorSession session) {
-        if (pulsarConnectorConfig.getAuthorizationEnable()) {
+        if (pulsarConnectorConfig.getAuthorizationEnabled()) {
             pulsarAuth.cleanSession(session);
         }
     }
@@ -428,7 +424,7 @@ public class PulsarMetadata implements ConnectorMetadata {
     }
 
     void checkTopicAuthorization(ConnectorSession session, String topic) {
-        if (!pulsarConnectorConfig.getAuthorizationEnable()) {
+        if (!pulsarConnectorConfig.getAuthorizationEnabled()) {
             return;
         }
         pulsarAuth.checkTopicAuth(session, topic);

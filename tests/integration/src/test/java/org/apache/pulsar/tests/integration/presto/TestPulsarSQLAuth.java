@@ -77,7 +77,7 @@ public class TestPulsarSQLAuth extends TestPulsarSQLBase {
                 .withEnv("SQL_PREFIX_pulsar.auth-plugin", "org.apache.pulsar.client.impl.auth.AuthenticationToken")
                 .withEnv("SQL_PREFIX_pulsar.auth-params", adminToken)
                 .withEnv("pulsar.broker-binary-service-url", "pulsar://pulsar-broker-0:6650")
-                .withEnv("pulsar.authorization-enable", "true");
+                .withEnv("pulsar.authorization-enabled", "true");
 
     }
 

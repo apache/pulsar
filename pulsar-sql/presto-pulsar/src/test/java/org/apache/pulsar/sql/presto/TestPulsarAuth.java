@@ -87,7 +87,7 @@ public class TestPulsarAuth extends MockedPulsarServiceBaseTest {
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void testConfigCheck() {
         PulsarConnectorConfig pulsarConnectorConfig = new PulsarConnectorConfig();
-        pulsarConnectorConfig.setAuthorizationEnable(true);
+        pulsarConnectorConfig.setAuthorizationEnabled(true);
         pulsarConnectorConfig.setBrokerBinaryServiceUrl("");
 
         new PulsarAuth(pulsarConnectorConfig);
@@ -97,7 +97,7 @@ public class TestPulsarAuth extends MockedPulsarServiceBaseTest {
     public void testEmptyExtraCredentials() {
         PulsarConnectorConfig pulsarConnectorConfig = mock(PulsarConnectorConfig.class);
 
-        doReturn(true).when(pulsarConnectorConfig).getAuthorizationEnable();
+        doReturn(true).when(pulsarConnectorConfig).getAuthorizationEnabled();
         doReturn(pulsar.getBrokerServiceUrl()).when(pulsarConnectorConfig).getBrokerBinaryServiceUrl();
 
         PulsarAuth pulsarAuth = new PulsarAuth(pulsarConnectorConfig);
@@ -160,7 +160,7 @@ public class TestPulsarAuth extends MockedPulsarServiceBaseTest {
         ConnectorIdentity identity = mock(ConnectorIdentity.class);
         PulsarConnectorConfig pulsarConnectorConfig = mock(PulsarConnectorConfig.class);
 
-        doReturn(true).when(pulsarConnectorConfig).getAuthorizationEnable();
+        doReturn(true).when(pulsarConnectorConfig).getAuthorizationEnabled();
         doReturn(pulsar.getBrokerServiceUrl()).when(pulsarConnectorConfig).getBrokerBinaryServiceUrl();
 
         doReturn("query-1").when(session).getQueryId();

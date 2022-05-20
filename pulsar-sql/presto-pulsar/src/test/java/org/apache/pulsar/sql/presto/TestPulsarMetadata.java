@@ -383,7 +383,7 @@ public class TestPulsarMetadata extends TestPulsarConnector {
 
     @Test
     public void testPulsarAuthCheck() {
-        this.pulsarConnectorConfig.setAuthorizationEnable(true);
+        this.pulsarConnectorConfig.setAuthorizationEnabled(true);
         doNothing().when(this.pulsarAuth).checkTopicAuth(isA(ConnectorSession.class), isA(String.class));
 
         // Test getTableHandle should pass the auth check
