@@ -100,4 +100,9 @@ public class PendingAckHandleDisabled implements PendingAckHandle {
     public boolean checkIfPendingAckStoreInit() {
         return false;
     }
+
+    @Override
+    public boolean checkIfPositionIsPendingAckStats(PositionImpl position) {
+        return false;
+    }
 }

@@ -258,4 +258,19 @@ public interface Transactions {
      */
     CompletableFuture<Void> scaleTransactionCoordinatorsAsync(int replicas);
 
+    /**
+     * Check whether the position is in pending ack stats.
+     * @param position the position of message.
+     * @return a boolean value identified whether the position is in pending ack stats.
+     */
+    Boolean checkIfThePositionInPendingAckStats(String topic, String subName, String position)
+            throws PulsarAdminException;
+
+    /**
+     * Check whether the position is in pending ack stats.
+     * @param position the position of message.
+     * @return a boolean value identified whether the position is in pending ack stats.
+     */
+    CompletableFuture<Boolean> checkIfThePositionInPendingAckStatsAsync(String topic,
+                                                                        String subName, String position);
 }

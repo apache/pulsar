@@ -34,6 +34,7 @@ import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Response;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedLedger;
+import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.service.Topic;
@@ -445,5 +446,20 @@ public abstract class TransactionsBase extends AdminResource {
                             }
                             return new PartitionedTopicMetadata(replicas);
                         }));
+    }
+
+    protected CompletableFuture<Boolean> internalCheckPositionIsPendingAckStats(boolean authoritative, String subName,
+                                                                                PositionImpl position) {
+        CompletableFuture<Boolean> completableFuture = new CompletableFuture<>();
+        getExistingPersistentTopicAsync(authoritative)
+                .thenAccept(topic -> {
+                    boolean result = topic.getSubscription(subName)
+                    .checkIfPositionIsPendingAckStats(position);
+                    completableFuture.complete(result);
+                }).exceptionally(ex -> {
+                    completableFuture.completeExceptionally(ex);
+                    return null;
+        });
+        return completableFuture;
     }
 }

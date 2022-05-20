@@ -351,4 +351,33 @@ public class TransactionsImpl extends BaseResource implements Transactions {
         return asyncPostRequest(path, Entity.entity(replicas, MediaType.APPLICATION_JSON));
     }
 
+    @Override
+    public CompletableFuture<Boolean> checkIfThePositionInPendingAckStatsAsync(String topic, String subName,
+                                                                               String position) {
+        TopicName tn = TopicName.get(topic);
+        WebTarget path = adminV3Transactions.path("checkIfThePositionIsPendingAck");
+        path = path.path(tn.getRestPath(false));
+        path = path.path(subName);
+        path = path.queryParam("position", position);
+        final CompletableFuture<Boolean> future = new CompletableFuture<>();
+        asyncGetRequest(path,
+                new InvocationCallback<Boolean>() {
+                    @Override
+                    public void completed(Boolean stats) {
+                        future.complete(stats);
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+        return future;
+    }
+
+
+    public Boolean checkIfThePositionInPendingAckStats(String topic, String subName, String position)
+            throws PulsarAdminException {
+        return sync(() -> checkIfThePositionInPendingAckStatsAsync(topic, subName, position));
+    }
 }

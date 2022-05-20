@@ -39,6 +39,7 @@ import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.admin.impl.TransactionsBase;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.web.RestException;
@@ -339,4 +340,40 @@ public class Transactions extends TransactionsBase {
             resumeAsyncResponseExceptionally(asyncResponse, e);
         }
     }
+
+    @GET
+    @Path("/checkIfThePositionIsPendingAck/{tenant}/{namespace}/{topic}/{subName}")
+    @ApiOperation(value = "Get transaction pending ack internal stats.")
+    @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic "
+                    + "or subscription name doesn't exist"),
+            @ApiResponse(code = 503, message = "This Broker is not configured "
+                    + "with transactionCoordinatorEnabled=true."),
+            @ApiResponse(code = 307, message = "Topic is not owned by this broker!"),
+            @ApiResponse(code = 405, message = "Pending ack handle don't use managedLedger!"),
+            @ApiResponse(code = 400, message = "Topic is not a persistent topic!"),
+            @ApiResponse(code = 409, message = "Concurrent modification")})
+    public void checkIfThePositionIsPendingAck(@Suspended final AsyncResponse asyncResponse,
+                                               @QueryParam("authoritative")
+                                               @DefaultValue("false") boolean authoritative,
+                                               @PathParam("tenant") String tenant,
+                                               @PathParam("namespace") String namespace,
+                                               @PathParam("topic") @Encoded String encodedTopic,
+                                               @PathParam("subName") String subName,
+                                               @QueryParam("position") String position) {
+        checkArgument(position != null, "Message position should not be null.");
+        checkTransactionCoordinatorEnabled();
+        validateTopicName(tenant, namespace, encodedTopic);
+        String [] positions = position.split(":");
+        PositionImpl positionImpl = new PositionImpl(Integer.parseInt(positions[0]), Integer.parseInt(positions[1]));
+        internalCheckPositionIsPendingAckStats(authoritative, subName, positionImpl)
+                .thenAccept(asyncResponse::resume)
+                .exceptionally(ex -> {
+                  log.warn("{} Failed to check position [{}] stats for topic [{}], subscription [{}]",
+                          clientAppId(), position, topicName, subName, ex);
+                  asyncResponse.resume(ex);
+                  return null;
+                });
+    }
+
 }

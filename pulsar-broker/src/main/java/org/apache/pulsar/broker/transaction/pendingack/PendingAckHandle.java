@@ -157,4 +157,11 @@ public interface PendingAckHandle {
      * @return if the PendingAckStore is init.
      */
     boolean checkIfPendingAckStoreInit();
+
+    /**
+     * Check if the message position is in pending ack stats.
+     * @param position message position.
+     * @return a boolean value identified whether the position is in pending ack stats.
+     */
+    boolean checkIfPositionIsPendingAckStats(PositionImpl position);
 }

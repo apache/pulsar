@@ -925,6 +925,20 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
     }
 
     @Override
+    public boolean checkIfPositionIsPendingAckStats(PositionImpl position) {
+        if (individualAckOfTransaction == null) {
+         return false;
+        }
+        long result = individualAckOfTransaction
+                .values()
+                .parallelStream()
+                .filter(positionPositionHashMap -> {
+                    return positionPositionHashMap.containsKey(position);
+                }).count();
+        return result == 1L;
+    }
+
+    @Override
     public boolean checkIfPendingAckStoreInit() {
         return this.pendingAckStoreFuture != null && this.pendingAckStoreFuture.isDone();
     }

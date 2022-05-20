@@ -568,6 +568,40 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         }
     }
 
+
+    @Test
+    public void testCheckIfPositionIsPendingAckStats() throws Exception {
+         String topic = "persistent://public/default/test";
+         String subName = "sub";
+         initTransaction(1);
+         Transaction transaction = pulsarClient.newTransaction()
+                 .withTransactionTimeout(5, TimeUnit.SECONDS)
+                 .build()
+                 .get();
+
+         Producer<byte[]> producer = pulsarClient.newProducer()
+                 .sendTimeout(5, TimeUnit.SECONDS)
+                 .topic(topic)
+                 .create();
+         Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                 .topic(topic)
+                 .subscriptionName(subName)
+                 .subscribe();
+
+         producer.newMessage().send();
+
+         Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
+         MessageIdImpl messageId = (MessageIdImpl) message.getMessageId();
+         boolean result = admin.transactions().checkIfThePositionInPendingAckStats(topic, subName,
+                 new PositionImpl(messageId.getLedgerId(), messageId.getEntryId()).toString());
+         assertFalse(result);
+
+         consumer.acknowledgeAsync(messageId, transaction).get();
+         result = admin.transactions().checkIfThePositionInPendingAckStats(topic, subName,
+                new PositionImpl(messageId.getLedgerId(), messageId.getEntryId()).toString());
+         assertTrue(result);
+    }
+
     private static void verifyCoordinatorStats(String state,
                                                long sequenceId, long lowWaterMark) {
         assertEquals(state, "Ready");
