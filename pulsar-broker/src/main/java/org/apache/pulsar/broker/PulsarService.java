@@ -588,7 +588,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 future.completeExceptionally(new IllegalStateException(e));
             }
         });
-        return FutureUtil.addTimeoutHandling(future, Duration.ofMillis(config.getBrokerShutdownTimeoutMs()), executor,
+        return FutureUtil.addTimeoutHandling(future,
+                Duration.ofMillis(Math.max(1L, config.getBrokerShutdownTimeoutMs())), executor,
                 () -> new IllegalStateException("ManagedLedgerClientFactory closing failed"));
     }
 
