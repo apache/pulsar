@@ -2127,7 +2127,7 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected void internalCreateSubscription(AsyncResponse asyncResponse, String subscriptionName,
-            MessageIdImpl messageId, boolean authoritative, boolean replicated) {
+            MessageIdImpl messageId, boolean authoritative, boolean replicated, Map<String, String> properties) {
         CompletableFuture<Void> ret;
         if (topicName.isGlobal()) {
             ret = validateGlobalNamespaceOwnershipAsync(namespaceName);
@@ -2136,12 +2136,12 @@ public class PersistentTopicsBase extends AdminResource {
         }
         ret.thenAccept(__ -> {
             final MessageIdImpl targetMessageId = messageId == null ? (MessageIdImpl) MessageId.latest : messageId;
-            log.info("[{}][{}] Creating subscription {} at message id {}", clientAppId(), topicName, subscriptionName,
-                    targetMessageId);
+            log.info("[{}][{}] Creating subscription {} at message id {} with properties {}", clientAppId(),
+                    topicName, subscriptionName, targetMessageId, properties);
             // If the topic name is a partition name, no need to get partition topic metadata again
             if (topicName.isPartitioned()) {
                 internalCreateSubscriptionForNonPartitionedTopic(asyncResponse,
-                        subscriptionName, targetMessageId, authoritative, replicated);
+                        subscriptionName, targetMessageId, authoritative, replicated, properties);
             } else {
                 boolean allowAutoTopicCreation = pulsar().getBrokerService().isAllowAutoTopicCreation(topicName);
                 getPartitionedTopicMetadataAsync(topicName,
@@ -2159,7 +2159,7 @@ public class PersistentTopicsBase extends AdminResource {
                             try {
                                 pulsar().getAdminClient().topics()
                                         .createSubscriptionAsync(topicNamePartition.toString(),
-                                                subscriptionName, targetMessageId)
+                                                subscriptionName, targetMessageId, false, properties)
                                         .handle((r, ex) -> {
                                             if (ex != null) {
                                                 // fail the operation on unknown exception or
@@ -2213,7 +2213,7 @@ public class PersistentTopicsBase extends AdminResource {
                         });
                     } else {
                         internalCreateSubscriptionForNonPartitionedTopic(asyncResponse,
-                                subscriptionName, targetMessageId, authoritative, replicated);
+                                subscriptionName, targetMessageId, authoritative, replicated, properties);
                     }
                 }).exceptionally(ex -> {
                     // If the exception is not redirect exception we need to log it.
@@ -2238,7 +2238,8 @@ public class PersistentTopicsBase extends AdminResource {
 
     private void internalCreateSubscriptionForNonPartitionedTopic(
             AsyncResponse asyncResponse, String subscriptionName,
-            MessageIdImpl targetMessageId, boolean authoritative, boolean replicated) {
+            MessageIdImpl targetMessageId, boolean authoritative, boolean replicated,
+            Map<String, String> properties) {
 
         boolean isAllowAutoTopicCreation = pulsar().getBrokerService().isAllowAutoTopicCreation(topicName);
 
@@ -2258,7 +2259,7 @@ public class PersistentTopicsBase extends AdminResource {
                 throw new RestException(Status.CONFLICT, "Subscription already exists for topic");
             }
 
-            return topic.createSubscription(subscriptionName, InitialPosition.Latest, replicated);
+            return topic.createSubscription(subscriptionName, InitialPosition.Latest, replicated, properties);
         }).thenCompose(subscription -> {
             // Mark the cursor as "inactive" as it was created without a real consumer connected
             ((PersistentSubscription) subscription).deactivateCursor();
@@ -4022,7 +4023,7 @@ public class PersistentTopicsBase extends AdminResource {
             Subscription sub = topic.getSubscription(subName);
             if (sub == null) {
                 sub = topic.createSubscription(subName,
-                        InitialPosition.Earliest, false).get();
+                        InitialPosition.Earliest, false, null).get();
             }
 
             return checkNotNull(sub);
