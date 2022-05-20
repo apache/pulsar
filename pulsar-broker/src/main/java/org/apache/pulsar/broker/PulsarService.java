@@ -461,11 +461,10 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             }
 
             if (this.managedLedgerClientFactory != null) {
+                CompletableFuture<Void> closeFuture = closeManagedLedgerClientFactory();
                 try {
-                    this.managedLedgerClientFactory.close();
-                } catch (Exception e) {
-                    LOG.warn("ManagedLedgerClientFactory closing failed {}", e.getMessage());
-                }
+                    closeFuture.join();
+                } catch (IllegalStateException ignore) {}
                 this.managedLedgerClientFactory = null;
             }
 
@@ -576,6 +575,21 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         } finally {
             mutex.unlock();
         }
+    }
+
+    private CompletableFuture<Void> closeManagedLedgerClientFactory() {
+        final CompletableFuture<Void> future = new CompletableFuture<>();
+        executor.execute(() -> {
+            try {
+                managedLedgerClientFactory.close();
+                future.complete(null);
+            } catch (Exception e) {
+                LOG.warn("ManagedLedgerClientFactory closing failed {}", e.getMessage());
+                future.completeExceptionally(new IllegalStateException(e));
+            }
+        });
+        return FutureUtil.addTimeoutHandling(future, Duration.ofMillis(config.getBrokerShutdownTimeoutMs()), executor,
+                () -> new IllegalStateException("ManagedLedgerClientFactory closing failed"));
     }
 
     private synchronized void resetMetricsServlet() {
