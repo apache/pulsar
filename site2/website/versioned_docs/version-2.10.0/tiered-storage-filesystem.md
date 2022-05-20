@@ -123,6 +123,7 @@ You can configure the filesystem offloader driver in the `broker.conf` or `stand
 <TabItem value="NFS">
 
 - **Required** configurations are as below. 
+
   Parameter | Description | Example value
   |---|---|---
   `managedLedgerOffloadDriver` | Offloader driver name, which is case-insensitive. | filesystem
