@@ -220,18 +220,19 @@ public class TopicLookupBase extends PulsarWebResource {
                             cluster);
                 }
                 validationFuture.complete(newLookupResponse(differentClusterData.getBrokerServiceUrl(),
-                        differentClusterData.getBrokerServiceUrlTls(), true, LookupType.Redirect, requestId, false));
+                        differentClusterData.getBrokerServiceUrlTls(), true, LookupType.Redirect,
+                        requestId, false));
             } else {
                 // (2) authorize client
                 checkAuthorizationAsync(pulsarService, topicName, clientAppId, authenticationData).thenRun(() ->
                                 validationFuture.complete(null))
                         .exceptionally(e -> {
                             if (e.getCause() instanceof RestException) {
-                                log.warn("Failed to authorized {} on cluster {}", clientAppId, topicName.toString());
+                                log.warn("Failed to authorized {} on cluster {}", clientAppId, topicName);
                                 validationFuture.complete(newLookupErrorResponse(ServerError.AuthorizationError,
                                         e.getCause().getMessage(), requestId));
                             } else {
-                                log.warn("Unknown error while authorizing {} on cluster {}", clientAppId, topicName.toString());
+                                log.warn("Unknown error while authorizing {} on cluster {}", clientAppId, topicName);
                                 validationFuture.completeExceptionally(e);
                             }
                             return null;
@@ -239,7 +240,8 @@ public class TopicLookupBase extends PulsarWebResource {
 
                 // (3) validate global namespace
                 validationFuture.thenCompose(__ ->
-                        checkLocalOrGetPeerReplicationCluster(pulsarService, topicName.getNamespaceObject())).thenAccept(peerClusterData -> {
+                        checkLocalOrGetPeerReplicationCluster(pulsarService,
+                                topicName.getNamespaceObject())).thenAccept(peerClusterData -> {
                     if (peerClusterData == null) {
                         // (4) all validation passed: initiate lookup
                         validationFuture.complete(null);
