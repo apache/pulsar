@@ -4017,13 +4017,13 @@ public class PersistentTopicsBase extends AdminResource {
         checkAuthorizationAsync(pulsar, topicName, clientAppId, authenticationData)
                 .thenRun(() -> authorizationFuture.complete(null))
                 .exceptionally(e -> {
-                    if (e.getCause() instanceof RestException) {
+                    if (FutureUtil.unwrapCompletionException(e) instanceof RestException) {
                         validateAdminAccessForTenantAsync(pulsar,
                                 clientAppId, originalPrincipal, topicName.getTenant(), authenticationData)
                                 .thenRun(() -> {
                                     authorizationFuture.complete(null);
                                 }).exceptionally(ex -> {
-                                    if (ex.getCause() instanceof RestException) {
+                                    if (FutureUtil.unwrapCompletionException(ex) instanceof RestException) {
                                         log.warn("Failed to authorize {} on topic {}", clientAppId, topicName);
                                         authorizationFuture.completeExceptionally(new PulsarClientException(
                                                 String.format("Authorization failed %s on topic %s with error %s",
@@ -4057,7 +4057,7 @@ public class PersistentTopicsBase extends AdminResource {
                     metadataFuture.complete(metadata);
                 })
                 .exceptionally(e -> {
-                    metadataFuture.completeExceptionally(e.getCause());
+                    metadataFuture.completeExceptionally(FutureUtil.unwrapCompletionException(e));
                     return null;
                 });
         return metadataFuture;

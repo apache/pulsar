@@ -227,10 +227,10 @@ public class TopicLookupBase extends PulsarWebResource {
                 checkAuthorizationAsync(pulsarService, topicName, clientAppId, authenticationData).thenRun(() ->
                                 validationFuture.complete(null))
                         .exceptionally(e -> {
-                            if (e.getCause() instanceof RestException) {
+                            if (FutureUtil.unwrapCompletionException(e) instanceof RestException) {
                                 log.warn("Failed to authorized {} on cluster {}", clientAppId, topicName);
                                 validationFuture.complete(newLookupErrorResponse(ServerError.AuthorizationError,
-                                        e.getCause().getMessage(), requestId));
+                                        FutureUtil.unwrapCompletionException(e).getMessage(), requestId));
                             } else {
                                 log.warn("Unknown error while authorizing {} on cluster {}", clientAppId, topicName);
                                 validationFuture.completeExceptionally(e);
@@ -260,12 +260,12 @@ public class TopicLookupBase extends PulsarWebResource {
                             false));
                 }).exceptionally(ex -> {
                     validationFuture.complete(
-                            newLookupErrorResponse(ServerError.MetadataError, ex.getCause().getMessage(), requestId));
+                            newLookupErrorResponse(ServerError.MetadataError, FutureUtil.unwrapCompletionException(ex).getMessage(), requestId));
                     return null;
                 });
             }
         }).exceptionally(ex -> {
-            validationFuture.completeExceptionally(ex.getCause());
+            validationFuture.completeExceptionally(FutureUtil.unwrapCompletionException(ex));
             return null;
         });
 
