@@ -223,46 +223,47 @@ public class TopicLookupBase extends PulsarWebResource {
                         differentClusterData.getBrokerServiceUrlTls(), true, LookupType.Redirect, requestId, false));
             } else {
                 // (2) authorize client
-                try {
-                    checkAuthorization(pulsarService, topicName, clientAppId, authenticationData);
-                } catch (RestException authException) {
-                    log.warn("Failed to authorized {} on cluster {}", clientAppId, topicName.toString());
-                    validationFuture.complete(newLookupErrorResponse(ServerError.AuthorizationError,
-                            authException.getMessage(), requestId));
-                    return;
-                } catch (Exception e) {
-                    log.warn("Unknown error while authorizing {} on cluster {}", clientAppId, topicName.toString());
-                    validationFuture.completeExceptionally(e);
-                    return;
-                }
-                // (3) validate global namespace
-                checkLocalOrGetPeerReplicationCluster(pulsarService, topicName.getNamespaceObject())
-                        .thenAccept(peerClusterData -> {
-                            if (peerClusterData == null) {
-                                // (4) all validation passed: initiate lookup
-                                validationFuture.complete(null);
-                                return;
+                checkAuthorizationAsync(pulsarService, topicName, clientAppId, authenticationData).thenRun(() ->
+                                validationFuture.complete(null))
+                        .exceptionally(e -> {
+                            if (e.getCause() instanceof RestException) {
+                                log.warn("Failed to authorized {} on cluster {}", clientAppId, topicName.toString());
+                                validationFuture.complete(newLookupErrorResponse(ServerError.AuthorizationError,
+                                        e.getCause().getMessage(), requestId));
+                            } else {
+                                log.warn("Unknown error while authorizing {} on cluster {}", clientAppId, topicName.toString());
+                                validationFuture.completeExceptionally(e);
                             }
-                            // if peer-cluster-data is present it means namespace is owned by that peer-cluster and
-                            // request should be redirect to the peer-cluster
-                            if (StringUtils.isBlank(peerClusterData.getBrokerServiceUrl())
-                                    && StringUtils.isBlank(peerClusterData.getBrokerServiceUrlTls())) {
-                                validationFuture.complete(newLookupErrorResponse(ServerError.MetadataError,
-                                        "Redirected cluster's brokerService url is not configured", requestId));
-                                return;
-                            }
-                            validationFuture.complete(newLookupResponse(peerClusterData.getBrokerServiceUrl(),
-                                    peerClusterData.getBrokerServiceUrlTls(), true, LookupType.Redirect, requestId,
-                                    false));
+                            return null;
+                        });
 
-                        }).exceptionally(ex -> {
+                // (3) validate global namespace
+                validationFuture.thenCompose(__ ->
+                        checkLocalOrGetPeerReplicationCluster(pulsarService, topicName.getNamespaceObject())).thenAccept(peerClusterData -> {
+                    if (peerClusterData == null) {
+                        // (4) all validation passed: initiate lookup
+                        validationFuture.complete(null);
+                        return;
+                    }
+                    // if peer-cluster-data is present it means namespace is owned by that peer-cluster and
+                    // request should be redirect to the peer-cluster
+                    if (StringUtils.isBlank(peerClusterData.getBrokerServiceUrl())
+                            && StringUtils.isBlank(peerClusterData.getBrokerServiceUrlTls())) {
+                        validationFuture.complete(newLookupErrorResponse(ServerError.MetadataError,
+                                "Redirected cluster's brokerService url is not configured", requestId));
+                        return;
+                    }
+                    validationFuture.complete(newLookupResponse(peerClusterData.getBrokerServiceUrl(),
+                            peerClusterData.getBrokerServiceUrlTls(), true, LookupType.Redirect, requestId,
+                            false));
+                }).exceptionally(ex -> {
                     validationFuture.complete(
-                            newLookupErrorResponse(ServerError.MetadataError, ex.getMessage(), requestId));
+                            newLookupErrorResponse(ServerError.MetadataError, ex.getCause().getMessage(), requestId));
                     return null;
                 });
             }
         }).exceptionally(ex -> {
-            validationFuture.completeExceptionally(ex);
+            validationFuture.completeExceptionally(ex.getCause());
             return null;
         });
 
