@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.admin.impl;
 
-import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.pulsar.common.naming.SystemTopicNames.isTransactionCoordinatorAssign;
 import static org.apache.pulsar.common.naming.SystemTopicNames.isTransactionInternalName;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -4035,8 +4034,8 @@ public class PersistentTopicsBase extends AdminResource {
                                     return null;
                                 });
                     } else {
-                        // throw without wrapping to PulsarClientException that considers: unknown error marked as internal
-                        // server error
+                        // throw without wrapping to PulsarClientException that considers: unknown error marked as
+                        // internal server error
                         log.warn("Failed to authorize {} on topic {}", clientAppId, topicName, e);
                         authorizationFuture.completeExceptionally(e);
                     }
@@ -4055,7 +4054,8 @@ public class PersistentTopicsBase extends AdminResource {
                         log.debug("[{}] Total number of partitions for topic {} is {}", clientAppId, topicName,
                                 metadata.partitions);
                     }
-                    metadataFuture.complete(metadata);})
+                    metadataFuture.complete(metadata);
+                })
                 .exceptionally(e -> {
                     metadataFuture.completeExceptionally(e.getCause());
                     return null;
