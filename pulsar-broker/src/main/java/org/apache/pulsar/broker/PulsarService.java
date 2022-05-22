@@ -589,7 +589,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 closeable.close();
                 future.complete(null);
             } catch (Exception e) {
-                LOG.warn("Failed to close {}", resource, e.getMessage());
+                LOG.warn("Failed to close {}", resource, e);
                 future.completeExceptionally(new IllegalStateException("Failed to close " + resource));
             }
         });
