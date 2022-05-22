@@ -261,7 +261,8 @@ public class TopicLookupBase extends PulsarWebResource {
                             false));
                 }).exceptionally(ex -> {
                     validationFuture.complete(
-                            newLookupErrorResponse(ServerError.MetadataError, FutureUtil.unwrapCompletionException(ex).getMessage(), requestId));
+                            newLookupErrorResponse(ServerError.MetadataError,
+                                    FutureUtil.unwrapCompletionException(ex).getMessage(), requestId));
                     return null;
                 });
             }
