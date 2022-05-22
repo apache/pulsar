@@ -1416,7 +1416,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         assertEquals(cm.get(0).value, 10);
         cm = (List<Metric>) metrics.get("pulsar_compaction_compacted_entries_size");
         assertEquals(cm.size(), 1);
-        assertEquals(cm.get(0).value, 870);
+        assertEquals(cm.get(0).value, 840);
 
         pulsarClient.close();
     }

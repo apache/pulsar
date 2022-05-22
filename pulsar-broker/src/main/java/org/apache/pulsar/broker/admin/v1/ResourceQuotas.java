@@ -29,10 +29,15 @@ import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
+import javax.ws.rs.container.AsyncResponse;
+import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.admin.impl.ResourceQuotasBase;
 import org.apache.pulsar.common.policies.data.ResourceQuota;
 
+@Slf4j
 @Path("/resource-quotas")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
@@ -46,11 +51,21 @@ public class ResourceQuotas extends ResourceQuotasBase {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist") })
-    public ResourceQuota getNamespaceBundleResourceQuota(@PathParam("property") String property,
-            @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
+    public void getNamespaceBundleResourceQuota(
+            @Suspended AsyncResponse response,
+            @PathParam("property") String property,
+            @PathParam("cluster") String cluster,
+            @PathParam("namespace") String namespace,
             @PathParam("bundle") String bundleRange) {
         validateNamespaceName(property, cluster, namespace);
-        return internalGetNamespaceBundleResourceQuota(bundleRange);
+        internalGetNamespaceBundleResourceQuota(bundleRange)
+                .thenAccept(response::resume)
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to get namespace bundle resource quota {}", clientAppId(),
+                            namespaceName, ex);
+                    resumeAsyncResponseExceptionally(response, ex);
+                    return null;
+                });
     }
 
     @POST
@@ -60,11 +75,26 @@ public class ResourceQuotas extends ResourceQuotasBase {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 409, message = "Concurrent modification") })
-    public void setNamespaceBundleResourceQuota(@PathParam("property") String property,
-            @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
-            @PathParam("bundle") String bundleRange, ResourceQuota quota) {
+    public void setNamespaceBundleResourceQuota(
+            @Suspended AsyncResponse response,
+            @PathParam("property") String property,
+            @PathParam("cluster") String cluster,
+            @PathParam("namespace") String namespace,
+            @PathParam("bundle") String bundleRange,
+            ResourceQuota quota) {
         validateNamespaceName(property, cluster, namespace);
-        internalSetNamespaceBundleResourceQuota(bundleRange, quota);
+        internalSetNamespaceBundleResourceQuota(bundleRange, quota)
+                .thenAccept(__ -> {
+                    log.info("[{}] Successfully set resource quota for namespace bundle {}",
+                            clientAppId(), bundleRange);
+                    response.resume(Response.noContent().build());
+                })
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to set namespace resource quota for bundle {}",
+                            clientAppId(), bundleRange, ex);
+                    resumeAsyncResponseExceptionally(response, ex);
+                    return null;
+        });
     }
 
     @DELETE
@@ -74,10 +104,23 @@ public class ResourceQuotas extends ResourceQuotasBase {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace"),
             @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 409, message = "Concurrent modification") })
-    public void removeNamespaceBundleResourceQuota(@PathParam("property") String property,
-            @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
+    public void removeNamespaceBundleResourceQuota(
+            @Suspended AsyncResponse response,
+            @PathParam("property") String property,
+            @PathParam("cluster") String cluster,
+            @PathParam("namespace") String namespace,
             @PathParam("bundle") String bundleRange) {
         validateNamespaceName(property, cluster, namespace);
-        internalRemoveNamespaceBundleResourceQuota(bundleRange);
+        internalRemoveNamespaceBundleResourceQuota(bundleRange)
+                .thenAccept(__ -> {
+                    log.info("[{}] Successfully remove namespace bundle resource quota {}", clientAppId(), bundleRange);
+                    response.resume(Response.noContent().build());
+                })
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to remove namespace bundle resource quota {}",
+                            clientAppId(), bundleRange, ex);
+                    resumeAsyncResponseExceptionally(response, ex);
+                    return null;
+        });
     }
 }

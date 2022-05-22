@@ -16,3 +16,5 @@ website/static/swagger/restApiVersions.json
 website/static/swagger/*/v*/*.json
 
 website-tmp*/
+
+.preview/

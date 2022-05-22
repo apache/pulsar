@@ -1,7 +1,7 @@
 ---
 id: io-flume-source
 title: Flume source connector
-sidebar_label: Flume source connector
+sidebar_label: "Flume source connector"
 ---
 
 The Flume source connector pulls messages from logs to Pulsar topics.
@@ -28,26 +28,30 @@ Before using the Flume source connector, you need to create a configuration file
 
 * JSON 
 
-    ```json
-    {
-       "configs": {
-          "name": "a1",
-          "confFile": "source.conf",
-          "noReloadConf": "false",
-          "zkConnString": "",
-          "zkBasePath": ""
-       }
-    }
-    ```
+  ```json
+  
+  {
+     "configs": {
+        "name": "a1",
+        "confFile": "source.conf",
+        "noReloadConf": "false",
+        "zkConnString": "",
+        "zkBasePath": ""
+     }
+  }
+  
+  ```
 
 * YAML
 
-    ```yaml
-    configs:
-        name: a1
-        confFile: source.conf
-        noReloadConf: false
-        zkConnString: ""
-        zkBasePath: ""
-    ```
+  ```yaml
+  
+  configs:
+      name: a1
+      confFile: source.conf
+      noReloadConf: false
+      zkConnString: ""
+      zkBasePath: ""
+  
+  ```
 

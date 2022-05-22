@@ -1847,6 +1847,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + " will only be tracked in memory and messages will be redelivered in case of"
             + " crashes.")
     private int managedLedgerMaxUnackedRangesToPersist = 10000;
+    @FieldContext(
+        category = CATEGORY_STORAGE_ML,
+        doc = "If enabled, the maximum \"acknowledgment holes\" will not be limited and \"acknowledgment holes\" "
+                + "are stored in multiple entries.")
+    private boolean persistentUnackedRangesWithMultipleEntriesEnabled = false;
     @Deprecated
     @FieldContext(
         category = CATEGORY_STORAGE_ML,

@@ -527,23 +527,7 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws Exception {
             String topic = validateTopicName(params);
-            Map<String, String> map = null;
-            if (metadata != null && !metadata.isEmpty()) {
-                map = new HashMap<>();
-                for (String property : metadata) {
-                    if (!property.contains("=")) {
-                        throw new ParameterException(String.format("Invalid key value pair '%s', "
-                                + "valid format like 'a=a,b=b,c=c'.", property));
-                    } else {
-                        String[] keyValue = property.split("=");
-                        if (keyValue.length != 2) {
-                            throw new ParameterException(String.format("Invalid key value pair '%s', "
-                                    + "valid format like 'a=a,b=b,c=c'.", property));
-                        }
-                        map.put(keyValue[0], keyValue[1]);
-                    }
-                }
-            }
+            Map<String, String> map = parseListKeyValueMap(metadata);
             getTopics().createPartitionedTopic(topic, numPartitions, map);
         }
     }
@@ -575,22 +559,7 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws Exception {
             String topic = validateTopicName(params);
-            Map<String, String> map = new HashMap<>();
-            if (metadata != null) {
-                for (String property : metadata) {
-                    if (!property.contains("=")) {
-                        throw new ParameterException(String.format("Invalid key value pair '%s', "
-                                + "valid format like 'a=a,b=b,c=c'.", property));
-                    } else {
-                        String[] keyValue = property.split("=");
-                        if (keyValue.length != 2) {
-                            throw new ParameterException(String.format("Invalid key value pair '%s', "
-                                    + "valid format like 'a=a,b=b,c=c'.", property));
-                        }
-                        map.put(keyValue[0], keyValue[1]);
-                    }
-                }
-            }
+            Map<String, String> map = parseListKeyValueMap(metadata);
             getTopics().createNonPartitionedTopic(topic, map);
         }
     }
@@ -964,6 +933,10 @@ public class CmdTopics extends CmdBase {
         @Parameter(names = { "-r", "--replicated" }, description = "replicated subscriptions", required = false)
         private boolean replicated = false;
 
+        @Parameter(names = {"--property", "-p"}, description = "key value pair properties(-p a=b -p c=d)",
+                required = false)
+        private java.util.List<String> properties;
+
         @Override
         void run() throws PulsarAdminException {
             String topic = validateTopicName(params);
@@ -975,8 +948,8 @@ public class CmdTopics extends CmdBase {
             } else {
                 messageId = validateMessageIdString(messageIdStr);
             }
-
-            getTopics().createSubscription(topic, subscriptionName, messageId, replicated);
+            Map<String, String> map = parseListKeyValueMap(properties);
+            getTopics().createSubscription(topic, subscriptionName, messageId, replicated, map);
         }
     }
 

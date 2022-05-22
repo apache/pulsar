@@ -1,7 +1,7 @@
 ---
-id: version-2.8.3-concepts-multiple-advertised-listeners
+id: concepts-multiple-advertised-listeners
 title: Multiple advertised listeners
-sidebar_label: Multiple advertised listeners
+sidebar_label: "Multiple advertised listeners"
 original_id: concepts-multiple-advertised-listeners
 ---
 
@@ -25,15 +25,20 @@ This example shows how a Pulsar client uses multiple advertised listeners.
 1. Configure multiple advertised listeners in the broker configuration file.
 
 ```shell
+
 advertisedListeners={listenerName}:pulsar://xxxx:6650,
 {listenerName}:pulsar+ssl://xxxx:6651
+
 ```
 
 2. Specify the listener name for the client.
 
 ```java
+
 PulsarClient client = PulsarClient.builder()
     .serviceUrl("pulsar://xxxx:6650")
     .listenerName("external")
     .build();
+
 ```
+

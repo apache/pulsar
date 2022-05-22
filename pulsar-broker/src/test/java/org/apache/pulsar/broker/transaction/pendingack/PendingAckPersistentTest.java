@@ -542,24 +542,32 @@ public class PendingAckPersistentTest extends TransactionTestBase {
                         .get();
 
         PersistentSubscription persistentSubscription = persistentTopic.getSubscription(subName);
+        Field field1 = PersistentSubscription.class.getDeclaredField("pendingAckHandle");
+        field1.setAccessible(true);
+        PendingAckHandleImpl oldPendingAckHandle = (PendingAckHandleImpl) field1.get(persistentSubscription);
+        Field field2 = PendingAckHandleImpl.class.getDeclaredField("individualAckOfTransaction");
+        field2.setAccessible(true);
+        LinkedMap<TxnID, HashMap<PositionImpl, PositionImpl>> oldIndividualAckOfTransaction =
+                (LinkedMap<TxnID, HashMap<PositionImpl, PositionImpl>>) field2.get(oldPendingAckHandle);
+        Awaitility.await().untilAsserted(() -> Assert.assertEquals(oldIndividualAckOfTransaction.size(), 0));
+
         PendingAckHandleImpl pendingAckHandle = new PendingAckHandleImpl(persistentSubscription);
 
         Method method = PendingAckHandleImpl.class.getDeclaredMethod("initPendingAckStore");
         method.setAccessible(true);
         method.invoke(pendingAckHandle);
 
-        Field field1 = PendingAckHandleImpl.class.getDeclaredField("pendingAckStoreFuture");
-        field1.setAccessible(true);
-        CompletableFuture<PendingAckStore> completableFuture =
-                (CompletableFuture<PendingAckStore>) field1.get(pendingAckHandle);
+        Field field3 = PendingAckHandleImpl.class.getDeclaredField("pendingAckStoreFuture");
+        field3.setAccessible(true);
 
         Awaitility.await().until(() -> {
+            CompletableFuture<PendingAckStore> completableFuture =
+                    (CompletableFuture<PendingAckStore>) field3.get(pendingAckHandle);
             completableFuture.get();
             return true;
         });
 
-        Field field2 = PendingAckHandleImpl.class.getDeclaredField("individualAckOfTransaction");
-        field2.setAccessible(true);
+
         LinkedMap<TxnID, HashMap<PositionImpl, PositionImpl>> individualAckOfTransaction =
                 (LinkedMap<TxnID, HashMap<PositionImpl, PositionImpl>>) field2.get(pendingAckHandle);
 

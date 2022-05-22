@@ -1,7 +1,7 @@
 ---
-id: version-2.10.0-adaptors-kafka
+id: adaptors-kafka
 title: Pulsar adaptor for Apache Kafka
-sidebar_label: Kafka client wrapper
+sidebar_label: "Kafka client wrapper"
 original_id: adaptors-kafka
 ---
 
@@ -13,21 +13,25 @@ Pulsar provides an easy option for applications that are currently written using
 In an existing application, change the regular Kafka client dependency and replace it with the Pulsar Kafka wrapper. Remove the following dependency in `pom.xml`:
 
 ```xml
+
 <dependency>
   <groupId>org.apache.kafka</groupId>
   <artifactId>kafka-clients</artifactId>
   <version>0.10.2.1</version>
 </dependency>
+
 ```
 
 Then include this dependency for the Pulsar Kafka wrapper:
 
 ```xml
+
 <dependency>
   <groupId>org.apache.pulsar</groupId>
   <artifactId>pulsar-client-kafka</artifactId>
-  <version>{{pulsar:version}}</version>
+  <version>@pulsar:version@</version>
 </dependency>
+
 ```
 
 With the new dependency, the existing code works without any changes. You need to adjust the configuration, and make sure it points the
@@ -41,11 +45,13 @@ and the pulsar kafka wrapper together during migration. You should consider usin
 unshaded pulsar kafka client wrapper.
 
 ```xml
+
 <dependency>
   <groupId>org.apache.pulsar</groupId>
   <artifactId>pulsar-client-kafka-original</artifactId>
-  <version>{{pulsar:version}}</version>
+  <version>@pulsar:version@</version>
 </dependency>
+
 ```
 
 When using this dependency, construct producers using `org.apache.kafka.clients.producer.PulsarKafkaProducer`
@@ -54,6 +60,7 @@ instead of `org.apache.kafka.clients.producer.KafkaProducer` and `org.apache.kaf
 ## Producer example
 
 ```java
+
 // Topic needs to be a regular Pulsar topic
 String topic = "persistent://public/default/my-topic";
 
@@ -64,7 +71,7 @@ props.put("bootstrap.servers", "pulsar://localhost:6650");
 props.put("key.serializer", IntegerSerializer.class.getName());
 props.put("value.serializer", StringSerializer.class.getName());
 
-Producer<Integer, String> producer = new KafkaProducer<>(props);
+Producer<Integer, String> producer = new KafkaProducer(props);
 
 for (int i = 0; i < 10; i++) {
     producer.send(new ProducerRecord<Integer, String>(topic, i, "hello-" + i));
@@ -72,11 +79,13 @@ for (int i = 0; i < 10; i++) {
 }
 
 producer.close();
+
 ```
 
 ## Consumer example
 
 ```java
+
 String topic = "persistent://public/default/my-topic";
 
 Properties props = new Properties();
@@ -87,7 +96,7 @@ props.put("enable.auto.commit", "false");
 props.put("key.deserializer", IntegerDeserializer.class.getName());
 props.put("value.deserializer", StringDeserializer.class.getName());
 
-Consumer<Integer, String> consumer = new KafkaConsumer<>(props);
+Consumer<Integer, String> consumer = new KafkaConsumer(props);
 consumer.subscribe(Arrays.asList(topic));
 
 while (true) {
@@ -99,12 +108,12 @@ while (true) {
     // Commit last offset
     consumer.commitSync();
 }
+
 ```
 
 ## Complete Examples
 
-You can find the complete producer and consumer examples
-[here](https://github.com/apache/pulsar-adapters/tree/master/pulsar-client-kafka-compat/pulsar-client-kafka-tests/src/test/java/org/apache/pulsar/client/kafka/compat/examples).
+You can find the complete producer and consumer examples [here](https://github.com/apache/pulsar-adapters/tree/master/pulsar-client-kafka-compat/pulsar-client-kafka-tests/src/test/java/org/apache/pulsar/client/kafka/compat/examples).
 
 ## Compatibility matrix
 

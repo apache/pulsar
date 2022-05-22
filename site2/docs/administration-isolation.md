@@ -1,8 +1,14 @@
 ---
 id: administration-isolation
 title: Pulsar isolation
-sidebar_label: Pulsar isolation
+sidebar_label: "Pulsar isolation"
 ---
+
+````mdx-code-block
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+````
+
 
 In an organization, a Pulsar instance provides services to multiple teams. When organizing the resources across multiple teams, you want to make a suitable isolation plan to avoid the resource competition between different teams and applications and provide high-quality messaging service. In this case, you need to take resource isolation into consideration and weigh your intended actions against expected and unexpected consequences.
 
@@ -14,12 +20,17 @@ In Pulsar, when namespaces (more specifically, namespace bundles) are assigned d
 
 You can set a namespace isolation policy for a cluster using one of the following methods. 
 
-<!--DOCUSAURUS_CODE_TABS-->
+````mdx-code-block
+<Tabs 
+  defaultValue="Admin CLI"
+  values={[{"label":"Admin CLI","value":"Admin CLI"},{"label":"REST API","value":"REST API"},{"label":"Java admin API","value":"Java admin API"}]}>
 
-<!--Admin CLI-->
+<TabItem value="Admin CLI">
 
 ```
+
 pulsar-admin ns-isolation-policy set options
+
 ```
 
 For more information about the command `pulsar-admin ns-isolation-policy set options`, see [here](https://pulsar.apache.org/tools/pulsar-admin/).
@@ -27,22 +38,29 @@ For more information about the command `pulsar-admin ns-isolation-policy set opt
 **Example**
 
 ```shell
+
 bin/pulsar-admin ns-isolation-policy set \
 --auto-failover-policy-type min_available \
 --auto-failover-policy-params min_limit=1,usage_threshold=80 \
 --namespaces my-tenant/my-namespace \
 --primary 10.193.216.*  my-cluster policy-name
+
 ```
 
-<!--REST API-->
+</TabItem>
+<TabItem value="REST API">
 
 [PUT /admin/v2/namespaces/{tenant}/{namespace}](https://pulsar.apache.org/admin-rest-api/?version=master&apiversion=v2#operation/createNamespace)
 
-<!--Java admin API-->
+</TabItem>
+<TabItem value="Java admin API">
 
 For how to set namespace isolation policy using Java admin API, see [here](https://github.com/apache/pulsar/blob/master/pulsar-client-admin/src/main/java/org/apache/pulsar/client/admin/internal/NamespacesImpl.java#L251).
 
-<!--END_DOCUSAURUS_CODE_TABS-->
+</TabItem>
+
+</Tabs>
+````
 
 ## Bookie isolation
 
@@ -50,12 +68,17 @@ A namespace can be isolated into user-defined groups of bookies, which guarantee
 
 You can set a bookie affinity group using one of the following methods.
 
-<!--DOCUSAURUS_CODE_TABS-->
+````mdx-code-block
+<Tabs 
+  defaultValue="Admin CLI"
+  values={[{"label":"Admin CLI","value":"Admin CLI"},{"label":"REST API","value":"REST API"},{"label":"Java admin API","value":"Java admin API"}]}>
 
-<!--Admin CLI-->
+<TabItem value="Admin CLI">
 
 ```
+
 pulsar-admin namespaces set-bookie-affinity-group options
+
 ```
 
 For more information about the command `pulsar-admin namespaces set-bookie-affinity-group options`, see [here](https://pulsar.apache.org/tools/pulsar-admin/).
@@ -63,6 +86,7 @@ For more information about the command `pulsar-admin namespaces set-bookie-affin
 **Example**
 
 ```shell
+
 bin/pulsar-admin bookies set-bookie-rack \
 --bookie 127.0.0.1:3181 \
 --hostname 127.0.0.1:3181 \
@@ -71,22 +95,29 @@ bin/pulsar-admin bookies set-bookie-rack \
 
 bin/pulsar-admin namespaces set-bookie-affinity-group public/default \
 --primary-group group-bookie1
+
 ```
 
-> **Notes**
-> 
-> - Do not set a bookie rack name to slash (`/`) or an empty string (`""`) if you use Pulsar earlier than 2.7.5, 2.8.3, and 2.9.2. If you use Pulsar 2.7.5, 2.8.3, 2.9.2 or later versions, it falls back to `/default-rack` or `/default-region/default-rack`.
-> - When `RackawareEnsemblePlacementPolicy` is enabled, the rack name is not allowed to contain slash (`/`) except for the beginning and end of the rack name string. For example, rack name like `/rack0` is okay, but `/rack/0` is not allowed.
-> - When `RegionawareEnsemblePlacementPolicy` is enabled, the rack name can only contain one slash (`/`) except for the beginning and end of the rack name string. For example, rack name like `/region0/rack0` is okay, but `/region0rack0` and `/region0/rack/0` are not allowed.
-> 
-> For the bookie rack name restrictions, see [pulsar-admin bookies set-bookie-rack](https://pulsar.apache.org/tools/pulsar-admin/).
+:::note
 
-<!--REST API-->
+- Do not set a bookie rack name to slash (`/`) or an empty string (`""`) if you use Pulsar earlier than 2.7.5, 2.8.3, and 2.9.2. If you use Pulsar 2.7.5, 2.8.3, 2.9.2 or later versions, it falls back to `/default-rack` or `/default-region/default-rack`.
+- When `RackawareEnsemblePlacementPolicy` is enabled, the rack name is not allowed to contain slash (`/`) except for the beginning and end of the rack name string. For example, rack name like `/rack0` is okay, but `/rack/0` is not allowed.
+- When `RegionawareEnsemblePlacementPolicy` is enabled, the rack name can only contain one slash (`/`) except for the beginning and end of the rack name string. For example, rack name like `/region0/rack0` is okay, but `/region0rack0` and `/region0/rack/0` are not allowed.
+For the bookie rack name restrictions, see [pulsar-admin bookies set-bookie-rack](https://pulsar.apache.org/tools/pulsar-admin/).
+
+:::
+
+</TabItem>
+<TabItem value="REST API">
 
 [POST /admin/v2/namespaces/{tenant}/{namespace}/persistence/bookieAffinity](https://pulsar.apache.org/admin-rest-api/?version=master&apiversion=v2#operation/setBookieAffinityGroup)
 
-<!--Java admin API-->
+</TabItem>
+<TabItem value="Java admin API">
 
 For how to set bookie affinity group for a namespace using Java admin API, see [here](https://github.com/apache/pulsar/blob/master/pulsar-client-admin/src/main/java/org/apache/pulsar/client/admin/internal/NamespacesImpl.java#L1164).
 
-<!--END_DOCUSAURUS_CODE_TABS-->
+</TabItem>
+
+</Tabs>
+````
