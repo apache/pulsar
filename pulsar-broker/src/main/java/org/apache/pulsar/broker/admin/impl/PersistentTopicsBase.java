@@ -4017,27 +4017,29 @@ public class PersistentTopicsBase extends AdminResource {
         checkAuthorizationAsync(pulsar, topicName, clientAppId, authenticationData)
                 .thenRun(() -> authorizationFuture.complete(null))
                 .exceptionally(e -> {
-                    if (FutureUtil.unwrapCompletionException(e) instanceof RestException) {
+                    Throwable throwable = FutureUtil.unwrapCompletionException(e);
+                    if (throwable instanceof RestException) {
                         validateAdminAccessForTenantAsync(pulsar,
                                 clientAppId, originalPrincipal, topicName.getTenant(), authenticationData)
                                 .thenRun(() -> {
                                     authorizationFuture.complete(null);
                                 }).exceptionally(ex -> {
-                                    if (FutureUtil.unwrapCompletionException(ex) instanceof RestException) {
+                                    Throwable throwable2 = FutureUtil.unwrapCompletionException(ex);
+                                    if (throwable2 instanceof RestException) {
                                         log.warn("Failed to authorize {} on topic {}", clientAppId, topicName);
                                         authorizationFuture.completeExceptionally(new PulsarClientException(
                                                 String.format("Authorization failed %s on topic %s with error %s",
-                                                clientAppId, topicName, ex.getCause().getMessage())));
+                                                clientAppId, topicName, throwable2.getMessage())));
                                     } else {
-                                        authorizationFuture.completeExceptionally(e);
+                                        authorizationFuture.completeExceptionally(throwable2);
                                     }
                                     return null;
                                 });
                     } else {
                         // throw without wrapping to PulsarClientException that considers: unknown error marked as
                         // internal server error
-                        log.warn("Failed to authorize {} on topic {}", clientAppId, topicName, e);
-                        authorizationFuture.completeExceptionally(e);
+                        log.warn("Failed to authorize {} on topic {}", clientAppId, topicName, throwable);
+                        authorizationFuture.completeExceptionally(throwable);
                     }
                     return null;
                 });
