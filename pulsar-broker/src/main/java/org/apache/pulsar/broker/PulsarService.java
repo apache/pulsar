@@ -402,24 +402,32 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
             // close the service in reverse order v.s. in which they are started
             if (this.resourceUsageTransportManager != null) {
-                close(resourceUsageTransportManager, "resourceUsageTransportManager", shutdownExecutor);
+                try {
+                    this.resourceUsageTransportManager.close();
+                } catch (Exception e) {
+                    LOG.warn("ResourceUsageTransportManager closing failed {}", e.getMessage());
+                }
                 this.resourceUsageTransportManager = null;
             }
 
             if (this.webService != null) {
-                close(webService, "webService", shutdownExecutor);
-                this.webService = null;
+                try {
+                    this.webService.close();
+                    this.webService = null;
+                } catch (Exception e) {
+                    LOG.error("Web service closing failed", e);
+                    // Even if the web service fails to close, the graceful shutdown process continues
+                }
             }
 
             resetMetricsServlet();
 
             if (this.webSocketService != null) {
-                close(webSocketService, "webSocketService", shutdownExecutor);
-                this.webSocketService = null;
+                this.webSocketService.close();
             }
 
             if (brokerAdditionalServlets != null) {
-                close(brokerAdditionalServlets, "brokerAdditionalServlets", shutdownExecutor);
+                brokerAdditionalServlets.close();
                 brokerAdditionalServlets = null;
             }
 
@@ -465,27 +473,27 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             }
 
             if (this.leaderElectionService != null) {
-                close(leaderElectionService, "leaderElectionService", shutdownExecutor);
+                this.leaderElectionService.close();
                 this.leaderElectionService = null;
             }
 
             if (adminClient != null) {
-                close(adminClient, "adminClient", shutdownExecutor);
+                adminClient.close();
                 adminClient = null;
             }
 
             if (transactionBufferSnapshotService != null) {
-                close(transactionBufferSnapshotService, "transactionBufferSnapshotService", shutdownExecutor);
+                transactionBufferSnapshotService.close();
                 transactionBufferSnapshotService = null;
             }
 
             if (client != null) {
-                close(client, "client", shutdownExecutor);
+                client.close();
                 client = null;
             }
 
             if (nsService != null) {
-                close(nsService, "nsService", shutdownExecutor);
+                nsService.close();
                 nsService = null;
             }
 
@@ -498,19 +506,19 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
 
             if (schemaRegistryService != null) {
-                close(schemaRegistryService, "schemaRegistryService", shutdownExecutor);
+                schemaRegistryService.close();
                 schemaRegistryService = null;
             }
 
             offloadersCache.close();
 
             if (protocolHandlers != null) {
-                close(protocolHandlers, "protocolHandlers", shutdownExecutor);
+                protocolHandlers.close();
                 protocolHandlers = null;
             }
 
             if (transactionBufferClient != null) {
-                close(transactionBufferClient, "transactionBufferClient", shutdownExecutor);
+                transactionBufferClient.close();
                 transactionBufferClient = null;
             }
 
@@ -521,7 +529,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
             closeLocalMetadataStore();
             if (configurationMetadataStore != null && shouldShutdownConfigurationMetadataStore) {
-                close(configurationMetadataStore, "configurationMetadataStore", shutdownExecutor);
+                configurationMetadataStore.close();
                 configurationMetadataStore = null;
             }
 
@@ -529,7 +537,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 transactionExecutorProvider.shutdownNow();
             }
             if (this.offloaderStats != null) {
-                close(offloaderStats, "offloaderStats", shutdownExecutor);
+                this.offloaderStats.close();
             }
 
             brokerClientSharedExternalExecutorProvider.shutdownNow();
