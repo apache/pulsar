@@ -823,7 +823,7 @@ public class Namespaces extends NamespacesBase {
                                  @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
         internalGetSubscribeRateAsync()
-                .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
+                .thenAccept(subscribeRate -> asyncResponse.resume(subscribeRate))
                 .exceptionally(ex -> {
                     log.error("Failed to get subscribe rate for namespace {}", namespaceName, ex);
                     resumeAsyncResponseExceptionally(asyncResponse, ex);

@@ -1375,26 +1375,23 @@ public abstract class NamespacesBase extends AdminResource {
 
     protected CompletableFuture<Void> internalSetSubscribeRateAsync(SubscribeRate subscribeRate) {
         log.info("[{}] Set namespace subscribe-rate {}/{}", clientAppId(), namespaceName, subscribeRate);
-        return validateSuperUserAccessAsync().thenAccept(__ -> {
-            updatePolicies(namespaceName, policies -> {
-                policies.clusterSubscribeRate.put(pulsar().getConfiguration().getClusterName(), subscribeRate);
-                return policies;
-            });
+        return validateSuperUserAccessAsync().thenCompose(__ -> updatePoliciesAsync(namespaceName, policies -> {
+            policies.clusterSubscribeRate.put(pulsar().getConfiguration().getClusterName(), subscribeRate);
             log.info("[{}] Successfully updated the subscribeRate for cluster on namespace {}", clientAppId(),
                     namespaceName);
-        });
+            return policies;
+        }));
     }
 
     protected CompletableFuture<Void> internalDeleteSubscribeRateAsync() {
-        return validateSuperUserAccessAsync().thenAccept(__ -> {
-            updatePolicies(namespaceName, policies -> {
-                policies.clusterSubscribeRate.remove(pulsar().getConfiguration().getClusterName());
-                return policies;
-            });
+        return validateSuperUserAccessAsync().thenCompose(__ -> updatePoliciesAsync(namespaceName, policies -> {
+            policies.clusterSubscribeRate.remove(pulsar().getConfiguration().getClusterName());
             log.info("[{}] Successfully delete the subscribeRate for cluster on namespace {}", clientAppId(),
                     namespaceName);
-        });
+            return policies;
+        }));
     }
+
 
     protected CompletableFuture<SubscribeRate> internalGetSubscribeRateAsync() {
         return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.RATE, PolicyOperation.READ)
