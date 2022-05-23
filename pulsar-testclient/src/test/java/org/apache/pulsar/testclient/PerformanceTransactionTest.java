@@ -59,7 +59,7 @@ public class PerformanceTransactionTest extends MockedPulsarServiceBaseTest {
     @Override
     protected void setup() throws Exception {
         ServiceConfiguration serviceConfiguration = getDefaultConf();
-        serviceConfiguration.setSystemTopicEnabled(true);
+        serviceConfiguration.setTopicLevelPoliciesEnabled(false);
         serviceConfiguration.setTransactionCoordinatorEnabled(true);
         super.internalSetup(serviceConfiguration);
         PerfClientUtils.setExitProcedure(code -> {

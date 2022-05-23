@@ -81,6 +81,8 @@ public class V1_AdminApi2Test extends MockedPulsarServiceBaseTest {
     @Override
     public void setup() throws Exception {
         resetConfig();
+        conf.setTopicLevelPoliciesEnabled(false);
+        conf.setSystemTopicEnabled(false);
         conf.setLoadBalancerEnabled(true);
         super.internalSetup();
 

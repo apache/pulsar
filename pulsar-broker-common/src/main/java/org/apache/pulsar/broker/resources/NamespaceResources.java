@@ -93,6 +93,10 @@ public class NamespaceResources extends BaseResources<Policies> {
         create(joinPath(BASE_POLICIES_PATH, ns.toString()), policies);
     }
 
+    public CompletableFuture<Void> createPoliciesAsync(NamespaceName ns, Policies policies) {
+        return createAsync(joinPath(BASE_POLICIES_PATH, ns.toString()), policies);
+    }
+
     public boolean namespaceExists(NamespaceName ns) throws MetadataStoreException {
         String path = joinPath(BASE_POLICIES_PATH, ns.toString());
         return super.exists(path) && super.getChildren(path).isEmpty();
@@ -206,6 +210,21 @@ public class NamespaceResources extends BaseResources<Policies> {
                                              NamespaceIsolationDataImpl>> modifyFunction)
                 throws MetadataStoreException {
             set(joinPath(BASE_CLUSTERS_PATH, cluster, NAMESPACE_ISOLATION_POLICIES), modifyFunction);
+        }
+
+        public CompletableFuture<Void> setIsolationDataAsync(String cluster,
+                                                             Function<Map<String, NamespaceIsolationDataImpl>,
+                                                             Map<String, NamespaceIsolationDataImpl>> modifyFunction) {
+            return setAsync(joinPath(BASE_CLUSTERS_PATH, cluster, NAMESPACE_ISOLATION_POLICIES), modifyFunction);
+        }
+
+        public CompletableFuture<Void> setIsolationDataWithCreateAsync(String cluster,
+                                                                       Function<Optional<Map<String,
+                                                                       NamespaceIsolationDataImpl>>,
+                                                                       Map<String, NamespaceIsolationDataImpl>>
+                                                                               createFunction) {
+            return setWithCreateAsync(joinPath(BASE_CLUSTERS_PATH, cluster, NAMESPACE_ISOLATION_POLICIES),
+                    createFunction);
         }
 
         public void setIsolationDataWithCreate(String cluster,

@@ -646,7 +646,7 @@ public class CmdFunctions extends CmdBase {
             if (functionConfig.getRuntime() == FunctionConfig.Runtime.PYTHON
                     || functionConfig.getRuntime() == FunctionConfig.Runtime.JAVA){
                 if (StringUtils.isEmpty(functionConfig.getClassName())) {
-                    throw new IllegalArgumentException("No Function Classname specified");
+                    throw new ParameterException("No Function Classname specified");
                 }
             }
             if (StringUtils.isEmpty(functionConfig.getName())) {
@@ -960,7 +960,7 @@ public class CmdFunctions extends CmdBase {
         protected void validateFunctionConfigs(FunctionConfig functionConfig) {
             if (StringUtils.isEmpty(functionConfig.getClassName())) {
                 if (StringUtils.isEmpty(functionConfig.getName())) {
-                    throw new IllegalArgumentException("Function Name not provided");
+                    throw new ParameterException("Function Name not provided");
                 }
             } else if (StringUtils.isEmpty(functionConfig.getName())) {
                 org.apache.pulsar.common.functions.Utils.inferMissingFunctionName(functionConfig);

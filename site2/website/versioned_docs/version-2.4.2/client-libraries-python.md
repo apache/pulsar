@@ -1,11 +1,11 @@
 ---
-id: version-2.4.2-client-libraries-python
+id: client-libraries-python
 title: The Pulsar Python client
-sidebar_label: Python
+sidebar_label: "Python"
 original_id: client-libraries-python
 ---
 
-The Pulsar Python client library is a wrapper over the existing [C++ client library](client-libraries-cpp.md) and exposes all of the [same features](/api/cpp). You can find the code in the [`python` subdirectory](https://github.com/apache/pulsar/tree/master/pulsar-client-cpp/python) of the C++ client code.
+The Pulsar Python client library is a wrapper over the existing [C++ client library](client-libraries-cpp) and exposes all of the [same features](/api/cpp). You can find the code in the [`python` subdirectory](https://github.com/apache/pulsar/tree/master/pulsar-client-cpp/python) of the C++ client code.
 
 ## Installation
 
@@ -16,7 +16,9 @@ You can install the [`pulsar-client`](https://pypi.python.org/pypi/pulsar-client
 To install the `pulsar-client` library as a pre-built package using the [pip](https://pip.pypa.io/en/stable/) package manager:
 
 ```shell
-$ pip install pulsar-client=={{pulsar:version_number}}
+
+$ pip install pulsar-client==@pulsar:version_number@
+
 ```
 
 Installation via PyPi is available for the following Python versions:
@@ -33,9 +35,11 @@ To install the `pulsar-client` library by building from source, follow [these in
 To install the built Python bindings:
 
 ```shell
+
 $ git clone https://github.com/apache/pulsar
 $ cd pulsar/pulsar-client-cpp/python
 $ sudo python setup.py install
+
 ```
 
 ## API Reference
@@ -51,6 +55,7 @@ Below you'll find a variety of Python code examples for the `pulsar-client` libr
 This creates a Python producer for the `my-topic` topic and send 10 messages on that topic:
 
 ```python
+
 import pulsar
 
 client = pulsar.Client('pulsar://localhost:6650')
@@ -61,6 +66,7 @@ for i in range(10):
     producer.send(('Hello-%d' % i).encode('utf-8'))
 
 client.close()
+
 ```
 
 ### Consumer example
@@ -68,6 +74,7 @@ client.close()
 This creates a consumer with the `my-subscription` subscription on the `my-topic` topic, listen for incoming messages, print the content and ID of messages that arrive, and acknowledge each message to the Pulsar broker:
 
 ```python
+
 import pulsar
 
 client = pulsar.Client('pulsar://localhost:6650')
@@ -85,11 +92,13 @@ while True:
         consumer.negative_acknowledge(msg)
 
 client.close()
+
 ```
 
 This example shows how to configure negative acknowledgement.
 
 ```python
+
 from pulsar import Client, schema
 
 client = Client('pulsar://localhost:6650')
@@ -119,6 +128,7 @@ try:
 except:
     print("no more msg")
     pass
+
 ```
 
 ### Reader interface example
@@ -126,6 +136,7 @@ except:
 You can use the Pulsar Python API to use the Pulsar [reader interface](concepts-clients.md#reader-interface). Here's an example:
 
 ```python
+
 # MessageId taken from a previously fetched message
 msg_id = msg.message_id()
 
@@ -135,8 +146,8 @@ while True:
     msg = reader.read_next()
     print("Received message '{}' id='{}'".format(msg.data(), msg.message_id()))
     # No acknowledgment
-```
 
+```
 
 ## Schema
 
@@ -147,23 +158,27 @@ from `pulsar.schema.Record` and defines the fields as
 class variables. For example:
 
 ```python
+
 from pulsar.schema import *
 
 class Example(Record):
     a = String()
     b = Integer()
     c = Boolean()
+
 ```
 
 With this simple schema definition we can then create producers,
 consumers and readers instances that will be referring to that.
 
 ```python
+
 producer = client.create_producer(
                     topic='my-topic',
                     schema=AvroSchema(Example) )
 
 producer.send(Example(a='Hello', b=1))
+
 ```
 
 When the producer is created, the Pulsar broker will validate that
@@ -183,6 +198,7 @@ object, instance of the schema record class, rather than the raw
 bytes:
 
 ```python
+
 consumer = client.subscribe(
                   topic='my-topic',
                   subscription_name='my-subscription',
@@ -198,6 +214,7 @@ while True:
     except:
         # Message failed to be processed
         consumer.negative_acknowledge(msg)
+
 ```
 
 ### Supported schema types
@@ -251,16 +268,19 @@ When adding a field these parameters can be used in the constructor:
 ##### Simple definition
 
 ```python
+
 class Example(Record):
     a = String()
     b = Integer()
     c = Array(String())
     i = Map(String())
+
 ```
 
 ##### Using enums
 
 ```python
+
 from enum import Enum
 
 class Color(Enum):
@@ -271,11 +291,13 @@ class Color(Enum):
 class Example(Record):
     name = String()
     color = Color
+
 ```
 
 ##### Complex types
 
 ```python
+
 class MySubRecord(Record):
     x = Integer()
     y = Long()
@@ -284,4 +306,6 @@ class MySubRecord(Record):
 class Example(Record):
     a = String()
     sub = MySubRecord()
+
 ```
+

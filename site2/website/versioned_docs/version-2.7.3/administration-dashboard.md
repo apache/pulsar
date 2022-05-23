@@ -1,12 +1,15 @@
 ---
-id: version-2.7.3-administration-dashboard
+id: administration-dashboard
 title: Pulsar dashboard
-sidebar_label: Dashboard
+sidebar_label: "Dashboard"
 original_id: administration-dashboard
 ---
 
-> Note   
-> Pulsar dashboard is deprecated. If you want to manage and monitor the stats of your topics, use [Pulsar Manager](administration-pulsar-manager.md). 
+:::note
+
+Pulsar dashboard is deprecated. If you want to manage and monitor the stats of your topics, use [Pulsar Manager](administration-pulsar-manager). 
+
+:::
 
 Pulsar dashboard is a web application that enables users to monitor current stats for all [topics](reference-terminology.md#topic) in tabular form.
 
@@ -19,28 +22,36 @@ You can use the [Django](https://www.djangoproject.com) web app to render the co
 The easiest way to use the dashboard is to run it inside a [Docker](https://www.docker.com/products/docker) container.
 
 ```shell
+
 $ SERVICE_URL=http://broker.example.com:8080/
 $ docker run -p 80:80 \
   -e SERVICE_URL=$SERVICE_URL \
-  apachepulsar/pulsar-dashboard:{{pulsar:version}}
+  apachepulsar/pulsar-dashboard:@pulsar:version@
+
 ```
 
-You can find the {@inject: github:`Dockerfile`:/dashboard/Dockerfile} in the `dashboard` directory and build an image from scratch as well:
+You can find the {@inject: github:Dockerfile:/dashboard/Dockerfile} in the `dashboard` directory and build an image from scratch as well:
 
 ```shell
+
 $ docker build -t apachepulsar/pulsar-dashboard dashboard
+
 ```
 
 If token authentication is enabled:
 > Provided token should have super-user access. 
+
 ```shell
+
 $ SERVICE_URL=http://broker.example.com:8080/
 $ JWT_TOKEN=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c
 $ docker run -p 80:80 \
   -e SERVICE_URL=$SERVICE_URL \
   -e JWT_TOKEN=$JWT_TOKEN \
   apachepulsar/pulsar-dashboard
+
 ```
+
  
 You need to specify only one service URL for a Pulsar cluster. Internally, the collector figures out all the existing clusters and the brokers from where it needs to pull the metrics. If you connect the dashboard to Pulsar running in standalone mode, the URL is `http://<broker-ip>:8080` by default. `<broker-ip>` is the ip address or hostname of the machine running Pulsar standalone. The ip address or hostname should be accessible from the docker instance running dashboard.
 
@@ -55,7 +66,9 @@ Similarly, given the Pulsar standalone advertises itself with localhost by defau
 explicitly set the advertise address to the host IP. For example:
 
 ```shell
+
 $ bin/pulsar standalone --advertised-address 1.2.3.4
+
 ```
 
 ### Known issues

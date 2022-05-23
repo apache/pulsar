@@ -96,6 +96,8 @@ flexible messaging model and an intuitive client API.</description>
       --add-opens java.base/jdk.internal.loader=ALL-UNNAMED
       --add-opens java.base/java.lang=ALL-UNNAMED <!--Mockito-->
       --add-opens java.base/java.io=ALL-UNNAMED <!--Bookkeeper NativeIO -->
+      --add-opens java.base/sun.net=ALL-UNNAMED <!--netty.DnsResolverUtil-->
+      --add-opens java.management/sun.management=ALL-UNNAMED <!--JvmDefaultGCMetricsLogger-->
     </test.additional.args>
     <testReuseFork>true</testReuseFork>
     <testForkCount>4</testForkCount>
@@ -117,8 +119,8 @@ flexible messaging model and an intuitive client API.</description>
     <snappy.version>1.1.7</snappy.version> <!-- ZooKeeper server -->
     <dropwizardmetrics.version>4.1.12.1</dropwizardmetrics.version> <!-- ZooKeeper server -->
     <curator.version>5.1.0</curator.version>
-    <netty.version>4.1.76.Final</netty.version>
-    <netty-tc-native.version>2.0.51.Final</netty-tc-native.version>
+    <netty.version>4.1.77.Final</netty.version>
+    <netty-tc-native.version>2.0.52.Final</netty-tc-native.version>
     <jetty.version>9.4.44.v20210927</jetty.version>
     <conscrypt.version>2.5.2</conscrypt.version>
     <jersey.version>2.34</jersey.version>
@@ -154,7 +156,7 @@ flexible messaging model and an intuitive client API.</description>
     <aws-sdk.version>1.11.774</aws-sdk.version>
     <avro.version>1.10.2</avro.version>
     <joda.version>2.10.5</joda.version>
-    <jclouds.version>2.4.0</jclouds.version>
+    <jclouds.version>2.5.0</jclouds.version>
     <guice.version>5.1.0</guice.version>
     <sqlite-jdbc.version>3.8.11.2</sqlite-jdbc.version>
     <mysql-jdbc.version>8.0.11</mysql-jdbc.version>
@@ -1519,6 +1521,7 @@ flexible messaging model and an intuitive client API.</description>
                 <exclude>generated-site/**</exclude>
                 <exclude>.github/*.md</exclude>
                 <exclude>**/.idea/**</exclude>
+                <exclude>**/.mvn/**</exclude>
                 <exclude>**/generated/**</exclude>
                 <exclude>**/zk-3.5-test-data/*</exclude>
               </excludes>
@@ -1688,6 +1691,7 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>**/SecurityAuth.audit*</exclude>
             <exclude>**/site2/**</exclude>
             <exclude>**/.idea/**</exclude>
+            <exclude>**/.mvn/**</exclude>
             <exclude>**/*.a</exclude>
             <exclude>**/*.so</exclude>
             <exclude>**/*.so.*</exclude>
