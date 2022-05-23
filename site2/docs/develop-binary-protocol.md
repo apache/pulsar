@@ -8,7 +8,7 @@ sidebar_label: "Binary protocol"
 
 **Important**
 
-This page is deprecated and not updated anymore. For the latest and complete information about Pulsar binary protocol specification, see [Pulsar admin doc](developing-binary-protocol.md).
+This page is deprecated and not updated anymore. For the latest and complete information, see [Pulsar binary protocol specification](developing-binary-protocol.md).
 
 :::
 
