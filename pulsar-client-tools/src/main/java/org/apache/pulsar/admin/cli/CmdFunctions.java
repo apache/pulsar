@@ -523,7 +523,7 @@ public class CmdFunctions extends CmdBase {
             }
 
             if (null != userConfigString) {
-                Type type = new TypeToken<Map<String, String>>() {}.getType();
+                Type type = new TypeToken<Map<String, Object>>() {}.getType();
                 Map<String, Object> userConfigMap = new Gson().fromJson(userConfigString, type);
                 if (userConfigMap == null) {
                     userConfigMap = new HashMap<>();
