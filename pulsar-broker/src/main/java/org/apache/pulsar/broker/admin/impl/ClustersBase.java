@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.admin.impl;
 
 import static javax.ws.rs.core.Response.Status.PRECONDITION_FAILED;
-import com.google.common.collect.Maps;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
 import io.swagger.annotations.ApiResponse;
@@ -790,7 +789,8 @@ public class ClustersBase extends AdminResource {
                 .thenCompose(__ -> clusterResources().getFailureDomainResources()
                         .listFailureDomainsAsync(cluster)
                         .thenCompose(domainNames -> {
-                            List<CompletableFuture<Pair<String, Optional<FailureDomainImpl>>>> futures = domainNames.stream()
+                            List<CompletableFuture<Pair<String, Optional<FailureDomainImpl>>>> futures =
+                                domainNames.stream()
                                     .map(domainName -> clusterResources().getFailureDomainResources()
                                             .getFailureDomainAsync(cluster, domainName)
                                             .thenApply(failureDomainImpl -> Pair.of(domainName, failureDomainImpl))
@@ -900,8 +900,9 @@ public class ClustersBase extends AdminResource {
         }
     }
 
-    private CompletableFuture<Void> validateBrokerExistsInOtherDomain(final String cluster, final String inputDomainName,
-            final FailureDomainImpl inputDomain) {
+    private CompletableFuture<Void> validateBrokerExistsInOtherDomain(final String cluster,
+                                                                      final String inputDomainName,
+                                                                      final FailureDomainImpl inputDomain) {
         if (inputDomain == null || inputDomain.brokers == null) {
             return CompletableFuture.completedFuture(null);
         }
@@ -913,8 +914,8 @@ public class ClustersBase extends AdminResource {
                             .map(domainName -> clusterResources()
                                     .getFailureDomainResources().getFailureDomainAsync(cluster, domainName)
                                     .thenAccept(failureDomainOpt -> {
-                                        if (failureDomainOpt.isPresent() &&
-                                                CollectionUtils.isNotEmpty(failureDomainOpt.get().getBrokers())) {
+                                        if (failureDomainOpt.isPresent()
+                                                && CollectionUtils.isNotEmpty(failureDomainOpt.get().getBrokers())) {
                                             List<String> duplicateBrokers = failureDomainOpt.get()
                                                     .getBrokers().stream().parallel()
                                                     .filter(inputDomain.brokers::contains)
@@ -931,7 +932,8 @@ public class ClustersBase extends AdminResource {
                                         }
                                         if (realCause instanceof NotFoundException) {
                                             if (log.isDebugEnabled()) {
-                                                log.debug("[{}] Domain is not configured for cluster", clientAppId(), ex);
+                                                log.debug("[{}] Domain is not configured for cluster",
+                                                        clientAppId(), ex);
                                             }
                                             return null;
                                         }
