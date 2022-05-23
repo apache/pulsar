@@ -192,6 +192,8 @@ public class PulsarFunctionLocalRunTest {
         bkEnsemble.start();
 
         config = spy(ServiceConfiguration.class);
+        config.setSystemTopicEnabled(false);
+        config.setTopicLevelPoliciesEnabled(false);
         config.setClusterName(CLUSTER);
         Set<String> superUsers = Sets.newHashSet("superUser", "admin");
         config.setSuperUserRoles(superUsers);
