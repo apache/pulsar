@@ -526,9 +526,13 @@ int ProducerImpl::getNumOfChunks(uint32_t size, uint32_t maxMessageSize) {
 Result ProducerImpl::canEnqueueRequest(uint32_t payloadSize) {
     if (conf_.getBlockIfQueueFull()) {
         if (semaphore_) {
-            semaphore_->acquire();
+            if (!semaphore_->acquire()) {
+                return ResultInterrupted;
+            }
         }
-        memoryLimitController_.reserveMemory(payloadSize);
+        if (!memoryLimitController_.reserveMemory(payloadSize)) {
+            return ResultInterrupted;
+        }
         return ResultOk;
     } else {
         if (semaphore_) {
@@ -645,6 +649,10 @@ void ProducerImpl::closeAsync(CloseCallback callback) {
     ProducerImplPtr ptr = shared_from_this();
 
     cancelTimers();
+
+    if (semaphore_) {
+        semaphore_->close();
+    }
 
     // ensure any remaining send callbacks are called before calling the close callback
     failPendingMessages(ResultAlreadyClosed, false);
