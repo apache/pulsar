@@ -69,6 +69,11 @@ public class PulsarConnectorConfig implements AutoCloseable {
     private String offloadersDirectory = "./offloaders";
     private Map<String, String> offloaderProperties = new HashMap<>();
 
+    //--- Ledger metrics ---
+    private boolean exposeTopicLevelMetricsInPrometheus = false;
+    private boolean exposeManagedLedgerMetricsInPrometheus = false;
+    private int managedLedgerStatsPeriodSeconds = 60;
+
     private PulsarAdmin pulsarAdmin;
 
     // --- Bookkeeper
@@ -275,6 +280,37 @@ public class PulsarConnectorConfig implements AutoCloseable {
     public PulsarConnectorConfig setOffloaderProperties(String offloaderProperties) throws IOException {
         this.offloaderProperties = new ObjectMapper().readValue(offloaderProperties, Map.class);
         return this;
+    }
+
+    @Config("pulsar.expose-topic-level-metrics-in-prometheus")
+    public PulsarConnectorConfig setExposeTopicLevelMetricsInPrometheus(boolean exposeTopicLevelMetricsInPrometheus) {
+        this.exposeTopicLevelMetricsInPrometheus = exposeTopicLevelMetricsInPrometheus;
+        return this;
+    }
+
+    public boolean isExposeTopicLevelMetricsInPrometheus() {
+        return exposeTopicLevelMetricsInPrometheus;
+    }
+
+    @Config("pulsar.expose-managed-ledger-metrics-in-prometheus")
+    public PulsarConnectorConfig setExposeManagedLedgerMetricsInPrometheus(
+            boolean exposeManagedLedgerMetricsInPrometheus) {
+        this.exposeManagedLedgerMetricsInPrometheus = exposeManagedLedgerMetricsInPrometheus;
+        return this;
+    }
+
+    public boolean isExposeManagedLedgerMetricsInPrometheus() {
+        return exposeManagedLedgerMetricsInPrometheus;
+    }
+
+    @Config("pulsar.managed-ledger-stats-period-seconds")
+    public PulsarConnectorConfig setManagedLedgerStatsPeriodSeconds(int managedLedgerStatsPeriodSeconds) {
+        this.managedLedgerStatsPeriodSeconds = managedLedgerStatsPeriodSeconds;
+        return this;
+    }
+
+    public int getManagedLedgerStatsPeriodSeconds() {
+        return managedLedgerStatsPeriodSeconds;
     }
 
     // --- Authentication ---

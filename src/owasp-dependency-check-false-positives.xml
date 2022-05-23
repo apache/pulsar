@@ -134,4 +134,33 @@
     <cve>CVE-2021-23214</cve>
   </suppress>
 
+
+<!--  MariaDB client is being confused with MariaDB server-->
+  <suppress>
+    <notes><![CDATA[
+   file name: mariadb-java-client-2.7.5.jar
+   ]]></notes>
+    <sha1>9dd29797ecabe7d2e7fa892ec6713a5552cfcc59</sha1>
+    <cve>CVE-2022-27376</cve>
+    <cve>CVE-2022-27377</cve>
+    <cve>CVE-2022-27378</cve>
+    <cve>CVE-2022-27379</cve>
+    <cve>CVE-2022-27380</cve>
+    <cve>CVE-2022-27381</cve>
+    <cve>CVE-2022-27382</cve>
+    <cve>CVE-2022-27383</cve>
+    <cve>CVE-2022-27384</cve>
+    <cve>CVE-2022-27385</cve>
+    <cve>CVE-2022-27386</cve>
+    <cve>CVE-2022-27387</cve>
+  </suppress>
+
+  <!-- google-http-client-gson getting confused with gson-->
+  <suppress>
+    <notes><![CDATA[
+   file name: google-http-client-gson-1.41.0.jar
+   ]]></notes>
+    <sha1>1a754a5dd672218a2ac667d7ff2b28df7a5a240e</sha1>
+    <cve>CVE-2022-25647</cve>
+  </suppress>
 </suppressions>

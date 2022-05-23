@@ -28,9 +28,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Callable;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Pair;
@@ -56,9 +53,7 @@ public class ElasticSearchClient implements AutoCloseable {
     final Set<String> indexCache = new HashSet<>();
     final Map<String, String> topicToIndexCache = new HashMap<>();
 
-    final ConcurrentMap<Long, Record> records = new ConcurrentHashMap<>();
     final AtomicReference<Exception> irrecoverableError = new AtomicReference<>();
-    final AtomicLong bulkOperationIdGenerator = new AtomicLong();
     private final IndexNameFormatter indexNameFormatter;
 
     public ElasticSearchClient(ElasticSearchConfig elasticSearchConfig) {
@@ -69,9 +64,6 @@ public class ElasticSearchClient implements AutoCloseable {
             this.indexNameFormatter = null;
         }
         final BulkProcessor.Listener bulkListener = new BulkProcessor.Listener() {
-            private Record removeAndGetRecordForOperation(BulkProcessor.BulkOperationRequest operation) {
-                return records.remove(operation.getOperationId());
-            }
 
             @Override
             public void afterBulk(long executionId, List<BulkProcessor.BulkOperationRequest> bulkOperationList,
@@ -81,7 +73,7 @@ public class ElasticSearchClient implements AutoCloseable {
                 }
                 int index = 0;
                 for (BulkProcessor.BulkOperationResult result: results) {
-                    final Record record = removeAndGetRecordForOperation(bulkOperationList.get(index++));
+                    final Record record = bulkOperationList.get(index++).getPulsarRecord();
                     if (result.isError()) {
                         record.fail();
                         checkForIrrecoverableError(result);
@@ -95,7 +87,7 @@ public class ElasticSearchClient implements AutoCloseable {
             public void afterBulk(long executionId, List<BulkProcessor.BulkOperationRequest> bulkOperationList, Throwable throwable) {
                 log.warn("Bulk request id={} failed:", executionId, throwable);
                 for (BulkProcessor.BulkOperationRequest operation: bulkOperationList) {
-                    final Record record = removeAndGetRecordForOperation(operation);
+                    final Record record = operation.getPulsarRecord();
                     record.fail();
                 }
             }
@@ -150,15 +142,12 @@ public class ElasticSearchClient implements AutoCloseable {
             final String documentId = idAndDoc.getLeft();
             final String documentSource = idAndDoc.getRight();
 
-            final long operationId = bulkOperationIdGenerator.incrementAndGet();
             final BulkProcessor.BulkIndexRequest bulkIndexRequest = BulkProcessor.BulkIndexRequest.builder()
                     .index(indexName)
                     .documentId(documentId)
                     .documentSource(documentSource)
-                    .requestId(operationId)
+                    .record(record)
                     .build();
-
-            records.put(operationId, record);
             client.getBulkProcessor().appendIndexRequest(bulkIndexRequest);
         } catch (Exception e) {
             log.debug("index failed id=" + idAndDoc.getLeft(), e);
@@ -203,14 +192,12 @@ public class ElasticSearchClient implements AutoCloseable {
             checkIndexExists(record);
 
             final String indexName = indexName(record);
-            final long operationId = bulkOperationIdGenerator.incrementAndGet();
             final BulkProcessor.BulkDeleteRequest bulkDeleteRequest = BulkProcessor.BulkDeleteRequest.builder()
                     .index(indexName)
                     .documentId(id)
-                    .requestId(operationId)
+                    .record(record)
                     .build();
 
-            records.put(operationId, record);
             client.getBulkProcessor().appendDeleteRequest(bulkDeleteRequest);
         } catch (Exception e) {
             log.debug("delete failed id: {}", id, e);

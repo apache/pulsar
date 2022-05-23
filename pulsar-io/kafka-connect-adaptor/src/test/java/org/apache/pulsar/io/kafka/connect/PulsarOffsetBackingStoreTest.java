@@ -35,6 +35,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.connect.util.Callback;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.testng.annotations.AfterMethod;
@@ -86,6 +87,28 @@ public class PulsarOffsetBackingStoreTest extends ProducerConsumerBase {
         assertTrue(offsetBackingStore.get(
             Arrays.asList(ByteBuffer.wrap("empty-key".getBytes(UTF_8)))
         ).get().isEmpty());
+    }
+
+    @Test(timeOut = 60000)
+    public void testGetSetNullValue() throws Exception {
+        Map<ByteBuffer, ByteBuffer> kvs = new HashMap<>();
+        ByteBuffer keyToSet = ByteBuffer.wrap(("test-key").getBytes(UTF_8));
+        kvs.put(keyToSet, null);
+        offsetBackingStore.set(kvs, null).get();
+
+        final List<ByteBuffer> keys = new ArrayList<>();
+        keys.add(keyToSet);
+
+        Map<ByteBuffer, ByteBuffer> result =
+                offsetBackingStore.get(keys).get();
+        assertEquals(1, result.size());
+
+        result.forEach((key, value) -> {
+            byte[] keyData = ByteBufUtil.getBytes(Unpooled.wrappedBuffer(key));
+            assertEquals(new String(keyData, UTF_8), "test-key");
+            byte[] valData = ByteBufUtil.getBytes(Unpooled.wrappedBuffer(value));
+            assertEquals(valData, MessageId.earliest.toByteArray());
+        });
     }
 
     @Test

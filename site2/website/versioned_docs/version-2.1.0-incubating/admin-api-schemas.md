@@ -1,11 +1,11 @@
 ---
-id: version-2.1.0-incubating-admin-api-schemas
+id: admin-api-schemas
 title: Managing Schemas
-sidebar_label: Schemas
+sidebar_label: "Schemas"
 original_id: admin-api-schemas
 ---
 
-Schemas, like other entities in Pulsar, can be managed using the [admin API](admin-api-overview.md). 
+Schemas, like other entities in Pulsar, can be managed using the [admin API](admin-api-overview). 
 
 ## Schema resources
 
@@ -27,12 +27,15 @@ All the schemas are versioned with versions. So you can retrieve the schema defi
 You can upload a new schema using the [`upload`](reference-pulsar-admin.md#get-5) subcommand:
 
 ```shell
-$ pulsar-admin schemas upload <topic-name> --filename /path/to/schema-definition-file 
+
+$ pulsar-admin schemas upload <topic-name> --filename /path/to/schema-definition-file
+
 ```
 
 The schema definition file should contain following json string on defining how the schema look like:
 
 ```json
+
 {
     "type": "STRING",
     "schema": "",
@@ -40,6 +43,7 @@ The schema definition file should contain following json string on defining how 
         "key1" : "value1"
     }
 }
+
 ```
 
 An example of the schema definition file can be found at {@inject: github:SchemaExample:/conf/schema_example.conf}.
@@ -55,6 +59,7 @@ An example of the schema definition file can be found at {@inject: github:Schema
 You can get the latest version of Schema using the [`get`](reference-pulsar-admin.md#get-5) subcommand.
 
 ```shell
+
 $ pulsar-admin schemas get <topic-name>
 {
     "version": 0,
@@ -66,12 +71,15 @@ $ pulsar-admin schemas get <topic-name>
         "property2": "string"
     }
 }
+
 ```
 
 You can also retrieve the Schema of a given version by specifying `--version` option.
 
 ```shell
+
 $ pulsar-admin schemas get <topic-name> --version <version>
+
 ```
 
 #### REST API
@@ -91,7 +99,9 @@ Retrieve the schema of a given version:
 You can delete a schema using the [`delete`](reference-pulsar-admin.md#delete-8) subcommand.
 
 ```shell
+
 $ pulsar-admin schemas delete <topic-name>
+
 ```
 
 #### REST API

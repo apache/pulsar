@@ -28,6 +28,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
@@ -184,7 +185,8 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         this.bookkeeperFactory = bookKeeperGroupFactory;
         this.isBookkeeperManaged = isBookkeeperManaged;
         this.metadataStore = metadataStore;
-        this.store = new MetaStoreImpl(metadataStore, scheduledExecutor, config.getManagedLedgerInfoCompressionType());
+        this.store = new MetaStoreImpl(metadataStore, scheduledExecutor, config.getManagedLedgerInfoCompressionType(),
+                config.getManagedCursorInfoCompressionType());
         this.config = config;
         this.mbean = new ManagedLedgerFactoryMBeanImpl(this);
         this.entryCacheManager = new EntryCacheManager(this);
@@ -718,6 +720,11 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                     ledgerInfo.entries = pbLedgerInfo.hasEntries() ? pbLedgerInfo.getEntries() : null;
                     ledgerInfo.size = pbLedgerInfo.hasSize() ? pbLedgerInfo.getSize() : null;
                     ledgerInfo.isOffloaded = pbLedgerInfo.hasOffloadContext();
+                    if (pbLedgerInfo.hasOffloadContext()) {
+                        MLDataFormats.OffloadContext offloadContext = pbLedgerInfo.getOffloadContext();
+                        UUID uuid = new UUID(offloadContext.getUidMsb(), offloadContext.getUidLsb());
+                        ledgerInfo.offloadedContextUuid = uuid.toString();
+                    }
                     info.ledgers.add(ledgerInfo);
                 }
 

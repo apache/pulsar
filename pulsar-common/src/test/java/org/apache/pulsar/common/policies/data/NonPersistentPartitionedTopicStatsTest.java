@@ -22,9 +22,11 @@ import org.apache.pulsar.common.policies.data.stats.NonPersistentPartitionedTopi
 import org.apache.pulsar.common.policies.data.stats.NonPersistentPublisherStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.NonPersistentReplicatorStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.NonPersistentSubscriptionStatsImpl;
+import org.apache.pulsar.common.policies.data.stats.NonPersistentTopicStatsImpl;
 import org.testng.annotations.Test;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 
 public class NonPersistentPartitionedTopicStatsTest {
 
@@ -54,5 +56,43 @@ public class NonPersistentPartitionedTopicStatsTest {
         assertEquals(nonPersistentPartitionedTopicStats.getReplication().size(), 0);
         assertEquals(nonPersistentPartitionedTopicStats.metadata.partitions, 0);
         assertEquals(nonPersistentPartitionedTopicStats.partitions.size(), 0);
+    }
+
+    @Test
+    public void testPartitionedTopicStatsByNullProducerName() {
+        final NonPersistentTopicStatsImpl topicStats1 = new NonPersistentTopicStatsImpl();
+        final NonPersistentPublisherStatsImpl publisherStats1 = new NonPersistentPublisherStatsImpl();
+        publisherStats1.setSupportsPartialProducer(false);
+        publisherStats1.setProducerName(null);
+        final NonPersistentPublisherStatsImpl publisherStats2 = new NonPersistentPublisherStatsImpl();
+        publisherStats2.setSupportsPartialProducer(false);
+        publisherStats2.setProducerName(null);
+        topicStats1.addPublisher(publisherStats1);
+        topicStats1.addPublisher(publisherStats2);
+
+        assertEquals(topicStats1.getPublishers().size(), 2);
+        assertFalse(topicStats1.getPublishers().get(0).isSupportsPartialProducer());
+        assertFalse(topicStats1.getPublishers().get(1).isSupportsPartialProducer());
+
+        final NonPersistentTopicStatsImpl topicStats2 = new NonPersistentTopicStatsImpl();
+        final NonPersistentPublisherStatsImpl publisherStats3 = new NonPersistentPublisherStatsImpl();
+        publisherStats3.setSupportsPartialProducer(true);
+        publisherStats3.setProducerName(null);
+        final NonPersistentPublisherStatsImpl publisherStats4 = new NonPersistentPublisherStatsImpl();
+        publisherStats4.setSupportsPartialProducer(true);
+        publisherStats4.setProducerName(null);
+        topicStats2.addPublisher(publisherStats3);
+        topicStats2.addPublisher(publisherStats4);
+
+        assertEquals(topicStats2.getPublishers().size(), 2);
+        // when the producerName is null, fall back to false
+        assertFalse(topicStats2.getPublishers().get(0).isSupportsPartialProducer());
+        assertFalse(topicStats2.getPublishers().get(1).isSupportsPartialProducer());
+
+        final NonPersistentPartitionedTopicStatsImpl target = new NonPersistentPartitionedTopicStatsImpl();
+        target.add(topicStats1);
+        target.add(topicStats2);
+
+        assertEquals(target.getPublishers().size(), 2);
     }
 }

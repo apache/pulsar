@@ -66,20 +66,19 @@ echo "-- Pulsar service is ready -- Configure permissions"
 
 export PULSAR_CLIENT_CONF=$SRC_DIR/pulsar-client-cpp/test-conf/client-ssl.conf
 
-# Create "standalone" cluster
-$PULSAR_DIR/bin/pulsar-admin clusters create \
-        standalone \
-        --url http://localhost:8080/ \
-        --url-secure https://localhost:8443/ \
-        --broker-url pulsar://localhost:6650/ \
-        --broker-url-secure pulsar+ssl://localhost:6651/
+# Create "standalone" cluster if it does not exist
+$PULSAR_DIR/bin/pulsar-admin clusters list | grep -q '^standalone$' ||
+        $PULSAR_DIR/bin/pulsar-admin clusters create \
+                standalone \
+                --url http://localhost:8080/ \
+                --url-secure https://localhost:8443/ \
+                --broker-url pulsar://localhost:6650/ \
+                --broker-url-secure pulsar+ssl://localhost:6651/
 
-# Create "public" tenant
-$PULSAR_DIR/bin/pulsar-admin tenants create public -r "anonymous" -c "standalone"
+# Update "public" tenant
+$PULSAR_DIR/bin/pulsar-admin tenants update public -r "anonymous" -c "standalone"
 
-# Create "public/default" with no auth required
-$PULSAR_DIR/bin/pulsar-admin namespaces create public/default \
-                        --clusters standalone
+# Update "public/default" with no auth required
 $PULSAR_DIR/bin/pulsar-admin namespaces grant-permission public/default \
                         --actions produce,consume \
                         --role "anonymous"
@@ -105,6 +104,10 @@ $PULSAR_DIR/bin/pulsar-admin namespaces grant-permission public/default-4 \
                         --actions produce,consume \
                         --role "anonymous"
 $PULSAR_DIR/bin/pulsar-admin namespaces set-encryption-required public/default-4 -e
+
+# Create "public/test-backlog-quotas" to test backlog quotas policy
+$PULSAR_DIR/bin/pulsar-admin namespaces create public/test-backlog-quotas \
+                        --clusters standalone
 
 # Create "private" tenant
 $PULSAR_DIR/bin/pulsar-admin tenants create private -r "" -c "standalone"

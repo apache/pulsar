@@ -221,7 +221,7 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
         try {
             Files.createDirectories(dataPath);
         } catch (IOException e) {
-            e.printStackTrace();
+            throw new MetadataStoreException("Fail to create RocksDB file directory", e);
         }
 
         db = openDB(dataPath.toString(), metadataStoreConfig.getConfigFilePath());

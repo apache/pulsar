@@ -37,8 +37,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import io.kubernetes.client.openapi.apis.AppsV1Api;
-import io.kubernetes.client.openapi.apis.CoreV1Api;
 import io.kubernetes.client.openapi.models.V1PodSpec;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.instance.InstanceConfig;
@@ -64,11 +62,6 @@ public class ProcessRuntimeTest {
     private String defaultWebServiceUrl = "http://localhost:8080";
 
     class TestSecretsProviderConfigurator implements SecretsProviderConfigurator {
-
-        @Override
-        public void init(Map<String, String> config) {
-
-        }
 
         @Override
         public String getSecretsProviderClassName(FunctionDetails functionDetails) {
@@ -99,10 +92,6 @@ public class ProcessRuntimeTest {
             return TypeToken.get(String.class).getType();
         }
 
-        @Override
-        public void doAdmissionChecks(AppsV1Api appsV1Api, CoreV1Api coreV1Api, String jobNamespace, String jobName, FunctionDetails functionDetails) {
-
-        }
     }
 
     private static final String TEST_TENANT = "test-function-tenant";
@@ -111,8 +100,8 @@ public class ProcessRuntimeTest {
     private static final Map<String, String> topicsToSerDeClassName = new HashMap<>();
     private static final Map<String, ConsumerSpec> topicsToSchema = new HashMap<>();
     static {
-        topicsToSerDeClassName.put("persistent://sample/standalone/ns1/test_src", "");
-        topicsToSchema.put("persistent://sample/standalone/ns1/test_src",
+        topicsToSerDeClassName.put("test_src", "");
+        topicsToSchema.put("test_src",
                 ConsumerSpec.newBuilder().setSerdeClassName("").setIsRegexPattern(false).build());
     }
 
@@ -377,7 +366,7 @@ public class ProcessRuntimeTest {
         int configArg = 9;
 
         assertEquals(args.size(), totalArgs);
-        String expectedArgs = pythonPath + "python " + pythonInstanceFile
+        String expectedArgs = pythonPath + "python3 " + pythonInstanceFile
                 + " --py " + userJarFile + " --logging_directory "
                 + logDirectory + "/functions" + " --logging_file " + config.getFunctionDetails().getName()
                 + " --logging_config_file " + args.get(configArg) + " --instance_id "

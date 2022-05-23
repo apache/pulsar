@@ -18,10 +18,11 @@
 #
 
 cmake_minimum_required(VERSION 3.4)
+
 project (pulsar-cpp)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake_modules")
 
-execute_process(COMMAND python ${CMAKE_SOURCE_DIR}/../src/gen-pulsar-version-macro.py OUTPUT_STRIP_TRAILING_WHITESPACE OUTPUT_VARIABLE PVM)
+execute_process(COMMAND ${CMAKE_SOURCE_DIR}/../src/gen-pulsar-version-macro.py OUTPUT_STRIP_TRAILING_WHITESPACE OUTPUT_VARIABLE PVM)
 set(PVM_COMMENT "This is generated from Version.h.in by CMAKE. DO NOT EDIT DIRECTLY")
 configure_file(templates/Version.h.in include/pulsar/Version.h @ONLY)
 
@@ -96,7 +97,7 @@ else() # GCC or Clang are mostly compatible:
     add_compile_options(-Wall -Wformat-security -Wvla -Werror) 
     # Turn off certain warnings that are too much pain for too little gain:
     add_compile_options(-Wno-sign-compare -Wno-deprecated-declarations -Wno-error=cpp)
-    if (CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64")
+    if (CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64" OR APPLE)
         add_compile_options(-msse4.2 -mpclmul)
     endif()
     # Options unique to Clang or GCC:
@@ -117,13 +118,13 @@ endif(NOT LOG_CATEGORY_NAME)
 
 add_definitions(-DLOG_CATEGORY_NAME=${LOG_CATEGORY_NAME} -DBUILDING_PULSAR -DBOOST_ALL_NO_LIB -DBOOST_ALLOW_DEPRECATED_HEADERS)
 
-set(OPENSSL_ROOT_DIR /usr/lib64/)
+set(OPENSSL_ROOT_DIR ${OPENSSL_ROOT_DIR} /usr/lib64/)
 
 ### This part is to find and keep SSL dynamic libs in RECORD_OPENSSL_SSL_LIBRARY and RECORD_OPENSSL_CRYPTO_LIBRARY
-### After find the libs, will unset related cache, and will not affact another same call to find_package.
+### After find the libs, will unset related cache, and will not affect another same call to find_package.
 if (APPLE)
     set(OPENSSL_INCLUDE_DIR /usr/local/opt/openssl/include/ /opt/homebrew/opt/openssl/include)
-    set(OPENSSL_ROOT_DIR /usr/local/opt/openssl/ /opt/homebrew/opt/openssl)
+    set(OPENSSL_ROOT_DIR ${OPENSSL_ROOT_DIR} /usr/local/opt/openssl/ /opt/homebrew/opt/openssl)
 endif ()
 
 set(OPENSSL_USE_STATIC_LIBS FALSE)
@@ -142,11 +143,15 @@ unset(OPENSSL_VERSION CACHE)
 
 if (LINK_STATIC)
     find_library(ZLIB_LIBRARIES REQUIRED NAMES libz.a z zlib)
+    message(STATUS "ZLIB_LIBRARIES: ${ZLIB_LIBRARIES}")
     find_library(Protobuf_LIBRARIES NAMES libprotobuf.a libprotobuf)
+    message(STATUS "Protobuf: ${Protobuf_LIBRARIES}")
     find_library(CURL_LIBRARIES NAMES libcurl.a curl curl_a libcurl_a)
+    message(STATUS "CURL_LIBRARIES: ${CURL_LIBRARIES}")
     find_library(LIB_ZSTD NAMES libzstd.a)
+    message(STATUS "ZStd: ${LIB_ZSTD}")
     find_library(LIB_SNAPPY NAMES libsnappy.a)
-    message(STATUS "Protobuf_LIBRARIES: ${Protobuf_LIBRARIES}")
+    message(STATUS "LIB_SNAPPY: ${LIB_SNAPPY}")
     set(COMMON_LIBS ${Protobuf_LIBRARIES} ${COMMON_LIBS})
 
     if (USE_LOG4CXX)
@@ -264,18 +269,12 @@ if (BUILD_PYTHON_WRAPPER)
     find_package(PythonLibs REQUIRED)
     MESSAGE(STATUS "PYTHON: " ${PYTHONLIBS_VERSION_STRING})
 
-    if (PYTHONLIBS_VERSION_STRING MATCHES "^3.+$")
-        MESSAGE(STATUS "DETECTED Python 3")
-        string(REPLACE "." ";" PYTHONLIBS_VERSION_NO_LIST ${PYTHONLIBS_VERSION_STRING})
-        list(GET PYTHONLIBS_VERSION_NO_LIST 0 PYTHONLIBS_VERSION_MAJOR)
-        list(GET PYTHONLIBS_VERSION_NO_LIST 1 PYTHONLIBS_VERSION_MINOR)
-        set(BOOST_PYTHON_NAME_POSTFIX ${PYTHONLIBS_VERSION_MAJOR}${PYTHONLIBS_VERSION_MINOR})
-        # For python3 the lib name is boost_python3
-        set(BOOST_PYTHON_NAME_LIST python36;python37;python38;python39;python3;python3-mt;python-py${BOOST_PYTHON_NAME_POSTFIX};python${BOOST_PYTHON_NAME_POSTFIX}-mt;python${BOOST_PYTHON_NAME_POSTFIX})
-    else ()
-        # Regular boost_python
-        set(BOOST_PYTHON_NAME_LIST python;python-mt;python-py27;python27-mt;python27)
-    endif ()
+    string(REPLACE "." ";" PYTHONLIBS_VERSION_NO_LIST ${PYTHONLIBS_VERSION_STRING})
+    list(GET PYTHONLIBS_VERSION_NO_LIST 0 PYTHONLIBS_VERSION_MAJOR)
+    list(GET PYTHONLIBS_VERSION_NO_LIST 1 PYTHONLIBS_VERSION_MINOR)
+    set(BOOST_PYTHON_NAME_POSTFIX ${PYTHONLIBS_VERSION_MAJOR}${PYTHONLIBS_VERSION_MINOR})
+    # For python3 the lib name is boost_python3
+    set(BOOST_PYTHON_NAME_LIST python37;python38;python39;python310;python3;python3-mt;python-py${BOOST_PYTHON_NAME_POSTFIX};python${BOOST_PYTHON_NAME_POSTFIX}-mt;python${BOOST_PYTHON_NAME_POSTFIX})
 
     foreach (BOOST_PYTHON_NAME IN LISTS BOOST_PYTHON_NAME_LIST)
         find_package(Boost QUIET COMPONENTS ${BOOST_PYTHON_NAME})
@@ -289,6 +288,7 @@ if (BUILD_PYTHON_WRAPPER)
         MESSAGE(FATAL_ERROR "Could not find Boost Python library")
     endif ()
 
+    MESSAGE(STATUS "BOOST_PYTHON_NAME_FOUND: " ${BOOST_PYTHON_NAME_FOUND})
     find_package(Boost REQUIRED COMPONENTS ${BOOST_PYTHON_NAME_FOUND})
 endif (BUILD_PYTHON_WRAPPER)
 
@@ -437,15 +437,9 @@ if (BUILD_WIRESHARK)
     add_subdirectory(wireshark)
 endif()
 
-# `make format` option
-if (NOT APPLE AND NOT WIN32)
-    set(CLANG_FORMAT_VERSION "5.0")
-endif()
-
-
 find_package(ClangTools)
 set(BUILD_SUPPORT_DIR "${CMAKE_SOURCE_DIR}/build-support")
-add_custom_target(format python ${BUILD_SUPPORT_DIR}/run_clang_format.py
+add_custom_target(format ${BUILD_SUPPORT_DIR}/run_clang_format.py
         ${CLANG_FORMAT_BIN}
         0
         ${BUILD_SUPPORT_DIR}/clang_format_exclusions.txt
@@ -458,7 +452,7 @@ add_custom_target(format python ${BUILD_SUPPORT_DIR}/run_clang_format.py
         ${CMAKE_SOURCE_DIR}/wireshark)
 
 # `make check-format` option (for CI test)
-add_custom_target(check-format python ${BUILD_SUPPORT_DIR}/run_clang_format.py
+add_custom_target(check-format ${BUILD_SUPPORT_DIR}/run_clang_format.py
         ${CLANG_FORMAT_BIN}
         1
         ${BUILD_SUPPORT_DIR}/clang_format_exclusions.txt
