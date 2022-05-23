@@ -83,6 +83,7 @@ public abstract class AbstractReplicator {
                 .enableBatching(false)
                 .sendTimeout(0, TimeUnit.SECONDS) //
                 .maxPendingMessages(producerQueueSize) //
+                .blockIfQueueFull(true)
                 .producerName(String.format("%s%s%s", getReplicatorName(replicatorPrefix, localCluster),
                         REPL_PRODUCER_NAME_DELIMITER, remoteCluster));
         STATE_UPDATER.set(this, State.Stopped);
