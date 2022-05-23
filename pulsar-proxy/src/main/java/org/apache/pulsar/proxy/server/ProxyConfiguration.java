@@ -358,6 +358,14 @@ public class ProxyConfiguration implements PulsarConfiguration {
     private String saslJaasServerSectionName = SaslConstants.JAAS_DEFAULT_PROXY_SECTION_NAME;
 
     @FieldContext(
+            category = CATEGORY_SASL_AUTH,
+            doc = "Path to file containing the secret to be used to SaslRoleTokenSigner\n"
+                    + "The secret can be specified like:\n"
+                    + "saslJaasServerRoleTokenSignerSecretPath=file:///my/saslRoleTokenSignerSecret.key."
+    )
+    private String saslJaasServerRoleTokenSignerSecretPath;
+
+    @FieldContext(
         category = CATEGORY_SASL_AUTH,
         doc = "kerberos kinit command."
     )
@@ -636,14 +644,14 @@ public class ProxyConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_SERVER,
-            doc = "Number of threads to use for Netty IO."
+            doc = "Number of threads used for Netty IO."
                     + " Default is set to `2 * Runtime.getRuntime().availableProcessors()`"
     )
     private int numIOThreads = 2 * Runtime.getRuntime().availableProcessors();
 
     @FieldContext(
             category = CATEGORY_SERVER,
-            doc = "Number of threads to use for Netty Acceptor."
+            doc = "Number of threads used for Netty Acceptor."
                     + " Default is set to `1`"
     )
     private int numAcceptorThreads = 1;

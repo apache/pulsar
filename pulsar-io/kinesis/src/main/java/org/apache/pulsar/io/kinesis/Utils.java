@@ -22,7 +22,10 @@ package org.apache.pulsar.io.kinesis;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static java.util.Base64.getEncoder;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.wnameless.json.base.JacksonJsonValue;
+import com.github.wnameless.json.flattener.JsonFlattener;
 import com.google.flatbuffers.FlatBufferBuilder;
 import com.google.gson.JsonObject;
 import java.nio.ByteBuffer;
@@ -214,7 +217,8 @@ public class Utils {
         return result.toString();
     }
 
-    public static String serializeRecordToJsonExpandingValue(ObjectMapper mapper, Record<GenericObject> record)
+    public static String serializeRecordToJsonExpandingValue(ObjectMapper mapper, Record<GenericObject> record,
+                                                             boolean flatten)
             throws JsonProcessingException {
         JsonRecord jsonRecord = new JsonRecord();
         GenericObject value = record.getValue();
@@ -226,7 +230,12 @@ public class Utils {
         record.getEventTime().ifPresent(jsonRecord::setEventTime);
         record.getProperties().forEach(jsonRecord::addProperty);
 
-        return mapper.writeValueAsString(jsonRecord);
+        if (flatten) {
+            JsonNode jsonNode = mapper.convertValue(jsonRecord, JsonNode.class);
+            return JsonFlattener.flatten(new JacksonJsonValue(jsonNode));
+        } else {
+            return mapper.writeValueAsString(jsonRecord);
+        }
     }
 
     public static org.apache.pulsar.client.api.Message<GenericObject> getMessage(Record<GenericObject> record) {

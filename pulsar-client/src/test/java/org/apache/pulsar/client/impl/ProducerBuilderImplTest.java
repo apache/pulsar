@@ -26,7 +26,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TopicMetadata;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
-import org.testng.annotations.BeforeTest;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import java.util.HashMap;
@@ -49,7 +49,7 @@ public class ProducerBuilderImplTest {
     private PulsarClientImpl client;
     private ProducerBuilderImpl producerBuilderImpl;
 
-    @BeforeTest
+    @BeforeClass(alwaysRun = true)
     public void setup() {
         Producer producer = mock(Producer.class);
         client = mock(PulsarClientImpl.class);
@@ -121,6 +121,17 @@ public class ProducerBuilderImplTest {
                 .messageRouter(new CustomMessageRouter())
                 .create();
         assertNotNull(producer);
+    }
+
+    @Test(expectedExceptions = PulsarClientException.class,
+        expectedExceptionsMessageRegExp =
+            ".*When 'messageRoutingMode' is CustomPartition, 'messageRouter' should be set")
+    public void testProducerBuilderImplWhenMessageRoutingIsCustomPartitionAndMessageRouterNotSet()
+        throws PulsarClientException {
+        producerBuilderImpl = new ProducerBuilderImpl(client, Schema.BYTES);
+        producerBuilderImpl.topic(TOPIC_NAME)
+            .messageRoutingMode(MessageRoutingMode.CustomPartition)
+            .create();
     }
 
     @Test(expectedExceptions = PulsarClientException.class)

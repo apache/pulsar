@@ -177,8 +177,7 @@ TEST(ProducerTest, testBacklogQuotasExceeded) {
     LOG_INFO("Created topic " << topic << " with 5 partitions");
 
     auto setBacklogPolicy = [&ns](const std::string& policy, int limitSize) {
-        const auto body =
-            R"({"policy":")" + policy + R"(","limitSize":)" + std::to_string(limitSize) + "}";
+        const auto body = R"({"policy":")" + policy + R"(","limitSize":)" + std::to_string(limitSize) + "}";
         int res = makePostRequest(adminUrl + "admin/v2/namespaces/" + ns + "/backlogQuota", body);
         LOG_INFO(res << " | Change the backlog policy to: " << body);
         ASSERT_TRUE(res == 204 || res == 409);

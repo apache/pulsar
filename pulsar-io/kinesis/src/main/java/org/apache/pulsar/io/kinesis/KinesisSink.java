@@ -305,8 +305,10 @@ public class KinesisSink extends AbstractAwsConnector implements Sink<GenericObj
             case FULL_MESSAGE_IN_FB:
                 return Utils.serializeRecordToFlatBuffer(record);
             case FULL_MESSAGE_IN_JSON_EXPAND_VALUE:
-                return ByteBuffer.wrap(Utils.serializeRecordToJsonExpandingValue(objectMapper, record)
-                        .getBytes(StandardCharsets.UTF_8));
+                return ByteBuffer.wrap(
+                        Utils.serializeRecordToJsonExpandingValue(objectMapper, record,
+                                kinesisSinkConfig.isJsonFlatten())
+                                .getBytes(StandardCharsets.UTF_8));
             default:
                 // send raw-message
                 return ByteBuffer.wrap(Utils.getMessage(record).getData());

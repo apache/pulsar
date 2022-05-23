@@ -740,9 +740,14 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 }
             } else {
                 log.info("[{}] [{}] GetOrCreateSchema succeed", topic, producerName);
-                SchemaHash schemaHash = SchemaHash.of(msg.getSchemaInternal());
-                schemaCache.putIfAbsent(schemaHash, v);
-                msg.getMessageBuilder().setSchemaVersion(v);
+                // In broker, if schema version is an empty byte array, it means the topic doesn't have schema. In this
+                // case, we should not cache the schema version so that the schema version of the message metadata will
+                // be null, instead of an empty array.
+                if (v.length != 0) {
+                    SchemaHash schemaHash = SchemaHash.of(msg.getSchemaInternal());
+                    schemaCache.putIfAbsent(schemaHash, v);
+                    msg.getMessageBuilder().setSchemaVersion(v);
+                }
                 msg.setSchemaState(MessageImpl.SchemaState.Ready);
             }
             cnx.ctx().channel().eventLoop().execute(() -> {
@@ -1227,16 +1232,14 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         resendMessages(cnx, this.connectionHandler.getEpoch());
     }
 
-    protected synchronized void recoverNotAllowedError(long sequenceId) {
+    protected synchronized void recoverNotAllowedError(long sequenceId, String errorMsg) {
         OpSendMsg op = pendingMessages.peek();
         if (op != null && sequenceId == getHighestSequenceId(op)) {
             pendingMessages.remove();
             releaseSemaphoreForSendOp(op);
             try {
                 op.sendComplete(
-                        new PulsarClientException.NotAllowedException(
-                                format("The size of the message which is produced by producer %s to the topic "
-                                        + "%s is not allowed", producerName, topic)));
+                        new PulsarClientException.NotAllowedException(errorMsg));
             } catch (Throwable t) {
                 log.warn("[{}] [{}] Got exception while completing the callback for msg {}:", topic,
                         producerName, sequenceId, t);

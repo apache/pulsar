@@ -1,7 +1,7 @@
 ---
 author: Xiaolong Ran
 authorURL: https://twitter.com/wolf4j1
-title: Apache Pulsar 2.6.2
+title: "Apache Pulsar 2.6.2"
 ---
 We are excited to see that the Apache Pulsar community has successfully released the 2.6.2 version after a lot of hard work. It is a great milestone for this fast-growing project and the Pulsar community. 2.6.2 is the result of a big effort from the community, with over 154 commits and a long list of improvements and bug fixes.
 
@@ -68,8 +68,10 @@ For more information about implementation, see [PR-7773](https://github.com/apac
 Before 2.6.2, the executor pool size in Pulsar was set to `20` when starting Pulsar services. Users could not configure the executor pool size.
 
 ```
+
 private final ScheduledExecutorService executor = Executors.newScheduledThreadPool(20,
            new DefaultThreadFactory("pulsar"));
+
 ```
 
 In 2.6.2, users can configure the executor pool size in the `broker.conf` file based on their needs.
@@ -81,8 +83,10 @@ For more information about implementation, see [PR-7782](https://github.com/apac
 After the replicated subscription is deleted by `checkInactiveSubscriptions`, replicated subscriptions are created with `receiveSubscriptionUpdated`. In this case, the position becomes the latest position.
 
 ```
+
 topic.createSubscription(update.getSubscriptionName(),
         InitialPosition.Latest, true /* replicateSubscriptionState */);
+
 ```
 
 In 2.6.2, the replicated subscription is excluded from automatic deletion by fixing the `PersistentTopic`.
@@ -117,13 +121,17 @@ The following is the test result with pulsar perf.
 Before 2.6.1:
 
 ```
+
 Aggregated throughput stats --- 11715556 records received --- 68813.420 msg/s --- 537.605 Mbit/s
+
 ```
 
 In 2.6.2：
 
 ```
+
 Aggregated throughput stats --- 18392800 records received --- 133314.602 msg/s --- 1041.520 Mbit/s
+
 ```
 
 For more information about implementation, see [PR-8208](https://github.com/apache/pulsar/pull/8208).
@@ -133,6 +141,7 @@ For more information about implementation, see [PR-8208](https://github.com/apac
 Some broker servers had deadlocks while splitting namespace bundles. When checking the thread dump of the broker, some threads were blocked in `NamespaceService#getBundle()`.
 
 ```
+
 "pulsar-ordered-OrderedExecutor-7-0" #34 prio=5 os_prio=0 tid=0x00007eeeab05a800 nid=0x81a5 waiting on condition [0x00007eeeafbd2000]
   java.lang.Thread.State: WAITING (parking)
        at sun.misc.Unsafe.park(Native Method)
@@ -140,6 +149,7 @@ Some broker servers had deadlocks while splitting namespace bundles. When checki
        at java.util.concurrent.locks.LockSupport.park(LockSupport.java:175)
        at org.apache.pulsar.common.naming.NamespaceBundleFactory.getBundles(NamespaceBundleFactory.java:155)
 ...
+
 ```
 
 The reason for the issue is that the `getBundle()` method leads to deadlock in `NamespaceService#isTopicOwned()`. To fix the issue, we remove the `getBundle()` method. When `isTopicOwned()` returns `false`, the bundle metadata is cached and can be got asynchronously. When the client reconnects the next time, Pulsar returns the correct bundle metadata from the cache.

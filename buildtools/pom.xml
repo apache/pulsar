@@ -50,7 +50,11 @@
     <guava.version>31.0.1-jre</guava.version>
     <ant.version>1.10.12</ant.version>
     <snakeyaml.version>1.30</snakeyaml.version>
-    <test.additional.args></test.additional.args>
+    <!-- required for running tests on JDK11+ -->
+    <test.additional.args>
+      --add-opens java.base/jdk.internal.loader=ALL-UNNAMED
+      --add-opens java.base/java.lang=ALL-UNNAMED <!--Mockito-->
+    </test.additional.args>
   </properties>
 
   <dependencyManagement>
@@ -134,7 +138,7 @@
     <dependency>
       <groupId>io.netty</groupId>
       <artifactId>netty-common</artifactId>
-      <version>4.1.76.Final</version>
+      <version>4.1.77.Final</version>
       <scope>test</scope>
     </dependency>
   </dependencies>
@@ -242,19 +246,4 @@
       </extension>
     </extensions>
   </build>
-  <profiles>
-    <profile>
-      <id>jdk11</id>
-      <activation>
-        <jdk>[11,)</jdk>
-      </activation>
-      <properties>
-        <!-- required for running tests on JDK11+ -->
-        <test.additional.args>
-          --add-opens java.base/jdk.internal.loader=ALL-UNNAMED
-          --add-opens java.base/java.lang=ALL-UNNAMED <!--Mockito-->
-        </test.additional.args>
-      </properties>
-    </profile>
-  </profiles>
 </project>

@@ -505,7 +505,7 @@ public class KubernetesRuntimeTest {
 
         assertEquals(args.size(), totalArgs,
                 "Actual args : " + StringUtils.join(args, " "));
-        String expectedArgs = pythonPath + "exec python " + pythonInstanceFile
+        String expectedArgs = pythonPath + "exec python3 " + pythonInstanceFile
                 + " --py " + pulsarRootDir + "/" + userJarFile
                 + " --logging_directory " + logDirectory
                 + " --logging_file " + config.getFunctionDetails().getName()

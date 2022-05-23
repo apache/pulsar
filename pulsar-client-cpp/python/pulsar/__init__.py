@@ -21,7 +21,7 @@
 The Pulsar Python client library is based on the existing C++ client library.
 All the same features are exposed through the Python interface.
 
-Currently, the supported Python versions are 2.7, 3.5, 3.6, 3.7 and 3.8.
+Currently, the supported Python versions are 3.7, 3.8, 3.9 and 3.10.
 
 ## Install from PyPI
 
@@ -64,14 +64,15 @@ To install the Python bindings:
     import pulsar
 
     client = pulsar.Client('pulsar://localhost:6650')
+
     consumer = client.subscribe('my-topic', 'my-subscription')
 
     while True:
         msg = consumer.receive()
         try:
-            print("Received message '%s' id='%s'", msg.data().decode('utf-8'), msg.message_id())
+            print("Received message '{}' id='{}'".format(msg.data(), msg.message_id()))
             consumer.acknowledge(msg)
-        except:
+        except Exception:
             consumer.negative_acknowledge(msg)
 
     client.close()

@@ -1,7 +1,7 @@
 ---
 author: Yu Liu
 authorURL: https://twitter.com/Anonymitaet1  
-title: Pulsar milestone celebration—200 contributors!
+title: "Pulsar milestone celebration—200 contributors!"
 
 ---
 
@@ -11,15 +11,17 @@ As we know, when assessing the health of an open-source community, it is temptin
 
 And today, we are very proud to see that **Apache Pulsar has attracted its 200th contributor!** It is an important milestone for our community growth.
 
+<!--truncate-->
+
 Over the years, there’s been an upward trend that more organizations embracing real-time data and stream processing, and Pulsar is the key component of that shift. As an open-source distributed pub-sub messaging system originally created at Yahoo! and graduated as a Top-Level Project (TLP) in September 2018, Pulsar has launched 79 releases, attracted 4100+ commits from 200 contributors, and received 4.6k+ stars, 1.2k+ forks, and 1.3k+ Slack users up to now.
 
-![](../img/p-200.png)
+![](/img/p-200.png)
 
 This achievement is worth celebrating, and at the same time, we would like to **express sincere gratitude to you** for making what Pulsar is today and shape what Pulsar will be tomorrow.
 
 Pulsar aims to empower the next generation of event streaming systems by delivering a unified solution that connects, stores and processes real-time event streams. Going forward, we will be continuously dedicated to making Pulsar as a highly flexible, scalable and reliable product and creating a welcoming and sustainable community where Pulsar and you can thrive together.
 
-![](../img/cooperation.png)
+![](/img/cooperation.png)
 
 P.S. want to be a Pulsar contributor? 
 

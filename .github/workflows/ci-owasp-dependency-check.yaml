@@ -37,6 +37,8 @@ jobs:
         include:
           - name: master
             checkout_branch: 'master'
+          - name: branch-2.10
+            checkout_branch: 'branch-2.10'
           - name: branch-2.9
             checkout_branch: 'branch-2.9'
           - name: branch-2.8
@@ -64,10 +66,18 @@ jobs:
             ${{ runner.os }}-m2-dependencies-core-modules-
 
       - name: Set up JDK 17
+        if: ${{ matrix.name != 'branch-2.8' && matrix.name != 'branch-2.9' && matrix.name != 'branch-2.10' }}
         uses: actions/setup-java@v2
         with:
           distribution: 'temurin'
           java-version: 17
+
+      - name: Set up JDK 11
+        if: ${{ matrix.name == 'branch-2.8' || matrix.name == 'branch-2.9' || matrix.name == 'branch-2.10' }}
+        uses: actions/setup-java@v2
+        with:
+          distribution: 'temurin'
+          java-version: 11
 
       - name: run install by skip tests
         run: mvn -q -B -ntp clean install -DskipTests
@@ -79,7 +89,7 @@ jobs:
         run: mvn -B -ntp -Pmain,skip-all,skipDocker,owasp-dependency-check initialize verify -pl distribution/offloaders,distribution/io,pulsar-sql/presto-distribution
 
       - name: Upload OWASP Dependency Check reports
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         if: always()
         with:
           name: owasp-dependency-check-reports-${{ matrix.checkout_branch }}
