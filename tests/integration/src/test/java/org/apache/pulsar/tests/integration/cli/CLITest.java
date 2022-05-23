@@ -174,6 +174,31 @@ public class CLITest extends PulsarTestSuite {
     }
 
     @Test
+    public void testCreateSubscriptionWithPropertiesCommand() throws Exception {
+        String topic = "testCreateSubscriptionCommmand";
+
+        String subscriptionPrefix = "subscription-";
+
+        int i = 0;
+        for (BrokerContainer container : pulsarCluster.getBrokers()) {
+            ContainerExecResult result = container.execCmd(
+                    PulsarCluster.ADMIN_SCRIPT,
+                    "topics",
+                    "create-subscription",
+                    "-p",
+                    "a=b",
+                    "-p",
+                    "c=d",
+                    "persistent://public/default/" + topic,
+                    "--subscription",
+                    "" + subscriptionPrefix + i
+            );
+            result.assertNoOutput();
+            i++;
+        }
+    }
+
+    @Test
     public void testTopicTerminationOnTopicsWithoutConnectedConsumers() throws Exception {
         String topicName = "persistent://public/default/test-topic-termination";
         BrokerContainer container = pulsarCluster.getAnyBroker();
