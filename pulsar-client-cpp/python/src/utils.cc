@@ -20,7 +20,7 @@
 #include "utils.h"
 
 void waitForAsyncResult(std::function<void(ResultCallback)> func) {
-    Result res;
+    Result res = ResultOk;
     bool b;
     Promise<bool, Result> promise;
     Future<bool, Result> future = promise.getFuture();

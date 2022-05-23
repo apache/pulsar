@@ -44,7 +44,7 @@ void waitForAsyncResult(std::function<void(ResultCallback)> func);
 
 template <typename T, typename Callback>
 inline void waitForAsyncValue(std::function<void(Callback)> func, T& value) {
-    Result res;
+    Result res = ResultOk;
     Promise<Result, T> promise;
     Future<Result, T> future = promise.getFuture();
 
