@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentNavigableMap;
 import java.util.concurrent.ConcurrentSkipListMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.commons.lang3.tuple.Pair;
 
@@ -73,11 +74,13 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ReferenceCoun
      * @return whether the entry was inserted in the cache
      */
     public boolean put(Key key, Value value) {
-        Value v = entries.computeIfAbsent(key, (k) -> {
+        AtomicBoolean flag = new AtomicBoolean(false);
+        entries.computeIfAbsent(key, (k) -> {
             size.addAndGet(weighter.getSize(value));
+            flag.set(true);
             return value;
         });
-        return v == value;
+        return flag.get();
     }
 
     public Value get(Key key) {
