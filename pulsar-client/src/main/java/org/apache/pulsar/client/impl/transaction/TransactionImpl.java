@@ -25,7 +25,6 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
@@ -63,7 +62,6 @@ public class TransactionImpl implements Transaction , TimerTask {
     private final Map<String, CompletableFuture<Void>> registerPartitionMap;
     private final Map<Pair<String, String>, CompletableFuture<Void>> registerSubscriptionMap;
     private final TransactionCoordinatorClientImpl tcClient;
-    private volatile Set<ConsumerImpl<?>> cumulativeAckConsumers;
 
     private final ArrayList<CompletableFuture<MessageId>> sendFutureList;
     private final ArrayList<CompletableFuture<Void>> ackFutureList;
@@ -73,14 +71,8 @@ public class TransactionImpl implements Transaction , TimerTask {
     private final Timeout timeout;
 
     @Override
-    public synchronized void run(Timeout timeout) throws Exception {
-        if (STATE_UPDATE.compareAndSet(this, State.OPEN, State.TIMEOUT)) {
-            // if transaction state has been updated to TIMEOUT, this transaction will not be committed
-            // so redeliverUnacknowledgedMessages witch has been cumulative ack
-            if (cumulativeAckConsumers != null) {
-                cumulativeAckConsumers.forEach(ConsumerImpl::redeliverUnacknowledgedMessages);
-            }
-        }
+    public void run(Timeout timeout) throws Exception {
+        STATE_UPDATE.compareAndSet(this, State.OPEN, State.TIMEOUT);
     }
 
     public enum State {
@@ -161,15 +153,6 @@ public class TransactionImpl implements Transaction , TimerTask {
         ackFutureList.add(ackFuture);
     }
 
-    public synchronized void registerCumulativeAckConsumer(ConsumerImpl<?> consumer) {
-        if (STATE_UPDATE.get(this) == State.OPEN) {
-            if (this.cumulativeAckConsumers == null) {
-                this.cumulativeAckConsumers = new HashSet<>();
-            }
-            cumulativeAckConsumers.add(consumer);
-        }
-    }
-
     @Override
     public CompletableFuture<Void> commit() {
         timeout.cancel();
@@ -183,20 +166,8 @@ public class TransactionImpl implements Transaction , TimerTask {
                     tcClient.commitAsync(new TxnID(txnIdMostBits, txnIdLeastBits))
                             .whenComplete((vx, ex) -> {
                                 if (ex != null) {
-                                    if (ex instanceof TransactionNotFoundException) {
-                                        // if throw TransactionNotFoundException,
-                                        // this transaction has timed out on the server side,
-                                        // so need to redeliver the message witch has been cumulative ack
-                                        // only TransactionNotFoundException can redeliver,
-                                        //  because only this mean transaction have been finished
-                                        if (cumulativeAckConsumers != null) {
-                                            cumulativeAckConsumers
-                                                    .forEach(ConsumerImpl::redeliverUnacknowledgedMessages);
-                                        }
-                                        this.state = State.ERROR;
-                                    }
-
-                                    if (ex instanceof InvalidTxnStatusException) {
+                                    if (ex instanceof TransactionNotFoundException
+                                            || ex instanceof InvalidTxnStatusException) {
                                         this.state = State.ERROR;
                                     }
                                     commitFuture.completeExceptionally(ex);
@@ -220,10 +191,6 @@ public class TransactionImpl implements Transaction , TimerTask {
             allOpComplete().whenComplete((v, e) -> {
                 if (e != null) {
                     log.error(e.getMessage());
-                }
-                // every consumer should redeliverUnacknowledgedMessages, if this consumer cumulative ack message
-                if (cumulativeAckConsumers != null) {
-                    cumulativeAckConsumers.forEach(ConsumerImpl::redeliverUnacknowledgedMessages);
                 }
                 tcClient.abortAsync(new TxnID(txnIdMostBits, txnIdLeastBits)).whenComplete((vx, ex) -> {
 

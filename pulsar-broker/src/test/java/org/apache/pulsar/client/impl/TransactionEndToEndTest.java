@@ -1079,21 +1079,16 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 .sendTimeout(0, TimeUnit.SECONDS)
                 .create();
 
-        // send first messages
         // send 5 messages
         for (int i = 0; i < count; i++) {
             producer.send((i + "").getBytes(UTF_8));
         }
 
-        // test client timeout redeliver
-        Transaction transaction = pulsarClient
-                .newTransaction()
-                .withTransactionTimeout(3, TimeUnit.SECONDS)
-                .build()
-                .get();
+        Transaction transaction = getTxn();
+        Transaction invalidTransaction = getTxn();
 
         Message<byte[]> message = null;
-        for (int i = 0; i < 3; i++) {
+        for (int i = 0; i < transactionCumulativeAck; i++) {
             message = consumer.receive();
         }
 
@@ -1102,72 +1097,35 @@ public class TransactionEndToEndTest extends TransactionTestBase {
 
         // ack the last message
         consumer.acknowledgeCumulativeAsync(message.getMessageId(), transaction).get();
-        // have count - transactionCumulativeAck number of message in queue
-        assertEquals(((ConsumerImpl<byte[]>) consumer).incomingMessages.size(), count - transactionCumulativeAck);
 
-        // wait transaction timeout, we can't use Awaitility, we need to wait 3000 then the transaction will timeout
-        Thread.sleep(4000);
-
-        // can receive the cumulative ack first message
-        message = consumer.receive();
-        assertEquals(message.getValue(), (0 + "").getBytes(UTF_8));
-
-        // test commit transaction not found redeliver
-        transaction = pulsarClient
-                .newTransaction()
-                .withTransactionTimeout(3, TimeUnit.SECONDS)
-                .build()
-                .get();
-
-        // before have received one message so in this time receive transactionCumulativeAck - 1 number of messages
-        for (int i = 0; i < transactionCumulativeAck - 1; i++) {
-            message = consumer.receive();
-        }
-
-        // ack the last message
-        consumer.acknowledgeCumulativeAsync(message.getMessageId(), transaction).get();
-
-        // have count - transactionCumulativeAck number of message in queue
-        assertEquals(((ConsumerImpl<byte[]>) consumer).incomingMessages.size(), count - transactionCumulativeAck);
-
-        // abort this txnId, client commit will throw TransactionNotFoundException
-        ((PulsarClientImpl) pulsarClient).getTcClient().abort(transaction.getTxnID());
-
-        // commit this transaction will throw TransactionNotFoundException then will redeliver
+        // another ack will throw TransactionConflictException
         try {
-            transaction.commit().get();
+            consumer.acknowledgeCumulativeAsync(message.getMessageId(), invalidTransaction).get();
             fail();
         } catch (ExecutionException e) {
-            assertTrue(e.getCause() instanceof TransactionNotFoundException);
+            assertTrue(e.getCause() instanceof PulsarClientException.TransactionConflictException);
+            // abort transaction then redeliver messages
+            transaction.abort().get();
+            // consumer redeliver messages
+            consumer.redeliverUnacknowledgedMessages();
         }
 
-        // can receive the cumulative ack first message
-        message = consumer.receive();
-        assertEquals(message.getValue(), (0 + "").getBytes(UTF_8));
-
-        // test abort transaction redeliver
-        transaction = pulsarClient
-                .newTransaction()
-                .withTransactionTimeout(3, TimeUnit.SECONDS)
-                .build()
-                .get();
-
-        // before have received one message so in this time receive transactionCumulativeAck - 1 number of messages
-        for (int i = 0; i < transactionCumulativeAck - 1; i++) {
+        // receive the rest of the message
+        for (int i = 0; i < count; i++) {
             message = consumer.receive();
         }
 
-        // ack the last message
-        consumer.acknowledgeCumulativeAsync(message.getMessageId(), transaction).get();
+        Transaction commitTransaction = getTxn();
 
-        // have count - transactionCumulativeAck number of message in queue
-        assertEquals(((ConsumerImpl<byte[]>) consumer).incomingMessages.size(), count - transactionCumulativeAck);
+        // receive the first message
+        assertEquals(message.getValue(), (count - 1 + "").getBytes(UTF_8));
+        // ack the end of the message
+        consumer.acknowledgeCumulativeAsync(message.getMessageId(), commitTransaction).get();
 
-        transaction.abort().get();
+        commitTransaction.commit().get();
 
-        // can receive the cumulative ack first message
-        message = consumer.receive();
-        assertEquals(message.getValue(), (0 + "").getBytes(UTF_8));
-
+        // then redeliver will not receive any message
+        message = consumer.receive(3, TimeUnit.SECONDS);
+        assertNull(message);
     }
 }
