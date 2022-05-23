@@ -112,7 +112,7 @@ public class DirectProxyHandler {
         b.group(inboundChannel.eventLoop())
                 .channel(inboundChannel.getClass());
 
-        if (service.zeroCopyModeEnabled) {
+        if (service.zeroCopyModeEnabled && EpollSocketChannel.class.isAssignableFrom(inboundChannel.getClass())) {
             b.option(EpollChannelOption.EPOLL_MODE, EpollMode.LEVEL_TRIGGERED);
         }
 
