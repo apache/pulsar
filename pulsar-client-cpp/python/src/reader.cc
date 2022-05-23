@@ -61,29 +61,24 @@ Message Reader_readNextTimeout(Reader& reader, int timeoutMs) {
 bool Reader_hasMessageAvailable(Reader& reader) {
     bool available = false;
 
-    waitForAsyncValue(std::function<void(HasMessageAvailableCallback)>([&](HasMessageAvailableCallback callback) {
-        reader.hasMessageAvailableAsync(callback);
-    }), available);
+    waitForAsyncValue(
+        std::function<void(HasMessageAvailableCallback)>(
+            [&](HasMessageAvailableCallback callback) { reader.hasMessageAvailableAsync(callback); }),
+        available);
 
     return available;
 }
 
 void Reader_close(Reader& reader) {
-    waitForAsyncResult([&](ResultCallback callback) {
-        reader.closeAsync(callback);
-    });
+    waitForAsyncResult([&](ResultCallback callback) { reader.closeAsync(callback); });
 }
 
 void Reader_seek(Reader& reader, const MessageId& msgId) {
-    waitForAsyncResult([&](ResultCallback callback) {
-        reader.seekAsync(msgId, callback);
-    });
+    waitForAsyncResult([&](ResultCallback callback) { reader.seekAsync(msgId, callback); });
 }
 
 void Reader_seek_timestamp(Reader& reader, uint64_t timestamp) {
-    waitForAsyncResult([&](ResultCallback callback) {
-        reader.seekAsync(timestamp, callback);
-    });
+    waitForAsyncResult([&](ResultCallback callback) { reader.seekAsync(timestamp, callback); });
 }
 
 bool Reader_is_connected(Reader& reader) { return reader.isConnected(); }

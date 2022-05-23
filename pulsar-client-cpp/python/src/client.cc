@@ -22,8 +22,9 @@ Producer Client_createProducer(Client& client, const std::string& topic, const P
     Producer producer;
 
     waitForAsyncValue(std::function<void(CreateProducerCallback)>([&](CreateProducerCallback callback) {
-        client.createProducerAsync(topic, conf, callback);
-    }), producer);
+                          client.createProducerAsync(topic, conf, callback);
+                      }),
+                      producer);
 
     return producer;
 }
@@ -33,8 +34,9 @@ Consumer Client_subscribe(Client& client, const std::string& topic, const std::s
     Consumer consumer;
 
     waitForAsyncValue(std::function<void(SubscribeCallback)>([&](SubscribeCallback callback) {
-        client.subscribeAsync(topic, subscriptionName, conf, callback);
-    }), consumer);
+                          client.subscribeAsync(topic, subscriptionName, conf, callback);
+                      }),
+                      consumer);
 
     return consumer;
 }
@@ -50,8 +52,9 @@ Consumer Client_subscribe_topics(Client& client, boost::python::list& topics,
     Consumer consumer;
 
     waitForAsyncValue(std::function<void(SubscribeCallback)>([&](SubscribeCallback callback) {
-        client.subscribeAsync(topics_vector, subscriptionName, conf, callback);
-    }), consumer);
+                          client.subscribeAsync(topics_vector, subscriptionName, conf, callback);
+                      }),
+                      consumer);
 
     return consumer;
 }
@@ -61,8 +64,9 @@ Consumer Client_subscribe_pattern(Client& client, const std::string& topic_patte
     Consumer consumer;
 
     waitForAsyncValue(std::function<void(SubscribeCallback)>([&](SubscribeCallback callback) {
-        client.subscribeWithRegexAsync(topic_pattern, subscriptionName, conf, callback);
-    }), consumer);
+                          client.subscribeWithRegexAsync(topic_pattern, subscriptionName, conf, callback);
+                      }),
+                      consumer);
 
     return consumer;
 }
@@ -72,8 +76,9 @@ Reader Client_createReader(Client& client, const std::string& topic, const Messa
     Reader reader;
 
     waitForAsyncValue(std::function<void(ReaderCallback)>([&](ReaderCallback callback) {
-        client.createReaderAsync(topic, startMessageId, conf, callback);
-    }), reader);
+                          client.createReaderAsync(topic, startMessageId, conf, callback);
+                      }),
+                      reader);
 
     return reader;
 }
@@ -82,8 +87,9 @@ boost::python::list Client_getTopicPartitions(Client& client, const std::string&
     std::vector<std::string> partitions;
 
     waitForAsyncValue(std::function<void(GetPartitionsCallback)>([&](GetPartitionsCallback callback) {
-        client.getPartitionsForTopicAsync(topic, callback);
-    }), partitions);
+                          client.getPartitionsForTopicAsync(topic, callback);
+                      }),
+                      partitions);
 
     boost::python::list pyList;
     for (int i = 0; i < partitions.size(); i++) {
@@ -94,9 +100,7 @@ boost::python::list Client_getTopicPartitions(Client& client, const std::string&
 }
 
 void Client_close(Client& client) {
-    waitForAsyncResult([&](ResultCallback callback) {
-        client.closeAsync(callback);
-    });
+    waitForAsyncResult([&](ResultCallback callback) { client.closeAsync(callback); });
 }
 
 void export_client() {

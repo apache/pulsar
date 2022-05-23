@@ -25,18 +25,16 @@ void waitForAsyncResult(std::function<void(ResultCallback)> func) {
     Promise<bool, Result> promise;
     Future<bool, Result> future = promise.getFuture();
 
-    Py_BEGIN_ALLOW_THREADS
-    func(WaitForCallback(promise));
+    Py_BEGIN_ALLOW_THREADS func(WaitForCallback(promise));
     Py_END_ALLOW_THREADS
 
-    bool isComplete;
+        bool isComplete;
     while (true) {
         // Check periodically for Python signals
-        Py_BEGIN_ALLOW_THREADS
-            isComplete = future.get(b, std::ref(res), std::chrono::milliseconds(100));
+        Py_BEGIN_ALLOW_THREADS isComplete = future.get(b, std::ref(res), std::chrono::milliseconds(100));
         Py_END_ALLOW_THREADS
 
-        if (isComplete) {
+            if (isComplete) {
             CHECK_RESULT(res);
             return;
         }

@@ -19,17 +19,15 @@
 #include "utils.h"
 
 void Consumer_unsubscribe(Consumer& consumer) {
-    waitForAsyncResult([&consumer](ResultCallback callback) {
-       consumer.unsubscribeAsync(callback);
-    });
+    waitForAsyncResult([&consumer](ResultCallback callback) { consumer.unsubscribeAsync(callback); });
 }
 
 Message Consumer_receive(Consumer& consumer) {
     Message msg;
 
-    waitForAsyncValue(std::function<void(ReceiveCallback)>([&consumer](ReceiveCallback callback) {
-        consumer.receiveAsync(callback);
-    }), msg);
+    waitForAsyncValue(std::function<void(ReceiveCallback)>(
+                          [&consumer](ReceiveCallback callback) { consumer.receiveAsync(callback); }),
+                      msg);
 
     return msg;
 }
@@ -40,7 +38,7 @@ Message Consumer_receive_timeout(Consumer& consumer, int timeoutMs) {
     Py_BEGIN_ALLOW_THREADS res = consumer.receive(msg, timeoutMs);
     Py_END_ALLOW_THREADS
 
-    CHECK_RESULT(res);
+        CHECK_RESULT(res);
     return msg;
 }
 
@@ -67,9 +65,7 @@ void Consumer_acknowledge_cumulative_message_id(Consumer& consumer, const Messag
 }
 
 void Consumer_close(Consumer& consumer) {
-    waitForAsyncResult([&consumer](ResultCallback callback) {
-        consumer.closeAsync(callback);
-    });
+    waitForAsyncResult([&consumer](ResultCallback callback) { consumer.closeAsync(callback); });
 }
 
 void Consumer_pauseMessageListener(Consumer& consumer) { CHECK_RESULT(consumer.pauseMessageListener()); }
@@ -77,15 +73,12 @@ void Consumer_pauseMessageListener(Consumer& consumer) { CHECK_RESULT(consumer.p
 void Consumer_resumeMessageListener(Consumer& consumer) { CHECK_RESULT(consumer.resumeMessageListener()); }
 
 void Consumer_seek(Consumer& consumer, const MessageId& msgId) {
-    waitForAsyncResult([msgId, &consumer](ResultCallback callback) {
-        consumer.seekAsync(msgId, callback);
-    });
+    waitForAsyncResult([msgId, &consumer](ResultCallback callback) { consumer.seekAsync(msgId, callback); });
 }
 
 void Consumer_seek_timestamp(Consumer& consumer, uint64_t timestamp) {
-    waitForAsyncResult([timestamp, &consumer](ResultCallback callback) {
-        consumer.seekAsync(timestamp, callback);
-    });
+    waitForAsyncResult(
+        [timestamp, &consumer](ResultCallback callback) { consumer.seekAsync(timestamp, callback); });
 }
 
 bool Consumer_is_connected(Consumer& consumer) { return consumer.isConnected(); }
