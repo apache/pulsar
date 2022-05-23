@@ -178,15 +178,8 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
     @NotNull
     public CompletableFuture<SchemaVersion> putSchemaIfAbsent(String schemaId, SchemaData schema,
                                                               SchemaCompatibilityStrategy strategy) {
-        return trimDeletedSchemaAndGetList(schemaId).thenCompose(schemaAndMetadataList ->
-                getSchemaVersionBySchemaData(schemaAndMetadataList, schema).thenCompose(schemaVersion -> {
-            if (schemaVersion != null) {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] Schema is already exists", schemaId);
-                }
-                return CompletableFuture.completedFuture(schemaVersion);
-            }
-            CompletableFuture<Void> checkCompatibilityFuture = new CompletableFuture<>();
+        return trimDeletedSchemaAndGetList(schemaId).thenCompose(schemaAndMetadataList -> {
+            final CompletableFuture<Void> checkCompatibilityFuture;
             if (schemaAndMetadataList.size() != 0) {
                 if (isTransitiveStrategy(strategy)) {
                     checkCompatibilityFuture =
@@ -195,39 +188,44 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
                     checkCompatibilityFuture = checkCompatibilityWithLatest(schemaId, schema, strategy);
                 }
             } else {
-                checkCompatibilityFuture.complete(null);
+                checkCompatibilityFuture = CompletableFuture.completedFuture(null);
             }
-            return checkCompatibilityFuture.thenCompose(v -> {
-                byte[] context = hashFunction.hashBytes(schema.getData()).asBytes();
-                SchemaRegistryFormat.SchemaInfo info = SchemaRegistryFormat.SchemaInfo.newBuilder()
-                        .setType(Functions.convertFromDomainType(schema.getType()))
-                        .setSchema(ByteString.copyFrom(schema.getData()))
-                        .setSchemaId(schemaId)
-                        .setUser(schema.getUser())
-                        .setDeleted(false)
-                        .setTimestamp(clock.millis())
-                        .addAllProps(toPairs(schema.getProps()))
-                        .build();
-
-                long start = this.clock.millis();
-
-                return schemaStorage
-                        .put(schemaId, info.toByteArray(), context)
-                        .whenComplete((__, t) -> {
-                            if (t != null) {
-                                log.error("[{}] Put schema failed", schemaId);
-                                this.stats.recordPutFailed(schemaId);
-                            } else {
-                                if (log.isDebugEnabled()) {
-                                    log.debug("[{}] Put schema finished", schemaId);
-                                }
-                                this.stats.recordPutLatency(schemaId, this.clock.millis() - start);
+            return checkCompatibilityFuture.thenCompose(v ->
+                    getSchemaVersionBySchemaData(schemaAndMetadataList, schema).thenCompose(schemaVersion -> {
+                        if (schemaVersion != null) {
+                            if (log.isDebugEnabled()) {
+                                log.debug("[{}] Schema is already exists", schemaId);
                             }
-                        });
+                            return CompletableFuture.completedFuture(schemaVersion);
+                        }
+                        byte[] context = hashFunction.hashBytes(schema.getData()).asBytes();
+                        SchemaRegistryFormat.SchemaInfo info = SchemaRegistryFormat.SchemaInfo.newBuilder()
+                                .setType(Functions.convertFromDomainType(schema.getType()))
+                                .setSchema(ByteString.copyFrom(schema.getData()))
+                                .setSchemaId(schemaId)
+                                .setUser(schema.getUser())
+                                .setDeleted(false)
+                                .setTimestamp(clock.millis())
+                                .addAllProps(toPairs(schema.getProps()))
+                                .build();
 
-            });
+                        long start = this.clock.millis();
 
-        }));
+                        return schemaStorage
+                                .put(schemaId, info.toByteArray(), context)
+                                .whenComplete((__, t) -> {
+                                    if (t != null) {
+                                        log.error("[{}] Put schema failed", schemaId);
+                                        this.stats.recordPutFailed(schemaId);
+                                    } else {
+                                        if (log.isDebugEnabled()) {
+                                            log.debug("[{}] Put schema finished", schemaId);
+                                        }
+                                        this.stats.recordPutLatency(schemaId, this.clock.millis() - start);
+                                    }
+                                });
+            }));
+        });
     }
 
     @Override

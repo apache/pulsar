@@ -37,6 +37,7 @@ import org.apache.avro.reflect.ReflectData;
 import org.apache.avro.Schema.Parser;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.schema.KeyValueSchemaImpl;
+import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.schema.LongSchemaVersion;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.PulsarClientException.IncompatibleSchemaException;
@@ -1298,5 +1299,42 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
 
         producer.close();
         consumer.close();
+    }
+
+    @Test
+    public void testUpdateSchemaForward() throws Exception {
+        String topic = "my-property/my-ns/test";
+        admin.namespaces().setSchemaCompatibilityStrategy(
+                "my-property/my-ns/",
+                SchemaCompatibilityStrategy.FORWARD);
+        Schema<V3Data> v3Schema = Schema.AVRO(V3Data.class);
+        Schema<V4Data> v4Schema = Schema.AVRO(V4Data.class);
+
+        admin.schemas().createSchema(topic, v3Schema.getSchemaInfo());
+        admin.schemas().createSchema(topic, v4Schema.getSchemaInfo());
+
+        try {
+            admin.schemas().createSchema(topic, v3Schema.getSchemaInfo());
+            fail("Should fail here, since the forward schema compatibility strategy doesn't allow removing the field.");
+        } catch (Exception e) {
+            assertTrue(e.getMessage().contains("org.apache.avro.SchemaValidationException: Unable to read schema"));
+        }
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    static class V4Data {
+        int i;
+        int j;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    static class V3Data {
+        int i;
     }
 }
