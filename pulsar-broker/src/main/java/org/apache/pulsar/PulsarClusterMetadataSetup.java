@@ -23,6 +23,8 @@ import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import java.io.IOException;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import org.apache.bookkeeper.client.BookKeeperAdmin;
@@ -40,6 +42,8 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
+import org.apache.pulsar.common.policies.data.BookieInfo;
+import org.apache.pulsar.common.policies.data.BookiesRackConfiguration;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
@@ -128,6 +132,11 @@ public class PulsarClusterMetadataSetup {
                 "--existing-bk-metadata-service-uri"},
                 description = "The metadata service URI of the existing BookKeeper cluster that you want to use")
         private String existingBkMetadataServiceUri;
+
+        @Parameter(names = { "-rk",
+                "--rack-info"},
+                description = "The rack info that you want to use for each bookie")
+        private String rackInfo;
 
         // Hide and marked as deprecated this flag because we use the new name '--existing-bk-metadata-service-uri' to
         // pass the service url. For compatibility of the command, we should keep both to avoid the exceptions.
@@ -326,10 +335,61 @@ public class PulsarClusterMetadataSetup {
         createPartitionedTopic(configStore, SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN,
                 arguments.numTransactionCoordinators);
 
+        // Create Bookie rack info
+        createRackInfo(resources, arguments.rackInfo);
+
+
         localStore.close();
         configStore.close();
 
         log.info("Cluster metadata for '{}' setup correctly", arguments.cluster);
+    }
+
+    static BookiesRackConfiguration parseRackInfo(String rackInfo) {
+        final BookiesRackConfiguration rackConfiguration = new BookiesRackConfiguration();
+
+        for (String bookie : rackInfo.split(";")) {
+            Map<String, String> rackConfigMap = new HashMap<>();
+            for (String rackConfig : bookie.split(",")) {
+                int index = rackConfig.indexOf(":");
+                if (index > 0) {
+                    rackConfigMap.put(rackConfig.substring(0, index), rackConfig.substring(index + 1));
+                } else {
+                    log.info("Fail to parse rack info: {}", rackConfig);
+                }
+            }
+
+            String address = rackConfigMap.get("address");
+            if (address == null) {
+                log.info("Fail to parse rack info, address not exist: {}", bookie);
+                continue;
+            }
+            String rack = rackConfigMap.get("rack");
+            if (rack == null) {
+                log.info("Fail to parse rack info, rack not exist: {}", bookie);
+                continue;
+            }
+            String group = rackConfigMap.get("group");
+            if (group == null) {
+                group = "default";
+            }
+            String hostname = rackConfigMap.get("hostname");
+
+            rackConfiguration.updateBookie(group, address, BookieInfo.builder()
+                    .rack(rack)
+                    .hostname(hostname)
+                    .build());
+        }
+
+        return rackConfiguration;
+    }
+
+    static void createRackInfo(PulsarResources resources, String rackInfo) throws ExecutionException, InterruptedException {
+        if (rackInfo != null) {
+            BookiesRackConfiguration rackConfiguration = parseRackInfo(rackInfo);
+            resources.getBookieResources().update(optionalBookiesRackConfiguration -> rackConfiguration).get();
+            log.info("update bookie rack info finished, rackInfo: {}", rackInfo);
+        }
     }
 
     static void createTenantIfAbsent(PulsarResources resources, String tenant, String cluster) throws IOException,
