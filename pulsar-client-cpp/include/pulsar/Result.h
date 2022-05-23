@@ -89,7 +89,7 @@ enum Result
 
     ResultMemoryBufferIsFull,  /// Client-wide memory limit has been reached
 
-    ResultInterrupted, // Interrupted while waiting to dequeue
+    ResultInterrupted,  // Interrupted while waiting to dequeue
 };
 
 // Return string representation of result code

@@ -153,7 +153,6 @@ TEST(BlockingQueueTest, testTimeout) {
     ASSERT_FALSE(popReturn);
 }
 
-
 TEST(BlockingQueueTest, testPushPopRace) {
     auto test_logic = []() {
         size_t size = 5;
