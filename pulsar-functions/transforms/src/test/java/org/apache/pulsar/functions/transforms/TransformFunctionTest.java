@@ -28,11 +28,9 @@ import com.google.gson.reflect.TypeToken;
 import java.util.Map;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.util.Utf8;
-import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.client.api.schema.KeyValueSchema;
-import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
 import org.apache.pulsar.common.schema.KeyValue;
-import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Record;
 import org.testng.annotations.DataProvider;
@@ -97,12 +95,10 @@ public class TransformFunctionTest {
         Map<String, Object> config = new Gson().fromJson(userConfig, new TypeToken<Map<String, Object>>() {}.getType());
         TransformFunction transformFunction = new TransformFunction();
 
-        Record<KeyValue<GenericRecord, GenericRecord>> record = createTestAvroKeyValueRecord();
+        Record<GenericObject> record = createTestAvroKeyValueRecord();
         Utils.TestContext context = new Utils.TestContext(record, config);
         transformFunction.initialize(context);
-        transformFunction.process(
-                AutoConsumeSchema.wrapPrimitiveObject(record.getValue(), SchemaType.KEY_VALUE, new byte[]{}),
-                context);
+        transformFunction.process(record.getValue(), context);
 
         Utils.TestTypedMessageBuilder<?> message = context.getOutputMessage();
         KeyValueSchema messageSchema = (KeyValueSchema) message.getSchema();
@@ -133,12 +129,10 @@ public class TransformFunctionTest {
         Map<String, Object> config = new Gson().fromJson(userConfig, new TypeToken<Map<String, Object>>() {}.getType());
         TransformFunction transformFunction = new TransformFunction();
 
-        Record<KeyValue<GenericRecord, GenericRecord>> record = createTestAvroKeyValueRecord();
+        Record<GenericObject> record = createTestAvroKeyValueRecord();
         Utils.TestContext context = new Utils.TestContext(record, config);
         transformFunction.initialize(context);
-        transformFunction.process(
-                AutoConsumeSchema.wrapPrimitiveObject(record.getValue(), SchemaType.KEY_VALUE, new byte[]{}),
-                context);
+        transformFunction.process(record.getValue(), context);
 
         Utils.TestTypedMessageBuilder<?> message = context.getOutputMessage();
         assertEquals(message.getValue(), "{\"keyField2\": \"key2\", \"keyField3\": \"key3\", \"valueField1\": "

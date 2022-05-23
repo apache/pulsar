@@ -32,10 +32,10 @@ public class UnwrapKeyValueFunction extends AbstractTransformStepFunction {
 
     @Override
     public void initialize(Context context) {
-        this.unwrapKey = (Boolean) context.getUserConfigValue("unwrapKey")
+        this.unwrapKey = (Boolean) context.getUserConfigValue("unwrap-key")
                 .map(value -> {
                     if (!(value instanceof Boolean)) {
-                        throw new IllegalArgumentException("unwrapKey param must be of type Boolean");
+                        throw new IllegalArgumentException("unwrap-key param must be of type Boolean");
                     }
                     return value;
                 })

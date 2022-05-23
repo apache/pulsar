@@ -37,6 +37,7 @@ import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
+import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.GenericSchema;
 import org.apache.pulsar.client.api.schema.RecordSchemaBuilder;
@@ -57,7 +58,7 @@ public class Utils {
         return reader.read(null, decoder);
     }
 
-    public static Record<KeyValue<GenericRecord, GenericRecord>> createTestAvroKeyValueRecord() {
+    public static Record<GenericObject> createTestAvroKeyValueRecord() {
         RecordSchemaBuilder keySchemaBuilder = org.apache.pulsar.client.api.schema.SchemaBuilder.record("record");
         keySchemaBuilder.field("keyField1").type(SchemaType.STRING);
         keySchemaBuilder.field("keyField2").type(SchemaType.STRING);
@@ -87,15 +88,27 @@ public class Utils {
 
         KeyValue<GenericRecord, GenericRecord> keyValue = new KeyValue<>(keyRecord, valueRecord);
 
-        return new TestRecord<>(keyValueSchema, keyValue, null);
+        GenericObject genericObject = new GenericObject() {
+            @Override
+            public SchemaType getSchemaType() {
+                return SchemaType.KEY_VALUE;
+            }
+
+            @Override
+            public Object getNativeObject() {
+                return keyValue;
+            }
+        };
+
+        return new TestRecord<>(keyValueSchema, genericObject, null);
     }
 
     public static class TestRecord<T> implements Record<T> {
-        private final Schema<T> schema;
+        private final Schema schema;
         private final T value;
         private final String key;
 
-        public TestRecord(Schema<T> schema, T value, String key) {
+        public TestRecord(Schema schema, T value, String key) {
             this.schema = schema;
             this.value = value;
             this.key = key;

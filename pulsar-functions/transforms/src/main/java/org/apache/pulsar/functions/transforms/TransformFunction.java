@@ -75,16 +75,16 @@ public class TransformFunction extends AbstractTransformStepFunction {
         }
     }
 
-    public static RemoveFieldFunction newRemoveFieldFunction(Map<String, Object> step) {
+    public static DropFieldFunction newRemoveFieldFunction(Map<String, Object> step) {
         String fields = getRequiredStringConfig(step, "fields");
         List<String> fieldList = Arrays.asList(fields.split(","));
         String part = getStringConfig(step, "part");
         if (part == null) {
-            return new RemoveFieldFunction(fieldList, fieldList);
+            return new DropFieldFunction(fieldList, fieldList);
         } else if (part.equals("key")) {
-            return new RemoveFieldFunction(fieldList, new ArrayList<>());
+            return new DropFieldFunction(fieldList, new ArrayList<>());
         } else if (part.equals("value")) {
-            return new RemoveFieldFunction(new ArrayList<>(), fieldList);
+            return new DropFieldFunction(new ArrayList<>(), fieldList);
         } else {
             throw new IllegalArgumentException("invalid 'part' parameter: " + part);
         }

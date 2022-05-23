@@ -30,6 +30,7 @@ import java.util.Map;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.util.Utf8;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.GenericSchema;
 import org.apache.pulsar.client.api.schema.KeyValueSchema;
@@ -43,15 +44,15 @@ import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.functions.api.Record;
 import org.testng.annotations.Test;
 
-public class RemoveFieldFunctionTest {
+public class DropFieldFunctionTest {
 
     @Test
     void testInvalidConfig() {
         Map<String, Object> config = ImmutableMap.of("value-fields", 42);
         Utils.TestContext context = new Utils.TestContext(createTestAvroKeyValueRecord(), config);
 
-        RemoveFieldFunction removeFieldFunction = new RemoveFieldFunction();
-        assertThrows(IllegalArgumentException.class, () -> removeFieldFunction.initialize(context));
+        DropFieldFunction dropFieldFunction = new DropFieldFunction();
+        assertThrows(IllegalArgumentException.class, () -> dropFieldFunction.initialize(context));
 
     }
 
@@ -75,9 +76,9 @@ public class RemoveFieldFunctionTest {
         Map<String, Object> config = ImmutableMap.of("value-fields", "firstName,lastName");
         Utils.TestContext context = new Utils.TestContext(record, config);
 
-        RemoveFieldFunction removeFieldFunction = new RemoveFieldFunction();
-        removeFieldFunction.initialize(context);
-        removeFieldFunction.process(genericRecord, context);
+        DropFieldFunction dropFieldFunction = new DropFieldFunction();
+        dropFieldFunction.initialize(context);
+        dropFieldFunction.process(genericRecord, context);
 
         Utils.TestTypedMessageBuilder<?> message = context.getOutputMessage();
         assertEquals(message.getKey(), "test-key");
@@ -90,17 +91,15 @@ public class RemoveFieldFunctionTest {
 
     @Test
     void testKeyValueAvro() throws Exception {
-        Record<KeyValue<GenericRecord, GenericRecord>> record = createTestAvroKeyValueRecord();
+        Record<GenericObject> record = createTestAvroKeyValueRecord();
         Map<String, Object> config = ImmutableMap.of(
                 "value-fields", "valueField1,valueField2",
                 "key-fields", "keyField1,keyField2");
         Utils.TestContext context = new Utils.TestContext(record, config);
 
-        RemoveFieldFunction removeFieldFunction = new RemoveFieldFunction();
-        removeFieldFunction.initialize(context);
-        removeFieldFunction.process(
-                AutoConsumeSchema.wrapPrimitiveObject(record.getValue(), SchemaType.KEY_VALUE, new byte[]{}),
-                context);
+        DropFieldFunction dropFieldFunction = new DropFieldFunction();
+        dropFieldFunction.initialize(context);
+        dropFieldFunction.process(record.getValue(), context);
 
         Utils.TestTypedMessageBuilder<?> message = context.getOutputMessage();
         KeyValueSchema messageSchema = (KeyValueSchema) message.getSchema();
@@ -140,9 +139,9 @@ public class RemoveFieldFunctionTest {
         Map<String, Object> config = ImmutableMap.of("value-fields", "other");
         Utils.TestContext context = new Utils.TestContext(record, config);
 
-        RemoveFieldFunction removeFieldFunction = new RemoveFieldFunction();
-        removeFieldFunction.initialize(context);
-        removeFieldFunction.process(genericRecord, context);
+        DropFieldFunction dropFieldFunction = new DropFieldFunction();
+        dropFieldFunction.initialize(context);
+        dropFieldFunction.process(genericRecord, context);
 
         Utils.TestTypedMessageBuilder<?> message = context.getOutputMessage();
         assertSame(message.getSchema(), record.getSchema());
@@ -151,54 +150,48 @@ public class RemoveFieldFunctionTest {
 
     @Test
     void testKeyValueAvroNotModified() throws Exception {
-        Record<KeyValue<GenericRecord, GenericRecord>> record = createTestAvroKeyValueRecord();
+        Record<GenericObject> record = createTestAvroKeyValueRecord();
         Map<String, Object> config = ImmutableMap.of(
                 "value-fields", "otherValue",
                 "key-fields", "otherKey");
         Utils.TestContext context = new Utils.TestContext(record, config);
 
-        RemoveFieldFunction removeFieldFunction = new RemoveFieldFunction();
-        removeFieldFunction.initialize(context);
-        removeFieldFunction.process(
-                AutoConsumeSchema.wrapPrimitiveObject(record.getValue(), SchemaType.KEY_VALUE, new byte[]{}),
-                context);
+        DropFieldFunction dropFieldFunction = new DropFieldFunction();
+        dropFieldFunction.initialize(context);
+        dropFieldFunction.process(record.getValue(), context);
 
         Utils.TestTypedMessageBuilder<?> message = context.getOutputMessage();
         KeyValueSchema messageSchema = (KeyValueSchema) message.getSchema();
         KeyValue messageValue = (KeyValue) message.getValue();
 
         KeyValueSchema recordSchema = (KeyValueSchema) record.getSchema();
-        KeyValue recordValue = record.getValue();
+        KeyValue recordValue = (KeyValue) record.getValue().getNativeObject();
         assertSame(messageSchema.getKeySchema(), recordSchema.getKeySchema());
         assertSame(messageSchema.getValueSchema(), recordSchema.getValueSchema());
-        assertSame(messageValue.getKey(), ((GenericRecord) recordValue.getKey()).getNativeObject());
-        assertSame(messageValue.getValue(), ((GenericRecord) recordValue.getValue()).getNativeObject());
+        assertSame(messageValue.getKey(), recordValue.getKey());
+        assertSame(messageValue.getValue(), recordValue.getValue());
     }
 
     @Test
     void testKeyValueAvroCached() throws Exception {
-        Record<KeyValue<GenericRecord, GenericRecord>> record = createTestAvroKeyValueRecord();
+        Record<GenericObject> record = createTestAvroKeyValueRecord();
         Map<String, Object> config = ImmutableMap.of(
                 "value-fields", "valueField1,valueField2",
                 "key-fields", "keyField1,keyField2");
         Utils.TestContext context = new Utils.TestContext(record, config);
 
-        RemoveFieldFunction removeFieldFunction = new RemoveFieldFunction();
-        removeFieldFunction.initialize(context);
-        removeFieldFunction.process(
-                AutoConsumeSchema.wrapPrimitiveObject(record.getValue(), SchemaType.KEY_VALUE, new byte[]{}),
-                context);
+        DropFieldFunction dropFieldFunction = new DropFieldFunction();
+        dropFieldFunction.initialize(context);
+        dropFieldFunction.process(record.getValue(), context);
 
         Utils.TestTypedMessageBuilder<?> message = context.getOutputMessage();
         KeyValueSchema messageSchema = (KeyValueSchema) message.getSchema();
 
-        Record<KeyValue<GenericRecord, GenericRecord>> newRecord = createTestAvroKeyValueRecord();
+        Record<GenericObject> newRecord = createTestAvroKeyValueRecord();
 
         context.setCurrentRecord(newRecord);
 
-        removeFieldFunction.process(
-                AutoConsumeSchema.wrapPrimitiveObject(newRecord.getValue(), SchemaType.KEY_VALUE, new byte[]{}),
-                context);
+        dropFieldFunction.process(newRecord.getValue(), context);
 
         message = context.getOutputMessage();
         KeyValueSchema newMessageSchema = (KeyValueSchema) message.getSchema();
@@ -217,22 +210,23 @@ public class RemoveFieldFunctionTest {
 
     @Test
     void testPrimitives() throws Exception {
-        Record<String> record = new Utils.TestRecord<>(Schema.STRING, "value", "test-key");
+        Record<GenericObject> record = new Utils.TestRecord<>(
+                Schema.STRING,
+                AutoConsumeSchema.wrapPrimitiveObject("value", SchemaType.STRING, new byte[]{}),
+                "test-key");
         Map<String, Object> config = ImmutableMap.of(
                 "value-fields", "value",
                 "key-fields", "key");
         Utils.TestContext context = new Utils.TestContext(record, config);
 
-        RemoveFieldFunction removeFieldFunction = new RemoveFieldFunction();
-        removeFieldFunction.initialize(context);
-        removeFieldFunction.process(
-                AutoConsumeSchema.wrapPrimitiveObject(record.getValue(), SchemaType.STRING, new byte[]{}),
-                context);
+        DropFieldFunction dropFieldFunction = new DropFieldFunction();
+        dropFieldFunction.initialize(context);
+        dropFieldFunction.process(record.getValue(), context);
 
         Utils.TestTypedMessageBuilder<?> message = context.getOutputMessage();
 
         assertSame(message.getSchema(), record.getSchema());
-        assertSame(message.getValue(), record.getValue());
+        assertSame(message.getValue(), record.getValue().getNativeObject());
     }
 
 
@@ -243,24 +237,25 @@ public class RemoveFieldFunctionTest {
 
         KeyValue<String, Integer> keyValue = new KeyValue<>("key", 42);
 
-        Record<KeyValue<String, Integer>> record = new Utils.TestRecord<>(keyValueSchema, keyValue, null);
+        Record<GenericObject> record = new Utils.TestRecord<>(
+                keyValueSchema,
+                AutoConsumeSchema.wrapPrimitiveObject(keyValue, SchemaType.KEY_VALUE, new byte[]{}),
+                null);
         Map<String, Object> config = ImmutableMap.of(
                 "value-fields", "value",
                 "key-fields", "key");
         Utils.TestContext context = new Utils.TestContext(record, config);
 
-        RemoveFieldFunction removeFieldFunction = new RemoveFieldFunction();
-        removeFieldFunction.initialize(context);
-        removeFieldFunction.process(
-                AutoConsumeSchema.wrapPrimitiveObject(record.getValue(), SchemaType.KEY_VALUE, new byte[]{}),
-                context);
+        DropFieldFunction dropFieldFunction = new DropFieldFunction();
+        dropFieldFunction.initialize(context);
+        dropFieldFunction.process(record.getValue(), context);
 
         Utils.TestTypedMessageBuilder<?> message = context.getOutputMessage();
         KeyValueSchema messageSchema = (KeyValueSchema) message.getSchema();
         KeyValue messageValue = (KeyValue) message.getValue();
 
         KeyValueSchema recordSchema = (KeyValueSchema) record.getSchema();
-        KeyValue recordValue = record.getValue();
+        KeyValue recordValue = ((KeyValue) record.getValue().getNativeObject());
         assertSame(messageSchema.getKeySchema(), recordSchema.getKeySchema());
         assertSame(messageSchema.getValueSchema(), recordSchema.getValueSchema());
         assertSame(messageValue.getKey(), recordValue.getKey());

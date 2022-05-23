@@ -35,16 +35,16 @@ import org.apache.pulsar.functions.api.Context;
  * This function removes a "field" from a message.
  */
 @Slf4j
-public class RemoveFieldFunction extends AbstractTransformStepFunction {
+public class DropFieldFunction extends AbstractTransformStepFunction {
 
     private List<String> keyFields;
     private List<String> valueFields;
     private final Map<org.apache.avro.Schema, org.apache.avro.Schema> keySchemaCache = new HashMap<>();
     private final Map<org.apache.avro.Schema, org.apache.avro.Schema> valueSchemaCache = new HashMap<>();
 
-    public RemoveFieldFunction() {}
+    public DropFieldFunction() {}
 
-    public RemoveFieldFunction(List<String> keyFields, List<String> valueFields) {
+    public DropFieldFunction(List<String> keyFields, List<String> valueFields) {
         this.keyFields = keyFields;
         this.valueFields = valueFields;
     }

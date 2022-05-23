@@ -24,11 +24,9 @@ import static org.testng.Assert.assertSame;
 import com.google.common.collect.ImmutableMap;
 import java.util.Map;
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.client.api.schema.KeyValueSchema;
-import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
 import org.apache.pulsar.common.schema.KeyValue;
-import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.functions.api.Record;
 import org.testng.annotations.Test;
 
@@ -36,7 +34,7 @@ public class CastFunctionTest {
 
     @Test
     void testKeyValueAvroToString() throws Exception {
-        Record<KeyValue<GenericRecord, GenericRecord>> record = createTestAvroKeyValueRecord();
+        Record<GenericObject> record = createTestAvroKeyValueRecord();
         Map<String, Object> config = ImmutableMap.of(
                 "key-schema-type", "STRING",
                 "value-schema-type", "STRING");
@@ -44,9 +42,7 @@ public class CastFunctionTest {
 
         CastFunction castFunction = new CastFunction();
         castFunction.initialize(context);
-        castFunction.process(
-                AutoConsumeSchema.wrapPrimitiveObject(record.getValue(), SchemaType.KEY_VALUE, new byte[]{}),
-                context);
+        castFunction.process(record.getValue(), context);
 
         Utils.TestTypedMessageBuilder<?> message = context.getOutputMessage();
         KeyValueSchema messageSchema = (KeyValueSchema) message.getSchema();
