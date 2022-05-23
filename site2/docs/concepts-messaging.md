@@ -53,7 +53,7 @@ The default size of a message is 5 MB. You can configure the max size of a messa
   
   ```
 
-> For more information on Pulsar messages, see Pulsar [binary protocol](developing-binary-protocol).
+For more information on Pulsar messages, see Pulsar [binary protocol](developing-binary-protocol).
 
 ## Producers
 
@@ -496,9 +496,10 @@ Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
 ```
 
 Dead letter topic serves message redelivery, which is triggered by [acknowledgement timeout](#acknowledgement-timeout) or [negative acknowledgement](#negative-acknowledgement) or [retry letter topic](#retry-letter-topic) . 
+
 :::note
 
-* Currently, dead letter topic is enabled in Shared and Key_Shared subscription types.
+Currently, dead letter topic is enabled in Shared and Key_Shared subscription types.
 
 :::
 
@@ -519,9 +520,10 @@ Topic name component | Description
 `namespace`          | The administrative unit of the topic, which acts as a grouping mechanism for related topics. Most topic configuration is performed at the [namespace](#namespaces) level. Each tenant has one or multiple namespaces.
 `topic`              | The final part of the name. Topic names have no special meaning in a Pulsar instance.
 
-> **No need to explicitly create new topics**  
-> You do not need to explicitly create topics in Pulsar. If a client attempts to write or receive messages to/from a topic that does not yet exist, Pulsar creates that topic under the namespace provided in the [topic name](#topics) automatically.
-> If no tenant or namespace is specified when a client creates a topic, the topic is created in the default tenant and namespace. You can also create a topic in a specified tenant and namespace, such as `persistent://my-tenant/my-namespace/my-topic`. `persistent://my-tenant/my-namespace/my-topic` means the `my-topic` topic is created in the `my-namespace` namespace of the `my-tenant` tenant.
+:::note
+**No need to explicitly create new topics**  
+You do not need to explicitly create topics in Pulsar. If a client attempts to write or receive messages to/from a topic that does not yet exist, Pulsar creates that topic under the namespace provided in the [topic name](#topics) automatically.
+If no tenant or namespace is specified when a client creates a topic, the topic is created in the default tenant and namespace. You can also create a topic in a specified tenant and namespace, such as `persistent://my-tenant/my-namespace/my-topic`. `persistent://my-tenant/my-namespace/my-topic` means the `my-topic` topic is created in the `my-namespace` namespace of the `my-tenant` tenant.
 
 ## Namespaces
 
@@ -533,11 +535,13 @@ A subscription is a named configuration rule that determines how messages are de
 
 ![Subscription types](/assets/pulsar-subscription-types.png)
 
-> **Pub-Sub or Queuing**  
-> In Pulsar, you can use different subscriptions flexibly.
-> * If you want to achieve traditional "fan-out pub-sub messaging" among consumers, specify a unique subscription name for each consumer. It is exclusive subscription type.
-> * If you want to achieve "message queuing" among consumers, share the same subscription name among multiple consumers(shared, failover, key_shared).
-> * If you want to achieve both effects simultaneously, combine exclusive subscription type with other subscription types for consumers.
+:::tip
+ **Pub-Sub or Queuing**  
+  In Pulsar, you can use different subscriptions flexibly.
+  * If you want to achieve traditional "fan-out pub-sub messaging" among consumers, specify a unique subscription name for each consumer. It is exclusive subscription type.
+  * If you want to achieve "message queuing" among consumers, share the same subscription name among multiple consumers(shared, failover, key_shared).
+  * If you want to achieve both effects simultaneously, combine exclusive subscription type with other subscription types for consumers.
+:::
 
 ### Subscription types
 
@@ -549,7 +553,9 @@ In *Exclusive* type, only a single consumer is allowed to attach to the subscrip
 
 In the diagram below, only **Consumer A-0** is allowed to consume messages.
 
-> Exclusive is the default subscription type.
+:::tip
+ Exclusive is the default subscription type.
+:::
 
 ![Exclusive subscriptions](/assets/pulsar-exclusive-subscriptions.png)
 
@@ -571,10 +577,12 @@ In *shared* or *round robin* type, multiple consumers can attach to the same sub
 
 In the diagram below, **Consumer-C-1** and **Consumer-C-2** are able to subscribe to the topic, but **Consumer-C-3** and others could as well.
 
-> **Limitations of Shared type**  
-> When using Shared type, be aware that:
-> * Message ordering is not guaranteed.
-> * You cannot use cumulative acknowledgment with Shared type.
+:::caution
+ **Limitations of Shared type**  
+ When using Shared type, be aware that:
+ * Message ordering is not guaranteed.
+ * You cannot use cumulative acknowledgment with Shared type.
+:::
 
 ![Shared subscriptions](/assets/pulsar-shared-subscriptions.png)
 
@@ -633,10 +641,14 @@ producer = client.create_producer(topic='my-topic', batching_type=pulsar.Batchin
 </Tabs>
 ````
 
-> **Limitations of Key_Shared type**  
-> When you use Key_Shared type, be aware that:
-> * You need to specify a key or orderingKey for messages.
-> * You cannot use cumulative acknowledgment with Key_Shared type.
+:::caution
+**Limitations of Key_Shared type** 
+
+When you use Key_Shared type, be aware that:
+  * You need to specify a key or orderingKey for messages.
+  * You cannot use cumulative acknowledgment with Key_Shared type.
+  * When the position of the newest message in a topic is `X`, a key-shared consumer that is newly attached to the same subscription and connected to the topic will **not** receive any messages until the position of the oldest unacknowledged message in this subscription is newer than or equal to `X`. 
+:::
 
 ### Subscription modes
 
@@ -707,12 +719,16 @@ When a consumer subscribes to a Pulsar topic, by default it subscribes to one sp
 * On the basis of a [**reg**ular **ex**pression](https://en.wikipedia.org/wiki/Regular_expression) (regex), for example `persistent://public/default/finance-.*`
 * By explicitly defining a list of topics
 
-> When subscribing to multiple topics by regex, all topics must be in the same [namespace](#namespaces).
+:::note
+ When subscribing to multiple topics by regex, all topics must be in the same [namespace](#namespaces).
+:::
 
 When subscribing to multiple topics, the Pulsar client automatically makes a call to the Pulsar API to discover the topics that match the regex pattern/list, and then subscribe to all of them. If any of the topics do not exist, the consumer auto-subscribes to them once the topics are created.
 
-> **No ordering guarantees across multiple topics**  
-> When a producer sends messages to a single topic, all messages are guaranteed to be read from that topic in the same order. However, these guarantees do not hold across multiple topics. So when a producer sends message to multiple topics, the order in which messages are read from those topics is not guaranteed to be the same.
+:::note
+ **No ordering guarantees across multiple topics**  
+ When a producer sends messages to a single topic, all messages are guaranteed to be read from that topic in the same order. However, these guarantees do not hold across multiple topics. So when a producer sends message to multiple topics, the order in which messages are read from those topics is not guaranteed to be the same.
+:::
 
 The following are multi-topic subscription examples for Java.
 
@@ -811,11 +827,13 @@ non-persistent://tenant/namespace/topic
 
 ```
 
-> For more info on using non-persistent topics, see the [Non-persistent messaging cookbook](cookbooks-non-persistent).
+For more info on using non-persistent topics, see the [Non-persistent messaging cookbook](cookbooks-non-persistent).
 
 In non-persistent topics, brokers immediately deliver messages to all connected subscribers *without persisting them* in [BookKeeper](concepts-architecture-overview.md#persistent-storage). If a subscriber is disconnected, the broker will not be able to deliver those in-transit messages, and subscribers will never be able to receive those messages again. Eliminating the persistent storage step makes messaging on non-persistent topics slightly faster than on persistent topics in some cases, but with the caveat that some of the core benefits of Pulsar are lost.
 
-> With non-persistent topics, message data lives only in memory. If a message broker fails or message data can otherwise not be retrieved from memory, your message data may be lost. Use non-persistent topics only if you're *certain* that your use case requires it and can sustain it.
+:::note
+With non-persistent topics, message data lives only in memory. If a message broker fails or message data can otherwise not be retrieved from memory, your message data may be lost. Use non-persistent topics only if you're *certain* that your use case requires it and can sustain it.
+:::
 
 By default, non-persistent topics are enabled on Pulsar brokers. You can disable them in the broker's [configuration](reference-configuration.md#broker-enableNonPersistentTopics). You can manage non-persistent topics using the `pulsar-admin topics` command. For more information, see [`pulsar-admin`](https://pulsar.apache.org/tools/pulsar-admin/).
 
@@ -882,7 +900,9 @@ Pulsar has two features, however, that enable you to override this default behav
 * Message **retention** enables you to store messages that have been acknowledged by a consumer
 * Message **expiry** enables you to set a time to live (TTL) for messages that have not yet been acknowledged
 
-> All message retention and expiry is managed at the [namespace](#namespaces) level. For a how-to, see the [Message retention and expiry](cookbooks-retention-expiry) cookbook.
+:::tip
+All message retention and expiry is managed at the [namespace](#namespaces) level. For a how-to, see the [Message retention and expiry](cookbooks-retention-expiry) cookbook.
+:::
 
 The diagram below illustrates both concepts:
 
@@ -905,8 +925,9 @@ Message deduplication is disabled in the scenario shown at the top. Here, a prod
 
 In the second scenario at the bottom, the producer publishes message 1, which is received by the broker and persisted, as in the first scenario. When the producer attempts to publish the message again, however, the broker knows that it has already seen message 1 and thus does not persist the message.
 
-> Message deduplication is handled at the namespace level or the topic level. For more instructions, see the [message deduplication cookbook](cookbooks-deduplication).
-
+:::tip
+Message deduplication is handled at the namespace level or the topic level. For more instructions, see the [message deduplication cookbook](cookbooks-deduplication).
+:::
 
 ### Producer idempotency
 
@@ -916,7 +937,9 @@ The other available approach to message deduplication is to ensure that each mes
 
 Message deduplication makes Pulsar an ideal messaging system to be used in conjunction with stream processing engines (SPEs) and other systems seeking to provide effectively-once processing semantics. Messaging systems that do not offer automatic message deduplication require the SPE or other system to guarantee deduplication, which means that strict message ordering comes at the cost of burdening the application with the responsibility of deduplication. With Pulsar, strict ordering guarantees come at no application-level cost.
 
-> You can find more in-depth information in [this post](https://www.splunk.com/en_us/blog/it/exactly-once-is-not-exactly-the-same.html).
+:::tip
+You can find more in-depth information in [this post](https://www.splunk.com/en_us/blog/it/exactly-once-is-not-exactly-the-same.html).
+:::
 
 ## Delayed message delivery
 Delayed message delivery enables you to consume a message later. In this mechanism, a message is stored in BookKeeper. The `DelayedDeliveryTracker` maintains the time index (time -> messageId) in memory after the message is published to a broker. This message will be delivered to a consumer once the specified delay is over.  
