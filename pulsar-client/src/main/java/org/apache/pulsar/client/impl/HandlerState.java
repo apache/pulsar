@@ -53,7 +53,8 @@ abstract class HandlerState {
     protected boolean changeToReadyState() {
         return (STATE_UPDATER.compareAndSet(this, State.Uninitialized, State.Ready)
                 || STATE_UPDATER.compareAndSet(this, State.Connecting, State.Ready)
-                || STATE_UPDATER.compareAndSet(this, State.RegisteringSchema, State.Ready));
+                || STATE_UPDATER.compareAndSet(this, State.RegisteringSchema, State.Ready)
+                || STATE_UPDATER.compareAndSet(this, State.Ready, State.Ready));
     }
 
     protected boolean changeToRegisteringSchemaState() {
