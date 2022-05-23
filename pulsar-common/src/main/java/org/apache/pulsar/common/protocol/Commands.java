@@ -1856,7 +1856,7 @@ public class Commands {
         case ExclusiveWithFencing:
             return org.apache.pulsar.common.api.proto.ProducerAccessMode.ExclusiveWithFencing;
         default:
-            throw new IllegalArgumentException("Unknonw access mode: " + accessMode);
+            throw new IllegalArgumentException("Unknown access mode: " + accessMode);
         }
     }
 

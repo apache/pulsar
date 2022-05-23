@@ -2971,6 +2971,44 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
+    public boolean getSchemaValidationEnforced(String topic, boolean applied) throws PulsarAdminException {
+        return sync(() -> getSchemaValidationEnforcedAsync(topic, applied));
+    }
+
+    @Override
+    public void setSchemaValidationEnforced(String topic, boolean enable) throws PulsarAdminException {
+        sync(() -> setSchemaValidationEnforcedAsync(topic, enable));
+    }
+
+    @Override
+    public CompletableFuture<Boolean> getSchemaValidationEnforcedAsync(String topic, boolean applied) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn, "schemaValidationEnforced");
+        path = path.queryParam("applied", applied);
+        final CompletableFuture<Boolean> future = new CompletableFuture<>();
+        asyncGetRequest(path,
+                new InvocationCallback<Boolean>() {
+                    @Override
+                    public void completed(Boolean enforced) {
+                        future.complete(enforced);
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+        return future;
+    }
+
+    @Override
+    public CompletableFuture<Void> setSchemaValidationEnforcedAsync(String topic, boolean schemaValidationEnforced) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn, "schemaValidationEnforced");
+        return asyncPostRequest(path, Entity.entity(schemaValidationEnforced, MediaType.APPLICATION_JSON));
+    }
+
+    @Override
     public Set<String> getReplicationClusters(String topic, boolean applied) throws PulsarAdminException {
         return sync(() -> getReplicationClustersAsync(topic, applied));
     }

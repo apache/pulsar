@@ -341,8 +341,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     this.isEncryptionRequired = policies.encryption_required;
 
                     isAllowAutoUpdateSchema = policies.is_allow_auto_update_schema;
-
-                    schemaValidationEnforced = policies.schema_validation_enforced;
                 }).exceptionally(ex -> {
                     log.warn("[{}] Error getting policies {} and isEncryptionRequired will be set to false",
                             topic, ex.getMessage());
@@ -2397,8 +2395,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         isEncryptionRequired = data.encryption_required;
 
         isAllowAutoUpdateSchema = data.is_allow_auto_update_schema;
-
-        schemaValidationEnforced = data.schema_validation_enforced;
 
         initializeDispatchRateLimiterIfNeeded();
 

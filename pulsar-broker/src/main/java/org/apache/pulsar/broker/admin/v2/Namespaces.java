@@ -1822,7 +1822,7 @@ public class Namespaces extends NamespacesBase {
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or Namespace doesn't exist"),
             @ApiResponse(code = 412, message = "schemaValidationEnforced value is not valid")})
-    public void setSchemaValidtionEnforced(@PathParam("tenant") String tenant,
+    public void setSchemaValidationEnforced(@PathParam("tenant") String tenant,
                                            @PathParam("namespace") String namespace,
                                            @ApiParam(value =
                                                    "Flag of whether validation is enforced on the specified namespace",

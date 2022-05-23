@@ -242,6 +242,9 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("set-replication-clusters", new SetReplicationClusters());
         jcommander.addCommand("remove-replication-clusters", new RemoveReplicationClusters());
 
+        jcommander.addCommand("get-schema-validation-enforce", new GetSchemaValidationEnforced());
+        jcommander.addCommand("set-schema-validation-enforce", new SetSchemaValidationEnforced());
+
         initDeprecatedCommands();
     }
 
@@ -2838,6 +2841,36 @@ public class CmdTopics extends CmdBase {
             }
             print(getTopics().getBacklogSizeByMessageId(persistentTopic, messageId));
 
+        }
+    }
+
+    @Parameters(commandDescription = "Get the schema validation enforced")
+    private class GetSchemaValidationEnforced extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "-ap", "--applied" }, description = "Get the applied policy of the topic")
+        private boolean applied = false;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String topic = validateTopicName(params);
+            System.out.println(getAdmin().topics().getSchemaValidationEnforced(topic, applied));
+        }
+    }
+
+    @Parameters(commandDescription = "Set the schema whether open schema validation enforced")
+    private class SetSchemaValidationEnforced extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "--enable", "-e" }, description = "Enable schema validation enforced")
+        private boolean enable = false;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String topic = validateTopicName(params);
+            getAdmin().topics().setSchemaValidationEnforced(topic, enable);
         }
     }
 }
