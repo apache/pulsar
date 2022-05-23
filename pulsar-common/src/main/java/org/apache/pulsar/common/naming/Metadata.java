@@ -27,7 +27,8 @@ public class Metadata {
 
     private Metadata() {}
 
-    public static void validateMetadata(Map<String, String> metadata, int maxConsumerMetadataSize) throws IllegalArgumentException {
+    public static void validateMetadata(Map<String, String> metadata,
+                                        int maxConsumerMetadataSize) throws IllegalArgumentException {
         if (metadata == null) {
             return;
         }
