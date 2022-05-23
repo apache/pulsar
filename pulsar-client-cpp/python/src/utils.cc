@@ -17,46 +17,23 @@
  * under the License.
  */
 
-#pragma once
+#include "utils.h"
 
-#include <boost/python.hpp>
-
-#include <pulsar/Client.h>
-#include <pulsar/MessageBatch.h>
-#include <lib/Utils.h>
-
-using namespace pulsar;
-
-namespace py = boost::python;
-
-struct PulsarException {
-    Result _result;
-    PulsarException(Result res) : _result(res) {}
-};
-
-inline void CHECK_RESULT(Result res) {
-    if (res != ResultOk) {
-        throw PulsarException(res);
-    }
-}
-
-void waitForAsyncResult(std::function<void(ResultCallback)> func);
-
-template<typename T, typename Callback>
-inline void waitForAsyncValue(std::function<void(Callback)> func, T& value) {
+void waitForAsyncResult(std::function<void(ResultCallback)> func) {
     Result res;
-    Promise<Result, T> promise;
-    Future<Result, T> future = promise.getFuture();
+    bool b;
+    Promise<bool, Result> promise;
+    Future<bool, Result> future = promise.getFuture();
 
     Py_BEGIN_ALLOW_THREADS
-        func(WaitForCallbackValue<T>(promise));
+    func(WaitForCallback(promise));
     Py_END_ALLOW_THREADS
 
     bool isComplete;
     while (true) {
         // Check periodically for Python signals
         Py_BEGIN_ALLOW_THREADS
-            isComplete = future.get(res, std::ref(value), std::chrono::milliseconds(100));
+            isComplete = future.get(b, std::ref(res), std::chrono::milliseconds(100));
         Py_END_ALLOW_THREADS
 
         if (isComplete) {
@@ -70,17 +47,3 @@ inline void waitForAsyncValue(std::function<void(Callback)> func, T& value) {
         }
     }
 }
-
-struct AuthenticationWrapper {
-    AuthenticationPtr auth;
-
-    AuthenticationWrapper();
-    AuthenticationWrapper(const std::string& dynamicLibPath, const std::string& authParamsString);
-};
-
-struct CryptoKeyReaderWrapper {
-    CryptoKeyReaderPtr cryptoKeyReader;
-
-    CryptoKeyReaderWrapper();
-    CryptoKeyReaderWrapper(const std::string& publicKeyPath, const std::string& privateKeyPath);
-};
