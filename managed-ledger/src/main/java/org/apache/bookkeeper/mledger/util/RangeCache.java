@@ -73,12 +73,11 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ReferenceCoun
      * @return whether the entry was inserted in the cache
      */
     public boolean put(Key key, Value value) {
-        if (entries.putIfAbsent(key, value) == null) {
+        Value v = entries.computeIfAbsent(key, (k) -> {
             size.addAndGet(weighter.getSize(value));
-            return true;
-        } else {
-            return false;
-        }
+            return value;
+        });
+        return v == value;
     }
 
     public Value get(Key key) {
