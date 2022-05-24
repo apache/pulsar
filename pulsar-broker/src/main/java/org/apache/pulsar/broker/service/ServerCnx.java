@@ -2512,6 +2512,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             // When the quota of pending send requests is reached, stop reading from socket to cause backpressure on
             // client connection, possibly shared between multiple producers
             ctx.channel().config().setAutoRead(false);
+            recordRateLimitMetrics(producers);
             autoReadDisabledRateLimiting = isPublishRateExceeded;
             throttledConnections.inc();
         }
@@ -2531,6 +2532,17 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
             getBrokerService().pausedConnections(pausedConnections.intValue());
         }
+    }
+
+    private void recordRateLimitMetrics(ConcurrentLongHashMap<CompletableFuture<Producer>> producers) {
+        producers.forEach((key, producerFuture) -> {
+            if (producerFuture != null && producerFuture.isDone()) {
+                Producer p = producerFuture.getNow(null);
+                if (p != null && p.getTopic() != null) {
+                    p.getTopic().increasePublishLimitedTimes();
+                }
+            }
+        });
     }
 
     @Override
@@ -2577,6 +2589,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     public void disableCnxAutoRead() {
         if (ctx != null && ctx.channel().config().isAutoRead()) {
             ctx.channel().config().setAutoRead(false);
+            recordRateLimitMetrics(producers);
         }
     }
 

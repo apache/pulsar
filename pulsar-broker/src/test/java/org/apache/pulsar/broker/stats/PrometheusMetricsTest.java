@@ -55,12 +55,12 @@ import java.util.regex.Pattern;
 import javax.crypto.SecretKey;
 import javax.naming.AuthenticationException;
 import lombok.Cleanup;
-import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.commons.io.IOUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
+import org.apache.pulsar.broker.service.AbstractTopic;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentMessageExpiryMonitor;
@@ -74,7 +74,6 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.compaction.Compactor;
-import org.apache.pulsar.compaction.TwoPhaseCompactor;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -95,6 +94,108 @@ public class PrometheusMetricsTest extends BrokerTestBase {
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
+        resetConfig();
+    }
+
+    @Test
+    public void testPublishRateLimitedTimes() throws Exception {
+        cleanup();
+        checkPublishRateLimitedTimes(true);
+        cleanup();
+        checkPublishRateLimitedTimes(false);
+    }
+
+    private void checkPublishRateLimitedTimes(boolean preciseRateLimit) throws Exception {
+        if (preciseRateLimit) {
+            conf.setBrokerPublisherThrottlingTickTimeMillis(10000000);
+            conf.setMaxPublishRatePerTopicInMessages(1);
+            conf.setMaxPublishRatePerTopicInBytes(1);
+            conf.setBrokerPublisherThrottlingMaxMessageRate(100000);
+            conf.setBrokerPublisherThrottlingMaxByteRate(10000000);
+        } else {
+            conf.setBrokerPublisherThrottlingTickTimeMillis(1);
+            conf.setBrokerPublisherThrottlingMaxMessageRate(1);
+            conf.setBrokerPublisherThrottlingMaxByteRate(1);
+        }
+        conf.setStatsUpdateFrequencyInSecs(100000000);
+        conf.setPreciseTopicPublishRateLimiterEnable(preciseRateLimit);
+        setup();
+        String ns1 = "prop/ns-abc1" + UUID.randomUUID();
+        admin.namespaces().createNamespace(ns1, 1);
+        String topicName = "persistent://" + ns1 + "/metrics" + UUID.randomUUID();
+        String topicName2 = "persistent://" + ns1 + "/metrics" + UUID.randomUUID();
+        String topicName3 = "persistent://" + ns1 + "/metrics" + UUID.randomUUID();
+        // Use another connection
+        @Cleanup
+        PulsarClient client2 = newPulsarClient(lookupUrl.toString(), 0);
+
+        Producer<byte[]> producer = pulsarClient.newProducer().producerName("my-pub").enableBatching(false)
+                .topic(topicName).create();
+        Producer<byte[]> producer2 = pulsarClient.newProducer().producerName("my-pub-2").enableBatching(false)
+                .topic(topicName2).create();
+        Producer<byte[]> producer3 = client2.newProducer().producerName("my-pub-2").enableBatching(false)
+                .topic(topicName3).create();
+        producer.sendAsync(new byte[11]);
+
+        PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService()
+                .getTopic(topicName, false).get().get();
+        Field field = AbstractTopic.class.getDeclaredField("publishRateLimitedTimes");
+        field.setAccessible(true);
+        Awaitility.await().untilAsserted(() -> {
+            long value = (long) field.get(persistentTopic);
+            assertEquals(value, 1);
+        });
+        @Cleanup
+        ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
+        PrometheusMetricsGenerator.generate(pulsar, true, false, false, statsOut);
+        String metricsStr = statsOut.toString();
+        Multimap<String, Metric> metrics = parseMetrics(metricsStr);
+        assertTrue(metrics.containsKey("pulsar_publish_rate_limit_times"));
+        metrics.get("pulsar_publish_rate_limit_times").forEach(item -> {
+            if (ns1.equals(item.tags.get("namespace"))) {
+                if (item.tags.get("topic").equals(topicName)) {
+                    assertEquals(item.value, 1);
+                    return;
+                } else if (item.tags.get("topic").equals(topicName2)) {
+                    assertEquals(item.value, 1);
+                    return;
+                } else if (item.tags.get("topic").equals(topicName3)) {
+                    //When using precise rate limiting, we only trigger the rate limiting of the topic,
+                    // so if the topic is not using the same connection, the rate limiting times will be 0
+                    //When using asynchronous rate limiting, we will trigger the broker-level rate limiting,
+                    // and all connections will be limited at this time.
+                    if (preciseRateLimit) {
+                        assertEquals(item.value, 0);
+                    } else {
+                        assertEquals(item.value, 1);
+                    }
+                    return;
+                }
+                fail("should not fail");
+            }
+        });
+        // Stats updater will reset the stats
+        pulsar.getBrokerService().updateRates();
+        Awaitility.await().untilAsserted(() -> {
+            long value = (long) field.get(persistentTopic);
+            assertEquals(value, 0);
+        });
+
+        @Cleanup
+        ByteArrayOutputStream statsOut2 = new ByteArrayOutputStream();
+        PrometheusMetricsGenerator.generate(pulsar, true, false, false, statsOut2);
+        String metricsStr2 = statsOut2.toString();
+        Multimap<String, Metric> metrics2 = parseMetrics(metricsStr2);
+        assertTrue(metrics2.containsKey("pulsar_publish_rate_limit_times"));
+        metrics2.get("pulsar_publish_rate_limit_times").forEach(item -> {
+            if (ns1.equals(item.tags.get("namespace"))) {
+                assertEquals(item.value, 0);
+            }
+        });
+
+        producer.close();
+        producer2.close();
+        producer3.close();
     }
 
     @Test
