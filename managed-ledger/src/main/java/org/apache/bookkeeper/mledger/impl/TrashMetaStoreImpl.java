@@ -456,15 +456,13 @@ public class TrashMetaStoreImpl implements TrashMetaStore {
 
     private void onDeleteFailed(TrashDeleteHelper delHelper) {
         if (delHelper.retryCount == 0) {
-            //copy to archive
             if (log.isDebugEnabled()) {
                 String info = null;
                 if (delHelper.isLedger()) {
-                    info = String.format("Delete ledger %d reach retry limit %d, copy it to archive",
-                            delHelper.ledgerId, RETRY_COUNT);
+                    info = String.format("Delete ledger %d reach retry limit %d.", delHelper.ledgerId, RETRY_COUNT);
                 } else if (delHelper.isOffloadLedger()) {
-                    info = String.format("Delete offload ledger %d reach retry limit %d, copy it to archive",
-                            delHelper.ledgerId, RETRY_COUNT);
+                    info = String.format("Delete offload ledger %d reach retry limit %d.", delHelper.ledgerId,
+                            RETRY_COUNT);
                 }
                 log.debug(info);
             }
