@@ -750,7 +750,7 @@ public class ClustersBase extends AdminResource {
                 .thenAccept(__ -> {
                     log.info("[{}] Successful set failure domain {} for cluster {}",
                             clientAppId(), domainName, cluster);
-                    asyncResponse.resume(Response.ok().build());
+                    asyncResponse.resume(Response.noContent().build());
                 })
                 .exceptionally(ex -> {
                     Throwable realCause = FutureUtil.unwrapCompletionException(ex);
