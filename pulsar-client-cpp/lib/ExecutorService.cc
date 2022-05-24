@@ -38,13 +38,13 @@ void ExecutorService::start() {
         if (self->isClosed()) {
             return;
         }
-        LOG_INFO("Run io_service in a single thread");
+        LOG_DEBUG("Run io_service in a single thread");
         boost::system::error_code ec;
         self->getIOService().run(ec);
         if (ec) {
             LOG_ERROR("Failed to run io_service: " << ec.message());
         } else {
-            LOG_INFO("Event loop of ExecutorService exits successfully");
+            LOG_DEBUG("Event loop of ExecutorService exits successfully");
         }
         self->ioServiceDone_ = true;
         self->cond_.notify_all();
