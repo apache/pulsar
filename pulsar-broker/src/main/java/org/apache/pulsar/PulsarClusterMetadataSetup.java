@@ -384,7 +384,8 @@ public class PulsarClusterMetadataSetup {
         return rackConfiguration;
     }
 
-    static void createRackInfo(PulsarResources resources, String rackInfo) throws ExecutionException, InterruptedException {
+    static void createRackInfo(PulsarResources resources, String rackInfo) throws ExecutionException,
+            InterruptedException {
         if (rackInfo != null) {
             BookiesRackConfiguration rackConfiguration = parseRackInfo(rackInfo);
             resources.getBookieResources().update(optionalBookiesRackConfiguration -> rackConfiguration).get();
