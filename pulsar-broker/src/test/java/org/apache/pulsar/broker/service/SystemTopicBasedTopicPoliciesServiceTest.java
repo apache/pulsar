@@ -24,11 +24,13 @@ import org.apache.pulsar.broker.service.BrokerServiceException.TopicPoliciesCach
 import org.apache.pulsar.broker.systopic.NamespaceEventsSystemTopicFactory;
 import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.common.events.EventType;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
+import org.apache.pulsar.common.schema.SchemaInfo;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -226,6 +228,24 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
             } catch (Exception ex) {
                 Assert.fail();
             }
+        });
+    }
+
+    @Test
+    public void testAutoCreateSchema() throws Exception {
+        String namespace = "system-topic/ns2";
+        String topic = namespace + "/test";
+        admin.namespaces().createNamespace(namespace);
+        admin.namespaces().setIsAllowAutoUpdateSchema(namespace, false);
+        admin.topics().createNonPartitionedTopic(topic);
+        TopicName changeEventTopicName =
+                NamespaceEventsSystemTopicFactory.getSystemTopicName(
+                        TopicName.get(topic).getNamespaceObject(), EventType.TOPIC_POLICY);
+        Awaitility.await().untilAsserted(() -> {
+            SchemaInfo schemaInfo = admin
+                    .schemas()
+                    .getSchemaInfo(changeEventTopicName.toString());
+            Assert.assertNotNull(schemaInfo);
         });
     }
 }
