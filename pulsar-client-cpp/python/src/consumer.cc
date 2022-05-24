@@ -19,35 +19,16 @@
 #include "utils.h"
 
 void Consumer_unsubscribe(Consumer& consumer) {
-    Result res;
-    Py_BEGIN_ALLOW_THREADS res = consumer.unsubscribe();
-    Py_END_ALLOW_THREADS
-
-        CHECK_RESULT(res);
+    waitForAsyncResult([&consumer](ResultCallback callback) { consumer.unsubscribeAsync(callback); });
 }
 
 Message Consumer_receive(Consumer& consumer) {
     Message msg;
-    Result res;
 
-    while (true) {
-        Py_BEGIN_ALLOW_THREADS res = consumer.receive(msg);
-        Py_END_ALLOW_THREADS
+    waitForAsyncValue(std::function<void(ReceiveCallback)>(
+                          [&consumer](ReceiveCallback callback) { consumer.receiveAsync(callback); }),
+                      msg);
 
-            if (res != ResultTimeout) {
-            // In case of timeout we keep calling receive() to simulate a
-            // blocking call until a message is available, while breaking
-            // every once in a while to check the Python signal status
-            break;
-        }
-
-        if (PyErr_CheckSignals() == -1) {
-            PyErr_SetInterrupt();
-            return msg;
-        }
-    }
-
-    CHECK_RESULT(res);
     return msg;
 }
 
@@ -84,11 +65,7 @@ void Consumer_acknowledge_cumulative_message_id(Consumer& consumer, const Messag
 }
 
 void Consumer_close(Consumer& consumer) {
-    Result res;
-    Py_BEGIN_ALLOW_THREADS res = consumer.close();
-    Py_END_ALLOW_THREADS
-
-        CHECK_RESULT(res);
+    waitForAsyncResult([&consumer](ResultCallback callback) { consumer.closeAsync(callback); });
 }
 
 void Consumer_pauseMessageListener(Consumer& consumer) { CHECK_RESULT(consumer.pauseMessageListener()); }
@@ -96,19 +73,12 @@ void Consumer_pauseMessageListener(Consumer& consumer) { CHECK_RESULT(consumer.p
 void Consumer_resumeMessageListener(Consumer& consumer) { CHECK_RESULT(consumer.resumeMessageListener()); }
 
 void Consumer_seek(Consumer& consumer, const MessageId& msgId) {
-    Result res;
-    Py_BEGIN_ALLOW_THREADS res = consumer.seek(msgId);
-    Py_END_ALLOW_THREADS
-
-        CHECK_RESULT(res);
+    waitForAsyncResult([msgId, &consumer](ResultCallback callback) { consumer.seekAsync(msgId, callback); });
 }
 
 void Consumer_seek_timestamp(Consumer& consumer, uint64_t timestamp) {
-    Result res;
-    Py_BEGIN_ALLOW_THREADS res = consumer.seek(timestamp);
-    Py_END_ALLOW_THREADS
-
-        CHECK_RESULT(res);
+    waitForAsyncResult(
+        [timestamp, &consumer](ResultCallback callback) { consumer.seekAsync(timestamp, callback); });
 }
 
 bool Consumer_is_connected(Consumer& consumer) { return consumer.isConnected(); }
