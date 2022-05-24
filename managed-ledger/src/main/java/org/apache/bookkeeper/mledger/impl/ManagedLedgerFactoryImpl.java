@@ -369,7 +369,6 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                         pendingInitializeLedgers.remove(name, pendingLedger);
                     }
                 }
-
             }
         }
 
@@ -381,7 +380,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                     bookkeeperFactory.get(
                             new EnsemblePlacementPolicyConfig(config.getBookKeeperEnsemblePlacementPolicyClassName(),
                                     config.getBookKeeperEnsemblePlacementPolicyProperties())),
-                    store, config, scheduledExecutor, name, mlOwnershipChecker);
+                    store, metadataStore, config, scheduledExecutor, name, mlOwnershipChecker);
             PendingInitializeManagedLedger pendingLedger = new PendingInitializeManagedLedger(newledger);
             pendingInitializeLedgers.put(name, pendingLedger);
             newledger.initialize(new ManagedLedgerInitializeLedgerCallback() {
@@ -470,11 +469,10 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
             return;
         }
         checkArgument(startPosition instanceof PositionImpl);
-        ReadOnlyManagedLedgerImpl roManagedLedger = new ReadOnlyManagedLedgerImpl(this,
-                bookkeeperFactory
-                        .get(new EnsemblePlacementPolicyConfig(config.getBookKeeperEnsemblePlacementPolicyClassName(),
-                                config.getBookKeeperEnsemblePlacementPolicyProperties())),
-                store, config, scheduledExecutor, managedLedgerName);
+        ReadOnlyManagedLedgerImpl roManagedLedger = new ReadOnlyManagedLedgerImpl(this, bookkeeperFactory.get(
+                new EnsemblePlacementPolicyConfig(config.getBookKeeperEnsemblePlacementPolicyClassName(),
+                        config.getBookKeeperEnsemblePlacementPolicyProperties())), store, metadataStore, config,
+                scheduledExecutor, managedLedgerName);
 
         roManagedLedger.initializeAndCreateCursor((PositionImpl) startPosition)
                 .thenAccept(roCursor -> callback.openReadOnlyCursorComplete(roCursor, ctx))

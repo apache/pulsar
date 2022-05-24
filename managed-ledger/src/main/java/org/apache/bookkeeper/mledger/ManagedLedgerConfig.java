@@ -75,6 +75,8 @@ public class ManagedLedgerConfig {
     private ManagedLedgerInterceptor managedLedgerInterceptor;
     private Map<String, String> properties;
     private int inactiveLedgerRollOverTimeMs = 0;
+    private int trashDataLimitSize = 1000;
+    private int trashDeleteRetryCount = 10;
 
     public boolean isCreateIfMissing() {
         return createIfMissing;
@@ -669,4 +671,19 @@ public class ManagedLedgerConfig {
         this.inactiveLedgerRollOverTimeMs = (int) unit.toMillis(inactiveLedgerRollOverTimeMs);
     }
 
+    public int getTrashDataLimitSize() {
+        return trashDataLimitSize;
+    }
+
+    public void setTrashDataLimitSize(int trashDataLimitSize) {
+        this.trashDataLimitSize = trashDataLimitSize;
+    }
+
+    public int getTrashDeleteRetryCount() {
+        return trashDeleteRetryCount;
+    }
+
+    public void setTrashDeleteRetryCount(int trashDeleteRetryCount) {
+        this.trashDeleteRetryCount = trashDeleteRetryCount;
+    }
 }

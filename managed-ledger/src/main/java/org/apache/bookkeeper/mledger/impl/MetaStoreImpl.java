@@ -144,7 +144,6 @@ public class MetaStoreImpl implements MetaStore {
         if (log.isDebugEnabled()) {
             log.debug("[{}] Updating metadata version={} with content={}", ledgerName, stat, mlInfo);
         }
-
         String path = PREFIX + ledgerName;
         store.put(path, compressLedgerInfo(mlInfo), Optional.of(stat.getVersion()))
                 .thenAcceptAsync(newVersion -> callback.operationComplete(null, newVersion),
@@ -405,6 +404,10 @@ public class MetaStoreImpl implements MetaStore {
     private CompressionCodec getCompressionCodec(CompressionType compressionType) {
         return CompressionCodecProvider.getCompressionCodec(
                 org.apache.pulsar.common.api.proto.CompressionType.valueOf(compressionType.name()));
+    }
+
+    public MetadataStore getMetadataStore() {
+        return this.store;
     }
 
 }
