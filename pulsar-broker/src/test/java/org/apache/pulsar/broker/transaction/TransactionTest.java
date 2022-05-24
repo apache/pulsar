@@ -89,7 +89,9 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.client.impl.ConsumerBase;
 import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.client.impl.MessagesImpl;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.common.events.EventType;
@@ -1040,6 +1042,64 @@ public class TransactionTest extends TransactionTestBase {
         Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
         Assert.assertNotNull(message);
         Assert.assertFalse(messages.contains(message.getMessageId()));
+        message = consumer.receive(5, TimeUnit.SECONDS);
+        Assert.assertNull(message);
+        consumer.close();
+    }
+
+
+    @Test(timeOut = 30000)
+    public void testTransactionAckMessages() throws Exception {
+        String topic = "persistent://" + NAMESPACE1 +"/test";
+        String subName = "testSub";
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topic)
+                .sendTimeout(5, TimeUnit.SECONDS)
+                .create();
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topic)
+                .subscriptionName(subName)
+                .subscribe();
+
+        for (int i = 0; i < 5; i++) {
+            producer.newMessage().send();
+        }
+        Method method = ConsumerBase.class.getDeclaredMethod("getNewMessagesImpl");
+        method.setAccessible(true);
+
+        Field field = MessagesImpl.class.getDeclaredField("messageList");
+        field.setAccessible(true);
+
+        MessagesImpl<byte[]> messages = (MessagesImpl<byte[]>) method.invoke(consumer);
+
+        List<Message<byte[]>> messageList = new ArrayList<>();
+        for (int i = 0; i < 4; i++) {
+            Message<byte[]> message = consumer.receive();
+            messageList.add(message);
+        }
+        field.set(messages, messageList);
+        Transaction transaction = pulsarClient
+                .newTransaction()
+                .withTransactionTimeout(5, TimeUnit.MINUTES)
+                .build()
+                .get();
+
+        consumer.acknowledgeAsync(messages, transaction);
+        transaction.commit().get();
+
+        consumer.close();
+        consumer = pulsarClient.newConsumer()
+                .topic(topic)
+                .subscriptionName(subName)
+                .subscribe();
+        Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
+        Assert.assertNotNull(message);
+        for (Message<byte[]> m: messages) {
+            Assert.assertNotEquals(m.getMessageId(), message.getMessageId());
+        }
         message = consumer.receive(5, TimeUnit.SECONDS);
         Assert.assertNull(message);
         consumer.close();
