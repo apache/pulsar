@@ -105,6 +105,9 @@ public class ModularLoadManagerStrategyTest {
 
         conf.setLoadBalancerLoadManagerStrategy(ThresholdLoadManagerStrategy.class.getSimpleName());
         assertEquals(ModularLoadManagerStrategy.create(conf).getClass(), ThresholdLoadManagerStrategy.class);
+
+        conf.setLoadBalancerLoadManagerStrategy("ABC");
+        assertEquals(ModularLoadManagerStrategy.create(conf).getClass(), LeastLongTermMessageRate.class);
     }
 
     private BrokerData initBrokerData(double usage, double limit) {
