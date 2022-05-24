@@ -325,7 +325,7 @@ public abstract class NamespacesBase extends AdminResource {
                 // clear z-node of local policies
                 .thenCompose(ignore -> getLocalPolicies().deleteLocalPoliciesAsync(namespaceName))
                 // clear /loadbalance/bundle-data
-                .thenCompose(ignore -> namespaceResources().deleteBundleDataAsync(namespaceName))
+                .thenCompose(ignore -> namespaceResources().deleteBundleDataAsync(namespaceName));
 
     }
 
