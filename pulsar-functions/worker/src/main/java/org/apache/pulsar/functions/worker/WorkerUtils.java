@@ -55,6 +55,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderBuilder;
 import org.apache.pulsar.common.conf.InternalConfigurationData;
+import org.apache.pulsar.common.configuration.PulsarConfigurationUtils;
 import org.apache.pulsar.common.functions.WorkerInfo;
 import org.apache.pulsar.common.policies.data.FunctionInstanceStatsDataImpl;
 import org.apache.pulsar.common.policies.data.FunctionInstanceStatsImpl;
@@ -160,6 +161,9 @@ public final class WorkerUtils {
                         workerConfig.getBookkeeperClientAuthenticationParameters());
             }
         }
+        // Map arbitrary bookkeeper client configuration into DLog Config.
+        PulsarConfigurationUtils.loadPrefixedBookieClientConfiguration(conf, workerConfig.getProperties(),
+                "DLog BookKeeper client");
         return conf;
     }
 

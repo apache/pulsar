@@ -74,6 +74,15 @@ public class BookKeeperPackagesStorage implements PackagesStorage {
                     configuration.getBookkeeperClientAuthenticationParameters());
             }
         }
+        // Map arbitrary bookkeeper client configuration into DLog Config.
+        configuration.getProperties().forEach((key, value) -> {
+            String sKey = key.toString();
+            if (sKey.startsWith("bookkeeper_") && value != null) {
+                String bkConfigKey = "bkc." + sKey.substring(11);
+                log.info("Applying DLog BookKeeper client configuration {}, setting {}={}", sKey, bkConfigKey, value);
+                conf.setProperty(bkConfigKey, value);
+            }
+        });
         try {
             this.namespace = NamespaceBuilder.newBuilder()
                 .conf(conf).clientId(NS_CLIENT_ID).uri(initializeDlogNamespace()).build();
