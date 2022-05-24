@@ -143,7 +143,7 @@ mkdir -p "$PULSAR_LOG_DIR"
 case $startStop in
   (start)
     if [ -f $pid ]; then
-      if kill -0 `cat $pid` > /dev/null 2>&1; then
+      if ps -p `cat $pid` > /dev/null 2>&1; then
         echo $command running as process `cat $pid`.  Stop it first.
         exit 1
       fi
@@ -165,7 +165,7 @@ case $startStop in
   (stop)
     if [ -f $pid ]; then
       TARGET_PID=$(cat $pid)
-      if kill -0 $TARGET_PID > /dev/null 2>&1; then
+      if ps -p $TARGET_PID > /dev/null 2>&1; then
         echo "stopping $command"
         kill $TARGET_PID
 
@@ -186,7 +186,7 @@ case $startStop in
             echo "Shutdown completed."
         fi
 
-        if kill -0 $TARGET_PID > /dev/null 2>&1; then
+        if ps -p $TARGET_PID > /dev/null 2>&1; then
               fileName=$location/$command.out
               $JAVA_HOME/bin/jstack $TARGET_PID > $fileName
               echo "Thread dumps are taken for analysis at $fileName"
