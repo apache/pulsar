@@ -28,6 +28,7 @@ import java.lang.reflect.Field;
 import java.net.URI;
 import java.net.URL;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -47,6 +48,7 @@ import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.UriBuilder;
+import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.commons.lang.mutable.MutableObject;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
@@ -57,7 +59,6 @@ import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
-import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.SubscriptionType;
@@ -95,11 +96,14 @@ import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
 import org.apache.pulsar.common.policies.data.TenantOperation;
+import org.apache.pulsar.common.policies.data.TopicHashPositions;
+import org.apache.pulsar.common.policies.data.TopicType;
+import org.apache.pulsar.common.policies.data.ValidateResult;
 import org.apache.pulsar.common.policies.data.impl.AutoTopicCreationOverrideImpl;
 import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
+import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
-import org.apache.pulsar.metadata.api.MetadataStoreException.AlreadyExistsException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
 import org.slf4j.Logger;
@@ -107,52 +111,47 @@ import org.slf4j.LoggerFactory;
 
 public abstract class NamespacesBase extends AdminResource {
 
-    protected List<String> internalGetTenantNamespaces(String tenant) {
-        checkNotNull(tenant, "Tenant should not be null");
+    protected CompletableFuture<List<String>> internalGetTenantNamespaces(String tenant) {
+        if (tenant == null) {
+            return FutureUtil.failedFuture(new RestException(Status.BAD_REQUEST, "Tenant should not be null"));
+        }
         try {
             NamedEntity.checkName(tenant);
         } catch (IllegalArgumentException e) {
             log.warn("[{}] Tenant name is invalid {}", clientAppId(), tenant, e);
-            throw new RestException(Status.PRECONDITION_FAILED, "Tenant name is not valid");
+            return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED, "Tenant name is not valid"));
         }
-        validateTenantOperation(tenant, TenantOperation.LIST_NAMESPACES);
-
-        try {
-            if (!tenantResources().tenantExists(tenant)) {
-                throw new RestException(Status.NOT_FOUND, "Tenant not found");
-            }
-
-            return tenantResources().getListOfNamespaces(tenant);
-        } catch (Exception e) {
-            log.error("[{}] Failed to get namespaces list: {}", clientAppId(), e);
-            throw new RestException(e);
-        }
+        return validateTenantOperationAsync(tenant, TenantOperation.LIST_NAMESPACES)
+                .thenCompose(__ -> tenantResources().tenantExistsAsync(tenant))
+                .thenCompose(existed -> {
+                    if (!existed) {
+                        throw new RestException(Status.NOT_FOUND, "Tenant not found");
+                    }
+                    return tenantResources().getListOfNamespacesAsync(tenant);
+                });
     }
 
-    protected void internalCreateNamespace(Policies policies) {
-        validateTenantOperation(namespaceName.getTenant(), TenantOperation.CREATE_NAMESPACE);
-        validatePoliciesReadOnlyAccess();
-        validatePolicies(namespaceName, policies);
-
-        try {
-            int maxNamespacesPerTenant = pulsar().getConfiguration().getMaxNamespacesPerTenant();
-            // no distributed locks are added here.In a concurrent scenario, the threshold will be exceeded.
-            if (maxNamespacesPerTenant > 0) {
-                List<String> namespaces = tenantResources().getListOfNamespaces(namespaceName.getTenant());
-                if (namespaces != null && namespaces.size() > maxNamespacesPerTenant) {
-                    throw new RestException(Status.PRECONDITION_FAILED,
-                            "Exceed the maximum number of namespace in tenant :" + namespaceName.getTenant());
-                }
-            }
-            namespaceResources().createPolicies(namespaceName, policies);
-            log.info("[{}] Created namespace {}", clientAppId(), namespaceName);
-        } catch (AlreadyExistsException e) {
-            log.warn("[{}] Failed to create namespace {} - already exists", clientAppId(), namespaceName);
-            throw new RestException(Status.CONFLICT, "Namespace already exists");
-        } catch (Exception e) {
-            log.error("[{}] Failed to create namespace {}", clientAppId(), namespaceName, e);
-            throw new RestException(e);
-        }
+    protected CompletableFuture<Void> internalCreateNamespace(Policies policies) {
+        return validateTenantOperationAsync(namespaceName.getTenant(), TenantOperation.CREATE_NAMESPACE)
+                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
+                .thenCompose(__ -> validatePoliciesAsync(namespaceName, policies))
+                .thenCompose(__ -> {
+                    int maxNamespacesPerTenant = pulsar().getConfiguration().getMaxNamespacesPerTenant();
+                    // no distributed locks are added here.In a concurrent scenario, the threshold will be exceeded.
+                    if (maxNamespacesPerTenant > 0) {
+                        return tenantResources().getListOfNamespacesAsync(namespaceName.getTenant())
+                                .thenAccept(namespaces -> {
+                                    if (namespaces != null && namespaces.size() > maxNamespacesPerTenant) {
+                                        throw new RestException(Status.PRECONDITION_FAILED,
+                                                "Exceed the maximum number of namespace in tenant :"
+                                                        + namespaceName.getTenant());
+                                    }
+                                });
+                    }
+                    return CompletableFuture.completedFuture(null);
+                })
+                .thenCompose(__ -> namespaceResources().createPoliciesAsync(namespaceName, policies))
+                .thenAccept(__ -> log.info("[{}] Created namespace {}", clientAppId(), namespaceName));
     }
 
     protected void internalDeleteNamespace(AsyncResponse asyncResponse, boolean authoritative, boolean force) {
@@ -238,7 +237,7 @@ public abstract class NamespacesBase extends AdminResource {
             }
             boolean hasNonSystemTopic = false;
             for (String topic : topics) {
-                if (!SystemTopicClient.isSystemTopic(TopicName.get(topic))) {
+                if (!pulsar().getBrokerService().isSystemTopic(TopicName.get(topic))) {
                     hasNonSystemTopic = true;
                     break;
                 }
@@ -263,52 +262,55 @@ public abstract class NamespacesBase extends AdminResource {
 
         // remove from owned namespace map and ephemeral node from ZK
         final List<CompletableFuture<Void>> futures = Lists.newArrayList();
-        try {
-            // remove system topics first.
-            if (!topics.isEmpty()) {
-                for (String topic : topics) {
-                    pulsar().getBrokerService().getTopicIfExists(topic).whenComplete((topicOptional, ex) -> {
-                        topicOptional.ifPresent(systemTopic -> futures.add(systemTopic.deleteForcefully()));
-                    });
+        // remove system topics first.
+        if (!topics.isEmpty()) {
+            for (String topic : topics) {
+                try {
+                    futures.add(pulsar().getAdminClient().topics().deleteAsync(topic, true, true));
+                } catch (Exception ex) {
+                    log.error("[{}] Failed to delete system topic {}", clientAppId(), topic, ex);
+                    asyncResponse.resume(new RestException(Status.INTERNAL_SERVER_ERROR, ex));
+                    return;
                 }
             }
-            NamespaceBundles bundles = pulsar().getNamespaceService().getNamespaceBundleFactory()
-                    .getBundles(namespaceName);
-            for (NamespaceBundle bundle : bundles.getBundles()) {
-                // check if the bundle is owned by any broker, if not then we do not need to delete the bundle
-                if (pulsar().getNamespaceService().getOwner(bundle).isPresent()) {
-                    futures.add(pulsar().getAdminClient().namespaces()
-                            .deleteNamespaceBundleAsync(namespaceName.toString(), bundle.getBundleRange()));
-                }
-            }
-        } catch (Exception e) {
-            log.error("[{}] Failed to remove owned namespace {}", clientAppId(), namespaceName, e);
-            asyncResponse.resume(new RestException(e));
-            return;
         }
-
-        FutureUtil.waitForAll(futures).handle((result, exception) -> {
-            if (exception != null) {
-                if (exception.getCause() instanceof PulsarAdminException) {
-                    asyncResponse.resume(new RestException((PulsarAdminException) exception.getCause()));
-                    return null;
-                } else {
-                    log.error("[{}] Failed to remove owned namespace {}", clientAppId(), namespaceName, exception);
-                    asyncResponse.resume(new RestException(exception.getCause()));
-                    return null;
-                }
+        FutureUtil.waitForAll(futures).thenCompose(__ -> {
+            List<CompletableFuture<Void>> deleteBundleFutures = Lists.newArrayList();
+            NamespaceBundles bundles = pulsar().getNamespaceService().getNamespaceBundleFactory()
+                            .getBundles(namespaceName);
+            for (NamespaceBundle bundle : bundles.getBundles()) {
+                        // check if the bundle is owned by any broker, if not then we do not need to delete the bundle
+                deleteBundleFutures.add(pulsar().getNamespaceService().getOwnerAsync(bundle).thenCompose(ownership -> {
+                    if (ownership.isPresent()) {
+                        try {
+                            return pulsar().getAdminClient().namespaces()
+                                    .deleteNamespaceBundleAsync(namespaceName.toString(), bundle.getBundleRange());
+                        } catch (PulsarServerException e) {
+                            throw new RestException(e);
+                        }
+                    } else {
+                        return CompletableFuture.completedFuture(null);
+                    }
+                }));
             }
-
-            internalClearZkSources(asyncResponse);
-
+            return FutureUtil.waitForAll(deleteBundleFutures);
+        })
+        .thenCompose(__ -> internalClearZkSources())
+        .thenAccept(__ -> {
+            log.info("[{}] Remove namespace successfully {}", clientAppId(), namespaceName);
+            asyncResponse.resume(Response.noContent().build());
+        })
+        .exceptionally(ex -> {
+            log.error("[{}] Failed to remove namespace {}", clientAppId(), namespaceName, ex.getCause());
+            resumeAsyncResponseExceptionally(asyncResponse, ex);
             return null;
         });
     }
 
     // clear zk-node resources for deleting namespace
-    protected void internalClearZkSources(AsyncResponse asyncResponse) {
+    protected CompletableFuture<Void> internalClearZkSources() {
         // clear resource of `/namespace/{namespaceName}` for zk-node
-        namespaceResources().deleteNamespaceAsync(namespaceName)
+        return namespaceResources().deleteNamespaceAsync(namespaceName)
                 .thenCompose(ignore -> namespaceResources().getPartitionedTopicResources()
                         .clearPartitionedTopicMetadataAsync(namespaceName))
                 // clear resource for manager-ledger z-node
@@ -322,18 +324,8 @@ public abstract class NamespacesBase extends AdminResource {
                 // clear z-node of local policies
                 .thenCompose(ignore -> getLocalPolicies().deleteLocalPoliciesAsync(namespaceName))
                 // clear /loadbalance/bundle-data
-                .thenCompose(ignore -> namespaceResources().deleteBundleDataAsync(namespaceName))
-                .whenComplete((ignore, ex) -> {
-                    if (ex != null) {
-                        log.warn("[{}] Failed to remove namespace or managed-ledger for {}",
-                                clientAppId(), namespaceName, ex);
-                        asyncResponse.resume(new RestException(ex));
-                    } else {
-                        log.info("[{}] Remove namespace or managed-ledger successfully {}",
-                                clientAppId(), namespaceName);
-                        asyncResponse.resume(Response.noContent().build());
-                    }
-                });
+                .thenCompose(ignore -> namespaceResources().deleteBundleDataAsync(namespaceName));
+
     }
 
     @SuppressWarnings("deprecation")
@@ -499,7 +491,7 @@ public abstract class NamespacesBase extends AdminResource {
             return;
         }
 
-        FutureUtil.waitForAll(bundleFutures).handle((result, exception) -> {
+        FutureUtil.waitForAll(bundleFutures).thenCompose(__ -> internalClearZkSources()).handle((result, exception) -> {
             if (exception != null) {
                 if (exception.getCause() instanceof PulsarAdminException) {
                     asyncResponse.resume(new RestException((PulsarAdminException) exception.getCause()));
@@ -511,9 +503,7 @@ public abstract class NamespacesBase extends AdminResource {
                     return null;
                 }
             }
-
-            internalClearZkSources(asyncResponse);
-
+            asyncResponse.resume(Response.noContent().build());
             return null;
         });
     }
@@ -802,16 +792,18 @@ public abstract class NamespacesBase extends AdminResource {
         });
     }
 
-    protected void internalSetNamespaceMessageTTL(Integer messageTTL) {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.TTL, PolicyOperation.WRITE);
-        validatePoliciesReadOnlyAccess();
-        if (messageTTL != null && messageTTL < 0) {
-            throw new RestException(Status.PRECONDITION_FAILED, "Invalid value for message TTL");
-        }
-        updatePolicies(namespaceName, policies -> {
-            policies.message_ttl_in_seconds = messageTTL;
-            return policies;
-        });
+    protected CompletableFuture<Void> internalSetNamespaceMessageTTLAsync(Integer messageTTL) {
+        return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.TTL, PolicyOperation.WRITE)
+                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
+                .thenAccept(__ -> {
+                    if (messageTTL != null && messageTTL < 0) {
+                        throw new RestException(Status.PRECONDITION_FAILED,
+                                "Invalid value for message TTL, message TTL must >= 0");
+                    }
+                }).thenCompose(__ -> updatePoliciesAsync(namespaceName, policies -> {
+                    policies.message_ttl_in_seconds = messageTTL;
+                    return policies;
+                }));
     }
 
     protected void internalSetSubscriptionExpirationTime(Integer expirationTime) {
@@ -839,13 +831,17 @@ public abstract class NamespacesBase extends AdminResource {
         validateNamespacePolicyOperation(namespaceName, PolicyName.AUTO_TOPIC_CREATION, PolicyOperation.WRITE);
         validatePoliciesReadOnlyAccess();
         if (autoTopicCreationOverride != null) {
-            if (!AutoTopicCreationOverrideImpl.isValidOverride(autoTopicCreationOverride)) {
+            ValidateResult validateResult = AutoTopicCreationOverrideImpl.validateOverride(autoTopicCreationOverride);
+            if (!validateResult.isSuccess()) {
                 throw new RestException(Status.PRECONDITION_FAILED,
-                        "Invalid configuration for autoTopicCreationOverride");
+                        "Invalid configuration for autoTopicCreationOverride. the detail is "
+                                + validateResult.getErrorInfo());
             }
-            if (maxPartitions > 0 && autoTopicCreationOverride.getDefaultNumPartitions() > maxPartitions) {
-                throw new RestException(Status.NOT_ACCEPTABLE,
-                        "Number of partitions should be less than or equal to " + maxPartitions);
+            if (Objects.equals(autoTopicCreationOverride.getTopicType(), TopicType.PARTITIONED.toString())) {
+                if (maxPartitions > 0 && autoTopicCreationOverride.getDefaultNumPartitions() > maxPartitions) {
+                    throw new RestException(Status.NOT_ACCEPTABLE,
+                            "Number of partitions should be less than or equal to " + maxPartitions);
+                }
             }
         }
         // Force to read the data s.t. the watch to the cache content is setup.
@@ -915,13 +911,13 @@ public abstract class NamespacesBase extends AdminResource {
         internalSetAutoSubscriptionCreation(asyncResponse, null);
     }
 
-    protected void internalModifyDeduplication(Boolean enableDeduplication) {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.DEDUPLICATION, PolicyOperation.WRITE);
-        validatePoliciesReadOnlyAccess();
-        updatePolicies(namespaceName, policies -> {
-            policies.deduplicationEnabled = enableDeduplication;
-            return policies;
-        });
+    protected CompletableFuture<Void> internalModifyDeduplicationAsync(Boolean enableDeduplication) {
+        return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.DEDUPLICATION, PolicyOperation.WRITE)
+                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
+                .thenCompose(__ -> updatePoliciesAsync(namespaceName, policies -> {
+                    policies.deduplicationEnabled = enableDeduplication;
+                    return policies;
+                }));
     }
 
     @SuppressWarnings("deprecation")
@@ -1113,8 +1109,8 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     @SuppressWarnings("deprecation")
-    protected void internalSplitNamespaceBundle(AsyncResponse asyncResponse, String bundleName,
-                                                boolean authoritative, boolean unload, String splitAlgorithmName) {
+    protected void internalSplitNamespaceBundle(AsyncResponse asyncResponse, String bundleName, boolean authoritative,
+                                                boolean unload, String splitAlgorithmName, List<Long> splitBoundaries) {
         validateSuperUserAccess();
         checkNotNull(bundleName, "BundleRange should not be null");
         log.info("[{}] Split namespace bundle {}/{}", clientAppId(), namespaceName, bundleName);
@@ -1135,25 +1131,30 @@ public abstract class NamespacesBase extends AdminResource {
 
         List<String> supportedNamespaceBundleSplitAlgorithms =
                 pulsar().getConfig().getSupportedNamespaceBundleSplitAlgorithms();
-        if (StringUtils.isNotBlank(splitAlgorithmName)
-                && !supportedNamespaceBundleSplitAlgorithms.contains(splitAlgorithmName)) {
-            asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED,
-                    "Unsupported namespace bundle split algorithm, supported algorithms are "
-                            + supportedNamespaceBundleSplitAlgorithms));
+        if (StringUtils.isNotBlank(splitAlgorithmName)) {
+            if (!supportedNamespaceBundleSplitAlgorithms.contains(splitAlgorithmName)) {
+                asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED,
+                        "Unsupported namespace bundle split algorithm, supported algorithms are "
+                                + supportedNamespaceBundleSplitAlgorithms));
+            }
+            if (splitAlgorithmName.equalsIgnoreCase(NamespaceBundleSplitAlgorithm.SPECIFIED_POSITIONS_DIVIDE)
+                    && (splitBoundaries == null || splitBoundaries.size() == 0)) {
+                asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED,
+                        "With specified_positions_divide split algorithm, splitBoundaries must not be emtpy"));
+            }
         }
 
         NamespaceBundle nsBundle;
-
         try {
             nsBundle = validateNamespaceBundleOwnership(namespaceName, policies.bundles, bundleRange,
-                    authoritative, true);
+                    authoritative, false);
         } catch (Exception e) {
             asyncResponse.resume(e);
             return;
         }
 
         pulsar().getNamespaceService().splitAndOwnBundle(nsBundle, unload,
-                getNamespaceBundleSplitAlgorithmByName(splitAlgorithmName))
+                getNamespaceBundleSplitAlgorithmByName(splitAlgorithmName), splitBoundaries)
                 .thenRun(() -> {
                     log.info("[{}] Successfully split namespace bundle {}", clientAppId(), nsBundle.toString());
                     asyncResponse.resume(Response.noContent().build());
@@ -1169,6 +1170,56 @@ public abstract class NamespacesBase extends AdminResource {
             }
             return null;
         });
+    }
+
+    protected void internalGetTopicHashPositions(AsyncResponse asyncResponse, String bundleRange, List<String> topics) {
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] Getting hash position for topic list {}, bundle {}", clientAppId(), topics, bundleRange);
+        }
+        validateNamespacePolicyOperation(namespaceName, PolicyName.PERSISTENCE, PolicyOperation.READ);
+        Policies policies = getNamespacePolicies(namespaceName);
+        NamespaceBundle bundle = validateNamespaceBundleOwnership(namespaceName, policies.bundles, bundleRange,
+                false, true);
+        pulsar().getNamespaceService().getOwnedTopicListForNamespaceBundle(bundle).whenComplete(
+                (allTopicsInThisBundle, throwable) -> {
+                    if (throwable != null) {
+                        log.error("[{}] {} Failed to get topic list for bundle {}.", clientAppId(),
+                                namespaceName, bundle);
+                        asyncResponse.resume(new RestException(throwable));
+                    }
+                    // if topics is empty, return all topics' hash position in this bundle
+                    Map<String, Long> topicHashPositions = new HashMap<>();
+                    if (topics == null || topics.size() == 0) {
+                        allTopicsInThisBundle.forEach(t -> {
+                            topicHashPositions.put(t,
+                                    pulsar().getNamespaceService().getNamespaceBundleFactory()
+                                            .getLongHashCode(t));
+                        });
+                    } else {
+                        for (String topic : topics.stream().map(Codec::decode).collect(Collectors.toList())) {
+                            TopicName topicName = TopicName.get(topic);
+                            // partitioned topic
+                            if (topicName.getPartitionIndex() == -1) {
+                                allTopicsInThisBundle.stream()
+                                        .filter(t -> TopicName.get(t).getPartitionedTopicName()
+                                                .equals(TopicName.get(topic).getPartitionedTopicName()))
+                                        .forEach(partition -> {
+                                            topicHashPositions.put(partition,
+                                                    pulsar().getNamespaceService().getNamespaceBundleFactory()
+                                                            .getLongHashCode(partition));
+                                        });
+                            } else { // topic partition
+                                if (allTopicsInThisBundle.contains(topicName.toString())) {
+                                    topicHashPositions.put(topic,
+                                            pulsar().getNamespaceService().getNamespaceBundleFactory()
+                                                    .getLongHashCode(topic));
+                                }
+                            }
+                        }
+                    }
+                    asyncResponse.resume(
+                            new TopicHashPositions(namespaceName.toString(), bundleRange, topicHashPositions));
+                });
     }
 
     private String getBundleRange(String bundleName) {
@@ -1936,14 +1987,14 @@ public abstract class NamespacesBase extends AdminResource {
                 }
                 for (Topic topic : topicList) {
                     if (topic instanceof PersistentTopic
-                            && !SystemTopicClient.isSystemTopic(TopicName.get(topic.getName()))) {
+                            && !pulsar().getBrokerService().isSystemTopic(TopicName.get(topic.getName()))) {
                         futures.add(((PersistentTopic) topic).clearBacklog(subscription));
                     }
                 }
             } else {
                 for (Topic topic : topicList) {
                     if (topic instanceof PersistentTopic
-                            && !SystemTopicClient.isSystemTopic(TopicName.get(topic.getName()))) {
+                            && !pulsar().getBrokerService().isSystemTopic(TopicName.get(topic.getName()))) {
                         futures.add(((PersistentTopic) topic).clearBacklog());
                     }
                 }
@@ -2043,6 +2094,42 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
+    private CompletableFuture<Void> validatePoliciesAsync(NamespaceName ns, Policies policies) {
+        if (ns.isV2() && policies.replication_clusters.isEmpty()) {
+            // Default to local cluster
+            policies.replication_clusters = Collections.singleton(config().getClusterName());
+        }
+
+        // Validate cluster names and permissions
+        return policies.replication_clusters.stream()
+                    .map(cluster -> validateClusterForTenantAsync(ns.getTenant(), cluster))
+                    .reduce(CompletableFuture.completedFuture(null), (a, b) -> a.thenCompose(ignore -> b))
+            .thenAccept(__ -> {
+                if (policies.message_ttl_in_seconds != null && policies.message_ttl_in_seconds < 0) {
+                    throw new RestException(Status.PRECONDITION_FAILED, "Invalid value for message TTL");
+                }
+
+                if (policies.bundles != null && policies.bundles.getNumBundles() > 0) {
+                    if (policies.bundles.getBoundaries() == null || policies.bundles.getBoundaries().size() == 0) {
+                        policies.bundles = getBundles(policies.bundles.getNumBundles());
+                    } else {
+                        policies.bundles = validateBundlesData(policies.bundles);
+                    }
+                } else {
+                    int defaultNumberOfBundles = config().getDefaultNumberOfNamespaceBundles();
+                    policies.bundles = getBundles(defaultNumberOfBundles);
+                }
+
+                if (policies.persistence != null) {
+                    validatePersistencePolicies(policies.persistence);
+                }
+
+                if (policies.retention_policies != null) {
+                    validateRetentionPolicies(policies.retention_policies);
+                }
+            });
+    }
+
     protected void validateRetentionPolicies(RetentionPolicies retention) {
         if (retention == null) {
             return;
@@ -2100,9 +2187,10 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
-    protected Boolean internalGetDeduplication() {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.DEDUPLICATION, PolicyOperation.READ);
-        return getNamespacePolicies(namespaceName).deduplicationEnabled;
+    protected CompletableFuture<Boolean> internalGetDeduplicationAsync() {
+        return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.DEDUPLICATION, PolicyOperation.READ)
+                .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
+                .thenApply(policies -> policies.deduplicationEnabled);
     }
 
     protected Integer internalGetMaxConsumersPerTopic() {
@@ -2744,6 +2832,21 @@ public abstract class NamespacesBase extends AdminResource {
         internalSetPolicies("resource_group_name", rgName);
     }
 
+    protected void internalScanOffloadedLedgers(OffloaderObjectsScannerUtils.ScannerResultSink sink)
+            throws Exception {
+        log.info("internalScanOffloadedLedgers {}", namespaceName);
+        validateNamespacePolicyOperation(namespaceName, PolicyName.OFFLOAD, PolicyOperation.READ);
+
+        Policies policies = getNamespacePolicies(namespaceName);
+        LedgerOffloader managedLedgerOffloader = pulsar()
+                .getManagedLedgerOffloader(namespaceName, (OffloadPoliciesImpl) policies.offload_policies);
+
+        String localClusterName = pulsar().getConfiguration().getClusterName();
+
+        OffloaderObjectsScannerUtils.scanOffloadedLedgers(managedLedgerOffloader,
+                localClusterName, pulsar().getManagedLedgerFactory(), sink);
+
+    }
 
     private static final Logger log = LoggerFactory.getLogger(NamespacesBase.class);
 }

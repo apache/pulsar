@@ -30,11 +30,13 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import com.google.common.base.Charsets;
 import com.google.common.collect.BoundType;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Range;
 import com.google.common.collect.Sets;
+import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
 import java.lang.reflect.Field;
 import java.net.URL;
@@ -43,6 +45,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -112,6 +115,7 @@ import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
 import org.apache.pulsar.common.policies.data.BacklogQuota.RetentionPolicy;
 import org.apache.pulsar.common.policies.data.BrokerAssignment;
 import org.apache.pulsar.common.policies.data.BrokerInfo;
+import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
@@ -127,6 +131,7 @@ import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.policies.data.TopicHashPositions;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -162,6 +167,8 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
     @BeforeMethod
     @Override
     public void setup() throws Exception {
+        conf.setSystemTopicEnabled(false);
+        conf.setTopicLevelPoliciesEnabled(false);
         conf.setLoadBalancerEnabled(true);
         conf.setBrokerServicePortTls(Optional.of(0));
         conf.setWebServicePortTls(Optional.of(0));
@@ -495,6 +502,28 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         assertEquals(admin.clusters().getClusters(), Lists.newArrayList());
     }
 
+    @Test
+    public void testUpdateDynamicCacheConfigurationWithZkWatch() throws Exception {
+        // update configuration
+        admin.brokers().updateDynamicConfiguration("managedLedgerCacheSizeMB", "1");
+        admin.brokers().updateDynamicConfiguration("managedLedgerCacheEvictionWatermark", "0.8");
+        admin.brokers().updateDynamicConfiguration("managedLedgerCacheEvictionTimeThresholdMillis", "2000");
+
+        // wait config to be updated
+        Awaitility.await().until(() -> {
+            return pulsar.getManagedLedgerFactory().getEntryCacheManager().getMaxSize() == 1 * 1024L * 1024L
+                    && pulsar.getManagedLedgerFactory().getEntryCacheManager().getCacheEvictionWatermark() == 0.8
+                    && pulsar.getManagedLedgerFactory().getCacheEvictionTimeThreshold() == TimeUnit.MILLISECONDS
+                    .toNanos(2000);
+        });
+
+        // verify value is updated
+        assertEquals(pulsar.getManagedLedgerFactory().getEntryCacheManager().getMaxSize(), 1 * 1024L * 1024L);
+        assertEquals(pulsar.getManagedLedgerFactory().getEntryCacheManager().getCacheEvictionWatermark(), 0.8);
+        assertEquals(pulsar.getManagedLedgerFactory().getCacheEvictionTimeThreshold(), TimeUnit.MILLISECONDS
+                .toNanos(2000));
+    }
+
     /**
      * <pre>
      * Verifies: zk-update configuration updates service-config
@@ -533,7 +562,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         // (2) try to update non-dynamic field
         try {
-            admin.brokers().updateDynamicConfiguration("zookeeperServers", "test-zk:1234");
+            admin.brokers().updateDynamicConfiguration("metadataStoreUrl", "zk:test-zk:1234");
         } catch (Exception e) {
             assertTrue(e instanceof PreconditionFailedException);
         }
@@ -736,6 +765,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         policies.bundles = PoliciesUtil.defaultBundle();
         policies.auth_policies.getNamespaceAuthentication().put("spiffe://developer/passport-role", EnumSet.allOf(AuthAction.class));
         policies.auth_policies.getNamespaceAuthentication().put("my-role", EnumSet.allOf(AuthAction.class));
+        policies.is_allow_auto_update_schema = conf.isAllowAutoUpdateSchemaEnabled();
 
         assertEquals(admin.namespaces().getPolicies("prop-xyz/ns1"), policies);
         assertEquals(admin.namespaces().getPermissions("prop-xyz/ns1"), policies.auth_policies.getNamespaceAuthentication());
@@ -746,6 +776,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().revokePermissionsOnNamespace("prop-xyz/ns1", "my-role");
         policies.auth_policies.getNamespaceAuthentication().remove("spiffe://developer/passport-role");
         policies.auth_policies.getNamespaceAuthentication().remove("my-role");
+        policies.is_allow_auto_update_schema = conf.isAllowAutoUpdateSchemaEnabled();
         assertEquals(admin.namespaces().getPolicies("prop-xyz/ns1"), policies);
 
         assertEquals(admin.namespaces().getPersistence("prop-xyz/ns1"), null);
@@ -877,6 +908,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         try {
             admin.topics().skipAllMessages(persistentTopicName, subName);
         } catch (NotFoundException e) {
+            assertTrue(e.getMessage().contains(subName));
         }
 
         admin.topics().delete(persistentTopicName);
@@ -885,6 +917,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
             admin.topics().delete(persistentTopicName);
             fail("Should have received 404");
         } catch (NotFoundException e) {
+            assertTrue(e.getMessage().contains(persistentTopicName));
         }
 
         assertEquals(admin.topics().getList("prop-xyz/ns1"), Lists.newArrayList());
@@ -1085,6 +1118,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
             admin.topics().deletePartitionedTopic(anotherTopic);
             fail("Should have failed as the partitioned topic was not created");
         } catch (NotFoundException nfe) {
+            assertTrue(nfe.getMessage().contains(anotherTopic));
         }
 
         admin.topics().deletePartitionedTopic(partitionedTopicName);
@@ -1433,6 +1467,184 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    public void testNamespacesGetTopicHashPositions() throws Exception {
+        // Force to create a namespace with only one bundle and create a topic
+        final String namespace = "prop-xyz/ns-one-bundle";
+        final String topic = "persistent://"+ namespace + "/topic";
+        final int topicPartitionNumber = 4;
+
+        Policies policies = new Policies();
+        policies.bundles  = PoliciesUtil.getBundles(1);
+        admin.namespaces().createNamespace(namespace, policies);
+        admin.topics().createPartitionedTopic(topic, topicPartitionNumber);
+        admin.lookups().lookupPartitionedTopic(topic);
+
+        // check bundles and bundle boundaries
+        BundlesData bundleData = admin.namespaces().getBundles(namespace);
+        assertEquals(bundleData.getNumBundles(), 1);
+        assertEquals(bundleData.getBoundaries().size(), 2);
+        assertEquals(bundleData.getBoundaries().get(0), "0x00000000");
+        assertEquals(bundleData.getBoundaries().get(1), "0xffffffff");
+
+        // test get topic position for partitioned-topic name
+        String bundleRange = "0x00000000_0xffffffff";
+        TopicHashPositions topicHashPositions =
+                admin.namespaces().getTopicHashPositions(namespace, bundleRange, Collections.singletonList(topic));
+        assertEquals(topicHashPositions.getNamespace(), "prop-xyz/ns-one-bundle");
+        assertEquals(topicHashPositions.getBundle(), "0x00000000_0xffffffff");
+        assertEquals(topicHashPositions.getTopicHashPositions().size(), topicPartitionNumber);
+
+        final HashFunction hashFunction = Hashing.crc32();
+        assertEquals((long) topicHashPositions.getTopicHashPositions().get(topic + "-partition-0"),
+                hashFunction.hashString(topic + "-partition-0", Charsets.UTF_8).padToLong());
+        assertEquals((long) topicHashPositions.getTopicHashPositions().get(topic + "-partition-1"),
+                hashFunction.hashString(topic + "-partition-1", Charsets.UTF_8).padToLong());
+        assertEquals((long) topicHashPositions.getTopicHashPositions().get(topic + "-partition-2"),
+                hashFunction.hashString(topic + "-partition-2", Charsets.UTF_8).padToLong());
+        assertEquals((long) topicHashPositions.getTopicHashPositions().get(topic + "-partition-3"),
+                hashFunction.hashString(topic + "-partition-3", Charsets.UTF_8).padToLong());
+
+        // test get hash position for topic partition
+        List<String> partitions = new ArrayList<>();
+        partitions.add(topic + "-partition-0");
+        partitions.add(topic + "-partition-1");
+        partitions.add(topic + "-partition-2");
+        partitions.add(topic + "-partition-3");
+        topicHashPositions = admin.namespaces().getTopicHashPositions(namespace, bundleRange, partitions);
+
+        assertEquals(topicHashPositions.getNamespace(), "prop-xyz/ns-one-bundle");
+        assertEquals(topicHashPositions.getBundle(), "0x00000000_0xffffffff");
+        assertEquals(topicHashPositions.getTopicHashPositions().size(), topicPartitionNumber);
+
+        assertEquals((long) topicHashPositions.getTopicHashPositions().get(topic + "-partition-0"),
+                hashFunction.hashString(topic + "-partition-0", Charsets.UTF_8).padToLong());
+        assertEquals((long) topicHashPositions.getTopicHashPositions().get(topic + "-partition-1"),
+                hashFunction.hashString(topic + "-partition-1", Charsets.UTF_8).padToLong());
+        assertEquals((long) topicHashPositions.getTopicHashPositions().get(topic + "-partition-2"),
+                hashFunction.hashString(topic + "-partition-2", Charsets.UTF_8).padToLong());
+        assertEquals((long) topicHashPositions.getTopicHashPositions().get(topic + "-partition-3"),
+                hashFunction.hashString(topic + "-partition-3", Charsets.UTF_8).padToLong());
+
+        // test non-exist topic
+        topicHashPositions = admin.namespaces().getTopicHashPositions(namespace,
+                bundleRange, Collections.singletonList(topic + "no-exist"));
+        assertEquals(topicHashPositions.getTopicHashPositions().size(), 0);
+
+        // test topics is null
+        topicHashPositions = admin.namespaces().getTopicHashPositions(namespace,
+                bundleRange, null);
+        assertEquals((long) topicHashPositions.getTopicHashPositions().get(topic + "-partition-0"),
+                hashFunction.hashString(topic + "-partition-0", Charsets.UTF_8).padToLong());
+        assertEquals((long) topicHashPositions.getTopicHashPositions().get(topic + "-partition-1"),
+                hashFunction.hashString(topic + "-partition-1", Charsets.UTF_8).padToLong());
+        assertEquals((long) topicHashPositions.getTopicHashPositions().get(topic + "-partition-2"),
+                hashFunction.hashString(topic + "-partition-2", Charsets.UTF_8).padToLong());
+        assertEquals((long) topicHashPositions.getTopicHashPositions().get(topic + "-partition-3"),
+                hashFunction.hashString(topic + "-partition-3", Charsets.UTF_8).padToLong());
+
+        // test topics is empty
+        topicHashPositions = admin.namespaces().getTopicHashPositions(namespace,
+                bundleRange, new ArrayList<>());
+        assertEquals((long) topicHashPositions.getTopicHashPositions().get(topic + "-partition-0"),
+                hashFunction.hashString(topic + "-partition-0", Charsets.UTF_8).padToLong());
+        assertEquals((long) topicHashPositions.getTopicHashPositions().get(topic + "-partition-1"),
+                hashFunction.hashString(topic + "-partition-1", Charsets.UTF_8).padToLong());
+        assertEquals((long) topicHashPositions.getTopicHashPositions().get(topic + "-partition-2"),
+                hashFunction.hashString(topic + "-partition-2", Charsets.UTF_8).padToLong());
+        assertEquals((long) topicHashPositions.getTopicHashPositions().get(topic + "-partition-3"),
+                hashFunction.hashString(topic + "-partition-3", Charsets.UTF_8).padToLong());
+    }
+
+
+    @Test
+    public void testNamespaceSplitBundleWithSpecifiedPositionsDivideAlgorithm() throws Exception {
+        // 1. Force to create a topic
+        final String namespace = "prop-xyz/ns-one-bundle";
+        final String topic = "persistent://"+ namespace + "/topic";
+        final int topicPartitionNumber = 4;
+
+        Policies policies = new Policies();
+        policies.bundles  = PoliciesUtil.getBundles(1);
+        admin.namespaces().createNamespace(namespace, policies);
+        admin.topics().createPartitionedTopic(topic, topicPartitionNumber);
+        // 2. trigger bundle loading
+        admin.lookups().lookupPartitionedTopic(topic);
+
+        // 3. check namespace bundle and topics exist
+        List<String> topics = admin.topics().getList(namespace);
+        assertTrue(topics.contains(topic + "-partition-0"));
+        assertTrue(topics.contains(topic + "-partition-1"));
+        assertTrue(topics.contains(topic + "-partition-2"));
+        assertTrue(topics.contains(topic + "-partition-3"));
+
+        // 4. check bundles and bundle boundaries
+        BundlesData bundleData = admin.namespaces().getBundles(namespace);
+        assertEquals(bundleData.getNumBundles(), 1);
+        assertEquals(bundleData.getBoundaries().size(), 2);
+        assertEquals(bundleData.getBoundaries().get(0), "0x00000000");
+        assertEquals(bundleData.getBoundaries().get(1), "0xffffffff");
+
+        // 5. calculate positions for split
+        final HashFunction hashFunction = Hashing.crc32();
+        List<Long> hashPositions = new ArrayList<>();
+        hashPositions.add(hashFunction.hashString(topic + "-partition-0", Charsets.UTF_8).padToLong());
+        hashPositions.add(hashFunction.hashString(topic + "-partition-1", Charsets.UTF_8).padToLong());
+        hashPositions.add(hashFunction.hashString(topic + "-partition-2", Charsets.UTF_8).padToLong());
+        hashPositions.add(hashFunction.hashString(topic + "-partition-3", Charsets.UTF_8).padToLong());
+
+        // 6. do split by SPECIFIED_POSITIONS_DIVIDE
+        admin.namespaces().splitNamespaceBundle(namespace, "0x00000000_0xffffffff", false,
+                NamespaceBundleSplitAlgorithm.SPECIFIED_POSITIONS_DIVIDE, hashPositions);
+
+        // 7. check split result
+        NamespaceBundles bundles = bundleFactory.getBundles(NamespaceName.get(namespace));
+        assertEquals(bundles.getBundles().size(), 5);
+
+        Collections.sort(hashPositions);
+        String[] splitRange = {
+                "0x00000000_" + String.format("0x%08x",hashPositions.get(0)),
+                String.format("0x%08x", hashPositions.get(0)) + "_" + String.format("0x%08x", hashPositions.get(1)),
+                String.format("0x%08x", hashPositions.get(1)) + "_" + String.format("0x%08x", hashPositions.get(2)),
+                String.format("0x%08x", hashPositions.get(2)) + "_" + String.format("0x%08x", hashPositions.get(3)),
+                String.format("0x%08x", hashPositions.get(3)) + "_0xffffffff"
+        };
+
+        Set<String> bundleRanges = new HashSet<>();
+        bundles.getBundles().forEach(bundle -> bundleRanges.add(bundle.getBundleRange()));
+        Lists.newArrayList(splitRange).forEach(bundleRanges::remove);
+        assertEquals(bundleRanges.size(), 0);
+
+        // 8. check split result from admin cli tool
+        BundlesData adminBundleData = admin.namespaces().getBundles(namespace);
+        assertEquals(adminBundleData.getNumBundles(), 5);
+        String[] boundaries = {
+                "0x00000000",
+                String.format("0x%08x", hashPositions.get(0)),
+                String.format("0x%08x", hashPositions.get(1)),
+                String.format("0x%08x", hashPositions.get(2)),
+                String.format("0x%08x", hashPositions.get(3)),
+                "0xffffffff"
+        };
+        Lists.newArrayList(boundaries).forEach(adminBundleData.getBoundaries()::remove);
+        assertEquals(adminBundleData.getBoundaries().size(), 0);
+
+        // 9. test split at full upper and lower boundaries
+        List<Long> fullBoundaries =
+                Lists.newArrayList(NamespaceBundles.FULL_UPPER_BOUND, NamespaceBundles.FULL_UPPER_BOUND);
+        admin.namespaces().splitNamespaceBundle(namespace, "0x00000000_" + String.format("0x%08x",hashPositions.get(0)),
+                false, NamespaceBundleSplitAlgorithm.SPECIFIED_POSITIONS_DIVIDE, fullBoundaries);
+        admin.namespaces().splitNamespaceBundle(namespace, String.format("0x%08x", hashPositions.get(3)) + "_0xffffffff",
+                false, NamespaceBundleSplitAlgorithm.SPECIFIED_POSITIONS_DIVIDE, fullBoundaries);
+
+        // 10. full upper or lower boundaries does not split bundle
+        NamespaceBundles nbs = bundleFactory.getBundles(NamespaceName.get(namespace));
+        assertEquals(nbs.getBundles().size(), 5);
+        BundlesData adminBD = admin.namespaces().getBundles(namespace);
+        assertEquals(adminBD.getNumBundles(), 5);
+        assertEquals(adminBD.getBoundaries().size(), 6);
+    }
+
+    @Test
     public void testNamespaceSplitBundleWithInvalidAlgorithm() {
         // Force to create a topic
         final String namespace = "prop-xyz/ns1";
@@ -1531,10 +1743,11 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
             fail("split bundle shouldn't have thrown exception");
         }
 
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(bundleFactory.getBundles(NamespaceName.get(namespace)).getBundles().size(), 4));
         String[] splitRange4 = { namespace + "/0x00000000_0x3fffffff", namespace + "/0x3fffffff_0x7fffffff",
                 namespace + "/0x7fffffff_0xbfffffff", namespace + "/0xbfffffff_0xffffffff" };
         bundles = bundleFactory.getBundles(NamespaceName.get(namespace));
-        assertEquals(bundles.getBundles().size(), 4);
         for (int i = 0; i < bundles.getBundles().size(); i++) {
             assertEquals(bundles.getBundles().get(i).toString(), splitRange4[i]);
         }
@@ -1564,13 +1777,13 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         } catch (Exception e) {
             fail("split bundle shouldn't have thrown exception");
         }
-
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(bundleFactory.getBundles(NamespaceName.get(namespace)).getBundles().size(), 8));
         String[] splitRange8 = { namespace + "/0x00000000_0x1fffffff", namespace + "/0x1fffffff_0x3fffffff",
                 namespace + "/0x3fffffff_0x5fffffff", namespace + "/0x5fffffff_0x7fffffff",
                 namespace + "/0x7fffffff_0x9fffffff", namespace + "/0x9fffffff_0xbfffffff",
                 namespace + "/0xbfffffff_0xdfffffff", namespace + "/0xdfffffff_0xffffffff" };
         bundles = bundleFactory.getBundles(NamespaceName.get(namespace));
-        assertEquals(bundles.getBundles().size(), 8);
         for (int i = 0; i < bundles.getBundles().size(); i++) {
             assertEquals(bundles.getBundles().get(i).toString(), splitRange8[i]);
         }
@@ -1917,7 +2130,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
             admin.topics().getStats("persistent://prop-xyz/ns1/ghostTopic");
             fail("The topic doesn't exist");
         } catch (NotFoundException e) {
-            // OK
+            assertTrue(e.getMessage().contains("persistent://prop-xyz/ns1/ghostTopic"));
         }
     }
 
@@ -2006,6 +2219,20 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         assertEquals(admin.topics().getList("prop-xyz/ns1"), Lists.newArrayList());
 
         topicName = "persistent://prop-xyz/ns1/" + topicName;
+
+        try {
+            admin.topics().resetCursor(topicName, "my-sub", System.currentTimeMillis());
+        } catch (PulsarAdminException.NotFoundException e) {
+            assertTrue(e.getMessage().contains(topicName));
+        }
+
+        admin.topics().createNonPartitionedTopic(topicName);
+
+        try {
+            admin.topics().resetCursor(topicName, "my-sub", System.currentTimeMillis());
+        } catch (PulsarAdminException.NotFoundException e) {
+            assertTrue(e.getMessage().contains("my-sub"));
+        }
 
         // create consumer and subscription
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName)
@@ -2199,7 +2426,19 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().setRetention("prop-xyz/ns1", new RetentionPolicies(10, 10));
         topicName = "persistent://prop-xyz/ns1/" + topicName;
 
+        try {
+            admin.topics().resetCursor(topicName, "my-sub", System.currentTimeMillis());
+        } catch (PulsarAdminException.NotFoundException e) {
+            assertTrue(e.getMessage().contains(topicName));
+        }
+
         admin.topics().createPartitionedTopic(topicName, 4);
+
+        try {
+            admin.topics().resetCursor(topicName, "my-sub", System.currentTimeMillis());
+        } catch (PulsarAdminException.NotFoundException e) {
+            assertTrue(e.getMessage().contains("my-sub"));
+        }
 
         // create consumer and subscription
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName)
@@ -2501,10 +2740,10 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testNamespaceNotExist() {
-        final String nonPartitionedtopic = "persistent://prop-xyz/no-exist/non-partitioned-topic";
+        final String nonPartitionedTopic = "persistent://prop-xyz/no-exist/non-partitioned-topic";
         try {
-            admin.topics().createNonPartitionedTopic(nonPartitionedtopic);
-            fail("should falied for namespaces not exist");
+            admin.topics().createNonPartitionedTopic(nonPartitionedTopic);
+            fail("should failed for namespaces not exist");
         } catch (Exception e) {
             assertTrue(e instanceof NotFoundException);
             assertTrue(e.getMessage().equals("Namespace not found"));
@@ -3034,8 +3273,6 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
     public void testPartitionedTopicTruncate() throws Exception {
         final String topicName = "persistent://prop-xyz/ns1/testTruncateTopic-" + UUID.randomUUID().toString();
         final String subName = "my-sub";
-        this.conf.setTopicLevelPoliciesEnabled(true);
-        this.conf.setSystemTopicEnabled(true);
         admin.topics().createPartitionedTopic(topicName,6);
         admin.namespaces().setRetention("prop-xyz/ns1", new RetentionPolicies(60, 50));
         List<MessageId> messageIds = publishMessagesOnPersistentTopic(topicName, 10);

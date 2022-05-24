@@ -219,12 +219,13 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
         config.setAdvertisedAddress("localhost");
         config.setWebServicePort(Optional.of(0));
         config.setWebServicePortTls(Optional.of(0));
-        config.setZookeeperServers("127.0.0.1:" + bookkeeperEnsemble.getZookeeperPort());
-        config.setConfigurationStoreServers("127.0.0.1:" + globalZkS.getZookeeperPort() + "/foo");
+        config.setMetadataStoreUrl("zk:127.0.0.1:" + bookkeeperEnsemble.getZookeeperPort());
+        config.setConfigurationMetadataStoreUrl("zk:127.0.0.1:" + globalZkS.getZookeeperPort() + "/foo");
         config.setBrokerDeleteInactiveTopicsEnabled(isBrokerServicePurgeInactiveTopic());
         config.setBrokerDeleteInactiveTopicsFrequencySeconds(
                 inSec(getBrokerServicePurgeInactiveFrequency(), TimeUnit.SECONDS));
         config.setBrokerShutdownTimeoutMs(0L);
+        config.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
         config.setBrokerServicePort(Optional.of(0));
         config.setBrokerServicePortTls(Optional.of(0));
         config.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
@@ -235,8 +236,6 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
         config.setAllowAutoTopicCreationType("non-partitioned");
         config.setEnableReplicatedSubscriptions(true);
         config.setReplicatedSubscriptionsSnapshotFrequencyMillis(1000);
-        config.setSystemTopicEnabled(true);
-        config.setTopicLevelPoliciesEnabled(true);
     }
 
     public void resetConfig1() {

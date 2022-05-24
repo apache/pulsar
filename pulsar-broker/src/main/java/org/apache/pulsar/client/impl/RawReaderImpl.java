@@ -31,6 +31,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.RawMessage;
 import org.apache.pulsar.client.api.RawReader;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
@@ -57,6 +58,7 @@ public class RawReaderImpl implements RawReader {
         consumerConfiguration.setSubscriptionType(SubscriptionType.Exclusive);
         consumerConfiguration.setReceiverQueueSize(DEFAULT_RECEIVER_QUEUE_SIZE);
         consumerConfiguration.setReadCompacted(true);
+        consumerConfiguration.setSubscriptionInitialPosition(SubscriptionInitialPosition.Earliest);
 
         consumer = new RawConsumerImpl(client, consumerConfiguration,
                                        consumerFuture);
@@ -114,6 +116,7 @@ public class RawReaderImpl implements RawReader {
                     conf,
                     client.externalExecutorProvider(),
                     TopicName.getPartitionIndex(conf.getSingleTopic()),
+                    false,
                     false,
                     consumerFuture,
                     MessageId.earliest,

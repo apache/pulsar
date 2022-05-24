@@ -138,6 +138,11 @@ message ManagedLedgerInfoMetadata {
     required int32 uncompressedSize = 2;
 }
 
+message ManagedCursorInfoMetadata {
+    required CompressionType compressionType = 1;
+    required int32 uncompressedSize = 2;
+}
+
 message TrashDataComponent {
     map<string, ManagedLedgerInfo.LedgerInfo> component = 1;
 }

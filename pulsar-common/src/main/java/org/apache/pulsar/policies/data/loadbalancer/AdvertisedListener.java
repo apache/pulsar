@@ -21,10 +21,8 @@ package org.apache.pulsar.policies.data.loadbalancer;
 import java.net.URI;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
-import lombok.Getter;
+import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.Setter;
-import lombok.ToString;
 
 /**
  * The advertisedListener for broker with brokerServiceUrl and brokerServiceUrlTls.
@@ -32,16 +30,33 @@ import lombok.ToString;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@ToString
+@Data
 public class AdvertisedListener {
     //
-    @Getter
-    @Setter
     // the broker service uri without ssl
     private URI brokerServiceUrl;
     //
-    @Getter
-    @Setter
     // the broker service uri with ssl
     private URI brokerServiceUrlTls;
+
+    //
+    // the broker service uri without ssl
+    private URI brokerHttpUrl;
+    //
+    // the broker service uri with ssl
+    private URI brokerHttpsUrl;
+
+    public boolean hasUriForProtocol(String protocol) {
+        if ("pulsar".equals(protocol)) {
+            return brokerServiceUrl != null;
+        } else if ("pulsar+ssl".equals(protocol)) {
+            return brokerServiceUrlTls != null;
+        } else if ("http".equals(protocol)) {
+            return brokerHttpUrl != null;
+        } else if ("https".equals(protocol)) {
+            return brokerHttpsUrl != null;
+        } else {
+            return false;
+        }
+    }
 }

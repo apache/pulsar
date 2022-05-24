@@ -62,24 +62,6 @@ import org.testng.annotations.Test;
 @Slf4j
 @Test(groups = "broker-impl")
 public class AdminApiKeyStoreTlsAuthTest extends ProducerConsumerBase {
-
-    protected final String BROKER_KEYSTORE_FILE_PATH =
-            "./src/test/resources/authentication/keystoretls/broker.keystore.jks";
-    protected final String BROKER_TRUSTSTORE_FILE_PATH =
-            "./src/test/resources/authentication/keystoretls/broker.truststore.jks";
-    protected final String BROKER_KEYSTORE_PW = "111111";
-    protected final String BROKER_TRUSTSTORE_PW = "111111";
-
-    protected final String CLIENT_KEYSTORE_FILE_PATH =
-            "./src/test/resources/authentication/keystoretls/client.keystore.jks";
-    protected final String CLIENT_TRUSTSTORE_FILE_PATH =
-            "./src/test/resources/authentication/keystoretls/client.truststore.jks";
-    protected final String CLIENT_KEYSTORE_PW = "111111";
-    protected final String CLIENT_TRUSTSTORE_PW = "111111";
-
-    protected final String CLIENT_KEYSTORE_CN = "clientuser";
-    protected final String KEYSTORE_TYPE = "JKS";
-
     private final String clusterName = "test";
     Set<String> tlsProtocols = Sets.newConcurrentHashSet();
 

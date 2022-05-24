@@ -24,17 +24,17 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.protobuf.util.JsonFormat;
-import io.kubernetes.client.openapi.apis.AppsV1Api;
-import io.kubernetes.client.openapi.apis.CoreV1Api;
 import io.kubernetes.client.custom.Quantity;
 import io.kubernetes.client.openapi.models.V1Container;
 import io.kubernetes.client.openapi.models.V1PodSpec;
+import io.kubernetes.client.openapi.models.V1PodTemplateSpec;
 import io.kubernetes.client.openapi.models.V1ResourceRequirements;
 import io.kubernetes.client.openapi.models.V1Service;
 import io.kubernetes.client.openapi.models.V1StatefulSet;
 import io.kubernetes.client.openapi.models.V1Toleration;
 import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.ConsumerSpec;
@@ -42,6 +42,7 @@ import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.runtime.RuntimeCustomizer;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntime;
 import org.apache.pulsar.functions.secretsprovider.ClearTextSecretsProvider;
+import org.apache.pulsar.functions.secretsproviderconfigurator.DefaultSecretsProviderConfigurator;
 import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.worker.ConnectorsManager;
@@ -66,6 +67,7 @@ import static org.apache.pulsar.functions.utils.FunctionCommon.roundDecimal;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
@@ -85,8 +87,8 @@ public class KubernetesRuntimeTest {
     private static final String narExtractionDirectory = "/tmp/foo";
 
     static {
-        topicsToSerDeClassName.put("persistent://sample/standalone/ns1/test_src", "");
-        topicsToSchema.put("persistent://sample/standalone/ns1/test_src",
+        topicsToSerDeClassName.put("test_src", "");
+        topicsToSchema.put("test_src",
                 ConsumerSpec.newBuilder().setSerdeClassName("").setIsRegexPattern(false).build());
     }
 
@@ -106,11 +108,6 @@ public class KubernetesRuntimeTest {
     }
 
     class TestSecretProviderConfigurator implements SecretsProviderConfigurator {
-
-        @Override
-        public void init(Map<String, String> config) {
-
-        }
 
         @Override
         public String getSecretsProviderClassName(FunctionDetails functionDetails) {
@@ -147,10 +144,6 @@ public class KubernetesRuntimeTest {
             return null;
         }
 
-        @Override
-        public void doAdmissionChecks(AppsV1Api appsV1Api, CoreV1Api coreV1Api, String jobNamespace, String jobName, FunctionDetails functionDetails) {
-
-        }
     }
 
     private KubernetesRuntimeFactory factory;
@@ -512,7 +505,7 @@ public class KubernetesRuntimeTest {
 
         assertEquals(args.size(), totalArgs,
                 "Actual args : " + StringUtils.join(args, " "));
-        String expectedArgs = pythonPath + "exec python " + pythonInstanceFile
+        String expectedArgs = pythonPath + "exec python3 " + pythonInstanceFile
                 + " --py " + pulsarRootDir + "/" + userJarFile
                 + " --logging_directory " + logDirectory
                 + " --logging_file " + config.getFunctionDetails().getName()
@@ -864,7 +857,7 @@ public class KubernetesRuntimeTest {
         assertEquals(goInstanceConfig.get("killAfterIdleMs"), 0);
         assertEquals(goInstanceConfig.get("parallelism"), 0);
         assertEquals(goInstanceConfig.get("className"), "");
-        assertEquals(goInstanceConfig.get("sourceSpecsTopic"), "persistent://sample/standalone/ns1/test_src");
+        assertEquals(goInstanceConfig.get("sourceSpecsTopic"), "test_src");
         assertEquals(goInstanceConfig.get("sourceSchemaType"), "");
         assertEquals(goInstanceConfig.get("sinkSpecsTopic"), TEST_NAME + "-output");
         assertEquals(goInstanceConfig.get("clusterName"), "standalone");
@@ -1144,5 +1137,53 @@ public class KubernetesRuntimeTest {
                 + "function://public/default/test@v1 --path " + factory.getDownloadDirectory() + "/" + userJarFile;
         String containerCommand = spec.getSpec().getTemplate().getSpec().getContainers().get(0).getCommand().get(2);
         assertTrue(containerCommand.contains(expectedDownloadCommand));
+    }
+
+    @Test
+    public void shouldUseConfiguredMetricsPort() throws Exception {
+        assertMetricsPortConfigured(Collections.singletonMap("metricsPort", 12345), 12345);
+    }
+
+    @Test
+    public void shouldUseDefaultMetricsPortWhenMetricsPortIsntSet() throws Exception {
+        assertMetricsPortConfigured(Collections.emptyMap(), 9094);
+    }
+
+    @Test
+    public void shouldNotAddPrometheusAnnotationIfMetricsPortIsSetToEmpty() throws Exception {
+        assertMetricsPortConfigured(Collections.singletonMap("metricsPort", ""), -1);
+    }
+
+    private void assertMetricsPortConfigured(Map<String, Object> functionRuntimeFactoryConfigs,
+                                             int expectedPort) throws Exception {
+        KubernetesRuntimeFactory kubernetesRuntimeFactory = new KubernetesRuntimeFactory();
+        WorkerConfig workerConfig = new WorkerConfig();
+        workerConfig.setFunctionRuntimeFactoryClassName(KubernetesRuntimeFactory.class.getName());
+        workerConfig.setFunctionRuntimeFactoryConfigs(functionRuntimeFactoryConfigs);
+        AuthenticationConfig authenticationConfig = AuthenticationConfig.builder().build();
+        kubernetesRuntimeFactory.initialize(workerConfig, authenticationConfig, new DefaultSecretsProviderConfigurator(), Mockito.mock(ConnectorsManager.class), Optional.empty(), Optional.empty());
+        InstanceConfig config = createJavaInstanceConfig(FunctionDetails.Runtime.JAVA, true);
+        KubernetesRuntime container = kubernetesRuntimeFactory.createContainer(config, userJarFile, userJarFile, 30l);
+        V1PodTemplateSpec template = container.createStatefulSet().getSpec().getTemplate();
+        Map<String, String> annotations =
+                template.getMetadata().getAnnotations();
+        if (expectedPort != -1) {
+            // metrics port should be passed to k8s annotation for prometheus scraping
+            assertEquals(annotations.get("prometheus.io/port"), String.valueOf(expectedPort));
+            // scraping annotation should exist
+            assertEquals(annotations.get("prometheus.io/scrape"), "true");
+
+            // metrics port should be passed to JavaInstanceStarter with --metrics_port argument
+            assertTrue(container.getProcessArgs().stream().collect(Collectors.joining(" "))
+                    .contains("--metrics_port " + expectedPort));
+        } else {
+            // No prometheus annotations should exist
+            assertFalse(annotations.containsKey("prometheus.io/scrape"));
+            assertFalse(annotations.containsKey("prometheus.io/port"));
+            // metrics will be started on random port when the port isn't specified
+            // check that "--metrics_port 0" argument is passed
+            assertTrue(container.getProcessArgs().stream().collect(Collectors.joining(" "))
+                    .contains("--metrics_port 0"));
+        }
     }
 }

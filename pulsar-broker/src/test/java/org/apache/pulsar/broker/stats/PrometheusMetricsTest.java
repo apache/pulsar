@@ -73,6 +73,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.compaction.Compactor;
 import org.awaitility.Awaitility;
+import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -84,6 +85,8 @@ public class PrometheusMetricsTest extends BrokerTestBase {
     @BeforeMethod(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
+        conf.setTopicLevelPoliciesEnabled(false);
+        conf.setSystemTopicEnabled(false);
         super.baseSetup();
         AuthenticationProviderToken.resetMetrics();
     }
@@ -455,7 +458,6 @@ public class PrometheusMetricsTest extends BrokerTestBase {
                 .subscribe();
 
         final int messages = 10;
-
         for (int i = 0; i < messages; i++) {
             String message = "my-message-" + i;
             p1.send(message.getBytes());
@@ -489,6 +491,46 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         assertTrue(metrics.containsKey("pulsar_lb_bandwidth_out_usage"));
 
         assertTrue(metrics.containsKey("pulsar_lb_bundles_split_count"));
+    }
+
+    @Test
+    public void testNonPersistentSubMetrics() throws Exception {
+        Producer<byte[]> p1 =
+                pulsarClient.newProducer().topic("non-persistent://my-property/use/my-ns/my-topic1").create();
+
+        Consumer<byte[]> c1 = pulsarClient.newConsumer()
+                .topic("non-persistent://my-property/use/my-ns/my-topic1")
+                .subscriptionName("test")
+                .subscribe();
+
+        final int messages = 100;
+
+        for (int i = 0; i < messages; i++) {
+            String message = "my-message-" + i;
+            p1.send(message.getBytes());
+        }
+
+        for (int i = 0; i < messages; i++) {
+            c1.acknowledge(c1.receive());
+        }
+
+        ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
+        PrometheusMetricsGenerator.generate(pulsar, true, false, false, statsOut);
+        String metricsStr = statsOut.toString();
+        Multimap<String, Metric> metrics = parseMetrics(metricsStr);
+        assertTrue(metrics.containsKey("pulsar_subscription_back_log"));
+        assertTrue(metrics.containsKey("pulsar_subscription_back_log_no_delayed"));
+        assertTrue(metrics.containsKey("pulsar_subscription_msg_throughput_out"));
+        assertTrue(metrics.containsKey("pulsar_throughput_out"));
+        assertTrue(metrics.containsKey("pulsar_subscription_msg_rate_redeliver"));
+        assertTrue(metrics.containsKey("pulsar_subscription_unacked_messages"));
+        assertTrue(metrics.containsKey("pulsar_subscription_blocked_on_unacked_messages"));
+        assertTrue(metrics.containsKey("pulsar_subscription_msg_rate_out"));
+        assertTrue(metrics.containsKey("pulsar_out_bytes_total"));
+        assertTrue(metrics.containsKey("pulsar_out_messages_total"));
+        assertTrue(metrics.containsKey("pulsar_subscription_last_expire_timestamp"));
+        assertTrue(metrics.containsKey("pulsar_subscription_msg_drop_rate"));
+        assertTrue(metrics.containsKey("pulsar_subscription_consumers_count"));
     }
 
     @Test
@@ -950,23 +992,38 @@ public class PrometheusMetricsTest extends BrokerTestBase {
                 System.out.println(e.getKey() + ": " + e.getValue())
         );
 
-        List<Metric> cm = (List<Metric>) metrics.get("pulsar_managedLedger_client_bookkeeper_ml_scheduler_completed_tasks_0");
+        List<Metric> cm = (List<Metric>) metrics.get(keyNameBySubstrings(metrics,
+                "pulsar_managedLedger_client", "bookkeeper_ml_scheduler_completed_tasks"));
         assertEquals(cm.size(), 1);
         assertEquals(cm.get(0).tags.get("cluster"), "test");
 
-        cm = (List<Metric>) metrics.get("pulsar_managedLedger_client_bookkeeper_ml_scheduler_queue_0");
+        cm = (List<Metric>) metrics.get(
+                keyNameBySubstrings(metrics,
+                        "pulsar_managedLedger_client", "bookkeeper_ml_scheduler_queue"));
         assertEquals(cm.size(), 1);
         assertEquals(cm.get(0).tags.get("cluster"), "test");
 
-        cm = (List<Metric>) metrics.get("pulsar_managedLedger_client_bookkeeper_ml_scheduler_total_tasks_0");
+        cm = (List<Metric>) metrics.get(
+                keyNameBySubstrings(metrics,
+                        "pulsar_managedLedger_client", "bookkeeper_ml_scheduler_total_tasks"));
         assertEquals(cm.size(), 1);
         assertEquals(cm.get(0).tags.get("cluster"), "test");
+    }
 
-        cm = (List<Metric>) metrics.get("pulsar_managedLedger_client_bookkeeper_ml_workers_completed_tasks_0");
-        assertEquals(cm.size(), 0);
-
-        cm = (List<Metric>) metrics.get("pulsar_managedLedger_client_bookkeeper_ml_workers_task_execution_count");
-        assertEquals(cm.size(), 0);
+    private static String keyNameBySubstrings(Multimap<String, Metric> metrics, String... substrings) {
+        for (String key: metrics.keys()) {
+            boolean found = true;
+            for (String s: substrings) {
+                if (!key.contains(s)) {
+                    found = false;
+                    break;
+                }
+            }
+            if (found) {
+                return key;
+            }
+        }
+        return null;
     }
 
     @Test
@@ -1361,9 +1418,38 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         assertEquals(cm.get(0).value, 10);
         cm = (List<Metric>) metrics.get("pulsar_compaction_compacted_entries_size");
         assertEquals(cm.size(), 1);
-        assertEquals(cm.get(0).value, 870);
+        assertEquals(cm.get(0).value, 840);
 
         pulsarClient.close();
+    }
+
+    @Test
+    public void testMetricsWithCache() throws Throwable {
+        ServiceConfiguration configuration = Mockito.mock(ServiceConfiguration.class);
+        Mockito.when(configuration.getManagedLedgerStatsPeriodSeconds()).thenReturn(2);
+        Mockito.when(configuration.isMetricsBufferResponse()).thenReturn(true);
+        Mockito.when(pulsar.getConfiguration()).thenReturn(configuration);
+
+        int period = pulsar.getConfiguration().getManagedLedgerStatsPeriodSeconds();
+        TimeWindow<Object> timeWindow = new TimeWindow<>(2, (int) TimeUnit.SECONDS.toMillis(period));
+
+        for (int a = 0; a < 4; a++) {
+            long start = System.currentTimeMillis();
+            ByteArrayOutputStream statsOut1 = new ByteArrayOutputStream();
+            PrometheusMetricsGenerator.generate(pulsar, true, false, false, false, statsOut1, null);
+            ByteArrayOutputStream statsOut2 = new ByteArrayOutputStream();
+            PrometheusMetricsGenerator.generate(pulsar, true, false, false, false, statsOut2, null);
+            long end = System.currentTimeMillis();
+
+            if (timeWindow.currentWindowStart(start) == timeWindow.currentWindowStart(end)) {
+                String metricsStr1 = statsOut1.toString();
+                String metricsStr2 = statsOut2.toString();
+                assertEquals(metricsStr1, metricsStr2);
+                Multimap<String, Metric> metrics = parseMetrics(metricsStr1);
+            }
+
+            Thread.sleep(TimeUnit.SECONDS.toMillis(period / 2));
+        }
     }
 
     @Test
@@ -1424,8 +1510,8 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         // Example of lines are
         // jvm_threads_current{cluster="standalone",} 203.0
         // or
-        // pulsar_subscriptions_count{cluster="standalone", namespace="sample/standalone/ns1",
-        // topic="persistent://sample/standalone/ns1/test-2"} 0.0 1517945780897
+        // pulsar_subscriptions_count{cluster="standalone", namespace="public/default",
+        // topic="persistent://public/default/test-2"} 0.0 1517945780897
         Pattern pattern = Pattern.compile("^(\\w+)\\{([^\\}]+)\\}\\s([+-]?[\\d\\w\\.-]+)(\\s(\\d+))?$");
         Pattern tagsPattern = Pattern.compile("(\\w+)=\"([^\"]+)\"(,\\s?)?");
 
@@ -1461,9 +1547,9 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         return parsed;
     }
 
-    static class Metric {
-        Map<String, String> tags = new TreeMap<>();
-        double value;
+    public static class Metric {
+        public Map<String, String> tags = new TreeMap<>();
+        public double value;
 
         @Override
         public String toString() {

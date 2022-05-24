@@ -28,6 +28,7 @@ import io.netty.util.Recycler.Handle;
 import io.netty.util.ReferenceCountUtil;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
@@ -40,6 +41,7 @@ import lombok.Getter;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.impl.schema.AbstractSchema;
 import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
 import org.apache.pulsar.client.impl.schema.KeyValueSchemaImpl;
@@ -382,12 +384,14 @@ public class MessageImpl<T> implements Message<T> {
         if (schema == null) {
             return Optional.empty();
         }
+        byte[] schemaVersion = getSchemaVersion();
+        if (schemaVersion == null) {
+            return Optional.of(schema);
+        }
         if (schema instanceof AutoConsumeSchema) {
-            byte[] schemaVersion = getSchemaVersion();
             return Optional.of(((AutoConsumeSchema) schema)
                     .atSchemaVersion(schemaVersion));
         } else if (schema instanceof AbstractSchema) {
-            byte[] schemaVersion = getSchemaVersion();
             return Optional.of(((AbstractSchema<?>) schema)
                     .atSchemaVersion(schemaVersion));
         } else {
@@ -395,10 +399,13 @@ public class MessageImpl<T> implements Message<T> {
         }
     }
 
+    // For messages produced by older version producers without schema, the schema version is an empty byte array
+    // rather than null.
     @Override
     public byte[] getSchemaVersion() {
         if (msgMetadata.hasSchemaVersion()) {
-            return msgMetadata.getSchemaVersion();
+            byte[] schemaVersion = msgMetadata.getSchemaVersion();
+            return (schemaVersion.length == 0) ? null : schemaVersion;
         } else {
             return null;
         }
@@ -464,8 +471,19 @@ public class MessageImpl<T> implements Message<T> {
         }
     }
 
-
     private T decode(byte[] schemaVersion) {
+        try {
+            return decodeBySchema(schemaVersion);
+        } catch (ArrayIndexOutOfBoundsException e) {
+            // It usually means the message was produced without schema check while the message is not compatible with
+            // the current schema. Therefore, convert it to SchemaSerializationException with a better description.
+            final int payloadSize = payload.readableBytes();
+            throw new SchemaSerializationException("payload (" + payloadSize + " bytes) cannot be decoded with schema "
+                    + new String(schema.getSchemaInfo().getSchema(), StandardCharsets.UTF_8));
+        }
+    }
+
+    private T decodeBySchema(byte[] schemaVersion) {
         T value = poolMessage ? schema.decode(payload.nioBuffer(), schemaVersion) : null;
         if (value != null) {
             return value;

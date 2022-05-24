@@ -120,7 +120,7 @@ public class PulsarSinkE2ETest extends AbstractPulsarE2ETest {
         String jarFilePathUrl = getPulsarIODataGeneratorNar().toURI().toString();
         admin.sinks().createSinkWithUrl(sinkConfig, jarFilePathUrl);
 
-        // 5 Sink should only read compacted value，so we will only receive compacted messages
+        // 5 Sink should only read compacted value, so we will only receive compacted messages
         Awaitility.await().ignoreExceptions().untilAsserted(() -> {
             String prometheusMetrics = PulsarFunctionTestUtils.getPrometheusMetrics(pulsar.getListenPortHTTP().get());
             Map<String, PulsarFunctionTestUtils.Metric> metrics = PulsarFunctionTestUtils.parseMetrics(prometheusMetrics);

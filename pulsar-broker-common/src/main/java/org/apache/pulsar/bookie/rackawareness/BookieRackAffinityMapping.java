@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.bookie.rackawareness;
 
+import static org.apache.pulsar.metadata.bookkeeper.AbstractMetadataDriver.METADATA_STORE_SCHEME;
 import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -31,6 +32,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import org.apache.bookkeeper.client.ITopologyAwareEnsemblePlacementPolicy;
 import org.apache.bookkeeper.client.RackChangeNotifier;
+import org.apache.bookkeeper.meta.exceptions.Code;
+import org.apache.bookkeeper.meta.exceptions.MetadataException;
 import org.apache.bookkeeper.net.AbstractDNSToSwitchMapping;
 import org.apache.bookkeeper.net.BookieId;
 import org.apache.bookkeeper.net.BookieNode;
@@ -42,7 +45,10 @@ import org.apache.pulsar.common.policies.data.BookieInfo;
 import org.apache.pulsar.common.policies.data.BookiesRackConfiguration;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataStore;
+import org.apache.pulsar.metadata.api.MetadataStoreConfig;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.Notification;
+import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -63,24 +69,54 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
     private volatile BookiesRackConfiguration racksWithHost = new BookiesRackConfiguration();
     private volatile Map<String, BookieInfo> bookieInfoMap = new HashMap<>();
 
+    public static MetadataStore createMetadataStore(Configuration conf) throws MetadataException {
+        MetadataStore store;
+        Object storeProperty = conf.getProperty(METADATA_STORE_INSTANCE);
+        if (storeProperty != null) {
+            if (!(storeProperty instanceof MetadataStore)) {
+                throw new RuntimeException(METADATA_STORE_INSTANCE + " is not an instance of MetadataStore");
+            }
+            store = (MetadataStore) storeProperty;
+        } else {
+            String url;
+            String metadataServiceUri = (String) conf.getProperty("metadataServiceUri");
+            if (StringUtils.isNotBlank(metadataServiceUri)) {
+                try {
+                    url = metadataServiceUri.replaceFirst(METADATA_STORE_SCHEME + ":", "")
+                            .replace(";", ",");
+                } catch (Exception e) {
+                    throw new MetadataException(Code.METADATA_SERVICE_ERROR, e);
+                }
+            } else {
+                String zkServers = (String) conf.getProperty("zkServers");
+                if (StringUtils.isBlank(zkServers)) {
+                    String errorMsg = String.format("Neither %s configuration set in the BK client configuration nor "
+                            + "metadataServiceUri/zkServers set in bk server configuration", METADATA_STORE_INSTANCE);
+                    throw new RuntimeException(errorMsg);
+                }
+                url = zkServers;
+            }
+            try {
+                int zkTimeout = Integer.parseInt((String) conf.getProperty("zkTimeout"));
+                store = MetadataStoreExtended.create(url,
+                        MetadataStoreConfig.builder()
+                                .sessionTimeoutMillis(zkTimeout)
+                                .build());
+            } catch (MetadataStoreException e) {
+                throw new MetadataException(Code.METADATA_SERVICE_ERROR, e);
+            }
+        }
+        return store;
+    }
+
     @Override
     public void setConf(Configuration conf) {
         super.setConf(conf);
-        Object storeProperty = conf.getProperty(METADATA_STORE_INSTANCE);
-        if (storeProperty == null) {
-            throw new RuntimeException(METADATA_STORE_INSTANCE + " configuration was not set in the BK client "
-                    + "configuration");
-        }
-
-        if (!(storeProperty instanceof MetadataStore)) {
-            throw new RuntimeException(METADATA_STORE_INSTANCE + " is not an instance of MetadataStore");
-        }
-
-        MetadataStore store = (MetadataStore) storeProperty;
-
-        bookieMappingCache = store.getMetadataCache(BookiesRackConfiguration.class);
-        bookieMappingCache.get(BOOKIE_INFO_ROOT_PATH).join();
+        MetadataStore store;
         try {
+            store = createMetadataStore(conf);
+            bookieMappingCache = store.getMetadataCache(BookiesRackConfiguration.class);
+            bookieMappingCache.get(BOOKIE_INFO_ROOT_PATH).join();
             for (Map<String, BookieInfo> bookieMapping : bookieMappingCache.get(BOOKIE_INFO_ROOT_PATH).get()
                     .map(Map::values).orElse(Collections.emptyList())) {
                 for (String address : bookieMapping.keySet()) {
@@ -91,7 +127,7 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
                             bookieAddressListLastTime);
                 }
             }
-        } catch (InterruptedException | ExecutionException e) {
+        } catch (InterruptedException | ExecutionException | MetadataException e) {
             throw new RuntimeException(METADATA_STORE_INSTANCE + " failed to init BookieId list");
         }
         store.registerListener(this::handleUpdates);

@@ -22,19 +22,11 @@ import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.broker.web.AuthenticationFilter;
-import org.apache.pulsar.client.admin.LongRunningProcessStatus;
-import org.apache.pulsar.common.functions.WorkerInfo;
-import org.apache.pulsar.common.io.ConnectorDefinition;
-import org.apache.pulsar.functions.worker.WorkerService;
-
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
-
 import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.Consumes;
@@ -46,6 +38,12 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.UriInfo;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.broker.web.AuthenticationFilter;
+import org.apache.pulsar.client.admin.LongRunningProcessStatus;
+import org.apache.pulsar.common.functions.WorkerInfo;
+import org.apache.pulsar.common.io.ConnectorDefinition;
+import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.service.api.Workers;
 
 @Slf4j

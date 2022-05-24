@@ -101,7 +101,7 @@ public class SinkApiV3ResourceTest {
     private static final Map<String, String> topicsToSerDeClassName = new HashMap<>();
 
     static {
-        topicsToSerDeClassName.put("persistent://sample/standalone/ns1/test_src", DEFAULT_SERDE);
+        topicsToSerDeClassName.put("test_src", DEFAULT_SERDE);
     }
 
     private static final String subscriptionName = "test-subscription";
@@ -217,9 +217,11 @@ public class SinkApiV3ResourceTest {
     }
 
     private <T> void mockStatic(Class<T> classStatic, Consumer<MockedStatic<T>> consumer) {
-        final MockedStatic<T> mockedStatic = mockStaticContexts.computeIfAbsent(classStatic.getName(), name -> Mockito.mockStatic(classStatic));
+        final MockedStatic<T> mockedStatic =
+                mockStaticContexts.computeIfAbsent(classStatic.getName(), name -> Mockito.mockStatic(classStatic));
         consumer.accept(mockedStatic);
     }
+
     private void mockWorkerUtils() {
         mockWorkerUtils(null);
     }
@@ -865,7 +867,8 @@ public class SinkApiV3ResourceTest {
                     .thenReturn(CASSANDRA_STRING_SINK);
         });
 
-        mockStatic(ClassLoaderUtils.class, ctx -> {});
+        mockStatic(ClassLoaderUtils.class, ctx -> {
+        });
 
         mockStatic(FunctionCommon.class, ctx -> {
             ctx.when(() -> FunctionCommon.createPkgTempFile()).thenCallRealMethod();
@@ -938,7 +941,8 @@ public class SinkApiV3ResourceTest {
                     .thenReturn(CASSANDRA_STRING_SINK);
         });
 
-        mockStatic(ClassLoaderUtils.class, ctx -> {});
+        mockStatic(ClassLoaderUtils.class, ctx -> {
+        });
 
         mockStatic(FunctionCommon.class, ctx -> {
             ctx.when(() -> FunctionCommon.createPkgTempFile()).thenCallRealMethod();
@@ -946,7 +950,7 @@ public class SinkApiV3ResourceTest {
             ctx.when(() -> FunctionCommon.getSinkType(any())).thenReturn(String.class);
             ctx.when(() -> FunctionCommon.extractNarClassLoader(any(), any())).thenReturn(mock(NarClassLoader.class));
             ctx.when(() -> FunctionCommon
-                            .convertProcessingGuarantee(eq(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE)))
+                    .convertProcessingGuarantee(eq(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE)))
                     .thenReturn(ATLEAST_ONCE);
         });
 
@@ -1030,7 +1034,8 @@ public class SinkApiV3ResourceTest {
                     .thenReturn(CASSANDRA_STRING_SINK);
         });
 
-        mockStatic(ClassLoaderUtils.class, ctx -> {});
+        mockStatic(ClassLoaderUtils.class, ctx -> {
+        });
 
         mockStatic(FunctionCommon.class, ctx -> {
             ctx.when(() -> FunctionCommon.extractFileFromPkgURL(any())).thenCallRealMethod();

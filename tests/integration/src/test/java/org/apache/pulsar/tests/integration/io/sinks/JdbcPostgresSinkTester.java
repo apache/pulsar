@@ -43,7 +43,7 @@ import static org.testng.Assert.fail;
 public class JdbcPostgresSinkTester extends SinkTester<PostgreSQLContainer> {
 
     /**
-     * A Simple class to test jdbc class，
+     * A Simple class to test jdbc class,
      */
     @Data
     public static class Foo {

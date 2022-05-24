@@ -1,7 +1,7 @@
 ---
-id: version-2.3.2-io-redis
+id: io-redis
 title: redis Connector
-sidebar_label: redis Connector
+sidebar_label: "redis Connector"
 original_id: io-redis
 ---
 

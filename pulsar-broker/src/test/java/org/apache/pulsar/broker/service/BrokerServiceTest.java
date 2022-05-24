@@ -18,10 +18,13 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.apache.pulsar.common.naming.SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN;
+import static org.apache.pulsar.common.naming.SystemTopicNames.TRANSACTION_COORDINATOR_LOG;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
@@ -57,6 +60,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
@@ -68,6 +72,7 @@ import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusRawMetricsProvider;
@@ -114,6 +119,8 @@ public class BrokerServiceTest extends BrokerTestBase {
     @BeforeClass
     @Override
     protected void setup() throws Exception {
+        conf.setSystemTopicEnabled(false);
+        conf.setTopicLevelPoliciesEnabled(false);
         super.baseSetup();
     }
 
@@ -763,6 +770,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         } finally {
             pulsarClient.close();
         }
+        resetState();
     }
 
     @SuppressWarnings("deprecation")
@@ -1288,6 +1296,81 @@ public class BrokerServiceTest extends BrokerTestBase {
     }
 
     @Test
+    public void testPublishRateLimiterMonitor() {
+        BrokerService.PublishRateLimiterMonitor monitor = new BrokerService.PublishRateLimiterMonitor("test");
+        AtomicInteger checkCnt = new AtomicInteger(0);
+        AtomicInteger refreshCnt = new AtomicInteger(0);
+        monitor.startOrUpdate(100, checkCnt::incrementAndGet, refreshCnt::incrementAndGet);
+        Assert.assertEquals(monitor.getTickTimeMs(), 100);
+        Awaitility.await().until(() -> checkCnt.get() > 0);
+        Awaitility.await().until(() -> refreshCnt.get() > 0);
+
+        monitor.startOrUpdate(500, checkCnt::incrementAndGet, refreshCnt::incrementAndGet);
+        Assert.assertEquals(monitor.getTickTimeMs(), 500);
+        checkCnt.set(0);
+        refreshCnt.set(0);
+        Awaitility.await().until(() -> checkCnt.get() > 0);
+        Awaitility.await().until(() -> refreshCnt.get() > 0);
+
+        monitor.stop();
+        Assert.assertEquals(monitor.getTickTimeMs(), 0);
+    }
+
+    @Test
+    public void testDynamicBrokerPublisherThrottlingTickTimeMillis() throws Exception {
+        cleanup();
+        conf.setBrokerPublisherThrottlingMaxMessageRate(1000);
+        conf.setBrokerPublisherThrottlingTickTimeMillis(100);
+        setup();
+
+        int prevTickMills = 100;
+        BrokerService.PublishRateLimiterMonitor monitor = pulsar.getBrokerService().brokerPublishRateLimiterMonitor;
+        Awaitility.await().until(() -> monitor.getTickTimeMs() == prevTickMills);
+
+        int newTickMills = prevTickMills * 2;
+        admin.brokers().updateDynamicConfiguration("brokerPublisherThrottlingTickTimeMillis",
+                String.valueOf(newTickMills));
+        Awaitility.await().until(() -> monitor.getTickTimeMs() == newTickMills);
+
+        admin.brokers().updateDynamicConfiguration("brokerPublisherThrottlingTickTimeMillis",
+                String.valueOf(0));
+        Awaitility.await().until(() -> monitor.getTickTimeMs() == 0);
+
+        admin.brokers().updateDynamicConfiguration("brokerPublisherThrottlingTickTimeMillis",
+                String.valueOf(prevTickMills));
+        Awaitility.await().until(() -> monitor.getTickTimeMs() == prevTickMills);
+    }
+
+    @Test
+    public void testDynamicTopicPublisherThrottlingTickTimeMillis() throws Exception {
+        cleanup();
+        conf.setPreciseTopicPublishRateLimiterEnable(false);
+        conf.setMaxPublishRatePerTopicInMessages(1000);
+        conf.setTopicPublisherThrottlingTickTimeMillis(100);
+        setup();
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://prop/ns-abc/test-topic").create();
+
+        int prevTickMills = 100;
+        BrokerService.PublishRateLimiterMonitor monitor = pulsar.getBrokerService().topicPublishRateLimiterMonitor;
+        Awaitility.await().until(() -> monitor.getTickTimeMs() == prevTickMills);
+
+        int newTickMills = prevTickMills * 2;
+        admin.brokers().updateDynamicConfiguration("topicPublisherThrottlingTickTimeMillis",
+                String.valueOf(newTickMills));
+        Awaitility.await().until(() -> monitor.getTickTimeMs() == newTickMills);
+
+        admin.brokers().updateDynamicConfiguration("topicPublisherThrottlingTickTimeMillis",
+                String.valueOf(0));
+        Awaitility.await().until(() -> monitor.getTickTimeMs() == 0);
+
+        admin.brokers().updateDynamicConfiguration("topicPublisherThrottlingTickTimeMillis",
+                String.valueOf(prevTickMills));
+        Awaitility.await().until(() -> monitor.getTickTimeMs() == prevTickMills);
+    }
+
+    @Test
     public void shouldNotPreventCreatingTopicWhenNonexistingTopicIsCached() throws Exception {
         // run multiple iterations to increase the chance of reproducing a race condition in the topic cache
         for (int i = 0; i < 100; i++) {
@@ -1314,5 +1397,34 @@ public class BrokerServiceTest extends BrokerTestBase {
             assertNotNull(producer);
             getStatsThread.join();
         }
+    }
+
+    @Test
+    public void testIsSystemTopic() {
+        BrokerService brokerService = pulsar.getBrokerService();
+        assertFalse(brokerService.isSystemTopic(TopicName.get("test")));
+        assertFalse(brokerService.isSystemTopic(TopicName.get("public/default/test")));
+        assertFalse(brokerService.isSystemTopic(TopicName.get("healthcheck")));
+        assertFalse(brokerService.isSystemTopic(TopicName.get("public/default/healthcheck")));
+        assertFalse(brokerService.isSystemTopic(TopicName.get("persistent://public/default/test")));
+        assertFalse(brokerService.isSystemTopic(TopicName.get("non-persistent://public/default/test")));
+
+        assertTrue(brokerService.isSystemTopic(TopicName.get("__change_events")));
+        assertTrue(brokerService.isSystemTopic(TopicName.get("__change_events-partition-0")));
+        assertTrue(brokerService.isSystemTopic(TopicName.get("__change_events-partition-1")));
+        assertTrue(brokerService.isSystemTopic(TopicName.get("__transaction_buffer_snapshot")));
+        assertTrue(brokerService.isSystemTopic(TopicName.get("__transaction_buffer_snapshot-partition-0")));
+        assertTrue(brokerService.isSystemTopic(TopicName.get("__transaction_buffer_snapshot-partition-1")));
+        assertTrue(brokerService.isSystemTopic(TopicName
+                .get("topicxxx-partition-0-multiTopicsReader-f433329d68__transaction_pending_ack")));
+        assertTrue(brokerService.isSystemTopic(
+                TopicName.get("topicxxx-multiTopicsReader-f433329d68__transaction_pending_ack")));
+
+        assertTrue(brokerService.isSystemTopic(TRANSACTION_COORDINATOR_ASSIGN));
+        assertTrue(brokerService.isSystemTopic(TRANSACTION_COORDINATOR_LOG));
+        NamespaceName heartbeatNamespaceV1 = NamespaceService.getHeartbeatNamespace(pulsar.getAdvertisedAddress(), pulsar.getConfig());
+        NamespaceName heartbeatNamespaceV2 = NamespaceService.getHeartbeatNamespaceV2(pulsar.getAdvertisedAddress(), pulsar.getConfig());
+        assertTrue(brokerService.isSystemTopic("persistent://" + heartbeatNamespaceV1.toString() + "/healthcheck"));
+        assertTrue(brokerService.isSystemTopic(heartbeatNamespaceV2.toString() + "/healthcheck"));
     }
 }

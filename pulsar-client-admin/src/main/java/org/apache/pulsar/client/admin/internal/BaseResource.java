@@ -220,7 +220,7 @@ public abstract class BaseResource {
                 ServerErrorException see = (ServerErrorException) e;
                 int statusCode = see.getResponse().getStatus();
                 String httpError = getReasonFromServer(see);
-                return new ServerSideErrorException(see, e.getMessage(), httpError, statusCode);
+                return new ServerSideErrorException(see, httpError, httpError, statusCode);
             } else if (e instanceof ClientErrorException) {
                 // Handle 4xx exceptions
                 ClientErrorException cee = (ClientErrorException) e;
@@ -290,15 +290,18 @@ public abstract class BaseResource {
     protected <T> T sync(Supplier<CompletableFuture<T>> executor) throws PulsarAdminException {
         try {
             return executor.get().get(this.readTimeoutMs, TimeUnit.MILLISECONDS);
-        } catch (ExecutionException e) {
-           throw (PulsarAdminException) e.getCause();
         } catch (InterruptedException e) {
            Thread.currentThread().interrupt();
           throw new PulsarAdminException(e);
         } catch (TimeoutException e) {
           throw new PulsarAdminException.TimeoutException(e);
+        } catch (ExecutionException e) {
+            // we want to have a stacktrace that points to this point, in order to return a meaninful
+            // stacktrace to the user, otherwise we will have a stacktrace
+            // related to another thread, because all Admin API calls are async
+            throw PulsarAdminException.wrap(getApiException(e.getCause()));
         } catch (Exception e) {
-            throw getApiException(e);
+            throw PulsarAdminException.wrap(getApiException(e));
         }
     }
 }

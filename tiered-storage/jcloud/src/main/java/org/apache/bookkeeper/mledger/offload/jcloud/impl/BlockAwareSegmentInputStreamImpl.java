@@ -27,9 +27,11 @@ import java.io.InputStream;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.client.api.ReadHandle;
+import org.apache.bookkeeper.mledger.LedgerOffloaderStats;
 import org.apache.bookkeeper.mledger.offload.jcloud.BlockAwareSegmentInputStream;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.slf4j.Logger;
@@ -65,6 +67,8 @@ public class BlockAwareSegmentInputStreamImpl extends BlockAwareSegmentInputStre
     static final int ENTRY_HEADER_SIZE = 4 /* entry size */ + 8 /* entry id */;
     // Keep a list of all entries ByteBuf, each ByteBuf contains 2 buf: entry header and entry content.
     private List<ByteBuf> entriesByteBuf = null;
+    private LedgerOffloaderStats offloaderStats;
+    private String topicName;
 
     public BlockAwareSegmentInputStreamImpl(ReadHandle ledger, long startEntryId, int blockSize) {
         this.ledger = ledger;
@@ -74,6 +78,13 @@ public class BlockAwareSegmentInputStreamImpl extends BlockAwareSegmentInputStre
         this.blockEntryCount = 0;
         this.dataBlockFullOffset = blockSize;
         this.entriesByteBuf = Lists.newLinkedList();
+    }
+
+    public BlockAwareSegmentInputStreamImpl(ReadHandle ledger, long startEntryId, int blockSize,
+                                            LedgerOffloaderStats offloaderStats, String ledgerName) {
+        this(ledger, startEntryId, blockSize);
+        this.offloaderStats = offloaderStats;
+        this.topicName = ledgerName;
     }
 
     // read ledger entries.
@@ -113,11 +124,18 @@ public class BlockAwareSegmentInputStreamImpl extends BlockAwareSegmentInputStre
 
     private List<ByteBuf> readNextEntriesFromLedger(long start, long maxNumberEntries) throws IOException {
         long end = Math.min(start + maxNumberEntries - 1, ledger.getLastAddConfirmed());
+        long startTime = System.nanoTime();
         try (LedgerEntries ledgerEntriesOnce = ledger.readAsync(start, end).get()) {
-            log.debug("read ledger entries. start: {}, end: {}", start, end);
+            if (log.isDebugEnabled()) {
+                log.debug("read ledger entries. start: {}, end: {} cost {}", start, end,
+                        TimeUnit.NANOSECONDS.toMicros(System.nanoTime() - startTime));
+            }
+            if (offloaderStats != null && topicName != null) {
+                offloaderStats.recordReadLedgerLatency(topicName, System.nanoTime() - startTime,
+                        TimeUnit.NANOSECONDS);
+            }
 
             List<ByteBuf> entries = Lists.newLinkedList();
-
             Iterator<LedgerEntry> iterator = ledgerEntriesOnce.iterator();
             while (iterator.hasNext()) {
                 LedgerEntry entry = iterator.next();

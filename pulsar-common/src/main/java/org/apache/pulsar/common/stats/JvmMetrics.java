@@ -28,7 +28,6 @@ import io.netty.buffer.PooledByteBufAllocator;
 import java.lang.management.BufferPoolMXBean;
 import java.lang.management.ManagementFactory;
 import java.lang.management.RuntimeMXBean;
-import java.lang.reflect.Field;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -37,8 +36,8 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.common.util.DirectMemoryUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -48,19 +47,11 @@ import org.slf4j.LoggerFactory;
 public class JvmMetrics {
 
     private static final Logger log = LoggerFactory.getLogger(JvmMetrics.class);
-    private static Field directMemoryUsage = null;
     private final JvmGCMetricsLogger gcLogger;
 
     private final String componentName;
     private static final Map<String, Class<? extends JvmGCMetricsLogger>> gcLoggerMap = new HashMap<>();
     static {
-        try {
-            directMemoryUsage = io.netty.util.internal.PlatformDependent.class
-                .getDeclaredField("DIRECT_MEMORY_COUNTER");
-            directMemoryUsage.setAccessible(true);
-        } catch (Exception e) {
-            log.warn("Failed to access netty DIRECT_MEMORY_COUNTER field {}", e.getMessage());
-        }
         // GC type and implementation mapping
         gcLoggerMap.put("-XX:+UseG1GC", JvmG1GCMetricsLogger.class);
     }
@@ -113,7 +104,7 @@ public class JvmMetrics {
         m.put("jvm_total_memory", r.totalMemory());
 
         m.put("jvm_direct_memory_used", getJvmDirectMemoryUsed());
-        m.put("jvm_max_direct_memory", io.netty.util.internal.PlatformDependent.maxDirectMemory());
+        m.put("jvm_max_direct_memory", DirectMemoryUtils.jvmMaxDirectMemory());
         m.put("jvm_thread_cnt", getThreadCount());
 
         this.gcLogger.logMetrics(m);
@@ -143,14 +134,12 @@ public class JvmMetrics {
     }
 
     public static long getJvmDirectMemoryUsed() {
-        if (directMemoryUsage != null) {
-            try {
-                return ((AtomicLong) directMemoryUsage.get(null)).get();
-            } catch (Exception e) {
-                if (log.isDebugEnabled()) {
-                    log.debug("Failed to get netty-direct-memory used count {}", e.getMessage());
-                }
-            }
+        long usedDirectMemory = io.netty.util.internal.PlatformDependent.usedDirectMemory();
+        if (usedDirectMemory != -1L) {
+            return usedDirectMemory;
+        }
+        if (log.isDebugEnabled()) {
+            log.debug("Failed to get netty-direct-memory used count.");
         }
 
         List<BufferPoolMXBean> pools = ManagementFactory.getPlatformMXBeans(BufferPoolMXBean.class);

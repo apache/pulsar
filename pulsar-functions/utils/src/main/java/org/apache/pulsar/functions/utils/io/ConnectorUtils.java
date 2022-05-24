@@ -27,7 +27,6 @@ import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -138,7 +137,8 @@ public class ConnectorUtils {
         return retval;
     }
 
-    public static TreeMap<String, Connector> searchForConnectors(String connectorsDirectory, String narExtractionDirectory) throws IOException {
+    public static TreeMap<String, Connector> searchForConnectors(String connectorsDirectory,
+                                                                 String narExtractionDirectory) throws IOException {
         Path path = Paths.get(connectorsDirectory).toAbsolutePath();
         log.info("Searching for connectors in {}", path);
 
@@ -164,13 +164,15 @@ public class ConnectorUtils {
                     connectorBuilder.archivePath(archive);
                     if (!StringUtils.isEmpty(cntDef.getSourceClass())) {
                         if (!StringUtils.isEmpty(cntDef.getSourceConfigClass())) {
-                            connectorBuilder.sourceConfigFieldDefinitions(ConnectorUtils.getConnectorConfigDefinition(ncl, cntDef.getSourceConfigClass()));
+                            connectorBuilder.sourceConfigFieldDefinitions(ConnectorUtils
+                                    .getConnectorConfigDefinition(ncl, cntDef.getSourceConfigClass()));
                         }
                     }
 
                     if (!StringUtils.isEmpty(cntDef.getSinkClass())) {
                         if (!StringUtils.isEmpty(cntDef.getSinkConfigClass())) {
-                            connectorBuilder.sinkConfigFieldDefinitions(ConnectorUtils.getConnectorConfigDefinition(ncl, cntDef.getSinkConfigClass()));
+                            connectorBuilder.sinkConfigFieldDefinitions(
+                                    ConnectorUtils.getConnectorConfigDefinition(ncl, cntDef.getSinkConfigClass()));
                         }
                     }
 

@@ -182,7 +182,7 @@ public class PerformanceProducer {
 
         @Parameter(names = { "-c",
                 "--max-connections" }, description = "Max number of TCP connections to a single broker")
-        public int maxConnections = 100;
+        public int maxConnections = 1;
 
         @Parameter(names = { "-m",
                 "--num-messages" }, description = "Number of messages to publish in total. If <= 0, it will keep "
@@ -597,10 +597,12 @@ public class PerformanceProducer {
                     .sendTimeout(arguments.sendTimeout, TimeUnit.SECONDS) //
                     .compressionType(arguments.compression) //
                     .maxPendingMessages(arguments.maxOutstanding) //
-                    .maxPendingMessagesAcrossPartitions(arguments.maxPendingMessagesAcrossPartitions)
                     .accessMode(arguments.producerAccessMode)
                     // enable round robin message routing if it is a partitioned topic
                     .messageRoutingMode(MessageRoutingMode.RoundRobinPartition);
+            if (arguments.maxPendingMessagesAcrossPartitions > 0) {
+                producerBuilder.maxPendingMessagesAcrossPartitions(arguments.maxPendingMessagesAcrossPartitions);
+            }
 
             AtomicReference<Transaction> transactionAtomicReference;
             if (arguments.isEnableTransaction) {
@@ -772,8 +774,10 @@ public class PerformanceProducer {
                         if (!arguments.isAbortTransaction) {
                             transaction.commit()
                                     .thenRun(() -> {
-                                        log.info("Committed transaction {}",
-                                                transaction.getTxnID().toString());
+                                        if (log.isDebugEnabled()) {
+                                            log.debug("Committed transaction {}",
+                                                    transaction.getTxnID().toString());
+                                        }
                                         totalEndTxnOpSuccessNum.increment();
                                         numTxnOpSuccess.increment();
                                     })
@@ -785,11 +789,13 @@ public class PerformanceProducer {
                                     });
                         } else {
                             transaction.abort().thenRun(() -> {
-                                log.info("Abort transaction {}", transaction.getTxnID().toString());
+                                if (log.isDebugEnabled()) {
+                                    log.debug("Abort transaction {}", transaction.getTxnID().toString());
+                                }
                                 totalEndTxnOpSuccessNum.increment();
                                 numTxnOpSuccess.increment();
                             }).exceptionally(exception -> {
-                                log.error("Commit transaction {} failed with exception",
+                                log.error("Abort transaction {} failed with exception",
                                         transaction.getTxnID().toString(),
                                         exception);
                                 totalEndTxnOpFailNum.increment();

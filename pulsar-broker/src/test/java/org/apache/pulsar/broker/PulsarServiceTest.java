@@ -21,6 +21,8 @@ package org.apache.pulsar.broker;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
 import static org.testng.AssertJUnit.assertSame;
 import java.util.Optional;
 import lombok.Cleanup;
@@ -63,10 +65,11 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testGetWorkerService() throws Exception {
         ServiceConfiguration configuration = new ServiceConfiguration();
-        configuration.setZookeeperServers("localhost");
+        configuration.setMetadataStoreUrl("zk:localhost");
         configuration.setClusterName("clusterName");
         configuration.setFunctionsWorkerEnabled(true);
         configuration.setBrokerShutdownTimeoutMs(0L);
+        configuration.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
         WorkerService expectedWorkerService = mock(WorkerService.class);
         @Cleanup
         PulsarService pulsarService = spy(new PulsarService(configuration, new WorkerConfig(),
@@ -83,10 +86,11 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testGetWorkerServiceException() throws Exception {
         ServiceConfiguration configuration = new ServiceConfiguration();
-        configuration.setZookeeperServers("localhost");
+        configuration.setMetadataStoreUrl("zk:localhost");
         configuration.setClusterName("clusterName");
         configuration.setFunctionsWorkerEnabled(false);
         configuration.setBrokerShutdownTimeoutMs(0L);
+        configuration.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
         @Cleanup
         PulsarService pulsarService = new PulsarService(configuration, new WorkerConfig(),
                 Optional.empty(), (exitCode) -> {});
@@ -140,4 +144,77 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
         assertEquals(pulsar.getWebServiceAddressTls(), "https://localhost:" + pulsar.getWebService().getListenPortHTTPS().get());
     }
 
+    @Test
+    public void testBacklogAndRetentionCheck() {
+        ServiceConfiguration config = new ServiceConfiguration();
+        config.setClusterName("test");
+        config.setMetadataStoreUrl("memory:local");
+        config.setMetadataStoreConfigPath("memory:local");
+        PulsarService pulsarService = new PulsarService(config);
+
+        // Check the default configuration
+        try {
+            pulsarService.start();
+        } catch (Exception e) {
+            assertFalse(e.getCause() instanceof IllegalArgumentException);
+        }
+
+        // Only set retention
+        config.setDefaultRetentionSizeInMB(5);
+        config.setDefaultRetentionTimeInMinutes(5);
+
+        pulsarService = new PulsarService(config);
+
+        try {
+            pulsarService.start();
+        } catch (Exception e) {
+            assertFalse(e.getCause() instanceof IllegalArgumentException);
+        }
+
+        // Set both retention and backlog quota
+        config.setBacklogQuotaDefaultLimitBytes(4 * 1024 * 1024);
+        config.setBacklogQuotaDefaultLimitSecond(4 * 60);
+
+        pulsarService = new PulsarService(config);
+
+        try {
+            pulsarService.start();
+        } catch (Exception e) {
+            assertFalse(e.getCause() instanceof IllegalArgumentException);
+        }
+
+        // Set invalidated retention and backlog quota
+        config.setBacklogQuotaDefaultLimitBytes(6 * 1024 * 1024);
+
+        pulsarService = new PulsarService(config);
+
+        try {
+            pulsarService.start();
+        } catch (Exception e) {
+            assertTrue(e.getCause() instanceof IllegalArgumentException);
+        }
+
+        config.setBacklogQuotaDefaultLimitBytes(4 * 1024 * 1024);
+        config.setBacklogQuotaDefaultLimitSecond(6 * 60);
+
+        pulsarService = new PulsarService(config);
+
+        try {
+            pulsarService.start();
+        } catch (Exception e) {
+            assertTrue(e.getCause() instanceof IllegalArgumentException);
+        }
+
+        // Only set backlog quota
+        config.setDefaultRetentionSizeInMB(0);
+        config.setDefaultRetentionTimeInMinutes(0);
+
+        pulsarService = new PulsarService(config);
+
+        try {
+            pulsarService.start();
+        } catch (Exception e) {
+            assertFalse(e.getCause() instanceof IllegalArgumentException);
+        }
+    }
 }
