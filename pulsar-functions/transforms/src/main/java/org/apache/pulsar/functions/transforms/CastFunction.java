@@ -44,9 +44,9 @@ public class CastFunction extends AbstractTransformStepFunction {
 
     private SchemaType getConfig(Context context, String fieldName) {
         return context.getUserConfigValue(fieldName)
-                .map(fields -> {
-                    if (fields instanceof String) {
-                        return SchemaType.valueOf((String) fields);
+                .map(field -> {
+                    if (field instanceof String) {
+                        return SchemaType.valueOf((String) field);
                     }
                     throw new IllegalArgumentException(fieldName + " must be of type String");
                 })

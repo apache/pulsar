@@ -22,11 +22,17 @@ import static org.apache.pulsar.functions.transforms.Utils.createTestAvroKeyValu
 import static org.apache.pulsar.functions.transforms.Utils.getRecord;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertSame;
+import java.util.HashMap;
 import org.apache.avro.generic.GenericData;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.client.api.schema.KeyValueSchema;
+import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
 import org.apache.pulsar.common.schema.KeyValue;
+import org.apache.pulsar.common.schema.KeyValueEncodingType;
+import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.functions.api.Record;
+import org.junit.Assert;
 import org.testng.annotations.Test;
 
 public class MergeKeyValueFunctionTest {
@@ -52,5 +58,52 @@ public class MergeKeyValueFunctionTest {
         KeyValue recordValue = (KeyValue) record.getValue().getNativeObject();
         assertSame(messageSchema.getKeySchema(), recordSchema.getKeySchema());
         assertSame(messageValue.getKey(), recordValue.getKey());
+    }
+
+    @Test
+    void testPrimitive() throws Exception {
+        Record<GenericObject> record = new Utils.TestRecord<>(
+                Schema.STRING, AutoConsumeSchema.wrapPrimitiveObject("test-message", SchemaType.STRING, new byte[]{}), "test-key");
+        Utils.TestContext context = new Utils.TestContext(record, new HashMap<>());
+
+        MergeKeyValueFunction function = new MergeKeyValueFunction();
+        function.initialize(context);
+        function.process(record.getValue(), context);
+
+        Utils.TestTypedMessageBuilder<?> message = context.getOutputMessage();
+
+        Assert.assertSame(message.getSchema(), record.getSchema());
+        Assert.assertSame(message.getValue(), record.getValue().getNativeObject());
+        assertEquals(message.getKey(), record.getKey().orElse(null));
+    }
+
+    @Test
+    void testKeyValuePrimitives() throws Exception {
+        Schema<KeyValue<String, Integer>> keyValueSchema =
+                Schema.KeyValue(Schema.STRING, Schema.INT32, KeyValueEncodingType.SEPARATED);
+
+        KeyValue<String, Integer> keyValue = new KeyValue<>("key", 42);
+
+        Record<GenericObject> record = new Utils.TestRecord<>(
+                keyValueSchema,
+                AutoConsumeSchema.wrapPrimitiveObject(keyValue, SchemaType.KEY_VALUE, new byte[]{}),
+                null);
+
+        Utils.TestContext context = new Utils.TestContext(record, new HashMap<>());
+
+        MergeKeyValueFunction function = new MergeKeyValueFunction();
+        function.initialize(context);
+        function.process(record.getValue(), context);
+
+        Utils.TestTypedMessageBuilder<?> message = context.getOutputMessage();
+        KeyValueSchema messageSchema = (KeyValueSchema) message.getSchema();
+        KeyValue messageValue = (KeyValue) message.getValue();
+
+        KeyValueSchema recordSchema = (KeyValueSchema) record.getSchema();
+        KeyValue recordValue = ((KeyValue) record.getValue().getNativeObject());
+        assertSame(messageSchema.getKeySchema(), recordSchema.getKeySchema());
+        assertSame(messageSchema.getValueSchema(), recordSchema.getValueSchema());
+        assertSame(messageValue.getKey(), recordValue.getKey());
+        assertSame(messageValue.getValue(), recordValue.getValue());
     }
 }

@@ -21,6 +21,7 @@ package org.apache.pulsar.functions.transforms;
 import static org.apache.pulsar.functions.transforms.Utils.createTestAvroKeyValueRecord;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertSame;
+import static org.testng.Assert.assertThrows;
 import com.google.common.collect.ImmutableMap;
 import java.util.Map;
 import org.apache.pulsar.client.api.Schema;
@@ -31,6 +32,15 @@ import org.apache.pulsar.functions.api.Record;
 import org.testng.annotations.Test;
 
 public class CastFunctionTest {
+
+    @Test
+    void testInvalidConfig() {
+        Map<String, Object> config = ImmutableMap.of("key-schema-type", 42);
+        Utils.TestContext context = new Utils.TestContext(createTestAvroKeyValueRecord(), config);
+
+        CastFunction function = new CastFunction();
+        assertThrows(IllegalArgumentException.class, () -> function.initialize(context));
+    }
 
     @Test
     void testKeyValueAvroToString() throws Exception {

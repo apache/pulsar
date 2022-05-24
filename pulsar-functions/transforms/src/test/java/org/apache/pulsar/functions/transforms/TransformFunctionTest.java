@@ -47,6 +47,9 @@ public class TransformFunctionTest {
                 {"{'steps': [{'type': 'unwrap-key-value'}]}"},
                 {"{'steps': [{'type': 'unwrap-key-value', 'unwrap-key': false}]}"},
                 {"{'steps': [{'type': 'unwrap-key-value', 'unwrap-key': true}]}"},
+                {"{'steps': [{'type': 'cast', 'schema-type': 'STRING'}]}"},
+                {"{'steps': [{'type': 'cast', 'schema-type': 'STRING', 'part': 'key'}]}"},
+                {"{'steps': [{'type': 'cast', 'schema-type': 'STRING', 'part': 'value'}]}"},
         };
     }
 
@@ -64,11 +67,17 @@ public class TransformFunctionTest {
         return new Object[][] {
                 {"{}"},
                 {"{'steps': 'invalid'}"},
+                {"{'steps': [{}]}"},
                 {"{'steps': [{'type': 'invalid'}]}"},
                 {"{'steps': [{'type': 'drop-fields'}]}"},
                 {"{'steps': [{'type': 'drop-fields', 'fields': ''}]}"},
                 {"{'steps': [{'type': 'drop-fields', 'fields': 'some-field', 'part': 'invalid'}]}"},
+                {"{'steps': [{'type': 'drop-fields', 'fields': 'some-field', 'part': 42}]}"},
                 {"{'steps': [{'type': 'unwrap-key-value', 'unwrap-key': 'invalid'}]}"},
+                {"{'steps': [{'type': 'cast', 'schema-type': 42}]}"},
+                {"{'steps': [{'type': 'cast', 'schema-type': 'INVALID'}]}"},
+                {"{'steps': [{'type': 'cast', 'schema-type': 'STRING', 'part': 'invalid'}]}"},
+                {"{'steps': [{'type': 'cast', 'schema-type': 'STRING', 'part': 42}]}"},
         };
     }
 

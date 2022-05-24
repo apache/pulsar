@@ -20,6 +20,7 @@ package org.apache.pulsar.functions.transforms;
 
 import static org.apache.pulsar.functions.transforms.Utils.createTestAvroKeyValueRecord;
 import static org.apache.pulsar.functions.transforms.Utils.getRecord;
+import static org.junit.Assert.assertSame;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertThrows;
 import com.google.common.collect.ImmutableMap;
@@ -89,8 +90,8 @@ public class UnwrapKeyValueFunctionTest {
 
         Utils.TestTypedMessageBuilder<?> message = context.getOutputMessage();
 
-        assertEquals(message.getSchema(), record.getSchema());
-        assertEquals(message.getValue(), record.getValue().getNativeObject());
+        assertSame(message.getSchema(), record.getSchema());
+        assertSame(message.getValue(), record.getValue().getNativeObject());
         assertEquals(message.getKey(), record.getKey().orElse(null));
     }
 }
