@@ -59,8 +59,8 @@ public interface ModularLoadManagerStrategy {
      */
     static ModularLoadManagerStrategy create(final ServiceConfiguration conf) {
         try {
-            String targetClassName =
-                    LeastLongTermMessageRate.class.getPackage().getName() + "." + conf.getLoadBalancerLoadManagerStrategy();
+            String targetClassName = LeastLongTermMessageRate.class.getPackage().getName() + "." +
+                    conf.getLoadBalancerLoadManagerStrategy();
 
             return Reflections.createInstance(
                     targetClassName, ModularLoadManagerStrategy.class, Thread.currentThread().getContextClassLoader());
