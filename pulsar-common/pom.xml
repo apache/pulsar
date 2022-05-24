@@ -163,6 +163,20 @@
       <optional>true</optional>
     </dependency>
 
+    <!-- test -->
+    <dependency>
+      <groupId>org.eclipse.jetty</groupId>
+      <artifactId>jetty-server</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.bouncycastle</groupId>
+      <artifactId>bc-fips</artifactId>
+      <version>${bouncycastlefips.version}</version>
+      <scope>test</scope>
+    </dependency>
+
     <dependency>
       <groupId>org.lz4</groupId>
       <artifactId>lz4-java</artifactId>

@@ -257,7 +257,8 @@ public class KeyStoreSSLContext {
         return keyStoreSSLContext;
     }
 
-    // for web server use case, no need ciphers and protocols
+    // the web server only use this method to get SSLContext, it won't use this to configure engine
+    // no need ciphers and protocols
     public static SSLContext createServerSslContext(String sslProviderString,
                                                     String keyStoreTypeString,
                                                     String keyStorePath,
@@ -333,5 +334,52 @@ public class KeyStoreSSLContext {
                 null);
 
         return keyStoreSSLContext.createSSLContext();
+    }
+}
+
+    // for web server. autoRefresh is default true.
+    public static SslContextFactory.Server createSslContextFactory(String sslProviderString,
+                                                                   String keyStoreTypeString,
+                                                                   String keyStore,
+                                                                   String keyStorePassword,
+                                                                   boolean allowInsecureConnection,
+                                                                   String trustStoreTypeString,
+                                                                   String trustStore,
+                                                                   String trustStorePassword,
+                                                                   boolean requireTrustedClientCertOnConnect,
+                                                                   Set<String> ciphers,
+                                                                   Set<String> protocols,
+                                                                   long certRefreshInSec) {
+        SslContextFactory.Server sslCtxFactory;
+
+        if (sslProviderString == null) {
+            Provider provider = SecurityUtility.CONSCRYPT_PROVIDER;
+            if (provider != null) {
+                sslProviderString = provider.getName();
+            }
+        }
+
+        sslCtxFactory = new JettySslContextFactoryWithAutoRefresh(
+                sslProviderString,
+                keyStoreTypeString,
+                keyStore,
+                keyStorePassword,
+                allowInsecureConnection,
+                trustStoreTypeString,
+                trustStore,
+                trustStorePassword,
+                requireTrustedClientCertOnConnect,
+                ciphers,
+                protocols,
+                certRefreshInSec);
+
+        if (requireTrustedClientCertOnConnect) {
+            sslCtxFactory.setNeedClientAuth(true);
+        } else {
+            sslCtxFactory.setWantClientAuth(true);
+        }
+        sslCtxFactory.setTrustAll(true);
+
+        return sslCtxFactory;
     }
 }
