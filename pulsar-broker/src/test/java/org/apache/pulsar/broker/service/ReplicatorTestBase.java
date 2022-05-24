@@ -236,8 +236,6 @@ public abstract class ReplicatorTestBase extends TestRetrySupport {
         config.setAllowAutoTopicCreationType("non-partitioned");
         config.setEnableReplicatedSubscriptions(true);
         config.setReplicatedSubscriptionsSnapshotFrequencyMillis(1000);
-        config.setSystemTopicEnabled(true);
-        config.setTopicLevelPoliciesEnabled(true);
     }
 
     public void resetConfig1() {

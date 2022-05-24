@@ -58,14 +58,8 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
     @Override
     @BeforeClass(alwaysRun = true, timeOut = 300000)
     public void setup() throws Exception {
-        config1.setSystemTopicEnabled(true);
         config1.setDefaultNumberOfNamespaceBundles(1);
-        config1.setTopicLevelPoliciesEnabled(true);
-        config2.setSystemTopicEnabled(true);
-        config2.setTopicLevelPoliciesEnabled(true);
         config2.setDefaultNumberOfNamespaceBundles(1);
-        config3.setSystemTopicEnabled(true);
-        config3.setTopicLevelPoliciesEnabled(true);
         config3.setDefaultNumberOfNamespaceBundles(1);
         super.setup();
     }

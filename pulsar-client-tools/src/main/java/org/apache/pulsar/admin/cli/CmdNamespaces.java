@@ -28,7 +28,6 @@ import com.google.common.collect.Sets;
 import io.swagger.util.Json;
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -2456,24 +2455,11 @@ public class CmdNamespaces extends CmdBase {
         @Override
         void run() throws Exception {
             String namespace = validateNamespace(params);
-            Map<String, String> map = new HashMap<>();
             if (properties.size() == 0) {
                 throw new ParameterException(String.format("Required at least one property for the namespace, "
                         + "but found %d.", properties.size()));
             }
-            for (String property : properties) {
-                if (!property.contains("=")) {
-                    throw new ParameterException(String.format("Invalid key value pair '%s', "
-                            + "valid format like 'a=a,b=b,c=c'.", property));
-                } else {
-                    String[] keyValue = property.split("=");
-                    if (keyValue.length != 2) {
-                        throw new ParameterException(String.format("Invalid key value pair '%s', "
-                                + "valid format like 'a=a,b=b,c=c'.", property));
-                    }
-                    map.put(keyValue[0], keyValue[1]);
-                }
-            }
+            Map<String, String> map = parseListKeyValueMap(properties);
             getAdmin().namespaces().setProperties(namespace, map);
         }
     }

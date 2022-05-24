@@ -32,6 +32,8 @@ public class PersistentTopicStreamingDispatcherTest extends PersistentTopicTest 
     @BeforeMethod
     public void setup() throws Exception {
         super.setup();
+        pulsar.getConfiguration().setTopicLevelPoliciesEnabled(false);
+        pulsar.getConfiguration().setSystemTopicEnabled(false);
         pulsar.getConfiguration().setStreamingDispatch(true);
     }
 }

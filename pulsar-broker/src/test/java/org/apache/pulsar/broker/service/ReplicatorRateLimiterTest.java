@@ -79,8 +79,6 @@ public class ReplicatorRateLimiterTest extends ReplicatorTestBase {
     @Test
     public void testReplicatorRatePriority() throws Exception {
         cleanup();
-        config1.setSystemTopicEnabled(true);
-        config1.setTopicLevelPoliciesEnabled(true);
         config1.setDispatchThrottlingRatePerReplicatorInMsg(100);
         config1.setDispatchThrottlingRatePerReplicatorInByte(200L);
         setup();

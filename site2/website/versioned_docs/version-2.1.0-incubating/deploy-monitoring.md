@@ -1,7 +1,7 @@
 ---
-id: version-2.1.0-incubating-deploy-monitoring
+id: deploy-monitoring
 title: Monitoring
-sidebar_label: Monitoring
+sidebar_label: "Monitoring"
 original_id: deploy-monitoring
 ---
 
@@ -16,14 +16,18 @@ Pulsar broker metrics can be collected from brokers and exported in JSON format.
 * *Destination dumps*, which containing stats for each individual topic. They can be fetched using
 
   ```shell
+  
   bin/pulsar-admin broker-stats destinations
+  
   ```
 
 * Broker metrics, containing broker info and topics stats aggregated at namespace
   level:
 
   ```shell
+  
   bin/pulsar-admin broker-stats monitoring-metrics
+  
   ```
 
 All the message rates are updated every 1min.
@@ -31,7 +35,9 @@ All the message rates are updated every 1min.
 The aggregated broker metrics are also exposed in the [Prometheus](https://prometheus.io) format at:
 
 ```shell
+
 http://$BROKER_ADDRESS:8080/metrics/
+
 ```
 
 ### ZooKeeper stats
@@ -40,8 +46,10 @@ The local ZooKeeper/configuration store server and clients that are shipped with
 detailed stats through Prometheus as well.
 
 ```shell
+
 http://$LOCAL_ZK_SERVER:8000/metrics
 http://$GLOBAL_ZK_SERVER:8001/metrics
+
 ```
 
 The default port of local ZooKeeper is `8000` and that of configuration store is `8001`.
@@ -56,7 +64,9 @@ By default, the default BookKeeper configuration included with Pulsar distributi
 the Prometheus exporter.
 
 ```shell
+
 http://$BOOKIE_ADDRESS:8000/metrics
+
 ```
 
 For bookies, the default port is `8000` (instead of `8080`) and that can be configured by changing
@@ -64,11 +74,10 @@ the `prometheusStatsHttpPort` in `conf/bookkeeper.conf`.
 
 ## Configuring Prometheus
 
-You can configure Prometheus to collect and store the metrics data by following the Prometheus
-[Getting started](https://prometheus.io/docs/introduction/getting_started/) guide.
+You can configure Prometheus to collect and store the metrics data by following the Prometheus [Getting started](https://prometheus.io/docs/introduction/getting_started/) guide.
 
 When running on bare metal, you can provide the list of nodes that needs to be probed. When deploying
-in a Kubernetes cluster, the monitoring is automatically setup with the [provided](deploy-kubernetes.md)
+in a Kubernetes cluster, the monitoring is automatically setup with the [provided](deploy-kubernetes)
 instructions.
 
 ## Dashboards
@@ -80,7 +89,7 @@ For that reason we only collect time series of metrics aggregated at the namespa
 
 ### Pulsar per-topic dashboard
 
-The per-topic dashboard instructions are available at [Dashboard](administration-dashboard.md).
+The per-topic dashboard instructions are available at [Dashboard](administration-dashboard).
 
 ### Grafana
 
@@ -92,7 +101,10 @@ in place. This is enabled by default when deploying Pulsar on Kubernetes.
 To use the dashboard manually:
 
 ```shell
+
 docker run -p3000:3000 \
         -e PROMETHEUS_URL=http://$PROMETHEUS_HOST:9090/ \
         apachepulsar/pulsar-grafana:latest
+
 ```
+
