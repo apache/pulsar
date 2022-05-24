@@ -72,6 +72,7 @@ public class TrashMetaStoreImpl implements TrashMetaStore {
 
     private static final String DELETABLE_OFFLOADED_LEDGER_SUFFIX = "DOL";
 
+    private static final int RETRY_COUNT = 9;
 
     private static final CompletableFuture<Void> COMPLETED_FUTURE = CompletableFuture.completedFuture(null);
 
@@ -107,8 +108,6 @@ public class TrashMetaStoreImpl implements TrashMetaStore {
 
     private final int archiveDataLimitSize;
 
-    private final int deleteRetryCount;
-
     public TrashMetaStoreImpl(String type, String name, MetadataStore metadataStore, ManagedLedgerConfig config,
                               OrderedScheduler scheduledExecutor, OrderedExecutor executor, BookKeeper bookKeeper) {
         this.type = type;
@@ -123,7 +122,6 @@ public class TrashMetaStoreImpl implements TrashMetaStore {
         this.bookKeeper = bookKeeper;
         this.trashDataLimitSize = config.getTrashDataLimitSize();
         this.archiveDataLimitSize = config.getTrashDataLimitSize() / 2;
-        this.deleteRetryCount = config.getTrashDeleteRetryCount();
     }
 
     @Override
@@ -394,11 +392,11 @@ public class TrashMetaStoreImpl implements TrashMetaStore {
     }
 
     private String buildLedgerKey(long ledgerId) {
-        return buildKey(deleteRetryCount, ledgerId, DELETABLE_LEDGER_SUFFIX);
+        return buildKey(RETRY_COUNT, ledgerId, DELETABLE_LEDGER_SUFFIX);
     }
 
     private String buildOffloadLedgerKey(long ledgerId) {
-        return buildKey(deleteRetryCount, ledgerId, DELETABLE_OFFLOADED_LEDGER_SUFFIX);
+        return buildKey(RETRY_COUNT, ledgerId, DELETABLE_OFFLOADED_LEDGER_SUFFIX);
     }
 
     private static String buildKey(int retryCount, long ledgerId, String suffix) {
@@ -457,10 +455,10 @@ public class TrashMetaStoreImpl implements TrashMetaStore {
                 String info = null;
                 if (delHelper.isLedger()) {
                     info = String.format("Delete ledger %d reach retry limit %d, copy it to archive",
-                            delHelper.ledgerId, TrashMetaStoreImpl.this.deleteRetryCount);
+                            delHelper.ledgerId, RETRY_COUNT);
                 } else if (delHelper.isOffloadLedger()) {
                     info = String.format("Delete offload ledger %d reach retry limit %d, copy it to archive",
-                            delHelper.ledgerId, TrashMetaStoreImpl.this.deleteRetryCount);
+                            delHelper.ledgerId, RETRY_COUNT);
                 }
                 log.debug(info);
             }

@@ -79,7 +79,6 @@ public class ManagedLedgerConfig {
     private Map<String, String> properties;
     private int inactiveLedgerRollOverTimeMs = 0;
     private int trashDataLimitSize = 1000;
-    private int trashDeleteRetryCount = 10;
     @Getter
     @Setter
     private boolean cacheEvictionByMarkDeletedPosition = false;
@@ -691,13 +690,5 @@ public class ManagedLedgerConfig {
 
     public void setTrashDataLimitSize(int trashDataLimitSize) {
         this.trashDataLimitSize = trashDataLimitSize;
-    }
-
-    public int getTrashDeleteRetryCount() {
-        return trashDeleteRetryCount;
-    }
-
-    public void setTrashDeleteRetryCount(int trashDeleteRetryCount) {
-        this.trashDeleteRetryCount = trashDeleteRetryCount;
     }
 }
