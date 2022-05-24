@@ -525,20 +525,16 @@ int ProducerImpl::getNumOfChunks(uint32_t size, uint32_t maxMessageSize) {
 
 Result ProducerImpl::canEnqueueRequest(uint32_t payloadSize) {
     if (conf_.getBlockIfQueueFull()) {
-        if (semaphore_) {
-            if (!semaphore_->acquire()) {
-                return ResultInterrupted;
-            }
+        if (semaphore_ && !semaphore_->acquire()) {
+            return ResultInterrupted;
         }
         if (!memoryLimitController_.reserveMemory(payloadSize)) {
             return ResultInterrupted;
         }
         return ResultOk;
     } else {
-        if (semaphore_) {
-            if (!semaphore_->tryAcquire()) {
-                return ResultProducerQueueIsFull;
-            }
+        if (semaphore_ && !semaphore_->tryAcquire()) {
+            return ResultProducerQueueIsFull;
         }
 
         if (!memoryLimitController_.tryReserveMemory(payloadSize)) {

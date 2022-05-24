@@ -729,7 +729,7 @@ Result ConsumerImpl::fetchSingleMessageFromBroker(Message& msg) {
         {
             // Lock needed to prevent race between connectionOpened and the check "msg.impl_->cnx_ ==
             // currentCnx.get())"
-            Lock localLock1(mutex_);
+            Lock localLock(mutex_);
             // if message received due to an old flow - discard it and wait for the message from the
             // latest flow command
             if (msg.impl_->cnx_ == currentCnx.get()) {
