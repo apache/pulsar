@@ -36,6 +36,7 @@ import io.netty.buffer.Unpooled;
 import io.netty.util.Timeout;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.List;
@@ -996,5 +997,48 @@ public class TransactionTest extends TransactionTestBase {
                 .get();
 
         transaction.commit().get();
+    }
+
+    @Test
+    public void testTransactionAckMessageList() throws Exception {
+        String topic = "persistent://" + NAMESPACE1 +"/test";
+        String subName = "testSub";
+
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topic)
+                .sendTimeout(5, TimeUnit.SECONDS)
+                .create();
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topic)
+                .subscriptionName(subName)
+                .subscribe();
+
+        for (int i = 0; i < 5; i++) {
+            producer.newMessage().send();
+        }
+        List<MessageId> messages = new ArrayList<>();
+        for (int i = 0; i < 4; i++) {
+            Message<byte[]> message = consumer.receive();
+            messages.add(message.getMessageId());
+        }
+        Transaction transaction = pulsarClient
+                .newTransaction()
+                .withTransactionTimeout(5, TimeUnit.MINUTES)
+                .build()
+                .get();
+
+        consumer.acknowledgeAsync(messages, transaction);
+        transaction.commit().get();
+
+        consumer.close();
+        consumer = pulsarClient.newConsumer()
+                .topic(topic)
+                .subscriptionName(subName)
+                .subscribe();
+        Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
+        Assert.assertNotNull(message);
+        Assert.assertFalse(messages.contains(message.getMessageId()));
+        message = consumer.receive(5, TimeUnit.SECONDS);
+        Assert.assertNull(message);
     }
 }

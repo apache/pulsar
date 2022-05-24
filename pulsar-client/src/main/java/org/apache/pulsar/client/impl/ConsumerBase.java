@@ -498,6 +498,12 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     }
 
     @Override
+    public CompletableFuture<Void> acknowledgeAsync(List<MessageId> messageIdList, Transaction txn)
+            throws PulsarClientException {
+        return doAcknowledgeWithTxn(messageIdList, AckType.Individual, Collections.emptyMap(), (TransactionImpl) txn);
+    }
+
+    @Override
     public CompletableFuture<Void> reconsumeLaterAsync(Message<?> message, long delayTime, TimeUnit unit) {
         return reconsumeLaterAsync(message, null, delayTime, unit);
     }
