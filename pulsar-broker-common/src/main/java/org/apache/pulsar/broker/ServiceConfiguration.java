@@ -781,6 +781,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private double maxUnackedMessagesPerSubscriptionOnBrokerBlocked = 0.16;
     @FieldContext(
             category = CATEGORY_POLICIES,
+            doc = "Maximum size of Consumer metadata")
+    private int maxConsumerMetadataSize = 1024;
+    @FieldContext(
+            category = CATEGORY_POLICIES,
             dynamic = true,
             doc = "Broker periodically checks if subscription is stuck and unblock if flag is enabled. "
                     + "(Default is disabled)"
