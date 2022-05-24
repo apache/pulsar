@@ -914,9 +914,9 @@ public class BrokerService implements Closeable {
                                 if (rateLimiter != null) {
                                     rateLimiter.acquire(1);
                                 }
-                                pulsar.getNamespaceService().unloadNamespaceBundle(su, pulsar.getConfiguration()
-                                                .getNamespaceBundleUnloadingTimeoutMs(), TimeUnit.MILLISECONDS,
-                                        closeWithoutWaitingClientDisconnect).get();
+                                long timeout = pulsar.getConfiguration().getNamespaceBundleUnloadingTimeoutMs();
+                                pulsar.getNamespaceService().unloadNamespaceBundle(su, timeout, TimeUnit.MILLISECONDS,
+                                        closeWithoutWaitingClientDisconnect).get(timeout, TimeUnit.MILLISECONDS);
                             } catch (Exception e) {
                                 log.warn("Failed to unload namespace bundle {}", su, e);
                             }
