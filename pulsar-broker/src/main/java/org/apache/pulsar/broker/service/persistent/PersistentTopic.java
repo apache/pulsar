@@ -75,7 +75,6 @@ import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.net.BookieId;
-import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.namespace.NamespaceService;
@@ -279,7 +278,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             } else {
                 final String subscriptionName = Codec.decode(cursor.getName());
                 subscriptions.put(subscriptionName, createPersistentSubscription(subscriptionName, cursor,
-                        PersistentSubscription.isCursorFromReplicatedSubscription(cursor), null));
+                        PersistentSubscription.isCursorFromReplicatedSubscription(cursor),
+                        cursor.getCursorProperties()));
                 // subscription-cursor gets activated by default: deactivate as there is no active subscription right
                 // now
                 subscriptions.get(subscriptionName).deactivateCursor();
@@ -876,7 +876,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
         Map<String, Long> properties = PersistentSubscription.getBaseCursorProperties(replicated);
 
-        ledger.asyncOpenCursor(Codec.encode(subscriptionName), initialPosition, properties, new OpenCursorCallback() {
+        ledger.asyncOpenCursor(Codec.encode(subscriptionName), initialPosition, properties, subscriptionProperties,
+                new OpenCursorCallback() {
             @Override
             public void openCursorComplete(ManagedCursor cursor, Object ctx) {
                 if (log.isDebugEnabled()) {
@@ -896,11 +897,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                         return;
                     }
                 }
-                if (MapUtils.isEmpty(subscription.getSubscriptionProperties())
-                        && MapUtils.isNotEmpty(subscriptionProperties)) {
-                    subscription.getSubscriptionProperties().putAll(subscriptionProperties);
-                }
-
                 if (replicated && !subscription.isReplicated()) {
                     // Flip the subscription state
                     subscription.setReplicated(replicated);
@@ -978,11 +974,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 if (subscription.getCursor() != null && subscription.getCursor().isDurable()) {
                     return FutureUtil.failedFuture(
                             new NotAllowedException("Durable subscription with the same name already exists."));
-                }
-
-                if (MapUtils.isEmpty(subscription.getSubscriptionProperties())
-                        && MapUtils.isNotEmpty(subscriptionProperties)) {
-                    subscription.getSubscriptionProperties().putAll(subscriptionProperties);
                 }
             }
 
