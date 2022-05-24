@@ -39,7 +39,6 @@ import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
-import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
@@ -80,13 +79,13 @@ public class TrashMetaStoreImpl implements TrashMetaStore {
     private NavigableMap<String, LedgerInfo> trashData = new ConcurrentSkipListMap<>();
 
     //key: ledgerId value:storageContext
-    private NavigableMap<String, LedgerInfo> archiveData = new ConcurrentSkipListMap<>();
+    private final NavigableMap<String, LedgerInfo> archiveData = new ConcurrentSkipListMap<>();
 
     private final CallbackMutex trashMutex = new CallbackMutex();
 
     private final CallbackMutex deleteMutex = new CallbackMutex();
 
-    private AbstractBatchedMetadataStore metadataStore;
+    private final AbstractBatchedMetadataStore metadataStore;
 
     private volatile Stat deleteStat;
 
@@ -95,8 +94,6 @@ public class TrashMetaStoreImpl implements TrashMetaStore {
     private final String name;
 
     private long archiveIndex;
-
-    private final ManagedLedger managedLedger;
 
     private final ManagedLedgerConfig config;
 
@@ -112,12 +109,10 @@ public class TrashMetaStoreImpl implements TrashMetaStore {
 
     private final int deleteRetryCount;
 
-    public TrashMetaStoreImpl(String type, String name, MetadataStore metadataStore, ManagedLedger managedLedger,
-                              ManagedLedgerConfig config, OrderedScheduler scheduledExecutor, OrderedExecutor executor,
-                              BookKeeper bookKeeper) {
+    public TrashMetaStoreImpl(String type, String name, MetadataStore metadataStore, ManagedLedgerConfig config,
+                              OrderedScheduler scheduledExecutor, OrderedExecutor executor, BookKeeper bookKeeper) {
         this.type = type;
         this.name = name;
-        this.managedLedger = managedLedger;
         this.config = config;
         if (!(metadataStore instanceof AbstractBatchedMetadataStore)) {
             throw new IllegalStateException("TrashMetaStoreImpl metadata store must support batch operation.");
@@ -134,7 +129,7 @@ public class TrashMetaStoreImpl implements TrashMetaStore {
     @Override
     public CompletableFuture<Void> initialize() {
         CompletableFuture<Void> future = new CompletableFuture<>();
-        metadataStore.getChildren(buildPath()).whenComplete((res, e) -> {
+        metadataStore.getChildren(buildPath()).whenCompleteAsync((res, e) -> {
             if (e != null) {
                 log.error("Get archive index failed, name:{} type: {}", name, type, e);
                 future.completeExceptionally(e);
@@ -169,7 +164,7 @@ public class TrashMetaStoreImpl implements TrashMetaStore {
                     }
                 }
             });
-        });
+        }, scheduledExecutor.chooseThread(name));
         return future;
     }
 
@@ -181,31 +176,33 @@ public class TrashMetaStoreImpl implements TrashMetaStore {
         }
     }
 
-    public void appendLedgerTrashDataInBackground(long ledgerId, LedgerInfo context, CompletableFuture<?> future) {
-        executor.executeOrdered(name, safeRun(() -> appendLedgerTrashData(ledgerId, context, future)));
+    public void appendInBackground(String key, LedgerInfo context, CompletableFuture<?> future) {
+        executor.executeOrdered(name, safeRun(() -> appendTrashData(key, context, future)));
     }
-
 
     @Override
     public void appendLedgerTrashData(long ledgerId, LedgerInfo context, CompletableFuture<?> future) {
-        if (!trashMutex.tryLock()) {
-            scheduledExecutor.schedule(safeRun(() -> appendLedgerTrashDataInBackground(ledgerId, context, future)),
-                    100, TimeUnit.MILLISECONDS);
-        }
-        String key = buildLedgerLey(ledgerId);
-        trashData.put(key, context);
-        archiveStaleDataIfNecessary(future);
+        String key = buildLedgerKey(ledgerId);
+        appendTrashData(key, context, future);
     }
 
     @Override
     public void appendOffloadLedgerTrashData(long ledgerId, LedgerInfo context, CompletableFuture<?> future) {
+        String key = buildOffloadLedgerKey(ledgerId);
+        appendTrashData(key, context, future);
+    }
+
+    private void appendTrashData(String key, LedgerInfo context, CompletableFuture<?> future) {
         if (!trashMutex.tryLock()) {
-            scheduledExecutor.schedule(safeRun(() -> appendLedgerTrashDataInBackground(ledgerId, context, future)), 100,
+            scheduledExecutor.schedule(safeRun(() -> appendInBackground(key, context, future)), 100,
                     TimeUnit.MILLISECONDS);
         }
-        String key = buildOffloadLedgerKey(ledgerId);
-        trashData.put(key, context);
-        archiveStaleDataIfNecessary(future);
+        try {
+            trashData.put(key, context);
+            archiveStaleDataIfFull(future);
+        } finally {
+            trashMutex.unlock();
+        }
     }
 
     @Override
@@ -218,7 +215,7 @@ public class TrashMetaStoreImpl implements TrashMetaStore {
                     }
                     deleteStat = res;
                     callback.operationComplete(null);
-                }, scheduledExecutor);
+                }, executor.chooseThread(name));
     }
 
     private byte[] serialize(Map<String, LedgerInfo> toPersist) {
@@ -232,7 +229,7 @@ public class TrashMetaStoreImpl implements TrashMetaStore {
 
     @Override
     public void triggerDelete() {
-        if (!deleteMutex.tryLock()) {
+        if (!deleteMutex.tryLock() || !trashMutex.tryLock()) {
             scheduledExecutor.schedule(this::triggerDelete, 100, TimeUnit.MILLISECONDS);
             return;
         }
@@ -246,6 +243,7 @@ public class TrashMetaStoreImpl implements TrashMetaStore {
             }
         } finally {
             deleteMutex.unlock();
+            trashMutex.unlock();
         }
     }
 
@@ -259,7 +257,7 @@ public class TrashMetaStoreImpl implements TrashMetaStore {
         return null;
     }
 
-    private void archiveStaleDataIfNecessary(CompletableFuture<?> future) {
+    private void archiveStaleDataIfFull(CompletableFuture<?> future) {
         if (trashData.size() <= trashDataLimitSize) {
             future.complete(null);
             return;
@@ -275,20 +273,20 @@ public class TrashMetaStoreImpl implements TrashMetaStore {
             }
         }
         //persist
-        appendArchiveData(toArchive, future);
+        copyToArchiveWhenTrashFull(toArchive, future);
     }
 
-    private void appendArchiveData(Map<String, LedgerInfo> toArchive, CompletableFuture<?> future) {
+    private void copyToArchiveWhenTrashFull(Map<String, LedgerInfo> toArchive, CompletableFuture<?> future) {
         archiveData.putAll(toArchive);
-        updateArchiveDataIfNecessary(future);
+        updateArchiveDataIfNecessary(future, executor);
     }
 
-    private void appendArchiveData(String ledgerId, LedgerInfo context, CompletableFuture<?> future) {
+    private void copyToArchiveWhenDeleteFailed(String ledgerId, LedgerInfo context, CompletableFuture<?> future) {
         archiveData.put(ledgerId, context);
-        updateArchiveDataIfNecessary(future);
+        updateArchiveDataIfNecessary(future, scheduledExecutor);
     }
 
-    private void updateArchiveDataIfNecessary(CompletableFuture<?> future) {
+    private void updateArchiveDataIfNecessary(CompletableFuture<?> future, OrderedExecutor callbackExecutor) {
         if (archiveData.size() <= archiveDataLimitSize) {
             future.complete(null);
             return;
@@ -303,7 +301,7 @@ public class TrashMetaStoreImpl implements TrashMetaStore {
             public void operationFailed(ManagedLedgerException.MetaStoreException e) {
                 future.completeExceptionally(e);
             }
-        });
+        }, callbackExecutor);
     }
 
 
@@ -354,7 +352,8 @@ public class TrashMetaStoreImpl implements TrashMetaStore {
         return ThreadLocalRandom.current().nextInt(100) >= 50;
     }
 
-    private void asyncUpdateArchiveData(TrashMetaStore.TrashMetaStoreCallback<Void> callback) {
+    private void asyncUpdateArchiveData(TrashMetaStore.TrashMetaStoreCallback<Void> callback,
+                                        OrderedExecutor callbackExecutor) {
         //transaction operation
         NavigableMap<String, LedgerInfo> persistDelete = new ConcurrentSkipListMap<>();
         persistDelete.putAll(trashData);
@@ -373,7 +372,7 @@ public class TrashMetaStoreImpl implements TrashMetaStore {
         txOps.add(opArchivePersist);
         metadataStore.batchOperation(txOps);
 
-        opDeletePersist.getFuture().whenComplete((res, e) -> {
+        opDeletePersist.getFuture().whenCompleteAsync((res, e) -> {
             if (e != null) {
                 log.error("Persist trash data failed.", e);
                 callback.operationFailed(getException(e));
@@ -390,11 +389,11 @@ public class TrashMetaStoreImpl implements TrashMetaStore {
                 archiveData.clear();
                 archiveIndex++;
             });
-        });
+        }, callbackExecutor.chooseThread(name));
 
     }
 
-    private String buildLedgerLey(long ledgerId) {
+    private String buildLedgerKey(long ledgerId) {
         return buildKey(deleteRetryCount, ledgerId, DELETABLE_LEDGER_SUFFIX);
     }
 
@@ -465,7 +464,7 @@ public class TrashMetaStoreImpl implements TrashMetaStore {
                 }
                 log.debug(info);
             }
-            appendArchiveData(delHelper.transferToTrashKey(), delHelper.context, COMPLETED_FUTURE);
+            copyToArchiveWhenDeleteFailed(delHelper.transferToTrashKey(), delHelper.context, COMPLETED_FUTURE);
         } else {
             //override old key
             String key = delHelper.transferToTrashKey();

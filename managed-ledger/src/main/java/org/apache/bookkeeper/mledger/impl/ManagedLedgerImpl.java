@@ -345,8 +345,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             this.managedLedgerInterceptor = config.getManagedLedgerInterceptor();
         }
         this.inactiveLedgerRollOverTimeMs = config.getInactiveLedgerRollOverTimeMs();
-        this.trashStore = new TrashMetaStoreImpl(TrashMetaStore.MANAGED_LEDGER, name, metadataStore,this, config,
-                scheduledExecutor, executor, bookKeeper);
+        this.trashStore =
+                new TrashMetaStoreImpl(TrashMetaStore.MANAGED_LEDGER, name, metadataStore, config, scheduledExecutor,
+                        executor, bookKeeper);
     }
 
     synchronized void initialize(final ManagedLedgerInitializeLedgerCallback callback, final Object ctx) {
@@ -4122,8 +4123,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
      * @param deletableLedgerIds
      */
     private CompletableFuture<Void> asyncUpdateTrashData(Collection<Long> deletableLedgerIds,
-                                        Collection<Long> deletableOffloadedLedgerIds) {
-        List<CompletableFuture<?>> futures = new ArrayList<>(deletableLedgerIds.size() + deletableOffloadedLedgerIds.size());
+                                                         Collection<Long> deletableOffloadedLedgerIds) {
+        List<CompletableFuture<?>> futures =
+                new ArrayList<>(deletableLedgerIds.size() + deletableOffloadedLedgerIds.size());
 
         for (Long ledgerId : deletableLedgerIds) {
             CompletableFuture<Void> future = new CompletableFuture<>();
