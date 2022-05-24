@@ -126,6 +126,7 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.SizeUnit;
 import org.apache.pulsar.client.impl.ClientBuilderImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
@@ -1176,6 +1177,10 @@ public class BrokerService implements Closeable {
                         .enableTcpNoDelay(false)
                         .connectionsPerBroker(pulsar.getConfiguration().getReplicationConnectionsPerBroker())
                         .statsInterval(0, TimeUnit.SECONDS);
+
+                // Disable memory limit for replication client
+                clientBuilder.memoryLimit(0, SizeUnit.BYTES);
+
                 if (data.getAuthenticationPlugin() != null && data.getAuthenticationParameters() != null) {
                     clientBuilder.authentication(data.getAuthenticationPlugin(), data.getAuthenticationParameters());
                 } else if (pulsar.getConfiguration().isAuthenticationEnabled()) {

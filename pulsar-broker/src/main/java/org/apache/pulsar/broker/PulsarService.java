@@ -1397,6 +1397,10 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         if (this.client == null) {
             try {
                 ClientConfigurationData conf = new ClientConfigurationData();
+
+                // Disable memory limit for broker client
+                conf.setMemoryLimitBytes(0);
+
                 conf.setServiceUrl(this.getConfiguration().isTlsEnabled()
                                 ? this.brokerServiceUrlTls : this.brokerServiceUrl);
                 conf.setTlsAllowInsecureConnection(this.getConfiguration().isTlsAllowInsecureConnection());
