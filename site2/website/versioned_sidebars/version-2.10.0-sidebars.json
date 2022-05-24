@@ -163,10 +163,6 @@
         {
           "type": "doc",
           "id": "version-2.10.0/io-develop"
-        },
-        {
-          "type": "doc",
-          "id": "version-2.10.0/io-cli"
         }
       ]
     },

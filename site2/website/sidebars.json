@@ -64,8 +64,7 @@
         "io-debug",
         "io-connectors",
         "io-cdc",
-        "io-develop",
-        "io-cli"
+        "io-develop"
       ]
     },
     {

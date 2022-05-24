@@ -17,7 +17,7 @@ At the end of this tutorial, you are able to:
 :::tip
 
 * These instructions assume you are running Pulsar in [standalone mode](getting-started-standalone). However, all
-the commands used in this tutorial can be used in a multi-nodes Pulsar cluster without any changes.
+the commands used in this tutorial can be used in a multi-node Pulsar cluster without any changes.
 * All the instructions are assumed to run at the root directory of a Pulsar binary distribution.
 
 :::
@@ -38,9 +38,9 @@ For more information about **how to install a standalone Pulsar and built-in con
    
    ```
 
-   All the components of a Pulsar service are start in order. 
+   All the components of a Pulsar service are started in order. 
    
-   You can curl those pulsar service endpoints to make sure Pulsar service is up running correctly.
+   You can curl those pulsar service endpoints to make sure Pulsar service is up and running correctly.
 
 2. Check Pulsar binary protocol port.
 
@@ -239,7 +239,7 @@ For more information, see [Cassandra sink connector](io-cassandra-sink).
 
 ### Create a Cassandra sink
 
-You can use the [Connector Admin CLI](io-cli) 
+You can use the [Connector Admin CLI](https://pulsar.apache.org/tools/pulsar-admin/) 
 to create a sink connector and perform other operations on them.
 
 Run the following command to create a Cassandra sink connector with sink type _cassandra_ and the config file _examples/cassandra-sink.yml_ created previously.
@@ -266,7 +266,7 @@ as a Pulsar Function and writes the messages produced in the topic _test_cassand
 
 ### Inspect a Cassandra sink
 
-You can use the [Connector Admin CLI](io-cli) 
+You can use the [Connector Admin CLI](https://pulsar.apache.org/tools/pulsar-admin/) 
 to monitor a connector and perform other operations on it.
 
 * Get the information of a Cassandra sink. 
@@ -430,7 +430,7 @@ to monitor a connector and perform other operations on it.
 
 ### Delete a Cassandra Sink
 
-You can use the [Connector Admin CLI](io-cli) 
+You can use the [Connector Admin CLI](https://pulsar.apache.org/tools/pulsar-admin/) 
 to delete a connector and perform other operations on it.
 
 ```bash
@@ -552,7 +552,7 @@ In this section, you need to configure a JDBC sink connector.
    
    To run a JDBC sink connector, you need to prepare a YAML configuration file including the information that Pulsar connector runtime needs to know. 
    
-   For example, how Pulsar connector can find the PostgreSQL cluster, what is the JDBC URL and the table that Pulsar connector uses for writing messages to.
+   For example, how Pulsar connector can find the PostgreSQL cluster, what is the JDBC URL and the table that Pulsar connector uses for writing messages.
 
    Create a _pulsar-postgres-jdbc-sink.yaml_ file, copy the following contents to this file, and place the file in the `pulsar/connectors` folder.
 
@@ -614,7 +614,7 @@ In this section, you need to configure a JDBC sink connector.
 
 ### Create a JDBC sink
 
-You can use the [Connector Admin CLI](io-cli) 
+You can use the [Connector Admin CLI](https://pulsar.apache.org/tools/pulsar-admin/) 
 to create a sink connector and perform other operations on it.
 
 This example creates a sink connector and specifies the desired information.
@@ -646,7 +646,7 @@ This sink connector runs as a Pulsar Function and writes the messages produced i
 
 :::tip
 
-For more information about `pulsar-admin sinks create options`, see [here](io-cli.md#sinks).
+For more information about `pulsar-admin sinks create options`, see [Pulsar admin docs](https://pulsar.apache.org/tools/pulsar-admin/).
 
 :::
 
@@ -660,7 +660,7 @@ Created successfully
 
 ### Inspect a JDBC sink
 
-You can use the [Connector Admin CLI](io-cli) 
+You can use the [Connector Admin CLI](https://pulsar.apache.org/tools/pulsar-admin/) 
 to monitor a connector and perform other operations on it.
 
 * List all running JDBC sink(s).
@@ -675,7 +675,7 @@ to monitor a connector and perform other operations on it.
 
   :::tip
 
-  For more information about `pulsar-admin sinks list options`, see [here](io-cli.md/#list-1).
+  For more information about `pulsar-admin sinks list options`, see [Pulsar admin docs](https://pulsar.apache.org/tools/pulsar-admin/).
 
   :::
 
@@ -702,7 +702,7 @@ to monitor a connector and perform other operations on it.
 
   :::tip
 
-  For more information about `pulsar-admin sinks get options`, see [here](io-cli.md/#get-1).
+  For more information about `pulsar-admin sinks get options`, see [Pulsar admin docs](https://pulsar.apache.org/tools/pulsar-admin/).
 
   :::
 
@@ -747,11 +747,11 @@ to monitor a connector and perform other operations on it.
 
   :::tip
 
-  For more information about `pulsar-admin sinks status options`, see [here](io-cli.md/#status-1).
+  For more information about `pulsar-admin sinks status options`, see [Pulsar admin docs](https://pulsar.apache.org/tools/pulsar-admin/).
 
   :::
 
-  The result shows the current status of sink connector, including the number of instance, running status, worker ID and so on.
+  The result shows the current status of sink connector, including the number of instances, running status, worker ID and so on.
 
   ```json
   
@@ -780,7 +780,7 @@ to monitor a connector and perform other operations on it.
 
 ### Stop a JDBC sink
 
-You can use the [Connector Admin CLI](io-cli) 
+You can use the [Connector Admin CLI](https://pulsar.apache.org/tools/pulsar-admin/) 
 to stop a connector and perform other operations on it.
 
 ```bash
@@ -794,7 +794,7 @@ $ bin/pulsar-admin sinks stop \
 
 :::tip
 
-For more information about `pulsar-admin sinks stop options`, see [here](io-cli.md/#stop-1).
+For more information about `pulsar-admin sinks stop options`, see [Pulsar admin docs](https://pulsar.apache.org/tools/pulsar-admin/).
 
 :::
 
@@ -808,7 +808,7 @@ Stopped successfully
 
 ### Restart a JDBC sink
 
-You can use the [Connector Admin CLI](io-cli) 
+You can use the [Connector Admin CLI](https://pulsar.apache.org/tools/pulsar-admin/) 
 to restart a connector and perform other operations on it.
 
 ```bash
@@ -822,7 +822,7 @@ $ bin/pulsar-admin sinks restart \
 
 :::tip
 
-For more information about `pulsar-admin sinks restart options`, see [here](io-cli.md/#restart-1).
+For more information about `pulsar-admin sinks restart options`, see [Pulsar admin docs](https://pulsar.apache.org/tools/pulsar-admin/).
 
 :::
 
@@ -838,13 +838,13 @@ Started successfully
 
 * Optionally, you can run a standalone sink connector using `pulsar-admin sinks localrun options`. 
 Note that `pulsar-admin sinks localrun options` **runs a sink connector locally**, while `pulsar-admin sinks start options` **starts a sink connector in a cluster**.
-* For more information about `pulsar-admin sinks localrun options`, see [here](io-cli.md#localrun-1).
+* For more information about `pulsar-admin sinks localrun options`, see [Pulsar admin docs](https://pulsar.apache.org/tools/pulsar-admin/).
 
 :::
 
 ### Update a JDBC sink
 
-You can use the [Connector Admin CLI](io-cli) 
+You can use the [Connector Admin CLI](https://pulsar.apache.org/tools/pulsar-admin/) 
 to update a connector and perform other operations on it.
 
 This example updates the parallelism of the _pulsar-postgres-jdbc-sink_ sink connector to 2.
@@ -859,7 +859,7 @@ $ bin/pulsar-admin sinks update \
 
 :::tip
 
-For more information about `pulsar-admin sinks update options`, see [here](io-cli.md/#update-1).
+For more information about `pulsar-admin sinks update options`, see [Pulsar admin docs](https://pulsar.apache.org/tools/pulsar-admin/).
 
 :::
 
@@ -912,7 +912,7 @@ The result shows that the parallelism is 2.
 
 ### Delete a JDBC sink
 
-You can use the [Connector Admin CLI](io-cli) 
+You can use the [Connector Admin CLI](https://pulsar.apache.org/tools/pulsar-admin/) 
 to delete a connector and perform other operations on it.
 
 This example deletes the _pulsar-postgres-jdbc-sink_ sink connector.
@@ -928,7 +928,7 @@ $ bin/pulsar-admin sinks delete \
 
 :::tip
 
-For more information about `pulsar-admin sinks delete options`, see [here](io-cli.md/#delete-1).
+For more information about `pulsar-admin sinks delete options`, see [Pulsar admin docs](https://pulsar.apache.org/tools/pulsar-admin/).
 
 :::
 
