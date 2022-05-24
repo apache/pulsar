@@ -20,8 +20,6 @@ package org.apache.bookkeeper.mledger;
 
 import io.netty.buffer.ByteBuf;
 import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.common.annotation.InterfaceAudience;
 import org.apache.bookkeeper.common.annotation.InterfaceStability;
@@ -664,5 +662,4 @@ public interface ManagedLedger {
      * roll over that ledger if inactive.
      */
     void checkInactiveLedgerAndRollOver();
-
 }
