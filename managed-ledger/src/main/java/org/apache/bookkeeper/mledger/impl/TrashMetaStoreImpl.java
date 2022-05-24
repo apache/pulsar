@@ -34,6 +34,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
@@ -79,8 +80,7 @@ public class TrashMetaStoreImpl implements TrashMetaStore {
     //key:ledgerId value:storageContext
     private NavigableMap<String, LedgerInfo> trashData = new ConcurrentSkipListMap<>();
 
-    //key: ledgerId value:storageContext
-    private final NavigableMap<String, LedgerInfo> archiveData = new ConcurrentSkipListMap<>();
+    private final AtomicInteger archiveCount = new AtomicInteger();
 
     private final CallbackMutex trashMutex = new CallbackMutex();
 
@@ -106,8 +106,6 @@ public class TrashMetaStoreImpl implements TrashMetaStore {
 
     private final int trashDataLimitSize;
 
-    private final int archiveDataLimitSize;
-
     public TrashMetaStoreImpl(String type, String name, MetadataStore metadataStore, ManagedLedgerConfig config,
                               OrderedScheduler scheduledExecutor, OrderedExecutor executor, BookKeeper bookKeeper) {
         this.type = type;
@@ -121,7 +119,6 @@ public class TrashMetaStoreImpl implements TrashMetaStore {
         this.executor = executor;
         this.bookKeeper = bookKeeper;
         this.trashDataLimitSize = config.getTrashDataLimitSize();
-        this.archiveDataLimitSize = config.getTrashDataLimitSize() / 2;
     }
 
     @Override
@@ -148,7 +145,7 @@ public class TrashMetaStoreImpl implements TrashMetaStore {
                     log.error("Get delete data failed, name:{} type: {}", name, type, e);
                     future.completeExceptionally(e);
                 } else {
-                    if (!r.isPresent()) {
+                    if (r.isEmpty()) {
                         future.complete(null);
                         return;
                     }
@@ -260,7 +257,7 @@ public class TrashMetaStoreImpl implements TrashMetaStore {
             future.complete(null);
             return;
         }
-        //copy 1/2 trash to archive, avoid always trigger archive to operate metadata.
+        //persist and remove 1/2 trash data, avoid always trigger archive to operate metadata.
         long archiveSize = trashDataLimitSize / 2 == 0 ? 1 : trashDataLimitSize / 2;
 
         Map<String, LedgerInfo> toArchive = new ConcurrentSkipListMap<>();
@@ -271,21 +268,21 @@ public class TrashMetaStoreImpl implements TrashMetaStore {
             }
         }
         //persist
-        copyToArchiveWhenTrashFull(toArchive, future);
+        increaseArchiveCountAndWhenTrashFull(future);
     }
 
-    private void copyToArchiveWhenTrashFull(Map<String, LedgerInfo> toArchive, CompletableFuture<?> future) {
-        archiveData.putAll(toArchive);
+    private void increaseArchiveCountAndWhenTrashFull(CompletableFuture<?> future) {
+        archiveCount.set(trashDataLimitSize / 2);
         updateArchiveDataIfNecessary(future, executor);
     }
 
-    private void copyToArchiveWhenDeleteFailed(String ledgerId, LedgerInfo context, CompletableFuture<?> future) {
-        archiveData.put(ledgerId, context);
+    private void increaseArchiveCountWhenDeleteFailed(CompletableFuture<?> future) {
+        archiveCount.incrementAndGet();
         updateArchiveDataIfNecessary(future, scheduledExecutor);
     }
 
     private void updateArchiveDataIfNecessary(CompletableFuture<?> future, OrderedExecutor callbackExecutor) {
-        if (archiveData.size() <= archiveDataLimitSize) {
+        if (archiveCount.get() < trashDataLimitSize / 2) {
             future.complete(null);
             return;
         }
@@ -354,8 +351,18 @@ public class TrashMetaStoreImpl implements TrashMetaStore {
                                         OrderedExecutor callbackExecutor) {
         //transaction operation
         NavigableMap<String, LedgerInfo> persistDelete = new ConcurrentSkipListMap<>();
+        NavigableMap<String, LedgerInfo> persistArchive = new ConcurrentSkipListMap<>();
+
+
+        for (Map.Entry<String, LedgerInfo> entry : trashData.entrySet()) {
+            persistArchive.put(entry.getKey(), entry.getValue());
+            if (persistArchive.size() >= trashDataLimitSize / 2) {
+                break;
+            }
+        }
+
         persistDelete.putAll(trashData);
-        for (Map.Entry<String, LedgerInfo> entry : archiveData.entrySet()) {
+        for (Map.Entry<String, LedgerInfo> entry : persistArchive.entrySet()) {
             persistDelete.remove(entry.getKey());
         }
         //build delete persist operation
@@ -364,7 +371,7 @@ public class TrashMetaStoreImpl implements TrashMetaStore {
                 deleteStat == null ? Optional.of(-1L) : Optional.of(deleteStat.getVersion()),
                 EnumSet.noneOf(CreateOption.class));
         //build archive persist operation
-        OpPut opArchivePersist = new OpPut(buildArchivePath(), serialize(archiveData), Optional.of(-1L),
+        OpPut opArchivePersist = new OpPut(buildArchivePath(), serialize(persistArchive), Optional.of(-1L),
                 EnumSet.noneOf(CreateOption.class));
         txOps.add(opDeletePersist);
         txOps.add(opArchivePersist);
@@ -384,7 +391,7 @@ public class TrashMetaStoreImpl implements TrashMetaStore {
                 }
                 deleteStat = res;
                 trashData = persistDelete;
-                archiveData.clear();
+                archiveCount.set(0);
                 archiveIndex++;
             });
         }, callbackExecutor.chooseThread(name));
@@ -434,7 +441,6 @@ public class TrashMetaStoreImpl implements TrashMetaStore {
     }
 
     private void onDeleteSuccess(TrashDeleteHelper delHelper) {
-        //copy trash to archive
         String key = delHelper.transferToTrashKey();
         if (log.isDebugEnabled()) {
             String info = null;
@@ -462,7 +468,7 @@ public class TrashMetaStoreImpl implements TrashMetaStore {
                 }
                 log.debug(info);
             }
-            copyToArchiveWhenDeleteFailed(delHelper.transferToTrashKey(), delHelper.context, COMPLETED_FUTURE);
+            increaseArchiveCountWhenDeleteFailed(COMPLETED_FUTURE);
         } else {
             //override old key
             String key = delHelper.transferToTrashKey();
