@@ -432,6 +432,11 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         assertEquals(sub1Admin.topics().getStats(topicName + "-partition-0").getSubscriptions()
                 .get(subscriptionName).getMsgBacklog(), 0);
 
+        superAdmin.namespaces().revokePermissionsOnNamespace(namespace, subscriptionRole);
+        superAdmin.namespaces().grantPermissionOnNamespace(namespace, subscriptionRole,
+                Sets.newHashSet(AuthAction.produce));
+        assertEquals(sub1Admin.topics().getPartitionedTopicList(namespace),
+                Lists.newArrayList(topicName));
         log.info("-- Exiting {} test --", methodName);
     }
 
