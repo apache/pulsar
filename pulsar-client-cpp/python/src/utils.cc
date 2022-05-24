@@ -16,33 +16,32 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.naming;
 
-import java.util.Map;
+#include "utils.h"
 
-/**
- * Validator for metadata configuration.
- */
-public class Metadata {
+void waitForAsyncResult(std::function<void(ResultCallback)> func) {
+    Result res = ResultOk;
+    bool b;
+    Promise<bool, Result> promise;
+    Future<bool, Result> future = promise.getFuture();
 
-    private Metadata() {}
+    Py_BEGIN_ALLOW_THREADS func(WaitForCallback(promise));
+    Py_END_ALLOW_THREADS
 
-    public static void validateMetadata(Map<String, String> metadata,
-                                        int maxConsumerMetadataSize) throws IllegalArgumentException {
-        if (metadata == null) {
+        bool isComplete;
+    while (true) {
+        // Check periodically for Python signals
+        Py_BEGIN_ALLOW_THREADS isComplete = future.get(b, std::ref(res), std::chrono::milliseconds(100));
+        Py_END_ALLOW_THREADS
+
+            if (isComplete) {
+            CHECK_RESULT(res);
             return;
         }
 
-        int size = 0;
-        for (Map.Entry<String, String> e : metadata.entrySet()) {
-            size += (e.getKey().length() + e.getValue().length());
-            if (size > maxConsumerMetadataSize) {
-                throw new IllegalArgumentException(getErrorMessage(maxConsumerMetadataSize));
-            }
+        if (PyErr_CheckSignals() == -1) {
+            PyErr_SetInterrupt();
+            return;
         }
-    }
-
-    private static String getErrorMessage(int maxConsumerMetadataSize) {
-        return "metadata has a max size of " + maxConsumerMetadataSize + " bytes";
     }
 }

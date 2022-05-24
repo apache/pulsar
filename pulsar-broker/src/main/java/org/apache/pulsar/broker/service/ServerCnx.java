@@ -992,7 +992,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
                 log.info("[{}] Subscribing on topic {} / {}", remoteAddress, topicName, subscriptionName);
                 try {
-                    Metadata.validateMetadata(metadata);
+                    Metadata.validateMetadata(metadata,
+                            service.getPulsar().getConfiguration().getMaxConsumerMetadataSize());
                 } catch (IllegalArgumentException iae) {
                     final String msg = iae.getMessage();
                     consumers.remove(consumerId, consumerFuture);
