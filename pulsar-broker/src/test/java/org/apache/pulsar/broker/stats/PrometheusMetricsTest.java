@@ -1429,6 +1429,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         ServiceConfiguration configuration = Mockito.mock(ServiceConfiguration.class);
         Mockito.when(configuration.getManagedLedgerStatsPeriodSeconds()).thenReturn(2);
         Mockito.when(configuration.isMetricsBufferResponse()).thenReturn(true);
+        Mockito.when(configuration.getClusterName()).thenReturn(configClusterName);
         Mockito.when(pulsar.getConfiguration()).thenReturn(configuration);
 
         int period = pulsar.getConfiguration().getManagedLedgerStatsPeriodSeconds();
