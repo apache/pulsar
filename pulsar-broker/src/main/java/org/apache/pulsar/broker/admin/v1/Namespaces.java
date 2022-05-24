@@ -589,10 +589,11 @@ public class Namespaces extends NamespacesBase {
                     asyncResponse.resume(Response.noContent().build());
                 })
                 .exceptionally(e -> {
+                    Throwable ex = FutureUtil.unwrapCompletionException(e);
                     log.error("[{}] Failed to set autoTopicCreation status on namespace {}", clientAppId(),
                             namespaceName,
-                            e.getCause());
-                    if (FutureUtil.unwrapCompletionException(e) instanceof NotFoundException) {
+                            ex);
+                    if (ex instanceof NotFoundException) {
                         asyncResponse.resume(new RestException(Status.NOT_FOUND, "Namespace does not exist"));
                     } else {
                         resumeAsyncResponseExceptionally(asyncResponse, e);
@@ -617,10 +618,11 @@ public class Namespaces extends NamespacesBase {
                         asyncResponse.resume(Response.noContent().build());
                     })
                     .exceptionally(e -> {
+                        Throwable ex = FutureUtil.unwrapCompletionException(e);
                         log.error("[{}] Failed to remove autoTopicCreation status on namespace {}", clientAppId(),
                                 namespaceName,
-                                e.getCause());
-                        if (FutureUtil.unwrapCompletionException(e) instanceof NotFoundException) {
+                                ex);
+                        if (ex instanceof NotFoundException) {
                             asyncResponse.resume(new RestException(Status.NOT_FOUND, "Namespace does not exist"));
                         } else {
                             resumeAsyncResponseExceptionally(asyncResponse, e);

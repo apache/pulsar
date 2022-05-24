@@ -473,7 +473,8 @@ public class Namespaces extends NamespacesBase {
         validateNamespaceName(tenant, namespace);
         internalModifyDeduplicationAsync(null)
                 .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
-                .exceptionally(ex -> {
+                .exceptionally(e -> {
+                    Throwable ex = FutureUtil.unwrapCompletionException(e);
                     log.error("Failed to remove broker deduplication config for namespace {}", namespaceName, ex);
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
@@ -521,10 +522,11 @@ public class Namespaces extends NamespacesBase {
                     asyncResponse.resume(Response.noContent().build());
                 })
                 .exceptionally(e -> {
+                    Throwable ex = FutureUtil.unwrapCompletionException(e);
                     log.error("[{}] Failed to set autoTopicCreation status on namespace {}", clientAppId(),
                             namespaceName,
-                            e.getCause());
-                    if (FutureUtil.unwrapCompletionException(e) instanceof MetadataStoreException.NotFoundException) {
+                            ex);
+                    if (ex instanceof MetadataStoreException.NotFoundException) {
                         asyncResponse.resume(new RestException(Response.Status.NOT_FOUND, "Namespace does not exist"));
                     } else {
                         resumeAsyncResponseExceptionally(asyncResponse, e);
@@ -548,10 +550,11 @@ public class Namespaces extends NamespacesBase {
                     asyncResponse.resume(Response.noContent().build());
                 })
                 .exceptionally(e -> {
+                    Throwable ex = FutureUtil.unwrapCompletionException(e);
                     log.error("[{}] Failed to remove autoTopicCreation status on namespace {}", clientAppId(),
                             namespaceName,
-                            e.getCause());
-                    if (FutureUtil.unwrapCompletionException(e) instanceof MetadataStoreException.NotFoundException) {
+                            ex);
+                    if (ex instanceof MetadataStoreException.NotFoundException) {
                         asyncResponse.resume(new RestException(Response.Status.NOT_FOUND, "Namespace does not exist"));
                     } else {
                         resumeAsyncResponseExceptionally(asyncResponse, e);
