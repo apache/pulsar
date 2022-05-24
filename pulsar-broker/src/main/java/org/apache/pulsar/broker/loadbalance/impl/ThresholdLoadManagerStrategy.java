@@ -24,21 +24,19 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.LoadData;
 import org.apache.pulsar.broker.loadbalance.ModularLoadManagerStrategy;
 import org.apache.pulsar.policies.data.loadbalancer.BrokerData;
 import org.apache.pulsar.policies.data.loadbalancer.BundleData;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
- * Placement strategy which selects a broker based on which one has resource usage below average load.
+ * Placement strategy which randomly selects a broker based on those having resource usage below average load.
  */
+@Slf4j
 public class ThresholdLoadManagerStrategy implements ModularLoadManagerStrategy {
-    private static final Logger log = LoggerFactory.getLogger(ThresholdLoadManagerStrategy.class);
-
     // Maintain this list to reduce object creation.
     private final ArrayList<String> bestBrokers;
 

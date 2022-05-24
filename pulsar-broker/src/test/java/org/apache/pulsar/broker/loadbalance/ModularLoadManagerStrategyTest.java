@@ -96,6 +96,17 @@ public class ModularLoadManagerStrategyTest {
         assertEquals(strategy.selectBroker(brokerDataMap.keySet(), bundleData, loadData, conf), Optional.of("3"));
     }
 
+    @Test
+    public void testCreateModularLoadManagerStrategy() {
+        ServiceConfiguration conf = new ServiceConfiguration();
+
+        conf.setLoadBalancerLoadManagerStrategy(LeastLongTermMessageRate.class.getSimpleName());
+        assertEquals(ModularLoadManagerStrategy.create(conf).getClass(), LeastLongTermMessageRate.class);
+
+        conf.setLoadBalancerLoadManagerStrategy(ThresholdLoadManagerStrategy.class.getSimpleName());
+        assertEquals(ModularLoadManagerStrategy.create(conf).getClass(), ThresholdLoadManagerStrategy.class);
+    }
+
     private BrokerData initBrokerData(double usage, double limit) {
         LocalBrokerData localBrokerData = new LocalBrokerData();
         localBrokerData.setCpu(new ResourceUsage(usage, limit));

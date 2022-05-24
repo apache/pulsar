@@ -22,6 +22,7 @@ import java.util.Optional;
 import java.util.Set;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.impl.LeastLongTermMessageRate;
+import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.policies.data.loadbalancer.BundleData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -58,15 +59,11 @@ public interface ModularLoadManagerStrategy {
      */
     static ModularLoadManagerStrategy create(final ServiceConfiguration conf) {
         try {
-            Class<?> loadManagerStrategyClass = Class.forName(conf.getLoadBalancerLoadManagerStrategy());
-            Object loadManagerStrategyInstance = loadManagerStrategyClass.getDeclaredConstructor().newInstance();
-            if (loadManagerStrategyInstance instanceof ModularLoadManagerStrategy) {
-                return (ModularLoadManagerStrategy) loadManagerStrategyInstance;
-            } else {
-                LOG.error("Create load manager strategy failed.");
-                throw new IllegalArgumentException("Invalid load balancer load manager strategy: "
-                        + conf.getLoadBalancerLoadManagerStrategy());
-            }
+            String targetClassName =
+                    LeastLongTermMessageRate.class.getPackage().getName() + "." + conf.getLoadBalancerLoadManagerStrategy();
+
+            return Reflections.createInstance(
+                    targetClassName, ModularLoadManagerStrategy.class, Thread.currentThread().getContextClassLoader());
         } catch (Exception e) {
             LOG.error("Error when trying to create load manager strategy, "
                     + "using default strategy: LeastLongTermMessageRate", e);
