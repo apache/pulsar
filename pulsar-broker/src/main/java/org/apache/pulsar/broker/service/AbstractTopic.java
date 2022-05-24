@@ -266,7 +266,7 @@ public abstract class AbstractTopic implements Topic {
         String base = TopicName.get(getName()).getPartitionedTopicName();
         String id = TopicName.get(base).getSchemaName();
         SchemaRegistryService schemaRegistryService = brokerService.pulsar().getSchemaRegistryService();
-        return isAllowAutoUpdateSchema ? schemaRegistryService
+        return allowAutoUpdateSchema() ? schemaRegistryService
                 .putSchemaIfAbsent(id, schema, schemaCompatibilityStrategy)
                 : schemaRegistryService.trimDeletedSchemaAndGetList(id).thenCompose(schemaAndMetadataList ->
                 schemaRegistryService.getSchemaVersionBySchemaData(schemaAndMetadataList, schema)
@@ -603,5 +603,12 @@ public abstract class AbstractTopic implements Topic {
             this.topicPublishRateLimiter = PublishRateLimiter.DISABLED_RATE_LIMITER;
             enableProducerReadForPublishRateLimiting();
         }
+    }
+
+    private boolean allowAutoUpdateSchema() {
+        if (brokerService.isSystemTopic(topic)) {
+            return true;
+        }
+        return isAllowAutoUpdateSchema;
     }
 }
