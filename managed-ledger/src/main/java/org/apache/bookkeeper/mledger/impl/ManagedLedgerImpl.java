@@ -2620,11 +2620,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                         ledgersStat = stat;
                         metadataMutex.unlock();
                         trimmerMutex.unlock();
-
+                        executor.executeOrdered(name, safeRun(() -> tryRemoveAllDeletableLedgers()));
                         promise.complete(null);
-
-                        // perform actual deletion in background
-                        scheduledExecutor.submit(safeRun(() -> tryRemoveAllDeletableLedgers()));
                     }
 
                     @Override
@@ -4152,32 +4149,23 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         return statFuture;
     }
 
-    /**
-     * During the execution of this method, lock {@code metadataMutex} needs to be held
-     * because the {@code propertiesMap} would be updated (not thread-safe).
-     * @param deletableLedgerIds
-     */
     private CompletableFuture<Void> asyncUpdateTrashData(Collection<Long> deletableLedgerIds,
                                                          Collection<Long> deletableOffloadedLedgerIds) {
         List<CompletableFuture<?>> futures =
                 new ArrayList<>(deletableLedgerIds.size() + deletableOffloadedLedgerIds.size());
-
         for (Long ledgerId : deletableLedgerIds) {
-            CompletableFuture<Void> future = new CompletableFuture<>();
-            trashStore.appendLedgerTrashData(ledgerId, null, future);
-            futures.add(future);
+            futures.add(trashStore.appendLedgerTrashData(ledgerId, null, TrashMetaStore.DELETABLE_LEDGER_SUFFIX));
             mbean.addLedgerMarkedDeletableCounter();
         }
         for (Long ledgerId : deletableOffloadedLedgerIds) {
-            CompletableFuture<Void> future = new CompletableFuture<>();
-            trashStore.appendOffloadLedgerTrashData(ledgerId, ledgers.get(ledgerId), future);
-            futures.add(future);
+            futures.add(trashStore.appendLedgerTrashData(ledgerId, ledgers.get(ledgerId),
+                    TrashMetaStore.DELETABLE_OFFLOADED_LEDGER_SUFFIX));
             mbean.addLedgerMarkedDeletableCounter();
         }
 
         CompletableFuture<Void> future = new CompletableFuture<>();
         futures.add(future);
-        trashStore.asyncUpdateTrashData(new TrashMetaStore.TrashMetaStoreCallback<Void>() {
+        trashStore.asyncUpdateTrashData(Optional.of(new TrashMetaStore.TrashMetaStoreCallback<Void>() {
             @Override
             public void operationComplete(Void result) {
                 future.complete(null);
@@ -4187,7 +4175,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             public void operationFailed(MetaStoreException e) {
                 future.completeExceptionally(e);
             }
-        });
+        }));
         return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
     }
 

@@ -32,7 +32,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
-import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.bookkeeper.client.BKException;
@@ -69,10 +69,6 @@ public class TrashMetaStoreImpl implements TrashMetaStore {
 
     private static final String TRASH_KEY_SEPARATOR = "-";
 
-    private static final String DELETABLE_LEDGER_SUFFIX = "DL";
-
-    private static final String DELETABLE_OFFLOADED_LEDGER_SUFFIX = "DOL";
-
     private static final int RETRY_COUNT = 9;
 
     private static final CompletableFuture<Void> COMPLETED_FUTURE = CompletableFuture.completedFuture(null);
@@ -86,6 +82,8 @@ public class TrashMetaStoreImpl implements TrashMetaStore {
 
     private final CallbackMutex deleteMutex = new CallbackMutex();
 
+    private final CallbackMutex trashPersistMutex = new CallbackMutex();
+
     private final AbstractBatchedMetadataStore metadataStore;
 
     private volatile Stat deleteStat;
@@ -93,8 +91,6 @@ public class TrashMetaStoreImpl implements TrashMetaStore {
     private final String type;
 
     private final String name;
-
-    private long archiveIndex;
 
     private final ManagedLedgerConfig config;
 
@@ -105,6 +101,10 @@ public class TrashMetaStoreImpl implements TrashMetaStore {
     private final BookKeeper bookKeeper;
 
     private final int trashDataLimitSize;
+
+    private volatile boolean trashIsDirty;
+
+    private ScheduledFuture<?> checkTrashPersistTask;
 
     public TrashMetaStoreImpl(String type, String name, MetadataStore metadataStore, ManagedLedgerConfig config,
                               OrderedScheduler scheduledExecutor, OrderedExecutor executor, BookKeeper bookKeeper) {
@@ -124,42 +124,42 @@ public class TrashMetaStoreImpl implements TrashMetaStore {
     @Override
     public CompletableFuture<Void> initialize() {
         CompletableFuture<Void> future = new CompletableFuture<>();
-        metadataStore.getChildren(buildPath()).whenCompleteAsync((res, e) -> {
+        metadataStore.get(buildDeletePath()).whenCompleteAsync((res, e) -> {
             if (e != null) {
-                log.error("Get archive index failed, name:{} type: {}", name, type, e);
+                log.error("Get delete data failed, name:{} type: {}", name, type, e);
                 future.completeExceptionally(e);
             } else {
-                long maxIndex = -1;
-                for (String node : res) {
-                    if (node.startsWith(ARCHIVE)) {
-                        long index = Long.parseLong(node.split(ARCHIVE)[1]);
-                        if (index > maxIndex) {
-                            maxIndex = index;
-                        }
-                    }
+                if (res.isEmpty()) {
+                    future.complete(null);
+                    return;
                 }
-                archiveIndex = maxIndex + 1;
+                byte[] value = res.get().getValue();
+                try {
+                    trashData.putAll(deSerialize(value));
+                    deleteStat = res.get().getStat();
+                    triggerDelete();
+                    future.complete(null);
+                    checkTrashPersistTask =
+                            scheduledExecutor.scheduleAtFixedRate(safeRun(this::persistTrashIfNecessary), 30L, 30L,
+                                    TimeUnit.MINUTES);
+                } catch (InvalidProtocolBufferException exc) {
+                    future.completeExceptionally(getException(exc));
+                }
             }
-            metadataStore.get(buildDeletePath()).whenComplete((r, ex) -> {
-                if (ex != null) {
-                    log.error("Get delete data failed, name:{} type: {}", name, type, e);
-                    future.completeExceptionally(e);
-                } else {
-                    if (r.isEmpty()) {
-                        future.complete(null);
-                        return;
-                    }
-                    byte[] value = r.get().getValue();
-                    try {
-                        trashData.putAll(deSerialize(value));
-                        deleteStat = r.get().getStat();
-                        future.complete(null);
-                    } catch (InvalidProtocolBufferException exc) {
-                        future.completeExceptionally(getException(exc));
-                    }
-                }
-            });
         }, scheduledExecutor.chooseThread(name));
+        return future;
+    }
+
+    private void persistTrashIfNecessary() {
+        if (trashIsDirty) {
+            asyncUpdateTrashData(Optional.empty());
+        }
+    }
+
+    @Override
+    public CompletableFuture<?> appendLedgerTrashData(long ledgerId, LedgerInfo context, String type) {
+        CompletableFuture<?> future = new CompletableFuture<>();
+        appendTrashData(buildKey(RETRY_COUNT, ledgerId, type), context, future);
         return future;
     }
 
@@ -175,18 +175,6 @@ public class TrashMetaStoreImpl implements TrashMetaStore {
         executor.executeOrdered(name, safeRun(() -> appendTrashData(key, context, future)));
     }
 
-    @Override
-    public void appendLedgerTrashData(long ledgerId, LedgerInfo context, CompletableFuture<?> future) {
-        String key = buildLedgerKey(ledgerId);
-        appendTrashData(key, context, future);
-    }
-
-    @Override
-    public void appendOffloadLedgerTrashData(long ledgerId, LedgerInfo context, CompletableFuture<?> future) {
-        String key = buildOffloadLedgerKey(ledgerId);
-        appendTrashData(key, context, future);
-    }
-
     private void appendTrashData(String key, LedgerInfo context, CompletableFuture<?> future) {
         if (!trashMutex.tryLock()) {
             scheduledExecutor.schedule(safeRun(() -> appendInBackground(key, context, future)), 100,
@@ -194,22 +182,25 @@ public class TrashMetaStoreImpl implements TrashMetaStore {
         }
         try {
             trashData.put(key, context);
-            archiveStaleDataIfFull(future);
+            trashIsDirty = true;
         } finally {
             trashMutex.unlock();
         }
     }
 
     @Override
-    public void asyncUpdateTrashData(TrashMetaStore.TrashMetaStoreCallback<Void> callback) {
-        metadataStore.put(buildDeletePath(), serialize(trashData), Optional.of(deleteStat.getVersion()))
+    public void asyncUpdateTrashData(Optional<TrashMetaStoreCallback<?>> callback) {
+        metadataStore.put(buildDeletePath(), serialize(trashData),
+                        deleteStat == null ? Optional.of(-1L) : Optional.of(deleteStat.getVersion()))
                 .whenCompleteAsync((res, e) -> {
                     if (e != null) {
-                        callback.operationFailed(getException(e));
+                        callback.ifPresent(call -> call.operationFailed(getException(e)));
                         return;
                     }
                     deleteStat = res;
-                    callback.operationComplete(null);
+                    trashIsDirty = false;
+                    trashPersistMutex.unlock();
+                    callback.ifPresent(call -> call.operationComplete(null));
                 }, executor.chooseThread(name));
     }
 
@@ -222,24 +213,34 @@ public class TrashMetaStoreImpl implements TrashMetaStore {
         return component.getComponentMap();
     }
 
+    private void triggerDeleteInBackground() {
+        executor.executeOrdered(name, safeRun(this::triggerDelete));
+    }
+
     @Override
     public void triggerDelete() {
+        //todo trigger self.
+        //background xx 之内，如果发生过 trash persist,那么就不做。如果没有的话，dirty, 就做一次 trash persist.
         if (!deleteMutex.tryLock() || !trashMutex.tryLock()) {
-            scheduledExecutor.schedule(this::triggerDelete, 100, TimeUnit.MILLISECONDS);
+            scheduledExecutor.schedule(this::triggerDeleteInBackground, 100, TimeUnit.MILLISECONDS);
             return;
         }
-        try {
-            List<TrashDeleteHelper> toDelete = getToDeleteData();
-            if (toDelete.size() == 0) {
-                return;
-            }
-            for (TrashDeleteHelper delHelper : toDelete) {
-                asyncDeleteTrash(delHelper);
-            }
-        } finally {
+        List<TrashDeleteHelper> toDelete = getToDeleteData();
+        if (toDelete.size() == 0) {
             deleteMutex.unlock();
             trashMutex.unlock();
+            return;
         }
+        for (TrashDeleteHelper delHelper : toDelete) {
+            //unlock in asyncDeleteTrash
+            asyncDeleteTrash(delHelper);
+        }
+    }
+
+    private boolean isContinueDelete() {
+        Map.Entry<String, LedgerInfo> lastEntry = trashData.lastEntry();
+        TrashDeleteHelper delHelper = TrashDeleteHelper.build(lastEntry.getKey(), lastEntry.getValue());
+        return delHelper.retryCount > 0;
     }
 
     @Override
@@ -252,41 +253,33 @@ public class TrashMetaStoreImpl implements TrashMetaStore {
         return null;
     }
 
-    private void archiveStaleDataIfFull(CompletableFuture<?> future) {
-        if (trashData.size() <= trashDataLimitSize) {
-            future.complete(null);
-            return;
-        }
-        //persist and remove 1/2 trash data, avoid always trigger archive to operate metadata.
-        long archiveSize = trashDataLimitSize / 2 == 0 ? 1 : trashDataLimitSize / 2;
-
-        Map<String, LedgerInfo> toArchive = new ConcurrentSkipListMap<>();
-        for (Map.Entry<String, LedgerInfo> entry : trashData.entrySet()) {
-            toArchive.put(entry.getKey(), entry.getValue());
-            if (toArchive.size() == archiveSize) {
-                break;
+    @Override
+    public void asyncClose(AsyncCallbacks.CloseCallback callback, Object ctx) {
+        checkTrashPersistTask.cancel(true);
+        asyncUpdateArchiveData(new TrashMetaStoreCallback<>() {
+            @Override
+            public void operationComplete(Void result) {
+                callback.closeComplete(ctx);
             }
-        }
-        //persist
-        increaseArchiveCountAndWhenTrashFull(future);
-    }
 
-    private void increaseArchiveCountAndWhenTrashFull(CompletableFuture<?> future) {
-        archiveCount.set(trashDataLimitSize / 2);
-        updateArchiveDataIfNecessary(future, executor);
+            @Override
+            public void operationFailed(ManagedLedgerException.MetaStoreException e) {
+                callback.closeFailed(getException(e), ctx);
+            }
+        });
     }
 
     private void increaseArchiveCountWhenDeleteFailed(CompletableFuture<?> future) {
         archiveCount.incrementAndGet();
-        updateArchiveDataIfNecessary(future, scheduledExecutor);
+        updateArchiveDataIfNecessary(future);
     }
 
-    private void updateArchiveDataIfNecessary(CompletableFuture<?> future, OrderedExecutor callbackExecutor) {
+    private void updateArchiveDataIfNecessary(CompletableFuture<?> future) {
         if (archiveCount.get() < trashDataLimitSize / 2) {
             future.complete(null);
             return;
         }
-        asyncUpdateArchiveData(new TrashMetaStoreCallback<Void>() {
+        asyncUpdateArchiveData(new TrashMetaStoreCallback<>() {
             @Override
             public void operationComplete(Void result) {
                 future.complete(null);
@@ -296,7 +289,7 @@ public class TrashMetaStoreImpl implements TrashMetaStore {
             public void operationFailed(ManagedLedgerException.MetaStoreException e) {
                 future.completeExceptionally(e);
             }
-        }, callbackExecutor);
+        });
     }
 
 
@@ -308,8 +301,8 @@ public class TrashMetaStoreImpl implements TrashMetaStore {
         return buildPath() + DELETE;
     }
 
-    private String buildArchivePath() {
-        return buildPath() + ARCHIVE + archiveIndex;
+    private String buildArchivePath(long ledgerId) {
+        return buildPath() + ARCHIVE + ledgerId;
     }
 
     //take 1/10 trash to delete, if the size over 10, use 10 to delete.
@@ -317,7 +310,7 @@ public class TrashMetaStoreImpl implements TrashMetaStore {
         if (trashData.size() == 0) {
             return Collections.emptyList();
         }
-        if (trashData.size() == 1 && halfRandomSuccess()) {
+        if (trashData.size() == 1) {
             Map.Entry<String, LedgerInfo> entry = trashData.firstEntry();
             return Collections.singletonList(TrashDeleteHelper.build(entry.getKey(), entry.getValue()));
         }
@@ -343,12 +336,7 @@ public class TrashMetaStoreImpl implements TrashMetaStore {
         return toDelete;
     }
 
-    private boolean halfRandomSuccess() {
-        return ThreadLocalRandom.current().nextInt(100) >= 50;
-    }
-
-    private void asyncUpdateArchiveData(TrashMetaStore.TrashMetaStoreCallback<Void> callback,
-                                        OrderedExecutor callbackExecutor) {
+    private void asyncUpdateArchiveData(TrashMetaStore.TrashMetaStoreCallback<Void> callback) {
         //transaction operation
         NavigableMap<String, LedgerInfo> persistDelete = new ConcurrentSkipListMap<>();
         NavigableMap<String, LedgerInfo> persistArchive = new ConcurrentSkipListMap<>();
@@ -371,7 +359,8 @@ public class TrashMetaStoreImpl implements TrashMetaStore {
                 deleteStat == null ? Optional.of(-1L) : Optional.of(deleteStat.getVersion()),
                 EnumSet.noneOf(CreateOption.class));
         //build archive persist operation
-        OpPut opArchivePersist = new OpPut(buildArchivePath(), serialize(persistArchive), Optional.of(-1L),
+        OpPut opArchivePersist = new OpPut(buildArchivePath(persistArchive.lastEntry().getValue().getLedgerId()),
+                serialize(persistArchive), Optional.of(-1L),
                 EnumSet.noneOf(CreateOption.class));
         txOps.add(opDeletePersist);
         txOps.add(opArchivePersist);
@@ -391,19 +380,11 @@ public class TrashMetaStoreImpl implements TrashMetaStore {
                 }
                 deleteStat = res;
                 trashData = persistDelete;
+                trashIsDirty = false;
                 archiveCount.set(0);
-                archiveIndex++;
             });
-        }, callbackExecutor.chooseThread(name));
+        }, executor.chooseThread(name));
 
-    }
-
-    private String buildLedgerKey(long ledgerId) {
-        return buildKey(RETRY_COUNT, ledgerId, DELETABLE_LEDGER_SUFFIX);
-    }
-
-    private String buildOffloadLedgerKey(long ledgerId) {
-        return buildKey(RETRY_COUNT, ledgerId, DELETABLE_OFFLOADED_LEDGER_SUFFIX);
     }
 
     private static String buildKey(int retryCount, long ledgerId, String suffix) {
@@ -441,38 +422,58 @@ public class TrashMetaStoreImpl implements TrashMetaStore {
     }
 
     private void onDeleteSuccess(TrashDeleteHelper delHelper) {
-        String key = delHelper.transferToTrashKey();
-        if (log.isDebugEnabled()) {
-            String info = null;
-            if (delHelper.isLedger()) {
-                info = String.format("Delete ledger %s success.", delHelper.ledgerId);
-            } else if (delHelper.isOffloadLedger()) {
-                info = String.format("Delete offload ledger %s success.", delHelper.ledgerId);
-            }
-            log.debug(info);
-        }
-        trashData.remove(key);
-    }
-
-    private void onDeleteFailed(TrashDeleteHelper delHelper) {
-        if (delHelper.retryCount == 0) {
+        try {
+            String key = delHelper.transferToTrashKey();
             if (log.isDebugEnabled()) {
                 String info = null;
                 if (delHelper.isLedger()) {
-                    info = String.format("Delete ledger %d reach retry limit %d.", delHelper.ledgerId, RETRY_COUNT);
+                    info = String.format("Delete ledger %s success.", delHelper.ledgerId);
                 } else if (delHelper.isOffloadLedger()) {
-                    info = String.format("Delete offload ledger %d reach retry limit %d.", delHelper.ledgerId,
-                            RETRY_COUNT);
+                    info = String.format("Delete offload ledger %s success.", delHelper.ledgerId);
                 }
                 log.debug(info);
             }
-            increaseArchiveCountWhenDeleteFailed(COMPLETED_FUTURE);
-        } else {
-            //override old key
-            String key = delHelper.transferToTrashKey();
             trashData.remove(key);
-            trashData.put(buildKey(delHelper.retryCount - 1, delHelper.ledgerId, delHelper.suffix),
-                    delHelper.context);
+            trashIsDirty = true;
+        } finally {
+            boolean continueDelete = isContinueDelete();
+            deleteMutex.unlock();
+            trashMutex.unlock();
+            if (continueDelete) {
+                triggerDeleteInBackground();
+            }
+        }
+    }
+
+    private void onDeleteFailed(TrashDeleteHelper delHelper) {
+        try {
+            if (delHelper.retryCount == 0) {
+                if (log.isDebugEnabled()) {
+                    String info = null;
+                    if (delHelper.isLedger()) {
+                        info = String.format("Delete ledger %d reach retry limit %d.", delHelper.ledgerId, RETRY_COUNT);
+                    } else if (delHelper.isOffloadLedger()) {
+                        info = String.format("Delete offload ledger %d reach retry limit %d.", delHelper.ledgerId,
+                                RETRY_COUNT);
+                    }
+                    log.debug(info);
+                }
+                increaseArchiveCountWhenDeleteFailed(COMPLETED_FUTURE);
+            } else {
+                //override old key
+                String key = delHelper.transferToTrashKey();
+                trashData.remove(key);
+                trashData.put(buildKey(delHelper.retryCount - 1, delHelper.ledgerId, delHelper.suffix),
+                        delHelper.context);
+                trashIsDirty = true;
+            }
+        } finally {
+            boolean continueDelete = isContinueDelete();
+            deleteMutex.unlock();
+            trashMutex.unlock();
+            if (continueDelete) {
+                triggerDeleteInBackground();
+            }
         }
     }
 

@@ -20,7 +20,9 @@ package org.apache.bookkeeper.mledger.impl;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
 
@@ -32,6 +34,10 @@ public interface TrashMetaStore {
 
     String SCHEMA = "schema";
 
+    String DELETABLE_LEDGER_SUFFIX = "DL";
+
+    String DELETABLE_OFFLOADED_LEDGER_SUFFIX = "DOL";
+
     interface TrashMetaStoreCallback<T> {
 
         void operationComplete(T result);
@@ -41,15 +47,15 @@ public interface TrashMetaStore {
 
     CompletableFuture<Void> initialize();
 
-    void appendLedgerTrashData(long ledgerId, LedgerInfo context, CompletableFuture<?> future);
+    CompletableFuture<?> appendLedgerTrashData(long ledgerId, LedgerInfo context, String type);
 
-    void appendOffloadLedgerTrashData(long ledgerId, LedgerInfo context, CompletableFuture<?> future);
-
-    void asyncUpdateTrashData(TrashMetaStore.TrashMetaStoreCallback<Void> callback);
+    void asyncUpdateTrashData(Optional<TrashMetaStoreCallback<?>> callback);
 
     void triggerDelete();
 
     List<Long> getAllArchiveIndex();
 
     Map<String, LedgerInfo> getArchiveData(Long index);
+
+    void asyncClose(final AsyncCallbacks.CloseCallback callback, final Object ctx);
 }
