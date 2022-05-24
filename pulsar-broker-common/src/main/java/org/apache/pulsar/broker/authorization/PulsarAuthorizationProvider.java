@@ -542,6 +542,7 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                                         namespaceName, role, authData, AuthAction.packages);
                             case GET_TOPIC:
                             case GET_TOPICS:
+                                return allowConsumeOrProduceOpsAsync(namespaceName, role, authData);
                             case UNSUBSCRIBE:
                             case CLEAR_BACKLOG:
                                 return allowTheSpecifiedActionOpsAsync(
