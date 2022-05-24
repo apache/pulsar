@@ -596,7 +596,7 @@ public class Namespaces extends NamespacesBase {
                     if (ex instanceof NotFoundException) {
                         asyncResponse.resume(new RestException(Status.NOT_FOUND, "Namespace does not exist"));
                     } else {
-                        resumeAsyncResponseExceptionally(asyncResponse, e);
+                        resumeAsyncResponseExceptionally(asyncResponse, ex);
                     }
                     return null;
                 });
@@ -625,7 +625,7 @@ public class Namespaces extends NamespacesBase {
                         if (ex instanceof NotFoundException) {
                             asyncResponse.resume(new RestException(Status.NOT_FOUND, "Namespace does not exist"));
                         } else {
-                            resumeAsyncResponseExceptionally(asyncResponse, e);
+                            resumeAsyncResponseExceptionally(asyncResponse, ex);
                         }
                         return null;
                     });
