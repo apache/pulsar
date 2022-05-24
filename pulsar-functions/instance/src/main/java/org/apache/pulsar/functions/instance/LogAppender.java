@@ -37,9 +37,9 @@ import org.apache.pulsar.client.api.PulsarClient;
  */
 public class LogAppender implements Appender {
 
-    private final String LOG_LEVEL = "loglevel";
-    private final String INSTANCE = "instance";
-    private final String FQN = "fqn";
+    private static final String LOG_LEVEL = "loglevel";
+    private static final String INSTANCE = "instance";
+    private static final String FQN = "fqn";
 
     private PulsarClient pulsarClient;
     private String logTopic;
