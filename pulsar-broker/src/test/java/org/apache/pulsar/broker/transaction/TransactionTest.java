@@ -999,15 +999,17 @@ public class TransactionTest extends TransactionTestBase {
         transaction.commit().get();
     }
 
-    @Test
+    @Test(timeOut = 30000)
     public void testTransactionAckMessageList() throws Exception {
         String topic = "persistent://" + NAMESPACE1 +"/test";
         String subName = "testSub";
 
+        @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer()
                 .topic(topic)
                 .sendTimeout(5, TimeUnit.SECONDS)
                 .create();
+        @Cleanup
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
                 .topic(topic)
                 .subscriptionName(subName)
@@ -1040,5 +1042,6 @@ public class TransactionTest extends TransactionTestBase {
         Assert.assertFalse(messages.contains(message.getMessageId()));
         message = consumer.receive(5, TimeUnit.SECONDS);
         Assert.assertNull(message);
+        consumer.close();
     }
 }
