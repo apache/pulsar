@@ -53,22 +53,22 @@ public class Topics extends TopicsBase {
             @ApiResponse(code = 412, message = "Namespace name is not valid"),
             @ApiResponse(code = 500, message = "Internal server error") })
     public void produceOnPersistentTopic(@Suspended final AsyncResponse asyncResponse,
-                               @ApiParam(value = "Specify the tenant", required = true)
-                               @PathParam("tenant") String tenant,
-                               @ApiParam(value = "Specify the namespace", required = true)
-                               @PathParam("namespace") String namespace,
-                               @ApiParam(value = "Specify topic name", required = true)
-                               @PathParam("topic") @Encoded String encodedTopic,
-                               @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
-                               ProducerMessages producerMessages) {
-        validateTopicName(tenant, namespace, encodedTopic);
-        validateProducePermissionAsync()
-                .thenCompose(__ -> publishMessages(producerMessages, authoritative))
-                .exceptionally(ex -> {
-                    log.error("[{}] Failed to produce on topic {}", clientAppId(), topicName, ex);
-                    resumeAsyncResponseExceptionally(asyncResponse, ex);
-                    return null;
-                });
+                                         @ApiParam(value = "Specify the tenant", required = true)
+                                         @PathParam("tenant") String tenant,
+                                         @ApiParam(value = "Specify the namespace", required = true)
+                                         @PathParam("namespace") String namespace,
+                                         @ApiParam(value = "Specify topic name", required = true)
+                                         @PathParam("topic") @Encoded String encodedTopic,
+                                         @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+                                         ProducerMessages producerMessages) {
+        try {
+            validateTopicName(tenant, namespace, encodedTopic);
+            validateProducePermission();
+            publishMessages(asyncResponse, producerMessages, authoritative);
+        } catch (Exception e) {
+            log.error("[{}] Failed to produce on topic {}", clientAppId(), topicName, e);
+            resumeAsyncResponseExceptionally(asyncResponse, e);
+        }
     }
 
     @POST
@@ -80,16 +80,16 @@ public class Topics extends TopicsBase {
             @ApiResponse(code = 412, message = "Namespace name is not valid"),
             @ApiResponse(code = 500, message = "Internal server error") })
     public void produceOnPersistentTopicPartition(@Suspended final AsyncResponse asyncResponse,
-                                        @ApiParam(value = "Specify the tenant", required = true)
-                                        @PathParam("tenant") String tenant,
-                                        @ApiParam(value = "Specify the namespace", required = true)
-                                        @PathParam("namespace") String namespace,
-                                        @ApiParam(value = "Specify topic name", required = true)
-                                        @PathParam("topic") @Encoded String encodedTopic,
-                                        @ApiParam(value = "Specify topic partition", required = true)
-                                        @PathParam("partition") int partition,
-                                        @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
-                                        ProducerMessages producerMessages) {
+                                                  @ApiParam(value = "Specify the tenant", required = true)
+                                                  @PathParam("tenant") String tenant,
+                                                  @ApiParam(value = "Specify the namespace", required = true)
+                                                  @PathParam("namespace") String namespace,
+                                                  @ApiParam(value = "Specify topic name", required = true)
+                                                  @PathParam("topic") @Encoded String encodedTopic,
+                                                  @ApiParam(value = "Specify topic partition", required = true)
+                                                  @PathParam("partition") int partition,
+                                                  @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+                                                  ProducerMessages producerMessages) {
         try {
             validateTopicName(tenant, namespace, encodedTopic);
             validateProducePermission();
@@ -108,19 +108,19 @@ public class Topics extends TopicsBase {
             @ApiResponse(code = 412, message = "Namespace name is not valid"),
             @ApiResponse(code = 500, message = "Internal server error") })
     public void produceOnNonPersistentTopic(@Suspended final AsyncResponse asyncResponse,
-                                         @ApiParam(value = "Specify the tenant", required = true)
-                                         @PathParam("tenant") String tenant,
-                                         @ApiParam(value = "Specify the namespace", required = true)
-                                         @PathParam("namespace") String namespace,
-                                         @ApiParam(value = "Specify topic name", required = true)
-                                         @PathParam("topic") @Encoded String encodedTopic,
-                                         @QueryParam("authoritative") @DefaultValue("false")
-                                                        boolean authoritative,
-                                         ProducerMessages producerMessages) {
+                                            @ApiParam(value = "Specify the tenant", required = true)
+                                            @PathParam("tenant") String tenant,
+                                            @ApiParam(value = "Specify the namespace", required = true)
+                                            @PathParam("namespace") String namespace,
+                                            @ApiParam(value = "Specify topic name", required = true)
+                                            @PathParam("topic") @Encoded String encodedTopic,
+                                            @QueryParam("authoritative") @DefaultValue("false")
+                                            boolean authoritative,
+                                            ProducerMessages producerMessages) {
         try {
             validateTopicName(tenant, namespace, encodedTopic);
             validateProducePermission();
-            publishMessages(producerMessages, authoritative);
+            publishMessages(asyncResponse, producerMessages, authoritative);
         } catch (Exception e) {
             log.error("[{}] Failed to produce on topic {}", clientAppId(), topicName, e);
             resumeAsyncResponseExceptionally(asyncResponse, e);
@@ -136,17 +136,17 @@ public class Topics extends TopicsBase {
             @ApiResponse(code = 412, message = "Namespace name is not valid"),
             @ApiResponse(code = 500, message = "Internal server error") })
     public void produceOnNonPersistentTopicPartition(@Suspended final AsyncResponse asyncResponse,
-                                                  @ApiParam(value = "Specify the tenant", required = true)
-                                                  @PathParam("tenant") String tenant,
-                                                  @ApiParam(value = "Specify the namespace", required = true)
-                                                  @PathParam("namespace") String namespace,
-                                                  @ApiParam(value = "Specify topic name", required = true)
-                                                  @PathParam("topic") @Encoded String encodedTopic,
-                                                  @ApiParam(value = "Specify topic partition", required = true)
-                                                  @PathParam("partition") int partition,
-                                                  @QueryParam("authoritative") @DefaultValue("false")
-                                                                 boolean authoritative,
-                                                  ProducerMessages producerMessages) {
+                                                     @ApiParam(value = "Specify the tenant", required = true)
+                                                     @PathParam("tenant") String tenant,
+                                                     @ApiParam(value = "Specify the namespace", required = true)
+                                                     @PathParam("namespace") String namespace,
+                                                     @ApiParam(value = "Specify topic name", required = true)
+                                                     @PathParam("topic") @Encoded String encodedTopic,
+                                                     @ApiParam(value = "Specify topic partition", required = true)
+                                                     @PathParam("partition") int partition,
+                                                     @QueryParam("authoritative") @DefaultValue("false")
+                                                     boolean authoritative,
+                                                     ProducerMessages producerMessages) {
         try {
             validateTopicName(tenant, namespace, encodedTopic);
             validateProducePermission();
