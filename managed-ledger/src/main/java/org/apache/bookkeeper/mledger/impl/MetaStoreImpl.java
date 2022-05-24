@@ -453,8 +453,5 @@ public class MetaStoreImpl implements MetaStore {
                 org.apache.pulsar.common.api.proto.CompressionType.valueOf(compressionType.name()));
     }
 
-    public MetadataStore getMetadataStore() {
-        return this.store;
-    }
 
 }
