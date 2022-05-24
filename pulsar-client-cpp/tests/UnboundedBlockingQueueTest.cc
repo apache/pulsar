@@ -17,22 +17,23 @@
  * under the License.
  */
 #include <gtest/gtest.h>
-#include <lib/BlockingQueue.h>
+#include <lib/UnboundedBlockingQueue.h>
 #include <lib/Latch.h>
 
 #include <future>
-#include <iostream>
 #include <thread>
 
-class ProducerWorker {
+class UnboundedProducerWorker {
    private:
     std::thread producerThread_;
-    BlockingQueue<int>& queue_;
+    UnboundedBlockingQueue<int>& queue_;
 
    public:
-    ProducerWorker(BlockingQueue<int>& queue) : queue_(queue) {}
+    UnboundedProducerWorker(UnboundedBlockingQueue<int>& queue) : queue_(queue) {}
 
-    void produce(int number) { producerThread_ = std::thread(&ProducerWorker::pushNumbers, this, number); }
+    void produce(int number) {
+        producerThread_ = std::thread(&UnboundedProducerWorker::pushNumbers, this, number);
+    }
 
     void pushNumbers(int number) {
         for (int i = 1; i <= number; i++) {
@@ -43,15 +44,17 @@ class ProducerWorker {
     void join() { producerThread_.join(); }
 };
 
-class ConsumerWorker {
+class UnboundedConsumerWorker {
    private:
     std::thread consumerThread_;
-    BlockingQueue<int>& queue_;
+    UnboundedBlockingQueue<int>& queue_;
 
    public:
-    ConsumerWorker(BlockingQueue<int>& queue) : queue_(queue) {}
+    UnboundedConsumerWorker(UnboundedBlockingQueue<int>& queue) : queue_(queue) {}
 
-    void consume(int number) { consumerThread_ = std::thread(&ConsumerWorker::popNumbers, this, number); }
+    void consume(int number) {
+        consumerThread_ = std::thread(&UnboundedConsumerWorker::popNumbers, this, number);
+    }
 
     void popNumbers(int number) {
         for (int i = 1; i <= number; i++) {
@@ -63,14 +66,14 @@ class ConsumerWorker {
     void join() { consumerThread_.join(); }
 };
 
-TEST(BlockingQueueTest, testBasic) {
+TEST(UnboundedBlockingQueueTest, testBasic) {
     size_t size = 5;
-    BlockingQueue<int> queue(size);
+    UnboundedBlockingQueue<int> queue(size);
 
-    ProducerWorker producerWorker(queue);
+    UnboundedProducerWorker producerWorker(queue);
     producerWorker.produce(5);
 
-    ConsumerWorker consumerWorker(queue);
+    UnboundedConsumerWorker consumerWorker(queue);
     consumerWorker.consume(5);
 
     producerWorker.join();
@@ -80,9 +83,9 @@ TEST(BlockingQueueTest, testBasic) {
     ASSERT_EQ(zero, queue.size());
 }
 
-TEST(BlockingQueueTest, testQueueOperations) {
+TEST(UnboundedBlockingQueueTest, testQueueOperations) {
     size_t size = 5;
-    BlockingQueue<int> queue(size);
+    UnboundedBlockingQueue<int> queue(size);
     for (size_t i = 1; i <= size; i++) {
         queue.push(i);
     }
@@ -108,14 +111,14 @@ TEST(BlockingQueueTest, testQueueOperations) {
     ASSERT_FALSE(queue.peek(poppedElement));
 }
 
-TEST(BlockingQueueTest, testBlockingProducer) {
+TEST(UnboundedBlockingQueueTest, testBlockingProducer) {
     size_t size = 5;
-    BlockingQueue<int> queue(size);
+    UnboundedBlockingQueue<int> queue(size);
 
-    ProducerWorker producerWorker(queue);
+    UnboundedProducerWorker producerWorker(queue);
     producerWorker.produce(8);
 
-    ConsumerWorker consumerWorker(queue);
+    UnboundedConsumerWorker consumerWorker(queue);
     consumerWorker.consume(5);
 
     producerWorker.join();
@@ -125,14 +128,14 @@ TEST(BlockingQueueTest, testBlockingProducer) {
     ASSERT_EQ(three, queue.size());
 }
 
-TEST(BlockingQueueTest, testBlockingConsumer) {
+TEST(UnboundedBlockingQueueTest, testBlockingConsumer) {
     size_t size = 5;
-    BlockingQueue<int> queue(size);
+    UnboundedBlockingQueue<int> queue(size);
 
-    ProducerWorker producerWorker(queue);
+    UnboundedProducerWorker producerWorker(queue);
     producerWorker.produce(5);
 
-    ConsumerWorker consumerWorker(queue);
+    UnboundedConsumerWorker consumerWorker(queue);
     consumerWorker.consume(8);
 
     producerWorker.pushNumbers(3);
@@ -144,54 +147,17 @@ TEST(BlockingQueueTest, testBlockingConsumer) {
     ASSERT_EQ(zero, queue.size());
 }
 
-TEST(BlockingQueueTest, testTimeout) {
+TEST(UnboundedBlockingQueueTest, testTimeout) {
     size_t size = 5;
-    BlockingQueue<int> queue(size);
+    UnboundedBlockingQueue<int> queue(size);
     int value;
     bool popReturn = queue.pop(value, std::chrono::seconds(1));
     std::this_thread::sleep_for(std::chrono::seconds(2));
     ASSERT_FALSE(popReturn);
 }
 
-TEST(BlockingQueueTest, testPushPopRace) {
-    auto test_logic = []() {
-        size_t size = 5;
-        BlockingQueue<int> queue(size);
-
-        std::vector<std::unique_ptr<ProducerWorker>> producers;
-        for (int i = 0; i < 5; ++i) {
-            producers.emplace_back(new ProducerWorker{queue});
-            producers.back()->produce(1000);
-        }
-
-        // wait for queue full
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
-
-        std::vector<std::unique_ptr<ConsumerWorker>> consumers;
-        for (int i = 0; i < 5; ++i) {
-            consumers.emplace_back(new ConsumerWorker{queue});
-            consumers.back()->consume(1000);
-        }
-
-        auto future = std::async(std::launch::async, [&]() {
-            for (auto& p : producers) p->join();
-            for (auto& c : consumers) c->join();
-        });
-        auto ret = future.wait_for(std::chrono::seconds(5));
-        if (ret == std::future_status::ready) {
-            std::cerr << "Exiting";
-            exit(0);
-        } else {
-            std::cerr << "Threads are not exited in time";
-            exit(1);
-        }
-    };
-
-    ASSERT_EXIT(test_logic(), ::testing::ExitedWithCode(0), "Exiting");
-}
-
-TEST(BlockingQueueTest, testCloseInterruptOnEmpty) {
-    BlockingQueue<int> queue(10);
+TEST(UnboundedBlockingQueueTest, testCloseInterruptOnEmpty) {
+    UnboundedBlockingQueue<int> queue(10);
     pulsar::Latch latch(1);
 
     auto thread = std::thread([&]() {
@@ -202,31 +168,6 @@ TEST(BlockingQueueTest, testCloseInterruptOnEmpty) {
     });
 
     // Sleep to allow for background thread to call pop and be blocked there
-    std::this_thread::sleep_for(std::chrono::seconds(1));
-
-    queue.close();
-    bool wasUnblocked = latch.wait(std::chrono::seconds(5));
-
-    ASSERT_TRUE(wasUnblocked);
-    thread.join();
-}
-
-TEST(BlockingQueueTest, testCloseInterruptOnFull) {
-    BlockingQueue<int> queue(10);
-    pulsar::Latch latch(1);
-
-    auto thread = std::thread([&]() {
-        int i = 0;
-        while (true) {
-            bool res = queue.push(i++);
-            if (!res) {
-                latch.countdown();
-                return;
-            }
-        }
-    });
-
-    // Sleep to allow for background thread to fill the queue and be blocked there
     std::this_thread::sleep_for(std::chrono::seconds(1));
 
     queue.close();
