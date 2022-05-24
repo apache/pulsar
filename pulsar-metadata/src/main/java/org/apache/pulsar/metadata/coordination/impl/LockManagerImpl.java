@@ -168,20 +168,17 @@ class LockManagerImpl<T> implements LockManager<T> {
 
     @Override
     public CompletableFuture<Void> asyncClose() {
-        Map<String, ResourceLock<T>> locks;
         synchronized (this) {
             if (state != State.Ready) {
                 return CompletableFuture.completedFuture(null);
             }
 
-            locks = new HashMap<>(this.locks);
             this.state = State.Closed;
+            return FutureUtils.collect(
+                            locks.values().stream()
+                                    .map(ResourceLock::release)
+                                    .collect(Collectors.toList()))
+                    .thenApply(x -> null);
         }
-
-        return FutureUtils.collect(
-                locks.values().stream()
-                        .map(ResourceLock::release)
-                        .collect(Collectors.toList()))
-                .thenApply(x -> null);
     }
 }
