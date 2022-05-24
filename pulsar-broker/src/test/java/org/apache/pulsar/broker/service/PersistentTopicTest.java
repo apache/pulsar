@@ -590,7 +590,9 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         final String producerNameBase = "producer";
         final String role = "appid1";
 
-        ServiceConfiguration svcConfig = spy(ServiceConfiguration.class);
+        ServerCnx cnx = mock(ServerCnx.class, withSettings()
+                .useConstructor(pulsar)
+                .defaultAnswer(CALLS_REAL_METHODS));
         doReturn(true).when(cnx).isActive();
         doReturn(true).when(cnx).isWritable();
         doReturn(new InetSocketAddress(address, 1234)).when(cnx).clientAddress();
