@@ -73,7 +73,7 @@ public class HttpTopicLookupv2Test {
         pulsar = mock(PulsarService.class);
         ns = mock(NamespaceService.class);
         auth = mock(AuthorizationService.class);
-        config = spy(new ServiceConfiguration());
+        config = spy(ServiceConfiguration.class);
         config.setClusterName("use");
         clusters = new TreeSet<>();
         clusters.add("use");
@@ -102,7 +102,7 @@ public class HttpTopicLookupv2Test {
     @Test
     public void crossColoLookup() throws Exception {
 
-        TopicLookup destLookup = spy(new TopicLookup());
+        TopicLookup destLookup = spy(TopicLookup.class);
         doReturn(false).when(destLookup).isRequestHttps();
         destLookup.setPulsar(pulsar);
         doReturn("null").when(destLookup).clientAppId();
@@ -132,7 +132,7 @@ public class HttpTopicLookupv2Test {
         BrokerService brokerService = pulsar.getBrokerService();
         doReturn(new Semaphore(0)).when(brokerService).getLookupRequestSemaphore();
 
-        TopicLookup destLookup = spy(new TopicLookup());
+        TopicLookup destLookup = spy(TopicLookup.class);
         doReturn(false).when(destLookup).isRequestHttps();
         destLookup.setPulsar(pulsar);
         doReturn("null").when(destLookup).clientAppId();
@@ -170,7 +170,7 @@ public class HttpTopicLookupv2Test {
 //        doReturn(Optional.of(policies2)).when(policiesCache)
 //                .get(AdminResource.path(POLICIES, property, cluster, ns2));
 
-        TopicLookup destLookup = spy(new TopicLookup());
+        TopicLookup destLookup = spy(TopicLookup.class);
         doReturn(false).when(destLookup).isRequestHttps();
         destLookup.setPulsar(pulsar);
         doReturn("null").when(destLookup).clientAppId();

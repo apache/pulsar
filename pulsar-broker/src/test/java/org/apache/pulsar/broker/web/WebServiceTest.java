@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.web;
 
+import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgs;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
@@ -389,7 +390,7 @@ public class WebServiceTest {
             config.setHttpRequestsLimitEnabled(true);
             config.setHttpRequestsMaxPerSecond(rateLimit);
         }
-        pulsar = spy(new PulsarService(config));
+        pulsar = spyWithClassAndConstructorArgs(PulsarService.class, config);
      // mock zk
         MockZooKeeper mockZooKeeper = MockedPulsarServiceBaseTest.createMockZooKeeper();
         ZooKeeperClientFactory mockZooKeeperClientFactory = new ZooKeeperClientFactory() {

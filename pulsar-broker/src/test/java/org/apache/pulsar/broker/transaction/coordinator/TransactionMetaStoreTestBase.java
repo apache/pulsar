@@ -34,6 +34,8 @@ import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 
+import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgs;
+
 public abstract class TransactionMetaStoreTestBase extends TestRetrySupport {
 
     private static final Logger log = LoggerFactory.getLogger(TransactionMetaStoreTestBase.class);
@@ -76,7 +78,7 @@ public abstract class TransactionMetaStoreTestBase extends TestRetrySupport {
             config.setTransactionCoordinatorEnabled(true);
             configurations[i] = config;
 
-            pulsarServices[i] = Mockito.spy(new PulsarService(config));
+            pulsarServices[i] = spyWithClassAndConstructorArgs(PulsarService.class, config);
             pulsarServices[i].start();
 
             pulsarAdmins[i] = PulsarAdmin.builder()
