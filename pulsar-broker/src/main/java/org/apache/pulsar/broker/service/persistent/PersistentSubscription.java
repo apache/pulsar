@@ -1094,6 +1094,17 @@ public class PersistentSubscription implements Subscription {
         return subscriptionProperties;
     }
 
+    @Override
+    public CompletableFuture<Void> updateSubscriptionProperties(Map<String, String> subscriptionProperties) {
+        if (subscriptionProperties == null) {
+            this.subscriptionProperties = Collections.emptyMap();
+        } else {
+            this.subscriptionProperties = Collections.unmodifiableMap(subscriptionProperties);
+        }
+        // TODO: Persist into the cursor
+        return CompletableFuture.completedFuture(null);
+    }
+
     /**
      * Return a merged map that contains the cursor properties specified by used
      * (eg. when using compaction subscription) and the subscription properties.
