@@ -37,6 +37,7 @@ import io.netty.util.Recycler.Handle;
 import io.netty.util.ReferenceCountUtil;
 import java.io.IOException;
 import java.time.Clock;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -345,7 +346,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
         this.inactiveLedgerRollOverTimeMs = config.getInactiveLedgerRollOverTimeMs();
         this.trashStore = new TrashMetaStoreImpl(TrashMetaStore.MANAGED_LEDGER, name, metadataStore,this, config,
-                scheduledExecutor, bookKeeper);
+                scheduledExecutor, executor, bookKeeper);
     }
 
     synchronized void initialize(final ManagedLedgerInitializeLedgerCallback callback, final Object ctx) {
@@ -437,7 +438,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                 }
                             }
                         });
-
                 scheduleTimeoutTask();
             }
         });
@@ -2561,7 +2561,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     .map(LedgerInfo::getLedgerId).collect(Collectors.toSet());
 
             CompletableFuture<Void> updateTrashFuture = asyncUpdateTrashData(deletableLedgers, deletableOffloadedLedgers);
-            updateTrashFuture.thenCompose(ignore -> {
+            updateTrashFuture.thenAccept(ignore -> {
 
                 for (LedgerInfo ls : ledgersToDelete) {
                     if (currentLastConfirmedEntry != null && ls.getLedgerId() == currentLastConfirmedEntry.getLedgerId()) {
@@ -2616,7 +2616,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                         promise.completeExceptionally(e);
                     }
                 });
-                return null;
             }).exceptionally(ex -> {
                 metadataMutex.unlock();
                 trimmerMutex.unlock();
@@ -4124,17 +4123,23 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
      */
     private CompletableFuture<Void> asyncUpdateTrashData(Collection<Long> deletableLedgerIds,
                                         Collection<Long> deletableOffloadedLedgerIds) {
-        CompletableFuture<Void> future = new CompletableFuture<>();
+        List<CompletableFuture<?>> futures = new ArrayList<>(deletableLedgerIds.size() + deletableOffloadedLedgerIds.size());
 
         for (Long ledgerId : deletableLedgerIds) {
-            trashStore.appendLedgerTrashData(ledgerId, null)
+            CompletableFuture<Void> future = new CompletableFuture<>();
+            trashStore.appendLedgerTrashData(ledgerId, null, future);
+            futures.add(future);
             mbean.addLedgerMarkedDeletableCounter();
         }
         for (Long ledgerId : deletableOffloadedLedgerIds) {
-            trashStore.appendOffloadLedgerTrashData(ledgerId, ledgers.get(ledgerId));
+            CompletableFuture<Void> future = new CompletableFuture<>();
+            trashStore.appendOffloadLedgerTrashData(ledgerId, ledgers.get(ledgerId), future);
+            futures.add(future);
             mbean.addLedgerMarkedDeletableCounter();
         }
 
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        futures.add(future);
         trashStore.asyncUpdateTrashData(new TrashMetaStore.TrashMetaStoreCallback<Void>() {
             @Override
             public void operationComplete(Void result) {
@@ -4146,7 +4151,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 future.completeExceptionally(e);
             }
         });
-        return future;
+        return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
     }
 
     private void tryRemoveAllDeletableLedgers() {

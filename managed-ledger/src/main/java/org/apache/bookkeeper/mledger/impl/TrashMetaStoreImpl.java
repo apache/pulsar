@@ -1,6 +1,25 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 package org.apache.bookkeeper.mledger.impl;
 
 import static org.apache.bookkeeper.mledger.util.Errors.isNoSuchLedgerExistsException;
+import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
 import com.google.common.collect.Maps;
 import com.google.protobuf.InvalidProtocolBufferException;
 import java.util.ArrayList;
@@ -17,6 +36,7 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
+import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedLedger;
@@ -64,8 +84,6 @@ public class TrashMetaStoreImpl implements TrashMetaStore {
 
     private final CallbackMutex trashMutex = new CallbackMutex();
 
-    private final CallbackMutex archiveMutex = new CallbackMutex();
-
     private final CallbackMutex deleteMutex = new CallbackMutex();
 
     private AbstractBatchedMetadataStore metadataStore;
@@ -84,6 +102,8 @@ public class TrashMetaStoreImpl implements TrashMetaStore {
 
     private final OrderedScheduler scheduledExecutor;
 
+    private final OrderedExecutor executor;
+
     private final BookKeeper bookKeeper;
 
     private final int trashDataLimitSize;
@@ -93,7 +113,8 @@ public class TrashMetaStoreImpl implements TrashMetaStore {
     private final int deleteRetryCount;
 
     public TrashMetaStoreImpl(String type, String name, MetadataStore metadataStore, ManagedLedger managedLedger,
-                              ManagedLedgerConfig config, OrderedScheduler scheduledExecutor, BookKeeper bookKeeper) {
+                              ManagedLedgerConfig config, OrderedScheduler scheduledExecutor, OrderedExecutor executor,
+                              BookKeeper bookKeeper) {
         this.type = type;
         this.name = name;
         this.managedLedger = managedLedger;
@@ -103,6 +124,7 @@ public class TrashMetaStoreImpl implements TrashMetaStore {
         }
         this.metadataStore = (AbstractBatchedMetadataStore) metadataStore;
         this.scheduledExecutor = scheduledExecutor;
+        this.executor = executor;
         this.bookKeeper = bookKeeper;
         this.trashDataLimitSize = config.getTrashDataLimitSize();
         this.archiveDataLimitSize = config.getTrashDataLimitSize() / 2;
@@ -159,25 +181,31 @@ public class TrashMetaStoreImpl implements TrashMetaStore {
         }
     }
 
+    public void appendLedgerTrashDataInBackground(long ledgerId, LedgerInfo context, CompletableFuture<?> future) {
+        executor.executeOrdered(name, safeRun(() -> appendLedgerTrashData(ledgerId, context, future)));
+    }
+
+
     @Override
-    public CompletableFuture<Void> appendLedgerTrashData(long ledgerId, LedgerInfo context) {
+    public void appendLedgerTrashData(long ledgerId, LedgerInfo context, CompletableFuture<?> future) {
         if (!trashMutex.tryLock()) {
-            scheduledExecutor.schedule(() -> appendLedgerTrashData(ledgerId, context), 100, TimeUnit.MILLISECONDS);
+            scheduledExecutor.schedule(safeRun(() -> appendLedgerTrashDataInBackground(ledgerId, context, future)),
+                    100, TimeUnit.MILLISECONDS);
         }
-        CompletableFuture<Void> future = new CompletableFuture<>();
         String key = buildLedgerLey(ledgerId);
         trashData.put(key, context);
         archiveStaleDataIfNecessary(future);
-        return future;
     }
 
     @Override
-    public CompletableFuture<Void> appendOffloadLedgerTrashData(long ledgerId, LedgerInfo context) {
-        CompletableFuture<Void> future = new CompletableFuture<>();
+    public void appendOffloadLedgerTrashData(long ledgerId, LedgerInfo context, CompletableFuture<?> future) {
+        if (!trashMutex.tryLock()) {
+            scheduledExecutor.schedule(safeRun(() -> appendLedgerTrashDataInBackground(ledgerId, context, future)), 100,
+                    TimeUnit.MILLISECONDS);
+        }
         String key = buildOffloadLedgerKey(ledgerId);
         trashData.put(key, context);
         archiveStaleDataIfNecessary(future);
-        return future;
     }
 
     @Override
@@ -231,7 +259,7 @@ public class TrashMetaStoreImpl implements TrashMetaStore {
         return null;
     }
 
-    private void archiveStaleDataIfNecessary(CompletableFuture<Void> future) {
+    private void archiveStaleDataIfNecessary(CompletableFuture<?> future) {
         if (trashData.size() <= trashDataLimitSize) {
             future.complete(null);
             return;
@@ -250,17 +278,17 @@ public class TrashMetaStoreImpl implements TrashMetaStore {
         appendArchiveData(toArchive, future);
     }
 
-    private void appendArchiveData(Map<String, LedgerInfo> toArchive, CompletableFuture<Void> future) {
+    private void appendArchiveData(Map<String, LedgerInfo> toArchive, CompletableFuture<?> future) {
         archiveData.putAll(toArchive);
         updateArchiveDataIfNecessary(future);
     }
 
-    private void appendArchiveData(String ledgerId, LedgerInfo context, CompletableFuture<Void> future) {
+    private void appendArchiveData(String ledgerId, LedgerInfo context, CompletableFuture<?> future) {
         archiveData.put(ledgerId, context);
         updateArchiveDataIfNecessary(future);
     }
 
-    private void updateArchiveDataIfNecessary(CompletableFuture<Void> future) {
+    private void updateArchiveDataIfNecessary(CompletableFuture<?> future) {
         if (archiveData.size() <= archiveDataLimitSize) {
             future.complete(null);
             return;
@@ -273,7 +301,6 @@ public class TrashMetaStoreImpl implements TrashMetaStore {
 
             @Override
             public void operationFailed(ManagedLedgerException.MetaStoreException e) {
-                log.error("");
                 future.completeExceptionally(e);
             }
         });
