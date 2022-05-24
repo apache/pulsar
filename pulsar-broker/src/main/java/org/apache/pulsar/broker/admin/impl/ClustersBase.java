@@ -704,7 +704,7 @@ public class ClustersBase extends AdminResource {
                 .thenCompose(policies -> {
                     policies.deletePolicy(policyName);
                     return namespaceIsolationPolicies().setIsolationDataAsync(cluster, old -> policies.getPolicies());
-                }).thenAccept(__ -> asyncResponse.resume(Response.ok().build()))
+                }).thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
                 .exceptionally(ex -> {
                     Throwable realCause = FutureUtil.unwrapCompletionException(ex);
                     if (realCause instanceof NotFoundException) {
