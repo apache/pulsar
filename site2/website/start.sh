@@ -14,5 +14,6 @@ fi
 
 cd $ROOT_DIR/site2/.preview/pulsar-site/site2/website-next
 
+yarn install
 sh scripts/sync-docs.sh $ROOT_DIR/site2
 node scripts/watch.js $ROOT_DIR/site2 $@
