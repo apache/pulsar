@@ -33,7 +33,7 @@ import org.apache.pulsar.policies.data.loadbalancer.BundleData;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 
 /**
- * Placement strategy which randomly selects a broker based on those having resource usage below average load.
+ * Placement strategy which randomly selects a broker from those having resource usage below average load.
  */
 @Slf4j
 public class ThresholdLoadManagerStrategy implements ModularLoadManagerStrategy {
