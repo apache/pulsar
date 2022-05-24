@@ -54,7 +54,7 @@ public class NamespaceResources extends BaseResources<Policies> {
 
     private static final String POLICIES_READONLY_FLAG_PATH = "/admin/flags/policies-readonly";
     private static final String NAMESPACE_BASE_PATH = "/namespace";
-
+    private static final String BUNDLE_DATA_BASE_PATH = "/loadbalance/bundle-data";
     public NamespaceResources(MetadataStore localStore, MetadataStore configurationStore, int operationTimeoutSec) {
         super(configurationStore, Policies.class, operationTimeoutSec);
         this.configurationStore = configurationStore;
@@ -280,5 +280,40 @@ public class NamespaceResources extends BaseResources<Policies> {
 
             return completableFuture;
         }
+    }
+
+
+    // clear resource of `/loadbalance/bundle-data/{tenant}/{namespace}/` for zk-node
+    public CompletableFuture<Void> deleteBundleDataAsync(NamespaceName ns) {
+        final String namespaceBundlePath = joinPath(BUNDLE_DATA_BASE_PATH, ns.toString());
+        CompletableFuture<Void> future = new CompletableFuture<Void>();
+        deleteRecursiveAsync(this, namespaceBundlePath).whenComplete((ignore, ex) -> {
+            if (ex instanceof MetadataStoreException.NotFoundException) {
+                future.complete(null);
+            } else if (ex != null) {
+                future.completeExceptionally(ex);
+            } else {
+                future.complete(null);
+            }
+        });
+
+        return future;
+    }
+
+    // clear resource of `/loadbalance/bundle-data/{tenant}/` for zk-node
+    public CompletableFuture<Void> deleteBundleDataTenantAsync(String tenant) {
+        final String tenantBundlePath = joinPath(BUNDLE_DATA_BASE_PATH, tenant);
+        CompletableFuture<Void> future = new CompletableFuture<Void>();
+        deleteRecursiveAsync(this, tenantBundlePath).whenComplete((ignore, ex) -> {
+            if (ex instanceof MetadataStoreException.NotFoundException) {
+                future.complete(null);
+            } else if (ex != null) {
+                future.completeExceptionally(ex);
+            } else {
+                future.complete(null);
+            }
+        });
+
+        return future;
     }
 }
