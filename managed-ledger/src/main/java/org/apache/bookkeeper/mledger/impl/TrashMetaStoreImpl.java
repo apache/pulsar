@@ -219,8 +219,6 @@ public class TrashMetaStoreImpl implements TrashMetaStore {
 
     @Override
     public void triggerDelete() {
-        //todo trigger self.
-        //background xx 之内，如果发生过 trash persist,那么就不做。如果没有的话，dirty, 就做一次 trash persist.
         if (!deleteMutex.tryLock() || !trashMutex.tryLock()) {
             scheduledExecutor.schedule(this::triggerDeleteInBackground, 100, TimeUnit.MILLISECONDS);
             return;
