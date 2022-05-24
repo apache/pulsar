@@ -65,6 +65,8 @@ public class WebService implements AutoCloseable {
     private final PulsarService pulsar;
     private final Server server;
     private final List<Handler> handlers;
+
+    private final WebExecutorStats executorStats;
     private final WebExecutorThreadPool webServiceExecutor;
     public final int maxConcurrentRequests;
 
@@ -78,6 +80,7 @@ public class WebService implements AutoCloseable {
         this.webServiceExecutor = new WebExecutorThreadPool(
                 pulsar.getConfiguration().getNumHttpServerThreads(),
                 "pulsar-web");
+        this.executorStats = WebExecutorStats.getStats(webServiceExecutor);
         this.server = new Server(webServiceExecutor);
         this.maxConcurrentRequests = pulsar.getConfiguration().getMaxConcurrentHttpRequests();
         List<ServerConnector> connectors = new ArrayList<>();
@@ -275,6 +278,7 @@ public class WebService implements AutoCloseable {
                 jettyStatisticsCollector = null;
             }
             webServiceExecutor.join();
+            this.executorStats.close();
             log.info("Web service closed");
         } catch (Exception e) {
             throw new PulsarServerException(e);
