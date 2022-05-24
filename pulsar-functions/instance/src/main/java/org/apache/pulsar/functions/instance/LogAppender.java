@@ -21,7 +21,6 @@ package org.apache.pulsar.functions.instance;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.logging.log4j.core.Appender;
 import org.apache.logging.log4j.core.ErrorHandler;
 import org.apache.logging.log4j.core.Layout;
