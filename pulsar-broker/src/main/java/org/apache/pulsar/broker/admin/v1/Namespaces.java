@@ -363,13 +363,22 @@ public class Namespaces extends NamespacesBase {
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist"),
             @ApiResponse(code = 412, message = "Namespace is not global")})
-    public Set<String> getNamespaceReplicationClusters(@PathParam("property") String property,
-            @PathParam("cluster") String cluster, @PathParam("namespace") String namespace) {
+    public void getNamespaceReplicationClusters(@Suspended AsyncResponse asyncResponse,
+                                                @PathParam("property") String property,
+                                                @PathParam("cluster") String cluster,
+                                                @PathParam("namespace") String namespace) {
         validateNamespaceName(property, cluster, namespace);
-        validateNamespacePolicyOperation(NamespaceName.get(property, namespace),
-                PolicyName.REPLICATION, PolicyOperation.READ);
-
-        return internalGetNamespaceReplicationClusters();
+        validateNamespacePolicyOperationAsync(NamespaceName.get(property, namespace),
+                PolicyName.REPLICATION, PolicyOperation.READ)
+                .thenCompose(__ -> internalGetNamespaceReplicationClustersAsync())
+                .thenAccept(asyncResponse::resume)
+                .exceptionally(e -> {
+                    Throwable throwable = FutureUtil.unwrapCompletionException(e);
+                    log.error("[{}] Field to get namespace replication clusters on namespace {}", clientAppId(),
+                            namespace, throwable);
+                    resumeAsyncResponseExceptionally(asyncResponse, throwable);
+                    return null;
+                });
     }
 
     @POST
@@ -379,10 +388,20 @@ public class Namespaces extends NamespacesBase {
             @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist"),
             @ApiResponse(code = 409, message = "Peer-cluster can't be part of replication-cluster"),
             @ApiResponse(code = 412, message = "Namespace is not global or invalid cluster ids") })
-    public void setNamespaceReplicationClusters(@PathParam("property") String property,
-            @PathParam("cluster") String cluster, @PathParam("namespace") String namespace, List<String> clusterIds) {
+    public void setNamespaceReplicationClusters(@Suspended AsyncResponse asyncResponse,
+                                                @PathParam("property") String property,
+                                                @PathParam("cluster") String cluster,
+                                                @PathParam("namespace") String namespace, List<String> clusterIds) {
         validateNamespaceName(property, cluster, namespace);
-        internalSetNamespaceReplicationClusters(clusterIds);
+        internalSetNamespaceReplicationClusters(clusterIds)
+                .thenAccept(asyncResponse::resume)
+                .exceptionally(e -> {
+                    Throwable throwable = FutureUtil.unwrapCompletionException(e);
+                    log.error("[{}] Field to set namespace replication clusters on namespace {}", clientAppId(),
+                            namespace, throwable);
+                    resumeAsyncResponseExceptionally(asyncResponse, throwable);
+                    return null;
+                });
     }
 
     @GET
