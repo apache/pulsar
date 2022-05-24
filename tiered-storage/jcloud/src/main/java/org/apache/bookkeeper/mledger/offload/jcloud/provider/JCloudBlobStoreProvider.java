@@ -429,17 +429,17 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
     };
 
     static final CredentialBuilder S3_CREDENTIAL_BUILDER = (TieredStorageConfiguration config) -> {
-        String accountName = System.getenv("ACCESS_KEY_ID");
+        String accountName = System.getenv().getOrDefault("ACCESS_KEY_ID", "");
         // For forward compatibility
         if (StringUtils.isEmpty(accountName.trim())) {
-            accountName = System.getenv("ALIYUN_OSS_ACCESS_KEY_ID");
+            accountName = System.getenv().getOrDefault("ALIYUN_OSS_ACCESS_KEY_ID", "");
         }
         if (StringUtils.isEmpty(accountName.trim())) {
             throw new IllegalArgumentException("Couldn't get the access key id.");
         }
-        String accountKey = System.getenv("ACCESS_KEY_ID");
+        String accountKey = System.getenv().getOrDefault("ACCESS_KEY_ID", "");
         if (StringUtils.isEmpty(accountKey.trim())) {
-            accountKey = System.getenv("ALIYUN_OSS_ACCESS_KEY_SECRET");
+            accountKey = System.getenv().getOrDefault("ALIYUN_OSS_ACCESS_KEY_SECRET", "");
         }
         if (StringUtils.isEmpty(accountKey.trim())) {
             throw new IllegalArgumentException("Couldn't get the access key secret.");

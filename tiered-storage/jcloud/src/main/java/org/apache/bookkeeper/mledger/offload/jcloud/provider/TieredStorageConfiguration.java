@@ -336,6 +336,12 @@ public class TieredStorageConfiguration {
                 overrides.setProperty(jcloudsProp.getKey().toString(), jcloudsProp.getValue().toString());
             });
 
+        System.getenv().entrySet().stream()
+            .filter(p -> p.getKey().toString().startsWith("jclouds"))
+            .forEach(jcloudsProp -> {
+                overrides.setProperty(jcloudsProp.getKey().toString(), jcloudsProp.getValue().toString());
+            });
+
         log.info("getOverrides: {}", overrides.toString());
         return overrides;
     }
