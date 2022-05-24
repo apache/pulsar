@@ -45,7 +45,7 @@ ARG DEBIAN_FRONTEND=noninteractive
 # Install some utilities
 RUN apt-get update \
      && apt-get -y dist-upgrade \
-     && apt-get -y install openjdk-11-jdk-headless netcat dnsutils less procps iputils-ping \
+     && apt-get -y install netcat dnsutils less procps iputils-ping \
                  python3 python3-dev python3-setuptools python3-yaml python3-kazoo \
                  libreadline-gplv2-dev libncursesw5-dev libssl-dev libsqlite3-dev tk-dev libgdbm-dev libc6-dev libbz2-dev \
                  curl \
@@ -59,8 +59,20 @@ RUN python3 get-pip.py
 
 RUN update-alternatives --install /usr/bin/python python /usr/bin/python3 10
 
-ENV JAVA_HOME /usr/lib/jvm/java-11-openjdk-amd64
-RUN echo networkaddress.cache.ttl=1 >> /usr/lib/jvm/java-11-openjdk-amd64/conf/security/java.security
+# KonaJDK
+ARG JDK_INSTALL_PATH=/opt/konaJDK
+ARG JDK_DOWNLOAD_URL=https://github.com/Tencent/TencentKona-8/releases/download/8.0.7-GA/TencentKona8.0.7.b1_jdk_linux-x86_64_8u302.tar.gz
+WORKDIR $JDK_INSTALL_PATH
+
+RUN wget -q $JDK_DOWNLOAD_URL -O jdk.tar.gz \
+  && tar -zxf jdk.tar.gz \
+  && rm jdk.tar.gz
+
+ENV JAVA_HOME=$JDK_INSTALL_PATH/TencentKona-8.0.7-302
+ENV CLASSPATH=$JAVA_HOME/lib
+
+
+
 ADD target/python-client/ /pulsar/pulsar-client
 
 VOLUME  ["/pulsar/conf", "/pulsar/data"]
