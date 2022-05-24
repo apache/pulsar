@@ -87,6 +87,7 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
         if (!isWorkerServiceAvailable()) {
             throwUnavailableException();
         }
+        log.info(String.format("sink {} register, config {}", sinkName, sinkConfig));
 
         if (tenant == null) {
             throw new RestException(Response.Status.BAD_REQUEST, "Tenant is not provided");
@@ -148,7 +149,6 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
         Function.FunctionDetails functionDetails = null;
         boolean isPkgUrlProvided = isNotBlank(sinkPkgUrl);
         File componentPackageFile = null;
-
         try {
 
             // validate parameters

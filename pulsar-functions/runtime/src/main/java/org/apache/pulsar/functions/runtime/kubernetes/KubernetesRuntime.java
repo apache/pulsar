@@ -846,12 +846,13 @@ public class KubernetesRuntime implements Runtime {
     }
 
     private List<String> getDownloadCommand(String tenant, String namespace, String name, String userCodeFilePath) {
+        log.info("getDownloadCommand authenticationEnabled:{} authConfig:{}, instanceConfig: {}",
+                authenticationEnabled, authConfig.toString(), instanceConfig.getFunctionAuthenticationSpec());
 
         // add auth plugin and parameters if necessary
         if (authenticationEnabled && authConfig != null) {
             if (isNotBlank(authConfig.getClientAuthenticationPlugin())
-                    && isNotBlank(authConfig.getClientAuthenticationParameters())
-                    && instanceConfig.getFunctionAuthenticationSpec() != null) {
+                    && isNotBlank(authConfig.getClientAuthenticationParameters())) {
                 return Arrays.asList(
                         pulsarRootDir + configAdminCLI,
                         "--auth-plugin",
