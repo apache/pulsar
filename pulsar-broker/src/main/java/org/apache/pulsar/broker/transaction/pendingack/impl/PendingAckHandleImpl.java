@@ -126,7 +126,6 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
     @Getter
     private final ExecutorService internalPinnedExecutor;
 
-    private final ConcurrentHashMap<Long, Long> lowWaterMarks = new ConcurrentHashMap<>();
 
     public PendingAckHandleImpl(PersistentSubscription persistentSubscription) {
         super(State.None);
