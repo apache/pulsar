@@ -76,7 +76,7 @@ public class MLPendingAckStore implements PendingAckStore {
     private final AtomicLong currentIndexLag = new AtomicLong(0);
     private volatile long maxIndexLag;
 
-    protected PositionImpl maxAckPosition = PositionImpl.EARLIEST;
+    protected PositionImpl maxAckPosition = PositionImpl.earliest;
     private final LogIndexLagBackoff logIndexBackoff;
 
     /**
