@@ -92,6 +92,10 @@ public class PulsarClientImpl implements PulsarClient {
 
     private static final Logger log = LoggerFactory.getLogger(PulsarClientImpl.class);
 
+    // default limits for producers when memory limit controller is disabled
+    private static final int NO_MEMORY_LIMIT_DEFAULT_MAX_PENDING_MESSAGES = 1000;
+    private static final int NO_MEMORY_LIMIT_DEFAULT_MAX_PENDING_MESSAGES_ACROSS_PARTITIONS = 50000;
+
     protected final ClientConfigurationData conf;
     private final boolean createdExecutorProviders;
     private LookupService lookup;
@@ -251,7 +255,14 @@ public class PulsarClientImpl implements PulsarClient {
 
     @Override
     public <T> ProducerBuilder<T> newProducer(Schema<T> schema) {
-        return new ProducerBuilderImpl<>(this, schema);
+        ProducerBuilderImpl<T> producerBuilder = new ProducerBuilderImpl<>(this, schema);
+        if (!memoryLimitController.isMemoryLimited()) {
+            // set default limits for producers when memory limit controller is disabled
+            producerBuilder.maxPendingMessages(NO_MEMORY_LIMIT_DEFAULT_MAX_PENDING_MESSAGES);
+            producerBuilder.maxPendingMessagesAcrossPartitions(
+                    NO_MEMORY_LIMIT_DEFAULT_MAX_PENDING_MESSAGES_ACROSS_PARTITIONS);
+        }
+        return producerBuilder;
     }
 
     @Override
