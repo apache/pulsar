@@ -297,7 +297,10 @@ public class CmdSources extends CmdBase {
                 description = "The processing guarantees (aka delivery semantics) applied to the Source", hidden = true)
         protected FunctionConfig.ProcessingGuarantees deprecatedProcessingGuarantees;
         @Parameter(names = "--processing-guarantees",
-                description = "The processing guarantees (aka delivery semantics) applied to the source")
+                description = "The processing guarantees (aka delivery semantics) applied to the source."
+                    + " A source connector receives messages from external system and writes messages to a Pulsar topic."
+                    + " The '--processing-guarantees' is used to ensure the processing guarantees for writing messages to"
+                    + " the Pulsar topic. The available values are 'ATLEAST_ONCE', 'ATMOST_ONCE', 'EFFECTIVELY_ONCE'.")
         protected FunctionConfig.ProcessingGuarantees processingGuarantees;
 
         @Parameter(names = { "-o", "--destinationTopicName" },
@@ -367,7 +370,7 @@ public class CmdSources extends CmdBase {
         protected SourceConfig sourceConfig;
 
         private void mergeArgs() {
-            if (processingGuarantees == null && deprecatedProcessingGuarantees != null) {
+            if (processingGuarantees == ATLEAST_ONCE && deprecatedProcessingGuarantees != ATLEAST_ONCE) {
                 processingGuarantees = deprecatedProcessingGuarantees;
             }
             if (isBlank(destinationTopicName) && !isBlank(deprecatedDestinationTopicName)) {
