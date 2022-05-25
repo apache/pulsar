@@ -53,6 +53,8 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
@@ -113,10 +115,13 @@ import org.apache.pulsar.common.protocol.Commands.ChecksumType;
 import org.apache.pulsar.common.protocol.PulsarHandler;
 import org.apache.pulsar.common.topics.TopicList;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.zookeeper.ZooKeeper;
 import org.awaitility.Awaitility;
+import org.mockito.ArgumentCaptor;
+import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -157,17 +162,18 @@ public class ServerCnxTest {
             "persistent://use/ns-abc/topic-2",
             "persistent://use/ns-abc/topic");
 
-    private final ManagedLedger ledgerMock = mock(ManagedLedger.class);
-    private final ManagedCursor cursorMock = mock(ManagedCursor.class);
+    private ManagedLedger ledgerMock;
+    private ManagedCursor cursorMock;
     private OrderedExecutor executor;
     private EventLoopGroup eventLoopGroup;
 
-    @BeforeMethod
+    @BeforeMethod(alwaysRun = true)
     public void setup() throws Exception {
         eventLoopGroup = new NioEventLoopGroup();
         executor = OrderedExecutor.newBuilder().numThreads(1).build();
         svcConfig = spy(ServiceConfiguration.class);
         svcConfig.setBrokerShutdownTimeoutMs(0L);
+        svcConfig.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
         svcConfig.setClusterName("pulsar-cluster");
         pulsar = spyWithClassAndConstructorArgs(PulsarService.class, svcConfig);
         doReturn(new DefaultSchemaRegistryService()).when(pulsar).getSchemaRegistryService();
@@ -222,8 +228,12 @@ public class ServerCnxTest {
 
     @AfterMethod(alwaysRun = true)
     public void teardown() throws Exception {
-        serverCnx.close();
-        channel.close();
+        if (serverCnx != null) {
+            serverCnx.close();
+        }
+        if (channel != null) {
+            channel.close();
+        }
         pulsar.close();
         brokerService.close();
         executor.shutdownNow();
@@ -1635,6 +1645,8 @@ public class ServerCnxTest {
     }
 
     private void setupMLAsyncCallbackMocks() {
+        ledgerMock = mock(ManagedLedger.class);
+        cursorMock = mock(ManagedCursor.class);
         doReturn(new ArrayList<Object>()).when(ledgerMock).getCursors();
 
         // call openLedgerComplete with ledgerMock on ML factory asyncOpen
@@ -1946,5 +1958,147 @@ public class ServerCnxTest {
         assertTrue(response.isFiltered());
 
         channel.finish();
+    }
+
+    @Test
+    public void testNeverDelayConsumerFutureWhenNotFail() throws Exception{
+        // Mock ServerCnx.field: consumers
+        ConcurrentLongHashMap.Builder mapBuilder = Mockito.mock(ConcurrentLongHashMap.Builder.class);
+        Mockito.when(mapBuilder.expectedItems(Mockito.anyInt())).thenReturn(mapBuilder);
+        Mockito.when(mapBuilder.concurrencyLevel(Mockito.anyInt())).thenReturn(mapBuilder);
+        ConcurrentLongHashMap consumers = Mockito.mock(ConcurrentLongHashMap.class);
+        Mockito.when(mapBuilder.build()).thenReturn(consumers);
+        ArgumentCaptor<Long> ignoreArgumentCaptor = ArgumentCaptor.forClass(Long.class);
+        final ArgumentCaptor<CompletableFuture> deleteTimesMark = ArgumentCaptor.forClass(CompletableFuture.class);
+        Mockito.when(consumers.remove(ignoreArgumentCaptor.capture())).thenReturn(true);
+        Mockito.when(consumers.remove(ignoreArgumentCaptor.capture(), deleteTimesMark.capture())).thenReturn(true);
+        // case1: exists existingConsumerFuture, already complete or delay done after execute 'isDone()' many times
+        // case2: exists existingConsumerFuture, delay complete after execute 'isDone()' many times
+        // Why is the design so complicated, see: https://github.com/apache/pulsar/pull/15051
+        // Try a delay of 3 stages. The simulation is successful after repeated judgments.
+        for(AtomicInteger futureWillDoneAfterDelayTimes = new AtomicInteger(1);
+                                            futureWillDoneAfterDelayTimes.intValue() <= 3;
+                                            futureWillDoneAfterDelayTimes.incrementAndGet()){
+            final AtomicInteger futureCallTimes = new AtomicInteger();
+            final Consumer mockConsumer = Mockito.mock(Consumer.class);
+            CompletableFuture existingConsumerFuture = new CompletableFuture<Consumer>(){
+
+                private boolean complete;
+
+                // delay complete after execute 'isDone()' many times
+                @Override
+                public boolean isDone() {
+                    if (complete) {
+                        return true;
+                    }
+                    int executeIsDoneCommandTimes = futureCallTimes.incrementAndGet();
+                    return executeIsDoneCommandTimes >= futureWillDoneAfterDelayTimes.intValue();
+                }
+
+                // if trig "getNow()", then complete
+                @Override
+                public Consumer get(){
+                    complete = true;
+                    return mockConsumer;
+                }
+
+                // if trig "get()", then complete
+                @Override
+                public Consumer get(long timeout, TimeUnit unit){
+                    complete = true;
+                    return mockConsumer;
+                }
+
+                // if trig "get()", then complete
+                @Override
+                public Consumer getNow(Consumer ifAbsent){
+                    complete = true;
+                    return mockConsumer;
+                }
+
+                // never fail
+                public boolean isCompletedExceptionally(){
+                    return false;
+                }
+            };
+            Mockito.when(consumers.putIfAbsent(Mockito.anyLong(), Mockito.any())).thenReturn(existingConsumerFuture);
+            // do test: delay complete after execute 'isDone()' many times
+            // Why is the design so complicated, see: https://github.com/apache/pulsar/pull/15051
+            try (MockedStatic<ConcurrentLongHashMap> theMock = Mockito.mockStatic(ConcurrentLongHashMap.class)) {
+                // Inject consumers to ServerCnx
+                theMock.when(ConcurrentLongHashMap::newBuilder).thenReturn(mapBuilder);
+                // reset channels( serverChannel, clientChannel )
+                resetChannel();
+                setChannelConnected();
+                // auth check disable
+                doReturn(false).when(brokerService).isAuthenticationEnabled();
+                doReturn(false).when(brokerService).isAuthorizationEnabled();
+                // do subscribe
+                ByteBuf clientCommand = Commands.newSubscribe(successTopicName, //
+                        successSubName, 1 /* consumer id */, 1 /* request id */, SubType.Exclusive, 0,
+                        "test" /* consumer name */, 0 /* avoid reseting cursor */);
+                channel.writeInbound(clientCommand);
+                Object responseObj = getResponse();
+                Predicate<Object> responseAssert = obj -> {
+                    if (responseObj instanceof CommandSuccess) {
+                        return true;
+                    }
+                    if (responseObj instanceof CommandError) {
+                        CommandError commandError = (CommandError) responseObj;
+                        return ServerError.ServiceNotReady == commandError.getError();
+                    }
+                    return false;
+                };
+                // assert no consumer-delete event occur
+                assertFalse(deleteTimesMark.getAllValues().contains(existingConsumerFuture));
+                // assert without another error occur
+                assertTrue(responseAssert.test(responseAssert));
+                // Server will not close the connection
+                assertTrue(channel.isOpen());
+                channel.finish();
+            }
+        }
+        // case3: exists existingConsumerFuture, already complete and exception
+        CompletableFuture existingConsumerFuture = Mockito.mock(CompletableFuture.class);
+        Mockito.when(consumers.putIfAbsent(Mockito.anyLong(), Mockito.any())).thenReturn(existingConsumerFuture);
+        // make consumerFuture delay finish
+        Mockito.when(existingConsumerFuture.isDone()).thenReturn(true);
+        // when sync get return, future will return success value.
+        Mockito.when(existingConsumerFuture.get()).thenThrow(new NullPointerException());
+        Mockito.when(existingConsumerFuture.get(Mockito.anyLong(), Mockito.any())).
+                thenThrow(new NullPointerException());
+        Mockito.when(existingConsumerFuture.isCompletedExceptionally()).thenReturn(true);
+        Mockito.when(existingConsumerFuture.getNow(Mockito.any())).thenThrow(new NullPointerException());
+        try (MockedStatic<ConcurrentLongHashMap> theMock = Mockito.mockStatic(ConcurrentLongHashMap.class)) {
+            // Inject consumers to ServerCnx
+            theMock.when(ConcurrentLongHashMap::newBuilder).thenReturn(mapBuilder);
+            // reset channels( serverChannel, clientChannel )
+            resetChannel();
+            setChannelConnected();
+            // auth check disable
+            doReturn(false).when(brokerService).isAuthenticationEnabled();
+            doReturn(false).when(brokerService).isAuthorizationEnabled();
+            // do subscribe
+            ByteBuf clientCommand = Commands.newSubscribe(successTopicName, //
+                    successSubName, 1 /* consumer id */, 1 /* request id */, SubType.Exclusive, 0,
+                    "test" /* consumer name */, 0 /* avoid reseting cursor */);
+            channel.writeInbound(clientCommand);
+            Object responseObj = getResponse();
+            Predicate<Object> responseAssert = obj -> {
+                if (responseObj instanceof CommandError) {
+                    CommandError commandError = (CommandError) responseObj;
+                    return ServerError.ServiceNotReady != commandError.getError();
+                }
+                return false;
+            };
+            // assert error response
+            assertTrue(responseAssert.test(responseAssert));
+            // assert consumer-delete event occur
+            assertEquals(1L,
+                    deleteTimesMark.getAllValues().stream().filter(f -> f == existingConsumerFuture).count());
+            // Server will not close the connection
+            assertTrue(channel.isOpen());
+            channel.finish();
+        }
     }
 }

@@ -77,8 +77,10 @@ flexible messaging model and an intuitive client API.</description>
   </issueManagement>
 
   <properties>
-    <maven.compiler.source>8</maven.compiler.source>
-    <maven.compiler.target>8</maven.compiler.target>
+    <maven.compiler.source>17</maven.compiler.source>
+    <maven.compiler.target>17</maven.compiler.target>
+    <pulsar.broker.compiler.release>${maven.compiler.target}</pulsar.broker.compiler.release>
+    <pulsar.client.compiler.release>8</pulsar.client.compiler.release>
 
     <!--config keys to configure test selection -->
     <include>**/Test*.java,**/*Test.java,**/*Tests.java,**/*TestCase.java</include>
@@ -89,7 +91,14 @@ flexible messaging model and an intuitive client API.</description>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     <redirectTestOutputToFile>true</redirectTestOutputToFile>
-    <test.additional.args></test.additional.args>
+    <!-- required for running tests on JDK11+ -->
+    <test.additional.args>
+      --add-opens java.base/jdk.internal.loader=ALL-UNNAMED
+      --add-opens java.base/java.lang=ALL-UNNAMED <!--Mockito-->
+      --add-opens java.base/java.io=ALL-UNNAMED <!--Bookkeeper NativeIO -->
+      --add-opens java.base/sun.net=ALL-UNNAMED <!--netty.DnsResolverUtil-->
+      --add-opens java.management/sun.management=ALL-UNNAMED <!--JvmDefaultGCMetricsLogger-->
+    </test.additional.args>
     <testReuseFork>true</testReuseFork>
     <testForkCount>4</testForkCount>
     <testRealAWS>false</testRealAWS>
@@ -104,21 +113,21 @@ flexible messaging model and an intuitive client API.</description>
     <!-- apache commons -->
     <commons-compress.version>1.21</commons-compress.version>
 
-    <bookkeeper.version>4.14.4</bookkeeper.version>
+    <bookkeeper.version>4.15.0</bookkeeper.version>
     <zookeeper.version>3.8.0</zookeeper.version>
     <commons-cli.version>1.5.0</commons-cli.version>
-    <snappy.version>1.1.7</snappy.version> <!-- ZooKeeper server -->
-    <dropwizardmetrics.version>3.2.5</dropwizardmetrics.version> <!-- ZooKeeper server -->
+    <snappy.version>1.1.8.4</snappy.version> <!-- ZooKeeper server -->
+    <dropwizardmetrics.version>4.1.12.1</dropwizardmetrics.version> <!-- ZooKeeper server -->
     <curator.version>5.1.0</curator.version>
-    <netty.version>4.1.74.Final</netty.version>
-    <netty-tc-native.version>2.0.48.Final</netty-tc-native.version>
+    <netty.version>4.1.77.Final</netty.version>
+    <netty-tc-native.version>2.0.52.Final</netty-tc-native.version>
     <jetty.version>9.4.44.v20210927</jetty.version>
     <conscrypt.version>2.5.2</conscrypt.version>
     <jersey.version>2.34</jersey.version>
     <athenz.version>1.10.50</athenz.version>
     <prometheus.version>0.5.0</prometheus.version>
     <vertx.version>3.9.8</vertx.version>
-    <rocksdb.version>6.10.2</rocksdb.version>
+    <rocksdb.version>6.29.4.1</rocksdb.version>
     <slf4j.version>1.7.32</slf4j.version>
     <commons.collections.version>3.2.2</commons.collections.version>
     <log4j2.version>2.17.1</log4j2.version>
@@ -131,9 +140,10 @@ flexible messaging model and an intuitive client API.</description>
     <puppycrawl.checkstyle.version>8.37</puppycrawl.checkstyle.version>
     <dockerfile-maven.version>1.4.13</dockerfile-maven.version>
     <typetools.version>0.5.0</typetools.version>
-    <protobuf3.version>3.16.1</protobuf3.version>
+    <protobuf3.version>3.19.2</protobuf3.version>
     <protoc3.version>${protobuf3.version}</protoc3.version>
-    <grpc.version>1.42.1</grpc.version>
+    <grpc.version>1.45.1</grpc.version>
+    <google-http-client.version>1.41.0</google-http-client.version>
     <perfmark.version>0.19.0</perfmark.version>
     <protoc-gen-grpc-java.version>${grpc.version}</protoc-gen-grpc-java.version>
     <gson.version>2.8.9</gson.version>
@@ -142,18 +152,19 @@ flexible messaging model and an intuitive client API.</description>
     <cassandra-driver-core.version>3.6.0</cassandra-driver-core.version>
     <aerospike-client.version>4.4.20</aerospike-client.version>
     <kafka-client.version>2.7.2</kafka-client.version>
-    <rabbitmq-client.version>5.1.1</rabbitmq-client.version>
+    <rabbitmq-client.version>5.5.3</rabbitmq-client.version>
     <aws-sdk.version>1.11.774</aws-sdk.version>
     <avro.version>1.10.2</avro.version>
     <joda.version>2.10.5</joda.version>
-    <jclouds.version>2.4.0</jclouds.version>
+    <jclouds.version>2.5.0</jclouds.version>
     <guice.version>5.1.0</guice.version>
     <sqlite-jdbc.version>3.8.11.2</sqlite-jdbc.version>
     <mysql-jdbc.version>8.0.11</mysql-jdbc.version>
     <postgresql-jdbc.version>42.3.3</postgresql-jdbc.version>
     <clickhouse-jdbc.version>0.3.2</clickhouse-jdbc.version>
     <mariadb-jdbc.version>2.7.5</mariadb-jdbc.version>
-    <hdfs-offload-version3>3.3.1</hdfs-offload-version3>
+    <openmldb-jdbc.version>0.4.4-hotfix1</openmldb-jdbc.version>
+    <hdfs-offload-version3>3.3.3</hdfs-offload-version3>
     <json-smart.version>2.4.7</json-smart.version>
     <opensearch.version>1.2.4</opensearch.version>
     <elasticsearch-java.version>8.1.0</elasticsearch-java.version>
@@ -164,7 +175,7 @@ flexible messaging model and an intuitive client API.</description>
     <debezium.postgresql.version>42.3.3</debezium.postgresql.version>
     <debezium.mysql.version>8.0.28</debezium.mysql.version>
     <jsonwebtoken.version>0.11.1</jsonwebtoken.version>
-    <opencensus.version>0.18.0</opencensus.version>
+    <opencensus.version>0.28.0</opencensus.version>
     <hbase.version>2.4.9</hbase.version>
     <guava.version>31.0.1-jre</guava.version>
     <jcip.version>1.0</jcip.version>
@@ -180,13 +191,12 @@ flexible messaging model and an intuitive client API.</description>
     <commons-io.version>2.8.0</commons-io.version>
     <commons-codec.version>1.15</commons-codec.version>
     <javax.ws.rs-api.version>2.1</javax.ws.rs-api.version>
-    <log4j.version>1.2.17</log4j.version>
     <hdrHistogram.version>2.1.9</hdrHistogram.version>
     <javax.servlet-api>3.1.0</javax.servlet-api>
     <caffeine.version>2.9.1</caffeine.version>
     <java-semver.version>0.9.0</java-semver.version>
     <jline.version>2.14.6</jline.version>
-    <hppc.version>0.7.3</hppc.version>
+    <hppc.version>0.9.1</hppc.version>
     <spark-streaming_2.10.version>2.1.0</spark-streaming_2.10.version>
     <assertj-core.version>3.18.1</assertj-core.version>
     <lombok.version>1.18.22</lombok.version>
@@ -205,18 +215,18 @@ flexible messaging model and an intuitive client API.</description>
     <kotlin-stdlib.version>1.4.32</kotlin-stdlib.version>
     <nsq-client.version>1.0</nsq-client.version>
     <cron-utils.version>9.1.6</cron-utils.version>
-    <spring-context.version>5.3.18</spring-context.version>
+    <spring-context.version>5.3.19</spring-context.version>
     <apache-http-client.version>4.5.13</apache-http-client.version>
     <apache-httpcomponents.version>4.4.15</apache-httpcomponents.version>
     <jetcd.version>0.5.11</jetcd.version>
     <snakeyaml.version>1.30</snakeyaml.version>
     <ant.version>1.10.12</ant.version>
     <seancfoley.ipaddress.version>5.3.3</seancfoley.ipaddress.version>
-
+    <disruptor.version>3.4.3</disruptor.version>
+    <zstd-jni.version>1.5.2-3</zstd-jni.version>
 
     <!-- test dependencies -->
     <cassandra.version>3.6.0</cassandra.version>
-    <disruptor.version>3.4.0</disruptor.version>
     <testcontainers.version>1.15.3</testcontainers.version>
     <hamcrest.version>2.2</hamcrest.version>
 
@@ -236,13 +246,13 @@ flexible messaging model and an intuitive client API.</description>
     <exec-maven-plugin.version>3.0.0</exec-maven-plugin.version>
     <license-maven-plugin.version>4.0.rc2</license-maven-plugin.version>
     <directory-maven-plugin.version>1.0</directory-maven-plugin.version>
-    <maven-enforcer-plugin.version>3.0.0-M3</maven-enforcer-plugin.version>
+    <maven-enforcer-plugin.version>3.0.0</maven-enforcer-plugin.version>
     <!-- surefire.version is defined in apache parent pom -->
     <!-- it is used for surefire, failsafe and surefire-report plugins -->
     <!-- do not upgrade surefire.version to 3.0.0-M5 since it runs slowly and breaks tests. -->
     <surefire.version>3.0.0-M3</surefire.version>
     <maven-assembly-plugin.version>3.3.0</maven-assembly-plugin.version>
-    <maven-compiler-plugin.version>3.9.0</maven-compiler-plugin.version>
+    <maven-compiler-plugin.version>3.10.1</maven-compiler-plugin.version>
     <maven-dependency-plugin.version>3.1.2</maven-dependency-plugin.version>
     <maven-modernizer-plugin.version>2.3.0</maven-modernizer-plugin.version>
     <maven-shade-plugin>3.3.0</maven-shade-plugin>
@@ -261,7 +271,7 @@ flexible messaging model and an intuitive client API.</description>
     <errorprone-slf4j.version>0.1.4</errorprone-slf4j.version>
     <j2objc-annotations.version>1.3</j2objc-annotations.version>
     <lightproto-maven-plugin.version>0.4</lightproto-maven-plugin.version>
-    <dependency-check-maven.version>6.1.6</dependency-check-maven.version>
+    <dependency-check-maven.version>7.1.0</dependency-check-maven.version>
 
     <!-- Used to configure rename.netty.native. Libs -->
     <rename.netty.native.libs>rename-netty-native-libs.sh</rename.netty.native.libs>
@@ -793,18 +803,6 @@ flexible messaging model and an intuitive client API.</description>
       </dependency>
 
       <dependency>
-        <artifactId>log4j</artifactId>
-        <groupId>log4j</groupId>
-        <version>${log4j.version}</version>
-        <exclusions>
-          <exclusion>
-            <groupId>com.sun.jmx</groupId>
-            <artifactId>jmxri</artifactId>
-          </exclusion>
-        </exclusions>
-      </dependency>
-
-      <dependency>
         <groupId>org.hdrhistogram</groupId>
         <artifactId>HdrHistogram</artifactId>
         <version>${hdrHistogram.version}</version>
@@ -958,6 +956,14 @@ flexible messaging model and an intuitive client API.</description>
 
       <dependency>
         <groupId>io.grpc</groupId>
+        <artifactId>grpc-bom</artifactId>
+        <version>${grpc.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+
+      <dependency>
+        <groupId>io.grpc</groupId>
         <artifactId>grpc-all</artifactId>
         <version>${grpc.version}</version>
         <exclusions>
@@ -981,45 +987,21 @@ flexible messaging model and an intuitive client API.</description>
       </dependency>
 
       <dependency>
-        <groupId>io.grpc</groupId>
-        <artifactId>grpc-api</artifactId>
-        <version>${grpc.version}</version>
+        <groupId>com.google.http-client</groupId>
+        <artifactId>google-http-client</artifactId>
+        <version>${google-http-client.version}</version>
       </dependency>
 
       <dependency>
-        <groupId>io.grpc</groupId>
-        <artifactId>grpc-core</artifactId>
-        <version>${grpc.version}</version>
+        <groupId>com.google.http-client</groupId>
+        <artifactId>google-http-client-jackson2</artifactId>
+        <version>${google-http-client.version}</version>
       </dependency>
 
       <dependency>
-        <groupId>io.grpc</groupId>
-        <artifactId>grpc-netty</artifactId>
-        <version>${grpc.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>io.grpc</groupId>
-        <artifactId>grpc-protobuf</artifactId>
-        <version>${grpc.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>io.grpc</groupId>
-        <artifactId>grpc-grpclb</artifactId>
-        <version>${grpc.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>io.grpc</groupId>
-        <artifactId>grpc-alts</artifactId>
-        <version>${grpc.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>io.grpc</groupId>
-        <artifactId>grpc-netty-shaded</artifactId>
-        <version>${grpc.version}</version>
+        <groupId>com.google.http-client</groupId>
+        <artifactId>google-http-client-gson</artifactId>
+        <version>${google-http-client.version}</version>
       </dependency>
 
       <dependency>
@@ -1033,18 +1015,6 @@ flexible messaging model and an intuitive client API.</description>
             <groupId>com.google.errorprone</groupId>
           </exclusion>
         </exclusions>
-      </dependency>
-
-      <dependency>
-        <groupId>io.grpc</groupId>
-        <artifactId>grpc-stub</artifactId>
-        <version>${grpc.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>io.grpc</groupId>
-        <artifactId>grpc-protobuf-lite</artifactId>
-        <version>${grpc.version}</version>
       </dependency>
 
       <dependency>
@@ -1169,6 +1139,12 @@ flexible messaging model and an intuitive client API.</description>
       <dependency>
         <groupId>io.opencensus</groupId>
         <artifactId>opencensus-api</artifactId>
+        <version>${opencensus.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>io.opencensus</groupId>
+        <artifactId>opencensus-contrib-http-util</artifactId>
         <version>${opencensus.version}</version>
       </dependency>
 
@@ -1306,6 +1282,12 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>org.jetbrains.kotlin</groupId>
         <artifactId>kotlin-stdlib-jdk8</artifactId>
         <version>${kotlin-stdlib.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.github.luben</groupId>
+        <artifactId>zstd-jni</artifactId>
+        <version>${zstd-jni.version}</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
@@ -1545,6 +1527,7 @@ flexible messaging model and an intuitive client API.</description>
                 <exclude>generated-site/**</exclude>
                 <exclude>.github/*.md</exclude>
                 <exclude>**/.idea/**</exclude>
+                <exclude>**/.mvn/**</exclude>
                 <exclude>**/generated/**</exclude>
                 <exclude>**/zk-3.5-test-data/*</exclude>
               </excludes>
@@ -1714,6 +1697,7 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>**/SecurityAuth.audit*</exclude>
             <exclude>**/site2/**</exclude>
             <exclude>**/.idea/**</exclude>
+            <exclude>**/.mvn/**</exclude>
             <exclude>**/*.a</exclude>
             <exclude>**/*.so</exclude>
             <exclude>**/*.so.*</exclude>
@@ -1735,10 +1719,11 @@ flexible messaging model and an intuitive client API.</description>
               <configuration>
                 <rules>
                   <requireJavaVersion>
-                    <version>[1.8.0,)</version>
+                    <version>17</version>
+                    <message>Java 17+ is required to build Pulsar.</message>
                   </requireJavaVersion>
                   <requireMavenVersion>
-                    <version>[3.3.9,)</version>
+                    <version>3.6.1</version>
                   </requireMavenVersion>
                 </rules>
               </configuration>
@@ -1781,6 +1766,9 @@ flexible messaging model and an intuitive client API.</description>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-compiler-plugin</artifactId>
           <version>${maven-compiler-plugin.version}</version>
+          <configuration>
+            <release>${pulsar.broker.compiler.release}</release>
+          </configuration>
         </plugin>
         <plugin>
           <groupId>org.gaul</groupId>
@@ -1910,35 +1898,18 @@ flexible messaging model and an intuitive client API.</description>
 
   <profiles>
     <profile>
-      <id>jdk11</id>
+      <!-- used for running integration tests on Java 8 -->
+      <id>integration-test-java8</id>
       <activation>
-        <jdk>[11,)</jdk>
+        <jdk>1.8</jdk>
       </activation>
       <properties>
-        <!-- prevents silent NoSuchMethodErrors that happen at runtime on Java 8 -->
-        <!-- see https://github.com/apache/pulsar/issues/8445 -->
-        <maven.compiler.release>${maven.compiler.target}</maven.compiler.release>
-        <!-- required for running tests on JDK11+ -->
-        <test.additional.args>
-          --add-opens java.base/jdk.internal.loader=ALL-UNNAMED
-          --add-opens java.base/java.lang=ALL-UNNAMED <!--Mockito-->
-          --add-opens java.base/java.io=ALL-UNNAMED <!--Bookkeeper NativeIO -->
-        </test.additional.args>
+        <test.additional.args/>
+        <maven.compiler.source>8</maven.compiler.source>
+        <maven.compiler.target>8</maven.compiler.target>
+        <pulsar.broker.compiler.release></pulsar.broker.compiler.release>
+        <pulsar.client.compiler.release></pulsar.client.compiler.release>
       </properties>
-      <build>
-        <pluginManagement>
-          <plugins>
-            <plugin>
-              <groupId>org.apache.maven.plugins</groupId>
-              <artifactId>maven-compiler-plugin</artifactId>
-              <configuration>
-                <!-- for some reason, setting maven.compiler.release property alone doesn't work -->
-                <release>${maven.compiler.release}</release>
-              </configuration>
-            </plugin>
-          </plugins>
-        </pluginManagement>
-      </build>
     </profile>
     <profile>
       <id>coverage</id>
@@ -2201,21 +2172,18 @@ flexible messaging model and an intuitive client API.</description>
     <!--
          Configure Google Error Prone static code analyser, http://errorprone.info
 
-         consists of 3 maven profiles: errorprone, errorprone-jdk8 and errorprone-jdk11
-
          usage:
-         activate profiles "errorprone" and either "errorprone-jdk8" or "errorprone-jdk11"
-         depending on the JVM version
+         activate profile "errorprone"
 
          It is required to add "lombok.addJavaxGeneratedAnnotation = true" to lombok.config
          temporarily before running the analysis.
 
          usage example:
          echo lombok.addJavaxGeneratedAnnotation=true >> lombok.config
-         mvn -Perrorprone,errorprone-jdk11,main compile
+         mvn -Perrorprone,main compile
 
          Revisiting warnings and errors is possible in IntelliJ after activating
-         errorprone, errorprone-jdk11 and main in "Maven->Profiles" and choosing
+         errorprone and main in "Maven->Profiles" and choosing
          "Build->Rebuild Project"
          Compiling all Pulsar projects in IntelliJ requires some manual tweaks to get the
          shaded projects to pass compilation. In some cases, it's better to mark the project
@@ -2240,7 +2208,7 @@ flexible messaging model and an intuitive client API.</description>
                 <arg>-Xlint:-options</arg>
                 <!-- configure Error Prone . Disable some checks that crash the compiler or are annoying -->
                 <!-- the following argument must be kept on one line when building with JDK8 -->
-                <arg>-Xplugin:ErrorProne -XepExcludedPaths:.*/target/generated-sources/.* -XepDisableWarningsInGeneratedCode -Xep:UnusedVariable:OFF -Xep:FallThrough:OFF -Xep:OverrideThrowableToString:OFF -Xep:UnusedMethod:OFF -Xep:StringSplitter:OFF -Xep:CanonicalDuration:OFF ${errorprone.arguments.jdk11}</arg>
+                <arg>-Xplugin:ErrorProne -XepExcludedPaths:.*/target/generated-sources/.* -XepDisableWarningsInGeneratedCode -Xep:UnusedVariable:OFF -Xep:FallThrough:OFF -Xep:OverrideThrowableToString:OFF -Xep:UnusedMethod:OFF -Xep:StringSplitter:OFF -Xep:CanonicalDuration:OFF -Xep:Slf4jDoNotLogMessageOfExceptionExplicitly:WARN -Xep:Slf4jSignOnlyFormat:WARN -Xep:Slf4jFormatShouldBeConst:WARN -Xep:Slf4jLoggerShouldBePrivate:WARN -Xep:Slf4jLoggerShouldBeNonStatic:OFF</arg>
               </compilerArgs>
               <annotationProcessorPaths combine.children="append">
                 <path>
@@ -2253,53 +2221,8 @@ flexible messaging model and an intuitive client API.</description>
                   <artifactId>mockito-errorprone</artifactId>
                   <version>${mockito.version}</version>
                 </path>
-              </annotationProcessorPaths>
-            </configuration>
-          </plugin>
-        </plugins>
-      </build>
-    </profile>
-    <!-- running errorprone on JDK 8 requires special javac configuration -->
-    <profile>
-      <id>errorprone-jdk8</id>
-      <build>
-        <plugins>
-          <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-compiler-plugin</artifactId>
-            <configuration>
-              <compilerArgs combine.children="append">
-                <arg>
-                  -J-Xbootclasspath/p:${settings.localRepository}/com/google/errorprone/javac/${errorprone.javac.version}/javac-${errorprone.javac.version}.jar</arg>
-              </compilerArgs>
-              <annotationProcessorPaths combine.children="append">
-                <path>
-                  <groupId>com.google.errorprone</groupId>
-                  <artifactId>javac</artifactId>
-                  <version>${errorprone.javac.version}</version>
-                </path>
-              </annotationProcessorPaths>
-            </configuration>
-          </plugin>
-        </plugins>
-      </build>
-    </profile>
-    <profile>
-      <id>errorprone-jdk11</id>
-      <properties>
-        <!-- pass the additional properties to -Xplugin:ErrorProne argument defined in errorprone profile -->
-        <!-- change configuration of slf4j checks to be more permissive -->
-        <errorprone.arguments.jdk11>-Xep:Slf4jDoNotLogMessageOfExceptionExplicitly:WARN -Xep:Slf4jSignOnlyFormat:WARN -Xep:Slf4jFormatShouldBeConst:WARN -Xep:Slf4jLoggerShouldBePrivate:WARN -Xep:Slf4jLoggerShouldBeNonStatic:OFF</errorprone.arguments.jdk11>
-      </properties>
-      <build>
-        <plugins>
-          <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-compiler-plugin</artifactId>
-            <configuration>
-              <annotationProcessorPaths combine.children="append">
                 <!-- add https://github.com/KengoTODA/errorprone-slf4j Error Prone plugin -->
-                <!-- detects slf4j misusage. Doesn't run on Java 8, so this is why it's in the errorprone-jdk11 profile -->
+                <!-- detects slf4j misusage. -->
                 <path>
                   <groupId>jp.skypencil.errorprone.slf4j</groupId>
                   <artifactId>errorprone-slf4j</artifactId>

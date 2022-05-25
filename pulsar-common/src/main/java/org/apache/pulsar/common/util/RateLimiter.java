@@ -189,8 +189,7 @@ public class RateLimiter implements AutoCloseable{
             canAcquire = acquirePermit < 0 || acquiredPermits < this.permits;
         } else {
             // acquired-permits can't be larger than the rate
-            if (acquirePermit > this.permits) {
-                acquiredPermits = this.permits;
+            if (acquirePermit + acquiredPermits > this.permits) {
                 return false;
             }
 

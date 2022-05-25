@@ -53,6 +53,7 @@ Configuration:
     Console:
       name: Console
       target: SYSTEM_OUT
+      direct: true
       PatternLayout:
         Pattern: "%d{ISO8601_OFFSET_DATE_TIME_HHMM} [%t] %-5level %logger{36} - %msg%n"
 

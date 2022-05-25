@@ -68,13 +68,15 @@ public class NonPersistentSubscription implements Subscription {
 
     private final LongAdder bytesOutFromRemovedConsumers = new LongAdder();
     private final LongAdder msgOutFromRemovedConsumer = new LongAdder();
+    private final Map<String, String> subscriptionProperties;
 
     // If isDurable is false(such as a Reader), remove subscription from topic when closing this subscription.
     private final boolean isDurable;
 
     private KeySharedMode keySharedMode = null;
 
-    public NonPersistentSubscription(NonPersistentTopic topic, String subscriptionName, boolean isDurable) {
+    public NonPersistentSubscription(NonPersistentTopic topic, String subscriptionName, boolean isDurable,
+                                     Map<String, String> properties) {
         this.topic = topic;
         this.topicName = topic.getName();
         this.subName = subscriptionName;
@@ -82,6 +84,8 @@ public class NonPersistentSubscription implements Subscription {
         IS_FENCED_UPDATER.set(this, FALSE);
         this.lastActive = System.currentTimeMillis();
         this.isDurable = isDurable;
+        this.subscriptionProperties = properties != null
+                ? Collections.unmodifiableMap(properties) : Collections.emptyMap();
     }
 
     @Override
@@ -517,5 +521,9 @@ public class NonPersistentSubscription implements Subscription {
 
     public void updateLastActive() {
         this.lastActive = System.currentTimeMillis();
+    }
+
+    public Map<String, String> getSubscriptionProperties() {
+        return subscriptionProperties;
     }
 }

@@ -20,8 +20,6 @@ package org.apache.pulsar.functions.worker;
 
 import static org.apache.pulsar.common.policies.data.PoliciesUtil.getBundles;
 import static org.apache.pulsar.metadata.impl.MetadataStoreFactoryImpl.removeIdentifierFromMetadataURL;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Sets;
 import io.netty.util.concurrent.DefaultThreadFactory;
@@ -353,20 +351,22 @@ public class PulsarWorkerService implements WorkerService {
             throw e;
         }
 
-        URI dlogURI;
-        try {
-            // initializing dlog namespace for function worker
-            if (workerConfig.isInitializedDlogMetadata()) {
-                String metadataStoreUrl = removeIdentifierFromMetadataURL(internalConf.getMetadataStoreUrl());
-                dlogURI = WorkerUtils.newDlogNamespaceURI(metadataStoreUrl);
-            } else {
-                dlogURI = WorkerUtils.initializeDlogNamespace(internalConf);
+        URI dlogURI = null;
+        if (brokerConfig.isMetadataStoreBackedByZookeeper()) {
+            try {
+                // initializing dlog namespace for function worker
+                if (workerConfig.isInitializedDlogMetadata()) {
+                    String metadataStoreUrl = removeIdentifierFromMetadataURL(internalConf.getMetadataStoreUrl());
+                    dlogURI = WorkerUtils.newDlogNamespaceURI(metadataStoreUrl);
+                } else {
+                    dlogURI = WorkerUtils.initializeDlogNamespace(internalConf);
+                }
+            } catch (IOException ioe) {
+                LOG.error("Failed to initialize dlog namespace with zookeeper {} at at metadata service uri {} for "
+                                + "storing function packages",
+                        internalConf.getMetadataStoreUrl(), internalConf.getBookkeeperMetadataServiceUri(), ioe);
+                throw ioe;
             }
-        } catch (IOException ioe) {
-            LOG.error("Failed to initialize dlog namespace with zookeeper {} at at metadata service uri {} for "
-                            + "storing function packages",
-                    internalConf.getMetadataStoreUrl(), internalConf.getBookkeeperMetadataServiceUri(), ioe);
-            throw ioe;
         }
 
         init(workerConfig, dlogURI, false);
@@ -402,24 +402,21 @@ public class PulsarWorkerService implements WorkerService {
 
         workerStatsManager.startupTimeStart();
         log.info("/** Starting worker id={} **/", workerConfig.getWorkerId());
+        log.info("Worker Configs: {}", workerConfig);
 
         try {
-            log.info("Worker Configs: {}", new ObjectMapper().writeValueAsString(workerConfig));
-        } catch (JsonProcessingException e) {
-            log.warn("Failed to print worker configs with error {}", e.getMessage(), e);
-        }
-
-        try {
-            DistributedLogConfiguration dlogConf = WorkerUtils.getDlogConf(workerConfig);
-            try {
-                this.dlogNamespace = NamespaceBuilder.newBuilder()
-                        .conf(dlogConf)
-                        .clientId("function-worker-" + workerConfig.getWorkerId())
-                        .uri(dlogUri)
-                        .build();
-            } catch (Exception e) {
-                log.error("Failed to initialize dlog namespace {} for storing function packages", dlogUri, e);
-                throw new RuntimeException(e);
+            if (dlogUri != null) {
+                DistributedLogConfiguration dlogConf = WorkerUtils.getDlogConf(workerConfig);
+                try {
+                    this.dlogNamespace = NamespaceBuilder.newBuilder()
+                            .conf(dlogConf)
+                            .clientId("function-worker-" + workerConfig.getWorkerId())
+                            .uri(dlogUri)
+                            .build();
+                } catch (Exception e) {
+                    log.error("Failed to initialize dlog namespace {} for storing function packages", dlogUri, e);
+                    throw new RuntimeException(e);
+                }
             }
 
             // create the state storage client for accessing function state

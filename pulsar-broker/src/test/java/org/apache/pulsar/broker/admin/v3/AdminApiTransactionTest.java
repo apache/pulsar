@@ -19,10 +19,10 @@
 package org.apache.pulsar.broker.admin.v3;
 
 import com.google.common.collect.Sets;
+import java.util.Set;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.http.HttpStatus;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
-import org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStore;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -36,8 +36,10 @@ import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
@@ -59,6 +61,9 @@ import org.testng.annotations.Test;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
@@ -75,7 +80,6 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         conf.setEnablePackagesManagement(true);
         conf.setPackagesManagementStorageProvider(MockedPackagesStorageProvider.class.getName());
         conf.setTransactionCoordinatorEnabled(true);
-        conf.setSystemTopicEnabled(true);
         conf.setTransactionBufferSnapshotMaxTransactionCount(1);
         super.internalSetup();
         admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
@@ -486,14 +490,14 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         ManagedLedgerInternalStats managedLedgerInternalStats = stats.pendingAckLogStats.managedLedgerInternalStats;
         assertEquals(TopicName.get(TopicDomain.persistent.toString(), "public", "default",
                 "testGetPendingAckInternalStats" + "-"
-                        + subName + MLPendingAckStore.PENDING_ACK_STORE_SUFFIX).getPersistenceNamingEncoding(),
+                        + subName + SystemTopicNames.PENDING_ACK_STORE_SUFFIX).getPersistenceNamingEncoding(),
                 stats.pendingAckLogStats.managedLedgerName);
 
         verifyManagedLegerInternalStats(managedLedgerInternalStats, 16);
 
         ManagedLedgerInternalStats finalManagedLedgerInternalStats = managedLedgerInternalStats;
         managedLedgerInternalStats.cursors.forEach((s, cursorStats) -> {
-            assertEquals(s, MLPendingAckStore.PENDING_ACK_STORE_CURSOR_NAME);
+            assertEquals(s, SystemTopicNames.PENDING_ACK_STORE_CURSOR_NAME);
             assertEquals(cursorStats.readPosition, finalManagedLedgerInternalStats.lastConfirmedEntry);
         });
 
@@ -503,7 +507,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
 
         assertEquals(TopicName.get(TopicDomain.persistent.toString(), "public", "default",
                 "testGetPendingAckInternalStats" + "-"
-                        + subName + MLPendingAckStore.PENDING_ACK_STORE_SUFFIX).getPersistenceNamingEncoding(),
+                        + subName + SystemTopicNames.PENDING_ACK_STORE_SUFFIX).getPersistenceNamingEncoding(),
                 stats.pendingAckLogStats.managedLedgerName);
         assertNull(managedLedgerInternalStats.ledgers.get(0).metadata);
     }
@@ -518,6 +522,49 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         } catch (PulsarAdminException ex) {
             assertEquals(ex.getStatusCode(), HttpStatus.SC_SERVICE_UNAVAILABLE);
         }
+        try {
+            admin.transactions().scaleTransactionCoordinators(1);
+        } catch (PulsarAdminException ex) {
+            assertEquals(ex.getStatusCode(), HttpStatus.SC_SERVICE_UNAVAILABLE);
+        }
+    }
+
+    @Test
+    public void testUpdateTransactionCoordinatorNumber() throws Exception {
+        int coordinatorSize = 3;
+        pulsar.getPulsarResources()
+                .getNamespaceResources()
+                .getPartitionedTopicResources()
+                .createPartitionedTopic(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN,
+                        new PartitionedTopicMetadata(coordinatorSize));
+        try {
+            admin.transactions().scaleTransactionCoordinators(coordinatorSize - 1);
+            fail();
+        } catch (PulsarAdminException pulsarAdminException) {
+            assertEquals(pulsarAdminException.getStatusCode(), HttpStatus.SC_NOT_ACCEPTABLE);
+        }
+        try {
+            admin.transactions().scaleTransactionCoordinators(-1);
+            fail();
+        } catch (PulsarAdminException pulsarAdminException) {
+            assertEquals(pulsarAdminException.getCause().getMessage(),
+                    "Number of transaction coordinators must be more than 0");
+        }
+
+        admin.transactions().scaleTransactionCoordinators(coordinatorSize * 2);
+        pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl.toString()).enableTransaction(true).build();
+        pulsarClient.close();
+        Awaitility.await().until(() -> pulsar.getTransactionMetadataStoreService().getStores().size() ==
+                        coordinatorSize * 2);
+        pulsar.getConfiguration().setAuthenticationEnabled(true);
+        Set<String> proxyRoles = spy(Set.class);
+        doReturn(true).when(proxyRoles).contains(any());
+        pulsar.getConfiguration().setProxyRoles(proxyRoles);
+        try {
+            admin.transactions().scaleTransactionCoordinators(coordinatorSize * 2 + 1);
+            fail();
+        } catch (PulsarAdminException.NotAuthorizedException ignored) {
+        }
     }
 
     private static void verifyCoordinatorStats(String state,
@@ -528,8 +575,12 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
     }
 
     private void initTransaction(int coordinatorSize) throws Exception {
-        admin.topics().createPartitionedTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString(), coordinatorSize);
-        admin.lookups().lookupTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString());
+        pulsar.getPulsarResources()
+                .getNamespaceResources()
+                .getPartitionedTopicResources()
+                .createPartitionedTopic(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN,
+                        new PartitionedTopicMetadata(coordinatorSize));
+        admin.lookups().lookupTopic(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN.toString());
         pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl.toString()).enableTransaction(true).build();
         pulsarClient.close();
         Awaitility.await().until(() ->

@@ -31,6 +31,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Lists;
@@ -155,6 +156,8 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
     @BeforeMethod
     public void setup() throws Exception {
         resetConfig();
+        conf.setTopicLevelPoliciesEnabled(false);
+        conf.setSystemTopicEnabled(false);
         conf.setClusterName(testLocalCluster);
         super.internalSetup();
 
@@ -203,8 +206,8 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testCreateNamespaces() throws Exception {
         try {
-            namespaces.createNamespace(this.testTenant, "other-colo", "my-namespace",
-                    BundlesData.builder().build());
+            asyncRequests(response -> namespaces.createNamespace(response, this.testTenant, "other-colo", "my-namespace",
+                    BundlesData.builder().build()));
             fail("should have failed");
         } catch (RestException e) {
             // Ok, cluster doesn't exist
@@ -217,24 +220,24 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         createTestNamespaces(nsnames, BundlesData.builder().build());
 
         try {
-            namespaces.createNamespace(this.testTenant, "use", "create-namespace-1",
-                    BundlesData.builder().build());
+            asyncRequests(response -> namespaces.createNamespace(response, this.testTenant, "use", "create-namespace-1",
+                    BundlesData.builder().build()));
             fail("should have failed");
         } catch (RestException e) {
             // Ok, namespace already exists
         }
 
         try {
-            namespaces.createNamespace("non-existing-tenant", "use", "create-namespace-1",
-                    BundlesData.builder().build());
+            asyncRequests(response -> namespaces.createNamespace(response,"non-existing-tenant", "use", "create-namespace-1",
+                    BundlesData.builder().build()));
             fail("should have failed");
         } catch (RestException e) {
             // Ok, tenant doesn't exist
         }
 
         try {
-            namespaces.createNamespace(this.testTenant, "use", "create-namespace-#",
-                    BundlesData.builder().build());
+            asyncRequests(response -> namespaces.createNamespace(response, this.testTenant, "use", "create-namespace-#",
+                    BundlesData.builder().build()));
             fail("should have failed");
         } catch (RestException e) {
             // Ok, invalid namespace name
@@ -246,7 +249,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
                     && path.equals("/admin/policies/my-tenant/use/my-namespace-3");
             });
         try {
-            namespaces.createNamespace(this.testTenant, "use", "my-namespace-3", BundlesData.builder().build());
+            asyncRequests(response -> namespaces.createNamespace(response, this.testTenant, "use", "my-namespace-3", BundlesData.builder().build()));
             fail("should have failed");
         } catch (RestException e) {
             // Ok
@@ -263,18 +266,24 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
                 this.testLocalNamespaces.get(1).toString(), this.testLocalNamespaces.get(2).toString(),
                 this.testGlobalNamespaces.get(0).toString());
         expectedList.sort(null);
-        assertEquals(namespaces.getTenantNamespaces(this.testTenant), expectedList);
+        AsyncResponse response = mock(AsyncResponse.class);
+        namespaces.getTenantNamespaces(response, this.testTenant);
+        ArgumentCaptor<Response> captor = ArgumentCaptor.forClass(Response.class);
+        verify(response, timeout(5000).times(1)).resume(captor.capture());
+        List<String> namespacesList = (List<String>) captor.getValue();
+        namespacesList.sort(null);
+        assertEquals(namespacesList, expectedList);
 
         try {
             // check the tenant name is valid
-            namespaces.getTenantNamespaces(this.testTenant + "/default");
+            asyncRequests(ctx -> namespaces.getTenantNamespaces(ctx, this.testTenant + "/default"));
             fail("should have failed");
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), Status.PRECONDITION_FAILED.getStatusCode());
         }
 
         try {
-            namespaces.getTenantNamespaces("non-existing-tenant");
+            asyncRequests(ctx -> namespaces.getTenantNamespaces(ctx, "non-existing-tenant"));
             fail("should have failed");
         } catch (RestException e) {
             // Ok, does not exist
@@ -299,7 +308,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         tenantCache.invalidateAll();
         store.invalidateAll();
         try {
-            namespaces.getTenantNamespaces(this.testTenant);
+            asyncRequests(ctx -> namespaces.getTenantNamespaces(ctx, this.testTenant));
             fail("should have failed");
         } catch (RestException e) {
             // Ok
@@ -321,46 +330,46 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
     @Test(enabled = false)
     public void testGrantAndRevokePermissions() throws Exception {
         Policies expectedPolicies = new Policies();
-        assertEquals(namespaces.getPolicies(this.testTenant, this.testLocalCluster,
-                this.testLocalNamespaces.get(0).getLocalName()), expectedPolicies);
-        assertEquals(namespaces.getPermissions(this.testTenant, this.testLocalCluster,
-                this.testLocalNamespaces.get(0).getLocalName()), expectedPolicies.auth_policies.getNamespaceAuthentication());
+        assertEquals(asyncRequests(ctx -> namespaces.getPolicies(ctx, this.testTenant, this.testLocalCluster,
+                this.testLocalNamespaces.get(0).getLocalName())), expectedPolicies);
+        assertEquals(asyncRequests(ctx -> namespaces.getPermissions(ctx, this.testTenant, this.testLocalCluster,
+                this.testLocalNamespaces.get(0).getLocalName())), expectedPolicies.auth_policies.getNamespaceAuthentication());
 
         namespaces.grantPermissionOnNamespace(this.testTenant, this.testLocalCluster,
                 this.testLocalNamespaces.get(0).getLocalName(), "my-role", EnumSet.of(AuthAction.produce));
 
         expectedPolicies.auth_policies.getNamespaceAuthentication().put("my-role", EnumSet.of(AuthAction.produce));
-        assertEquals(namespaces.getPolicies(this.testTenant, this.testLocalCluster,
-                this.testLocalNamespaces.get(0).getLocalName()), expectedPolicies);
-        assertEquals(namespaces.getPermissions(this.testTenant, this.testLocalCluster,
-                this.testLocalNamespaces.get(0).getLocalName()), expectedPolicies.auth_policies.getNamespaceAuthentication());
+        assertEquals(asyncRequests(ctx -> namespaces.getPolicies(ctx, this.testTenant, this.testLocalCluster,
+                this.testLocalNamespaces.get(0).getLocalName())), expectedPolicies);
+        assertEquals(asyncRequests(ctx -> namespaces.getPermissions(ctx, this.testTenant, this.testLocalCluster,
+                this.testLocalNamespaces.get(0).getLocalName())), expectedPolicies.auth_policies.getNamespaceAuthentication());
 
         namespaces.grantPermissionOnNamespace(this.testTenant, this.testLocalCluster,
                 this.testLocalNamespaces.get(0).getLocalName(), "other-role", EnumSet.of(AuthAction.consume));
         expectedPolicies.auth_policies.getNamespaceAuthentication().put("other-role", EnumSet.of(AuthAction.consume));
-        assertEquals(namespaces.getPolicies(this.testTenant, this.testLocalCluster,
-                this.testLocalNamespaces.get(0).getLocalName()), expectedPolicies);
-        assertEquals(namespaces.getPermissions(this.testTenant, this.testLocalCluster,
-                this.testLocalNamespaces.get(0).getLocalName()), expectedPolicies.auth_policies.getNamespaceAuthentication());
+        assertEquals(asyncRequests(ctx -> namespaces.getPolicies(ctx, this.testTenant, this.testLocalCluster,
+                this.testLocalNamespaces.get(0).getLocalName())), expectedPolicies);
+        assertEquals(asyncRequests(ctx -> namespaces.getPermissions(ctx, this.testTenant, this.testLocalCluster,
+                this.testLocalNamespaces.get(0).getLocalName())), expectedPolicies.auth_policies.getNamespaceAuthentication());
 
         namespaces.revokePermissionsOnNamespace(this.testTenant, this.testLocalCluster,
                 this.testLocalNamespaces.get(0).getLocalName(), "my-role");
         expectedPolicies.auth_policies.getNamespaceAuthentication().remove("my-role");
-        assertEquals(namespaces.getPolicies(this.testTenant, this.testLocalCluster,
-                this.testLocalNamespaces.get(0).getLocalName()), expectedPolicies);
-        assertEquals(namespaces.getPermissions(this.testTenant, this.testLocalCluster,
-                this.testLocalNamespaces.get(0).getLocalName()), expectedPolicies.auth_policies.getNamespaceAuthentication());
+        assertEquals(asyncRequests(ctx -> namespaces.getPolicies(ctx, this.testTenant, this.testLocalCluster,
+                this.testLocalNamespaces.get(0).getLocalName())), expectedPolicies);
+        assertEquals(asyncRequests(ctx -> namespaces.getPermissions(ctx, this.testTenant, this.testLocalCluster,
+                this.testLocalNamespaces.get(0).getLocalName())), expectedPolicies.auth_policies.getNamespaceAuthentication());
 
         // Non-existing namespaces
         try {
-            namespaces.getPolicies(this.testTenant, this.testLocalCluster, "non-existing-namespace-1");
+            asyncRequests(ctx -> namespaces.getPolicies(ctx, this.testTenant, this.testLocalCluster, "non-existing-namespace-1"));
             fail("should have failed");
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), Status.NOT_FOUND.getStatusCode());
         }
 
         try {
-            namespaces.getPermissions(this.testTenant, this.testLocalCluster, "non-existing-namespace-1");
+            asyncRequests(ctx -> namespaces.getPermissions(ctx, this.testTenant, this.testLocalCluster, "non-existing-namespace-1"));
             fail("should have failed");
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), Status.NOT_FOUND.getStatusCode());
@@ -393,7 +402,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
             });
 
         try {
-            namespaces.getPolicies(testNs.getTenant(), testNs.getCluster(), testNs.getLocalName());
+            asyncRequests(ctx -> namespaces.getPolicies(ctx, testNs.getTenant(), testNs.getCluster(), testNs.getLocalName()));
             fail("should have failed");
         } catch (RestException e) {
             // Ok
@@ -407,7 +416,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
                 return true;
             });
         try {
-            namespaces.getPermissions(testNs.getTenant(), testNs.getCluster(), testNs.getLocalName());
+            asyncRequests(ctx -> namespaces.getPermissions(ctx, testNs.getTenant(), testNs.getCluster(), testNs.getLocalName()));
             fail("should have failed");
         } catch (RestException e) {
             // Ok
@@ -758,7 +767,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         List<String> nsList = Lists.newArrayList(this.testLocalNamespaces.get(1).toString(),
                 this.testLocalNamespaces.get(2).toString());
         nsList.sort(null);
-        assertEquals(namespaces.getTenantNamespaces(this.testTenant), nsList);
+        assertEquals(asyncRequests(ctx -> namespaces.getTenantNamespaces(ctx, this.testTenant)), nsList);
 
         testNs = this.testLocalNamespaces.get(1);
         // setup ownership to localhost
@@ -978,16 +987,16 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
     private void createBundledTestNamespaces(String property, String cluster, String namespace, BundlesData bundle)
             throws Exception {
-        namespaces.createNamespace(property, cluster, namespace, bundle);
+        asyncRequests(ctx -> namespaces.createNamespace(ctx, property, cluster, namespace, bundle));
     }
 
     private void createGlobalTestNamespaces(String property, String namespace, BundlesData bundle) throws Exception {
-        namespaces.createNamespace(property, "global", namespace, bundle);
+        asyncRequests(ctx -> namespaces.createNamespace(ctx, property, "global", namespace, bundle));
     }
 
     private void createTestNamespaces(List<NamespaceName> nsnames, BundlesData bundle) throws Exception {
         for (NamespaceName nsName : nsnames) {
-            namespaces.createNamespace(nsName.getTenant(), nsName.getCluster(), nsName.getLocalName(), bundle);
+            asyncRequests(ctx -> namespaces.createNamespace(ctx, nsName.getTenant(), nsName.getCluster(), nsName.getLocalName(), bundle));
         }
     }
 
@@ -1320,6 +1329,33 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    public void testOperationNamespaceMessageTTL() throws Exception {
+        String namespace = "ttlnamespace";
+
+        asyncRequests(response -> namespaces.createNamespace(response, this.testTenant, this.testLocalCluster,
+                namespace, BundlesData.builder().build()));
+
+        asyncRequests(response -> namespaces.setNamespaceMessageTTL(response, this.testTenant, this.testLocalCluster,
+                namespace, 100));
+
+        int namespaceMessageTTL = (Integer) asyncRequests(response -> namespaces.getNamespaceMessageTTL(response, this.testTenant, this.testLocalCluster,
+                namespace));
+        assertEquals(100, namespaceMessageTTL);
+
+        asyncRequests(response -> namespaces.removeNamespaceMessageTTL(response, this.testTenant, this.testLocalCluster, namespace));
+        assertNull(asyncRequests(response -> namespaces.getNamespaceMessageTTL(response, this.testTenant, this.testLocalCluster,
+                namespace)));
+
+        try {
+            asyncRequests(response -> namespaces.setNamespaceMessageTTL(response, this.testTenant, this.testLocalCluster,
+                    namespace, -1));
+            fail("should have failed");
+        } catch (RestException e) {
+            assertEquals(e.getResponse().getStatus(), Status.PRECONDITION_FAILED.getStatusCode());
+        }
+    }
+
+    @Test
     public void testSetOffloadThreshold() throws Exception {
         TopicName topicName = TopicName.get("persistent", this.testTenant, "offload", "offload-topic");
         String namespace =  topicName.getNamespaceObject().toString();
@@ -1416,7 +1452,6 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().createNamespace(namespace, Sets.newHashSet(testLocalCluster));
 
         admin.topics().createNonPartitionedTopic(topic);
-
         admin.topics().delete(topic);
 
         try {

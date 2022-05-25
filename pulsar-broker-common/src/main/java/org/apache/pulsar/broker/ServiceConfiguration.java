@@ -49,6 +49,8 @@ import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.sasl.SaslConstants;
+import org.apache.pulsar.common.util.DirectMemoryUtils;
+import org.apache.pulsar.metadata.api.MetadataStoreFactory;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 
 /**
@@ -179,6 +181,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "The port for serving https requests"
     )
     private Optional<Integer> webServicePortTls = Optional.empty();
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Specify the TLS provider for the web service: SunJSSE, Conscrypt and etc."
+    )
+    private String webServiceTlsProvider = "Conscrypt";
 
     @FieldContext(
             category = CATEGORY_TLS,
@@ -774,6 +782,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private double maxUnackedMessagesPerSubscriptionOnBrokerBlocked = 0.16;
     @FieldContext(
             category = CATEGORY_POLICIES,
+            doc = "Maximum size of Consumer metadata")
+    private int maxConsumerMetadataSize = 1024;
+    @FieldContext(
+            category = CATEGORY_POLICIES,
             dynamic = true,
             doc = "Broker periodically checks if subscription is stuck and unblock if flag is enabled. "
                     + "(Default is disabled)"
@@ -1160,7 +1172,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + " It's shared across all the topics running in the same broker.\n\n"
             + " Use -1 to disable the memory limitation. Default is 1/2 of direct memory.\n\n")
     private int maxMessagePublishBufferSizeInMB = Math.max(64,
-        (int) (io.netty.util.internal.PlatformDependent.maxDirectMemory() / 2 / (1024 * 1024)));
+        (int) (DirectMemoryUtils.jvmMaxDirectMemory() / 2 / (1024 * 1024)));
 
     @FieldContext(
         category = CATEGORY_SERVER,
@@ -1249,7 +1261,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             category = CATEGORY_SERVER,
             doc = "Enable or disable system topic.")
-    private boolean systemTopicEnabled = false;
+    private boolean systemTopicEnabled = true;
 
     @FieldContext(
             category = CATEGORY_SCHEMA,
@@ -1262,7 +1274,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_SERVER,
         doc = "Enable or disable topic level policies, topic level policies depends on the system topic, "
                 + "please enable the system topic first.")
-    private boolean topicLevelPoliciesEnabled = false;
+    private boolean topicLevelPoliciesEnabled = true;
 
     @FieldContext(
             category = CATEGORY_SERVER,
@@ -1455,6 +1467,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Service Principal, for login context name. Default value is \"PulsarBroker\"."
     )
     private String saslJaasServerSectionName = SaslConstants.JAAS_DEFAULT_BROKER_SECTION_NAME;
+
+    @FieldContext(
+            category = CATEGORY_SASL_AUTH,
+            doc = "Path to file containing the secret to be used to SaslRoleTokenSigner\n"
+                    + "The secret can be specified like:\n"
+                    + "saslJaasServerRoleTokenSignerSecretPath=file:///my/saslRoleTokenSignerSecret.key."
+    )
+    private String saslJaasServerRoleTokenSignerSecretPath;
 
     @FieldContext(
         category = CATEGORY_SASL_AUTH,
@@ -1718,7 +1738,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + " memory is allocated from JVM direct memory and it's shared across all the topics"
             + " running in the same broker. By default, uses 1/5th of available direct memory")
     private int managedLedgerCacheSizeMB = Math.max(64,
-            (int) (io.netty.util.internal.PlatformDependent.maxDirectMemory() / 5 / (1024 * 1024)));
+            (int) (DirectMemoryUtils.jvmMaxDirectMemory() / 5 / (1024 * 1024)));
 
     @FieldContext(category = CATEGORY_STORAGE_ML, doc = "Whether we should make a copy of the entry payloads when "
             + "inserting in cache")
@@ -1834,10 +1854,23 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int managedLedgerMaxUnackedRangesToPersist = 10000;
     @FieldContext(
         category = CATEGORY_STORAGE_ML,
+        doc = "If enabled, the maximum \"acknowledgment holes\" will not be limited and \"acknowledgment holes\" "
+                + "are stored in multiple entries.")
+    private boolean persistentUnackedRangesWithMultipleEntriesEnabled = false;
+    @Deprecated
+    @FieldContext(
+        category = CATEGORY_STORAGE_ML,
+        deprecated = true,
         doc = "Max number of `acknowledgment holes` that can be stored in Zookeeper.\n\n"
             + "If number of unack message range is higher than this limit then broker will persist"
             + " unacked ranges into bookkeeper to avoid additional data overhead into zookeeper.")
-    private int managedLedgerMaxUnackedRangesToPersistInZooKeeper = 1000;
+    private int managedLedgerMaxUnackedRangesToPersistInZooKeeper = -1;
+    @FieldContext(
+            category = CATEGORY_STORAGE_ML,
+            doc = "Max number of `acknowledgment holes` that can be stored in MetadataStore.\n\n"
+                    + "If number of unack message range is higher than this limit then broker will persist"
+                    + " unacked ranges into bookkeeper to avoid additional data overhead into MetadataStore.")
+    private int managedLedgerMaxUnackedRangesToPersistInMetadataStore = 1000;
     @FieldContext(
             category = CATEGORY_STORAGE_OFFLOADING,
             doc = "Use Open Range-Set to cache unacked messages (it is memory efficient but it can take more cpu)"
@@ -1896,6 +1929,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "ManagedLedgerInfo compression type, option values (NONE, LZ4, ZLIB, ZSTD, SNAPPY). \n"
                     + "If value is invalid or NONE, then save the ManagedLedgerInfo bytes data directly.")
     private String managedLedgerInfoCompressionType = "NONE";
+
+    @FieldContext(category = CATEGORY_STORAGE_ML,
+            doc = "ManagedCursorInfo compression type, option values (NONE, LZ4, ZLIB, ZSTD, SNAPPY). \n"
+                    + "If value is NONE, then save the ManagedCursorInfo bytes data directly.")
+    private String managedCursorInfoCompressionType = "NONE";
 
     /*** --- Load balancer. --- ****/
     @FieldContext(
@@ -2312,10 +2350,21 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     /**** --- Metrics. --- ****/
     @FieldContext(
+            category = CATEGORY_METRICS,
+            doc = "Whether the '/metrics' endpoint requires authentication. Defaults to false."
+                    + "'authenticationEnabled' must also be set for this to take effect."
+    )
+    private boolean authenticateMetricsEndpoint = false;
+    @FieldContext(
         category = CATEGORY_METRICS,
         doc = "If true, export topic level metrics otherwise namespace level"
     )
     private boolean exposeTopicLevelMetricsInPrometheus = true;
+    @FieldContext(
+            category = CATEGORY_METRICS,
+            doc = "If true, export buffered metrics"
+    )
+    private boolean metricsBufferResponse = false;
     @FieldContext(
         category = CATEGORY_METRICS,
         doc = "If true, export consumer level metrics otherwise namespace level"
@@ -2393,6 +2442,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "The nar package for the function worker service"
     )
     private String functionsWorkerServiceNarPackage = "";
+
+    @FieldContext(
+            category = CATEGORY_FUNCTIONS,
+            doc = "Flag indicates enabling or disabling function worker using unified PackageManagement service."
+    )
+    private boolean functionsWorkerEnablePackageManagement = false;
 
     /**** --- Broker Web Stats. --- ****/
     @FieldContext(
@@ -2525,6 +2580,15 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private long transactionBufferClientOperationTimeoutInMills = 3000L;
 
+    @FieldContext(
+            category = CATEGORY_TRANSACTION,
+            doc = "MLPendingAckStore maintain a ConcurrentSkipListMap pendingAckLogIndex`,"
+                    + "it store the position in pendingAckStore as value and save a position used to determine"
+                    + "whether the previous data can be cleaned up as a key."
+                    + "transactionPendingAckLogIndexMinLag is used to configure the minimum lag between indexes"
+    )
+    private long transactionPendingAckLogIndexMinLag = 500L;
+
     /**** --- KeyStore TLS config variables. --- ****/
     @FieldContext(
             category = CATEGORY_KEYSTORE_TLS,
@@ -2534,7 +2598,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_KEYSTORE_TLS,
-            doc = "TLS Provider for Specify the SSL provider for the broker service: \n"
+            doc = "Specify the TLS provider for the broker service: \n"
                     + "When using TLS authentication with CACert, the valid value is either OPENSSL or JDK.\n"
                     + "When using TLS authentication with KeyStore, available values can be SunJSSE, Conscrypt and etc."
     )
@@ -2677,6 +2741,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
         }
     }
 
+    /**
+     * Tells whether the selected metadata store implementation is based on ZooKeeper.
+     */
+    public boolean isMetadataStoreBackedByZookeeper() {
+        return MetadataStoreFactory.isBasedOnZookeeper(getMetadataStoreUrl());
+    }
+
     public String getConfigurationMetadataStoreUrl() {
         if (StringUtils.isNotBlank(configurationMetadataStoreUrl)) {
             return configurationMetadataStoreUrl;
@@ -2747,6 +2818,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
             return SchemaCompatibilityStrategy.FULL;
         }
         return schemaCompatibilityStrategy;
+    }
+
+    public int getManagedLedgerMaxUnackedRangesToPersistInMetadataStore() {
+        return managedLedgerMaxUnackedRangesToPersistInZooKeeper > 0
+                ? managedLedgerMaxUnackedRangesToPersistInZooKeeper :
+                managedLedgerMaxUnackedRangesToPersistInMetadataStore;
     }
 
     public long getMetadataStoreSessionTimeoutMillis() {

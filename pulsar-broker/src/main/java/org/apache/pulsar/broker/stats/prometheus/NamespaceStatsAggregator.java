@@ -126,6 +126,7 @@ public class NamespaceStatsAggregator {
         subsStats.lastConsumedFlowTimestamp = subscriptionStats.lastConsumedFlowTimestamp;
         subsStats.lastConsumedTimestamp = subscriptionStats.lastConsumedTimestamp;
         subsStats.lastMarkDeleteAdvancedTimestamp = subscriptionStats.lastMarkDeleteAdvancedTimestamp;
+        subsStats.consumersCount = subscriptionStats.consumers.size();
         subscriptionStats.consumers.forEach(cStats -> {
             stats.consumersCount++;
             subsStats.unackedMessages += cStats.unackedMessages;
@@ -253,15 +254,18 @@ public class NamespaceStatsAggregator {
         }
 
         topic.getReplicators().forEach((cluster, replicator) -> {
-            AggregatedReplicationStats aggReplStats = stats.replicationStats.computeIfAbsent(cluster,
-                    k -> new AggregatedReplicationStats());
-
             ReplicatorStatsImpl replStats = replicator.getStats();
+            AggregatedReplicationStats aggReplStats = stats.replicationStats.get(replicator.getRemoteCluster());
+            if (aggReplStats == null) {
+                aggReplStats = new AggregatedReplicationStats();
+                stats.replicationStats.put(replicator.getRemoteCluster(), aggReplStats);
+                aggReplStats.msgRateIn = replStats.msgRateIn;
+                aggReplStats.msgThroughputIn = replStats.msgThroughputIn;
+            }
+
             aggReplStats.msgRateOut += replStats.msgRateOut;
             aggReplStats.msgThroughputOut += replStats.msgThroughputOut;
             aggReplStats.replicationBacklog += replStats.replicationBacklog;
-            aggReplStats.msgRateIn += replStats.msgRateIn;
-            aggReplStats.msgThroughputIn += replStats.msgThroughputIn;
             aggReplStats.msgRateExpired += replStats.msgRateExpired;
             aggReplStats.connectedCount += replStats.connected ? 1 : 0;
             aggReplStats.replicationDelayInSeconds += replStats.replicationDelayInSeconds;

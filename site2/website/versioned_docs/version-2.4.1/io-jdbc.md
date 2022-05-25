@@ -1,7 +1,7 @@
 ---
-id: version-2.4.1-io-jdbc
+id: io-jdbc
 title: JDBC Connector
-sidebar_label: JDBC Connector
+sidebar_label: "JDBC Connector"
 original_id: io-jdbc
 ---
 

@@ -108,7 +108,7 @@ public class ResourceQuotaCalculatorImpl implements ResourceQuotaCalculator {
         final float toleratedDriftPercentage = ResourceGroupService.UsageReportSuppressionTolerancePercentage;
         if (currentBytesUsed > 0) {
             long diff = abs(currentBytesUsed - lastReportedBytes);
-            float diffPercentage = (diff / currentBytesUsed) * 100;
+            float diffPercentage = (float) diff * 100 / lastReportedBytes;
             if (diffPercentage > toleratedDriftPercentage) {
                 return true;
             }
@@ -116,7 +116,7 @@ public class ResourceQuotaCalculatorImpl implements ResourceQuotaCalculator {
 
         if (currentMessagesUsed > 0) {
             long diff = abs(currentMessagesUsed - lastReportedMessages);
-            float diffPercentage = (diff / currentMessagesUsed) * 100;
+            float diffPercentage = (float) diff * 100 / lastReportedMessages;
             if (diffPercentage > toleratedDriftPercentage) {
                 return true;
             }

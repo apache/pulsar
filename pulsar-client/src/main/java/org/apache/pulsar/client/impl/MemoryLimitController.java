@@ -25,12 +25,27 @@ import java.util.concurrent.locks.ReentrantLock;
 public class MemoryLimitController {
 
     private final long memoryLimit;
+    private final long triggerThreshold;
+    private final Runnable trigger;
     private final AtomicLong currentUsage = new AtomicLong();
     private final ReentrantLock mutex = new ReentrantLock(false);
     private final Condition condition = mutex.newCondition();
 
     public MemoryLimitController(long memoryLimitBytes) {
         this.memoryLimit = memoryLimitBytes;
+        triggerThreshold = 0;
+        trigger = null;
+    }
+
+    public MemoryLimitController(long memoryLimitBytes, long triggerThreshold, Runnable trigger) {
+        this.memoryLimit = memoryLimitBytes;
+        this.triggerThreshold = triggerThreshold;
+        this.trigger = trigger;
+    }
+
+    public void forceReserveMemory(long size) {
+        long newUsage = currentUsage.addAndGet(size);
+        checkTrigger(newUsage - size, newUsage);
     }
 
     public boolean tryReserveMemory(long size) {
@@ -45,8 +60,15 @@ public class MemoryLimitController {
             }
 
             if (currentUsage.compareAndSet(current, newUsage)) {
+                checkTrigger(current, newUsage);
                 return true;
             }
+        }
+    }
+
+    private void checkTrigger(long prevUsage, long newUsage) {
+        if (newUsage >= triggerThreshold && prevUsage < triggerThreshold && trigger != null) {
+            trigger.run();
         }
     }
 
@@ -79,5 +101,13 @@ public class MemoryLimitController {
 
     public long currentUsage() {
         return currentUsage.get();
+    }
+
+    public double currentUsagePercent() {
+        return 1.0 * currentUsage.get() / memoryLimit;
+    }
+
+    public boolean isMemoryLimited() {
+        return memoryLimit > 0;
     }
 }

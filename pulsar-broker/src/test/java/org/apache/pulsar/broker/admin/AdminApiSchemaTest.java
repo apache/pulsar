@@ -20,10 +20,10 @@ package org.apache.pulsar.broker.admin;
 
 import static java.lang.String.format;
 import static java.nio.charset.StandardCharsets.US_ASCII;
-import static org.junit.Assert.assertNull;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doReturn;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Sets;
@@ -68,6 +68,8 @@ public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
     @BeforeMethod
     @Override
     public void setup() throws Exception {
+        conf.setSystemTopicEnabled(false);
+        conf.setTopicLevelPoliciesEnabled(false);
         super.internalSetup();
 
         // Setup namespaces

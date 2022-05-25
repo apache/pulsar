@@ -1,7 +1,7 @@
 ---
 id: io-kafka-source
 title: Kafka source connector
-sidebar_label: Kafka source connector
+sidebar_label: "Kafka source connector"
 ---
 
 The Kafka source connector pulls messages from Kafka topics and persists the messages
@@ -17,18 +17,18 @@ The configuration of the Kafka source connector has the following properties.
 
 | Name | Type| Required | Default | Description 
 |------|----------|---------|-------------|-------------|
-| `bootstrapServers` |String| true | " " (empty string) | A comma-separated list of host and port pairs for establishing the initial connection to the Kafka cluster. |
+|  `bootstrapServers` |String| true | " " (empty string) | A comma-separated list of host and port pairs for establishing the initial connection to the Kafka cluster. |
 | `groupId` |String| true | " " (empty string) | A unique string that identifies the group of consumer processes to which this consumer belongs. |
 | `fetchMinBytes` | long|false | 1 | The minimum byte expected for each fetch response. |
-| `autoCommitEnabled` | boolean |false | true | If set to true, the consumer's offset is periodically committed in the background.<br/><br/> This committed offset is used when the process fails as the position from which a new consumer begins. |
+| `autoCommitEnabled` | boolean |false | true | If set to true, the consumer's offset is periodically committed in the background.<br /><br /> This committed offset is used when the process fails as the position from which a new consumer begins. |
 | `autoCommitIntervalMs` | long|false | 5000 | The frequency in milliseconds that the consumer offsets are auto-committed to Kafka if `autoCommitEnabled` is set to true. |
-| `heartbeatIntervalMs` | long| false | 3000 | The interval between heartbeats to the consumer when using Kafka's group management facilities. <br/><br/>**Note: `heartbeatIntervalMs` must be smaller than `sessionTimeoutMs`**.|
+| `heartbeatIntervalMs` | long| false | 3000 | The interval between heartbeats to the consumer when using Kafka's group management facilities. <br /><br />**Note: `heartbeatIntervalMs` must be smaller than `sessionTimeoutMs`**.|
 | `sessionTimeoutMs` | long|false | 30000 | The timeout used to detect consumer failures when using Kafka's group management facility. |
-| `topic` | String|true | " " (empty string)| The Kafka topic which sends messages to Pulsar. |
-| `consumerConfigProperties` | Map| false | " " (empty string) | The consumer configuration properties to be passed to consumers. <br/><br/>**Note: other properties specified in the connector configuration file take precedence over this configuration**. |
-| `keyDeserializationClass` | String|false | org.apache.kafka.common.serialization.StringDeserializer | The deserializer class for Kafka consumers to deserialize keys.<br/> The deserializer is set by a specific implementation of [`KafkaAbstractSource`](https://github.com/apache/pulsar/blob/master/pulsar-io/kafka/src/main/java/org/apache/pulsar/io/kafka/KafkaAbstractSource.java).
+| `topic` | String|true | " " (empty string)| The Kafka topic that sends messages to Pulsar. |
+|  `consumerConfigProperties` | Map| false | " " (empty string) | The consumer configuration properties to be passed to consumers. <br /><br />**Note: other properties specified in the connector configuration file take precedence over this configuration**. |
+| `keyDeserializationClass` | String|false | org.apache.kafka.common.serialization.StringDeserializer | The deserializer class for Kafka consumers to deserialize keys.<br /> The deserializer is set by a specific implementation of [`KafkaAbstractSource`](https://github.com/apache/pulsar/blob/master/pulsar-io/kafka/src/main/java/org/apache/pulsar/io/kafka/KafkaAbstractSource.java).
 | `valueDeserializationClass` | String|false | org.apache.kafka.common.serialization.ByteArrayDeserializer | The deserializer class for Kafka consumers to deserialize values.
-| `autoOffsetReset` | String | false | "earliest" | The default offset reset policy. |
+| `autoOffsetReset` | String | false | earliest | The default offset reset policy. |
 
 ### Schema Management
 
@@ -64,137 +64,176 @@ If you want to access the raw key, you can use the `Message#getKeyBytes()` API.
 
 Before using the Kafka source connector, you need to create a configuration file through one of the following methods.
 
-* JSON 
+- JSON
 
-    ```json
-    {
-       "configs": {
-          "bootstrapServers": "pulsar-kafka:9092",
-          "groupId": "test-pulsar-io",
-          "topic": "my-topic",
-          "sessionTimeoutMs": "10000",
-          "autoCommitEnabled": false
-       }
-    }
-    ```
+   ```json
+   
+     {
+       "bootstrapServers": "pulsar-kafka:9092",
+       "groupId": "test-pulsar-io",
+       "topic": "my-topic",
+       "sessionTimeoutMs": "10000",
+       "autoCommitEnabled": false
+     }
+   
+   ```
 
-* YAML
+- YAML
 
-    ```yaml
-    configs:
-        bootstrapServers: "pulsar-kafka:9092"
-        groupId: "test-pulsar-io"
-        topic: "my-topic"
-        sessionTimeoutMs: "10000"
-        autoCommitEnabled: false
-    ```
+   ```yaml
+   
+     configs:
+       bootstrapServers: "pulsar-kafka:9092"
+       groupId: "test-pulsar-io"
+       topic: "my-topic"
+       sessionTimeoutMs: "10000"
+         autoCommitEnabled: false
+   
+   ```
 
 ## Usage
 
-Here is an example of using the Kafka source connector with the configuration file as shown previously.
+You can make the Kafka source connector as a Pulsar built-in connector and use it on a standalone cluster or an on-premises cluster.
 
-1. Download a Kafka client and a Kafka connector.
+### Standalone cluster
 
-    ```bash
-    $ wget https://repo1.maven.org/maven2/org/apache/kafka/kafka-clients/0.10.2.1/kafka-clients-0.10.2.1.jar
+This example describes how to use the Kafka source connector to feed data from Kafka and write data to Pulsar topics in the standalone mode.
 
-    $ wget https://archive.apache.org/dist/pulsar/pulsar-2.4.0/connectors/pulsar-io-kafka-2.4.0.nar
-    ```
+#### Prerequisites
 
-2. Create a network.
-   
+- Install [Docker](https://docs.docker.com/get-docker/)(Community Edition). 
+
+#### Steps
+
+1. Download and start the Confluent Platform.
+
+For details, see the [documentation](https://docs.confluent.io/platform/current/quickstart/ce-docker-quickstart.html#step-1-download-and-start-cp) to install the Kafka service locally.
+
+2. Pull a Pulsar image and start Pulsar in standalone mode.
+
    ```bash
-   $ docker network create kafka-pulsar
+   
+   docker pull apachepulsar/pulsar:latest
+     
+   docker run -d -it -p 6650:6650 -p 8080:8080 -v $PWD/data:/pulsar/data --name pulsar-kafka-standalone apachepulsar/pulsar:latest bin/pulsar standalone
+   
    ```
 
-3. Pull a ZooKeeper image and start ZooKeeper.
-   
-   ```bash
-   $ docker pull wurstmeister/zookeeper
+3. Create a producer file _kafka-producer.py_.
 
-   $ docker run -d -it -p 2181:2181 --name pulsar-kafka-zookeeper --network kafka-pulsar wurstmeister/zookeeper
-   ```
-
-4. Pull a Kafka image and start Kafka.
-   
-   ```bash
-   $ docker pull wurstmeister/kafka:2.11-1.0.2
-   
-   $ docker run -d -it --network kafka-pulsar -p 6667:6667 -p 9092:9092 -e KAFKA_ADVERTISED_HOST_NAME=pulsar-kafka -e KAFKA_ZOOKEEPER_CONNECT=pulsar-kafka-zookeeper:2181 --name pulsar-kafka wurstmeister/kafka:2.11-1.0.2
-   ```
-
-5. Pull a Pulsar image and start Pulsar standalone.
-   
-   ```bash
-   $ docker pull apachepulsar/pulsar:{{pulsar:version}}
-   
-   $ docker run -d -it --network kafka-pulsar -p 6650:6650 -p 8080:8080 -v $PWD/data:/pulsar/data --name pulsar-kafka-standalone apachepulsar/pulsar:2.4.0 bin/pulsar standalone
-   ```
-
-6. Create a producer file _kafka-producer.py_.
-   
    ```python
+   
    from kafka import KafkaProducer
-   producer = KafkaProducer(bootstrap_servers='pulsar-kafka:9092')
+   producer = KafkaProducer(bootstrap_servers='localhost:9092')
    future = producer.send('my-topic', b'hello world')
    future.get()
+   
    ```
 
-7. Create a consumer file _pulsar-client.py_.
+4. Create a consumer file _pulsar-client.py_.
 
-    ```python
-    import pulsar
-
-    client = pulsar.Client('pulsar://localhost:6650')
-    consumer = client.subscribe('my-topic', subscription_name='my-aa')
-
-    while True:
-        msg = consumer.receive()
-        print msg
-        print dir(msg)
-        print("Received message: '%s'" % msg.data())
-        consumer.acknowledge(msg)
-
-    client.close()
-    ```
-
-8. Copy the following files to Pulsar.
+   ```python
    
+   import pulsar
+
+   client = pulsar.Client('pulsar://localhost:6650')
+   consumer = client.subscribe('my-topic', subscription_name='my-aa')
+
+   while True:
+       msg = consumer.receive()
+       print msg
+       print dir(msg)
+       print("Received message: '%s'" % msg.data())
+       consumer.acknowledge(msg)
+
+   client.close()
+   
+   ```
+
+5. Copy the following files to Pulsar.
+
+   ```bash
+   
+   docker cp pulsar-io-kafka.nar pulsar-kafka-standalone:/pulsar
+   docker cp kafkaSourceConfig.yaml pulsar-kafka-standalone:/pulsar/conf
+   
+   ```
+
+6. Open a new terminal window and start the Kafka source connector in local run mode.
+
+   ```bash
+   
+   docker exec -it pulsar-kafka-standalone /bin/bash
+
+   ./bin/pulsar-admin source localrun \
+   --archive ./pulsar-io-kafka.nar \
+   --tenant public \
+   --namespace default \
+   --name kafka \
+   --destination-topic-name my-topic \
+   --source-config-file ./conf/kafkaSourceConfig.yaml \
+   --parallelism 1
+   
+   ```
+
+7. Open a new terminal window and run the Kafka producer locally.
+
+   ```bash
+   
+   python3 kafka-producer.py
+   
+   ```
+
+8. Open a new terminal window and run the Pulsar consumer locally.
+
+   ```bash
+   
+   python3 pulsar-client.py
+   
+   ```
+
+The following information appears on the consumer terminal window.
+
     ```bash
-    $ docker cp pulsar-io-kafka-{{pulsar:version}}.nar pulsar-kafka-standalone:/pulsar
-    $ docker cp kafkaSourceConfig.yaml pulsar-kafka-standalone:/pulsar/conf
-    $ docker cp pulsar-client.py pulsar-kafka-standalone:/pulsar/
-    $ docker cp kafka-producer.py pulsar-kafka-standalone:/pulsar/
-    ```
-
-9. Open a new terminal window and start the Kafka source connector in local run mode. 
-
-    ```bash
-    $ docker exec -it pulsar-kafka-standalone /bin/bash
-
-    $ ./bin/pulsar-admin source localrun \
-    --archive ./pulsar-io-kafka-{{pulsar:version}}.nar \
-    --classname org.apache.pulsar.io.kafka.KafkaBytesSource \
-    --tenant public \
-    --namespace default \
-    --name kafka \
-    --destination-topic-name my-topic \
-    --source-config-file ./conf/kafkaSourceConfig.yaml \
-    --parallelism 1
-    ```
-
-10. Open a new terminal window and run the consumer.
-
-    ```bash
-    $ docker exec -it pulsar-kafka-standalone /bin/bash
-
-    $ pip install kafka-python
-
-    $ python3 kafka-producer.py
-    ```
-
-    The following information appears on the consumer terminal window.
-
-    ```bash
+    
     Received message: 'hello world'
+    
     ```
+
+### On-premises cluster
+
+This example explains how to create a Kafka source connector in an on-premises cluster.
+
+1. Copy the NAR package of the Kafka connector to the Pulsar connectors directory.
+
+   ```
+   
+   cp pulsar-io-kafka-{{connector:version}}.nar $PULSAR_HOME/connectors/pulsar-io-kafka-{{connector:version}}.nar
+   
+   ```
+
+2. Reload all [built-in connectors](https://pulsar.apache.org/docs/en/next/io-connectors/).
+
+   ```
+   
+   PULSAR_HOME/bin/pulsar-admin sources reload
+   
+   ```
+
+3. Check whether the Kafka source connector is available on the list or not.
+
+   ```
+   
+   PULSAR_HOME/bin/pulsar-admin sources available-sources
+   
+   ```
+
+4. Create a Kafka source connector on a Pulsar cluster using the [`pulsar-admin sources create`](http://pulsar.apache.org/tools/pulsar-admin/2.11.0-SNAPSHOT/#-em-create-em--14) command.
+
+   ```
+   
+   PULSAR_HOME/bin/pulsar-admin sources create \
+   --source-config-file <kafka-source-config.yaml>
+   
+   ```
+

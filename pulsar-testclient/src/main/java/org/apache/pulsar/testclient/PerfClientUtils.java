@@ -23,6 +23,7 @@ import java.util.Objects;
 import java.util.function.Consumer;
 import lombok.experimental.UtilityClass;
 import org.apache.commons.io.FileUtils;
+import org.apache.pulsar.common.util.DirectMemoryUtils;
 import org.slf4j.Logger;
 
 /**
@@ -49,7 +50,7 @@ public class PerfClientUtils {
     public static void printJVMInformation(Logger log) {
         log.info("JVM args {}", ManagementFactory.getRuntimeMXBean().getInputArguments());
         log.info("Netty max memory (PlatformDependent.maxDirectMemory()) {}",
-                FileUtils.byteCountToDisplaySize(io.netty.util.internal.PlatformDependent.maxDirectMemory()));
+                FileUtils.byteCountToDisplaySize(DirectMemoryUtils.jvmMaxDirectMemory()));
         log.info("JVM max heap memory (Runtime.getRuntime().maxMemory()) {}",
                 FileUtils.byteCountToDisplaySize(Runtime.getRuntime().maxMemory()));
     }

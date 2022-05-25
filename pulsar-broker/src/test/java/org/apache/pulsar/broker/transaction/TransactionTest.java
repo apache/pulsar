@@ -19,7 +19,7 @@
 package org.apache.pulsar.broker.transaction;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStore.PENDING_ACK_STORE_SUFFIX;
+import static org.apache.pulsar.common.naming.SystemTopicNames.PENDING_ACK_STORE_SUFFIX;
 import static org.apache.pulsar.transaction.coordinator.impl.MLTransactionLogImpl.TRANSACTION_LOG_PREFIX;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -32,7 +32,6 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import io.netty.buffer.Unpooled;
 import io.netty.util.Timeout;
 import java.lang.reflect.Field;
@@ -94,8 +93,8 @@ import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.common.events.EventType;
-import org.apache.pulsar.common.events.EventsTopicNames;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
@@ -105,6 +104,7 @@ import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
+import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStoreState;
 import org.apache.pulsar.transaction.coordinator.TransactionRecoverTracker;
 import org.apache.pulsar.transaction.coordinator.TransactionTimeoutTracker;
@@ -191,7 +191,7 @@ public class TransactionTest extends TransactionTestBase {
 
         // getList does not include transaction system topic
         List<String> list = admin.topics().getList(NAMESPACE1);
-        assertEquals(list.size(), 4);
+        assertEquals(list.size(), 2);
         list.forEach(topic -> assertFalse(topic.contains(PENDING_ACK_STORE_SUFFIX)));
 
         try {
@@ -271,7 +271,7 @@ public class TransactionTest extends TransactionTestBase {
 
         Assert.assertNull(topics.get(TopicName.get(TopicDomain.persistent.value(),
                 NamespaceName.SYSTEM_NAMESPACE, TRANSACTION_LOG_PREFIX).toString() + 0));
-        Assert.assertNull(topics.get(TopicName.TRANSACTION_COORDINATOR_ASSIGN.getPartition(0).toString()));
+        Assert.assertNull(topics.get(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN.getPartition(0).toString()));
         Assert.assertNull(topics.get(MLPendingAckStore.getTransactionPendingAckStoreSuffix(topicName, subName)));
     }
 
@@ -388,7 +388,7 @@ public class TransactionTest extends TransactionTestBase {
         ReaderBuilder<TransactionBufferSnapshot> readerBuilder = pulsarClient
                 .newReader(Schema.AVRO(TransactionBufferSnapshot.class))
                 .startMessageId(MessageId.earliest)
-                .topic(NAMESPACE1 + "/" + EventsTopicNames.TRANSACTION_BUFFER_SNAPSHOT);
+                .topic(NAMESPACE1 + "/" + SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT);
         Reader<TransactionBufferSnapshot> reader = readerBuilder.create();
 
         long waitSnapShotTime = getPulsarServiceList().get(0).getConfiguration()
@@ -643,7 +643,7 @@ public class TransactionTest extends TransactionTestBase {
         persistentTopic.getManagedLedger().getConfig().setAutoSkipNonRecoverableData(true);
         PersistentSubscription persistentSubscription = (PersistentSubscription) persistentTopic
                 .createSubscription("test",
-                CommandSubscribe.InitialPosition.Earliest, false).get();
+                CommandSubscribe.InitialPosition.Earliest, false, null).get();
 
         ManagedCursorImpl managedCursor = mock(ManagedCursorImpl.class);
         doReturn(true).when(managedCursor).hasMoreEntries();
@@ -658,7 +658,7 @@ public class TransactionTest extends TransactionTestBase {
 
         TransactionPendingAckStoreProvider pendingAckStoreProvider = mock(TransactionPendingAckStoreProvider.class);
         doReturn(CompletableFuture.completedFuture(
-                new MLPendingAckStore(persistentTopic.getManagedLedger(), managedCursor, null)))
+                new MLPendingAckStore(persistentTopic.getManagedLedger(), managedCursor, null, 500)))
                 .when(pendingAckStoreProvider).newPendingAckStore(any());
         doReturn(CompletableFuture.completedFuture(true)).when(pendingAckStoreProvider).checkInitializedBefore(any());
 
@@ -943,6 +943,8 @@ public class TransactionTest extends TransactionTestBase {
 
     @Test
     public void testPendingAckMarkDeletePosition() throws Exception {
+        getPulsarServiceList().get(0).getConfig().setTransactionPendingAckLogIndexMinLag(1);
+        getPulsarServiceList().get(0).getConfiguration().setManagedLedgerDefaultMarkDeleteRateLimit(5);
         String topic = NAMESPACE1 + "/test1";
 
         @Cleanup
@@ -1012,5 +1014,28 @@ public class TransactionTest extends TransactionTestBase {
             Assert.assertEquals(Integer.parseInt(markDeletePosition[1]),
                     Integer.parseInt(lastConfirmedEntry[1]) - 2);
         });
+    }
+
+    @Test
+    public void testConsistencyOfTransactionStatsAtEndTxn() throws Exception {
+        TransactionMetadataStore transactionMetadataStore = getPulsarServiceList().get(0)
+                .getTransactionMetadataStoreService()
+                .getStores()
+                .get(new TransactionCoordinatorID(0));
+
+        Field field = MLTransactionMetadataStore.class.getDeclaredField("transactionLog");
+        field.setAccessible(true);
+        MLTransactionLogImpl transactionLog = (MLTransactionLogImpl) field.get(transactionMetadataStore);
+        Field field1 = MLTransactionLogImpl.class.getDeclaredField("cursor");
+        field1.setAccessible(true);
+        ManagedCursorImpl managedCursor = (ManagedCursorImpl) field1.get(transactionLog);
+        managedCursor.close();
+
+        Transaction transaction = pulsarClient.newTransaction()
+                .withTransactionTimeout(5, TimeUnit.SECONDS)
+                .build()
+                .get();
+
+        transaction.commit().get();
     }
 }

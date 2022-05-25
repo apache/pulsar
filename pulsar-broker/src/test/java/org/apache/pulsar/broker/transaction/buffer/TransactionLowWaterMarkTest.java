@@ -31,17 +31,19 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.collections4.map.LinkedMap;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.transaction.TransactionTestBase;
+import org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBuffer;
 import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleImpl;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.Transaction;
@@ -49,9 +51,9 @@ import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientExce
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
+import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
-
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
@@ -70,7 +72,7 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class TransactionLowWaterMarkTest extends TransactionTestBase {
 
-    private static final String TOPIC = NAMESPACE1 + "/test-topic";
+    private static final String TOPIC = "persistent://" + NAMESPACE1 + "/test-topic";
 
     @BeforeMethod(alwaysRun = true)
     protected void setup() throws Exception {
@@ -144,7 +146,7 @@ public class TransactionLowWaterMarkTest extends TransactionTestBase {
 
         PartitionedTopicMetadata partitionedTopicMetadata =
                 ((PulsarClientImpl) pulsarClient).getLookup()
-                        .getPartitionedTopicMetadata(TopicName.TRANSACTION_COORDINATOR_ASSIGN).get();
+                        .getPartitionedTopicMetadata(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN).get();
         Transaction lowWaterMarkTxn = null;
         for (int i = 0; i < partitionedTopicMetadata.partitions; i++) {
             lowWaterMarkTxn = pulsarClient.newTransaction()
@@ -215,7 +217,7 @@ public class TransactionLowWaterMarkTest extends TransactionTestBase {
             ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>> topics =
                     (ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>>) field
                             .get(getPulsarServiceList().get(i).getBrokerService());
-            CompletableFuture<Optional<Topic>> completableFuture = topics.get("persistent://" + TOPIC);
+            CompletableFuture<Optional<Topic>> completableFuture = topics.get(TOPIC);
             if (completableFuture != null) {
                 Optional<Topic> topic = completableFuture.get();
                 if (topic.isPresent()) {
@@ -249,7 +251,7 @@ public class TransactionLowWaterMarkTest extends TransactionTestBase {
 
         PartitionedTopicMetadata partitionedTopicMetadata =
                 ((PulsarClientImpl) pulsarClient).getLookup()
-                        .getPartitionedTopicMetadata(TopicName.TRANSACTION_COORDINATOR_ASSIGN).get();
+                        .getPartitionedTopicMetadata(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN).get();
         Transaction lowWaterMarkTxn = null;
         for (int i = 0; i < partitionedTopicMetadata.partitions; i++) {
             lowWaterMarkTxn = pulsarClient.newTransaction()
@@ -287,4 +289,177 @@ public class TransactionLowWaterMarkTest extends TransactionTestBase {
             fail();
         }
     }
+
+    @Test
+    public void testTBLowWaterMarkEndToEnd() throws Exception {
+        Transaction txn1 = pulsarClient.newTransaction()
+                .withTransactionTimeout(500, TimeUnit.SECONDS)
+                .build().get();
+        Transaction txn2 = pulsarClient.newTransaction()
+                .withTransactionTimeout(500, TimeUnit.SECONDS)
+                .build().get();
+        while (txn2.getTxnID().getMostSigBits() != txn1.getTxnID().getMostSigBits()) {
+            txn2 = pulsarClient.newTransaction()
+                    .withTransactionTimeout(500, TimeUnit.SECONDS)
+                    .build().get();
+        }
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient
+                .newProducer()
+                .topic(TOPIC)
+                .sendTimeout(0, TimeUnit.SECONDS)
+                .enableBatching(false)
+                .create();
+
+        producer.newMessage(txn1).send();
+        producer.newMessage(txn2).send();
+
+        txn1.commit().get();
+        txn2.commit().get();
+
+        Field field = TransactionImpl.class.getDeclaredField("state");
+        field.setAccessible(true);
+        field.set(txn1, TransactionImpl.State.OPEN);
+        try {
+            producer.newMessage(txn1).send();
+            fail();
+        } catch (PulsarClientException.NotAllowedException ignore) {
+            // no-op
+        }
+    }
+
+    @Test
+    public void testLowWaterMarkForDifferentTC() throws Exception {
+        String subName = "sub";
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(TOPIC)
+                .sendTimeout(0, TimeUnit.SECONDS)
+                .create();
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(TOPIC)
+                .subscriptionName(subName)
+                .subscribe();
+
+        Transaction txn1 = pulsarClient.newTransaction()
+                .withTransactionTimeout(500, TimeUnit.SECONDS)
+                .build().get();
+        Transaction txn2 = pulsarClient.newTransaction()
+                .withTransactionTimeout(500, TimeUnit.SECONDS)
+                .build().get();
+        while (txn2.getTxnID().getMostSigBits() == txn1.getTxnID().getMostSigBits()) {
+            txn2 = pulsarClient.newTransaction()
+                    .withTransactionTimeout(500, TimeUnit.SECONDS)
+                    .build().get();
+        }
+        Transaction txn3 = pulsarClient.newTransaction()
+                .withTransactionTimeout(500, TimeUnit.SECONDS)
+                .build().get();
+        while (txn3.getTxnID().getMostSigBits() != txn2.getTxnID().getMostSigBits()) {
+            txn3 = pulsarClient.newTransaction()
+                    .withTransactionTimeout(500, TimeUnit.SECONDS)
+                    .build().get();
+        }
+
+        Transaction txn4 = pulsarClient.newTransaction()
+                .withTransactionTimeout(500, TimeUnit.SECONDS)
+                .build().get();
+        while (txn4.getTxnID().getMostSigBits() != txn1.getTxnID().getMostSigBits()) {
+            txn4 = pulsarClient.newTransaction()
+                    .withTransactionTimeout(500, TimeUnit.SECONDS)
+                    .build().get();
+        }
+
+        for (int i = 0; i < 10; i++) {
+            producer.newMessage().send();
+        }
+
+        producer.newMessage(txn1).send();
+        producer.newMessage(txn2).send();
+        producer.newMessage(txn3).send();
+        producer.newMessage(txn4).send();
+
+        Message<byte[]> message1 = consumer.receive(5, TimeUnit.SECONDS);
+        consumer.acknowledgeAsync(message1.getMessageId(), txn1);
+        Message<byte[]> message2 = consumer.receive(5, TimeUnit.SECONDS);
+        consumer.acknowledgeAsync(message2.getMessageId(), txn2);
+        Message<byte[]> message3 = consumer.receive(5, TimeUnit.SECONDS);
+        consumer.acknowledgeAsync(message3.getMessageId(), txn3);
+        Message<byte[]> message4 = consumer.receive(5, TimeUnit.SECONDS);
+        consumer.acknowledgeAsync(message4.getMessageId(), txn4);
+
+        txn1.commit().get();
+        txn2.commit().get();
+
+        Field field = TransactionImpl.class.getDeclaredField("state");
+        field.setAccessible(true);
+        field.set(txn1, TransactionImpl.State.OPEN);
+        field.set(txn2, TransactionImpl.State.OPEN);
+
+        producer.newMessage(txn1).send();
+        producer.newMessage(txn2).send();
+
+        Message<byte[]> message5 = consumer.receive(5, TimeUnit.SECONDS);
+        consumer.acknowledgeAsync(message5.getMessageId(), txn1);
+        Message<byte[]> message6 = consumer.receive(5, TimeUnit.SECONDS);
+        consumer.acknowledgeAsync(message6.getMessageId(), txn2);
+
+        txn3.commit().get();
+        TxnID txnID1 = txn1.getTxnID();
+        TxnID txnID2 = txn2.getTxnID();
+        Awaitility.await().untilAsserted(() -> {
+            assertTrue(checkTxnIsOngoingInTP(txnID1, subName));
+            assertTrue(checkTxnIsOngoingInTP(txnID2, subName));
+            assertTrue(checkTxnIsOngoingInTB(txnID1));
+            assertTrue(checkTxnIsOngoingInTB(txnID2));
+        });
+
+        txn4.commit().get();
+
+        Awaitility.await().untilAsserted(() -> {
+            assertFalse(checkTxnIsOngoingInTP(txnID1, subName));
+            assertFalse(checkTxnIsOngoingInTP(txnID2, subName));
+            assertFalse(checkTxnIsOngoingInTB(txnID1));
+            assertFalse(checkTxnIsOngoingInTB(txnID2));
+        });
+    }
+
+    private boolean checkTxnIsOngoingInTP(TxnID txnID, String subName) throws Exception {
+        PersistentTopic persistentTopic = (PersistentTopic) getPulsarServiceList().get(0)
+                .getBrokerService()
+                .getTopic(TopicName.get(TOPIC).toString(), false)
+                .get().get();
+
+        PersistentSubscription persistentSubscription = persistentTopic.getSubscription(subName);
+
+        Field field1 = PersistentSubscription.class.getDeclaredField("pendingAckHandle");
+        field1.setAccessible(true);
+        PendingAckHandleImpl pendingAckHandle = (PendingAckHandleImpl) field1.get(persistentSubscription);
+
+        Field field2 = PendingAckHandleImpl.class.getDeclaredField("individualAckOfTransaction");
+        field2.setAccessible(true);
+        LinkedMap<TxnID, HashMap<PositionImpl, PositionImpl>> individualAckOfTransaction =
+                (LinkedMap<TxnID, HashMap<PositionImpl, PositionImpl>>) field2.get(pendingAckHandle);
+        return individualAckOfTransaction.containsKey(txnID);
+    }
+
+    private boolean checkTxnIsOngoingInTB(TxnID txnID) throws Exception {
+        PersistentTopic persistentTopic = (PersistentTopic) getPulsarServiceList().get(0)
+                .getBrokerService()
+                .getTopic(TopicName.get(TOPIC).toString(), false)
+                .get().get();
+
+        TopicTransactionBuffer topicTransactionBuffer =
+                (TopicTransactionBuffer) persistentTopic.getTransactionBuffer();
+        Field field3 = TopicTransactionBuffer.class.getDeclaredField("ongoingTxns");
+        field3.setAccessible(true);
+        LinkedMap<TxnID, PositionImpl> ongoingTxns =
+                (LinkedMap<TxnID, PositionImpl>) field3.get(topicTransactionBuffer);
+        return ongoingTxns.containsKey(txnID);
+
+    }
+
+
 }
