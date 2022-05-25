@@ -1,5 +1,19 @@
 ## Apache Pulsar Manager
 
+### 0.3.0 &mdash; 2022-05-25 <a id="0.3.0"></a>
+* Fixed mysql schema field token error [PR-339](https://github.com/apache/pulsar-manager/pull/339)
+* Fixed topics List page, search Topics bug [PR-342](https://github.com/apache/pulsar-manager/pull/342)
+* Fixed pulsar manager's swagger dose not work. [PR-369](https://github.com/apache/pulsar-manager/pull/369)
+* Add offload threshold input [PR-375](https://github.com/apache/pulsar-manager/pull/375)
+* Add dashboard service for aggregated information collection [PR-326](https://github.com/apache/pulsar-manager/pull/326)
+* Multi bookie cluster Support [PR-388](https://github.com/apache/pulsar-manager/pull/388)
+* Fixed the bug that admin roles cannot be deleted. [PR-397](https://github.com/apache/pulsar-manager/pull/397)
+* Add filterable to el-select enables filtering for tenant/namespace/topic [PR-440](https://github.com/apache/pulsar-manager/pull/440)
+* Updated to fix Log4J security vulnerabilities [PR-438](https://github.com/apache/pulsar-manager/pull/438)
+* Allow user to assign tenant as resource to role [PR-436](https://github.com/apache/pulsar-manager/pull/436)
+* Add support for casdoor [PR-446](https://github.com/apache/pulsar-manager/pull/446)
+* Fixed unload namespace error [PR-386](https://github.com/apache/pulsar-manager/pull/386)
+
 ### 0.2.0 &mdash; 2020-09-28 <a id="0.2.0"></a>
 
 * Support multiple addresses for the broker stats [PR-306](https://github.com/apache/pulsar-manager/pull/306).
