@@ -344,7 +344,7 @@ public class CmdSinks extends CmdBase {
         protected FunctionConfig.ProcessingGuarantees deprecatedProcessingGuarantees;
         @Parameter(names = "--processing-guarantees",
                 description = "The processing guarantees (aka delivery semantics) applied to the sink."
-                    + " The `--processing-guarantees` implementation in Pulsar also relies on sink implementation."
+                    + " The '--processing-guarantees' implementation in Pulsar also relies on sink implementation."
                     + " The available values are 'ATLEAST_ONCE', 'ATMOST_ONCE', 'EFFECTIVELY_ONCE'.")
         protected FunctionConfig.ProcessingGuarantees processingGuarantees;
         @Parameter(names = "--retainOrdering", description = "Sink consumes and sinks messages in order", hidden = true)
@@ -413,7 +413,7 @@ public class CmdSinks extends CmdBase {
             if (isBlank(customSerdeInputString) && !isBlank(deprecatedCustomSerdeInputString)) {
                 customSerdeInputString = deprecatedCustomSerdeInputString;
             }
-            if (processingGuarantees == ATLEAST_ONCE && deprecatedProcessingGuarantees != ATLEAST_ONCE) {
+            if (processingGuarantees == null && deprecatedProcessingGuarantees != null) {
                 processingGuarantees = deprecatedProcessingGuarantees;
             }
             if (retainOrdering == null && deprecatedRetainOrdering != null) {
