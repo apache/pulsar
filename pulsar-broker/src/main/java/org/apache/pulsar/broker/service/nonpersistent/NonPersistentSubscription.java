@@ -529,11 +529,12 @@ public class NonPersistentSubscription implements Subscription {
 
     @Override
     public CompletableFuture<Void> updateSubscriptionProperties(Map<String, String> subscriptionProperties) {
-        if (subscriptionProperties == null) {
-            this.subscriptionProperties = Collections.emptyMap();
+        if (subscriptionProperties == null || subscriptionProperties.isEmpty()) {
+          this.subscriptionProperties = Collections.emptyMap();
         } else {
-            this.subscriptionProperties = Collections.unmodifiableMap(subscriptionProperties);
+           this.subscriptionProperties = Collections.unmodifiableMap(subscriptionProperties);
         }
         return CompletableFuture.completedFuture(null);
     }
+
 }
