@@ -479,7 +479,7 @@ All the token metrics are labelled with the following labels:
 
 | Name | Type | Description |
 |---|---|---|
-| pulsar_expired_token_count | Counter | The number of expired tokens in Pulsar. |
+| pulsar_expired_token_total | Counter | The number of expired tokens in Pulsar. |
 | pulsar_expiring_token_minutes | Histogram | The remaining time of expiring tokens in minutes. |
 
 ### Authentication metrics
@@ -489,12 +489,12 @@ All the authentication metrics are labelled with the following labels:
 - *cluster*: `cluster=${pulsar_cluster}`. `${pulsar_cluster}` is the cluster name that you have configured in the `broker.conf` file.
 - *provider_name*: `provider_name=${provider_name}`. `${provider_name}` is the class name of the authentication provider.
 - *auth_method*: `auth_method=${auth_method}`. `${auth_method}` is the authentication method of the authentication provider.
-- *reason*: `reason=${reason}`. `${reason}` is the reason for failing authentication operation. (This label is only for `pulsar_authentication_failures_count`.)
+- *reason*: `reason=${reason}`. `${reason}` is the reason for failing authentication operation. (This label is only for `pulsar_authentication_failures_total`.)
 
 | Name | Type | Description |
 |---|---|---|
-| pulsar_authentication_success_count| Counter | The number of successful authentication operations. |
-| pulsar_authentication_failures_count | Counter | The number of failing authentication operations. |
+| pulsar_authentication_success_total| Counter | The number of successful authentication operations. |
+| pulsar_authentication_failures_total | Counter | The number of failing authentication operations. |
 
 ### Jetty metrics
 
@@ -643,7 +643,7 @@ Connector metrics contain **source** metrics and **sink** metrics.
   pulsar_sink_sink_exceptions_1min_total |Counter|The total number of sink exceptions in the last 1 minute.
   pulsar_sink_system_exception|Gauge|The exception from system code.
   pulsar_sink_system_exceptions_total|Counter|The total number of system exceptions.
-  pulsar_sink_system_exceptions_total_1min|Counter|The total number of system exceptions in the last 1 minute.
+  pulsar_sink_system_exceptions_1min_total|Counter|The total number of system exceptions in the last 1 minute.
   pulsar_sink_user_metric_ | Summary|The user-defined metrics.
 
 ## Proxy
