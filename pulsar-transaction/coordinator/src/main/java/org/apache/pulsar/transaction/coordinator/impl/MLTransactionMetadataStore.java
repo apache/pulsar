@@ -38,6 +38,7 @@ import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.Subscription;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorStats;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.RecoverTimeRecord;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TransactionLogReplayCallback;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
@@ -75,8 +76,7 @@ public class MLTransactionMetadataStore
     private final LongAdder appendLogCount;
     private final MLTransactionSequenceIdGenerator sequenceIdGenerator;
     private final ExecutorService internalPinnedExecutor;
-    //Store transaction pendingAck recovery start time and end time. The left is start time and the right is end time.
-    public final MutablePair<Long, Long> recoverTimePair = new MutablePair<>(0L, 0L);
+    public final RecoverTimeRecord recoverTime = new RecoverTimeRecord();
 
     public MLTransactionMetadataStore(TransactionCoordinatorID tcID,
                                       MLTransactionLogImpl mlTransactionLog,
@@ -103,7 +103,7 @@ public class MLTransactionMetadataStore
             log.error("Managed ledger transaction metadata store change state error when init it");
             return;
         }
-        recoverTimePair.setLeft(System.currentTimeMillis());
+        recoverTime.setRecoverStartTime(System.currentTimeMillis());
 
         internalPinnedExecutor.execute(() -> transactionLog.replayAsync(new TransactionLogReplayCallback() {
 
@@ -116,7 +116,7 @@ public class MLTransactionMetadataStore
                     recoverTracker.handleCommittingAndAbortingTransaction();
                     timeoutTracker.start();
                 }
-                recoverTimePair.setRight(System.currentTimeMillis());
+                recoverTime.setRecoverEndTime(System.currentTimeMillis());
             }
 
             @Override
@@ -428,8 +428,8 @@ public class MLTransactionMetadataStore
         transactionCoordinatorstats.setLowWaterMark(getLowWaterMark());
         transactionCoordinatorstats.setState(getState().name());
         transactionCoordinatorstats.setLeastSigBits(sequenceIdGenerator.getCurrentSequenceId());
-        transactionCoordinatorstats.recoverStartTime = recoverTimePair.getLeft();
-        transactionCoordinatorstats.recoverEndTime = recoverTimePair.getRight();
+        transactionCoordinatorstats.recoverStartTime = recoverTime.getRecoverStartTime();
+        transactionCoordinatorstats.recoverEndTime = recoverTime.getRecoverEndTime();
         return transactionCoordinatorstats;
     }
 

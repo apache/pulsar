@@ -49,6 +49,7 @@ import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.transaction.pendingack.PendingAckHandle;
 import org.apache.pulsar.broker.transaction.pendingack.PendingAckStore;
 import org.apache.pulsar.broker.transaction.pendingack.TransactionPendingAckStoreProvider;
+import org.apache.pulsar.common.util.RecoverTimeRecord;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.policies.data.TransactionInPendingAckStats;
@@ -117,8 +118,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
     @Getter
     private final ExecutorService internalPinnedExecutor;
 
-    //Store transaction pendingAck recovery start time and end time. The left is start time and the right is end time.
-    public final MutablePair<Long, Long> recoverTimePair = new MutablePair<>(0L, 0L);
+    public final RecoverTimeRecord recoverTime = new RecoverTimeRecord();
 
 
     public PendingAckHandleImpl(PersistentSubscription persistentSubscription) {
@@ -150,7 +150,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                 this.pendingAckStoreFuture =
                         pendingAckStoreProvider.newPendingAckStore(persistentSubscription);
                 this.pendingAckStoreFuture.thenAccept(pendingAckStore -> {
-                    recoverTimePair.setLeft(System.currentTimeMillis());
+                    recoverTime.setRecoverStartTime(System.currentTimeMillis());
                     pendingAckStore.replayAsync(this,
                             (ScheduledExecutorService) internalPinnedExecutor);
                 }).exceptionally(e -> {
@@ -865,8 +865,8 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
     public TransactionPendingAckStats getStats() {
         TransactionPendingAckStats transactionPendingAckStats = new TransactionPendingAckStats();
         transactionPendingAckStats.state = this.getState().name();
-        transactionPendingAckStats.recoverStartTime = recoverTimePair.getLeft();
-        transactionPendingAckStats.recoverEndTime = recoverTimePair.getRight();
+        transactionPendingAckStats.recoverStartTime = recoverTime.getRecoverStartTime();
+        transactionPendingAckStats.recoverEndTime = recoverTime.getRecoverEndTime();
         return transactionPendingAckStats;
     }
 
@@ -874,17 +874,17 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
         if (!this.pendingAckHandleCompletableFuture.isDone()) {
             this.pendingAckHandleCompletableFuture.complete(PendingAckHandleImpl.this);
         }
-        if (recoverTimePair.getLeft() == 0L) {
+        if (recoverTime.getRecoverStartTime() == 0L) {
             return;
         } else {
-            recoverTimePair.setRight(System.currentTimeMillis());
+            recoverTime.setRecoverEndTime(System.currentTimeMillis());
         }
     }
 
     public synchronized void exceptionHandleFuture(Throwable t) {
         if (!this.pendingAckHandleCompletableFuture.isDone()) {
             this.pendingAckHandleCompletableFuture.completeExceptionally(t);
-            recoverTimePair.setRight(-1L);
+            recoverTime.setRecoverEndTime(-1L);
         }
     }
 

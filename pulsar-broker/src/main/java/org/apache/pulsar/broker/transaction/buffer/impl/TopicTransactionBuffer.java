@@ -38,7 +38,6 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.collections4.map.LinkedMap;
-import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -48,6 +47,7 @@ import org.apache.pulsar.broker.transaction.buffer.TransactionBufferReader;
 import org.apache.pulsar.broker.transaction.buffer.TransactionMeta;
 import org.apache.pulsar.broker.transaction.buffer.matadata.AbortTxnMetadata;
 import org.apache.pulsar.broker.transaction.buffer.matadata.TransactionBufferSnapshot;
+import org.apache.pulsar.common.util.RecoverTimeRecord;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.TxnID;
@@ -99,8 +99,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
 
     private final ConcurrentHashMap<Long, Long> lowWaterMarks = new ConcurrentHashMap<>();
 
-    //Store transaction buffer recovery start time and end time. The left is start time and the right is end time.
-    public final MutablePair<Long, Long> recoverTimePair = new MutablePair<>(0L, 0L);
+    public final RecoverTimeRecord recoverTime = new RecoverTimeRecord();
 
     public TopicTransactionBuffer(PersistentTopic topic) {
         super(State.None);
@@ -117,7 +116,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
     }
 
     private void recover() {
-        recoverTimePair.setLeft(System.currentTimeMillis());
+        recoverTime.setRecoverStartTime(System.currentTimeMillis());
         this.topic.getBrokerService().getPulsar().getTransactionExecutorProvider().getExecutor(this)
                 .execute(new TopicTransactionBufferRecover(new TopicTransactionBufferRecoverCallBack() {
                     @Override
@@ -135,7 +134,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                                 timer.newTimeout(TopicTransactionBuffer.this,
                                         takeSnapshotIntervalTime, TimeUnit.MILLISECONDS);
                                 transactionBufferFuture.complete(null);
-                                recoverTimePair.setRight(System.currentTimeMillis());
+                                recoverTime.setRecoverEndTime(System.currentTimeMillis());
                             }
                         }
                     }
@@ -151,7 +150,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                                 log.error("[{}]Transaction buffer recover fail", topic.getName());
                             } else {
                                 transactionBufferFuture.complete(null);
-                                recoverTimePair.setRight(System.currentTimeMillis());
+                                recoverTime.setRecoverEndTime(System.currentTimeMillis());
                             }
                         }
                     }
@@ -205,7 +204,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                         } else {
                             transactionBufferFuture.completeExceptionally(e);
                         }
-                        recoverTimePair.setRight(-1L);
+                        recoverTime.setRecoverEndTime(System.currentTimeMillis());
                         topic.close(true);
                     }
                 }, this.topic, this, takeSnapshotWriter));
@@ -556,8 +555,8 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         transactionBufferStats.lastSnapshotTimestamps = this.lastSnapshotTimestamps;
         transactionBufferStats.state = this.getState().name();
         transactionBufferStats.maxReadPosition = this.maxReadPosition.toString();
-        transactionBufferStats.recoverStartTime = recoverTimePair.getLeft();
-        transactionBufferStats.recoverEndTime = recoverTimePair.getRight();
+        transactionBufferStats.recoverStartTime = recoverTime.getRecoverStartTime();
+        transactionBufferStats.recoverEndTime = recoverTime.getRecoverEndTime();
         return transactionBufferStats;
     }
 
