@@ -179,9 +179,9 @@ class LockManagerImpl<T> implements LockManager<T> {
         }
 
         return FutureUtils.collect(
-                        locks.values().stream()
-                                .map(ResourceLock::release)
-                                .collect(Collectors.toList()))
+                locks.values().stream()
+                        .map(ResourceLock::release)
+                        .collect(Collectors.toList()))
                 .thenApply(x -> null);
     }
 }
