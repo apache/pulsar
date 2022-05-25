@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.broker.loadbalance.impl;
 
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -68,8 +70,10 @@ public class ModularLoadManagerWrapper implements LoadManager {
         return leastLoadedBroker.map(s -> {
             String webServiceUrl = getBrokerWebServiceUrl(s);
             String brokerZnodeName = getBrokerZnodeName(s, webServiceUrl);
+            Map<String, String> map = new HashMap<>();
+            map.put(ResourceUnit.PROPERTY_KEY_BROKER_ZNODE_NAME, brokerZnodeName);
             return new SimpleResourceUnit(webServiceUrl,
-                new PulsarResourceDescription(), Map.of(ResourceUnit.PROPERTY_KEY_BROKER_ZNODE_NAME, brokerZnodeName));
+                new PulsarResourceDescription(), Collections.unmodifiableMap(map));
         });
     }
 
