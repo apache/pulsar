@@ -33,6 +33,7 @@ import org.apache.pulsar.client.admin.ListTopicsOptions;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
@@ -47,6 +48,7 @@ import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.awaitility.Awaitility;
 import org.mockito.Mockito;
+import org.powermock.reflect.Whitebox;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -185,7 +187,7 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
         admin.namespaces().createNamespace(ns, 2);
         admin.topics().createPartitionedTopic(String.format("persistent://%s", topic), 1);
         BacklogQuota quota = BacklogQuota.builder()
-                .limitTime(30)
+                .limitTime(2)
                 .limitSize(-1)
                 .retentionPolicy(BacklogQuota.RetentionPolicy.producer_exception)
                 .build();
@@ -200,8 +202,11 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
         Optional<Topic> topicReference = pulsar.getBrokerService().getTopicReference(partition0);
         Assert.assertTrue(topicReference.isPresent());
         PersistentTopic persistentTopic = (PersistentTopic) topicReference.get();
-        persistentTopic.getManagedLedger().getConfig().setMinimumRolloverTime(3, TimeUnit.SECONDS);
-        persistentTopic.getManagedLedger().getConfig().setMaximumRolloverTime(3, TimeUnit.SECONDS);
+        ManagedLedgerConfig config = persistentTopic.getManagedLedger().getConfig();
+        config.setMinimumRolloverTime(1, TimeUnit.SECONDS);
+        config.setMaximumRolloverTime(1, TimeUnit.SECONDS);
+        persistentTopic.getManagedLedger().setConfig(config);
+        Whitebox.invokeMethod(persistentTopic.getManagedLedger(), "updateLastLedgerCreatedTimeAndScheduleRolloverTask");
         String msg1 = "msg-1";
         producer.send(msg1);
         Thread.sleep(3 * 1000);
@@ -216,17 +221,18 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
         Message<String> receive = consumer2.receive();
         consumer2.acknowledge(receive);
 
-        Thread.sleep(5 * 1000);
+        Thread.sleep(3 * 1000);
 
-        int producerCount = 10;
-        for (int i = 0; i < producerCount; i++) {
-            try {
-                Thread.sleep(1000);
-                Producer<String> producerN = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
-                producerN.close();
-            } catch (Exception ex) {
-                Assert.fail("failed to create producer");
-            }
+        try {
+            Producer<String> producerN = PulsarClient.builder()
+                    .maxBackoffInterval(3, TimeUnit.SECONDS)
+                    .operationTimeout(5, TimeUnit.SECONDS)
+                    .serviceUrl(lookupUrl.toString()).connectionTimeout(2, TimeUnit.SECONDS).build()
+                    .newProducer(Schema.STRING).topic(topic).sendTimeout(3, TimeUnit.SECONDS).create();
+            Assert.assertTrue(producerN.isConnected());
+            producerN.close();
+        } catch (Exception ex) {
+            Assert.fail("failed to create producer");
         }
     }
 }
