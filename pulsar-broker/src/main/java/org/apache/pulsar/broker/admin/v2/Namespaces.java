@@ -58,6 +58,7 @@ import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
 import org.apache.pulsar.common.policies.data.BookieAffinityGroupData;
+import org.apache.pulsar.common.policies.data.BundleStats;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.DispatchRate;
@@ -595,6 +596,21 @@ public class Namespaces extends NamespacesBase {
         Policies policies = getNamespacePolicies(namespaceName);
 
         return policies.bundles;
+    }
+
+    @GET
+    @Path("/{tenant}/{namespace}/{bundle}/stats")
+    @ApiOperation(value = "Get the bundles stats.")
+    @ApiResponses(value = {
+            @ApiResponse(code = 412, message = "Invalid bundle range"),
+            @ApiResponse(code = 403, message = "Don't have admin permission") })
+    public BundleStats getBundleStats(@PathParam("tenant") String tenant,
+                                      @PathParam("namespace") String namespace, @PathParam("bundle") String bundle) {
+        validateNamespaceName(tenant, namespace);
+        validateNamespaceOperation(NamespaceName.get(tenant, namespace), NamespaceOperation.GET_BUNDLE);
+        String bundleName = NamespaceName.get(tenant, namespace) + "/" + bundle;
+
+        return internalGetBundleStats(bundleName);
     }
 
     @PUT

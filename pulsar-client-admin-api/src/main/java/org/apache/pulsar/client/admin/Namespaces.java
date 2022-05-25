@@ -33,6 +33,7 @@ import org.apache.pulsar.common.policies.data.AutoSubscriptionCreationOverride;
 import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BookieAffinityGroupData;
+import org.apache.pulsar.common.policies.data.BundleStats;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.DispatchRate;
@@ -190,6 +191,31 @@ public interface Namespaces {
      *            Namespace name
      */
     CompletableFuture<BundlesData> getBundlesAsync(String namespace);
+
+    /**
+     * Get stats of a bundle.
+     *
+     * @param namespace
+     *            Namespace name
+     * @param bundle
+     *            range of the bundle
+     *
+     * @throws NotAuthorizedException
+     *             You don't have admin permission
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    BundleStats getBundleStats(String namespace, String bundle) throws PulsarAdminException;
+
+    /**
+     * Get stats of a bundle asynchronously.
+     *
+     * @param namespace
+     *            Namespace name
+     * @param bundle
+     *            range of the bundle
+     */
+    CompletableFuture<BundleStats> getBundleStatsAsync(String namespace, String bundle);
 
     /**
      * Get policies for a namespace.

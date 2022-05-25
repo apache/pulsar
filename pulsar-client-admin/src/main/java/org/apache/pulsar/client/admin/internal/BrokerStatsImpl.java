@@ -20,6 +20,7 @@ package org.apache.pulsar.client.admin.internal;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
@@ -27,6 +28,7 @@ import org.apache.pulsar.client.admin.BrokerStats;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.policies.data.BundleStats;
 import org.apache.pulsar.common.stats.AllocatorStats;
 import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
 
@@ -155,6 +157,33 @@ public class BrokerStatsImpl extends BaseResource implements BrokerStats {
                     @Override
                     public void completed(LoadManagerReport loadManagerReport) {
                         future.complete(loadManagerReport);
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+        return future;
+    }
+
+    @Override
+    public List<BundleStats> getBundleStats(String broker) throws PulsarAdminException {
+        return sync(() -> getBundleStatsAsync(broker));
+    }
+
+    @Override
+    public CompletableFuture<List<BundleStats>> getBundleStatsAsync(String broker) {
+        WebTarget path = adminV2BrokerStats.path("/bundle-stats");
+        if (broker != null) {
+            path = path.queryParam("broker", broker);
+        }
+        final CompletableFuture<List<BundleStats>> future = new CompletableFuture<>();
+        asyncGetRequest(path,
+                new InvocationCallback<List<BundleStats>>() {
+                    @Override
+                    public void completed(List<BundleStats> s) {
+                        future.complete(s);
                     }
 
                     @Override

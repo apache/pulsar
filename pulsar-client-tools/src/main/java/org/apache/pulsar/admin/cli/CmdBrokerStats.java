@@ -32,6 +32,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.function.Supplier;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.common.policies.data.BundleStats;
 import org.apache.pulsar.common.stats.AllocatorStats;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 
@@ -136,6 +137,24 @@ public class CmdBrokerStats extends CmdBase {
 
     }
 
+    @Parameters(commandDescription = "list all bundle stats for one broker")
+    private class CmdBundleStats extends CliCommand {
+        @Parameter(names = { "-b", "--broker-url" }, description = "broker-url", required = false)
+        private String broker;
+
+        @Override
+        void run() throws Exception {
+            List<BundleStats> stats = getAdmin().brokerStats().getBundleStats(broker);
+            ObjectMapper mapper = ObjectMapperFactory.create();
+            ObjectWriter writer = mapper.writerWithDefaultPrettyPrinter();
+            try (Writer out = new OutputStreamWriter(System.out, StandardCharsets.UTF_8)) {
+                out.write(writer.writeValueAsString(stats));
+                out.flush();
+            }
+        }
+
+    }
+
     public CmdBrokerStats(Supplier<PulsarAdmin> admin) {
         super("broker-stats", admin);
         jcommander.addCommand("monitoring-metrics", new CmdMonitoringMetrics());
@@ -143,6 +162,7 @@ public class CmdBrokerStats extends CmdBase {
         jcommander.addCommand("topics", new CmdTopics(), "destinations");
         jcommander.addCommand("allocator-stats", new CmdAllocatorStats());
         jcommander.addCommand("load-report", new CmdLoadReport());
+        jcommander.addCommand("bundle-stats", new CmdBundleStats());
     }
 
 }

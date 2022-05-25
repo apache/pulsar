@@ -37,6 +37,7 @@ import static org.testng.Assert.fail;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.net.URI;
 import java.net.URL;
 import java.time.Duration;
@@ -59,6 +60,7 @@ import javax.ws.rs.core.UriBuilder;
 import javax.ws.rs.core.UriInfo;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
+import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.broker.BrokerTestUtil;
@@ -71,6 +73,7 @@ import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.namespace.OwnershipCache;
 import org.apache.pulsar.broker.service.AbstractTopic;
 import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -87,6 +90,7 @@ import org.apache.pulsar.common.naming.NamespaceBundles;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AuthAction;
+import org.apache.pulsar.common.policies.data.BundleStats;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
@@ -633,6 +637,28 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
                 "test-bundled-namespace-1");
 
         assertEquals(responseData, bundle);
+    }
+
+    @Test
+    public void testGetBundleStats() throws Exception {
+        NamespaceName testNs = this.testGlobalNamespaces.get(0);
+        TopicName topicName = TopicName.get(testNs.getPersistentTopicName("topic-1"));
+        PersistentTopic topic = new PersistentTopic(topicName.toString(), mock(ManagedLedger.class), pulsar.getBrokerService());
+        Method method = pulsar.getBrokerService().getClass().getDeclaredMethod("addTopicToStatsMaps",
+                TopicName.class, Topic.class);
+        method.setAccessible(true);
+        method.invoke(pulsar.getBrokerService(), topicName, topic);
+        Thread.sleep(300);
+
+
+        doReturn(CompletableFuture.completedFuture(true)).when(nsSvc).isNamespaceBundleOwned(Mockito.argThat(bundle -> bundle.getNamespaceObject().equals(testNs)));
+        URL localWebServiceUrl = new URL(pulsar.getSafeWebServiceAddress());
+        doReturn(CompletableFuture.completedFuture(Optional.of(localWebServiceUrl))).when(nsSvc)
+                .getWebServiceUrlAsync(Mockito.argThat(bundle -> bundle.getNamespaceObject().equals(testNs)), Mockito.any());
+        doReturn(true).when(nsSvc).isServiceUnitOwned(Mockito.argThat(bundle -> bundle.getNamespaceObject().equals(testNs)));
+
+        BundleStats bundleStats = namespaces.internalGetBundleStats("0x00000000_0xffffffff");
+        assertEquals(bundleStats.getTopics().get(0), topicName.toString());
     }
 
     @Test

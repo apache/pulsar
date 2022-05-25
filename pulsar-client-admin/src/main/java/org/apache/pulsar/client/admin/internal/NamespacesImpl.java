@@ -40,6 +40,7 @@ import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
 import org.apache.pulsar.common.policies.data.BookieAffinityGroupData;
+import org.apache.pulsar.common.policies.data.BundleStats;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.DispatchRate;
@@ -138,6 +139,31 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
                     @Override
                     public void completed(BundlesData bundles) {
                         future.complete(bundles);
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+        return future;
+    }
+
+    @Override
+    public BundleStats getBundleStats(String namespace, String bundle) throws PulsarAdminException {
+        return sync(() -> getBundleStatsAsync(namespace, bundle));
+    }
+
+    @Override
+    public CompletableFuture<BundleStats> getBundleStatsAsync(String namespace, String bundle) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        WebTarget path = namespacePath(ns, bundle, "stats");
+        final CompletableFuture<BundleStats> future = new CompletableFuture<>();
+        asyncGetRequest(path,
+                new InvocationCallback<BundleStats>() {
+                    @Override
+                    public void completed(BundleStats bundleStats) {
+                        future.complete(bundleStats);
                     }
 
                     @Override
