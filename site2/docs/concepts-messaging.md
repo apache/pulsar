@@ -545,7 +545,7 @@ When a subscription has no consumers, its subscription type is undefined. The ty
 
 #### Exclusive
 
-In *Exclusive* type, only a single consumer is allowed to attach to the subscription. If multiple consumers subscribe to a topic using the same subscription, an error occurs.
+In *Exclusive* type, only a single consumer is allowed to attach to the subscription. If multiple consumers subscribe to a topic using the same subscription, an error occurs. Note that if the topic is partitioned, all partitions will be consumed by the single consumer allowed to be connected to the subscription.
 
 In the diagram below, only **Consumer A-0** is allowed to consume messages.
 
@@ -555,11 +555,13 @@ In the diagram below, only **Consumer A-0** is allowed to consume messages.
 
 #### Failover
 
-In *Failover* type, multiple consumers can attach to the same subscription. A master consumer is picked for non-partitioned topic or each partition of partitioned topic and receives messages. When the master consumer disconnects, all (non-acknowledged and subsequent) messages are delivered to the next consumer in line.
+In *Failover* type, multiple consumers can attach to the same subscription. A master consumer is picked for non-partitioned topic or for each partition of partitioned topic and receives messages. When the master consumer disconnects, all (non-acknowledged and subsequent) messages are delivered to the next consumer in line.
 
-For partitioned topics, broker will sort consumers by priority level and lexicographical order of consumer name. Then broker will try to evenly assigns topics to consumers with the highest priority level.
+For partitioned topics, broker will sort consumers by priority level and lexicographical order of consumer name. Then broker will try to evenly assigns partitions to consumers with the highest priority level.
 
 For non-partitioned topic, broker will pick consumer in the order they subscribe to the non partitioned topic.
+
+For example: a partitioned topic has 15 partitions, and 3 consumers. Each consumer will be active for 5 partitions. Each partition will have 1 active consumer and 4 stand-by consumers.
 
 In the diagram below, **Consumer-B-0** is the master consumer while **Consumer-B-1** would be the next consumer in line to receive messages if **Consumer-B-0** is disconnected.
 
