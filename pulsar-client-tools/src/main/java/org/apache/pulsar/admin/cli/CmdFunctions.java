@@ -280,7 +280,8 @@ public class CmdFunctions extends CmdBase {
                 + "applied to the function", hidden = true)
         protected FunctionConfig.ProcessingGuarantees deprecatedProcessingGuarantees;
         @Parameter(names = "--processing-guarantees",
-                description = "The processing guarantees (aka delivery semantics) applied to the function")
+                description = "The processing guarantees (aka delivery semantics) applied to the function."
+                    + "Available values are: 'ATLEAST_ONCE', 'ATMOST_ONCE', 'EFFECTIVELY_ONCE'.")
         protected FunctionConfig.ProcessingGuarantees processingGuarantees;
         // for backwards compatibility purposes
         @Parameter(names = "--userConfig", description = "User-defined config key/values", hidden = true)
@@ -392,7 +393,7 @@ public class CmdFunctions extends CmdBase {
             if (isBlank(fnConfigFile) && !isBlank(deprecatedFnConfigFile)) {
                 fnConfigFile = deprecatedFnConfigFile;
             }
-            if (processingGuarantees == null && deprecatedProcessingGuarantees != null) {
+            if (processingGuarantees == ATLEAST_ONCE && deprecatedProcessingGuarantees != ATLEAST_ONCE) {
                 processingGuarantees = deprecatedProcessingGuarantees;
             }
             if (isBlank(userConfigString) && !isBlank(deprecatedUserConfigString)) {
