@@ -278,7 +278,7 @@ public class CmdTopicPolicies extends CmdBase {
         private java.util.List<String> params;
 
         @Parameter(names = { "-t", "--ttl" },
-                description = "Message TTL for topic in second (or minutes, hours, days, weeks eg: 100m, 3h, 2d, 5w), "
+                description = "Message TTL for topic in seconds (or minutes, hours, days, weeks eg: 100m, 3h, 2d, 5w), "
                         + "allowed range from 1 to Integer.MAX_VALUE", required = true)
         private String messageTTLStr;
 
