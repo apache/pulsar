@@ -97,6 +97,7 @@ import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
 import org.apache.pulsar.common.policies.data.TenantOperation;
 import org.apache.pulsar.common.policies.data.TopicHashPositions;
+import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.policies.data.ValidateResult;
 import org.apache.pulsar.common.policies.data.impl.AutoTopicCreationOverrideImpl;
 import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
@@ -133,7 +134,7 @@ public abstract class NamespacesBase extends AdminResource {
     protected CompletableFuture<Void> internalCreateNamespace(Policies policies) {
         return validateTenantOperationAsync(namespaceName.getTenant(), TenantOperation.CREATE_NAMESPACE)
                 .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
-                .thenAccept(__ -> validatePolicies(namespaceName, policies))
+                .thenCompose(__ -> validatePoliciesAsync(namespaceName, policies))
                 .thenCompose(__ -> {
                     int maxNamespacesPerTenant = pulsar().getConfiguration().getMaxNamespacesPerTenant();
                     // no distributed locks are added here.In a concurrent scenario, the threshold will be exceeded.
@@ -791,16 +792,18 @@ public abstract class NamespacesBase extends AdminResource {
         });
     }
 
-    protected void internalSetNamespaceMessageTTL(Integer messageTTL) {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.TTL, PolicyOperation.WRITE);
-        validatePoliciesReadOnlyAccess();
-        if (messageTTL != null && messageTTL < 0) {
-            throw new RestException(Status.PRECONDITION_FAILED, "Invalid value for message TTL");
-        }
-        updatePolicies(namespaceName, policies -> {
-            policies.message_ttl_in_seconds = messageTTL;
-            return policies;
-        });
+    protected CompletableFuture<Void> internalSetNamespaceMessageTTLAsync(Integer messageTTL) {
+        return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.TTL, PolicyOperation.WRITE)
+                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
+                .thenAccept(__ -> {
+                    if (messageTTL != null && messageTTL < 0) {
+                        throw new RestException(Status.PRECONDITION_FAILED,
+                                "Invalid value for message TTL, message TTL must >= 0");
+                    }
+                }).thenCompose(__ -> updatePoliciesAsync(namespaceName, policies -> {
+                    policies.message_ttl_in_seconds = messageTTL;
+                    return policies;
+                }));
     }
 
     protected void internalSetSubscriptionExpirationTime(Integer expirationTime) {
@@ -834,9 +837,11 @@ public abstract class NamespacesBase extends AdminResource {
                         "Invalid configuration for autoTopicCreationOverride. the detail is "
                                 + validateResult.getErrorInfo());
             }
-            if (maxPartitions > 0 && autoTopicCreationOverride.getDefaultNumPartitions() > maxPartitions) {
-                throw new RestException(Status.NOT_ACCEPTABLE,
-                        "Number of partitions should be less than or equal to " + maxPartitions);
+            if (Objects.equals(autoTopicCreationOverride.getTopicType(), TopicType.PARTITIONED.toString())) {
+                if (maxPartitions > 0 && autoTopicCreationOverride.getDefaultNumPartitions() > maxPartitions) {
+                    throw new RestException(Status.NOT_ACCEPTABLE,
+                            "Number of partitions should be less than or equal to " + maxPartitions);
+                }
             }
         }
         // Force to read the data s.t. the watch to the cache content is setup.
@@ -906,13 +911,13 @@ public abstract class NamespacesBase extends AdminResource {
         internalSetAutoSubscriptionCreation(asyncResponse, null);
     }
 
-    protected void internalModifyDeduplication(Boolean enableDeduplication) {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.DEDUPLICATION, PolicyOperation.WRITE);
-        validatePoliciesReadOnlyAccess();
-        updatePolicies(namespaceName, policies -> {
-            policies.deduplicationEnabled = enableDeduplication;
-            return policies;
-        });
+    protected CompletableFuture<Void> internalModifyDeduplicationAsync(Boolean enableDeduplication) {
+        return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.DEDUPLICATION, PolicyOperation.WRITE)
+                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
+                .thenCompose(__ -> updatePoliciesAsync(namespaceName, policies -> {
+                    policies.deduplicationEnabled = enableDeduplication;
+                    return policies;
+                }));
     }
 
     @SuppressWarnings("deprecation")
@@ -2089,6 +2094,42 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
+    private CompletableFuture<Void> validatePoliciesAsync(NamespaceName ns, Policies policies) {
+        if (ns.isV2() && policies.replication_clusters.isEmpty()) {
+            // Default to local cluster
+            policies.replication_clusters = Collections.singleton(config().getClusterName());
+        }
+
+        // Validate cluster names and permissions
+        return policies.replication_clusters.stream()
+                    .map(cluster -> validateClusterForTenantAsync(ns.getTenant(), cluster))
+                    .reduce(CompletableFuture.completedFuture(null), (a, b) -> a.thenCompose(ignore -> b))
+            .thenAccept(__ -> {
+                if (policies.message_ttl_in_seconds != null && policies.message_ttl_in_seconds < 0) {
+                    throw new RestException(Status.PRECONDITION_FAILED, "Invalid value for message TTL");
+                }
+
+                if (policies.bundles != null && policies.bundles.getNumBundles() > 0) {
+                    if (policies.bundles.getBoundaries() == null || policies.bundles.getBoundaries().size() == 0) {
+                        policies.bundles = getBundles(policies.bundles.getNumBundles());
+                    } else {
+                        policies.bundles = validateBundlesData(policies.bundles);
+                    }
+                } else {
+                    int defaultNumberOfBundles = config().getDefaultNumberOfNamespaceBundles();
+                    policies.bundles = getBundles(defaultNumberOfBundles);
+                }
+
+                if (policies.persistence != null) {
+                    validatePersistencePolicies(policies.persistence);
+                }
+
+                if (policies.retention_policies != null) {
+                    validateRetentionPolicies(policies.retention_policies);
+                }
+            });
+    }
+
     protected void validateRetentionPolicies(RetentionPolicies retention) {
         if (retention == null) {
             return;
@@ -2146,9 +2187,10 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
-    protected Boolean internalGetDeduplication() {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.DEDUPLICATION, PolicyOperation.READ);
-        return getNamespacePolicies(namespaceName).deduplicationEnabled;
+    protected CompletableFuture<Boolean> internalGetDeduplicationAsync() {
+        return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.DEDUPLICATION, PolicyOperation.READ)
+                .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
+                .thenApply(policies -> policies.deduplicationEnabled);
     }
 
     protected Integer internalGetMaxConsumersPerTopic() {

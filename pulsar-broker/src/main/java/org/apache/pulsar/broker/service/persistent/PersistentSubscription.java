@@ -1089,6 +1089,7 @@ public class PersistentSubscription implements Subscription {
         }
     }
 
+    @Override
     public Map<String, String> getSubscriptionProperties() {
         return subscriptionProperties;
     }

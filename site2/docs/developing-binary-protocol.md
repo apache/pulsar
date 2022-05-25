@@ -1,7 +1,7 @@
 ---
 id: developing-binary-protocol
 title: Pulsar binary protocol specification
-sidebar_label: Binary protocol
+sidebar_label: "Binary protocol"
 ---
 
 Pulsar uses a custom binary protocol for communications between producers/consumers and brokers. This protocol is designed to support required features, such as acknowledgements and flow control, while ensuring maximum transport and implementation efficiency.
@@ -11,8 +11,7 @@ Clients and brokers exchange *commands* with each other. Commands are formatted 
 > ### Connection sharing
 > Commands for different producers and consumers can be interleaved and sent through the same connection without restriction.
 
-All commands associated with Pulsar's protocol are contained in a
-[`BaseCommand`](#pulsar.proto.BaseCommand) protobuf message that includes a [`Type`](#pulsar.proto.Type) [enum](https://developers.google.com/protocol-buffers/docs/proto#enum) with all possible subcommands as optional fields. `BaseCommand` messages can specify only one subcommand.
+All commands associated with Pulsar's protocol are contained in a [`BaseCommand`](#pulsar.proto.BaseCommand) protobuf message that includes a [`Type`](#pulsar.proto.Type) [enum](https://developers.google.com/protocol-buffers/docs/proto#enum) with all possible subcommands as optional fields. `BaseCommand` messages can specify only one subcommand.
 
 ## Framing
 
@@ -120,7 +119,7 @@ When compression is enabled, the whole batch will be compressed at once.
 After opening a TCP connection to a broker, typically on port 6650, the client
 is responsible to initiate the session.
 
-![Connect interaction](assets/binary-protocol-connect.png)
+![Connect interaction](/assets/binary-protocol-connect.png)
 
 After receiving a `Connected` response from the broker, the client can
 consider the connection ready to use. Alternatively, if the broker doesn't
@@ -130,12 +129,14 @@ close the TCP connection.
 Example:
 
 ```protobuf
+
 message CommandConnect {
   "client_version" : "Pulsar-Client-Java-v1.15.2",
   "auth_method_name" : "my-authentication-plugin",
   "auth_data" : "my-auth-data",
   "protocol_version" : 6
 }
+
 ```
 
 Fields:
@@ -145,10 +146,12 @@ Fields:
  * `protocol_version`: Indicates the protocol version supported by the client. Broker will not send commands introduced in newer revisions of the protocol. Broker might be enforcing a minimum version.
 
 ```protobuf
+
 message CommandConnected {
   "server_version" : "Pulsar-Broker-v1.15.2",
   "protocol_version" : 6
 }
+
 ```
 
 Fields:
@@ -182,20 +185,28 @@ authorized to publish on the topic.
 Once the client gets confirmation of the producer creation, it can publish
 messages to the broker, referring to the producer ID negotiated before.
 
-![Producer interaction](assets/binary-protocol-producer.png)
+![Producer interaction](/assets/binary-protocol-producer.png)
 
 If the client does not receive a response indicating producer creation success or failure,
 the client should first send a command to close the original producer before sending a
 command to re-attempt producer creation.
 
+:::note
+
+Before creating or connecting a producer, you need to perform [topic lookup](#topic-lookup) first.
+
+:::
+
 ##### Command Producer
 
 ```protobuf
+
 message CommandProducer {
   "topic" : "persistent://my-property/my-cluster/my-namespace/my-topic",
   "producer_id" : 1,
   "request_id" : 1
 }
+
 ```
 
 Fields:
@@ -216,10 +227,12 @@ The broker will reply with either `ProducerSuccess` or `Error` commands.
 ##### Command ProducerSuccess
 
 ```protobuf
+
 message CommandProducerSuccess {
   "request_id" :  1,
   "producer_name" : "generated-unique-producer-name"
 }
+
 ```
 
 Fields:
@@ -236,11 +249,13 @@ in a frame that includes command as well as message payload, for which the
 complete format is specified in the [payload commands](#payload-commands) section.
 
 ```protobuf
+
 message CommandSend {
   "producer_id" : 1,
   "sequence_id" : 0,
   "num_messages" : 1
 }
+
 ```
 
 Fields:
@@ -257,8 +272,8 @@ Fields:
 After a message has been persisted on the configured number of replicas, the
 broker will send the acknowledgment receipt to the producer.
 
-
 ```protobuf
+
 message CommandSendReceipt {
   "producer_id" : 1,
   "sequence_id" : 0,
@@ -267,6 +282,7 @@ message CommandSendReceipt {
     "entryId" : 456
   }
 }
+
 ```
 
 Fields:
@@ -274,15 +290,17 @@ Fields:
  * `sequence_id`: The sequence ID of the published message.
  * `message_id`: The message ID assigned by the system to the published message
    Unique within a single cluster. Message ID is composed of 2 longs, `ledgerId`
-   and `entryId`, that reflect that this unique ID is assigned when appending
+   and `entryId`, which reflects that this unique ID is assigned when appending
    to a BookKeeper ledger.
 
 
 ##### Command CloseProducer
 
-> **Note**
-> 
-> This command can be sent by either producer or broker.
+:::note
+
+This command can be sent by either producer or broker.
+
+:::
 
 When receiving a `CloseProducer` command, the broker will stop accepting any
 more messages for the producer, wait until all pending messages are persisted
@@ -307,7 +325,13 @@ A consumer is used to attach to a subscription and consume messages from it.
 After every reconnection, a client needs to subscribe to the topic. If a
 subscription is not already there, a new one will be created.
 
-![Consumer](assets/binary-protocol-consumer.png)
+![Consumer](/assets/binary-protocol-consumer.png)
+
+:::note
+
+Before creating or connecting a consumer, you need to perform [topic lookup](#topic-lookup) first.
+
+:::
 
 #### Flow control
 
@@ -327,6 +351,7 @@ Then the consumer sends permits to the broker to ask for 500 messages.
 ##### Command Subscribe
 
 ```protobuf
+
 message CommandSubscribe {
   "topic" : "persistent://my-property/my-cluster/my-namespace/my-topic",
   "subscription" : "my-subscription-name",
@@ -334,6 +359,7 @@ message CommandSubscribe {
   "consumer_id" : 1,
   "request_id" : 1
 }
+
 ```
 
 Fields:
@@ -353,16 +379,18 @@ Fields:
 ##### Command Flow
 
 ```protobuf
+
 message CommandFlow {
   "consumer_id" : 1,
   "messagePermits" : 1000
 }
+
 ```
 
 Fields:
 * `consumer_id`: The ID of an already established consumer.
 * `messagePermits`: The number of additional permits to grant to the broker for
-    pushing more messages.
+  pushing more messages.
 
 ##### Command Message
 
@@ -375,6 +403,7 @@ which the complete format is specified in the [payload commands](#payload-comman
 section.
 
 ```protobuf
+
 message CommandMessage {
   "consumer_id" : 1,
   "message_id" : {
@@ -382,8 +411,8 @@ message CommandMessage {
     "entryId" : 456
   }
 }
-```
 
+```
 
 ##### Command Ack
 
@@ -394,6 +423,7 @@ In addition, the broker will also maintain the consumer position based on the
 acknowledged messages.
 
 ```protobuf
+
 message CommandAck {
   "consumer_id" : 1,
   "ack_type" : "Individual",
@@ -402,6 +432,7 @@ message CommandAck {
     "entryId" : 456
   }
 }
+
 ```
 
 Fields:
@@ -428,19 +459,23 @@ If the `error` field is set, it indicates that the request has failed.
 An example of `AckResponse` with redirection:
 
 ```protobuf
+
 message CommandAckResponse {
     "consumer_id" : 1,
     "txnid_least_bits" = 0,
     "txnid_most_bits" = 1,
     "request_id" = 5
 }
+
 ```
 
 ##### Command CloseConsumer
 
-> **Note**
->
-> This command can be sent by either producer or broker.
+:::note
+
+This command can be sent by either producer or broker.
+
+:::
 
 This command behaves the same as [`CloseProducer`](#command-closeproducer)
 
@@ -499,8 +534,7 @@ Topic lookup needs to be performed each time a client needs to create or
 reconnect a producer or a consumer. Lookup is used to discover which particular
 broker is serving the topic we are about to use.
 
-Lookup can be done with a REST call as described in the
-[admin API](admin-api-topics.md#lookup-of-topic) docs.
+Lookup can be done with a REST call as described in the [admin API](admin-api-topics.md#lookup-of-topic) docs.
 
 Since Pulsar-1.16 it is also possible to perform the lookup within the binary protocol.
 
@@ -517,14 +551,16 @@ connect to, or a broker hostname to which retry the lookup.
 The `LookupTopic` command has to be used in a connection that has already
 gone through the `Connect` / `Connected` initial handshake.
 
-![Topic lookup](assets/binary-protocol-topic-lookup.png)
+![Topic lookup](/assets/binary-protocol-topic-lookup.png)
 
 ```protobuf
+
 message CommandLookupTopic {
   "topic" : "persistent://my-property/my-cluster/my-namespace/my-topic",
   "request_id" : 1,
   "authoritative" : false
 }
+
 ```
 
 Fields:
@@ -539,6 +575,7 @@ Fields:
 An example of response with successful lookup:
 
 ```protobuf
+
 message CommandLookupTopicResponse {
   "request_id" : 1,
   "response" : "Connect",
@@ -546,11 +583,13 @@ message CommandLookupTopicResponse {
   "brokerServiceUrlTls" : "pulsar+ssl://broker-1.example.com:6651",
   "authoritative" : true
 }
+
 ```
 
 This is an example of lookup response with redirection:
 
 ```protobuf
+
 message CommandLookupTopicResponse {
   "request_id" : 1,
   "response" : "Redirect",
@@ -558,6 +597,7 @@ message CommandLookupTopicResponse {
   "brokerServiceUrlTls" : "pulsar+ssl://broker-2.example.com:6651",
   "authoritative" : true
 }
+
 ```
 
 In this second case, we need to reissue the `LookupTopic` command request
@@ -583,10 +623,12 @@ response will contain actual metadata.
 ##### Command PartitionedTopicMetadata
 
 ```protobuf
+
 message CommandPartitionedTopicMetadata {
   "topic" : "persistent://my-property/my-cluster/my-namespace/my-topic",
   "request_id" : 1
 }
+
 ```
 
 Fields:
@@ -599,11 +641,13 @@ Fields:
 An example of response with metadata:
 
 ```protobuf
+
 message CommandPartitionedTopicMetadataResponse {
   "request_id" : 1,
   "response" : "Success",
   "partitions" : 32
 }
+
 ```
 
 ## Protobuf interface

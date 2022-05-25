@@ -394,7 +394,6 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
     @Test
     public void testAutoCreationOfSystemTopicTransactionBufferSnapshot() throws Exception {
         pulsar.getConfiguration().setAllowAutoTopicCreation(false);
-        pulsar.getConfiguration().setSystemTopicEnabled(true);
 
         final String topicString = "persistent://prop/ns-abc/" + SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT;
 
@@ -407,7 +406,6 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
     @Test
     public void testAutoCreationOfSystemTopicNamespaceEvents() throws Exception {
         pulsar.getConfiguration().setAllowAutoTopicCreation(false);
-        pulsar.getConfiguration().setSystemTopicEnabled(true);
 
         final String topicString = "persistent://prop/ns-abc/" + SystemTopicNames.NAMESPACE_EVENTS_LOCAL_NAME;
 

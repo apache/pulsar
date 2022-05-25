@@ -1,7 +1,7 @@
 ---
-id: version-2.6.0-admin-api-non-persistent-topics
+id: admin-api-non-persistent-topics
 title: Managing non-persistent topics
-sidebar_label: Non-Persistent topics
+sidebar_label: "Non-Persistent topics"
 original_id: admin-api-non-persistent-topics
 ---
 
@@ -12,7 +12,9 @@ persisting messages.
 In all of the instructions and commands below, the topic name structure is:
 
 ```shell
+
 non-persistent://tenant/namespace/topic
+
 ```
 
 ## Non-persistent topics resources
@@ -65,8 +67,8 @@ It shows current statistics of a given non-partitioned topic.
 
   -   **msgDropRate**: for publisher: publish: broker only allows configured number of in flight per connection, and drops all other published messages above the threshold. Broker also drops messages for subscriptions in case of unavailable limit and connection is not writable.
 
-
 ```json
+
 {
   "msgRateIn": 4641.528542257553,
   "msgThroughputIn": 44663039.74947473,
@@ -112,6 +114,7 @@ It shows current statistics of a given non-partitioned topic.
   },
   "replication": {}
 }
+
 ```
 
 #### pulsar-admin
@@ -119,20 +122,24 @@ It shows current statistics of a given non-partitioned topic.
 Topic stats can be fetched using [`stats`](reference-pulsar-admin.md#stats) command.
 
 ```shell
+
 $ pulsar-admin non-persistent stats \
   non-persistent://test-tenant/ns1/tp1 \
+
 ```
 
 #### REST API
 
-{@inject: endpoint|GET|/admin/v2/non-persistent/:tenant/:namespace/:topic/stats|operation/getStats?version=[[pulsar:version_number]]}
+{@inject: endpoint|GET|/admin/v2/non-persistent/:tenant/:namespace/:topic/stats|operation/getStats?version=@pulsar:version_number@}
 
 
 #### Java
 
 ```java
+
 String topic = "non-persistent://my-tenant/my-namespace/my-topic";
 admin.nonPersistentTopics().getStats(topic);
+
 ```
 
 ### Get internal stats
@@ -144,6 +151,7 @@ It shows detailed statistics of a topic.
 Topic internal-stats can be fetched using [`stats-internal`](reference-pulsar-admin.md#stats-internal) command.
 
 ```shell
+
 $ pulsar-admin non-persistent stats-internal \
   non-persistent://test-tenant/ns1/tp1 \
 
@@ -166,47 +174,52 @@ $ pulsar-admin non-persistent stats-internal \
 
 #### REST API
 
-{@inject: endpoint|GET|/admin/v2/non-persistent/:tenant/:namespace/:topic/internalStats|operation/getInternalStats?version=[[pulsar:version_number]]}
+{@inject: endpoint|GET|/admin/v2/non-persistent/:tenant/:namespace/:topic/internalStats|operation/getInternalStats?version=@pulsar:version_number@}
 
 #### Java
 
 ```java
+
 String topic = "non-persistent://my-tenant/my-namespace/my-topic";
 admin.nonPersistentTopics().getInternalStats(topic);
+
 ```
 
 ### Create partitioned topic
 
 Partitioned topics in Pulsar must be explicitly created. When creating a new partitioned topic you need to provide a name for the topic as well as the desired number of partitions.
 
-> #### Note
->
-> By default, after 60 seconds of creation, topics are considered inactive and deleted automatically to prevent from generating trash data.
->
-> To disable this feature, set `brokerDeleteInactiveTopicsEnabled` to `false`.
->
-> To change the frequency of checking inactive topics, set `brokerDeleteInactiveTopicsFrequencySeconds` to your desired value.
->
-> For more information about these two parameters, see [here](reference-configuration.md#broker).
+:::note
+
+By default, after 60 seconds of creation, topics are considered inactive and deleted automatically to prevent from generating trash data.
+To disable this feature, set `brokerDeleteInactiveTopicsEnabled` to `false`.
+To change the frequency of checking inactive topics, set `brokerDeleteInactiveTopicsFrequencySeconds` to your desired value.
+For more information about these two parameters, see [here](reference-configuration.md#broker).
+
+:::
 
 #### pulsar-admin
 
 ```shell
+
 $ bin/pulsar-admin non-persistent create-partitioned-topic \
   non-persistent://my-tenant/my-namespace/my-topic \
   --partitions 4
+
 ```
 
 #### REST API
 
-{@inject: endpoint|PUT|/admin/v2/non-persistent/:tenant/:namespace/:topic/partitions|operation/createPartitionedTopic?version=[[pulsar:version_number]]}
+{@inject: endpoint|PUT|/admin/v2/non-persistent/:tenant/:namespace/:topic/partitions|operation/createPartitionedTopic?version=@pulsar:version_number@}
 
 #### Java
 
 ```java
+
 String topicName = "non-persistent://my-tenant/my-namespace/my-topic";
 int numPartitions = 4;
 admin.nonPersistentTopics().createPartitionedTopic(topicName, numPartitions);
+
 ```
 
 ### Get metadata
@@ -220,23 +233,27 @@ Field | Meaning
 #### pulsar-admin
 
 ```shell
+
 $ pulsar-admin non-persistent get-partitioned-topic-metadata \
   non-persistent://my-tenant/my-namespace/my-topic
 {
   "partitions": 4
 }
+
 ```
 
 #### REST API
 
-{@inject: endpoint|GET|/admin/v2/non-persistent/:tenant/:namespace/:topic/partitions|operation/getPartitionedMetadata?version=[[pulsar:version_number]]}
+{@inject: endpoint|GET|/admin/v2/non-persistent/:tenant/:namespace/:topic/partitions|operation/getPartitionedMetadata?version=@pulsar:version_number@}
 
 
 #### Java
 
 ```java
+
 String topicName = "non-persistent://my-tenant/my-namespace/my-topic";
 admin.nonPersistentTopics().getPartitionedTopicMetadata(topicName);
+
 ```
 
 ### Unload topic
@@ -248,17 +265,22 @@ It unloads a topic.
 Topic can be unloaded using [`unload`](reference-pulsar-admin.md#unload) command.
 
 ```shell
+
 $ pulsar-admin non-persistent unload \
   non-persistent://test-tenant/ns1/tp1 \
+
 ```
 
 #### REST API
 
-{@inject: endpoint|PUT|/admin/v2/non-persistent/:tenant/:namespace/:topic/unload|operation/unloadTopic?version=[[pulsar:version_number]]}
+{@inject: endpoint|PUT|/admin/v2/non-persistent/:tenant/:namespace/:topic/unload|operation/unloadTopic?version=@pulsar:version_number@}
 
 #### Java
 
 ```java
+
 String topic = "non-persistent://my-tenantmy-namespace/my-topic";
 admin.nonPersistentTopics().unload(topic);
+
 ```
+

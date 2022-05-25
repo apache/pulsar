@@ -68,6 +68,8 @@ public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
     @BeforeMethod
     @Override
     public void setup() throws Exception {
+        conf.setSystemTopicEnabled(false);
+        conf.setTopicLevelPoliciesEnabled(false);
         super.internalSetup();
 
         // Setup namespaces

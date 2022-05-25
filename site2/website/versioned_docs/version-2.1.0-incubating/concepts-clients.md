@@ -1,16 +1,16 @@
 ---
-id: version-2.1.0-incubating-concepts-clients
+id: concepts-clients
 title: Pulsar Clients
-sidebar_label: Clients
+sidebar_label: "Clients"
 original_id: concepts-clients
 ---
 
-Pulsar exposes a client API with language bindings for [Java](client-libraries-java.md) and [C++](client-libraries-cpp.md). The client API optimizes and encapsulates Pulsar's client-broker communication protocol and exposes a simple and intuitive API for use by applications.
+Pulsar exposes a client API with language bindings for [Java](client-libraries-java.md) and [C++](client-libraries-cpp). The client API optimizes and encapsulates Pulsar's client-broker communication protocol and exposes a simple and intuitive API for use by applications.
 
 Under the hood, the current official Pulsar client libraries support transparent reconnection and/or connection failover to brokers, queuing of messages until acknowledged by the broker, and heuristics such as connection retries with backoff.
 
 > #### Custom client libraries
-> If you'd like to create your own client library, we recommend consulting the documentation on Pulsar's custom [binary protocol](developing-binary-protocol.md)
+> If you'd like to create your own client library, we recommend consulting the documentation on Pulsar's custom [binary protocol](developing-binary-protocol)
 
 
 ## Client setup phase
@@ -34,7 +34,7 @@ The **reader interface** for Pulsar enables applications to manually manage curs
 
 The reader interface is helpful for use cases like using Pulsar to provide [effectively-once](https://streaml.io/blog/exactly-once/) processing semantics for a stream processing system. For this use case, it's essential that the stream processing system be able to "rewind" topics to a specific message and begin reading there. The reader interface provides Pulsar clients with the low-level abstraction necessary to "manually position" themselves within a topic.
 
-![The Pulsar consumer and reader interfaces](assets/pulsar-reader-consumer-interfaces.png)
+![The Pulsar consumer and reader interfaces](/assets/pulsar-reader-consumer-interfaces.png)
 
 > ### Non-partitioned topics only
 > The reader interface for Pulsar cannot currently be used with [partitioned topics](concepts-messaging.md#partitioned-topics).
@@ -42,6 +42,7 @@ The reader interface is helpful for use cases like using Pulsar to provide [effe
 Here's a Java example that begins reading from the earliest available message on a topic:
 
 ```java
+
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Reader;
@@ -57,24 +58,30 @@ while (true) {
 
     // Process the message
 }
+
 ```
 
 To create a reader that will read from the latest available message:
 
 ```java
+
 Reader<byte[]> reader = pulsarClient.newReader()
     .topic(topic)
     .startMessageId(MessageId.latest)
     .create();
+
 ```
 
 To create a reader that will read from some message between earliest and latest:
 
 ```java
+
 byte[] msgIdBytes = // Some byte array
 MessageId id = MessageId.fromByteArray(msgIdBytes);
 Reader<byte[]> reader = pulsarClient.newReader()
     .topic(topic)
     .startMessageId(id)
     .create();
+
 ```
+

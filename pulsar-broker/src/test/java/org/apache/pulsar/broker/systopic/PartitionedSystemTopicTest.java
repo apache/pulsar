@@ -67,9 +67,6 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
         conf.setAllowAutoTopicCreationType("partitioned");
         conf.setDefaultNumPartitions(PARTITIONS);
 
-        conf.setSystemTopicEnabled(true);
-        conf.setTopicLevelPoliciesEnabled(true);
-
         super.baseSetup();
     }
 
