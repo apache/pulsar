@@ -27,7 +27,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -44,8 +43,6 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.collections4.map.LinkedMap;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.commons.lang3.tuple.Pair;
-import org.apache.pulsar.broker.lookup.LookupResult;
-import org.apache.pulsar.broker.namespace.LookupOptions;
 import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
 import org.apache.pulsar.broker.service.Consumer;
@@ -55,8 +52,6 @@ import org.apache.pulsar.broker.transaction.pendingack.PendingAckStore;
 import org.apache.pulsar.broker.transaction.pendingack.TransactionPendingAckStoreProvider;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
-import org.apache.pulsar.common.lookup.data.LookupData;
-import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TransactionInPendingAckStats;
 import org.apache.pulsar.common.policies.data.TransactionPendingAckStats;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -875,19 +870,6 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
             transactionPendingAckStats.ongoingTxns = individualAckOfTransaction.size();
         } else {
             transactionPendingAckStats.ongoingTxns = 0;
-        }
-        Optional<LookupResult> lookupResultOptional = this.persistentSubscription
-                .getTopic()
-                .getBrokerService()
-                .getPulsar()
-                .getNamespaceService()
-                .getBrokerServiceUrl(TopicName.get(topicName),
-                        LookupOptions.builder()
-                                .loadTopicsInBundle(false)
-                                .build());
-        if (lookupResultOptional.isPresent()) {
-            LookupData lookupData = lookupResultOptional.get().getLookupData();
-            transactionPendingAckStats.brokerOwnerURL = lookupData.getBrokerUrl();
         }
         return transactionPendingAckStats;
     }

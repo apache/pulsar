@@ -24,7 +24,6 @@ import io.netty.util.Timer;
 import io.netty.util.TimerTask;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
@@ -39,8 +38,6 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.collections4.map.LinkedMap;
-import org.apache.pulsar.broker.lookup.LookupResult;
-import org.apache.pulsar.broker.namespace.LookupOptions;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -54,7 +51,6 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
-import org.apache.pulsar.common.lookup.data.LookupData;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TransactionBufferStats;
 import org.apache.pulsar.common.policies.data.TransactionInBufferStats;
@@ -557,18 +553,6 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         }
         transactionBufferStats.ongoingTxns = ongoingTxns.size();
 
-        Optional<LookupResult> lookupResultOptional = this.topic
-                .getBrokerService()
-                .getPulsar()
-                .getNamespaceService()
-                .getBrokerServiceUrl(TopicName.get(topic.getName()),
-                        LookupOptions.builder()
-                                .loadTopicsInBundle(false)
-                                .build());
-        if (lookupResultOptional.isPresent()) {
-            LookupData lookupData = lookupResultOptional.get().getLookupData();
-            transactionBufferStats.brokerOwnerURL = lookupData.getBrokerUrl();
-        }
         return transactionBufferStats;
     }
 

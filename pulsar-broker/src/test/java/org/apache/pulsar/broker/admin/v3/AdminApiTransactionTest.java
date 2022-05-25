@@ -301,7 +301,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         final String subName2 = "test2";
         try {
             admin.transactions()
-                    .getTransactionBufferStatsAsync(topic, false).get();
+                    .getTransactionBufferStatsAsync(topic).get();
             fail("Should failed here");
         } catch (ExecutionException ex) {
             assertTrue(ex.getCause() instanceof PulsarAdminException.NotFoundException);
@@ -311,7 +311,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         try {
             pulsar.getBrokerService().getTopic(topic, false);
             admin.transactions()
-                    .getTransactionBufferStatsAsync(topic, false).get();
+                    .getTransactionBufferStatsAsync(topic).get();
             fail("Should failed here");
         } catch (ExecutionException ex) {
             assertTrue(ex.getCause() instanceof PulsarAdminException.NotFoundException);
@@ -335,7 +335,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         consumer2.acknowledgeAsync(messageId, transaction).get();
 
         TransactionBufferStats transactionBufferStats = admin.transactions().
-                getTransactionBufferStatsAsync(topic, false).get();
+                getTransactionBufferStatsAsync(topic).get();
 
         assertEquals(transactionBufferStats.state, "Ready");
         assertEquals(transactionBufferStats.maxReadPosition,
@@ -359,7 +359,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         final String subName = "test1";
         try {
             admin.transactions()
-                    .getPendingAckStatsAsync(topic, subName, false).get();
+                    .getPendingAckStatsAsync(topic, subName).get();
             fail("Should failed here");
         } catch (ExecutionException ex) {
             assertTrue(ex.getCause() instanceof PulsarAdminException.NotFoundException);
@@ -369,7 +369,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         try {
             pulsar.getBrokerService().getTopic(topic, false);
             admin.transactions()
-                    .getPendingAckStatsAsync(topic, subName, false).get();
+                    .getPendingAckStatsAsync(topic, subName).get();
             fail("Should failed here");
         } catch (ExecutionException ex) {
             assertTrue(ex.getCause() instanceof PulsarAdminException.NotFoundException);
@@ -384,7 +384,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES).topic(topic)
                 .subscriptionName(subName).subscribe();
         TransactionPendingAckStats transactionPendingAckStats = admin.transactions().
-                getPendingAckStatsAsync(topic, subName, false).get();
+                getPendingAckStatsAsync(topic, subName).get();
         assertEquals(transactionPendingAckStats.state, "None");
 
         producer.newMessage().value("Hello pulsar!".getBytes()).send();
@@ -397,7 +397,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         }
 
         transactionPendingAckStats = admin.transactions().
-                getPendingAckStatsAsync(topic, subName, false).get();
+                getPendingAckStatsAsync(topic, subName).get();
         assertNull(transactionPendingAckStats.lowWaterMarks);
         assertEquals(transactionPendingAckStats.state, "Ready");
     }
@@ -436,19 +436,13 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         TransactionBufferStats transactionBufferStats =
                 admin.transactions().getTransactionBufferStats(topic, true);
         assertEquals(transactionBufferStats.ongoingTxns, 1);
-//        assertEquals((long) transactionBufferStats.lowWaterMarks.get(0), 0L);
         assertNotNull(transactionBufferStats.lowWaterMarks);
-        assertNotNull(transactionBufferStats.brokerOwnerURL);
 
         TransactionPendingAckStats transactionPendingAckStats =
                 admin.transactions().getPendingAckStats(topic, subName, true);
 
         assertEquals(transactionPendingAckStats.ongoingTxns, 1);
         assertNotNull(transactionPendingAckStats.lowWaterMarks);
-//        assertEquals((long) transactionPendingAckStats.lowWaterMarks.get(0), 0L);
-        assertNotNull(transactionPendingAckStats.brokerOwnerURL);
-
-        ;
         assertEquals(admin.transactions().getCoordinatorStatsById(0).ongoningTxns, 1);
     }
 

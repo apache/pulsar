@@ -26,11 +26,6 @@ public class TransactionPendingAckStats {
     public String state;
 
     /**
-     * The owner broker url of the transaction pending ack.
-     */
-    public String brokerOwnerURL;
-
-    /**
      * (Optional) The lowWaterMark details of the transaction pending ack.
      */
     public ConcurrentHashMap<Long, Long> lowWaterMarks;

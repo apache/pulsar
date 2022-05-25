@@ -32,11 +32,6 @@ public class TransactionBufferStats {
     public long lastSnapshotTimestamps;
 
     /**
-     * The owner broker url of the transaction buffer.
-     */
-    public String brokerOwnerURL;
-
-    /**
      * (Optional) The lowWaterMark details of the transaction buffer.
      */
     public ConcurrentHashMap<Long, Long> lowWaterMarks;
