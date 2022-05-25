@@ -46,7 +46,7 @@ public class TopicLookupTest extends PulsarWebResourceTest {
 
     @Override
     protected ResourceConfig configure() {
-        resource = spy(new TestableTopicLookup());
+        resource = spy(TestableTopicLookup.class);
         return new ResourceConfig().register(resource);
     }
 
@@ -70,7 +70,7 @@ public class TopicLookupTest extends PulsarWebResourceTest {
         assertEquals(resource.actualListenerName, "query");
     }
 
-    private static class TestableTopicLookup extends TopicLookup {
+    public static class TestableTopicLookup extends TopicLookup {
         private String actualListenerName;
 
         @Override

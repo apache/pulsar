@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.api;
 
+import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgs;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
@@ -630,7 +631,8 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
         // if broker unload bundle gracefully then cursor metadata recovered from zk else from ledger
         if (unloadBundleGracefully) {
             // set clean namespace which will not let broker unload bundle gracefully: stop broker
-            Supplier<NamespaceService> namespaceServiceSupplier = () -> spy(new NamespaceService(pulsar));
+            Supplier<NamespaceService> namespaceServiceSupplier =
+                    () -> spyWithClassAndConstructorArgs(NamespaceService.class, pulsar);
             doReturn(namespaceServiceSupplier).when(pulsar).getNamespaceServiceProvider();
         }
         stopBroker();

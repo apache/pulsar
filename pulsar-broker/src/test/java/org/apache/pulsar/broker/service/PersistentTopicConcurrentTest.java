@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgs;
 import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doReturn;
@@ -83,10 +84,10 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
     @BeforeMethod
     public void setup(Method m) throws Exception {
         super.setUp(m);
-        ServiceConfiguration svcConfig = spy(new ServiceConfiguration());
+        ServiceConfiguration svcConfig = spy(ServiceConfiguration.class);
         svcConfig.setBrokerShutdownTimeoutMs(0L);
         @Cleanup
-        PulsarService pulsar = spy(new PulsarService(svcConfig));
+        PulsarService pulsar = spyWithClassAndConstructorArgs(PulsarService.class, svcConfig);
         doReturn(svcConfig).when(pulsar).getConfiguration();
 
         @Cleanup(value = "shutdownGracefully")
@@ -100,12 +101,10 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
         mlFactoryMock = factory;
         doReturn(mlFactoryMock).when(pulsar).getManagedLedgerFactory();
 
-        brokerService = spy(new BrokerService(pulsar, eventLoopGroup));
+        brokerService = spyWithClassAndConstructorArgs(BrokerService.class, pulsar, eventLoopGroup);
         doReturn(brokerService).when(pulsar).getBrokerService();
 
-        serverCnx = mock(ServerCnx.class, withSettings()
-                .useConstructor(pulsar)
-                .defaultAnswer(CALLS_REAL_METHODS));
+        serverCnx = spyWithClassAndConstructorArgs(ServerCnx.class, pulsar);
         doReturn(true).when(serverCnx).isActive();
 
         NamespaceService nsSvc = mock(NamespaceService.class);

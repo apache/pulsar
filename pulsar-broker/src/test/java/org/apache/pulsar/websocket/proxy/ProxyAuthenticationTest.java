@@ -19,6 +19,7 @@
 package org.apache.pulsar.websocket.proxy;
 
 import static java.util.concurrent.Executors.newFixedThreadPool;
+import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgs;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -86,7 +87,7 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
             config.setAnonymousUserRole("anonymousUser");
         }
 
-        service = spy(new WebSocketService(config));
+        service = spyWithClassAndConstructorArgs(WebSocketService.class, config);
         doReturn(new ZKMetadataStore(mockZooKeeperGlobal)).when(service).createMetadataStore(anyString(), anyInt());
         proxyServer = new ProxyServer(config);
         WebSocketServiceStarter.start(proxyServer, service);
