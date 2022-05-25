@@ -370,7 +370,7 @@ public class CmdSources extends CmdBase {
         protected SourceConfig sourceConfig;
 
         private void mergeArgs() {
-            if (processingGuarantees == ATLEAST_ONCE && deprecatedProcessingGuarantees != ATLEAST_ONCE) {
+            if (processingGuarantees == null && deprecatedProcessingGuarantees != null) {
                 processingGuarantees = deprecatedProcessingGuarantees;
             }
             if (isBlank(destinationTopicName) && !isBlank(deprecatedDestinationTopicName)) {

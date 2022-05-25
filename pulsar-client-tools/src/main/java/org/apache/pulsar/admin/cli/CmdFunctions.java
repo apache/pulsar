@@ -393,7 +393,7 @@ public class CmdFunctions extends CmdBase {
             if (isBlank(fnConfigFile) && !isBlank(deprecatedFnConfigFile)) {
                 fnConfigFile = deprecatedFnConfigFile;
             }
-            if (processingGuarantees == ATLEAST_ONCE && deprecatedProcessingGuarantees != ATLEAST_ONCE) {
+            if (processingGuarantees == null && deprecatedProcessingGuarantees != null) {
                 processingGuarantees = deprecatedProcessingGuarantees;
             }
             if (isBlank(userConfigString) && !isBlank(deprecatedUserConfigString)) {
