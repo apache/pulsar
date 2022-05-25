@@ -798,7 +798,6 @@ Please pay attention that `JavaStringHash` is not useful when producers can be f
 
 ## Non-persistent topics
 
-
 By default, Pulsar persistently stores *all* unacknowledged messages on multiple [BookKeeper](concepts-architecture-overview.md#persistent-storage) bookies (storage nodes). Data for messages on persistent topics can thus survive broker restarts and subscriber failover.
 
 Pulsar also, however, supports **non-persistent topics**, which are topics on which messages are *never* persisted to disk and live only in memory. When using non-persistent delivery, killing a Pulsar broker or disconnecting a subscriber to a topic means that all in-transit messages are lost on that (non-persistent) topic, meaning that clients may see message loss.
@@ -818,6 +817,8 @@ In non-persistent topics, brokers immediately deliver messages to all connected 
 > With non-persistent topics, message data lives only in memory,  without a specific buffer - which means data *is not* buffered in memory. The received messages are immediately transmitted to all *connected consumers*. If a message broker fails or message data can otherwise not be retrieved from memory, your message data may be lost. Use non-persistent topics only if you're *certain* that your use case requires it and can sustain it.
 
 By default, non-persistent topics are enabled on Pulsar brokers. You can disable them in the broker's [configuration](reference-configuration.md#broker-enableNonPersistentTopics). You can manage non-persistent topics using the `pulsar-admin topics` command. For more information, see [`pulsar-admin`](https://pulsar.apache.org/tools/pulsar-admin/).
+
+Currently non-persistent topics which are not partitioned are not persisted to ZK, which means if the broker owning them crashes, they won't get re-assigned to another broker because they only existed in the owner broker memory. The current work-around for that is to make sure `allowAutoTopicCreation` broker config is `true` and `allowAutoTopicCreationType` is `non-partitioned` (Those the the default values).
 
 ### Performance
 
