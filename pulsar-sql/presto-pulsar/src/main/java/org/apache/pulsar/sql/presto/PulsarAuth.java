@@ -31,9 +31,10 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.SubscriptionMode;
+import org.apache.pulsar.client.api.SubscriptionType;
 
 /**
  * This class implements the authentication and authorization integration between the Pulsar SQL worker and the
@@ -101,11 +102,13 @@ public class PulsarAuth {
                     .serviceUrl(pulsarConnectorConfig.getBrokerBinaryServiceUrl())
                     .authentication(authMethod, authParams)
                     .build();
-            client.newReader().topic(topic)
-                    // For the case of the partitioned topic, the receiverQueueSize must be greater than 0.
-                    .receiverQueueSize(1)
-                    .startMessageId(MessageId.earliest)
-                    .create().close();
+            client.newConsumer().topic(topic)
+                    .subscriptionName("pulsar-sql-auth" + session.getQueryId())
+                    .subscriptionType(SubscriptionType.Exclusive)
+                    .subscriptionMode(SubscriptionMode.NonDurable)
+                    .startPaused(true)
+                    .subscribe()
+                    .close();
             authorizedQueryTopicsMap.computeIfPresent(session.getQueryId(), (query, topics) -> {
                 topics.add(topic);
                 return topics;
