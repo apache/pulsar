@@ -20,6 +20,7 @@ package org.apache.pulsar.metadata.coordination.impl;
 
 import com.fasterxml.jackson.databind.type.TypeFactory;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -167,17 +168,18 @@ class LockManagerImpl<T> implements LockManager<T> {
 
     @Override
     public CompletableFuture<Void> asyncClose() {
+        Map<String, ResourceLock<T>> locks;
         synchronized (this) {
             if (state != State.Ready) {
                 return CompletableFuture.completedFuture(null);
             }
-
+            locks = new HashMap<>(this.locks);
             this.state = State.Closed;
-            return FutureUtils.collect(
-                            locks.values().stream()
-                                    .map(ResourceLock::release)
-                                    .collect(Collectors.toList()))
-                    .thenApply(x -> null);
         }
+        return FutureUtils.collect(
+                        locks.values().stream()
+                                .map(ResourceLock::release)
+                                .collect(Collectors.toList()))
+                .thenApply(x -> null);
     }
 }
