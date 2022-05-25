@@ -493,8 +493,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     }
 
     @Override
-    public CompletableFuture<Void> acknowledgeAsync(Messages<?> messages, Transaction txn)
-            throws PulsarClientException {
+    public CompletableFuture<Void> acknowledgeAsync(Messages<?> messages, Transaction txn) {
         List<MessageId> messageIds = new ArrayList<>(messages.size());
         for (Message<?> message: messages) {
             try {
@@ -513,8 +512,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     }
 
     @Override
-    public CompletableFuture<Void> acknowledgeAsync(List<MessageId> messageIdList, Transaction txn)
-            throws PulsarClientException {
+    public CompletableFuture<Void> acknowledgeAsync(List<MessageId> messageIdList, Transaction txn) {
         return doAcknowledgeWithTxn(messageIdList, AckType.Individual, Collections.emptyMap(), (TransactionImpl) txn);
     }
 
