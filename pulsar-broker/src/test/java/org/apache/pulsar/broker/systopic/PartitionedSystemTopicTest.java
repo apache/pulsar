@@ -27,6 +27,7 @@ import org.apache.commons.lang.RandomStringUtils;
 import org.apache.pulsar.broker.admin.impl.BrokersBase;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerTestBase;
+import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.ListTopicsOptions;
 import org.apache.pulsar.client.api.Consumer;
@@ -53,6 +54,7 @@ import org.testng.annotations.Test;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
@@ -69,8 +71,6 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
         conf.setAllowAutoTopicCreationType("partitioned");
         conf.setDefaultNumPartitions(PARTITIONS);
         conf.setManagedLedgerMaxEntriesPerLedger(1);
-        conf.setManagedLedgerMinLedgerRolloverTimeMinutes(1);
-        conf.setManagedLedgerMaxLedgerRolloverTimeMinutes(1);
         conf.setBrokerDeleteInactiveTopicsEnabled(false);
 
         super.baseSetup();
@@ -195,9 +195,16 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
                 .topic(topic)
                 .create();
+
+        String partition0 = TopicName.get(String.format("persistent://%s", topic)).getPartition(0).toString();
+        Optional<Topic> topicReference = pulsar.getBrokerService().getTopicReference(partition0);
+        Assert.assertTrue(topicReference.isPresent());
+        PersistentTopic persistentTopic = (PersistentTopic) topicReference.get();
+        persistentTopic.getManagedLedger().getConfig().setMinimumRolloverTime(3, TimeUnit.SECONDS);
+        persistentTopic.getManagedLedger().getConfig().setMaximumRolloverTime(3, TimeUnit.SECONDS);
         String msg1 = "msg-1";
         producer.send(msg1);
-        Thread.sleep(60 * 1000);
+        Thread.sleep(3 * 1000);
 
         Consumer<String> consumer2 = pulsarClient.newConsumer(Schema.STRING)
                 .topic(topic)
@@ -209,9 +216,9 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
         Message<String> receive = consumer2.receive();
         consumer2.acknowledge(receive);
 
-        Thread.sleep(62 * 1000);
+        Thread.sleep(5 * 1000);
 
-        int producerCount = 30;
+        int producerCount = 10;
         for (int i = 0; i < producerCount; i++) {
             try {
                 Thread.sleep(1000);
