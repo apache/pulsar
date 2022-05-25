@@ -173,9 +173,11 @@ class LockManagerImpl<T> implements LockManager<T> {
             if (state != State.Ready) {
                 return CompletableFuture.completedFuture(null);
             }
+
             locks = new HashMap<>(this.locks);
             this.state = State.Closed;
         }
+
         return FutureUtils.collect(
                         locks.values().stream()
                                 .map(ResourceLock::release)
