@@ -418,7 +418,7 @@ public class Consumer {
         return future
                 .whenComplete((__, t) -> {
                     if (t == null) {
-                        this.messageAckRate.recordEvent();
+                        this.messageAckRate.recordEvent(ack.getMessageIdsCount());
                     }
                 });
     }
