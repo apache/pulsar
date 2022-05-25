@@ -80,4 +80,8 @@ public class MemoryLimitController {
     public long currentUsage() {
         return currentUsage.get();
     }
+
+    public boolean isMemoryLimited() {
+        return memoryLimit > 0;
+    }
 }
