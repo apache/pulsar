@@ -345,7 +345,8 @@ public class CmdSinks extends CmdBase {
         @Parameter(names = "--processing-guarantees",
                 description = "The processing guarantees (aka delivery semantics) applied to the sink."
                     + " The '--processing-guarantees' implementation in Pulsar also relies on sink implementation."
-                    + " The available values are 'ATLEAST_ONCE', 'ATMOST_ONCE', 'EFFECTIVELY_ONCE'.")
+                    + " The available values are 'ATLEAST_ONCE', 'ATMOST_ONCE', 'EFFECTIVELY_ONCE'."
+                    + " If it is not specified, `ATLEAST_ONCE` delivery guarantee is used.")
         protected FunctionConfig.ProcessingGuarantees processingGuarantees;
         @Parameter(names = "--retainOrdering", description = "Sink consumes and sinks messages in order", hidden = true)
         protected Boolean deprecatedRetainOrdering;

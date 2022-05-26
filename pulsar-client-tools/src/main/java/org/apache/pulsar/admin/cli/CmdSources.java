@@ -300,7 +300,8 @@ public class CmdSources extends CmdBase {
                 description = "The processing guarantees (aka delivery semantics) applied to the source."
                     + " A source connector receives messages from external system and writes messages to a Pulsar topic."
                     + " The '--processing-guarantees' is used to ensure the processing guarantees for writing messages to"
-                    + " the Pulsar topic. The available values are 'ATLEAST_ONCE', 'ATMOST_ONCE', 'EFFECTIVELY_ONCE'.")
+                    + " the Pulsar topic. The available values are 'ATLEAST_ONCE', 'ATMOST_ONCE', 'EFFECTIVELY_ONCE'."
+                    + " If it is not specified, `ATLEAST_ONCE` delivery guarantee is used.")
         protected FunctionConfig.ProcessingGuarantees processingGuarantees;
 
         @Parameter(names = { "-o", "--destinationTopicName" },
