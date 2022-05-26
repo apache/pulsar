@@ -97,9 +97,9 @@ To configure proxies to authenticate clients, complete the following steps.
 
 2. Set an environment variable named `PULSAR_EXTRA_OPTS` and the value is `-Dpulsar.auth.basic.conf=/path/to/.htpasswd`. Pulsar reads this environment variable to implement HTTP basic authentication.
 
-## Configure basic authentication through CLI tools
+## Configure basic authentication in CLI tools
 
-[Command-line tools](/docs/next/reference-cli-tools), such as [Pulsar-admin](/tools/pulsar-admin/), [Pulsar-perf](/tools/pulsar-perf/) and [Pulsar-client](/tools/pulsar-client/), use the `conf/client.conf` file in your Pulsar installation. To use basic authentication through Pulsar CLI tools, you need to add the following parameters to the `conf/client.conf` file.
+[Command-line tools](/docs/next/reference-cli-tools), such as [Pulsar-admin](/tools/pulsar-admin/), [Pulsar-perf](/tools/pulsar-perf/) and [Pulsar-client](/tools/pulsar-client/), use the `conf/client.conf` file in your Pulsar installation. To configure basic authentication in Pulsar CLI tools, you need to add the following parameters to the `conf/client.conf` file.
 
 ```
 authPlugin=org.apache.pulsar.client.impl.auth.AuthenticationBasic
