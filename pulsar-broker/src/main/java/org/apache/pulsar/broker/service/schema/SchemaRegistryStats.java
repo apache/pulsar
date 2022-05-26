@@ -109,6 +109,12 @@ class SchemaRegistryStats implements AutoCloseable {
         this.compatibleCounter.labels(schemaId).inc();
     }
 
+    void unRecordSchema(String schemaId) {
+        this.deleteOpsLatency.remove(schemaId);
+        this.getOpsLatency.remove(schemaId);
+        this.putOpsLatency.remove(schemaId);
+    }
+
     @Override
     public void close() throws Exception {
         if (CLOSED.compareAndSet(false, true)) {

@@ -249,6 +249,7 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
                             log.debug("[{}] User {} delete schema finished", schemaId, user);
                         }
                         this.stats.recordDelLatency(schemaId, this.clock.millis() - start);
+                        this.stats.unRecordSchema(schemaId);
                     }
                 });
     }
@@ -267,11 +268,13 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
                     if (t != null) {
                         this.stats.recordDelFailed(schemaId);
                         log.error("[{}] Delete schema storage failed", schemaId);
+                        this.stats.unRecordSchema(schemaId);
                     } else {
                         this.stats.recordDelLatency(schemaId, this.clock.millis() - start);
                         if (log.isDebugEnabled()) {
                             log.debug("[{}] Delete schema storage finished", schemaId);
                         }
+                        this.stats.unRecordSchema(schemaId);
                     }
                 });
     }
