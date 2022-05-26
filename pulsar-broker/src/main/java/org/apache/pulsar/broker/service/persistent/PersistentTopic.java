@@ -2626,43 +2626,26 @@ public class PersistentTopic extends AbstractTopic
                 return false;
             }
         } else {
-            PositionImpl slowestPosition = ((ManagedCursorContainer) ledger.getCursors()).getSlowestReaderPosition();
+            Long ledgerId = ((ManagedCursorContainer) ledger.getCursors()).getSlowestReaderPosition().getLedgerId();
             try {
-                return slowestReaderTimeBasedBacklogQuotaCheck(slowestPosition);
+                org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo
+                        ledgerInfo = ledger.getLedgerInfo(ledgerId).get();
+                if (ledgerInfo != null && ledgerInfo.hasTimestamp() && ledgerInfo.getTimestamp() > 0
+                        && ((ManagedLedgerImpl) ledger).getClock().millis() - ledgerInfo.getTimestamp()
+                        > backlogQuotaLimitInSecond * 1000) {
+                    if (log.isDebugEnabled()) {
+                        log.debug("Time based backlog quota exceeded, quota {}, age of ledger "
+                                        + "slowest cursor currently on {}", backlogQuotaLimitInSecond * 1000,
+                                ((ManagedLedgerImpl) ledger).getClock().millis() - ledgerInfo.getTimestamp());
+                    }
+                    return true;
+                } else {
+                    return false;
+                }
             } catch (Exception e) {
                 log.error("[{}][{}] Error reading entry for precise time based backlog check", topicName, e);
                 return false;
             }
-        }
-    }
-
-    private boolean slowestReaderTimeBasedBacklogQuotaCheck(PositionImpl slowestPosition)
-            throws ExecutionException, InterruptedException {
-        int backlogQuotaLimitInSecond = getBacklogQuota(BacklogQuota.BacklogQuotaType.message_age).getLimitTime();
-        Long ledgerId = slowestPosition.getLedgerId();
-        if (((ManagedLedgerImpl) ledger).getLedgersInfo().lastKey().equals(ledgerId)) {
-            return false;
-        }
-        int result;
-        org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo
-                ledgerInfo = ledger.getLedgerInfo(ledgerId).get();
-        if (ledgerInfo != null && ledgerInfo.hasTimestamp() && ledgerInfo.getTimestamp() > 0
-                && ((ManagedLedgerImpl) ledger).getClock().millis() - ledgerInfo.getTimestamp()
-                > backlogQuotaLimitInSecond * 1000 && (result = slowestPosition.compareTo(
-                new PositionImpl(ledgerInfo.getLedgerId(), ledgerInfo.getEntries() - 1))) <= 0) {
-            if (result < 0) {
-                if (log.isDebugEnabled()) {
-                    log.debug("Time based backlog quota exceeded, quota {}, age of ledger "
-                                    + "slowest cursor currently on {}", backlogQuotaLimitInSecond * 1000,
-                            ((ManagedLedgerImpl) ledger).getClock().millis() - ledgerInfo.getTimestamp());
-                }
-                return true;
-            } else {
-                return slowestReaderTimeBasedBacklogQuotaCheck(
-                        ((ManagedLedgerImpl) ledger).getNextValidPosition(slowestPosition));
-            }
-        } else {
-            return false;
         }
     }
 
