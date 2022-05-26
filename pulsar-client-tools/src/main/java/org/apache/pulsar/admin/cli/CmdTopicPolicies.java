@@ -277,9 +277,10 @@ public class CmdTopicPolicies extends CmdBase {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = { "-t", "--ttl" }, description = "Message TTL for topic in second, "
-                + "allowed range from 1 to Integer.MAX_VALUE", required = true)
-        private int messageTTLInSecond;
+        @Parameter(names = { "-t", "--ttl" },
+                description = "Message TTL for topic in seconds (or minutes, hours, days, weeks eg: 100m, 3h, 2d, 5w), "
+                        + "allowed range from 1 to Integer.MAX_VALUE", required = true)
+        private String messageTTLStr;
 
         @Parameter(names = { "--global", "-g" }, description = "Whether to set this policy globally. "
                 + "If set to true, broker returned global topic policies")
@@ -287,12 +288,20 @@ public class CmdTopicPolicies extends CmdBase {
 
         @Override
         void run() throws PulsarAdminException {
-            if (messageTTLInSecond < 0) {
-                throw new ParameterException(String.format("Invalid retention policy type '%d'. ", messageTTLInSecond));
+            long messageTTLInSecond;
+            try {
+                messageTTLInSecond = RelativeTimeUtil.parseRelativeTimeInSeconds(messageTTLStr);
+            } catch (IllegalArgumentException e) {
+                throw new ParameterException(e.getMessage());
+            }
+
+            if (messageTTLInSecond < 0 || messageTTLInSecond > Integer.MAX_VALUE) {
+                throw new ParameterException(
+                        String.format("Message TTL cannot be negative or greater than %d seconds", Integer.MAX_VALUE));
             }
 
             String persistentTopic = validatePersistentTopic(params);
-            getTopicPolicies(isGlobal).setMessageTTL(persistentTopic, messageTTLInSecond);
+            getTopicPolicies(isGlobal).setMessageTTL(persistentTopic, (int) messageTTLInSecond);
         }
     }
 
