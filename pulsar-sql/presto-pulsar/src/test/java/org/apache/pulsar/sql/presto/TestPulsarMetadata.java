@@ -410,7 +410,7 @@ public class TestPulsarMetadata extends TestPulsarConnector {
         // Test getTableHandle should fail the auth check
         try {
             this.pulsarMetadata.getTableHandle(mock(ConnectorSession.class), schemaTableName);
-            Assert.fail(); // should fail
+            Assert.fail("Test getTableHandle should fail the auth check"); // should fail
         } catch (PrestoException e) {
             Assert.assertEquals(PERMISSION_DENIED.toErrorCode(), e.getErrorCode());
         }
@@ -419,7 +419,7 @@ public class TestPulsarMetadata extends TestPulsarConnector {
         try {
             this.pulsarMetadata.getTableMetadata(mock(ConnectorSession.class),
                     pulsarTableHandle);
-            Assert.fail(); // should fail
+            Assert.fail("Test getTableMetadata should fail the auth check"); // should fail
         } catch (PrestoException e) {
             Assert.assertEquals(PERMISSION_DENIED.toErrorCode(), e.getErrorCode());
         }
@@ -427,7 +427,7 @@ public class TestPulsarMetadata extends TestPulsarConnector {
         // Test getColumnHandles should fail the auth check
         try {
             this.pulsarMetadata.getColumnHandles(mock(ConnectorSession.class), pulsarTableHandle);
-            Assert.fail(); // should fail
+            Assert.fail("Test getColumnHandles should fail the auth check"); // should fail
         } catch (PrestoException e) {
             Assert.assertEquals(PERMISSION_DENIED.toErrorCode(), e.getErrorCode());
         }

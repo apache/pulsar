@@ -130,6 +130,7 @@ public class PulsarMetadata implements ConnectorMetadata {
     @Override
     public ConnectorTableHandle getTableHandle(ConnectorSession session, SchemaTableName tableName) {
         TopicName topicName = getMatchedTopicName(tableName);
+        checkTopicAuthorization(session, topicName.toString());
         return new PulsarTableHandle(
                 this.connectorId,
                 tableName.getSchemaName(),
