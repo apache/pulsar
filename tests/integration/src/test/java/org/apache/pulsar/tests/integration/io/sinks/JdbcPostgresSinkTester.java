@@ -22,10 +22,8 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
-
 import lombok.AllArgsConstructor;
 import lombok.Cleanup;
 import lombok.Data;
@@ -188,5 +186,9 @@ public class JdbcPostgresSinkTester extends SinkTester<PostgreSQLContainer> {
             log.error("Got exception: ", e);
             fail("Got exception when op sql.");
         }
+    }
+
+    public boolean isKeyValueSchema() {
+        return keyValueSchema;
     }
 }
