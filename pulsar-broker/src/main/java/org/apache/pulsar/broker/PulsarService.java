@@ -440,13 +440,6 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                                                     * getConfiguration()
                                                     .getBrokerShutdownTimeoutMs())));
 
-            // shutdown loadmanager before shutting down the broker
-            executorServicesShutdown.shutdown(loadManagerExecutor);
-            LoadManager loadManager = this.loadManager.get();
-            if (loadManager != null) {
-                loadManager.stop();
-            }
-
             List<CompletableFuture<Void>> asyncCloseFutures = new ArrayList<>();
             if (this.brokerService != null) {
                 CompletableFuture<Void> brokerCloseFuture = this.brokerService.closeAsync();
@@ -481,6 +474,9 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 this.leaderElectionService = null;
             }
 
+            // shutdown loadmanager before shutting down the broker
+            executorServicesShutdown.shutdown(loadManagerExecutor);
+
             if (adminClient != null) {
                 adminClient.close();
                 adminClient = null;
@@ -507,7 +503,10 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             executorServicesShutdown.shutdown(orderedExecutor);
             executorServicesShutdown.shutdown(cacheExecutor);
 
-
+            LoadManager loadManager = this.loadManager.get();
+            if (loadManager != null) {
+                loadManager.stop();
+            }
 
             if (schemaRegistryService != null) {
                 schemaRegistryService.close();
