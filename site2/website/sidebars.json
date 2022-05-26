@@ -130,7 +130,18 @@
         "administration-load-balance",
         "administration-proxy",
         "administration-upgrade",
-        "administration-isolation"
+        {
+          "type": "category",
+          "label": "Pulsar isolation",
+          "link": {
+            "type": "doc",
+            "id": "administration-isolation"
+          },
+          "items": [
+            "administration-isolation-broker",
+            "administration-isolation-bookie"
+          ]
+        }
       ]
     },
     {
