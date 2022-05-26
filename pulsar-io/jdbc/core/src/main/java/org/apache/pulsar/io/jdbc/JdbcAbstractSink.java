@@ -133,12 +133,16 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
 
     @Override
     public void close() throws Exception {
-        if (!connection.getAutoCommit()) {
+        if (connection != null && !connection.getAutoCommit()) {
             connection.commit();
         }
-        flushExecutor.shutdown();
+        if (flushExecutor != null) {
+            flushExecutor.shutdown();
+            flushExecutor = null;
+        }
         if (connection != null) {
             connection.close();
+            connection = null;
         }
         log.info("Closed jdbc connection: {}", jdbcUrl);
     }
@@ -210,6 +214,7 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
                             throw new IllegalArgumentException(msg);
                     }
                 }
+                System.out.println("so here now..");
                 connection.commit();
                 swapList.forEach(Record::ack);
             } catch (Exception e) {
