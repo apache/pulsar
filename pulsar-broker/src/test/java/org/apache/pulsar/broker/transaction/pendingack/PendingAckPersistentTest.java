@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.transaction.pendingack;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import com.google.common.collect.Sets;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -44,6 +45,7 @@ import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.Transaction;
@@ -53,6 +55,8 @@ import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
@@ -541,32 +545,24 @@ public class PendingAckPersistentTest extends TransactionTestBase {
                         .get();
 
         PersistentSubscription persistentSubscription = persistentTopic.getSubscription(subName);
-        Field field1 = PersistentSubscription.class.getDeclaredField("pendingAckHandle");
-        field1.setAccessible(true);
-        PendingAckHandleImpl oldPendingAckHandle = (PendingAckHandleImpl) field1.get(persistentSubscription);
-        Field field2 = PendingAckHandleImpl.class.getDeclaredField("individualAckOfTransaction");
-        field2.setAccessible(true);
-        LinkedMap<TxnID, HashMap<PositionImpl, PositionImpl>> oldIndividualAckOfTransaction =
-                (LinkedMap<TxnID, HashMap<PositionImpl, PositionImpl>>) field2.get(oldPendingAckHandle);
-        Awaitility.await().untilAsserted(() -> Assert.assertEquals(oldIndividualAckOfTransaction.size(), 0));
-
         PendingAckHandleImpl pendingAckHandle = new PendingAckHandleImpl(persistentSubscription);
 
         Method method = PendingAckHandleImpl.class.getDeclaredMethod("initPendingAckStore");
         method.setAccessible(true);
         method.invoke(pendingAckHandle);
 
-        Field field3 = PendingAckHandleImpl.class.getDeclaredField("pendingAckStoreFuture");
-        field3.setAccessible(true);
+        Field field1 = PendingAckHandleImpl.class.getDeclaredField("pendingAckStoreFuture");
+        field1.setAccessible(true);
+        CompletableFuture<PendingAckStore> completableFuture =
+                (CompletableFuture<PendingAckStore>) field1.get(pendingAckHandle);
 
         Awaitility.await().until(() -> {
-            CompletableFuture<PendingAckStore> completableFuture =
-                    (CompletableFuture<PendingAckStore>) field3.get(pendingAckHandle);
             completableFuture.get();
             return true;
         });
 
-
+        Field field2 = PendingAckHandleImpl.class.getDeclaredField("individualAckOfTransaction");
+        field2.setAccessible(true);
         LinkedMap<TxnID, HashMap<PositionImpl, PositionImpl>> individualAckOfTransaction =
                 (LinkedMap<TxnID, HashMap<PositionImpl, PositionImpl>>) field2.get(pendingAckHandle);
 
