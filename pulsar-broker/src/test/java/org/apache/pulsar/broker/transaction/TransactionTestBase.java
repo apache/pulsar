@@ -86,7 +86,6 @@ public abstract class TransactionTestBase extends TestRetrySupport {
 
     public static final String TENANT = "tnx";
     protected static final String NAMESPACE1 = TENANT + "/ns1";
-    protected static final String NAMESPACE3 = TENANT + "/ns3";
     protected ServiceConfiguration conf = new ServiceConfiguration();
 
     public void internalSetup() throws Exception {
@@ -131,7 +130,6 @@ public abstract class TransactionTestBase extends TestRetrySupport {
             admin.tenants().createTenant(TENANT,
                     new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
             admin.namespaces().createNamespace(NAMESPACE1);
-            admin.namespaces().createNamespace(NAMESPACE3);
             if (numPartitions == 0) {
                 admin.topics().createNonPartitionedTopic(topic);
             } else {
