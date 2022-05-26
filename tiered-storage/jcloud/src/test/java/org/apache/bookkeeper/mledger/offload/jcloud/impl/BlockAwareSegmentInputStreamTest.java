@@ -217,10 +217,8 @@ public class BlockAwareSegmentInputStreamTest {
         };
     }
 
-//    @Test(dataProvider = "useBufferRead")
-    @Test
-    public void testHaveEndPadding() throws Exception {
-        boolean useBufferRead = true;
+    @Test(dataProvider = "useBufferRead")
+    public void testHaveEndPadding(boolean useBufferRead) throws Exception {
         int ledgerId = 1;
         int entrySize = 8;
         int lac = 160;
@@ -787,6 +785,7 @@ public class BlockAwareSegmentInputStreamTest {
         // 3. should have no padding
         int left = blockSize - DataBlockHeaderImpl.getDataStartOffset() -  expectedEntryCount * (entrySize + 4 + 8);
         assertEquals(left, 0);
+        assertEquals(inputStream.getBlockSize(), inputStream.getDataBlockFullOffset());
 
         // 4. reach end.
         byte[] b = new byte[4];
