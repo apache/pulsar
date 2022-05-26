@@ -238,16 +238,16 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
     @Test
     public void testPersistentTopicMessageAckRateMetricTopicLevel() throws Exception {
         String topicName = "persistent://public/default/msg_ack_rate" + UUID.randomUUID();
-        testMessageAckRateMetricTopicLevel(topicName, true);
+        testMessageAckRateMetric(topicName, true);
     }
 
     @Test
     public void testPersistentTopicMessageAckRateMetricNamespaceLevel() throws Exception {
         String topicName = "persistent://public/default/msg_ack_rate" + UUID.randomUUID();
-        testMessageAckRateMetricTopicLevel(topicName, false);
+        testMessageAckRateMetric(topicName, false);
     }
 
-    private void testMessageAckRateMetricTopicLevel(String topicName, boolean exposeTopicLevelMetrics)
+    private void testMessageAckRateMetric(String topicName, boolean exposeTopicLevelMetrics)
             throws Exception {
         final int messages = 100;
         String subName = "test_sub";
