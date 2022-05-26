@@ -214,7 +214,6 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
                             throw new IllegalArgumentException(msg);
                     }
                 }
-                System.out.println("so here now..");
                 connection.commit();
                 swapList.forEach(Record::ack);
             } catch (Exception e) {
