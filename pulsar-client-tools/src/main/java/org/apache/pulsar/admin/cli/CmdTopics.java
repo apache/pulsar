@@ -33,6 +33,7 @@ import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -975,10 +976,13 @@ public class CmdTopics extends CmdBase {
         void run() throws Exception {
             String topic = validateTopicName(params);
             Map<String, String> map = parseListKeyValueMap(properties);
-            if ((map == null || map.isEmpty()) && !clear) {
+            if (map == null) {
+                map = Collections.emptyMap();
+            }
+            if ((map.isEmpty()) && !clear) {
                 throw new ParameterException("If you want to clear the properties you have to use --clear");
             }
-            if (clear && (map != null && !map.isEmpty())) {
+            if (clear && !map.isEmpty()) {
                 throw new ParameterException("If you set --clear then you should not pass any properties");
             }
             getTopics().updateSubscriptionProperties(topic, subscriptionName, map);
