@@ -91,7 +91,7 @@ public class TransactionProduceTest extends TransactionTestBase {
 
     @Test
     public void testDeleteNamespaceBeforeCommit() throws Exception {
-        final String topic = NAMESPACE1 + "/testDeleteTopicBeforeCommit";
+        final String topic = "persistent://" + NAMESPACE3 + "/testDeleteTopicBeforeCommit";
         PulsarClient pulsarClient = this.pulsarClient;
         Transaction tnx = pulsarClient.newTransaction()
                 .withTransactionTimeout(60, TimeUnit.SECONDS)
@@ -113,8 +113,8 @@ public class TransactionProduceTest extends TransactionTestBase {
         outProducer.newMessage(tnx).value(content.getBytes(UTF_8)).send();
 
         try {
-            admin.namespaces().deleteNamespace(NAMESPACE1, true);
-        } catch (Exception ignore) {}
+            admin.namespaces().deleteNamespace(NAMESPACE3, true);
+        } catch (Exception ignore) { }
         tnx.commit().get();
     }
 
