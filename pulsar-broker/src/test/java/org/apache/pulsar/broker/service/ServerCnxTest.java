@@ -1813,7 +1813,7 @@ public class ServerCnxTest {
         channel.finish();
     }
 
-    @Test
+    @Test(enabled = false)
     public void testNeverDelayConsumerFutureWhenNotFail() throws Exception{
         // Mock ServerCnx.field: consumers
         ConcurrentLongHashMap.Builder mapBuilder = Mockito.mock(ConcurrentLongHashMap.Builder.class);
