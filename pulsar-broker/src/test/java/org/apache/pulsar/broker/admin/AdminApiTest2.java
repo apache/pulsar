@@ -1311,7 +1311,9 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         assertFalse(admin.tenants().getTenants().contains(tenant));
 
         final String managedLedgersPath = "/managed-ledgers/" + tenant;
+        final String bundleDataPath = "/loadbalance/bundle-data/" + tenant;
         assertFalse(pulsar.getLocalMetadataStore().exists(managedLedgersPath).join());
+        assertFalse(pulsar.getLocalMetadataStore().exists(bundleDataPath).join());
     }
 
     @Test
@@ -1355,6 +1357,9 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
 
         final String managedLedgersPath = "/managed-ledgers/" + namespace;
         assertFalse(pulsar.getLocalMetadataStore().exists(managedLedgersPath).join());
+
+        final String bundleDataPath = "/loadbalance/bundle-data/" + namespace;
+        assertFalse(pulsar.getLocalMetadataStore().exists(bundleDataPath).join());
     }
 
     @Test
