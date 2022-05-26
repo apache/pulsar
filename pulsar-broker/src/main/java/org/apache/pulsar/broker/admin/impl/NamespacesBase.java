@@ -791,8 +791,8 @@ public abstract class NamespacesBase extends AdminResource {
                                                         validateClusterForTenantAsync(
                                                                 namespaceName.getTenant(), clusterId));
                                     }).collect(Collectors.toList());
-                            return FutureUtil.waitForAll(futures);
-                        }).thenCompose(__ -> CompletableFuture.completedFuture(replicationClusterSet)))
+                            return FutureUtil.waitForAll(futures).thenApply(__ -> replicationClusterSet);
+                        }))
                 .thenCompose(replicationClusterSet -> updatePoliciesAsync(namespaceName, policies -> {
                     policies.replication_clusters = replicationClusterSet;
                     return policies;
