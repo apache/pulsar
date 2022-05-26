@@ -58,8 +58,6 @@ import io.prestosql.spi.type.ArrayType;
 import io.prestosql.spi.type.BigintType;
 import io.prestosql.spi.type.BooleanType;
 import io.prestosql.spi.type.DateType;
-import io.prestosql.spi.type.DecimalType;
-import io.prestosql.spi.type.Decimals;
 import io.prestosql.spi.type.DoubleType;
 import io.prestosql.spi.type.IntegerType;
 import io.prestosql.spi.type.MapType;
@@ -72,7 +70,6 @@ import io.prestosql.spi.type.TinyintType;
 import io.prestosql.spi.type.Type;
 import io.prestosql.spi.type.VarbinaryType;
 import io.prestosql.spi.type.VarcharType;
-import java.math.BigInteger;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -123,9 +120,6 @@ public class PulsarJsonFieldDecoder
     }
 
     private boolean isSupportedType(Type type) {
-        if (type instanceof DecimalType) {
-            return true;
-        }
         if (isVarcharType(type)) {
             return true;
         }
@@ -234,13 +228,6 @@ public class PulsarJsonFieldDecoder
                     return floatToIntBits((Float) parseFloat(value.asText()));
                 }
 
-                // If it is decimalType, need to eliminate the decimal point,
-                // and give it to presto to set the decimal point
-                if (type instanceof DecimalType) {
-                    String decimalLong = value.asText().replace(".", "");
-                    return Long.valueOf(decimalLong);
-                }
-
                 long longValue;
                 if (value.isIntegralNumber() && !value.isBigInteger()) {
                     longValue = value.longValue();
@@ -280,15 +267,6 @@ public class PulsarJsonFieldDecoder
 
         private static Slice getSlice(JsonNode value, Type type, String columnName) {
             String textValue = value.isValueNode() ? value.asText() : value.toString();
-
-            // If it is decimalType, need to eliminate the decimal point,
-            // and give it to presto to set the decimal point
-            if (type instanceof DecimalType) {
-                textValue = textValue.replace(".", "");
-                BigInteger bigInteger = new BigInteger(textValue);
-                return Decimals.encodeUnscaledValue(bigInteger);
-            }
-
             Slice slice = utf8Slice(textValue);
             if (isVarcharType(type)) {
                 slice = truncateToLength(slice, type);
