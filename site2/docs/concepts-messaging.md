@@ -818,7 +818,7 @@ In non-persistent topics, brokers immediately deliver messages to all connected 
 
 By default, non-persistent topics are enabled on Pulsar brokers. You can disable them in the broker's [configuration](reference-configuration.md#broker-enableNonPersistentTopics). You can manage non-persistent topics using the `pulsar-admin topics` command. For more information, see [`pulsar-admin`](https://pulsar.apache.org/tools/pulsar-admin/).
 
-Currently non-persistent topics which are not partitioned are not persisted to ZK, which means if the broker owning them crashes, they won't get re-assigned to another broker because they only existed in the owner broker memory. The current work-around for that is to make sure `allowAutoTopicCreation` broker config is `true` and `allowAutoTopicCreationType` is `non-partitioned` (Those the the default values).
+Currently, non-persistent topics which are not partitioned are not persisted to ZooKeeper, which means if the broker owning them crashes, they do not get re-assigned to another broker because they only exist in the owner broker memory. The current workaround is to set the value of `allowAutoTopicCreation` to `true` and `allowAutoTopicCreationType` to `non-partitioned` (they are default values) in broker configuration.
 
 ### Performance
 
