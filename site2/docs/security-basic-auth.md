@@ -37,19 +37,19 @@ Create a password file named `.htpasswd` with a user account `superuser/admin`:
 * Use MD5 encryption (recommended):
 
    ```
-   htpasswd -cmb .htpasswd superuser admin
+   htpasswd -cmb /path/to/.htpasswd superuser admin
    ```
 
 * Use CRYPT encryption:
 
    ```
-   htpasswd -cdb .htpasswd superuser admin
+   htpasswd -cdb /path/to/.htpasswd superuser admin
    ```
 
 You can preview the content of your password file by running the following command:
 
 ```
-cat .htpasswd
+cat path/to/.htpasswd
 superuser:$apr1$GBIYZYFZ$MzLcPrvoUky16mLcK6UtX/
 ```
 
@@ -73,7 +73,7 @@ To configure brokers to authenticate clients, complete the following steps.
    authenticateOriginalAuthData=true
    ```
 
-2. Set an environment variable named `pulsar.auth.basic.conf` and the value is `.htpasswd`. Pulsar reads this environment variable to implement HTTP basic authentication.
+2. Set an environment variable named `PULSAR_EXTRA_OPTS` and the value is `-Dpulsar.auth.basic.conf=/path/to/.htpasswd`. Pulsar reads this environment variable to implement HTTP basic authentication.
 
 ## Enable basic authentication on proxies
 
@@ -95,11 +95,11 @@ To configure proxies to authenticate clients, complete the following steps.
    forwardAuthorizationCredentials=true
    ```
 
-2. Set an environment variable named `pulsar.auth.basic.conf` and the value is `.htpasswd`. Pulsar reads this environment variable to implement HTTP basic authentication.
+2. Set an environment variable named `PULSAR_EXTRA_OPTS` and the value is `-Dpulsar.auth.basic.conf=/path/to/.htpasswd`. Pulsar reads this environment variable to implement HTTP basic authentication.
 
 ## Configure basic authentication through CLI tools
 
-[Command-line tools](https://pulsar.apache.org/docs/next/reference-cli-tools), such as [Pulsar-admin](https://pulsar.apache.org/tools/pulsar-admin/), [Pulsar-perf](https://pulsar.apache.org/tools/pulsar-perf/) and [Pulsar-client](https://pulsar.apache.org/tools/pulsar-client/), use the `conf/client.conf` file in your Pulsar installation. To use basic authentication through Pulsar CLI tools, you need to add the following parameters to the `conf/client.conf` file.
+[Command-line tools](/docs/next/reference-cli-tools), such as [Pulsar-admin](/tools/pulsar-admin/), [Pulsar-perf](/tools/pulsar-perf/) and [Pulsar-client](/tools/pulsar-client/), use the `conf/client.conf` file in your Pulsar installation. To use basic authentication through Pulsar CLI tools, you need to add the following parameters to the `conf/client.conf` file.
 
 ```
 authPlugin=org.apache.pulsar.client.impl.auth.AuthenticationBasic
