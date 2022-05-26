@@ -52,7 +52,19 @@ authenticationProviders=
 
 ```
 
-For the implementation of the `org.apache.pulsar.broker.authentication.AuthenticationProvider` interface, refer to [here](https://github.com/apache/pulsar/blob/master/pulsar-broker-common/src/main/java/org/apache/pulsar/broker/authentication/AuthenticationProvider.java).
+:::tip
+
+Pulsar supports chained authentication providers with the same authentication method name. 
+
+For example, your Pulsar cluster uses JSON Web Token (JWT) authentication and you want to upgrade it to use OAuth2.0 authentication. Both JWT and OAuth2.0 share the same authentication method name. In this case, you can chain their class names in `conf/broker.conf` and separate them by using a comma.
+
+```properties
+authenticationProviders=org.apache.pulsar.broker.authentication.AuthenticationProviderJWT,org.apache.pulsar.broker.authentication.AuthenticationProviderOAuth2
+```
+
+:::
+
+For the implementation of the `org.apache.pulsar.broker.authentication.AuthenticationProvider` interface, refer to [code](https://github.com/apache/pulsar/blob/master/pulsar-broker-common/src/main/java/org/apache/pulsar/broker/authentication/AuthenticationProvider.java).
 
 You can find the following examples for different broker authentication plugins:
 
@@ -79,4 +91,4 @@ To provide a custom authorization provider, you need to implement the `org.apach
  
  ```
 
-For the implementation of the `org.apache.pulsar.broker.authorization.AuthorizationProvider` interface, refer to [here](https://github.com/apache/pulsar/blob/master/pulsar-broker-common/src/main/java/org/apache/pulsar/broker/authorization/AuthorizationProvider.java).
+For the implementation of the `org.apache.pulsar.broker.authorization.AuthorizationProvider` interface, refer to [code](https://github.com/apache/pulsar/blob/master/pulsar-broker-common/src/main/java/org/apache/pulsar/broker/authorization/AuthorizationProvider.java).
