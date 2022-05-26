@@ -1,7 +1,7 @@
 ---
 author: XiaoLong Ran
 authorURL: https://twitter.com/wolf4j1
-title: Apache Pulsar 2.6.1
+title: "Apache Pulsar 2.6.1"
 ---
 We are excited to see that the Apache Pulsar community has successfully released 2.6.1 version after a lot of hard work. It is a great milestone for this fast-growing project and the Pulsar community. 2.6.1 is the result of a big effort from the community, with over 100 commits and a long list of improvements and bug fixes.
 
@@ -32,10 +32,12 @@ For more information about implementation, see [PR-7231](https://github.com/apac
 If the `canProduce` or `canConsume` method throws an exception, the `canLookup` method just throws the exception and does not check other permissions. The code snippet is as follows: 
 
 ```java
+
 try {
     return canLookupAsync(topicName, role, authenticationData)
             .get(conf.getZooKeeperOperationTimeoutSeconds(), SECONDS);
 }
+
 ```
 
 PR-7234 invokes `canLookupAsync`. When Pulsar AuthorizationService checks lookup permission, if the user has the `canProducer` or `canConsumer` role, the user performs `canLookup` operations.
@@ -53,8 +55,9 @@ For more information about implementation, see [PR-7264](https://github.com/apac
 ### Fix error in creation of non-durable cursor
 
 An NPE occurs when we fail to create a non-durable cursor and continue to create the subscription instance. 
-                                                                      
+
 ```java
+
 try {
     cursor = ledger.newNonDurableCursor(startPosition, subscriptionName);
 } catch (ManagedLedgerException e) {
@@ -62,6 +65,7 @@ try {
 }
 
 return new PersistentSubscription(this, subscriptionName, cursor, false);
+
 ```
 
 Additionally, the NPE leads to the topic usage count increasing to 1. When deleting a topic, the topic cannot be deleted even if you use the force flag.
@@ -104,11 +108,14 @@ For more information about implementation, see [PR-7656](https://github.com/apac
 ### Fix the issue that GetLastEntry() reads entry `-1`
 
 Previously, the code does not include a return statement. If the entry is set to `-1`, after sending code, the response reads the entry and sends a second response, as shown in the following example.
+
 ```
+
 16:34:25.779 [pulsar-io-54-7:org.apache.bookkeeper.client.LedgerHandle@748] ERROR org.apache.bookkeeper.client.LedgerHandle - IncorrectParameterException on ledgerId:0 firstEntry:-1 lastEntry:-1
 16:34:25.779 [pulsar-client-io-82-1:org.apache.pulsar.client.impl.ConsumerImpl@1986] INFO  org.apache.pulsar.client.impl.ConsumerImpl - [persistent://external-repl-prop/pulsar-function-admin/assignment][c-use-fw-localhost-0-function-assignment-initialize-reader-b21f7607c9] Successfully getLastMessageId 0:-1
 16:34:25.779 [pulsar-client-io-82-1:org.apache.pulsar.client.impl.ClientCnx@602] WARN  org.apache.pulsar.client.impl.ClientCnx - [id: 0xc78f4a0e, L:/127.0.0.1:55657 - R:localhost/127.0.0.1:55615] Received error from server: Failed to get batch size for entry org.apache.bookkeeper.mledger.ManagedLedgerException: Incorrect parameter input
 16:34:25.779 [pulsar-client-io-82-1:org.apache.pulsar.client.impl.ClientCnx@612] WARN  org.apache.pulsar.client.impl.ClientCnx - [id: 0xc78f4a0e, L:/127.0.0.1:55657 - R:localhost/127.0.0.1:55615] Received unknown request id from server: 10
+
 ```
 
 PR-7495 adds a return statement to code, so GetLastEntry() reads the last entry, instead of `-1`.  
@@ -134,11 +141,13 @@ Then two issues occur:
 The exception is thrown at Line 77(as shown in the following code snippet), since `getAddress()` returns a `null` given that the address is parsed.  
 
 ```java
+
 74        if (dnsResolver.useHostName()) {
 75            names.add(addr.getHostName());
 76        } else {
 77            names.add(addr.getAddress().getHostAddress());
 78        }
+
 ```
 
 The default implementation for the `DnsResolver.useHostName()` returns `true`.
@@ -235,14 +244,16 @@ For more information about implementation, see [PR-7360](https://github.com/apac
 ### Fix the function BC issue introduced in release 2.6.0
 
 A backwards compatibility breakage is introduced in [PR-5985](https://github.com/apache/pulsar/pull/5985). When the running function workers are separated from brokers, updating workers and brokers independently from release 2.5.0 to 2.6.0 results in the following error:
-                                                                                                                  
+
 ```text
+
 java.lang.NullPointerException: null\n\tat java.net.URI$Parser.parse(URI.java:3104) ~[?:?]
 java.net.URI.<init>(URI.java:600) ~[?:?]\n\tat java.net.URI.create(URI.java:881) ~[?:?]
 org.apache.pulsar.functions.worker.WorkerUtils.initializeDlogNamespace(WorkerUtils.java:160) ~[org.apache.pulsar-pulsar-functions-worker-2.7.0-SNAPSHOT.jar:2.7.0-SNAPSHOT]
 org.apache.pulsar.functions.worker.Worker.initialize(Worker.java:155) ~[org.apache.pulsar-pulsar-functions-worker-2.7.0-SNAPSHOT.jar:2.7.0-SNAPSHOT] 
 org.apache.pulsar.functions.worker.Worker.start(Worker.java:69) ~[org.apache.pulsar-pulsar-functions-worker-2.7.0-SNAPSHOT.jar:2.7.0-SNAPSHOT] 
 org.apache.pulsar.functions.worker.FunctionWorkerStarter.main(FunctionWorkerStarter.java:67) [org.apache.pulsar-pulsar-functions-worker-2.7.0-SNAPSHOT.jar:2.7.0-SNAPSHOT]
+
 ```
 
 This is because the broker 2.5.0 supports "bookkeeperMetadataServiceUri" and the admin client returns a `null` field, thus causing the NPE.

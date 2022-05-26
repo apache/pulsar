@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerMBeanImpl.ENTRY_LATENCY_BUCKETS_USEC;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.Lists;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumSet;
@@ -107,8 +108,6 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
     protected volatile boolean isEncryptionRequired = false;
 
     protected volatile Boolean isAllowAutoUpdateSchema;
-    // schema validation enforced flag
-    protected volatile boolean schemaValidationEnforced = false;
 
     protected volatile PublishRateLimiter topicPublishRateLimiter;
 
@@ -220,7 +219,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
             DispatchRateImpl.normalize(data.getSubscriptionDispatchRate()));
         topicPolicies.getCompactionThreshold().updateTopicValue(data.getCompactionThreshold());
         topicPolicies.getDispatchRate().updateTopicValue(DispatchRateImpl.normalize(data.getDispatchRate()));
-
+        topicPolicies.getSchemaValidationEnforced().updateTopicValue(data.getSchemaValidationEnforced());
         this.subscriptionPolicies = data.getSubscriptionPolicies();
     }
 
@@ -268,6 +267,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
             brokerService.getPulsar().getConfig().getClusterName());
         updateSchemaCompatibilityStrategyNamespaceValue(namespacePolicies);
         updateNamespaceDispatchRate(namespacePolicies, brokerService.getPulsar().getConfig().getClusterName());
+        topicPolicies.getSchemaValidationEnforced().updateNamespaceValue(namespacePolicies.schema_validation_enforced);
     }
 
     private void updateNamespaceDispatchRate(Policies namespacePolicies, String cluster) {
@@ -361,6 +361,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         topicPolicies.getSchemaCompatibilityStrategy()
                 .updateBrokerValue(formatSchemaCompatibilityStrategy(schemaCompatibilityStrategy));
         topicPolicies.getDispatchRate().updateBrokerValue(dispatchRateInBroker(config));
+        topicPolicies.getSchemaValidationEnforced().updateBrokerValue(config.isSchemaValidationEnforced());
     }
 
     private DispatchRateImpl dispatchRateInBroker(ServiceConfiguration config) {
@@ -569,7 +570,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
 
     @Override
     public boolean getSchemaValidationEnforced() {
-        return schemaValidationEnforced;
+        return topicPolicies.getSchemaValidationEnforced().get();
     }
 
     public void markBatchMessagePublished() {
@@ -738,7 +739,55 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
                         return topicEpoch;
                     });
                 }
+                case ExclusiveWithFencing:
+                    if (hasExclusiveProducer || !producers.isEmpty()) {
+                        // clear all waiting producers
+                        // otherwise closing any producer will trigger the promotion
+                        // of the next pending producer
+                        List<Pair<Producer, CompletableFuture<Optional<Long>>>> waitingExclusiveProducersCopy =
+                                new ArrayList<>(waitingExclusiveProducers);
+                        waitingExclusiveProducers.clear();
+                        waitingExclusiveProducersCopy.forEach((Pair<Producer,
+                                                               CompletableFuture<Optional<Long>>> handle) -> {
+                            log.info("[{}] Failing waiting producer {}", topic, handle.getKey());
+                            handle.getValue().completeExceptionally(new ProducerFencedException("Fenced out"));
+                            handle.getKey().close(true);
+                        });
+                        producers.forEach((k, currentProducer) -> {
+                            log.info("[{}] Fencing out producer {}", topic, currentProducer);
+                            currentProducer.close(true);
+                        });
+                    }
+                    if (producer.getTopicEpoch().isPresent()
+                            && producer.getTopicEpoch().get() < topicEpoch.orElse(-1L)) {
+                        // If a producer reconnects, but all the topic epoch has already moved forward,
+                        // this producer needs to be fenced, because a new producer had been present in between.
+                        hasExclusiveProducer = false;
+                        return FutureUtil.failedFuture(new ProducerFencedException(
+                                String.format("Topic epoch has already moved. Current epoch: %d, Producer epoch: %d",
+                                        topicEpoch.get(), producer.getTopicEpoch().get())));
+                    } else {
+                        // There are currently no existing producers
+                        hasExclusiveProducer = true;
+                        exclusiveProducerName = producer.getProducerName();
 
+                        CompletableFuture<Long> future;
+                        if (producer.getTopicEpoch().isPresent()) {
+                            future = setTopicEpoch(producer.getTopicEpoch().get());
+                        } else {
+                            future = incrementTopicEpoch(topicEpoch);
+                        }
+                        future.exceptionally(ex -> {
+                            hasExclusiveProducer = false;
+                            exclusiveProducerName = null;
+                            return null;
+                        });
+
+                        return future.thenApply(epoch -> {
+                            topicEpoch = Optional.of(epoch);
+                            return topicEpoch;
+                        });
+                    }
             case WaitForExclusive: {
                 if (hasExclusiveProducer || !producers.isEmpty()) {
                     CompletableFuture<Optional<Long>> future = new CompletableFuture<>();

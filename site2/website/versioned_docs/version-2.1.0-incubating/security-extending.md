@@ -1,7 +1,7 @@
 ---
-id: version-2.1.0-incubating-security-extending
+id: security-extending
 title: Extending Authentication and Authorization in Pulsar
-sidebar_label: Extending
+sidebar_label: "Extending"
 original_id: security-extending
 ---
 
@@ -10,7 +10,7 @@ Pulsar provides a way to use custom authentication and authorization mechanisms
 ## Authentication
 
 Pulsar support mutual TLS and Athenz authentication plugins, and these can be used as described
-in [Security](security-overview.md).
+in [Security](security-overview).
 
 It is possible to use a custom authentication mechanism by providing the implementation in the
 form of two plugins one for the Client library and the other for the Pulsar Broker to validate
@@ -22,10 +22,12 @@ For client library, you will need to implement `org.apache.pulsar.client.api.Aut
 when creating a Pulsar client:
 
 ```java
+
 PulsarClient client = PulsarClient.builder()
     .serviceUrl("pulsar://localhost:6650")
     .authentication(new MyAuthentication())
     .build();
+
 ```
 
 For reference, there are 2 interfaces to implement on the client side:
@@ -52,13 +54,16 @@ at the same time.
 In `conf/broker.conf` it's possible to specify a list of valid providers:
 
 ```properties
+
 # Authentication provider name list, which is comma separated list of class names
 authenticationProviders=
+
 ```
 
 There is one single interface to implement `org.apache.pulsar.broker.authentication.AuthenticationProvider`:
 
 ```java
+
 /**
  * Provider of authentication mechanism
  */
@@ -91,6 +96,7 @@ public interface AuthenticationProvider extends Closeable {
     String authenticate(AuthenticationDataSource authData) throws AuthenticationException;
 
 }
+
 ```
 
 Example for Broker authentication plugins:
@@ -111,11 +117,14 @@ To provide a custom provider, one needs to implement the
  Pulsar broker classpath and configure it in `conf/broker.conf`:
 
  ```properties
+ 
  # Authorization provider fully qualified class-name
  authorizationProvider=org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider
+ 
  ```
 
 ```java
+
 /**
  * Provider of authorization mechanism
  */
@@ -180,8 +189,8 @@ public interface AuthorizationProvider extends Closeable {
      * @param authDataJson
      *            additional authdata in json format
      * @return CompletableFuture
-     * @completesWith <br/>
-     *                IllegalArgumentException when namespace not found<br/>
+     * @completesWith <br />
+     *                IllegalArgumentException when namespace not found<br />
      *                IllegalStateException when failed to grant permission
      */
     CompletableFuture<Void> grantPermissionAsync(NamespaceName namespace, Set<AuthAction> actions, String role,
@@ -195,8 +204,8 @@ public interface AuthorizationProvider extends Closeable {
      * @param authDataJson
      *            additional authdata in json format
      * @return CompletableFuture
-     * @completesWith <br/>
-     *                IllegalArgumentException when namespace not found<br/>
+     * @completesWith <br />
+     *                IllegalArgumentException when namespace not found<br />
      *                IllegalStateException when failed to grant permission
      */
     CompletableFuture<Void> grantPermissionAsync(TopicName topicName, Set<AuthAction> actions, String role,
@@ -205,3 +214,4 @@ public interface AuthorizationProvider extends Closeable {
 }
 
 ```
+

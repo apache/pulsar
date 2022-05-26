@@ -611,6 +611,9 @@ public class PulsarAdminToolTest {
         when(admin.namespaces()).thenReturn(mockNamespaces);
         namespaces = new CmdNamespaces(() -> admin);
 
+        namespaces.run(split("set-message-ttl myprop/clust/ns1 -ttl 6m"));
+        verify(mockNamespaces).setNamespaceMessageTTL("myprop/clust/ns1", 6 * 60);
+
         namespaces.run(split("clear-backlog -b 0x80000000_0xffffffff myprop/clust/ns1 -force"));
         verify(mockNamespaces).clearNamespaceBundleBacklog("myprop/clust/ns1", "0x80000000_0xffffffff");
 
@@ -1107,6 +1110,8 @@ public class PulsarAdminToolTest {
                 BacklogQuota.BacklogQuotaType.destination_storage);
         //cmd with option cannot be executed repeatedly.
         cmdTopics = new CmdTopicPolicies(() -> admin);
+        cmdTopics.run(split("set-message-ttl persistent://myprop/clust/ns1/ds1 -t 10h"));
+        verify(mockTopicsPolicies).setMessageTTL("persistent://myprop/clust/ns1/ds1", 10 * 60 * 60);
         cmdTopics.run(split("set-backlog-quota persistent://myprop/clust/ns1/ds1 -lt 1w -p consumer_backlog_eviction"));
         verify(mockTopicsPolicies).setBacklogQuota("persistent://myprop/clust/ns1/ds1",
                 BacklogQuota.builder()
@@ -1446,11 +1451,18 @@ public class PulsarAdminToolTest {
         verify(mockTopics).expireMessagesForAllSubscriptions("persistent://myprop/clust/ns1/ds1", 60 * 60 * 24);
 
         cmdTopics.run(split("create-subscription persistent://myprop/clust/ns1/ds1 -s sub1 --messageId earliest"));
-        verify(mockTopics).createSubscription("persistent://myprop/clust/ns1/ds1", "sub1", MessageId.earliest, false);
+        verify(mockTopics).createSubscription("persistent://myprop/clust/ns1/ds1", "sub1", MessageId.earliest, false, null);
+
+        // jcommander is stateful, you cannot parse the same command twice
+        cmdTopics = new CmdTopics(() -> admin);
+        cmdTopics.run(split("create-subscription persistent://myprop/clust/ns1/ds1 -s sub1 --messageId earliest --property a=b"));
+        Map<String, String> props = new HashMap<>();
+        props.put("a", "b");
+        verify(mockTopics).createSubscription("persistent://myprop/clust/ns1/ds1", "sub1", MessageId.earliest, false, props);
 
         cmdTopics = new CmdTopics(() -> admin);
         cmdTopics.run(split("create-subscription persistent://myprop/clust/ns1/ds1 -s sub1 --messageId earliest -r"));
-        verify(mockTopics).createSubscription("persistent://myprop/clust/ns1/ds1", "sub1", MessageId.earliest, true);
+        verify(mockTopics).createSubscription("persistent://myprop/clust/ns1/ds1", "sub1", MessageId.earliest, true, null);
 
         cmdTopics.run(split("create-partitioned-topic persistent://myprop/clust/ns1/ds1 --partitions 32"));
         verify(mockTopics).createPartitionedTopic("persistent://myprop/clust/ns1/ds1", 32, null);
@@ -1459,7 +1471,7 @@ public class PulsarAdminToolTest {
         verify(mockTopics).createMissedPartitions("persistent://myprop/clust/ns1/ds1");
 
         cmdTopics.run(split("create persistent://myprop/clust/ns1/ds1"));
-        verify(mockTopics).createNonPartitionedTopic("persistent://myprop/clust/ns1/ds1", new HashMap<>());
+        verify(mockTopics).createNonPartitionedTopic("persistent://myprop/clust/ns1/ds1", null);
 
         cmdTopics.run(split("list-partitioned-topics myprop/clust/ns1"));
         verify(mockTopics).getPartitionedTopicList("myprop/clust/ns1", ListTopicsOptions.EMPTY);
@@ -1845,8 +1857,16 @@ public class PulsarAdminToolTest {
         topics.run(split("expire-messages-all-subscriptions persistent://myprop/clust/ns1/ds1 -t 100"));
         verify(mockTopics).expireMessagesForAllSubscriptions("persistent://myprop/clust/ns1/ds1", 100);
 
+        topics.run(split("create-subscription persistent://myprop/clust/ns1/ds1 -s sub1 --messageId earliest -p a=b --property c=d"));
+        Map<String, String> props = new HashMap<>();
+        props.put("a", "b");
+        props.put("c", "d");
+        verify(mockTopics).createSubscription("persistent://myprop/clust/ns1/ds1", "sub1", MessageId.earliest, false, props);
+
+        // jcommander is stateful, you cannot parse the same command twice
+        topics = new CmdPersistentTopics(() -> admin);
         topics.run(split("create-subscription persistent://myprop/clust/ns1/ds1 -s sub1 --messageId earliest"));
-        verify(mockTopics).createSubscription("persistent://myprop/clust/ns1/ds1", "sub1", MessageId.earliest);
+        verify(mockTopics).createSubscription("persistent://myprop/clust/ns1/ds1", "sub1", MessageId.earliest, false, null);
 
         topics.run(split("create-partitioned-topic persistent://myprop/clust/ns1/ds1 --partitions 32"));
         verify(mockTopics).createPartitionedTopic("persistent://myprop/clust/ns1/ds1", 32);

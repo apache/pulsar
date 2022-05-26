@@ -333,13 +333,18 @@ public class Namespaces extends NamespacesBase {
     @ApiOperation(value = "Get the message TTL for the namespace")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist") })
-    public Integer getNamespaceMessageTTL(@PathParam("tenant") String tenant,
+    public void getNamespaceMessageTTL(@Suspended AsyncResponse asyncResponse, @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
-        validateNamespacePolicyOperation(NamespaceName.get(tenant, namespace), PolicyName.TTL, PolicyOperation.READ);
-
-        Policies policies = getNamespacePolicies(namespaceName);
-        return policies.message_ttl_in_seconds;
+        validateNamespacePolicyOperationAsync(NamespaceName.get(tenant, namespace), PolicyName.TTL,
+                PolicyOperation.READ)
+                .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
+                .thenAccept(policies -> asyncResponse.resume(policies.message_ttl_in_seconds))
+                .exceptionally(ex -> {
+                    log.error("Failed to get namespace message TTL for namespace {}", namespaceName, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @POST
@@ -348,22 +353,37 @@ public class Namespaces extends NamespacesBase {
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist"),
             @ApiResponse(code = 412, message = "Invalid TTL") })
-    public void setNamespaceMessageTTL(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
-            @ApiParam(value = "TTL in seconds for the specified namespace", required = true) int messageTTL) {
+    public void setNamespaceMessageTTL(@Suspended AsyncResponse asyncResponse, @PathParam("tenant") String tenant,
+                                       @PathParam("namespace") String namespace,
+                                       @ApiParam(value = "TTL in seconds for the specified namespace", required = true)
+                                               int messageTTL) {
         validateNamespaceName(tenant, namespace);
-        internalSetNamespaceMessageTTL(messageTTL);
+        internalSetNamespaceMessageTTLAsync(messageTTL)
+                .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
+                .exceptionally(ex -> {
+                    log.error("Failed to set namespace message TTL for namespace {}", namespaceName, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @DELETE
     @Path("/{tenant}/{namespace}/messageTTL")
-    @ApiOperation(value = "Set message TTL in seconds for namespace")
+    @ApiOperation(value = "Remove message TTL in seconds for namespace")
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist"),
             @ApiResponse(code = 412, message = "Invalid TTL")})
-    public void removeNamespaceMessageTTL(@PathParam("tenant") String tenant,
+    public void removeNamespaceMessageTTL(@Suspended AsyncResponse asyncResponse,
+                                          @PathParam("tenant") String tenant,
                                           @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
-        internalSetNamespaceMessageTTL(null);
+        internalSetNamespaceMessageTTLAsync(null)
+                .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
+                .exceptionally(ex -> {
+                    log.error("Failed to remove namespace message TTL for namespace {}", namespaceName, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @GET
@@ -411,9 +431,16 @@ public class Namespaces extends NamespacesBase {
     @ApiOperation(value = "Get broker side deduplication for all topics in a namespace")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist") })
-    public Boolean getDeduplication(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace) {
+    public void getDeduplication(@Suspended AsyncResponse asyncResponse, @PathParam("tenant") String tenant,
+                                 @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
-        return internalGetDeduplication();
+        internalGetDeduplicationAsync()
+                .thenAccept(deduplication -> asyncResponse.resume(deduplication))
+                .exceptionally(ex -> {
+                    log.error("Failed to get broker deduplication config for namespace {}", namespace, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @POST
@@ -421,12 +448,19 @@ public class Namespaces extends NamespacesBase {
     @ApiOperation(value = "Enable or disable broker side deduplication for all topics in a namespace")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist") })
-    public void modifyDeduplication(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
+    public void modifyDeduplication(@Suspended AsyncResponse asyncResponse, @PathParam("tenant") String tenant,
+                                    @PathParam("namespace") String namespace,
                                     @ApiParam(value = "Flag for disabling or enabling broker side deduplication "
                                             + "for all topics in the specified namespace", required = true)
                                             boolean enableDeduplication) {
         validateNamespaceName(tenant, namespace);
-        internalModifyDeduplication(enableDeduplication);
+        internalModifyDeduplicationAsync(enableDeduplication)
+                .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
+                .exceptionally(ex -> {
+                    log.error("Failed to modify broker deduplication config for namespace {}", namespaceName, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @DELETE
@@ -434,9 +468,17 @@ public class Namespaces extends NamespacesBase {
     @ApiOperation(value = "Remove broker side deduplication for all topics in a namespace")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist") })
-    public void removeDeduplication(@PathParam("tenant") String tenant, @PathParam("namespace") String namespace) {
+    public void removeDeduplication(@Suspended AsyncResponse asyncResponse, @PathParam("tenant") String tenant,
+                                    @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
-        internalModifyDeduplication(null);
+        internalModifyDeduplicationAsync(null)
+                .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
+                .exceptionally(e -> {
+                    Throwable ex = FutureUtil.unwrapCompletionException(e);
+                    log.error("Failed to remove broker deduplication config for namespace {}", namespaceName, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @GET
@@ -444,10 +486,17 @@ public class Namespaces extends NamespacesBase {
     @ApiOperation(value = "Get autoTopicCreation info in a namespace")
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or namespace doesn't exist")})
-    public AutoTopicCreationOverride getAutoTopicCreation(@PathParam("tenant") String tenant,
+    public void getAutoTopicCreation(@Suspended AsyncResponse asyncResponse,
+                                                          @PathParam("tenant") String tenant,
                                                           @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
-        return internalGetAutoTopicCreation();
+        internalGetAutoTopicCreationAsync()
+                .thenAccept(asyncResponse::resume)
+                .exceptionally(ex -> {
+                    log.error("Failed to get autoTopicCreation info for namespace {}", namespaceName, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @POST
@@ -463,14 +512,27 @@ public class Namespaces extends NamespacesBase {
             @PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
             @ApiParam(value = "Settings for automatic topic creation", required = true)
                     AutoTopicCreationOverride autoTopicCreationOverride) {
-        try {
-            validateNamespaceName(tenant, namespace);
-            internalSetAutoTopicCreation(asyncResponse, autoTopicCreationOverride);
-        } catch (RestException e) {
-            asyncResponse.resume(e);
-        } catch (Exception e) {
-            asyncResponse.resume(new RestException(e));
-        }
+        validateNamespaceName(tenant, namespace);
+        internalSetAutoTopicCreationAsync(autoTopicCreationOverride)
+                .thenAccept(__ -> {
+                    String autoOverride = (autoTopicCreationOverride != null
+                            && autoTopicCreationOverride.isAllowAutoTopicCreation()) ? "enabled" : "disabled";
+                    log.info("[{}] Successfully {} autoTopicCreation on namespace {}", clientAppId(),
+                            autoOverride, namespaceName);
+                    asyncResponse.resume(Response.noContent().build());
+                })
+                .exceptionally(e -> {
+                    Throwable ex = FutureUtil.unwrapCompletionException(e);
+                    log.error("[{}] Failed to set autoTopicCreation status on namespace {}", clientAppId(),
+                            namespaceName,
+                            ex);
+                    if (ex instanceof MetadataStoreException.NotFoundException) {
+                        asyncResponse.resume(new RestException(Response.Status.NOT_FOUND, "Namespace does not exist"));
+                    } else {
+                        resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    }
+                    return null;
+                });
     }
 
     @DELETE
@@ -480,14 +542,25 @@ public class Namespaces extends NamespacesBase {
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist") })
     public void removeAutoTopicCreation(@Suspended final AsyncResponse asyncResponse,
                                         @PathParam("tenant") String tenant, @PathParam("namespace") String namespace) {
-        try {
-            validateNamespaceName(tenant, namespace);
-            internalRemoveAutoTopicCreation(asyncResponse);
-        } catch (RestException e) {
-            asyncResponse.resume(e);
-        } catch (Exception e) {
-            asyncResponse.resume(new RestException(e));
-        }
+        validateNamespaceName(tenant, namespace);
+        internalSetAutoTopicCreationAsync(null)
+                .thenAccept(__ -> {
+                    log.info("[{}] Successfully remove autoTopicCreation on namespace {}",
+                            clientAppId(), namespaceName);
+                    asyncResponse.resume(Response.noContent().build());
+                })
+                .exceptionally(e -> {
+                    Throwable ex = FutureUtil.unwrapCompletionException(e);
+                    log.error("[{}] Failed to remove autoTopicCreation status on namespace {}", clientAppId(),
+                            namespaceName,
+                            ex);
+                    if (ex instanceof MetadataStoreException.NotFoundException) {
+                        asyncResponse.resume(new RestException(Response.Status.NOT_FOUND, "Namespace does not exist"));
+                    } else {
+                        resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    }
+                    return null;
+                });
     }
 
     @POST
@@ -1781,7 +1854,7 @@ public class Namespaces extends NamespacesBase {
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or Namespace doesn't exist"),
             @ApiResponse(code = 412, message = "schemaValidationEnforced value is not valid")})
-    public void setSchemaValidtionEnforced(@PathParam("tenant") String tenant,
+    public void setSchemaValidationEnforced(@PathParam("tenant") String tenant,
                                            @PathParam("namespace") String namespace,
                                            @ApiParam(value =
                                                    "Flag of whether validation is enforced on the specified namespace",

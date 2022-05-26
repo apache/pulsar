@@ -101,6 +101,8 @@ public interface Subscription {
 
     void addUnAckedMessages(int unAckMessages);
 
+    Map<String, String> getSubscriptionProperties();
+
     default void processReplicatedSubscriptionSnapshot(ReplicatedSubscriptionsSnapshot snapshot) {
         // Default is no-op
     }

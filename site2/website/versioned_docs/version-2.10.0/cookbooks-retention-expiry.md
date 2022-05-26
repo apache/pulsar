@@ -1,9 +1,15 @@
 ---
-id: version-2.10.0-cookbooks-retention-expiry
+id: cookbooks-retention-expiry
 title: Message retention and expiry
-sidebar_label: Message retention and expiry
+sidebar_label: "Message retention and expiry"
 original_id: cookbooks-retention-expiry
 ---
+
+````mdx-code-block
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+````
+
 
 Pulsar brokers are responsible for handling messages that pass through Pulsar, including [persistent storage](concepts-architecture-overview.md#persistent-storage) of messages. By default, for each topic, brokers only retain messages that are in at least one backlog. A backlog is the set of unacknowledged messages for a particular subscription. As a topic can have multiple subscriptions, a topic can have multiple backlogs.
 
@@ -16,7 +22,7 @@ In Pulsar, you can modify this behavior, with namespace granularity, in two ways
 * You can persistently store messages that are not within a backlog (because they've been acknowledged by on every existing subscription, or because there are no subscriptions) by setting [retention policies](#retention-policies).
 * Messages that are not acknowledged within a specified timeframe can be automatically acknowledged, by specifying the [time to live](#time-to-live-ttl) (TTL).
 
-Pulsar's [admin interface](admin-api-overview.md) enables you to manage both retention policies and TTL with namespace granularity (and thus within a specific tenant and either on a specific cluster or in the [`global`](concepts-architecture-overview.md#global-cluster) cluster).
+Pulsar's [admin interface](admin-api-overview) enables you to manage both retention policies and TTL with namespace granularity (and thus within a specific tenant and either on a specific cluster or in the [`global`](concepts-architecture-overview.md#global-cluster) cluster).
 
 
 > #### Retention and TTL solve two different problems
@@ -31,7 +37,7 @@ Pulsar's [admin interface](admin-api-overview.md) enables you to manage both ret
 By default, when a Pulsar message arrives at a broker, the message is stored until it has been acknowledged on all subscriptions, at which point it is marked for deletion. You can override this behavior and retain messages that have already been acknowledged on all subscriptions by setting a *retention policy* for all topics in a given namespace. Retention is based on both a *size limit* and a *time limit*.
 
 The diagram below illustrates the concept of message retention.
-![](assets/retention.svg)
+![](/assets/retention.svg)
 
 Retention policies are useful when you use the Reader interface. The Reader interface does not use acknowledgements, and messages do not exist within backlogs. It is required to configure retention for Reader-only use cases.
 
@@ -61,8 +67,12 @@ For more information of the two parameters, refer to the [`broker.conf`](referen
 
 You can set a retention policy for a namespace by specifying the namespace, a size limit and a time limit in `pulsar-admin`, REST API and Java.
 
-<!--DOCUSAURUS_CODE_TABS-->
-<!--pulsar-admin-->
+````mdx-code-block
+<Tabs 
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
+
 You can use the [`set-retention`](reference-pulsar-admin.md#namespaces-set-retention) subcommand and specify a namespace, a size limit using the `-s`/`--size` flag, and a time limit using the `-t`/`--time` flag. 
 
 In the following example, the size limit is set to 10 GB and the time limit is set to 3 hours for each topic within the `my-tenant/my-ns` namespace. 
@@ -70,88 +80,123 @@ In the following example, the size limit is set to 10 GB and the time limit is s
 - After 3 hours, even if the message size is less than 10 GB, the acknowledged messages will not be retained. 
 
 ```shell
+
 $ pulsar-admin namespaces set-retention my-tenant/my-ns \
   --size 10G \
   --time 3h
+
 ```
 
 In the following example, the time is not limited and the size limit is set to 1 TB. The size limit determines the retention.
 
 ```shell
+
 $ pulsar-admin namespaces set-retention my-tenant/my-ns \
   --size 1T \
   --time -1
+
 ```
 
 In the following example, the size is not limited and the time limit is set to 3 hours. The time limit determines the retention.
 
 ```shell
+
 $ pulsar-admin namespaces set-retention my-tenant/my-ns \
   --size -1 \
   --time 3h
+
 ```
 
 To achieve infinite retention, set both values to `-1`.
 
 ```shell
+
 $ pulsar-admin namespaces set-retention my-tenant/my-ns \
   --size -1 \
   --time -1
+
 ```
 
 To disable the retention policy, set both values to `0`.
 
 ```shell
+
 $ pulsar-admin namespaces set-retention my-tenant/my-ns \
   --size 0 \
   --time 0
+
 ```
 
-<!--REST API-->
-{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/retention|operation/setRetention?version=[[pulsar:version_number]]}
+</TabItem>
+<TabItem value="REST API">
 
-> **Note**  
-> To disable the retention policy, you need to set both the size and time limit to `0`. Set either size or time limit to `0` is invalid. 
+{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/retention|operation/setRetention?version=@pulsar:version_number@}
 
-<!--Java-->
+:::note
+
+To disable the retention policy, you need to set both the size and time limit to `0`. Set either size or time limit to `0` is invalid.
+
+:::
+
+</TabItem>
+<TabItem value="Java">
+
 ```java
+
 int retentionTime = 10; // 10 minutes
 int retentionSize = 500; // 500 megabytes
 RetentionPolicies policies = new RetentionPolicies(retentionTime, retentionSize);
 admin.namespaces().setRetention(namespace, policies);
+
 ```
 
-<!--END_DOCUSAURUS_CODE_TABS-->
+</TabItem>
+
+</Tabs>
+````
 
 ### Get retention policy
 
 You can fetch the retention policy for a namespace by specifying the namespace. The output will be a JSON object with two keys: `retentionTimeInMinutes` and `retentionSizeInMB`.
 
-<!--DOCUSAURUS_CODE_TABS-->
-<!--pulsar-admin-->
+````mdx-code-block
+<Tabs 
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
 
 Use the [`get-retention`](reference-pulsar-admin.md#namespaces) subcommand and specify the namespace.
 
 ##### Example
 
 ```shell
+
 $ pulsar-admin namespaces get-retention my-tenant/my-ns
 {
   "retentionTimeInMinutes": 10,
   "retentionSizeInMB": 500
 }
+
 ```
 
-<!--REST API-->
+</TabItem>
+<TabItem value="REST API">
 
-{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/retention|operation/getRetention?version=[[pulsar:version_number]]}
+{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/retention|operation/getRetention?version=@pulsar:version_number@}
 
-<!--Java-->
+</TabItem>
+<TabItem value="Java">
 
 ```java
+
 admin.namespaces().getRetention(namespace);
+
 ```
-<!--END_DOCUSAURUS_CODE_TABS-->
+
+</TabItem>
+
+</Tabs>
+````
 
 ## Backlog quotas
 
@@ -160,7 +205,7 @@ admin.namespaces().getRetention(namespace);
 You can control the allowable size and/or time of backlogs, at the namespace level, using *backlog quotas*. Pulsar uses a quota to enforce a hard limit on the logical size of the backlogs in a topic. Backlog quota triggers an alert policy (for example, producer exception) once the quota limit is reached.
 
 The diagram below illustrates the concept of backlog quota.
-![](assets/backlog-quota.svg)
+![](/assets/backlog-quota.svg)
 
 Setting a backlog quota involves setting:
 
@@ -186,50 +231,69 @@ Backlog quotas are handled at the namespace level. They can be managed via:
 
 You can set a size and/or time threshold and backlog retention policy for all of the topics in a [namespace](reference-terminology.md#namespace) by specifying the namespace, a size limit and/or a time limit in second, and a policy by name.
 
-<!--DOCUSAURUS_CODE_TABS-->
-<!--pulsar-admin-->
+````mdx-code-block
+<Tabs 
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
 
 Use the [`set-backlog-quota`](reference-pulsar-admin.md#namespaces) subcommand and specify a namespace, a size limit using the `-l`/`--limit` , `-lt`/`--limitTime` flag to limit backlog, a retention policy using the `-p`/`--policy` flag and a policy type using `-t`/`--type` (default is destination_storage).
 
 ##### Example
 
 ```shell
+
 $ pulsar-admin namespaces set-backlog-quota my-tenant/my-ns \
   --limit 2G \
   --policy producer_request_hold
+
 ```
 
 ```shell
+
 $ pulsar-admin namespaces set-backlog-quota my-tenant/my-ns/my-topic \
 --limitTime 3600 \
 --policy producer_request_hold \
 --type message_age
+
 ```
 
-<!--REST API-->
+</TabItem>
+<TabItem value="REST API">
 
-{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/backlogQuota|operation/getBacklogQuotaMap?version=[[pulsar:version_number]]}
+{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/backlogQuota|operation/getBacklogQuotaMap?version=@pulsar:version_number@}
 
-<!--Java-->
+</TabItem>
+<TabItem value="Java">
 
 ```java
+
 long sizeLimit = 2147483648L;
 BacklogQuota.RetentionPolicy policy = BacklogQuota.RetentionPolicy.producer_request_hold;
 BacklogQuota quota = new BacklogQuota(sizeLimit, policy);
 admin.namespaces().setBacklogQuota(namespace, quota);
+
 ```
-<!--END_DOCUSAURUS_CODE_TABS-->
+
+</TabItem>
+
+</Tabs>
+````
 
 ### Get backlog threshold and backlog retention policy
 
 You can see which size threshold and backlog retention policy has been applied to a namespace.
 
-<!--DOCUSAURUS_CODE_TABS-->
-<!--pulsar-admin-->
+````mdx-code-block
+<Tabs 
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
 
 Use the [`get-backlog-quotas`](reference-pulsar-admin.md#pulsar-admin-namespaces-get-backlog-quotas) subcommand and specify a namespace. Here's an example:
 
 ```shell
+
 $ pulsar-admin namespaces get-backlog-quotas my-tenant/my-ns
 {
   "destination_storage": {
@@ -237,41 +301,63 @@ $ pulsar-admin namespaces get-backlog-quotas my-tenant/my-ns
     "policy" : "producer_request_hold"
   }
 }
+
 ```
 
-<!--REST API-->
+</TabItem>
+<TabItem value="REST API">
 
-{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/backlogQuotaMap|operation/getBacklogQuotaMap?version=[[pulsar:version_number]]}
+{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/backlogQuotaMap|operation/getBacklogQuotaMap?version=@pulsar:version_number@}
 
-<!--Java-->
+</TabItem>
+<TabItem value="Java">
 
 ```java
+
 Map<BacklogQuota.BacklogQuotaType,BacklogQuota> quotas =
   admin.namespaces().getBacklogQuotas(namespace);
+
 ```
-<!--END_DOCUSAURUS_CODE_TABS-->
+
+</TabItem>
+
+</Tabs>
+````
 
 ### Remove backlog quotas
 
-<!--DOCUSAURUS_CODE_TABS-->
-<!--pulsar-admin-->
+````mdx-code-block
+<Tabs 
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
 
 Use the [`remove-backlog-quota`](reference-pulsar-admin.md#pulsar-admin-namespaces-remove-backlog-quota) subcommand and specify a namespace, use `t`/`--type` to specify backlog type to remove(default is destination_storage). Here's an example:
 
 ```shell
+
 $ pulsar-admin namespaces remove-backlog-quota my-tenant/my-ns
+
 ```
 
-<!--REST API-->
+</TabItem>
+<TabItem value="REST API">
 
-{@inject: endpoint|DELETE|/admin/v2/namespaces/:tenant/:namespace/backlogQuota|operation/removeBacklogQuota?version=[[pulsar:version_number]]}
+{@inject: endpoint|DELETE|/admin/v2/namespaces/:tenant/:namespace/backlogQuota|operation/removeBacklogQuota?version=@pulsar:version_number@}
 
-<!--Java-->
+</TabItem>
+<TabItem value="Java">
 
 ```java
+
 admin.namespaces().removeBacklogQuota(namespace);
+
 ```
-<!--END_DOCUSAURUS_CODE_TABS-->
+
+</TabItem>
+
+</Tabs>
+````
 
 ### Clear backlog
 
@@ -282,7 +368,9 @@ Use the [`clear-backlog`](reference-pulsar-admin.md#pulsar-admin-namespaces-clea
 ##### Example
 
 ```shell
+
 $ pulsar-admin namespaces clear-backlog my-tenant/my-ns
+
 ```
 
 By default, you will be prompted to ensure that you really want to clear the backlog for the namespace. You can override the prompt using the `-f`/`--force` flag.
@@ -294,81 +382,120 @@ By default, Pulsar stores all unacknowledged messages forever. This can lead to 
 The TTL parameter is like a stopwatch attached to each message that defines the amount of time a message is allowed to stay in the unacknowledged state. When the TTL expires, Pulsar automatically moves the message to the acknowledged state (and thus makes it ready for deletion).
 
 The diagram below illustrates the concept of TTL.
-![](assets/ttl.svg)
+![](/assets/ttl.svg)
 
 ### Set the TTL for a namespace
 
-<!--DOCUSAURUS_CODE_TABS-->
-<!--pulsar-admin-->
+````mdx-code-block
+<Tabs 
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
 
 Use the [`set-message-ttl`](reference-pulsar-admin.md#pulsar-admin-namespaces-set-message-ttl) subcommand and specify a namespace and a TTL (in seconds) using the `-ttl`/`--messageTTL` flag.
 
 ##### Example
 
 ```shell
+
 $ pulsar-admin namespaces set-message-ttl my-tenant/my-ns \
   --messageTTL 120 # TTL of 2 minutes
+
 ```
 
-<!--REST API-->
+</TabItem>
+<TabItem value="REST API">
 
-{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/messageTTL|operation/setNamespaceMessageTTL?version=[[pulsar:version_number]]}
+{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/messageTTL|operation/setNamespaceMessageTTL?version=@pulsar:version_number@}
 
-<!--Java-->
+</TabItem>
+<TabItem value="Java">
 
 ```java
+
 admin.namespaces().setNamespaceMessageTTL(namespace, ttlInSeconds);
+
 ```
-<!--END_DOCUSAURUS_CODE_TABS-->
+
+</TabItem>
+
+</Tabs>
+````
 
 ### Get the TTL configuration for a namespace
 
-<!--DOCUSAURUS_CODE_TABS-->
-<!--pulsar-admin-->
+````mdx-code-block
+<Tabs 
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
 
 Use the [`get-message-ttl`](reference-pulsar-admin.md#pulsar-admin-namespaces-get-message-ttl) subcommand and specify a namespace.
 
 ##### Example
 
 ```shell
+
 $ pulsar-admin namespaces get-message-ttl my-tenant/my-ns
 60
+
 ```
 
-<!--REST API-->
+</TabItem>
+<TabItem value="REST API">
 
-{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/messageTTL|operation/getNamespaceMessageTTL?version=[[pulsar:version_number]]}
+{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/messageTTL|operation/getNamespaceMessageTTL?version=@pulsar:version_number@}
 
-<!--Java-->
+</TabItem>
+<TabItem value="Java">
 
 ```java
+
 admin.namespaces().getNamespaceMessageTTL(namespace)
+
 ```
-<!--END_DOCUSAURUS_CODE_TABS-->
+
+</TabItem>
+
+</Tabs>
+````
 
 ### Remove the TTL configuration for a namespace
 
-<!--DOCUSAURUS_CODE_TABS-->
-<!--pulsar-admin-->
+````mdx-code-block
+<Tabs 
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
 
 Use the [`remove-message-ttl`](reference-pulsar-admin.md#pulsar-admin-namespaces-remove-message-ttl) subcommand and specify a namespace.
 
 ##### Example
 
 ```shell
+
 $ pulsar-admin namespaces remove-message-ttl my-tenant/my-ns
+
 ```
 
-<!--REST API-->
+</TabItem>
+<TabItem value="REST API">
 
-{@inject: endpoint|DELETE|/admin/v2/namespaces/:tenant/:namespace/messageTTL|operation/removeNamespaceMessageTTL?version=[[pulsar:version_number]]}
+{@inject: endpoint|DELETE|/admin/v2/namespaces/:tenant/:namespace/messageTTL|operation/removeNamespaceMessageTTL?version=@pulsar:version_number@}
 
-<!--Java-->
+</TabItem>
+<TabItem value="Java">
 
 ```java
+
 admin.namespaces().removeNamespaceMessageTTL(namespace)
+
 ```
-<!--END_DOCUSAURUS_CODE_TABS-->
+
+</TabItem>
+
+</Tabs>
+````
 
 ## Delete messages from namespaces
 
@@ -388,6 +515,6 @@ The entry log rollover period is configurable, but is purely based on the entry 
 - **Garbage collection interval**: because entry logs have interleaved ledgers, to free up space, the entry logs need to be rewritten. The garbage collection interval is how often BookKeeper performs garbage collection. which is related to minor compaction and major compaction of entry logs. For details, see [here](https://bookkeeper.apache.org/docs/4.11.1/reference/config/#entry-log-compaction-settings).
 
 The diagram below illustrates one of the cases that the consumed storage size is larger than the given limits for backlog and retention. Messages over the retention limit are kept because other messages in the same segment are still within retention period.
-![](assets/retention-storage-size.svg)
+![](/assets/retention-storage-size.svg)
 
 If you do not have any retention period and that you never have much of a backlog, the upper limit for retained messages, which are acknowledged, equals to the Pulsar segment rollover period + entry log rollover period + (garbage collection interval * garbage collection ratios).

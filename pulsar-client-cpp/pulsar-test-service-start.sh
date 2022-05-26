@@ -56,7 +56,6 @@ $PULSAR_DIR/bin/pulsar tokens create \
 export PULSAR_STANDALONE_CONF=$SRC_DIR/pulsar-client-cpp/test-conf/standalone-ssl.conf
 $PULSAR_DIR/bin/pulsar-daemon start standalone \
         --no-functions-worker --no-stream-storage \
-        --zookeeper-dir $DATA_DIR/zookeeper \
         --bookkeeper-dir $DATA_DIR/bookkeeper
 
 echo "-- Wait for Pulsar service to be ready"

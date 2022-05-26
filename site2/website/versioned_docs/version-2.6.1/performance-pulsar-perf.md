@@ -1,7 +1,7 @@
 ---
-id: version-2.6.1-performance-pulsar-perf
+id: performance-pulsar-perf
 title: Pulsar Perf
-sidebar_label: Pulsar Perf
+sidebar_label: "Pulsar Perf"
 original_id: performance-pulsar-perf
 ---
 
@@ -16,7 +16,9 @@ The Pulsar Perf is a built-in performance test tool for Apache Pulsar. You can u
 This example shows how the Pulsar Perf produces messages with default options. For all configuration options available for the `pulsar-perf produce` command, see [configuration options](#configuration-options-for-pulsar-perf-produce).
 
 ```
+
 bin/pulsar-perf produce my-topic
+
 ```
 
 After the command is executed, the test data is continuously output on the Console.
@@ -24,6 +26,7 @@ After the command is executed, the test data is continuously output on the Conso
 **Output**
 
 ```
+
 19:53:31.459 [pulsar-perf-producer-exec-1-1] INFO  org.apache.pulsar.testclient.PerformanceProducer - Created 1 producers
 19:53:31.482 [pulsar-timer-5-1] WARN  com.scurrilous.circe.checksum.Crc32cIntChecksum - Failed to load Circe JNI library. Falling back to Java based CRC32c provider
 19:53:40.861 [main] INFO  org.apache.pulsar.testclient.PerformanceProducer - Throughput produced:     93.7  msg/s ---      0.7 Mbit/s --- failure      0.0 msg/s --- Latency: mean:   3.575 ms - med:   3.460 - 95pct:   4.790 - 99pct:   5.308 - 99.9pct:   5.834 - 99.99pct:   6.609 - Max:   6.609
@@ -35,6 +38,7 @@ After the command is executed, the test data is continuously output on the Conso
 19:54:40.987 [main] INFO  org.apache.pulsar.testclient.PerformanceProducer - Throughput produced:    100.0  msg/s ---      0.8 Mbit/s --- failure      0.0 msg/s --- Latency: mean:   3.435 ms - med:   3.361 - 95pct:   4.772 - 99pct:   5.150 - 99.9pct:   5.373 - 99.99pct:   5.837 - Max:   5.837
 ^C19:54:44.325 [Thread-1] INFO  org.apache.pulsar.testclient.PerformanceProducer - Aggregated throughput stats --- 7286 records sent --- 99.140 msg/s --- 0.775 Mbit/s
 19:54:44.336 [Thread-1] INFO  org.apache.pulsar.testclient.PerformanceProducer - Aggregated latency stats --- Latency: mean:   3.383 ms - med:   3.293 - 95pct:   4.610 - 99pct:   5.059 - 99.9pct:   5.588 - 99.99pct:   5.837 - 99.999pct:   6.609 - Max:   6.609
+
 ```
 
 From the above test data, you can get the throughput statistics and the write latency statistics. The aggregated statistics is printed when the Pulsar Perf is stopped. You can press **Ctrl**+**C** to stop the Pulsar Perf. After the Pulsar Perf is stopped, the [HdrHistogram](http://hdrhistogram.github.io/HdrHistogram/) formatted test result appears under your directory. The document looks like `perf-producer-1589370810837.hgrm`. You can also check the test result through [HdrHistogram Plotter](https://hdrhistogram.github.io/HdrHistogram/plotFiles.html). For details about how to check the test result through [HdrHistogram Plotter](https://hdrhistogram.github.io/HdrHistogram/plotFiles.html), see [HdrHistogram Plotter](#hdrhistogram-plotter).
@@ -76,7 +80,7 @@ The following table lists configuration options available for the `pulsar-perf p
 | size | Set the message size. | 1024 bytes |
 | stats-interval-seconds | Set the statistics interval. If it is set to 0, statistics is disabled. | 0 |
 | test-duration | Set the test duration. If it is set to 0, it keeps publishing tests. | 0s |
-| trust-cert-file | Set the path for the trusted TLS certificate file. | <empty string> |
+| trust-cert-file | Set the path for the trusted TLS certificate file. | | |
 | warmup-time | Set the warm-up time. | 1s |
 
 ### Consume messages
@@ -84,7 +88,9 @@ The following table lists configuration options available for the `pulsar-perf p
 This example shows how the Pulsar Perf consumes messages with default options.
 
 ```
+
 bin/pulsar-perf consume my-topic
+
 ```
 
 After the command is executed, the test data is continuously output on the Console.
@@ -92,6 +98,7 @@ After the command is executed, the test data is continuously output on the Conso
 **Output**
 
 ```
+
 20:35:37.071 [main] INFO  org.apache.pulsar.testclient.PerformanceConsumer - Start receiving from 1 consumers on 1 topics
 20:35:41.150 [pulsar-client-io-1-9] WARN  com.scurrilous.circe.checksum.Crc32cIntChecksum - Failed to load Circe JNI library. Falling back to Java based CRC32c provider
 20:35:47.092 [main] INFO  org.apache.pulsar.testclient.PerformanceConsumer - Throughput received: 59.572  msg/s -- 0.465 Mbit/s --- Latency: mean: 11.298 ms - med: 10 - 95pct: 15 - 99pct: 98 - 99.9pct: 137 - 99.99pct: 152 - Max: 152
@@ -102,6 +109,7 @@ After the command is executed, the test data is continuously output on the Conso
 20:36:37.147 [main] INFO  org.apache.pulsar.testclient.PerformanceConsumer - Throughput received: 99.985  msg/s -- 0.781 Mbit/s --- Latency: mean: 8.998 ms - med: 9 - 95pct: 15 - 99pct: 16 - 99.9pct: 17 - 99.99pct: 17 - Max: 17
 ^C20:36:42.755 [Thread-1] INFO  org.apache.pulsar.testclient.PerformanceConsumer - Aggregated throughput stats --- 6051 records received --- 92.125 msg/s --- 0.720 Mbit/s
 20:36:42.759 [Thread-1] INFO  org.apache.pulsar.testclient.PerformanceConsumer - Aggregated latency stats --- Latency: mean: 9.422 ms - med: 9 - 95pct: 15 - 99pct: 16 - 99.9pct: 98 - 99.99pct: 137 - 99.999pct: 152 - Max: 152
+
 ```
 
 From the output test data, you can get the throughput statistics and the end-to-end latency statistics. The aggregated statistics is printed after the Pulsar Perf is stopped. You can press **Ctrl**+**C** to stop the Pulsar Perf.
@@ -135,10 +143,10 @@ The following table lists configuration options available for the `pulsar-perf c
 | stats-interval-seconds | Set the statistics interval. If it is set to 0, statistics is disabled. | 0 |
 | subscriber-name | Set the subscriber name prefix. | sub |
 | subscription-position | Set the subscription position. Valid values are `Latest`, `Earliest`.| Latest |
-| subscription-type | Set the subscription type. <li> Exclusive <li> Shared <li> Failover <li> Key_Shared | Exclusive |
+| subscription-type | Set the subscription type. <li> Exclusive </li><li> Shared </li><li> Failover </li><li> Key_Shared </li>| Exclusive |
 | test-duration | Set the test duration (in seconds). If the value is 0 or smaller than 0, it keeps consuming messages. | 0 |
 | tls-allow-insecure | Set the allowed insecure TLS connection. | N/A |
-| trust-cert-file | Set the path for the trusted TLS certificate file. | <empty string> |
+| trust-cert-file | Set the path for the trusted TLS certificate file. | | |
 
 ### Configurations
 
@@ -147,14 +155,18 @@ By default, the Pulsar Perf uses `conf/client.conf` as the default configuration
 You can use the following commands to change the configuration file and the Log4j configuration file.
 
 ```
+
 export PULSAR_CLIENT_CONF=<your-config-file>
 export PULSAR_LOG_CONF=<your-log-config-file>
+
 ```
 
 In addition, you can use the following command to configure the JVM configuration through environment variables:
 
 ```
+
 export PULSAR_EXTRA_OPTS='-Xms4g -Xmx4g -XX:MaxDirectMemorySize=4g'
+
 ```
 
 ## HdrHistogram Plotter
@@ -165,28 +177,38 @@ To check test results through the HdrHistogram Plotter, follow these steps:
 
 1. Clone the HdrHistogram repository from GitHub to the local.
 
-    ```
-    git clone https://github.com/HdrHistogram/HdrHistogram.git
-    ```
+   ```
+   
+   git clone https://github.com/HdrHistogram/HdrHistogram.git
+   
+   ```
 
 2. Switch to the HdrHistogram folder.
 
-    ```
-    cd HdrHistogram
-    ```
+   ```
+   
+   cd HdrHistogram
+   
+   ```
+
 3. Install the HdrHistogram Plotter.
 
-    ```
-    mvn clean install -DskipTests
-    ```
+   ```
+   
+   mvn clean install -DskipTests
+   
+   ```
+
 4. Transform the file generated by the Pulsar Perf.
 
-    ```
-    ./HistogramLogProcessor -i <hgrm file path that pulsar-perf generated> -o <output file>
-    ```
+   ```
+   
+   ./HistogramLogProcessor -i <hgrm file path that pulsar-perf generated> -o <output file>
+   
+   ```
 
 5. You will get two output files. Upload the output file with the filename extension of .hgrm to the [HdrHistogram Plotter](https://hdrhistogram.github.io/HdrHistogram/plotFiles.html).
 
 6. Check the test result through the Graphical User Interface of the HdrHistogram Plotter, as shown blow.
 
-    ![](assets/perf-produce.png)
+   ![](/assets/perf-produce.png)

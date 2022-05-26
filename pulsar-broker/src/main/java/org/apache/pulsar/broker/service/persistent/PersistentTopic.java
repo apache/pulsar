@@ -321,7 +321,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                         isEncryptionRequired = false;
                         updatePublishDispatcher();
                         updateResourceGroupLimiter(optPolicies);
-                        initializeRateLimiterIfNeeded();
+                        initializeDispatchRateLimiterIfNeeded();
+                        updateSubscribeRateLimiter();
                         return;
                     }
 
@@ -329,7 +330,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
                     this.updateTopicPolicyByNamespacePolicy(policies);
 
-                    initializeRateLimiterIfNeeded();
+                    initializeDispatchRateLimiterIfNeeded();
+
+                    updateSubscribeRateLimiter();
 
                     updatePublishDispatcher();
 
@@ -338,8 +341,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     this.isEncryptionRequired = policies.encryption_required;
 
                     isAllowAutoUpdateSchema = policies.is_allow_auto_update_schema;
-
-                    schemaValidationEnforced = policies.schema_validation_enforced;
                 }).exceptionally(ex -> {
                     log.warn("[{}] Error getting policies {} and isEncryptionRequired will be set to false",
                             topic, ex.getMessage());
@@ -375,15 +376,13 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
     }
 
-    private void initializeRateLimiterIfNeeded() {
+    private void initializeDispatchRateLimiterIfNeeded() {
         synchronized (dispatchRateLimiterLock) {
             // dispatch rate limiter for topic
             if (!dispatchRateLimiter.isPresent()
                 && DispatchRateLimiter.isDispatchRateEnabled(topicPolicies.getDispatchRate().get())) {
                 this.dispatchRateLimiter = Optional.of(new DispatchRateLimiter(this, Type.TOPIC));
             }
-
-            updateSubscribeRateLimiter();
 
             // dispatch rate limiter for each subscription
             subscriptions.forEach((name, subscription) -> {
@@ -1013,9 +1012,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     @Override
     public CompletableFuture<Subscription> createSubscription(String subscriptionName, InitialPosition initialPosition,
-                                                              boolean replicateSubscriptionState) {
+                                                              boolean replicateSubscriptionState,
+                                                              Map<String, String> subscriptionProperties) {
         return getDurableSubscription(subscriptionName, initialPosition,
-                0 /*avoid reseting cursor*/, replicateSubscriptionState, null);
+                0 /*avoid reseting cursor*/, replicateSubscriptionState, subscriptionProperties);
     }
 
     /**
@@ -1488,7 +1488,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         return isCompactionEnabled()
                 // If a topic has a compaction policy setup, we must make sure that the compaction cursor
                 // is pre-created, in order to ensure all the data will be seen by the compactor.
-                ? createSubscription(COMPACTION_SUBSCRIPTION, CommandSubscribe.InitialPosition.Earliest, false)
+                ? createSubscription(COMPACTION_SUBSCRIPTION, CommandSubscribe.InitialPosition.Earliest, false, null)
                         .thenCompose(__ -> CompletableFuture.completedFuture(null))
                 : CompletableFuture.completedFuture(null);
     }
@@ -2396,9 +2396,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
         isAllowAutoUpdateSchema = data.is_allow_auto_update_schema;
 
-        schemaValidationEnforced = data.schema_validation_enforced;
+        initializeDispatchRateLimiterIfNeeded();
 
-        initializeRateLimiterIfNeeded();
+        updateSubscribeRateLimiter();
 
         updatePublishDispatcher();
 
@@ -2551,26 +2551,43 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     }, null);
             return future;
         } else {
-            Long ledgerId = ((ManagedCursorContainer) ledger.getCursors()).getSlowestReaderPosition().getLedgerId();
+            PositionImpl slowestPosition = ((ManagedCursorContainer) ledger.getCursors()).getSlowestReaderPosition();
             try {
-                org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo
-                        ledgerInfo = ledger.getLedgerInfo(ledgerId).get();
-                if (ledgerInfo != null && ledgerInfo.hasTimestamp() && ledgerInfo.getTimestamp() > 0
-                        && ((ManagedLedgerImpl) ledger).getClock().millis() - ledgerInfo.getTimestamp()
-                        > backlogQuotaLimitInSecond * 1000) {
-                    if (log.isDebugEnabled()) {
-                        log.debug("Time based backlog quota exceeded, quota {}, age of ledger "
-                                        + "slowest cursor currently on {}", backlogQuotaLimitInSecond * 1000,
-                                ((ManagedLedgerImpl) ledger).getClock().millis() - ledgerInfo.getTimestamp());
-                    }
-                    return CompletableFuture.completedFuture(true);
-                } else {
-                    return CompletableFuture.completedFuture(false);
-                }
+                return slowestReaderTimeBasedBacklogQuotaCheck(slowestPosition);
             } catch (Exception e) {
                 log.error("[{}][{}] Error reading entry for precise time based backlog check", topicName, e);
                 return CompletableFuture.completedFuture(false);
             }
+        }
+    }
+
+    private CompletableFuture<Boolean> slowestReaderTimeBasedBacklogQuotaCheck(PositionImpl slowestPosition)
+            throws ExecutionException, InterruptedException {
+        int backlogQuotaLimitInSecond = getBacklogQuota(BacklogQuotaType.message_age).getLimitTime();
+        Long ledgerId = slowestPosition.getLedgerId();
+        if (((ManagedLedgerImpl) ledger).getLedgersInfo().lastKey().equals(ledgerId)) {
+            return CompletableFuture.completedFuture(false);
+        }
+        int result;
+        org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo
+                ledgerInfo = ledger.getLedgerInfo(ledgerId).get();
+        if (ledgerInfo != null && ledgerInfo.hasTimestamp() && ledgerInfo.getTimestamp() > 0
+                && ((ManagedLedgerImpl) ledger).getClock().millis() - ledgerInfo.getTimestamp()
+                > backlogQuotaLimitInSecond * 1000 && (result = slowestPosition.compareTo(
+                new PositionImpl(ledgerInfo.getLedgerId(), ledgerInfo.getEntries() - 1))) <= 0) {
+            if (result < 0) {
+                if (log.isDebugEnabled()) {
+                    log.debug("Time based backlog quota exceeded, quota {}, age of ledger "
+                                    + "slowest cursor currently on {}", backlogQuotaLimitInSecond * 1000,
+                            ((ManagedLedgerImpl) ledger).getClock().millis() - ledgerInfo.getTimestamp());
+                }
+                return CompletableFuture.completedFuture(true);
+            } else {
+                return slowestReaderTimeBasedBacklogQuotaCheck(
+                        ((ManagedLedgerImpl) ledger).getNextValidPosition(slowestPosition));
+            }
+        } else {
+            return CompletableFuture.completedFuture(false);
         }
     }
 
