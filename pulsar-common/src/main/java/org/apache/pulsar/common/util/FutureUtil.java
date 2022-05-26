@@ -20,6 +20,7 @@ package org.apache.pulsar.common.util;
 
 import java.time.Duration;
 import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -38,6 +39,18 @@ import java.util.stream.Collectors;
 public class FutureUtil {
 
     /**
+     * Return a future that represents the completion of the futures in the provided List.
+     * This method with the List parameter is needed to keep compatibility with external
+     * applications that are compiled with Pulsar < 2.10.0.
+     *
+     * @param futures futures to wait for
+     * @return a new CompletableFuture that is completed when all of the given CompletableFutures complete
+     */
+    public static CompletableFuture<Void> waitForAll(List<? extends CompletableFuture<?>> futures) {
+        return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
+    }
+
+    /**
      * Return a future that represents the completion of the futures in the provided Collection.
      *
      * @param futures futures to wait for
@@ -45,6 +58,18 @@ public class FutureUtil {
      */
     public static CompletableFuture<Void> waitForAll(Collection<? extends CompletableFuture<?>> futures) {
         return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
+    }
+
+    /**
+     * Return a future that represents the completion of any future in the provided List.
+     * This method with the List parameter is needed to keep compatibility with external
+     * applications that are compiled with Pulsar < 2.10.0.
+     *
+     * @param futures futures to wait any
+     * @return a new CompletableFuture that is completed when any of the given CompletableFutures complete
+     */
+    public static CompletableFuture<Object> waitForAny(List<? extends CompletableFuture<?>> futures) {
+        return CompletableFuture.anyOf(futures.toArray(new CompletableFuture[0]));
     }
 
     /**
