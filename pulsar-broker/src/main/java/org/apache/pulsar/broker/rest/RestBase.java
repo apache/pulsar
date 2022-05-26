@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.rest;
 
+import com.google.common.base.MoreObjects;
 import io.netty.buffer.ByteBuf;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.generic.GenericData;
@@ -34,7 +35,6 @@ import org.apache.pulsar.broker.namespace.LookupOptions;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.Topic;
-import org.apache.pulsar.broker.service.schema.SchemaRegistry;
 import org.apache.pulsar.broker.service.schema.exceptions.SchemaException;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.api.CompressionType;
@@ -57,6 +57,7 @@ import org.apache.pulsar.client.impl.schema.generic.GenericJsonWriter;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.compression.CompressionCodecProvider;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
@@ -87,6 +88,8 @@ import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
@@ -94,26 +97,40 @@ import java.util.stream.Collectors;
  * Contains methods used by REST api to producer/consumer/read messages to/from pulsar topics.
  */
 @Slf4j
-public class RestBase extends PersistentTopicsBase {
+public class RestBase extends TopicsBase {
 
     private static String defaultProducerName = "RestProducer";
 
     protected CompletableFuture<Void> publishMessages(ProducerMessages request, boolean authoritative) {
-        return checkTopicOwnershipAsync(topicName, authoritative)
+        return getPublishTopicName(authoritative)
+                .thenCompose(name -> checkTopicOwnershipAsync(name, authoritative))
+                .thenCompose(__ -> checkProducePermissionAsync())
                 .thenCompose(__ -> pulsar().getBrokerService().getTopicIfExists(topicName.toString()))
                 .thenCompose(op -> {
                     if (op.isPresent()) {
-                        LongSchemaVersion schemaVersion = request.getSchemaVersion() == -1
-                                ? null
-                                : new LongSchemaVersion(request.getSchemaVersion());
-                        SchemaData schemaData = getSchemaData(request.getKeySchema(), request.getValueSchema());
-                        return getOrAddSchemaForTopic(schemaData, schemaVersion)
-                                .thenCompose(pair -> publishMessages(request, op.get(),
-                                        AutoConsumeSchema.getSchema(pair.getLeft().toSchemaInfo())));
+                        Optional<LongSchemaVersion> schemaVersion = request.getSchemaVersion() == -1
+                                ? Optional.empty()
+                                : Optional.of(new LongSchemaVersion(request.getSchemaVersion()));
+                        Optional<SchemaData> schemaData = getSchemaData(request.getKeySchema(), request.getValueSchema());
+                        return getOrAddSchema(op.get(), schemaData, schemaVersion)
+                                .thenCompose(schemaInfo -> {
+                                    Schema<?> schema = AutoConsumeSchema.getSchema(schemaInfo.schema.toSchemaInfo());
+                                    return publishMessages(request, op.get(), schema);
+                                });
                     } else {
                         return FutureUtil.failedFuture(new BrokerServiceException
                                 .TopicNotFoundException(String.format("Topic %s not found", topicName.toString())));
                     }
+                });
+    }
+
+    private CompletableFuture<TopicName> getPublishTopicName(boolean authoritative) {
+        return internalGetPartitionedMetadataAsync(authoritative, true)
+                .thenApply(metadata -> {
+                    if (!topicName.isPartitioned() && metadata.partitions > 1) {
+                        return topicName.getPartition(0);
+                    }
+                    return topicName;
                 });
     }
 
@@ -209,7 +226,7 @@ public class RestBase extends PersistentTopicsBase {
     }
 
     // Return error code depends on exception we got indicating if client should retry with same broker.
-    private void extractException(Exception e, ProducerAck produceMessageResult) {
+    protected void extractException(Exception e, ProducerAck produceMessageResult) {
         if (!(e instanceof BrokerServiceException.TopicFencedException && e instanceof ManagedLedgerException)) {
             produceMessageResult.setErrorCode(2);
         } else {
@@ -218,86 +235,25 @@ public class RestBase extends PersistentTopicsBase {
         produceMessageResult.setErrorMsg(e.getMessage());
     }
 
-    private CompletableFuture<Pair<SchemaData, SchemaVersion>> getOrAddSchemaForTopic(SchemaData schemaData,
-                                                                                      LongSchemaVersion schemaVersion) {
+    private CompletableFuture<SchemaWithMetadata> getOrAddSchema(
+            Topic topic, Optional<SchemaData> schemaData, Optional<LongSchemaVersion> schemaVersion) {
         CompletableFuture<Pair<SchemaData, SchemaVersion>> future = new CompletableFuture<>();
         // If schema version presents try to fetch existing schema.
-        if (null != schemaVersion) {
-            String id = TopicName.get(topicName.getPartitionedTopicName()).getSchemaName();
-            SchemaRegistry.SchemaAndMetadata schemaAndMetadata;
-            try {
-                schemaAndMetadata = pulsar().getSchemaRegistryService().getSchema(id, schemaVersion).get();
-                future.complete(Pair.of(schemaAndMetadata.schema, schemaAndMetadata.version));
-            } catch (Exception e) {
-                if (log.isDebugEnabled()) {
-                    log.debug("Fail to retrieve schema of version {} for topic {}: {}",
-                            schemaVersion.getVersion(), topicName, e.getMessage());
-                }
-                future.completeExceptionally(e);
-            }
-        } else if (null != schemaData) {
-            // Else try to add schema to topic.
-            SchemaVersion sv;
-            try {
-                sv = addSchema(schemaData).get();
-                future.complete(Pair.of(schemaData, sv));
-            } catch (Exception e) {
-                if (log.isDebugEnabled()) {
-                    log.debug("Fail to add schema {} for topic {}: {}",
-                            new String(schemaData.toSchemaInfo().getSchema()), topicName, e.getMessage());
-                }
-                future.completeExceptionally(e);
-            }
-        } else {
-            // Indicating exception.
-            future.complete(Pair.of(null, null));
-        }
-        return future;
-    }
+        String schemaId = TopicName.get(topic.getName()).getSchemaName();
+        if (schemaVersion.isPresent()) {
+            return pulsar().getSchemaRegistryService().getSchema(schemaId, schemaVersion.get())
+                    .thenApply(d -> new SchemaWithMetadata(d.id, d.schema, d.version));
 
-    // Add a new schema to schema registry for a topic
-    private CompletableFuture<SchemaVersion> addSchema(SchemaData schemaData) {
-        // Only need to add to first partition the broker owns since the schema id in schema registry are
-        // same for all partitions which is the partitionedTopicName
-        List<Integer> partitions = pulsar().getBrokerService().getOwningTopics()
-                .get(topicName.getPartitionedTopicName()).values();
-        CompletableFuture<SchemaVersion> result = new CompletableFuture<>();
-        for (int index = 0; index < partitions.size(); index++) {
-            CompletableFuture<SchemaVersion> future = new CompletableFuture<>();
-            String topicPartitionName = topicName.getPartition(partitions.get(index)).toString();
-            pulsar().getBrokerService().getTopic(topicPartitionName, false)
-            .thenAccept(topic -> {
-                if (!topic.isPresent()) {
-                    future.completeExceptionally(new BrokerServiceException.TopicNotFoundException(
-                            "Topic " + topicPartitionName + " not found"));
-                } else {
-                    topic.get().addSchema(schemaData).thenAccept(schemaVersion -> future.complete(schemaVersion))
-                    .exceptionally(exception -> {
-                        future.completeExceptionally(exception);
-                        return null;
-                    });
-                }
-            });
-            try {
-                result.complete(future.get());
-                break;
-            } catch (Exception e) {
-                if (log.isDebugEnabled()) {
-                    log.debug("Fail to add schema to topic " + topicName.getPartitionedTopicName()
-                            + " for partition " + partitions.get(index) + " for REST produce request.");
-                }
-            }
         }
-        // Not able to add schema to any partition
-        if (!result.isDone()) {
-            result.completeExceptionally(new SchemaException("Unable to add schema " + schemaData
-                    + " to topic " + topicName.getPartitionedTopicName()));
+        if (schemaData.isPresent()) {
+            return topic.addSchema(schemaData.get())
+                    .thenApply(v -> new SchemaWithMetadata(schemaId, schemaData.get(), v));
         }
-        return result;
+        return FutureUtil.failedFuture(new SchemaException("empty schema"));
     }
 
     // Build schemaData from passed in schema string.
-    private SchemaData getSchemaData(String keySchema, String valueSchema) {
+    private Optional<SchemaData> getSchemaData(String keySchema, String valueSchema) {
         try {
             SchemaInfoImpl valueSchemaInfo = (valueSchema == null || valueSchema.isEmpty())
                     ? (SchemaInfoImpl) StringSchema.utf8().getSchemaInfo() :
@@ -308,14 +264,14 @@ public class RestBase extends PersistentTopicsBase {
             }
             // Value schema only
             if (keySchema == null || keySchema.isEmpty()) {
-                return SchemaData.builder()
+                return Optional.of(SchemaData.builder()
                         .data(valueSchemaInfo.getSchema())
                         .isDeleted(false)
                         .user("Rest Producer")
                         .timestamp(System.currentTimeMillis())
                         .type(valueSchemaInfo.getType())
                         .props(valueSchemaInfo.getProperties())
-                        .build();
+                        .build());
             } else {
                 // Key_Value schema
                 SchemaInfoImpl keySchemaInfo = ObjectMapperFactory.getThreadLocal()
@@ -327,21 +283,21 @@ public class RestBase extends PersistentTopicsBase {
                                 + topicName.getPartitionedTopicName(),
                         keySchemaInfo, valueSchemaInfo,
                         KeyValueEncodingType.SEPARATED);
-                return SchemaData.builder()
+                return Optional.of(SchemaData.builder()
                         .data(schemaInfo.getSchema())
                         .isDeleted(false)
                         .user("Rest Producer")
                         .timestamp(System.currentTimeMillis())
                         .type(schemaInfo.getType())
                         .props(schemaInfo.getProperties())
-                        .build();
+                        .build());
             }
         } catch (IOException e) {
             if (log.isDebugEnabled()) {
                 log.debug("Fail to parse schema info for rest produce request with key schema {} and value schema {}"
                         , keySchema, valueSchema);
             }
-            return null;
+            return Optional.empty();
         }
     }
 
@@ -485,24 +441,6 @@ public class RestBase extends PersistentTopicsBase {
         }
     }
 
-    public void validateProducePermission() throws Exception {
-        if (pulsar().getConfiguration().isAuthenticationEnabled()
-                && pulsar().getBrokerService().isAuthorizationEnabled()) {
-            if (!isClientAuthenticated(clientAppId())) {
-                throw new RestException(Status.UNAUTHORIZED, "Need to authenticate to perform the request");
-            }
-
-            boolean isAuthorized = pulsar().getBrokerService().getAuthorizationService()
-                    .canProduce(topicName, originalPrincipal() == null ? clientAppId() : originalPrincipal(),
-                            clientAuthData());
-            if (!isAuthorized) {
-                throw new RestException(Status.UNAUTHORIZED, String.format("Unauthorized to produce to topic %s"
-                                        + " with clientAppId [%s] and authdata %s", topicName.toString(),
-                        clientAppId(), clientAuthData()));
-            }
-        }
-    }
-
     public CompletableFuture<Void> checkProducePermissionAsync() {
         if (pulsar().getConfiguration().isAuthenticationEnabled()
                 && pulsar().getBrokerService().isAuthorizationEnabled()) {
@@ -525,6 +463,46 @@ public class RestBase extends PersistentTopicsBase {
 
         }
         return CompletableFuture.completedFuture(null);
+    }
+
+    class SchemaWithMetadata {
+        public final String id;
+        public final SchemaData schema;
+        public final SchemaVersion version;
+
+        public SchemaWithMetadata(String id, SchemaData schema, SchemaVersion version) {
+            this.id = id;
+            this.schema = schema;
+            this.version = version;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            SchemaWithMetadata that = (SchemaWithMetadata) o;
+            return version == that.version
+                    && Objects.equals(id, that.id)
+                    && Objects.equals(schema, that.schema);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(id, schema, version);
+        }
+
+        @Override
+        public String toString() {
+            return MoreObjects.toStringHelper(this)
+                    .add("id", id)
+                    .add("schema", schema)
+                    .add("version", version)
+                    .toString();
+        }
     }
 
 }

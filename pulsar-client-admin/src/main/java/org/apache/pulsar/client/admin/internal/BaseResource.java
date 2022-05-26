@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.client.admin.internal;
 
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
@@ -303,5 +306,21 @@ public abstract class BaseResource {
         } catch (Exception e) {
             throw PulsarAdminException.wrap(getApiException(e));
         }
+    }
+
+    protected WebTarget addParts(WebTarget target, String[] parts) {
+        if (parts != null && parts.length > 0) {
+            for (String part : parts) {
+                String encode;
+                try {
+                    encode = URLEncoder.encode(part, StandardCharsets.UTF_8.toString());
+                } catch (UnsupportedEncodingException e) {
+                    log.error("{} is Unknown exception - [{}]", StandardCharsets.UTF_8.toString(), e);
+                    encode = part;
+                }
+                target = target.path(encode);
+            }
+        }
+        return target;
     }
 }

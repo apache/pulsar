@@ -34,6 +34,8 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
+
 import org.apache.pulsar.websocket.data.ProducerMessages;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,7 +44,7 @@ import org.slf4j.LoggerFactory;
 @Consumes(MediaType.APPLICATION_JSON)
 @Produces(MediaType.APPLICATION_JSON)
 @Api(value = "/persistent", description = "Apis for produce,consume and ack message on topics.", tags = "topics")
-public class Topics extends TopicsBase {
+public class Topics extends RestBase {
     private static final Logger log = LoggerFactory.getLogger(Topics.class);
 
     @POST
@@ -64,7 +66,15 @@ public class Topics extends TopicsBase {
         try {
             validateTopicName(tenant, namespace, encodedTopic);
             validateProducePermission();
-            publishMessages(asyncResponse, producerMessages, authoritative);
+            publishMessages(producerMessages, authoritative)
+                    .thenApply(__ -> asyncResponse.resume(Response.noContent().build()))
+                    .exceptionally(ex -> {
+                        if (!isRedirectException(ex)) {
+                            log.error("[{}] Failed to produce on topic {}", clientAppId(), topicName, ex);
+                        }
+                        resumeAsyncResponseExceptionally(asyncResponse, ex);
+                        return null;
+                    });
         } catch (Exception e) {
             log.error("[{}] Failed to produce on topic {}", clientAppId(), topicName, e);
             resumeAsyncResponseExceptionally(asyncResponse, e);
