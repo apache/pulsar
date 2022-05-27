@@ -31,6 +31,6 @@ Currently Pulsar supports the following authentication providers:
 - [Kerberos authentication](security-kerberos)
 - [JSON Web Token (JWT) authentication](security-jwt)
 - [OAuth 2.0 authentication](security-oauth2)
-- Basic authentication
+- [HTTP basic authentication](security-basic-auth)
 
 
