@@ -54,6 +54,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderBuilder;
+import org.apache.pulsar.client.api.SizeUnit;
 import org.apache.pulsar.common.conf.InternalConfigurationData;
 import org.apache.pulsar.common.functions.WorkerInfo;
 import org.apache.pulsar.common.policies.data.FunctionInstanceStatsDataImpl;
@@ -263,7 +264,9 @@ public final class WorkerUtils {
                                                Boolean enableTlsHostnameVerificationEnable) {
 
         try {
-            ClientBuilder clientBuilder = PulsarClient.builder().serviceUrl(pulsarServiceUrl);
+            ClientBuilder clientBuilder = PulsarClient.builder()
+                    .memoryLimit(0, SizeUnit.BYTES)
+                    .serviceUrl(pulsarServiceUrl);
 
             if (isNotBlank(authPlugin)
                     && isNotBlank(authParams)) {
