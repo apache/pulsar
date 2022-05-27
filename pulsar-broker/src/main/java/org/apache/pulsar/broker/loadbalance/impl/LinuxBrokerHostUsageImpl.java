@@ -248,7 +248,7 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
     private double getTotalNicLimitKbps(List<String> nics) {
         // Use the override value as configured. Return the total max speed across all available NICs, converted
         // from Gbps into Kbps
-        return overrideBrokerNicSpeedGbps.map(aDouble -> aDouble * nics.size() * 1024 * 1024)
+        return overrideBrokerNicSpeedGbps.map(aDouble -> aDouble * nics.size() * 1000 * 1000)
                 .orElseGet(() -> nics.stream().mapToDouble(nicPath -> {
                     // Nic speed is in Mbits/s, return kbits/s
                     try {
@@ -258,7 +258,7 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
                                 + " config [loadBalancerOverrideBrokerNicSpeedGbps] to override it.", nicPath), e);
                         return 0d;
                     }
-                }).sum() * 1024);
+                }).sum() * 1000);
     }
 
     private Path getNicTxPath(String nic) {
@@ -277,7 +277,7 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
                 log.error("Failed to read rx_bytes for NIC " + s, e);
                 return 0d;
             }
-        }).sum() * 8 / 1024;
+        }).sum() * 8d / 1000;
     }
 
     private double getTotalNicUsageTxKb(List<String> nics) {
@@ -288,7 +288,7 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
                 log.error("Failed to read tx_bytes for NIC " + s, e);
                 return 0d;
             }
-        }).sum() * 8 / 1024;
+        }).sum() * 8d / 1000;
     }
 
     private static long readLongFromFile(String path) throws IOException {
