@@ -56,10 +56,10 @@ authenticationProviders=
 
 Pulsar supports an authentication provider chain that contains multiple authentication providers with the same authentication method name. 
 
-For example, your Pulsar cluster uses JSON Web Token (JWT) authentication and you want to upgrade it to use OAuth2.0 authentication. Both JWT and OAuth2.0 share the same authentication method name. In this case, you can chain the two class names in `authenticationProviders` and separate them by using a comma.
+For example, your Pulsar cluster uses JSON Web Token (JWT) authentication (with an authentication method named `token`) and you want to upgrade it to use OAuth2.0 authentication with the same authentication name. In this case, you can implement your own authentication provider `AuthenticationProviderOAuth2` and configure `authenticationProviders` as follows.
 
 ```properties
-authenticationProviders=org.apache.pulsar.broker.authentication.AuthenticationProviderJWT,org.apache.pulsar.broker.authentication.AuthenticationProviderOAuth2
+authenticationProviders=org.apache.pulsar.broker.authentication.AuthenticationProviderToken,org.apache.pulsar.broker.authentication.AuthenticationProviderOAuth2
 ```
 
 :::
