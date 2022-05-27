@@ -97,11 +97,16 @@ public class PulsarRecord<T> implements RecordWithEncryptionContext<T> {
 
     /**
      * Some sink sometimes wants to control the ack type.
-     *
-     * @param cumulative
      */
-    public void ack(boolean cumulative) {
-        this.customAckFunction.accept(cumulative);
+    public void cumulativeAck() {
+        this.customAckFunction.accept(true);
+    }
+
+    /**
+     * Some sink sometimes wants to control the ack type.
+     */
+    public void individualAck() {
+        this.customAckFunction.accept(false);
     }
 
     @Override

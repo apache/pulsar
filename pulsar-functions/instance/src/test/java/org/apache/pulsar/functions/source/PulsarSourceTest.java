@@ -374,10 +374,10 @@ public class PulsarSourceTest {
 
         PulsarRecord record = (PulsarRecord) pulsarSource.buildRecord(consumer, message);
 
-        record.ack(true);
+        record.cumulativeAck();
         Mockito.verify(consumer, Mockito.times(1)).acknowledgeCumulativeAsync(message);
 
-        record.ack(false);
+        record.individualAck();
         Mockito.verify(consumer, Mockito.times(1)).acknowledgeAsync(message);
     }
 

@@ -85,13 +85,23 @@ public class SinkRecord<T> implements Record<T> {
 
     /**
      * Some sink sometimes wants to control the ack type.
-     *
-     * @param cumulative
      */
-    public void ack(boolean cumulative) {
+    public void cumulativeAck() {
         if (sourceRecord instanceof PulsarRecord) {
             PulsarRecord pulsarRecord = (PulsarRecord) sourceRecord;
-            pulsarRecord.ack(cumulative);
+            pulsarRecord.cumulativeAck();
+        } else {
+            throw new RuntimeException("SourceRecord class type must be PulsarRecord");
+        }
+    }
+
+    /**
+     * Some sink sometimes wants to control the ack type.
+     */
+    public void individualAck() {
+        if (sourceRecord instanceof PulsarRecord) {
+            PulsarRecord pulsarRecord = (PulsarRecord) sourceRecord;
+            pulsarRecord.individualAck();
         } else {
             throw new RuntimeException("SourceRecord class type must be PulsarRecord");
         }

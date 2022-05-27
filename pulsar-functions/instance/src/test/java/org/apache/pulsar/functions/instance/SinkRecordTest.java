@@ -32,12 +32,12 @@ public class SinkRecordTest {
         PulsarRecord pulsarRecord = Mockito.mock(PulsarRecord.class);
         SinkRecord sinkRecord = new SinkRecord<>(pulsarRecord, new Object());
 
-        sinkRecord.ack(true);
-        Mockito.verify(pulsarRecord, Mockito.times(1)).ack(true);
+        sinkRecord.cumulativeAck();
+        Mockito.verify(pulsarRecord, Mockito.times(1)).cumulativeAck();
 
         sinkRecord = new SinkRecord(Mockito.mock(Record.class), new Object());
         try {
-            sinkRecord.ack(true);
+            sinkRecord.individualAck();
             Assert.fail("Should throw runtime exception");
         } catch (Exception e) {
             Assert.assertTrue(e instanceof RuntimeException);
