@@ -83,12 +83,42 @@ components in the Pulsar ecosystem, including connectors, adapters, and other la
 
 - [Pulsar CI](https://github.com/apache/pulsar-test-infra)
 
+## Pulsar Runtime Java Version Recommendation
+
+- pulsar master branch
+
+| Pulsar Components | Java Version  |
+| ----------------- |:-------------:|
+| Broker            | 17            |
+| Functions / IO    | 17            |
+| CLI               | 17            |
+| Java Client       | 8 or 11 or 17 |
+
+- 2.8 <= pulsar ver <= 2.10
+
+| Pulsar Components | Java Version  |
+| ----------------- |:-------------:|
+| Broker            | 11            |
+| Functions / IO    | 11            |
+| CLI               | 8 or 11       |
+| Java Client       | 8 or 11       |
+
+- pulsar ver 2.8 <
+
+| Pulsar Components | Java Version  |
+| ----------------- |:-------------:|
+| All               | 8 or 11       |
+
+
 ## Build Pulsar
 
 Requirements:
- * Java [JDK 11](https://adoptium.net/?variant=openjdk11) or [JDK 8](https://adoptium.net/?variant=openjdk8)
+ * Java [JDK 17](https://adoptium.net/?variant=openjdk17)
  * Maven 3.6.1+
  * zip
+
+> Note: this project includes a [Maven Wrapper](https://maven.apache.org/wrapper/) that can be used instead of a system installed Maven.
+> Use it by replacing `mvn` by `./mvnw` on Linux and `mvnw.cmd` on Windows in the commands below.
 
 Compile and install:
 
@@ -136,7 +166,8 @@ Check https://pulsar.apache.org for documentation and examples.
 
 Docker images must be built with Java 8 for `branch-2.7` or previous branches because of
 [issue 8445](https://github.com/apache/pulsar/issues/8445).
-Java 11 is the recommended JDK version in `master`/`branch-2.8`.
+Java 11 is the recommended JDK version in `branch-2.8`, `branch-2.9` and `branch-2.10`.
+Java 17 is the recommended JDK version in `master`.
 
 This builds the docker images `apachepulsar/pulsar-all:latest` and `apachepulsar/pulsar:latest`.
 
@@ -168,7 +199,7 @@ required plugins.
 
 ### Intellij
 
-#### Configure Project JDK to Java 11 JDK
+#### Configure Project JDK to Java 17 JDK
 
 1. Open **Project Settings**. 
 
@@ -176,9 +207,9 @@ required plugins.
    
 2. Select the JDK version.
     
-    From the JDK version drop-down list, select **Download JDK...** or choose an existing recent Java 11 JDK version.
+    From the JDK version drop-down list, select **Download JDK...** or choose an existing recent Java 17 JDK version.
 
-3. In the download dialog, select version **11**. You can pick a version from many vendors. Unless you have a specific preference, choose **Eclipse Temurin (AdoptOpenJDK (Hotspot))**.
+3. In the download dialog, select version **17**. You can pick a version from many vendors. Unless you have a specific preference, choose **Eclipse Temurin (AdoptOpenJDK (Hotspot))**.
  
 
 #### Configure Java version for Maven in IntelliJ

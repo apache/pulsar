@@ -19,11 +19,11 @@
 
 package org.apache.pulsar.functions.runtime.thread;
 
-import io.netty.util.internal.PlatformDependent;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.SizeUnit;
+import org.apache.pulsar.common.util.DirectMemoryUtils;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator;
@@ -105,7 +105,7 @@ public class ThreadRuntimeFactoryTest {
 
     private ClientBuilder testMemoryLimit(Long absolute, Double percent) throws Exception {
         try (MockedStatic<PulsarClient> mockedPulsarClient = mockStatic(PulsarClient.class);) {
-            Whitebox.setInternalState(PlatformDependent.class, "DIRECT_MEMORY_LIMIT", 1024L);
+            Whitebox.setInternalState(DirectMemoryUtils.class, "JVM_MAX_DIRECT_MEMORY", 1024L);
 
             ClientBuilder clientBuilder = Mockito.mock(ClientBuilder.class);
             mockedPulsarClient.when(() -> PulsarClient.builder()).thenAnswer(i -> clientBuilder);

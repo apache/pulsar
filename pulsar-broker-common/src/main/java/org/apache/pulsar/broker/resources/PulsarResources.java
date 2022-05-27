@@ -47,8 +47,9 @@ public class PulsarResources {
     private final BookieResources bookieResources;
     @Getter
     private final TopicResources topicResources;
-
+    @Getter
     private final Optional<MetadataStore> localMetadataStore;
+    @Getter
     private final Optional<MetadataStore> configurationMetadataStore;
 
     public PulsarResources(MetadataStore localMetadataStore, MetadataStore configurationMetadataStore) {

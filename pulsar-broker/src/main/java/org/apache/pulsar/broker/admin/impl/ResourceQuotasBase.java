@@ -18,110 +18,65 @@
  */
 package org.apache.pulsar.broker.admin.impl;
 
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.CompletableFuture;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.common.naming.NamespaceBundle;
-import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.ResourceQuota;
 
 @Slf4j
 public abstract class ResourceQuotasBase extends NamespacesBase {
 
-    public ResourceQuota getDefaultResourceQuota() throws Exception {
-        validateSuperUserAccess();
-        try {
-            return pulsar().getBrokerService().getBundlesQuotas().getDefaultResourceQuota()
-                    .get(config().getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS);
-        } catch (Exception e) {
-            log.error("[{}] Failed to get default resource quota", clientAppId());
-            throw new RestException(e);
-        }
+    public ResourceQuota getDefaultResourceQuota() {
+        return sync(() -> getDefaultResourceQuotaAsync());
     }
 
-    public void setDefaultResourceQuota(ResourceQuota quota) throws Exception {
-        validateSuperUserAccess();
-        validatePoliciesReadOnlyAccess();
-        try {
-            pulsar().getBrokerService().getBundlesQuotas().setDefaultResourceQuota(quota)
-                    .get(config().getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS);
-        } catch (Exception e) {
-            log.error("[{}] Failed to get default resource quota", clientAppId());
-            throw new RestException(e);
-        }
+    public CompletableFuture<ResourceQuota> getDefaultResourceQuotaAsync() {
+        return validateSuperUserAccessAsync()
+                .thenCompose(__ -> pulsar().getBrokerService().getBundlesQuotas().getDefaultResourceQuota());
+    }
+
+    public CompletableFuture<Void> setDefaultResourceQuotaAsync(ResourceQuota quota) {
+        return validateSuperUserAccessAsync()
+                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
+                .thenCompose(__ -> pulsar().getBrokerService().getBundlesQuotas().setDefaultResourceQuota(quota));
     }
 
     @SuppressWarnings("deprecation")
-    protected ResourceQuota internalGetNamespaceBundleResourceQuota(String bundleRange) {
-        validateSuperUserAccess();
-
-        Policies policies = getNamespacePolicies(namespaceName);
-
-        if (!namespaceName.isGlobal()) {
-            validateClusterOwnership(namespaceName.getCluster());
-            validateClusterForTenant(namespaceName.getTenant(), namespaceName.getCluster());
-        }
-
-        NamespaceBundle nsBundle = validateNamespaceBundleRange(namespaceName, policies.bundles, bundleRange);
-
-        try {
-            return pulsar().getBrokerService().getBundlesQuotas().getResourceQuota(nsBundle)
-                    .get(config().getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS);
-        } catch (Exception e) {
-            log.error("[{}] Failed to get resource quota for namespace bundle {}", clientAppId(), nsBundle.toString());
-            throw new RestException(e);
-        }
+    protected CompletableFuture<ResourceQuota> internalGetNamespaceBundleResourceQuota(String bundleRange) {
+        return getNamespaceBundleRangeAsync(bundleRange, false)
+                .thenCompose(nsBundle -> pulsar().getBrokerService().getBundlesQuotas().getResourceQuota(nsBundle));
     }
 
     @SuppressWarnings("deprecation")
-    protected void internalSetNamespaceBundleResourceQuota(String bundleRange, ResourceQuota quota) {
-        validateSuperUserAccess();
-        validatePoliciesReadOnlyAccess();
-
-        Policies policies = getNamespacePolicies(namespaceName);
-
-        if (!namespaceName.isGlobal()) {
-            validateClusterOwnership(namespaceName.getCluster());
-            validateClusterForTenant(namespaceName.getTenant(), namespaceName.getCluster());
-        }
-
-        NamespaceBundle nsBundle = validateNamespaceBundleRange(namespaceName, policies.bundles, bundleRange);
-
-        try {
-            pulsar().getBrokerService().getBundlesQuotas().setResourceQuota(nsBundle, quota)
-                    .get(config().getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS);
-            log.info("[{}] Successfully set resource quota for namespace bundle {}", clientAppId(),
-                    nsBundle.toString());
-        } catch (Exception e) {
-            log.error("[{}] Failed to set resource quota for namespace bundle {}", clientAppId(), nsBundle.toString());
-            throw new RestException(e);
-        }
-
+    protected CompletableFuture<Void> internalSetNamespaceBundleResourceQuota(String bundleRange, ResourceQuota quota) {
+        return getNamespaceBundleRangeAsync(bundleRange, true)
+                .thenCompose(nsBundle ->
+                        pulsar().getBrokerService().getBundlesQuotas().setResourceQuota(nsBundle, quota));
     }
 
     @SuppressWarnings("deprecation")
-    protected void internalRemoveNamespaceBundleResourceQuota(String bundleRange) {
-        validateSuperUserAccess();
-        validatePoliciesReadOnlyAccess();
+    protected CompletableFuture<Void> internalRemoveNamespaceBundleResourceQuota(String bundleRange) {
+        return getNamespaceBundleRangeAsync(bundleRange, true)
+                .thenCompose(nsBundle ->
+                        pulsar().getBrokerService().getBundlesQuotas().resetResourceQuota(nsBundle));
+    }
 
-        Policies policies = getNamespacePolicies(namespaceName);
-
+    private CompletableFuture<NamespaceBundle> getNamespaceBundleRangeAsync(String bundleRange, boolean checkReadOnly) {
+        CompletableFuture<Void> ret =
+                validateSuperUserAccessAsync().thenCompose(__ -> {
+                    if (checkReadOnly) {
+                        return validatePoliciesReadOnlyAccessAsync();
+                    } else {
+                        return CompletableFuture.completedFuture(null);
+                    }
+                });
         if (!namespaceName.isGlobal()) {
-            validateClusterOwnership(namespaceName.getCluster());
-            validateClusterForTenant(namespaceName.getTenant(), namespaceName.getCluster());
+            ret = ret.thenCompose(__ -> validateClusterOwnershipAsync(namespaceName.getCluster()))
+                    .thenCompose(__ -> validateClusterForTenantAsync(namespaceName.getTenant(),
+                            namespaceName.getCluster()));
         }
-
-        NamespaceBundle nsBundle = validateNamespaceBundleRange(namespaceName, policies.bundles, bundleRange);
-
-        try {
-            pulsar().getBrokerService().getBundlesQuotas().resetResourceQuota(nsBundle)
-                    .get(config().getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS);
-            log.info("[{}] Successfully unset resource quota for namespace bundle {}", clientAppId(),
-                    nsBundle.toString());
-        } catch (Exception e) {
-            log.error("[{}] Failed to unset resource quota for namespace bundle {}", clientAppId(),
-                    nsBundle.toString());
-            throw new RestException(e);
-        }
+        return ret
+                .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
+                .thenApply(policies -> validateNamespaceBundleRange(namespaceName, policies.bundles, bundleRange));
     }
 }

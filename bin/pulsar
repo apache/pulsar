@@ -52,7 +52,7 @@ then
 fi
 
 # Check pulsar env and load pulsar_env.sh
-if [ -f "$PULSAR_HOME/conf/pulsar_env.sh" ]
+if [[ -f "$PULSAR_HOME/conf/pulsar_env.sh" && $1 != "bookie" ]]
 then
     . "$PULSAR_HOME/conf/pulsar_env.sh"
 fi
@@ -273,7 +273,7 @@ OPTS="$OPTS -Djute.maxbuffer=10485760 -Djava.net.preferIPv4Stack=true"
 
 # Allow Netty to use reflection access
 OPTS="$OPTS -Dio.netty.tryReflectionSetAccessible=true"
-IS_JAVA_8=`java -version 2>&1 |grep version|grep '"1\.8'`
+IS_JAVA_8=`$JAVA -version 2>&1 |grep version|grep '"1\.8'`
 # Start --add-opens options
 # '--add-opens' option is not supported in jdk8
 if [[ -z "$IS_JAVA_8" ]]; then
@@ -283,6 +283,9 @@ if [[ -z "$IS_JAVA_8" ]]; then
   # https://github.com/netty/netty/blob/4.1/common/src/main/java/io/netty/util/internal/PlatformDependent0.java
   # https://github.com/netty/netty/issues/12265
   OPTS="$OPTS --add-opens java.base/java.nio=ALL-UNNAMED --add-opens java.base/jdk.internal.misc=ALL-UNNAMED"
+  # netty.DnsResolverUtil
+  # JvmDefaultGCMetricsLogger
+  OPTS="$OPTS --add-opens java.base/sun.net=ALL-UNNAMED --add-opens java.management/sun.management=ALL-UNNAMED"
 fi
 
 OPTS="-cp $PULSAR_CLASSPATH $OPTS"

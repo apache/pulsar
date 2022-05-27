@@ -1,7 +1,7 @@
 ---
-id: version-2.8.1-txn-monitor
+id: txn-monitor
 title: How to monitor transactions?
-sidebar_label: How to monitor transactions?
+sidebar_label: "How to monitor transactions?"
 original_id: txn-monitor
 ---
 

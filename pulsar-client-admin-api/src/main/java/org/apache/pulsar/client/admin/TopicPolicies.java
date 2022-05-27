@@ -911,6 +911,51 @@ public interface TopicPolicies {
     CompletableFuture<Void> removeSubscriptionDispatchRateAsync(String topic);
 
     /**
+     * Set dispatch rate limiter for a specific subscription.
+     */
+    void setSubscriptionDispatchRate(String topic, String subscriptionName, DispatchRate dispatchRate)
+            throws PulsarAdminException;
+
+    /**
+     * Async version of {@link #setSubscriptionDispatchRate(String, String, DispatchRate)}.
+     */
+    CompletableFuture<Void> setSubscriptionDispatchRateAsync(String topic, String subscriptionName,
+                                                             DispatchRate dispatchRate);
+
+    /**
+     * If applied is true, get dispatch rate limiter for a specific subscription.
+     * Or else, return subscription level setting.
+     */
+    DispatchRate getSubscriptionDispatchRate(String topic, String subscriptionName, boolean applied)
+            throws PulsarAdminException;
+
+    /**
+     * Async version of {@link #getSubscriptionDispatchRate(String, String, boolean)}.
+     */
+    CompletableFuture<DispatchRate> getSubscriptionDispatchRateAsync(String topic, String subscriptionName,
+                                                                     boolean applied);
+
+    /**
+     * Get subscription level dispatch rate limiter setting for a specific subscription.
+     */
+    DispatchRate getSubscriptionDispatchRate(String topic, String subscriptionName) throws PulsarAdminException;
+
+    /**
+     * Async version of {@link #getSubscriptionDispatchRate(String, String)}.
+     */
+    CompletableFuture<DispatchRate> getSubscriptionDispatchRateAsync(String topic, String subscriptionName);
+
+    /**
+     * Remove subscription level dispatch rate limiter setting for a specific subscription.
+     */
+    void removeSubscriptionDispatchRate(String topic, String subscriptionName) throws PulsarAdminException;
+
+    /**
+     * Async version of {@link #removeSubscriptionDispatchRate(String, String)}.
+     */
+    CompletableFuture<Void> removeSubscriptionDispatchRateAsync(String topic, String subscriptionName);
+
+    /**
      * Set replicatorDispatchRate for the topic.
      * <p/>
      * Replicator dispatch rate under this topic can dispatch this many messages per second

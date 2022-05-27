@@ -29,10 +29,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.Semaphore;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.ManagedLedger;
@@ -113,6 +115,13 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
     private final TransactionPendingAckStoreProvider pendingAckStoreProvider;
 
     private final BlockingQueue<Runnable> acceptQueue = new LinkedBlockingDeque<>();
+
+    /**
+     * The map is used to store the lowWaterMarks which key is TC ID and value is lowWaterMark of the TC.
+     */
+    private final ConcurrentHashMap<Long, Long> lowWaterMarks = new ConcurrentHashMap<>();
+
+    private final Semaphore handleLowWaterMark = new Semaphore(1);
 
     @Getter
     private final ExecutorService internalPinnedExecutor;
@@ -595,28 +604,34 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
     }
 
     private void handleLowWaterMark(TxnID txnID, long lowWaterMark) {
-        if (individualAckOfTransaction != null && !individualAckOfTransaction.isEmpty()) {
-            TxnID firstTxn = individualAckOfTransaction.firstKey();
-
-            if (firstTxn.getMostSigBits() == txnID.getMostSigBits()
-                    && firstTxn.getLeastSigBits() <= lowWaterMark) {
-                this.pendingAckStoreFuture.whenComplete((pendingAckStore, throwable) -> {
-                    if (throwable == null) {
-                        pendingAckStore.appendAbortMark(txnID, AckType.Individual).thenAccept(v -> {
-                            synchronized (PendingAckHandleImpl.this) {
-                                log.warn("[{}] Transaction pending ack handle low water mark success! txnId : [{}], "
-                                        + "lowWaterMark : [{}]", topicName, txnID, lowWaterMark);
-                                individualAckOfTransaction.remove(firstTxn);
-                                handleLowWaterMark(txnID, lowWaterMark);
-                            }
-                        }).exceptionally(e -> {
-                            log.warn("[{}] Transaction pending ack handle low water mark fail! txnId : [{}], "
-                                    + "lowWaterMark : [{}]", topicName, txnID, lowWaterMark);
-                            return null;
-                        });
-                    }
-                });
+        lowWaterMarks.compute(txnID.getMostSigBits(), (tcId, oldLowWaterMark) -> {
+            if (oldLowWaterMark == null || oldLowWaterMark < lowWaterMark) {
+                return lowWaterMark;
+            } else {
+                return oldLowWaterMark;
             }
+        });
+
+        if (handleLowWaterMark.tryAcquire()) {
+            if (individualAckOfTransaction != null && !individualAckOfTransaction.isEmpty()) {
+                TxnID firstTxn = individualAckOfTransaction.firstKey();
+                long tCId = firstTxn.getMostSigBits();
+                Long lowWaterMarkOfFirstTxnId = lowWaterMarks.get(tCId);
+                if (lowWaterMarkOfFirstTxnId != null && firstTxn.getLeastSigBits() <= lowWaterMarkOfFirstTxnId) {
+                    abortTxn(firstTxn, null, lowWaterMarkOfFirstTxnId).thenRun(() -> {
+                        log.warn("[{}] Transaction pending ack handle low water mark success! txnId : [{}], "
+                                + "lowWaterMark : [{}]", topicName, firstTxn, lowWaterMarkOfFirstTxnId);
+                        handleLowWaterMark.release();
+                    }).exceptionally(ex -> {
+                        log.warn("[{}] Transaction pending ack handle low water mark fail! txnId : [{}], "
+                                + "lowWaterMark : [{}]", topicName, firstTxn, lowWaterMarkOfFirstTxnId);
+                        handleLowWaterMark.release();
+                        return null;
+                    });
+                    return;
+                }
+            }
+            handleLowWaterMark.release();
         }
     }
 

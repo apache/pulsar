@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
@@ -69,6 +70,7 @@ import org.slf4j.LoggerFactory;
 
 public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T> {
     protected static final int INITIAL_RECEIVER_QUEUE_SIZE = 1;
+    protected static final double MEMORY_THRESHOLD_FOR_RECEIVER_QUEUE_SIZE_EXPANSION = 0.75;
 
     protected final String subscription;
     protected final ConsumerConfigurationData<T> conf;
@@ -98,6 +100,10 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
 
     protected static final AtomicLongFieldUpdater<ConsumerBase> CONSUMER_EPOCH =
             AtomicLongFieldUpdater.newUpdater(ConsumerBase.class, "consumerEpoch");
+
+    private static final String RECONSUME_LATER_ERROR_MSG =
+            "reconsumeLater method not supported because retryEnabled is set to false. "
+          + "You can enable it via ConsumerBuilder.";
 
     @Setter
     @Getter
@@ -166,16 +172,36 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         initReceiverQueueSize();
     }
 
+    public void initReceiverQueueSize() {
+        if (conf.isAutoScaledReceiverQueueSizeEnabled()) {
+            CURRENT_RECEIVER_QUEUE_SIZE_UPDATER.set(this, minReceiverQueueSize());
+        } else {
+            CURRENT_RECEIVER_QUEUE_SIZE_UPDATER.set(this, maxReceiverQueueSize);
+        }
+    }
 
-    public abstract void initReceiverQueueSize();
+    public abstract int minReceiverQueueSize();
 
     protected void expectMoreIncomingMessages() {
         if (!conf.isAutoScaledReceiverQueueSizeEnabled()) {
             return;
         }
-        if (scaleReceiverQueueHint.compareAndSet(true, false)) {
+        double usage = getMemoryLimitController().map(MemoryLimitController::currentUsagePercent).orElse(0d);
+        if (usage < MEMORY_THRESHOLD_FOR_RECEIVER_QUEUE_SIZE_EXPANSION
+                 && scaleReceiverQueueHint.compareAndSet(true, false)) {
             int oldSize = getCurrentReceiverQueueSize();
             int newSize = Math.min(maxReceiverQueueSize, oldSize * 2);
+            setCurrentReceiverQueueSize(newSize);
+        }
+    }
+
+    protected void reduceCurrentReceiverQueueSize() {
+        if (!conf.isAutoScaledReceiverQueueSizeEnabled()) {
+            return;
+        }
+        int oldSize = getCurrentReceiverQueueSize();
+        int newSize = Math.max(minReceiverQueueSize(), oldSize / 2);
+        if (oldSize > newSize) {
             setCurrentReceiverQueueSize(newSize);
         }
     }
@@ -390,7 +416,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     public void reconsumeLater(Message<?> message, Map<String, String> customProperties, long delayTime, TimeUnit unit)
             throws PulsarClientException {
         if (!conf.isRetryEnable()) {
-            throw new PulsarClientException("reconsumeLater method not support!");
+            throw new PulsarClientException(RECONSUME_LATER_ERROR_MSG);
         }
         try {
             reconsumeLaterAsync(message, customProperties, delayTime, unit).get();
@@ -484,7 +510,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     public CompletableFuture<Void> reconsumeLaterAsync(
             Message<?> message, Map<String, String> customProperties, long delayTime, TimeUnit unit) {
         if (!conf.isRetryEnable()) {
-            return FutureUtil.failedFuture(new PulsarClientException("reconsumeLater method not support!"));
+            return FutureUtil.failedFuture(new PulsarClientException(RECONSUME_LATER_ERROR_MSG));
         }
         try {
             validateMessageId(message);
@@ -526,7 +552,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     public CompletableFuture<Void> reconsumeLaterCumulativeAsync(
             Message<?> message, Map<String, String> customProperties, long delayTime, TimeUnit unit) {
         if (!conf.isRetryEnable()) {
-            return FutureUtil.failedFuture(new PulsarClientException("reconsumeLater method not support!"));
+            return FutureUtil.failedFuture(new PulsarClientException(RECONSUME_LATER_ERROR_MSG));
         }
         if (!isCumulativeAcknowledgementAllowed(conf.getSubscriptionType())) {
             return FutureUtil.failedFuture(new PulsarClientException.InvalidConfigurationException(
@@ -795,6 +821,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
             // After we have enqueued the messages on `incomingMessages` queue, we cannot touch the message instance
             // anymore, since for pooled messages, this instance was possibly already been released and recycled.
             INCOMING_MESSAGES_SIZE_UPDATER.addAndGet(this, messageSize);
+            getMemoryLimitController().ifPresent(limiter -> limiter.forceReserveMemory(messageSize));
             updateAutoScaleReceiverQueueHint();
         }
         return hasEnoughMessagesForBatchReceive();
@@ -1055,12 +1082,23 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         return pendingBatchReceives != null && hasNextBatchReceive();
     }
 
+    Optional<MemoryLimitController> getMemoryLimitController() {
+        if (!conf.isAutoScaledReceiverQueueSizeEnabled()) {
+            //disable memory limit.
+            return Optional.empty();
+        } else {
+            return Optional.of(client.getMemoryLimitController());
+        }
+    }
+
     protected void resetIncomingMessageSize() {
-        INCOMING_MESSAGES_SIZE_UPDATER.getAndSet(this, 0);
+        long oldSize = INCOMING_MESSAGES_SIZE_UPDATER.getAndSet(this, 0);
+        getMemoryLimitController().ifPresent(limiter -> limiter.releaseMemory(oldSize));
     }
 
     protected void decreaseIncomingMessageSize(final Message<?> message) {
         INCOMING_MESSAGES_SIZE_UPDATER.addAndGet(this, -message.size());
+        getMemoryLimitController().ifPresent(limiter -> limiter.releaseMemory(message.size()));
     }
 
     public long getIncomingMessageSize() {

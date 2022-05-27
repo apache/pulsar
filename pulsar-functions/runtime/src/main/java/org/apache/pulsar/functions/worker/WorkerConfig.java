@@ -49,6 +49,7 @@ import org.apache.pulsar.common.configuration.FieldContext;
 import org.apache.pulsar.common.configuration.PulsarConfiguration;
 import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.common.nar.NarClassLoader;
+import org.apache.pulsar.common.sasl.SaslConstants;
 import org.apache.pulsar.functions.auth.KubernetesSecretsTokenAuthProvider;
 import org.apache.pulsar.functions.instance.state.BKStateStoreProviderImpl;
 import org.apache.pulsar.functions.runtime.kubernetes.KubernetesRuntimeFactory;
@@ -293,6 +294,11 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
         doc = "The number of replicas for storing functions"
     )
     private int numFunctionPackageReplicas;
+    @FieldContext(
+            category = CATEGORY_FUNC_PKG,
+            doc = "Flag indicates enabling or disabling function worker using unified PackageManagement service."
+    )
+    private boolean  functionsWorkerEnablePackageManagement = false;
     @FieldContext(
         category = CATEGORY_FUNC_RUNTIME_MNG,
         doc = "The directory to download functions by runtime manager"
@@ -542,6 +548,34 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
         doc = "Role names that are treated as `super-user`, meaning they will be able to access any admin-api"
     )
     private Set<String> superUserRoles = Sets.newTreeSet();
+
+    @FieldContext(
+            category = CATEGORY_WORKER_SECURITY,
+            doc = "This is a regexp, which limits the range of possible ids which can connect to the Broker using SASL."
+                    + "\n Default value is: \".*pulsar.*\", so only clients whose id contains 'pulsar' are allowed to"
+                    + " connect."
+    )
+    private String saslJaasClientAllowedIds = SaslConstants.JAAS_CLIENT_ALLOWED_IDS_DEFAULT;
+
+    @FieldContext(
+            category = CATEGORY_WORKER_SECURITY,
+            doc = "Service Principal, for login context name. Default value is \"PulsarFunction\"."
+    )
+    private String saslJaasServerSectionName = SaslConstants.JAAS_DEFAULT_FUNCTION_SECTION_NAME;
+
+    @FieldContext(
+            category = CATEGORY_WORKER_SECURITY,
+            doc = "Path to file containing the secret to be used to SaslRoleTokenSigner\n"
+                    + "The secret can be specified like:\n"
+                    + "saslJaasServerRoleTokenSignerSecretPath=file:///my/saslRoleTokenSignerSecret.key."
+    )
+    private String saslJaasServerRoleTokenSignerSecretPath;
+
+    @FieldContext(
+            category = CATEGORY_WORKER_SECURITY,
+            doc = "kerberos kinit command."
+    )
+    private String kinitCommand = "/usr/bin/kinit";
 
     private Properties properties = new Properties();
 

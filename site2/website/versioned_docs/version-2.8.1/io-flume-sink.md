@@ -1,7 +1,7 @@
 ---
-id: version-2.8.1-io-flume-sink
+id: io-flume-sink
 title: Flume sink connector
-sidebar_label: Flume sink connector
+sidebar_label: "Flume sink connector"
 original_id: io-flume-sink
 ---
 
@@ -29,24 +29,28 @@ Before using the Flume sink connector, you need to create a configuration file t
 
 * JSON 
 
-    ```json
-    {
-        "name": "a1",
-        "confFile": "sink.conf",
-        "noReloadConf": "false",
-        "zkConnString": "",
-        "zkBasePath": ""
-    }
-    ```
+  ```json
+  
+  {
+      "name": "a1",
+      "confFile": "sink.conf",
+      "noReloadConf": "false",
+      "zkConnString": "",
+      "zkBasePath": ""
+  }
+  
+  ```
 
 * YAML
 
-    ```yaml
-    configs:
-        name: a1
-        confFile: sink.conf
-        noReloadConf: false
-        zkConnString: ""
-        zkBasePath: ""
-    ```
+  ```yaml
+  
+  configs:
+      name: a1
+      confFile: sink.conf
+      noReloadConf: false
+      zkConnString: ""
+      zkBasePath: ""
+  
+  ```
 

@@ -453,7 +453,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
     }
 
     @Test(timeOut=30000)
-    public void testTransactionBufferRecoverThrowPulsarClientException() throws Exception {
+    public void testTransactionBufferRecoverThrowException() throws Exception {
         String topic = NAMESPACE1 + "/testTransactionBufferRecoverThrowPulsarClientException";
         @Cleanup
         Producer<byte[]> producer = pulsarClient
@@ -485,7 +485,14 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         field.setAccessible(true);
         TransactionBufferSnapshotService transactionBufferSnapshotServiceOriginal =
                 (TransactionBufferSnapshotService) field.get(getPulsarServiceList().get(0));
-        // mock reader can't read snapshot fail
+        // mock reader can't read snapshot fail throw RuntimeException
+        doThrow(new RuntimeException("test")).when(reader).hasMoreEvents();
+        // check reader close topic
+        checkCloseTopic(pulsarClient, transactionBufferSnapshotServiceOriginal,
+                transactionBufferSnapshotService, originalTopic, field, producer);
+        doReturn(true).when(reader).hasMoreEvents();
+
+        // mock reader can't read snapshot fail throw PulsarClientException
         doThrow(new PulsarClientException("test")).when(reader).hasMoreEvents();
         // check reader close topic
         checkCloseTopic(pulsarClient, transactionBufferSnapshotServiceOriginal,

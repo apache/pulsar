@@ -1,5 +1,5 @@
 ---
-id: version-2.4.1-functions-runtime
+id: functions-runtime
 title: Configure Functions runtime
 sidebar_label: "Setup: Configure Functions runtime"
 original_id: functions-runtime
@@ -22,8 +22,10 @@ The differences of the thread and process modes are:
 It is easy to configure *Thread* runtime. In most cases, you do not need to configure anything. You can customize the thread group name with the following settings:
 
 ```yaml
+
 threadContainerFactory:
   threadGroupName: "Your Function Container Group"
+
 ```
 
 *Thread* runtime is only supported in Java function.
@@ -32,6 +34,7 @@ threadContainerFactory:
 When you enable *Process* runtime, you do not need to configure anything.
 
 ```yaml
+
 processContainerFactory:
   # the directory for storing the function logs
   logDirectory:
@@ -41,6 +44,7 @@ processContainerFactory:
   pythonInstanceLocation:
   # change the extra dependencies location:
   extraFunctionDependenciesDir:
+
 ```
 
 *Process* runtime is supported in Java, Python, and Go functions.
@@ -50,6 +54,7 @@ processContainerFactory:
 It is easy to configure Kubernetes runtime. You can just uncomment the settings of `kubernetesContainerFactory` in the `functions_worker.yaml` file. The following is an example.
 
 ```yaml
+
 kubernetesContainerFactory:
   # uri to kubernetes cluster, leave it to empty and it will use the kubernetes settings in function worker
   k8Uri:
@@ -77,6 +82,7 @@ kubernetesContainerFactory:
   extraFunctionDependenciesDir:
   # Additional memory padding added on top of the memory requested by the function per on a per instance basis
   percentMemoryPadding: 10
+
 ```
 
 If you have already run a Pulsar cluster on Kubernetes, you can keep the settings unchanged at most of time.
@@ -93,6 +99,7 @@ kubernetes APIs.
 Otherwise, you will not be able to create any functions. The following is an example of error message.
 
 ```bash
+
 22:04:27.696 [Timer-0] ERROR org.apache.pulsar.functions.runtime.KubernetesRuntimeFactory - Error while trying to fetch configmap example-pulsar-4qvmb5gur3c6fc9dih0x1xn8b-function-worker-config at namespace pulsar
 io.kubernetes.client.ApiException: Forbidden
 	at io.kubernetes.client.ApiClient.handleResponse(ApiClient.java:882) ~[io.kubernetes-client-java-2.0.0.jar:?]
@@ -103,10 +110,13 @@ io.kubernetes.client.ApiException: Forbidden
 	at org.apache.pulsar.functions.runtime.KubernetesRuntimeFactory$1.run(KubernetesRuntimeFactory.java:275) [org.apache.pulsar-pulsar-functions-runtime-2.4.0-42c3bf949.jar:2.4.0-42c3bf949]
 	at java.util.TimerThread.mainLoop(Timer.java:555) [?:1.8.0_212]
 	at java.util.TimerThread.run(Timer.java:505) [?:1.8.0_212]
+
 ```
+
 If this happens, you need to grant the required permissions to the service account used for running Functions Workers. An example to grant permissions is shown below: a service account `functions-worker` is granted with permissions to access Kubernetes resources `services`, `configmaps`, `pods` and `apps.statefulsets`.
 
 ```yaml
+
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRole
 metadata:
@@ -142,4 +152,6 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: functions-worker
+
 ```
+

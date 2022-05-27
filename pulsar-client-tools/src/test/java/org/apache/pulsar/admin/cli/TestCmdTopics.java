@@ -36,6 +36,7 @@ import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import org.apache.pulsar.client.admin.ListTopicsOptions;
 import org.apache.pulsar.client.admin.Lookup;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.Schemas;
@@ -113,7 +114,7 @@ public class TestCmdTopics {
 
         Topics topics = mock(Topics.class);
         doReturn(topicList).when(topics).getList(anyString(), any());
-        doReturn(topicList).when(topics).getList(anyString(), any(), any());
+        doReturn(topicList).when(topics).getList(anyString(), any(), any(ListTopicsOptions.class));
 
         PulsarAdmin admin = mock(PulsarAdmin.class);
         when(admin.topics()).thenReturn(topics);

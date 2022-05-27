@@ -66,7 +66,7 @@ public class InfluxDBSink extends BatchSink<Point, GenericRecord> {
         // looking for measurement
         val measurementField = genericRecord.getField("measurement");
         if (null == measurementField) {
-            throw new SchemaSerializationException("device is a required field.");
+            throw new SchemaSerializationException("measurement is a required field.");
         }
         val measurement = (String) measurementField;
 

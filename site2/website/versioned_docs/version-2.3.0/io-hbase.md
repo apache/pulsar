@@ -1,7 +1,7 @@
 ---
-id: version-2.3.0-io-hbase
+id: io-hbase
 title: hbase Connector
-sidebar_label: hbase Connector
+sidebar_label: "hbase Connector"
 original_id: io-hbase
 ---
 
