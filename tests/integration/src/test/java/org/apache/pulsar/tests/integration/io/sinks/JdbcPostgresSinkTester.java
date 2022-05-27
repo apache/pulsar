@@ -184,7 +184,7 @@ public class JdbcPostgresSinkTester extends SinkTester<PostgreSQLContainer> {
             }
         } catch (Exception e) {
             log.error("Got exception: ", e);
-            fail("Got exception when op sql.");
+            fail("Got exception when op sql: " + e);
         }
     }
 
