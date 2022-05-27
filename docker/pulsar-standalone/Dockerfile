@@ -18,10 +18,10 @@
 #
 
 # Using files from pulsar-all docker image for pulsar
-FROM apachepulsar/pulsar-all:latest as pulsar
+FROM bkbase/pulsar-all:latest as pulsar
 
 # Using files from pulsar-dashboard for the dashboard
-FROM apachepulsar/pulsar-dashboard:latest as dashboard
+FROM bkbase/pulsar-dashboard:latest as dashboard
 
 # Restart from
 FROM ubuntu:20.04

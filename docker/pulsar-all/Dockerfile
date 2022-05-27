@@ -26,6 +26,6 @@ ADD ${PULSAR_IO_DIR} /connectors
 ADD ${PULSAR_OFFLOADER_TARBALL} /
 RUN mv /apache-pulsar-offloaders-*/offloaders /offloaders
 
-FROM apachepulsar/pulsar:latest
+FROM bkbase/pulsar:latest
 COPY --from=pulsar-all /connectors /pulsar/connectors
 COPY --from=pulsar-all /offloaders /pulsar/offloaders

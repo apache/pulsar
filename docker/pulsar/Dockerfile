@@ -45,10 +45,10 @@ ARG DEBIAN_FRONTEND=noninteractive
 # Install some utilities
 RUN apt-get update \
      && apt-get -y dist-upgrade \
-     && apt-get -y install netcat dnsutils less procps iputils-ping \
+     && apt-get -y install wget netcat dnsutils less procps iputils-ping \
                  python3 python3-dev python3-setuptools python3-yaml python3-kazoo \
                  libreadline-gplv2-dev libncursesw5-dev libssl-dev libsqlite3-dev tk-dev libgdbm-dev libc6-dev libbz2-dev \
-                 curl \
+                 curl busybox \
      && apt-get -y --purge autoremove \
      && apt-get autoclean \
      && apt-get clean \
@@ -72,9 +72,6 @@ ENV JAVA_HOME=$JDK_INSTALL_PATH/TencentKona-8.0.7-302
 ENV CLASSPATH=$JAVA_HOME/lib
 
 
-
-ADD target/python-client/ /pulsar/pulsar-client
-
 VOLUME  ["/pulsar/conf", "/pulsar/data"]
 
 ENV PULSAR_ROOT_LOGGER=INFO,CONSOLE
@@ -83,4 +80,4 @@ ENV PULSAR_ROOT_LOGGER=INFO,CONSOLE
 COPY --from=pulsar /pulsar /pulsar
 WORKDIR /pulsar
 
-RUN /pulsar/bin/install-pulsar-client.sh
+# remove python-client
