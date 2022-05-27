@@ -70,6 +70,7 @@ RUN wget -q $JDK_DOWNLOAD_URL -O jdk.tar.gz \
 
 ENV JAVA_HOME=$JDK_INSTALL_PATH/TencentKona-8.0.7-302
 ENV CLASSPATH=$JAVA_HOME/lib
+ENV PATH=${JAVA_HOME}/bin:${PATH}
 
 
 VOLUME  ["/pulsar/conf", "/pulsar/data"]

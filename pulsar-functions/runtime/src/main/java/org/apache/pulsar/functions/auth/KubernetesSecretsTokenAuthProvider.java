@@ -110,6 +110,7 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
 
     @Override
     public void configureAuthenticationConfig(AuthenticationConfig authConfig, Optional<FunctionAuthData> functionAuthData) {
+        log.info("configureAuthenticationConfig before authConfig:{} ", authConfig);
         if (!functionAuthData.isPresent()) {
             // if auth data is not present maybe user is trying to use anonymous role thus don't pass in any auth config
             authConfig.setClientAuthenticationPlugin(null);
@@ -122,6 +123,7 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
                 authConfig.setTlsTrustCertsFilePath(String.format("%s/%s", DEFAULT_SECRET_MOUNT_DIR, FUNCTION_CA_CERT));
             }
         }
+        log.info("configureAuthenticationConfig after authConfig:{} ", authConfig);
     }
 
 

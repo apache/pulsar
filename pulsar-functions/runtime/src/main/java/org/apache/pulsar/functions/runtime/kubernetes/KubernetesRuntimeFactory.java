@@ -208,6 +208,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
                 ? workerConfig.getPulsarWebServiceUrl() : factoryConfig.getPulsarAdminUrl();
         this.stateStorageServiceUri = workerConfig.getStateStorageServiceUrl();
         this.authConfig = authenticationConfig;
+        log.info("KubernetesRuntimeFactory init authConfig:{}", authConfig);
         this.expectedMetricsCollectionInterval = factoryConfig.getExpectedMetricsCollectionInterval() == null
                 ? -1 : factoryConfig.getExpectedMetricsCollectionInterval();
         this.changeConfigMap = factoryConfig.getChangeConfigMap();
@@ -277,14 +278,14 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
             default:
                 throw new RuntimeException("Unsupported Runtime " + instanceConfig.getFunctionDetails().getRuntime());
         }
-
+        // 调整原因: broker启动鉴权后, 注册Function不带鉴权信息时, 在启动Function任务时会自动去掉鉴权信息, 在我们当前场景下会报错
         // adjust the auth config to support auth
-        if (authenticationEnabled) {
-            authProvider.ifPresent(kubernetesFunctionAuthProvider ->
-                    kubernetesFunctionAuthProvider.configureAuthenticationConfig(authConfig,
-                            Optional.ofNullable(getFunctionAuthData(Optional.ofNullable(instanceConfig.getFunctionAuthenticationSpec())))));
-
-        }
+//        if (authenticationEnabled) {
+//            authProvider.ifPresent(kubernetesFunctionAuthProvider ->
+//                    kubernetesFunctionAuthProvider.configureAuthenticationConfig(authConfig,
+//                            Optional.ofNullable(getFunctionAuthData(Optional.ofNullable(instanceConfig.getFunctionAuthenticationSpec())))));
+//
+//        }
 
         Optional<KubernetesManifestCustomizer> manifestCustomizer = getRuntimeCustomizer();
         String overriddenNamespace = manifestCustomizer.map((customizer) -> customizer.customizeNamespace(instanceConfig.getFunctionDetails(), jobNamespace)).orElse(jobNamespace);
