@@ -160,7 +160,7 @@ public class JdbcPostgresSinkTester extends SinkTester<PostgreSQLContainer> {
                 ResultSet.CONCUR_UPDATABLE);
             rs = statement.executeQuery();
 
-            if (kvs.get("ACTION").equals("DELETE")) {
+            if (!keyValueSchema && kvs.get("ACTION").equals("DELETE")) {
                 assertFalse(rs.first());
                 return;
             }
