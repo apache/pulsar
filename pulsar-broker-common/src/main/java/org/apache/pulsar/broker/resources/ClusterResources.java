@@ -141,10 +141,17 @@ public class ClusterResources extends BaseResources<ClusterData> {
             super(store, clazz, operationTimeoutSec);
         }
 
+        public CompletableFuture<List<String>> listFailureDomainsAsync(String clusterName) {
+            return getChildrenAsync(joinPath(BASE_CLUSTERS_PATH, clusterName, FAILURE_DOMAIN));
+        }
         public List<String> listFailureDomains(String clusterName) throws MetadataStoreException {
             return getChildren(joinPath(BASE_CLUSTERS_PATH, clusterName, FAILURE_DOMAIN));
         }
 
+        public CompletableFuture<Optional<FailureDomainImpl>> getFailureDomainAsync(String clusterName,
+                                                                                    String domainName) {
+            return getAsync(joinPath(BASE_CLUSTERS_PATH, clusterName, FAILURE_DOMAIN, domainName));
+        }
         public Optional<FailureDomainImpl> getFailureDomain(String clusterName, String domainName)
                 throws MetadataStoreException {
             return get(joinPath(BASE_CLUSTERS_PATH, clusterName, FAILURE_DOMAIN, domainName));
@@ -183,6 +190,11 @@ public class ClusterResources extends BaseResources<ClusterData> {
             delete(failureDomainPath);
         }
 
+        public CompletableFuture<Void> setFailureDomainWithCreateAsync(String clusterName, String domainName,
+                                           Function<Optional<FailureDomainImpl>, FailureDomainImpl> createFunction) {
+            return setWithCreateAsync(
+                    joinPath(BASE_CLUSTERS_PATH, clusterName, FAILURE_DOMAIN, domainName), createFunction);
+        }
         public void setFailureDomainWithCreate(String clusterName, String domainName,
                                                Function<Optional<FailureDomainImpl>, FailureDomainImpl> createFunction)
                 throws MetadataStoreException {
