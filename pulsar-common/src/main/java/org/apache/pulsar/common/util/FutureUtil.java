@@ -46,6 +46,7 @@ public class FutureUtil {
      * @param futures futures to wait for
      * @return a new CompletableFuture that is completed when all of the given CompletableFutures complete
      */
+    @Deprecated
     public static CompletableFuture<Void> waitForAll(List<? extends CompletableFuture<?>> futures) {
         return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
     }
@@ -68,6 +69,7 @@ public class FutureUtil {
      * @param futures futures to wait any
      * @return a new CompletableFuture that is completed when any of the given CompletableFutures complete
      */
+    @Deprecated
     public static CompletableFuture<Object> waitForAny(List<? extends CompletableFuture<?>> futures) {
         return CompletableFuture.anyOf(futures.toArray(new CompletableFuture[0]));
     }
