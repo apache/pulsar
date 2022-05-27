@@ -494,4 +494,4 @@ If you want to start a function in cluster mode, replace `localrun` with `create
  
  ```
 
-For information about parameters on `--classname`, `--jar`, `--py`, `--go`, `--inputs`, run the command `./bin/pulsar-admin functions` or see [here](reference-pulsar-admin.md#functions).
+For information about parameters on `--classname`, `--jar`, `--py`, `--go`, `--inputs`, run the command `./bin/pulsar-admin functions` or see [here](/tools/pulsar-admin/).

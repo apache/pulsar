@@ -14,17 +14,17 @@ import TabItem from '@theme/TabItem';
 >
 > This page only shows **some frequently used operations**.
 >
-> - For the latest and complete information about `Pulsar admin`, including commands, flags, descriptions, and more information, see [Pulsar admin doc](https://pulsar.apache.org/tools/pulsar-admin/).
+> - For the latest and complete information about `Pulsar admin`, including commands, flags, descriptions, and more information, see [Pulsar admin doc](/tools/pulsar-admin/).
 > 
 > - For the latest and complete information about `REST API`, including parameters, responses, samples, and more, see {@inject: rest:REST:/} API doc.
 > 
-> - For the latest and complete information about `Java admin API`, including classes, methods, descriptions, and more, see [Java admin API doc](https://pulsar.apache.org/api/admin/).
+> - For the latest and complete information about `Java admin API`, including classes, methods, descriptions, and more, see [Java admin API doc](/api/admin/).
 
 Pulsar [namespaces](reference-terminology.md#namespace) are logical groupings of [topics](reference-terminology.md#topic).
 
 Namespaces can be managed via:
 
-* The `namespaces` command of the [`pulsar-admin`](https://pulsar.apache.org/tools/pulsar-admin/) tool
+* The `namespaces` command of the [`pulsar-admin`](/tools/pulsar-admin/) tool
 * The `/admin/v2/namespaces` endpoint of the admin {@inject: rest:REST:/} API
 * The `namespaces` method of the `PulsarAdmin` object in the [Java API](client-libraries-java)
 
@@ -40,7 +40,7 @@ You can create new namespaces under a given [tenant](reference-terminology.md#te
   values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
-Use the [`create`](reference-pulsar-admin.md#namespaces-create) subcommand and specify the namespace by name:
+Use the [`create`](/tools/pulsar-admin/) subcommand and specify the namespace by name:
 
 ```shell
 
@@ -81,7 +81,7 @@ You can fetch the current policies associated with a namespace at any time.
   values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
-Use the [`policies`](reference-pulsar-admin.md#namespaces-policies) subcommand and specify the namespace:
+Use the [`policies`](/tools/pulsar-admin/) subcommand and specify the namespace:
 
 ```shell
 
@@ -143,7 +143,7 @@ You can list all namespaces within a given Pulsar [tenant](reference-terminology
   values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
-Use the [`list`](reference-pulsar-admin.md#namespaces-list) subcommand and specify the tenant:
+Use the [`list`](/tools/pulsar-admin/) subcommand and specify the tenant:
 
 ```shell
 
@@ -186,7 +186,7 @@ You can delete existing namespaces from a tenant.
   values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
-Use the [`delete`](reference-pulsar-admin.md#namespaces-delete) subcommand and specify the namespace:
+Use the [`delete`](/tools/pulsar-admin/) subcommand and specify the namespace:
 
 ```shell
 
@@ -1362,7 +1362,7 @@ You can unload a namespace, or a [namespace bundle](reference-terminology.md#nam
 
 #### pulsar-admin
 
-Use the [`unload`](reference-pulsar-admin.md#unload) subcommand of the [`namespaces`](reference-pulsar-admin.md#namespaces) command.
+Use the [`unload`](/tools/pulsar-admin/) subcommand of the [`namespaces`](/tools/pulsar-admin/) command.
 
 ````mdx-code-block
 <Tabs 
