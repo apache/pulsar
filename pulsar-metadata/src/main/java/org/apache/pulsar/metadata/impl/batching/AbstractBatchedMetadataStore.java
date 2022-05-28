@@ -158,5 +158,5 @@ public abstract class AbstractBatchedMetadataStore extends AbstractMetadataStore
         }
     }
 
-    protected abstract void batchOperation(List<MetadataOp> ops);
+    public abstract void batchOperation(List<MetadataOp> ops);
 }
