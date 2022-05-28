@@ -78,6 +78,8 @@ public class ManagedTrashImpl implements ManagedTrash {
 
     private static final CompletableFuture<Void> COMPLETED_FUTURE = CompletableFuture.completedFuture(null);
 
+    private static final LedgerInfo EMPTY_LEDGER_INFO = LedgerInfo.newBuilder().build();
+
     //key:ledgerId value:storageContext
     private NavigableMap<String, LedgerInfo> trashData = new ConcurrentSkipListMap<>();
 
@@ -205,6 +207,9 @@ public class ManagedTrashImpl implements ManagedTrash {
     @Override
     public CompletableFuture<?> appendLedgerTrashData(long ledgerId, LedgerInfo context, String type) {
         CompletableFuture<?> future = new CompletableFuture<>();
+        if (context == null) {
+            context = EMPTY_LEDGER_INFO;
+        }
         appendTrashData(buildKey(RETRY_COUNT, ledgerId, type), context, future);
         return future;
     }
