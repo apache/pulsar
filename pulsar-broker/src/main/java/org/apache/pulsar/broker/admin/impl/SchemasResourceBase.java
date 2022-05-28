@@ -286,8 +286,7 @@ public class SchemasResourceBase extends AdminResource {
                                     .timestamp(clock.millis()).type(SchemaType.valueOf(payload.getType()))
                                     .user(defaultIfEmpty(clientAppId(), ""))
                                     .props(payload.getProperties())
-                                    .build(),
-                            strategy)
+                                    .build(), strategy)
                             .thenApply(v -> Pair.of(v, strategy));
                 });
     }
