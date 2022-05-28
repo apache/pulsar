@@ -142,3 +142,13 @@ message ManagedCursorInfoMetadata {
     required CompressionType compressionType = 1;
     required int32 uncompressedSize = 2;
 }
+
+message TrashDataComponent {
+    repeated TrashData component = 1;
+}
+
+message TrashData {
+    required string key = 1;
+    optional ManagedLedgerInfo.LedgerInfo value = 2;
+}
+
