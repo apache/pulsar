@@ -361,7 +361,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                 if (mlInfo.hasTerminatedPosition()) {
                                     state = State.Terminated;
                                     lastConfirmedEntry = new PositionImpl(mlInfo.getTerminatedPosition());
-                                    log.info("[{}] Recovering managed ledger terminated at {}", name, lastConfirmedEntry);
+                                    log.info("[{}] Recovering managed ledger terminated at {}", name,
+                                            lastConfirmedEntry);
                                 }
 
                                 for (LedgerInfo ls : mlInfo.getLedgerInfoList()) {
@@ -386,19 +387,21 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                         executor.executeOrdered(name, safeRun(() -> {
                                             mbean.endDataLedgerOpenOp();
                                             if (log.isDebugEnabled()) {
-                                                log.debug("[{}] Opened ledger {}: {}", name, id, BKException.getMessage(rc));
+                                                log.debug("[{}] Opened ledger {}: {}", name, id,
+                                                        BKException.getMessage(rc));
                                             }
                                             if (rc == BKException.Code.OK) {
                                                 LedgerInfo info = LedgerInfo.newBuilder().setLedgerId(id)
-                                                        .setEntries(lh.getLastAddConfirmed() + 1).setSize(lh.getLength())
-                                                        .setTimestamp(clock.millis()).build();
+                                                        .setEntries(lh.getLastAddConfirmed() + 1)
+                                                        .setSize(lh.getLength()).setTimestamp(clock.millis()).build();
                                                 ledgers.put(id, info);
                                                 if (managedLedgerInterceptor != null) {
-                                                    managedLedgerInterceptor.onManagedLedgerLastLedgerInitialize(name, lh)
-                                                            .thenRun(() -> initializeBookKeeper(callback))
+                                                    managedLedgerInterceptor.onManagedLedgerLastLedgerInitialize(name,
+                                                                    lh).thenRun(() -> initializeBookKeeper(callback))
                                                             .exceptionally(ex -> {
                                                                 callback.initializeFailed(
-                                                                        new ManagedLedgerInterceptException(ex.getCause()));
+                                                                        new ManagedLedgerInterceptException(
+                                                                                ex.getCause()));
                                                                 return null;
                                                             });
                                                 } else {
@@ -409,7 +412,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                                 ledgers.remove(id);
                                                 initializeBookKeeper(callback);
                                             } else {
-                                                log.error("[{}] Failed to open ledger {}: {}", name, id, BKException.getMessage(rc));
+                                                log.error("[{}] Failed to open ledger {}: {}", name, id,
+                                                        BKException.getMessage(rc));
                                                 callback.initializeFailed(createManagedLedgerException(rc));
                                                 return;
                                             }
@@ -2574,10 +2578,12 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     .filter(ls -> ls.getOffloadContext().hasUidMsb() && ls.getOffloadContext().getComplete())
                     .map(LedgerInfo::getLedgerId).collect(Collectors.toSet());
 
-            CompletableFuture<Void> updateTrashFuture = asyncUpdateTrashData(deletableLedgers, deletableOffloadedLedgers);
+            CompletableFuture<Void> updateTrashFuture =
+                    asyncUpdateTrashData(deletableLedgers, deletableOffloadedLedgers);
             updateTrashFuture.thenAccept(ignore -> {
                 for (LedgerInfo ls : ledgersToDelete) {
-                    if (currentLastConfirmedEntry != null && ls.getLedgerId() == currentLastConfirmedEntry.getLedgerId()) {
+                    if (currentLastConfirmedEntry != null
+                            && ls.getLedgerId() == currentLastConfirmedEntry.getLedgerId()) {
                         // this info is relevant because the lastMessageId won't be available anymore
                         log.info("[{}] Ledger {} contains the current last confirmed entry {}, and it is going to be "
                                 + "deleted", name, ls.getLedgerId(), currentLastConfirmedEntry);
