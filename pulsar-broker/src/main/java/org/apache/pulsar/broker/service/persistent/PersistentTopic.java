@@ -3061,7 +3061,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             subscriptionCheckFutures.add(FutureUtil.waitForAll(consumerCheckFutures).thenRun(() -> {
                 Dispatcher dispatcher = sub.getDispatcher();
                 if (dispatcher != null) {
-                    dispatcher.getRateLimiter().ifPresent(DispatchRateLimiter::updateDispatchRate);
+                    dispatcher.updateRateLimiter();
                 }
             }));
         });
