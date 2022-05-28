@@ -34,8 +34,6 @@ public interface ManagedTrashMXBean {
 
     long getTotalNumberOfLedgersWaitingToDeleted();
 
-    void
-
     long getCurrentNumberOfLedgersWaitingToArchive();
 
     long getTotalNumberOfLedgersWaitingToArchive();

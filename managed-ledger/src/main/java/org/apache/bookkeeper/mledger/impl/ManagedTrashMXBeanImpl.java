@@ -35,18 +35,13 @@ public class ManagedTrashMXBeanImpl implements ManagedTrashMXBean {
     }
 
     @Override
-    public String getType() {
-        return null;
-    }
-
-    @Override
     public long getCurrentNumberOfLedgersWaitingToDeleted() {
-        return managedTrash.;
+        return 0;
     }
 
     @Override
     public long getTotalNumberOfLedgersWaitingToDeleted() {
-        return ;
+        return 0;
     }
 
     @Override
