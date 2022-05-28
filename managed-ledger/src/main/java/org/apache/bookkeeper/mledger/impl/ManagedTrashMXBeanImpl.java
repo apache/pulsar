@@ -18,12 +18,17 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
+import java.util.concurrent.atomic.AtomicLong;
 import org.apache.bookkeeper.mledger.ManagedTrash;
 import org.apache.bookkeeper.mledger.ManagedTrashMXBean;
 
 public class ManagedTrashMXBeanImpl implements ManagedTrashMXBean {
 
     private final ManagedTrash managedTrash;
+
+    private final AtomicLong totalNumberOfDeletedCount = new AtomicLong();
+
+    private final AtomicLong totalNumberOfArchiveCount = new AtomicLong();
 
     public ManagedTrashMXBeanImpl(ManagedTrash managedTrash) {
         this.managedTrash = managedTrash;
@@ -35,22 +40,32 @@ public class ManagedTrashMXBeanImpl implements ManagedTrashMXBean {
     }
 
     @Override
-    public long getCurrentNumberOfLedgersWaitingToDeleted() {
-        return 0;
+    public long getCurrentNumberOfLedgersWaitingToDelete() {
+        return managedTrash.getTrashDataSize();
     }
 
     @Override
-    public long getTotalNumberOfLedgersWaitingToDeleted() {
-        return 0;
+    public void increaseTotalNumberOfDeleteLedgers() {
+        totalNumberOfDeletedCount.incrementAndGet();
+    }
+
+    @Override
+    public long getTotalNumberOfDeleteLedgers() {
+        return totalNumberOfDeletedCount.get();
     }
 
     @Override
     public long getCurrentNumberOfLedgersWaitingToArchive() {
-        return 0;
+        return managedTrash.getToArchiveDataSize();
     }
 
     @Override
-    public long getTotalNumberOfLedgersWaitingToArchive() {
-        return 0;
+    public void increaseTotalNumberOfArchiveLedgers() {
+        totalNumberOfArchiveCount.incrementAndGet();
+    }
+
+    @Override
+    public long getTotalNumberOfArchiveLedgers() {
+        return totalNumberOfArchiveCount.get();
     }
 }

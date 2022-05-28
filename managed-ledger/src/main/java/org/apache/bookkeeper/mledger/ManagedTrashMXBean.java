@@ -30,13 +30,17 @@ public interface ManagedTrashMXBean {
 
     String getName();
 
-    long getCurrentNumberOfLedgersWaitingToDeleted();
+    long getCurrentNumberOfLedgersWaitingToDelete();
 
-    long getTotalNumberOfLedgersWaitingToDeleted();
+    void increaseTotalNumberOfDeleteLedgers();
+
+    long getTotalNumberOfDeleteLedgers();
 
     long getCurrentNumberOfLedgersWaitingToArchive();
 
-    long getTotalNumberOfLedgersWaitingToArchive();
+    void increaseTotalNumberOfArchiveLedgers();
+
+    long getTotalNumberOfArchiveLedgers();
 
 
 }

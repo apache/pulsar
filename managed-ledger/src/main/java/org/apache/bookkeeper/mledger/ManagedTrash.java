@@ -57,5 +57,9 @@ public interface ManagedTrash {
 
     Map<String, LedgerInfo> getArchiveData(long index);
 
+    long getTrashDataSize();
+
+    long getToArchiveDataSize();
+
     void asyncClose(AsyncCallbacks.CloseCallback callback, Object ctx);
 }

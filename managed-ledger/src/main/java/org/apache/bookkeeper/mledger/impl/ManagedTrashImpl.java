@@ -229,6 +229,7 @@ public class ManagedTrashImpl implements ManagedTrash {
         }
         try {
             trashData.put(key, context);
+            managedTrashMXBean.increaseTotalNumberOfDeleteLedgers();;
             trashIsDirty = true;
         } finally {
             trashMutex.unlock();
@@ -308,6 +309,16 @@ public class ManagedTrashImpl implements ManagedTrash {
     }
 
     @Override
+    public long getTrashDataSize() {
+        return trashData.size();
+    }
+
+    @Override
+    public long getToArchiveDataSize() {
+        return toArchiveCount.get();
+    }
+
+    @Override
     public void asyncClose(AsyncCallbacks.CloseCallback callback, Object ctx) {
         if (checkTrashPersistTask != null) {
             checkTrashPersistTask.cancel(true);
@@ -330,6 +341,7 @@ public class ManagedTrashImpl implements ManagedTrash {
 
     private void increaseArchiveCountWhenDeleteFailed(final CompletableFuture<?> future) {
         toArchiveCount.incrementAndGet();
+        managedTrashMXBean.increaseTotalNumberOfArchiveLedgers();
         updateArchiveDataIfNecessary(future);
     }
 
