@@ -340,8 +340,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             this.managedLedgerInterceptor = config.getManagedLedgerInterceptor();
         }
         this.inactiveLedgerRollOverTimeMs = config.getInactiveLedgerRollOverTimeMs();
-        this.managedTrash = new ManagedTrashImpl(ManagedTrash.MANAGED_LEDGER, name, metadataStore, config, scheduledExecutor,
-                executor, bookKeeper);
+        this.managedTrash =
+                new ManagedTrashImpl(ManagedTrash.MANAGED_LEDGER, name, metadataStore, config, scheduledExecutor,
+                        executor, bookKeeper);
     }
 
     synchronized void initialize(final ManagedLedgerInitializeLedgerCallback callback, final Object ctx) {

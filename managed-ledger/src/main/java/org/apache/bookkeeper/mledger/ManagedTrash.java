@@ -47,7 +47,7 @@ public interface ManagedTrash {
 
     CompletableFuture<?> initialize();
 
-    CompletableFuture<?> appendLedgerTrashData(final long ledgerId, final LedgerInfo context, final String type);
+    CompletableFuture<?> appendLedgerTrashData(long ledgerId, LedgerInfo context, String type);
 
     void asyncUpdateTrashData(Optional<TrashMetaStoreCallback<?>> callback);
 
@@ -55,7 +55,7 @@ public interface ManagedTrash {
 
     List<Long> getAllArchiveIndex();
 
-    Map<String, LedgerInfo> getArchiveData(final long index);
+    Map<String, LedgerInfo> getArchiveData(long index);
 
-    void asyncClose(final AsyncCallbacks.CloseCallback callback, final Object ctx);
+    void asyncClose(AsyncCallbacks.CloseCallback callback, Object ctx);
 }
