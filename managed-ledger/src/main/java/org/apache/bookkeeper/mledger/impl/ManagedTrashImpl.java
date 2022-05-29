@@ -78,7 +78,7 @@ public class ManagedTrashImpl implements ManagedTrash {
 
     private static final CompletableFuture<Void> COMPLETED_FUTURE = CompletableFuture.completedFuture(null);
 
-    private static final LedgerInfo EMPTY_LEDGER_INFO = LedgerInfo.newBuilder().build();
+    private static final LedgerInfo EMPTY_LEDGER_INFO = LedgerInfo.newBuilder().setLedgerId(-1L).build();
 
     //key:ledgerId value:storageContext
     private NavigableMap<String, LedgerInfo> trashData = new ConcurrentSkipListMap<>();
