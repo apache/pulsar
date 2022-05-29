@@ -1682,7 +1682,7 @@ public class PersistentTopic extends AbstractTopic
     public void updateRates(NamespaceStats nsStats, NamespaceBundleStats bundleStats,
                             StatsOutputStream topicStatsStream,
                             ClusterReplicationMetrics replStats, String namespace, boolean hydratePublishers) {
-
+        this.publishRateLimitedTimes = 0;
         TopicStatsHelper topicStatsHelper = threadLocalTopicStats.get();
         topicStatsHelper.reset();
 
@@ -1931,6 +1931,7 @@ public class PersistentTopic extends AbstractTopic
         stats.waitingPublishers = getWaitingProducersCount();
         stats.bytesOutCounter = bytesOutFromRemovedSubscriptions.longValue();
         stats.msgOutCounter = msgOutFromRemovedSubscriptions.longValue();
+        stats.publishRateLimitedTimes = publishRateLimitedTimes;
 
         subscriptions.forEach((name, subscription) -> {
             SubscriptionStatsImpl subStats = subscription.getStats(getPreciseBacklog, subscriptionBacklogSize);

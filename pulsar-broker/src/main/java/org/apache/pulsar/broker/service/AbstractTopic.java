@@ -116,6 +116,10 @@ public abstract class AbstractTopic implements Topic {
     private LongAdder bytesInCounter = new LongAdder();
     private LongAdder msgInCounter = new LongAdder();
 
+    private static final AtomicLongFieldUpdater<AbstractTopic> RATE_LIMITED_UPDATER =
+            AtomicLongFieldUpdater.newUpdater(AbstractTopic.class, "publishRateLimitedTimes");
+    protected volatile long publishRateLimitedTimes = 0;
+
     protected volatile Optional<Long> topicEpoch = Optional.empty();
     private volatile boolean hasExclusiveProducer;
     // pointer to the exclusive producer
@@ -632,6 +636,11 @@ public abstract class AbstractTopic implements Topic {
             log.warn("[{}] Attempting to add producer to a fenced topic", topic);
             throw new BrokerServiceException.TopicFencedException("Topic is temporarily unavailable");
         }
+    }
+
+    @Override
+    public long increasePublishLimitedTimes() {
+        return RATE_LIMITED_UPDATER.incrementAndGet(this);
     }
 
     protected void internalAddProducer(Producer producer) throws BrokerServiceException {
