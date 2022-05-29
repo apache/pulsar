@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import java.nio.channels.ClosedChannelException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import io.netty.channel.ConnectTimeoutException;
@@ -41,7 +42,9 @@ public class ConnectionTimeoutTest {
                 lowFuture.get();
                 Assert.fail("Shouldn't be able to connect to anything");
             } catch (Exception e) {
-                Assert.assertEquals(e.getCause().getCause().getCause().getClass(), ConnectTimeoutException.class);
+                Class<? extends Throwable> causeClass = e.getCause().getCause().getCause().getClass();
+                // if just connected will throw StacklessClosedChannelException.
+                Assert.assertTrue(causeClass == ConnectTimeoutException.class || causeClass.isAssignableFrom(ClosedChannelException.class));
             }
         }
     }
