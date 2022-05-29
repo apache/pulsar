@@ -37,8 +37,11 @@ public interface Replicator {
 
     String getRemoteCluster();
 
-    default void initializeDispatchRateLimiterIfNeeded() {
-        //No-op
+    default boolean initializeDispatchRateLimiterIfNeeded() {
+        return false;
+    }
+
+    default void updateRateLimiter() {
     }
 
     default Optional<DispatchRateLimiter> getRateLimiter() {

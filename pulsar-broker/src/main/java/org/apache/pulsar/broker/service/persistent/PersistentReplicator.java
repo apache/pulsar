@@ -704,10 +704,19 @@ public class PersistentReplicator extends AbstractReplicator
     }
 
     @Override
-    public void initializeDispatchRateLimiterIfNeeded() {
+    public boolean initializeDispatchRateLimiterIfNeeded() {
         if (!dispatchRateLimiter.isPresent()
             && DispatchRateLimiter.isDispatchRateEnabled(topic.getReplicatorDispatchRate())) {
             this.dispatchRateLimiter = Optional.of(new DispatchRateLimiter(topic, Type.REPLICATOR));
+            return true;
+        }
+        return false;
+    }
+
+    @Override
+    public void updateRateLimiter() {
+        if (!initializeDispatchRateLimiterIfNeeded()) {
+            dispatchRateLimiter.ifPresent(DispatchRateLimiter::updateDispatchRate);
         }
     }
 
