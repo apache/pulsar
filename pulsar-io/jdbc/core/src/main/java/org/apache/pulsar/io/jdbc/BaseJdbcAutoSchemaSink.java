@@ -197,9 +197,6 @@ public abstract class BaseJdbcAutoSchemaSink extends JdbcAbstractSink<GenericObj
             case FLOAT:
             case BOOLEAN:
                 return avroValue;
-            case BYTES:
-                // system default charset
-                return new String((byte[]) avroValue);
             case FIXED:
                 return new String(((GenericFixed) avroValue).bytes());
             case ENUM:
