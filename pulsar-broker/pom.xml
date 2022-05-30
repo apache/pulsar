@@ -322,6 +322,14 @@
 
     <dependency>
       <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-functions-api-examples-builtin</artifactId>
+      <version>${project.version}</version>
+      <type>pom</type>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-io-batch-data-generator</artifactId>
       <version>${project.version}</version>
       <type>pom</type>
@@ -462,7 +470,7 @@
                 </artifactItem>
                 <artifactItem>
                   <groupId>${project.groupId}</groupId>
-                  <artifactId>pulsar-functions-api-examples</artifactId>
+                  <artifactId>pulsar-functions-api-examples-builtin</artifactId>
                   <version>${project.version}</version>
                   <type>jar</type>
                   <overWrite>true</overWrite>
