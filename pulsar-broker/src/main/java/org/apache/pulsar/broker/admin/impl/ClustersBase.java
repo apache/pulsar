@@ -880,7 +880,7 @@ public class ClustersBase extends AdminResource {
                 .thenCompose(__ -> clusterResources()
                         .getFailureDomainResources().deleteFailureDomainAsync(cluster, domainName))
                 .thenAccept(__ -> {
-                    log.error("[{}] Successful delete domain {} in cluster {}", clientAppId(), domainName, cluster);
+                    log.info("[{}] Successful delete domain {} in cluster {}", clientAppId(), domainName, cluster);
                     asyncResponse.resume(Response.ok().build());
                 }).exceptionally(ex -> {
                     Throwable cause = FutureUtil.unwrapCompletionException(ex);
