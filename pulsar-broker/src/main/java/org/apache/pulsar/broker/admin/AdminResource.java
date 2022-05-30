@@ -788,7 +788,7 @@ public abstract class AdminResource extends PulsarWebResource {
         }
     }
 
-    protected boolean isManagedLedgerNotFoundException(Exception e) {
+    protected boolean isManagedLedgerNotFoundException(Throwable e) {
         Throwable cause = e.getCause();
         return cause instanceof ManagedLedgerException.MetadataNotFoundException
                 || cause instanceof MetadataStoreException.NotFoundException;

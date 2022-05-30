@@ -999,6 +999,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 412, message = "Topic has active producers/subscriptions"),
             @ApiResponse(code = 500, message = "Internal server error")})
     public void deleteTopic(
+            @Suspended final AsyncResponse asyncResponse,
             @ApiParam(value = "Specify the tenant", required = true)
             @PathParam("tenant") String tenant,
             @ApiParam(value = "Specify the namespace", required = true)
@@ -1010,8 +1011,14 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("force") @DefaultValue("false") boolean force,
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
-        validateTopicName(tenant, namespace, encodedTopic);
-        internalDeleteTopic(authoritative, force);
+        try {
+            validateTopicName(tenant, namespace, encodedTopic);
+            internalDeleteTopic(asyncResponse, authoritative, force);
+        } catch (WebApplicationException wae) {
+            asyncResponse.resume(wae);
+        } catch (Exception e) {
+            asyncResponse.resume(new RestException(e));
+        }
     }
 
     @GET
