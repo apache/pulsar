@@ -2655,17 +2655,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
         CompletableFuture<Void> future = new CompletableFuture<>();
         futures.add(future);
-        managedTrash.asyncUpdateTrashData(Optional.of(new ManagedTrash.TrashMetaStoreCallback<Void>() {
-            @Override
-            public void operationComplete(Void result) {
-                future.complete(null);
-            }
-
-            @Override
-            public void operationFailed(MetaStoreException e) {
-                future.completeExceptionally(e);
-            }
-        }));
+        managedTrash.asyncUpdateTrashData(future);
         return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
     }
 

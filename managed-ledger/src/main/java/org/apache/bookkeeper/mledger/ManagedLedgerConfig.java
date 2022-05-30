@@ -81,7 +81,7 @@ public class ManagedLedgerConfig {
     @Getter
     @Setter
     private boolean cacheEvictionByMarkDeletedPosition = false;
-    private int trashDataLimitSize = 1000;
+    private int archiveDataLimitSize = 500;
 
     public boolean isCreateIfMissing() {
         return createIfMissing;
@@ -684,11 +684,11 @@ public class ManagedLedgerConfig {
         this.inactiveLedgerRollOverTimeMs = (int) unit.toMillis(inactiveLedgerRollOverTimeMs);
     }
 
-    public int getTrashDataLimitSize() {
-        return trashDataLimitSize;
+    public int getArchiveDataLimitSize() {
+        return archiveDataLimitSize;
     }
 
-    public void setTrashDataLimitSize(int trashDataLimitSize) {
-        this.trashDataLimitSize = trashDataLimitSize;
+    public void setArchiveDataLimitSize(int archiveDataLimitSize) {
+        this.archiveDataLimitSize = archiveDataLimitSize;
     }
 }

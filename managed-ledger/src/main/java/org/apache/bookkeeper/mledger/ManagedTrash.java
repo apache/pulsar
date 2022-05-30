@@ -20,7 +20,6 @@ package org.apache.bookkeeper.mledger;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
 
@@ -36,20 +35,13 @@ public interface ManagedTrash {
 
     String DELETABLE_OFFLOADED_LEDGER_SUFFIX = "DOL";
 
-    interface TrashMetaStoreCallback<T> {
-
-        void operationComplete(T result);
-
-        void operationFailed(ManagedLedgerException.MetaStoreException e);
-    }
-
     String name();
 
     CompletableFuture<?> initialize();
 
     CompletableFuture<?> appendLedgerTrashData(long ledgerId, LedgerInfo context, String type);
 
-    void asyncUpdateTrashData(Optional<TrashMetaStoreCallback<?>> callback);
+    void asyncUpdateTrashData(CompletableFuture<?> future);
 
     void triggerDelete();
 
