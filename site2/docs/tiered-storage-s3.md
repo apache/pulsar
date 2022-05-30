@@ -20,9 +20,9 @@ Follow the steps below to install the S3 offloader.
 
 This example uses Pulsar 2.9.2.
 
-1. [Download the Pulsar tarball](/getting-started-standalone.md#install-pulsar-using-binary-release).
+1. [Download the Pulsar tarball](getting-started-standalone.md#install-pulsar-using-binary-release).
 
-2. Download and untar the Pulsar offloaders package, then copy the Pulsar offloaders as `offloaders` in the Pulsar directory. See [Install tiered storage offloaders](/getting-started-standalone.md#install-tiered-storage-offloaders-optional).
+2. Download and untar the Pulsar offloaders package, then copy the Pulsar offloaders as `offloaders` in the Pulsar directory. See [Install tiered storage offloaders](getting-started-standalone.md#install-tiered-storage-offloaders-optional).
 
    **Output**
    
