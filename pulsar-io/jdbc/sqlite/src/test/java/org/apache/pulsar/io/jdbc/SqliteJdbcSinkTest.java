@@ -23,7 +23,6 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.avro.LogicalTypes;
 import org.apache.avro.util.Utf8;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Schema;
