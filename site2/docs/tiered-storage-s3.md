@@ -62,7 +62,7 @@ You can configure the S3 offloader driver in the configuration file `broker.conf
   | `managedLedgerOffloadDriver` | Offloader driver name, which is case-insensitive. | S3 |
   | `offloadersDirectory` | Offloader directory | offloaders |
   | `managedLedgerOffloadBucket` | [Bucket](#bucket-required) | pulsar-topic-offload |
-  | `managedLedgerOffloadServiceEndpoint` | [Endpoint](#endpoint-required) | http://oss-cn-hongkong.aliyuncs.com |
+  | `managedLedgerOffloadServiceEndpoint` | [Endpoint](#endpoint-required) | http://localhost:9000 |
 
 - **Optional** configurations are as below.
 
@@ -116,18 +116,10 @@ export ACCESS_KEY_SECRET=ded7db27a4558e2ea8bbf0bf37ae0e8521618f366c
 ```
 
 :::note
+
 Exporting these environment variables makes them available in the environment of spawned processes.
+
 :::
-
-
-#### Size of block read/write
-
-You can configure the size of a request sent to or read from S3-compatible storage in the configuration file `broker.conf` or `standalone.conf`. 
-
-| Configuration | Description | Default value |
-| --- | --- | --- |
-| `managedLedgerOffloadReadBufferSizeInBytes` | Block size for each individual read when reading back data from S3-compatible storage. | 1 MB |
-| `managedLedgerOffloadMaxBlockSizeInBytes` | Maximum size of a "part" sent during a multipart upload to S3-compatible storage. It **cannot** be smaller than 5 MB.  | 64 MB |
 
 ### Run S3 offloader automatically
 
@@ -169,7 +161,7 @@ For individual topics, you can trigger the S3 offloader manually using one of th
 
 - Use CLI tools, such as [`pulsar-admin`](/tools/pulsar-admin/). 
 
-To trigger it via CLI tools, you need to specify the maximum amount of data (threshold) that should be retained in a Pulsar cluster for a topic. If the size of the topic data in the Pulsar cluster exceeds this threshold, segments from the topic are moved to S3-compatible storage until the threshold is no longer exceeded. Older segments are moved first.
+ To trigger it via CLI tools, you need to specify the maximum amount of data (threshold) that should be retained in a Pulsar cluster for a topic. If the size of the topic data in the Pulsar cluster exceeds this threshold, segments from the topic are moved to S3-compatible storage until the threshold is no longer exceeded. Older segments are moved first.
 
 #### Example
 
@@ -211,7 +203,7 @@ To trigger it via CLI tools, you need to specify the maximum amount of data (thr
   
   ```
 
-  To wait for the Aliyun S3 to complete the job, add the `-w` flag.
+  To wait for the S3 offloader to complete the job, add the `-w` flag.
 
   ```bash
   
