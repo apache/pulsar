@@ -137,3 +137,8 @@ message ManagedLedgerInfoMetadata {
     required CompressionType compressionType = 1;
     required int32 uncompressedSize = 2;
 }
+
+message ManagedCursorInfoMetadata {
+    required CompressionType compressionType = 1;
+    required int32 uncompressedSize = 2;
+}

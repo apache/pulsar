@@ -117,6 +117,7 @@ public class RawReaderImpl implements RawReader {
                     client.externalExecutorProvider(),
                     TopicName.getPartitionIndex(conf.getSingleTopic()),
                     false,
+                    false,
                     consumerFuture,
                     MessageId.earliest,
                     0 /* startMessageRollbackDurationInSec */,

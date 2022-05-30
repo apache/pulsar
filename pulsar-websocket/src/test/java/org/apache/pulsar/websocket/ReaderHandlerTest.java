@@ -74,6 +74,8 @@ public class ReaderHandlerTest {
         ReaderHandler readerHandler = new ReaderHandler(wss, request, servletUpgradeResponse);
         // verify success
         Assert.assertEquals(readerHandler.getSubscription(), subName);
+        // Verify consumer is returned
+        readerHandler.getConsumer();
     }
 
     @Test
@@ -102,6 +104,8 @@ public class ReaderHandlerTest {
         ReaderHandler readerHandler = new ReaderHandler(wss, request, servletUpgradeResponse);
         // verify success
         Assert.assertEquals(readerHandler.getSubscription(), subName);
+        // Verify consumer is successfully returned
+        readerHandler.getConsumer();
     }
 
     @Test

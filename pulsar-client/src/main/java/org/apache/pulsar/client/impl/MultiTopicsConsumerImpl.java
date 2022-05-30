@@ -338,16 +338,15 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     }
 
     @Override
-    public void initReceiverQueueSize() {
-        if (conf.isAutoScaledReceiverQueueSizeEnabled()) {
-            int size = Math.min(INITIAL_RECEIVER_QUEUE_SIZE, maxReceiverQueueSize);
-            if (batchReceivePolicy.getMaxNumMessages() > 0) {
-                size = Math.max(size, batchReceivePolicy.getMaxNumMessages());
-            }
-            CURRENT_RECEIVER_QUEUE_SIZE_UPDATER.set(this, size);
-        } else {
-            CURRENT_RECEIVER_QUEUE_SIZE_UPDATER.set(this, maxReceiverQueueSize);
+    public int minReceiverQueueSize() {
+        int size = Math.min(INITIAL_RECEIVER_QUEUE_SIZE, maxReceiverQueueSize);
+        if (batchReceivePolicy.getMaxNumMessages() > 0) {
+            size = Math.max(size, batchReceivePolicy.getMaxNumMessages());
         }
+        if (allTopicPartitionsNumber != null) {
+            size = Math.max(allTopicPartitionsNumber.get(), size);
+        }
+        return size;
     }
 
     @Override
@@ -1056,7 +1055,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                         configurationData.setStartPaused(paused);
                         ConsumerImpl<T> newConsumer = ConsumerImpl.newConsumerImpl(client, partitionName,
                                     configurationData, client.externalExecutorProvider(),
-                                    partitionIndex, true, subFuture,
+                                    partitionIndex, true, listener != null, subFuture,
                                     startMessageId, schema, interceptors,
                                     createIfDoesNotExist, startMessageRollbackDurationInSec);
                         synchronized (pauseMutex) {
@@ -1086,7 +1085,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                     internalConfig.setStartPaused(paused);
                     ConsumerImpl<T> newConsumer = ConsumerImpl.newConsumerImpl(client, topicName, internalConfig,
                             client.externalExecutorProvider(), -1,
-                            true, subFuture, startMessageId, schema, interceptors,
+                            true, listener != null, subFuture, startMessageId, schema, interceptors,
                             createIfDoesNotExist, startMessageRollbackDurationInSec);
 
                     synchronized (pauseMutex) {
@@ -1390,7 +1389,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                         ConsumerImpl<T> newConsumer = ConsumerImpl.newConsumerImpl(
                                 client, partitionName, configurationData,
                                 client.externalExecutorProvider(),
-                                partitionIndex, true, subFuture, startMessageId, schema, interceptors,
+                                partitionIndex, true, listener != null, subFuture, startMessageId, schema, interceptors,
                                 true /* createTopicIfDoesNotExist */, startMessageRollbackDurationInSec);
                         synchronized (pauseMutex) {
                             if (paused) {

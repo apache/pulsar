@@ -35,6 +35,7 @@ import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.SystemUtils;
+import org.apache.pulsar.broker.BitRateUnit;
 
 @Slf4j
 public class LinuxInfoUtils {
@@ -165,36 +166,36 @@ public class LinuxInfoUtils {
     /**
      * Get all physical nic limit.
      * @param nics All nic path
-     * @param nicUnit Nic speed unit
+     * @param bitRateUnit Bit rate unit
      * @return Total nic limit
      */
-    public static double getTotalNicLimit(List<String> nics, NICUnit nicUnit) {
-        return nicUnit.convertBy(nics.stream().mapToDouble(nicPath -> {
+    public static double getTotalNicLimit(List<String> nics, BitRateUnit bitRateUnit) {
+        return bitRateUnit.convert(nics.stream().mapToDouble(nicPath -> {
             try {
                 return readDoubleFromFile(getReplacedNICPath(NIC_SPEED_TEMPLATE, nicPath));
             } catch (IOException e) {
                 log.error("[LinuxInfo] Failed to get total nic limit.", e);
                 return 0d;
             }
-        }).sum());
+        }).sum(), BitRateUnit.Bit);
     }
 
     /**
      * Get all physical nic usage.
      * @param nics All nic path
      * @param type Nic's usage type:  transport, receive
-     * @param unit Nic usage unit
+     * @param bitRateUnit Bit rate unit
      * @return Total nic usage
      */
-    public static double getTotalNicUsage(List<String> nics, NICUsageType type, UsageUnit unit) {
-        return unit.convertBy(nics.stream().mapToDouble(nic -> {
+    public static double getTotalNicUsage(List<String> nics, NICUsageType type, BitRateUnit bitRateUnit) {
+        return bitRateUnit.convert(nics.stream().mapToDouble(nic -> {
             try {
                 return readDoubleFromFile(getReplacedNICPath(type.template, nic));
             } catch (IOException e) {
                 log.error("[LinuxInfo] Failed to read {} bytes for NIC {} ", type, nic, e);
                 return 0d;
             }
-        }).sum());
+        }).sum(), BitRateUnit.Byte);
     }
 
     /**
@@ -221,7 +222,7 @@ public class LinuxInfoUtils {
         if (CollectionUtils.isEmpty(physicalNICs)) {
             return false;
         }
-        double totalNicLimit = getTotalNicLimit(physicalNICs, NICUnit.Kbps);
+        double totalNicLimit = getTotalNicLimit(physicalNICs, BitRateUnit.Kilobit);
         return totalNicLimit > 0;
     }
 
@@ -239,28 +240,6 @@ public class LinuxInfoUtils {
 
     private static double readDoubleFromFile(Path path) throws IOException {
         return Double.parseDouble(readTrimStringFromFile(path));
-    }
-
-    @AllArgsConstructor
-    public enum NICUnit {
-        Kbps(1024);
-
-        private final int convertUnit;
-
-        public double convertBy(double usageBytes) {
-            return this.convertUnit * usageBytes;
-        }
-    }
-
-    @AllArgsConstructor
-    public enum UsageUnit {
-        Kbps(8 / 1024);
-
-        private final int convertUnit;
-
-        public double convertBy(double usageBytes) {
-            return this.convertUnit * usageBytes;
-        }
     }
 
     @AllArgsConstructor

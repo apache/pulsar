@@ -105,6 +105,7 @@ public class ClientCnx extends PulsarHandler {
     protected final Authentication authentication;
     private State state;
 
+    @Getter
     private final ConcurrentLongHashMap<TimedCompletableFuture<? extends Object>> pendingRequests =
             ConcurrentLongHashMap.<TimedCompletableFuture<? extends Object>>newBuilder()
                     .expectedItems(16)
@@ -691,7 +692,7 @@ public class ClientCnx extends PulsarHandler {
             producers.get(producerId).terminated(this);
             break;
         case NotAllowedError:
-            producers.get(producerId).recoverNotAllowedError(sequenceId);
+            producers.get(producerId).recoverNotAllowedError(sequenceId, sendError.getMessage());
             break;
 
         default:

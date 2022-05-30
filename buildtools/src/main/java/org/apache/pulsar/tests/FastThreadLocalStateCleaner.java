@@ -20,14 +20,12 @@ package org.apache.pulsar.tests;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.util.Objects;
 import java.util.function.BiConsumer;
 import java.util.function.Predicate;
 import org.apache.commons.lang3.ClassUtils;
 import org.apache.commons.lang3.ThreadUtils;
 import org.apache.commons.lang3.reflect.FieldUtils;
-import org.apache.commons.lang3.reflect.MethodUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,13 +38,13 @@ public final class FastThreadLocalStateCleaner {
     private static final Logger LOG = LoggerFactory.getLogger(FastThreadLocalStateCleaner.class);
     private static final ThreadLocal<?> SLOW_THREAD_LOCAL_MAP = lookupSlowThreadLocalMap();
     private static final Class<?> FAST_THREAD_LOCAL_CLASS;
-    private static final Method GET_THREAD_LOCAL_MAP;
+    private static final Field THREAD_LOCAL_MAP_FIELD;
     private static final Field INDEXED_VARIABLES_FIELD;
     private static final Object UNSET_OBJECT;
 
     static {
         Class<?> clazz = null;
-        Method getThreadLocalMapMethod = null;
+        Field threadLocalMapField = null;
         Field indexedVariablesField = null;
         Object unsetObject = null;
         if (SLOW_THREAD_LOCAL_MAP != null) {
@@ -54,8 +52,8 @@ public final class FastThreadLocalStateCleaner {
                 clazz = ClassUtils.getClass("io.netty.util.concurrent.FastThreadLocalThread");
                 Class<?> internalThreadLocalMapClass =
                         ClassUtils.getClass("io.netty.util.internal.InternalThreadLocalMap");
-                getThreadLocalMapMethod = MethodUtils
-                        .getMatchingAccessibleMethod(clazz, "threadLocalMap");
+                threadLocalMapField = FieldUtils
+                        .getDeclaredField(clazz, "threadLocalMap", true);
                 indexedVariablesField = FieldUtils.getDeclaredField(internalThreadLocalMapClass,
                         "indexedVariables", true);
                 Field unsetField = FieldUtils.getField(internalThreadLocalMapClass, "UNSET");
@@ -64,13 +62,13 @@ public final class FastThreadLocalStateCleaner {
                 // ignore
                 LOG.debug("Ignoring exception", e);
                 clazz = null;
-                getThreadLocalMapMethod = null;
+                threadLocalMapField = null;
                 indexedVariablesField = null;
                 unsetObject = null;
             }
         }
         FAST_THREAD_LOCAL_CLASS = clazz;
-        GET_THREAD_LOCAL_MAP = getThreadLocalMapMethod;
+        THREAD_LOCAL_MAP_FIELD = threadLocalMapField;
         INDEXED_VARIABLES_FIELD = indexedVariablesField;
         UNSET_OBJECT = unsetObject;
     }
@@ -104,7 +102,7 @@ public final class FastThreadLocalStateCleaner {
         try {
             Object internalThreadLocalMap;
             if (FAST_THREAD_LOCAL_CLASS.isInstance(thread)) {
-                internalThreadLocalMap = GET_THREAD_LOCAL_MAP.invoke(thread);
+                internalThreadLocalMap = THREAD_LOCAL_MAP_FIELD.get(thread);
             } else {
                 internalThreadLocalMap = ThreadLocalStateCleaner.INSTANCE
                         .getThreadLocalValue(SLOW_THREAD_LOCAL_MAP, thread);

@@ -21,6 +21,7 @@
 #include <boost/asio.hpp>
 #include <functional>
 #include <memory>
+#include "TimeUtils.h"
 
 #include "LogUtils.h"
 DECLARE_LOG_OBJECT()
@@ -29,7 +30,7 @@ namespace pulsar {
 
 ExecutorService::ExecutorService() {}
 
-ExecutorService::~ExecutorService() { close(); }
+ExecutorService::~ExecutorService() { close(0); }
 
 void ExecutorService::start() {
     auto self = shared_from_this();
@@ -37,11 +38,16 @@ void ExecutorService::start() {
         if (self->isClosed()) {
             return;
         }
+        LOG_DEBUG("Run io_service in a single thread");
         boost::system::error_code ec;
         self->getIOService().run(ec);
         if (ec) {
             LOG_ERROR("Failed to run io_service: " << ec.message());
+        } else {
+            LOG_DEBUG("Event loop of ExecutorService exits successfully");
         }
+        self->ioServiceDone_ = true;
+        self->cond_.notify_all();
     }};
     t.detach();
 }
@@ -79,13 +85,23 @@ DeadlineTimerPtr ExecutorService::createDeadlineTimer() {
     return DeadlineTimerPtr(new boost::asio::deadline_timer(io_service_));
 }
 
-void ExecutorService::close() {
+void ExecutorService::close(long timeoutMs) {
     bool expectedState = false;
     if (!closed_.compare_exchange_strong(expectedState, true)) {
         return;
     }
+    if (timeoutMs == 0) {  // non-blocking
+        io_service_.stop();
+        return;
+    }
 
+    std::unique_lock<std::mutex> lock{mutex_};
     io_service_.stop();
+    if (timeoutMs > 0) {
+        cond_.wait_for(lock, std::chrono::milliseconds(timeoutMs), [this] { return ioServiceDone_.load(); });
+    } else {  // < 0
+        cond_.wait(lock, [this] { return ioServiceDone_.load(); });
+    }
 }
 
 void ExecutorService::postWork(std::function<void(void)> task) { io_service_.post(task); }
@@ -106,14 +122,17 @@ ExecutorServicePtr ExecutorServiceProvider::get() {
     return executors_[idx];
 }
 
-void ExecutorServiceProvider::close() {
+void ExecutorServiceProvider::close(long timeoutMs) {
     Lock lock(mutex_);
 
-    for (ExecutorList::iterator it = executors_.begin(); it != executors_.end(); ++it) {
-        if (*it != NULL) {
-            (*it)->close();
+    TimeoutProcessor<std::chrono::milliseconds> timeoutProcessor{timeoutMs};
+    for (auto &&executor : executors_) {
+        timeoutProcessor.tik();
+        if (executor) {
+            executor->close(timeoutProcessor.getLeftTimeout());
         }
-        it->reset();
+        timeoutProcessor.tok();
+        executor.reset();
     }
 }
 }  // namespace pulsar

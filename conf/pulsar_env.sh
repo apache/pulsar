@@ -55,11 +55,12 @@ else
   IS_JAVA_8=`$JAVA_HOME/bin/java -version 2>&1 |grep version|grep '"1\.8'`
 fi
 # java version has space, use [[ -n $PARAM ]] to judge if variable exists
+PULSAR_GC_LOG_DIR=${PULSAR_LOG_DIR:-"logs"}
 if [[ -n $IS_JAVA_8 ]]; then
-  PULSAR_GC_LOG=${PULSAR_GC_LOG:-"-Xloggc:logs/pulsar_gc_%p.log -XX:+PrintGCDetails -XX:+PrintGCDateStamps -XX:+UseGCLogFileRotation -XX:NumberOfGCLogFiles=10 -XX:GCLogFileSize=20M"}
+  PULSAR_GC_LOG=${PULSAR_GC_LOG:-"-Xloggc:$PULSAR_GC_LOG_DIR/pulsar_gc_%p.log -XX:+PrintGCDetails -XX:+PrintGCDateStamps -XX:+UseGCLogFileRotation -XX:NumberOfGCLogFiles=10 -XX:GCLogFileSize=20M"}
 else
 # After jdk 9, gc log param should config like this. Ignoring version less than jdk 8
-  PULSAR_GC_LOG=${PULSAR_GC_LOG:-"-Xlog:gc*:logs/pulsar_gc_%p.log:time,uptime:filecount=10,filesize=20M"}
+  PULSAR_GC_LOG=${PULSAR_GC_LOG:-"-Xlog:gc*:$PULSAR_GC_LOG_DIR/pulsar_gc_%p.log:time,uptime:filecount=10,filesize=20M"}
 fi
 
 # Extra options to be passed to the jvm

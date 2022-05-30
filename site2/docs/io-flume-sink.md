@@ -1,7 +1,7 @@
 ---
 id: io-flume-sink
 title: Flume sink connector
-sidebar_label: Flume sink connector
+sidebar_label: "Flume sink connector"
 ---
 
 The Flume sink connector pulls messages from Pulsar topics to logs.
@@ -28,26 +28,30 @@ Before using the Flume sink connector, you need to create a configuration file t
 
 * JSON 
 
-    ```json
-    {
-       "configs": {
-          "name": "a1",
-          "confFile": "sink.conf",
-          "noReloadConf": "false",
-          "zkConnString": "",
-          "zkBasePath": ""
-       }
-    }
-    ```
+  ```json
+  
+  {
+     "configs": {
+        "name": "a1",
+        "confFile": "sink.conf",
+        "noReloadConf": "false",
+        "zkConnString": "",
+        "zkBasePath": ""
+     }
+  }
+  
+  ```
 
 * YAML
 
-    ```yaml
-    configs:
-        name: a1
-        confFile: sink.conf
-        noReloadConf: false
-        zkConnString: ""
-        zkBasePath: ""
-    ```
+  ```yaml
+  
+  configs:
+      name: a1
+      confFile: sink.conf
+      noReloadConf: false
+      zkConnString: ""
+      zkBasePath: ""
+  
+  ```
 

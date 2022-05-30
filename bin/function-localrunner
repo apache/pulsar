@@ -23,24 +23,6 @@ export PULSAR_HOME=`cd -P $BINDIR/..;pwd`
 
 DEFAULT_LOG_CONF=$PULSAR_HOME/conf/log4j2.yaml
 
-PULSAR_MEM=${PULSAR_MEM:-"-Xmx128m -XX:MaxDirectMemorySize=128m"}
-
-# Garbage collection options
-PULSAR_GC=${PULSAR_GC:-"-XX:+UseG1GC -XX:MaxGCPauseMillis=10 -XX:+ParallelRefProcEnabled -XX:+UnlockExperimentalVMOptions -XX:+DoEscapeAnalysis -XX:G1NewSizePercent=50 -XX:+DisableExplicitGC"}
-
-# Garbage collection log.
-IS_JAVA_8=`java -version 2>&1 |grep version|grep '"1\.8'`
-# java version has space, use [[ -n $PARAM ]] to judge if variable exists
-if [[ -n "$IS_JAVA_8" ]]; then
-  PULSAR_GC_LOG=${PULSAR_GC_LOG:-"-Xloggc:logs/pulsar_gc_%p.log -XX:+PrintGCDetails -XX:+PrintGCDateStamps -XX:+UseGCLogFileRotation -XX:NumberOfGCLogFiles=10 -XX:GCLogFileSize=20M"}
-else
-# After jdk 9, gc log param should config like this. Ignoring version less than jdk 8
-  PULSAR_GC_LOG=${PULSAR_GC_LOG:-"-Xlog:gc:logs/pulsar_gc_%p.log:time,uptime:filecount=10,filesize=20M"}
-fi
-
-# Extra options to be passed to the jvm
-PULSAR_EXTRA_OPTS=${PULSAR_EXTRA_OPTS:-" -Dpulsar.allocator.exit_on_oom=true -Dio.netty.recycler.maxCapacityPerThread=4096"}
-
 # Check for the java to use
 if [[ -z $JAVA_HOME ]]; then
     JAVA=$(which java)
@@ -51,6 +33,24 @@ if [[ -z $JAVA_HOME ]]; then
 else
     JAVA=$JAVA_HOME/bin/java
 fi
+
+PULSAR_MEM=${PULSAR_MEM:-"-Xmx128m -XX:MaxDirectMemorySize=128m"}
+
+# Garbage collection options
+PULSAR_GC=${PULSAR_GC:-"-XX:+UseG1GC -XX:MaxGCPauseMillis=10 -XX:+ParallelRefProcEnabled -XX:+UnlockExperimentalVMOptions -XX:+DoEscapeAnalysis -XX:G1NewSizePercent=50 -XX:+DisableExplicitGC"}
+
+# Garbage collection log.
+IS_JAVA_8=`$JAVA -version 2>&1 |grep version|grep '"1\.8'`
+# java version has space, use [[ -n $PARAM ]] to judge if variable exists
+if [[ -n "$IS_JAVA_8" ]]; then
+  PULSAR_GC_LOG=${PULSAR_GC_LOG:-"-Xloggc:logs/pulsar_gc_%p.log -XX:+PrintGCDetails -XX:+PrintGCDateStamps -XX:+UseGCLogFileRotation -XX:NumberOfGCLogFiles=10 -XX:GCLogFileSize=20M"}
+else
+# After jdk 9, gc log param should config like this. Ignoring version less than jdk 8
+  PULSAR_GC_LOG=${PULSAR_GC_LOG:-"-Xlog:gc:logs/pulsar_gc_%p.log:time,uptime:filecount=10,filesize=20M"}
+fi
+
+# Extra options to be passed to the jvm
+PULSAR_EXTRA_OPTS=${PULSAR_EXTRA_OPTS:-" -Dpulsar.allocator.exit_on_oom=true -Dio.netty.recycler.maxCapacityPerThread=4096"}
 
 if [ -z "$PULSAR_LOG_CONF" ]; then
     PULSAR_LOG_CONF=$DEFAULT_LOG_CONF
@@ -94,7 +94,8 @@ OPTS="$OPTS -Dio.netty.tryReflectionSetAccessible=true"
 if [[ -z "$IS_JAVA_8" ]]; then
   # Netty: enable java.nio.DirectByteBuffer
   # https://github.com/netty/netty/blob/4.1/common/src/main/java/io/netty/util/internal/PlatformDependent0.java
-  OPTS="$OPTS --add-opens java.base/java.nio=ALL-UNNAMED"
+  # https://github.com/netty/netty/issues/12265
+  OPTS="$OPTS --add-opens java.base/java.nio=ALL-UNNAMED --add-opens java.base/jdk.internal.misc=ALL-UNNAMED"
 fi
 
 # Ensure we can read bigger content from ZK. (It might be

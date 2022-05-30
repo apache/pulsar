@@ -19,47 +19,59 @@
 package org.apache.pulsar;
 
 import static org.apache.pulsar.common.naming.NamespaceName.SYSTEM_NAMESPACE;
-import static org.apache.pulsar.common.naming.TopicName.TRANSACTION_COORDINATOR_ASSIGN;
+import static org.apache.pulsar.common.naming.SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN;
 import com.beust.jcommander.Parameter;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Sets;
 import java.io.File;
 import java.nio.file.Paths;
-import java.util.List;
+import java.util.Collections;
 import java.util.Optional;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.conf.ServerConfiguration;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.broker.resources.ClusterResources;
+import org.apache.pulsar.broker.resources.NamespaceResources;
+import org.apache.pulsar.broker.resources.TenantResources;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TenantInfo;
-import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.functions.instance.state.PulsarMetadataStateStoreProviderImpl;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.service.WorkerServiceLoader;
+import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import org.apache.pulsar.metadata.bookkeeper.BKCluster;
+import org.apache.pulsar.metadata.impl.ZKMetadataStore;
+import org.apache.pulsar.packages.management.storage.filesystem.FileSystemPackagesStorageProvider;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@Slf4j
 public class PulsarStandalone implements AutoCloseable {
 
-    private static final Logger log = LoggerFactory.getLogger(PulsarStandalone.class);
+    private static final String PULSAR_STANDALONE_USE_ZOOKEEPER = "PULSAR_STANDALONE_USE_ZOOKEEPER";
 
     PulsarService broker;
-    PulsarAdmin admin;
+
+    // This is used in compatibility mode
     LocalBookkeeperEnsemble bkEnsemble;
+
+    // This is used from Pulsar 2.11 on, with new default settings
+    BKCluster bkCluster;
+    MetadataStoreExtended metadataStore;
+
     ServiceConfiguration config;
     WorkerService fnWorkerService;
     WorkerConfig workerConfig;
 
     public void setBroker(PulsarService broker) {
         this.broker = broker;
-    }
-
-    public void setAdmin(PulsarAdmin admin) {
-        this.admin = admin;
     }
 
     public void setBkEnsemble(LocalBookkeeperEnsemble bkEnsemble) {
@@ -207,13 +219,20 @@ public class PulsarStandalone implements AutoCloseable {
     @Parameter(names = { "--num-bookies" }, description = "Number of local Bookies")
     private int numOfBk = 1;
 
-    @Parameter(names = { "--zookeeper-port" }, description = "Local zookeeper's port")
+    @Parameter(names = { "--metadata-dir" },
+            description = "Directory for storing metadata")
+    private String metadataDir = "data/metadata";
+
+    @Parameter(names = {"--zookeeper-port"}, description = "Local zookeeper's port",
+            hidden = true)
     private int zkPort = 2181;
 
     @Parameter(names = { "--bookkeeper-port" }, description = "Local bookies base port")
     private int bkPort = 3181;
 
-    @Parameter(names = { "--zookeeper-dir" }, description = "Local zooKeeper's data directory")
+    @Parameter(names = { "--zookeeper-dir" },
+            description = "Local zooKeeper's data directory",
+            hidden = true)
     private String zkDir = "data/standalone/zookeeper";
 
     @Parameter(names = { "--bookkeeper-dir" }, description = "Local bookies base data directory")
@@ -244,7 +263,23 @@ public class PulsarStandalone implements AutoCloseable {
     @Parameter(names = { "-h", "--help" }, description = "Show this help message")
     private boolean help = false;
 
+    private boolean usingNewDefaultsPIP117;
+
     public void start() throws Exception {
+        String forceUseZookeeperEnv = System.getenv(PULSAR_STANDALONE_USE_ZOOKEEPER);
+
+        // Allow forcing to use ZK mode via an env variable. eg:
+        // PULSAR_STANDALONE_USE_ZOOKEEPER=1
+        if (StringUtils.equalsAnyIgnoreCase(forceUseZookeeperEnv, "1", "true")) {
+            usingNewDefaultsPIP117 = false;
+            log.info("Forcing to chose ZooKeeper metadata through environment variable");
+        } else if (Paths.get(zkDir).toFile().exists()) {
+            log.info("Found existing ZooKeeper metadata. Continuing with ZooKeeper");
+            usingNewDefaultsPIP117 = false;
+        } else {
+            // There's no existing ZK data directory, or we're already using RocksDB for metadata
+            usingNewDefaultsPIP117 = true;
+        }
 
         if (config == null) {
             log.error("Failed to load configuration");
@@ -254,14 +289,11 @@ public class PulsarStandalone implements AutoCloseable {
         log.debug("--- setup PulsarStandaloneStarter ---");
 
         if (!this.isOnlyBroker()) {
-            ServerConfiguration bkServerConf = new ServerConfiguration();
-            bkServerConf.loadConf(new File(configFile).toURI().toURL());
-
-            // Start LocalBookKeeper
-            bkEnsemble = new LocalBookkeeperEnsemble(
-                    this.getNumOfBk(), this.getZkPort(), this.getBkPort(), this.getStreamStoragePort(), this.getZkDir(),
-                    this.getBkDir(), this.isWipeData(), "127.0.0.1");
-            bkEnsemble.startStandalone(bkServerConf, !this.isNoStreamStorage());
+            if (usingNewDefaultsPIP117) {
+                startBookieWithRocksDB();
+            } else {
+                startBookieWithZookeeper();
+            }
         }
 
         if (this.isNoBroker()) {
@@ -272,100 +304,95 @@ public class PulsarStandalone implements AutoCloseable {
         if (!this.isNoFunctionsWorker()) {
             workerConfig = PulsarService.initializeWorkerConfigFromBrokerConfig(
                 config, this.getFnWorkerConfigFile());
-            // worker talks to local broker
-            if (this.isNoStreamStorage()) {
-                // only set the state storage service url when state is enabled.
-                workerConfig.setStateStorageServiceUrl(null);
-            } else if (workerConfig.getStateStorageServiceUrl() == null) {
-                workerConfig.setStateStorageServiceUrl("bk://127.0.0.1:" + this.getStreamStoragePort());
+            if (usingNewDefaultsPIP117) {
+                workerConfig.setStateStorageProviderImplementation(
+                        PulsarMetadataStateStoreProviderImpl.class.getName());
+
+                config.setEnablePackagesManagement(true);
+                config.setFunctionsWorkerEnablePackageManagement(true);
+                workerConfig.setFunctionsWorkerEnablePackageManagement(true);
+                config.setPackagesManagementStorageProvider(FileSystemPackagesStorageProvider.class.getName());
+            } else {
+                // worker talks to local broker
+                if (this.isNoStreamStorage()) {
+                    // only set the state storage service url when state is enabled.
+                    workerConfig.setStateStorageServiceUrl(null);
+                } else if (workerConfig.getStateStorageServiceUrl() == null) {
+                    workerConfig.setStateStorageServiceUrl("bk://127.0.0.1:" + this.getStreamStoragePort());
+                }
             }
             fnWorkerService = WorkerServiceLoader.load(workerConfig);
         } else {
             workerConfig = new WorkerConfig();
         }
 
+        config.setRunningStandalone(true);
+
+        if (!usingNewDefaultsPIP117) {
+            final String metadataStoreUrl =
+                    ZKMetadataStore.ZK_SCHEME_IDENTIFIER + "localhost:" + this.getZkPort();
+            config.setMetadataStoreUrl(metadataStoreUrl);
+            config.setConfigurationMetadataStoreUrl(metadataStoreUrl);
+            config.getProperties().setProperty("metadataStoreUrl", metadataStoreUrl);
+            config.getProperties().setProperty("configurationMetadataStoreUrl", metadataStoreUrl);
+        }
+
         // Start Broker
         broker = new PulsarService(config,
-                                   workerConfig,
-                                   Optional.ofNullable(fnWorkerService),
-                                   (exitCode) -> {
-                                       log.info("Halting standalone process with code {}", exitCode);
-                                       LogManager.shutdown();
-                                       Runtime.getRuntime().halt(exitCode);
-                                   });
+                workerConfig,
+                Optional.ofNullable(fnWorkerService),
+                PulsarStandalone::processTerminator);
         broker.start();
 
         final String cluster = config.getClusterName();
 
-        admin = broker.getAdminClient();
-
-        ClusterData clusterData = ClusterData.builder()
-                .serviceUrl(broker.getWebServiceAddress())
-                .serviceUrlTls(broker.getWebServiceAddressTls())
-                .brokerServiceUrl(broker.getBrokerServiceUrl())
-                .brokerServiceUrlTls(broker.getBrokerServiceUrlTls())
-                .build();
-        createSampleNameSpace(clusterData, cluster);
-
         //create default namespace
-        createNameSpace(cluster, TopicName.PUBLIC_TENANT, TopicName.PUBLIC_TENANT + "/" + TopicName.DEFAULT_NAMESPACE);
+        createNameSpace(cluster, TopicName.PUBLIC_TENANT,
+                NamespaceName.get(TopicName.PUBLIC_TENANT, TopicName.DEFAULT_NAMESPACE));
         //create pulsar system namespace
-        createNameSpace(cluster, SYSTEM_NAMESPACE.getTenant(), SYSTEM_NAMESPACE.toString());
-        if (config.isTransactionCoordinatorEnabled() && !admin.namespaces()
-                .getTopics(SYSTEM_NAMESPACE.toString())
-                .contains(TRANSACTION_COORDINATOR_ASSIGN.getPartition(0).toString())) {
-            admin.topics().createPartitionedTopic(TRANSACTION_COORDINATOR_ASSIGN.toString(), 1);
+        createNameSpace(cluster, SYSTEM_NAMESPACE.getTenant(), SYSTEM_NAMESPACE);
+        if (config.isTransactionCoordinatorEnabled()) {
+            NamespaceResources.PartitionedTopicResources partitionedTopicResources =
+                    broker.getPulsarResources().getNamespaceResources().getPartitionedTopicResources();
+            Optional<PartitionedTopicMetadata> getResult =
+                    partitionedTopicResources.getPartitionedTopicMetadataAsync(TRANSACTION_COORDINATOR_ASSIGN).get();
+            if (!getResult.isPresent()) {
+                partitionedTopicResources.createPartitionedTopic(TRANSACTION_COORDINATOR_ASSIGN,
+                        new PartitionedTopicMetadata(1));
+            }
         }
 
         log.debug("--- setup completed ---");
     }
 
-    private void createNameSpace(String cluster, String publicTenant, String defaultNamespace) {
-        try {
-            if (!admin.tenants().getTenants().contains(publicTenant)) {
-                admin.tenants().createTenant(publicTenant,
-                        TenantInfo.builder()
-                                .adminRoles(Sets.newHashSet(config.getSuperUserRoles()))
-                                .allowedClusters(Sets.newHashSet(cluster))
-                                .build());
-            }
-            if (!admin.namespaces().getNamespaces(publicTenant).contains(defaultNamespace)) {
-                admin.namespaces().createNamespace(defaultNamespace);
-                admin.namespaces().setNamespaceReplicationClusters(
-                        defaultNamespace, Sets.newHashSet(config.getClusterName()));
-            }
-        } catch (PulsarAdminException e) {
-            log.info(e.getMessage(), e);
+    @VisibleForTesting
+    void createNameSpace(String cluster, String publicTenant, NamespaceName ns) throws Exception {
+        ClusterResources cr = broker.getPulsarResources().getClusterResources();
+        TenantResources tr = broker.getPulsarResources().getTenantResources();
+        NamespaceResources nsr = broker.getPulsarResources().getNamespaceResources();
+
+        if (!cr.clusterExists(cluster)) {
+            cr.createCluster(cluster,
+                    ClusterData.builder()
+                            .serviceUrl(broker.getWebServiceAddress())
+                            .serviceUrlTls(broker.getWebServiceAddressTls())
+                            .brokerServiceUrl(broker.getBrokerServiceUrl())
+                            .brokerServiceUrlTls(broker.getBrokerServiceUrlTls())
+                            .build());
         }
-    }
 
-    private void createSampleNameSpace(ClusterData clusterData, String cluster) {
-        // Create a sample namespace
-        final String tenant = "sample";
-        final String globalCluster = "global";
-        final String namespace = tenant + "/ns1";
-        try {
-            List<String> clusters = admin.clusters().getClusters();
-            if (!clusters.contains(cluster)) {
-                admin.clusters().createCluster(cluster, clusterData);
-            } else {
-                admin.clusters().updateCluster(cluster, clusterData);
-            }
-            // Create marker for "global" cluster
-            if (!clusters.contains(globalCluster)) {
-                admin.clusters().createCluster(globalCluster, ClusterData.builder().build());
-            }
+        if (!tr.tenantExists(publicTenant)) {
+            tr.createTenant(publicTenant,
+                    TenantInfo.builder()
+                            .adminRoles(Sets.newHashSet(config.getSuperUserRoles()))
+                            .allowedClusters(Sets.newHashSet(cluster))
+                            .build());
+        }
 
-            if (!admin.tenants().getTenants().contains(tenant)) {
-                admin.tenants().createTenant(tenant,
-                        new TenantInfoImpl(Sets.newHashSet(config.getSuperUserRoles()), Sets.newHashSet(cluster)));
-            }
-
-            if (!admin.namespaces().getNamespaces(tenant).contains(namespace)) {
-                admin.namespaces().createNamespace(namespace);
-            }
-        } catch (PulsarAdminException e) {
-            log.warn(e.getMessage(), e);
+        if (!nsr.namespaceExists(ns)) {
+            Policies nsp = new Policies();
+            nsp.replication_clusters = Collections.singleton(config.getClusterName());
+            nsr.createPolicies(ns, nsp);
         }
     }
 
@@ -395,6 +422,10 @@ public class PulsarStandalone implements AutoCloseable {
                 broker.close();
             }
 
+            if (bkCluster != null) {
+                bkCluster.close();
+            }
+
             if (bkEnsemble != null) {
                 bkEnsemble.stop();
             }
@@ -402,4 +433,40 @@ public class PulsarStandalone implements AutoCloseable {
             log.error("Shutdown failed: {}", e.getMessage(), e);
         }
     }
+
+
+    private void startBookieWithRocksDB() throws Exception {
+        log.info("Starting BK with RocksDb metadata store");
+        String metadataStoreUrl = "rocksdb://" + Paths.get(metadataDir).toAbsolutePath();
+        bkCluster = BKCluster.builder()
+                .metadataServiceUri(metadataStoreUrl)
+                .bkPort(bkPort)
+                .numBookies(numOfBk)
+                .dataDir(bkDir)
+                .build();
+        config.setBookkeeperNumberOfChannelsPerBookie(1);
+        config.setMetadataStoreUrl(metadataStoreUrl);
+    }
+
+    private void startBookieWithZookeeper() throws Exception {
+        log.info("Starting BK & ZK cluster");
+        ServerConfiguration bkServerConf = new ServerConfiguration();
+        bkServerConf.loadConf(new File(configFile).toURI().toURL());
+
+        // Start LocalBookKeeper
+        bkEnsemble = new LocalBookkeeperEnsemble(
+                this.getNumOfBk(), this.getZkPort(), this.getBkPort(), this.getStreamStoragePort(), this.getZkDir(),
+                this.getBkDir(), this.isWipeData(), "127.0.0.1");
+        bkEnsemble.startStandalone(bkServerConf, !this.isNoStreamStorage());
+
+        config.setZookeeperServers("127.0.0.1:" + zkPort);
+    }
+
+    private static void processTerminator(int exitCode) {
+        log.info("Halting standalone process with code {}", exitCode);
+        LogManager.shutdown();
+        Runtime.getRuntime().halt(exitCode);
+    }
+
+
 }

@@ -237,12 +237,14 @@ public class MLTransactionLogImpl implements TransactionLog {
 
         private final AtomicLong outstandingReadsRequests = new AtomicLong(0);
         private volatile boolean isReadable = true;
+        private static final int NUMBER_OF_PER_READ_ENTRY = 100;
 
         boolean fillQueue() {
-            if (entryQueue.size() < entryQueue.capacity() && outstandingReadsRequests.get() == 0) {
+            if (entryQueue.size() + NUMBER_OF_PER_READ_ENTRY < entryQueue.capacity()
+                    && outstandingReadsRequests.get() == 0) {
                 if (cursor.hasMoreEntries()) {
                     outstandingReadsRequests.incrementAndGet();
-                    readAsync(100, this);
+                    readAsync(NUMBER_OF_PER_READ_ENTRY, this);
                     return isReadable;
                 } else {
                     return false;

@@ -86,7 +86,7 @@ class PulsarFriend {
 
     static ReaderImplWeakPtr getReaderImplWeakPtr(Reader reader) { return reader.impl_; }
 
-    static decltype(ConsumerImpl::chunkedMessageCache_) & getChunkedMessageCache(Consumer consumer) {
+    static decltype(ConsumerImpl::chunkedMessageCache_)& getChunkedMessageCache(Consumer consumer) {
         auto consumerImpl = getConsumerImplPtr(consumer);
         ConsumerImpl::Lock lock(consumerImpl->chunkProcessMutex_);
         return consumerImpl->chunkedMessageCache_;

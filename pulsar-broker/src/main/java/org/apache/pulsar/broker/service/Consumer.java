@@ -792,7 +792,7 @@ public class Consumer {
                             cnx.getAuthenticationData(), subscription.getName())
                     .handle((ok, e) -> {
                         if (e != null) {
-                            log.warn("[{}] Get unexpected error while autorizing [{}]  {}", appId,
+                            log.warn("[{}] Get unexpected error while authorizing [{}]  {}", appId,
                                     subscription.getTopicName(), e.getMessage(), e);
                         }
 

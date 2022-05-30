@@ -89,7 +89,7 @@ public class FunctionsImplTest {
     private Function.SubscriptionType subscriptionType = Function.SubscriptionType.FAILOVER;
     private static final Map<String, String> topicsToSerDeClassName = new HashMap<>();
     static {
-        topicsToSerDeClassName.put("persistent://sample/standalone/ns1/test_src", TopicSchema.DEFAULT_SERDE);
+        topicsToSerDeClassName.put("test_src", TopicSchema.DEFAULT_SERDE);
     }
     private static final int parallelism = 1;
     private static final String workerId = "worker-0";

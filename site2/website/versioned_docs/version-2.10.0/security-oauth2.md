@@ -1,7 +1,7 @@
 ---
-id: version-2.10.0-security-oauth2
+id: security-oauth2
 title: Client authentication using OAuth 2.0 access tokens
-sidebar_label: Authentication using OAuth 2.0 access tokens
+sidebar_label: "Authentication using OAuth 2.0 access tokens"
 original_id: security-oauth2
 ---
 
@@ -17,8 +17,11 @@ This library allows you to authenticate the Pulsar client by using an access tok
 
 The authentication type determines how to obtain an access token through an OAuth 2.0 authorization flow.
 
-> Note
-> Currently, the Pulsar Java client only supports the `client_credentials` authentication type .
+:::note
+
+Currently, the Pulsar Java client only supports the `client_credentials` authentication type .
+
+:::
 
 #### Client credentials
 
@@ -28,13 +31,14 @@ The following table lists parameters supported for the `client credentials` auth
 | --- | --- | --- | --- |
 | `type` | OAuth 2.0 authentication type. |  `client_credentials` (default) | Optional |
 | `issuerUrl` | URL of the authentication provider which allows the Pulsar client to obtain an access token | `https://accounts.google.com` | Required |
-| `privateKey` | URL to a JSON credentials file  | Support the following pattern formats: <br> <li> `file:///path/to/file` <li>`file:/path/to/file` <li> `data:application/json;base64,<base64-encoded value>` | Required |
+| `privateKey` | URL to a JSON credentials file  | Support the following pattern formats: <br /> <li> `file:///path/to/file` </li><li>`file:/path/to/file` </li><li> `data:application/json;base64,<base64-encoded value>` </li>| Required |
 | `audience`  | An OAuth 2.0 "resource server" identifier for the Pulsar cluster | `https://broker.example.com` | Optional |
 | `scope` |  Scope of an access request. <br />For more more information, see [access token scope](https://datatracker.ietf.org/doc/html/rfc6749#section-3.3). | api://pulsar-cluster-1/.default | Optional |
 
 The credentials file contains service account credentials used with the client authentication type. The following shows an example of a credentials file `credentials_file.json`.
 
 ```json
+
 {
   "type": "client_credentials",
   "client_id": "d9ZyX97q1ef8Cr81WHVC4hFQ64vSlDK3",
@@ -42,6 +46,7 @@ The credentials file contains service account credentials used with the client a
   "client_email": "1234567890-abcdefghijklmnopqrstuvwxyz@developer.gserviceaccount.com",
   "issuer_url": "https://accounts.google.com"
 }
+
 ```
 
 In the above example, the authentication type is set to `client_credentials` by default. And the fields "client_id" and "client_secret" are required.
@@ -51,6 +56,7 @@ In the above example, the authentication type is set to `client_credentials` by 
 The following shows a typical original OAuth2 request, which is used to obtain the access token from the OAuth2 server.
 
 ```bash
+
 curl --request POST \
   --url https://dev-kt-aa9ne.us.auth0.com \
   --header 'content-type: application/json' \
@@ -59,6 +65,7 @@ curl --request POST \
   "client_secret":"rT7ps7WY8uhdVuBTKWZkttwLdQotmdEliaM5rLfmgNibvqziZ-g07ZH52N_poGAb",
   "audience":"https://dev-kt-aa9ne.us.auth0.com/api/v2/",
   "grant_type":"client_credentials"}'
+
 ```
 
 In the above example, the mapping relationship is shown as below.
@@ -76,6 +83,7 @@ You can use the OAuth2 authentication provider with the following Pulsar clients
 You can use the factory method to configure authentication for Pulsar Java client.
 
 ```java
+
 URL issuerUrl = new URL("https://dev-kt-aa9ne.us.auth0.com");
 URL credentialsUrl = new URL("file:///path/to/KeyFile.json");
 String audience = "https://dev-kt-aa9ne.us.auth0.com/api/v2/";
@@ -85,17 +93,20 @@ PulsarClient client = PulsarClient.builder()
     .authentication(
         AuthenticationFactoryOAuth2.clientCredentials(issuerUrl, credentialsUrl, audience))
     .build();
+
 ```
 
 In addition, you can also use the encoded parameters to configure authentication for Pulsar Java client.
 
 ```java
+
 Authentication auth = AuthenticationFactory
     .create(AuthenticationOAuth2.class.getName(), "{"type":"client_credentials","privateKey":"./key/path/..","issuerUrl":"...","audience":"..."}");
 PulsarClient client = PulsarClient.builder()
     .serviceUrl("pulsar://broker.example.com:6650/")
     .authentication(auth)
     .build();
+
 ```
 
 ### C++ client
@@ -103,6 +114,7 @@ PulsarClient client = PulsarClient.builder()
 The C++ client is similar to the Java client. You need to provide the parameters of `issuerUrl`, `private_key` (the credentials file path), and `audience`.
 
 ```c++
+
 #include <pulsar/Client.h>
 
 pulsar::ClientConfiguration config;
@@ -114,6 +126,7 @@ std::string params = R"({
 config.setAuth(pulsar::AuthOauth2::create(params));
 
 pulsar::Client client("pulsar://broker.example.com:6650/", config);
+
 ```
 
 ### Go client
@@ -122,6 +135,7 @@ To enable OAuth2 authentication in Go client, you need to configure OAuth2 authe
 This example shows how to configure OAuth2 authentication in Go client. 
 
 ```go
+
 oauth := pulsar.NewAuthenticationOAuth2(map[string]string{
 		"type":       "client_credentials",
 		"issuerUrl":  "https://dev-kt-aa9ne.us.auth0.com",
@@ -133,6 +147,7 @@ client, err := pulsar.NewClient(pulsar.ClientOptions{
 		URL:              "pulsar://my-cluster:6650",
 		Authentication:   oauth,
 })
+
 ```
 
 ### Python client
@@ -141,6 +156,7 @@ To enable OAuth2 authentication in Python client, you need to configure OAuth2 a
 This example shows how to configure OAuth2 authentication in Python client.
 
 ```python
+
 from pulsar import Client, AuthenticationOauth2
 
 params = '''
@@ -152,6 +168,7 @@ params = '''
 '''
 
 client = Client("pulsar://my-cluster:6650", authentication=AuthenticationOauth2(params))
+
 ```
 
 ### Node.js client
@@ -160,6 +177,7 @@ To enable OAuth2 authentication in Node.js client, you need to configure OAuth2 
 This example shows how to configure OAuth2 authentication in Node.js client.
 
 ```JavaScript
+
     const Pulsar = require('pulsar-client');
     const issuer_url = process.env.ISSUER_URL;
     const private_key = process.env.PRIVATE_KEY;
@@ -193,7 +211,9 @@ This example shows how to configure OAuth2 authentication in Node.js client.
       });
       await client.close();
     })();
+
 ```
+
 > Note: The support for OAuth2 authentication is only available in Node.js client 1.6.2 and later versions.
 
 ## CLI configuration
@@ -205,12 +225,14 @@ This section describes how to use Pulsar CLI tools to connect a cluster through 
 This example shows how to use pulsar-admin to connect to a cluster through OAuth2 authentication plugin.
 
 ```shell script
+
 bin/pulsar-admin --admin-url https://streamnative.cloud:443 \
 --auth-plugin org.apache.pulsar.client.impl.auth.oauth2.AuthenticationOAuth2 \
 --auth-params '{"privateKey":"file:///path/to/key/file.json",
     "issuerUrl":"https://dev-kt-aa9ne.us.auth0.com",
     "audience":"https://dev-kt-aa9ne.us.auth0.com/api/v2/"}' \
 tenants list
+
 ```
 
 Set the `admin-url` parameter to the Web service URL. A Web service URLis a combination of the protocol, hostname and port ID, such as `pulsar://localhost:6650`.
@@ -221,6 +243,7 @@ Set the `privateKey`, `issuerUrl`, and `audience` parameters to the values based
 This example shows how to use pulsar-client to connect to a cluster through OAuth2 authentication plugin.
 
 ```shell script
+
 bin/pulsar-client \
 --url SERVICE_URL \
 --auth-plugin org.apache.pulsar.client.impl.auth.oauth2.AuthenticationOAuth2 \
@@ -228,6 +251,7 @@ bin/pulsar-client \
     "issuerUrl":"https://dev-kt-aa9ne.us.auth0.com",
     "audience":"https://dev-kt-aa9ne.us.auth0.com/api/v2/"}' \
 produce test-topic -m "test-message" -n 10
+
 ```
 
 Set the `admin-url` parameter to the Web service URL. A Web service URLis a combination of the protocol, hostname and port ID, such as `pulsar://localhost:6650`.
@@ -238,12 +262,14 @@ Set the `privateKey`, `issuerUrl`, and `audience` parameters to the values based
 This example shows how to use pulsar-perf to connect to a cluster through OAuth2 authentication plugin.
 
 ```shell script
+
 bin/pulsar-perf produce --service-url pulsar+ssl://streamnative.cloud:6651 \
 --auth-plugin org.apache.pulsar.client.impl.auth.oauth2.AuthenticationOAuth2 \
 --auth-params '{"privateKey":"file:///path/to/key/file.json",
     "issuerUrl":"https://dev-kt-aa9ne.us.auth0.com",
     "audience":"https://dev-kt-aa9ne.us.auth0.com/api/v2/"}' \
 -r 1000 -s 1024 test-topic
+
 ```
 
 Set the `admin-url` parameter to the Web service URL. A Web service URLis a combination of the protocol, hostname and port ID, such as `pulsar://localhost:6650`.

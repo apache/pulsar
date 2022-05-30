@@ -22,7 +22,7 @@ cmake_minimum_required(VERSION 3.4)
 project (pulsar-cpp)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake_modules")
 
-execute_process(COMMAND python ${CMAKE_SOURCE_DIR}/../src/gen-pulsar-version-macro.py OUTPUT_STRIP_TRAILING_WHITESPACE OUTPUT_VARIABLE PVM)
+execute_process(COMMAND ${CMAKE_SOURCE_DIR}/../src/gen-pulsar-version-macro.py OUTPUT_STRIP_TRAILING_WHITESPACE OUTPUT_VARIABLE PVM)
 set(PVM_COMMENT "This is generated from Version.h.in by CMAKE. DO NOT EDIT DIRECTLY")
 configure_file(templates/Version.h.in include/pulsar/Version.h @ONLY)
 
@@ -269,18 +269,12 @@ if (BUILD_PYTHON_WRAPPER)
     find_package(PythonLibs REQUIRED)
     MESSAGE(STATUS "PYTHON: " ${PYTHONLIBS_VERSION_STRING})
 
-    if (PYTHONLIBS_VERSION_STRING MATCHES "^3.+$")
-        MESSAGE(STATUS "DETECTED Python 3")
-        string(REPLACE "." ";" PYTHONLIBS_VERSION_NO_LIST ${PYTHONLIBS_VERSION_STRING})
-        list(GET PYTHONLIBS_VERSION_NO_LIST 0 PYTHONLIBS_VERSION_MAJOR)
-        list(GET PYTHONLIBS_VERSION_NO_LIST 1 PYTHONLIBS_VERSION_MINOR)
-        set(BOOST_PYTHON_NAME_POSTFIX ${PYTHONLIBS_VERSION_MAJOR}${PYTHONLIBS_VERSION_MINOR})
-        # For python3 the lib name is boost_python3
-        set(BOOST_PYTHON_NAME_LIST python36;python37;python38;python39;python310;python3;python3-mt;python-py${BOOST_PYTHON_NAME_POSTFIX};python${BOOST_PYTHON_NAME_POSTFIX}-mt;python${BOOST_PYTHON_NAME_POSTFIX})
-    else ()
-        # Regular boost_python
-        set(BOOST_PYTHON_NAME_LIST python;python-mt;python-py27;python27-mt;python27)
-    endif ()
+    string(REPLACE "." ";" PYTHONLIBS_VERSION_NO_LIST ${PYTHONLIBS_VERSION_STRING})
+    list(GET PYTHONLIBS_VERSION_NO_LIST 0 PYTHONLIBS_VERSION_MAJOR)
+    list(GET PYTHONLIBS_VERSION_NO_LIST 1 PYTHONLIBS_VERSION_MINOR)
+    set(BOOST_PYTHON_NAME_POSTFIX ${PYTHONLIBS_VERSION_MAJOR}${PYTHONLIBS_VERSION_MINOR})
+    # For python3 the lib name is boost_python3
+    set(BOOST_PYTHON_NAME_LIST python37;python38;python39;python310;python3;python3-mt;python-py${BOOST_PYTHON_NAME_POSTFIX};python${BOOST_PYTHON_NAME_POSTFIX}-mt;python${BOOST_PYTHON_NAME_POSTFIX})
 
     foreach (BOOST_PYTHON_NAME IN LISTS BOOST_PYTHON_NAME_LIST)
         find_package(Boost QUIET COMPONENTS ${BOOST_PYTHON_NAME})
@@ -443,15 +437,9 @@ if (BUILD_WIRESHARK)
     add_subdirectory(wireshark)
 endif()
 
-# `make format` option
-if (NOT APPLE AND NOT WIN32)
-    set(CLANG_FORMAT_VERSION "5.0")
-endif()
-
-
 find_package(ClangTools)
 set(BUILD_SUPPORT_DIR "${CMAKE_SOURCE_DIR}/build-support")
-add_custom_target(format python ${BUILD_SUPPORT_DIR}/run_clang_format.py
+add_custom_target(format ${BUILD_SUPPORT_DIR}/run_clang_format.py
         ${CLANG_FORMAT_BIN}
         0
         ${BUILD_SUPPORT_DIR}/clang_format_exclusions.txt
@@ -464,7 +452,7 @@ add_custom_target(format python ${BUILD_SUPPORT_DIR}/run_clang_format.py
         ${CMAKE_SOURCE_DIR}/wireshark)
 
 # `make check-format` option (for CI test)
-add_custom_target(check-format python ${BUILD_SUPPORT_DIR}/run_clang_format.py
+add_custom_target(check-format ${BUILD_SUPPORT_DIR}/run_clang_format.py
         ${CLANG_FORMAT_BIN}
         1
         ${BUILD_SUPPORT_DIR}/clang_format_exclusions.txt
