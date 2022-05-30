@@ -33,7 +33,6 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -76,8 +75,6 @@ public class ManagedTrashImpl implements ManagedTrash {
     private static final String TRASH_KEY_SEPARATOR = "-";
 
     private static final int RETRY_COUNT = 9;
-
-    private static final CompletableFuture<Void> COMPLETED_FUTURE = CompletableFuture.completedFuture(null);
 
     private static final LedgerInfo EMPTY_LEDGER_INFO = LedgerInfo.newBuilder().setLedgerId(-1L).build();
 
@@ -148,7 +145,7 @@ public class ManagedTrashImpl implements ManagedTrash {
         CompletableFuture<Void> future = new CompletableFuture<>();
         metadataStore.get(buildDeletePath()).whenCompleteAsync((res, e) -> {
             if (e != null) {
-                log.error("Get delete data failed, name:{} type: {}", name, type, e);
+                log.error("[{}] Get delete data failed.", name(), e);
                 future.completeExceptionally(e);
                 return;
             }
@@ -160,38 +157,45 @@ public class ManagedTrashImpl implements ManagedTrash {
             try {
                 trashData.putAll(deSerialize(value));
                 deleteStat = res.get().getStat();
-                toArchiveCount.set(calculateArchiveCount().get());
-                future.complete(null);
-                checkTrashPersistTask =
-                        scheduledExecutor.scheduleAtFixedRate(safeRun(this::persistTrashIfNecessary), 30L, 30L,
-                                TimeUnit.MINUTES);
-                STATE_UPDATER.set(this, State.INITIALIZED);
-                triggerDeleteInBackground();
+                calculateArchiveCount().whenComplete((res1, e1) -> {
+                    if (e1 != null) {
+                        future.completeExceptionally(getException(e1));
+                        return;
+                    }
+                    toArchiveCount.set(res1);
+                    future.complete(null);
+                    checkTrashPersistTask =
+                            scheduledExecutor.scheduleAtFixedRate(safeRun(this::persistTrashIfNecessary), 30L, 30L,
+                                    TimeUnit.MINUTES);
+                    STATE_UPDATER.set(this, State.INITIALIZED);
+                    triggerDeleteInBackground();
+                });
             } catch (InvalidProtocolBufferException exc) {
                 future.completeExceptionally(getException(exc));
-            } catch (ExecutionException | InterruptedException ex) {
-                ex.printStackTrace();
             }
-
         }, scheduledExecutor.chooseThread(name));
         return future;
     }
 
     private void persistTrashIfNecessary() {
         if (trashIsDirty) {
-            asyncUpdateTrashData(COMPLETED_FUTURE);
+            asyncUpdateTrashData();
         }
     }
 
     private CompletableFuture<Integer> calculateArchiveCount() {
         CompletableFuture<Integer> future = new CompletableFuture<>();
-        internalCalculateArchiveCount(future);
+        calculateArchiveCountInBackground(future);
         return future;
+    }
+
+    private void calculateArchiveCountInBackground(CompletableFuture<Integer> future) {
+        executor.executeOrdered(name, safeRun(() -> internalCalculateArchiveCount(future)));
     }
 
     private void internalCalculateArchiveCount(CompletableFuture<Integer> future) {
         if (!trashMutex.tryLock()) {
-            scheduledExecutor.schedule(safeRun(() -> internalCalculateArchiveCount(future)), 100,
+            scheduledExecutor.schedule(safeRun(() -> calculateArchiveCountInBackground(future)), 100,
                     TimeUnit.MILLISECONDS);
             return;
         }
@@ -232,9 +236,10 @@ public class ManagedTrashImpl implements ManagedTrash {
     }
 
     private void appendTrashData(final String key, final LedgerInfo context, final CompletableFuture<?> future) {
-        if (STATE_UPDATER.get(this) != State.INITIALIZED) {
-            future.completeExceptionally(
-                    getException(new IllegalStateException("ManagedTrashImpl is not initialized")));
+        State state = STATE_UPDATER.get(this);
+        if (state != State.INITIALIZED) {
+            future.completeExceptionally(getException(new IllegalStateException(
+                    String.format("[%s] is not initialized, current state: %s", name(), state))));
             return;
         }
         if (!trashMutex.tryLock()) {
@@ -252,11 +257,14 @@ public class ManagedTrashImpl implements ManagedTrash {
     }
 
     @Override
-    public void asyncUpdateTrashData(CompletableFuture<?> future) {
-        if (STATE_UPDATER.get(this) != State.INITIALIZED) {
-            future.completeExceptionally(
-                    getException(new IllegalStateException("ManagedTrashImpl is not initialized")));
-            return;
+    public CompletableFuture<?> asyncUpdateTrashData() {
+        log.info("{} Start async update trash data", name());
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        State state = STATE_UPDATER.get(this);
+        if (state != State.INITIALIZED) {
+            future.completeExceptionally(getException(new IllegalStateException(
+                    String.format("[%s] is not initialized, current state: %s", name(), state))));
+            return future;
         }
         metadataStore.put(buildDeletePath(), serialize(trashData),
                         deleteStat == null ? Optional.of(-1L) : Optional.of(deleteStat.getVersion()))
@@ -270,6 +278,7 @@ public class ManagedTrashImpl implements ManagedTrash {
                     trashPersistMutex.unlock();
                     future.complete(null);
                 }, executor.chooseThread(name));
+        return future;
     }
 
     private byte[] serialize(Map<String, LedgerInfo> toPersist) {
@@ -297,7 +306,9 @@ public class ManagedTrashImpl implements ManagedTrash {
 
     @Override
     public void triggerDelete() {
-        if (STATE_UPDATER.get(this) != State.INITIALIZED) {
+        State state = STATE_UPDATER.get(this);
+        if (state != State.INITIALIZED) {
+            log.warn("[{}] is not initialized, current state: {}", name(), state);
             return;
         }
         if (!deleteMutex.tryLock()) {
@@ -342,25 +353,26 @@ public class ManagedTrashImpl implements ManagedTrash {
 
     @Override
     public void asyncClose(AsyncCallbacks.CloseCallback callback, Object ctx) {
-        STATE_UPDATER.set(this, State.Closed);
         if (checkTrashPersistTask != null) {
             checkTrashPersistTask.cancel(true);
+            checkTrashPersistTask = null;
         }
-        CompletableFuture<Void> future = new CompletableFuture<>();
-        asyncUpdateTrashData(future);
-        future.whenComplete((res, e) -> {
+        asyncUpdateTrashData().whenComplete((res, e) -> {
             if (e != null) {
                 callback.closeFailed((ManagedLedgerException) e, ctx);
                 return;
             }
             callback.closeComplete(ctx);
         });
+        STATE_UPDATER.set(this, State.Closed);
     }
 
-    private void increaseArchiveCountWhenDeleteFailed(final CompletableFuture<?> future) {
+    private CompletableFuture<?> increaseArchiveCountWhenDeleteFailed() {
+        CompletableFuture<Void> future = new CompletableFuture<>();
         toArchiveCount.incrementAndGet();
         managedTrashMXBean.increaseTotalNumberOfArchiveLedgers();
         updateArchiveDataIfNecessary(future);
+        return future;
     }
 
     private void updateArchiveDataIfNecessary(final CompletableFuture<?> future) {
@@ -412,6 +424,7 @@ public class ManagedTrashImpl implements ManagedTrash {
     }
 
     private void asyncUpdateArchiveData(CompletableFuture<?> future) {
+        log.info("[{}] Start async update archive data", name());
         //transaction operation
         NavigableMap<String, LedgerInfo> persistDelete = new ConcurrentSkipListMap<>();
         NavigableMap<String, LedgerInfo> persistArchive = new ConcurrentSkipListMap<>();
@@ -444,13 +457,13 @@ public class ManagedTrashImpl implements ManagedTrash {
 
         opDeletePersist.getFuture().whenCompleteAsync((res, e) -> {
             if (e != null) {
-                log.error("Persist trash data failed.", e);
+                log.error("[{}] Persist trash data failed.", name(), e);
                 future.completeExceptionally(getException(e));
                 return;
             }
             opArchivePersist.getFuture().whenCompleteAsync((res1, e1) -> {
                 if (e1 != null) {
-                    log.error("Persist archive data failed.", e1);
+                    log.error("[{}] Persist archive data failed.", name(), e1);
                     future.completeExceptionally(getException(e1));
                     return;
                 }
@@ -504,9 +517,9 @@ public class ManagedTrashImpl implements ManagedTrash {
             if (log.isDebugEnabled()) {
                 String info = null;
                 if (delHelper.isLedger()) {
-                    info = String.format("Delete ledger %s success.", delHelper.ledgerId);
+                    info = String.format("[%s] Delete ledger %s success.", name(), delHelper.ledgerId);
                 } else if (delHelper.isOffloadLedger()) {
-                    info = String.format("Delete offload ledger %s success.", delHelper.ledgerId);
+                    info = String.format("[%s] Delete offload ledger %s success.", name(), delHelper.ledgerId);
                 }
                 log.debug(info);
             }
@@ -531,17 +544,18 @@ public class ManagedTrashImpl implements ManagedTrash {
                     delHelper.context);
             trashIsDirty = true;
             if (delHelper.retryCount - 1 == 0) {
-                if (log.isDebugEnabled()) {
+                if (log.isWarnEnabled()) {
                     String info = null;
                     if (delHelper.isLedger()) {
-                        info = String.format("Delete ledger %d reach retry limit %d.", delHelper.ledgerId, RETRY_COUNT);
-                    } else if (delHelper.isOffloadLedger()) {
-                        info = String.format("Delete offload ledger %d reach retry limit %d.", delHelper.ledgerId,
+                        info = String.format("[%s] Delete ledger %d reach retry limit %d.", name(), delHelper.ledgerId,
                                 RETRY_COUNT);
+                    } else if (delHelper.isOffloadLedger()) {
+                        info = String.format("[%s] Delete offload ledger %d reach retry limit %d.", name(),
+                                delHelper.ledgerId, RETRY_COUNT);
                     }
-                    log.debug(info);
+                    log.warn(info);
                 }
-                increaseArchiveCountWhenDeleteFailed(COMPLETED_FUTURE);
+                increaseArchiveCountWhenDeleteFailed();
             }
         } finally {
             boolean continueToDelete = continueToDelete();
@@ -559,17 +573,17 @@ public class ManagedTrashImpl implements ManagedTrash {
     }
 
     private void asyncDeleteLedger(long ledgerId, AsyncCallbacks.DeleteLedgerCallback callback) {
-        log.info("[{}] Removing ledger {}", name, ledgerId);
+        log.info("[{}] Start  async delete ledger {}", name(), ledgerId);
         bookKeeper.asyncDeleteLedger(ledgerId, (rc, ctx) -> {
             if (isNoSuchLedgerExistsException(rc)) {
-                log.warn("[{}] Ledger was already deleted {}", name, ledgerId);
+                log.warn("[{}] Ledger was already deleted {}", name(), ledgerId);
             } else if (rc != BKException.Code.OK) {
-                log.error("[{}] Error delete ledger {} : {}", name, ledgerId, BKException.getMessage(rc));
+                log.error("[{}] Error delete ledger {} : {}", name(), ledgerId, BKException.getMessage(rc));
                 callback.deleteLedgerFailed(ManagedLedgerImpl.createManagedLedgerException(rc), null);
                 return;
             }
             if (log.isDebugEnabled()) {
-                log.debug("[{}] Deleted ledger {}", name, ledgerId);
+                log.debug("[{}] Deleted ledger {}", name(), ledgerId);
             }
             callback.deleteLedgerComplete(ctx);
         }, null);
@@ -584,8 +598,9 @@ public class ManagedTrashImpl implements ManagedTrash {
 
         UUID uuid = new UUID(info.getOffloadContext().getUidMsb(), info.getOffloadContext().getUidLsb());
 
-        log.info("[{}] Cleanup offload for ledgerId {} uuid {} because of the reason {}.", name, ledgerId, uuid,
-                cleanupReason);
+        log.info("[{}] Start async delete offloaded ledger, ledgerId {} uuid {} because of the reason {}.", name(),
+                ledgerId, uuid, cleanupReason);
+
         Map<String, String> metadataMap = Maps.newHashMap();
         metadataMap.putAll(config.getLedgerOffloader().getOffloadDriverMetadata());
         metadataMap.put("ManagedLedgerName", name);
@@ -595,19 +610,16 @@ public class ManagedTrashImpl implements ManagedTrash {
                     .deleteOffloaded(ledgerId, uuid, metadataMap)
                     .whenComplete((ignored, exception) -> {
                         if (exception != null) {
-                            log.warn("[{}] Error cleaning up offload for {}, (cleanup reason: {})",
-                                    name, ledgerId, cleanupReason, exception);
-                            log.warn("[{}] Failed to delete offloaded ledger after retries {} / {}", name, ledgerId,
-                                    uuid);
-                            callback.deleteLedgerFailed(
-                                    new ManagedLedgerException("Failed to delete offloaded ledger after retries"),
+                            log.warn("[{}] Failed delete offload for ledgerId {} uuid {}, (cleanup reason: {})",
+                                    name(), ledgerId, uuid, cleanupReason, exception);
+                            callback.deleteLedgerFailed(new ManagedLedgerException("Failed to delete offloaded ledger"),
                                     null);
                             return;
                         }
                         callback.deleteLedgerComplete(null);
                     });
         } catch (Exception e) {
-            log.warn("[{}] Failed to cleanup offloaded ledgers.", name, e);
+            log.warn("[{}] Failed to delete offloaded ledgers.", name(), e);
         }
     }
 

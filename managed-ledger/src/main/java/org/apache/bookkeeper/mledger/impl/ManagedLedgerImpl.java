@@ -2652,10 +2652,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             futures.add(managedTrash.appendLedgerTrashData(ledgerId, ledgers.get(ledgerId),
                     ManagedTrash.DELETABLE_OFFLOADED_LEDGER_SUFFIX));
         }
-
-        CompletableFuture<Void> future = new CompletableFuture<>();
-        futures.add(future);
-        managedTrash.asyncUpdateTrashData(future);
+        futures.add(managedTrash.asyncUpdateTrashData());
         return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
     }
 

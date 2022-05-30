@@ -41,7 +41,7 @@ public interface ManagedTrash {
 
     CompletableFuture<?> appendLedgerTrashData(long ledgerId, LedgerInfo context, String type);
 
-    void asyncUpdateTrashData(CompletableFuture<?> future);
+    CompletableFuture<?> asyncUpdateTrashData();
 
     void triggerDelete();
 
