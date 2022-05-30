@@ -41,6 +41,4 @@ public interface ManagedTrashMXBean {
     void increaseTotalNumberOfArchiveLedgers();
 
     long getTotalNumberOfArchiveLedgers();
-
-
 }

@@ -634,7 +634,6 @@ public class ManagedTrashImpl implements ManagedTrash {
 
         private final LedgerInfo context;
 
-
         public TrashDeleteHelper(int retryCount, long ledgerId, String suffix, LedgerInfo context) {
             this.retryCount = retryCount;
             this.ledgerId = ledgerId;
@@ -648,7 +647,6 @@ public class ManagedTrashImpl implements ManagedTrash {
             long ledgerId = Long.parseLong(split[1]);
             return new TrashDeleteHelper(retryCont, ledgerId, split[2], null);
         }
-
 
         public static TrashDeleteHelper build(String key, LedgerInfo context) {
             String[] split = key.split(TRASH_KEY_SEPARATOR);
