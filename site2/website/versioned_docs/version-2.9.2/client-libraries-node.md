@@ -11,6 +11,8 @@ All the methods in [producers](#producers), [consumers](#consumers), and [reader
 
 For 1.3.0 or later versions, [type definitions](https://github.com/apache/pulsar-client-node/blob/master/index.d.ts) used in TypeScript are available.
 
+If you are looking for Pulsar Admin API client, please try [pulsar-admin-client](https://github.com/tealtools/node-pulsar-admin-client).
+
 ## Installation
 
 You can install the [`pulsar-client`](https://www.npmjs.com/package/pulsar-client) library via [npm](https://www.npmjs.com/).
