@@ -525,6 +525,7 @@ public class ProxyConnection extends PulsarHandler {
         clientConf.setAuthentication(this.getClientAuthentication());
         if (proxyConfig.isTlsEnabledWithBroker()) {
             clientConf.setUseTls(true);
+            clientConf.setTlsHostnameVerificationEnable(proxyConfig.isTlsHostnameVerificationEnabled());
             if (proxyConfig.isBrokerClientTlsEnabledWithKeyStore()) {
                 clientConf.setUseKeyStoreTls(true);
                 clientConf.setTlsTrustStoreType(proxyConfig.getBrokerClientTlsTrustStoreType());
