@@ -326,7 +326,7 @@ public class PersistentTopicsBase extends AdminResource {
         validateTopicOwnershipAsync(topicName, authoritative).thenCompose(
                         __ -> validateNamespaceOperationAsync(topicName.getNamespaceObject(),
                                 NamespaceOperation.DELETE_TOPIC))
-                .thenAccept(__ -> pulsar().getBrokerService().deleteTopic(topicName.toString(), true))
+                .thenCompose(__ -> pulsar().getBrokerService().deleteTopic(topicName.toString(), true))
                 .thenApply(__ -> asyncResponse.resume(Response.noContent().build()))
                 .exceptionally(ex -> {
                     Throwable realCause = FutureUtil.unwrapCompletionException(ex);
@@ -1019,7 +1019,7 @@ public class PersistentTopicsBase extends AdminResource {
         validateTopicOwnershipAsync(topicName, authoritative).thenCompose(
                         __ -> validateNamespaceOperationAsync(topicName.getNamespaceObject(),
                                 NamespaceOperation.DELETE_TOPIC))
-                .thenAccept(__ -> pulsar().getBrokerService().deleteTopic(topicName.toString(), false))
+                .thenCompose(__ -> pulsar().getBrokerService().deleteTopic(topicName.toString(), false))
                 .thenApply(__ -> asyncResponse.resume(Response.noContent().build()))
                 .exceptionally(ex -> {
                     Throwable realCause = FutureUtil.unwrapCompletionException(ex);
