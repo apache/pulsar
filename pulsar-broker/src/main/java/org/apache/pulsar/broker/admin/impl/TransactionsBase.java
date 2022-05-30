@@ -47,6 +47,7 @@ import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
+import org.apache.pulsar.common.policies.data.PositionInPendingAckStats;
 import org.apache.pulsar.common.policies.data.TransactionBufferStats;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorInternalStats;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorStats;
@@ -448,13 +449,13 @@ public abstract class TransactionsBase extends AdminResource {
                         }));
     }
 
-    protected CompletableFuture<Boolean> internalCheckPositionIsPendingAckStats(boolean authoritative, String subName,
-                                                                                PositionImpl position) {
-        CompletableFuture<Boolean> completableFuture = new CompletableFuture<>();
+    protected CompletableFuture<PositionInPendingAckStats> internalGetPositionStatsPendingAckStats(
+            boolean authoritative, String subName, PositionImpl position) {
+        CompletableFuture<PositionInPendingAckStats> completableFuture = new CompletableFuture<>();
         getExistingPersistentTopicAsync(authoritative)
                 .thenAccept(topic -> {
-                    boolean result = topic.getSubscription(subName)
-                    .checkIfPositionIsPendingAckStats(position);
+                    PositionInPendingAckStats result = topic.getSubscription(subName)
+                    .getPositionStatsInPendingAckStats(position);
                     completableFuture.complete(result);
                 }).exceptionally(ex -> {
                     completableFuture.completeExceptionally(ex);

@@ -31,6 +31,7 @@ import org.apache.pulsar.client.admin.Transactions;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.PositionInPendingAckStats;
 import org.apache.pulsar.common.policies.data.TransactionBufferStats;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorInternalStats;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorStats;
@@ -317,10 +318,10 @@ public class TransactionsImpl extends BaseResource implements Transactions {
         path = path.queryParam("metadata", metadata);
         final CompletableFuture<TransactionPendingAckInternalStats> future = new CompletableFuture<>();
         asyncGetRequest(path,
-                new InvocationCallback<TransactionPendingAckInternalStats>() {
+                new InvocationCallback<PositionInPendingAckStats>() {
                     @Override
-                    public void completed(TransactionPendingAckInternalStats stats) {
-                        future.complete(stats);
+                    public void completed(PositionInPendingAckStats positionInPendingAckStats) {
+                        future.complete(null);
                     }
 
                     @Override
@@ -352,18 +353,19 @@ public class TransactionsImpl extends BaseResource implements Transactions {
     }
 
     @Override
-    public CompletableFuture<Boolean> checkIfThePositionInPendingAckStatsAsync(String topic, String subName,
-                                                                               String position) {
+    public CompletableFuture<PositionInPendingAckStats> getPositionStatsInPendingAckStatsAsync(String topic,
+                                                                                               String subName,
+                                                                                               String position) {
         TopicName tn = TopicName.get(topic);
-        WebTarget path = adminV3Transactions.path("checkIfThePositionIsPendingAck");
+        WebTarget path = adminV3Transactions.path("getPositionStatsInPendingAck");
         path = path.path(tn.getRestPath(false));
         path = path.path(subName);
         path = path.queryParam("position", position);
-        final CompletableFuture<Boolean> future = new CompletableFuture<>();
+        final CompletableFuture<PositionInPendingAckStats> future = new CompletableFuture<>();
         asyncGetRequest(path,
-                new InvocationCallback<Boolean>() {
+                new InvocationCallback<PositionInPendingAckStats>() {
                     @Override
-                    public void completed(Boolean stats) {
+                    public void completed(PositionInPendingAckStats stats) {
                         future.complete(stats);
                     }
 
@@ -376,8 +378,8 @@ public class TransactionsImpl extends BaseResource implements Transactions {
     }
 
 
-    public Boolean checkIfThePositionInPendingAckStats(String topic, String subName, String position)
+    public PositionInPendingAckStats getPositionStatsInPendingAckStats(String topic, String subName, String position)
             throws PulsarAdminException {
-        return sync(() -> checkIfThePositionInPendingAckStatsAsync(topic, subName, position));
+        return sync(() -> getPositionStatsInPendingAckStatsAsync(topic, subName, position));
     }
 }

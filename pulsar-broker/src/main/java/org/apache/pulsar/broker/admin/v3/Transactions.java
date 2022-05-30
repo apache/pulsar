@@ -342,8 +342,8 @@ public class Transactions extends TransactionsBase {
     }
 
     @GET
-    @Path("/checkIfThePositionIsPendingAck/{tenant}/{namespace}/{topic}/{subName}")
-    @ApiOperation(value = "Get transaction pending ack internal stats.")
+    @Path("/getPositionStatsInPendingAck/{tenant}/{namespace}/{topic}/{subName}")
+    @ApiOperation(value = "Get position stats in pending ack.")
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic "
                     + "or subscription name doesn't exist"),
@@ -353,7 +353,7 @@ public class Transactions extends TransactionsBase {
             @ApiResponse(code = 405, message = "Pending ack handle don't use managedLedger!"),
             @ApiResponse(code = 400, message = "Topic is not a persistent topic!"),
             @ApiResponse(code = 409, message = "Concurrent modification")})
-    public void checkIfThePositionIsPendingAck(@Suspended final AsyncResponse asyncResponse,
+    public void getPositionStatsInPendingAck(@Suspended final AsyncResponse asyncResponse,
                                                @QueryParam("authoritative")
                                                @DefaultValue("false") boolean authoritative,
                                                @PathParam("tenant") String tenant,
@@ -361,19 +361,26 @@ public class Transactions extends TransactionsBase {
                                                @PathParam("topic") @Encoded String encodedTopic,
                                                @PathParam("subName") String subName,
                                                @QueryParam("position") String position) {
-        checkArgument(position != null, "Message position should not be null.");
-        checkTransactionCoordinatorEnabled();
-        validateTopicName(tenant, namespace, encodedTopic);
-        String [] positions = position.split(":");
-        PositionImpl positionImpl = new PositionImpl(Integer.parseInt(positions[0]), Integer.parseInt(positions[1]));
-        internalCheckPositionIsPendingAckStats(authoritative, subName, positionImpl)
-                .thenAccept(asyncResponse::resume)
-                .exceptionally(ex -> {
-                  log.warn("{} Failed to check position [{}] stats for topic [{}], subscription [{}]",
-                          clientAppId(), position, topicName, subName, ex);
-                  asyncResponse.resume(ex);
-                  return null;
-                });
+        try {
+            checkArgument(position != null, "Message position should not be null.");
+            checkTransactionCoordinatorEnabled();
+            validateTopicName(tenant, namespace, encodedTopic);
+            PositionImpl positionImpl = PositionImpl.parsePositionFromString(position);
+            internalGetPositionStatsPendingAckStats(authoritative, subName, positionImpl)
+                    .thenAccept(positionInPendingAckStats -> asyncResponse.resume(positionInPendingAckStats))
+                    .exceptionally(ex -> {
+                        log.warn("{} Failed to check position [{}] stats for topic [{}], subscription [{}]",
+                                clientAppId(), position, topicName, subName, ex);
+                        resumeAsyncResponseExceptionally(asyncResponse, ex);
+                        return null;
+                    });
+        } catch (Exception ex) {
+            log.warn("Failed to get position stats in pending ack");
+            resumeAsyncResponseExceptionally(asyncResponse, ex);
+        }
+
+
+
     }
 
 }

@@ -28,6 +28,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedExcepti
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
+import org.apache.pulsar.common.policies.data.PositionInPendingAckStats;
 import org.apache.pulsar.common.policies.data.TransactionInPendingAckStats;
 import org.apache.pulsar.common.policies.data.TransactionPendingAckStats;
 import org.apache.pulsar.transaction.common.exception.TransactionConflictException;
@@ -159,9 +160,9 @@ public interface PendingAckHandle {
     boolean checkIfPendingAckStoreInit();
 
     /**
-     * Check if the message position is in pending ack stats.
+     * Get the stats of this message position is in pending ack.
      * @param position message position.
-     * @return a boolean value identified whether the position is in pending ack stats.
+     * @return the stats of the message position.
      */
-    boolean checkIfPositionIsPendingAckStats(PositionImpl position);
+    PositionInPendingAckStats getPositionStatsInPendingAckStats(PositionImpl position);
 }

@@ -51,6 +51,7 @@ import org.apache.pulsar.broker.transaction.pendingack.PendingAckStore;
 import org.apache.pulsar.broker.transaction.pendingack.TransactionPendingAckStoreProvider;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
+import org.apache.pulsar.common.policies.data.PositionInPendingAckStats;
 import org.apache.pulsar.common.policies.data.TransactionInPendingAckStats;
 import org.apache.pulsar.common.policies.data.TransactionPendingAckStats;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -925,17 +926,34 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
     }
 
     @Override
-    public boolean checkIfPositionIsPendingAckStats(PositionImpl position) {
-        if (individualAckOfTransaction == null) {
-         return false;
+    public PositionInPendingAckStats getPositionStatsInPendingAckStats(PositionImpl position) {
+        if (persistentSubscription.getCursor().getPersistentMarkDeletedPosition() != null && position.compareTo(
+                        (PositionImpl) persistentSubscription.getCursor().getPersistentMarkDeletedPosition()) <= 0) {
+            return new PositionInPendingAckStats(PositionInPendingAckStats.State.MarkDelete);
+        } else if (individualAckPositions == null) {
+            return new PositionInPendingAckStats(PositionInPendingAckStats.State.NotInPendingAck);
         }
-        long result = individualAckOfTransaction
-                .values()
-                .parallelStream()
-                .filter(positionPositionHashMap -> {
-                    return positionPositionHashMap.containsKey(position);
-                }).count();
-        return result == 1L;
+        MutablePair<PositionImpl, Integer> positionIntegerMutablePair = individualAckPositions.get(position);
+        if (positionIntegerMutablePair != null) {
+            if (!position.hasAckSet()) {
+                return new PositionInPendingAckStats(PositionInPendingAckStats.State.PendingAck);
+            } else {
+                BitSetRecyclable bitSetRecyclable = BitSetRecyclable.valueOf(position.getAckSet());
+                if (positionIntegerMutablePair.right > bitSetRecyclable.size()) {
+                    bitSetRecyclable.set(positionIntegerMutablePair.right);
+                }
+                bitSetRecyclable.set(positionIntegerMutablePair.right, bitSetRecyclable.size());
+                long[] ackSetOverlap = bitSetRecyclable.toLongArray();
+                bitSetRecyclable.recycle();
+                if (isAckSetOverlap(ackSetOverlap, positionIntegerMutablePair.left.getAckSet())) {
+                    return new PositionInPendingAckStats(PositionInPendingAckStats.State.PendingAck);
+                } else {
+                    return new PositionInPendingAckStats(PositionInPendingAckStats.State.NotInPendingAck);
+                }
+            }
+        } else {
+            return new PositionInPendingAckStats(PositionInPendingAckStats.State.NotInPendingAck);
+        }
     }
 
     @Override

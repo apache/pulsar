@@ -74,6 +74,7 @@ import org.apache.pulsar.common.api.proto.KeySharedMeta;
 import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshot;
 import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.PositionInPendingAckStats;
 import org.apache.pulsar.common.policies.data.TransactionInPendingAckStats;
 import org.apache.pulsar.common.policies.data.TransactionPendingAckStats;
 import org.apache.pulsar.common.policies.data.stats.ConsumerStatsImpl;
@@ -1174,8 +1175,8 @@ public class PersistentSubscription implements Subscription {
         return this.pendingAckHandle.checkIfPendingAckStoreInit();
     }
 
-    public boolean checkIfPositionIsPendingAckStats(PositionImpl position) {
-        return pendingAckHandle.checkIfPositionIsPendingAckStats(position);
+    public PositionInPendingAckStats getPositionStatsInPendingAckStats(PositionImpl position) {
+        return pendingAckHandle.getPositionStatsInPendingAckStats(position);
     }
 
     private static final Logger log = LoggerFactory.getLogger(PersistentSubscription.class);

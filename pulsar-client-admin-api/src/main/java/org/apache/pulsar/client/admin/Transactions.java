@@ -22,6 +22,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.common.policies.data.PositionInPendingAckStats;
 import org.apache.pulsar.common.policies.data.TransactionBufferStats;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorInternalStats;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorStats;
@@ -263,7 +264,7 @@ public interface Transactions {
      * @param position the position of message.
      * @return a boolean value identified whether the position is in pending ack stats.
      */
-    Boolean checkIfThePositionInPendingAckStats(String topic, String subName, String position)
+    PositionInPendingAckStats getPositionStatsInPendingAckStats(String topic, String subName, String position)
             throws PulsarAdminException;
 
     /**
@@ -271,6 +272,6 @@ public interface Transactions {
      * @param position the position of message.
      * @return a boolean value identified whether the position is in pending ack stats.
      */
-    CompletableFuture<Boolean> checkIfThePositionInPendingAckStatsAsync(String topic,
-                                                                        String subName, String position);
+    CompletableFuture<PositionInPendingAckStats> getPositionStatsInPendingAckStatsAsync(String topic, String subName,
+                                                                                        String position);
 }
