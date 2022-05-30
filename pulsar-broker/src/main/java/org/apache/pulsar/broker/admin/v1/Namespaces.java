@@ -373,10 +373,9 @@ public class Namespaces extends NamespacesBase {
                 .thenCompose(__ -> internalGetNamespaceReplicationClustersAsync())
                 .thenAccept(asyncResponse::resume)
                 .exceptionally(e -> {
-                    Throwable throwable = FutureUtil.unwrapCompletionException(e);
-                    log.error("[{}] Field to get namespace replication clusters on namespace {}", clientAppId(),
-                            namespace, throwable);
-                    resumeAsyncResponseExceptionally(asyncResponse, throwable);
+                    log.error("[{}] Failed to get namespace replication clusters on namespace {}", clientAppId(),
+                            namespace, e);
+                    resumeAsyncResponseExceptionally(asyncResponse, e);
                     return null;
                 });
     }
@@ -396,10 +395,9 @@ public class Namespaces extends NamespacesBase {
         internalSetNamespaceReplicationClusters(clusterIds)
                 .thenAccept(asyncResponse::resume)
                 .exceptionally(e -> {
-                    Throwable throwable = FutureUtil.unwrapCompletionException(e);
-                    log.error("[{}] Field to set namespace replication clusters on namespace {}", clientAppId(),
-                            namespace, throwable);
-                    resumeAsyncResponseExceptionally(asyncResponse, throwable);
+                    log.error("[{}] Failed to set namespace replication clusters on namespace {}", clientAppId(),
+                            namespace, e);
+                    resumeAsyncResponseExceptionally(asyncResponse, e);
                     return null;
                 });
     }
