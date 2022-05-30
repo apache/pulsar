@@ -342,7 +342,7 @@ To apply this customized SerDe to a particular Pulsar Function, you need to:
 * Package the `Tweet` and `TweetSerde` classes into a JAR.
 * Specify a path to the JAR and SerDe class name when deploying the function.
 
-The following is an example of [`create`](reference-pulsar-admin.md#create-1) operation.
+The following is an example of [`create`](/tools/pulsar-admin/) operation.
 
 ```bash
 

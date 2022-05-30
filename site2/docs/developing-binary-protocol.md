@@ -191,6 +191,12 @@ If the client does not receive a response indicating producer creation success o
 the client should first send a command to close the original producer before sending a
 command to re-attempt producer creation.
 
+:::note
+
+Before creating or connecting a producer, you need to perform [topic lookup](#topic-lookup) first.
+
+:::
+
 ##### Command Producer
 
 ```protobuf
@@ -284,7 +290,7 @@ Fields:
  * `sequence_id`: The sequence ID of the published message.
  * `message_id`: The message ID assigned by the system to the published message
    Unique within a single cluster. Message ID is composed of 2 longs, `ledgerId`
-   and `entryId`, that reflect that this unique ID is assigned when appending
+   and `entryId`, which reflects that this unique ID is assigned when appending
    to a BookKeeper ledger.
 
 
@@ -320,6 +326,12 @@ After every reconnection, a client needs to subscribe to the topic. If a
 subscription is not already there, a new one will be created.
 
 ![Consumer](/assets/binary-protocol-consumer.png)
+
+:::note
+
+Before creating or connecting a consumer, you need to perform [topic lookup](#topic-lookup) first.
+
+:::
 
 #### Flow control
 

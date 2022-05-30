@@ -50,6 +50,7 @@ import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.sasl.SaslConstants;
 import org.apache.pulsar.common.util.DirectMemoryUtils;
+import org.apache.pulsar.metadata.api.MetadataStoreFactory;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 
 /**
@@ -781,6 +782,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private double maxUnackedMessagesPerSubscriptionOnBrokerBlocked = 0.16;
     @FieldContext(
             category = CATEGORY_POLICIES,
+            doc = "Maximum size of Consumer metadata")
+    private int maxConsumerMetadataSize = 1024;
+    @FieldContext(
+            category = CATEGORY_POLICIES,
             dynamic = true,
             doc = "Broker periodically checks if subscription is stuck and unblock if flag is enabled. "
                     + "(Default is disabled)"
@@ -1256,7 +1261,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             category = CATEGORY_SERVER,
             doc = "Enable or disable system topic.")
-    private boolean systemTopicEnabled = false;
+    private boolean systemTopicEnabled = true;
 
     @FieldContext(
             category = CATEGORY_SCHEMA,
@@ -1269,7 +1274,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_SERVER,
         doc = "Enable or disable topic level policies, topic level policies depends on the system topic, "
                 + "please enable the system topic first.")
-    private boolean topicLevelPoliciesEnabled = false;
+    private boolean topicLevelPoliciesEnabled = true;
 
     @FieldContext(
             category = CATEGORY_SERVER,
@@ -2734,6 +2739,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
             // Fallback to old setting
             return zookeeperServers;
         }
+    }
+
+    /**
+     * Tells whether the selected metadata store implementation is based on ZooKeeper.
+     */
+    public boolean isMetadataStoreBackedByZookeeper() {
+        return MetadataStoreFactory.isBasedOnZookeeper(getMetadataStoreUrl());
     }
 
     public String getConfigurationMetadataStoreUrl() {

@@ -116,7 +116,7 @@ flexible messaging model and an intuitive client API.</description>
     <bookkeeper.version>4.15.0</bookkeeper.version>
     <zookeeper.version>3.8.0</zookeeper.version>
     <commons-cli.version>1.5.0</commons-cli.version>
-    <snappy.version>1.1.7</snappy.version> <!-- ZooKeeper server -->
+    <snappy.version>1.1.8.4</snappy.version> <!-- ZooKeeper server -->
     <dropwizardmetrics.version>4.1.12.1</dropwizardmetrics.version> <!-- ZooKeeper server -->
     <curator.version>5.1.0</curator.version>
     <netty.version>4.1.77.Final</netty.version>
@@ -164,7 +164,7 @@ flexible messaging model and an intuitive client API.</description>
     <clickhouse-jdbc.version>0.3.2</clickhouse-jdbc.version>
     <mariadb-jdbc.version>2.7.5</mariadb-jdbc.version>
     <openmldb-jdbc.version>0.4.4-hotfix1</openmldb-jdbc.version>
-    <hdfs-offload-version3>3.3.1</hdfs-offload-version3>
+    <hdfs-offload-version3>3.3.3</hdfs-offload-version3>
     <json-smart.version>2.4.7</json-smart.version>
     <opensearch.version>1.2.4</opensearch.version>
     <elasticsearch-java.version>8.1.0</elasticsearch-java.version>
@@ -223,7 +223,7 @@ flexible messaging model and an intuitive client API.</description>
     <ant.version>1.10.12</ant.version>
     <seancfoley.ipaddress.version>5.3.3</seancfoley.ipaddress.version>
     <disruptor.version>3.4.3</disruptor.version>
-
+    <zstd-jni.version>1.5.2-3</zstd-jni.version>
 
     <!-- test dependencies -->
     <cassandra.version>3.6.0</cassandra.version>
@@ -1283,6 +1283,12 @@ flexible messaging model and an intuitive client API.</description>
         <artifactId>kotlin-stdlib-jdk8</artifactId>
         <version>${kotlin-stdlib.version}</version>
       </dependency>
+
+      <dependency>
+        <groupId>com.github.luben</groupId>
+        <artifactId>zstd-jni</artifactId>
+        <version>${zstd-jni.version}</version>
+      </dependency>
     </dependencies>
   </dependencyManagement>
 
@@ -1521,6 +1527,7 @@ flexible messaging model and an intuitive client API.</description>
                 <exclude>generated-site/**</exclude>
                 <exclude>.github/*.md</exclude>
                 <exclude>**/.idea/**</exclude>
+                <exclude>**/.mvn/**</exclude>
                 <exclude>**/generated/**</exclude>
                 <exclude>**/zk-3.5-test-data/*</exclude>
               </excludes>
@@ -1690,6 +1697,7 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>**/SecurityAuth.audit*</exclude>
             <exclude>**/site2/**</exclude>
             <exclude>**/.idea/**</exclude>
+            <exclude>**/.mvn/**</exclude>
             <exclude>**/*.a</exclude>
             <exclude>**/*.so</exclude>
             <exclude>**/*.so.*</exclude>

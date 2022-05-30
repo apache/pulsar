@@ -267,8 +267,6 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
     public void testTopicPoliciesWithMultiBroker() throws Exception {
         //setup cluster with 3 broker
         cleanup();
-        conf.setSystemTopicEnabled(true);
-        conf.setTopicLevelPoliciesEnabled(true);
         super.internalSetup();
         admin.clusters().createCluster("test",
                 ClusterData.builder().serviceUrl((pulsar.getWebServiceAddress() + ",localhost:1026," + "localhost:2050")).build());
@@ -1415,8 +1413,6 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
     @Test
     public void testDeleteNamespaceWithTopicPolicies() throws Exception {
         stopBroker();
-        conf.setSystemTopicEnabled(true);
-        conf.setTopicLevelPoliciesEnabled(true);
         setup();
 
         String tenant = "test-tenant";
@@ -2210,8 +2206,6 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
     @Test(timeOut = 200000)
     public void testCompactionPriority() throws Exception {
         cleanup();
-        conf.setSystemTopicEnabled(true);
-        conf.setTopicLevelPoliciesEnabled(true);
         conf.setBrokerServiceCompactionMonitorIntervalInSeconds(10000);
         setup();
         final String topic = "persistent://prop-xyz/ns1/topic" + UUID.randomUUID();
@@ -2477,5 +2471,21 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         assertEquals(topicStats.getPartitions().values().stream().map(e -> e.getPublishers().get(0).getProducerName()).distinct().count(), 2);
         assertEquals(topicStats.getPublishers().size(), 2);
         topicStats.getPublishers().forEach(p -> assertTrue(p.isSupportsPartialProducer()));
+    }
+
+    @Test(dataProvider = "topicType")
+    public void testSchemaValidationEnforced(String topicType) throws Exception {
+        final String topic = topicType + "://prop-xyz/ns1/test-schema-validation-enforced";
+        admin.topics().createPartitionedTopic(topic, 1);
+        @Cleanup
+        Producer<byte[]> producer1 = pulsarClient.newProducer()
+                .topic(topic + TopicName.PARTITIONED_TOPIC_SUFFIX + 0)
+                .create();
+        boolean schemaValidationEnforced = admin.topics().getSchemaValidationEnforced(topic, false);
+        assertEquals(schemaValidationEnforced, false);
+        admin.topics().setSchemaValidationEnforced(topic, true);
+        Awaitility.await().untilAsserted(() ->
+            assertEquals(admin.topics().getSchemaValidationEnforced(topic, false), true)
+        );
     }
 }

@@ -573,6 +573,5 @@ public class PendingAckPersistentTest extends TransactionTestBase {
 
         assertFalse(individualAckOfTransaction.containsKey(transaction1.getTxnID()));
         assertFalse(individualAckOfTransaction.containsKey(transaction2.getTxnID()));
-
     }
 }

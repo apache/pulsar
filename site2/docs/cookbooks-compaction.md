@@ -44,7 +44,7 @@ Configuring the compaction threshold on a namespace will apply to all topics wit
 
 ## Triggering compaction manually
 
-In order to run compaction on a topic, you need to use the [`topics compact`](reference-pulsar-admin.md#topics-compact) command for the [`pulsar-admin`](reference-pulsar-admin) CLI tool. Here's an example:
+In order to run compaction on a topic, you need to use the [`topics compact`](/tools/pulsar-admin/) command for the [`pulsar-admin`](/tools/pulsar-admin/) CLI tool. Here's an example:
 
 ```bash
 

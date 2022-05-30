@@ -25,14 +25,16 @@ import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
 import org.apache.pulsar.tests.integration.topologies.PulsarGeoClusterTestBase;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
-
 import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
@@ -45,6 +47,20 @@ public class GeoReplicationTest extends PulsarGeoClusterTestBase {
     @BeforeClass(alwaysRun = true)
     public final void setupBeforeClass() throws Exception {
         setup();
+    }
+
+    @Override
+    protected PulsarClusterSpec.PulsarClusterSpecBuilder[] beforeSetupCluster (
+            PulsarClusterSpec.PulsarClusterSpecBuilder... specBuilder) {
+        if (specBuilder != null) {
+            Map<String, String> brokerEnvs = new HashMap<>();
+            brokerEnvs.put("systemTopicEnabled", "false");
+            brokerEnvs.put("topicLevelPoliciesEnabled", "false");
+            for(PulsarClusterSpec.PulsarClusterSpecBuilder builder : specBuilder) {
+                builder.brokerEnvs(brokerEnvs);
+            }
+        }
+        return specBuilder;
     }
 
     @AfterClass(alwaysRun = true)

@@ -19,7 +19,7 @@ Pulsar bundles several [builtin connectors](io-connectors) used to move data in 
 
 :::note
 
-When using a non-builtin connector, you need to specify the path of a archive file for the connector.
+When using a non-builtin connector, you need to specify the path of an archive file for the connector.
 
 :::
 
@@ -137,7 +137,7 @@ $ pulsar-admin sources reload
 
 ```
 
-For more information, see [`here`](io-cli.md#reload).
+For the latest and complete information, see [Pulsar admin docs](https://pulsar.apache.org/tools/pulsar-admin/).
 
 #### Sink
 
@@ -149,7 +149,7 @@ $ pulsar-admin sinks reload
 
 ```
 
-For more information, see [`here`](io-cli.md#reload-1).
+For the latest and complete information, see [Pulsar admin docs](https://pulsar.apache.org/tools/pulsar-admin/).
 
 ### `available`
 
@@ -208,7 +208,7 @@ $ pulsar-admin sources create options
 
 ```
 
-For more information, see [here](io-cli.md#create).
+For the latest and complete information, see [Pulsar admin docs](https://pulsar.apache.org/tools/pulsar-admin/).
 
 </TabItem>
 <TabItem value="REST API">
@@ -299,7 +299,7 @@ $ pulsar-admin sinks create options
 
 ```
 
-For more information, see [here](io-cli.md#create-1).
+For the latest and complete information, see [Pulsar admin docs](https://pulsar.apache.org/tools/pulsar-admin/).
 
 </TabItem>
 <TabItem value="REST API">
@@ -394,7 +394,7 @@ $ pulsar-admin sources start options
 
 ```
 
-For more information, see [here](io-cli.md#start).
+For the latest and complete information, see [Pulsar admin docs](https://pulsar.apache.org/tools/pulsar-admin/).
 
 </TabItem>
 <TabItem value="REST API">
@@ -431,7 +431,7 @@ $ pulsar-admin sinks start options
 
 ```
 
-For more information, see [here](io-cli.md#start-1).
+For the latest and complete information, see [Pulsar admin docs](https://pulsar.apache.org/tools/pulsar-admin/).
 
 </TabItem>
 <TabItem value="REST API">
@@ -472,7 +472,7 @@ $ pulsar-admin sources localrun options
 
 ```
 
-For more information, see [here](io-cli.md#localrun).
+For the latest and complete information, see [Pulsar admin docs](https://pulsar.apache.org/tools/pulsar-admin/).
 
 </TabItem>
 
@@ -498,7 +498,7 @@ $ pulsar-admin sinks localrun options
 
 ```
 
-For more information, see [here](io-cli.md#localrun-1).
+For the latest and complete information, see [Pulsar admin docs](https://pulsar.apache.org/tools/pulsar-admin/).
 
 </TabItem>
 
@@ -538,7 +538,7 @@ $ pulsar-admin sources get options
 
 ```
 
-For more information, see [here](io-cli.md#get).
+For the latest and complete information, see [Pulsar admin docs](https://pulsar.apache.org/tools/pulsar-admin/).
 
 </TabItem>
 <TabItem value="REST API">
@@ -651,7 +651,7 @@ $ pulsar-admin sinks get options
 
 ```
 
-For more information, see [here](io-cli.md#get-1).
+For the latest and complete information, see [Pulsar admin docs](https://pulsar.apache.org/tools/pulsar-admin/).
 
 </TabItem>
 <TabItem value="REST API">
@@ -761,7 +761,7 @@ $ pulsar-admin sources list options
 
 ```
 
-For more information, see [here](io-cli.md#list).
+For the latest and complete information, see [Pulsar admin docs](https://pulsar.apache.org/tools/pulsar-admin/).
 
 </TabItem>
 <TabItem value="REST API">
@@ -820,7 +820,7 @@ $ pulsar-admin sinks list options
 
 ```
 
-For more information, see [here](io-cli.md#list-1).
+For the latest and complete information, see [Pulsar admin docs](https://pulsar.apache.org/tools/pulsar-admin/).
 
 </TabItem>
 <TabItem value="REST API">
@@ -883,7 +883,7 @@ $ pulsar-admin sources status options
 
 ```
 
-For more information, see [here](io-cli.md#status).
+For the latest and complete information, see [Pulsar admin docs](https://pulsar.apache.org/tools/pulsar-admin/).
 
 </TabItem>
 <TabItem value="REST API">
@@ -979,7 +979,7 @@ $ pulsar-admin sinks status options
 
 ```
 
-For more information, see [here](io-cli.md#status-1).
+For the latest and complete information, see [Pulsar admin docs](https://pulsar.apache.org/tools/pulsar-admin/).
 
 </TabItem>
 <TabItem value="REST API">
@@ -1081,7 +1081,7 @@ $ pulsar-admin sources update options
 
 ```
 
-For more information, see [here](io-cli.md#update).
+For the latest and complete information, see [Pulsar admin docs](https://pulsar.apache.org/tools/pulsar-admin/).
 
 </TabItem>
 <TabItem value="REST API">
@@ -1176,7 +1176,7 @@ $ pulsar-admin sinks update options
 
 ```
 
-For more information, see [here](io-cli.md#update-1).
+For the latest and complete information, see [Pulsar admin docs](https://pulsar.apache.org/tools/pulsar-admin/).
 
 </TabItem>
 <TabItem value="REST API">
@@ -1277,7 +1277,7 @@ $ pulsar-admin sources stop options
 
 ```
 
-For more information, see [here](io-cli.md#stop).
+For the latest and complete information, see [Pulsar admin docs](https://pulsar.apache.org/tools/pulsar-admin/).
 
 </TabItem>
 <TabItem value="REST API">
@@ -1373,7 +1373,7 @@ $ pulsar-admin sinks stop options
 
 ```
 
-For more information, see [here](io-cli.md#stop-1).
+For the latest and complete information, see [Pulsar admin docs](https://pulsar.apache.org/tools/pulsar-admin/).
 
 </TabItem>
 <TabItem value="REST API">
@@ -1475,7 +1475,7 @@ $ pulsar-admin sources restart options
 
 ```
 
-For more information, see [here](io-cli.md#restart).
+For the latest and complete information, see [Pulsar admin docs](https://pulsar.apache.org/tools/pulsar-admin/).
 
 </TabItem>
 <TabItem value="REST API">
@@ -1571,7 +1571,7 @@ $ pulsar-admin sinks restart options
 
 ```
 
-For more information, see [here](io-cli.md#restart-1).
+For the latest and complete information, see [Pulsar admin docs](https://pulsar.apache.org/tools/pulsar-admin/).
 
 </TabItem>
 <TabItem value="REST API">
@@ -1673,7 +1673,7 @@ $ pulsar-admin sources delete options
 
 ```
 
-For more information, see [here](io-cli.md#delete).
+For the latest and complete information, see [Pulsar admin docs](https://pulsar.apache.org/tools/pulsar-admin/).
 
 </TabItem>
 <TabItem value="REST API">
@@ -1739,7 +1739,7 @@ $ pulsar-admin sinks delete options
 
 ```
 
-For more information, see [here](io-cli.md#delete-1).
+For the latest and complete information, see [Pulsar admin docs](https://pulsar.apache.org/tools/pulsar-admin/).
 
 </TabItem>
 <TabItem value="REST API">

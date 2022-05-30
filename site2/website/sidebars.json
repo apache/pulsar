@@ -64,8 +64,7 @@
         "io-debug",
         "io-connectors",
         "io-cdc",
-        "io-develop",
-        "io-cli"
+        "io-develop"
       ]
     },
     {
@@ -146,6 +145,7 @@
         "security-athenz",
         "security-kerberos",
         "security-oauth2",
+        "security-basic-auth",
         "security-authorization",
         "security-encryption",
         "security-extending",

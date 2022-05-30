@@ -5,6 +5,14 @@ sidebar_label: "CLI"
 original_id: io-cli
 ---
 
+:::note
+
+**Important**
+
+This page is deprecated and not updated anymore. For the latest and complete information about `Pulsar-admin`, including commands, flags, descriptions, and more, see [Pulsar admin docs](https://pulsar.apache.org/tools/pulsar-admin/).
+
+:::
+
 The `pulsar-admin` tool helps you manage Pulsar connectors.
   
 ## `sources`

@@ -78,6 +78,8 @@ public class TopicPolicies {
     @Builder.Default
     private Map<String/*subscription*/, SubscriptionPolicies> subscriptionPolicies = new HashMap<>();
 
+    private Boolean schemaValidationEnforced;
+
     public boolean isGlobalPolicies() {
         return isGlobal != null && isGlobal;
     }
@@ -172,6 +174,10 @@ public class TopicPolicies {
 
     public boolean isSubscribeRateSet() {
         return subscribeRate != null;
+    }
+
+    public boolean isSchemaValidationEnforced() {
+        return schemaValidationEnforced != null;
     }
 
     public Set<String> getReplicationClustersSet() {

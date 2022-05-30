@@ -5019,4 +5019,24 @@ public class PersistentTopicsBase extends AdminResource {
                 .filter(topic -> includeSystemTopic ? true : !pulsar().getBrokerService().isSystemTopic(topic))
                 .collect(Collectors.toList());
     }
+
+    protected CompletableFuture<Boolean> internalGetSchemaValidationEnforced(boolean applied) {
+        return getTopicPoliciesAsyncWithRetry(topicName)
+                .thenApply(op -> op.map(TopicPolicies::getSchemaValidationEnforced).orElseGet(() -> {
+                    if (applied) {
+                        boolean namespacePolicy = getNamespacePolicies(namespaceName).schema_validation_enforced;
+                        return namespacePolicy || pulsar().getConfiguration().isSchemaValidationEnforced();
+                    }
+                    return false;
+                }));
+    }
+
+    protected CompletableFuture<Void> internalSetSchemaValidationEnforced(boolean schemaValidationEnforced) {
+        return getTopicPoliciesAsyncWithRetry(topicName)
+                .thenCompose(op -> {
+                    TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
+                    topicPolicies.setSchemaValidationEnforced(schemaValidationEnforced);
+                    return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);
+                });
+    }
 }

@@ -14,11 +14,11 @@ import TabItem from '@theme/TabItem';
 >
 > This page only shows **some frequently used operations**.
 >
-> - For the latest and complete information about `Pulsar admin`, including commands, flags, descriptions, and more, see [Pulsar admin doc](https://pulsar.apache.org/tools/pulsar-admin/)
+> - For the latest and complete information about `Pulsar admin`, including commands, flags, descriptions, and more, see [Pulsar admin doc](/tools/pulsar-admin/)
 > 
 > - For the latest and complete information about `REST API`, including parameters, responses, samples, and more, see {@inject: rest:REST:/} API doc.
 > 
-> - For the latest and complete information about `Java admin API`, including classes, methods, descriptions, and more, see [Java admin API doc](https://pulsar.apache.org/api/admin/).
+> - For the latest and complete information about `Java admin API`, including classes, methods, descriptions, and more, see [Java admin API doc](/api/admin/).
 
 Tenants, like namespaces, can be managed using the [admin API](admin-api-overview). There are currently two configurable aspects of tenants:
 
@@ -37,7 +37,7 @@ You can list all of the tenants associated with an [instance](reference-terminol
   values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"JAVA","value":"JAVA"}]}>
 <TabItem value="pulsar-admin">
 
-Use the [`list`](reference-pulsar-admin.md#tenants-list) subcommand.
+Use the [`list`](/tools/pulsar-admin/) subcommand.
 
 ```shell
 
@@ -76,7 +76,7 @@ You can create a new tenant.
   values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"JAVA","value":"JAVA"}]}>
 <TabItem value="pulsar-admin">
 
-Use the [`create`](reference-pulsar-admin.md#tenants-create) subcommand:
+Use the [`create`](/tools/pulsar-admin/) subcommand:
 
 ```shell
 
@@ -129,7 +129,7 @@ You can fetch the [configuration](reference-configuration) for an existing tenan
   values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"JAVA","value":"JAVA"}]}>
 <TabItem value="pulsar-admin">
 
-Use the [`get`](reference-pulsar-admin.md#tenants-get) subcommand and specify the name of the tenant. Here's an example:
+Use the [`get`](/tools/pulsar-admin/) subcommand and specify the name of the tenant. Here's an example:
 
 ```shell
 
@@ -176,7 +176,7 @@ Tenants can be deleted from a Pulsar [instance](reference-terminology.md#instanc
   values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"JAVA","value":"JAVA"}]}>
 <TabItem value="pulsar-admin">
 
-Use the [`delete`](reference-pulsar-admin.md#tenants-delete) subcommand and specify the name of the tenant.
+Use the [`delete`](/tools/pulsar-admin/) subcommand and specify the name of the tenant.
 
 ```shell
 
@@ -213,7 +213,7 @@ You can update a tenant's configuration.
   values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"JAVA","value":"JAVA"}]}>
 <TabItem value="pulsar-admin">
 
-Use the [`update`](reference-pulsar-admin.md#tenants-update) subcommand.
+Use the [`update`](/tools/pulsar-admin/) subcommand.
 
 ```shell
 

@@ -159,8 +159,8 @@ To manage schemas, you can use one of the following methods.
 
 | Method |  Description | 
 | --- | --- |
-|  **Admin CLI**<li></li> |   You can use the `pulsar-admin` tool to manage Pulsar schemas, brokers, clusters, sources, sinks, topics, tenants and so on. For more information about how to use the `pulsar-admin` tool, see [here](reference-pulsar-admin).  | 
-|  **REST API**<li></li> |   Pulsar exposes schema related management API in Pulsar’s admin RESTful API. You can access the admin RESTful endpoint directly to manage schemas. For more information about how to use the Pulsar REST API, see [here](http://pulsar.apache.org/admin-rest-api/).  | 
+|  **Admin CLI**<li></li> |   You can use the `pulsar-admin` tool to manage Pulsar schemas, brokers, clusters, sources, sinks, topics, tenants and so on. For more information about how to use the `pulsar-admin` tool, see [here](/tools/pulsar-admin/).  | 
+|  **REST API**<li></li> |   Pulsar exposes schema related management API in Pulsar’s admin RESTful API. You can access the admin RESTful endpoint directly to manage schemas. For more information about how to use the Pulsar REST API, see [here](/admin-rest-api/).  | 
 |  **Java Admin API**<li></li> |  Pulsar provides Java admin library. | 
 
 ### Upload a schema
@@ -661,7 +661,7 @@ To set a schema compatibility check strategy at the topic level, use one of the 
 
 <TabItem value="Admin CLI">
 
-Use the [`pulsar-admin topicPolicies set-schema-compatibility-strategy`](https://pulsar.apache.org/tools/pulsar-admin/) command. 
+Use the [`pulsar-admin topicPolicies set-schema-compatibility-strategy`](/tools/pulsar-admin/) command. 
 
 ```shell
 
@@ -707,7 +707,7 @@ To get the topic-level schema compatibility check strategy, use one of the follo
 
 <TabItem value="Admin CLI">
 
-Use the [`pulsar-admin topicPolicies get-schema-compatibility-strategy`](https://pulsar.apache.org/tools/pulsar-admin/) command. 
+Use the [`pulsar-admin topicPolicies get-schema-compatibility-strategy`](/tools/pulsar-admin/) command. 
 
 ```shell
 
@@ -757,7 +757,7 @@ To remove the topic-level schema compatibility check strategy, use one of the fo
 
 <TabItem value="Admin CLI">
 
-Use the [`pulsar-admin topicPolicies remove-schema-compatibility-strategy`](https://pulsar.apache.org/tools/pulsar-admin/) command. 
+Use the [`pulsar-admin topicPolicies remove-schema-compatibility-strategy`](/tools/pulsar-admin/) command. 
 
 ```shell
 
@@ -806,7 +806,7 @@ You can set schema compatibility check strategy at namespace level using one of 
 
 <TabItem value="Admin CLI">
 
-Use the [`pulsar-admin namespaces set-schema-compatibility-strategy`](https://pulsar.apache.org/tools/pulsar-admin/) command. 
+Use the [`pulsar-admin namespaces set-schema-compatibility-strategy`](/tools/pulsar-admin/) command. 
 
 ```shell
 
@@ -822,7 +822,7 @@ Send a `PUT` request to this endpoint: {@inject: endpoint|PUT|/admin/v2/namespac
 </TabItem>
 <TabItem value="Java Admin CLI">
 
-Use the [`setSchemaCompatibilityStrategy`](https://pulsar.apache.org/api/admin/)method.
+Use the [`setSchemaCompatibilityStrategy`](/api/admin/)method.
 
 ```java
 

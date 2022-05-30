@@ -343,7 +343,7 @@ Suppose that:
 
 * You have a consumer (for example, MySQL) receiving messages from the topic _P_.
 
-* You application reads the messages from _P_ and writes the messages to MySQL.
+* Your application reads the messages from _P_ and writes the messages to MySQL.
    
 In this case, you can use `AUTO_CONSUME` to verify whether the bytes produced by _P_ can be sent to MySQL or not.
 
