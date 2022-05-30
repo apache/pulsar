@@ -14,11 +14,11 @@ import TabItem from '@theme/TabItem';
 >
 > This page only shows **some frequently used operations**.
 >
-> - For the latest and complete information about `Pulsar admin`, including commands, flags, descriptions, and more, see [Pulsar admin doc](https://pulsar.apache.org/tools/pulsar-admin/)
+> - For the latest and complete information about `Pulsar admin`, including commands, flags, descriptions, and more, see [Pulsar admin doc](/tools/pulsar-admin/)
 > 
 > - For the latest and complete information about `REST API`, including parameters, responses, samples, and more, see {@inject: rest:REST:/} API doc.
 > 
-> - For the latest and complete information about `Java admin API`, including classes, methods, descriptions, and more, see [Java admin API doc](https://pulsar.apache.org/api/admin/).
+> - For the latest and complete information about `Java admin API`, including classes, methods, descriptions, and more, see [Java admin API doc](/api/admin/).
 
 **Pulsar Functions** are lightweight compute processes that
 
@@ -30,7 +30,7 @@ Functions can be managed via the following methods.
 
 Method | Description
 ---|---
-**Admin CLI** | The `functions` command of the [`pulsar-admin`](https://pulsar.apache.org/tools/pulsar-admin/) tool.
+**Admin CLI** | The `functions` command of the [`pulsar-admin`](/tools/pulsar-admin/) tool.
 **REST API** |The `/admin/v3/functions` endpoint of the admin {@inject: rest:REST:/} API.
 **Java Admin API**| The `functions` method of the `PulsarAdmin` object in the [Java API](client-libraries-java).
 
@@ -48,7 +48,7 @@ You can create a Pulsar function in cluster mode (deploy it on a Pulsar cluster)
   values={[{"label":"Admin CLI","value":"Admin CLI"},{"label":"REST API","value":"REST API"},{"label":"Java Admin API","value":"Java Admin API"}]}>
 <TabItem value="Admin CLI">
 
-Use the [`create`](reference-pulsar-admin.md#functions-create) subcommand. 
+Use the [`create`](/tools/pulsar-admin/) subcommand. 
 
 **Example**
 
@@ -106,7 +106,7 @@ You can update a Pulsar function that has been deployed to a Pulsar cluster usin
   values={[{"label":"Admin CLI","value":"Admin CLI"},{"label":"REST Admin API","value":"REST Admin API"},{"label":"Java Admin API","value":"Java Admin API"}]}>
 <TabItem value="Admin CLI">
 
-Use the [`update`](reference-pulsar-admin.md#functions-update) subcommand. 
+Use the [`update`](/tools/pulsar-admin/) subcommand. 
 
 **Example**
 
@@ -159,7 +159,7 @@ You can start a stopped function instance with `instance-id` using Admin CLI, RE
   values={[{"label":"Admin CLI","value":"Admin CLI"},{"label":"REST API","value":"REST API"},{"label":"Java Admin API","value":"Java Admin API"}]}>
 <TabItem value="Admin CLI">
 
-Use the [`start`](reference-pulsar-admin.md#functions-start) subcommand. 
+Use the [`start`](/tools/pulsar-admin/) subcommand. 
 
 ```shell
 
@@ -200,7 +200,7 @@ You can start all stopped function instances using Admin CLI, REST API or Java A
   values={[{"label":"Admin CLI","value":"Admin CLI"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="Admin CLI">
 
-Use the [`start`](reference-pulsar-admin.md#functions-start) subcommand. 
+Use the [`start`](/tools/pulsar-admin/) subcommand. 
 
 **Example**
 
@@ -242,7 +242,7 @@ You can stop a function instance with `instance-id` using Admin CLI, REST API or
   values={[{"label":"Admin CLI","value":"Admin CLI"},{"label":"REST API","value":"REST API"},{"label":"Java Admin API","value":"Java Admin API"}]}>
 <TabItem value="Admin CLI">
 
-Use the [`stop`](reference-pulsar-admin.md#functions-stop) subcommand. 
+Use the [`stop`](/tools/pulsar-admin/) subcommand. 
 
 **Example**
 
@@ -285,7 +285,7 @@ You can stop all function instances using Admin CLI, REST API or Java Admin API.
   values={[{"label":"Admin CLI","value":"Admin CLI"},{"label":"REST API","value":"REST API"},{"label":"Java Admin API","value":"Java Admin API"}]}>
 <TabItem value="Admin CLI">
 
-Use the [`stop`](reference-pulsar-admin.md#functions-stop) subcommand. 
+Use the [`stop`](/tools/pulsar-admin/) subcommand. 
 
 **Example**
 
@@ -327,7 +327,7 @@ Restart a function instance with `instance-id` using Admin CLI, REST API or Java
   values={[{"label":"Admin CLI","value":"Admin CLI"},{"label":"REST API","value":"REST API"},{"label":"Java Admin API","value":"Java Admin API"}]}>
 <TabItem value="Admin CLI">
 
-Use the [`restart`](reference-pulsar-admin.md#functions-restart) subcommand. 
+Use the [`restart`](/tools/pulsar-admin/) subcommand. 
 
 **Example**
 
@@ -370,7 +370,7 @@ You can restart all function instances using Admin CLI, REST API or Java admin A
   values={[{"label":"Admin CLI","value":"Admin CLI"},{"label":"REST API","value":"REST API"},{"label":"Java Admin API","value":"Java Admin API"}]}>
 <TabItem value="Admin CLI">
 
-Use the [`restart`](reference-pulsar-admin.md#functions-restart) subcommand. 
+Use the [`restart`](/tools/pulsar-admin/) subcommand. 
 
 **Example**
 
@@ -412,7 +412,7 @@ You can list all Pulsar functions running under a specific tenant and namespace 
   values={[{"label":"Admin CLI","value":"Admin CLI"},{"label":"REST API","value":"REST API"},{"label":"Java Admin API","value":"Java Admin API"}]}>
 <TabItem value="Admin CLI">
 
-Use the [`list`](reference-pulsar-admin.md#functions-list) subcommand.
+Use the [`list`](/tools/pulsar-admin/) subcommand.
 
 **Example**
 
@@ -453,7 +453,7 @@ You can delete a Pulsar function that is running on a Pulsar cluster using Admin
   values={[{"label":"Admin CLI","value":"Admin CLI"},{"label":"REST API","value":"REST API"},{"label":"Java Admin API","value":"Java Admin API"}]}>
 <TabItem value="Admin CLI">
 
-Use the [`delete`](reference-pulsar-admin.md#functions-delete) subcommand. 
+Use the [`delete`](/tools/pulsar-admin/) subcommand. 
 
 **Example**
 
@@ -495,7 +495,7 @@ You can get information about a Pulsar function currently running in cluster mod
   values={[{"label":"Admin CLI","value":"Admin CLI"},{"label":"REST API","value":"REST API"},{"label":"Java Admin API","value":"Java Admin API"}]}>
 <TabItem value="Admin CLI">
 
-Use the [`get`](reference-pulsar-admin.md#functions-get) subcommand. 
+Use the [`get`](/tools/pulsar-admin/) subcommand. 
 
 **Example**
 
@@ -536,7 +536,7 @@ You can get the current status of a Pulsar function instance with `instance-id` 
   values={[{"label":"Admin CLI","value":"Admin CLI"},{"label":"REST API","value":"REST API"},{"label":"Java Admin API","value":"Java Admin API"}]}>
 <TabItem value="Admin CLI">
 
-Use the [`status`](reference-pulsar-admin.md#functions-status) subcommand. 
+Use the [`status`](/tools/pulsar-admin/) subcommand. 
 
 **Example**
 
@@ -579,7 +579,7 @@ You can get the current status of a Pulsar function instance using Admin CLI, RE
   values={[{"label":"Admin CLI","value":"Admin CLI"},{"label":"REST API","value":"REST API"},{"label":"Java Admin API","value":"Java Admin API"}]}>
 <TabItem value="Admin CLI">
 
-Use the [`status`](reference-pulsar-admin.md#functions-status) subcommand. 
+Use the [`status`](/tools/pulsar-admin/) subcommand. 
 
 **Example**
 
@@ -620,7 +620,7 @@ You can get the current stats of a Pulsar Function instance with `instance-id` u
   values={[{"label":"Admin CLI","value":"Admin CLI"},{"label":"REST API","value":"REST API"},{"label":"Java Admin API","value":"Java Admin API"}]}>
 <TabItem value="Admin CLI">
 
-Use the [`stats`](reference-pulsar-admin.md#functions-stats) subcommand. 
+Use the [`stats`](/tools/pulsar-admin/) subcommand. 
 
 **Example**
 
@@ -663,7 +663,7 @@ You can get the current stats of a Pulsar function using Admin CLI, REST API or 
   values={[{"label":"Admin CLI","value":"Admin CLI"},{"label":"REST API","value":"REST API"},{"label":"Java Admin API","value":"Java Admin API"}]}>
 <TabItem value="Admin CLI">
 
-Use the [`stats`](reference-pulsar-admin.md#functions-stats) subcommand. 
+Use the [`stats`](/tools/pulsar-admin/) subcommand. 
 
 **Example**
 
@@ -705,7 +705,7 @@ You can trigger a specified Pulsar function with a supplied value using Admin CL
   values={[{"label":"Admin CLI","value":"Admin CLI"},{"label":"REST API","value":"REST API"},{"label":"Java Admin API","value":"Java Admin API"}]}>
 <TabItem value="Admin CLI">
 
-Use the [`trigger`](reference-pulsar-admin.md#functions-trigger) subcommand. 
+Use the [`trigger`](/tools/pulsar-admin/) subcommand. 
 
 **Example**
 
@@ -750,7 +750,7 @@ You can put the state associated with a Pulsar function using Admin CLI, REST AP
   values={[{"label":"Admin CLI","value":"Admin CLI"},{"label":"REST API","value":"REST API"},{"label":"Java Admin API","value":"Java Admin API"}]}>
 <TabItem value="Admin CLI">
 
-Use the [`putstate`](reference-pulsar-admin.md#functions-putstate) subcommand. 
+Use the [`putstate`](/tools/pulsar-admin/) subcommand. 
 
 **Example**
 
@@ -795,7 +795,7 @@ You can fetch the current state associated with a Pulsar function using Admin CL
   values={[{"label":"Admin CLI","value":"Admin CLI"},{"label":"REST API","value":"REST API"},{"label":"Java Admin CLI","value":"Java Admin CLI"}]}>
 <TabItem value="Admin CLI">
 
-Use the [`querystate`](reference-pulsar-admin.md#functions-querystate) subcommand. 
+Use the [`querystate`](/tools/pulsar-admin/) subcommand. 
 
 **Example**
 
