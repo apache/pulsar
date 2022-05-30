@@ -1,19 +1,19 @@
 ---
 id: sql-getting-started
-title: Query data with Pulsar SQL
-sidebar_label: "Query data"
+title: 使用 Pulsar SQL 查询数据
+sidebar_label: "查询数据"
 ---
 
-Before querying data in Pulsar, you need to install Pulsar and built-in connectors. 
+在 Pulsar 中查询数据之前，您需要安装 Pulsar 和内置连接器。
 
-## Requirements
-1. Install [Pulsar](getting-started-standalone.md#install-pulsar-standalone).
-2. Install Pulsar [built-in connectors](getting-started-standalone.md#install-builtin-connectors-optional).
+## 必须
+1. 安装 [Pulsar](getting-started-standalone.md#install-pulsar-standalone).
+2. 安装 Pulsar 的 [内置连接器](getting-started-standalone.md#install-builtin-connectors-optional).
 
-## Query data in Pulsar
-To query data in Pulsar with Pulsar SQL, complete the following steps.
+## 使用 Pulsar SQL 查询数据
+您可以按照以下步骤使用 Pulsar SQL 查询数据
 
-1. Start a Pulsar standalone cluster.
+1. 首先，启动1个 Pulsar 单机集群
 
 ```bash
 
@@ -21,7 +21,7 @@ To query data in Pulsar with Pulsar SQL, complete the following steps.
 
 ```
 
-2. Start a Pulsar SQL worker.
+2. 然后，启动1个 Pulsar SQL worker 进程.
 
 ```bash
 
@@ -29,7 +29,7 @@ To query data in Pulsar with Pulsar SQL, complete the following steps.
 
 ```
 
-3. After initializing Pulsar standalone cluster and the SQL worker, run SQL CLI.
+3. 完成上述步骤后，创建1个 SQL 命令行工具.
 
 ```bash
 
@@ -37,7 +37,7 @@ To query data in Pulsar with Pulsar SQL, complete the following steps.
 
 ```
 
-4. Test with SQL commands.
+4. 此时，您可以使用以下指令进行 SQL 测试
 
 ```bash
 
@@ -77,9 +77,9 @@ Splits: 19 total, 19 done (100.00%)
 
 ```
 
-Since there is no data in Pulsar, no records is returned. 
+因为在 Pulsar 中还没有任何数据，所以不会返回任何记录
 
-5. Start the built-in connector _DataGeneratorSource_ and ingest some mock data.
+5. 启动内置连接器 _DataGeneratorSource 并引入一些模拟数据。
 
 ```bash
 
@@ -87,7 +87,7 @@ Since there is no data in Pulsar, no records is returned.
 
 ```
 
-And then you can query a topic in the namespace "public/default".
+现在，您可以使用下面的指令来查询 "public/default" 命名空间下的主题了
 
 ```bash
 
@@ -103,7 +103,7 @@ Splits: 19 total, 19 done (100.00%)
 
 ```
 
-You can now query the data within the topic "generator_test".
+当然，使用下面的指令，您也可以去查询 "generator_test" 主题中的数据
 
 ```bash
 
@@ -123,10 +123,10 @@ presto> select * from pulsar."public/default".generator_test;
 
 ```
 
-You can query the mock data.
+此时您已经可以查询出模拟数据了
 
-## Query your own data
-If you want to query your own data, you need to ingest your own data first. You can write a simple producer and write custom defined data to Pulsar. The following is an example. 
+## 使用 Pulsar SQL 查询自建数据
+在您查询自建数据之前，您应该先添加添加一些自己的数据。通过以下示例代码，您可以编写1个简单的消息生产者，进而发布自定义的消息到 Pulsar 中
 
 ```java
 
