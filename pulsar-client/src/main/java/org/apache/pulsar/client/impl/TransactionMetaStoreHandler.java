@@ -169,6 +169,9 @@ public class TransactionMetaStoreHandler extends HandlerState
             } else {
                 if (!changeToReadyState()) {
                     cnx.channel().close();
+                } else {
+                    connectionHandler.setClientCnx(cnx);
+                    cnx.registerTransactionMetaStoreHandler(transactionCoordinatorId, this);
                 }
                 this.connectFuture.complete(null);
             }
