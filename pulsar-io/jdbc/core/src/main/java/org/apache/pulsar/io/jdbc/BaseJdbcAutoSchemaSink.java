@@ -20,6 +20,8 @@
 package org.apache.pulsar.io.jdbc;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.collect.Lists;
 import java.sql.PreparedStatement;
 import java.util.HashMap;
@@ -29,6 +31,8 @@ import java.util.Map;
 import java.util.function.Function;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.Schema;
+import org.apache.avro.generic.GenericData;
+import org.apache.avro.generic.GenericFixed;
 import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.KeyValueSchema;
@@ -135,7 +139,7 @@ public abstract class BaseJdbcAutoSchemaSink extends JdbcAbstractSink<GenericObj
         }
     }
 
-    private Object getValueFromJsonNode(final JsonNode fn) {
+    private static Object getValueFromJsonNode(final JsonNode fn) {
         if (fn == null || fn.isNull()) {
             return null;
         }
@@ -159,7 +163,7 @@ public abstract class BaseJdbcAutoSchemaSink extends JdbcAbstractSink<GenericObj
         }
     }
 
-    private void fillKeyValueSchemaData(org.apache.pulsar.client.api.Schema<GenericObject> schema,
+    private static void fillKeyValueSchemaData(org.apache.pulsar.client.api.Schema<GenericObject> schema,
                                         GenericObject record,
                                         Map<String, Object> data) {
         switch (schema.getSchemaInfo().getType()) {
@@ -176,13 +180,44 @@ public abstract class BaseJdbcAutoSchemaSink extends JdbcAbstractSink<GenericObj
                 org.apache.avro.generic.GenericRecord avroNode =
                         (org.apache.avro.generic.GenericRecord) record.getNativeObject();
                 for (Schema.Field field : avroNode.getSchema().getFields()) {
-                    data.put(field.name(), avroNode.get(field.name()));
+                    final String fieldName = field.name();
+                    data.put(fieldName, convertAvroField(avroNode.get(fieldName), field.schema()));
                 }
                 break;
             default:
                 throw new IllegalArgumentException("unexpected schema type: "
                         + schema.getSchemaInfo().getType()
                         + " with KeyValueSchema");
+        }
+    }
+
+    private static Object convertAvroField(Object avroValue, Schema schema) {
+        switch (schema.getType()) {
+            case NULL:
+            case INT:
+            case LONG:
+            case DOUBLE:
+            case FLOAT:
+            case BOOLEAN:
+                return avroValue;
+            case BYTES:
+                // system default charset
+                return new String((byte[]) avroValue);
+            case FIXED:
+                return new String(((GenericFixed) avroValue).bytes());
+            case ENUM:
+            case STRING:
+                return avroValue.toString(); // can be a String or org.apache.avro.util.Utf8
+            case UNION:
+                for (Schema s : schema.getTypes()) {
+                    if (s.getType() == Schema.Type.NULL) {
+                        continue;
+                    }
+                    return convertAvroField(avroValue, s);
+                }
+            default:
+                throw new UnsupportedOperationException("Unsupported avro schema type=" + schema.getType()
+                        + " for value field schema " + schema.getName());
         }
     }
 }
