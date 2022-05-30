@@ -82,6 +82,7 @@ public class ManagedLedgerConfig {
     @Setter
     private boolean cacheEvictionByMarkDeletedPosition = false;
     private int archiveDataLimitSize = 500;
+    private boolean managedTrash = false;
 
     public boolean isCreateIfMissing() {
         return createIfMissing;
@@ -690,5 +691,13 @@ public class ManagedLedgerConfig {
 
     public void setArchiveDataLimitSize(int archiveDataLimitSize) {
         this.archiveDataLimitSize = archiveDataLimitSize;
+    }
+
+    public boolean isManagedTrash() {
+        return managedTrash;
+    }
+
+    public void setManagedTrash(boolean managedTrash) {
+        this.managedTrash = managedTrash;
     }
 }
