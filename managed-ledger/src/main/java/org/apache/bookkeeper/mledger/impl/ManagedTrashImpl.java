@@ -76,7 +76,9 @@ public class ManagedTrashImpl implements ManagedTrash {
 
     private static final int RETRY_COUNT = 9;
 
-    private static final LedgerInfo EMPTY_LEDGER_INFO = LedgerInfo.newBuilder().setLedgerId(-1L).build();
+    private static final long EMPTY_LEDGER_ID = -1L;
+
+    private static final LedgerInfo EMPTY_LEDGER_INFO = LedgerInfo.newBuilder().setLedgerId(EMPTY_LEDGER_ID).build();
 
     private static final AtomicReferenceFieldUpdater<ManagedTrashImpl, ManagedTrashImpl.State> STATE_UPDATER =
             AtomicReferenceFieldUpdater.newUpdater(ManagedTrashImpl.class, ManagedTrashImpl.State.class, "state");
@@ -284,8 +286,11 @@ public class ManagedTrashImpl implements ManagedTrash {
     private byte[] serialize(Map<String, LedgerInfo> toPersist) {
         TrashDataComponent.Builder builder = TrashDataComponent.newBuilder();
         for (Map.Entry<String, LedgerInfo> entry : toPersist.entrySet()) {
-            builder.addComponent(
-                    MLDataFormats.TrashData.newBuilder().setKey(entry.getKey()).setValue(entry.getValue()).build());
+            MLDataFormats.TrashData.Builder innerBuilder = MLDataFormats.TrashData.newBuilder().setKey(entry.getKey());
+            if (entry.getValue().getLedgerId() != EMPTY_LEDGER_ID) {
+                innerBuilder.setValue(entry.getValue());
+            }
+            builder.addComponent(innerBuilder.build());
         }
         return builder.build().toByteArray();
     }
@@ -295,7 +300,11 @@ public class ManagedTrashImpl implements ManagedTrash {
         List<MLDataFormats.TrashData> componentList = component.getComponentList();
         Map<String, LedgerInfo> result = new HashMap<>();
         for (MLDataFormats.TrashData ele : componentList) {
-            result.put(ele.getKey(), ele.getValue());
+            if (ele.hasValue()) {
+                result.put(ele.getKey(), ele.getValue());
+            } else {
+                result.put(ele.getKey(), EMPTY_LEDGER_INFO);
+            }
         }
         return result;
     }
