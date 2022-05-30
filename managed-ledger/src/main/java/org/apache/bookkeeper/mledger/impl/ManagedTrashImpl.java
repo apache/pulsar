@@ -25,7 +25,6 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumSet;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
@@ -50,6 +49,7 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.TrashDataComponent;
 import org.apache.bookkeeper.mledger.util.CallbackMutex;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.Stat;
@@ -298,7 +298,7 @@ public class ManagedTrashImpl implements ManagedTrash {
     private Map<String, LedgerInfo> deSerialize(byte[] content) throws InvalidProtocolBufferException {
         TrashDataComponent component = TrashDataComponent.parseFrom(content);
         List<MLDataFormats.TrashData> componentList = component.getComponentList();
-        Map<String, LedgerInfo> result = new HashMap<>();
+        Map<String, LedgerInfo> result = new ConcurrentSkipListMap<>();
         for (MLDataFormats.TrashData ele : componentList) {
             if (ele.hasValue()) {
                 result.put(ele.getKey(), ele.getValue());
@@ -341,13 +341,41 @@ public class ManagedTrashImpl implements ManagedTrash {
     }
 
     @Override
-    public List<Long> getAllArchiveIndex() {
-        return null;
+    public CompletableFuture<List<Long>> getAllArchiveIndex() {
+        return metadataStore.getChildren(buildParentPath()).thenComposeAsync(children -> {
+            CompletableFuture<List<Long>> future = new CompletableFuture<>();
+            if (CollectionUtils.isEmpty(children)) {
+                future.complete(Collections.emptyList());
+                return future;
+            }
+            List<Long> archiveIndexes = new ArrayList<>();
+            for (String ele : children) {
+                if (!ele.startsWith(ARCHIVE)) {
+                    continue;
+                }
+                String indexStr = ele.split(ARCHIVE)[1];
+                archiveIndexes.add(Long.parseLong(indexStr));
+            }
+            future.complete(archiveIndexes);
+            return future;
+        }, executor.chooseThread(name));
     }
 
     @Override
-    public Map<String, LedgerInfo> getArchiveData(final long index) {
-        return null;
+    public CompletableFuture<Map<String, LedgerInfo>> getArchiveData(final long index) {
+        return metadataStore.get(buildArchivePath(index)).thenComposeAsync(optResult -> {
+            CompletableFuture<Map<String, LedgerInfo>> future = new CompletableFuture<>();
+            if (optResult.isPresent()) {
+                byte[] content = optResult.get().getValue();
+                try {
+                    Map<String, LedgerInfo> result = deSerialize(content);
+                    future.complete(result);
+                } catch (InvalidProtocolBufferException e) {
+                    future.completeExceptionally(e);
+                }
+            }
+            return future;
+        }, executor.chooseThread(name));
     }
 
     @Override
@@ -393,16 +421,16 @@ public class ManagedTrashImpl implements ManagedTrash {
     }
 
 
-    private String buildPath() {
+    private String buildParentPath() {
         return PREFIX + name + "/" + type;
     }
 
     private String buildDeletePath() {
-        return buildPath() + DELETE;
+        return buildParentPath() + DELETE;
     }
 
-    private String buildArchivePath(long ledgerId) {
-        return buildPath() + ARCHIVE + ledgerId;
+    private String buildArchivePath(long index) {
+        return buildParentPath() + ARCHIVE + index;
     }
 
     //take 1/10 trash to delete, if the size over 10, use 10 to delete.

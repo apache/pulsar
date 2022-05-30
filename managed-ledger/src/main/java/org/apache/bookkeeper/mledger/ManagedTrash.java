@@ -45,9 +45,9 @@ public interface ManagedTrash {
 
     void triggerDelete();
 
-    List<Long> getAllArchiveIndex();
+    CompletableFuture<List<Long>> getAllArchiveIndex();
 
-    Map<String, LedgerInfo> getArchiveData(long index);
+    CompletableFuture<Map<String, LedgerInfo>> getArchiveData(long index);
 
     long getTrashDataSize();
 
