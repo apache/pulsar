@@ -270,4 +270,12 @@ public class KinesisSinkTester extends SinkTester<LocalStackContainer> {
         private Set<Long> set1;
         private Map<String, String> map1;
     }
+
+    @Override
+    public void close() throws Exception {
+        if (client != null) {
+            client.close();
+            client = null;
+        }
+    }
 }

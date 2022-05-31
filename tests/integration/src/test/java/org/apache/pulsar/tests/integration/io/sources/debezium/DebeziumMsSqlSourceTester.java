@@ -37,7 +37,7 @@ import java.util.Map;
  * A tester for testing Debezium Microsoft SQl Server source.
  */
 @Slf4j
-public class DebeziumMsSqlSourceTester extends SourceTester<DebeziumMsSqlContainer> implements Closeable {
+public class DebeziumMsSqlSourceTester extends SourceTester<DebeziumMsSqlContainer> {
 
     private static final String NAME = "debezium-mssql";
 
@@ -158,7 +158,10 @@ public class DebeziumMsSqlSourceTester extends SourceTester<DebeziumMsSqlContain
     @Override
     public void close() {
         if (pulsarCluster != null) {
-            PulsarCluster.stopService(DebeziumMsSqlContainer.NAME, debeziumMsSqlContainer);
+            if (debeziumMsSqlContainer != null) {
+                PulsarCluster.stopService(DebeziumMsSqlContainer.NAME, debeziumMsSqlContainer);
+                debeziumMsSqlContainer = null;
+            }
         }
     }
 
