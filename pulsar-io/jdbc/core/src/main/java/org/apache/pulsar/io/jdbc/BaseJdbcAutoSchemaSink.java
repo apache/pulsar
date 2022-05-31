@@ -20,6 +20,7 @@
 package org.apache.pulsar.io.jdbc;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import java.sql.PreparedStatement;
 import java.util.HashMap;
@@ -188,7 +189,8 @@ public abstract class BaseJdbcAutoSchemaSink extends JdbcAbstractSink<GenericObj
         }
     }
 
-    private static Object convertAvroField(Object avroValue, Schema schema) {
+    @VisibleForTesting
+    static Object convertAvroField(Object avroValue, Schema schema) {
         switch (schema.getType()) {
             case NULL:
             case INT:
