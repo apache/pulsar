@@ -150,6 +150,11 @@ public class InMemoryDelayedDeliveryTracker implements DelayedDeliveryTracker, T
         return priorityQueue.size();
     }
 
+
+    public int getBufferMemoryUsage() {
+        return priorityQueue.bufferSize();
+    }
+
     private void updateTimer() {
         if (priorityQueue.isEmpty()) {
             if (timeout != null) {

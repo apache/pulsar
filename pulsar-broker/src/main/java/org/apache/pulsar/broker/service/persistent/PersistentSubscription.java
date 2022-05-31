@@ -988,6 +988,12 @@ public class PersistentSubscription implements Subscription {
                 subStats.activeConsumerName = activeConsumer.consumerName();
             }
         }
+
+        if (dispatcher instanceof PersistentDispatcherMultipleConsumers) {
+            subStats.delayedTrackerMemoryUsage =
+                    ((PersistentDispatcherMultipleConsumers) dispatcher).getDelayedTrackerMemoryUsage();
+        }
+
         if (Subscription.isIndividualAckMode(subType)) {
             if (dispatcher instanceof PersistentDispatcherMultipleConsumers) {
                 PersistentDispatcherMultipleConsumers d = (PersistentDispatcherMultipleConsumers) dispatcher;

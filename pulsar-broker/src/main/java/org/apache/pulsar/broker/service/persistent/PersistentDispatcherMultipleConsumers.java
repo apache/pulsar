@@ -40,6 +40,7 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.delayed.DelayedDeliveryTracker;
+import org.apache.pulsar.broker.delayed.InMemoryDelayedDeliveryTracker;
 import org.apache.pulsar.broker.service.AbstractDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
@@ -853,7 +854,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         }
 
         synchronized (this) {
-            if (!delayedDeliveryTracker.isPresent()) {
+            if (delayedDeliveryTracker.isEmpty()) {
                 // Initialize the tracker the first time we need to use it
                 delayedDeliveryTracker = Optional
                         .of(topic.getBrokerService().getDelayedDeliveryTrackerFactory().newTracker(this));
@@ -933,6 +934,19 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
     public PersistentTopic getTopic() {
         return topic;
+    }
+
+
+    public int getDelayedTrackerMemoryUsage() {
+        if (delayedDeliveryTracker.isEmpty()) {
+            return 0;
+        }
+
+        if (delayedDeliveryTracker.get() instanceof InMemoryDelayedDeliveryTracker) {
+            return ((InMemoryDelayedDeliveryTracker) delayedDeliveryTracker.get()).getBufferMemoryUsage();
+        }
+
+        return 0;
     }
 
     protected int getStickyKeyHash(Entry entry) {
