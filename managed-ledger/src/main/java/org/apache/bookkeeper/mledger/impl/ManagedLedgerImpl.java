@@ -2619,7 +2619,20 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                         ledgersStat = stat;
                         metadataMutex.unlock();
                         trimmerMutex.unlock();
-                        executor.executeOrdered(name, safeRun(managedTrash::triggerDelete));
+                        if (managedTrash instanceof ManagedTrashDisableImpl) {
+                            for (LedgerInfo ls : ledgersToDelete) {
+                                log.info("[{}] Removing ledger {} - size: {}", name, ls.getLedgerId(), ls.getSize());
+                                asyncDeleteLedger(ls.getLedgerId(), ls);
+                            }
+                            for (LedgerInfo ls : offloadedLedgersToDelete) {
+                                log.info("[{}] Deleting offloaded ledger {} from bookkeeper - size: {}", name,
+                                        ls.getLedgerId(),
+                                        ls.getSize());
+                                asyncDeleteLedgerFromBookKeeper(ls.getLedgerId());
+                            }
+                        } else {
+                            executor.executeOrdered(name, safeRun(managedTrash::triggerDelete));
+                        }
                         promise.complete(null);
                     }
 
@@ -2640,6 +2653,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             });
         }
     }
+
 
     private CompletableFuture<Void> asyncUpdateTrashData(Collection<Long> deletableLedgerIds,
                                                          Collection<Long> deletableOffloadedLedgerIds) {
@@ -2784,6 +2798,25 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     }
                 }
             }, null);
+        }
+    }
+
+    private void asyncDeleteLedgerFromBookKeeper(long ledgerId) {
+        asyncDeleteLedger(ledgerId, DEFAULT_LEDGER_DELETE_RETRIES);
+    }
+
+    private void asyncDeleteLedger(long ledgerId, LedgerInfo info) {
+        if (!info.getOffloadContext().getBookkeeperDeleted()) {
+            // only delete if it hasn't been previously deleted for offload
+            asyncDeleteLedger(ledgerId, DEFAULT_LEDGER_DELETE_RETRIES);
+        }
+
+        if (info.getOffloadContext().hasUidMsb()) {
+            UUID uuid = new UUID(info.getOffloadContext().getUidMsb(), info.getOffloadContext().getUidLsb());
+            cleanupOffloaded(ledgerId, uuid,
+                    OffloadUtils.getOffloadDriverName(info, config.getLedgerOffloader().getOffloadDriverName()),
+                    OffloadUtils.getOffloadDriverMetadata(info, config.getLedgerOffloader().getOffloadDriverMetadata()),
+                    "Trimming");
         }
     }
 
