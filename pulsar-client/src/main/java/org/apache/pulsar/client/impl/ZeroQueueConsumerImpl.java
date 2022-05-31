@@ -84,12 +84,6 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
 
     @Override
     protected CompletableFuture<Message<T>> internalReceiveAsync() {
-        // Just being cautious
-        if (incomingMessages.size() > 0) {
-            log.error("The incoming message queue should never be greater than 0 when Queue size is 0");
-            incomingMessages.forEach(Message::release);
-            incomingMessages.clear();
-        }
         CompletableFuture<Message<T>> future = super.internalReceiveAsync();
         waitingOnReceiveForZeroQueueSize = true;
         if (!future.isDone()) {

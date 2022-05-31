@@ -551,8 +551,8 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
         }
     }
 
-    @Test(timeOut = 10000)
-    public void testReceiveAsyncWhenUnloadTopic() throws PulsarClientException, ExecutionException, InterruptedException {
+    @Test(timeOut = 30000)
+    public void testReceiveAsyncWhenUnloadTopic() throws PulsarClientException, ExecutionException, InterruptedException, PulsarAdminException {
         final String topicName = "persistent://prop/cluster/namespace/topic-" + UUID.randomUUID();
         int messageNumber = 500;
         List<MessageId> messages = Collections.synchronizedList(new ArrayList<>());
@@ -577,25 +577,20 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
             messages.add(msgId);
         }
 
-        @Cleanup("shutdown")
-        ScheduledExecutorService executorService = Executors.newSingleThreadScheduledExecutor();
-        executorService.scheduleWithFixedDelay(()-> {
-            try {
-                admin.topics().unload(topicName);
-            } catch (PulsarAdminException e) {
-                e.printStackTrace();
-            }
-        }, 1,1, TimeUnit.SECONDS);
-
+        boolean isUnload = false;
         do {
             Message<byte[]> message;
             try {
-                message = subscribe.receiveAsync().get(10, TimeUnit.SECONDS);
+                message = subscribe.receiveAsync().get(5, TimeUnit.SECONDS);
                 if (message != null) {
                     subscribe.acknowledge(message);
                     messages.remove(message.getMessageId());
                 }
             } catch (TimeoutException e) {
+            }
+            if (!isUnload) {
+                admin.topics().unload(topicName);
+                isUnload = true;
             }
         } while (messages.size() != 0);
     }
