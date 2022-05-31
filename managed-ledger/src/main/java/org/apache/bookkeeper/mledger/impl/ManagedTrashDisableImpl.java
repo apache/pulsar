@@ -51,7 +51,7 @@ public class ManagedTrashDisableImpl implements ManagedTrash {
     }
 
     @Override
-    public void triggerDelete() {
+    public void triggerDeleteInBackground() {
     }
 
     @Override
