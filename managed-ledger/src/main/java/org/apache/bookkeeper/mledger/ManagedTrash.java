@@ -31,9 +31,9 @@ public interface ManagedTrash {
 
     String SCHEMA = "schema";
 
-    String DELETABLE_LEDGER_SUFFIX = "DL";
+    String DELETABLE_LEDGER = "DL";
 
-    String DELETABLE_OFFLOADED_LEDGER_SUFFIX = "DOL";
+    String DELETABLE_OFFLOADED_LEDGER = "DOL";
 
     String name();
 

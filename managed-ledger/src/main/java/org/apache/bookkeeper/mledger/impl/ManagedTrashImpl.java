@@ -697,11 +697,11 @@ public class ManagedTrashImpl implements ManagedTrash {
         }
 
         private boolean isLedger() {
-            return DELETABLE_LEDGER_SUFFIX.equals(suffix);
+            return DELETABLE_LEDGER.equals(suffix);
         }
 
         private boolean isOffloadLedger() {
-            return DELETABLE_OFFLOADED_LEDGER_SUFFIX.equals(suffix);
+            return DELETABLE_OFFLOADED_LEDGER.equals(suffix);
         }
     }
 
