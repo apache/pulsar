@@ -21,26 +21,30 @@ package org.apache.pulsar.client.impl;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
-
+import com.google.common.collect.Lists;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
-
-import com.google.common.collect.Lists;
-
+import lombok.Cleanup;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
@@ -545,5 +549,54 @@ public class ZeroQueueSizeTest extends BrokerTestBase {
         for (int i = 0; i < numMessages; i++) {
             assertEquals(receivedMessages.get(i).intValue(), i);
         }
+    }
+
+    @Test(timeOut = 10000)
+    public void testReceiveAsyncWhenUnloadTopic() throws PulsarClientException, ExecutionException, InterruptedException {
+        final String topicName = "persistent://prop/cluster/namespace/topic-" + UUID.randomUUID();
+        int messageNumber = 500;
+        List<MessageId> messages = Collections.synchronizedList(new ArrayList<>());
+        @Cleanup
+        Consumer<byte[]> subscribe = pulsarClient.newConsumer()
+                .topic(topicName)
+                .subscriptionName("sub-11")
+                .subscriptionType(SubscriptionType.Shared)
+                .receiverQueueSize(0)
+                .consumerName("con-11")
+                .subscribe();
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.RoundRobinPartition)
+                .topic(topicName).create();
+        for (int i = 0; i < messageNumber; i++) {
+            MessageId msgId = producer.newMessage()
+                    .value(UUID.randomUUID().toString().getBytes(StandardCharsets.UTF_8))
+                    .send();
+            messages.add(msgId);
+        }
+
+        @Cleanup("shutdown")
+        ScheduledExecutorService executorService = Executors.newSingleThreadScheduledExecutor();
+        executorService.scheduleWithFixedDelay(()-> {
+            try {
+                admin.topics().unload(topicName);
+            } catch (PulsarAdminException e) {
+                e.printStackTrace();
+            }
+        }, 1,1, TimeUnit.SECONDS);
+
+        do {
+            Message<byte[]> message;
+            try {
+                message = subscribe.receiveAsync().get(10, TimeUnit.SECONDS);
+                if (message != null) {
+                    subscribe.acknowledge(message);
+                    messages.remove(message.getMessageId());
+                }
+            } catch (TimeoutException e) {
+            }
+        } while (messages.size() != 0);
     }
 }
