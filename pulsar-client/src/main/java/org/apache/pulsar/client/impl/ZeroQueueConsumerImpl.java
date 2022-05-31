@@ -95,10 +95,12 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
         if (!future.isDone()) {
             increaseAvailablePermits(cnx());
         }
-        future.whenComplete((message,e) -> {
-            synchronized (this) {
-                if (((MessageImpl<?>) message).getCnx() == cnx()) {
-                    waitingOnReceiveForZeroQueueSize = false;
+        future.whenComplete((message, ex) -> {
+            if (message != null) {
+                synchronized (this) {
+                    if (((MessageImpl<?>) message).getCnx() == cnx()) {
+                        waitingOnReceiveForZeroQueueSize = false;
+                    }
                 }
             }
         });
