@@ -1307,34 +1307,17 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
         admin.namespaces().setSchemaCompatibilityStrategy(
                 "my-property/my-ns/",
                 SchemaCompatibilityStrategy.FORWARD);
-        Schema<V3Data> v3Schema = Schema.AVRO(V3Data.class);
-        Schema<V4Data> v4Schema = Schema.AVRO(V4Data.class);
+        Schema<V1Data> v1Schema = Schema.AVRO(V1Data.class);
+        Schema<IncompatibleData> IncompatibleDataSchema = Schema.AVRO(IncompatibleData.class);
 
-        admin.schemas().createSchema(topic, v3Schema.getSchemaInfo());
-        admin.schemas().createSchema(topic, v4Schema.getSchemaInfo());
+        admin.schemas().createSchema(topic, v1Schema.getSchemaInfo());
+        admin.schemas().createSchema(topic, IncompatibleDataSchema.getSchemaInfo());
 
         try {
-            admin.schemas().createSchema(topic, v3Schema.getSchemaInfo());
+            admin.schemas().createSchema(topic, v1Schema.getSchemaInfo());
             fail("Should fail here, since the forward schema compatibility strategy doesn't allow removing the field.");
-        } catch (Exception e) {
+        } catch (PulsarAdminException.ConflictException e) {
             assertTrue(e.getMessage().contains("org.apache.avro.SchemaValidationException: Unable to read schema"));
         }
-    }
-
-    @Data
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    static class V4Data {
-        int i;
-        int j;
-    }
-
-    @Data
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    static class V3Data {
-        int i;
     }
 }
