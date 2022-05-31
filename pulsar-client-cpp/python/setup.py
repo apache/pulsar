@@ -74,7 +74,7 @@ class my_build_ext(build_ext.build_ext):
 dependencies = [
     'fastavro==0.24.0',
     'grpcio',
-    'protobuf>=3.6.1',
+    'protobuf>=3.6.1,<=3.20.*',
     'six',
     'certifi',
     'enum34>=1.1.9; python_version < "3.4"',
