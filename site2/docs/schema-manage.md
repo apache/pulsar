@@ -168,7 +168,7 @@ To manage schemas, you can use one of the following methods.
 To upload (register) a new schema for a topic, you can use one of the following methods.
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="Admin CLI"
   values={[{"label":"Admin CLI","value":"Admin CLI"},{"label":"REST API","value":"REST API"},{"label":"Java Admin API","value":"Java Admin API"}]}>
 
@@ -296,7 +296,7 @@ admin.createSchema("my-tenant/my-ns/my-topic", payload);
 To get the latest schema for a topic, you can use one of the following methods. 
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="Admin CLI"
   values={[{"label":"Admin CLI","value":"Admin CLI"},{"label":"REST API","value":"REST API"},{"label":"Java Admin API","value":"Java Admin API"}]}>
 
@@ -388,7 +388,7 @@ SchemaInfo si = admin.getSchema("my-tenant/my-ns/my-topic");
 To get a specific version of a schema, you can use one of the following methods.
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="Admin CLI"
   values={[{"label":"Admin CLI","value":"Admin CLI"},{"label":"REST API","value":"REST API"},{"label":"Java Admin API","value":"Java Admin API"}]}>
 
@@ -469,7 +469,7 @@ SchemaInfo si = admin.getSchema("my-tenant/my-ns/my-topic", 1L);
 To provide a schema via a topic, you can use the following method.
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="Admin CLI"
   values={[{"label":"Admin CLI","value":"Admin CLI"}]}>
 
@@ -499,7 +499,7 @@ In any case, the **delete** action deletes **all versions** of a schema register
 :::
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="Admin CLI"
   values={[{"label":"Admin CLI","value":"Admin CLI"},{"label":"REST API","value":"REST API"},{"label":"Java Admin API","value":"Java Admin API"}]}>
 
@@ -655,7 +655,7 @@ The schema compatibility check strategy set at different levels has priority: to
 To set a schema compatibility check strategy at the topic level, use one of the following methods.
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="Admin CLI"
   values={[{"label":"Admin CLI","value":"Admin CLI"},{"label":"REST API","value":"REST API"},{"label":"Java Admin API","value":"Java Admin API"}]}>
 
@@ -701,7 +701,7 @@ admin.topicPolicies().setSchemaCompatibilityStrategy("my-tenant/my-ns/my-topic",
 To get the topic-level schema compatibility check strategy, use one of the following methods.
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="Admin CLI"
   values={[{"label":"Admin CLI","value":"Admin CLI"},{"label":"REST API","value":"REST API"},{"label":"Java Admin API","value":"Java Admin API"}]}>
 
@@ -751,7 +751,7 @@ admin.topicPolicies().getSchemaCompatibilityStrategy("my-tenant/my-ns/my-topic",
 To remove the topic-level schema compatibility check strategy, use one of the following methods.
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="Admin CLI"
   values={[{"label":"Admin CLI","value":"Admin CLI"},{"label":"REST API","value":"REST API"},{"label":"Java Admin API","value":"Java Admin API"}]}>
 
@@ -800,9 +800,9 @@ admin.removeSchemaCompatibilityStrategy("my-tenant/my-ns/my-topic");
 You can set schema compatibility check strategy at namespace level using one of the following methods.
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="Admin CLI"
-  values={[{"label":"Admin CLI","value":"Admin CLI"},{"label":"REST API","value":"REST API"},{"label":"Java Admin CLI","value":"Java Admin CLI"}]}>
+  values={[{"label":"Admin CLI","value":"Admin CLI"},{"label":"REST API","value":"REST API"},{"label":"Java Admin API","value":"Java Admin API"}]}>
 
 <TabItem value="Admin CLI">
 
@@ -820,7 +820,7 @@ pulsar-admin namespaces set-schema-compatibility-strategy options
 Send a `PUT` request to this endpoint: {@inject: endpoint|PUT|/admin/v2/namespaces/:tenant/:namespace|operation/schemaCompatibilityStrategy?version=@pulsar:version_number@}
 
 </TabItem>
-<TabItem value="Java Admin CLI">
+<TabItem value="Java Admin API">
 
 Use the [`setSchemaCompatibilityStrategy`](/api/admin/)method.
 

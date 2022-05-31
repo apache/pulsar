@@ -177,7 +177,7 @@ producer.newMessage()
 You can check topic-specific statistics for geo-replication topics using one of the following methods.
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
   values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"}]}>
 <TabItem value="pulsar-admin">
