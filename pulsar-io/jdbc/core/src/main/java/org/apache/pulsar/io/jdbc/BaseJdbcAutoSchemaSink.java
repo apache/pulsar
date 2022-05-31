@@ -197,8 +197,6 @@ public abstract class BaseJdbcAutoSchemaSink extends JdbcAbstractSink<GenericObj
             case FLOAT:
             case BOOLEAN:
                 return avroValue;
-            case FIXED:
-                return new String(((GenericFixed) avroValue).bytes());
             case ENUM:
             case STRING:
                 return avroValue.toString(); // can be a String or org.apache.avro.util.Utf8
@@ -209,6 +207,12 @@ public abstract class BaseJdbcAutoSchemaSink extends JdbcAbstractSink<GenericObj
                     }
                     return convertAvroField(avroValue, s);
                 }
+                throw new IllegalArgumentException("Found UNION schema but it doesn't contain any type");
+            case ARRAY:
+            case BYTES:
+            case FIXED:
+            case RECORD:
+            case MAP:
             default:
                 throw new UnsupportedOperationException("Unsupported avro schema type=" + schema.getType()
                         + " for value field schema " + schema.getName());
