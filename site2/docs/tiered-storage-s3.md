@@ -14,11 +14,11 @@ Follow the steps below to install the S3 offloader.
 
 ### Prerequisite
 
-- Pulsar: 2.9.2 or later versions
+- Pulsar: 2.9.3 or later versions
   
 ### Steps
 
-This example uses Pulsar 2.9.2.
+This example uses Pulsar 2.9.3.
 
 1. [Download the Pulsar tarball](getting-started-standalone.md#install-pulsar-using-binary-release).
 
@@ -30,8 +30,8 @@ This example uses Pulsar 2.9.2.
 
    ```
    
-   tiered-storage-file-system-2.9.2.nar
-   tiered-storage-jcloud-2.9.2.nar
+   tiered-storage-file-system-2.9.3.nar
+   tiered-storage-jcloud-2.9.3.nar
    
    ```
 
