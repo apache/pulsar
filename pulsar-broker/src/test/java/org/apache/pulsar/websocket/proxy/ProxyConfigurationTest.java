@@ -63,8 +63,8 @@ public class ProxyConfigurationTest extends ProducerConsumerBase {
     public void configTest(int numIoThreads, int connectionsPerBroker) throws Exception {
         config.setWebSocketNumIoThreads(numIoThreads);
         config.setWebSocketConnectionsPerBroker(connectionsPerBroker);
-        config.setServiceUrl("http://localhost:8080");
         config.getProperties().setProperty("brokerClient_serviceUrl", "https://broker.com:8080");
+        config.setServiceUrl("http://localhost:8080");
         config.getProperties().setProperty("brokerClient_lookupTimeoutMs", "100");
         WebSocketService service = spyWithClassAndConstructorArgs(WebSocketService.class, config);
         doReturn(new ZKMetadataStore(mockZooKeeperGlobal)).when(service).createMetadataStore(anyString(), anyInt());
@@ -73,7 +73,7 @@ public class ProxyConfigurationTest extends ProducerConsumerBase {
         PulsarClientImpl client = (PulsarClientImpl) service.getPulsarClient();
         assertEquals(client.getConfiguration().getNumIoThreads(), numIoThreads);
         assertEquals(client.getConfiguration().getConnectionsPerBroker(), connectionsPerBroker);
-        assertEquals(client.getConfiguration().getServiceUrl(), "https://broker.com:8080",
+        assertEquals(client.getConfiguration().getServiceUrl(), "http://localhost:8080",
                 "brokerClient_ configs take precedence");
         assertEquals(client.getConfiguration().getLookupTimeoutMs(), 100);
 
