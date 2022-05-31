@@ -107,7 +107,7 @@ public class KinesisSinkTest {
             SinkContext mockSinkContext = mock(SinkContext.class);
 
             sink.open(map, mockSinkContext);
-            for (int i = 0; i < 10; i++) {
+            for (int i = 0; i < Integer.MAX_VALUE; i++) {
                 sink.write(pulsarRecord);
             }
             Awaitility.await().untilAsserted(() -> {
@@ -131,6 +131,7 @@ public class KinesisSinkTest {
         map.put("awsKinesisStreamName", STREAM_NAME);
         map.put("awsRegion", "us-east-1");
         map.put("awsCredentialPluginParam", "{\"accessKey\":\"access\",\"secretKey\":\"secret\"}");
+        System.out.println("config:" + map);
         return map;
     }
 
