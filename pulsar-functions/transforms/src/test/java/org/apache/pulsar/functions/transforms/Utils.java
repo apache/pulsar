@@ -50,6 +50,15 @@ import org.slf4j.Logger;
 
 public class Utils {
 
+    public static TestContext process(Record<GenericObject> record, TransformStep step)
+            throws Exception {
+        Utils.TestContext context = new Utils.TestContext(record, new HashMap<>());
+        TransformContext transformContext = new TransformContext(context, record.getValue().getNativeObject());
+        step.process(transformContext);
+        transformContext.send();
+        return context;
+    }
+
     public static GenericData.Record getRecord(Schema<?> schema, byte[] value)
             throws IOException {
         DatumReader<GenericData.Record> reader =

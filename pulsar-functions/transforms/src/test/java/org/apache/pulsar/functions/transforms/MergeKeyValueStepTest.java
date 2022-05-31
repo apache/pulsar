@@ -22,7 +22,6 @@ import static org.apache.pulsar.functions.transforms.Utils.createTestAvroKeyValu
 import static org.apache.pulsar.functions.transforms.Utils.getRecord;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertSame;
-import java.util.HashMap;
 import org.apache.avro.generic.GenericData;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.GenericObject;
@@ -35,16 +34,12 @@ import org.apache.pulsar.functions.api.Record;
 import org.junit.Assert;
 import org.testng.annotations.Test;
 
-public class MergeKeyValueFunctionTest {
+public class MergeKeyValueStepTest {
 
     @Test
     void testMergeKeyValueAvro() throws Exception {
         Record<GenericObject> record = createTestAvroKeyValueRecord();
-        Utils.TestContext context = new Utils.TestContext(record, null);
-
-        MergeKeyValueFunction function = new MergeKeyValueFunction();
-        function.initialize(context);
-        function.process(record.getValue(), context);
+        Utils.TestContext context = Utils.process(record, new MergeKeyValueStep());
 
         Utils.TestTypedMessageBuilder<?> message = context.getOutputMessage();
         KeyValueSchema messageSchema = (KeyValueSchema) message.getSchema();
@@ -64,11 +59,7 @@ public class MergeKeyValueFunctionTest {
     void testPrimitive() throws Exception {
         Record<GenericObject> record = new Utils.TestRecord<>(
                 Schema.STRING, AutoConsumeSchema.wrapPrimitiveObject("test-message", SchemaType.STRING, new byte[]{}), "test-key");
-        Utils.TestContext context = new Utils.TestContext(record, new HashMap<>());
-
-        MergeKeyValueFunction function = new MergeKeyValueFunction();
-        function.initialize(context);
-        function.process(record.getValue(), context);
+        Utils.TestContext context = Utils.process(record, new MergeKeyValueStep());
 
         Utils.TestTypedMessageBuilder<?> message = context.getOutputMessage();
 
@@ -89,11 +80,7 @@ public class MergeKeyValueFunctionTest {
                 AutoConsumeSchema.wrapPrimitiveObject(keyValue, SchemaType.KEY_VALUE, new byte[]{}),
                 null);
 
-        Utils.TestContext context = new Utils.TestContext(record, new HashMap<>());
-
-        MergeKeyValueFunction function = new MergeKeyValueFunction();
-        function.initialize(context);
-        function.process(record.getValue(), context);
+        Utils.TestContext context = Utils.process(record, new MergeKeyValueStep());
 
         Utils.TestTypedMessageBuilder<?> message = context.getOutputMessage();
         KeyValueSchema messageSchema = (KeyValueSchema) message.getSchema();

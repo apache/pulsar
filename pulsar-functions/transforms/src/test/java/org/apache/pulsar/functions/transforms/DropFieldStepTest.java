@@ -23,10 +23,10 @@ import static org.apache.pulsar.functions.transforms.Utils.getRecord;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertNotSame;
-import static org.testng.Assert.assertThrows;
 import static org.testng.AssertJUnit.assertNull;
-import com.google.common.collect.ImmutableMap;
-import java.util.Map;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.util.Utf8;
 import org.apache.pulsar.client.api.Schema;
@@ -44,17 +44,7 @@ import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.functions.api.Record;
 import org.testng.annotations.Test;
 
-public class DropFieldFunctionTest {
-
-    @Test
-    void testInvalidConfig() {
-        Map<String, Object> config = ImmutableMap.of("value-fields", 42);
-        Utils.TestContext context = new Utils.TestContext(createTestAvroKeyValueRecord(), config);
-
-        DropFieldFunction dropFieldFunction = new DropFieldFunction();
-        assertThrows(IllegalArgumentException.class, () -> dropFieldFunction.initialize(context));
-
-    }
+public class DropFieldStepTest {
 
     @Test
     void testAvro() throws Exception {
@@ -72,13 +62,10 @@ public class DropFieldFunctionTest {
                 .set("age", 42)
                 .build();
 
-        Record<GenericRecord> record = new Utils.TestRecord<>(genericSchema, genericRecord, "test-key");
-        Map<String, Object> config = ImmutableMap.of("value-fields", "firstName,lastName");
-        Utils.TestContext context = new Utils.TestContext(record, config);
+        Record<GenericObject> record = new Utils.TestRecord<>(genericSchema, genericRecord, "test-key");
 
-        DropFieldFunction dropFieldFunction = new DropFieldFunction();
-        dropFieldFunction.initialize(context);
-        dropFieldFunction.process(genericRecord, context);
+        DropFieldStep dropFieldStep = new DropFieldStep(new ArrayList<>(), Arrays.asList("firstName" , "lastName"));
+        Utils.TestContext context = Utils.process(record, dropFieldStep);
 
         Utils.TestTypedMessageBuilder<?> message = context.getOutputMessage();
         assertEquals(message.getKey(), "test-key");
@@ -91,15 +78,10 @@ public class DropFieldFunctionTest {
 
     @Test
     void testKeyValueAvro() throws Exception {
-        Record<GenericObject> record = createTestAvroKeyValueRecord();
-        Map<String, Object> config = ImmutableMap.of(
-                "value-fields", "valueField1,valueField2",
-                "key-fields", "keyField1,keyField2");
-        Utils.TestContext context = new Utils.TestContext(record, config);
-
-        DropFieldFunction dropFieldFunction = new DropFieldFunction();
-        dropFieldFunction.initialize(context);
-        dropFieldFunction.process(record.getValue(), context);
+        DropFieldStep dropFieldStep = new DropFieldStep(
+                Arrays.asList("keyField1" , "keyField2"),
+                Arrays.asList("valueField1" , "valueField2"));
+        Utils.TestContext context = Utils.process(createTestAvroKeyValueRecord(), dropFieldStep);
 
         Utils.TestTypedMessageBuilder<?> message = context.getOutputMessage();
         KeyValueSchema messageSchema = (KeyValueSchema) message.getSchema();
@@ -135,13 +117,10 @@ public class DropFieldFunctionTest {
                 .set("age", 42)
                 .build();
 
-        Record<GenericRecord> record = new Utils.TestRecord<>(genericSchema, genericRecord, "test-key");
-        Map<String, Object> config = ImmutableMap.of("value-fields", "other");
-        Utils.TestContext context = new Utils.TestContext(record, config);
+        Record<GenericObject> record = new Utils.TestRecord<>(genericSchema, genericRecord, "test-key");
 
-        DropFieldFunction dropFieldFunction = new DropFieldFunction();
-        dropFieldFunction.initialize(context);
-        dropFieldFunction.process(genericRecord, context);
+        DropFieldStep dropFieldStep = new DropFieldStep(new ArrayList<>(), Collections.singletonList("other"));
+        Utils.TestContext context = Utils.process(record, dropFieldStep);
 
         Utils.TestTypedMessageBuilder<?> message = context.getOutputMessage();
         assertSame(message.getSchema(), record.getSchema());
@@ -151,14 +130,11 @@ public class DropFieldFunctionTest {
     @Test
     void testKeyValueAvroNotModified() throws Exception {
         Record<GenericObject> record = createTestAvroKeyValueRecord();
-        Map<String, Object> config = ImmutableMap.of(
-                "value-fields", "otherValue",
-                "key-fields", "otherKey");
-        Utils.TestContext context = new Utils.TestContext(record, config);
 
-        DropFieldFunction dropFieldFunction = new DropFieldFunction();
-        dropFieldFunction.initialize(context);
-        dropFieldFunction.process(record.getValue(), context);
+        DropFieldStep dropFieldStep = new DropFieldStep(
+                Collections.singletonList("otherKey"),
+                Collections.singletonList("otherValue"));
+        Utils.TestContext context = Utils.process(record, dropFieldStep);
 
         Utils.TestTypedMessageBuilder<?> message = context.getOutputMessage();
         KeyValueSchema messageSchema = (KeyValueSchema) message.getSchema();
@@ -175,23 +151,16 @@ public class DropFieldFunctionTest {
     @Test
     void testKeyValueAvroCached() throws Exception {
         Record<GenericObject> record = createTestAvroKeyValueRecord();
-        Map<String, Object> config = ImmutableMap.of(
-                "value-fields", "valueField1,valueField2",
-                "key-fields", "keyField1,keyField2");
-        Utils.TestContext context = new Utils.TestContext(record, config);
 
-        DropFieldFunction dropFieldFunction = new DropFieldFunction();
-        dropFieldFunction.initialize(context);
-        dropFieldFunction.process(record.getValue(), context);
+        DropFieldStep dropFieldStep = new DropFieldStep(
+                Arrays.asList("keyField1" , "keyField2"),
+                Arrays.asList("valueField1" , "valueField2"));
+        Utils.TestContext context = Utils.process(record, dropFieldStep);
 
         Utils.TestTypedMessageBuilder<?> message = context.getOutputMessage();
         KeyValueSchema messageSchema = (KeyValueSchema) message.getSchema();
 
-        Record<GenericObject> newRecord = createTestAvroKeyValueRecord();
-
-        context.setCurrentRecord(newRecord);
-
-        dropFieldFunction.process(newRecord.getValue(), context);
+        context = Utils.process(createTestAvroKeyValueRecord(), dropFieldStep);
 
         message = context.getOutputMessage();
         KeyValueSchema newMessageSchema = (KeyValueSchema) message.getSchema();
@@ -214,14 +183,11 @@ public class DropFieldFunctionTest {
                 Schema.STRING,
                 AutoConsumeSchema.wrapPrimitiveObject("value", SchemaType.STRING, new byte[]{}),
                 "test-key");
-        Map<String, Object> config = ImmutableMap.of(
-                "value-fields", "value",
-                "key-fields", "key");
-        Utils.TestContext context = new Utils.TestContext(record, config);
 
-        DropFieldFunction dropFieldFunction = new DropFieldFunction();
-        dropFieldFunction.initialize(context);
-        dropFieldFunction.process(record.getValue(), context);
+        DropFieldStep dropFieldStep = new DropFieldStep(
+                Collections.singletonList("key"),
+                Collections.singletonList("value"));
+        Utils.TestContext context = Utils.process(record, dropFieldStep);
 
         Utils.TestTypedMessageBuilder<?> message = context.getOutputMessage();
 
@@ -241,14 +207,11 @@ public class DropFieldFunctionTest {
                 keyValueSchema,
                 AutoConsumeSchema.wrapPrimitiveObject(keyValue, SchemaType.KEY_VALUE, new byte[]{}),
                 null);
-        Map<String, Object> config = ImmutableMap.of(
-                "value-fields", "value",
-                "key-fields", "key");
-        Utils.TestContext context = new Utils.TestContext(record, config);
 
-        DropFieldFunction dropFieldFunction = new DropFieldFunction();
-        dropFieldFunction.initialize(context);
-        dropFieldFunction.process(record.getValue(), context);
+        DropFieldStep dropFieldStep = new DropFieldStep(
+                Collections.singletonList("key"),
+                Collections.singletonList("value"));
+        Utils.TestContext context = Utils.process(record, dropFieldStep);
 
         Utils.TestTypedMessageBuilder<?> message = context.getOutputMessage();
         KeyValueSchema messageSchema = (KeyValueSchema) message.getSchema();

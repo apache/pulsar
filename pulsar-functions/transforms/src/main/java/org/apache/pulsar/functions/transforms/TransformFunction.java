@@ -26,11 +26,14 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.functions.api.Context;
+import org.apache.pulsar.functions.api.Function;
+import org.apache.pulsar.functions.api.Record;
 
 @Slf4j
-public class TransformFunction extends AbstractTransformStepFunction {
+public class TransformFunction implements Function<GenericObject, Void>, TransformStep {
 
     private final List<TransformStep> steps = new ArrayList<>();
     private final Gson gson = new Gson();
@@ -56,7 +59,7 @@ public class TransformFunction extends AbstractTransformStepFunction {
                     steps.add(newCastFunction(step));
                     break;
                 case "merge-key-value":
-                    steps.add(new MergeKeyValueFunction());
+                    steps.add(new MergeKeyValueStep());
                     break;
                 case "unwrap-key-value":
                     steps.add(newUnwrapKeyValueFunction(step));
@@ -69,45 +72,62 @@ public class TransformFunction extends AbstractTransformStepFunction {
     }
 
     @Override
+    public Void process(GenericObject input, Context context) throws Exception {
+        Object nativeObject = input.getNativeObject();
+        if (log.isDebugEnabled()) {
+            Record<?> currentRecord = context.getCurrentRecord();
+            log.debug("apply to {} {}", input, nativeObject);
+            log.debug("record with schema {} version {} {}", currentRecord.getSchema(),
+                    currentRecord.getMessage().get().getSchemaVersion(),
+                    currentRecord);
+        }
+
+        TransformContext transformContext = new TransformContext(context, nativeObject);
+        process(transformContext);
+        transformContext.send();
+        return null;
+    }
+
+    @Override
     public void process(TransformContext transformContext) throws Exception {
         for (TransformStep step : steps) {
             step.process(transformContext);
         }
     }
 
-    public static DropFieldFunction newRemoveFieldFunction(Map<String, Object> step) {
+    public static DropFieldStep newRemoveFieldFunction(Map<String, Object> step) {
         String fields = getRequiredStringConfig(step, "fields");
         List<String> fieldList = Arrays.asList(fields.split(","));
         String part = getStringConfig(step, "part");
         if (part == null) {
-            return new DropFieldFunction(fieldList, fieldList);
+            return new DropFieldStep(fieldList, fieldList);
         } else if (part.equals("key")) {
-            return new DropFieldFunction(fieldList, new ArrayList<>());
+            return new DropFieldStep(fieldList, new ArrayList<>());
         } else if (part.equals("value")) {
-            return new DropFieldFunction(new ArrayList<>(), fieldList);
+            return new DropFieldStep(new ArrayList<>(), fieldList);
         } else {
             throw new IllegalArgumentException("invalid 'part' parameter: " + part);
         }
     }
 
-    public static CastFunction newCastFunction(Map<String, Object> step) {
+    public static CastStep newCastFunction(Map<String, Object> step) {
         String schemaTypeParam = getRequiredStringConfig(step, "schema-type");
         SchemaType schemaType = SchemaType.valueOf(schemaTypeParam);
         String part = getStringConfig(step, "part");
         if (part == null) {
-            return new CastFunction(schemaType, schemaType);
+            return new CastStep(schemaType, schemaType);
         } else if (part.equals("key")) {
-            return new CastFunction(schemaType, null);
+            return new CastStep(schemaType, null);
         } else if (part.equals("value")) {
-            return new CastFunction(null, schemaType);
+            return new CastStep(null, schemaType);
         } else {
             throw new IllegalArgumentException("invalid 'part' parameter: " + part);
         }
     }
 
-    private static UnwrapKeyValueFunction newUnwrapKeyValueFunction(Map<String, Object> step) {
+    private static UnwrapKeyValueStep newUnwrapKeyValueFunction(Map<String, Object> step) {
         Boolean unwrapKey = getBooleanConfig(step, "unwrap-key");
-        return new UnwrapKeyValueFunction(unwrapKey != null && unwrapKey);
+        return new UnwrapKeyValueStep(unwrapKey != null && unwrapKey);
     }
 
     private static String getStringConfig(Map<String, Object> config, String fieldName) {

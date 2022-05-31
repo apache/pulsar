@@ -27,7 +27,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.schema.SchemaType;
 
 @Slf4j
-public class MergeKeyValueFunction extends AbstractTransformStepFunction {
+public class MergeKeyValueStep implements TransformStep {
 
     @Override
     public void process(TransformContext transformContext) {

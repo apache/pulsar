@@ -18,28 +18,12 @@
  */
 package org.apache.pulsar.functions.transforms;
 
-import org.apache.pulsar.functions.api.Context;
+public class UnwrapKeyValueStep implements TransformStep {
 
-public class UnwrapKeyValueFunction extends AbstractTransformStepFunction {
+    private final boolean unwrapKey;
 
-    boolean unwrapKey;
-
-    public UnwrapKeyValueFunction() {}
-
-    public UnwrapKeyValueFunction(boolean unwrapKey) {
+    public UnwrapKeyValueStep(boolean unwrapKey) {
         this.unwrapKey = unwrapKey;
-    }
-
-    @Override
-    public void initialize(Context context) {
-        this.unwrapKey = (Boolean) context.getUserConfigValue("unwrap-key")
-                .map(value -> {
-                    if (!(value instanceof Boolean)) {
-                        throw new IllegalArgumentException("unwrap-key param must be of type Boolean");
-                    }
-                    return value;
-                })
-                .orElse(false);
     }
 
     @Override

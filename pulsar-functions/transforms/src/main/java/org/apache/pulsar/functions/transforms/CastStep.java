@@ -21,36 +21,16 @@ package org.apache.pulsar.functions.transforms;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.schema.SchemaType;
-import org.apache.pulsar.functions.api.Context;
 
 @Slf4j
-public class CastFunction extends AbstractTransformStepFunction {
+public class CastStep implements TransformStep {
 
-    private SchemaType keySchemaType;
-    private SchemaType valueSchemaType;
+    private final SchemaType keySchemaType;
+    private final SchemaType valueSchemaType;
 
-    public CastFunction() {}
-
-    public CastFunction(SchemaType keySchemaType, SchemaType valueSchemaType) {
+    public CastStep(SchemaType keySchemaType, SchemaType valueSchemaType) {
         this.keySchemaType = keySchemaType;
         this.valueSchemaType = valueSchemaType;
-    }
-
-    @Override
-    public void initialize(Context context) {
-        keySchemaType = getConfig(context, "key-schema-type");
-        valueSchemaType = getConfig(context, "value-schema-type");
-    }
-
-    private SchemaType getConfig(Context context, String fieldName) {
-        return context.getUserConfigValue(fieldName)
-                .map(field -> {
-                    if (field instanceof String) {
-                        return SchemaType.valueOf((String) field);
-                    }
-                    throw new IllegalArgumentException(fieldName + " must be of type String");
-                })
-                .orElse(null);
     }
 
     @Override

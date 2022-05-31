@@ -22,11 +22,6 @@ import static org.apache.pulsar.functions.transforms.Utils.createTestAvroKeyValu
 import static org.apache.pulsar.functions.transforms.Utils.getRecord;
 import static org.junit.Assert.assertSame;
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertThrows;
-import com.google.common.collect.ImmutableMap;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
 import org.apache.avro.generic.GenericData;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.GenericObject;
@@ -35,25 +30,12 @@ import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.functions.api.Record;
 import org.testng.annotations.Test;
 
-public class UnwrapKeyValueFunctionTest {
-
-    @Test
-    void testInvalidConfig() {
-        Map<String, Object> config = ImmutableMap.of("unwrap-key", new ArrayList<>());
-        Utils.TestContext context = new Utils.TestContext(createTestAvroKeyValueRecord(), config);
-
-        UnwrapKeyValueFunction function = new UnwrapKeyValueFunction();
-        assertThrows(IllegalArgumentException.class, () -> function.initialize(context));
-    }
+public class UnwrapKeyValueStepTest {
 
     @Test
     void testKeyValueUnwrapValue() throws Exception {
         Record<GenericObject> record = createTestAvroKeyValueRecord();
-        Utils.TestContext context = new Utils.TestContext(record, new HashMap<>());
-
-        UnwrapKeyValueFunction function = new UnwrapKeyValueFunction();
-        function.initialize(context);
-        function.process(record.getValue(), context);
+        Utils.TestContext context = Utils.process(record, new UnwrapKeyValueStep(false));
 
         Utils.TestTypedMessageBuilder<?> message = context.getOutputMessage();
 
@@ -65,13 +47,7 @@ public class UnwrapKeyValueFunctionTest {
     @Test
     void testKeyValueUnwrapKey() throws Exception {
         Record<GenericObject> record = createTestAvroKeyValueRecord();
-        HashMap<String, Object> config = new HashMap<>();
-        config.put("unwrap-key", true);
-        Utils.TestContext context = new Utils.TestContext(record, config);
-
-        UnwrapKeyValueFunction function = new UnwrapKeyValueFunction();
-        function.initialize(context);
-        function.process(record.getValue(), context);
+        Utils.TestContext context = Utils.process(record, new UnwrapKeyValueStep(true));
 
         Utils.TestTypedMessageBuilder<?> message = context.getOutputMessage();
 
@@ -82,11 +58,7 @@ public class UnwrapKeyValueFunctionTest {
     @Test
     void testPrimitive() throws Exception {
         Record<GenericObject> record = new Utils.TestRecord<>(Schema.STRING, AutoConsumeSchema.wrapPrimitiveObject("test-message", SchemaType.STRING, new byte[]{}), "test-key");
-        Utils.TestContext context = new Utils.TestContext(record, new HashMap<>());
-
-        UnwrapKeyValueFunction function = new UnwrapKeyValueFunction();
-        function.initialize(context);
-        function.process(record.getValue(), context);
+        Utils.TestContext context = Utils.process(record, new UnwrapKeyValueStep(false));
 
         Utils.TestTypedMessageBuilder<?> message = context.getOutputMessage();
 

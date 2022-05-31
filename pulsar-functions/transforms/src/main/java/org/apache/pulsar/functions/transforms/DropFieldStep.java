@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.functions.transforms;
 
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -28,42 +26,22 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.pulsar.common.schema.SchemaType;
-import org.apache.pulsar.functions.api.Context;
 
 
 /**
  * This function removes a "field" from a message.
  */
 @Slf4j
-public class DropFieldFunction extends AbstractTransformStepFunction {
+public class DropFieldStep implements TransformStep {
 
-    private List<String> keyFields;
-    private List<String> valueFields;
+    private final List<String> keyFields;
+    private final List<String> valueFields;
     private final Map<org.apache.avro.Schema, org.apache.avro.Schema> keySchemaCache = new HashMap<>();
     private final Map<org.apache.avro.Schema, org.apache.avro.Schema> valueSchemaCache = new HashMap<>();
 
-    public DropFieldFunction() {}
-
-    public DropFieldFunction(List<String> keyFields, List<String> valueFields) {
+    public DropFieldStep(List<String> keyFields, List<String> valueFields) {
         this.keyFields = keyFields;
         this.valueFields = valueFields;
-    }
-
-    @Override
-    public void initialize(Context context) {
-        this.keyFields = getConfig(context, "key-fields");
-        this.valueFields = getConfig(context, "value-fields");
-    }
-
-    private List<String> getConfig(Context context, String fieldName) {
-        return context.getUserConfigValue(fieldName)
-                .map(fields -> {
-                    if (fields instanceof String) {
-                        return Arrays.asList(((String) fields).split(","));
-                    }
-                    throw new IllegalArgumentException(fieldName + " must be of type String");
-                })
-                .orElse(new ArrayList<>());
     }
 
     @Override

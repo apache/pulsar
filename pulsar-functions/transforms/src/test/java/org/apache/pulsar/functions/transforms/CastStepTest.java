@@ -21,38 +21,21 @@ package org.apache.pulsar.functions.transforms;
 import static org.apache.pulsar.functions.transforms.Utils.createTestAvroKeyValueRecord;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertSame;
-import static org.testng.Assert.assertThrows;
-import com.google.common.collect.ImmutableMap;
-import java.util.Map;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.client.api.schema.KeyValueSchema;
 import org.apache.pulsar.common.schema.KeyValue;
+import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.functions.api.Record;
 import org.testng.annotations.Test;
 
-public class CastFunctionTest {
-
-    @Test
-    void testInvalidConfig() {
-        Map<String, Object> config = ImmutableMap.of("key-schema-type", 42);
-        Utils.TestContext context = new Utils.TestContext(createTestAvroKeyValueRecord(), config);
-
-        CastFunction function = new CastFunction();
-        assertThrows(IllegalArgumentException.class, () -> function.initialize(context));
-    }
+public class CastStepTest {
 
     @Test
     void testKeyValueAvroToString() throws Exception {
         Record<GenericObject> record = createTestAvroKeyValueRecord();
-        Map<String, Object> config = ImmutableMap.of(
-                "key-schema-type", "STRING",
-                "value-schema-type", "STRING");
-        Utils.TestContext context = new Utils.TestContext(record, config);
-
-        CastFunction castFunction = new CastFunction();
-        castFunction.initialize(context);
-        castFunction.process(record.getValue(), context);
+        CastStep castStep = new CastStep(SchemaType.STRING, SchemaType.STRING);
+        Utils.TestContext context = Utils.process(record, castStep);
 
         Utils.TestTypedMessageBuilder<?> message = context.getOutputMessage();
         KeyValueSchema messageSchema = (KeyValueSchema) message.getSchema();
@@ -64,6 +47,5 @@ public class CastFunctionTest {
         assertEquals(messageValue.getValue(), "{\"valueField1\": \"value1\", \"valueField2\": \"value2\", "
                 + "\"valueField3\": \"value3\"}");
     }
-
 
 }
