@@ -71,6 +71,7 @@ import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.policies.data.impl.BacklogQuotaImpl;
 import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 import org.apache.pulsar.common.util.Codec;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -1015,6 +1016,10 @@ public class PersistentTopics extends PersistentTopicsBase {
         internalDeleteTopic(authoritative, force).thenAccept(
                         __ -> asyncResponse.resume(Response.noContent().build()))
                 .exceptionally(ex -> {
+                    Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+                    if (!isRedirectException(realCause)) {
+                        log.error("[{}] Failed to delete topic {}", clientAppId(), topicName, realCause);
+                    }
                     resumeAsyncResponseExceptionally(asyncResponse, ex.getCause());
                     return null;
                 });

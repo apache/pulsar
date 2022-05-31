@@ -331,12 +331,10 @@ public class PersistentTopicsBase extends AdminResource {
                 .exceptionally(ex -> {
                     Throwable realCause = FutureUtil.unwrapCompletionException(ex);
                     if (isManagedLedgerNotFoundException(realCause)) {
-                        log.info("[{}] Topic was already not existing {}", clientAppId(), topicName, ex);
+                        return null;
                     } else {
-                        log.error("[{}] Failed to delete topic forcefully {}", clientAppId(), topicName, ex);
                         throw new RestException(Status.INTERNAL_SERVER_ERROR, ex);
                     }
-                    return null;
                 });
 
         return ret;
@@ -1028,11 +1026,9 @@ public class PersistentTopicsBase extends AdminResource {
                         throw new RestException(Status.PRECONDITION_FAILED,
                                 "Topic has active producers/subscriptions");
                     } else if (isManagedLedgerNotFoundException(realCause)) {
-                        log.info("[{}] Topic was already not existing {}", clientAppId(), topicName, realCause);
                         throw new RestException(Status.NOT_FOUND,
                                 getTopicNotFoundErrorMessage(topicName.toString()));
                     } else {
-                        log.error("[{}] Failed to delete topic {}", clientAppId(), topicName, realCause);
                         throw new RestException(Status.INTERNAL_SERVER_ERROR, realCause);
                     }
                 });

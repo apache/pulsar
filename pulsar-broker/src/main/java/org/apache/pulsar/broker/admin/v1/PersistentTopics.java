@@ -367,7 +367,11 @@ public class PersistentTopics extends PersistentTopicsBase {
         internalDeleteTopic(authoritative, force).thenAccept(
                         __ -> asyncResponse.resume(Response.noContent().build()))
                 .exceptionally(ex -> {
-                    resumeAsyncResponseExceptionally(asyncResponse, ex.getCause());
+                    // If the exception is not redirect exception we need to log it.
+                    if (!isRedirectException(ex)) {
+                        log.error("[{}] Failed to delete topic {}", clientAppId(), topicName, ex);
+                    }
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
     }
