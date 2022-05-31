@@ -61,7 +61,7 @@ public class BrokerInternalClientConfigurationOverrideTest extends BrokerTestBas
         Properties config = pulsar.getConfiguration().getProperties();
         config.setProperty("brokerClient_operationTimeoutMs", "60000");
         config.setProperty("brokerClient_statsIntervalSeconds", "10");
-        config.setProperty("brokerClientAuthenticationParameters", "sensitive");
+        pulsar.getConfiguration().setBrokerClientAuthenticationParameters("sensitive");
         ClientConfigurationData clientConf = ((PulsarClientImpl) pulsar.getClient()).getConfiguration();
         Assert.assertEquals(clientConf.getOperationTimeoutMs(), 60000);
         // Config should override internal default, which is 0.
