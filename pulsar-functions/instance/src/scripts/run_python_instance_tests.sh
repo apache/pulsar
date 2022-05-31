@@ -21,7 +21,7 @@
 
 # Make sure dependencies are installed
 pip3 install mock --user
-pip3 install protobuf --user
+pip3 install protobuf==3.20.1 --user
 pip3 install fastavro --user
 
 CUR_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"

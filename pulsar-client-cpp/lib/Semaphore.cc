@@ -34,19 +34,25 @@ bool Semaphore::tryAcquire(int n) {
     }
 }
 
-void Semaphore::acquire(int n) {
+bool Semaphore::acquire(int n) {
     std::unique_lock<std::mutex> lock(mutex_);
 
     while (currentUsage_ + n > limit_) {
+        if (isClosed_) {
+            return false;
+        }
         condition_.wait(lock);
     }
 
     currentUsage_ += n;
+    return true;
 }
 
 void Semaphore::release(int n) {
-    std::lock_guard<std::mutex> lock(mutex_);
+    std::unique_lock<std::mutex> lock(mutex_);
     currentUsage_ -= n;
+    lock.unlock();
+
     if (n == 1) {
         condition_.notify_one();
     } else {
@@ -57,6 +63,12 @@ void Semaphore::release(int n) {
 uint32_t Semaphore::currentUsage() const {
     std::lock_guard<std::mutex> lock(mutex_);
     return currentUsage_;
+}
+
+void Semaphore::close() {
+    std::unique_lock<std::mutex> lock(mutex_);
+    isClosed_ = true;
+    condition_.notify_all();
 }
 
 }  // namespace pulsar

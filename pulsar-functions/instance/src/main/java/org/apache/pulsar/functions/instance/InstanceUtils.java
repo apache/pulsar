@@ -157,7 +157,9 @@ public class InstanceUtils {
                                                           Optional<Long> memoryLimit) throws PulsarClientException {
         ClientBuilder clientBuilder = null;
         if (isNotBlank(pulsarServiceUrl)) {
-            clientBuilder = PulsarClient.builder().serviceUrl(pulsarServiceUrl);
+            clientBuilder = PulsarClient.builder()
+                    .memoryLimit(0, SizeUnit.BYTES)
+                    .serviceUrl(pulsarServiceUrl);
             if (authConfig != null) {
                 if (isNotBlank(authConfig.getClientAuthenticationPlugin())
                         && isNotBlank(authConfig.getClientAuthenticationParameters())) {

@@ -14,7 +14,7 @@ In a Pulsar cluster:
 
 The diagram below provides an illustration of a Pulsar cluster:
 
-![Pulsar architecture diagram](assets/pulsar-system-architecture.png)
+![Pulsar architecture diagram](/assets/pulsar-system-architecture.png)
 
 At the broader instance level, an instance-wide ZooKeeper cluster called the configuration store handles coordination tasks involving multiple clusters, for example [geo-replication](concepts-replication).
 
@@ -91,7 +91,7 @@ persistent://my-tenant/my-namespace/my-topic
 
 You can see an illustration of how brokers and bookies interact in the diagram below:
 
-![Brokers and bookies](assets/broker-bookie.png)
+![Brokers and bookies](/assets/broker-bookie.png)
 
 
 ### Ledgers
@@ -155,7 +155,7 @@ You can use your own service discovery system if you'd like. If you use your own
 
 The diagram below illustrates Pulsar service discovery:
 
-![alt-text](assets/pulsar-service-discovery.png)
+![alt-text](/assets/pulsar-service-discovery.png)
 
 In this diagram, the Pulsar cluster is addressable via a single DNS name: `pulsar-cluster.acme.com`. A [Python client](client-libraries-python), for example, could access this Pulsar cluster like this:
 

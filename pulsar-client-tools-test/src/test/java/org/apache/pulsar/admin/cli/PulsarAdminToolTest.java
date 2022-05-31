@@ -611,6 +611,9 @@ public class PulsarAdminToolTest {
         when(admin.namespaces()).thenReturn(mockNamespaces);
         namespaces = new CmdNamespaces(() -> admin);
 
+        namespaces.run(split("set-message-ttl myprop/clust/ns1 -ttl 6m"));
+        verify(mockNamespaces).setNamespaceMessageTTL("myprop/clust/ns1", 6 * 60);
+
         namespaces.run(split("clear-backlog -b 0x80000000_0xffffffff myprop/clust/ns1 -force"));
         verify(mockNamespaces).clearNamespaceBundleBacklog("myprop/clust/ns1", "0x80000000_0xffffffff");
 
@@ -1107,6 +1110,8 @@ public class PulsarAdminToolTest {
                 BacklogQuota.BacklogQuotaType.destination_storage);
         //cmd with option cannot be executed repeatedly.
         cmdTopics = new CmdTopicPolicies(() -> admin);
+        cmdTopics.run(split("set-message-ttl persistent://myprop/clust/ns1/ds1 -t 10h"));
+        verify(mockTopicsPolicies).setMessageTTL("persistent://myprop/clust/ns1/ds1", 10 * 60 * 60);
         cmdTopics.run(split("set-backlog-quota persistent://myprop/clust/ns1/ds1 -lt 1w -p consumer_backlog_eviction"));
         verify(mockTopicsPolicies).setBacklogQuota("persistent://myprop/clust/ns1/ds1",
                 BacklogQuota.builder()
