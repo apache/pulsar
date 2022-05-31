@@ -1251,11 +1251,21 @@ public class Namespaces extends NamespacesBase {
             @ApiResponse(code = 409, message = "Concurrent modification"),
             @ApiResponse(code = 412, message = "maxConsumersPerSubscription value is not valid")})
     public void setMaxConsumersPerSubscription(
+            @Suspended final AsyncResponse asyncResponse,
             @PathParam("property") String property,
             @PathParam("cluster") String cluster,
             @PathParam("namespace") String namespace, int maxConsumersPerSubscription) {
         validateNamespaceName(property, cluster, namespace);
-        internalSetMaxConsumersPerSubscription(maxConsumersPerSubscription);
+        internalSetMaxConsumersPerSubscription(maxConsumersPerSubscription).thenAccept(
+                        __ -> asyncResponse.resume(Response.noContent().build()))
+                .exceptionally(ex -> {
+                    if (!isRedirectException(ex)) {
+                        log.error("Failed to set maxConsumersPerSubscription configuration on a namespace {}",
+                                namespaceName, ex);
+                    }
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @DELETE
@@ -1265,11 +1275,21 @@ public class Namespaces extends NamespacesBase {
             @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist"),
             @ApiResponse(code = 409, message = "Concurrent modification")})
     public void removeMaxConsumersPerSubscription(
+            @Suspended final AsyncResponse asyncResponse,
             @PathParam("property") String property,
             @PathParam("cluster") String cluster,
             @PathParam("namespace") String namespace) {
         validateNamespaceName(property, cluster, namespace);
-        internalSetMaxConsumersPerSubscription(null);
+        internalSetMaxConsumersPerSubscription(null).thenAccept(
+                        __ -> asyncResponse.resume(Response.noContent().build()))
+                .exceptionally(ex -> {
+                    if (!isRedirectException(ex)) {
+                        log.error("Failed to remove maxConsumersPerSubscription configuration on a namespace {}",
+                                namespaceName, ex);
+                    }
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @GET

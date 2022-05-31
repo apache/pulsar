@@ -1395,13 +1395,24 @@ public class Namespaces extends NamespacesBase {
             @ApiResponse(code = 404, message = "Namespace does not exist"),
             @ApiResponse(code = 409, message = "Concurrent modification"),
             @ApiResponse(code = 412, message = "maxConsumersPerSubscription value is not valid")})
-    public void setMaxConsumersPerSubscription(@PathParam("tenant") String tenant,
-                                               @PathParam("namespace") String namespace,
-                                               @ApiParam(value = "Number of maximum consumers per subscription",
-                                                       required = true)
-                                                           int maxConsumersPerSubscription) {
+    public void setMaxConsumersPerSubscription(
+            @Suspended final AsyncResponse asyncResponse,
+            @PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace,
+            @ApiParam(value = "Number of maximum consumers per subscription",
+                    required = true)
+            int maxConsumersPerSubscription) {
         validateNamespaceName(tenant, namespace);
-        internalSetMaxConsumersPerSubscription(maxConsumersPerSubscription);
+        internalSetMaxConsumersPerSubscription(maxConsumersPerSubscription).thenAccept(
+                        __ -> asyncResponse.resume(Response.noContent().build()))
+                .exceptionally(ex -> {
+                    if (!isRedirectException(ex)) {
+                        log.error("Failed to set maxConsumersPerSubscription configuration on a namespace {}",
+                                namespaceName, ex);
+                    }
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @DELETE
@@ -1411,10 +1422,21 @@ public class Namespaces extends NamespacesBase {
             @ApiResponse(code = 404, message = "Namespace does not exist"),
             @ApiResponse(code = 409, message = "Concurrent modification"),
             @ApiResponse(code = 412, message = "maxConsumersPerSubscription value is not valid")})
-    public void removeMaxConsumersPerSubscription(@PathParam("tenant") String tenant,
-                                               @PathParam("namespace") String namespace) {
+    public void removeMaxConsumersPerSubscription(
+            @Suspended final AsyncResponse asyncResponse,
+            @PathParam("tenant") String tenant,
+            @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
-        internalSetMaxConsumersPerSubscription(null);
+        internalSetMaxConsumersPerSubscription(null).thenAccept(
+                        __ -> asyncResponse.resume(Response.noContent().build()))
+                .exceptionally(ex -> {
+                    if (!isRedirectException(ex)) {
+                        log.error("Failed to remove maxConsumersPerSubscription configuration on a namespace {}",
+                                namespaceName, ex);
+                    }
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @GET
