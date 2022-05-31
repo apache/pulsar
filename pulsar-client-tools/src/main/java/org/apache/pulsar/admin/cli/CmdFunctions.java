@@ -643,8 +643,7 @@ public class CmdFunctions extends CmdBase {
 
         protected void validateFunctionConfigs(FunctionConfig functionConfig) {
             // go doesn't need className
-            if (functionConfig.getRuntime() == FunctionConfig.Runtime.PYTHON
-                    || functionConfig.getRuntime() == FunctionConfig.Runtime.JAVA){
+            if (functionConfig.getPy() != null || functionConfig.getJar() != null) {
                 if (StringUtils.isEmpty(functionConfig.getClassName())) {
                     throw new ParameterException("No Function Classname specified");
                 }
