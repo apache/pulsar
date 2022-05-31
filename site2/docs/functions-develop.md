@@ -25,7 +25,7 @@ Extended Pulsar Function SDK for Java | An extension to Pulsar-specific librarie
 The language-native function, which adds an exclamation point to all incoming strings and publishes the resulting string to a topic, has no external dependencies. The following example is language-native function.
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="lang-choice"
   defaultValue="Java"
   values={[{"label":"Java","value":"Java"},{"label":"Python","value":"Python"}]}>
 <TabItem value="Java">
@@ -80,7 +80,7 @@ sudo update-alternatives --install /usr/bin/python python /usr/bin/python3 10
 ### Pulsar Function SDK for Java/Python/Go
 The following example uses Pulsar Functions SDK.
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="lang-choice"
   defaultValue="Java"
   values={[{"label":"Java","value":"Java"},{"label":"Python","value":"Python"},{"label":"Go","value":"Go"}]}>
 <TabItem value="Java">
@@ -166,7 +166,7 @@ Before using it, you need to set up Pulsar Function worker 2.10.0 or later versi
 The following example uses the extended interface of Pulsar Function SDK for Java to initialize RedisClient when the function instance starts and release it when the function instance closes.
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="lang-choice"
   defaultValue="Java"
   values={[{"label":"Java","value":"Java"}]}>
 <TabItem value="Java">
@@ -216,7 +216,7 @@ Pulsar has a built-in schema registry and is bundled with popular schema types, 
 SerDe stands for **Ser**ialization and **De**serialization. Pulsar Functions uses SerDe when publishing data to and consuming data from Pulsar topics. How SerDe works by default depends on the language you use for a particular function.
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="lang-choice"
   defaultValue="Java"
   values={[{"label":"Java","value":"Java"},{"label":"Python","value":"Python"},{"label":"Go","value":"Go"}]}>
 <TabItem value="Java">
@@ -292,7 +292,7 @@ Currently, the feature is not available in Go.
 Imagine that you're writing Pulsar Functions that are processing tweet objects, you can refer to the following example of `Tweet` class.
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="lang-choice"
   defaultValue="Java"
   values={[{"label":"Java","value":"Java"},{"label":"Python","value":"Python"}]}>
 <TabItem value="Java">
@@ -418,7 +418,7 @@ Java, Python and Go SDKs provide access to a **context object** that can be used
 * (Java) get Pulsar admin client.
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="lang-choice"
   defaultValue="Java"
   values={[{"label":"Java","value":"Java"},{"label":"Python","value":"Python"},{"label":"Go","value":"Go"}]}>
 <TabItem value="Java">
@@ -660,7 +660,7 @@ $ bin/pulsar-admin functions create \
 ```
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="lang-choice"
   defaultValue="Java"
   values={[{"label":"Java","value":"Java"},{"label":"Python","value":"Python"},{"label":"Go","value":"Go"}]}>
 <TabItem value="Java"> 
@@ -809,7 +809,7 @@ func contextFunc(ctx context.Context) {
 ### Logger
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="lang-choice"
   defaultValue="Java"
   values={[{"label":"Java","value":"Java"},{"label":"Python","value":"Python"},{"label":"Go","value":"Go"}]}>
 <TabItem value="Java">
@@ -1134,7 +1134,7 @@ Additionally, you can specify the function log level through the broker XML file
 Pulsar Functions using the Java SDK has access to the Pulsar admin client, which allows the Pulsar admin client to manage API calls to current Pulsar clusters or external clusters (if `external-pulsars` is provided).
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="lang-choice"
   defaultValue="Java"
   values={[{"label":"Java","value":"Java"}]}>
 <TabItem value="Java">
@@ -1215,7 +1215,7 @@ You can monitor Pulsar Functions that have been deployed with the following meth
 Here are examples of how to customize metrics for Java and Python functions.
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="lang-choice"
   defaultValue="Java"
   values={[{"label":"Java","value":"Java"},{"label":"Python","value":"Python"},{"label":"Go","value":"Go"}]}>
 <TabItem value="Java">
@@ -1303,7 +1303,7 @@ Pulsar Functions can support the following providers:
 At the same time, Pulsar Functions provides two interfaces, **SecretsProvider** and **SecretsProviderConfigurator**, allowing users to customize secret provider.
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="lang-choice"
   defaultValue="Java"
   values={[{"label":"Java","value":"Java"},{"label":"Python","value":"Python"},{"label":"Go","value":"Go"}]}>
 <TabItem value="Java">
@@ -1383,7 +1383,7 @@ State storage is not available in Go.
 ### API
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="lang-choice"
   defaultValue="Java"
   values={[{"label":"Java","value":"Java"},{"label":"Python","value":"Python"}]}>
 <TabItem value="Java">
@@ -1622,7 +1622,7 @@ If `--watch` is specified, the CLI will watch the value of the provided `state-k
 ### Example
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="lang-choice"
   defaultValue="Java"
   values={[{"label":"Java","value":"Java"},{"label":"Python","value":"Python"}]}>
 <TabItem value="Java">

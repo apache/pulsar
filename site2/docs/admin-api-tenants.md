@@ -32,9 +32,9 @@ Tenants, like namespaces, can be managed using the [admin API](admin-api-overvie
 You can list all of the tenants associated with an [instance](reference-terminology.md#instance).
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
-  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"JAVA","value":"JAVA"}]}>
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
 Use the [`list`](/tools/pulsar-admin/) subcommand.
@@ -53,7 +53,7 @@ my-tenant-2
 {@inject: endpoint|GET|/admin/v2/tenants|operation/getTenants?version=@pulsar:version_number@}
 
 </TabItem>
-<TabItem value="JAVA">
+<TabItem value="Java">
 
 ```java
 
@@ -71,9 +71,9 @@ admin.tenants().getTenants();
 You can create a new tenant.
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
-  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"JAVA","value":"JAVA"}]}>
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
 Use the [`create`](/tools/pulsar-admin/) subcommand:
@@ -106,7 +106,7 @@ $ pulsar-admin tenants create my-tenant \
 {@inject: endpoint|PUT|/admin/v2/tenants/:tenant|operation/createTenant?version=@pulsar:version_number@}
 
 </TabItem>
-<TabItem value="JAVA">
+<TabItem value="Java">
 
 ```java
 
@@ -124,9 +124,9 @@ admin.tenants().createTenant(tenantName, tenantInfo);
 You can fetch the [configuration](reference-configuration) for an existing tenant at any time.
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
-  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"JAVA","value":"JAVA"}]}>
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
 Use the [`get`](/tools/pulsar-admin/) subcommand and specify the name of the tenant. Here's an example:
@@ -153,7 +153,7 @@ $ pulsar-admin tenants get my-tenant
 {@inject: endpoint|GET|/admin/v2/tenants/:tenant|operation/getTenant?version=@pulsar:version_number@}
 
 </TabItem>
-<TabItem value="JAVA">
+<TabItem value="Java">
 
 ```java
 
@@ -171,9 +171,9 @@ admin.tenants().getTenantInfo(tenantName);
 Tenants can be deleted from a Pulsar [instance](reference-terminology.md#instance).
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
-  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"JAVA","value":"JAVA"}]}>
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
 Use the [`delete`](/tools/pulsar-admin/) subcommand and specify the name of the tenant.
@@ -190,7 +190,7 @@ $ pulsar-admin tenants delete my-tenant
 {@inject: endpoint|DELETE|/admin/v2/tenants/:tenant|operation/deleteTenant?version=@pulsar:version_number@}
 
 </TabItem>
-<TabItem value="JAVA">
+<TabItem value="Java">
 
 ```java
 
@@ -208,9 +208,9 @@ admin.Tenants().deleteTenant(tenantName);
 You can update a tenant's configuration.
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
-  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"JAVA","value":"JAVA"}]}>
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
 Use the [`update`](/tools/pulsar-admin/) subcommand.
@@ -227,7 +227,7 @@ $ pulsar-admin tenants update my-tenant
 {@inject: endpoint|POST|/admin/v2/tenants/:tenant|operation/updateTenant?version=@pulsar:version_number@}
 
 </TabItem>
-<TabItem value="JAVA">
+<TabItem value="Java">
 
 ```java
 

@@ -211,7 +211,7 @@ This chapter helps you better understand the concept of cluster-level failover.
 > ##### Concept of cluster-level failover
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="failover-choice"
   defaultValue="Automatic cluster-level failover"
   values={[{"label":"Automatic cluster-level failover","value":"Automatic cluster-level failover"},{"label":"Controlled cluster-level failover","value":"Controlled cluster-level failover"}]}>
 <TabItem value="Automatic cluster-level failover">
@@ -255,7 +255,7 @@ The cluster-level failover protects your environment in a number of ways, includ
 > ##### When cluster-level failover is triggered?
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="failover-choice"
   defaultValue="Automatic cluster-level failover"
   values={[{"label":"Automatic cluster-level failover","value":"Automatic cluster-level failover"},{"label":"Controlled cluster-level failover","value":"Controlled cluster-level failover"}]}>
 <TabItem value="Automatic cluster-level failover">
@@ -333,7 +333,7 @@ This section guides you through every step on how to configure cluster-level fai
 * Set `replicateSubscriptionState` to `true` when creating consumers.
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="failover-choice"
   defaultValue="Automatic cluster-level failover"
   values={[{"label":"Automatic cluster-level failover","value":"Automatic cluster-level failover"},{"label":"Controlled cluster-level failover","value":"Controlled cluster-level failover"}]}>
 <TabItem value="Automatic cluster-level failover">
@@ -456,7 +456,7 @@ Assume that you want to connect Pulsar client 1 to cluster A.
 This chapter explains the working process of cluster-level failover. For more implementation details, see [PIP-121](https://github.com/apache/pulsar/issues/13315).
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="failover-choice"
   defaultValue="Automatic cluster-level failover"
   values={[{"label":"Automatic cluster-level failover","value":"Automatic cluster-level failover"},{"label":"Controlled cluster-level failover","value":"Controlled cluster-level failover"}]}>
 <TabItem value="Automatic cluster-level failover">
