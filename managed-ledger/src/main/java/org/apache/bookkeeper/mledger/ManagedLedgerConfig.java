@@ -82,7 +82,7 @@ public class ManagedLedgerConfig {
     @Setter
     private boolean cacheEvictionByMarkDeletedPosition = false;
     private int archiveDataLimitSize = 500;
-    private boolean managedTrash = false;
+    private boolean supportTwoPhaseDeletion = false;
 
     public boolean isCreateIfMissing() {
         return createIfMissing;
@@ -693,11 +693,11 @@ public class ManagedLedgerConfig {
         this.archiveDataLimitSize = archiveDataLimitSize;
     }
 
-    public boolean isManagedTrash() {
-        return managedTrash;
+    public boolean isSupportTwoPhaseDeletion() {
+        return supportTwoPhaseDeletion;
     }
 
-    public void setManagedTrash(boolean managedTrash) {
-        this.managedTrash = managedTrash;
+    public void setSupportTwoPhaseDeletion(boolean supportTwoPhaseDeletion) {
+        this.supportTwoPhaseDeletion = supportTwoPhaseDeletion;
     }
 }

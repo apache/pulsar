@@ -340,7 +340,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             this.managedLedgerInterceptor = config.getManagedLedgerInterceptor();
         }
         this.inactiveLedgerRollOverTimeMs = config.getInactiveLedgerRollOverTimeMs();
-        this.managedTrash = config.isManagedTrash()
+        this.managedTrash = config.isSupportTwoPhaseDeletion()
                 ? new ManagedTrashImpl(ManagedTrash.MANAGED_LEDGER, name, metadataStore, config, scheduledExecutor,
                         executor, bookKeeper) : new ManagedTrashDisableImpl();
     }

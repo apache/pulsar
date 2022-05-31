@@ -2515,6 +2515,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int managedLedgerInactiveLedgerRolloverTimeSeconds = 0;
 
     @FieldContext(
+            dynamic = true,
+            category = CATEGORY_STORAGE_ML,
+            doc = "Using two phase deletion when delete ledger. (Default value is false)"
+    )
+    private boolean managedLedgerSupportTwoPhaseDeletion;
+
+    @FieldContext(
             category = CATEGORY_STORAGE_ML,
             doc = "Evicting cache data by the slowest markDeletedPosition or readPosition. "
                     + "The default is to evict through readPosition."
