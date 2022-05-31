@@ -43,7 +43,7 @@ public interface ManagedTrash {
 
     CompletableFuture<?> asyncUpdateTrashData();
 
-    void triggerDelete();
+    void triggerDeleteInBackground();
 
     CompletableFuture<List<Long>> getAllArchiveIndex();
 

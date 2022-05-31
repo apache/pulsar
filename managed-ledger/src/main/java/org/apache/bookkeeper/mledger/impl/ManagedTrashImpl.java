@@ -309,12 +309,12 @@ public class ManagedTrashImpl implements ManagedTrash {
         return result;
     }
 
-    private void triggerDeleteInBackground() {
+    @Override
+    public void triggerDeleteInBackground() {
         executor.executeOrdered(name, safeRun(this::triggerDelete));
     }
 
-    @Override
-    public void triggerDelete() {
+    private void triggerDelete() {
         State state = STATE_UPDATER.get(this);
         if (state != State.INITIALIZED) {
             log.warn("[{}] is not initialized, current state: {}", name(), state);

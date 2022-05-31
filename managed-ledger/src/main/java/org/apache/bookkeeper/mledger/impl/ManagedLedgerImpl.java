@@ -2631,7 +2631,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                 asyncDeleteLedgerFromBookKeeper(ls.getLedgerId());
                             }
                         } else {
-                            executor.executeOrdered(name, safeRun(managedTrash::triggerDelete));
+                            managedTrash.triggerDeleteInBackground();
                         }
                         promise.complete(null);
                     }
