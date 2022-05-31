@@ -36,6 +36,7 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -578,11 +579,32 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
 
     @Override
-    protected CompletableFuture<Void> doAcknowledge(List<MessageId> messageIdList,
-                                                    AckType ackType,
-                                                    Map<String, Long> properties,
-                                                    TransactionImpl txn) {
-        return this.acknowledgmentsGroupingTracker.addListAcknowledgment(messageIdList, ackType, properties);
+    protected CompletableFuture<Void> doAcknowledge(List<MessageId> messageIdList, AckType ackType,
+                                                    Map<String, Long> properties, TransactionImpl txn) {
+
+        for (MessageId messageId : messageIdList) {
+            checkArgument(messageId instanceof MessageIdImpl);
+        }
+        if (getState() != State.Ready && getState() != State.Connecting) {
+            stats.incrementNumAcksFailed();
+            PulsarClientException exception = new PulsarClientException("Consumer not ready. State: " + getState());
+            if (AckType.Individual.equals(ackType)) {
+                onAcknowledge(messageIdList, exception);
+            } else if (AckType.Cumulative.equals(ackType)) {
+                onAcknowledgeCumulative(messageIdList, exception);
+            }
+            return FutureUtil.failedFuture(exception);
+        }
+        if (txn != null) {
+            List<CompletableFuture<Void>> completableFutures = new LinkedList<>();
+            for (MessageId messageId : messageIdList) {
+                completableFutures.add(doTransactionAcknowledgeForResponse(messageId, ackType, null,
+                        properties, new TxnID(txn.getTxnIdMostBits(), txn.getTxnIdLeastBits())));
+            }
+            return FutureUtil.waitForAll(completableFutures);
+        } else {
+            return this.acknowledgmentsGroupingTracker.addListAcknowledgment(messageIdList, ackType, properties);
+        }
     }
 
 

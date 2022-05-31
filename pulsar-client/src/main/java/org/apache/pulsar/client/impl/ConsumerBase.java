@@ -801,11 +801,24 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         }
     }
 
+    protected void onAcknowledge(List<MessageId> messageIds, Throwable exception) {
+        if (interceptors != null) {
+            messageIds.forEach(messageId -> interceptors.onAcknowledge(this, messageId, exception));
+        }
+    }
+
     protected void onAcknowledgeCumulative(MessageId messageId, Throwable exception) {
         if (interceptors != null) {
             interceptors.onAcknowledgeCumulative(this, messageId, exception);
         }
     }
+
+    protected void onAcknowledgeCumulative(List<MessageId> messageIds, Throwable exception) {
+        if (interceptors != null) {
+            messageIds.forEach(messageId -> interceptors.onAcknowledgeCumulative(this, messageId, exception));
+        }
+    }
+
 
     protected void onNegativeAcksSend(Set<MessageId> messageIds) {
         if (interceptors != null) {

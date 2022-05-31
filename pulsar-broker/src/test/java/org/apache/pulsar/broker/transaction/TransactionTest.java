@@ -1020,6 +1020,7 @@ public class TransactionTest extends TransactionTestBase {
         for (int i = 0; i < 5; i++) {
             producer.newMessage().send();
         }
+        //verify using aborted transaction to ack message list
         List<MessageId> messages = new ArrayList<>();
         for (int i = 0; i < 4; i++) {
             Message<byte[]> message = consumer.receive();
@@ -1031,6 +1032,24 @@ public class TransactionTest extends TransactionTestBase {
                 .build()
                 .get();
 
+        consumer.acknowledgeAsync(messages, transaction);
+        transaction.abort().get();
+        consumer.close();
+        consumer = pulsarClient.newConsumer()
+                .topic(topic)
+                .subscriptionName(subName)
+                .subscribe();
+        for (int i = 0; i < 4; i++) {
+            Message<byte[]> message = consumer.receive();
+            assertTrue(messages.contains(message.getMessageId()));
+        }
+
+        //verify using committed transaction to ack message list
+        transaction = pulsarClient
+                .newTransaction()
+                .withTransactionTimeout(5, TimeUnit.MINUTES)
+                .build()
+                .get();
         consumer.acknowledgeAsync(messages, transaction);
         transaction.commit().get();
 
