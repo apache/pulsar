@@ -1321,46 +1321,41 @@ public abstract class NamespacesBase extends AdminResource {
         return policies.topicDispatchRate.get(pulsar().getConfiguration().getClusterName());
     }
 
-    protected void internalSetSubscriptionDispatchRate(DispatchRateImpl dispatchRate) {
-        validateSuperUserAccess();
-        log.info("[{}] Set namespace subscription dispatch-rate {}/{}", clientAppId(), namespaceName, dispatchRate);
-
-        try {
-            updatePolicies(namespaceName, (policies) -> {
-                policies.subscriptionDispatchRate.put(pulsar().getConfiguration().getClusterName(), dispatchRate);
-                return policies;
-            });
-            log.info("[{}] Successfully updated the subscriptionDispatchRate for cluster on namespace {}",
-                    clientAppId(), namespaceName);
-        } catch (Exception e) {
-            log.error("[{}] Failed to update the subscriptionDispatchRate for cluster on namespace {}", clientAppId(),
-                    namespaceName, e);
-            throw new RestException(e);
-        }
+    protected CompletableFuture<Void> internalDeleteTopicDispatchRateAsync() {
+        return validateSuperUserAccessAsync()
+                .thenCompose(__ -> updatePoliciesAsync(namespaceName, policies -> {
+                    policies.topicDispatchRate.remove(pulsar().getConfiguration().getClusterName());
+                    policies.clusterDispatchRate.remove(pulsar().getConfiguration().getClusterName());
+                    return policies;
+                }));
     }
 
-    protected void internalDeleteSubscriptionDispatchRate() {
-        validateSuperUserAccess();
-
-        try {
-            updatePolicies(namespaceName, policies -> {
-                policies.subscriptionDispatchRate.remove(pulsar().getConfiguration().getClusterName());
-                return policies;
-            });
-            log.info("[{}] Successfully delete the subscriptionDispatchRate for cluster on namespace {}",
-                    clientAppId(), namespaceName);
-        } catch (Exception e) {
-            log.error("[{}] Failed to delete the subscriptionDispatchRate for cluster on namespace {}", clientAppId(),
-                    namespaceName, e);
-            throw new RestException(e);
-        }
+    protected CompletableFuture<Void> internalSetSubscriptionDispatchRateAsync(DispatchRateImpl dispatchRate) {
+        return validateSuperUserAccessAsync()
+                .thenCompose(__ -> updatePoliciesAsync(namespaceName, policies -> {
+                    policies.subscriptionDispatchRate.put(pulsar().getConfiguration().getClusterName(), dispatchRate);
+                    log.info("[{}] Successfully updated the subscriptionDispatchRate for cluster on namespace {}",
+                            clientAppId(), namespaceName);
+                    return policies;
+                }));
     }
 
-    protected DispatchRate internalGetSubscriptionDispatchRate() {
+    protected CompletableFuture<Void> internalDeleteSubscriptionDispatchRateAsync() {
+        return validateSuperUserAccessAsync()
+                .thenCompose(__ -> updatePoliciesAsync(namespaceName, policies -> {
+                    policies.subscriptionDispatchRate.remove(pulsar().getConfiguration().getClusterName());
+                    log.info("[{}] Successfully delete the subscriptionDispatchRate for cluster on namespace {}",
+                            clientAppId(), namespaceName);
+                    return policies;
+                }));
+    }
+
+    protected CompletableFuture<DispatchRate> internalGetSubscriptionDispatchRateAsync() {
         validateNamespacePolicyOperation(namespaceName, PolicyName.RATE, PolicyOperation.READ);
-
-        Policies policies = getNamespacePolicies(namespaceName);
-        return policies.subscriptionDispatchRate.get(pulsar().getConfiguration().getClusterName());
+        return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.RATE, PolicyOperation.READ)
+                .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
+                .thenApply(policies ->
+                        policies.subscriptionDispatchRate.get(pulsar().getConfiguration().getClusterName()));
     }
 
     protected CompletableFuture<Void> internalSetSubscribeRateAsync(SubscribeRate subscribeRate) {
