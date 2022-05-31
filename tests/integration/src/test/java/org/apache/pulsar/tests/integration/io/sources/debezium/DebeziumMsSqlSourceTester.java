@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.tests.integration.io.sources.debezium;
 
+import java.util.Map;
 import lombok.Getter;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
@@ -29,9 +30,6 @@ import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.testcontainers.shaded.com.google.common.base.Preconditions;
 import org.testng.Assert;
 import org.testng.util.Strings;
-
-import java.io.Closeable;
-import java.util.Map;
 
 /**
  * A tester for testing Debezium Microsoft SQl Server source.
