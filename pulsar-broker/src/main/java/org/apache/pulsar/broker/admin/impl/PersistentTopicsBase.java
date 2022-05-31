@@ -322,23 +322,24 @@ public class PersistentTopicsBase extends AdminResource {
                 });
     }
 
-    protected void internalDeleteTopicForcefully(AsyncResponse asyncResponse, boolean authoritative) {
-        validateTopicOwnershipAsync(topicName, authoritative).thenCompose(
+    protected CompletableFuture<Void> internalDeleteTopicForcefully(boolean authoritative) {
+        CompletableFuture<Void> ret;
+        ret = validateTopicOwnershipAsync(topicName, authoritative).thenCompose(
                         __ -> validateNamespaceOperationAsync(topicName.getNamespaceObject(),
                                 NamespaceOperation.DELETE_TOPIC))
                 .thenCompose(__ -> pulsar().getBrokerService().deleteTopic(topicName.toString(), true))
-                .thenApply(__ -> asyncResponse.resume(Response.noContent().build()))
                 .exceptionally(ex -> {
                     Throwable realCause = FutureUtil.unwrapCompletionException(ex);
                     if (isManagedLedgerNotFoundException(realCause)) {
                         log.info("[{}] Topic was already not existing {}", clientAppId(), topicName, ex);
                     } else {
                         log.error("[{}] Failed to delete topic forcefully {}", clientAppId(), topicName, ex);
-                        resumeAsyncResponseExceptionally(asyncResponse, realCause);
+                        throw new RestException(Status.INTERNAL_SERVER_ERROR, ex);
                     }
                     return null;
                 });
 
+        return ret;
     }
 
     private CompletableFuture<Void> revokePermissionsAsync(String topicUri, String role) {
@@ -1006,36 +1007,37 @@ public class PersistentTopicsBase extends AdminResource {
                 });
     }
 
-    protected void internalDeleteTopic(AsyncResponse asyncResponse, boolean authoritative, boolean force) {
+    protected CompletableFuture<Void> internalDeleteTopic(boolean authoritative,
+                                                          boolean force) {
         if (force) {
-            internalDeleteTopicForcefully(asyncResponse, authoritative);
+            return internalDeleteTopicForcefully(authoritative);
         } else {
-            internalDeleteTopic(asyncResponse, authoritative);
+            return internalDeleteTopic(authoritative);
         }
     }
 
-    protected void internalDeleteTopic(AsyncResponse asyncResponse, boolean authoritative) {
-
-        validateTopicOwnershipAsync(topicName, authoritative).thenCompose(
+    protected CompletableFuture<Void> internalDeleteTopic(boolean authoritative) {
+        CompletableFuture<Void> ret;
+        ret = validateTopicOwnershipAsync(topicName, authoritative).thenCompose(
                         __ -> validateNamespaceOperationAsync(topicName.getNamespaceObject(),
                                 NamespaceOperation.DELETE_TOPIC))
                 .thenCompose(__ -> pulsar().getBrokerService().deleteTopic(topicName.toString(), false))
-                .thenApply(__ -> asyncResponse.resume(Response.noContent().build()))
                 .exceptionally(ex -> {
                     Throwable realCause = FutureUtil.unwrapCompletionException(ex);
                     if (realCause instanceof TopicBusyException) {
-                        asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED,
-                                "Topic has active producers/subscriptions"));
+                        throw new RestException(Status.PRECONDITION_FAILED,
+                                "Topic has active producers/subscriptions");
                     } else if (isManagedLedgerNotFoundException(realCause)) {
                         log.info("[{}] Topic was already not existing {}", clientAppId(), topicName, realCause);
-                        asyncResponse.resume(new RestException(Status.NOT_FOUND,
-                                getTopicNotFoundErrorMessage(topicName.toString())));
+                        throw new RestException(Status.NOT_FOUND,
+                                getTopicNotFoundErrorMessage(topicName.toString()));
                     } else {
                         log.error("[{}] Failed to delete topic {}", clientAppId(), topicName, realCause);
-                        resumeAsyncResponseExceptionally(asyncResponse, realCause);
+                        throw new RestException(Status.INTERNAL_SERVER_ERROR, realCause);
                     }
-                    return null;
                 });
+
+        return ret;
     }
 
     protected void internalGetSubscriptions(AsyncResponse asyncResponse, boolean authoritative) {

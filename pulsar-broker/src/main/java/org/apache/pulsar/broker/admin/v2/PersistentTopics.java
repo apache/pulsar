@@ -1011,14 +1011,13 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("force") @DefaultValue("false") boolean force,
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
-        try {
-            validateTopicName(tenant, namespace, encodedTopic);
-            internalDeleteTopic(asyncResponse, authoritative, force);
-        } catch (WebApplicationException wae) {
-            asyncResponse.resume(wae);
-        } catch (Exception e) {
-            asyncResponse.resume(new RestException(e));
-        }
+        validateTopicName(tenant, namespace, encodedTopic);
+        internalDeleteTopic(authoritative, force).thenAccept(
+                        __ -> asyncResponse.resume(Response.noContent().build()))
+                .exceptionally(ex -> {
+                    resumeAsyncResponseExceptionally(asyncResponse, ex.getCause());
+                    return null;
+                });
     }
 
     @GET

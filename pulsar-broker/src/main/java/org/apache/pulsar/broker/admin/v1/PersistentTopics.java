@@ -364,7 +364,12 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("force") @DefaultValue("false") boolean force,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(property, cluster, namespace, encodedTopic);
-        internalDeleteTopic(asyncResponse, authoritative, force);
+        internalDeleteTopic(authoritative, force).thenAccept(
+                        __ -> asyncResponse.resume(Response.noContent().build()))
+                .exceptionally(ex -> {
+                    resumeAsyncResponseExceptionally(asyncResponse, ex.getCause());
+                    return null;
+                });
     }
 
     @GET
