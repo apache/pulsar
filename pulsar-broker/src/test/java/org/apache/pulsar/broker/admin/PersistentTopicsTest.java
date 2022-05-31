@@ -1359,13 +1359,13 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         CompletableFuture<Void> deleteTopicFuture = new CompletableFuture<>();
         deleteTopicFuture.completeExceptionally(new MetadataStoreException.NotFoundException());
         doReturn(deleteTopicFuture).when(brokerService).deleteTopic(anyString(), anyBoolean());
-        persistentTopics.deleteTopic(testTenant, testNamespace, topicName, true, true);
+        persistentTopics.deleteTopic(response, testTenant, testNamespace, topicName, true, true);
         //
         CompletableFuture<Void> deleteTopicFuture2 = new CompletableFuture<>();
         deleteTopicFuture2.completeExceptionally(new MetadataStoreException("test exception"));
         doReturn(deleteTopicFuture2).when(brokerService).deleteTopic(anyString(), anyBoolean());
         try {
-            persistentTopics.deleteTopic(testTenant, testNamespace, topicName, true, true);
+            persistentTopics.deleteTopic(response, testTenant, testNamespace, topicName, true, true);
         } catch (Exception e) {
             Assert.assertTrue(e instanceof RestException);
         }
@@ -1374,7 +1374,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         deleteTopicFuture3.completeExceptionally(new MetadataStoreException.NotFoundException());
         doReturn(deleteTopicFuture3).when(brokerService).deleteTopic(anyString(), anyBoolean());
         try {
-            persistentTopics.deleteTopic(testTenant, testNamespace, topicName, false, true);
+            persistentTopics.deleteTopic(response, testTenant, testNamespace, topicName, false, true);
         } catch (RestException e) {
             Assert.assertEquals(e.getResponse().getStatus(), 404);
         }
