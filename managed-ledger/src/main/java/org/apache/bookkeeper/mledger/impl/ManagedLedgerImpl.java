@@ -2500,10 +2500,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     }
                     break;
                 }
-                //The offload process not completed, shouldn't delete it.
-                if (ls.hasOffloadContext() && !ls.getOffloadContext().getComplete()) {
-                    continue;
-                }
                 // if truncate, all ledgers besides currentLedger are going to be deleted
                 if (isTruncate) {
                     if (log.isDebugEnabled()) {
@@ -2575,7 +2571,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
             // Mark deletable offloaded ledgers
             Set<Long> deletableOffloadedLedgers = ledgersToDelete.stream()
-                    .filter(ls -> ls.getOffloadContext().hasUidMsb() && ls.getOffloadContext().getComplete())
+                    .filter(ls -> ls.getOffloadContext().hasUidMsb())
                     .map(LedgerInfo::getLedgerId).collect(Collectors.toSet());
 
             CompletableFuture<?> updateTrashFuture =
@@ -3036,23 +3032,31 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             Map<String, String> driverMetadata = config.getLedgerOffloader().getOffloadDriverMetadata();
 
             prepareLedgerInfoForOffloaded(ledgerId, uuid, driverName, driverMetadata)
-                .thenCompose((ignore) -> getLedgerHandle(ledgerId))
-                .thenCompose(readHandle -> config.getLedgerOffloader().offload(readHandle, uuid, extraMetadata))
-                .thenCompose((ignore) -> {
+                    .thenCompose((ignore) -> getLedgerHandle(ledgerId))
+                    .thenCompose(readHandle -> config.getLedgerOffloader().offload(readHandle, uuid, extraMetadata))
+                    .thenCompose((ignore) -> {
                         return Retries.run(Backoff.exponentialJittered(TimeUnit.SECONDS.toMillis(1),
-                                                                       TimeUnit.SECONDS.toHours(1)).limit(10),
-                                           FAIL_ON_CONFLICT,
-                                           () -> completeLedgerInfoForOffloaded(ledgerId, uuid),
-                                           scheduledExecutor, name)
-                            .whenComplete((ignore2, exception) -> {
+                                                TimeUnit.SECONDS.toHours(1)).limit(10),
+                                        FAIL_ON_CONFLICT,
+                                        () -> completeLedgerInfoForOffloaded(ledgerId, uuid),
+                                        scheduledExecutor, name)
+                                .whenComplete((ignore2, exception) -> {
                                     if (exception != null) {
                                         log.error("[{}] Failed to offload data for the ledgerId {}",
                                                 name, ledgerId, exception);
                                         //not delete offload ledger, it will delete at next offload.
+                                        if (managedTrash instanceof ManagedTrashDisableImpl) {
+                                            cleanupOffloaded(ledgerId, uuid, driverName, driverMetadata,
+                                                    "Metastore failure");
+                                        } else {
+                                            managedTrash.appendLedgerTrashData(ledgerId, ledgers.get(ledgerId),
+                                                            ManagedTrash.DELETABLE_OFFLOADED_LEDGER)
+                                                    .thenAccept(ignore3 -> managedTrash.asyncUpdateTrashData());
+                                        }
                                     }
                                 });
                     })
-                .whenComplete((ignore, exception) -> {
+                    .whenComplete((ignore, exception) -> {
                         if (exception != null) {
                             lastOffloadFailureTimestamp = System.currentTimeMillis();
                             log.warn("[{}] Exception occurred for ledgerId {} timestamp {} during offload", name,
@@ -3070,8 +3074,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                             }
 
                             offloadLoop(promise, ledgersToOffload,
-                                        newFirstUnoffloaded,
-                                        errorToReport);
+                                    newFirstUnoffloaded,
+                                    errorToReport);
                         } else {
                             lastOffloadSuccessTimestamp = System.currentTimeMillis();
                             log.info("[{}] offload for ledgerId {} timestamp {} succeed", name, ledgerId,
