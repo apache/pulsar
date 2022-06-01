@@ -22,9 +22,10 @@ import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.Counter;
 import io.prometheus.client.Summary;
 import java.util.concurrent.atomic.AtomicBoolean;
+import org.apache.pulsar.common.naming.TopicName;
 
 class SchemaRegistryStats implements AutoCloseable {
-    private static final String SCHEMA_ID = "schema";
+    private static final String NAMESPACE = "namespace";
     private static final double[] QUANTILES = {0.50, 0.75, 0.95, 0.99, 0.999, 0.9999, 1};
     private static final AtomicBoolean CLOSED = new AtomicBoolean(false);
 
@@ -51,16 +52,16 @@ class SchemaRegistryStats implements AutoCloseable {
 
     private SchemaRegistryStats() {
         this.deleteOpsFailedCounter = Counter.build("pulsar_schema_del_ops_failed_count", "-")
-                .labelNames(SCHEMA_ID).create().register();
+                .labelNames(NAMESPACE).create().register();
         this.getOpsFailedCounter = Counter.build("pulsar_schema_get_ops_failed_count", "-")
-                .labelNames(SCHEMA_ID).create().register();
+                .labelNames(NAMESPACE).create().register();
         this.putOpsFailedCounter = Counter.build("pulsar_schema_put_ops_failed_count", "-")
-                .labelNames(SCHEMA_ID).create().register();
+                .labelNames(NAMESPACE).create().register();
 
         this.compatibleCounter = Counter.build("pulsar_schema_compatible_count", "-")
-                .labelNames(SCHEMA_ID).create().register();
+                .labelNames(NAMESPACE).create().register();
         this.incompatibleCounter = Counter.build("pulsar_schema_incompatible_count", "-")
-                .labelNames(SCHEMA_ID).create().register();
+                .labelNames(NAMESPACE).create().register();
 
         this.deleteOpsLatency = this.buildSummary("pulsar_schema_del_ops_latency", "-");
         this.getOpsLatency = this.buildSummary("pulsar_schema_get_ops_latency", "-");
@@ -68,7 +69,7 @@ class SchemaRegistryStats implements AutoCloseable {
     }
 
     private Summary buildSummary(String name, String help) {
-        Summary.Builder builder = Summary.build(name, help).labelNames(SCHEMA_ID);
+        Summary.Builder builder = Summary.build(name, help).labelNames(NAMESPACE);
 
         for (double quantile : QUANTILES) {
             builder.quantile(quantile, 0.01D);
@@ -78,35 +79,44 @@ class SchemaRegistryStats implements AutoCloseable {
     }
 
     void recordDelFailed(String schemaId) {
-        this.deleteOpsFailedCounter.labels(schemaId).inc();
+        this.deleteOpsFailedCounter.labels(getNamespace(schemaId)).inc();
     }
 
     void recordGetFailed(String schemaId) {
-        this.getOpsFailedCounter.labels(schemaId).inc();
+        this.getOpsFailedCounter.labels(getNamespace(schemaId)).inc();
     }
 
     void recordPutFailed(String schemaId) {
-        this.putOpsFailedCounter.labels(schemaId).inc();
+        this.putOpsFailedCounter.labels(getNamespace(schemaId)).inc();
     }
 
     void recordDelLatency(String schemaId, long millis) {
-        this.deleteOpsLatency.labels(schemaId).observe(millis);
+        this.deleteOpsLatency.labels(getNamespace(schemaId)).observe(millis);
     }
 
     void recordGetLatency(String schemaId, long millis) {
-        this.getOpsLatency.labels(schemaId).observe(millis);
+        this.getOpsLatency.labels(getNamespace(schemaId)).observe(millis);
     }
 
     void recordPutLatency(String schemaId, long millis) {
-        this.putOpsLatency.labels(schemaId).observe(millis);
+        this.putOpsLatency.labels(getNamespace(schemaId)).observe(millis);
     }
 
     void recordSchemaIncompatible(String schemaId) {
-        this.incompatibleCounter.labels(schemaId).inc();
+        this.incompatibleCounter.labels(getNamespace(schemaId)).inc();
     }
 
     void recordSchemaCompatible(String schemaId) {
-        this.compatibleCounter.labels(schemaId).inc();
+        this.compatibleCounter.labels(getNamespace(schemaId)).inc();
+    }
+
+
+    private String getNamespace(String schemaId) {
+        try {
+            return TopicName.get(schemaId).getNamespace();
+        } catch (Exception t) {
+            return "unknown";
+        }
     }
 
     @Override
