@@ -6,6 +6,7 @@ cd .preview
 
 if [ -d "$ROOT_DIR/site2/.preview/pulsar-site" ]; then
     cd pulsar-site
+    git clean -f
     git checkout .
     git pull origin main
 else
