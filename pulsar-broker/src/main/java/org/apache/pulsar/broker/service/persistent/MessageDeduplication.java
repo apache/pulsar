@@ -490,7 +490,7 @@ public class MessageDeduplication {
                 hasInactive = true;
             }
         }
-        if (hasInactive) {
+        if (hasInactive && isEnabled()) {
             takeSnapshot(getManagedCursor().getMarkDeletedPosition());
         }
     }
