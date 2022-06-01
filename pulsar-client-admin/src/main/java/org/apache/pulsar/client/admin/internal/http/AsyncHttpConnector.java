@@ -128,7 +128,7 @@ public class AsyncHttpConnector implements Connector {
                             params != null ? params.getKeyStoreType() : null,
                             params != null ? params.getKeyStorePath() : null,
                             params != null ? params.getKeyStorePassword() : null,
-                            conf.isTlsAllowInsecureConnection() || !conf.isTlsHostnameVerificationEnable(),
+                            conf.isTlsAllowInsecureConnection(),
                             conf.getTlsTrustStoreType(),
                             conf.getTlsTrustStorePath(),
                             conf.getTlsTrustStorePassword(),
@@ -147,12 +147,12 @@ public class AsyncHttpConnector implements Connector {
                         sslCtx = authData.getTlsTrustStoreStream() == null
                                 ? SecurityUtility.createAutoRefreshSslContextForClient(
                                 sslProvider,
-                                conf.isTlsAllowInsecureConnection() || !conf.isTlsHostnameVerificationEnable(),
+                                conf.isTlsAllowInsecureConnection(),
                                 conf.getTlsTrustCertsFilePath(), authData.getTlsCerificateFilePath(),
                                 authData.getTlsPrivateKeyFilePath(), null, autoCertRefreshTimeSeconds, delayer)
                                 : SecurityUtility.createNettySslContextForClient(
                                 sslProvider,
-                                conf.isTlsAllowInsecureConnection() || !conf.isTlsHostnameVerificationEnable(),
+                                conf.isTlsAllowInsecureConnection(),
                                 authData.getTlsTrustStoreStream(), authData.getTlsCertificates(),
                                 authData.getTlsPrivateKey(),
                                 conf.getTlsCiphers(),
@@ -160,7 +160,7 @@ public class AsyncHttpConnector implements Connector {
                     } else {
                         sslCtx = SecurityUtility.createNettySslContextForClient(
                                 sslProvider,
-                                conf.isTlsAllowInsecureConnection() || !conf.isTlsHostnameVerificationEnable(),
+                                conf.isTlsAllowInsecureConnection(),
                                 conf.getTlsTrustCertsFilePath(),
                                 conf.getTlsCiphers(),
                                 conf.getTlsProtocols());
@@ -168,6 +168,7 @@ public class AsyncHttpConnector implements Connector {
                     confBuilder.setSslContext(sslCtx);
                 }
             }
+            confBuilder.setDisableHttpsEndpointIdentificationAlgorithm(!conf.isTlsHostnameVerificationEnable());
         }
         httpClient = new DefaultAsyncHttpClient(confBuilder.build());
         this.readTimeout = Duration.ofMillis(readTimeoutMs);

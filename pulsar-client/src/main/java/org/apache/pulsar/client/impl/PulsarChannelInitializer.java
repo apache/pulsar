@@ -51,6 +51,7 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
     private final Supplier<ClientCnx> clientCnxSupplier;
     @Getter
     private final boolean tlsEnabled;
+    private final boolean tlsHostnameVerificationEnabled;
     private final boolean tlsEnabledWithKeyStore;
 
     private final Supplier<SslContext> sslContextSupplier;
@@ -63,6 +64,7 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
         super();
         this.clientCnxSupplier = clientCnxSupplier;
         this.tlsEnabled = conf.isUseTls();
+        this.tlsHostnameVerificationEnabled = conf.isTlsHostnameVerificationEnable();
         this.tlsEnabledWithKeyStore = conf.isUseKeyStoreTls();
 
         if (tlsEnabled) {
@@ -160,6 +162,11 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
                         ? new SslHandler(nettySSLContextAutoRefreshBuilder.get()
                                 .createSSLEngine(sniHost.getHostString(), sniHost.getPort()))
                         : sslContextSupplier.get().newHandler(ch.alloc(), sniHost.getHostString(), sniHost.getPort());
+
+                if (tlsHostnameVerificationEnabled) {
+                    SecurityUtility.configureSSLHandler(handler);
+                }
+
                 ch.pipeline().addFirst(TLS_HANDLER, handler);
                 initTlsFuture.complete(ch);
             } catch (Throwable t) {
