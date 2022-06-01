@@ -243,7 +243,7 @@ brokerServiceCompactionThresholdInBytes|If the estimated backlog size is greater
 |maxUnackedMessagesPerConsumer| Max number of unacknowledged messages allowed to receive messages by a consumer on a shared subscription. Broker will stop sending messages to consumer once, this limit reaches until consumer starts acknowledging messages back. Using a value of 0, is disabling unackeMessage limit check and consumer can receive messages without any restriction  |50000|
 |maxUnackedMessagesPerSubscription| Max number of unacknowledged messages allowed per shared subscription. Broker will stop dispatching messages to all consumers of the subscription once this limit reaches until consumer starts acknowledging messages back and unack count reaches to limit/2. Using a value of 0, is disabling unackedMessage-limit check and dispatcher can dispatch messages without any restriction  |200000|
 |subscriptionRedeliveryTrackerEnabled| Enable subscription message redelivery tracker |true|
-|subscriptionExpirationTimeMinutes | How long to delete inactive subscriptions from last consuming. <br /><br />Setting this configuration to a value **greater than 0** deletes inactive subscriptions automatically.<br />Setting this configuration to **0** does not delete inactive subscriptions automatically. <br /><br /> Since this configuration takes effect on all topics, if there is even one topic whose subscriptions should not be deleted automatically, you need to set it to 0. <br />Instead, you can set a subscription expiration time for each **namespace** using the [`pulsar-admin namespaces set-subscription-expiration-time options` command](https://pulsar.apache.org/tools/pulsar-admin/2.6.0-SNAPSHOT/#-em-set-subscription-expiration-time-em-). | 0 |
+|subscriptionExpirationTimeMinutes | How long to delete inactive subscriptions from last consuming. <br /><br />Setting this configuration to a value **greater than 0** deletes inactive subscriptions automatically.<br />Setting this configuration to **0** does not delete inactive subscriptions automatically. <br /><br /> Since this configuration takes effect on all topics, if there is even one topic whose subscriptions should not be deleted automatically, you need to set it to 0. <br />Instead, you can set a subscription expiration time for each **namespace** using the [`pulsar-admin namespaces set-subscription-expiration-time options` command](/tools/pulsar-admin/2.6.0-SNAPSHOT/#-em-set-subscription-expiration-time-em-). | 0 |
 |maxConcurrentLookupRequest|  Max number of concurrent lookup request broker allows to throttle heavy incoming lookup traffic |50000|
 |maxConcurrentTopicLoadRequest| Max number of concurrent topic loading request broker allows to control number of zk-operations |5000|
 |authenticationEnabled| Enable authentication |false|
@@ -333,7 +333,11 @@ brokerServiceCompactionThresholdInBytes|If the estimated backlog size is greater
 |replicatorPrefix|  Replicator prefix used for replicator producer name and cursor name pulsar.repl||
 |transactionBufferClientOperationTimeoutInMills|The transaction buffer client's operation timeout in milliseconds.|3000|
 |transactionCoordinatorEnabled|Whether to enable transaction coordinator in broker.|true|
-|transactionMetadataStoreProviderClassName| |org.apache.pulsar.transaction.coordinator.impl.InMemTransactionMetadataStoreProvider|
+|transactionMetadataStoreProviderClassName|The class name of transactionMetadataStoreProvider.|org.apache.pulsar.transaction.coordinator.impl.MLTransactionMetadataStoreProvider|
+|transactionBufferSnapshotMaxTransactionCount|Transaction buffer takes a snapshot after the number of transaction operations reaches this value.|1000|
+|transactionBufferSnapshotMinTimeInMillis| The interval between two snapshots that the transaction buffer takes (in milliseconds).|5000|
+|transactionPendingAckLogIndexMinLag| The minimum lag between transaction pendingAck log indexes (keys). It can be used to determine the cleanup frequency of transaction pendingAck logs. Setting a larger lag leads to more consumption of hard disk resources; setting a smaller lag leads to more memory consumption. |500|
+|transactionBufferClientMaxConcurrentRequests|The max concurrent requests for transaction buffer client.|1000|
 |defaultRetentionTimeInMinutes| Default message retention time  |0|
 |defaultRetentionSizeInMB|  Default retention size  |0|
 |keepAliveIntervalSeconds|  How often to check whether the connections are still alive  |30|
@@ -703,7 +707,11 @@ You can set the log level and configuration in the  [log4j2.yaml](https://github
 |replicationConnectionsPerBroker|   |16|
 |replicationProducerQueueSize|    |1000|
 | replicationPolicyCheckDurationSeconds | Duration to check replication policy to avoid replicator inconsistency due to missing ZooKeeper watch. When the value is set to 0, disable checking replication policy. | 600 |
-|transactionBufferClientOperationTimeoutInMills|The transaction buffer client's operation timeout in milliseconds.|3000|
+|transactionCoordinatorEnabled| Whether to enable transaction coordinator in broker.|false|                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            
+|transactionMetadataStoreProviderClassName| The class name of transactionMetadataStoreProvider.|org.apache.pulsar.transaction.coordinator.impl.MLTransactionMetadataStoreProvider|
+|transactionBufferClientOperationTimeoutInMills| The transaction buffer client's operation timeout in milliseconds.|3000|
+|transactionBufferSnapshotMaxTransactionCount| Transaction buffer takes a snapshot after the number of transaction operations reaches this value.|1000|
+|transactionBufferSnapshotMinTimeInMillis| The interval between two snapshots that the transaction buffer takes (in milliseconds).|5000|
 |defaultRetentionTimeInMinutes|   |0|
 |defaultRetentionSizeInMB|    |0|
 |keepAliveIntervalSeconds|    |30|

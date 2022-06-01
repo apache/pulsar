@@ -35,7 +35,15 @@ PyObject* createExceptionClass(const char* name, PyObject* baseTypeObj = PyExc_E
     return typeObj;
 }
 
-PyObject* get_exception_class(Result result) { return exceptions[result]; }
+PyObject* get_exception_class(Result result) {
+    auto it = exceptions.find(result);
+    if (it != exceptions.end()) {
+        return it->second;
+    } else {
+        std::cerr << "Error result exception not found: " << result << std::endl;
+        abort();
+    }
+}
 
 void export_exceptions() {
     using namespace boost::python;
@@ -100,4 +108,5 @@ void export_exceptions() {
     exceptions[ResultTransactionNotFound] = createExceptionClass("TransactionNotFound", basePulsarException);
     exceptions[ResultProducerFenced] = createExceptionClass("ProducerFenced", basePulsarException);
     exceptions[ResultMemoryBufferIsFull] = createExceptionClass("MemoryBufferIsFull", basePulsarException);
+    exceptions[ResultInterrupted] = createExceptionClass("Interrupted", basePulsarException);
 }

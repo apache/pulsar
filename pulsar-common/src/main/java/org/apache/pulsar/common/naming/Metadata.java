@@ -25,11 +25,10 @@ import java.util.Map;
  */
 public class Metadata {
 
-    private static final int MAX_METADATA_SIZE = 1024; // 1 Kb
-
     private Metadata() {}
 
-    public static void validateMetadata(Map<String, String> metadata) throws IllegalArgumentException {
+    public static void validateMetadata(Map<String, String> metadata,
+                                        int maxConsumerMetadataSize) throws IllegalArgumentException {
         if (metadata == null) {
             return;
         }
@@ -37,13 +36,13 @@ public class Metadata {
         int size = 0;
         for (Map.Entry<String, String> e : metadata.entrySet()) {
             size += (e.getKey().length() + e.getValue().length());
-            if (size > MAX_METADATA_SIZE) {
-                throw new IllegalArgumentException(getErrorMessage());
+            if (size > maxConsumerMetadataSize) {
+                throw new IllegalArgumentException(getErrorMessage(maxConsumerMetadataSize));
             }
         }
     }
 
-    private static String getErrorMessage() {
-        return "metadata has a max size of 1 Kb";
+    private static String getErrorMessage(int maxConsumerMetadataSize) {
+        return "metadata has a max size of " + maxConsumerMetadataSize + " bytes";
     }
 }

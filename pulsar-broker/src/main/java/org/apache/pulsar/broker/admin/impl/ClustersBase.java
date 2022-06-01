@@ -18,8 +18,7 @@
  */
 package org.apache.pulsar.broker.admin.impl;
 
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
+import static javax.ws.rs.core.Response.Status.PRECONDITION_FAILED;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
 import io.swagger.annotations.ApiResponse;
@@ -31,26 +30,30 @@ import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
+import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
+import org.apache.bookkeeper.common.util.JsonUtil;
 import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.admin.AdminResource;
-import org.apache.pulsar.broker.resources.ClusterResources.FailureDomainResources;
 import org.apache.pulsar.broker.web.RestException;
-import org.apache.pulsar.client.admin.Namespaces;
+import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.naming.Constants;
 import org.apache.pulsar.common.naming.NamedEntity;
 import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationData;
@@ -58,12 +61,10 @@ import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationDataImpl;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.FailureDomainImpl;
-import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationDataImpl;
 import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicies;
 import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicyImpl;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
 import org.slf4j.Logger;
@@ -170,7 +171,7 @@ public class ClustersBase extends AdminResource {
                     log.error("[{}] Failed to create cluster {}", clientAppId(), cluster, ex);
                     Throwable realCause = FutureUtil.unwrapCompletionException(ex);
                     if (realCause instanceof IllegalArgumentException) {
-                        asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED,
+                        asyncResponse.resume(new RestException(PRECONDITION_FAILED,
                                 "Cluster name is not valid"));
                         return null;
                     }
@@ -278,13 +279,13 @@ public class ClustersBase extends AdminResource {
         if (CollectionUtils.isNotEmpty(peerClusterNames)) {
             future = FutureUtil.waitForAll(peerClusterNames.stream().map(peerCluster -> {
                 if (cluster.equalsIgnoreCase(peerCluster)) {
-                    return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED,
+                    return FutureUtil.failedFuture(new RestException(PRECONDITION_FAILED,
                             cluster + " itself can't be part of peer-list"));
                 }
                 return clusterResources().getClusterAsync(peerCluster)
                         .thenAccept(peerClusterOpt -> {
                             if (!peerClusterOpt.isPresent()) {
-                                throw new RestException(Status.PRECONDITION_FAILED,
+                                throw new RestException(PRECONDITION_FAILED,
                                         "Peer cluster " + peerCluster + " does not exist");
                             }
                         });
@@ -365,14 +366,14 @@ public class ClustersBase extends AdminResource {
         return pulsar().getPulsarResources().getClusterResources().isClusterUsedAsync(cluster)
                 .thenCompose(isClusterUsed -> {
                     if (isClusterUsed) {
-                        throw new RestException(Status.PRECONDITION_FAILED, "Cluster not empty");
+                        throw new RestException(PRECONDITION_FAILED, "Cluster not empty");
                     }
                     // check the namespaceIsolationPolicies associated with the cluster
                     return namespaceIsolationPolicies().getIsolationDataPoliciesAsync(cluster);
                 }).thenCompose(nsIsolationPoliciesOpt -> {
                     if (nsIsolationPoliciesOpt.isPresent()) {
                         if (!nsIsolationPoliciesOpt.get().getPolicies().isEmpty()) {
-                            throw new RestException(Status.PRECONDITION_FAILED, "Cluster not empty");
+                            throw new RestException(PRECONDITION_FAILED, "Cluster not empty");
                         }
                         // Need to delete the isolation policies if present
                         return namespaceIsolationPolicies().deleteIsolationDataAsync(cluster);
@@ -509,9 +510,10 @@ public class ClustersBase extends AdminResource {
                 });
     }
 
+
     private BrokerNamespaceIsolationData internalGetBrokerNsIsolationData(
-                                                                    String broker,
-                                                                    Map<String, NamespaceIsolationDataImpl> policies) {
+            String broker,
+            Map<String, NamespaceIsolationDataImpl> policies) {
         BrokerNamespaceIsolationData.Builder brokerIsolationData =
                 BrokerNamespaceIsolationData.builder().brokerName(broker);
         if (policies == null) {
@@ -543,49 +545,23 @@ public class ClustersBase extends AdminResource {
         @ApiResponse(code = 412, message = "Cluster doesn't exist."),
         @ApiResponse(code = 500, message = "Internal server error.")
     })
-    public BrokerNamespaceIsolationData getBrokerWithNamespaceIsolationPolicy(
-        @ApiParam(
-            value = "The cluster name",
-            required = true
-        )
+    public void getBrokerWithNamespaceIsolationPolicy(
+        @Suspended AsyncResponse asyncResponse,
+        @ApiParam(value = "The cluster name", required = true)
         @PathParam("cluster") String cluster,
-        @ApiParam(
-            value = "The broker name (<broker-hostname>:<web-service-port>)",
-            required = true,
-            example = "broker1:8080"
-        )
+        @ApiParam(value = "The broker name (<broker-hostname>:<web-service-port>)", required = true,
+            example = "broker1:8080")
         @PathParam("broker") String broker) {
-        validateSuperUserAccess();
-        validateClusterExists(cluster);
-
-        Map<String, ? extends NamespaceIsolationData> nsPolicies;
-        try {
-            Optional<NamespaceIsolationPolicies> nsPoliciesResult = namespaceIsolationPolicies()
-                    .getIsolationDataPolicies(cluster);
-            if (!nsPoliciesResult.isPresent()) {
-                throw new RestException(Status.NOT_FOUND, "namespace-isolation policies not found for " + cluster);
-            }
-            nsPolicies = nsPoliciesResult.get().getPolicies();
-        } catch (Exception e) {
-            log.error("[{}] Failed to get namespace isolation-policies {}", clientAppId(), cluster, e);
-            throw new RestException(e);
-        }
-        BrokerNamespaceIsolationData.Builder brokerIsolationData = BrokerNamespaceIsolationData.builder()
-                .brokerName(broker);
-        if (nsPolicies != null) {
-            List<String> namespaceRegexes = new ArrayList<>();
-            nsPolicies.forEach((name, policyData) -> {
-                NamespaceIsolationPolicyImpl nsPolicyImpl = new NamespaceIsolationPolicyImpl(policyData);
-                boolean isPrimary = nsPolicyImpl.isPrimaryBroker(broker);
-                if (isPrimary || nsPolicyImpl.isSecondaryBroker(broker)) {
-                    namespaceRegexes.addAll(policyData.getNamespaces());
-                    brokerIsolationData.primary(isPrimary);
-                    brokerIsolationData.policyName(name);
-                }
-            });
-            brokerIsolationData.namespaceRegex(namespaceRegexes);
-        }
-        return brokerIsolationData.build();
+        validateSuperUserAccessAsync()
+                .thenCompose(__ -> validateClusterExistAsync(cluster, PRECONDITION_FAILED))
+                .thenCompose(__ -> internalGetNamespaceIsolationPolicies(cluster))
+                .thenApply(policies -> internalGetBrokerNsIsolationData(broker, policies))
+                .thenAccept(asyncResponse::resume)
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to get namespace isolation-policies {}", clientAppId(), cluster, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @POST
@@ -603,150 +579,99 @@ public class ClustersBase extends AdminResource {
     })
     public void setNamespaceIsolationPolicy(
         @Suspended final AsyncResponse asyncResponse,
-        @ApiParam(
-            value = "The cluster name",
-            required = true
-        )
+        @ApiParam(value = "The cluster name", required = true)
         @PathParam("cluster") String cluster,
-        @ApiParam(
-            value = "The namespace isolation policy name",
-            required = true
-        )
+        @ApiParam(value = "The namespace isolation policy name", required = true)
         @PathParam("policyName") String policyName,
-        @ApiParam(
-            value = "The namespace isolation policy data",
-            required = true
-        )
-                NamespaceIsolationDataImpl policyData
+        @ApiParam(value = "The namespace isolation policy data", required = true)
+        NamespaceIsolationDataImpl policyData
     ) {
-        validateSuperUserAccess();
-        validateClusterExists(cluster);
-        validatePoliciesReadOnlyAccess();
-
-        String jsonInput = null;
-        try {
-            // validate the policy data before creating the node
-            policyData.validate();
-            jsonInput = ObjectMapperFactory.create().writeValueAsString(policyData);
-
-            NamespaceIsolationPolicies nsIsolationPolicies = namespaceIsolationPolicies()
-                    .getIsolationDataPolicies(cluster).orElseGet(() -> {
+        validateSuperUserAccessAsync()
+                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
+                .thenCompose(__ -> validateClusterExistAsync(cluster, PRECONDITION_FAILED))
+                .thenCompose(__ -> {
+                    // validate the policy data before creating the node
+                    policyData.validate();
+                    return namespaceIsolationPolicies().getIsolationDataPoliciesAsync(cluster);
+                }).thenCompose(nsIsolationPoliciesOpt ->
+                        nsIsolationPoliciesOpt.map(CompletableFuture::completedFuture)
+                                .orElseGet(() -> namespaceIsolationPolicies()
+                                        .setIsolationDataWithCreateAsync(cluster, (p) -> Collections.emptyMap())
+                                        .thenApply(__ -> new NamespaceIsolationPolicies()))
+                ).thenCompose(nsIsolationPolicies -> {
+                    nsIsolationPolicies.setPolicy(policyName, policyData);
+                    return namespaceIsolationPolicies()
+                                    .setIsolationDataAsync(cluster, old -> nsIsolationPolicies.getPolicies());
+                }).thenCompose(__ -> filterAndUnloadMatchedNamespaceAsync(policyData))
+                .thenAccept(__ -> {
+                    log.info("[{}] Successful to update clusters/{}/namespaceIsolationPolicies/{}.",
+                            clientAppId(), cluster, policyName);
+                    asyncResponse.resume(Response.noContent().build());
+                }).exceptionally(ex -> {
+                    Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+                    if (realCause instanceof IllegalArgumentException) {
+                        String jsonData;
                         try {
-                            namespaceIsolationPolicies().setIsolationDataWithCreate(cluster,
-                                    (p) -> Collections.emptyMap());
-                            return new NamespaceIsolationPolicies();
-                        } catch (Exception e) {
-                            throw new RestException(e);
+                            jsonData = JsonUtil.toJson(policyData);
+                        } catch (JsonUtil.ParseJsonException e) {
+                            jsonData = "[Failed to serialize]";
                         }
-                    });
-
-            nsIsolationPolicies.setPolicy(policyName, policyData);
-            namespaceIsolationPolicies().setIsolationData(cluster, old -> nsIsolationPolicies.getPolicies());
-
-            // whether or not make the isolation update on time.
-            if (pulsar().getConfiguration().isEnableNamespaceIsolationUpdateOnTime()) {
-                filterAndUnloadMatchedNameSpaces(asyncResponse, policyData);
-            } else {
-                asyncResponse.resume(Response.noContent().build());
-                return;
-            }
-        } catch (IllegalArgumentException iae) {
-            log.info("[{}] Failed to update clusters/{}/namespaceIsolationPolicies/{}. Input data is invalid",
-                    clientAppId(), cluster, policyName, iae);
-            asyncResponse.resume(new RestException(Status.BAD_REQUEST,
-                    "Invalid format of input policy data. policy: " + policyName + "; data: " + jsonInput));
-        } catch (NotFoundException nne) {
-            log.warn("[{}] Failed to update clusters/{}/namespaceIsolationPolicies: Does not exist", clientAppId(),
-                    cluster);
-            asyncResponse.resume(new RestException(Status.NOT_FOUND,
-                    "NamespaceIsolationPolicies for cluster " + cluster + " does not exist"));
-        } catch (Exception e) {
-            log.error("[{}] Failed to update clusters/{}/namespaceIsolationPolicies/{}", clientAppId(), cluster,
-                    policyName, e);
-            asyncResponse.resume(new RestException(e));
-        }
+                        asyncResponse.resume(new RestException(Status.BAD_REQUEST,
+                                "Invalid format of input policy data. policy: " + policyName + "; data: " + jsonData));
+                        return null;
+                    } else if (realCause instanceof NotFoundException) {
+                        log.warn("[{}] Failed to update clusters/{}/namespaceIsolationPolicies: Does not exist",
+                                clientAppId(), cluster);
+                        asyncResponse.resume(new RestException(Status.NOT_FOUND,
+                                "NamespaceIsolationPolicies for cluster " + cluster + " does not exist"));
+                        return null;
+                    }
+                    log.info("[{}] Failed to update clusters/{}/namespaceIsolationPolicies/{}. Input data is invalid",
+                            clientAppId(), cluster, policyName, realCause);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
-    // get matched namespaces; call unload for each namespaces;
-    private void filterAndUnloadMatchedNameSpaces(AsyncResponse asyncResponse,
-                                                  NamespaceIsolationDataImpl policyData) throws Exception {
-        Namespaces namespaces = pulsar().getAdminClient().namespaces();
-
-        List<String> nssToUnload = Lists.newArrayList();
-
-        pulsar().getAdminClient().tenants().getTenantsAsync()
-            .whenComplete((tenants, ex) -> {
-                if (ex != null) {
-                    log.error("[{}] Failed to get tenants when setNamespaceIsolationPolicy.", clientAppId(), ex);
-                    return;
-                }
-                AtomicInteger tenantsNumber = new AtomicInteger(tenants.size());
-                // get all tenants now, for each tenants, get its namespaces
-                tenants.forEach(tenant -> namespaces.getNamespacesAsync(tenant)
-                    .whenComplete((nss, e) -> {
-                        int leftTenantsToHandle = tenantsNumber.decrementAndGet();
-                        if (e != null) {
-                            log.error("[{}] Failed to get namespaces for tenant {} when setNamespaceIsolationPolicy.",
-                                clientAppId(), tenant, e);
-
-                            if (leftTenantsToHandle == 0) {
-                                unloadMatchedNamespacesList(asyncResponse, nssToUnload, namespaces);
-                            }
-
-                            return;
-                        }
-
-                        AtomicInteger nssNumber = new AtomicInteger(nss.size());
-
-                        // get all namespaces for this tenant now.
-                        nss.forEach(namespaceName -> {
-                            int leftNssToHandle = nssNumber.decrementAndGet();
-
-                            // if namespace match any policy regex, add it to ns list to be unload.
-                            if (policyData.getNamespaces().stream()
-                                .anyMatch(nsnameRegex -> namespaceName.matches(nsnameRegex))) {
-                                nssToUnload.add(namespaceName);
-                            }
-
-                            // all the tenants & namespaces get filtered.
-                            if (leftNssToHandle == 0 && leftTenantsToHandle == 0) {
-                                unloadMatchedNamespacesList(asyncResponse, nssToUnload, namespaces);
-                            }
-                        });
-                    }));
-            });
-    }
-
-    private void unloadMatchedNamespacesList(AsyncResponse asyncResponse,
-                                             List<String> nssToUnload,
-                                             Namespaces namespaces) {
-        if (nssToUnload.size() == 0) {
-            asyncResponse.resume(Response.noContent().build());
-            return;
+    /**
+     * Get matched namespaces; call unload for each namespaces.
+     */
+    private CompletableFuture<Void> filterAndUnloadMatchedNamespaceAsync(NamespaceIsolationDataImpl policyData) {
+        PulsarAdmin adminClient;
+        try {
+            adminClient = pulsar().getAdminClient();
+        } catch (PulsarServerException e) {
+            return FutureUtil.failedFuture(e);
         }
-
-        List<CompletableFuture<Void>> futures = nssToUnload.stream()
-            .map(namespaceName -> namespaces.unloadAsync(namespaceName))
-            .collect(Collectors.toList());
-
-        FutureUtil.waitForAll(futures).whenComplete((result, exception) -> {
-            if (exception != null) {
-                log.error("[{}] Failed to unload namespace while setNamespaceIsolationPolicy.",
-                    clientAppId(), exception);
-                asyncResponse.resume(new RestException(exception));
-                return;
-            }
-
-            try {
-                // write load info to load manager to make the load happens fast
-                pulsar().getLoadManager().get().writeLoadReportOnZookeeper(true);
-            } catch (Exception e) {
-                log.warn("[{}] Failed to writeLoadReportOnZookeeper.", clientAppId(), e);
-            }
-
-            asyncResponse.resume(Response.noContent().build());
-            return;
-        });
+        return adminClient.tenants().getTenantsAsync()
+                .thenCompose(tenants -> {
+                    Stream<CompletableFuture<List<String>>> completableFutureStream = tenants.stream()
+                            .map(tenant -> adminClient.namespaces().getNamespacesAsync(tenant));
+                    return FutureUtil.waitForAll(completableFutureStream)
+                            .thenApply(namespaces -> {
+                                // if namespace match any policy regex, add it to ns list to be unload.
+                                return namespaces.stream()
+                                        .filter(namespaceName ->
+                                                policyData.getNamespaces().stream().anyMatch(namespaceName::matches))
+                                        .collect(Collectors.toList());
+                            });
+                }).thenCompose(shouldUnloadNamespaces -> {
+                    if (CollectionUtils.isEmpty(shouldUnloadNamespaces)) {
+                        return CompletableFuture.completedFuture(null);
+                    }
+                    List<CompletableFuture<Void>> futures = shouldUnloadNamespaces.stream()
+                            .map(namespaceName -> adminClient.namespaces().unloadAsync(namespaceName))
+                            .collect(Collectors.toList());
+                    return FutureUtil.waitForAll(futures)
+                            .thenAccept(__ -> {
+                                try {
+                                    // write load info to load manager to make the load happens fast
+                                    pulsar().getLoadManager().get().writeLoadReportOnZookeeper(true);
+                                } catch (Exception e) {
+                                    log.warn("[{}] Failed to writeLoadReportOnZookeeper.", clientAppId(), e);
+                                }
+                            });
+                });
     }
 
     @DELETE
@@ -762,46 +687,38 @@ public class ClustersBase extends AdminResource {
         @ApiResponse(code = 500, message = "Internal server error.")
     })
     public void deleteNamespaceIsolationPolicy(
-        @ApiParam(
-            value = "The cluster name",
-            required = true
-        )
+        @Suspended AsyncResponse asyncResponse,
+        @ApiParam(value = "The cluster name", required = true)
         @PathParam("cluster") String cluster,
-        @ApiParam(
-            value = "The namespace isolation policy name",
-            required = true
-        )
+        @ApiParam(value = "The namespace isolation policy name", required = true)
         @PathParam("policyName") String policyName
-    ) throws Exception {
-        validateSuperUserAccess();
-        validateClusterExists(cluster);
-        validatePoliciesReadOnlyAccess();
-
-        try {
-
-            NamespaceIsolationPolicies nsIsolationPolicies = namespaceIsolationPolicies()
-                    .getIsolationDataPolicies(cluster).orElseGet(() -> {
-                        try {
-                            namespaceIsolationPolicies().setIsolationDataWithCreate(cluster,
-                                    (p) -> Collections.emptyMap());
-                            return new NamespaceIsolationPolicies();
-                        } catch (Exception e) {
-                            throw new RestException(e);
-                        }
-                    });
-
-            nsIsolationPolicies.deletePolicy(policyName);
-            namespaceIsolationPolicies().setIsolationData(cluster, old -> nsIsolationPolicies.getPolicies());
-        } catch (NotFoundException nne) {
-            log.warn("[{}] Failed to update brokers/{}/namespaceIsolationPolicies: Does not exist", clientAppId(),
-                    cluster);
-            throw new RestException(Status.NOT_FOUND,
-                    "NamespaceIsolationPolicies for cluster " + cluster + " does not exist");
-        } catch (Exception e) {
-            log.error("[{}] Failed to update brokers/{}/namespaceIsolationPolicies/{}", clientAppId(), cluster,
-                    policyName, e);
-            throw new RestException(e);
-        }
+    ) {
+        validateSuperUserAccessAsync()
+                .thenCompose(__ -> validateClusterExistAsync(cluster, PRECONDITION_FAILED))
+                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
+                .thenCompose(__ -> namespaceIsolationPolicies().getIsolationDataPoliciesAsync(cluster))
+                .thenCompose(nsIsolationPoliciesOpt -> nsIsolationPoliciesOpt.map(CompletableFuture::completedFuture)
+                        .orElseGet(() -> namespaceIsolationPolicies()
+                                .setIsolationDataWithCreateAsync(cluster, (p) -> Collections.emptyMap())
+                                .thenApply(__ -> new NamespaceIsolationPolicies())))
+                .thenCompose(policies -> {
+                    policies.deletePolicy(policyName);
+                    return namespaceIsolationPolicies().setIsolationDataAsync(cluster, old -> policies.getPolicies());
+                }).thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
+                .exceptionally(ex -> {
+                    Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+                    if (realCause instanceof NotFoundException) {
+                        log.warn("[{}] Failed to update brokers/{}/namespaceIsolationPolicies: Does not exist",
+                                clientAppId(), cluster);
+                        asyncResponse.resume(new RestException(Status.NOT_FOUND,
+                                "NamespaceIsolationPolicies for cluster " + cluster + " does not exist"));
+                        return null;
+                    }
+                    log.error("[{}] Failed to update brokers/{}/namespaceIsolationPolicies/{}", clientAppId(), cluster,
+                            policyName, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @POST
@@ -818,38 +735,37 @@ public class ClustersBase extends AdminResource {
         @ApiResponse(code = 500, message = "Internal server error.")
     })
     public void setFailureDomain(
-        @ApiParam(
-            value = "The cluster name",
-            required = true
-        )
+        @Suspended AsyncResponse asyncResponse,
+        @ApiParam(value = "The cluster name", required = true)
         @PathParam("cluster") String cluster,
-        @ApiParam(
-            value = "The failure domain name",
-            required = true
-        )
+        @ApiParam(value = "The failure domain name", required = true)
         @PathParam("domainName") String domainName,
-        @ApiParam(
-            value = "The configuration data of a failure domain",
-            required = true
-        )
-                FailureDomainImpl domain
-    ) throws Exception {
-        validateSuperUserAccess();
-        validateClusterExists(cluster);
-        validateBrokerExistsInOtherDomain(cluster, domainName, domain);
-
-        try {
-            clusterResources().getFailureDomainResources()
-                    .setFailureDomainWithCreate(cluster, domainName, old -> domain);
-        } catch (NotFoundException nne) {
-            log.warn("[{}] Failed to update domain {}. clusters {}  Does not exist", clientAppId(), cluster,
-                    domainName);
-            throw new RestException(Status.NOT_FOUND,
-                    "Domain " + domainName + " for cluster " + cluster + " does not exist");
-        } catch (Exception e) {
-            log.error("[{}] Failed to update clusters/{}/domainName/{}", clientAppId(), cluster, domainName, e);
-            throw new RestException(e);
-        }
+        @ApiParam(value = "The configuration data of a failure domain", required = true) FailureDomainImpl domain
+    ) {
+        validateSuperUserAccessAsync()
+                .thenCompose(__ -> validateClusterExistAsync(cluster, PRECONDITION_FAILED))
+                .thenCompose(__ -> validateBrokerExistsInOtherDomain(cluster, domainName, domain))
+                .thenCompose(__ -> clusterResources().getFailureDomainResources()
+                        .setFailureDomainWithCreateAsync(cluster, domainName, old -> domain))
+                .thenAccept(__ -> {
+                    log.info("[{}] Successful set failure domain {} for cluster {}",
+                            clientAppId(), domainName, cluster);
+                    asyncResponse.resume(Response.noContent().build());
+                })
+                .exceptionally(ex -> {
+                    Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+                    if (realCause instanceof NotFoundException) {
+                        log.warn("[{}] Failed to update domain {}. clusters {}  Does not exist", clientAppId(), cluster,
+                                domainName);
+                        asyncResponse.resume(new RestException(Status.NOT_FOUND,
+                                "Domain " + domainName + " for cluster " + cluster + " does not exist"));
+                        return null;
+                    }
+                    log.error("[{}] Failed to update clusters/{}/domainName/{}",
+                            clientAppId(), cluster, domainName, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @GET
@@ -864,34 +780,45 @@ public class ClustersBase extends AdminResource {
         @ApiResponse(code = 403, message = "Don't have admin permission"),
         @ApiResponse(code = 500, message = "Internal server error")
     })
-    public Map<String, FailureDomainImpl> getFailureDomains(
-        @ApiParam(
-            value = "The cluster name",
-            required = true
-        )
+    public void getFailureDomains(
+        @Suspended AsyncResponse asyncResponse,
+        @ApiParam(value = "The cluster name", required = true)
         @PathParam("cluster") String cluster
-    ) throws Exception {
-        validateSuperUserAccess();
-
-        Map<String, FailureDomainImpl> domains = Maps.newHashMap();
-        try {
-            FailureDomainResources fdr = clusterResources().getFailureDomainResources();
-            for (String domainName : fdr.listFailureDomains(cluster)) {
-                try {
-                    Optional<FailureDomainImpl> domain = fdr.getFailureDomain(cluster, domainName);
-                    domain.ifPresent(failureDomain -> domains.put(domainName, failureDomain));
-                } catch (Exception e) {
-                    log.warn("Failed to get domain {}", domainName, e);
-                }
-            }
-        } catch (NotFoundException e) {
-            log.warn("[{}] Failure-domain is not configured for cluster {}", clientAppId(), cluster, e);
-            return Collections.emptyMap();
-        } catch (Exception e) {
-            log.error("[{}] Failed to get failure-domains for cluster {}", clientAppId(), cluster, e);
-            throw new RestException(e);
-        }
-        return domains;
+    ) {
+        validateSuperUserAccessAsync()
+                .thenCompose(__ -> clusterResources().getFailureDomainResources()
+                        .listFailureDomainsAsync(cluster)
+                        .thenCompose(domainNames -> {
+                            List<CompletableFuture<Pair<String, Optional<FailureDomainImpl>>>> futures =
+                                domainNames.stream()
+                                    .map(domainName -> clusterResources().getFailureDomainResources()
+                                            .getFailureDomainAsync(cluster, domainName)
+                                            .thenApply(failureDomainImpl -> Pair.of(domainName, failureDomainImpl))
+                                            .exceptionally(ex -> {
+                                                log.warn("Failed to get domain {}", domainName, ex);
+                                                return null;
+                                            })).collect(Collectors.toList());
+                            return FutureUtil.waitForAll(futures)
+                                    .thenApply(unused -> futures.stream()
+                                            .map(CompletableFuture::join)
+                                            .filter(Objects::nonNull)
+                                            .filter(v -> v.getRight().isPresent())
+                                            .collect(Collectors.toMap(Pair::getLeft, v -> v.getRight().get())));
+                        }).exceptionally(ex -> {
+                            Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+                            if (realCause instanceof NotFoundException) {
+                                log.warn("[{}] Failure-domain is not configured for cluster {}",
+                                        clientAppId(), cluster, ex);
+                                return Collections.emptyMap();
+                            }
+                            throw FutureUtil.wrapToCompletionException(ex);
+                        })
+                ).thenAccept(asyncResponse::resume)
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to get failure-domains for cluster {}", clientAppId(), cluster, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @GET
@@ -973,44 +900,50 @@ public class ClustersBase extends AdminResource {
         }
     }
 
-    private void validateBrokerExistsInOtherDomain(final String cluster, final String inputDomainName,
-            final FailureDomainImpl inputDomain) {
-        if (inputDomain != null && inputDomain.brokers != null) {
-            try {
-                for (String domainName : clusterResources().getFailureDomainResources()
-                        .listFailureDomains(cluster)) {
-                    if (inputDomainName.equals(domainName)) {
-                        continue;
-                    }
-                    try {
-                        Optional<FailureDomainImpl> domain =
-                                clusterResources().getFailureDomainResources().getFailureDomain(cluster, domainName);
-                        if (domain.isPresent() && domain.get().brokers != null) {
-                            List<String> duplicateBrokers = domain.get().brokers.stream().parallel()
-                                    .filter(inputDomain.brokers::contains).collect(Collectors.toList());
-                            if (!duplicateBrokers.isEmpty()) {
-                                throw new RestException(Status.CONFLICT,
-                                        duplicateBrokers + " already exists in " + domainName);
-                            }
-                        }
-                    } catch (Exception e) {
-                        if (e instanceof RestException) {
-                            throw e;
-                        }
-                        log.warn("Failed to get domain {}", domainName, e);
-                    }
-                }
-            } catch (NotFoundException e) {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] Domain is not configured for cluster", clientAppId(), e);
-                }
-            } catch (Exception e) {
-                log.error("[{}] Failed to get domains for cluster {}", clientAppId(), e);
-                throw new RestException(e);
-            }
+    private CompletableFuture<Void> validateBrokerExistsInOtherDomain(final String cluster,
+                                                                      final String inputDomainName,
+                                                                      final FailureDomainImpl inputDomain) {
+        if (inputDomain == null || inputDomain.brokers == null) {
+            return CompletableFuture.completedFuture(null);
         }
+        return clusterResources().getFailureDomainResources()
+                .listFailureDomainsAsync(cluster)
+                .thenCompose(domainNames -> {
+                    List<CompletableFuture<Void>> futures = domainNames.stream()
+                            .filter(domainName -> !domainName.equals(inputDomainName))
+                            .map(domainName -> clusterResources()
+                                    .getFailureDomainResources().getFailureDomainAsync(cluster, domainName)
+                                    .thenAccept(failureDomainOpt -> {
+                                        if (failureDomainOpt.isPresent()
+                                                && CollectionUtils.isNotEmpty(failureDomainOpt.get().getBrokers())) {
+                                            List<String> duplicateBrokers = failureDomainOpt.get()
+                                                    .getBrokers().stream().parallel()
+                                                    .filter(inputDomain.brokers::contains)
+                                                    .collect(Collectors.toList());
+                                            if (CollectionUtils.isNotEmpty(duplicateBrokers)) {
+                                                throw new RestException(Status.CONFLICT,
+                                                        duplicateBrokers + " already exists in " + domainName);
+                                            }
+                                        }
+                                    }).exceptionally(ex -> {
+                                        Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+                                        if (realCause instanceof WebApplicationException) {
+                                            throw FutureUtil.wrapToCompletionException(ex);
+                                        }
+                                        if (realCause instanceof NotFoundException) {
+                                            if (log.isDebugEnabled()) {
+                                                log.debug("[{}] Domain is not configured for cluster",
+                                                        clientAppId(), ex);
+                                            }
+                                            return null;
+                                        }
+                                        log.warn("Failed to get domain {}", domainName, ex);
+                                        return null;
+                                    })
+                            ).collect(Collectors.toList());
+                    return FutureUtil.waitForAll(futures);
+                });
     }
 
     private static final Logger log = LoggerFactory.getLogger(ClustersBase.class);
-
 }

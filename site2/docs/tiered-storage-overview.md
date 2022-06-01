@@ -8,16 +8,19 @@ Pulsar's **Tiered Storage** feature allows older backlog data to be moved from B
 
 * Tiered storage uses [Apache jclouds](https://jclouds.apache.org) to support [Amazon S3](https://aws.amazon.com/s3/), [GCS (Google Cloud Storage)](https://cloud.google.com/storage/), [Azure](https://azure.microsoft.com/en-us/services/storage/blobs/) and [Aliyun OSS](https://www.aliyun.com/product/oss) for long term storage. 
 
-    With jclouds, it is easy to add support for more [cloud storage providers](https://jclouds.apache.org/reference/providers/#blobstore-providers) in the future.
+  With jclouds, it is easy to add support for more [cloud storage providers](https://jclouds.apache.org/reference/providers/#blobstore-providers) in the future.
 
-    :::tip
+  :::tip
 
-    For more information about how to use the AWS S3 offloader with Pulsar, see [here](tiered-storage-aws).
-    For more information about how to use the GCS offloader with Pulsar, see [here](tiered-storage-gcs).
-    For more information about how to use the Azure offloader with Pulsar, see [here](tiered-storage-azure).
-    For more information about how to use the Aliyun OSS offloader with Pulsar, see [here](tiered-storage-aliyun).
+  - For more information about how to use the AWS S3 offloader with Pulsar, see [here](tiered-storage-aws).
+  
+  - For more information about how to use the GCS offloader with Pulsar, see [here](tiered-storage-gcs).
+  
+  - For more information about how to use the Azure offloader with Pulsar, see [here](tiered-storage-azure).
+  
+  - For more information about how to use the Aliyun OSS offloader with Pulsar, see [here](tiered-storage-aliyun).
 
-    :::
+  :::
 
 * Tiered storage uses [Apache Hadoop](http://hadoop.apache.org/) to support filesystems for long term storage. 
 

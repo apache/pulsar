@@ -60,7 +60,7 @@ Pulsar does not store the encryption key anywhere in the Pulsar service. If you 
 5. Configure a `CryptoKeyReader` to a producer, consumer or reader. 
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="lang-choice"
   defaultValue="Java"
   values={[{"label":"Java","value":"Java"},{"label":"C++","value":"C++"},{"label":"Python","value":"Python"},{"label":"Node.js","value":"Node.js"}]}>
 <TabItem value="Java">
@@ -218,7 +218,7 @@ await client.close();
 6. Below is an example of a **customized** `CryptoKeyReader` implementation.
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="lang-choice"
   defaultValue="Java"
   values={[{"label":"Java","value":"Java"},{"label":"C++","value":"C++"},{"label":"Python","value":"Python"},{"label":"Node.js","value":"Node.js"}]}>
 <TabItem value="Java">
