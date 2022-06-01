@@ -6,16 +6,16 @@ sidebar_label: "CLI and YAML configs"
 
 ## Pulsar admin CLI for functions
 
-The Pulsar admin interface enables you to create and manage Pulsar Functions through CLI. For the latest and complete information, including commands, flags, and descriptions, refer to [Pulsar admin CLI](https://pulsar.apache.org/tools/pulsar-admin/).
+The Pulsar admin interface enables you to create and manage Pulsar Functions through CLI. For the latest and complete information, including commands, flags, and descriptions, refer to [Pulsar admin CLI](/tools/pulsar-admin/).
 
 
 ## YAML configurations for functions
 
-You can configure a function by using a predefined a .yaml file. The following table outlines the required fields and arguments.
+You can configure a function by using a predefined YAML file. The following table outlines the required fields and arguments.
 
 | Field Name           | Nested Field                       | Type                       | Related Command Argument   | Description                                                                                                                                                                                                                                      |
 |----------------------|------------------------------------|----------------------------|----------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| runtimeFlags         | N/A                                | String                     | N/A                        | Any flags that you want to pass to a runtime. (for process & Kubernetes runtime only)                                                                                                                                                            |
+| runtimeFlags         | N/A                                | String                     | N/A                        | Any flags that you want to pass to a runtime (for process & Kubernetes runtime only).                                                                                                                                                            |
 | tenant               | N/A                                | String                     | `--tenant`                 | The tenant of a function.                                                                                                                                                                                                                        |
 | namespace            | N/A                                | String                     | `--namespace`              | The namespace of a function.                                                                                                                                                                                                                     |
 | name                 | N/A                                | String                     | `--name`                   | The name of a function.                                                                                                                                                                                                                          |
@@ -47,7 +47,7 @@ You can configure a function by using a predefined a .yaml file. The following t
 | processingGuarantees | N/A| String | `--processing-guarantees` | The processing guarantees (delivery semantics) applied to a function. Available values: `ATLEAST_ONCE`, `ATMOST_ONCE`, `EFFECTIVELY_ONCE`.
 | retainOrdering | N/A| Boolean | `--retain-ordering`	 | Whether functions consume and process messages in order or not. |
 | retainKeyOrdering | N/A| Boolean |	`--retain-key-ordering`	| Whether functions consume and process messages in key order or not. |
-| batchBuilder | N/A| String | `--batch-builder` | Use `producerConfig.batchBuilder` instead (will be deprecated in code soon). |
+| batchBuilder | N/A| String | `--batch-builder` | Use `producerConfig.batchBuilder` instead. <br />**Note**: `batchBuilder` will be deprecated in code soon. |
 | forwardSourceMessageProperty | N/A| Boolean | `--forward-source-message-property` | Whether the properties of input messages are forwarded to output topics or not during processing. When the value is set to `false`, the forwarding is disabled. |
 | userConfig | N/A| Map<String,Object> | `--user-config`	| User-defined config key/values. |
 | secrets | N/A| Map<String,Object> | `--secrets`	| The mapping from secretName to objects that encapsulate how the secret is fetched by the underlying secrets provider. |
@@ -72,12 +72,12 @@ You can configure a function by using a predefined a .yaml file. The following t
 | | watermarkEmitIntervalMs | Long | N/A	| N/A |
 | | timestampExtractorClassName | String | N/A	 | N/A|
 | | actualWindowFunctionClassName | String | N/A	| N/A |
-| timeoutMs | N/A| Long | `--timeout-ms` | The message timeout in milliseconds. |
-| jar | N/A| String | `--jar` | The path of the JAR file for a function (if the function is written in Java). It also supports URL paths that workers can download the package from, including HTTP, HTTPS, file (file protocol assuming that file already exists on worker host), and function (package URL from packages management service). |
-| py | N/A| String | `--py` | The path of the main Python/Python wheel file for a function (if the function is written in Python). It also supports URL paths that workers can download the package from, including HTTP, HTTPS, file (file protocol assuming that file already exists on worker host), and function (package URL from packages management service).  |
-| go | N/A| String | `--go` | Path to the main Go executable binary for the function (if the function is written in Go).  It also supports URL paths that workers can download the package from, including HTTP, HTTPS, file (file protocol assuming that file already exists on worker host), and function (package URL from packages management service). |
-| cleanupSubscription | N/A| Boolean | N/A | Whether the subscriptions that a function created or used should be deleted or not when the function is deleted. |
+| timeoutMs | N/A| Long | `--timeout-ms` | The message timeout (in milliseconds). |
+| jar | N/A| String | `--jar` | The path of the JAR file for a function (written in Java). It also supports URL paths that workers can download the package from, including HTTP, HTTPS, file (file protocol assuming that file already exists on worker host), and function (package URL from packages management service). |
+| py | N/A| String | `--py` | The path of the main Python/Python wheel file for a function (written in Python). It also supports URL paths that workers can download the package from, including HTTP, HTTPS, file (file protocol assuming that file already exists on worker host), and function (package URL from packages management service).  |
+| go | N/A| String | `--go` | Path to the main Go executable binary for the function (written in Go).  It also supports URL paths that workers can download the package from, including HTTP, HTTPS, file (file protocol assuming that file already exists on worker host), and function (package URL from packages management service). |
+| cleanupSubscription | N/A| Boolean | N/A | Whether the subscriptions that a function creates or uses should be deleted or not when the function is deleted. |
 | customRuntimeOptions | N/A| String | `--custom-runtime-options` | A string that encodes options to customize the runtime. |
 | maxPendingAsyncRequests | N/A| Int | `--max-message-retries` | The max number of pending async requests per instance to avoid a large number of concurrent requests. |
-| exposePulsarAdminClientEnabled | N/A| Boolean | N/A | Whether the pulsar admin client is exposed to function context or not. By default, it is disabled. |
-| subscriptionPosition | N/A| String | `--subs-position` | The position of Pulsar source subscription used for consuming messages from a specified location. |
+| exposePulsarAdminClientEnabled | N/A| Boolean | N/A | Whether the Pulsar admin client is exposed to function context or not. By default, it is disabled. |
+| subscriptionPosition | N/A| String | `--subs-position` | The position of Pulsar source subscription used for consuming messages from a specified location. The default value is `Latest`.|
