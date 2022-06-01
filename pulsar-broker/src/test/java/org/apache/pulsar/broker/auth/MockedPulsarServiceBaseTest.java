@@ -25,6 +25,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 import com.google.common.collect.Sets;
+import com.google.common.io.Resources;
 import com.google.common.util.concurrent.MoreExecutors;
 import io.netty.channel.EventLoopGroup;
 import java.lang.reflect.Field;
@@ -33,11 +34,15 @@ import java.net.URI;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import org.apache.bookkeeper.client.BookKeeper;
@@ -70,10 +75,33 @@ import org.apache.zookeeper.data.ACL;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.ws.rs.container.AsyncResponse;
+import javax.ws.rs.container.TimeoutHandler;
+
 /**
  * Base class for all tests that need a Pulsar instance without a ZK and BK cluster.
  */
 public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
+    public final static String BROKER_KEYSTORE_FILE_PATH =
+            Resources.getResource("certificate-authority/jks/broker.keystore.jks").getPath();
+    public final static String BROKER_TRUSTSTORE_FILE_PATH =
+            Resources.getResource("certificate-authority/jks/broker.truststore.jks").getPath();
+    public final static String BROKER_TRUSTSTORE_NO_PASSWORD_FILE_PATH =
+            Resources.getResource("certificate-authority/jks/broker.truststore.nopassword.jks").getPath();
+    public final static String BROKER_KEYSTORE_PW = "111111";
+    public final static String BROKER_TRUSTSTORE_PW = "111111";
+
+    public final static String CLIENT_KEYSTORE_FILE_PATH =
+            Resources.getResource("certificate-authority/jks/client.keystore.jks").getPath();
+    public final static String CLIENT_TRUSTSTORE_FILE_PATH =
+            Resources.getResource("certificate-authority/jks/client.truststore.jks").getPath();
+    public final static String CLIENT_TRUSTSTORE_NO_PASSWORD_FILE_PATH =
+            Resources.getResource("certificate-authority/jks/client.truststore.nopassword.jks").getPath();
+    public final static String CLIENT_KEYSTORE_PW = "111111";
+    public final static String CLIENT_TRUSTSTORE_PW = "111111";
+
+    public final static String CLIENT_KEYSTORE_CN = "clientuser";
+    public final static String KEYSTORE_TYPE = "JKS";
 
     protected final String DUMMY_VALUE = "DUMMY_VALUE";
     protected final String GLOBAL_DUMMY_VALUE = "GLOBAL_DUMMY_VALUE";
@@ -170,6 +198,7 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
 
     protected void doInitConf() throws Exception {
         this.conf.setBrokerShutdownTimeoutMs(0L);
+        this.conf.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
         this.conf.setBrokerServicePort(Optional.of(0));
         this.conf.setBrokerServicePortTls(Optional.of(0));
         this.conf.setAdvertisedAddress("localhost");
@@ -467,6 +496,7 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         configuration.setConfigurationMetadataStoreUrl("zk:localhost:3181");
         configuration.setAllowAutoTopicCreationType("non-partitioned");
         configuration.setBrokerShutdownTimeoutMs(0L);
+        configuration.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
         configuration.setBrokerServicePort(Optional.of(0));
         configuration.setBrokerServicePortTls(Optional.of(0));
         configuration.setWebServicePort(Optional.of(0));
@@ -495,6 +525,98 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         if (!admin.namespaces().getNamespaces(tenant).contains(namespace)) {
             admin.namespaces().createNamespace(namespace);
         }
+    }
+
+    protected Object asyncRequests(Consumer<TestAsyncResponse> function) throws Exception {
+        TestAsyncResponse ctx = new TestAsyncResponse();
+        function.accept(ctx);
+        ctx.latch.await();
+        if (ctx.e != null) {
+            throw (Exception) ctx.e;
+        }
+        return ctx.response;
+    }
+
+    public static class TestAsyncResponse implements AsyncResponse {
+
+        Object response;
+        Throwable e;
+        CountDownLatch latch = new CountDownLatch(1);
+
+        @Override
+        public boolean resume(Object response) {
+            this.response = response;
+            latch.countDown();
+            return true;
+        }
+
+        @Override
+        public boolean resume(Throwable response) {
+            this.e = response;
+            latch.countDown();
+            return true;
+        }
+
+        @Override
+        public boolean cancel() {
+            return false;
+        }
+
+        @Override
+        public boolean cancel(int retryAfter) {
+            return false;
+        }
+
+        @Override
+        public boolean cancel(Date retryAfter) {
+            return false;
+        }
+
+        @Override
+        public boolean isSuspended() {
+            return false;
+        }
+
+        @Override
+        public boolean isCancelled() {
+            return false;
+        }
+
+        @Override
+        public boolean isDone() {
+            return false;
+        }
+
+        @Override
+        public boolean setTimeout(long time, TimeUnit unit) {
+            return false;
+        }
+
+        @Override
+        public void setTimeoutHandler(TimeoutHandler handler) {
+
+        }
+
+        @Override
+        public Collection<Class<?>> register(Class<?> callback) {
+            return null;
+        }
+
+        @Override
+        public Map<Class<?>, Collection<Class<?>>> register(Class<?> callback, Class<?>... callbacks) {
+            return null;
+        }
+
+        @Override
+        public Collection<Class<?>> register(Object callback) {
+            return null;
+        }
+
+        @Override
+        public Map<Class<?>, Collection<Class<?>>> register(Object callback, Object... callbacks) {
+            return null;
+        }
+
     }
 
     private static final Logger log = LoggerFactory.getLogger(MockedPulsarServiceBaseTest.class);

@@ -232,31 +232,31 @@ The Apache Software License, Version 2.0
     - commons-lang3-3.11.jar
  * Netty
     - netty-3.10.6.Final.jar
-    - netty-buffer-4.1.76.Final.jar
-    - netty-codec-4.1.76.Final.jar
-    - netty-codec-dns-4.1.76.Final.jar
-    - netty-codec-http-4.1.76.Final.jar
-    - netty-codec-haproxy-4.1.76.Final.jar
-    - netty-codec-socks-4.1.76.Final.jar
-    - netty-handler-proxy-4.1.76.Final.jar
-    - netty-common-4.1.76.Final.jar
-    - netty-handler-4.1.76.Final.jar
+    - netty-buffer-4.1.77.Final.jar
+    - netty-codec-4.1.77.Final.jar
+    - netty-codec-dns-4.1.77.Final.jar
+    - netty-codec-http-4.1.77.Final.jar
+    - netty-codec-haproxy-4.1.77.Final.jar
+    - netty-codec-socks-4.1.77.Final.jar
+    - netty-handler-proxy-4.1.77.Final.jar
+    - netty-common-4.1.77.Final.jar
+    - netty-handler-4.1.77.Final.jar
     - netty-reactive-streams-2.0.4.jar
-    - netty-resolver-4.1.76.Final.jar
-    - netty-resolver-dns-4.1.76.Final.jar
-    - netty-tcnative-boringssl-static-2.0.51.Final.jar
-    - netty-tcnative-boringssl-static-2.0.51.Final-linux-aarch_64.jar
-    - netty-tcnative-boringssl-static-2.0.51.Final-linux-x86_64.jar
-    - netty-tcnative-boringssl-static-2.0.51.Final-osx-aarch_64.jar
-    - netty-tcnative-boringssl-static-2.0.51.Final-osx-x86_64.jar
-    - netty-tcnative-boringssl-static-2.0.51.Final-windows-x86_64.jar
-    - netty-tcnative-classes-2.0.51.Final.jar
-    - netty-transport-4.1.76.Final.jar
-    - netty-transport-classes-epoll-4.1.76.Final.jar
-    - netty-transport-native-epoll-4.1.76.Final-linux-x86_64.jar
-    - netty-transport-native-unix-common-4.1.76.Final.jar
-    - netty-transport-native-unix-common-4.1.76.Final-linux-x86_64.jar
-    - netty-codec-http2-4.1.76.Final.jar
+    - netty-resolver-4.1.77.Final.jar
+    - netty-resolver-dns-4.1.77.Final.jar
+    - netty-tcnative-boringssl-static-2.0.52.Final.jar
+    - netty-tcnative-boringssl-static-2.0.52.Final-linux-aarch_64.jar
+    - netty-tcnative-boringssl-static-2.0.52.Final-linux-x86_64.jar
+    - netty-tcnative-boringssl-static-2.0.52.Final-osx-aarch_64.jar
+    - netty-tcnative-boringssl-static-2.0.52.Final-osx-x86_64.jar
+    - netty-tcnative-boringssl-static-2.0.52.Final-windows-x86_64.jar
+    - netty-tcnative-classes-2.0.52.Final.jar
+    - netty-transport-4.1.77.Final.jar
+    - netty-transport-classes-epoll-4.1.77.Final.jar
+    - netty-transport-native-epoll-4.1.77.Final-linux-x86_64.jar
+    - netty-transport-native-unix-common-4.1.77.Final.jar
+    - netty-transport-native-unix-common-4.1.77.Final-linux-x86_64.jar
+    - netty-codec-http2-4.1.77.Final.jar
  * GRPC
     - grpc-api-1.45.1.jar
     - grpc-context-1.45.1.jar
@@ -414,9 +414,9 @@ The Apache Software License, Version 2.0
   * Objectsize
     - objectsize-0.0.12.jar
   * Dropwizard Metrics
-    - metrics-core-3.2.5.jar
-    - metrics-graphite-3.2.5.jar
-    - metrics-jvm-3.2.5.jar
+    - metrics-core-4.1.12.1.jar
+    - metrics-graphite-4.1.12.1.jar
+    - metrics-jvm-4.1.12.1.jar
   * Prometheus
     - simpleclient-0.5.0.jar
     - simpleclient_common-0.5.0.jar
@@ -429,18 +429,18 @@ The Apache Software License, Version 2.0
     - async-http-client-2.12.1.jar
     - async-http-client-netty-utils-2.12.1.jar
   * Apache Bookkeeper
-    - bookkeeper-common-4.14.4.jar
-    - bookkeeper-common-allocator-4.14.4.jar
-    - bookkeeper-proto-4.14.4.jar
-    - bookkeeper-server-4.14.4.jar
-    - bookkeeper-stats-api-4.14.4.jar
-    - bookkeeper-tools-framework-4.14.4.jar
-    - circe-checksum-4.14.4.jar
-    - codahale-metrics-provider-4.14.4.jar
-    - cpu-affinity-4.14.4.jar
-    - http-server-4.14.4.jar
-    - prometheus-metrics-provider-4.14.4.jar
-    - codahale-metrics-provider-4.14.4.jar
+    - bookkeeper-common-4.15.0.jar
+    - bookkeeper-common-allocator-4.15.0.jar
+    - bookkeeper-proto-4.15.0.jar
+    - bookkeeper-server-4.15.0.jar
+    - bookkeeper-stats-api-4.15.0.jar
+    - bookkeeper-tools-framework-4.15.0.jar
+    - circe-checksum-4.15.0.jar
+    - codahale-metrics-provider-4.15.0.jar
+    - cpu-affinity-4.15.0.jar
+    - http-server-4.15.0.jar
+    - prometheus-metrics-provider-4.15.0.jar
+    - codahale-metrics-provider-4.15.0.jar
   * Apache Commons
     - commons-cli-1.5.0.jar
     - commons-codec-1.15.jar
@@ -452,7 +452,7 @@ The Apache Software License, Version 2.0
   * GSON
     - gson-2.8.9.jar
   * Snappy
-    - snappy-java-1.1.7.jar
+    - snappy-java-1.1.8.4.jar
   * Jackson
     - jackson-module-parameter-names-2.13.2.jar
   * Java Assist

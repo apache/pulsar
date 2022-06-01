@@ -20,7 +20,12 @@ package org.apache.pulsar.tests.integration.io.sinks;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectReader;
+import com.google.common.collect.ImmutableMap;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Cleanup;
 import lombok.Data;
@@ -46,10 +51,15 @@ import software.amazon.awssdk.services.kinesis.model.GetShardIteratorRequest;
 import software.amazon.awssdk.services.kinesis.model.ListShardsRequest;
 import software.amazon.awssdk.services.kinesis.model.Record;
 import software.amazon.awssdk.services.kinesis.model.ShardIteratorType;
+import software.amazon.kinesis.retrieval.AggregatorUtil;
+import software.amazon.kinesis.retrieval.KinesisClientRecord;
 
+import java.io.UncheckedIOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static org.testng.Assert.assertEquals;
 
@@ -139,10 +149,20 @@ public class KinesisSinkTester extends SinkTester<LocalStackContainer> {
             for (int i = 0; i < numMessages; i++) {
                 String key = String.valueOf(i);
                 kvs.put(key, key);
-                KeyValue<SimplePojo, SimplePojo> value = new KeyValue<>(new SimplePojo("f1_" + i, "f2_" + i),
-                        new SimplePojo(String.valueOf(i), "v2_" + i));
+                final SimplePojo keyPojo = new SimplePojo(
+                        "f1_" + i,
+                        "f2_" + i,
+                        Arrays.asList(i, i +1),
+                        new HashSet<>(Arrays.asList((long) i)),
+                        ImmutableMap.of("map1_k_" + i, "map1_kv_" + i));
+                final SimplePojo valuePojo = new SimplePojo(
+                        String.valueOf(i),
+                        "v2_" + i,
+                        Arrays.asList(i, i +1),
+                        new HashSet<>(Arrays.asList((long) i)),
+                        ImmutableMap.of("map1_v_" + i, "map1_vv_" + i));
                 producer.newMessage()
-                        .value(value)
+                        .value(new KeyValue<>(keyPojo, valuePojo))
                         .send();
             }
         } else {
@@ -189,38 +209,56 @@ public class KinesisSinkTester extends SinkTester<LocalStackContainer> {
 
         Map<String, String> actualKvs = new LinkedHashMap<>();
 
-        // millisBehindLatest equals zero when record processing is caught up,
-        // and there are no new records to process at this moment.
-        // See https://docs.aws.amazon.com/kinesis/latest/APIReference/API_GetRecords.html#Streams-GetRecords-response-MillisBehindLatest
-        Awaitility.await().until(() -> addMoreRecordsAndGetMillisBehindLatest(actualKvs, iterator) == 0);
+        addMoreRecords(actualKvs, iterator);
 
         assertEquals(actualKvs, kvs);
     }
 
     @SneakyThrows
-    private Long addMoreRecordsAndGetMillisBehindLatest(Map<String, String> kvs, String iterator) {
-        final GetRecordsResponse response = client.getRecords(
-                GetRecordsRequest
-                        .builder()
-                        .shardIterator(iterator)
-                        .build())
-                .get();
-        if(response.hasRecords()) {
-            for (Record record : response.records()) {
-                String data = record.data().asString(StandardCharsets.UTF_8);
-                if (withSchema) {
-                    JsonNode payload = READER.readTree(data).at("/payload");
-                    String i = payload.at("/value/field1").asText();
-                    assertEquals(payload.at("/value/field2").asText(), "v2_" + i);
-                    assertEquals(payload.at("/key/field1").asText(), "f1_" + i);
-                    assertEquals(payload.at("/key/field2").asText(), "f2_" + i);
-                    kvs.put(i, i);
-                } else {
-                    kvs.put(record.partitionKey(), data);
+    private void parseRecordData(Map<String, String> actualKvs, String data, String partitionKey) {
+        if (withSchema) {
+            JsonNode payload = READER.readTree(data).at("/payload");
+            String i = payload.at("/value/field1").asText();
+            assertEquals(payload.at("/value/field2").asText(), "v2_" + i);
+            assertEquals(payload.at("/key/field1").asText(), "f1_" + i);
+            assertEquals(payload.at("/key/field2").asText(), "f2_" + i);
+            actualKvs.put(i, i);
+        } else {
+            actualKvs.put(partitionKey, data);
+        }
+    }
+
+    @SneakyThrows
+    private void addMoreRecords(Map<String, String> actualKvs, String iterator) {
+        GetRecordsResponse response;
+        List<KinesisClientRecord> aggRecords = new ArrayList<>();
+        do {
+            GetRecordsRequest request = GetRecordsRequest.builder().shardIterator(iterator).build();
+            response = client.getRecords(request).get();
+            if (response.hasRecords()) {
+                for (Record record : response.records()) {
+                    // KinesisSink uses KPL with aggregation enabled (by default).
+                    // However, due to the async state initialization of the KPL internal ShardMap,
+                    // the first sinked records might not be aggregated in Kinesis.
+                    // ref: https://github.com/awslabs/amazon-kinesis-producer/issues/131
+                    try {
+                        String data = record.data().asString(StandardCharsets.UTF_8);
+                        parseRecordData(actualKvs, data, record.partitionKey());
+                    } catch (UncheckedIOException e) {
+                        aggRecords.add(KinesisClientRecord.fromRecord(record));
+                    }
                 }
             }
+            iterator = response.nextShardIterator();
+            // millisBehindLatest equals zero when record processing is caught up,
+            // and there are no new records to process at this moment.
+            // See https://docs.aws.amazon.com/kinesis/latest/APIReference/API_GetRecords.html#Streams-GetRecords-response-MillisBehindLatest
+        } while (response.millisBehindLatest() != 0);
+
+        for (KinesisClientRecord record : new AggregatorUtil().deaggregate(aggRecords)) {
+            String data = new String(record.data().array(), StandardCharsets.UTF_8);
+            parseRecordData(actualKvs, data, record.partitionKey());
         }
-        return response.millisBehindLatest();
     }
 
     @Data
@@ -228,5 +266,16 @@ public class KinesisSinkTester extends SinkTester<LocalStackContainer> {
     public static final class SimplePojo {
         private String field1;
         private String field2;
+        private List<Integer> list1;
+        private Set<Long> set1;
+        private Map<String, String> map1;
+    }
+
+    @Override
+    public void close() throws Exception {
+        if (client != null) {
+            client.close();
+            client = null;
+        }
     }
 }

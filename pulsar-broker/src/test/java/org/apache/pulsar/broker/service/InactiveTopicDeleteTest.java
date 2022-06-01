@@ -366,8 +366,6 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
 
     @Test(timeOut = 20000)
     public void testTopicLevelInActiveTopicApi() throws Exception {
-        conf.setSystemTopicEnabled(true);
-        conf.setTopicLevelPoliciesEnabled(true);
         super.baseSetup();
         final String topicName = "persistent://prop/ns-abc/testMaxInactiveDuration-" + UUID.randomUUID().toString();
         admin.topics().createPartitionedTopic(topicName, 3);
@@ -394,8 +392,6 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
 
     @Test(timeOut = 30000)
     public void testTopicLevelInactivePolicyUpdateAndClean() throws Exception {
-        conf.setSystemTopicEnabled(true);
-        conf.setTopicLevelPoliciesEnabled(true);
         conf.setBrokerDeleteInactiveTopicsEnabled(true);
         conf.setBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds(1000);
         conf.setBrokerDeleteInactiveTopicsMode(InactiveTopicDeleteMode.delete_when_no_subscriptions);
@@ -460,7 +456,7 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
         });
         admin.topics().removeInactiveTopicPolicies(topic2);
         // The cache has been updated, but the system-event may not be consumed yet
-        // ，so wait for topic-policies update event
+        // , so wait for topic-policies update event
         Awaitility.await().untilAsserted(() -> {
             InactiveTopicPolicies nsPolicies = ((PersistentTopic) pulsar.getBrokerService()
                     .getTopic(topic2, false).get().get()).getInactiveTopicPolicies();
@@ -472,8 +468,6 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
     @Test(timeOut = 30000)
     public void testDeleteWhenNoSubscriptionsWithTopicLevelPolicies() throws Exception {
         final String namespace = "prop/ns-abc";
-        conf.setSystemTopicEnabled(true);
-        conf.setTopicLevelPoliciesEnabled(true);
         conf.setBrokerDeleteInactiveTopicsEnabled(true);
         conf.setBrokerDeleteInactiveTopicsFrequencySeconds(1);
         super.baseSetup();
@@ -527,8 +521,6 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
 
     @Test(timeOut = 30000)
     public void testInactiveTopicApplied() throws Exception {
-        conf.setSystemTopicEnabled(true);
-        conf.setTopicLevelPoliciesEnabled(true);
         super.baseSetup();
 
         final String namespace = "prop/ns-abc";
@@ -578,7 +570,6 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
 
     @Test(timeOut = 30000)
     public void testHealthTopicInactiveNotClean() throws Exception {
-        conf.setSystemTopicEnabled(true);
         conf.setBrokerDeleteInactiveTopicsMode(InactiveTopicDeleteMode.delete_when_no_subscriptions);
         conf.setBrokerDeleteInactiveTopicsFrequencySeconds(1);
         super.baseSetup();

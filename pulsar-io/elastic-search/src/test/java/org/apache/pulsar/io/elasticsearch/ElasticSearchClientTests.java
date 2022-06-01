@@ -207,6 +207,7 @@ public abstract class ElasticSearchClientTests extends ElasticSearchTestBase {
                 .setElasticSearchUrl("http://"+container.getHttpHostAddress())
                 .setIndexName(index)
                 .setBulkEnabled(true)
+                .setBulkFlushIntervalInMs(-1L)
                 .setMalformedDocAction(ElasticSearchConfig.MalformedDocAction.FAIL);
         try (ElasticSearchClient client = new ElasticSearchClient(config);) {
             MockRecord<GenericObject> mockRecord = new MockRecord<>();
@@ -230,6 +231,7 @@ public abstract class ElasticSearchClientTests extends ElasticSearchTestBase {
                 .setElasticSearchUrl("http://"+container.getHttpHostAddress())
                 .setIndexName(index)
                 .setBulkEnabled(true)
+                .setBulkFlushIntervalInMs(-1)
                 .setMalformedDocAction(ElasticSearchConfig.MalformedDocAction.IGNORE);
         try (ElasticSearchClient client = new ElasticSearchClient(config);) {
             MockRecord<GenericObject> mockRecord = new MockRecord<>();
@@ -344,13 +346,39 @@ public abstract class ElasticSearchClientTests extends ElasticSearchTestBase {
                     Awaitility.await().untilAsserted(() -> {
                         assertEquals(mockRecord.acked, 15);
                         assertEquals(mockRecord.failed, 0);
-                        assertEquals(client.records.size(), 0);
                     });
 
                 } finally {
                     client.getRestClient().deleteIndex(index);
                 }
             }
+        }
+    }
+
+    @Test
+    public void testBulkIndexAndDelete() throws Exception {
+        final String index = "indexbulktest-" + UUID.randomUUID();
+        ElasticSearchConfig config = new ElasticSearchConfig()
+                .setElasticSearchUrl("http://"+container.getHttpHostAddress())
+                .setIndexName(index)
+                .setBulkEnabled(true)
+                .setBulkActions(10)
+                .setBulkFlushIntervalInMs(-1L);
+
+        try (ElasticSearchClient client = new ElasticSearchClient(config)) {
+            assertTrue(client.createIndexIfNeeded(index));
+            MockRecord<GenericObject> mockRecord = new MockRecord<>();
+            for (int i = 0; i < 5; i++) {
+                client.bulkIndex(mockRecord, Pair.of("key" + i, "{\"a\":" + i + "}"));
+                client.bulkDelete(mockRecord, "key" + i);
+            }
+            assertEquals(mockRecord.acked, 10);
+            assertEquals(mockRecord.failed, 0);
+            assertEquals(client.getRestClient().totalHits(index), 0);
+            // no effect
+            client.flush();
+
+            assertEquals(mockRecord.acked, 10);
         }
     }
 

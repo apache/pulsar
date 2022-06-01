@@ -18,11 +18,12 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNull;
 import java.nio.ByteBuffer;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
-import org.junit.Assert;
-import org.junit.Test;
+import org.testng.annotations.Test;
 
 public class ProducerImplTest {
     @Test
@@ -39,11 +40,11 @@ public class ProducerImplTest {
                             null, 0, null);
             opSendMsg.chunkedMessageCtx = ctx;
             // check the ctx hasn't been deallocated.
-            Assert.assertEquals(testMessageId, ctx.firstChunkMessageId);
+            assertEquals(ctx.firstChunkMessageId, testMessageId);
             opSendMsg.recycle();
         }
 
         // check if the ctx is deallocated successfully.
-        Assert.assertNull(ctx.firstChunkMessageId);
+        assertNull(ctx.firstChunkMessageId);
     }
 }

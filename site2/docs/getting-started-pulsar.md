@@ -1,16 +1,16 @@
 ---
 id: pulsar-2.0
 title: Pulsar 2.0
-sidebar_label: Pulsar 2.0
+sidebar_label: "Pulsar 2.0"
 ---
 
-Pulsar 2.0 is a major new release for Pulsar that brings some bold changes to the platform, including [simplified topic names](#topic-names), the addition of the [Pulsar Functions](functions-overview.md) feature, some terminology changes, and more.
+Pulsar 2.0 is a major new release for Pulsar that brings some bold changes to the platform, including [simplified topic names](#topic-names), the addition of the [Pulsar Functions](functions-overview) feature, some terminology changes, and more.
 
 ## New features in Pulsar 2.0
 
 Feature | Description
 :-------|:-----------
-[Pulsar Functions](functions-overview.md) | A lightweight compute option for Pulsar
+[Pulsar Functions](functions-overview) | A lightweight compute option for Pulsar
 
 ## Major changes
 
@@ -18,15 +18,18 @@ There are a few major changes that you should be aware of, as they may significa
 
 ### Properties versus tenants
 
-Previously, Pulsar had a concept of properties. A property is essentially the exact same thing as a tenant, so the "property" terminology has been removed in version 2.0. The [`pulsar-admin properties`](reference-pulsar-admin.md#pulsar-admin) command-line interface, for example, has been replaced with the [`pulsar-admin tenants`](reference-pulsar-admin.md#pulsar-admin-tenants) interface. In some cases the properties terminology is still used but is now considered deprecated and will be removed entirely in a future release.
+Previously, Pulsar had a concept of properties. A property is essentially the exact same thing as a tenant, so the "property" terminology has been removed in version 2.0. The [`pulsar-admin properties`](/tools/pulsar-admin/) command-line interface, for example, has been replaced with the [`pulsar-admin tenants`](/tools/pulsar-admin/) interface. In some cases the properties terminology is still used but is now considered deprecated and will be removed entirely in a future release.
 
 ### Topic names
 
 Prior to version 2.0, *all* Pulsar topics had the following form:
 
 ```http
+
 {persistent|non-persistent}://property/cluster/namespace/topic
+
 ```
+
 Two important changes have been made in Pulsar 2.0:
 
 * There is no longer a [cluster component](#no-cluster)
@@ -39,7 +42,9 @@ Two important changes have been made in Pulsar 2.0:
 The cluster component has been removed from topic names. Thus, all topic names now have the following form:
 
 ```http
+
 {persistent|non-persistent}://tenant/namespace/topic
+
 ```
 
 > Existing topics that use the legacy name format will continue to work without any change, and there are no plans to change that.

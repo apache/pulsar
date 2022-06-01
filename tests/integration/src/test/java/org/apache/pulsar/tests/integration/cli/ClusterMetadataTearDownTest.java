@@ -25,8 +25,10 @@ import static org.testng.Assert.fail;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -86,6 +88,10 @@ public class ClusterMetadataTearDownTest extends TestRetrySupport {
     @BeforeClass(alwaysRun = true)
     public final void setup() throws Exception {
         incrementSetupNumber();
+        Map<String, String> brokerEnvs = new HashMap<>();
+        brokerEnvs.put("systemTopicEnabled", "false");
+        brokerEnvs.put("topicLevelPoliciesEnabled", "false");
+        spec.brokerEnvs(brokerEnvs);
         pulsarCluster = PulsarCluster.forSpec(spec);
         pulsarCluster.start();
         metadataServiceUri = "zk+null://" + pulsarCluster.getZKConnString() + "/ledgers";
@@ -96,7 +102,8 @@ public class ClusterMetadataTearDownTest extends TestRetrySupport {
                 MetadataStoreConfig.builder().build());
 
         driver = MetadataDrivers.getBookieDriver(URI.create(metadataServiceUri));
-        driver.initialize(new ServerConfiguration().setMetadataServiceUri(metadataServiceUri), () -> {}, NullStatsLogger.INSTANCE);
+        driver.initialize(new ServerConfiguration().setMetadataServiceUri(metadataServiceUri),
+                NullStatsLogger.INSTANCE);
         ledgerManager = driver.getLedgerManagerFactory().newLedgerManager();
 
         client = PulsarClient.builder().serviceUrl(pulsarCluster.getPlainTextServiceUrl()).build();

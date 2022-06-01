@@ -21,13 +21,13 @@ package org.apache.pulsar.proxy.server;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
+import static org.apache.commons.lang3.StringUtils.isEmpty;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
-import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
@@ -37,18 +37,19 @@ import io.netty.handler.codec.haproxy.HAProxyCommand;
 import io.netty.handler.codec.haproxy.HAProxyMessage;
 import io.netty.handler.codec.haproxy.HAProxyProtocolVersion;
 import io.netty.handler.codec.haproxy.HAProxyProxiedProtocol;
+import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslHandler;
+import io.netty.handler.ssl.SslProvider;
 import io.netty.handler.timeout.ReadTimeoutHandler;
 import io.netty.util.CharsetUtil;
 import java.net.InetSocketAddress;
 import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Supplier;
-import javax.net.ssl.SSLSession;
 import lombok.Getter;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
+import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.AuthData;
@@ -57,7 +58,10 @@ import org.apache.pulsar.common.api.proto.CommandConnected;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.PulsarDecoder;
 import org.apache.pulsar.common.stats.Rate;
-import org.apache.pulsar.common.tls.TlsHostnameVerifier;
+import org.apache.pulsar.common.util.NettyClientSslContextRefresher;
+import org.apache.pulsar.common.util.SecurityUtility;
+import org.apache.pulsar.common.util.SslContextAutoRefreshBuilder;
+import org.apache.pulsar.common.util.keystoretls.NettySSLContextAutoRefreshBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -79,10 +83,13 @@ public class DirectProxyHandler {
     private AuthenticationDataProvider authenticationDataProvider;
     private final ProxyService service;
     private final Runnable onHandshakeCompleteAction;
+    private final boolean tlsHostnameVerificationEnabled;
+    private final boolean tlsEnabledWithKeyStore;
+    private final boolean tlsEnabledWithBroker;
+    private final SslContextAutoRefreshBuilder<SslContext> clientSslCtxRefresher;
+    private final NettySSLContextAutoRefreshBuilder clientSSLContextAutoRefreshBuilder;
 
-    public DirectProxyHandler(ProxyService service, ProxyConnection proxyConnection, String brokerHostAndPort,
-                              InetSocketAddress targetBrokerAddress, int protocolVersion,
-                              Supplier<SslHandler> sslHandlerSupplier) {
+    public DirectProxyHandler(ProxyService service, ProxyConnection proxyConnection) {
         this.service = service;
         this.authentication = proxyConnection.getClientAuthentication();
         this.inboundChannel = proxyConnection.ctx().channel();
@@ -91,7 +98,59 @@ public class DirectProxyHandler {
         this.originalPrincipal = proxyConnection.clientAuthRole;
         this.clientAuthData = proxyConnection.clientAuthData;
         this.clientAuthMethod = proxyConnection.clientAuthMethod;
+        this.tlsEnabledWithBroker = service.getConfiguration().isTlsEnabledWithBroker();
+        this.tlsHostnameVerificationEnabled = service.getConfiguration().isTlsHostnameVerificationEnabled();
+        this.tlsEnabledWithKeyStore = service.getConfiguration().isTlsEnabledWithKeyStore();
         this.onHandshakeCompleteAction = proxyConnection::cancelKeepAliveTask;
+        ProxyConfiguration config = service.getConfiguration();
+
+        if (tlsEnabledWithBroker) {
+            AuthenticationDataProvider authData = null;
+
+            if (!isEmpty(config.getBrokerClientAuthenticationPlugin())) {
+                try {
+                    authData = AuthenticationFactory.create(config.getBrokerClientAuthenticationPlugin(),
+                            config.getBrokerClientAuthenticationParameters()).getAuthData();
+                } catch (PulsarClientException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+
+            if (tlsEnabledWithKeyStore) {
+                clientSSLContextAutoRefreshBuilder = new NettySSLContextAutoRefreshBuilder(
+                        config.getBrokerClientSslProvider(),
+                        config.isTlsAllowInsecureConnection(),
+                        config.getBrokerClientTlsTrustStoreType(),
+                        config.getBrokerClientTlsTrustStore(),
+                        config.getBrokerClientTlsTrustStorePassword(),
+                        config.getBrokerClientTlsCiphers(),
+                        config.getBrokerClientTlsProtocols(),
+                        config.getTlsCertRefreshCheckDurationSec(),
+                        authData);
+                clientSslCtxRefresher = null;
+            } else {
+                SslProvider sslProvider = null;
+                if (config.getBrokerClientSslProvider() != null) {
+                    sslProvider = SslProvider.valueOf(config.getBrokerClientSslProvider());
+                }
+                clientSslCtxRefresher = new NettyClientSslContextRefresher(
+                        sslProvider,
+                        config.isTlsAllowInsecureConnection(),
+                        config.getBrokerClientTrustCertsFilePath(),
+                        authData,
+                        config.getBrokerClientTlsCiphers(),
+                        config.getBrokerClientTlsProtocols(),
+                        config.getTlsCertRefreshCheckDurationSec()
+                );
+                clientSSLContextAutoRefreshBuilder = null;
+            }
+        } else {
+            clientSSLContextAutoRefreshBuilder = null;
+            clientSslCtxRefresher = null;
+        }
+    }
+
+    public void connect(String brokerHostAndPort, InetSocketAddress targetBrokerAddress, int protocolVersion) {
         ProxyConfiguration config = service.getConfiguration();
 
         // Start the connection attempt.
@@ -119,8 +178,16 @@ public class DirectProxyHandler {
         b.handler(new ChannelInitializer<SocketChannel>() {
             @Override
             protected void initChannel(SocketChannel ch) {
-                if (sslHandlerSupplier != null) {
-                    ch.pipeline().addLast(TLS_HANDLER, sslHandlerSupplier.get());
+                if (tlsEnabledWithBroker) {
+                    String host = targetBrokerAddress.getHostString();
+                    int port = targetBrokerAddress.getPort();
+                    SslHandler handler = tlsEnabledWithKeyStore
+                            ? new SslHandler(clientSSLContextAutoRefreshBuilder.get().createSSLEngine(host, port))
+                            : clientSslCtxRefresher.get().newHandler(ch.alloc(), host, port);
+                    if (tlsHostnameVerificationEnabled) {
+                        SecurityUtility.configureSSLHandler(handler);
+                    }
+                    ch.pipeline().addLast(TLS_HANDLER, handler);
                 }
                 int brokerProxyReadTimeoutMs = service.getConfiguration().getBrokerProxyReadTimeoutMs();
                 if (brokerProxyReadTimeoutMs > 0) {
@@ -207,6 +274,12 @@ public class DirectProxyHandler {
             (byte) 'X',
             (byte) 'Y',
     };
+
+    public void close() {
+        if (outboundChannel != null) {
+            outboundChannel.close();
+        }
+    }
 
     enum BackendState {
         Init, HandshakeCompleted
@@ -330,24 +403,12 @@ public class DirectProxyHandler {
                 log.debug("[{}] [{}] Received Connected from broker", inboundChannel, outboundChannel);
             }
 
-            if (config.isTlsHostnameVerificationEnabled() && remoteHostName != null
-                    && !verifyTlsHostName(remoteHostName, ctx)) {
-                // close the connection if host-verification failed with the
-                // broker
-                log.warn("[{}] Failed to verify hostname of {}", ctx.channel(), remoteHostName);
-                ctx.close();
-                return;
-            }
-
             state = BackendState.HandshakeCompleted;
 
             onHandshakeCompleteAction.run();
             startDirectProxying(connected);
 
-            int maxMessageSize =
-                    connected.hasMaxMessageSize() ? connected.getMaxMessageSize() : Commands.INVALID_MAX_MESSAGE_SIZE;
-            inboundChannel.writeAndFlush(Commands.newConnected(connected.getProtocolVersion(), maxMessageSize))
-                    .addListener(ChannelFutureListener.FIRE_EXCEPTION_ON_FAILURE);
+            proxyConnection.brokerConnected(DirectProxyHandler.this, connected);
         }
 
         private void startDirectProxying(CommandConnected connected) {
@@ -374,20 +435,20 @@ public class DirectProxyHandler {
                                     0, 4, 0, 4));
 
                     inboundChannel.pipeline().addBefore("handler", "inboundParser",
-                            new ParserProxyHandler(service, inboundChannel,
+                            new ParserProxyHandler(service,
                                     ParserProxyHandler.FRONTEND_CONN,
                                     connected.getMaxMessageSize(), outboundChannel.id()));
                     outboundChannel.pipeline().addBefore("proxyOutboundHandler", "outboundParser",
-                            new ParserProxyHandler(service, outboundChannel,
+                            new ParserProxyHandler(service,
                                     ParserProxyHandler.BACKEND_CONN,
                                     connected.getMaxMessageSize(), inboundChannel.id()));
                 } else {
                     inboundChannel.pipeline().addBefore("handler", "inboundParser",
-                            new ParserProxyHandler(service, inboundChannel,
+                            new ParserProxyHandler(service,
                                     ParserProxyHandler.FRONTEND_CONN,
                                     Commands.DEFAULT_MAX_MESSAGE_SIZE, outboundChannel.id()));
                     outboundChannel.pipeline().addBefore("proxyOutboundHandler", "outboundParser",
-                            new ParserProxyHandler(service, outboundChannel,
+                            new ParserProxyHandler(service,
                                     ParserProxyHandler.BACKEND_CONN,
                                     Commands.DEFAULT_MAX_MESSAGE_SIZE, inboundChannel.id()));
                 }
@@ -403,17 +464,6 @@ public class DirectProxyHandler {
         public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
             log.warn("[{}] [{}] Caught exception: {}", inboundChannel, outboundChannel, cause.getMessage(), cause);
             ctx.close();
-        }
-
-        private boolean verifyTlsHostName(String hostname, ChannelHandlerContext ctx) {
-            ChannelHandler sslHandler = ctx.channel().pipeline().get("tls");
-
-            SSLSession sslSession;
-            if (sslHandler != null) {
-                sslSession = ((SslHandler) sslHandler).engine().getSession();
-                return (new TlsHostnameVerifier()).verify(hostname, sslSession);
-            }
-            return false;
         }
     }
 

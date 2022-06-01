@@ -73,6 +73,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.compaction.Compactor;
 import org.awaitility.Awaitility;
+import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -84,6 +85,8 @@ public class PrometheusMetricsTest extends BrokerTestBase {
     @BeforeMethod(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
+        conf.setTopicLevelPoliciesEnabled(false);
+        conf.setSystemTopicEnabled(false);
         super.baseSetup();
         AuthenticationProviderToken.resetMetrics();
     }
@@ -989,17 +992,38 @@ public class PrometheusMetricsTest extends BrokerTestBase {
                 System.out.println(e.getKey() + ": " + e.getValue())
         );
 
-        List<Metric> cm = (List<Metric>) metrics.get("pulsar_managedLedger_client_bookkeeper_ml_scheduler_completed_tasks_0");
+        List<Metric> cm = (List<Metric>) metrics.get(keyNameBySubstrings(metrics,
+                "pulsar_managedLedger_client", "bookkeeper_ml_scheduler_completed_tasks"));
         assertEquals(cm.size(), 1);
         assertEquals(cm.get(0).tags.get("cluster"), "test");
 
-        cm = (List<Metric>) metrics.get("pulsar_managedLedger_client_bookkeeper_ml_scheduler_queue_0");
+        cm = (List<Metric>) metrics.get(
+                keyNameBySubstrings(metrics,
+                        "pulsar_managedLedger_client", "bookkeeper_ml_scheduler_queue"));
         assertEquals(cm.size(), 1);
         assertEquals(cm.get(0).tags.get("cluster"), "test");
 
-        cm = (List<Metric>) metrics.get("pulsar_managedLedger_client_bookkeeper_ml_scheduler_total_tasks_0");
+        cm = (List<Metric>) metrics.get(
+                keyNameBySubstrings(metrics,
+                        "pulsar_managedLedger_client", "bookkeeper_ml_scheduler_total_tasks"));
         assertEquals(cm.size(), 1);
         assertEquals(cm.get(0).tags.get("cluster"), "test");
+    }
+
+    private static String keyNameBySubstrings(Multimap<String, Metric> metrics, String... substrings) {
+        for (String key: metrics.keys()) {
+            boolean found = true;
+            for (String s: substrings) {
+                if (!key.contains(s)) {
+                    found = false;
+                    break;
+                }
+            }
+            if (found) {
+                return key;
+            }
+        }
+        return null;
     }
 
     @Test
@@ -1394,9 +1418,38 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         assertEquals(cm.get(0).value, 10);
         cm = (List<Metric>) metrics.get("pulsar_compaction_compacted_entries_size");
         assertEquals(cm.size(), 1);
-        assertEquals(cm.get(0).value, 870);
+        assertEquals(cm.get(0).value, 840);
 
         pulsarClient.close();
+    }
+
+    @Test
+    public void testMetricsWithCache() throws Throwable {
+        ServiceConfiguration configuration = Mockito.mock(ServiceConfiguration.class);
+        Mockito.when(configuration.getManagedLedgerStatsPeriodSeconds()).thenReturn(2);
+        Mockito.when(configuration.isMetricsBufferResponse()).thenReturn(true);
+        Mockito.when(pulsar.getConfiguration()).thenReturn(configuration);
+
+        int period = pulsar.getConfiguration().getManagedLedgerStatsPeriodSeconds();
+        TimeWindow<Object> timeWindow = new TimeWindow<>(2, (int) TimeUnit.SECONDS.toMillis(period));
+
+        for (int a = 0; a < 4; a++) {
+            long start = System.currentTimeMillis();
+            ByteArrayOutputStream statsOut1 = new ByteArrayOutputStream();
+            PrometheusMetricsGenerator.generate(pulsar, true, false, false, false, statsOut1, null);
+            ByteArrayOutputStream statsOut2 = new ByteArrayOutputStream();
+            PrometheusMetricsGenerator.generate(pulsar, true, false, false, false, statsOut2, null);
+            long end = System.currentTimeMillis();
+
+            if (timeWindow.currentWindowStart(start) == timeWindow.currentWindowStart(end)) {
+                String metricsStr1 = statsOut1.toString();
+                String metricsStr2 = statsOut2.toString();
+                assertEquals(metricsStr1, metricsStr2);
+                Multimap<String, Metric> metrics = parseMetrics(metricsStr1);
+            }
+
+            Thread.sleep(TimeUnit.SECONDS.toMillis(period / 2));
+        }
     }
 
     @Test
@@ -1457,8 +1510,8 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         // Example of lines are
         // jvm_threads_current{cluster="standalone",} 203.0
         // or
-        // pulsar_subscriptions_count{cluster="standalone", namespace="sample/standalone/ns1",
-        // topic="persistent://sample/standalone/ns1/test-2"} 0.0 1517945780897
+        // pulsar_subscriptions_count{cluster="standalone", namespace="public/default",
+        // topic="persistent://public/default/test-2"} 0.0 1517945780897
         Pattern pattern = Pattern.compile("^(\\w+)\\{([^\\}]+)\\}\\s([+-]?[\\d\\w\\.-]+)(\\s(\\d+))?$");
         Pattern tagsPattern = Pattern.compile("(\\w+)=\"([^\"]+)\"(,\\s?)?");
 

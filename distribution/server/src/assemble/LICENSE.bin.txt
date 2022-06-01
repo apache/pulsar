@@ -310,7 +310,7 @@ This projects includes binary packages with the following licenses:
 
 The Apache Software License, Version 2.0
  * JCommander -- com.beust-jcommander-1.78.jar
- * High Performance Primitive Collections for Java -- com.carrotsearch-hppc-0.7.3.jar
+ * High Performance Primitive Collections for Java -- com.carrotsearch-hppc-0.9.1.jar
  * Jackson
      - com.fasterxml.jackson.core-jackson-annotations-2.13.2.jar
      - com.fasterxml.jackson.core-jackson-core-2.13.2.jar
@@ -352,31 +352,31 @@ The Apache Software License, Version 2.0
     - org.apache.commons-commons-compress-1.21.jar
     - org.apache.commons-commons-lang3-3.11.jar
  * Netty
-    - io.netty-netty-buffer-4.1.76.Final.jar
-    - io.netty-netty-codec-4.1.76.Final.jar
-    - io.netty-netty-codec-dns-4.1.76.Final.jar
-    - io.netty-netty-codec-http-4.1.76.Final.jar
-    - io.netty-netty-codec-http2-4.1.76.Final.jar
-    - io.netty-netty-codec-socks-4.1.76.Final.jar
-    - io.netty-netty-codec-haproxy-4.1.76.Final.jar
-    - io.netty-netty-common-4.1.76.Final.jar
-    - io.netty-netty-handler-4.1.76.Final.jar
-    - io.netty-netty-handler-proxy-4.1.76.Final.jar
-    - io.netty-netty-resolver-4.1.76.Final.jar
-    - io.netty-netty-resolver-dns-4.1.76.Final.jar
-    - io.netty-netty-transport-4.1.76.Final.jar
-    - io.netty-netty-transport-classes-epoll-4.1.76.Final.jar
-    - io.netty-netty-transport-native-epoll-4.1.76.Final-linux-x86_64.jar
-    - io.netty-netty-transport-native-epoll-4.1.76.Final.jar
-    - io.netty-netty-transport-native-unix-common-4.1.76.Final.jar
-    - io.netty-netty-transport-native-unix-common-4.1.76.Final-linux-x86_64.jar
-    - io.netty-netty-tcnative-boringssl-static-2.0.51.Final.jar
-    - io.netty-netty-tcnative-boringssl-static-2.0.51.Final-linux-aarch_64.jar
-    - io.netty-netty-tcnative-boringssl-static-2.0.51.Final-linux-x86_64.jar
-    - io.netty-netty-tcnative-boringssl-static-2.0.51.Final-osx-aarch_64.jar
-    - io.netty-netty-tcnative-boringssl-static-2.0.51.Final-osx-x86_64.jar
-    - io.netty-netty-tcnative-boringssl-static-2.0.51.Final-windows-x86_64.jar
-    - io.netty-netty-tcnative-classes-2.0.51.Final.jar
+    - io.netty-netty-buffer-4.1.77.Final.jar
+    - io.netty-netty-codec-4.1.77.Final.jar
+    - io.netty-netty-codec-dns-4.1.77.Final.jar
+    - io.netty-netty-codec-http-4.1.77.Final.jar
+    - io.netty-netty-codec-http2-4.1.77.Final.jar
+    - io.netty-netty-codec-socks-4.1.77.Final.jar
+    - io.netty-netty-codec-haproxy-4.1.77.Final.jar
+    - io.netty-netty-common-4.1.77.Final.jar
+    - io.netty-netty-handler-4.1.77.Final.jar
+    - io.netty-netty-handler-proxy-4.1.77.Final.jar
+    - io.netty-netty-resolver-4.1.77.Final.jar
+    - io.netty-netty-resolver-dns-4.1.77.Final.jar
+    - io.netty-netty-transport-4.1.77.Final.jar
+    - io.netty-netty-transport-classes-epoll-4.1.77.Final.jar
+    - io.netty-netty-transport-native-epoll-4.1.77.Final-linux-x86_64.jar
+    - io.netty-netty-transport-native-epoll-4.1.77.Final.jar
+    - io.netty-netty-transport-native-unix-common-4.1.77.Final.jar
+    - io.netty-netty-transport-native-unix-common-4.1.77.Final-linux-x86_64.jar
+    - io.netty-netty-tcnative-boringssl-static-2.0.52.Final.jar
+    - io.netty-netty-tcnative-boringssl-static-2.0.52.Final-linux-aarch_64.jar
+    - io.netty-netty-tcnative-boringssl-static-2.0.52.Final-linux-x86_64.jar
+    - io.netty-netty-tcnative-boringssl-static-2.0.52.Final-osx-aarch_64.jar
+    - io.netty-netty-tcnative-boringssl-static-2.0.52.Final-osx-x86_64.jar
+    - io.netty-netty-tcnative-boringssl-static-2.0.52.Final-windows-x86_64.jar
+    - io.netty-netty-tcnative-classes-2.0.52.Final.jar
  * Prometheus client
     - io.prometheus-simpleclient-0.5.0.jar
     - io.prometheus-simpleclient_common-0.5.0.jar
@@ -397,31 +397,31 @@ The Apache Software License, Version 2.0
     - org.apache.logging.log4j-log4j-1.2-api-2.17.1.jar
  * Java Native Access JNA -- net.java.dev.jna-jna-4.2.0.jar
  * BookKeeper
-    - org.apache.bookkeeper-bookkeeper-common-4.14.4.jar
-    - org.apache.bookkeeper-bookkeeper-common-allocator-4.14.4.jar
-    - org.apache.bookkeeper-bookkeeper-proto-4.14.4.jar
-    - org.apache.bookkeeper-bookkeeper-server-4.14.4.jar
-    - org.apache.bookkeeper-bookkeeper-tools-framework-4.14.4.jar
-    - org.apache.bookkeeper-circe-checksum-4.14.4.jar
-    - org.apache.bookkeeper-cpu-affinity-4.14.4.jar
-    - org.apache.bookkeeper-statelib-4.14.4.jar
-    - org.apache.bookkeeper-stream-storage-api-4.14.4.jar
-    - org.apache.bookkeeper-stream-storage-common-4.14.4.jar
-    - org.apache.bookkeeper-stream-storage-java-client-4.14.4.jar
-    - org.apache.bookkeeper-stream-storage-java-client-base-4.14.4.jar
-    - org.apache.bookkeeper-stream-storage-proto-4.14.4.jar
-    - org.apache.bookkeeper-stream-storage-server-4.14.4.jar
-    - org.apache.bookkeeper-stream-storage-service-api-4.14.4.jar
-    - org.apache.bookkeeper-stream-storage-service-impl-4.14.4.jar
-    - org.apache.bookkeeper.http-http-server-4.14.4.jar
-    - org.apache.bookkeeper.http-vertx-http-server-4.14.4.jar
-    - org.apache.bookkeeper.stats-bookkeeper-stats-api-4.14.4.jar
-    - org.apache.bookkeeper.stats-prometheus-metrics-provider-4.14.4.jar
-    - org.apache.distributedlog-distributedlog-common-4.14.4.jar
-    - org.apache.distributedlog-distributedlog-core-4.14.4-tests.jar
-    - org.apache.distributedlog-distributedlog-core-4.14.4.jar
-    - org.apache.distributedlog-distributedlog-protocol-4.14.4.jar
-    - org.apache.bookkeeper.stats-codahale-metrics-provider-4.14.4.jar
+    - org.apache.bookkeeper-bookkeeper-common-4.15.0.jar
+    - org.apache.bookkeeper-bookkeeper-common-allocator-4.15.0.jar
+    - org.apache.bookkeeper-bookkeeper-proto-4.15.0.jar
+    - org.apache.bookkeeper-bookkeeper-server-4.15.0.jar
+    - org.apache.bookkeeper-bookkeeper-tools-framework-4.15.0.jar
+    - org.apache.bookkeeper-circe-checksum-4.15.0.jar
+    - org.apache.bookkeeper-cpu-affinity-4.15.0.jar
+    - org.apache.bookkeeper-statelib-4.15.0.jar
+    - org.apache.bookkeeper-stream-storage-api-4.15.0.jar
+    - org.apache.bookkeeper-stream-storage-common-4.15.0.jar
+    - org.apache.bookkeeper-stream-storage-java-client-4.15.0.jar
+    - org.apache.bookkeeper-stream-storage-java-client-base-4.15.0.jar
+    - org.apache.bookkeeper-stream-storage-proto-4.15.0.jar
+    - org.apache.bookkeeper-stream-storage-server-4.15.0.jar
+    - org.apache.bookkeeper-stream-storage-service-api-4.15.0.jar
+    - org.apache.bookkeeper-stream-storage-service-impl-4.15.0.jar
+    - org.apache.bookkeeper.http-http-server-4.15.0.jar
+    - org.apache.bookkeeper.http-vertx-http-server-4.15.0.jar
+    - org.apache.bookkeeper.stats-bookkeeper-stats-api-4.15.0.jar
+    - org.apache.bookkeeper.stats-prometheus-metrics-provider-4.15.0.jar
+    - org.apache.distributedlog-distributedlog-common-4.15.0.jar
+    - org.apache.distributedlog-distributedlog-core-4.15.0-tests.jar
+    - org.apache.distributedlog-distributedlog-core-4.15.0.jar
+    - org.apache.distributedlog-distributedlog-protocol-4.15.0.jar
+    - org.apache.bookkeeper.stats-codahale-metrics-provider-4.15.0.jar
   * Apache HTTP Client
     - org.apache.httpcomponents-httpclient-4.5.13.jar
     - org.apache.httpcomponents-httpcore-4.4.15.jar
@@ -451,7 +451,7 @@ The Apache Software License, Version 2.0
     - org.eclipse.jetty-jetty-alpn-conscrypt-server-9.4.44.v20210927.jar
     - org.eclipse.jetty-jetty-alpn-server-9.4.44.v20210927.jar
  * SnakeYaml -- org.yaml-snakeyaml-1.30.jar
- * RocksDB - org.rocksdb-rocksdbjni-6.10.2.jar
+ * RocksDB - org.rocksdb-rocksdbjni-6.29.4.1.jar
  * Google Error Prone Annotations - com.google.errorprone-error_prone_annotations-2.5.1.jar
  * Apache Thrift - org.apache.thrift-libthrift-0.14.2.jar
  * OkHttp3
@@ -505,9 +505,10 @@ The Apache Software License, Version 2.0
     - io.kubernetes-client-java-api-12.0.1.jar
     - io.kubernetes-client-java-proto-12.0.1.jar
   * Dropwizard
-    - io.dropwizard.metrics-metrics-core-3.2.5.jar
-    - io.dropwizard.metrics-metrics-graphite-3.2.5.jar
-    - io.dropwizard.metrics-metrics-jvm-3.2.5.jar
+    - io.dropwizard.metrics-metrics-core-4.1.12.1.jar
+    - io.dropwizard.metrics-metrics-graphite-4.1.12.1.jar
+    - io.dropwizard.metrics-metrics-jvm-4.1.12.1.jar
+    - io.dropwizard.metrics-metrics-jmx-4.1.12.1.jar
   * Prometheus
     - io.prometheus-simpleclient_httpserver-0.5.0.jar
   * Java JSON WebTokens
@@ -527,9 +528,8 @@ The Apache Software License, Version 2.0
     - org.apache.zookeeper-zookeeper-jute-3.8.0.jar
     - org.apache.zookeeper-zookeeper-prometheus-metrics-3.8.0.jar
   * Snappy Java
-    - org.xerial.snappy-snappy-java-1.1.7.jar
+    - org.xerial.snappy-snappy-java-1.1.8.4.jar
   * Google HTTP Client
-    - com.google.http-client-google-http-client-jackson2-1.41.0.jar
     - com.google.http-client-google-http-client-gson-1.41.0.jar
     - com.google.http-client-google-http-client-1.41.0.jar
     - com.google.auto.value-auto-value-annotations-1.9.jar
@@ -541,6 +541,10 @@ The Apache Software License, Version 2.0
     - com.github.seancfoley-ipaddress-5.3.3.jar
   * LMAX Disruptor
     - com.lmax-disruptor-3.4.3.jar
+  * RxJava
+    - io.reactivex.rxjava3-rxjava-3.0.1.jar
+  * RabbitMQ Java Client
+    - com.rabbitmq-amqp-client-5.5.3.jar
 
 BSD 3-clause "New" or "Revised" License
  * Google auth library
