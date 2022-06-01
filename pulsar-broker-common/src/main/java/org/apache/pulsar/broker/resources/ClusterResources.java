@@ -162,6 +162,11 @@ public class ClusterResources extends BaseResources<ClusterData> {
             delete(path);
         }
 
+        public CompletableFuture<Void> deleteFailureDomainAsync(String clusterName, String domainName) {
+            String path = joinPath(BASE_CLUSTERS_PATH, clusterName, FAILURE_DOMAIN, domainName);
+            return deleteAsync(path);
+        }
+
         public CompletableFuture<Void> deleteFailureDomainsAsync(String clusterName) {
             String failureDomainPath = joinPath(BASE_CLUSTERS_PATH, clusterName, FAILURE_DOMAIN);
             return existsAsync(failureDomainPath)
