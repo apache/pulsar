@@ -40,7 +40,6 @@ import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.common.naming.NamespaceName;
-import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.PolicyName;
@@ -167,22 +166,29 @@ public class NamespacesV2Test extends MockedPulsarServiceBaseTest {
     @Test
     public void testOperationSubscriptionDispatchRate() throws Exception {
 
+        // 0. set subscription dispatch
         asyncRequests(response -> namespaces.setSubscriptionDispatchRate(response, this.testTenant,
                 this.testNamespace, DispatchRateImpl.builder().build()));
 
+        // 1. check subscription dispatch
         DispatchRate dispatchRate = (DispatchRate) asyncRequests(
                 response -> namespaces.getSubscriptionDispatchRate(response, this.testTenant, this.testNamespace));
         assertNotNull(dispatchRate);
         assertEquals(-1, dispatchRate.getDispatchThrottlingRateInMsg());
 
-        asyncRequests(response -> namespaces.deleteSubscriptionDispatchRate(response, this.testTenant, this.testNamespace));
-        assertNull(asyncRequests(response -> namespaces.getSubscriptionDispatchRate(response, this.testTenant, this.testNamespace)));
+        // 2. delete & check subscription dispatch
+        asyncRequests(response -> namespaces.deleteSubscriptionDispatchRate(response,
+                this.testTenant, this.testNamespace));
+        assertNull(asyncRequests(response -> namespaces.getSubscriptionDispatchRate(response,
+                this.testTenant, this.testNamespace)));
 
+        // 3. exception check
         try {
-            asyncRequests(response -> namespaces.setSubscriptionDispatchRate(response, this.testTenant, this.testNamespace, null));
+            asyncRequests(response -> namespaces.setSubscriptionDispatchRate(response, this.testTenant,
+                    "testNamespace", null));
             fail("should have failed");
         } catch (RestException e) {
-            assertEquals(e.getResponse().getStatus(), Response.Status.PRECONDITION_FAILED.getStatusCode());
+            assertEquals(e.getResponse().getStatus(), Response.Status.NOT_FOUND.getStatusCode());
         }
     }
 

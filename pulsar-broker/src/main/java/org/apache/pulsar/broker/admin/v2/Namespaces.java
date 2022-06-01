@@ -784,8 +784,8 @@ public class Namespaces extends NamespacesBase {
     public void setSubscriptionDispatchRate(@Suspended AsyncResponse asyncResponse,
                                             @PathParam("tenant") String tenant,
                                             @PathParam("namespace") String namespace,
-                       @ApiParam(
-                               value = "Subscription dispatch rate for all topics of the specified namespace")
+                                            @ApiParam(value =
+                                            "Subscription dispatch rate for all topics of the specified namespace")
                                                         DispatchRateImpl dispatchRate) {
         validateNamespaceName(tenant, namespace);
         internalSetSubscriptionDispatchRateAsync(dispatchRate)

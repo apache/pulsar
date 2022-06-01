@@ -1321,15 +1321,6 @@ public abstract class NamespacesBase extends AdminResource {
         return policies.topicDispatchRate.get(pulsar().getConfiguration().getClusterName());
     }
 
-    protected CompletableFuture<Void> internalDeleteTopicDispatchRateAsync() {
-        return validateSuperUserAccessAsync()
-                .thenCompose(__ -> updatePoliciesAsync(namespaceName, policies -> {
-                    policies.topicDispatchRate.remove(pulsar().getConfiguration().getClusterName());
-                    policies.clusterDispatchRate.remove(pulsar().getConfiguration().getClusterName());
-                    return policies;
-                }));
-    }
-
     protected CompletableFuture<Void> internalSetSubscriptionDispatchRateAsync(DispatchRateImpl dispatchRate) {
         return validateSuperUserAccessAsync()
                 .thenCompose(__ -> updatePoliciesAsync(namespaceName, policies -> {

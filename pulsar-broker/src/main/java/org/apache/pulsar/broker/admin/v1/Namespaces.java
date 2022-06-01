@@ -839,9 +839,10 @@ public class Namespaces extends NamespacesBase {
                                             DispatchRateImpl dispatchRate) {
         validateNamespaceName(property, cluster, namespace);
         internalSetSubscriptionDispatchRateAsync(dispatchRate)
-                .thenAccept(asyncResponse::resume)
+                .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
                 .exceptionally(ex -> {
-                    log.error("Failed to set the dispatchRate for cluster on namespace {}", namespaceName, ex);
+                    log.error("Failed to set the subscription dispatchRate for cluster on namespace {}",
+                            namespaceName, ex);
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
