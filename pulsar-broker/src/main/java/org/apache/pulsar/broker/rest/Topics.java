@@ -34,8 +34,6 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
-
 import org.apache.pulsar.websocket.data.ProducerMessages;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -63,22 +61,16 @@ public class Topics extends RestBase {
                                          @PathParam("topic") @Encoded String encodedTopic,
                                          @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
                                          ProducerMessages producerMessages) {
-        try {
-            validateTopicName(tenant, namespace, encodedTopic);
-            validateProducePermission();
-            publishMessages(producerMessages, authoritative)
-                    .thenApply(__ -> asyncResponse.resume(Response.noContent().build()))
-                    .exceptionally(ex -> {
-                        if (!isRedirectException(ex)) {
-                            log.error("[{}] Failed to produce on topic {}", clientAppId(), topicName, ex);
-                        }
-                        resumeAsyncResponseExceptionally(asyncResponse, ex);
-                        return null;
-                    });
-        } catch (Exception e) {
-            log.error("[{}] Failed to produce on topic {}", clientAppId(), topicName, e);
-            resumeAsyncResponseExceptionally(asyncResponse, e);
-        }
+        validatePersistentTopicName(tenant, namespace, encodedTopic);
+        publishMessagesByProducer(producerMessages, authoritative)
+                .thenAccept(asyncResponse::resume)
+                .exceptionally(ex -> {
+                    if (!isRedirectException(ex)) {
+                        log.error("[{}] Failed to produce msg on topic {}", clientAppId(), topicName, ex);
+                    }
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @POST
@@ -98,16 +90,20 @@ public class Topics extends RestBase {
                                                   @PathParam("topic") @Encoded String encodedTopic,
                                                   @ApiParam(value = "Specify topic partition", required = true)
                                                   @PathParam("partition") int partition,
-                                                  @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+                                                  @QueryParam("authoritative") @DefaultValue("false")
+                                                  boolean authoritative,
                                                   ProducerMessages producerMessages) {
-        try {
-            validateTopicName(tenant, namespace, encodedTopic);
-            validateProducePermission();
-            publishMessagesToPartition(asyncResponse, producerMessages, authoritative, partition);
-        } catch (Exception e) {
-            log.error("[{}] Failed to produce on topic {}", clientAppId(), topicName, e);
-            resumeAsyncResponseExceptionally(asyncResponse, e);
-        }
+        validatePartitionedTopicName(tenant, namespace, encodedTopic);
+        publishMessages(producerMessages, partition, authoritative)
+                .thenAccept(asyncResponse::resume)
+                .exceptionally(ex -> {
+                    if (!isRedirectException(ex)) {
+                        log.error("[{}] Failed to produce msg to partition {} on topic {}", clientAppId(), partition,
+                                topicName, ex);
+                    }
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @POST
@@ -127,14 +123,16 @@ public class Topics extends RestBase {
                                             @QueryParam("authoritative") @DefaultValue("false")
                                             boolean authoritative,
                                             ProducerMessages producerMessages) {
-        try {
-            validateTopicName(tenant, namespace, encodedTopic);
-            validateProducePermission();
-            publishMessages(asyncResponse, producerMessages, authoritative);
-        } catch (Exception e) {
-            log.error("[{}] Failed to produce on topic {}", clientAppId(), topicName, e);
-            resumeAsyncResponseExceptionally(asyncResponse, e);
-        }
+        validateNonPersistentTopicName(tenant, namespace, encodedTopic);
+        publishMessagesByProducer(producerMessages, authoritative)
+                .thenAccept(asyncResponse::resume)
+                .exceptionally(ex -> {
+                    if (!isRedirectException(ex)) {
+                        log.error("[{}] Failed to produce msg on topic {}", clientAppId(), topicName, ex);
+                    }
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @POST
@@ -157,14 +155,17 @@ public class Topics extends RestBase {
                                                      @QueryParam("authoritative") @DefaultValue("false")
                                                      boolean authoritative,
                                                      ProducerMessages producerMessages) {
-        try {
-            validateTopicName(tenant, namespace, encodedTopic);
-            validateProducePermission();
-            publishMessagesToPartition(asyncResponse, producerMessages, authoritative, partition);
-        } catch (Exception e) {
-            log.error("[{}] Failed to produce on topic {}", clientAppId(), topicName, e);
-            resumeAsyncResponseExceptionally(asyncResponse, e);
-        }
+        validateNonPersistentTopicName(tenant, namespace, encodedTopic);
+        publishMessages(producerMessages, partition, authoritative)
+                .thenAccept(asyncResponse::resume)
+                .exceptionally(ex -> {
+                    if (!isRedirectException(ex)) {
+                        log.error("[{}] Failed to produce msg to partition {} on topic {}", clientAppId(), partition,
+                                topicName, ex);
+                    }
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
 }

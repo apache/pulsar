@@ -20,60 +20,6 @@ package org.apache.pulsar.broker.rest;
 
 import com.google.common.base.MoreObjects;
 import io.netty.buffer.ByteBuf;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.avro.generic.GenericData;
-import org.apache.avro.generic.GenericDatumReader;
-import org.apache.avro.generic.GenericRecord;
-import org.apache.avro.io.DatumReader;
-import org.apache.avro.io.Decoder;
-import org.apache.avro.io.DecoderFactory;
-import org.apache.bookkeeper.mledger.ManagedLedgerException;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
-import org.apache.commons.lang3.tuple.Pair;
-import org.apache.pulsar.broker.admin.impl.PersistentTopicsBase;
-import org.apache.pulsar.broker.namespace.LookupOptions;
-import org.apache.pulsar.broker.namespace.NamespaceService;
-import org.apache.pulsar.broker.service.BrokerServiceException;
-import org.apache.pulsar.broker.service.Topic;
-import org.apache.pulsar.broker.service.schema.exceptions.SchemaException;
-import org.apache.pulsar.broker.web.RestException;
-import org.apache.pulsar.client.api.CompressionType;
-import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.impl.MessageIdImpl;
-import org.apache.pulsar.client.impl.MessageImpl;
-import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
-import org.apache.pulsar.client.impl.schema.AvroBaseStructSchema;
-import org.apache.pulsar.client.impl.schema.KeyValueSchemaImpl;
-import org.apache.pulsar.client.impl.schema.KeyValueSchemaInfo;
-import org.apache.pulsar.client.impl.schema.SchemaInfoImpl;
-import org.apache.pulsar.client.impl.schema.StringSchema;
-import org.apache.pulsar.client.impl.schema.generic.GenericAvroRecord;
-import org.apache.pulsar.client.impl.schema.generic.GenericAvroWriter;
-import org.apache.pulsar.client.impl.schema.generic.GenericJsonRecord;
-import org.apache.pulsar.client.impl.schema.generic.GenericJsonWriter;
-import org.apache.pulsar.common.api.proto.MessageMetadata;
-import org.apache.pulsar.common.compression.CompressionCodecProvider;
-import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
-import org.apache.pulsar.common.protocol.Commands;
-import org.apache.pulsar.common.protocol.schema.SchemaData;
-import org.apache.pulsar.common.protocol.schema.SchemaVersion;
-import org.apache.pulsar.common.schema.KeyValueEncodingType;
-import org.apache.pulsar.common.schema.LongSchemaVersion;
-import org.apache.pulsar.common.schema.SchemaInfo;
-import org.apache.pulsar.common.schema.SchemaType;
-import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.apache.pulsar.websocket.data.ProducerAck;
-import org.apache.pulsar.websocket.data.ProducerMessage;
-import org.apache.pulsar.websocket.data.ProducerMessages;
-import javax.ws.rs.WebApplicationException;
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.Response.Status;
-import javax.ws.rs.core.UriBuilder;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URL;
@@ -92,16 +38,73 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
+import javax.ws.rs.WebApplicationException;
+import javax.ws.rs.core.Response;
+import javax.ws.rs.core.Response.Status;
+import javax.ws.rs.core.UriBuilder;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.avro.generic.GenericData;
+import org.apache.avro.generic.GenericDatumReader;
+import org.apache.avro.generic.GenericRecord;
+import org.apache.avro.io.DatumReader;
+import org.apache.avro.io.Decoder;
+import org.apache.avro.io.DecoderFactory;
+import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.broker.admin.impl.PersistentTopicsBase;
+import org.apache.pulsar.broker.namespace.LookupOptions;
+import org.apache.pulsar.broker.namespace.NamespaceService;
+import org.apache.pulsar.broker.service.BrokerServiceException;
+import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.service.schema.exceptions.SchemaException;
+import org.apache.pulsar.broker.web.RestException;
+import org.apache.pulsar.client.api.CompressionType;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.ProducerBuilder;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.client.impl.MessageImpl;
+import org.apache.pulsar.client.impl.ProducerBase;
+import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
+import org.apache.pulsar.client.impl.schema.AvroBaseStructSchema;
+import org.apache.pulsar.client.impl.schema.KeyValueSchemaImpl;
+import org.apache.pulsar.client.impl.schema.KeyValueSchemaInfo;
+import org.apache.pulsar.client.impl.schema.SchemaInfoImpl;
+import org.apache.pulsar.client.impl.schema.StringSchema;
+import org.apache.pulsar.client.impl.schema.generic.GenericAvroRecord;
+import org.apache.pulsar.client.impl.schema.generic.GenericAvroWriter;
+import org.apache.pulsar.client.impl.schema.generic.GenericJsonRecord;
+import org.apache.pulsar.client.impl.schema.generic.GenericJsonWriter;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.apache.pulsar.common.compression.CompressionCodecProvider;
+import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.protocol.schema.SchemaData;
+import org.apache.pulsar.common.protocol.schema.SchemaVersion;
+import org.apache.pulsar.common.schema.KeyValueEncodingType;
+import org.apache.pulsar.common.schema.LongSchemaVersion;
+import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.schema.SchemaType;
+import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.websocket.data.ProducerAck;
+import org.apache.pulsar.websocket.data.ProducerAcks;
+import org.apache.pulsar.websocket.data.ProducerMessage;
+import org.apache.pulsar.websocket.data.ProducerMessages;
 
 /**
  * Contains methods used by REST api to producer/consumer/read messages to/from pulsar topics.
  */
 @Slf4j
-public class RestBase extends TopicsBase {
+public class RestBase extends PersistentTopicsBase {
 
-    private static String defaultProducerName = "RestProducer";
-
-    protected CompletableFuture<Void> publishMessages(ProducerMessages request, boolean authoritative) {
+    protected CompletableFuture<ProducerAcks> publishMessagesByProducer(ProducerMessages request,
+                                                                        boolean authoritative) {
         return getPublishTopicName(authoritative)
                 .thenCompose(name -> checkTopicOwnershipAsync(name, authoritative))
                 .thenCompose(__ -> checkProducePermissionAsync())
@@ -111,11 +114,92 @@ public class RestBase extends TopicsBase {
                         Optional<LongSchemaVersion> schemaVersion = request.getSchemaVersion() == -1
                                 ? Optional.empty()
                                 : Optional.of(new LongSchemaVersion(request.getSchemaVersion()));
-                        Optional<SchemaData> schemaData = getSchemaData(request.getKeySchema(), request.getValueSchema());
+                        Optional<SchemaData> schemaData = getSchemaData(request.getKeySchema(),
+                                request.getValueSchema());
+                        return getOrAddSchema(op.get(), schemaData, schemaVersion)
+                                .thenCompose(schemaInfo -> publishMessages(request, schemaInfo));
+                    } else {
+                        return FutureUtil.failedFuture(new BrokerServiceException
+                                .TopicNotFoundException(String.format("Topic %s not found", topicName.toString())));
+                    }
+                });
+    }
+
+    private CompletableFuture<ProducerAcks> publishMessages(ProducerMessages request,
+                                                            SchemaAndMetadata schemaMetadata) {
+        CompletableFuture<Producer<byte[]>> producerFuture;
+        try {
+            ProducerBuilder<byte[]> producerBuilder = pulsar().getClient()
+                    .newProducer();
+            producerBuilder.topic(topicName.getPartitionedTopicName());
+            producerBuilder.producerName(getProducerName(request));
+            producerBuilder.enableBatching(false);
+            producerFuture = producerBuilder.createAsync();
+        } catch (Exception e) {
+            return FutureUtil.failedFuture(new RuntimeException(e));
+        }
+        return producerFuture.thenApply(producer -> {
+            Schema<?> schema = AutoConsumeSchema.getSchema(schemaMetadata.schema.toSchemaInfo());
+            List<Message> messages = buildMessage(request, schema, topicName, false);
+            List<CompletableFuture<MessageId>> results = new ArrayList<>();
+            for (Message msg : messages) {
+                results.add(((ProducerBase) producer).sendAsync(msg));
+            }
+            return results;
+        }).thenCompose(futures -> FutureUtil.waitForAll(futures).thenApply(__ -> {
+            List<ProducerAck> producerAckResults = new ArrayList<>();
+            for (int index = 0; index < futures.size(); index++) {
+                ProducerAck producerAck = new ProducerAck();
+                MessageId messageId = futures.get(index).join();
+                producerAck.setMessageId(messageId.toString());
+                producerAckResults.add(producerAck);
+            }
+            producerFuture.join().closeAsync();
+            return new ProducerAcks(producerAckResults, ((LongSchemaVersion) schemaMetadata.version).getVersion());
+        }));
+    }
+
+    protected CompletableFuture<ProducerAcks> publishMessages(ProducerMessages request, boolean authoritative) {
+        return getPublishTopicName(authoritative)
+                .thenCompose(name -> checkTopicOwnershipAsync(name, authoritative))
+                .thenCompose(__ -> checkProducePermissionAsync())
+                .thenCompose(__ -> pulsar().getBrokerService().getTopicIfExists(topicName.toString()))
+                .thenCompose(op -> {
+                    if (op.isPresent()) {
+                        Optional<LongSchemaVersion> schemaVersion = request.getSchemaVersion() == -1
+                                ? Optional.empty()
+                                : Optional.of(new LongSchemaVersion(request.getSchemaVersion()));
+                        Optional<SchemaData> schemaData = getSchemaData(request.getKeySchema(),
+                                request.getValueSchema());
                         return getOrAddSchema(op.get(), schemaData, schemaVersion)
                                 .thenCompose(schemaInfo -> {
                                     Schema<?> schema = AutoConsumeSchema.getSchema(schemaInfo.schema.toSchemaInfo());
-                                    return publishMessages(request, op.get(), schema);
+                                    return publishMessages(request, op.get(), schema, schemaInfo.version);
+                                });
+                    } else {
+                        return FutureUtil.failedFuture(new BrokerServiceException
+                                .TopicNotFoundException(String.format("Topic %s not found", topicName.toString())));
+                    }
+                });
+    }
+
+    protected CompletableFuture<ProducerAcks> publishMessages(ProducerMessages request, int partition,
+                                                              boolean authoritative) {
+        return getPublishTopicName(partition, authoritative)
+                .thenCompose(name -> checkTopicOwnershipAsync(name, authoritative))
+                .thenCompose(__ -> checkProducePermissionAsync())
+                .thenCompose(__ -> pulsar().getBrokerService().getTopicIfExists(topicName.toString()))
+                .thenCompose(op -> {
+                    if (op.isPresent()) {
+                        Optional<LongSchemaVersion> schemaVersion = request.getSchemaVersion() == -1
+                                ? Optional.empty()
+                                : Optional.of(new LongSchemaVersion(request.getSchemaVersion()));
+                        Optional<SchemaData> schemaData = getSchemaData(request.getKeySchema(),
+                                request.getValueSchema());
+                        return getOrAddSchema(op.get(), schemaData, schemaVersion)
+                                .thenCompose(schemaInfo -> {
+                                    Schema<?> schema = AutoConsumeSchema.getSchema(schemaInfo.schema.toSchemaInfo());
+                                    return publishMessages(request, op.get(), schema, schemaInfo.version);
                                 });
                     } else {
                         return FutureUtil.failedFuture(new BrokerServiceException
@@ -127,19 +211,33 @@ public class RestBase extends TopicsBase {
     private CompletableFuture<TopicName> getPublishTopicName(boolean authoritative) {
         return internalGetPartitionedMetadataAsync(authoritative, true)
                 .thenApply(metadata -> {
-                    if (!topicName.isPartitioned() && metadata.partitions > 1) {
-                        return topicName.getPartition(0);
+                    if (!topicName.isPartitioned() && metadata.partitions >= 1) {
+                        topicName = topicName.getPartition(0);
+                        return topicName;
                     }
                     return topicName;
                 });
     }
 
-    private CompletableFuture<Void> publishMessages(ProducerMessages request,
-                                                    Topic topic,
-                                                    Schema schema) {
-        String producerName = (null == request.getProducerName() || request.getProducerName().isEmpty())
-                ? defaultProducerName : request.getProducerName();
-        List<Message> messages = buildMessage(request, schema, producerName, topicName);
+    private CompletableFuture<TopicName> getPublishTopicName(int partition, boolean authoritative) {
+        return internalGetPartitionedMetadataAsync(authoritative, true)
+                .thenApply(metadata -> {
+                    if (metadata.partitions < partition) {
+                        throw new RestException(Status.PRECONDITION_FAILED,
+                                String.format("Topic %s has partitions less then %d", topicName.toString(), partition));
+                    }
+                    topicName = topicName.getPartition(partition - 1);
+                    return topicName;
+                });
+    }
+
+    private String getProducerName(ProducerMessages request) {
+        return StringUtils.isNotBlank(request.getProducerName()) ? request.getProducerName() : "RestProducer";
+    }
+
+    private CompletableFuture<ProducerAcks> publishMessages(ProducerMessages request, Topic topic, Schema schema,
+                                                            SchemaVersion schemaVersion) {
+        List<Message> messages = buildMessage(request, schema, topicName);
         List<CompletableFuture<PositionImpl>> publishResults = new ArrayList<>();
         List<ProducerAck> produceMessageResults = new ArrayList<>();
         for (int index = 0; index < messages.size(); index++) {
@@ -152,15 +250,12 @@ public class RestBase extends TopicsBase {
             publishResults.add(publishResult);
         }
         return FutureUtil.waitForAll(publishResults)
-                .thenAccept(__ -> processResults(produceMessageResults, publishResults))
-                .exceptionally(e -> {
-                    processResults(produceMessageResults, publishResults);
-                    return null;
-                });
+                .thenApply(__ -> processResults(produceMessageResults, publishResults, schemaVersion));
     }
 
-    private void processResults(List<ProducerAck> produceMessageResults,
-                                List<CompletableFuture<PositionImpl>> publishResults) {
+    private ProducerAcks processResults(List<ProducerAck> produceMessageResults,
+                                        List<CompletableFuture<PositionImpl>> publishResults,
+                                        SchemaVersion schemaVersion) {
         // process publish message result
         for (int index = 0; index < publishResults.size(); index++) {
             PositionImpl position = publishResults.get(index).join();
@@ -168,6 +263,7 @@ public class RestBase extends TopicsBase {
                     Integer.parseInt(produceMessageResults.get(index).getMessageId()));
             produceMessageResults.get(index).setMessageId(messageId.toString());
         }
+        return new ProducerAcks(produceMessageResults, ((LongSchemaVersion) schemaVersion).getVersion());
     }
 
     protected CompletableFuture<Void> checkTopicOwnershipAsync(TopicName topicName, boolean authoritative) {
@@ -182,7 +278,6 @@ public class RestBase extends TopicsBase {
 
         return nsService.getWebServiceUrlAsync(topicName, options)
                 .thenApply(webUrl -> {
-                    // Ensure we get a url
                     if (webUrl == null || !webUrl.isPresent()) {
                         log.info("Unable to get web service url");
                         throw new RestException(Status.PRECONDITION_FAILED,
@@ -194,33 +289,32 @@ public class RestBase extends TopicsBase {
                 ).thenCompose(pair -> {
                     URL webUrl = pair.getLeft();
                     boolean isTopicOwned = pair.getRight();
-
                     if (!isTopicOwned) {
                         boolean newAuthoritative = isLeaderBroker(pulsar());
-                        // Replace the host and port of the current request and redirect
                         URI redirect = UriBuilder.fromUri(uri.getRequestUri())
+                                .replacePath("/topics/" + topicName.getRestPath())
                                 .host(webUrl.getHost())
                                 .port(webUrl.getPort())
                                 .replaceQueryParam("authoritative", newAuthoritative)
                                 .build();
-                        // Redirect
                         if (log.isDebugEnabled()) {
                             log.debug("Redirecting the rest call to {}", redirect);
                         }
-                        return FutureUtil.failedFuture(new WebApplicationException(Response.temporaryRedirect(redirect).build()));
+                        return FutureUtil.failedFuture(new WebApplicationException(Response.temporaryRedirect(redirect)
+                                .build()));
                     }
                     return pulsar().getBrokerService().getOrCreateTopic(topicName.toString()).thenAccept(__ -> {});
                 }).exceptionally(ex -> {
-                    if (ex.getCause() instanceof IllegalArgumentException
-                            || ex.getCause() instanceof IllegalStateException) {
+                    Throwable root = FutureUtil.unwrapCompletionException(ex);
+                    if (root instanceof IllegalArgumentException || root instanceof IllegalStateException) {
                         if (log.isDebugEnabled()) {
-                            log.debug("Failed to find owner for topic: {}", topicName, ex);
+                            log.debug("Failed to find owner for topic: {}", topicName, root);
                         }
                         throw new RestException(Status.PRECONDITION_FAILED, "Can't find owner for topic " + topicName);
-                    } else if (ex.getCause() instanceof WebApplicationException) {
-                        throw (WebApplicationException) ex.getCause();
+                    } else if (root instanceof WebApplicationException) {
+                        throw (WebApplicationException) root;
                     } else {
-                        throw new RestException(ex.getCause());
+                        throw new RestException(root);
                     }
                 });
     }
@@ -235,19 +329,18 @@ public class RestBase extends TopicsBase {
         produceMessageResult.setErrorMsg(e.getMessage());
     }
 
-    private CompletableFuture<SchemaWithMetadata> getOrAddSchema(
+    private CompletableFuture<SchemaAndMetadata> getOrAddSchema(
             Topic topic, Optional<SchemaData> schemaData, Optional<LongSchemaVersion> schemaVersion) {
-        CompletableFuture<Pair<SchemaData, SchemaVersion>> future = new CompletableFuture<>();
         // If schema version presents try to fetch existing schema.
         String schemaId = TopicName.get(topic.getName()).getSchemaName();
         if (schemaVersion.isPresent()) {
             return pulsar().getSchemaRegistryService().getSchema(schemaId, schemaVersion.get())
-                    .thenApply(d -> new SchemaWithMetadata(d.id, d.schema, d.version));
+                    .thenApply(d -> new SchemaAndMetadata(d.id, d.schema, d.version));
 
         }
         if (schemaData.isPresent()) {
             return topic.addSchema(schemaData.get())
-                    .thenApply(v -> new SchemaWithMetadata(schemaId, schemaData.get(), v));
+                    .thenApply(v -> new SchemaAndMetadata(schemaId, schemaData.get(), v));
         }
         return FutureUtil.failedFuture(new SchemaException("empty schema"));
     }
@@ -314,17 +407,23 @@ public class RestBase extends TopicsBase {
         return Commands.serializeMetadataAndPayload(Commands.ChecksumType.Crc32c, messageMetadata, payload);
     }
 
+    private List<Message> buildMessage(ProducerMessages request, Schema schema, TopicName topicName) {
+        return buildMessage(request, schema, topicName, true);
+    }
+
     // Build pulsar message from REST request.
-    private List<Message> buildMessage(ProducerMessages producerMessages, Schema schema,
-                                       String producerName, TopicName topicName) {
+    private List<Message> buildMessage(ProducerMessages request, Schema schema, TopicName topicName,
+                                       boolean setProducerName) {
         List<ProducerMessage> messages;
         List<Message> pulsarMessages = new ArrayList<>();
 
-        messages = producerMessages.getMessages();
+        messages = request.getMessages();
         for (ProducerMessage message : messages) {
             MessageMetadata messageMetadata = new MessageMetadata();
-            messageMetadata.setProducerName(producerName);
-            messageMetadata.setPublishTime(System.currentTimeMillis());
+            if (setProducerName) {
+                messageMetadata.setProducerName(getProducerName(request));
+                messageMetadata.setPublishTime(System.currentTimeMillis());
+            }
             messageMetadata.setSequenceId(message.getSequenceId());
             if (null != message.getReplicationClusters()) {
                 messageMetadata.addAllReplicateTos(message.getReplicationClusters());
@@ -465,12 +564,12 @@ public class RestBase extends TopicsBase {
         return CompletableFuture.completedFuture(null);
     }
 
-    class SchemaWithMetadata {
+    class SchemaAndMetadata {
         public final String id;
         public final SchemaData schema;
         public final SchemaVersion version;
 
-        public SchemaWithMetadata(String id, SchemaData schema, SchemaVersion version) {
+        public SchemaAndMetadata(String id, SchemaData schema, SchemaVersion version) {
             this.id = id;
             this.schema = schema;
             this.version = version;
@@ -484,7 +583,7 @@ public class RestBase extends TopicsBase {
             if (o == null || getClass() != o.getClass()) {
                 return false;
             }
-            SchemaWithMetadata that = (SchemaWithMetadata) o;
+            SchemaAndMetadata that = (SchemaAndMetadata) o;
             return version == that.version
                     && Objects.equals(id, that.id)
                     && Objects.equals(schema, that.schema);

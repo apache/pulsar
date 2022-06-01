@@ -242,6 +242,13 @@ public abstract class AdminResource extends PulsarWebResource {
         }
     }
 
+    protected void validateNonPersistentTopicName(String property, String namespace, String encodedTopic) {
+        validateTopicName(property, namespace, encodedTopic);
+        if (topicName.getDomain() != TopicDomain.non_persistent) {
+            throw new RestException(Status.NOT_ACCEPTABLE, "Need to provide a non-persistent topic name");
+        }
+    }
+
     protected void validatePartitionedTopicName(String tenant, String namespace, String encodedTopic) {
         // first, it has to be a validate topic name
         validateTopicName(tenant, namespace, encodedTopic);

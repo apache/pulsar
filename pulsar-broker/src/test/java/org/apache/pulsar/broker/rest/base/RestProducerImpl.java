@@ -18,16 +18,21 @@
  */
 package org.apache.pulsar.broker.rest.base;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.rest.base.api.RestProducer;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.internal.BaseResource;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.websocket.data.ProducerAcks;
 import org.apache.pulsar.websocket.data.ProducerMessages;
 import javax.ws.rs.client.Entity;
+import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
+import java.util.concurrent.CompletableFuture;
 
+@Slf4j
 public class RestProducerImpl extends BaseResource implements RestProducer {
 
     private final WebTarget adminV2;
@@ -39,10 +44,65 @@ public class RestProducerImpl extends BaseResource implements RestProducer {
 
 
     @Override
-    public void send(String topic, ProducerMessages producerMessages) throws PulsarAdminException {
+    public ProducerAcks send(String topic, ProducerMessages producerMessages) throws PulsarAdminException {
+        return sync(() -> sendAsync(topic, producerMessages));
+    }
+
+    @Override
+    public ProducerAcks send(String topic, int partition, ProducerMessages producerMessages) throws PulsarAdminException {
+        return sync(() -> sendAsync(topic, partition, producerMessages));
+    }
+
+    @Override
+    public CompletableFuture<ProducerAcks> sendAsync(String topic, ProducerMessages producerMessages) {
         TopicName tn = TopicName.get(topic);
         WebTarget path = targetPath(tn);
-        sync(() -> asyncPostRequest(path, Entity.entity(producerMessages, MediaType.APPLICATION_JSON)));
+        final CompletableFuture<ProducerAcks> future = new CompletableFuture<>();
+        try {
+            request(path).async().post(Entity.entity(producerMessages, MediaType.APPLICATION_JSON),
+                    new InvocationCallback<ProducerAcks>() {
+                        @Override
+                        public void completed(ProducerAcks response) {
+                            future.complete(response);
+                        }
+
+                        @Override
+                        public void failed(Throwable ex) {
+                            log.warn("[{}] Failed to perform http post request: {}", path.getUri(), ex.getMessage());
+                            future.completeExceptionally(getApiException(ex.getCause()));
+                        }
+
+            });
+        } catch (PulsarAdminException cae) {
+            future.completeExceptionally(cae);
+        }
+        return future;
+    }
+
+    @Override
+    public CompletableFuture<ProducerAcks> sendAsync(String topic, int partition, ProducerMessages producerMessages) {
+        TopicName tn = TopicName.get(topic);
+        WebTarget path = targetPath(tn, "partitions", String.valueOf(partition));
+        final CompletableFuture<ProducerAcks> future = new CompletableFuture<>();
+        try {
+            request(path).async().post(Entity.entity(producerMessages, MediaType.APPLICATION_JSON),
+                    new InvocationCallback<ProducerAcks>() {
+                        @Override
+                        public void completed(ProducerAcks response) {
+                            future.complete(response);
+                        }
+
+                        @Override
+                        public void failed(Throwable ex) {
+                            log.warn("[{}] Failed to perform http post request: {}", path.getUri(), ex.getMessage());
+                            future.completeExceptionally(getApiException(ex.getCause()));
+                        }
+
+                    });
+        } catch (PulsarAdminException cae) {
+            future.completeExceptionally(cae);
+        }
+        return future;
     }
 
     private WebTarget targetPath(TopicName topic, String... parts) {
