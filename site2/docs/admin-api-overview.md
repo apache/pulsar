@@ -45,7 +45,7 @@ You can interact with the admin interface via:
 Each of the three admin interfaces (the `pulsar-admin` CLI tool, the {@inject: rest:REST:/} API, and the [Java admin API](/api/admin)) requires some special setup if you have enabled authentication in your Pulsar instance.
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
   values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">

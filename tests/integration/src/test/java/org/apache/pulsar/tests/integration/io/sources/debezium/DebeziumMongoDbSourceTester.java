@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.tests.integration.io.sources.debezium;
 
+import java.util.Map;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.tests.integration.containers.DebeziumMongoDbContainer;
@@ -25,11 +26,8 @@ import org.apache.pulsar.tests.integration.containers.PulsarContainer;
 import org.apache.pulsar.tests.integration.io.sources.SourceTester;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 
-import java.io.Closeable;
-import java.util.Map;
-
 @Slf4j
-public class DebeziumMongoDbSourceTester extends SourceTester<DebeziumMongoDbContainer> implements Closeable {
+public class DebeziumMongoDbSourceTester extends SourceTester<DebeziumMongoDbContainer> {
 
     private static final String NAME = "debezium-mongodb";
 
@@ -118,7 +116,10 @@ public class DebeziumMongoDbSourceTester extends SourceTester<DebeziumMongoDbCon
     @Override
     public void close() {
         if (pulsarCluster != null) {
-            pulsarCluster.stopService(DebeziumMongoDbContainer.NAME, debeziumMongoDbContainer);
+            if (debeziumMongoDbContainer != null) {
+                pulsarCluster.stopService(DebeziumMongoDbContainer.NAME, debeziumMongoDbContainer);
+                debeziumMongoDbContainer = null;
+            }
         }
     }
 }

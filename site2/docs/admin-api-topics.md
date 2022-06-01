@@ -51,7 +51,7 @@ Take {@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace|operation/getLi
 You can get the list of topics under a given namespace in the following ways.
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
   values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
@@ -88,7 +88,7 @@ admin.topics().getList(namespace);
 You can grant permissions on a client role to perform specific actions on a given topic in the following ways.
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
   values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
@@ -128,7 +128,7 @@ admin.topics().grantPermission(topic, role, actions);
 You can fetch permission in the following ways.
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
   values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
@@ -171,7 +171,7 @@ admin.topics().getPermissions(topic);
 
 You can revoke a permission granted on a client role in the following ways.
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
   values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
@@ -217,7 +217,7 @@ admin.topics().revokePermissions(topic, role);
 You can delete a topic in the following ways. You cannot delete a topic if any active subscription or producers is connected to the topic.
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
   values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
@@ -253,7 +253,7 @@ admin.topics().delete(topic);
 
 You can unload a topic in the following ways.
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
   values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
@@ -574,7 +574,7 @@ The following is an example of a topic status.
 To get the status of a topic, you can use the following ways.
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
   values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
@@ -754,7 +754,7 @@ The following is an example of the detailed statistics of a topic.
 
 To get the internal status of a topic, you can use the following ways.
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
   values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
@@ -790,7 +790,7 @@ admin.topics().getInternalStats(topic);
 
 You can peek a number of messages for a specific subscription of a given topic in the following ways.
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
   values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
@@ -834,7 +834,7 @@ admin.topics().peekMessages(topic, subName, numMessages);
 You can fetch the message with the given ledger ID and entry ID in the following ways.
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
   values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
@@ -874,7 +874,7 @@ admin.topics().getMessageById(topic, ledgerId, entryId);
 You can examine a specific message on a topic by position relative to the earliest or the latest message.
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
   values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
@@ -912,7 +912,7 @@ admin.topics().examineMessage(topic, "latest", 1);
 You can get message ID published at or just after the given datetime.
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
   values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
@@ -952,7 +952,7 @@ admin.topics().getMessageIdByTimestamp(topic, timestamp);
 You can skip a number of messages for a specific subscription of a given topic in the following ways.
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
   values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
@@ -992,7 +992,7 @@ admin.topics().skipMessages(topic, subName, numMessages);
 You can skip all the old messages for a specific subscription of a given topic.
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
   values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
@@ -1031,7 +1031,7 @@ admin.topics().skipAllMessages(topic, subName);
 You can reset a subscription cursor position back to the position which is recorded X minutes before. It essentially calculates time and position of cursor at X minutes before and resets it at that position. You can reset the cursor in the following ways.
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
   values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
@@ -1071,7 +1071,7 @@ admin.topics().resetCursor(topic, subName, timestamp);
 You can locate the broker URL which is serving the given topic in the following ways.
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
   values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
@@ -1110,7 +1110,7 @@ admin.lookup().lookupDestination(topic);
 You can locate the broker URL of each partitioned topic which is serving the given topic in the following ways.
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
   values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
@@ -1158,7 +1158,7 @@ $ pulsar-admin topics partitioned-lookup \
 You can check the range of the bundle which contains given topic in the following ways.
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
   values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
@@ -1197,7 +1197,7 @@ admin.lookup().getBundleRange(topic);
 You can check all subscription names for a given topic in the following ways.
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
   values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
@@ -1236,7 +1236,7 @@ admin.topics().getSubscriptions(topic);
 You can get the last committed message ID for a persistent topic. It is available since 2.3.0 release.
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
   values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
@@ -1272,7 +1272,7 @@ admin.topics().getLastMessage(topic);
 You can get the backlog size of a single partition topic or a non-partitioned topic with a given message ID (in bytes).
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
   values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
@@ -1314,10 +1314,10 @@ admin.topics().getBacklogSizeByMessageId(topic, messageId);
 To get the topic-level deduplication snapshot interval, use one of the following methods.
 
 ````mdx-code-block
-<Tabs 
-  defaultValue="Pulsar-admin API"
-  values={[{"label":"Pulsar-admin API","value":"Pulsar-admin API"},{"label":"REST API","value":"REST API"},{"label":"Java API","value":"Java API"}]}>
-<TabItem value="Pulsar-admin API">
+<Tabs groupId="api-choice"
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
 
 ```
 
@@ -1335,7 +1335,7 @@ pulsar-admin topics get-deduplication-snapshot-interval options
 ```
 
 </TabItem>
-<TabItem value="Java API">
+<TabItem value="Java">
 
 ```java
 
@@ -1355,10 +1355,10 @@ To set the topic-level deduplication snapshot interval, use one of the following
 > **Prerequisite** `brokerDeduplicationEnabled` must be set to `true`.
 
 ````mdx-code-block
-<Tabs 
-  defaultValue="Pulsar-admin API"
-  values={[{"label":"Pulsar-admin API","value":"Pulsar-admin API"},{"label":"REST API","value":"REST API"},{"label":"Java API","value":"Java API"}]}>
-<TabItem value="Pulsar-admin API">
+<Tabs groupId="api-choice"
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
 
 ```
 
@@ -1384,7 +1384,7 @@ pulsar-admin topics set-deduplication-snapshot-interval options
 ```
 
 </TabItem>
-<TabItem value="Java API">
+<TabItem value="Java">
 
 ```java
 
@@ -1402,10 +1402,10 @@ admin.topics().setDeduplicationSnapshotInterval(topic, 1000)
 To remove the topic-level deduplication snapshot interval, use one of the following methods.
 
 ````mdx-code-block
-<Tabs 
-  defaultValue="Pulsar-admin API"
-  values={[{"label":"Pulsar-admin API","value":"Pulsar-admin API"},{"label":"REST API","value":"REST API"},{"label":"Java API","value":"Java API"}]}>
-<TabItem value="Pulsar-admin API">
+<Tabs groupId="api-choice"
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
 
 ```
 
@@ -1423,7 +1423,7 @@ pulsar-admin topics remove-deduplication-snapshot-interval options
 ```
 
 </TabItem>
-<TabItem value="Java API">
+<TabItem value="Java">
 
 ```java
 
@@ -1444,10 +1444,10 @@ admin.topics().removeDeduplicationSnapshotInterval(topic)
 To get the topic-level inactive topic policies, use one of the following methods.
 
 ````mdx-code-block
-<Tabs 
-  defaultValue="Pulsar-admin API"
-  values={[{"label":"Pulsar-admin API","value":"Pulsar-admin API"},{"label":"REST API","value":"REST API"},{"label":"Java API","value":"Java API"}]}>
-<TabItem value="Pulsar-admin API">
+<Tabs groupId="api-choice"
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
 
 ```
 
@@ -1465,7 +1465,7 @@ pulsar-admin topics get-inactive-topic-policies options
 ```
 
 </TabItem>
-<TabItem value="Java API">
+<TabItem value="Java">
 
 ```java
 
@@ -1483,10 +1483,10 @@ admin.topics().getInactiveTopicPolicies(topic)
 To set the topic-level inactive topic policies, use one of the following methods.
 
 ````mdx-code-block
-<Tabs 
-  defaultValue="Pulsar-admin API"
-  values={[{"label":"Pulsar-admin API","value":"Pulsar-admin API"},{"label":"REST API","value":"REST API"},{"label":"Java API","value":"Java API"}]}>
-<TabItem value="Pulsar-admin API">
+<Tabs groupId="api-choice"
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
 
 ```
 
@@ -1504,7 +1504,7 @@ pulsar-admin topics set-inactive-topic-policies options
 ```
 
 </TabItem>
-<TabItem value="Java API">
+<TabItem value="Java">
 
 ```java
 
@@ -1522,10 +1522,10 @@ admin.topics().setInactiveTopicPolicies(topic, inactiveTopicPolicies)
 To remove the topic-level inactive topic policies, use one of the following methods.
 
 ````mdx-code-block
-<Tabs 
-  defaultValue="Pulsar-admin API"
-  values={[{"label":"Pulsar-admin API","value":"Pulsar-admin API"},{"label":"REST API","value":"REST API"},{"label":"Java API","value":"Java API"}]}>
-<TabItem value="Pulsar-admin API">
+<Tabs groupId="api-choice"
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
 
 ```
 
@@ -1543,7 +1543,7 @@ pulsar-admin topics remove-inactive-topic-policies options
 ```
 
 </TabItem>
-<TabItem value="Java API">
+<TabItem value="Java">
 
 ```java
 
@@ -1564,10 +1564,10 @@ admin.topics().removeInactiveTopicPolicies(topic)
 To get the topic-level offload policies, use one of the following methods.
 
 ````mdx-code-block
-<Tabs 
-  defaultValue="Pulsar-admin API"
-  values={[{"label":"Pulsar-admin API","value":"Pulsar-admin API"},{"label":"REST API","value":"REST API"},{"label":"Java API","value":"Java API"}]}>
-<TabItem value="Pulsar-admin API">
+<Tabs groupId="api-choice"
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
 
 ```
 
@@ -1585,7 +1585,7 @@ pulsar-admin topics get-offload-policies options
 ```
 
 </TabItem>
-<TabItem value="Java API">
+<TabItem value="Java">
 
 ```java
 
@@ -1603,10 +1603,10 @@ admin.topics().getOffloadPolicies(topic)
 To set the topic-level offload policies, use one of the following methods.
 
 ````mdx-code-block
-<Tabs 
-  defaultValue="Pulsar-admin API"
-  values={[{"label":"Pulsar-admin API","value":"Pulsar-admin API"},{"label":"REST API","value":"REST API"},{"label":"Java API","value":"Java API"}]}>
-<TabItem value="Pulsar-admin API">
+<Tabs groupId="api-choice"
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
 
 ```
 
@@ -1624,7 +1624,7 @@ pulsar-admin topics set-offload-policies options
 ```
 
 </TabItem>
-<TabItem value="Java API">
+<TabItem value="Java">
 
 ```java
 
@@ -1642,10 +1642,10 @@ admin.topics().setOffloadPolicies(topic, offloadPolicies)
 To remove the topic-level offload policies, use one of the following methods.
 
 ````mdx-code-block
-<Tabs 
-  defaultValue="Pulsar-admin API"
-  values={[{"label":"Pulsar-admin API","value":"Pulsar-admin API"},{"label":"REST API","value":"REST API"},{"label":"Java API","value":"Java API"}]}>
-<TabItem value="Pulsar-admin API">
+<Tabs groupId="api-choice"
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
 
 ```
 
@@ -1663,7 +1663,7 @@ pulsar-admin topics remove-offload-policies options
 ```
 
 </TabItem>
-<TabItem value="Java API">
+<TabItem value="Java">
 
 ```java
 
@@ -1689,7 +1689,7 @@ For more information about the two parameters, see [here](reference-configuratio
 
 You can create non-partitioned topics in the following ways.
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
   values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
@@ -1732,7 +1732,7 @@ admin.topics().createNonPartitionedTopic(topicName);
 ### Delete
 You can delete non-partitioned topics in the following ways.
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
   values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
@@ -1767,7 +1767,7 @@ admin.topics().delete(topic);
 
 You can get the list of topics under a given namespace in the following ways.  
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
   values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
@@ -1840,7 +1840,7 @@ You can check the current statistics of a given topic. The following is an examp
 
 You can check the current statistics of a given topic and its connected producers and consumers in the following ways.
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
   values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
@@ -1885,7 +1885,7 @@ For more information about the two parameters, see [here](reference-configuratio
 
 You can create partitioned topics in the following ways.
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
   values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
@@ -1933,7 +1933,7 @@ admin.topics().createPartitionedTopic(topicName, numPartitions);
 When topic auto-creation is disabled, and you have a partitioned topic without any partitions, you can use the [`create-missed-partitions`](/tools/pulsar-admin/) command to create partitions for the topic.
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
   values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
@@ -1976,7 +1976,7 @@ Field | Description
 `partitions` | The number of partitions into which the topic is divided.
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
   values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
@@ -2020,7 +2020,7 @@ You can update the number of partitions for an existing partitioned topic *if* t
 Producers and consumers can find the newly created partitions automatically.
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
   values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
@@ -2058,7 +2058,7 @@ admin.topics().updatePartitionedTopic(topic, numPartitions);
 You can delete partitioned topics with the [`delete-partitioned-topic`](/tools/pulsar-admin/) command, REST API and Java. 
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
   values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
@@ -2092,7 +2092,7 @@ admin.topics().delete(topic);
 ### List
 You can get the list of partitioned topics under a given namespace in the following ways.  
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
   values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
@@ -2188,7 +2188,7 @@ Note that in the subscription JSON object, `chuckedMessageRate` is deprecated. P
 You can check the current statistics of a given partitioned topic and its connected producers and consumers in the following ways. 
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
   values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
@@ -2266,7 +2266,7 @@ You can check the detailed statistics of a topic. The following is an example. F
 You can get the internal stats for the partitioned topic in the following ways.
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
   values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
@@ -2400,7 +2400,7 @@ You can use [Pulsar admin API](admin-api-overview) to create, check, and delete 
 You can create a subscription for a topic using one of the following methods.
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
   values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 
@@ -2440,7 +2440,7 @@ admin.topics().createSubscription(topic, subscriptionName, MessageId.latest);
 You can check all subscription names for a given topic using one of the following methods.
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
   values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 
@@ -2479,7 +2479,7 @@ admin.topics().getSubscriptions(topic);
 When a subscription does not process messages any more, you can unsubscribe it using one of the following methods. 
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
   values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 

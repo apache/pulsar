@@ -296,66 +296,58 @@
     <!-- jclouds/openswift misdetections -->
     <suppress>
         <notes><![CDATA[
-       file name: openstack-swift-2.4.0.jar
+       file name: openstack-swift-2.5.0.jar
        ]]></notes>
-        <sha1>3f8f54bbcb73608ac8b66f186a824b75065eb413</sha1>
+        <sha1>d99d0eab2e01d69d8a326fc152427fbd759af88a</sha1>
         <cve>CVE-2016-0738</cve>
     </suppress>
     <suppress>
         <notes><![CDATA[
-       file name: openstack-swift-2.4.0.jar
+       file name: openstack-swift-2.5.0.jar
        ]]></notes>
-        <sha1>3f8f54bbcb73608ac8b66f186a824b75065eb413</sha1>
+        <sha1>d99d0eab2e01d69d8a326fc152427fbd759af88a</sha1>
         <cve>CVE-2017-16613</cve>
     </suppress>
     <suppress>
         <notes><![CDATA[
-       file name: openstack-swift-2.4.0.jar
+       file name: openstack-keystone-2.5.0.jar
        ]]></notes>
-        <sha1>3f8f54bbcb73608ac8b66f186a824b75065eb413</sha1>
-        <cve>CVE-2017-8761</cve>
-    </suppress>
-    
-    <suppress>
-        <notes><![CDATA[
-       file name: openstack-keystone-2.4.0.jar
-       ]]></notes>
-        <sha1>4f47a6b485371d357827b6a517ba54d073dc7b8b</sha1>
+        <sha1>a7e89bd278fa8be9fa604dda66d1606de5530797</sha1>
         <cve>CVE-2018-14432</cve>
     </suppress>
     <suppress>
         <notes><![CDATA[
-       file name: openstack-keystone-2.4.0.jar
+       file name: openstack-keystone-2.5.0.jar
        ]]></notes>
-        <sha1>4f47a6b485371d357827b6a517ba54d073dc7b8b</sha1>
+        <sha1>a7e89bd278fa8be9fa604dda66d1606de5530797</sha1>
         <cve>CVE-2018-20170</cve>
     </suppress>
     <suppress>
         <notes><![CDATA[
-       file name: openstack-keystone-2.4.0.jar
+       file name: openstack-keystone-2.5.0.jar
        ]]></notes>
-        <sha1>4f47a6b485371d357827b6a517ba54d073dc7b8b</sha1>
+        <sha1>a7e89bd278fa8be9fa604dda66d1606de5530797</sha1>
         <cve>CVE-2020-12689</cve>
     </suppress>
     <suppress>
         <notes><![CDATA[
-       file name: openstack-keystone-2.4.0.jar
+       file name: openstack-keystone-2.5.0.jar
        ]]></notes>
-        <sha1>4f47a6b485371d357827b6a517ba54d073dc7b8b</sha1>
+        <sha1>a7e89bd278fa8be9fa604dda66d1606de5530797</sha1>
         <cve>CVE-2020-12690</cve>
     </suppress>
     <suppress>
         <notes><![CDATA[
-       file name: openstack-keystone-2.4.0.jar
+       file name: openstack-keystone-2.5.0.jar
        ]]></notes>
-        <sha1>4f47a6b485371d357827b6a517ba54d073dc7b8b</sha1>
+        <sha1>a7e89bd278fa8be9fa604dda66d1606de5530797</sha1>
         <cve>CVE-2020-12691</cve>
     </suppress>
     <suppress>
         <notes><![CDATA[
-       file name: openstack-keystone-2.4.0.jar
+       file name: openstack-keystone-2.5.0.jar
        ]]></notes>
-        <sha1>4f47a6b485371d357827b6a517ba54d073dc7b8b</sha1>
+        <sha1>a7e89bd278fa8be9fa604dda66d1606de5530797</sha1>
         <cve>CVE-2020-12692</cve>
     </suppress>
 
