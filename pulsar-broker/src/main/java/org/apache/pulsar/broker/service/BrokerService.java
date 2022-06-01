@@ -204,8 +204,6 @@ public class BrokerService implements Closeable {
     private final ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, Topic>>>
             multiLayerTopicsMap;
     // Keep track of topics and partitions served by this broker for fast lookup.
-    @Getter
-    private final ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<Integer>> owningTopics;
     private int numberOfNamespaceBundles = 0;
 
     private final EventLoopGroup acceptorGroup;
@@ -299,9 +297,6 @@ public class BrokerService implements Closeable {
 
         this.multiLayerTopicsMap = ConcurrentOpenHashMap.<String,
                 ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, Topic>>>newBuilder()
-                .build();
-        this.owningTopics = ConcurrentOpenHashMap.<String,
-                ConcurrentOpenHashSet<Integer>>newBuilder()
                 .build();
         this.pulsarStats = new PulsarStats(pulsar);
         this.offlineTopicStatCache =
