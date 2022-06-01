@@ -21,6 +21,7 @@ package org.apache.pulsar.functions.transforms;
 import static org.apache.pulsar.functions.transforms.Utils.createTestAvroKeyValueRecord;
 import static org.apache.pulsar.functions.transforms.Utils.getRecord;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotSame;
 import static org.testng.Assert.assertSame;
 import org.apache.avro.generic.GenericData;
 import org.apache.pulsar.client.api.Schema;
@@ -37,11 +38,9 @@ import org.testng.annotations.Test;
 public class MergeKeyValueStepTest {
 
     @Test
-    void testMergeKeyValueAvro() throws Exception {
+    void testKeyValueAvro() throws Exception {
         Record<GenericObject> record = createTestAvroKeyValueRecord();
-        Utils.TestContext context = Utils.process(record, new MergeKeyValueStep());
-
-        Utils.TestTypedMessageBuilder<?> message = context.getOutputMessage();
+        Utils.TestTypedMessageBuilder<?> message = Utils.process(record, new MergeKeyValueStep());
         KeyValueSchema messageSchema = (KeyValueSchema) message.getSchema();
         KeyValue messageValue = (KeyValue) message.getValue();
 
@@ -59,9 +58,7 @@ public class MergeKeyValueStepTest {
     void testPrimitive() throws Exception {
         Record<GenericObject> record = new Utils.TestRecord<>(
                 Schema.STRING, AutoConsumeSchema.wrapPrimitiveObject("test-message", SchemaType.STRING, new byte[]{}), "test-key");
-        Utils.TestContext context = Utils.process(record, new MergeKeyValueStep());
-
-        Utils.TestTypedMessageBuilder<?> message = context.getOutputMessage();
+        Utils.TestTypedMessageBuilder<?> message = Utils.process(record, new MergeKeyValueStep());
 
         Assert.assertSame(message.getSchema(), record.getSchema());
         Assert.assertSame(message.getValue(), record.getValue().getNativeObject());
@@ -80,9 +77,7 @@ public class MergeKeyValueStepTest {
                 AutoConsumeSchema.wrapPrimitiveObject(keyValue, SchemaType.KEY_VALUE, new byte[]{}),
                 null);
 
-        Utils.TestContext context = Utils.process(record, new MergeKeyValueStep());
-
-        Utils.TestTypedMessageBuilder<?> message = context.getOutputMessage();
+        Utils.TestTypedMessageBuilder<?> message = Utils.process(record, new MergeKeyValueStep());
         KeyValueSchema messageSchema = (KeyValueSchema) message.getSchema();
         KeyValue messageValue = (KeyValue) message.getValue();
 
@@ -92,5 +87,27 @@ public class MergeKeyValueStepTest {
         assertSame(messageSchema.getValueSchema(), recordSchema.getValueSchema());
         assertSame(messageValue.getKey(), recordValue.getKey());
         assertSame(messageValue.getValue(), recordValue.getValue());
+    }
+
+    @Test
+    void testKeyValueAvroCached() throws Exception {
+        Record<GenericObject> record = createTestAvroKeyValueRecord();
+
+        MergeKeyValueStep step = new MergeKeyValueStep();
+        Utils.TestTypedMessageBuilder<?> message = Utils.process(record, step);
+        KeyValueSchema messageSchema = (KeyValueSchema) message.getSchema();
+
+        message = Utils.process(createTestAvroKeyValueRecord(), step);
+        KeyValueSchema newMessageSchema = (KeyValueSchema) message.getSchema();
+
+        // Schema was modified by process operation
+        KeyValueSchema recordSchema = (KeyValueSchema) record.getSchema();
+        assertNotSame(
+                messageSchema.getValueSchema().getNativeSchema().get(),
+                recordSchema.getValueSchema().getNativeSchema().get());
+
+        // Multiple process output the same cached schema
+        assertSame(messageSchema.getValueSchema().getNativeSchema().get(),
+                newMessageSchema.getValueSchema().getNativeSchema().get());
     }
 }

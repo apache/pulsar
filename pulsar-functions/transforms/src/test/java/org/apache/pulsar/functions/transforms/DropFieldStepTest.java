@@ -64,10 +64,8 @@ public class DropFieldStepTest {
 
         Record<GenericObject> record = new Utils.TestRecord<>(genericSchema, genericRecord, "test-key");
 
-        DropFieldStep dropFieldStep = new DropFieldStep(new ArrayList<>(), Arrays.asList("firstName" , "lastName"));
-        Utils.TestContext context = Utils.process(record, dropFieldStep);
-
-        Utils.TestTypedMessageBuilder<?> message = context.getOutputMessage();
+        DropFieldStep step = new DropFieldStep(new ArrayList<>(), Arrays.asList("firstName" , "lastName"));
+        Utils.TestTypedMessageBuilder<?> message = Utils.process(record, step);
         assertEquals(message.getKey(), "test-key");
 
         GenericData.Record read = getRecord(message.getSchema(), (byte[]) message.getValue());
@@ -78,12 +76,10 @@ public class DropFieldStepTest {
 
     @Test
     void testKeyValueAvro() throws Exception {
-        DropFieldStep dropFieldStep = new DropFieldStep(
+        DropFieldStep step = new DropFieldStep(
                 Arrays.asList("keyField1" , "keyField2"),
                 Arrays.asList("valueField1" , "valueField2"));
-        Utils.TestContext context = Utils.process(createTestAvroKeyValueRecord(), dropFieldStep);
-
-        Utils.TestTypedMessageBuilder<?> message = context.getOutputMessage();
+        Utils.TestTypedMessageBuilder<?> message = Utils.process(createTestAvroKeyValueRecord(), step);
         KeyValueSchema messageSchema = (KeyValueSchema) message.getSchema();
         KeyValue messageValue = (KeyValue) message.getValue();
 
@@ -119,10 +115,8 @@ public class DropFieldStepTest {
 
         Record<GenericObject> record = new Utils.TestRecord<>(genericSchema, genericRecord, "test-key");
 
-        DropFieldStep dropFieldStep = new DropFieldStep(new ArrayList<>(), Collections.singletonList("other"));
-        Utils.TestContext context = Utils.process(record, dropFieldStep);
-
-        Utils.TestTypedMessageBuilder<?> message = context.getOutputMessage();
+        DropFieldStep step = new DropFieldStep(new ArrayList<>(), Collections.singletonList("other"));
+        Utils.TestTypedMessageBuilder<?> message = Utils.process(record, step);
         assertSame(message.getSchema(), record.getSchema());
         assertSame(message.getValue(), record.getValue());
     }
@@ -131,12 +125,10 @@ public class DropFieldStepTest {
     void testKeyValueAvroNotModified() throws Exception {
         Record<GenericObject> record = createTestAvroKeyValueRecord();
 
-        DropFieldStep dropFieldStep = new DropFieldStep(
+        DropFieldStep step = new DropFieldStep(
                 Collections.singletonList("otherKey"),
                 Collections.singletonList("otherValue"));
-        Utils.TestContext context = Utils.process(record, dropFieldStep);
-
-        Utils.TestTypedMessageBuilder<?> message = context.getOutputMessage();
+        Utils.TestTypedMessageBuilder<?> message = Utils.process(record, step);
         KeyValueSchema messageSchema = (KeyValueSchema) message.getSchema();
         KeyValue messageValue = (KeyValue) message.getValue();
 
@@ -152,17 +144,13 @@ public class DropFieldStepTest {
     void testKeyValueAvroCached() throws Exception {
         Record<GenericObject> record = createTestAvroKeyValueRecord();
 
-        DropFieldStep dropFieldStep = new DropFieldStep(
+        DropFieldStep step = new DropFieldStep(
                 Arrays.asList("keyField1" , "keyField2"),
                 Arrays.asList("valueField1" , "valueField2"));
-        Utils.TestContext context = Utils.process(record, dropFieldStep);
-
-        Utils.TestTypedMessageBuilder<?> message = context.getOutputMessage();
+        Utils.TestTypedMessageBuilder<?> message = Utils.process(record, step);
         KeyValueSchema messageSchema = (KeyValueSchema) message.getSchema();
 
-        context = Utils.process(createTestAvroKeyValueRecord(), dropFieldStep);
-
-        message = context.getOutputMessage();
+        message = Utils.process(createTestAvroKeyValueRecord(), step);
         KeyValueSchema newMessageSchema = (KeyValueSchema) message.getSchema();
 
         // Schema was modified by process operation
@@ -184,12 +172,10 @@ public class DropFieldStepTest {
                 AutoConsumeSchema.wrapPrimitiveObject("value", SchemaType.STRING, new byte[]{}),
                 "test-key");
 
-        DropFieldStep dropFieldStep = new DropFieldStep(
+        DropFieldStep step = new DropFieldStep(
                 Collections.singletonList("key"),
                 Collections.singletonList("value"));
-        Utils.TestContext context = Utils.process(record, dropFieldStep);
-
-        Utils.TestTypedMessageBuilder<?> message = context.getOutputMessage();
+        Utils.TestTypedMessageBuilder<?> message = Utils.process(record, step);
 
         assertSame(message.getSchema(), record.getSchema());
         assertSame(message.getValue(), record.getValue().getNativeObject());
@@ -208,12 +194,10 @@ public class DropFieldStepTest {
                 AutoConsumeSchema.wrapPrimitiveObject(keyValue, SchemaType.KEY_VALUE, new byte[]{}),
                 null);
 
-        DropFieldStep dropFieldStep = new DropFieldStep(
+        DropFieldStep step = new DropFieldStep(
                 Collections.singletonList("key"),
                 Collections.singletonList("value"));
-        Utils.TestContext context = Utils.process(record, dropFieldStep);
-
-        Utils.TestTypedMessageBuilder<?> message = context.getOutputMessage();
+        Utils.TestTypedMessageBuilder<?> message = Utils.process(record, step);
         KeyValueSchema messageSchema = (KeyValueSchema) message.getSchema();
         KeyValue messageValue = (KeyValue) message.getValue();
 

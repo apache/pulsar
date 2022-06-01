@@ -18,9 +18,9 @@
  */
 package org.apache.pulsar.functions.transforms;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.generic.GenericData;
@@ -36,8 +36,8 @@ public class DropFieldStep implements TransformStep {
 
     private final List<String> keyFields;
     private final List<String> valueFields;
-    private final Map<org.apache.avro.Schema, org.apache.avro.Schema> keySchemaCache = new HashMap<>();
-    private final Map<org.apache.avro.Schema, org.apache.avro.Schema> valueSchemaCache = new HashMap<>();
+    private final Map<org.apache.avro.Schema, org.apache.avro.Schema> keySchemaCache = new ConcurrentHashMap<>();
+    private final Map<org.apache.avro.Schema, org.apache.avro.Schema> valueSchemaCache = new ConcurrentHashMap<>();
 
     public DropFieldStep(List<String> keyFields, List<String> valueFields) {
         this.keyFields = keyFields;
@@ -78,20 +78,19 @@ public class DropFieldStep implements TransformStep {
             Map<org.apache.avro.Schema, org.apache.avro.Schema> schemaCache
     ) {
         org.apache.avro.Schema avroSchema = record.getSchema();
-        org.apache.avro.Schema modified = schemaCache.get(avroSchema);
-        if (modified != null || fields.stream().anyMatch(field -> avroSchema.getField(field) != null)) {
-            if (modified == null) {
-                modified = org.apache.avro.Schema.createRecord(
-                        avroSchema.getName(), avroSchema.getDoc(), avroSchema.getNamespace(), avroSchema.isError(),
-                        avroSchema.getFields()
-                                .stream()
-                                .filter(f -> !fields.contains(f.name()))
-                                .map(f -> new org.apache.avro.Schema.Field(f.name(), f.schema(), f.doc(),
-                                        f.defaultVal(),
-                                        f.order()))
-                                .collect(Collectors.toList()));
-                schemaCache.put(avroSchema, modified);
-            }
+        if (schemaCache.get(avroSchema) != null
+                || fields.stream().anyMatch(field -> avroSchema.getField(field) != null)) {
+            org.apache.avro.Schema modified = schemaCache.computeIfAbsent(
+                    avroSchema, schema -> org.apache.avro.Schema.createRecord(
+                            avroSchema.getName(), avroSchema.getDoc(), avroSchema.getNamespace(), avroSchema.isError(),
+                            avroSchema.getFields()
+                                    .stream()
+                                    .filter(f -> !fields.contains(f.name()))
+                                    .map(f -> new org.apache.avro.Schema.Field(f.name(), f.schema(), f.doc(),
+                                            f.defaultVal(),
+                                            f.order()))
+                                    .collect(Collectors.toList()))
+            );
 
             GenericRecord newRecord = new GenericData.Record(modified);
             for (org.apache.avro.Schema.Field field : modified.getFields()) {

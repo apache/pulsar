@@ -35,9 +35,7 @@ public class UnwrapKeyValueStepTest {
     @Test
     void testKeyValueUnwrapValue() throws Exception {
         Record<GenericObject> record = createTestAvroKeyValueRecord();
-        Utils.TestContext context = Utils.process(record, new UnwrapKeyValueStep(false));
-
-        Utils.TestTypedMessageBuilder<?> message = context.getOutputMessage();
+        Utils.TestTypedMessageBuilder<?> message = Utils.process(record, new UnwrapKeyValueStep(false));
 
         GenericData.Record read = getRecord(message.getSchema(), (byte[]) message.getValue());
         assertEquals(read.toString(), "{\"valueField1\": \"value1\", \"valueField2\": \"value2\", \"valueField3\": "
@@ -47,9 +45,7 @@ public class UnwrapKeyValueStepTest {
     @Test
     void testKeyValueUnwrapKey() throws Exception {
         Record<GenericObject> record = createTestAvroKeyValueRecord();
-        Utils.TestContext context = Utils.process(record, new UnwrapKeyValueStep(true));
-
-        Utils.TestTypedMessageBuilder<?> message = context.getOutputMessage();
+        Utils.TestTypedMessageBuilder<?> message = Utils.process(record, new UnwrapKeyValueStep(true));
 
         GenericData.Record read = getRecord(message.getSchema(), (byte[]) message.getValue());
         assertEquals(read.toString(), "{\"keyField1\": \"key1\", \"keyField2\": \"key2\", \"keyField3\": \"key3\"}");
@@ -58,9 +54,7 @@ public class UnwrapKeyValueStepTest {
     @Test
     void testPrimitive() throws Exception {
         Record<GenericObject> record = new Utils.TestRecord<>(Schema.STRING, AutoConsumeSchema.wrapPrimitiveObject("test-message", SchemaType.STRING, new byte[]{}), "test-key");
-        Utils.TestContext context = Utils.process(record, new UnwrapKeyValueStep(false));
-
-        Utils.TestTypedMessageBuilder<?> message = context.getOutputMessage();
+        Utils.TestTypedMessageBuilder<?> message = Utils.process(record, new UnwrapKeyValueStep(false));
 
         assertSame(message.getSchema(), record.getSchema());
         assertSame(message.getValue(), record.getValue().getNativeObject());

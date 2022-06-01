@@ -19,6 +19,8 @@
 package org.apache.pulsar.functions.transforms;
 
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.generic.GenericData;
@@ -28,6 +30,9 @@ import org.apache.pulsar.common.schema.SchemaType;
 
 @Slf4j
 public class MergeKeyValueStep implements TransformStep {
+
+    private final Map<org.apache.avro.Schema, Map<org.apache.avro.Schema, org.apache.avro.Schema>> schemaCache =
+            new ConcurrentHashMap<>();
 
     @Override
     public void process(TransformContext transformContext) {
@@ -39,7 +44,6 @@ public class MergeKeyValueStep implements TransformStep {
                 && transformContext.getValueSchema().getSchemaInfo().getType() == SchemaType.AVRO) {
             GenericRecord avroKeyRecord = (GenericRecord) transformContext.getKeyObject();
             org.apache.avro.Schema avroKeySchema = avroKeyRecord.getSchema();
-            org.apache.avro.Schema modified;
 
             GenericRecord avroValueRecord = (GenericRecord) transformContext.getValueObject();
             org.apache.avro.Schema avroValueSchema = avroValueRecord.getSchema();
@@ -59,12 +63,15 @@ public class MergeKeyValueStep implements TransformStep {
                             f.order()))
                     .collect(Collectors.toList()));
 
-            // TODO: add cache
-            modified = org.apache.avro.Schema.createRecord(
-                    //TODO: how do we merge those fields ?
-                    avroKeySchema.getName(), avroKeySchema.getDoc(), avroKeySchema.getNamespace(),
-                    avroKeySchema.isError(),
-                    fields);
+            Map<org.apache.avro.Schema, org.apache.avro.Schema> schemaCacheKey =
+                    schemaCache.computeIfAbsent(avroKeySchema, s -> new ConcurrentHashMap<>());
+            org.apache.avro.Schema modified = schemaCacheKey.computeIfAbsent(avroValueSchema, schema ->
+                    org.apache.avro.Schema.createRecord(
+                            avroValueSchema.getName(),
+                            null,
+                            avroValueSchema.getNamespace(),
+                            false,
+                            fields));
             GenericRecord newRecord = new GenericData.Record(modified);
             for (String fieldName : valueSchemaFieldNames) {
                 newRecord.put(fieldName, avroValueRecord.get(fieldName));
