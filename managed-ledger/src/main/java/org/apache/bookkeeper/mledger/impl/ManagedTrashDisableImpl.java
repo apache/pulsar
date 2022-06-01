@@ -41,8 +41,7 @@ public class ManagedTrashDisableImpl implements ManagedTrash {
     }
 
     @Override
-    public CompletableFuture<?> appendLedgerTrashData(long ledgerId, LedgerInfo context, String type) {
-        return COMPLETABLE_FUTURE;
+    public void appendLedgerTrashData(long ledgerId, LedgerInfo context, String type) {
     }
 
     @Override

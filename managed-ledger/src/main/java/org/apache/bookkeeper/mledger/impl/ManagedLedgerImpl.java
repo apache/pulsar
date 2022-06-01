@@ -1412,38 +1412,64 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
         LedgerHandle lh = currentLedger;
 
+        List<CompletableFuture<?>> futures = new ArrayList<>();
+
+        CompletableFuture<?> closeTrashFuture = new CompletableFuture<>();
+        futures.add(closeTrashFuture);
+
+        managedTrash.asyncClose(new CloseCallback() {
+            @Override
+            public void closeComplete(Object ctx) {
+                closeTrashFuture.complete(null);
+            }
+
+            @Override
+            public void closeFailed(ManagedLedgerException exception, Object ctx) {
+                closeTrashFuture.completeExceptionally(exception);
+            }
+        }, ctx);
+
+
+        CompletableFuture<?> closeCursorFuture = new CompletableFuture<>();
+        futures.add(closeCursorFuture);
+
         if (lh == null) {
             // No ledger to close, proceed with next step
-            closeAllCursors(callback, ctx);
-            return;
-        }
-
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] Closing current writing ledger {}", name, lh.getId());
-        }
-
-        mbean.startDataLedgerCloseOp();
-        lh.asyncClose((rc, lh1, ctx1) -> {
+            closeAllCursors(closeCursorFuture);
+        } else {
             if (log.isDebugEnabled()) {
-                log.debug("[{}] Close complete for ledger {}: rc = {}", name, lh.getId(), rc);
-            }
-            mbean.endDataLedgerCloseOp();
-            if (rc != BKException.Code.OK) {
-                callback.closeFailed(createManagedLedgerException(rc), ctx);
-                return;
+                log.debug("[{}] Closing current writing ledger {}", name, lh.getId());
             }
 
-            ledgerCache.forEach((ledgerId, readHandle) -> {
-                invalidateReadHandle(ledgerId);
-            });
+            mbean.startDataLedgerCloseOp();
+            lh.asyncClose((rc, lh1, ctx1) -> {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] Close complete for ledger {}: rc = {}", name, lh.getId(), rc);
+                }
+                mbean.endDataLedgerCloseOp();
+                if (rc != BKException.Code.OK) {
+                    closeCursorFuture.completeExceptionally(createManagedLedgerException(rc));
+                    return;
+                }
 
-            closeAllCursors(callback, ctx);
-        }, null);
+                ledgerCache.forEach((ledgerId, readHandle) -> {
+                    invalidateReadHandle(ledgerId);
+                });
 
+                closeAllCursors(closeCursorFuture);
+            }, null);
+        }
+
+        FutureUtil.waitForAll(futures).thenAccept(ignore -> {
+            callback.closeComplete(ctx);
+        }).exceptionally(e -> {
+            callback.closeFailed(ManagedLedgerException.getManagedLedgerException(e), ctx);
+            return null;
+        });
 
     }
 
-    private void closeAllCursors(CloseCallback callback, final Object ctx) {
+    private void closeAllCursors(CompletableFuture<?> future) {
         // Close all cursors in parallel
         List<CompletableFuture<Void>> futures = Lists.newArrayList();
         for (ManagedCursor cursor : cursors) {
@@ -1453,11 +1479,12 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
 
         Futures.waitForAll(futures)
-                .thenRun(() -> callback.closeComplete(ctx))
+                .thenRun(() -> future.complete(null))
                 .exceptionally(exception -> {
-            callback.closeFailed(ManagedLedgerException.getManagedLedgerException(exception.getCause()), ctx);
-            return null;
-        });
+                    future.completeExceptionally(
+                            ManagedLedgerException.getManagedLedgerException(exception.getCause()));
+                    return null;
+                });
     }
 
     // //////////////////////////////////////////////////////////////////////
@@ -2651,18 +2678,21 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     private CompletableFuture<?> asyncUpdateTrashData(Collection<Long> deletableLedgerIds,
-                                                         Collection<Long> deletableOffloadedLedgerIds) {
-        List<CompletableFuture<?>> futures =
-                new ArrayList<>(deletableLedgerIds.size() + deletableOffloadedLedgerIds.size());
-        for (Long ledgerId : deletableLedgerIds) {
-            futures.add(managedTrash.appendLedgerTrashData(ledgerId, null, ManagedTrash.DELETABLE_LEDGER));
+                                                      Collection<Long> deletableOffloadedLedgerIds) {
+        CompletableFuture<?> future = new CompletableFuture<>();
+        try {
+            for (Long ledgerId : deletableLedgerIds) {
+                managedTrash.appendLedgerTrashData(ledgerId, null, ManagedTrash.LEDGER);
+            }
+            for (Long ledgerId : deletableOffloadedLedgerIds) {
+                managedTrash.appendLedgerTrashData(ledgerId, ledgers.get(ledgerId),
+                        ManagedTrash.OFFLOADED_LEDGER);
+            }
+            future.complete(null);
+        } catch (ManagedLedgerException e) {
+            future.completeExceptionally(e);
         }
-        for (Long ledgerId : deletableOffloadedLedgerIds) {
-            futures.add(managedTrash.appendLedgerTrashData(ledgerId, ledgers.get(ledgerId),
-                    ManagedTrash.DELETABLE_OFFLOADED_LEDGER));
-        }
-        return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
-                .thenCompose(ignore -> managedTrash.asyncUpdateTrashData());
+        return future.thenCompose(ignore -> managedTrash.asyncUpdateTrashData());
     }
 
     /**
@@ -3049,9 +3079,13 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                             cleanupOffloaded(ledgerId, uuid, driverName, driverMetadata,
                                                     "Metastore failure");
                                         } else {
-                                            managedTrash.appendLedgerTrashData(ledgerId, ledgers.get(ledgerId),
-                                                            ManagedTrash.DELETABLE_OFFLOADED_LEDGER)
-                                                    .thenAccept(ignore3 -> managedTrash.asyncUpdateTrashData());
+                                            try {
+                                                managedTrash.appendLedgerTrashData(ledgerId, ledgers.get(ledgerId),
+                                                                ManagedTrash.OFFLOADED_LEDGER);
+                                                managedTrash.asyncUpdateTrashData();
+                                            } catch (ManagedLedgerException e) {
+                                                log.warn("[{}]-{} Failed to append trash data.", this.name, ledgerId);
+                                            }
                                         }
                                     }
                                 });
@@ -3181,8 +3215,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                     "Previous failed offload");
                         } else {
                             managedTrash.appendLedgerTrashData(ledgerId, oldInfo,
-                                            ManagedTrash.DELETABLE_OFFLOADED_LEDGER)
-                                    .thenAccept(ignore -> managedTrash.asyncUpdateTrashData());
+                                    ManagedTrash.OFFLOADED_LEDGER);
+                            managedTrash.asyncUpdateTrashData();
                         }
                     }
                     LedgerInfo.Builder builder = oldInfo.toBuilder();
@@ -3873,8 +3907,12 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     if (managedTrash instanceof ManagedTrashDisableImpl) {
                         asyncDeleteLedger(lh.getId(), DEFAULT_LEDGER_DELETE_RETRIES);
                     } else {
-                        managedTrash.appendLedgerTrashData(lh.getId(), null, ManagedTrash.DELETABLE_LEDGER).
-                                thenAccept(ignore -> managedTrash.asyncUpdateTrashData());
+                        try {
+                            managedTrash.appendLedgerTrashData(lh.getId(), null, ManagedTrash.LEDGER);
+                            managedTrash.asyncUpdateTrashData();
+                        } catch (ManagedLedgerException e) {
+                            log.warn("[{}]-{} Failed to append trash data.", this.name, lh.getId());
+                        }
                     }
                 }
                 return true;

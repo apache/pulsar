@@ -31,15 +31,16 @@ public interface ManagedTrash {
 
     String SCHEMA = "schema";
 
-    String DELETABLE_LEDGER = "DL";
+    String LEDGER = "L";
 
-    String DELETABLE_OFFLOADED_LEDGER = "DOL";
+    String OFFLOADED_LEDGER = "OL";
 
     String name();
 
     CompletableFuture<?> initialize();
 
-    CompletableFuture<?> appendLedgerTrashData(long ledgerId, LedgerInfo context, String type);
+    void appendLedgerTrashData(long ledgerId, LedgerInfo context, String type)
+            throws ManagedLedgerException;
 
     CompletableFuture<?> asyncUpdateTrashData();
 
