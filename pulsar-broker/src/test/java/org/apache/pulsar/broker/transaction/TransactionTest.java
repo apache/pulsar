@@ -1069,8 +1069,9 @@ public class TransactionTest extends TransactionTestBase {
 
     @Test(timeOut = 30000)
     public void testTransactionAckMessages() throws Exception {
-        String topic = "persistent://" + NAMESPACE1 +"/test";
+        String topic = "persistent://" + NAMESPACE1 +"/testTransactionAckMessages";
         String subName = "testSub";
+        admin.topics().createPartitionedTopic(topic, 2);
 
         @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer()
@@ -1083,7 +1084,7 @@ public class TransactionTest extends TransactionTestBase {
                 .subscriptionName(subName)
                 .subscribe();
 
-        for (int i = 0; i < 5; i++) {
+        for (int i = 0; i < 4; i++) {
             producer.newMessage().send();
         }
         Method method = ConsumerBase.class.getDeclaredMethod("getNewMessagesImpl");
@@ -1107,6 +1108,28 @@ public class TransactionTest extends TransactionTestBase {
                 .get();
 
         consumer.acknowledgeAsync(messages, transaction);
+        transaction.abort().get();
+        consumer.close();
+        consumer = pulsarClient.newConsumer()
+                .topic(topic)
+                .subscriptionName(subName)
+                .subscribe();
+        List<MessageId> messageIds = new ArrayList<>();
+        for (Message message : messageList) {
+            messageIds.add(message.getMessageId());
+        }
+        for (int i = 0; i < 4; i++) {
+            Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
+            assertTrue(messageIds.contains(message.getMessageId()));
+        }
+
+        //verify using committed transaction to ack message list
+        transaction = pulsarClient
+                .newTransaction()
+                .withTransactionTimeout(5, TimeUnit.MINUTES)
+                .build()
+                .get();
+        consumer.acknowledgeAsync(messages, transaction);
         transaction.commit().get();
 
         consumer.close();
@@ -1115,11 +1138,6 @@ public class TransactionTest extends TransactionTestBase {
                 .subscriptionName(subName)
                 .subscribe();
         Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
-        Assert.assertNotNull(message);
-        for (Message<byte[]> m: messages) {
-            Assert.assertNotEquals(m.getMessageId(), message.getMessageId());
-        }
-        message = consumer.receive(5, TimeUnit.SECONDS);
         Assert.assertNull(message);
         consumer.close();
     }
