@@ -114,7 +114,7 @@ class SchemaRegistryStats implements AutoCloseable {
     private String getNamespace(String schemaId) {
         try {
             return TopicName.get(schemaId).getNamespace();
-        } catch (Exception t) {
+        } catch (IllegalArgumentException t) {
             return "unknown";
         }
     }
