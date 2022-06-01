@@ -478,7 +478,7 @@ public class Consumer {
             MessageIdData msgId = ack.getMessageIdAt(i);
             PositionImpl position;
             long ackedCount = 0;
-            long batchSize = getBatchSize(msgId);
+            long batchSize = msgId.getBatchSize();
             Consumer ackOwnerConsumer = getAckOwnerConsumer(msgId.getLedgerId(), msgId.getEntryId());
             if (msgId.getAckSetsCount() > 0) {
                 long[] ackSets = new long[msgId.getAckSetsCount()];
