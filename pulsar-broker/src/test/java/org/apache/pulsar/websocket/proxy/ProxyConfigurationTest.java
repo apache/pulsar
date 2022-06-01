@@ -21,9 +21,7 @@ package org.apache.pulsar.websocket.proxy;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
-
 import java.util.Optional;
-
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.websocket.WebSocketService;
@@ -61,6 +59,9 @@ public class ProxyConfigurationTest extends ProducerConsumerBase {
     public void configTest(int numIoThreads, int connectionsPerBroker) throws Exception {
         config.setWebSocketNumIoThreads(numIoThreads);
         config.setWebSocketConnectionsPerBroker(connectionsPerBroker);
+        config.getProperties().setProperty("brokerClient_serviceUrl", "https://broker.com:8080");
+        config.setServiceUrl("http://localhost:8080");
+        config.getProperties().setProperty("brokerClient_requestTimeoutMs", "100");
         WebSocketService service = spy(new WebSocketService(config));
         doReturn(mockZooKeeperClientFactory).when(service).getZooKeeperClientFactory();
         service.start();
@@ -68,6 +69,9 @@ public class ProxyConfigurationTest extends ProducerConsumerBase {
         PulsarClientImpl client = (PulsarClientImpl) service.getPulsarClient();
         assertEquals(client.getConfiguration().getNumIoThreads(), numIoThreads);
         assertEquals(client.getConfiguration().getConnectionsPerBroker(), connectionsPerBroker);
+        assertEquals(client.getConfiguration().getServiceUrl(), "http://localhost:8080",
+                "brokerClient_ configs take precedence");
+        assertEquals(client.getConfiguration().getRequestTimeoutMs(), 100);
 
         service.close();
     }

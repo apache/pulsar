@@ -27,7 +27,6 @@ import static org.apache.bookkeeper.client.RegionAwareEnsemblePlacementPolicy.RE
 import java.io.IOException;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import com.google.common.annotations.VisibleForTesting;
@@ -41,6 +40,7 @@ import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.stats.NullStatsLogger;
 import org.apache.bookkeeper.stats.StatsLogger;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.client.internal.PropertiesUtils;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.zookeeper.ZkBookieRackAffinityMapping;
 import org.apache.pulsar.zookeeper.ZkIsolatedBookieEnsemblePlacementPolicy;
@@ -141,15 +141,11 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
                 conf.getBookkeeperClientGetBookieInfoIntervalSeconds(), TimeUnit.SECONDS);
         bkConf.setGetBookieInfoRetryIntervalSeconds(
                 conf.getBookkeeperClientGetBookieInfoRetryIntervalSeconds(), TimeUnit.SECONDS);
-        Properties allProps = conf.getProperties();
-        allProps.forEach((key, value) -> {
-            String sKey = key.toString();
-            if (sKey.startsWith("bookkeeper_") && value != null) {
-                String bkExtraConfigKey = sKey.substring(11);
-                log.info("Extra BookKeeper client configuration {}, setting {}={}", sKey, bkExtraConfigKey, value);
-                bkConf.setProperty(bkExtraConfigKey, value);
-            }
-        });
+        PropertiesUtils.filterAndMapProperties(conf.getProperties(), "bookkeeper_")
+                .forEach((key, value) -> {
+                    log.info("Applying BookKeeper client configuration setting {}={}", key, value);
+                    bkConf.setProperty(key, value);
+                });
         return bkConf;
     }
 

@@ -148,18 +148,19 @@ public class WorkerService {
                 this.brokerAdmin = WorkerUtils.getPulsarAdminClient(workerConfig.getPulsarWebServiceUrl(),
                     workerConfig.getBrokerClientAuthenticationPlugin(), workerConfig.getBrokerClientAuthenticationParameters(),
                     pulsarClientTlsTrustCertsFilePath, workerConfig.isTlsAllowInsecureConnection(),
-                    workerConfig.isTlsEnableHostnameVerification());
+                    workerConfig.isTlsEnableHostnameVerification(), workerConfig);
 
                 this.functionAdmin = WorkerUtils.getPulsarAdminClient(functionWebServiceUrl,
                     workerConfig.getBrokerClientAuthenticationPlugin(), workerConfig.getBrokerClientAuthenticationParameters(),
                     workerConfig.getTlsTrustCertsFilePath(), workerConfig.isTlsAllowInsecureConnection(),
-                    workerConfig.isTlsEnableHostnameVerification());
+                    workerConfig.isTlsEnableHostnameVerification(), workerConfig);
 
                 this.client = WorkerUtils.getPulsarClient(workerConfig.getPulsarServiceUrl(),
                         workerConfig.getBrokerClientAuthenticationPlugin(),
                         workerConfig.getBrokerClientAuthenticationParameters(),
                         workerConfig.isUseTls(), pulsarClientTlsTrustCertsFilePath,
-                        workerConfig.isTlsAllowInsecureConnection(), workerConfig.isTlsEnableHostnameVerification());
+                        workerConfig.isTlsAllowInsecureConnection(), workerConfig.isTlsEnableHostnameVerification(),
+                        workerConfig);
             } else {
                 this.brokerAdmin = WorkerUtils.getPulsarAdminClient(workerConfig.getPulsarWebServiceUrl());
 

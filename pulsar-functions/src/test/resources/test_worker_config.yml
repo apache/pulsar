@@ -22,4 +22,7 @@ workerPort: 7654
 pulsarServiceUrl: pulsar://localhost:6650
 functionMetadataTopicName: test-function-metadata-topic
 numFunctionPackageReplicas: 3
+properties:
+  # Fake Bookkeeper Client config to be applied to the DLog Bookkeeper Client
+  bookkeeper_testKey: "fakeValue"
 
