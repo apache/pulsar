@@ -49,6 +49,7 @@ import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.LongSchemaVersion;
 import org.apache.pulsar.common.schema.SchemaType;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -157,28 +158,30 @@ public class SchemasResourceBase extends AdminResource {
                     .thenAccept(version -> response.resume(
                             Response.accepted().entity(PostSchemaResponse.builder().version(version).build()).build()))
                     .exceptionally(error -> {
-                        if (error.getCause() instanceof IncompatibleSchemaException) {
+                        Throwable throwable = FutureUtil.unwrapCompletionException(error);
+                        if (throwable instanceof IncompatibleSchemaException) {
                             response.resume(Response
-                                    .status(Response.Status.CONFLICT.getStatusCode(), error.getCause().getMessage())
+                                    .status(Response.Status.CONFLICT.getStatusCode(), throwable.getMessage())
                                     .build());
-                        } else if (error instanceof InvalidSchemaDataException) {
+                        } else if (throwable instanceof InvalidSchemaDataException) {
                             response.resume(Response.status(422, /* Unprocessable Entity */
-                                    error.getMessage()).build());
+                                    throwable.getMessage()).build());
                         } else {
-                            log.error("[{}] Failed to post schema for topic {}", clientAppId(), topicName, error);
-                            response.resume(new RestException(error));
+                            log.error("[{}] Failed to post schema for topic {}", clientAppId(), topicName, throwable);
+                            response.resume(new RestException(throwable));
                         }
                         return null;
                     });
         }).exceptionally(error -> {
-            if (error.getCause() instanceof RestException) {
+            Throwable throwable = FutureUtil.unwrapCompletionException(error);
+            if (throwable instanceof RestException) {
                 // Unprocessable Entity
                 response.resume(Response
-                        .status(((RestException) error.getCause()).getResponse().getStatus(), error.getMessage())
+                        .status(((RestException) throwable).getResponse().getStatus(), throwable.getMessage())
                         .build());
             } else {
-                log.error("[{}] Failed to post schema for topic {}", clientAppId(), topicName, error);
-                response.resume(new RestException(error));
+                log.error("[{}] Failed to post schema for topic {}", clientAppId(), topicName, throwable);
+                response.resume(new RestException(throwable));
             }
             return null;
         });
@@ -200,7 +203,7 @@ public class SchemasResourceBase extends AdminResource {
                                         .schemaCompatibilityStrategy(schemaCompatibilityStrategy.name()).build())
                                 .build())))
                 .exceptionally(error -> {
-                    response.resume(new RestException(error));
+                    response.resume(new RestException(FutureUtil.unwrapCompletionException(error)));
                     return null;
                 });
     }
@@ -220,8 +223,9 @@ public class SchemasResourceBase extends AdminResource {
                 .thenAccept(version -> response.resume(Response.accepted()
                         .entity(LongSchemaVersionResponse.builder().version(version).build()).build()))
                 .exceptionally(error -> {
-                    log.error("[{}] Failed to get version by schema for topic {}", clientAppId(), topicName, error);
-                    response.resume(new RestException(error));
+                    Throwable throwable = FutureUtil.unwrapCompletionException(error);
+                    log.error("[{}] Failed to get version by schema for topic {}", clientAppId(), topicName, throwable);
+                    response.resume(new RestException(throwable));
                     return null;
                 });
     }

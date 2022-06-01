@@ -35,7 +35,7 @@ Application specifies the token when you create the client instance. An alternat
 
 ### CLI Tools
 
-[Command-line tools](reference-cli-tools.md) like [`pulsar-admin`](reference-pulsar-admin), [`pulsar-perf`](reference-cli-tools.md#pulsar-perf), and [`pulsar-client`](reference-cli-tools.md#pulsar-client) use the `conf/client.conf` config file in a Pulsar installation.
+[Command-line tools](reference-cli-tools.md) like [`pulsar-admin`](/tools/pulsar-admin/), [`pulsar-perf`](reference-cli-tools.md#pulsar-perf), and [`pulsar-client`](reference-cli-tools.md#pulsar-client) use the `conf/client.conf` config file in a Pulsar installation.
 
 You need to add the following parameters to that file to use the token authentication with CLI tools of Pulsar:
 
@@ -61,7 +61,7 @@ authParams=file:///path/to/token/file
 You can use tokens to authenticate the following Pulsar clients.
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="lang-choice"
   defaultValue="Java"
   values={[{"label":"Java","value":"Java"},{"label":"Python","value":"Python"},{"label":"Go","value":"Go"},{"label":"C++","value":"C++"},{"label":"C#","value":"C#"}]}>
 <TabItem value="Java">

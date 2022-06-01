@@ -11,12 +11,13 @@ Pulsar's **Tiered Storage** feature allows older backlog data to be moved from B
 
     With jclouds, it is easy to add support for more [cloud storage providers](https://jclouds.apache.org/reference/providers/#blobstore-providers) in the future.
 
-    :::tip
+  :::tip
 
-    For more information about how to use the AWS S3 offloader with Pulsar, see [here](tiered-storage-aws).
-    For more information about how to use the GCS offloader with Pulsar, see [here](tiered-storage-gcs).
+  - For more information about how to use the AWS S3 offloader with Pulsar, see [here](tiered-storage-aws).
+  
+  - For more information about how to use the GCS offloader with Pulsar, see [here](tiered-storage-gcs).
 
-    :::
+  :::
 
 * Tiered storage uses [Apache Hadoop](http://hadoop.apache.org/) to support filesystems for long term storage. 
 

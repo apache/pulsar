@@ -1709,7 +1709,36 @@ public interface Topics {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void createSubscription(String topic, String subscriptionName, MessageId messageId, boolean replicated)
+    default void createSubscription(String topic, String subscriptionName, MessageId messageId, boolean replicated)
+            throws PulsarAdminException {
+        createSubscription(topic, subscriptionName, messageId, replicated, null);
+    }
+
+    /**
+     * Create a new subscription on a topic.
+     *
+     * @param topic
+     *            topic name
+     * @param subscriptionName
+     *            Subscription name
+     * @param messageId
+     *            The {@link MessageId} on where to initialize the subscription. It could be {@link MessageId#latest},
+     *            {@link MessageId#earliest} or a specific message id.
+     * @param replicated
+     *            replicated subscriptions.
+     * @param properties
+     *            subscription properties.
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws ConflictException
+     *             Subscription already exists
+     * @throws NotAllowedException
+     *             Command disallowed for requested resource
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void createSubscription(String topic, String subscriptionName, MessageId messageId, boolean replicated,
+                            Map<String, String> properties)
             throws PulsarAdminException;
 
     /**
@@ -1726,8 +1755,29 @@ public interface Topics {
      * @param replicated
      *           replicated subscriptions.
      */
+    default CompletableFuture<Void> createSubscriptionAsync(String topic, String subscriptionName, MessageId messageId,
+                                                    boolean replicated) {
+        return createSubscriptionAsync(topic, subscriptionName, messageId, replicated, null);
+    }
+
+    /**
+     * Create a new subscription on a topic.
+     *
+     * @param topic
+     *            topic name
+     * @param subscriptionName
+     *            Subscription name
+     * @param messageId
+     *            The {@link MessageId} on where to initialize the subscription. It could be {@link MessageId#latest},
+     *            {@link MessageId#earliest} or a specific message id.
+     *
+     * @param replicated
+     *           replicated subscriptions.
+     * @param properties
+     *            subscription properties.
+     */
     CompletableFuture<Void> createSubscriptionAsync(String topic, String subscriptionName, MessageId messageId,
-                                                    boolean replicated);
+                                                    boolean replicated, Map<String, String> properties);
 
     /**
      * Reset cursor position on a topic subscription.
@@ -3963,4 +4013,34 @@ public interface Topics {
      * @return a map of replicated subscription status on a topic
      */
     CompletableFuture<Map<String, Boolean>> getReplicatedSubscriptionStatusAsync(String topic, String subName);
+
+    /**
+     * Get schema validation enforced for a topic.
+     *
+     * @param topic topic name
+     * @return whether the schema validation enforced is set or not
+     */
+    boolean getSchemaValidationEnforced(String topic, boolean applied) throws PulsarAdminException;
+
+    /**
+     * Get schema validation enforced for a topic.
+     *
+     * @param topic topic name
+     */
+    void setSchemaValidationEnforced(String topic, boolean enable) throws PulsarAdminException;
+
+    /**
+     * Get schema validation enforced for a topic asynchronously.
+     *
+     * @param topic topic name
+     * @return whether the schema validation enforced is set or not
+     */
+    CompletableFuture<Boolean> getSchemaValidationEnforcedAsync(String topic, boolean applied);
+
+    /**
+     * Get schema validation enforced for a topic asynchronously.
+     *
+     * @param topic topic name
+     */
+    CompletableFuture<Void> setSchemaValidationEnforcedAsync(String topic, boolean enable);
 }

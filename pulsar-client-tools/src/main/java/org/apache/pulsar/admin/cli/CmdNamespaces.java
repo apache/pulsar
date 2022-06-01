@@ -28,7 +28,6 @@ import com.google.common.collect.Sets;
 import io.swagger.util.Json;
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -387,14 +386,27 @@ public class CmdNamespaces extends CmdBase {
         @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = { "--messageTTL", "-ttl" }, description = "Message TTL in seconds. "
-                + "When the value is set to `0`, TTL is disabled.", required = true)
-        private int messageTTL;
+        @Parameter(names = { "--messageTTL", "-ttl" },
+                description = "Message TTL in seconds (or minutes, hours, days, weeks eg: 100m, 3h, 2d, 5w). "
+                        + "When the value is set to `0`, TTL is disabled.", required = true)
+        private String messageTTLStr;
 
         @Override
         void run() throws PulsarAdminException {
+            long messageTTLInSecond;
+            try {
+                messageTTLInSecond = RelativeTimeUtil.parseRelativeTimeInSeconds(messageTTLStr);
+            } catch (IllegalArgumentException e) {
+                throw new ParameterException(e.getMessage());
+            }
+
+            if (messageTTLInSecond < 0 || messageTTLInSecond > Integer.MAX_VALUE) {
+                throw new ParameterException(
+                        String.format("Message TTL cannot be negative or greater than %d seconds", Integer.MAX_VALUE));
+            }
+
             String namespace = validateNamespace(params);
-            getAdmin().namespaces().setNamespaceMessageTTL(namespace, messageTTL);
+            getAdmin().namespaces().setNamespaceMessageTTL(namespace, (int) messageTTLInSecond);
         }
     }
 
@@ -2456,24 +2468,11 @@ public class CmdNamespaces extends CmdBase {
         @Override
         void run() throws Exception {
             String namespace = validateNamespace(params);
-            Map<String, String> map = new HashMap<>();
             if (properties.size() == 0) {
                 throw new ParameterException(String.format("Required at least one property for the namespace, "
                         + "but found %d.", properties.size()));
             }
-            for (String property : properties) {
-                if (!property.contains("=")) {
-                    throw new ParameterException(String.format("Invalid key value pair '%s', "
-                            + "valid format like 'a=a,b=b,c=c'.", property));
-                } else {
-                    String[] keyValue = property.split("=");
-                    if (keyValue.length != 2) {
-                        throw new ParameterException(String.format("Invalid key value pair '%s', "
-                                + "valid format like 'a=a,b=b,c=c'.", property));
-                    }
-                    map.put(keyValue[0], keyValue[1]);
-                }
-            }
+            Map<String, String> map = parseListKeyValueMap(properties);
             getAdmin().namespaces().setProperties(namespace, map);
         }
     }

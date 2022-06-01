@@ -996,8 +996,6 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         String namespaceName = "prop/expiry-check-2";
 
         cleanup();
-        this.conf.setSystemTopicEnabled(true);
-        this.conf.setTopicLevelPoliciesEnabled(true);
         this.conf.setForceDeleteNamespaceAllowed(true);
         setup();
 
@@ -1525,6 +1523,10 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
     @Test
     public void testBrokerConnectionStats() throws Exception {
 
+        cleanup();
+        conf.setSystemTopicEnabled(false);
+        conf.setTopicLevelPoliciesEnabled(false);
+        setup();
         BrokerService brokerService = this.pulsar.getBrokerService();
 
         final String namespace = "prop/ns-abc";

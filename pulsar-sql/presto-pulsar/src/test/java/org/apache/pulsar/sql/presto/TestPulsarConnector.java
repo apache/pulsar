@@ -97,6 +97,8 @@ public abstract class TestPulsarConnector {
 
     protected PulsarMetadata pulsarMetadata;
 
+    protected PulsarAuth pulsarAuth;
+
     protected PulsarAdmin pulsarAdmin;
 
     protected Schemas schemas;
@@ -367,7 +369,9 @@ public abstract class TestPulsarConnector {
         pulsarConnectorConfig.setMaxSplitMessageQueueSize(100);
         PulsarDispatchingRowDecoderFactory dispatchingRowDecoderFactory =
                 new PulsarDispatchingRowDecoderFactory(prestoConnectorContext.getTypeManager());
-        PulsarMetadata pulsarMetadata = new PulsarMetadata(pulsarConnectorId, pulsarConnectorConfig, dispatchingRowDecoderFactory);
+        PulsarAuth pulsarAuth = new PulsarAuth(pulsarConnectorConfig);
+        PulsarMetadata pulsarMetadata =
+                new PulsarMetadata(pulsarConnectorId, pulsarConnectorConfig, dispatchingRowDecoderFactory, pulsarAuth);
         return pulsarMetadata;
     }
 
@@ -539,7 +543,11 @@ public abstract class TestPulsarConnector {
         doReturn(schemas).when(pulsarAdmin).schemas();
         doReturn(pulsarAdmin).when(this.pulsarConnectorConfig).getPulsarAdmin();
 
-        this.pulsarMetadata = new PulsarMetadata(pulsarConnectorId, this.pulsarConnectorConfig, dispatchingRowDecoderFactory);
+        this.pulsarAuth = mock(PulsarAuth.class);
+
+        this.pulsarMetadata =
+                new PulsarMetadata(pulsarConnectorId, this.pulsarConnectorConfig, dispatchingRowDecoderFactory,
+                        this.pulsarAuth);
         this.pulsarSplitManager = Mockito.spy(new PulsarSplitManager(pulsarConnectorId, this.pulsarConnectorConfig));
 
         ManagedLedgerFactory managedLedgerFactory = mock(ManagedLedgerFactory.class);

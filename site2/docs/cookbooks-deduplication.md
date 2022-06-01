@@ -42,7 +42,7 @@ Even if you set the value for `brokerDeduplicationEnabled`, enabling or disablin
 
 ### Enable message deduplication
 
-Though message deduplication is disabled by default at the broker level, you can enable message deduplication for a specific namespace or topic using the [`pulsar-admin namespaces set-deduplication`](reference-pulsar-admin.md#namespace-set-deduplication) or the [`pulsar-admin topics set-deduplication`](reference-pulsar-admin.md#topic-set-deduplication) command. You can use the `--enable`/`-e` flag and specify the namespace/topic. 
+Though message deduplication is disabled by default at the broker level, you can enable message deduplication for a specific namespace or topic using the [`pulsar-admin namespaces set-deduplication`](/tools/pulsar-admin/) or the [`pulsar-admin topics set-deduplication`](/tools/pulsar-admin/) command. You can use the `--enable`/`-e` flag and specify the namespace/topic. 
 
 The following example shows how to enable message deduplication at the namespace level.
 
@@ -56,7 +56,7 @@ $ bin/pulsar-admin namespaces set-deduplication \
 
 ### Disable message deduplication
 
-Even if you enable message deduplication at the broker level, you can disable message deduplication for a specific namespace or topic using the [`pulsar-admin namespace set-deduplication`](reference-pulsar-admin.md#namespace-set-deduplication) or the [`pulsar-admin topics set-deduplication`](reference-pulsar-admin.md#topic-set-deduplication) command. Use the `--disable`/`-d` flag and specify the namespace/topic.
+Even if you enable message deduplication at the broker level, you can disable message deduplication for a specific namespace or topic using the [`pulsar-admin namespace set-deduplication`](/tools/pulsar-admin/) or the [`pulsar-admin topics set-deduplication`](/tools/pulsar-admin/) command. Use the `--disable`/`-d` flag and specify the namespace/topic.
 
 The following example shows how to disable message deduplication at the namespace level.
 

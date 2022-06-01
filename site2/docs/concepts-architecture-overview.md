@@ -8,7 +8,7 @@ At the highest level, a Pulsar instance is composed of one or more Pulsar cluste
 
 In a Pulsar cluster:
 
-* One or more brokers handles and load balances incoming messages from producers, dispatches messages to consumers, communicates with the Pulsar configuration store to handle various coordination tasks, stores messages in BookKeeper instances (aka bookies), relies on a cluster-specific ZooKeeper cluster for certain tasks, and more.
+* One or more brokers handles and [load balances](administration-load-balance.md#load-balance-across-pulsar-brokers) incoming messages from producers, dispatches messages to consumers, communicates with the Pulsar configuration store to handle various coordination tasks, stores messages in BookKeeper instances (aka bookies), relies on a cluster-specific ZooKeeper cluster for certain tasks, and more.
 * A BookKeeper cluster consisting of one or more bookies handles [persistent storage](#persistent-storage) of messages.
 * A ZooKeeper cluster specific to that cluster handles coordination tasks between Pulsar clusters.
 
@@ -117,7 +117,7 @@ Internally, a single managed ledger uses multiple BookKeeper ledgers to store th
 
 ### Journal storage
 
-In BookKeeper, *journal* files contain BookKeeper transaction logs. Before making an update to a [ledger](#ledgers), a bookie needs to ensure that a transaction describing the update is written to persistent (non-volatile) storage. A new journal file is created once the bookie starts or the older journal file reaches the journal file size threshold (configured using the [`journalMaxSizeMB`](reference-configuration.md#bookkeeper-journalMaxSizeMB) parameter).
+In BookKeeper, *journal* files contain BookKeeper transaction logs. Before making an update to a [ledger](#ledgers), a bookie needs to ensure that a transaction describing the update is written to persistent (non-volatile) storage. A new journal file is created once the bookie starts or the older journal file reaches the journal file size threshold (configured using the [`journalMaxSizeMB`](reference-configuration.md#bookkeeper) parameter).
 
 ## Pulsar proxy
 
@@ -149,7 +149,7 @@ Some important things to know about the Pulsar proxy:
 
 ## Service discovery
 
-[Clients](getting-started-clients) connecting to Pulsar brokers need to be able to communicate with an entire Pulsar instance using a single URL.
+[Clients](concepts-clients.md) connecting to Pulsar brokers need to be able to communicate with an entire Pulsar instance using a single URL.
 
 You can use your own service discovery system if you'd like. If you use your own system, there is just one requirement: when a client performs an HTTP request to an endpoint, such as `http://pulsar.us-west.example.com:8080`, the client needs to be redirected to *some* active broker in the desired cluster, whether via DNS, an HTTP or IP redirect, or some other means.
 

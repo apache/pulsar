@@ -146,8 +146,9 @@ To run function-worker separately, you have to configure the following parameter
 
 If authentication is enabled for your broker cluster, you *should* configure the authentication plugin and parameters for the functions worker to communicate with the brokers.
 
-- `clientAuthenticationPlugin`
-- `clientAuthenticationParameters`
+- `brokerClientAuthenticationEnabled`: Whether to enable the broker client authentication used by function workers to talk to brokers.
+- `clientAuthenticationPlugin`: The authentication plugin to be used by the Pulsar client used in worker service.
+- `clientAuthenticationParameters`: The authentication parameter to be used by the Pulsar client used in worker service.
 
 #### Customize Java runtime options
 
@@ -336,7 +337,7 @@ Hence you need to configure your `pulsar-admin` to use the right service URL acc
 
 In order to address this inconvenience, you can start a proxy cluster for routing the admin rest requests accordingly. Hence you will have one central entry point for your admin service.
 
-If you already have a proxy cluster, continue reading. If you haven't setup a proxy cluster before, you can follow the [instructions](http://pulsar.apache.org/docs/en/administration-proxy/) to
+If you already have a proxy cluster, continue reading. If you haven't setup a proxy cluster before, you can follow the [instructions](/docs/en/administration-proxy/) to
 start proxies.    
 
 ![assets/functions-worker-separated.png](/assets/functions-worker-separated-proxy.png)

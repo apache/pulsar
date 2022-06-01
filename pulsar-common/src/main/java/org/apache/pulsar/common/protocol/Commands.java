@@ -1853,8 +1853,10 @@ public class Commands {
             return org.apache.pulsar.common.api.proto.ProducerAccessMode.Shared;
         case WaitForExclusive:
             return org.apache.pulsar.common.api.proto.ProducerAccessMode.WaitForExclusive;
+        case ExclusiveWithFencing:
+            return org.apache.pulsar.common.api.proto.ProducerAccessMode.ExclusiveWithFencing;
         default:
-            throw new IllegalArgumentException("Unknonw access mode: " + accessMode);
+            throw new IllegalArgumentException("Unknown access mode: " + accessMode);
         }
     }
 
@@ -1867,6 +1869,8 @@ public class Commands {
             return ProducerAccessMode.Shared;
         case WaitForExclusive:
             return ProducerAccessMode.WaitForExclusive;
+        case ExclusiveWithFencing:
+            return ProducerAccessMode.ExclusiveWithFencing;
         default:
             throw new IllegalArgumentException("Unknonw access mode: " + accessMode);
         }

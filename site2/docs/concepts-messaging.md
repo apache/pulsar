@@ -76,6 +76,7 @@ Access mode | Description
 :-----------|------------
 `Shared`           | Multiple producers can publish on a topic. <br /><br />This is the **default** setting.
 `Exclusive`        | Only one producer can publish on a topic. <br /><br />If there is already a producer connected, other producers trying to publish on this topic get errors immediately.<br /><br />The “old” producer is evicted and a “new” producer is selected to be the next exclusive producer if the “old” producer experiences a network partition with the broker.
+`ExclusiveWithFencing`|Only one producer can publish on a topic. <br /><br />If there is already a producer connected, it will be removed and invalidated immediately.
 `WaitForExclusive` | If there is already a producer connected, the producer creation is pending (rather than timing out) until the producer gets the `Exclusive` access.<br /><br />The producer that succeeds in becoming the exclusive one is treated as the leader. Consequently, if you want to implement a leader election scheme for your application, you can use this access mode. Note that the leader pattern scheme mentioned refers to using Pulsar as a Write-Ahead Log (WAL) which means the leader writes its "decisions" to the topic. On error cases, the leader will get notified it is no longer the leader *only* when it tries to write a message and fails on appropriate error, by the broker.
 
 :::note
@@ -150,7 +151,7 @@ To enable message chunking, set the `chunkingEnabled` parameter to `true` when c
 
 :::note
 
-If the consumer fails to receive all chunks of a message within a specified time period, it expires incomplete chunks. The default value is 1 minute. For more information about the `expireTimeOfIncompleteChunkedMessage` parameter, refer to [org.apache.pulsar.client.api](https://pulsar.apache.org/api/client/).
+If the consumer fails to receive all chunks of a message within a specified time period, it expires incomplete chunks. The default value is 1 minute. For more information about the `expireTimeOfIncompleteChunkedMessage` parameter, refer to [org.apache.pulsar.client.api](/api/client/).
 
 :::
 
@@ -544,7 +545,7 @@ When a subscription has no consumers, its subscription type is undefined. The ty
 
 #### Exclusive
 
-In *Exclusive* type, only a single consumer is allowed to attach to the subscription. If multiple consumers subscribe to a topic using the same subscription, an error occurs.
+In *Exclusive* type, only a single consumer is allowed to attach to the subscription. If multiple consumers subscribe to a topic using the same subscription, an error occurs. Note that if the topic is partitioned, all partitions will be consumed by the single consumer allowed to be connected to the subscription.
 
 In the diagram below, only **Consumer A-0** is allowed to consume messages.
 
@@ -554,11 +555,13 @@ In the diagram below, only **Consumer A-0** is allowed to consume messages.
 
 #### Failover
 
-In *Failover* type, multiple consumers can attach to the same subscription. A master consumer is picked for non-partitioned topic or each partition of partitioned topic and receives messages. When the master consumer disconnects, all (non-acknowledged and subsequent) messages are delivered to the next consumer in line.
+In *Failover* type, multiple consumers can attach to the same subscription. A master consumer is picked for non-partitioned topic or for each partition of partitioned topic and receives messages. When the master consumer disconnects, all (non-acknowledged and subsequent) messages are delivered to the next consumer in line.
 
-For partitioned topics, broker will sort consumers by priority level and lexicographical order of consumer name. Then broker will try to evenly assigns topics to consumers with the highest priority level.
+For partitioned topics, broker will sort consumers by priority level and lexicographical order of consumer name. Then broker will try to evenly assigns partitions to consumers with the highest priority level.
 
 For non-partitioned topic, broker will pick consumer in the order they subscribe to the non partitioned topic.
+
+For example: a partitioned topic has 15 partitions, and 3 consumers. Each consumer will be active for 5 partitions. Each partition will have 1 active consumer and 4 stand-by consumers.
 
 In the diagram below, **Consumer-B-0** is the master consumer while **Consumer-B-1** would be the next consumer in line to receive messages if **Consumer-B-0** is disconnected.
 
@@ -592,7 +595,7 @@ The key-based batching aims at resolving the above-mentioned issues. This batchi
 Below are examples of enabling the key-based batching under the Key_Shared subscription type, with `client` being the Pulsar client that you created.
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="lang-choice"
   defaultValue="Java"
   values={[{"label":"Java","value":"Java"},{"label":"C++","value":"C++"},{"label":"Python","value":"Python"}]}>
 <TabItem value="Java">
@@ -797,7 +800,6 @@ Please pay attention that `JavaStringHash` is not useful when producers can be f
 
 ## Non-persistent topics
 
-
 By default, Pulsar persistently stores *all* unacknowledged messages on multiple [BookKeeper](concepts-architecture-overview.md#persistent-storage) bookies (storage nodes). Data for messages on persistent topics can thus survive broker restarts and subscriber failover.
 
 Pulsar also, however, supports **non-persistent topics**, which are topics on which messages are *never* persisted to disk and live only in memory. When using non-persistent delivery, killing a Pulsar broker or disconnecting a subscriber to a topic means that all in-transit messages are lost on that (non-persistent) topic, meaning that clients may see message loss.
@@ -812,11 +814,13 @@ non-persistent://tenant/namespace/topic
 
 > For more info on using non-persistent topics, see the [Non-persistent messaging cookbook](cookbooks-non-persistent).
 
-In non-persistent topics, brokers immediately deliver messages to all connected subscribers *without persisting them* in [BookKeeper](concepts-architecture-overview.md#persistent-storage). If a subscriber is disconnected, the broker will not be able to deliver those in-transit messages, and subscribers will never be able to receive those messages again. Eliminating the persistent storage step makes messaging on non-persistent topics slightly faster than on persistent topics in some cases, but with the caveat that some of the core benefits of Pulsar are lost.
+In non-persistent topics, brokers immediately deliver messages to all connected subscribers *without persisting them* in [BookKeeper](concepts-architecture-overview.md#persistent-storage). If a subscriber is disconnected, the broker will not be able to deliver those in-transit messages, and subscribers will never be able to receive those messages again. Eliminating the persistent storage step makes messaging on non-persistent topics slightly faster than on persistent topics in some cases, but with the caveat that some core benefits of Pulsar are lost. 
 
-> With non-persistent topics, message data lives only in memory. If a message broker fails or message data can otherwise not be retrieved from memory, your message data may be lost. Use non-persistent topics only if you're *certain* that your use case requires it and can sustain it.
+> With non-persistent topics, message data lives only in memory,  without a specific buffer - which means data *is not* buffered in memory. The received messages are immediately transmitted to all *connected consumers*. If a message broker fails or message data can otherwise not be retrieved from memory, your message data may be lost. Use non-persistent topics only if you're *certain* that your use case requires it and can sustain it.
 
-By default, non-persistent topics are enabled on Pulsar brokers. You can disable them in the broker's [configuration](reference-configuration.md#broker-enableNonPersistentTopics). You can manage non-persistent topics using the `pulsar-admin topics` command. For more information, see [`pulsar-admin`](https://pulsar.apache.org/tools/pulsar-admin/).
+By default, non-persistent topics are enabled on Pulsar brokers. You can disable them in the broker's [configuration](reference-configuration.md#broker-enableNonPersistentTopics). You can manage non-persistent topics using the `pulsar-admin topics` command. For more information, see [`pulsar-admin`](/tools/pulsar-admin/).
+
+Currently, non-persistent topics which are not partitioned are not persisted to ZooKeeper, which means if the broker owning them crashes, they do not get re-assigned to another broker because they only exist in the owner broker memory. The current workaround is to set the value of `allowAutoTopicCreation` to `true` and `allowAutoTopicCreationType` to `non-partitioned` (they are default values) in broker configuration.
 
 ### Performance
 
@@ -905,7 +909,7 @@ Message deduplication is disabled in the scenario shown at the top. Here, a prod
 In the second scenario at the bottom, the producer publishes message 1, which is received by the broker and persisted, as in the first scenario. When the producer attempts to publish the message again, however, the broker knows that it has already seen message 1 and thus does not persist the message.
 
 > Message deduplication is handled at the namespace level or the topic level. For more instructions, see the [message deduplication cookbook](cookbooks-deduplication).
-
+> You can read the design of Message Deduplication in [PIP-6](https://github.com/aahmed-se/pulsar-wiki/blob/master/PIP-6:-Guaranteed-Message-Deduplication.md)
 
 ### Producer idempotency
 

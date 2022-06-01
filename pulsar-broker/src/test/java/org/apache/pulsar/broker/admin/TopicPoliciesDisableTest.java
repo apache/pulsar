@@ -51,7 +51,6 @@ public class TopicPoliciesDisableTest extends MockedPulsarServiceBaseTest {
     @BeforeMethod
     @Override
     protected void setup() throws Exception {
-        this.conf.setSystemTopicEnabled(true);
         this.conf.setTopicLevelPoliciesEnabled(false);
         super.internalSetup();
 
