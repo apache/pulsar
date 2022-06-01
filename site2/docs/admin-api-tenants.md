@@ -14,11 +14,11 @@ import TabItem from '@theme/TabItem';
 >
 > This page only shows **some frequently used operations**.
 >
-> - For the latest and complete information about `Pulsar admin`, including commands, flags, descriptions, and more, see [Pulsar admin doc](https://pulsar.apache.org/tools/pulsar-admin/)
+> - For the latest and complete information about `Pulsar admin`, including commands, flags, descriptions, and more, see [Pulsar admin doc](/tools/pulsar-admin/)
 > 
 > - For the latest and complete information about `REST API`, including parameters, responses, samples, and more, see {@inject: rest:REST:/} API doc.
 > 
-> - For the latest and complete information about `Java admin API`, including classes, methods, descriptions, and more, see [Java admin API doc](https://pulsar.apache.org/api/admin/).
+> - For the latest and complete information about `Java admin API`, including classes, methods, descriptions, and more, see [Java admin API doc](/api/admin/).
 
 Tenants, like namespaces, can be managed using the [admin API](admin-api-overview). There are currently two configurable aspects of tenants:
 
@@ -32,12 +32,12 @@ Tenants, like namespaces, can be managed using the [admin API](admin-api-overvie
 You can list all of the tenants associated with an [instance](reference-terminology.md#instance).
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
-  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"JAVA","value":"JAVA"}]}>
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
-Use the [`list`](reference-pulsar-admin.md#tenants-list) subcommand.
+Use the [`list`](/tools/pulsar-admin/) subcommand.
 
 ```shell
 
@@ -53,7 +53,7 @@ my-tenant-2
 {@inject: endpoint|GET|/admin/v2/tenants|operation/getTenants?version=@pulsar:version_number@}
 
 </TabItem>
-<TabItem value="JAVA">
+<TabItem value="Java">
 
 ```java
 
@@ -71,12 +71,12 @@ admin.tenants().getTenants();
 You can create a new tenant.
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
-  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"JAVA","value":"JAVA"}]}>
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
-Use the [`create`](reference-pulsar-admin.md#tenants-create) subcommand:
+Use the [`create`](/tools/pulsar-admin/) subcommand:
 
 ```shell
 
@@ -106,7 +106,7 @@ $ pulsar-admin tenants create my-tenant \
 {@inject: endpoint|PUT|/admin/v2/tenants/:tenant|operation/createTenant?version=@pulsar:version_number@}
 
 </TabItem>
-<TabItem value="JAVA">
+<TabItem value="Java">
 
 ```java
 
@@ -124,12 +124,12 @@ admin.tenants().createTenant(tenantName, tenantInfo);
 You can fetch the [configuration](reference-configuration) for an existing tenant at any time.
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
-  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"JAVA","value":"JAVA"}]}>
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
-Use the [`get`](reference-pulsar-admin.md#tenants-get) subcommand and specify the name of the tenant. Here's an example:
+Use the [`get`](/tools/pulsar-admin/) subcommand and specify the name of the tenant. Here's an example:
 
 ```shell
 
@@ -153,7 +153,7 @@ $ pulsar-admin tenants get my-tenant
 {@inject: endpoint|GET|/admin/v2/tenants/:tenant|operation/getTenant?version=@pulsar:version_number@}
 
 </TabItem>
-<TabItem value="JAVA">
+<TabItem value="Java">
 
 ```java
 
@@ -171,12 +171,12 @@ admin.tenants().getTenantInfo(tenantName);
 Tenants can be deleted from a Pulsar [instance](reference-terminology.md#instance).
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
-  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"JAVA","value":"JAVA"}]}>
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
-Use the [`delete`](reference-pulsar-admin.md#tenants-delete) subcommand and specify the name of the tenant.
+Use the [`delete`](/tools/pulsar-admin/) subcommand and specify the name of the tenant.
 
 ```shell
 
@@ -190,7 +190,7 @@ $ pulsar-admin tenants delete my-tenant
 {@inject: endpoint|DELETE|/admin/v2/tenants/:tenant|operation/deleteTenant?version=@pulsar:version_number@}
 
 </TabItem>
-<TabItem value="JAVA">
+<TabItem value="Java">
 
 ```java
 
@@ -208,12 +208,12 @@ admin.Tenants().deleteTenant(tenantName);
 You can update a tenant's configuration.
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
-  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"JAVA","value":"JAVA"}]}>
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
-Use the [`update`](reference-pulsar-admin.md#tenants-update) subcommand.
+Use the [`update`](/tools/pulsar-admin/) subcommand.
 
 ```shell
 
@@ -227,7 +227,7 @@ $ pulsar-admin tenants update my-tenant
 {@inject: endpoint|POST|/admin/v2/tenants/:tenant|operation/updateTenant?version=@pulsar:version_number@}
 
 </TabItem>
-<TabItem value="JAVA">
+<TabItem value="Java">
 
 ```java
 
