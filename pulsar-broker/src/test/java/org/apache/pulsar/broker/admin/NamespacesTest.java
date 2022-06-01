@@ -1833,6 +1833,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         assertEquals(bundles.getNumBundles(), 14);
     }
 
+    @Test
     public void testOperationSubscriptionDispatchRate() throws Exception {
         String namespace = "sub-dispatchrate-namespace";
 
@@ -1858,7 +1859,6 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), Status.PRECONDITION_FAILED.getStatusCode());
         }
-
     }
 
 }
