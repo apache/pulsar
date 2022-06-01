@@ -163,13 +163,13 @@ public class NarUnpackerTest {
     @Test
     public void testForPermissionSet() throws IOException{
         File file = File.createTempFile("TestFilePerm", "test");
-	file.delete();
+        file.delete();
         File dir = Files.createTempDirectory("TestDirectoryPerm").toFile();
-	dir.delete();
-	Set<PosixFilePermission> fileperms = PosixFilePermissions.fromString("rw-r-----");
+        dir.delete();
+        Set<PosixFilePermission> fileperms = PosixFilePermissions.fromString("rw-r-----");
         NarUnpacker.createFileWithSpecialPermission(file, "rw-r-----");
         assertEquals(Files.getPosixFilePermissions(file.toPath()), fileperms);
-	Set<PosixFilePermission> dirperms = PosixFilePermissions.fromString("rwxr-x---");
+        Set<PosixFilePermission> dirperms = PosixFilePermissions.fromString("rwxr-x---");
         NarUnpacker.createDirWithSpecialPermission(dir, "rwxr-x---",false);
         assertEquals(Files.getPosixFilePermissions(dir.toPath()), dirperms);
     }
