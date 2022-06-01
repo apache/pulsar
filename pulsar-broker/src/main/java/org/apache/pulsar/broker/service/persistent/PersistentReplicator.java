@@ -718,10 +718,8 @@ public class PersistentReplicator extends AbstractReplicator
 
     @Override
     public void updateRateLimiter() {
-        synchronized (dispatchRateLimiterLock) {
-            if (!initializeDispatchRateLimiterIfNeeded()) {
-                dispatchRateLimiter.ifPresent(DispatchRateLimiter::updateDispatchRate);
-            }
+        if (!initializeDispatchRateLimiterIfNeeded()) {
+            dispatchRateLimiter.ifPresent(DispatchRateLimiter::updateDispatchRate);
         }
     }
 
