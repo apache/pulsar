@@ -136,7 +136,8 @@ public class PulsarWorkerService implements WorkerService {
                         workerConfig.getBrokerClientAuthenticationParameters(),
                         workerConfig.getBrokerClientTrustCertsFilePath(),
                         workerConfig.isTlsAllowInsecureConnection(),
-                        workerConfig.isTlsEnableHostnameVerification());
+                        workerConfig.isTlsEnableHostnameVerification(),
+                        workerConfig);
                 } else {
                     return WorkerUtils.getPulsarAdminClient(
                             pulsarServiceUrl,
@@ -144,7 +145,8 @@ public class PulsarWorkerService implements WorkerService {
                             null,
                             null,
                             workerConfig.isTlsAllowInsecureConnection(),
-                            workerConfig.isTlsEnableHostnameVerification());
+                            workerConfig.isTlsEnableHostnameVerification(),
+                            workerConfig);
                 }
             }
 
@@ -159,7 +161,8 @@ public class PulsarWorkerService implements WorkerService {
                         workerConfig.isUseTls(),
                         workerConfig.getBrokerClientTrustCertsFilePath(),
                         workerConfig.isTlsAllowInsecureConnection(),
-                        workerConfig.isTlsEnableHostnameVerification());
+                        workerConfig.isTlsEnableHostnameVerification(),
+                        workerConfig);
                 } else {
                     return WorkerUtils.getPulsarClient(
                             pulsarServiceUrl,
@@ -168,7 +171,8 @@ public class PulsarWorkerService implements WorkerService {
                             null,
                             null,
                             workerConfig.isTlsAllowInsecureConnection(),
-                            workerConfig.isTlsEnableHostnameVerification());
+                            workerConfig.isTlsEnableHostnameVerification(),
+                            workerConfig);
                 }
             }
         };
