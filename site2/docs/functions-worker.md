@@ -337,7 +337,7 @@ Hence you need to configure your `pulsar-admin` to use the right service URL acc
 
 In order to address this inconvenience, you can start a proxy cluster for routing the admin rest requests accordingly. Hence you will have one central entry point for your admin service.
 
-If you already have a proxy cluster, continue reading. If you haven't setup a proxy cluster before, you can follow the [instructions](http://pulsar.apache.org/docs/en/administration-proxy/) to
+If you already have a proxy cluster, continue reading. If you haven't setup a proxy cluster before, you can follow the [instructions](/docs/en/administration-proxy/) to
 start proxies.    
 
 ![assets/functions-worker-separated.png](/assets/functions-worker-separated-proxy.png)

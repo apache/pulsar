@@ -448,6 +448,20 @@ public class CmdFunctionsTest {
     }
 
     @Test
+    public void testCreateFunctionWithoutClassName() throws Exception {
+        cmd.run(new String[] {
+                "create",
+                "--name", FN_NAME,
+                "--inputs", INPUT_TOPIC_NAME,
+                "--output", OUTPUT_TOPIC_NAME,
+                "--jar", PACKAGE_URL,
+                "--tenant", "sample",
+                "--namespace", "ns1",
+        });
+        verify(functions, times(0)).createFunctionWithUrl(any(FunctionConfig.class), anyString());
+    }
+
+    @Test
     public void testCreateFunctionWithoutBasicArguments() throws Exception {
         cmd.run(new String[] {
                 "create",
