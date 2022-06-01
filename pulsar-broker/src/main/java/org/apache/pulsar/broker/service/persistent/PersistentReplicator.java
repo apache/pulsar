@@ -71,6 +71,7 @@ public class PersistentReplicator extends AbstractReplicator
     protected final ManagedCursor cursor;
 
     private Optional<DispatchRateLimiter> dispatchRateLimiter = Optional.empty();
+    private final Object dispatchRateLimiterLock = new Object();
 
     private int readBatchSize;
     private final int readMaxSizeBytes;
@@ -705,18 +706,22 @@ public class PersistentReplicator extends AbstractReplicator
 
     @Override
     public boolean initializeDispatchRateLimiterIfNeeded() {
-        if (!dispatchRateLimiter.isPresent()
-            && DispatchRateLimiter.isDispatchRateEnabled(topic.getReplicatorDispatchRate())) {
-            this.dispatchRateLimiter = Optional.of(new DispatchRateLimiter(topic, Type.REPLICATOR));
-            return true;
+        synchronized (dispatchRateLimiterLock) {
+            if (!dispatchRateLimiter.isPresent()
+                && DispatchRateLimiter.isDispatchRateEnabled(topic.getReplicatorDispatchRate())) {
+                this.dispatchRateLimiter = Optional.of(new DispatchRateLimiter(topic, Type.REPLICATOR));
+                return true;
+            }
+            return false;
         }
-        return false;
     }
 
     @Override
     public void updateRateLimiter() {
-        if (!initializeDispatchRateLimiterIfNeeded()) {
-            dispatchRateLimiter.ifPresent(DispatchRateLimiter::updateDispatchRate);
+        synchronized (dispatchRateLimiterLock) {
+            if (!initializeDispatchRateLimiterIfNeeded()) {
+                dispatchRateLimiter.ifPresent(DispatchRateLimiter::updateDispatchRate);
+            }
         }
     }
 
