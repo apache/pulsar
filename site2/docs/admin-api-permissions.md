@@ -14,11 +14,11 @@ import TabItem from '@theme/TabItem';
 >
 > This page only shows **some frequently used operations**.
 >
-> - For the latest and complete information about `Pulsar admin`, including commands, flags, descriptions, and more, see [Pulsar admin doc](https://pulsar.apache.org/tools/pulsar-admin/)
+> - For the latest and complete information about `Pulsar admin`, including commands, flags, descriptions, and more, see [Pulsar admin doc](/tools/pulsar-admin/)
 > 
 > - For the latest and complete information about `REST API`, including parameters, responses, samples, and more, see {@inject: rest:REST:/} API doc.
 > 
-> - For the latest and complete information about `Java admin API`, including classes, methods, descriptions, and more, see [Java admin API doc](https://pulsar.apache.org/api/admin/).
+> - For the latest and complete information about `Java admin API`, including classes, methods, descriptions, and more, see [Java admin API doc](/api/admin/).
 
 Pulsar allows you to grant namespace-level or topic-level permission to users.
 
@@ -33,12 +33,12 @@ The chapters below demonstrate how to grant namespace-level permissions to users
 You can grant permissions to specific roles for lists of operations such as `produce` and `consume`.
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
   values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
-Use the [`grant-permission`](reference-pulsar-admin.md#grant-permission) subcommand and specify a namespace, actions using the `--actions` flag, and a role using the `--role` flag:
+Use the [`grant-permission`](/tools/pulsar-admin/) subcommand and specify a namespace, actions using the `--actions` flag, and a role using the `--role` flag:
 
 ```shell
 
@@ -111,12 +111,12 @@ admin.namespaces().grantPermissionOnNamespace(namespace, role, getAuthActions(ac
 You can see which permissions have been granted to which roles in a namespace.
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
   values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
-Use the [`permissions`](reference-pulsar-admin#permissions) subcommand and specify a namespace:
+Use the [`permissions`](/tools/pulsar-admin/) subcommand and specify a namespace:
 
 ```shell
 
@@ -154,12 +154,12 @@ admin.namespaces().getPermissions(namespace);
 You can revoke permissions from specific roles, which means that those roles will no longer have access to the specified namespace.
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
   values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
-Use the [`revoke-permission`](reference-pulsar-admin.md#revoke-permission) subcommand and specify a namespace and a role using the `--role` flag:
+Use the [`revoke-permission`](/tools/pulsar-admin/) subcommand and specify a namespace and a role using the `--role` flag:
 
 ```shell
 

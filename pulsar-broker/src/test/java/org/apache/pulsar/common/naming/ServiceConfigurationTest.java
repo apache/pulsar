@@ -223,7 +223,7 @@ public class ServiceConfigurationTest {
         try (FileInputStream stream = new FileInputStream("../conf/broker.conf")) {
             final ServiceConfiguration javaConfig = PulsarConfigurationLoader.create(new Properties(), ServiceConfiguration.class);
             final ServiceConfiguration fileConfig = PulsarConfigurationLoader.create(stream, ServiceConfiguration.class);
-            List<String> toSkip = Arrays.asList("properties", "class");
+            List<String> toSkip = Arrays.asList("properties", "class", "metadataStoreBackedByZookeeper");
             for (PropertyDescriptor pd : Introspector.getBeanInfo(ServiceConfiguration.class).getPropertyDescriptors()) {
                 if (pd.getReadMethod() == null || toSkip.contains(pd.getName())) {
                     continue;

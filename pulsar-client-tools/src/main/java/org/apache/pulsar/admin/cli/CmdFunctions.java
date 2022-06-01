@@ -645,8 +645,7 @@ public class CmdFunctions extends CmdBase {
 
         protected void validateFunctionConfigs(FunctionConfig functionConfig) {
             // go doesn't need className
-            if (functionConfig.getRuntime() == FunctionConfig.Runtime.PYTHON
-                    || functionConfig.getRuntime() == FunctionConfig.Runtime.JAVA){
+            if (functionConfig.getPy() != null || functionConfig.getJar() != null) {
                 if (StringUtils.isEmpty(functionConfig.getClassName())) {
                     throw new ParameterException("No Function Classname specified");
                 }
@@ -673,7 +672,8 @@ public class CmdFunctions extends CmdBase {
                         + " be specified for the function. Please specify one.");
             }
 
-            if (!isBlank(functionConfig.getJar()) && !Utils.isFunctionPackageUrlSupported(functionConfig.getJar())
+            if (!isBlank(functionConfig.getJar()) && !functionConfig.getJar().startsWith("builtin://")
+                    && !Utils.isFunctionPackageUrlSupported(functionConfig.getJar())
                     && !new File(functionConfig.getJar()).exists()) {
                 throw new ParameterException("The specified jar file does not exist");
             }

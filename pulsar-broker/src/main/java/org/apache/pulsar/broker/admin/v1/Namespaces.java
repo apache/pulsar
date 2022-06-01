@@ -553,11 +553,18 @@ public class Namespaces extends NamespacesBase {
     @ApiOperation(value = "Get autoTopicCreation info in a namespace")
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist")})
-    public AutoTopicCreationOverride getAutoTopicCreation(@PathParam("property") String property,
-                                                          @PathParam("cluster") String cluster,
-                                                          @PathParam("namespace") String namespace) {
+    public void getAutoTopicCreation(@Suspended AsyncResponse asyncResponse,
+                                     @PathParam("property") String property,
+                                     @PathParam("cluster") String cluster,
+                                     @PathParam("namespace") String namespace) {
         validateNamespaceName(property, cluster, namespace);
-        return internalGetAutoTopicCreation();
+        internalGetAutoTopicCreationAsync()
+                .thenAccept(asyncResponse::resume)
+                .exceptionally(ex -> {
+                    log.error("Failed to get autoTopicCreation info for namespace {}", namespaceName, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @POST
@@ -572,14 +579,27 @@ public class Namespaces extends NamespacesBase {
                                      @PathParam("property") String property, @PathParam("cluster") String cluster,
                                      @PathParam("namespace") String namespace,
                                      AutoTopicCreationOverride autoTopicCreationOverride) {
-        try {
-            validateNamespaceName(property, cluster, namespace);
-            internalSetAutoTopicCreation(asyncResponse, autoTopicCreationOverride);
-        } catch (RestException e) {
-            asyncResponse.resume(e);
-        } catch (Exception e) {
-            asyncResponse.resume(new RestException(e));
-        }
+        validateNamespaceName(property, cluster, namespace);
+        internalSetAutoTopicCreationAsync(autoTopicCreationOverride)
+                .thenAccept(__ -> {
+                    String autoOverride = (autoTopicCreationOverride != null
+                            && autoTopicCreationOverride.isAllowAutoTopicCreation()) ? "enabled" : "disabled";
+                    log.info("[{}] Successfully {} autoTopicCreation on namespace {}", clientAppId(),
+                                                                                         autoOverride, namespaceName);
+                    asyncResponse.resume(Response.noContent().build());
+                })
+                .exceptionally(e -> {
+                    Throwable ex = FutureUtil.unwrapCompletionException(e);
+                    log.error("[{}] Failed to set autoTopicCreation status on namespace {}", clientAppId(),
+                            namespaceName,
+                            ex);
+                    if (ex instanceof NotFoundException) {
+                        asyncResponse.resume(new RestException(Status.NOT_FOUND, "Namespace does not exist"));
+                    } else {
+                        resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    }
+                    return null;
+                });
     }
 
     @DELETE
@@ -590,14 +610,25 @@ public class Namespaces extends NamespacesBase {
     public void removeAutoTopicCreation(@Suspended final AsyncResponse asyncResponse,
                                         @PathParam("property") String property, @PathParam("cluster") String cluster,
                                         @PathParam("namespace") String namespace) {
-        try {
             validateNamespaceName(property, cluster, namespace);
-            internalRemoveAutoTopicCreation(asyncResponse);
-        } catch (RestException e) {
-            asyncResponse.resume(e);
-        } catch (Exception e) {
-            asyncResponse.resume(new RestException(e));
-        }
+            internalSetAutoTopicCreationAsync(null)
+                    .thenAccept(__ -> {
+                        log.info("[{}] Successfully remove autoTopicCreation on namespace {}",
+                                clientAppId(), namespaceName);
+                        asyncResponse.resume(Response.noContent().build());
+                    })
+                    .exceptionally(e -> {
+                        Throwable ex = FutureUtil.unwrapCompletionException(e);
+                        log.error("[{}] Failed to remove autoTopicCreation status on namespace {}", clientAppId(),
+                                namespaceName,
+                                ex);
+                        if (ex instanceof NotFoundException) {
+                            asyncResponse.resume(new RestException(Status.NOT_FOUND, "Namespace does not exist"));
+                        } else {
+                            resumeAsyncResponseExceptionally(asyncResponse, ex);
+                        }
+                        return null;
+                    });
     }
 
     @POST
