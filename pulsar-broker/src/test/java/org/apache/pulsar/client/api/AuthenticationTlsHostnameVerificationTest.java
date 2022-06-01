@@ -18,8 +18,7 @@
  */
 package org.apache.pulsar.client.api;
 
-import static org.mockito.Mockito.spy;
-
+import com.google.common.collect.Sets;
 import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -27,15 +26,11 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.pulsar.broker.authentication.AuthenticationProviderBasic;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderTls;
-import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.client.impl.tls.PublicSuffixMatcher;
 import org.apache.pulsar.client.impl.tls.TlsHostnameVerifier;
-import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -43,8 +38,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import com.google.common.collect.Sets;
-
+@Test(groups = "broker-api")
 public class AuthenticationTlsHostnameVerificationTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(AuthenticationTlsHostnameVerificationTest.class);
 
@@ -63,8 +57,15 @@ public class AuthenticationTlsHostnameVerificationTest extends ProducerConsumerB
     private final String BASIC_CONF_FILE_PATH = "./src/test/resources/authentication/basic/.htpasswd";
 
     private boolean hostnameVerificationEnabled = true;
+    private String clientTrustCertFilePath = TLS_TRUST_CERT_FILE_PATH;
 
     protected void setup() throws Exception {
+        conf.setAuthenticationEnabled(false);
+        conf.setAuthorizationEnabled(false);
+        super.internalSetup();
+        super.producerBaseSetup();
+        super.stopBroker();
+
         if (methodName.equals("testAnonymousSyncProducerAndConsumer")) {
             conf.setAnonymousUserRole("anonymousUser");
         }
@@ -72,7 +73,7 @@ public class AuthenticationTlsHostnameVerificationTest extends ProducerConsumerB
         conf.setAuthenticationEnabled(true);
         conf.setAuthorizationEnabled(true);
 
-        conf.setTlsAllowInsecureConnection(true);
+        conf.setTlsAllowInsecureConnection(false);
 
         Set<String> superUserRoles = new HashSet<>();
         superUserRoles.add("localhost");
@@ -83,7 +84,7 @@ public class AuthenticationTlsHostnameVerificationTest extends ProducerConsumerB
 
         conf.setBrokerClientAuthenticationPlugin(AuthenticationTls.class.getName());
         conf.setBrokerClientAuthenticationParameters(
-                "tlsCertFile:" + TLS_CLIENT_CERT_FILE_PATH + "," + "tlsKeyFile:" + TLS_SERVER_KEY_FILE_PATH);
+            "tlsCertFile:" + TLS_CLIENT_CERT_FILE_PATH + "," + "tlsKeyFile:" + TLS_SERVER_KEY_FILE_PATH);
 
         Set<String> providers = new HashSet<>();
         providers.add(AuthenticationProviderTls.class.getName());
@@ -94,7 +95,7 @@ public class AuthenticationTlsHostnameVerificationTest extends ProducerConsumerB
         conf.setClusterName("test");
         conf.setNumExecutorThreadPoolSize(5);
 
-        super.init();
+        startBroker();
 
         setupClient();
     }
@@ -107,21 +108,13 @@ public class AuthenticationTlsHostnameVerificationTest extends ProducerConsumerB
         Authentication authTls = new AuthenticationTls();
         authTls.configure(authParams);
 
-        admin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrlTls.toString())
-                .tlsTrustCertsFilePath(TLS_MIM_TRUST_CERT_FILE_PATH).allowTlsInsecureConnection(true)
-                .authentication(authTls).build());
+        pulsarClient.close();
         pulsarClient = PulsarClient.builder()
-                .serviceUrl(pulsar.getBrokerServiceUrlTls())
-                .statsInterval(0, TimeUnit.SECONDS)
-                .tlsTrustCertsFilePath(TLS_MIM_TRUST_CERT_FILE_PATH).allowTlsInsecureConnection(true)
-                .authentication(authTls).enableTls(true).enableTlsHostnameVerification(hostnameVerificationEnabled)
-                .build();
-
-        admin.clusters().createCluster("test", new ClusterData(brokerUrl.toString()));
-
-        admin.tenants().createTenant("my-property",
-                new TenantInfo(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
-        admin.namespaces().createNamespace("my-property/my-ns", Sets.newHashSet("test"));
+            .serviceUrl(pulsar.getBrokerServiceUrlTls())
+            .statsInterval(0, TimeUnit.SECONDS)
+            .tlsTrustCertsFilePath(clientTrustCertFilePath)
+            .authentication(authTls).enableTls(true).enableTlsHostnameVerification(hostnameVerificationEnabled)
+            .build();
     }
 
     @AfterMethod(alwaysRun = true)
@@ -150,24 +143,25 @@ public class AuthenticationTlsHostnameVerificationTest extends ProducerConsumerB
      */
     @Test(dataProvider = "hostnameVerification")
     public void testTlsSyncProducerAndConsumerWithInvalidBrokerHost(boolean hostnameVerificationEnabled)
-            throws Exception {
+        throws Exception {
         log.info("-- Starting {} test --", methodName);
 
         this.hostnameVerificationEnabled = hostnameVerificationEnabled;
+        clientTrustCertFilePath = TLS_MIM_TRUST_CERT_FILE_PATH;
         // setup broker cert which has CN = "pulsar" different than broker's hostname="localhost"
         conf.setBrokerServicePortTls(Optional.of(0));
         conf.setWebServicePortTls(Optional.of(0));
-        conf.setTlsTrustCertsFilePath(TLS_MIM_TRUST_CERT_FILE_PATH);
+        conf.setTlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH);
         conf.setTlsCertificateFilePath(TLS_MIM_SERVER_CERT_FILE_PATH);
         conf.setTlsKeyFilePath(TLS_MIM_SERVER_KEY_FILE_PATH);
         conf.setBrokerClientAuthenticationParameters(
-                "tlsCertFile:" + TLS_CLIENT_CERT_FILE_PATH + "," + "tlsKeyFile:" + TLS_MIM_SERVER_KEY_FILE_PATH);
+            "tlsCertFile:" + TLS_CLIENT_CERT_FILE_PATH + "," + "tlsKeyFile:" + TLS_MIM_SERVER_KEY_FILE_PATH);
 
         setup();
 
         try {
             pulsarClient.newConsumer().topic("persistent://my-property/my-ns/my-topic")
-                    .subscriptionName("my-subscriber-name").subscribe();
+                .subscriptionName("my-subscriber-name").subscribe();
             if (hostnameVerificationEnabled) {
                 Assert.fail("Connection should be failed due to hostnameVerification enabled");
             }
@@ -205,10 +199,10 @@ public class AuthenticationTlsHostnameVerificationTest extends ProducerConsumerB
         setup();
 
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-property/my-ns/my-topic")
-                .subscriptionName("my-subscriber-name").subscribe();
+            .subscriptionName("my-subscriber-name").subscribe();
 
         Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/my-ns/my-topic")
-                .create();
+            .create();
         for (int i = 0; i < 10; i++) {
             String message = "my-message-" + i;
             producer.send(message.getBytes());
@@ -239,7 +233,7 @@ public class AuthenticationTlsHostnameVerificationTest extends ProducerConsumerB
     public void testDefaultHostVerifier() throws Exception {
         log.info("-- Starting {} test --", methodName);
         Method matchIdentityStrict = TlsHostnameVerifier.class.getDeclaredMethod("matchIdentityStrict",
-                String.class, String.class, PublicSuffixMatcher.class);
+            String.class, String.class, PublicSuffixMatcher.class);
         matchIdentityStrict.setAccessible(true);
         Assert.assertTrue((boolean) matchIdentityStrict.invoke(null, "pulsar", "pulsar", null));
         Assert.assertFalse((boolean) matchIdentityStrict.invoke(null, "pulsar.com", "pulsar", null));

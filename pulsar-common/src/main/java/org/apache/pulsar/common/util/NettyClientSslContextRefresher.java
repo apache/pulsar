@@ -42,8 +42,7 @@ public class NettyClientSslContextRefresher extends SslContextAutoRefreshBuilder
     public NettyClientSslContextRefresher(boolean allowInsecure,
                                           String trustCertsFilePath,
                                           AuthenticationDataProvider authData,
-                                          long delayInSeconds)
-            throws IOException, GeneralSecurityException {
+                                          long delayInSeconds) {
         super(delayInSeconds);
         this.tlsAllowInsecureConnection = allowInsecure;
         this.tlsTrustCertsFilePath = new FileModifiedTimeUpdater(trustCertsFilePath);
