@@ -403,8 +403,6 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
                     batchMessageId.getBatchSize(), AckType.Cumulative, properties);
         } else {
             BitSetRecyclable bitSet = BitSetRecyclable.create();
-            bitSet.set(0, batchMessageId.getBatchSize());
-            bitSet.clear(0, batchMessageId.getBatchIndex() + 1);
             return doCumulativeAck(batchMessageId, null, bitSet);
         }
     }
