@@ -352,6 +352,15 @@ brokerServiceCompactionThresholdInBytes|If the estimated backlog size is greater
 | managedLedgerInfoCompressionType | Compression type of managed ledger information. <br><br>Available options are `NONE`, `LZ4`, `ZLIB`, `ZSTD`, and `SNAPPY`). <br><br>If this value is `NONE` or invalid, the `managedLedgerInfo` is not compressed. <br><br>**Note** that after enabling this configuration, if you want to degrade a broker, you need to change the value to `NONE` and make sure all ledger metadata is saved without compression. | None |
 | additionalServlets | Additional servlet name. <br><br>If you have multiple additional servlets, separate them by commas. <br><br>For example, additionalServlet_1, additionalServlet_2 | N/A |
 | additionalServletDirectory | Location of broker additional servlet NAR directory | ./brokerAdditionalServlet |
+#### Configuration Override For Clients Internal to Broker
+
+It's possible to configure some clients by using the appropriate prefix.
+
+|Prefix|Description|
+|brokerClient_| Configure **all** the broker's Pulsar Clients and Pulsar Admin Clients. These configurations are applied after hard coded configuration and before the above brokerClient configurations named above.|
+|bookkeeper_| Configure the broker's bookkeeper clients used by managed ledgers and the BookkeeperPackagesStorage bookkeeper client. Takes precedence over most other configuration values.|
+
+Note: when running the function worker within the broker, these prefixed configurations do not apply to any of those clients. You must instead configure those clients using the `functions_worker.yml`.
 
 ## Client
 
@@ -677,6 +686,12 @@ You can set the log level and configuration in the  [log4j2.yaml](https://github
 |tlsCertificateFilePath|||
 |tlsKeyFilePath |||
 |tlsTrustCertsFilePath|||
+#### Configuration Override For Clients Internal to WebSocket
+
+It's possible to configure some clients by using the appropriate prefix.
+
+|Prefix|Description|
+|brokerClient_| Configure **all** the broker's Pulsar Clients. These configurations are applied after hard coded configuration and before the above brokerClient configurations named above.|
 
 ## Pulsar proxy
 
@@ -734,6 +749,12 @@ The [Pulsar proxy](concepts-architecture-overview.md#pulsar-proxy) can be config
 |haProxyProtocolEnabled | Enable or disable the [HAProxy](http://www.haproxy.org/) protocol. |false|
 | numIOThreads | Number of threads used for Netty IO. | 2 * Runtime.getRuntime().availableProcessors() |
 | numAcceptorThreads | Number of threads used for Netty Acceptor. | 1 |
+#### Configuration Override For Clients Internal to Proxy
+
+It's possible to configure some clients by using the appropriate prefix.
+
+|Prefix|Description|
+|brokerClient_| Configure **all** the proxy's Pulsar Clients. These configurations are applied after hard coded configuration and before the above brokerClient configurations named above.|
 
 ## ZooKeeper
 

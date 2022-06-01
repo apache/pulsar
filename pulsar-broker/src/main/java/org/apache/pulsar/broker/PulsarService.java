@@ -127,6 +127,8 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.TransactionBufferClient;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.client.impl.conf.ConfigurationDataUtils;
+import org.apache.pulsar.client.internal.PropertiesUtils;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.conf.InternalConfigurationData;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
@@ -1328,7 +1330,16 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     public synchronized PulsarClient getClient() throws PulsarServerException {
         if (this.client == null) {
             try {
-                ClientConfigurationData conf = new ClientConfigurationData();
+                ClientConfigurationData initialConf = new ClientConfigurationData();
+                initialConf.setStatsIntervalSeconds(0);
+
+                // Apply all arbitrary configuration. This must be called before setting any fields annotated as
+                // @Secret on the ClientConfigurationData object because of the way they are serialized.
+                // See https://github.com/apache/pulsar/issues/8509 for more information.
+                Map<String, Object> overrides = PropertiesUtils
+                        .filterAndMapProperties(this.getConfiguration().getProperties(), "brokerClient_");
+                ClientConfigurationData conf =
+                        ConfigurationDataUtils.loadData(overrides, initialConf, ClientConfigurationData.class);
                 conf.setServiceUrl(this.getConfiguration().isTlsEnabled()
                                 ? this.brokerServiceUrlTls : this.brokerServiceUrl);
                 conf.setTlsAllowInsecureConnection(this.getConfiguration().isTlsAllowInsecureConnection());
@@ -1356,8 +1367,6 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                             this.getConfiguration().getBrokerClientAuthenticationPlugin(),
                             this.getConfiguration().getBrokerClientAuthenticationParameters()));
                 }
-
-                conf.setStatsIntervalSeconds(0);
                 this.client = new PulsarClientImpl(conf, ioEventLoopGroup);
             } catch (Exception e) {
                 throw new PulsarServerException(e);
@@ -1377,10 +1386,16 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                             + ", webServiceAddressTls: " + webServiceAddressTls
                             + ", webServiceAddress: " + webServiceAddress);
                 }
-                PulsarAdminBuilder builder = PulsarAdmin.builder().serviceHttpUrl(adminApiUrl) //
-                        .authentication(//
-                                conf.getBrokerClientAuthenticationPlugin(), //
-                                conf.getBrokerClientAuthenticationParameters());
+                PulsarAdminBuilder builder = PulsarAdmin.builder().serviceHttpUrl(adminApiUrl);
+
+                // Apply all arbitrary configuration. This must be called before setting any fields annotated as
+                // @Secret on the ClientConfigurationData object because of the way they are serialized.
+                // See https://github.com/apache/pulsar/issues/8509 for more information.
+                builder.loadConf(PropertiesUtils.filterAndMapProperties(config.getProperties(), "brokerClient_"));
+
+                builder.authentication(
+                        conf.getBrokerClientAuthenticationPlugin(),
+                        conf.getBrokerClientAuthenticationParameters());
 
                 if (conf.isBrokerClientTlsEnabled()) {
                     builder.tlsCiphers(config.getBrokerClientTlsCiphers())
