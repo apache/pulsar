@@ -77,9 +77,11 @@ public class ManagedTrashImpl implements ManagedTrash {
 
     private static final String TRASH_KEY_SEPARATOR = "-";
 
-    private static final int RETRY_COUNT = 9;
+    private static final int RETRY_COUNT = 10;
 
     private static final long EMPTY_LEDGER_ID = -1L;
+
+    private static final long DELETION_INTERNAL_MILLIS = TimeUnit.MINUTES.toMillis(1);
 
     private static final LedgerInfo EMPTY_LEDGER_INFO = LedgerInfo.newBuilder().setLedgerId(EMPTY_LEDGER_ID).build();
 
@@ -300,11 +302,12 @@ public class ManagedTrashImpl implements ManagedTrash {
             return;
         }
         List<DelHelper> toDelete = getToDeleteData();
-
         if (toDelete.size() == 0) {
             deleteMutex.unlock();
             return;
         }
+        toDelete.removeIf(ele -> System.currentTimeMillis() - ele.key.lastDeleteTs < DELETION_INTERNAL_MILLIS);
+
         for (DelHelper delHelper : toDelete) {
             //unlock in asyncDeleteTrash
             asyncDeleteTrash(delHelper);
@@ -537,11 +540,8 @@ public class ManagedTrashImpl implements ManagedTrash {
             trashData.remove(helper.key);
             trashIsDirty = true;
         } finally {
-            boolean continueToDelete = continueToDelete();
             deleteMutex.unlock();
-            if (continueToDelete) {
-                triggerDeleteInBackground();
-            }
+            continueDeleteIfNecessary();
         }
     }
 
@@ -549,8 +549,11 @@ public class ManagedTrashImpl implements ManagedTrash {
         try {
             //override old key
             trashData.remove(helper.key);
-            trashData.put(TrashKey.buildKey(helper.key.retryCount - 1, helper.key.ledgerId, helper.key.msb,
-                    helper.key.suffix), helper.context);
+
+            TrashKey trashKey = TrashKey.buildKey(helper.key.retryCount - 1, helper.key.ledgerId, helper.key.msb,
+                    helper.key.type);
+            trashKey.lastDeleteTs = System.currentTimeMillis();
+            trashData.put(trashKey, helper.context);
             trashIsDirty = true;
             if (helper.key.retryCount - 1 == 0) {
                 if (log.isWarnEnabled()) {
@@ -567,16 +570,16 @@ public class ManagedTrashImpl implements ManagedTrash {
                 increaseArchiveCountWhenDeleteFailed();
             }
         } finally {
-            boolean continueToDelete = continueToDelete();
             deleteMutex.unlock();
-            if (continueToDelete) {
-                triggerDeleteInBackground();
-            }
+            continueDeleteIfNecessary();
         }
     }
 
-    private boolean continueToDelete() {
-        return trashData.lastEntry().getKey().retryCount > 0;
+    private void continueDeleteIfNecessary() {
+        if (trashData.lastEntry().getKey().retryCount > 0) {
+            scheduledExecutor.schedule(this::triggerDeleteInBackground, DELETION_INTERNAL_MILLIS / 5,
+                    TimeUnit.MILLISECONDS);
+        }
     }
 
     private void asyncDeleteLedger(long ledgerId, AsyncCallbacks.DeleteLedgerCallback callback) {
@@ -659,24 +662,27 @@ public class ManagedTrashImpl implements ManagedTrash {
 
         private final long ledgerId;
 
+        //the same ledgerId maybe correspond two offload storage.
         private final long msb;
 
-        private final String suffix;
+        private final String type;
 
-        public TrashKey(int retryCount, long ledgerId, long msb, String suffix) {
+        private long lastDeleteTs;
+
+        public TrashKey(int retryCount, long ledgerId, long msb, String type) {
             this.retryCount = retryCount;
             this.ledgerId = ledgerId;
             this.msb = msb;
-            this.suffix = suffix;
+            this.type = type;
         }
 
         private String toStringKey() {
             return retryCount + TRASH_KEY_SEPARATOR + ledgerId + TRASH_KEY_SEPARATOR + msb + TRASH_KEY_SEPARATOR
-                    + suffix;
+                    + type;
         }
 
-        public static TrashKey buildKey(int retryCount, long ledgerId, long msb, String suffix) {
-            return new TrashKey(retryCount, ledgerId, msb, suffix);
+        public static TrashKey buildKey(int retryCount, long ledgerId, long msb, String type) {
+            return new TrashKey(retryCount, ledgerId, msb, type);
         }
 
         public static TrashKey buildKey(String strKey) {
@@ -684,16 +690,16 @@ public class ManagedTrashImpl implements ManagedTrash {
             int retryCount = Integer.parseInt(split[0]);
             long ledgerId = Long.parseLong(split[1]);
             long msb = Long.parseLong(split[2]);
-            String suffix = split[3];
-            return new TrashKey(retryCount, ledgerId, msb, suffix);
+            String type = split[3];
+            return new TrashKey(retryCount, ledgerId, msb, type);
         }
 
         private boolean isLedger() {
-            return LEDGER.equals(suffix);
+            return LEDGER.equals(type);
         }
 
         private boolean isOffloadLedger() {
-            return OFFLOADED_LEDGER.equals(suffix);
+            return OFFLOADED_LEDGER.equals(type);
         }
 
         @Override
@@ -710,7 +716,7 @@ public class ManagedTrashImpl implements ManagedTrash {
             if (c3 != 0) {
                 return c3 > 0 ? 1 : -1;
             }
-            return this.suffix.compareTo(other.suffix);
+            return this.type.compareTo(other.type);
         }
     }
 
