@@ -47,7 +47,11 @@ public class MetadataStoreFactoryImpl {
             throws MetadataStoreException {
 
         if (metadataURL.startsWith(LocalMemoryMetadataStore.MEMORY_SCHEME_IDENTIFIER)) {
-            return new LocalMemoryMetadataStore(metadataURL, metadataStoreConfig);
+            return new LocalMemoryMetadataStore(metadataURL, metadataStoreConfig,
+                    LocalMemoryMetadataStore.MEMORY_SCHEME_IDENTIFIER);
+        } else if (metadataURL.startsWith(LocalBatchMemoryMetadataStore.BATCH_MEMORY_SCHEME_IDENTIFIER)) {
+            return new LocalBatchMemoryMetadataStore(metadataURL, metadataStoreConfig,
+                    LocalBatchMemoryMetadataStore.BATCH_MEMORY_SCHEME_IDENTIFIER);
         } else if (metadataURL.startsWith(RocksdbMetadataStore.ROCKSDB_SCHEME_IDENTIFIER)) {
             return RocksdbMetadataStore.get(metadataURL, metadataStoreConfig);
         } else if (metadataURL.startsWith(EtcdMetadataStore.ETCD_SCHEME_IDENTIFIER)) {
@@ -72,6 +76,8 @@ public class MetadataStoreFactoryImpl {
     public static String removeIdentifierFromMetadataURL(String metadataURL) {
         if (metadataURL.startsWith(LocalMemoryMetadataStore.MEMORY_SCHEME_IDENTIFIER)) {
             return metadataURL.substring(LocalMemoryMetadataStore.MEMORY_SCHEME_IDENTIFIER.length());
+        } else if (metadataURL.startsWith(LocalBatchMemoryMetadataStore.BATCH_MEMORY_SCHEME_IDENTIFIER)) {
+            return metadataURL.substring(LocalBatchMemoryMetadataStore.BATCH_MEMORY_SCHEME_IDENTIFIER.length());
         } else if (metadataURL.startsWith(RocksdbMetadataStore.ROCKSDB_SCHEME_IDENTIFIER)) {
             return metadataURL.substring(RocksdbMetadataStore.ROCKSDB_SCHEME_IDENTIFIER.length());
         } else if (metadataURL.startsWith(EtcdMetadataStore.ETCD_SCHEME_IDENTIFIER)) {

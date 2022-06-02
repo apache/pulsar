@@ -21,6 +21,7 @@ package org.apache.pulsar.metadata.impl;
 import com.google.common.collect.MapMaker;
 import java.util.ArrayList;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -52,7 +53,7 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
     static final String MEMORY_SCHEME_IDENTIFIER = "memory:";
 
     @Data
-    private static class Value {
+    static class Value {
         final long version;
         final byte[] data;
         final long createdTimestamp;
@@ -66,14 +67,14 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
     private static final Map<String, NavigableMap<String, Value>> STATIC_MAPS = new MapMaker()
             .weakValues().makeMap();
     // Manage all instances to facilitate registration to the same listener
-    private static final Map<String, Set<AbstractMetadataStore>> STATIC_INSTANCE = new MapMaker()
+    static final Map<String, Set<AbstractMetadataStore>> STATIC_INSTANCE = new MapMaker()
             .weakValues().makeMap();
     private static final Map<String, AtomicLong> STATIC_ID_GEN_MAP = new MapMaker()
             .weakValues().makeMap();
 
-    public LocalMemoryMetadataStore(String metadataURL, MetadataStoreConfig metadataStoreConfig)
+    public LocalMemoryMetadataStore(String metadataURL, MetadataStoreConfig metadataStoreConfig, String type)
             throws MetadataStoreException {
-        String name = metadataURL.substring(MEMORY_SCHEME_IDENTIFIER.length());
+        String name = metadataURL.substring(type.length());
         // Local means a private data set
         if ("local".equals(name)) {
             map = new TreeMap<>();
@@ -218,4 +219,18 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
             }
         }
     }
+
+    protected Map<String, Value> doSnapshot() {
+        synchronized (map) {
+            return new HashMap<>(map);
+        }
+    }
+
+    protected void applySnapshot(Map<String, Value> snapshot) {
+        synchronized (map) {
+            map.clear();
+            map.putAll(snapshot);
+        }
+    }
+
 }
