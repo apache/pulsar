@@ -36,29 +36,29 @@ The Pulsar protocol allows for two types of commands:
 
 Simple (payload-free) commands have this basic structure:
 
-| Component     | Description                                                               | Size (in bytes) |
-|:--------------|:--------------------------------------------------------------------------|:----------------|
-| `totalSize`   | The size of the frame, counting everything that comes after it (in bytes) | 4               |
-| `commandSize` | The size of the protobuf-serialized command                               | 4               |
-| `command`     | The protobuf serialized command                                           |                 |  
+| Component     | Description                                                                             | Size (in bytes) |
+|:--------------|:----------------------------------------------------------------------------------------|:----------------|
+| `totalSize`   | The size of the frame, counting everything that comes after it (in bytes)               | 4               |
+| `commandSize` | The size of the protobuf-serialized command                                             | 4               |
+| `message`     | The protobuf message serialized in a raw binary format (rather than in protobuf format) |                 |
 
 ### Payload commands
 
 Payload commands have this basic structure:
 
-| Component                          | Required or optional | Description                                                                                                                                                                                                    | Size (in bytes) |
-|:-----------------------------------|:---------------------|:---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|:----------------|
-| `totalSize`                        | Required             | The size of the frame, counting everything that comes after it (in bytes)                                                                                                                                      | 4               |
-| `commandSize`                      | Required             | The size of the protobuf-serialized command                                                                                                                                                                    | 4               |
-| `command`                          | Required             | The protobuf serialized command                                                                                                                                                                                |                 |
-| `magicNumberOfBrokerEntryMetadata` | Optional             | A 2-byte byte array (`0x0e02`) identifying the broker entry metadata   <br /> **Note**: `magicNumberOfBrokerEntryMetadata` , `brokerEntryMetadataSize`, and `brokerEntryMetadata` should be used **together**. | 2               |
-| `brokerEntryMetadataSize`          | Optional             | The size of the broker entry metadata                                                                                                                                                                          | 4               |
-| `brokerEntryMetadata`              | Optional             | The broker entry metadata stored as a binary protobuf message                                                                                                                                                  |                 |
-| `magicNumber`                      | Required             | A 2-byte byte array (`0x0e01`) identifying the current format                                                                                                                                                  | 2               |
-| `checksum`                         | Required             | A [CRC32-C checksum](http://www.evanjones.ca/crc32c.html) of everything that comes after it                                                                                                                    | 4               |
-| `metadataSize`                     | Required             | The size of the message [metadata](#message-metadata)                                                                                                                                                          | 4               |
-| `metadata`                         | Required             | The message [metadata](#message-metadata) stored as a binary protobuf message                                                                                                                                  |                 |
-| `payload`                          | Required             | Anything left in the frame is considered the payload and can include any sequence of bytes                                                                                                                     |                 |
+| Component                          | Required or optional| Description                                                                                 | Size (in bytes) |
+|:-----------------------------------|:----------|:--------------------------------------------------------------------------------------------|:----------------|
+| `totalSize`                        | Required  | The size of the frame, counting everything that comes after it (in bytes)                   | 4               |
+| `commandSize`                      | Required  | The size of the protobuf-serialized command                                                 | 4               |
+| `message`                          | Required  | The protobuf message serialized in a raw binary format (rather than in protobuf format)     |                 |
+| `magicNumberOfBrokerEntryMetadata` | Optional  | A 2-byte byte array (`0x0e02`) identifying the broker entry metadata   <br /> **Note**: `magicNumberOfBrokerEntryMetadata` , `brokerEntryMetadataSize`, and `brokerEntryMetadata` should be used **together**.                     | 2               |
+| `brokerEntryMetadataSize`          | Optional  | The size of the broker entry metadata                                                       | 4               |
+| `brokerEntryMetadata`              | Optional  | The broker entry metadata stored as a binary protobuf message                               |                 |
+| `magicNumber`                      | Required  | A 2-byte byte array (`0x0e01`) identifying the current format                               | 2               |
+| `checksum`                         | Required  | A [CRC32-C checksum](http://www.evanjones.ca/crc32c.html) of everything that comes after it | 4               |
+| `metadataSize`                     | Required  | The size of the message [metadata](#message-metadata)                                       | 4               |
+| `metadata`                         | Required  | The message [metadata](#message-metadata) stored as a binary protobuf message               |                 |
+| `payload`                          | Required  | Anything left in the frame is considered the payload and can include any sequence of bytes  |                 |
 
 ## Broker entry metadata
 
