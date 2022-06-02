@@ -4,12 +4,18 @@ title: Pulsar Functions CLI and YAML configs
 sidebar_label: "CLI and YAML configs"
 ---
 
-## Pulsar admin CLI for functions
+````mdx-code-block
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+````
+
+
+## Pulsar admin CLI for Pulsar Functions
 
 The Pulsar admin interface enables you to create and manage Pulsar Functions through CLI. For the latest and complete information, including commands, flags, and descriptions, refer to [Pulsar admin CLI](/tools/pulsar-admin/).
 
 
-## YAML configurations for functions
+## YAML configurations for Pulsar Functions
 
 You can configure a function by using a predefined YAML file. The following table outlines the required fields and arguments.
 
@@ -20,12 +26,12 @@ You can configure a function by using a predefined YAML file. The following tabl
 | namespace            | String                     | `--namespace`              | The namespace of a function.|
 | name                 | String                     | `--name`                   | The name of a function.|
 | className            | String                     | `--classname`              | The class name of a function. |
-| inputs               | List<String>               | `-i`, `--inputs`           | The input topics of a function. Multiple topics can be specified as a comma-separated list. |
-| customSerdeInputs    | Map<String,String>         | `--custom-serde-inputs`    | The mapping from input topics to SerDe class names. |
+| inputs               | List`<String>`               | `-i`, `--inputs`           | The input topics of a function. Multiple topics can be specified as a comma-separated list. |
+| customSerdeInputs    | Map`<String,String>`         | `--custom-serde-inputs`    | The mapping from input topics to SerDe class names. |
 | topicsPattern        | String                     | `--topics-pattern`         | The topic pattern to consume from a list of topics under a namespace. <br />**Note:** `--input` and `--topic-pattern` are mutually exclusive. For Java functions, you need to add the SerDe class name for a pattern in `--custom-serde-inputs`. |
-| customSchemaInputs   | Map<String,String>         | `--custom-schema-inputs`   | The mapping from input topics to schema properties. |
-| customSchemaOutputs  | Map<String,String>         | `--custom-schema-outputs`  | The mapping from output topics to schema properties.|
-| inputSpecs           | Map<String,[ConsumerConfig](#consumerconfig)> | `--input-specs` | The mapping from inputs to custom configurations.|
+| customSchemaInputs   | Map`<String,String>`         | `--custom-schema-inputs`   | The mapping from input topics to schema properties. |
+| customSchemaOutputs  | Map`<String,String>`         | `--custom-schema-outputs`  | The mapping from output topics to schema properties.|
+| inputSpecs           | Map`<String,`[ConsumerConfig](#consumerconfig)`>` | `--input-specs` | The mapping from inputs to custom configurations.|
 | output               | String                     | `-o`, `--output`           | The output topic of a function. If none is specified, no output is written.  |
 | producerConfig       | [ProducerConfig](#produceconfig)  | `--producer-config` | The custom configurations for producers.  |
 | outputSchemaType     | String                     | `-st`, `--schema-type`     | The built-in schema type or custom schema class name used for message outputs.   |
@@ -36,8 +42,8 @@ You can configure a function by using a predefined YAML file. The following tabl
 | retainKeyOrdering    | Boolean                    | `--retain-key-ordering`    | Whether functions consume and process messages in key order or not. |
 | batchBuilder         | String           | `--batch-builder` | Use `producerConfig.batchBuilder` instead. <br />**Note**: `batchBuilder` will be deprecated in code soon. |
 | forwardSourceMessageProperty | Boolean  | `--forward-source-message-property`  | Whether the properties of input messages are forwarded to output topics or not during processing. When the value is set to `false`, the forwarding is disabled. |
-| userConfig           | Map<String,Object>         | `--user-config`         	 | User-defined config key/values. |
-| secrets       | Map<String,Object> | `--secrets`	| The mapping from secretName to objects that encapsulate how the secret is fetched by the underlying secrets provider. |
+| userConfig           | Map`<String,Object>`         | `--user-config`         	 | User-defined config key/values. |
+| secrets       | Map`<String,Object>` | `--secrets`	| The mapping from secretName to objects that encapsulate how the secret is fetched by the underlying secrets provider. |
 | runtime       | String             | N/A          | The runtime of a function. Available values: `java`,`python`, `go`. |
 | autoAck       | Boolean            | `--auto-ack` | Whether the framework acknowledges messages automatically or not. |
 | maxMessageRetries    | Int      |	`--max-message-retries` | The number of retries to process a message before giving up. |
@@ -65,8 +71,8 @@ You can configure a function by using a predefined YAML file. The following tabl
 | schemaType           | String                     | N/A                        | N/A |
 | serdeClassName       | String                     | N/A                        | N/A |
 | isRegexPattern       | Boolean                    | N/A                        | N/A |
-| schemaProperties     | Map<String,String>         | N/A                        | N/A |
-| consumerProperties   | Map<String,String>         | N/A                        | N/A |
+| schemaProperties     | Map`<String,String>`         | N/A                        | N/A |
+| consumerProperties   | Map`<String,String>`         | N/A                        | N/A |
 | receiverQueueSize    | Int                        | N/A                        | N/A |
 | cryptoConfig         | [CryptoConfig](#cryptoconfig)   | N/A                   |Refer to [code](https://github.com/apache/pulsar/blob/master/pulsar-client-admin-api/src/main/java/org/apache/pulsar/common/functions/CryptoConfig.java). |
 | poolMessages         | Boolean                    | N/A                        | N/A |
@@ -108,7 +114,67 @@ You can configure a function by using a predefined YAML file. The following tabl
 | Field Name                  | Type                        | Related Command Argument | Description   |
 |-----------------------------|-----------------------------|--------------------------|---------------|
 | cryptoKeyReaderClassName    | String                      | N/A                      | Refer to [code](https://github.com/apache/pulsar/blob/master/pulsar-client-admin-api/src/main/java/org/apache/pulsar/common/functions/CryptoConfig.java).   |
-| cryptoKeyReaderConfig       | Map<String, Object>         | N/A                      | N/A   |
-| encryptionKeys              | String                      | N/A                      | N/A   |
+| cryptoKeyReaderConfig       | Map`<String, Object>`         | N/A                      | N/A   |
+| encryptionKeys              | String[]                      | N/A                      | N/A   |
 | producerCryptoFailureAction | ProducerCryptoFailureAction | N/A                      | N/A   |
 | consumerCryptoFailureAction | ConsumerCryptoFailureAction | N/A                      | N/A   |
+
+
+### Example
+
+The following example shows how to configure a function using YAML or JSON.
+
+````mdx-code-block
+<Tabs 
+  defaultValue="YAML"
+  values={[{"label":"YAML","value":"YAML"},{"label":"JSON","value":"JSON"}]}>
+
+<TabItem value="YAML">
+
+```yaml
+tenant: "public"
+namespace: "default"
+name: "config-file-function"
+inputs: 
+  - "persistent://public/default/config-file-function-input-1"
+  - "persistent://public/default/config-file-function-input-2"
+output: "persistent://public/default/config-file-function-output"
+jar: "function.jar"
+parallelism: 1
+resources: 
+  cpu: 8
+  ram: 8589934592
+autoAck: true
+userConfig:
+  foo: "bar"
+```
+
+</TabItem>
+<TabItem value="JSON">
+
+```json
+{
+  "tenant": "public",
+  "namespace": "default",
+  "name": "config-file-function",
+  "inputs": [
+    "persistent://public/default/config-file-function-input-1",
+    "persistent://public/default/config-file-function-input-2"
+  ],
+  "output": "persistent://public/default/config-file-function-output",
+  "jar": "function.jar",
+  "parallelism": 1,
+  "resources": {
+    "cpu": 8,
+    "ram": 8589934592
+  },
+  "autoAck": true,
+  "userConfig": {
+    "foo": "bar"
+  }
+}
+```
+
+</TabItem>
+</Tabs>
+````
