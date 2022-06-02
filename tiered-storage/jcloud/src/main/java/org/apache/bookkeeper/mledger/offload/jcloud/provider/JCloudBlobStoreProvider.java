@@ -170,10 +170,11 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
 
 
     /**
-     * Aliyun OSS is compatible with the S3 API.
-     * https://www.alibabacloud.com/help/doc-detail/64919.htm
+     * tiered storage which compatible with S3 APIs, such as aliyun oss, tencent cloud cos
+     * aliyun oss docs: https://www.alibabacloud.com/help/doc-detail/64919.htm
+     * tencent cos docs: https://intl.cloud.tencent.com/document/product/436/34688
      */
-    ALIYUN_OSS("aliyun-oss", new AnonymousProviderMetadata(new S3ApiMetadata(), "")) {
+    S3_COMPATIBLE_STORAGE("s3-compatible-storage", new AnonymousProviderMetadata(new S3ApiMetadata(), "")) {
         @Override
         public void validate(TieredStorageConfiguration config) throws IllegalArgumentException {
             S3_VALIDATION.validate(config);
@@ -390,10 +391,6 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
         ContextBuilder contextBuilder = ContextBuilder.newBuilder(config.getProviderMetadata());
         ShadedJCloudsUtils.addStandardModules(contextBuilder);
         Properties overrides = config.getOverrides();
-        if (ALIYUN_OSS.getDriver().equals(config.getDriver())) {
-            // For security reasons, OSS supports only virtual hosted style access.
-            overrides.setProperty(S3Constants.PROPERTY_S3_VIRTUAL_HOST_BUCKETS, "true");
-        }
         contextBuilder.overrides(overrides);
         contextBuilder.endpoint(config.getServiceEndpoint());
 
@@ -430,17 +427,10 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
 
     static final CredentialBuilder S3_CREDENTIAL_BUILDER = (TieredStorageConfiguration config) -> {
         String accountName = System.getenv().getOrDefault("ACCESS_KEY_ID", "");
-        // For forward compatibility
-        if (StringUtils.isEmpty(accountName.trim())) {
-            accountName = System.getenv().getOrDefault("ALIYUN_OSS_ACCESS_KEY_ID", "");
-        }
         if (StringUtils.isEmpty(accountName.trim())) {
             throw new IllegalArgumentException("Couldn't get the access key id.");
         }
         String accountKey = System.getenv().getOrDefault("ACCESS_KEY_SECRET", "");
-        if (StringUtils.isEmpty(accountKey.trim())) {
-            accountKey = System.getenv().getOrDefault("ALIYUN_OSS_ACCESS_KEY_SECRET", "");
-        }
         if (StringUtils.isEmpty(accountKey.trim())) {
             throw new IllegalArgumentException("Couldn't get the access key secret.");
         }
