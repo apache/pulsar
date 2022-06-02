@@ -238,7 +238,8 @@ public class ProxyConfiguration implements PulsarConfiguration {
     private boolean haProxyProtocolEnabled;
 
     @FieldContext(category = CATEGORY_SERVER,
-            doc = "Enable or disable the zero-copy of NIC to NIC.")
+            doc = "Enables zero-copy transport of data across network interfaces using the spice. "
+                    + "Zero copy mode cannot be used when TLS is enabled or when proxyLogLevel is > 0.")
     private boolean proxyZeroCopyModeEnabled = true;
 
     @FieldContext(

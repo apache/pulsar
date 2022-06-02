@@ -277,8 +277,6 @@ public class ProxyConnection extends PulsarHandler {
      * @param outboundChannel output channel
      */
     protected void spliceNIC2NIC(EpollSocketChannel inboundChannel, EpollSocketChannel outboundChannel) {
-        inboundChannel.config().setAutoRead(false);
-
         ChannelPromise promise = ctx.newPromise();
         inboundChannel.spliceTo(outboundChannel, SPLICE_BYTES, promise);
         promise.addListener((ChannelFutureListener) future -> {
@@ -290,8 +288,6 @@ public class ProxyConnection extends PulsarHandler {
                 ProxyService.BYTES_COUNTER.inc(SPLICE_BYTES);
             }
         });
-
-        inboundChannel.config().setAutoRead(true);
     }
 
     protected static boolean isTlsChannel(Channel channel) {
