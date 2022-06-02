@@ -66,6 +66,8 @@ You can configure a function by using a predefined YAML file. The following tabl
 
 ##### ConsumerConfig
 
+The following table outlines the nested fields and related arguments under the `inputSpecs` field.
+
 | Field Name           | Type                       | Related Command Argument   | Description|
 |----------------------|----------------------------|----------------------------|------------|
 | schemaType           | String                     | N/A                        | N/A |
@@ -79,6 +81,8 @@ You can configure a function by using a predefined YAML file. The following tabl
 
 ###### ProducerConfig
 
+The following table outlines the nested fields and related arguments under the `producerConfig` field.
+
 | Field Name                         | Type                          | Related Command Argument | Description                     |
 |------------------------------------|-------------------------------|--------------------------|---------------------------------|
 | maxPendingMessages                 | Int                           | N/A                      | The max size of a queue that holds messages pending to receive an acknowledgment from a broker. |
@@ -89,13 +93,17 @@ You can configure a function by using a predefined YAML file. The following tabl
 
 ###### Resources
 
-| Field Name | Type   | Related Command Argument | Description                                                                                             |
-|------------|--------|--------------------------|---------------------------------------------------------------------------------------------------------|
-| cpu        | double | `--cpu`                  | The CPU in cores that need to be allocated per function instance (for Kubernetes runtime only).         |
-| ram        | Long   | `--ram`                  | The RAM in bytes that need to be allocated per function instance (for process/Kubernetes runtime only). |
-| disk       | Long   | `--disk`                 | The disk in bytes that need to be allocated per function instance (for Kubernetes runtime only).        |
+The following table outlines the nested fields and related arguments under the `resources` field.
+
+| Field Name | Type   | Related Command Argument | Description  |
+|------------|--------|--------------------------|--------------|
+| cpu        | double | `--cpu`                  | The CPU in cores that need to be allocated per function instance (for Kubernetes runtime only). |
+| ram        | Long   | `--ram`                  | The RAM in bytes that need to be allocated per function instance (for process/Kubernetes runtime only).|
+| disk       | Long   | `--disk`                 | The disk in bytes that need to be allocated per function instance (for Kubernetes runtime only). |
 
 ###### WindowConfig
+
+The following table outlines the nested fields and related arguments under the `windowConfig` field.
 
 | Field Name                    | Type   | Related Command Argument         | Description                                         |
 |-------------------------------|--------|----------------------------------|-----------------------------------------------------|
@@ -110,6 +118,8 @@ You can configure a function by using a predefined YAML file. The following tabl
 | actualWindowFunctionClassName | String | N/A                              | N/A                                                 |
 
 ###### CryptoConfig
+
+The following table outlines the nested fields and related arguments under the `cryptoConfig` field.
 
 | Field Name                  | Type                        | Related Command Argument | Description   |
 |-----------------------------|-----------------------------|--------------------------|---------------|
