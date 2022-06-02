@@ -231,15 +231,15 @@ authenticationProviders: ['org.apache.pulsar.broker.authentication.Authenticatio
 
 ```
 
-For *SASL Authentication* provider, add `saslJaasClientAllowedIds` and `saslJaasServerSectionName`
+For *SASL Authentication* provider, add `saslJaasClientAllowedIds` and `saslJaasServerSectionName` and `saslJaasServerRoleTokenSignerSecretPath`
 under `properties` if needed. 
 
 ```
 
 properties:
   saslJaasClientAllowedIds: .*pulsar.*
-  saslJaasServerSectionName: Broker
-
+  saslJaasServerSectionName: PulsarFunction
+  saslJaasServerRoleTokenSignerSecretPath=file:///my/saslRoleTokenSignerSecret.key
 ```
 
 For *Token Authentication* provider, add necessary settings for `properties` if needed.

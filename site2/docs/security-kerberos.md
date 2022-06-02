@@ -125,7 +125,8 @@ You can have 2 separate JAAS configuration files:
  - Set `authenticationProviders` to choose `AuthenticationProviderSasl`;
  - Set `saslJaasClientAllowedIds` regex for principal that is allowed to connect to broker;
  - Set `saslJaasServerSectionName` that corresponds to the section in JAAS configuration file for broker;
- 
+ - Set `saslJaasServerRoleTokenSignerSecretPath` that corresponds to the secret path of role token signer in JAAS configuration file for broker, a short secret would lead to an easily brute forced discovery of the broker's secret;
+
  To make Pulsar internal admin client work properly, you need to set the configuration in the `broker.conf` file as below: 
  - Set `brokerClientAuthenticationPlugin` to client plugin `AuthenticationSasl`;
  - Set `brokerClientAuthenticationParameters` to value in JSON string `{"saslJaasClientSectionName":"PulsarClient", "serverType":"broker"}`, in which `PulsarClient` is the section name in the `pulsar_jaas.conf` file, and `"serverType":"broker"` indicates that the internal admin client connects to a Pulsar Broker;
@@ -138,6 +139,7 @@ authenticationEnabled=true
 authenticationProviders=org.apache.pulsar.broker.authentication.AuthenticationProviderSasl
 saslJaasClientAllowedIds=.*client.*
 saslJaasServerSectionName=PulsarBroker
+saslJaasServerRoleTokenSignerSecretPath=file:///my/saslRoleTokenSignerSecret.key
 
 ## Authentication settings of the broker itself. Used when the broker connects to other brokers
 brokerClientAuthenticationPlugin=org.apache.pulsar.client.impl.auth.AuthenticationSasl
@@ -345,6 +347,7 @@ authenticationEnabled=true
 authenticationProviders=org.apache.pulsar.broker.authentication.AuthenticationProviderSasl
 saslJaasClientAllowedIds=.*client.*
 saslJaasServerSectionName=PulsarProxy
+saslJaasServerRoleTokenSignerSecretPath=file:///my/saslRoleTokenSignerSecret.key
 
 ## related to be authenticated by broker
 brokerClientAuthenticationPlugin=org.apache.pulsar.client.impl.auth.AuthenticationSasl
@@ -367,6 +370,7 @@ authenticationEnabled=true
 authenticationProviders=org.apache.pulsar.broker.authentication.AuthenticationProviderSasl
 saslJaasClientAllowedIds=.*client.*
 saslJaasServerSectionName=PulsarBroker
+saslJaasServerRoleTokenSignerSecretPath=file:///my/saslRoleTokenSignerSecret.key
 
 ```
 
