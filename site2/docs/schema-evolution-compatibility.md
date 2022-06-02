@@ -34,29 +34,21 @@ The process of how Pulsar supports schema evolution is described as follows.
 
 1. The producer/consumer/reader sends its client `SchemaInfo` to brokers. 
    
-2. Brokers recognize the schema type and deploy the schema compatibility checker `schemaRegistryCompatibilityCheckers` for that schema type to enforce schema compatibility check. 
+2. Brokers recognize the schema type and deploy the schema compatibility checker `schemaRegistryCompatibilityCheckers` for that schema type in the `conf/broker.conf` or `conf/standalone.conf` file to enforce schema compatibility check. 
+   
+   ```properties
+   schemaRegistryCompatibilityCheckers=org.apache.pulsar.broker.service.schema.JsonSchemaCompatibilityCheck,org.apache.pulsar.broker.service.schema.AvroSchemaCompatibilityCheck,org.apache.pulsar.broker.service.schema.ProtobufNativeSchemaCompatibilityCheck
+   ```
+
+   :::tip
+
+   Each schema type corresponds to one instance of schema compatibility checker. Currently, Avro, JSON and Protobuff have their own compatibility checkers, while all the other schema types share the default compatibility checker which disables schema evolution.
+
+   :::
 
 3. Brokers use the schema compatibility checker to check if the `SchemaInfo` is compatible with the latest schema of the topic by applying its compatibility check strategy. Currently, the compatibility check strategy is configured at the namespace level and applied to all the topics within that namespace.
 
-:::tip
-
-Each schema type corresponds to one instance of schema compatibility checker. Currently, Avro, JSON and Protobuff have their own compatibility checkers, while all the other schema types share the default compatibility checker which disables schema evolution.
-
-:::
-
-The following code snippet describes the implementation of `schemaRegistryCompatibilityCheckers`. For more details, see [code](https://github.com/apache/pulsar/blob/bf194b557c48e2d3246e44f1fc28876932d8ecb8/pul[…]rc/main/java/org/apache/pulsar/broker/ServiceConfiguration.java).
-
-```java
-    @FieldContext(
-        category = CATEGORY_SCHEMA,
-        doc = "The list compatibility checkers to be used in schema registry"
-    )
-    private Set<String> schemaRegistryCompatibilityCheckers = Sets.newHashSet(
-            "org.apache.pulsar.broker.service.schema.JsonSchemaCompatibilityCheck",
-            "org.apache.pulsar.broker.service.schema.AvroSchemaCompatibilityCheck",
-            "org.apache.pulsar.broker.service.schema.ProtobufNativeSchemaCompatibilityCheck"
-    );
-```
+For more details, see [`schemaRegistryCompatibilityCheckers`](https://github.com/apache/pulsar/blob/bf194b557c48e2d3246e44f1fc28876932d8ecb8/pulsar-broker-common/src/main/java/org/apache/pulsar/broker/ServiceConfiguration.java).
 
 
 ## Schema compatibility check strategy
