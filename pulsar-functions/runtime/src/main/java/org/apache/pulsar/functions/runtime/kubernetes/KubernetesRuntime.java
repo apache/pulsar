@@ -1174,24 +1174,13 @@ public class KubernetesRuntime implements Runtime {
     }
 
     private static String createJobName(String jobName, String tenant, String namespace, String functionName) {
-    	final String convertedJobName = toValidPodName(jobName);
-        // use of customRuntimeOptions 'jobName' may cause naming collisions,
-    	// add a short hash here to avoid it
-    	final String hashName = String.format("%s-%s-%s-%s", jobName, tenant, namespace, functionName);
-        final String shortHash = DigestUtils.sha1Hex(hashName).toLowerCase().substring(0, 8);
-        return convertedJobName + "-" + shortHash;
+    	final String convertedJobName = String.format("%s-%s", jobName, functionName);
+        return toValidPodName(convertedJobName);
     }
 
     private static String createJobName(String tenant, String namespace, String functionName) {
-    	final String jobNameBase = String.format("%s-%s-%s", tenant, namespace, functionName);
-        final String jobName = "pf-" + jobNameBase;
-        final String convertedJobName = toValidPodName(jobName);
-        if (jobName.equals(convertedJobName)) {
-            return jobName;
-        }
-        // toValidPodName may cause naming collisions, add a short hash here to avoid it
-        final String shortHash = DigestUtils.sha1Hex(jobNameBase).toLowerCase().substring(0, 8);
-        return convertedJobName + "-" + shortHash;
+    	final String jobNameBase = String.format("p-%s", functionName).toLowerCase();
+        return toValidPodName(jobNameBase);
     }
 
     private static String getServiceUrl(String jobName, String jobNamespace, int instanceId) {
