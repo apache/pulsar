@@ -48,7 +48,7 @@ public interface ManagedTrash {
 
     CompletableFuture<List<Long>> getAllArchiveIndex();
 
-    CompletableFuture<Map<String, LedgerInfo>> getArchiveData(long index);
+    CompletableFuture<List<LedgerInfo>> getArchiveData(long index);
 
     long getTrashDataSize();
 

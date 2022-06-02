@@ -59,8 +59,8 @@ public class ManagedTrashDisableImpl implements ManagedTrash {
     }
 
     @Override
-    public CompletableFuture<Map<String, MLDataFormats.ManagedLedgerInfo.LedgerInfo>> getArchiveData(long index) {
-        return (CompletableFuture<Map<String, LedgerInfo>>) COMPLETABLE_FUTURE;
+    public CompletableFuture<List<LedgerInfo>> getArchiveData(long index) {
+        return (CompletableFuture<List<LedgerInfo>>) COMPLETABLE_FUTURE;
     }
 
     @Override
