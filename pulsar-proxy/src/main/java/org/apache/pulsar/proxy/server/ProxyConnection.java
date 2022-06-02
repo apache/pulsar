@@ -248,7 +248,7 @@ public class ProxyConnection extends PulsarHandler {
                 directProxyHandler.outboundChannel.writeAndFlush(msg)
                         .addListener(ChannelFutureListener.FIRE_EXCEPTION_ON_FAILURE);
 
-                if (service.isZeroCopyModeEnabled() && service.proxyLogLevel == 0) {
+                if (service.proxyZeroCopyModeEnabled && service.proxyLogLevel == 0) {
                     if (!ProxyConnection.isTlsChannel(ctx.channel())
                             && !ProxyConnection.isTlsChannel(directProxyHandler.outboundChannel)) {
                         spliceNIC2NIC((EpollSocketChannel) ctx.channel(),

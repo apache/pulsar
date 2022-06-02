@@ -847,7 +847,7 @@ The [Pulsar proxy](concepts-architecture-overview.md#pulsar-proxy) can be config
 |tokenAudienceClaim| The token audience "claim" name, e.g. "aud". It is used to get the audience from token. If it is not set, the audience is not verified. ||
 | tokenAudience | The token audience stands for this broker. The field `tokenAudienceClaim` of a valid token need contains this parameter.| |
 |haProxyProtocolEnabled | Enable or disable the [HAProxy](http://www.haproxy.org/) protocol. |false|
-|zeroCopyModeEnabled | Enable or disable the `zero-copy` of NIC to NIC. If enabled, we will use [splice](https://man7.org/linux/man-pages/man2/splice.2.html) system call instead of read/write to transport data of NIC to NIC, it only work when `proxyLogLevel == 0` and connection without TLS. | true |
+|proxyZeroCopyModeEnabled | Enable or disable the `zero-copy` of NIC to NIC. If enabled, we will use [splice](https://man7.org/linux/man-pages/man2/splice.2.html) system call instead of read/write to transport data of NIC to NIC, it only work when `proxyLogLevel == 0` and connection without TLS. | true |
 | numIOThreads | Number of threads used for Netty IO. | 2 * Runtime.getRuntime().availableProcessors() |
 | numAcceptorThreads | Number of threads used for Netty Acceptor. | 1 |
 |webServiceTlsProvider | The TLS provider for the web service. Available values: `SunJSSE`, `Conscrypt`, and so on. | Conscrypt |

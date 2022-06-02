@@ -28,6 +28,7 @@ import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
+import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
@@ -169,7 +170,7 @@ public class DirectProxyHandler {
         b.group(inboundChannel.eventLoop())
                 .channel(inboundChannel.getClass());
 
-        if (service.zeroCopyModeEnabled && EpollSocketChannel.class.isAssignableFrom(inboundChannel.getClass())) {
+        if (service.proxyZeroCopyModeEnabled && EpollSocketChannel.class.isAssignableFrom(inboundChannel.getClass())) {
             b.option(EpollChannelOption.EPOLL_MODE, EpollMode.LEVEL_TRIGGERED);
         }
 
@@ -299,6 +300,7 @@ public class DirectProxyHandler {
         protected ChannelHandlerContext ctx;
         private final ProxyConfiguration config;
         private final int protocolVersion;
+        private boolean isTlsInboundChannel = false;
 
         public ProxyBackendHandler(ProxyConfiguration config, int protocolVersion, String remoteHostName) {
             this.config = config;
@@ -322,6 +324,7 @@ public class DirectProxyHandler {
                     null /* target broker */, originalPrincipal, clientAuthData, clientAuthMethod);
             outboundChannel.writeAndFlush(command)
                     .addListener(ChannelFutureListener.FIRE_EXCEPTION_ON_FAILURE);
+            isTlsInboundChannel = ProxyConnection.isTlsChannel(inboundChannel);
         }
 
         @Override
@@ -354,8 +357,8 @@ public class DirectProxyHandler {
                 inboundChannel.writeAndFlush(msg)
                         .addListener(ChannelFutureListener.FIRE_EXCEPTION_ON_FAILURE);
 
-                if (service.zeroCopyModeEnabled && service.proxyLogLevel == 0) {
-                    if (!ProxyConnection.isTlsChannel(ctx.channel()) && !ProxyConnection.isTlsChannel(inboundChannel)) {
+                if (service.proxyZeroCopyModeEnabled && service.proxyLogLevel == 0) {
+                    if (!this.isTlsInboundChannel && !ProxyConnection.isTlsChannel(ctx.channel())) {
                         DirectProxyHandler.this.proxyConnection.spliceNIC2NIC((EpollSocketChannel) ctx.channel(),
                                 (EpollSocketChannel) inboundChannel);
                     }

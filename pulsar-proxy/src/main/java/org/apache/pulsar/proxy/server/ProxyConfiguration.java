@@ -239,7 +239,7 @@ public class ProxyConfiguration implements PulsarConfiguration {
 
     @FieldContext(category = CATEGORY_SERVER,
             doc = "Enable or disable the zero-copy of NIC to NIC.")
-    private boolean zeroCopyModeEnabled = true;
+    private boolean proxyZeroCopyModeEnabled = true;
 
     @FieldContext(
         category = CATEGORY_SERVER,

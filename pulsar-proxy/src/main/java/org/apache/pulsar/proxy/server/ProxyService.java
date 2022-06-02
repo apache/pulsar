@@ -115,7 +115,7 @@ public class ProxyService implements Closeable {
 
     @Getter
     @Setter
-    protected boolean zeroCopyModeEnabled;
+    protected boolean proxyZeroCopyModeEnabled;
 
     private final ScheduledExecutorService statsExecutor;
 
@@ -233,9 +233,9 @@ public class ProxyService implements Closeable {
         bootstrap.channel(serverSocketChannelClass);
         EventLoopUtil.enableTriggeredMode(bootstrap);
 
-        if (proxyConfig.isZeroCopyModeEnabled()
+        if (proxyConfig.isProxyZeroCopyModeEnabled()
                 && EpollServerSocketChannel.class.isAssignableFrom(serverSocketChannelClass)) {
-            zeroCopyModeEnabled = true;
+            proxyZeroCopyModeEnabled = true;
         }
 
         bootstrap.childHandler(new ServiceChannelInitializer(this, proxyConfig, false));
