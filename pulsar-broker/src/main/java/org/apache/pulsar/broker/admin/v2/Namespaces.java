@@ -731,8 +731,19 @@ public class Namespaces extends NamespacesBase {
             @PathParam("bundle") String bundleRange,
             @QueryParam("topics") List<String> topics,
             @Suspended AsyncResponse asyncResponse) {
-            validateNamespaceName(tenant, namespace);
-            internalGetTopicHashPositions(asyncResponse, bundleRange, topics);
+        validateNamespaceName(tenant, namespace);
+        internalGetTopicHashPositionsAsync(bundleRange, topics).thenAccept(
+                        result -> {
+                            log.info("[{}] Successfully get hash positions for topics {}", clientAppId(), topics);
+                            asyncResponse.resume(result);
+                        })
+                .exceptionally(ex -> {
+                    if (!isRedirectException(ex)) {
+                        log.error("Failed to get hash positions for topics {}", topics, ex);
+                    }
+                    resumeAsyncResponseExceptionally(asyncResponse, ex.getCause());
+                    return null;
+                });
     }
 
     @POST

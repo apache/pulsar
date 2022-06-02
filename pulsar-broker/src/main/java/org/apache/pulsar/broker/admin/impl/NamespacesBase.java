@@ -1167,54 +1167,60 @@ public abstract class NamespacesBase extends AdminResource {
         return ret;
     }
 
-    protected void internalGetTopicHashPositions(AsyncResponse asyncResponse, String bundleRange, List<String> topics) {
+    @SuppressWarnings("checkstyle:WhitespaceAround")
+    protected CompletableFuture<TopicHashPositions> internalGetTopicHashPositionsAsync(String bundleRange,
+                                                                                       List<String> topics) {
         if (log.isDebugEnabled()) {
             log.debug("[{}] Getting hash position for topic list {}, bundle {}", clientAppId(), topics, bundleRange);
         }
-        validateNamespacePolicyOperation(namespaceName, PolicyName.PERSISTENCE, PolicyOperation.READ);
-        Policies policies = getNamespacePolicies(namespaceName);
-        NamespaceBundle bundle = validateNamespaceBundleOwnership(namespaceName, policies.bundles, bundleRange,
-                false, true);
-        pulsar().getNamespaceService().getOwnedTopicListForNamespaceBundle(bundle).whenComplete(
-                (allTopicsInThisBundle, throwable) -> {
-                    if (throwable != null) {
-                        log.error("[{}] {} Failed to get topic list for bundle {}.", clientAppId(),
-                                namespaceName, bundle);
-                        asyncResponse.resume(new RestException(throwable));
-                    }
-                    // if topics is empty, return all topics' hash position in this bundle
-                    Map<String, Long> topicHashPositions = new HashMap<>();
-                    if (topics == null || topics.size() == 0) {
-                        allTopicsInThisBundle.forEach(t -> {
-                            topicHashPositions.put(t,
-                                    pulsar().getNamespaceService().getNamespaceBundleFactory()
-                                            .getLongHashCode(t));
-                        });
-                    } else {
-                        for (String topic : topics.stream().map(Codec::decode).collect(Collectors.toList())) {
-                            TopicName topicName = TopicName.get(topic);
-                            // partitioned topic
-                            if (topicName.getPartitionIndex() == -1) {
-                                allTopicsInThisBundle.stream()
-                                        .filter(t -> TopicName.get(t).getPartitionedTopicName()
-                                                .equals(TopicName.get(topic).getPartitionedTopicName()))
-                                        .forEach(partition -> {
-                                            topicHashPositions.put(partition,
-                                                    pulsar().getNamespaceService().getNamespaceBundleFactory()
-                                                            .getLongHashCode(partition));
-                                        });
-                            } else { // topic partition
-                                if (allTopicsInThisBundle.contains(topicName.toString())) {
-                                    topicHashPositions.put(topic,
+        return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.PERSISTENCE, PolicyOperation.READ)
+                .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
+                .thenCompose(
+                        policies -> validateNamespaceBundleOwnershipAsync(namespaceName, policies.bundles, bundleRange,
+                                false,
+                                true).thenApply(__ -> policies))
+                .thenApply(policies -> {
+                    NamespaceBundle bundle = validateNamespaceBundleRange(namespaceName, policies.bundles, bundleRange);
+                    return bundle;
+                }).thenCompose(bundle -> pulsar().getNamespaceService().getOwnedTopicListForNamespaceBundle(bundle)
+                        .thenApply(allTopicsInThisBundle -> {
+                            // if topics is empty, return all topics' hash position in this bundle
+                            Map<String, Long> topicHashPositions = new HashMap<>();
+                            if (topics == null || topics.size() == 0) {
+                                allTopicsInThisBundle.forEach(t -> {
+                                    topicHashPositions.put(t,
                                             pulsar().getNamespaceService().getNamespaceBundleFactory()
-                                                    .getLongHashCode(topic));
+                                                    .getLongHashCode(t));
+                                });
+                            } else {
+                                for (String topic :
+                                        topics.stream().map(Codec::decode).collect(Collectors.toList())) {
+                                    TopicName topicName = TopicName.get(topic);
+                                    // partitioned topic
+                                    if (topicName.getPartitionIndex() == -1) {
+                                        allTopicsInThisBundle.stream()
+                                                .filter(t -> TopicName.get(t).getPartitionedTopicName()
+                                                        .equals(TopicName.get(topic).getPartitionedTopicName()))
+                                                .forEach(partition -> {
+                                                    topicHashPositions.put(partition,
+                                                            pulsar().getNamespaceService()
+                                                                    .getNamespaceBundleFactory()
+                                                                    .getLongHashCode(partition));
+                                                });
+                                    } else { // topic partition
+                                        if (allTopicsInThisBundle.contains(topicName.toString())) {
+                                            topicHashPositions.put(topic,
+                                                    pulsar().getNamespaceService().getNamespaceBundleFactory()
+                                                            .getLongHashCode(topic));
+                                        }
+                                    }
                                 }
                             }
-                        }
-                    }
-                    asyncResponse.resume(
-                            new TopicHashPositions(namespaceName.toString(), bundleRange, topicHashPositions));
-                });
+                            return new TopicHashPositions(namespaceName.toString(), bundleRange,
+                                    topicHashPositions);
+                        }).exceptionally(ex -> {
+                            throw new RestException(ex);
+                        }));
     }
 
     private String getBundleRange(String bundleName) {

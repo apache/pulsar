@@ -802,7 +802,18 @@ public class Namespaces extends NamespacesBase {
             @QueryParam("topics") List<String> topics,
             @Suspended AsyncResponse asyncResponse) {
         validateNamespaceName(property, cluster, namespace);
-        internalGetTopicHashPositions(asyncResponse, bundle, topics);
+        internalGetTopicHashPositionsAsync(bundle, topics).thenAccept(
+                        result -> {
+                            log.info("[{}] Successfully get hash positions for topics {}", clientAppId(), topics);
+                            asyncResponse.resume(result);
+                        })
+                .exceptionally(ex -> {
+                    if (!isRedirectException(ex)) {
+                        log.error("Failed to get hash positions for topics {}", topics, ex);
+                    }
+                    resumeAsyncResponseExceptionally(asyncResponse, ex.getCause());
+                    return null;
+                });
     }
 
     @POST
