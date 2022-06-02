@@ -41,6 +41,9 @@ type instanceConf struct {
 	killAfterIdle               time.Duration
 	expectedHealthCheckInterval int32
 	metricsPort                 int
+
+	clientAuthPlugin string
+	clientAuthParams string
 }
 
 func newInstanceConf() *instanceConf {
@@ -102,6 +105,8 @@ func newInstanceConf() *instanceConf {
 			},
 			UserConfig: cfg.UserConfig,
 		},
+		clientAuthPlugin: cfg.ClientAuthPlugin,
+		clientAuthParams: cfg.ClientAuthParams,
 	}
 	return instanceConf
 }
