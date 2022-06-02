@@ -68,6 +68,7 @@ import org.apache.pulsar.client.api.ProducerAccessMode;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.SizeUnit;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
@@ -572,6 +573,7 @@ public class PerformanceProducer {
             List<Future<Producer<byte[]>>> futures = new ArrayList<>();
 
             ClientBuilder clientBuilder = PulsarClient.builder() //
+                    .memoryLimit(0, SizeUnit.BYTES)
                     .enableTransaction(arguments.isEnableTransaction)//
                     .serviceUrl(arguments.serviceURL) //
                     .connectionsPerBroker(arguments.maxConnections) //
