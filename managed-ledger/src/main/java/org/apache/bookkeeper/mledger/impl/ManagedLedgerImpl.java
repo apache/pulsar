@@ -2442,7 +2442,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     void internalTrimLedgers(boolean isTruncate, CompletableFuture<?> promise) {
         if (!factory.isMetadataServiceAvailable()) {
             // Defer trimming of ledger if we cannot connect to metadata service
-            promise.complete(null);
+            promise.completeExceptionally(new MetaStoreException("Metadata service is not available"));
             return;
         }
 
@@ -2706,10 +2706,29 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     @Override
     public void asyncDelete(final DeleteLedgerCallback callback, final Object ctx) {
+
         // Delete the managed ledger without closing, since we are not interested in gracefully closing cursors and
         // ledgers
         STATE_UPDATER.set(this, State.Fenced);
         cancelScheduledTasks();
+
+        // Truncate to ensure the offloaded data is not orphaned.
+        // Also ensures the BK ledgers are deleted and not just scheduled for deletion
+        CompletableFuture<Void> truncateFuture = asyncTruncate();
+        truncateFuture.whenComplete((ignore, exc) -> {
+            if (exc != null) {
+                log.error("[{}] Error truncating ledger for deletion", name, exc);
+                callback.deleteLedgerFailed(exc instanceof ManagedLedgerException
+                        ? (ManagedLedgerException) exc : new ManagedLedgerException(exc),
+                        ctx);
+            } else {
+                asyncDeleteInternal(callback, ctx);
+            }
+        });
+
+    }
+
+    private void asyncDeleteInternal(final DeleteLedgerCallback callback, final Object ctx) {
 
         List<ManagedCursor> cursors = Lists.newArrayList(this.cursors);
         if (cursors.isEmpty()) {
@@ -2826,7 +2845,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 default:
                     // Handle error
                     log.warn("[{}] Failed to delete ledger {} -- {}", name, ls.getLedgerId(),
-                            BKException.getMessage(rc));
+                            BKException.getMessage(rc) + " code " + rc);
                     int toDelete = ledgersToDelete.get();
                     if (toDelete != -1 && ledgersToDelete.compareAndSet(toDelete, -1)) {
                         // Trigger callback only once
@@ -3736,7 +3755,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         } else if (isBkErrorNotRecoverable(bkErrorCode)) {
             return new NonRecoverableLedgerException(BKException.getMessage(bkErrorCode));
         } else {
-            return new ManagedLedgerException(BKException.getMessage(bkErrorCode));
+            return new ManagedLedgerException(BKException.getMessage(bkErrorCode) + " error code: " + bkErrorCode);
         }
     }
 
