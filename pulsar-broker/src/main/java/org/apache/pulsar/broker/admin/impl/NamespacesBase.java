@@ -51,6 +51,7 @@ import javax.ws.rs.core.UriBuilder;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.commons.lang.mutable.MutableObject;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
@@ -1106,27 +1107,30 @@ public abstract class NamespacesBase extends AdminResource {
     protected CompletableFuture<Void> internalSplitNamespaceBundleAsync(String bundleName, boolean authoritative,
                                                                         boolean unload, String splitAlgorithmName,
                                                                         List<Long> splitBoundaries) {
-        checkNotNull(bundleName, "BundleRange should not be null");
         log.info("[{}] Split namespace bundle {}/{}", clientAppId(), namespaceName, bundleName);
 
-        List<String> supportedNamespaceBundleSplitAlgorithms =
-                pulsar().getConfig().getSupportedNamespaceBundleSplitAlgorithms();
-        if (StringUtils.isNotBlank(splitAlgorithmName)) {
-            if (!supportedNamespaceBundleSplitAlgorithms.contains(splitAlgorithmName)) {
-                throw new RestException(Status.PRECONDITION_FAILED,
-                        "Unsupported namespace bundle split algorithm, supported algorithms are "
-                                + supportedNamespaceBundleSplitAlgorithms);
-            }
-            if (splitAlgorithmName.equalsIgnoreCase(NamespaceBundleSplitAlgorithm.SPECIFIED_POSITIONS_DIVIDE)
-                    && (splitBoundaries == null || splitBoundaries.size() == 0)) {
-                throw new RestException(Status.PRECONDITION_FAILED,
-                        "With specified_positions_divide split algorithm, splitBoundaries must not be emtpy");
-            }
-        }
+        CompletableFuture<Void> ret = CompletableFuture.completedFuture(null);
 
-        String bundleRange = getBundleRange(bundleName);
-
-        return validateSuperUserAccessAsync().thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
+        ret.thenRun(() -> {
+                    checkNotNull(bundleName, "BundleRange should not be null");
+                    List<String> supportedNamespaceBundleSplitAlgorithms =
+                            pulsar().getConfig().getSupportedNamespaceBundleSplitAlgorithms();
+                    if (StringUtils.isNotBlank(splitAlgorithmName)) {
+                        if (!supportedNamespaceBundleSplitAlgorithms.contains(splitAlgorithmName)) {
+                            throw new RestException(Status.PRECONDITION_FAILED,
+                                    "Unsupported namespace bundle split algorithm, supported algorithms are "
+                                            + supportedNamespaceBundleSplitAlgorithms);
+                        }
+                        if (splitAlgorithmName.equalsIgnoreCase(
+                                NamespaceBundleSplitAlgorithm.SPECIFIED_POSITIONS_DIVIDE)
+                                && (splitBoundaries == null || splitBoundaries.size() == 0)) {
+                            throw new RestException(Status.PRECONDITION_FAILED,
+                                    "With specified_positions_divide split algorithm, splitBoundaries must not be "
+                                            + "emtpy");
+                        }
+                    }
+                }).thenCompose(__ -> validateSuperUserAccessAsync())
+                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
                 .thenCompose(__ -> {
                     if (namespaceName.isGlobal()) {
                         // check cluster ownership for a given global namespace: redirect if peer-cluster owns it
@@ -1136,13 +1140,20 @@ public abstract class NamespacesBase extends AdminResource {
                                 ___ -> validateClusterForTenantAsync(namespaceName.getTenant(),
                                         namespaceName.getCluster()));
                     }
-                }).thenCompose(__ -> getNamespacePoliciesAsync(namespaceName)).thenCompose(
-                        policies -> validateNamespaceBundleOwnershipAsync(namespaceName, policies.bundles, bundleRange,
-                                authoritative, false).thenApply(__ -> {
-                            NamespaceBundle nsBundle =
-                                    validateNamespaceBundleRange(namespaceName, policies.bundles, bundleRange);
-                            return nsBundle;
-                        })).thenCompose(nsBundle -> pulsar().getNamespaceService().splitAndOwnBundle(nsBundle, unload,
+                })
+                .thenCompose(__ -> getBundleRangeAsync(bundleName))
+                .thenCompose(bundleRange -> getNamespacePoliciesAsync(namespaceName).thenApply(
+                        policies -> Pair.of(bundleRange, policies)))
+                .thenCompose(pair -> {
+                    String bundleRange = pair.getLeft();
+                    Policies policies = pair.getRight();
+                    return validateNamespaceBundleOwnershipAsync(namespaceName, policies.bundles, bundleRange,
+                            authoritative, false).thenApply(__ -> {
+                        NamespaceBundle nsBundle =
+                                validateNamespaceBundleRange(namespaceName, policies.bundles, bundleRange);
+                        return nsBundle;
+                    });
+                }).thenCompose(nsBundle -> pulsar().getNamespaceService().splitAndOwnBundle(nsBundle, unload,
                         getNamespaceBundleSplitAlgorithmByName(splitAlgorithmName), splitBoundaries)
                 ).exceptionally(ex -> {
                     if (ex.getCause() instanceof IllegalArgumentException) {
@@ -1153,7 +1164,7 @@ public abstract class NamespacesBase extends AdminResource {
                     }
                 });
 
-
+        return ret;
     }
 
     protected void internalGetTopicHashPositions(AsyncResponse asyncResponse, String bundleRange, List<String> topics) {
@@ -1207,21 +1218,35 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     private String getBundleRange(String bundleName) {
+        return sync(()->getBundleRangeAsync(bundleName));
+    }
+
+    private CompletableFuture<String> getBundleRangeAsync(String bundleName) {
         if (BundleType.LARGEST.toString().equals(bundleName)) {
-            return findLargestBundleWithTopics(namespaceName).getBundleRange();
+            return findLargestBundleWithTopicsAsync(namespaceName).thenApply(NamespaceBundle::getBundleRange);
         } else if (BundleType.HOT.toString().equals(bundleName)) {
-            return findHotBundle(namespaceName).getBundleRange();
+            return findHotBundleAsync(namespaceName).thenApply(NamespaceBundle::getBundleRange);
         } else {
-            return bundleName;
+            return CompletableFuture.completedFuture(bundleName);
         }
     }
 
     private NamespaceBundle findLargestBundleWithTopics(NamespaceName namespaceName) {
-        return pulsar().getNamespaceService().getNamespaceBundleFactory().getBundleWithHighestTopics(namespaceName);
+        return sync(()->findLargestBundleWithTopicsAsync(namespaceName));
+    }
+
+    private CompletableFuture<NamespaceBundle> findLargestBundleWithTopicsAsync(NamespaceName namespaceName) {
+        return pulsar().getNamespaceService().getNamespaceBundleFactory()
+                .getBundleWithHighestTopicsAsync(namespaceName);
     }
 
     private NamespaceBundle findHotBundle(NamespaceName namespaceName) {
-        return pulsar().getNamespaceService().getNamespaceBundleFactory().getBundleWithHighestThroughput(namespaceName);
+        return sync(()->findHotBundleAsync(namespaceName));
+    }
+
+    private CompletableFuture<NamespaceBundle> findHotBundleAsync(NamespaceName namespaceName) {
+        return CompletableFuture.supplyAsync(() -> pulsar().getNamespaceService().getNamespaceBundleFactory()
+                .getBundleWithHighestThroughput(namespaceName));
     }
 
     private NamespaceBundleSplitAlgorithm getNamespaceBundleSplitAlgorithmByName(String algorithmName) {
