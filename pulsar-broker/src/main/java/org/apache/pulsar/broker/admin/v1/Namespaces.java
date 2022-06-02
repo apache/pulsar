@@ -840,7 +840,7 @@ public class Namespaces extends NamespacesBase {
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist")})
     public DispatchRate getDispatchRate(@PathParam("property") String property, @PathParam("cluster") String cluster,
-                                        @PathParam("namespace") String namespace) {
+            @PathParam("namespace") String namespace) {
         validateNamespaceName(property, cluster, namespace);
         return internalGetTopicDispatchRate();
     }
@@ -858,8 +858,8 @@ public class Namespaces extends NamespacesBase {
         internalSetSubscriptionDispatchRateAsync(dispatchRate)
                 .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
                 .exceptionally(ex -> {
-                    log.error("Failed to set the subscription dispatchRate for cluster on namespace {}",
-                            namespaceName, ex);
+                    log.error("[{}] Failed to set the subscription dispatchRate for cluster on namespace {}",
+                            clientAppId(), namespaceName, ex);
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
@@ -880,8 +880,8 @@ public class Namespaces extends NamespacesBase {
         internalGetSubscriptionDispatchRateAsync()
                 .thenAccept(asyncResponse::resume)
                 .exceptionally(ex -> {
-                    log.error("Failed to get the subscription dispatchRate for cluster on namespace {}"
-                            , namespaceName, ex);
+                    log.error("[{}] Failed to get the subscription dispatchRate for cluster on namespace {}",
+                            clientAppId(), namespaceName, ex);
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
@@ -901,8 +901,8 @@ public class Namespaces extends NamespacesBase {
         internalDeleteSubscriptionDispatchRateAsync()
                 .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
                 .exceptionally(ex -> {
-                    log.error("Failed to delete the subscription dispatchRate for cluster on namespace {}"
-                            , namespaceName, ex);
+                    log.error("[{}] Failed to delete the subscription dispatchRate for cluster on namespace {}",
+                            clientAppId(), namespaceName, ex);
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
