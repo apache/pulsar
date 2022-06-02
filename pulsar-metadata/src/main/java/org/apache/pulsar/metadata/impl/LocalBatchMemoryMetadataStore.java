@@ -50,6 +50,9 @@ public class LocalBatchMemoryMetadataStore extends AbstractBatchedMetadataStore 
         super(metadataStoreConfig);
         this.baseMetadataStore = new LocalMemoryMetadataStore(metadataURL, metadataStoreConfig, type);
         String name = metadataURL.substring(type.length());
+        if ("local".equals(name)) {
+            return;
+        }
         // for notify invalid cache, so add self.
         LocalMemoryMetadataStore.STATIC_INSTANCE.compute(name, (key, value) -> {
             if (value == null) {
