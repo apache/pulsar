@@ -550,10 +550,10 @@ public class ManagedTrashImpl implements ManagedTrash {
             //override old key
             trashData.remove(helper.key);
 
-            TrashKey trashKey = TrashKey.buildKey(helper.key.retryCount - 1, helper.key.ledgerId, helper.key.msb,
+            TrashKey newKey = TrashKey.buildKey(helper.key.retryCount - 1, helper.key.ledgerId, helper.key.msb,
                     helper.key.type);
-            trashKey.lastDeleteTs = System.currentTimeMillis();
-            trashData.put(trashKey, helper.context);
+            newKey.markLastDeleteTs();
+            trashData.put(newKey, helper.context);
             trashIsDirty = true;
             if (helper.key.retryCount - 1 == 0) {
                 if (log.isWarnEnabled()) {
@@ -674,6 +674,10 @@ public class ManagedTrashImpl implements ManagedTrash {
             this.ledgerId = ledgerId;
             this.msb = msb;
             this.type = type;
+        }
+
+        private void markLastDeleteTs() {
+            this.lastDeleteTs = System.currentTimeMillis();
         }
 
         private String toStringKey() {
