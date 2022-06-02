@@ -772,15 +772,21 @@ public class Namespaces extends NamespacesBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @QueryParam("unload") @DefaultValue("false") boolean unload,
             @QueryParam("splitBoundaries") @DefaultValue("") List<Long> splitBoundaries) {
-        try {
-            validateNamespaceName(property, cluster, namespace);
-            internalSplitNamespaceBundle(asyncResponse, bundleRange,
-                    authoritative, unload, NamespaceBundleSplitAlgorithm.RANGE_EQUALLY_DIVIDE_NAME, splitBoundaries);
-        } catch (WebApplicationException wae) {
-            asyncResponse.resume(wae);
-        } catch (Exception e) {
-            asyncResponse.resume(new RestException(e));
-        }
+        validateNamespaceName(property, cluster, namespace);
+        internalSplitNamespaceBundleAsync(bundleRange,
+                authoritative, unload, NamespaceBundleSplitAlgorithm.RANGE_EQUALLY_DIVIDE_NAME,
+                splitBoundaries).thenAccept(
+                        __ -> {
+                            log.info("[{}] Successfully split namespace bundle {}", clientAppId(), bundleRange);
+                            asyncResponse.resume(Response.noContent().build());
+                        })
+                .exceptionally(ex -> {
+                    if (!isRedirectException(ex)) {
+                        log.error("Failed to set split NamespaceBundle {}", namespaceName, ex);
+                    }
+                    resumeAsyncResponseExceptionally(asyncResponse, ex.getCause());
+                    return null;
+                });
     }
 
     @GET

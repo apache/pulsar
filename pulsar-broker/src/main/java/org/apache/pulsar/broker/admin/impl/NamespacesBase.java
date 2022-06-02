@@ -1103,67 +1103,57 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     @SuppressWarnings("deprecation")
-    protected void internalSplitNamespaceBundle(AsyncResponse asyncResponse, String bundleName, boolean authoritative,
-                                                boolean unload, String splitAlgorithmName, List<Long> splitBoundaries) {
-        validateSuperUserAccess();
+    protected CompletableFuture<Void> internalSplitNamespaceBundleAsync(String bundleName, boolean authoritative,
+                                                                        boolean unload, String splitAlgorithmName,
+                                                                        List<Long> splitBoundaries) {
         checkNotNull(bundleName, "BundleRange should not be null");
         log.info("[{}] Split namespace bundle {}/{}", clientAppId(), namespaceName, bundleName);
-
-        String bundleRange = getBundleRange(bundleName);
-
-        Policies policies = getNamespacePolicies(namespaceName);
-
-        if (namespaceName.isGlobal()) {
-            // check cluster ownership for a given global namespace: redirect if peer-cluster owns it
-            validateGlobalNamespaceOwnership(namespaceName);
-        } else {
-            validateClusterOwnership(namespaceName.getCluster());
-            validateClusterForTenant(namespaceName.getTenant(), namespaceName.getCluster());
-        }
-
-        validatePoliciesReadOnlyAccess();
 
         List<String> supportedNamespaceBundleSplitAlgorithms =
                 pulsar().getConfig().getSupportedNamespaceBundleSplitAlgorithms();
         if (StringUtils.isNotBlank(splitAlgorithmName)) {
             if (!supportedNamespaceBundleSplitAlgorithms.contains(splitAlgorithmName)) {
-                asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED,
+                throw new RestException(Status.PRECONDITION_FAILED,
                         "Unsupported namespace bundle split algorithm, supported algorithms are "
-                                + supportedNamespaceBundleSplitAlgorithms));
+                                + supportedNamespaceBundleSplitAlgorithms);
             }
             if (splitAlgorithmName.equalsIgnoreCase(NamespaceBundleSplitAlgorithm.SPECIFIED_POSITIONS_DIVIDE)
                     && (splitBoundaries == null || splitBoundaries.size() == 0)) {
-                asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED,
-                        "With specified_positions_divide split algorithm, splitBoundaries must not be emtpy"));
+                throw new RestException(Status.PRECONDITION_FAILED,
+                        "With specified_positions_divide split algorithm, splitBoundaries must not be emtpy");
             }
         }
 
-        NamespaceBundle nsBundle;
-        try {
-            nsBundle = validateNamespaceBundleOwnership(namespaceName, policies.bundles, bundleRange,
-                    authoritative, false);
-        } catch (Exception e) {
-            asyncResponse.resume(e);
-            return;
-        }
+        String bundleRange = getBundleRange(bundleName);
 
-        pulsar().getNamespaceService().splitAndOwnBundle(nsBundle, unload,
-                getNamespaceBundleSplitAlgorithmByName(splitAlgorithmName), splitBoundaries)
-                .thenRun(() -> {
-                    log.info("[{}] Successfully split namespace bundle {}", clientAppId(), nsBundle.toString());
-                    asyncResponse.resume(Response.noContent().build());
-                }).exceptionally(ex -> {
-            if (ex.getCause() instanceof IllegalArgumentException) {
-                log.error("[{}] Failed to split namespace bundle {}/{} due to {}", clientAppId(), namespaceName,
-                        bundleRange, ex.getMessage());
-                asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED,
-                        "Split bundle failed due to invalid request"));
-            } else {
-                log.error("[{}] Failed to split namespace bundle {}/{}", clientAppId(), namespaceName, bundleRange, ex);
-                asyncResponse.resume(new RestException(ex.getCause()));
-            }
-            return null;
-        });
+        return validateSuperUserAccessAsync().thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
+                .thenCompose(__ -> {
+                    if (namespaceName.isGlobal()) {
+                        // check cluster ownership for a given global namespace: redirect if peer-cluster owns it
+                        return validateGlobalNamespaceOwnershipAsync(namespaceName);
+                    } else {
+                        return validateClusterOwnershipAsync(namespaceName.getCluster()).thenCompose(
+                                ___ -> validateClusterForTenantAsync(namespaceName.getTenant(),
+                                        namespaceName.getCluster()));
+                    }
+                }).thenCompose(__ -> getNamespacePoliciesAsync(namespaceName)).thenCompose(
+                        policies -> validateNamespaceBundleOwnershipAsync(namespaceName, policies.bundles, bundleRange,
+                                authoritative, false).thenApply(__ -> {
+                            NamespaceBundle nsBundle =
+                                    validateNamespaceBundleRange(namespaceName, policies.bundles, bundleRange);
+                            return nsBundle;
+                        })).thenCompose(nsBundle -> pulsar().getNamespaceService().splitAndOwnBundle(nsBundle, unload,
+                        getNamespaceBundleSplitAlgorithmByName(splitAlgorithmName), splitBoundaries)
+                ).exceptionally(ex -> {
+                    if (ex.getCause() instanceof IllegalArgumentException) {
+                        throw new RestException(Status.PRECONDITION_FAILED,
+                                "Split bundle failed due to invalid request");
+                    } else {
+                        throw new RestException(ex.getCause());
+                    }
+                });
+
+
     }
 
     protected void internalGetTopicHashPositions(AsyncResponse asyncResponse, String bundleRange, List<String> topics) {
