@@ -25,7 +25,7 @@
 - [Requirements](#requirements)
 - [Platforms](#platforms)
 - [Compilation](#compilation)
-	- [Compile on Ubuntu Server 16.04](#compile-on-ubuntu-server-1604)
+	- [Compile on Ubuntu Server 20.04](#compile-on-ubuntu-server-2004)
 	- [Compile on Mac OS X](#compile-on-mac-os-x)
 	- [Compile on Windows (Visual Studio)](#compile-on-windows)
 - [Tests](#tests)
@@ -87,14 +87,14 @@ Run unit tests:
 ./docker-tests.sh
 ```
 
-### Compile on Ubuntu Server 16.04
+### Compile on Ubuntu Server 20.04
 
 #### Install all dependencies:
 
 ```shell
 apt-get install -y g++ cmake libssl-dev libcurl4-openssl-dev liblog4cxx-dev \
                 libprotobuf-dev libboost-all-dev  libgtest-dev google-mock \
-                protobuf-compiler python-setuptools
+                protobuf-compiler python3-setuptools
 ```
 
 #### Compile and install Google Test:
