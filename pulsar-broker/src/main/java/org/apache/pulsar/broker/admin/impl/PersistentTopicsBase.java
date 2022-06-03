@@ -2343,7 +2343,7 @@ public class PersistentTopicsBase extends AdminResource {
                                         .updateSubscriptionPropertiesAsync(topicNamePartition.toString(),
                                                 subName, subscriptionProperties));
                             } catch (Exception e) {
-                                log.error("[{}] Failed to update subscription {} {}",
+                                log.error("[{}] Failed to update properties for subscription {} {}",
                                         clientAppId(), topicNamePartition, subName,
                                         e);
                                 asyncResponse.resume(new RestException(e));
@@ -2363,7 +2363,7 @@ public class PersistentTopicsBase extends AdminResource {
                                             "Subscription has active connected consumers"));
                                     return null;
                                 } else {
-                                    log.error("[{}] Failed to delete subscription {} {}",
+                                    log.error("[{}] Failed to update properties for subscription {} {}",
                                             clientAppId(), topicName, subName, t);
                                     asyncResponse.resume(new RestException(t));
                                     return null;
@@ -2378,7 +2378,7 @@ public class PersistentTopicsBase extends AdminResource {
                                 subscriptionProperties, authoritative);
                     }
                 }, pulsar().getExecutor()).exceptionally(ex -> {
-                    log.error("[{}] Failed to update subscription {} from topic {}",
+                    log.error("[{}] Failed to update properties for subscription {} from topic {}",
                             clientAppId(), subName, topicName, ex);
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
