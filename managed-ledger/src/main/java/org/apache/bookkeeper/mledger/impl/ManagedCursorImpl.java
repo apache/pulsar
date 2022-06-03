@@ -47,6 +47,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -324,7 +325,7 @@ public class ManagedCursorImpl implements ManagedCursor {
     @Override
     public CompletableFuture<Void> setCursorProperties(Map<String, String> cursorProperties) {
         CompletableFuture<Void> updateCursorPropertiesResult = new CompletableFuture<>();
-        ledger.getStore().asyncGetCursorInfo(ledger.getName(), name, new MetaStoreCallback<>() {
+        ledger.getStore().asyncGetCursorInfo(ledger.getName(), name, new MetaStoreCallback<ManagedCursorInfo>() {
             @Override
             public void operationComplete(ManagedCursorInfo info, Stat stat) {
                 ManagedCursorInfo copy = ManagedCursorInfo
@@ -333,7 +334,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                         .addAllCursorProperties(buildStringPropertiesMap(cursorProperties))
                         .build();
                 ledger.getStore().asyncUpdateCursorInfo(ledger.getName(),
-                        name, copy, stat, new MetaStoreCallback<>() {
+                        name, copy, stat, new MetaStoreCallback<Void>() {
                     @Override
                     public void operationComplete(Void result, Stat stat) {
                         log.info("[{}] Updated ledger cursor: {} properties {}", ledger.getName(),

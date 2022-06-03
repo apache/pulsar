@@ -98,6 +98,7 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("subscriptions", new ListSubscriptions());
         jcommander.addCommand("unsubscribe", new DeleteSubscription());
         jcommander.addCommand("create-subscription", new CreateSubscription());
+        jcommander.addCommand("update-subscription-properties", new UpdateSubscriptionProperties());
 
         jcommander.addCommand("stats", new GetStats());
         jcommander.addCommand("stats-internal", new GetInternalStats());
@@ -918,6 +919,41 @@ public class CmdTopics extends CmdBase {
             getTopics().createSubscription(topic, subscriptionName, messageId, false, map);
         }
     }
+
+    @Parameters(commandDescription = "Update the properties of a subscription on a topic")
+    private class UpdateSubscriptionProperties extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "-s",
+                "--subscription" }, description = "Subscription to update", required = true)
+        private String subscriptionName;
+
+        @Parameter(names = {"--property", "-p"}, description = "key value pair properties(-p a=b -p c=d)",
+                required = false)
+        private java.util.List<String> properties;
+
+        @Parameter(names = {"--clear", "-c"}, description = "Remove all properties",
+                required = false)
+        private boolean clear;
+
+        @Override
+        void run() throws Exception {
+            String topic = validateTopicName(params);
+            Map<String, String> map = parseListKeyValueMap(properties);
+            if (map == null) {
+                map = Collections.emptyMap();
+            }
+            if ((map.isEmpty()) && !clear) {
+                throw new ParameterException("If you want to clear the properties you have to use --clear");
+            }
+            if (clear && !map.isEmpty()) {
+                throw new ParameterException("If you set --clear then you should not pass any properties");
+            }
+            getTopics().updateSubscriptionProperties(topic, subscriptionName, map);
+        }
+    }
+
 
     @Parameters(commandDescription = "Reset position for subscription to a position that is closest to "
             + "timestamp or messageId.")

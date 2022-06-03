@@ -174,7 +174,7 @@ public class CLITest extends PulsarTestSuite {
     }
 
     @Test
-    public void testCreateSubscriptionWithPropertiesCommand() throws Exception {
+    public void testCreateUpdateSubscriptionWithPropertiesCommand() throws Exception {
         String topic = "testCreateSubscriptionCommmand";
 
         String subscriptionPrefix = "subscription-";
@@ -194,6 +194,29 @@ public class CLITest extends PulsarTestSuite {
                     "" + subscriptionPrefix + i
             );
             result.assertNoOutput();
+
+            ContainerExecResult resultUpdate = container.execCmd(
+                    PulsarCluster.ADMIN_SCRIPT,
+                    "topics",
+                    "update-subscription-properties",
+                    "-p",
+                    "a=e",
+                    "persistent://public/default/" + topic,
+                    "--subscription",
+                    "" + subscriptionPrefix + i
+            );
+            resultUpdate.assertNoOutput();
+
+            ContainerExecResult resultClear = container.execCmd(
+                    PulsarCluster.ADMIN_SCRIPT,
+                    "topics",
+                    "update-subscription-properties",
+                    "-c",
+                    "persistent://public/default/" + topic,
+                    "--subscription",
+                    "" + subscriptionPrefix + i
+            );
+            resultClear.assertNoOutput();
             i++;
         }
     }
