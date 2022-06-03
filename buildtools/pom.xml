@@ -51,6 +51,7 @@
     <ant.version>1.10.12</ant.version>
     <snakeyaml.version>1.30</snakeyaml.version>
     <test.additional.args></test.additional.args>
+    <mockito.version>3.12.4</mockito.version>
   </properties>
 
   <dependencyManagement>
@@ -136,6 +137,16 @@
       <artifactId>netty-common</artifactId>
       <version>4.1.77.Final</version>
       <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-core</artifactId>
+      <version>${mockito.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-inline</artifactId>
+      <version>${mockito.version}</version>
     </dependency>
   </dependencies>
 
