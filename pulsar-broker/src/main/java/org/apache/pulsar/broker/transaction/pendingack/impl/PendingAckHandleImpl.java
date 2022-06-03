@@ -884,7 +884,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
     public synchronized void exceptionHandleFuture(Throwable t) {
         if (!this.pendingAckHandleCompletableFuture.isDone()) {
             this.pendingAckHandleCompletableFuture.completeExceptionally(t);
-            recoverTime.setRecoverEndTime(-1L);
+            recoverTime.setRecoverEndTime(System.currentTimeMillis());
         }
     }
 

@@ -36,6 +36,6 @@ public class TransactionCoordinatorStats {
     public long lowWaterMark;
     //Start timestamp of  transaction coordinator recovery. 0L means no startup.
     public long recoverStartTime;
-    //End timestamp of transaction coordinator recovery. 0L means no startup, -1L means exceptionally.
+    //End timestamp of transaction coordinator recovery. 0L means no startup.
     public long recoverEndTime;
 }

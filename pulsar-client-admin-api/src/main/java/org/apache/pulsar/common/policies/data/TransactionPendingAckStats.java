@@ -24,6 +24,6 @@ public class TransactionPendingAckStats {
     public String state;
     //Start timestamp of  transaction pendingAck recovery. 0L means no startup.
     public long recoverStartTime;
-    //End timestamp of transaction pendingAck recovery. 0L means no startup, -1L means exceptionally.
+    //End timestamp of transaction pendingAck recovery. 0L means no startup.
     public long recoverEndTime;
 }

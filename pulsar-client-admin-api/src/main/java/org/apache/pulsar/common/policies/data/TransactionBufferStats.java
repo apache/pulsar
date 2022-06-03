@@ -31,6 +31,6 @@ public class TransactionBufferStats {
 
     //Start timestamp of  transaction buffer recovery. 0L means no startup.
     public long recoverStartTime;
-    //End timestamp of transaction buffer recovery. 0L means no startup, -1L means exceptionally.
+    //End timestamp of transaction buffer recovery. 0L means no startup.
     public long recoverEndTime;
 }
