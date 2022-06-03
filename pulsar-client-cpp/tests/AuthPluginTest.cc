@@ -191,7 +191,7 @@ TEST(AuthPluginTest, testTlsDetectHttpsWithHostNameValidation) {
 
 namespace testAthenz {
 std::string principalToken;
-void mockZTS(Latch* latch, int port) {
+void mockZTS(Latch& latch, int port) {
     LOG_INFO("-- MockZTS started");
     boost::asio::io_service io;
     boost::asio::ip::tcp::iostream stream;
@@ -199,7 +199,7 @@ void mockZTS(Latch* latch, int port) {
                                             boost::asio::ip::tcp::endpoint(boost::asio::ip::tcp::v4(), port));
 
     LOG_INFO("-- MockZTS waiting for connnection");
-    latch->countdown();
+    latch.countdown();
     acceptor.accept(*stream.rdbuf());
     LOG_INFO("-- MockZTS got connection");
 
@@ -229,7 +229,7 @@ void mockZTS(Latch* latch, int port) {
 
 TEST(AuthPluginTest, testAthenz) {
     Latch latch(1);
-    std::thread zts(std::bind(&testAthenz::mockZTS, &latch, 9999));
+    std::thread zts(std::bind(&testAthenz::mockZTS, std::ref(latch), 9999));
     pulsar::AuthenticationDataPtr data;
     std::string params = R"({
         "tenantDomain": "pulsar.test.tenant",
@@ -301,7 +301,7 @@ TEST(AuthPluginTest, testAuthFactoryTls) {
 
 TEST(AuthPluginTest, testAuthFactoryAthenz) {
     Latch latch(1);
-    std::thread zts(std::bind(&testAthenz::mockZTS, &latch, 9998));
+    std::thread zts(std::bind(&testAthenz::mockZTS, std::ref(latch), 9998));
     pulsar::AuthenticationDataPtr data;
     std::string params = R"({
         "tenantDomain": "pulsar.test2.tenant",
