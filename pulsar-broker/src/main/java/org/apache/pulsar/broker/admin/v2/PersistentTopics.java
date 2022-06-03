@@ -1527,7 +1527,7 @@ public class PersistentTopics extends PersistentTopicsBase {
         }
     }
 
-    @POST
+    @PUT
     @Path("/{tenant}/{namespace}/{topic}/subscription/{subName}/updateProperties")
     @ApiOperation(value = "Replaces all the properties on the given subscription")
     @ApiResponses(value = {
