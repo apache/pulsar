@@ -596,12 +596,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             return FutureUtil.failedFuture(exception);
         }
         if (txn != null) {
-            List<CompletableFuture<Void>> completableFutures = new LinkedList<>();
-            for (MessageId messageId : messageIdList) {
-                completableFutures.add(doTransactionAcknowledgeForResponse(messageId, ackType, null,
-                        properties, new TxnID(txn.getTxnIdMostBits(), txn.getTxnIdLeastBits())));
-            }
-            return FutureUtil.waitForAll(completableFutures);
+            return doTransactionAcknowledgeForResponse(messageIdList, ackType, null,
+                    properties, new TxnID(txn.getTxnIdMostBits(), txn.getTxnIdLeastBits()));
         } else {
             return this.acknowledgmentsGroupingTracker.addListAcknowledgment(messageIdList, ackType, properties);
         }
@@ -2701,6 +2697,58 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         } else {
             unAckedMessageTracker.remove(messageId);
         }
+        return cnx().newAckForReceipt(cmd, requestId);
+    }
+
+    private CompletableFuture<Void> doTransactionAcknowledgeForResponse(List<MessageId> messageIds, AckType ackType,
+                                                                        ValidationError validationError,
+                                                                        Map<String, Long> properties, TxnID txnID) {
+        BitSetRecyclable bitSetRecyclable = null;
+        long ledgerId;
+        long entryId;
+        ByteBuf cmd;
+        long requestId = client.newRequestId();
+        List<MessageIdData> messageIdDataList = new LinkedList<>();
+        for (MessageId messageId : messageIds) {
+            if (messageId instanceof BatchMessageIdImpl) {
+                BatchMessageIdImpl batchMessageId = (BatchMessageIdImpl) messageId;
+                bitSetRecyclable = BitSetRecyclable.create();
+                if (ackType == AckType.Cumulative) {
+                    batchMessageId.ackCumulative();
+                    bitSetRecyclable.set(0, batchMessageId.getBatchSize());
+                    bitSetRecyclable.clear(0, batchMessageId.getBatchIndex() + 1);
+                } else {
+                    bitSetRecyclable.set(0, batchMessageId.getBatchSize());
+                    bitSetRecyclable.clear(batchMessageId.getBatchIndex());
+                }
+                MessageIdData messageIdData = new MessageIdData();
+                messageIdData.setLedgerId(batchMessageId.getLedgerId());
+                messageIdData.setEntryId(batchMessageId.getEntryId());
+                messageIdData.setBatchSize(batchMessageId.getBatchSize());
+                long[] as = bitSetRecyclable.toLongArray();
+                for (int i = 0; i < as.length; i++) {
+                    messageIdData.addAckSet(as[i]);
+                }
+                bitSetRecyclable.recycle();
+                messageIdDataList.add(messageIdData);
+            } else {
+                MessageIdImpl singleMessage = (MessageIdImpl) messageId;
+                ledgerId = singleMessage.getLedgerId();
+                entryId = singleMessage.getEntryId();
+                MessageIdData messageIdData = new MessageIdData();
+                messageIdData.setLedgerId(ledgerId);
+                messageIdData.setEntryId(entryId);
+                messageIdDataList.add(messageIdData);
+            }
+
+            if (ackType == AckType.Cumulative) {
+                unAckedMessageTracker.removeMessagesTill(messageId);
+            } else {
+                unAckedMessageTracker.remove(messageId);
+            }
+        }
+        cmd = Commands.newAck(consumerId, messageIdDataList, ackType, validationError, properties,
+                txnID.getLeastSigBits(), txnID.getMostSigBits(), requestId);
         return cnx().newAckForReceipt(cmd, requestId);
     }
 
