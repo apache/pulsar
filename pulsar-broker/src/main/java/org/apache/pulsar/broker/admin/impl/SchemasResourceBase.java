@@ -27,17 +27,21 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.time.Clock;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.service.schema.SchemaRegistry.SchemaAndMetadata;
+import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
 import org.apache.pulsar.broker.service.schema.exceptions.InvalidSchemaDataException;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.internal.DefaultImplementation;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.protocol.schema.DeleteSchemaResponse;
 import org.apache.pulsar.common.protocol.schema.GetAllVersionsSchemaResponse;
 import org.apache.pulsar.common.protocol.schema.GetSchemaResponse;
@@ -67,7 +71,7 @@ public class SchemasResourceBase extends AdminResource {
         this.clock = clock;
     }
 
-    private static long getLongSchemaVersion(SchemaVersion schemaVersion) {
+    protected static long getLongSchemaVersion(SchemaVersion schemaVersion) {
         if (schemaVersion instanceof LongSchemaVersion) {
             return ((LongSchemaVersion) schemaVersion).getVersion();
         } else {
@@ -92,6 +96,12 @@ public class SchemasResourceBase extends AdminResource {
         });
     }
 
+    public CompletableFuture<SchemaAndMetadata> getSchemaAsync(boolean authoritative) {
+        return validateDestinationAndAdminOperationAsync(authoritative)
+                .thenApply(__ -> getSchemaId())
+                .thenCompose(schemaId -> pulsar().getSchemaRegistryService().getSchema(schemaId));
+    }
+
     public void getSchema(boolean authoritative, String version, AsyncResponse response) {
         validateDestinationAndAdminOperation(authoritative);
         String schemaId = getSchemaId();
@@ -104,6 +114,18 @@ public class SchemasResourceBase extends AdminResource {
         });
     }
 
+    public CompletableFuture<SchemaAndMetadata> getSchemaAsync(boolean authoritative, String version) {
+        return validateDestinationAndAdminOperationAsync(authoritative)
+                .thenApply(__ -> getSchemaId())
+                .thenCompose(schemaId -> {
+                    ByteBuffer bbVersion = ByteBuffer.allocate(Long.BYTES);
+                    bbVersion.putLong(Long.parseLong(version));
+                    SchemaRegistryService schemaRegistryService = pulsar().getSchemaRegistryService();
+                    SchemaVersion schemaVersion = schemaRegistryService.versionFromBytes(bbVersion.array());
+                    return schemaRegistryService.getSchema(schemaId, schemaVersion);
+                });
+    }
+
     public void getAllSchemas(boolean authoritative, AsyncResponse response) {
         validateDestinationAndAdminOperation(authoritative);
 
@@ -112,6 +134,14 @@ public class SchemasResourceBase extends AdminResource {
             handleGetAllSchemasResponse(response, schema, error);
             return null;
         });
+    }
+
+    public CompletableFuture<List<SchemaAndMetadata>> getAllSchemasAsync(boolean authoritative) {
+        return validateDestinationAndAdminOperationAsync(authoritative)
+                .thenCompose(__ -> {
+                    String schemaId = getSchemaId();
+                    return pulsar().getSchemaRegistryService().trimDeletedSchemaAndGetList(schemaId);
+                });
     }
 
     public void deleteSchema(boolean authoritative, AsyncResponse response, boolean force) {
@@ -129,6 +159,15 @@ public class SchemasResourceBase extends AdminResource {
                         response.resume(new RestException(error));
                     }
                     return null;
+                });
+    }
+
+    public CompletableFuture<SchemaVersion> deleteSchemaAsync(boolean authoritative, boolean force) {
+        return validateDestinationAndAdminOperationAsync(authoritative)
+                .thenCompose(__ -> {
+                    String schemaId = getSchemaId();
+                    return pulsar().getSchemaRegistryService()
+                            .deleteSchema(schemaId, defaultIfEmpty(clientAppId(), ""), force);
                 });
     }
 
@@ -187,6 +226,33 @@ public class SchemasResourceBase extends AdminResource {
         });
     }
 
+    public CompletableFuture<SchemaVersion> postSchemaAsync(PostSchemaPayload payload, boolean authoritative) {
+        return validateDestinationAndAdminOperationAsync(authoritative)
+                .thenCompose(__ -> getSchemaCompatibilityStrategyAsync())
+                .thenCompose(schemaCompatibilityStrategy -> {
+                    byte[] data;
+                    if (SchemaType.KEY_VALUE.name().equals(payload.getType())) {
+                        try {
+                            data = DefaultImplementation.getDefaultImplementation()
+                                    .convertKeyValueDataStringToSchemaInfoSchema(payload.getSchema()
+                                            .getBytes(Charsets.UTF_8));
+                        } catch (IOException conversionError) {
+                            throw new RestException(conversionError);
+                        }
+                    } else {
+                        data = payload.getSchema().getBytes(Charsets.UTF_8);
+                    }
+                    return pulsar().getSchemaRegistryService()
+                            .putSchemaIfAbsent(getSchemaId(),
+                                    SchemaData.builder().data(data).isDeleted(false).timestamp(clock.millis())
+                                            .type(SchemaType.valueOf(payload.getType()))
+                                            .user(defaultIfEmpty(clientAppId(), ""))
+                                            .props(payload.getProperties())
+                                            .build(),
+                                    schemaCompatibilityStrategy);
+                });
+    }
+
     public void testCompatibility(PostSchemaPayload payload, boolean authoritative, AsyncResponse response) {
         validateDestinationAndAdminOperation(authoritative);
 
@@ -208,9 +274,24 @@ public class SchemasResourceBase extends AdminResource {
                 });
     }
 
-    public void getVersionBySchema(
+    public CompletableFuture<Pair<Boolean, SchemaCompatibilityStrategy>> testCompatibilityAsync(
+            PostSchemaPayload payload, boolean authoritative) {
+        return validateDestinationAndAdminOperationAsync(authoritative)
+                .thenCompose(__ -> getSchemaCompatibilityStrategyAsync())
+                .thenCompose(strategy -> {
+                    String schemaId = getSchemaId();
+                    return pulsar().getSchemaRegistryService().isCompatible(schemaId,
+                            SchemaData.builder().data(payload.getSchema().getBytes(Charsets.UTF_8))
+                                    .isDeleted(false)
+                                    .timestamp(clock.millis()).type(SchemaType.valueOf(payload.getType()))
+                                    .user(defaultIfEmpty(clientAppId(), ""))
+                                    .props(payload.getProperties())
+                                    .build(), strategy)
+                            .thenApply(v -> Pair.of(v, strategy));
+                });
+    }
 
-            PostSchemaPayload payload, boolean authoritative, AsyncResponse response) {
+    public void getVersionBySchema(PostSchemaPayload payload, boolean authoritative, AsyncResponse response) {
         validateDestinationAndAdminOperation(authoritative);
 
         String schemaId = getSchemaId();
@@ -227,6 +308,20 @@ public class SchemasResourceBase extends AdminResource {
                     log.error("[{}] Failed to get version by schema for topic {}", clientAppId(), topicName, throwable);
                     response.resume(new RestException(throwable));
                     return null;
+                });
+    }
+
+    public CompletableFuture<Long> getVersionBySchemaAsync(PostSchemaPayload payload, boolean authoritative) {
+        return validateDestinationAndAdminOperationAsync(authoritative)
+                .thenCompose(__ -> {
+                    String schemaId = getSchemaId();
+                    return pulsar().getSchemaRegistryService()
+                            .findSchemaVersion(schemaId,
+                                    SchemaData.builder().data(payload.getSchema().getBytes(Charsets.UTF_8))
+                                            .isDeleted(false).timestamp(clock.millis())
+                                            .type(SchemaType.valueOf(payload.getType()))
+                                            .user(defaultIfEmpty(clientAppId(), ""))
+                                            .props(payload.getProperties()).build());
                 });
     }
 
@@ -253,7 +348,7 @@ public class SchemasResourceBase extends AdminResource {
         }
     }
 
-    private static void handleGetSchemaResponse(AsyncResponse response, SchemaAndMetadata schema, Throwable error) {
+    protected static void handleGetSchemaResponse(AsyncResponse response, SchemaAndMetadata schema, Throwable error) {
         if (isNull(error)) {
             if (isNull(schema)) {
                 response.resume(Response.status(
@@ -270,6 +365,27 @@ public class SchemasResourceBase extends AdminResource {
             response.resume(new RestException(error));
         }
 
+    }
+
+    protected GetSchemaResponse convertToSchemaResponse(SchemaAndMetadata schema) {
+        if (isNull(schema)) {
+            throw new RestException(Response.Status.NOT_FOUND.getStatusCode(), "Schema not found");
+        } else if (schema.schema.isDeleted()) {
+            throw new RestException(Response.Status.NOT_FOUND.getStatusCode(), "Schema is deleted");
+        }
+        return convertSchemaAndMetadataToGetSchemaResponse(schema);
+    }
+
+    protected GetAllVersionsSchemaResponse convertToAllVersionsSchemaResponse(List<SchemaAndMetadata> schemas) {
+        if (isNull(schemas)) {
+            throw new RestException(Response.Status.NOT_FOUND.getStatusCode(), "Schemas not found");
+        } else {
+            return GetAllVersionsSchemaResponse.builder()
+                    .getSchemaResponses(schemas.stream()
+                            .map(SchemasResourceBase::convertSchemaAndMetadataToGetSchemaResponse)
+                            .collect(Collectors.toList()))
+                    .build();
+        }
     }
 
     private static void handleGetAllSchemasResponse(AsyncResponse response, List<SchemaAndMetadata> schemas,
@@ -304,6 +420,11 @@ public class SchemasResourceBase extends AdminResource {
                 throw e;
             }
         }
+    }
+
+    private CompletableFuture<Void> validateDestinationAndAdminOperationAsync(boolean authoritative) {
+        return validateTopicOwnershipAsync(topicName, authoritative)
+                .thenCompose(__ -> validateAdminAccessForTenantAsync(topicName.getTenant()));
     }
 
     private static final Logger log = LoggerFactory.getLogger(SchemasResourceBase.class);
