@@ -888,9 +888,9 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
             transactionPendingAckStats.lowWaterMarks = this.lowWaterMarks;
         }
         if (individualAckOfTransaction != null) {
-            transactionPendingAckStats.ongoingTxns = individualAckOfTransaction.size();
+            transactionPendingAckStats.ongoingTxnSize = individualAckOfTransaction.size();
         } else {
-            transactionPendingAckStats.ongoingTxns = 0;
+            transactionPendingAckStats.ongoingTxnSize = 0;
         }
         return transactionPendingAckStats;
     }

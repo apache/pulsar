@@ -38,5 +38,5 @@ public class TransactionBufferStats {
     /**
      * The total number of ongoing transactions in this transaction buffer.
      */
-    public long ongoingTxns;
+    public long ongoingTxnSize;
 }

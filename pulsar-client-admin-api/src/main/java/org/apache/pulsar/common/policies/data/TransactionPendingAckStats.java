@@ -33,5 +33,5 @@ public class TransactionPendingAckStats {
     /**
      * The total number of ongoing transactions in this transaction pending ack.
      */
-    public long ongoingTxns;
+    public long ongoingTxnSize;
 }

@@ -549,7 +549,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         if (lowWaterMarks) {
             transactionBufferStats.lowWaterMarks = this.lowWaterMarks;
         }
-        transactionBufferStats.ongoingTxns = ongoingTxns.size();
+        transactionBufferStats.ongoingTxnSize = ongoingTxns.size();
 
         return transactionBufferStats;
     }

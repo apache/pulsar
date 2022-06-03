@@ -38,5 +38,5 @@ public class TransactionCoordinatorStats {
     /**
      *  The total number of ongoing transactions in this transaction coordinator.
      */
-    public long ongoningTxns;
+    public long ongoingTxnSize;
 }

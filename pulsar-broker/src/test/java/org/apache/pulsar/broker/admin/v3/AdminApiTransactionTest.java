@@ -434,15 +434,15 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
 
         TransactionBufferStats transactionBufferStats =
                 admin.transactions().getTransactionBufferStats(topic, true);
-        assertEquals(transactionBufferStats.ongoingTxns, 1);
+        assertEquals(transactionBufferStats.ongoingTxnSize, 1);
         assertNotNull(transactionBufferStats.lowWaterMarks);
 
         TransactionPendingAckStats transactionPendingAckStats =
                 admin.transactions().getPendingAckStats(topic, subName, true);
 
-        assertEquals(transactionPendingAckStats.ongoingTxns, 1);
+        assertEquals(transactionPendingAckStats.ongoingTxnSize, 1);
         assertNotNull(transactionPendingAckStats.lowWaterMarks);
-        assertEquals(admin.transactions().getCoordinatorStatsById(0).ongoningTxns, 1);
+        assertEquals(admin.transactions().getCoordinatorStatsById(0).ongoingTxnSize, 1);
     }
 
     @Test(timeOut = 20000)
