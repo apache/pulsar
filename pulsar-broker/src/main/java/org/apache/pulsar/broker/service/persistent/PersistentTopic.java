@@ -1179,7 +1179,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     brokerService.deleteTopicAuthenticationWithRetry(topic, deleteTopicAuthenticationFuture, 5);
 
                     deleteTopicAuthenticationFuture.thenCompose(__ -> deleteSchema())
-                            .thenCompose(__ -> deleteTopicPolicies())
+                            .thenAccept(__ -> deleteTopicPolicies())
                             .thenCompose(__ -> transactionBufferCleanupAndClose())
                             .whenComplete((v, ex) -> {
                         if (ex != null) {
