@@ -1528,7 +1528,7 @@ public class PersistentTopics extends PersistentTopicsBase {
     }
 
     @PUT
-    @Path("/{tenant}/{namespace}/{topic}/subscription/{subName}/updateProperties")
+    @Path("/{tenant}/{namespace}/{topic}/subscription/{subName}/properties")
     @ApiOperation(value = "Replaces all the properties on the given subscription")
     @ApiResponses(value = {
             @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this topic"),

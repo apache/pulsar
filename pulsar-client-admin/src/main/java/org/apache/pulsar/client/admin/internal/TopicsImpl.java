@@ -1193,11 +1193,11 @@ public class TopicsImpl extends BaseResource implements Topics {
         TopicName tn = validateTopic(topic);
         String encodedSubName = Codec.encode(subName);
         WebTarget path = topicPath(tn, "subscription", encodedSubName,
-                "updateProperties");
+                "properties");
         if (subscriptionProperties == null) {
             subscriptionProperties = new HashMap<>();
         }
-        return asyncPostRequest(path, Entity.entity(subscriptionProperties, MediaType.APPLICATION_JSON));
+        return asyncPutRequest(path, Entity.entity(subscriptionProperties, MediaType.APPLICATION_JSON));
     }
 
     @Override
