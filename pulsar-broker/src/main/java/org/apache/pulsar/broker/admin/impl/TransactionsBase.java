@@ -455,7 +455,7 @@ public abstract class TransactionsBase extends AdminResource {
         getExistingPersistentTopicAsync(authoritative)
                 .thenAccept(topic -> {
                     PositionInPendingAckStats result = topic.getSubscription(subName)
-                    .getPositionStatsInPendingAckStats(position);
+                    .checkPositionInPendingAckState(position);
                     completableFuture.complete(result);
                 }).exceptionally(ex -> {
                     completableFuture.completeExceptionally(ex);

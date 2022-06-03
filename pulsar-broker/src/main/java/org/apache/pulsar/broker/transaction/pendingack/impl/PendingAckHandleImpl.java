@@ -926,7 +926,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
     }
 
     @Override
-    public PositionInPendingAckStats getPositionStatsInPendingAckStats(PositionImpl position) {
+    public PositionInPendingAckStats checkPositionInPendingAckState(PositionImpl position) {
         if (persistentSubscription.getCursor().getPersistentMarkDeletedPosition() != null && position.compareTo(
                         (PositionImpl) persistentSubscription.getCursor().getPersistentMarkDeletedPosition()) <= 0) {
             return new PositionInPendingAckStats(PositionInPendingAckStats.State.MarkDelete);

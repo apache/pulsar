@@ -164,5 +164,5 @@ public interface PendingAckHandle {
      * @param position message position.
      * @return the stats of the message position.
      */
-    PositionInPendingAckStats getPositionStatsInPendingAckStats(PositionImpl position);
+    PositionInPendingAckStats checkPositionInPendingAckState(PositionImpl position);
 }

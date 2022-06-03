@@ -378,9 +378,6 @@ public class Transactions extends TransactionsBase {
             log.warn("Failed to get position stats in pending ack");
             resumeAsyncResponseExceptionally(asyncResponse, ex);
         }
-
-
-
     }
 
 }

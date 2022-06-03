@@ -318,9 +318,9 @@ public class TransactionsImpl extends BaseResource implements Transactions {
         path = path.queryParam("metadata", metadata);
         final CompletableFuture<TransactionPendingAckInternalStats> future = new CompletableFuture<>();
         asyncGetRequest(path,
-                new InvocationCallback<PositionInPendingAckStats>() {
+                new InvocationCallback<TransactionPendingAckInternalStats>() {
                     @Override
-                    public void completed(PositionInPendingAckStats positionInPendingAckStats) {
+                    public void completed(TransactionPendingAckInternalStats positionInPendingAckStats) {
                         future.complete(null);
                     }
 
@@ -353,9 +353,9 @@ public class TransactionsImpl extends BaseResource implements Transactions {
     }
 
     @Override
-    public CompletableFuture<PositionInPendingAckStats> getPositionStatsInPendingAckStatsAsync(String topic,
-                                                                                               String subName,
-                                                                                               String position) {
+    public CompletableFuture<PositionInPendingAckStats> checkPositionInPendingAckStateAsync(String topic,
+                                                                                            String subName,
+                                                                                            String position) {
         TopicName tn = TopicName.get(topic);
         WebTarget path = adminV3Transactions.path("getPositionStatsInPendingAck");
         path = path.path(tn.getRestPath(false));
@@ -378,8 +378,8 @@ public class TransactionsImpl extends BaseResource implements Transactions {
     }
 
 
-    public PositionInPendingAckStats getPositionStatsInPendingAckStats(String topic, String subName, String position)
+    public PositionInPendingAckStats checkPositionInPendingAckState(String topic, String subName, String position)
             throws PulsarAdminException {
-        return sync(() -> getPositionStatsInPendingAckStatsAsync(topic, subName, position));
+        return sync(() -> checkPositionInPendingAckStateAsync(topic, subName, position));
     }
 }

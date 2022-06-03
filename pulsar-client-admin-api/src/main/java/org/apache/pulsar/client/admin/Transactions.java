@@ -264,7 +264,7 @@ public interface Transactions {
      * @param position the position of message.
      * @return a boolean value identified whether the position is in pending ack stats.
      */
-    PositionInPendingAckStats getPositionStatsInPendingAckStats(String topic, String subName, String position)
+    PositionInPendingAckStats checkPositionInPendingAckState(String topic, String subName, String position)
             throws PulsarAdminException;
 
     /**
@@ -272,6 +272,6 @@ public interface Transactions {
      * @param position the position of message.
      * @return a boolean value identified whether the position is in pending ack stats.
      */
-    CompletableFuture<PositionInPendingAckStats> getPositionStatsInPendingAckStatsAsync(String topic, String subName,
-                                                                                        String position);
+    CompletableFuture<PositionInPendingAckStats> checkPositionInPendingAckStateAsync(String topic, String subName,
+                                                                                     String position);
 }
