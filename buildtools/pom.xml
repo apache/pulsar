@@ -50,6 +50,7 @@
     <guava.version>31.0.1-jre</guava.version>
     <ant.version>1.10.12</ant.version>
     <snakeyaml.version>1.30</snakeyaml.version>
+    <mockito.version>3.12.4</mockito.version>
     <!-- required for running tests on JDK11+ -->
     <test.additional.args>
       --add-opens java.base/jdk.internal.loader=ALL-UNNAMED
@@ -140,6 +141,16 @@
       <artifactId>netty-common</artifactId>
       <version>4.1.77.Final</version>
       <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-core</artifactId>
+      <version>${mockito.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-inline</artifactId>
+      <version>${mockito.version}</version>
     </dependency>
   </dependencies>
 
