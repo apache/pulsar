@@ -176,7 +176,7 @@ public class RestBase extends PersistentTopicsBase {
                 ? pulsar().getBrokerServiceUrlTls() : this.pulsar().getBrokerServiceUrl());
         String token = null;
         AuthenticationDataSource authenticationDataSource = clientAuthData();
-        if (authenticationDataSource.hasDataFromHttp()) {
+        if (authenticationDataSource != null && authenticationDataSource.hasDataFromHttp()) {
             String httpHeaderValue = authenticationDataSource.getHttpHeader(HTTP_HEADER_NAME);
             if (httpHeaderValue != null && httpHeaderValue.startsWith(HTTP_HEADER_VALUE_PREFIX)) {
                 token = httpHeaderValue.substring(HTTP_HEADER_VALUE_PREFIX.length());
