@@ -68,6 +68,11 @@ public class ManagedCursorContainerTest {
         }
 
         @Override
+        public Map<String, String> getCursorProperties() {
+            return Collections.emptyMap();
+        }
+
+        @Override
         public boolean putProperty(String key, Long value) {
             return false;
         }
