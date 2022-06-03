@@ -201,6 +201,24 @@ public abstract class AdminResource extends PulsarWebResource {
         }
     }
 
+    protected NamespaceName getNamespaceName(String property, String namespace) {
+        try {
+            return  NamespaceName.get(property, namespace);
+        } catch (IllegalArgumentException e) {
+            log.warn("[{}] Failed to create namespace with invalid name {}", clientAppId(), namespace, e);
+            throw new RestException(Status.PRECONDITION_FAILED, "Namespace name is not valid");
+        }
+    }
+
+    protected NamespaceName getNamespaceName(String property, String cluster, String namespace) {
+        try {
+            return NamespaceName.get(property, cluster, namespace);
+        } catch (IllegalArgumentException e) {
+            log.warn("[{}] Failed to create namespace with invalid name {}", clientAppId(), namespace, e);
+            throw new RestException(Status.PRECONDITION_FAILED, "Namespace name is not valid");
+        }
+    }
+
     protected void validateGlobalNamespaceOwnership() {
         try {
             validateGlobalNamespaceOwnership(this.namespaceName);
