@@ -480,4 +480,23 @@ public class AvroSchemaTest {
                 schema2.getAvroSchema().getFields().get(0).schema().getTypes().get(1).getLogicalType().getName(),
                 new TimeConversions.TimestampMillisConversion().getLogicalTypeName());
     }
+
+    @Test
+    public void testTimestampWithJsonDef(){
+        String jsonDef = ReflectData.get().getSchema(TimestampStruct.class).toString();
+
+        AvroSchema<TimestampStruct> schema = AvroSchema.of(SchemaDefinition.<TimestampStruct>builder()
+                .withJsonDef(jsonDef).build());
+
+        Assert.assertEquals(
+                schema.getAvroSchema().getFields().get(0).schema().getTypes().get(1).getLogicalType().getName(),
+                new TimeConversions.TimestampMicrosConversion().getLogicalTypeName());
+
+        AvroSchema<TimestampStruct> schema2 = AvroSchema.of(SchemaDefinition.<TimestampStruct>builder()
+                .withJsonDef(jsonDef).withJSR310ConversionEnabled(true).build());
+        Assert.assertEquals(
+                schema2.getAvroSchema().getFields().get(0).schema().getTypes().get(1).getLogicalType().getName(),
+                new TimeConversions.TimestampMillisConversion().getLogicalTypeName());
+
+    }
 }
