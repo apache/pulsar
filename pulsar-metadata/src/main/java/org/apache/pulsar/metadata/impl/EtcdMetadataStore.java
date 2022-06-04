@@ -69,9 +69,10 @@ import org.apache.pulsar.metadata.impl.batching.OpDelete;
 import org.apache.pulsar.metadata.impl.batching.OpGet;
 import org.apache.pulsar.metadata.impl.batching.OpGetChildren;
 import org.apache.pulsar.metadata.impl.batching.OpPut;
+import org.apache.pulsar.metadata.impl.batching.transaction.TransactionMetadataStore;
 
 @Slf4j
-public class EtcdMetadataStore extends AbstractBatchedMetadataStore {
+public class EtcdMetadataStore extends AbstractBatchedMetadataStore implements TransactionMetadataStore {
 
     static final String ETCD_SCHEME_IDENTIFIER = "etcd:";
 
@@ -160,6 +161,15 @@ public class EtcdMetadataStore extends AbstractBatchedMetadataStore {
 
     @Override
     protected void batchOperation(List<MetadataOp> ops) {
+        doBatchOperation(ops, false);
+    }
+
+    @Override
+    public void txOperation(List<MetadataOp> ops) {
+        doBatchOperation(ops, true);
+    }
+
+    private void doBatchOperation(List<MetadataOp> ops, boolean isTx) {
         try {
             Txn txn = kv.txn();
 
@@ -241,7 +251,7 @@ public class EtcdMetadataStore extends AbstractBatchedMetadataStore {
             });
 
             txn.commit().thenAccept(txnResponse -> {
-                handleBatchOperationResult(txnResponse, ops);
+                handleBatchOperationResult(txnResponse, ops, isTx);
             }).exceptionally(ex -> {
                 Throwable cause = ex.getCause();
                 if (cause instanceof ExecutionException || cause instanceof CompletionException) {
@@ -257,12 +267,20 @@ public class EtcdMetadataStore extends AbstractBatchedMetadataStore {
                                             == Status.Code.RESOURCE_EXHAUSTED /* We might have exceeded the max-frame
                                              size for the response */
                     ) {
-                        ops.forEach(o -> batchOperation(Collections.singletonList(o)));
+                        if (isTx) {
+                            executor.execute(() -> {
+                                ops.forEach(o -> o.getFuture().completeExceptionally(
+                                        new MetadataStoreException.TransactionFailedException(ex)));
+                            });
+                        } else {
+                            ops.forEach(o -> batchOperation(Collections.singletonList(o)));
+                        }
                     }
                 } else {
                     log.warn("Failed to commit: {}", cause.getMessage());
                     executor.execute(() -> {
-                        ops.forEach(o -> o.getFuture().completeExceptionally(ex));
+                        ops.forEach(o -> o.getFuture().completeExceptionally(
+                                isTx ? new MetadataStoreException.TransactionFailedException(ex) : ex));
                     });
                 }
                 return null;
@@ -272,10 +290,14 @@ public class EtcdMetadataStore extends AbstractBatchedMetadataStore {
         }
     }
 
-    private void handleBatchOperationResult(TxnResponse txnResponse,
-                                            List<MetadataOp> ops) {
+    private void handleBatchOperationResult(TxnResponse txnResponse, List<MetadataOp> ops, boolean isTx) {
         executor.execute(() -> {
             if (!txnResponse.isSucceeded()) {
+                if (isTx) {
+                    ops.forEach(o -> o.getFuture().completeExceptionally(new MetadataStoreException.TransactionFailedException()));
+                    return;
+                }
+
                 if (ops.size() > 1) {
                     // Retry individually
                     ops.forEach(o -> batchOperation(Collections.singletonList(o)));

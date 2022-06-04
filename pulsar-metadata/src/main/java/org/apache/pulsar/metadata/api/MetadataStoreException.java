@@ -152,6 +152,20 @@ public class MetadataStoreException extends IOException {
         }
     }
 
+    public static class TransactionFailedException extends MetadataStoreException {
+        public TransactionFailedException() {
+            super("Transaction operation failed");
+        }
+
+        public TransactionFailedException(String msg) {
+            super(msg);
+        }
+
+        public TransactionFailedException(Throwable t) {
+            super(t);
+        }
+    }
+
     public static MetadataStoreException unwrap(Throwable t) {
         if (t instanceof MetadataStoreException) {
             return (MetadataStoreException) t;

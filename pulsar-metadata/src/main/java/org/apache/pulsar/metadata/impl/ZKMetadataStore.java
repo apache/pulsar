@@ -52,6 +52,7 @@ import org.apache.pulsar.metadata.impl.batching.OpDelete;
 import org.apache.pulsar.metadata.impl.batching.OpGet;
 import org.apache.pulsar.metadata.impl.batching.OpGetChildren;
 import org.apache.pulsar.metadata.impl.batching.OpPut;
+import org.apache.pulsar.metadata.impl.batching.transaction.TransactionMetadataStore;
 import org.apache.zookeeper.AddWatchMode;
 import org.apache.zookeeper.AsyncCallback;
 import org.apache.zookeeper.CreateMode;
@@ -66,7 +67,7 @@ import org.apache.zookeeper.ZooKeeper;
 
 @Slf4j
 public class ZKMetadataStore extends AbstractBatchedMetadataStore
-        implements MetadataStoreExtended, MetadataStoreLifecycle {
+        implements MetadataStoreExtended, TransactionMetadataStore, MetadataStoreLifecycle {
 
     public static final String ZK_SCHEME_IDENTIFIER = "zk:";
 
@@ -150,6 +151,15 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
 
     @Override
     protected void batchOperation(List<MetadataOp> ops) {
+        doBatchOperation(ops, false);
+    }
+
+    @Override
+    public void txOperation(List<MetadataOp> ops) {
+        doBatchOperation(ops, true);
+    }
+
+    private void doBatchOperation(List<MetadataOp> ops, boolean isTx) {
         try {
             zkc.multi(ops.stream().map(this::convertOp).collect(Collectors.toList()), (rc, path, ctx, results) -> {
                 if (results == null) {
@@ -162,7 +172,8 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
                         }, 100, TimeUnit.MILLISECONDS);
                     } else {
                         MetadataStoreException e = getException(code, path);
-                        ops.forEach(o -> o.getFuture().completeExceptionally(e));
+                        ops.forEach(o -> o.getFuture().completeExceptionally(
+                                isTx ? new MetadataStoreException.TransactionFailedException(e) : e));
                     }
                     return;
                 }
@@ -171,6 +182,16 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
                 for (int i = 0; i < ops.size(); i++) {
                     OpResult opr = results.get(i);
                     MetadataOp op = ops.get(i);
+                    if (isTx && opr instanceof OpResult.ErrorResult) {
+                        if (((OpResult.ErrorResult) opr).getErr() != 0) {
+                            op.getFuture().completeExceptionally(new MetadataStoreException.TransactionFailedException(
+                                    KeeperException.create(Code.get(((OpResult.ErrorResult) opr).getErr()))));
+                        } else {
+                            op.getFuture()
+                                    .completeExceptionally(new MetadataStoreException.TransactionFailedException());
+                        }
+                        continue;
+                    }
 
                     switch (op.getType()) {
                         case PUT:
@@ -187,13 +208,17 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
                             break;
 
                         default:
-                            op.getFuture().completeExceptionally(new MetadataStoreException(
-                                    "Operation type not supported in multi: " + op.getType()));
+                            op.getFuture().completeExceptionally(isTx ?
+                                    new MetadataStoreException.TransactionFailedException(
+                                            "Operation type not supported in multi: " + op.getType()) :
+                                    new MetadataStoreException(
+                                            "Operation type not supported in multi: " + op.getType()));
                     }
                 }
             }, null);
         } catch (Throwable t) {
-            ops.forEach(o -> o.getFuture().completeExceptionally(new MetadataStoreException(t)));
+            ops.forEach(o -> o.getFuture().completeExceptionally(
+                    isTx ? new MetadataStoreException.TransactionFailedException(t) : new MetadataStoreException(t)));
         }
     }
 
@@ -568,4 +593,5 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
             throw KeeperException.create(Code.get(rc.get()));
         }
     }
+
 }
