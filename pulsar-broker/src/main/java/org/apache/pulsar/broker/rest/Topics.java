@@ -93,7 +93,7 @@ public class Topics extends RestBase {
                                                   @QueryParam("authoritative") @DefaultValue("false")
                                                   boolean authoritative,
                                                   ProducerMessages producerMessages) {
-        validatePartitionedTopicName(tenant, namespace, encodedTopic);
+        validatePersistentTopicName(tenant, namespace, encodedTopic);
         publishMessages(producerMessages, partition, authoritative)
                 .thenAccept(asyncResponse::resume)
                 .exceptionally(ex -> {

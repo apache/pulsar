@@ -241,17 +241,22 @@ public class RestBase extends PersistentTopicsBase {
     }
 
     private CompletableFuture<TopicName> getPublishTopicName(boolean authoritative) {
+        if (topicName.isPartitioned()) {
+            return CompletableFuture.completedFuture(topicName);
+        }
         return internalGetPartitionedMetadataAsync(authoritative, true)
                 .thenApply(metadata -> {
-                    if (!topicName.isPartitioned() && metadata.partitions >= 1) {
+                    if (metadata.partitions >= 1) {
                         topicName = topicName.getPartition(0);
-                        return topicName;
                     }
                     return topicName;
                 });
     }
 
     private CompletableFuture<TopicName> getPublishTopicName(int partition, boolean authoritative) {
+        if (topicName.isPartitioned()) {
+            return CompletableFuture.completedFuture(topicName);
+        }
         return internalGetPartitionedMetadataAsync(authoritative, true)
                 .thenApply(metadata -> {
                     if (metadata.partitions < partition) {
@@ -323,8 +328,13 @@ public class RestBase extends PersistentTopicsBase {
                     boolean isTopicOwned = pair.getRight();
                     if (!isTopicOwned) {
                         boolean newAuthoritative = isLeaderBroker(pulsar());
+                        int index = uri.getRequestUri().toString().indexOf("/partitions");
+                        String partition = "";
+                        if (index != -1) {
+                            partition = uri.getRequestUri().toString().substring(index);
+                        }
                         URI redirect = UriBuilder.fromUri(uri.getRequestUri())
-                                .replacePath("/topics/" + topicName.getRestPath())
+                                .replacePath("/topics/" + topicName.getRestPath() + partition)
                                 .host(webUrl.getHost())
                                 .port(webUrl.getPort())
                                 .replaceQueryParam("authoritative", newAuthoritative)

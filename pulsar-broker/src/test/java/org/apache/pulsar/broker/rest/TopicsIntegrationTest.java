@@ -138,6 +138,13 @@ public class TopicsIntegrationTest extends MultiBrokerBaseTest {
         String topicName = "non-persistent://" + testTenant + "/" + testNamespace + "/testProduceToNonPersistentTopicSpecificPartition";
         admin.topics().createPartitionedTopic(topicName, 3);
         Schema<String> schema = StringSchema.utf8();
+        @Cleanup
+        Consumer consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topicName)
+                .subscriptionName("my-sub")
+                .subscriptionType(SubscriptionType.Shared)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscribe();
         ProducerMessages producerMessages = new ProducerMessages();
         producerMessages.setKeySchema(ObjectMapperFactory.getThreadLocal().
                 writeValueAsString(schema.getSchemaInfo()));
@@ -150,15 +157,7 @@ public class TopicsIntegrationTest extends MultiBrokerBaseTest {
         producerMessages.setMessages(ObjectMapperFactory.getThreadLocal().readValue(message,
                 new TypeReference<List<ProducerMessage>>() {}));
         restClient.producer().send(topicName, 2, producerMessages);
-        Assert.assertEquals(admin.topics().getStats(TopicName.get(topicName).getPartition(1).toString()).getMsgInCounter(), 3);
 
-        @Cleanup
-        Consumer consumer = pulsarClient.newConsumer(Schema.STRING)
-                .topic(topicName)
-                .subscriptionName("my-sub")
-                .subscriptionType(SubscriptionType.Shared)
-                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
-                .subscribe();
         Assert.assertNotNull(consumer.receive(3, TimeUnit.SECONDS).getData());
         Assert.assertNotNull(consumer.receive(3, TimeUnit.SECONDS).getData());
         Assert.assertNotNull(consumer.receive(3, TimeUnit.SECONDS).getData());
