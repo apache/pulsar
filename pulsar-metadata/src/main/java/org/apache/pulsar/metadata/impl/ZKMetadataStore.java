@@ -208,11 +208,11 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
                             break;
 
                         default:
-                            op.getFuture().completeExceptionally(isTx ?
-                                    new MetadataStoreException.TransactionFailedException(
+                            op.getFuture().
+                                    completeExceptionally(isTx ? new MetadataStoreException.TransactionFailedException(
                                             "Operation type not supported in multi: " + op.getType()) :
-                                    new MetadataStoreException(
-                                            "Operation type not supported in multi: " + op.getType()));
+                                            new MetadataStoreException(
+                                                    "Operation type not supported in multi: " + op.getType()));
                     }
                 }
             }, null);
