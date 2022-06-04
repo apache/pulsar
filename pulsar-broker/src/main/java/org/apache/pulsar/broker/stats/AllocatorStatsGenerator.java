@@ -25,7 +25,7 @@ import io.netty.buffer.PoolChunkMetric;
 import io.netty.buffer.PoolSubpageMetric;
 import io.netty.buffer.PooledByteBufAllocator;
 import java.util.stream.Collectors;
-import org.apache.bookkeeper.mledger.impl.EntryCacheImpl;
+import org.apache.bookkeeper.mledger.impl.cache.EntryCacheImpl;
 import org.apache.pulsar.common.stats.AllocatorStats;
 import org.apache.pulsar.common.stats.AllocatorStats.PoolArenaStats;
 import org.apache.pulsar.common.stats.AllocatorStats.PoolChunkListStats;
