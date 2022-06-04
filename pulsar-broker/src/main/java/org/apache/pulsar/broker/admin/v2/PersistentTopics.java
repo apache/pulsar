@@ -2158,6 +2158,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
             @ApiParam(value = "Retention policies for the specified namespace") RetentionPolicies retention) {
         validateTopicName(tenant, namespace, encodedTopic);
+        validateRetentionPolicies(retention);
         preValidation(authoritative)
             .thenCompose(__ -> internalSetRetention(retention, isGlobal))
             .thenRun(() -> {
@@ -4000,4 +4001,10 @@ public class PersistentTopics extends PersistentTopicsBase {
     }
 
     private static final Logger log = LoggerFactory.getLogger(PersistentTopics.class);
+
+    protected void validateRetentionPolicies(RetentionPolicies retention) {
+        checkNotNull(retention, "retention policies should not be null");
+        checkArgument(!retention.allGatesNotSet(), "Not set any retention gate."
+                + "If you want remove retention policy, suggest the delete api");
+    }
 }

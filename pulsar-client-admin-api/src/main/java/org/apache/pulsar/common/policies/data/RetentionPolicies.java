@@ -28,24 +28,33 @@ package org.apache.pulsar.common.policies.data;
  * Infinite retention can be achieved by setting both time and size limits to `-1`.
  */
 public class RetentionPolicies {
-    private int retentionTimeInMinutes;
-    private long retentionSizeInMB;
+
+    public static final int DEFAULT_RETENTION_TIME_IN_MINUTES = 0;
+
+    public static final long DEFAULT_RETENTION_SIZE_IN_MB = 0;
+
+    private Integer retentionTimeInMinutes;
+    private Long retentionSizeInMB;
 
     public RetentionPolicies() {
-        this(0, 0);
+        this(null, null);
     }
 
-    public RetentionPolicies(int retentionTimeInMinutes, int retentionSizeInMB) {
-        this.retentionSizeInMB = retentionSizeInMB;
+    public RetentionPolicies(Integer retentionTimeInMinutes, Integer retentionSizeInMB) {
+        this.retentionSizeInMB = retentionSizeInMB == null ? null : retentionSizeInMB.longValue();
         this.retentionTimeInMinutes = retentionTimeInMinutes;
     }
 
+    public boolean allGatesNotSet(){
+        return retentionTimeInMinutes == null && retentionSizeInMB == null;
+    }
+
     public int getRetentionTimeInMinutes() {
-        return retentionTimeInMinutes;
+        return retentionTimeInMinutes == null ? DEFAULT_RETENTION_TIME_IN_MINUTES : retentionTimeInMinutes;
     }
 
     public long getRetentionSizeInMB() {
-        return retentionSizeInMB;
+        return retentionSizeInMB == null ? DEFAULT_RETENTION_SIZE_IN_MB : retentionSizeInMB;
     }
 
     @Override
@@ -58,23 +67,23 @@ public class RetentionPolicies {
         }
         RetentionPolicies that = (RetentionPolicies) o;
 
-        if (retentionTimeInMinutes != that.retentionTimeInMinutes) {
+        if (getRetentionTimeInMinutes() != that.getRetentionTimeInMinutes()) {
             return false;
         }
 
-        return retentionSizeInMB == that.retentionSizeInMB;
+        return getRetentionSizeInMB() == that.getRetentionSizeInMB();
     }
 
     @Override
     public int hashCode() {
-        long result = retentionTimeInMinutes;
-        result = 31 * result + retentionSizeInMB;
+        long result = getRetentionTimeInMinutes();
+        result = 31 * result + getRetentionSizeInMB();
         return Long.hashCode(result);
     }
 
     @Override
     public String toString() {
-        return "RetentionPolicies{" + "retentionTimeInMinutes=" + retentionTimeInMinutes + ", retentionSizeInMB="
-                + retentionSizeInMB + '}';
+        return "RetentionPolicies{" + "retentionTimeInMinutes=" + getRetentionTimeInMinutes() + ", retentionSizeInMB="
+                + getRetentionSizeInMB() + '}';
     }
 }
