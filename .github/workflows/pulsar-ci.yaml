@@ -159,6 +159,8 @@ jobs:
             timeout: 75
           - name: Proxy
             group: PROXY
+          - name: Pulsar IO
+            group: PULSAR_IO
 
     steps:
       - name: checkout

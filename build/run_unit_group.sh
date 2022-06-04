@@ -129,9 +129,9 @@ function test_group_proxy() {
 }
 
 function test_group_other() {
-  mvn_test --install -PbrokerSkipTest \
-           -Dexclude='org/apache/pulsar/proxy/**/*.java,
-                  **/ManagedLedgerTest.java,
+  mvn_test --install -PskipTestsForUnitGroupOther -DdisableIoMainProfile=true \
+           -Dexclude='**/ManagedLedgerTest.java,
+                   **/OffloadersCacheTest.java
                   **/TestPulsarKeyValueSchemaHandler.java,
                   **/PrimitiveSchemaTest.java,
                   BlobStoreManagedLedgerOffloaderTest.java'
@@ -147,7 +147,7 @@ function test_group_other() {
 
   echo "::endgroup::"
   local modules_with_quarantined_tests=$(git grep -l '@Test.*"quarantine"' | grep '/src/test/java/' | \
-    awk -F '/src/test/java/' '{ print $1 }' | grep -v -E 'pulsar-broker|pulsar-proxy' | sort | uniq | \
+    awk -F '/src/test/java/' '{ print $1 }' | grep -v -E 'pulsar-broker|pulsar-proxy|pulsar-io' | sort | uniq | \
     perl -0777 -p -e 's/\n(\S)/,$1/g')
   if [ -n "${modules_with_quarantined_tests}" ]; then
     echo "::group::Running quarantined tests outside of pulsar-broker & pulsar-proxy (if any)"
@@ -156,6 +156,13 @@ function test_group_other() {
         echo "::warning::There were test failures in the 'quarantine' test group."
     echo "::endgroup::"
   fi
+}
+
+function test_group_pulsar_io() {
+    $MVN_TEST_OPTIONS -pl kafka-connect-avro-converter-shaded clean install
+    echo "::group::Running pulsar-io tests"
+    mvn_test --install -Ppulsar-io-tests,-main
+    echo "::endgroup::"
 }
 
 function list_test_groups() {
