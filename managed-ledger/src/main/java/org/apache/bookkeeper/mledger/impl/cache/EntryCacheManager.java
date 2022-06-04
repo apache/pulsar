@@ -30,4 +30,10 @@ public interface EntryCacheManager {
     long getMaxSize();
 
     void clear();
+
+    void updateCacheSizeAndThreshold(long maxSize);
+
+    void updateCacheEvictionWatermark(double cacheEvictionWatermark);
+
+    double getCacheEvictionWatermark();
 }

@@ -83,11 +83,13 @@ public class RangeEntryCacheManagerImpl implements EntryCacheManager {
         }
     }
 
+    @Override
     public void updateCacheSizeAndThreshold(long maxSize) {
         this.maxSize = maxSize;
         this.evictionTriggerThreshold = (long) (maxSize * evictionTriggerThresholdPercent);
     }
 
+    @Override
     public void updateCacheEvictionWatermark(double cacheEvictionWatermark) {
         this.cacheEvictionWatermark = cacheEvictionWatermark;
     }
@@ -156,6 +158,7 @@ public class RangeEntryCacheManagerImpl implements EntryCacheManager {
         return maxSize;
     }
 
+    @Override
     public double getCacheEvictionWatermark() {
         return cacheEvictionWatermark;
     }
