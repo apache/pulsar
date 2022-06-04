@@ -412,6 +412,20 @@ TEST(AuthPluginTest, testOauth2RequestBody) {
     ASSERT_EQ(flow2.generateParamMap(), expectedResult2);
 }
 
+TEST(AuthPluginTest, getWellKnownOpenIdConfigurationUrl) {
+    std::string issuerUrl = "https://dev-kt-aa9ne.us.auth0.com";
+    std::string configurationUrl = "https://dev-kt-aa9ne.us.auth0.com/.well-known/openid-configuration";
+
+    ParamMap params;
+    params["issuer_url"] = issuerUrl;
+    ClientCredentialFlow flow1(params);
+    ASSERT_EQ(flow1.getWellKnownOpenIdConfigurationUrl(), configurationUrl);
+
+    params["issuer_url"] = issuerUrl.append("/");
+    ClientCredentialFlow flow2(params);
+    ASSERT_EQ(flow2.getWellKnownOpenIdConfigurationUrl(), configurationUrl);
+}
+
 TEST(AuthPluginTest, testOauth2Failure) {
     ParamMap params;
     auto addKeyValue = [&](const std::string& key, const std::string& value) {

@@ -58,6 +58,7 @@ class ClientCredentialFlow : public Oauth2Flow {
     void close();
 
     ParamMap generateParamMap() const;
+    const std::string getWellKnownOpenIdConfigurationUrl();
 
    private:
     std::string tokenEndPoint_;
