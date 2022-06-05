@@ -8,24 +8,23 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import okhttp3.*;
 import org.apache.bookkeeper.common.util.JsonUtil;
-import org.apache.pulsar.broker.rest.entity.CreateConsumerRequest;
-import org.apache.pulsar.broker.rest.entity.CreateConsumerResponse;
-import org.apache.pulsar.broker.rest.entity.GetMessagesResponse;
+import org.apache.pulsar.broker.rest.entity.*;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
+import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
+import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
+import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.util.Base64;
-import java.util.List;
-import java.util.Objects;
-import java.util.UUID;
+import java.util.*;
+import java.util.stream.Collectors;
 
 public class RestConsumerTest extends ProducerConsumerBase {
     private static final OkHttpClient client = new OkHttpClient();
@@ -142,6 +141,31 @@ public class RestConsumerTest extends ProducerConsumerBase {
         return mapper.readValue(res.body().string(), new TypeReference<>() {});
     }
 
+    private List<RestAckPosition> ackMessages(String domain, String tenant, String ns,
+                                                 String topic, String subscriptionName,
+                                                 String consumerId, List<RestAckPosition> restAckPositions,
+                                                 RestAckType ackType)
+            throws IOException, JsonUtil.ParseJsonException {
+        String serviceUrl = admin.getServiceUrl();
+        String url = serviceUrl +
+                String.format("/topics/%s/%s/%s/%s/subscription/%s/consumer/%s/cursor", domain,
+                        tenant, ns, topic, subscriptionName, consumerId);
+        AckMessageRequest ackMessageRequest = new AckMessageRequest();
+        ackMessageRequest.setAckType(ackType);
+        ackMessageRequest.setMessagePositions(restAckPositions);
+        RequestBody requestBody =
+                RequestBody.create(JsonUtil.toJson(ackMessageRequest), MediaType.get("application/json"));
+        final Request request = new Request.Builder()
+                .url(url)
+                .post(requestBody)
+                .build();
+        Call call = client.newCall(request);
+        @Cleanup
+        Response res = call.execute();
+        Assert.assertEquals(200, res.code());
+        return mapper.readValue(res.body().string(), new TypeReference<>() {});
+    }
+
     @Test
     public void testFetchMessagesFromNonPartitionedTopicStringSchema() throws JsonUtil.ParseJsonException, IOException {
         String topicRandom = "producer-consumer-test-" + UUID.randomUUID();
@@ -238,6 +262,45 @@ public class RestConsumerTest extends ProducerConsumerBase {
             Assert.assertEquals(mapper.readValue(restMessageEntities.get(0).getValue(), Student.class), content);
         }
     }
+
+    @Test
+    public void testAckForNonPartitionedTopic() throws JsonUtil.ParseJsonException, IOException {
+        String topicRandom = "producer-consumer-test-" + UUID.randomUUID();
+        String topicName = "persistent://public/default/" + topicRandom;
+        String consumerName = "test-consumer";
+        String subscriptionName = "test-sub";
+        CreateConsumerResponse consumer = createConsumer("persistent", "public", "default",
+                topicRandom, consumerName, subscriptionName);
+        String id = consumer.getId();
+        Producer<Student> producer = pulsarClient.newProducer(Schema.AVRO(Student.class))
+                .topic(topicName)
+                .enableBatching(false)
+                .create();
+        for (int i = 0; i < 100; i++) {
+            Student content = new Student("abc", 123);
+            producer.send(content);
+            List<GetMessagesResponse> restMessageEntities =
+                    receiveMessage("persistent", "public", "default",
+                            topicRandom, subscriptionName, id, 1, 1000, 99999);
+            Assert.assertEquals(restMessageEntities.size(), 1);
+            Assert.assertEquals(mapper.readValue(restMessageEntities.get(0).getValue(), Student.class), content);
+            List<RestAckPosition> msgIds = restMessageEntities
+                    .stream()
+                    .map(v -> new RestAckPosition(v.getLedgerId(), v.getEntryId(), v.getPartition()))
+                    .collect(Collectors.toList());
+            List<RestAckPosition> ackMessageResponses  =
+                    ackMessages("persistent", "public", "default",
+                            topicRandom, subscriptionName, id, msgIds, RestAckType.SINGLE);
+            Assert.assertEquals(ackMessageResponses.size(), msgIds.size());
+        }
+        Awaitility.await().untilAsserted(() -> {
+            PersistentTopicInternalStats stats = admin.topics().getInternalStats(topicName);
+            ManagedLedgerInternalStats.CursorStats cursorStats = stats.cursors.get(subscriptionName);
+            Assert.assertNotNull(cursorStats);
+            Assert.assertEquals(cursorStats.markDeletePosition, stats.lastConfirmedEntry);
+        });
+    }
+
 
 
     @Data

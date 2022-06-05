@@ -29,7 +29,6 @@ import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-
 import org.apache.pulsar.broker.rest.entity.AckMessageRequest;
 import org.apache.pulsar.broker.rest.entity.CreateConsumerRequest;
 import org.apache.pulsar.broker.rest.entity.CreateConsumerResponse;
@@ -37,8 +36,6 @@ import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.websocket.data.ProducerMessages;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.concurrent.CompletableFuture;
 
 @Path("/")
 @Consumes(MediaType.APPLICATION_JSON)

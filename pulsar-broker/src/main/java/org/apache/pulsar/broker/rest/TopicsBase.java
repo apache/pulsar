@@ -870,7 +870,7 @@ public class TopicsBase extends PersistentTopicsBase {
         }
     }
 
-    protected CompletableFuture<AckMessageResponse> internalAcknowledge(String consumerId, String subscription,
+    protected CompletableFuture<List<RestAckPosition>> internalAcknowledge(String consumerId, String subscription,
                                                                         AckMessageRequest ackMessageRequest) {
         Consumer<org.apache.pulsar.client.api.schema.GenericRecord> consumer = consumers.get(consumerId);
         if (consumer == null) {
@@ -898,7 +898,7 @@ public class TopicsBase extends PersistentTopicsBase {
                                   .map(CompletableFuture::join)
                                   .filter(Objects::nonNull)
                                   .collect(Collectors.toList());
-                          return new AckMessageResponse(ackPositions);
+                          return ackPositions;
                       });
             }
             case CUMULATIVE: {
@@ -910,13 +910,13 @@ public class TopicsBase extends PersistentTopicsBase {
                                 .reversed())
                         .findFirst();
                 if (!maximumAckPositionOpt.isPresent()) {
-                    return CompletableFuture.completedFuture(new AckMessageResponse(Collections.emptyList()));
+                    return CompletableFuture.completedFuture(Collections.emptyList());
                 }
                 RestAckPosition maximumAckPosition = maximumAckPositionOpt.get();
                 return consumer.acknowledgeCumulativeAsync(new MessageIdImpl(
                         maximumAckPosition.getLedgerId(), maximumAckPosition.getEntryId(),
                         maximumAckPosition.getPartition()))
-                        .thenApply(__ -> new AckMessageResponse(ackMessageRequest.getMessagePositions()));
+                        .thenApply(__ -> ackMessageRequest.getMessagePositions());
             }
             default:
                 return CompletableFuture.failedFuture(
