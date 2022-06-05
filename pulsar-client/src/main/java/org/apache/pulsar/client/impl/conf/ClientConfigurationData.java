@@ -30,7 +30,6 @@ import java.util.Optional;
 import java.util.Set;
 import lombok.AllArgsConstructor;
 import lombok.Data;
-import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.ProxyProtocol;
@@ -61,7 +60,6 @@ public class ClientConfigurationData implements Serializable, Cloneable {
             value = "The implementation class of ServiceUrlProvider used to generate ServiceUrl."
     )
     @JsonIgnore
-    @Getter(onMethod_ = @JsonIgnore)
     private transient ServiceUrlProvider serviceUrlProvider;
 
     @ApiModelProperty(
@@ -257,8 +255,6 @@ public class ClientConfigurationData implements Serializable, Cloneable {
             value = "Password of TLS TrustStore."
     )
     @Secret
-    @JsonIgnore
-    @Getter(onMethod_ = @JsonIgnore)
     private String tlsTrustStorePassword = null;
 
     @ApiModelProperty(
@@ -318,10 +314,8 @@ public class ClientConfigurationData implements Serializable, Cloneable {
             value = "Password of SOCKS5 proxy."
     )
     @Secret
-    @JsonIgnore
     private String socks5ProxyPassword;
 
-    @JsonIgnore
     public Authentication getAuthentication() {
         if (authentication == null) {
             this.authentication = AuthenticationDisabled.INSTANCE;
@@ -377,7 +371,6 @@ public class ClientConfigurationData implements Serializable, Cloneable {
         return Objects.nonNull(socks5ProxyUsername) ? socks5ProxyUsername : System.getProperty("socks5Proxy.username");
     }
 
-    @JsonIgnore
     public String getSocks5ProxyPassword() {
         return Objects.nonNull(socks5ProxyPassword) ? socks5ProxyPassword : System.getProperty("socks5Proxy.password");
     }
