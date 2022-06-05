@@ -53,9 +53,7 @@ import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.admin.impl.PersistentTopicsBase;
 import org.apache.pulsar.broker.lookup.LookupResult;
 import org.apache.pulsar.broker.namespace.LookupOptions;
-import org.apache.pulsar.broker.rest.entity.CreateConsumerParams;
-import org.apache.pulsar.broker.rest.entity.RestConsumerInfo;
-import org.apache.pulsar.broker.rest.entity.RestMessageEntity;
+import org.apache.pulsar.broker.rest.entity.*;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.schema.SchemaRegistry;
 import org.apache.pulsar.broker.service.schema.exceptions.SchemaException;
@@ -766,8 +764,8 @@ public class TopicsBase extends PersistentTopicsBase {
         }
     }
 
-    protected CompletableFuture<RestConsumerInfo> internalCreateConsumer(
-            CreateConsumerParams createConsumerParams, String subscription) {
+    protected CompletableFuture<CreateConsumerResponse> internalCreateConsumer(
+            CreateConsumerRequest createConsumerRequest, String subscription) {
             PulsarClient client;
             try {
                 client = pulsar().getClient();
@@ -782,21 +780,21 @@ public class TopicsBase extends PersistentTopicsBase {
             }
             return client.newConsumer(Schema.AUTO_CONSUME())
                     .topic(subscribeTopicName)
-                    .consumerName(createConsumerParams.getConsumerName())
+                    .consumerName(createConsumerRequest.getConsumerName())
                     .subscriptionName(subscription)
                     .receiverQueueSize(1)
                     .subscriptionType(SubscriptionType.Shared)
                     .subscribeAsync()
                     .thenApply(consumer -> {
                         String consumerKey = String.format("%s_%s_%s", subscription,
-                                createConsumerParams.getConsumerName(), UUID.randomUUID());
+                                createConsumerRequest.getConsumerName(), UUID.randomUUID());
                         consumers.put(consumerKey, consumer);
-                        return new RestConsumerInfo(consumerKey, isRequestHttps()?
+                        return new CreateConsumerResponse(consumerKey, isRequestHttps()?
                                 pulsar().getWebServiceAddressTls() : pulsar().getWebServiceAddress());
                     });
     }
 
-    protected CompletableFuture<List<RestMessageEntity>> internalReceiveMessages(
+    protected CompletableFuture<List<GetMessagesResponse>> internalReceiveMessages(
             String consumerId, int maxMessages, int timeout, Long maxBytes) {
         Consumer<org.apache.pulsar.client.api.schema.GenericRecord> consumer = consumers.get(consumerId);
         if (consumer == null) {
@@ -805,7 +803,7 @@ public class TopicsBase extends PersistentTopicsBase {
         }
         long startTime = System.currentTimeMillis();
         long currentByte = 0;
-        List<RestMessageEntity> messages = new ArrayList<>();
+        List<GetMessagesResponse> messages = new ArrayList<>();
         try {
             do {
                 if ((System.currentTimeMillis() - startTime >= timeout) ||
@@ -818,7 +816,7 @@ public class TopicsBase extends PersistentTopicsBase {
                     MessageId messageId = msg.getMessageId();
                     byte[] payload = msg.getData();
                     currentByte += payload.length;
-                    RestMessageEntity.RestMessageEntityBuilder restMessageEntityBuilder = RestMessageEntity.builder()
+                    GetMessagesResponse.GetMessagesResponseBuilder restMessageEntityBuilder = GetMessagesResponse.builder()
                             .eventTime(msg.getEventTime())
                             .key(msg.getKey())
                             .properties(msg.getProperties())
@@ -839,7 +837,7 @@ public class TopicsBase extends PersistentTopicsBase {
                                 .entryId(innerMessageId.getEntryId())
                                 .partition(innerMessageId.getPartitionIndex());
                     }
-                    RestMessageEntity entity = restMessageEntityBuilder.build();
+                    GetMessagesResponse entity = restMessageEntityBuilder.build();
                     messages.add(entity);
                 }
             } while (messages.size() < maxMessages);
@@ -871,5 +869,61 @@ public class TopicsBase extends PersistentTopicsBase {
                     });
         }
     }
+
+    protected CompletableFuture<AckMessageResponse> internalAcknowledge(String consumerId, String subscription,
+                                                                        AckMessageRequest ackMessageRequest) {
+        Consumer<org.apache.pulsar.client.api.schema.GenericRecord> consumer = consumers.get(consumerId);
+        if (consumer == null) {
+            return FutureUtil.failedFuture(new RestException(Status.BAD_REQUEST,
+                    "ConsumerId not found."));
+        }
+        switch (ackMessageRequest.getAckType()) {
+            case SINGLE : {
+              List<CompletableFuture<RestAckPosition>> futures = ackMessageRequest.getMessagePositions().stream()
+                        .map(messagePosition -> {
+                            MessageIdImpl messageId = new MessageIdImpl(
+                                    messagePosition.getLedgerId(), messagePosition.getEntryId(),
+                                    messagePosition.getPartition());
+                            return consumer.acknowledgeAsync(messageId)
+                                    .thenApply(__ -> messagePosition)
+                                    .exceptionally(ex -> {
+                                        log.warn("[{}] Subscription {} ack message {} on {} fail.",
+                                                clientAppId(),subscription,  messagePosition, topicName, ex);
+                                        return null;
+                                    });
+                        }).collect(Collectors.toList());
+              return FutureUtil.waitForAll(futures)
+                      .thenApply(__ -> {
+                          List<RestAckPosition> ackPositions = futures.stream()
+                                  .map(CompletableFuture::join)
+                                  .filter(Objects::nonNull)
+                                  .collect(Collectors.toList());
+                          return new AckMessageResponse(ackPositions);
+                      });
+            }
+            case CUMULATIVE: {
+                Optional<RestAckPosition> maximumAckPositionOpt = ackMessageRequest.getMessagePositions()
+                        .stream()
+                        .sorted(Comparator.comparing(RestAckPosition::getLedgerId)
+                                .reversed()
+                                .thenComparing(RestAckPosition::getEntryId)
+                                .reversed())
+                        .findFirst();
+                if (!maximumAckPositionOpt.isPresent()) {
+                    return CompletableFuture.completedFuture(new AckMessageResponse(Collections.emptyList()));
+                }
+                RestAckPosition maximumAckPosition = maximumAckPositionOpt.get();
+                return consumer.acknowledgeCumulativeAsync(new MessageIdImpl(
+                        maximumAckPosition.getLedgerId(), maximumAckPosition.getEntryId(),
+                        maximumAckPosition.getPartition()))
+                        .thenApply(__ -> new AckMessageResponse(ackMessageRequest.getMessagePositions()));
+            }
+            default:
+                return CompletableFuture.failedFuture(
+                        new IllegalArgumentException("Unsupported acknowledgement type "
+                                + ackMessageRequest.getAckType()));
+        }
+    }
+
 
 }

@@ -8,9 +8,9 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import okhttp3.*;
 import org.apache.bookkeeper.common.util.JsonUtil;
-import org.apache.pulsar.broker.rest.entity.CreateConsumerParams;
-import org.apache.pulsar.broker.rest.entity.RestConsumerInfo;
-import org.apache.pulsar.broker.rest.entity.RestMessageEntity;
+import org.apache.pulsar.broker.rest.entity.CreateConsumerRequest;
+import org.apache.pulsar.broker.rest.entity.CreateConsumerResponse;
+import org.apache.pulsar.broker.rest.entity.GetMessagesResponse;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
@@ -60,15 +60,15 @@ public class RestConsumerTest extends ProducerConsumerBase {
         Assert.assertTrue(consumers.stream().anyMatch(status -> Objects.equals(status.getConsumerName(), consumerName)));
     }
 
-    private RestConsumerInfo createConsumer(String domain, String tenant, String ns, String topic, String consumerName,
-                                            String subscriptionName) throws JsonUtil.ParseJsonException, IOException {
+    private CreateConsumerResponse createConsumer(String domain, String tenant, String ns, String topic, String consumerName,
+                                                  String subscriptionName) throws JsonUtil.ParseJsonException, IOException {
         String serviceUrl = admin.getServiceUrl();
         String createConsumer = serviceUrl +
                 String.format("/topics/%s/%s/%s/%s/subscription/%s", domain, tenant, ns, topic, subscriptionName);
-        CreateConsumerParams createConsumerParams = new CreateConsumerParams();
-        createConsumerParams.setConsumerName(consumerName);
+        CreateConsumerRequest createConsumerRequest = new CreateConsumerRequest();
+        createConsumerRequest.setConsumerName(consumerName);
         RequestBody requestBody =
-                RequestBody.create(JsonUtil.toJson(createConsumerParams), MediaType.get("application/json"));
+                RequestBody.create(JsonUtil.toJson(createConsumerRequest), MediaType.get("application/json"));
         final Request request = new Request.Builder()
                 .url(createConsumer)
                 .post(requestBody)
@@ -78,7 +78,7 @@ public class RestConsumerTest extends ProducerConsumerBase {
         Response res = call.execute();
         Assert.assertEquals(200, res.code());
         String body = res.body().string();
-        return JsonUtil.fromJson(body, RestConsumerInfo.class);
+        return JsonUtil.fromJson(body, CreateConsumerResponse.class);
     }
 
     private void deleteConsumer(String domain, String tenant, String ns, String topic,
@@ -103,7 +103,7 @@ public class RestConsumerTest extends ProducerConsumerBase {
         String topicName = "persistent://public/default/producer-consumer-test";
         String consumerName = "test-consumer";
         String subscriptionName = "test-sub";
-        RestConsumerInfo consumer = createConsumer("persistent", "public", "default",
+        CreateConsumerResponse consumer = createConsumer("persistent", "public", "default",
                 "producer-consumer-test", consumerName, subscriptionName);
         List<? extends ConsumerStats> consumers1 = admin.topics().getStats(topicName)
                 .getSubscriptions()
@@ -121,10 +121,10 @@ public class RestConsumerTest extends ProducerConsumerBase {
         Assert.assertFalse(consumers2.stream().anyMatch(status -> Objects.equals(status.getConsumerName(), consumerName)));
     }
 
-    private List<RestMessageEntity> receiveMessage(String domain, String tenant, String ns,
-                                                   String topic,
-                                                   String subscriptionName,
-                                                   String consumerId, int maxMessages, int timeout, long maxBytes)
+    private List<GetMessagesResponse> receiveMessage(String domain, String tenant, String ns,
+                                                     String topic,
+                                                     String subscriptionName,
+                                                     String consumerId, int maxMessages, int timeout, long maxBytes)
             throws IOException {
         String serviceUrl = admin.getServiceUrl();
         String url = serviceUrl +
@@ -148,7 +148,7 @@ public class RestConsumerTest extends ProducerConsumerBase {
         String topicName = "persistent://public/default/" + topicRandom;
         String consumerName = "test-consumer";
         String subscriptionName = "test-sub";
-        RestConsumerInfo consumer = createConsumer("persistent", "public", "default",
+        CreateConsumerResponse consumer = createConsumer("persistent", "public", "default",
                 topicRandom, consumerName, subscriptionName);
         String id = consumer.getId();
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
@@ -158,7 +158,7 @@ public class RestConsumerTest extends ProducerConsumerBase {
         for (int i = 0; i < 100; i++) {
             String content = UUID.randomUUID().toString();
             producer.send(content);
-            List<RestMessageEntity> restMessageEntities =
+            List<GetMessagesResponse> restMessageEntities =
                     receiveMessage("persistent", "public", "default",
                             topicRandom, subscriptionName, id, 1, 1000, 99999);
             Assert.assertEquals(restMessageEntities.size(), 1);
@@ -172,7 +172,7 @@ public class RestConsumerTest extends ProducerConsumerBase {
         String topicName = "persistent://public/default/" + topicRandom;
         String consumerName = "test-consumer";
         String subscriptionName = "test-sub";
-        RestConsumerInfo consumer = createConsumer("persistent", "public", "default",
+        CreateConsumerResponse consumer = createConsumer("persistent", "public", "default",
                 topicRandom, consumerName, subscriptionName);
         String id = consumer.getId();
         Producer<byte[]> producer = pulsarClient.newProducer(Schema.BYTES)
@@ -182,7 +182,7 @@ public class RestConsumerTest extends ProducerConsumerBase {
         for (int i = 0; i < 100; i++) {
             byte[] content = UUID.randomUUID().toString().getBytes(StandardCharsets.UTF_8);
             producer.send(content);
-            List<RestMessageEntity> restMessageEntities =
+            List<GetMessagesResponse> restMessageEntities =
                     receiveMessage("persistent", "public", "default",
                             topicRandom, subscriptionName, id, 1, 1000, 99999);
             Assert.assertEquals(restMessageEntities.size(), 1);
@@ -196,7 +196,7 @@ public class RestConsumerTest extends ProducerConsumerBase {
         String topicName = "persistent://public/default/" + topicRandom;
         String consumerName = "test-consumer";
         String subscriptionName = "test-sub";
-        RestConsumerInfo consumer = createConsumer("persistent", "public", "default",
+        CreateConsumerResponse consumer = createConsumer("persistent", "public", "default",
                 topicRandom, consumerName, subscriptionName);
         String id = consumer.getId();
         Producer<Student> producer = pulsarClient.newProducer(Schema.JSON(Student.class))
@@ -206,7 +206,7 @@ public class RestConsumerTest extends ProducerConsumerBase {
         for (int i = 0; i < 100; i++) {
             Student content = new Student("abc", 123);
             producer.send(content);
-            List<RestMessageEntity> restMessageEntities =
+            List<GetMessagesResponse> restMessageEntities =
                     receiveMessage("persistent", "public", "default",
                             topicRandom, subscriptionName, id, 1, 1000, 99999);
             Assert.assertEquals(restMessageEntities.size(), 1);
@@ -221,7 +221,7 @@ public class RestConsumerTest extends ProducerConsumerBase {
         String topicName = "persistent://public/default/" + topicRandom;
         String consumerName = "test-consumer";
         String subscriptionName = "test-sub";
-        RestConsumerInfo consumer = createConsumer("persistent", "public", "default",
+        CreateConsumerResponse consumer = createConsumer("persistent", "public", "default",
                 topicRandom, consumerName, subscriptionName);
         String id = consumer.getId();
         Producer<Student> producer = pulsarClient.newProducer(Schema.AVRO(Student.class))
@@ -231,7 +231,7 @@ public class RestConsumerTest extends ProducerConsumerBase {
         for (int i = 0; i < 100; i++) {
             Student content = new Student("abc", 123);
             producer.send(content);
-            List<RestMessageEntity> restMessageEntities =
+            List<GetMessagesResponse> restMessageEntities =
                     receiveMessage("persistent", "public", "default",
                             topicRandom, subscriptionName, id, 1, 1000, 99999);
             Assert.assertEquals(restMessageEntities.size(), 1);

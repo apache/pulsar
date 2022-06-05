@@ -30,7 +30,7 @@ import java.util.Map;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class RestMessageEntity {
+public class GetMessagesResponse {
     int partition;
     long ledgerId;
     long entryId;

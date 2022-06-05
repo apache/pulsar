@@ -25,7 +25,7 @@ import lombok.NoArgsConstructor;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class RestConsumerInfo {
+public class CreateConsumerResponse {
     String id;
     String baseUrl;
 }

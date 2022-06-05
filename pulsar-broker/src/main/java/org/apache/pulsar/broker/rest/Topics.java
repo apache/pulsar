@@ -30,13 +30,15 @@ import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
-import org.apache.pulsar.broker.rest.entity.CreateConsumerParams;
-import org.apache.pulsar.broker.rest.entity.RestConsumerInfo;
+import org.apache.pulsar.broker.rest.entity.AckMessageRequest;
+import org.apache.pulsar.broker.rest.entity.CreateConsumerRequest;
+import org.apache.pulsar.broker.rest.entity.CreateConsumerResponse;
+import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.websocket.data.ProducerMessages;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.concurrent.CompletionStage;
+import java.util.concurrent.CompletableFuture;
 
 @Path("/")
 @Consumes(MediaType.APPLICATION_JSON)
@@ -160,7 +162,7 @@ public class Topics extends TopicsBase {
     @POST
     @Path("/persistent/{tenant}/{namespace}/{topic}/subscription/{subscription}")
     @ApiOperation(value = "Create a consumer on a topic for subscription.",
-            response = RestConsumerInfo.class)
+            response = CreateConsumerResponse.class)
     @ApiResponses(value = {
             @ApiResponse(code = 404, message = "tenant/namespace/topic doesn't exit"),
             @ApiResponse(code = 412, message = "Namespace name is not valid"),
@@ -175,10 +177,11 @@ public class Topics extends TopicsBase {
                                @ApiParam(value = "Specify subscription name", required = true)
                                @PathParam("subscription") String subscription,
                                @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
-                               CreateConsumerParams createConsumerParams) {
+                               CreateConsumerRequest createConsumerRequest) {
         validateTopicName(tenant, namespace, encodedTopic);
-        validateHandlerBroker(authoritative)
-                .thenCompose(__ -> internalCreateConsumer(createConsumerParams, subscription))
+        validateTopicOperationAsync(topicName, TopicOperation.CONSUME)
+                .thenCompose(__ -> validateHandlerBroker(authoritative))
+                .thenCompose(__ -> internalCreateConsumer(createConsumerRequest, subscription))
                 .thenAccept(consumerInfo -> {
                     log.error("[{}] Create subscription via rest {} on {} successful.",
                             clientAppId(), subscription, topicName);
@@ -211,7 +214,8 @@ public class Topics extends TopicsBase {
                                @PathParam("consumerId") String consumerId,
                                @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
-        validateHandlerBroker(authoritative)
+        validateTopicOperationAsync(topicName, TopicOperation.CONSUME)
+                .thenCompose(__ -> validateHandlerBroker(authoritative))
                 .thenCompose(__ -> internalDeleteConsumer(consumerId))
                 .thenAccept(__ -> {
                     log.error("[{}] Delete subscription via rest {} on {} successful.",
@@ -242,17 +246,49 @@ public class Topics extends TopicsBase {
                                @PathParam("topic") @Encoded String encodedTopic,
                                @ApiParam(value = "Specify subscription name", required = true)
                                @PathParam("subscription") String subscription,
-                               @ApiParam(value = "Specify subscription name", required = true)
+                               @ApiParam(value = "Specify consumer id", required = true)
                                @PathParam("consumerId") String consumerId,
                                @QueryParam("timeout") @DefaultValue("3000") Integer timeout,
                                @QueryParam("maxMessage") @DefaultValue("1") Integer maxMessage,
                                @QueryParam("maxByte") Long maxByte
     ) {
         validateTopicName(tenant, namespace, encodedTopic);
-        internalReceiveMessages(consumerId, maxMessage, timeout, maxByte)
+        validateTopicOperationAsync(topicName, TopicOperation.CONSUME)
+                .thenCompose(__ -> internalReceiveMessages(consumerId, maxMessage, timeout, maxByte))
                 .thenAccept(asyncResponse::resume)
                 .exceptionally(ex -> {
-                    log.error("[{}] Get messages from subscription {} on topic {} fail.",
+                    log.error("[{}] Subscription {} get messages on topic {} fail.",
+                            clientAppId(), subscription, topicName, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
+    }
+
+    @POST
+    @Path("/persistent/{tenant}/{namespace}/{topic}/subscription/{subscription}/consumer/{consumerId}/cursor")
+    @ApiOperation(value = "Acknowledge messages on topic.")
+    @ApiResponses(value = {
+            @ApiResponse(code = 404, message = "tenant/namespace/topic doesn't exit"),
+            @ApiResponse(code = 412, message = "Namespace name is not valid"),
+            @ApiResponse(code = 500, message = "Internal server error")})
+    public void acknowledgement(@Suspended final AsyncResponse asyncResponse,
+                               @ApiParam(value = "Specify the tenant", required = true)
+                               @PathParam("tenant") String tenant,
+                               @ApiParam(value = "Specify the namespace", required = true)
+                               @PathParam("namespace") String namespace,
+                               @ApiParam(value = "Specify topic name", required = true)
+                               @PathParam("topic") @Encoded String encodedTopic,
+                               @ApiParam(value = "Specify subscription name", required = true)
+                               @PathParam("subscription") String subscription,
+                               @ApiParam(value = "Specify consumer id", required = true)
+                               @PathParam("consumerId") String consumerId,
+                                AckMessageRequest ackMessageRequest) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        validateTopicOperationAsync(topicName, TopicOperation.CONSUME)
+                .thenCompose(__ -> internalAcknowledge(consumerId, subscription, ackMessageRequest))
+                .thenAccept(asyncResponse::resume)
+                .exceptionally(ex -> {
+                    log.error("[{}] Subscription {} ack messages on topic {} fail.",
                             clientAppId(), subscription, topicName, ex);
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;

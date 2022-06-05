@@ -23,7 +23,7 @@ import lombok.NoArgsConstructor;
 
 @Data
 @NoArgsConstructor
-public class CreateConsumerParams {
+public class CreateConsumerRequest {
     String consumerName;
     String keySchema;
     String valueSchema;
