@@ -141,13 +141,12 @@ public class TripleLongPriorityQueueTest {
         int initialCapacity = 20;
         int tupleSize = 3 * 8;
         TripleLongPriorityQueue pq = new TripleLongPriorityQueue(initialCapacity, 0.5f);
-        triggerScaleOut(initialCapacity, pq);
-
-        assertEquals(pq.size(), initialCapacity);
+        pq.add(0, 0, 0);
+        assertEquals(pq.size(), 1);
         assertEquals(pq.getBuffer().capacity(), initialCapacity * tupleSize);
 
-        pq.add(0, 0, 0);
         // Scale out to capacity * 2
+        triggerScaleOut(initialCapacity, pq);
         int scaleCapacity = initialCapacity * 2;
         assertEquals(pq.getBuffer().capacity(), scaleCapacity * tupleSize);
         // Trigger shrinking
@@ -167,7 +166,7 @@ public class TripleLongPriorityQueueTest {
     }
 
     private void triggerScaleOut(int initialCapacity, TripleLongPriorityQueue pq) {
-        for (long i = 0; i < initialCapacity; i++) {
+        for (long i = 0; i < initialCapacity + 1; i++) {
             pq.add(i, i, i);
         }
     }

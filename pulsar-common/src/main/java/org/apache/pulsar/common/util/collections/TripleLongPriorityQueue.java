@@ -179,10 +179,14 @@ public class TripleLongPriorityQueue implements AutoCloseable {
     private void shrinkCapacity() {
         if (capacity > initialCapacity &&  size < capacity * shrinkFactor) {
             int decreasingSize = (int) (capacity * shrinkFactor * RESERVATION_FACTOR);
-            if (decreasingSize <= 0 || capacity - decreasingSize <= DEFAULT_INITIAL_CAPACITY) {
+            if (decreasingSize <= 0) {
                 return;
             }
-            this.capacity = capacity - decreasingSize;
+            if (capacity - decreasingSize <= initialCapacity) {
+                this.capacity = initialCapacity;
+            } else {
+                this.capacity = capacity - decreasingSize;
+            }
             buffer.capacity(this.capacity * TUPLE_SIZE);
         }
     }
