@@ -2353,6 +2353,20 @@ flexible messaging model and an intuitive client API.</description>
         <os.detected.classifier>osx-x86_64</os.detected.classifier>
       </properties>
     </profile>
+
+    <profile>
+      <id>pulsar-io-tests</id>
+      <modules>
+        <module>pulsar-io</module>
+      </modules>
+    </profile>
+
+    <profile>
+      <id>pulsar-sql-tests</id>
+      <modules>
+        <module>pulsar-sql</module>
+      </modules>
+    </profile>
   </profiles>
 
   <repositories>
