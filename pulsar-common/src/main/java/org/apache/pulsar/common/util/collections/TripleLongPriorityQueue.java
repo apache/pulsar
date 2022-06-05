@@ -19,6 +19,7 @@
 package org.apache.pulsar.common.util.collections;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
 
@@ -31,16 +32,28 @@ public class TripleLongPriorityQueue implements AutoCloseable {
 
     private static final int SIZE_OF_LONG = 8;
     private static final int DEFAULT_INITIAL_CAPACITY = 16;
+    private static final float DEFAULT_SHRINK_FACTOR = 0.5f;
 
     // Each item is composed of 3 longs
     private static final int ITEMS_COUNT = 3;
 
     private static final int TUPLE_SIZE = ITEMS_COUNT * SIZE_OF_LONG;
 
+    /**
+     * Reserve 10% of the capacity when shrinking to avoid frequent expansion and shrinkage.
+     */
+    private static final float RESERVATION_FACTOR = 0.9f;
+
     private final ByteBuf buffer;
+
+    private final int initialCapacity;
 
     private int capacity;
     private int size;
+    /**
+     * When size < capacity * shrinkFactor, may trigger shrinking
+     */
+    private final float shrinkFactor;
 
     /**
      * Create a new priority queue with default initial capacity.
@@ -49,14 +62,21 @@ public class TripleLongPriorityQueue implements AutoCloseable {
         this(DEFAULT_INITIAL_CAPACITY);
     }
 
+    public TripleLongPriorityQueue(int initialCapacity, float shrinkFactor) {
+        checkArgument(shrinkFactor > 0);
+        this.initialCapacity = initialCapacity;
+        this.capacity = initialCapacity;
+        this.buffer = PooledByteBufAllocator.DEFAULT.directBuffer(initialCapacity * ITEMS_COUNT * SIZE_OF_LONG);
+        this.size = 0;
+        this.shrinkFactor = shrinkFactor;
+    }
+
     /**
      * Create a new priority queue with a given initial capacity.
      * @param initialCapacity
      */
     public TripleLongPriorityQueue(int initialCapacity) {
-        capacity = initialCapacity;
-        buffer = PooledByteBufAllocator.DEFAULT.directBuffer(initialCapacity * ITEMS_COUNT * SIZE_OF_LONG);
-        size = 0;
+        this(initialCapacity, DEFAULT_SHRINK_FACTOR);
     }
 
     /**
@@ -77,6 +97,8 @@ public class TripleLongPriorityQueue implements AutoCloseable {
     public void add(long n1, long n2, long n3) {
         if (size == capacity) {
             increaseCapacity();
+        } else {
+            shrinkCapacity();
         }
 
         put(size, n1, n2, n3);
@@ -122,6 +144,7 @@ public class TripleLongPriorityQueue implements AutoCloseable {
         swap(0, size - 1);
         size--;
         siftDown(0);
+        shrinkCapacity();
     }
 
     /**
@@ -144,12 +167,24 @@ public class TripleLongPriorityQueue implements AutoCloseable {
     public void clear() {
         this.buffer.clear();
         this.size = 0;
+        shrinkCapacity();
     }
 
     private void increaseCapacity() {
         // For bigger sizes, increase by 50%
         this.capacity += (capacity <= 256 ? capacity : capacity / 2);
         buffer.capacity(this.capacity * TUPLE_SIZE);
+    }
+
+    private void shrinkCapacity() {
+        if (capacity > initialCapacity &&  size < capacity * shrinkFactor) {
+            int decreasingSize = (int) (capacity * shrinkFactor * RESERVATION_FACTOR);
+            if (decreasingSize <= 0 || capacity - decreasingSize <= DEFAULT_INITIAL_CAPACITY) {
+                return;
+            }
+            this.capacity = capacity - decreasingSize;
+            buffer.capacity(this.capacity * TUPLE_SIZE);
+        }
     }
 
     private void siftUp(int idx) {
@@ -228,5 +263,10 @@ public class TripleLongPriorityQueue implements AutoCloseable {
         buffer.setLong(i2, tmp1);
         buffer.setLong(i2 + 1 * SIZE_OF_LONG, tmp2);
         buffer.setLong(i2 + 2 * SIZE_OF_LONG, tmp3);
+    }
+
+    @VisibleForTesting
+    ByteBuf getBuffer() {
+        return buffer;
     }
 }
