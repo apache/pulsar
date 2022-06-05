@@ -97,8 +97,6 @@ public class TripleLongPriorityQueue implements AutoCloseable {
     public void add(long n1, long n2, long n3) {
         if (size == capacity) {
             increaseCapacity();
-        } else {
-            shrinkCapacity();
         }
 
         put(size, n1, n2, n3);
