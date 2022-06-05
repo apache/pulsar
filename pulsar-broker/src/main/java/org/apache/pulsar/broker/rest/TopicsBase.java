@@ -30,13 +30,10 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Base64;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Response;
@@ -52,20 +49,19 @@ import org.apache.avro.io.DecoderFactory;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.admin.impl.PersistentTopicsBase;
 import org.apache.pulsar.broker.lookup.LookupResult;
 import org.apache.pulsar.broker.namespace.LookupOptions;
+import org.apache.pulsar.broker.rest.entity.CreateConsumerParams;
+import org.apache.pulsar.broker.rest.entity.RestConsumerInfo;
+import org.apache.pulsar.broker.rest.entity.RestMessageEntity;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.schema.SchemaRegistry;
 import org.apache.pulsar.broker.service.schema.exceptions.SchemaException;
 import org.apache.pulsar.broker.web.RestException;
-import org.apache.pulsar.client.api.CompressionType;
-import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.impl.MessageIdImpl;
-import org.apache.pulsar.client.impl.MessageImpl;
+import org.apache.pulsar.client.api.*;
+import org.apache.pulsar.client.impl.*;
 import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
 import org.apache.pulsar.client.impl.schema.AvroBaseStructSchema;
 import org.apache.pulsar.client.impl.schema.KeyValueSchemaImpl;
@@ -90,10 +86,7 @@ import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
-import org.apache.pulsar.websocket.data.ProducerAck;
-import org.apache.pulsar.websocket.data.ProducerAcks;
-import org.apache.pulsar.websocket.data.ProducerMessage;
-import org.apache.pulsar.websocket.data.ProducerMessages;
+import org.apache.pulsar.websocket.data.*;
 
 /**
  * Contains methods used by REST api to producer/consumer/read messages to/from pulsar topics.
@@ -101,6 +94,7 @@ import org.apache.pulsar.websocket.data.ProducerMessages;
 @Slf4j
 public class TopicsBase extends PersistentTopicsBase {
 
+    private static final Map<String, Consumer<org.apache.pulsar.client.api.schema.GenericRecord>> consumers = new ConcurrentHashMap<>();
     private static String defaultProducerName = "RestProducer";
 
     // Publish message to a topic, can be partitioned or non-partitioned
@@ -769,6 +763,112 @@ public class TopicsBase extends PersistentTopicsBase {
                                         + " with clientAppId [%s] and authdata %s", topicName.toString(),
                         clientAppId(), clientAuthData()));
             }
+        }
+    }
+
+    protected CompletableFuture<RestConsumerInfo> internalCreateConsumer(
+            CreateConsumerParams createConsumerParams, String subscription) {
+            PulsarClient client;
+            try {
+                client = pulsar().getClient();
+            } catch (PulsarServerException ex) {
+                return FutureUtil.failedFuture(ex);
+            }
+            String subscribeTopicName;
+            if (topicName.isPartitioned()) {
+                subscribeTopicName = topicName.getPartitionedTopicName();
+            } else {
+                subscribeTopicName = topicName.toString();
+            }
+            return client.newConsumer(Schema.AUTO_CONSUME())
+                    .topic(subscribeTopicName)
+                    .consumerName(createConsumerParams.getConsumerName())
+                    .subscriptionName(subscription)
+                    .receiverQueueSize(1)
+                    .subscriptionType(SubscriptionType.Shared)
+                    .subscribeAsync()
+                    .thenApply(consumer -> {
+                        String consumerKey = String.format("%s_%s_%s", subscription,
+                                createConsumerParams.getConsumerName(), UUID.randomUUID());
+                        consumers.put(consumerKey, consumer);
+                        return new RestConsumerInfo(consumerKey, isRequestHttps()?
+                                pulsar().getWebServiceAddressTls() : pulsar().getWebServiceAddress());
+                    });
+    }
+
+    protected CompletableFuture<List<RestMessageEntity>> internalReceiveMessages(
+            String consumerId, int maxMessages, int timeout, Long maxBytes) {
+        Consumer<org.apache.pulsar.client.api.schema.GenericRecord> consumer = consumers.get(consumerId);
+        if (consumer == null) {
+            return FutureUtil.failedFuture(new RestException(Status.BAD_REQUEST,
+                    "ConsumerId not found."));
+        }
+        long startTime = System.currentTimeMillis();
+        long currentByte = 0;
+        List<RestMessageEntity> messages = new ArrayList<>();
+        try {
+            do {
+                if ((System.currentTimeMillis() - startTime >= timeout) ||
+                        (maxBytes != null && currentByte >= maxBytes)) {
+                    break;
+                }
+                Message<org.apache.pulsar.client.api.schema.GenericRecord> msg
+                        = consumer.receive(timeout, TimeUnit.MILLISECONDS);
+                if (msg != null) {
+                    MessageId messageId = msg.getMessageId();
+                    byte[] payload = msg.getData();
+                    currentByte += payload.length;
+                    RestMessageEntity.RestMessageEntityBuilder restMessageEntityBuilder = RestMessageEntity.builder()
+                            .eventTime(msg.getEventTime())
+                            .key(msg.getKey())
+                            .properties(msg.getProperties())
+                            .sequenceId(msg.getSequenceId());
+                    if (msg.getValue().getSchemaType() == SchemaType.BYTES) {
+                        String encodeBytes =
+                                Base64.getEncoder().encodeToString((byte[]) msg.getValue().getNativeObject());
+                        restMessageEntityBuilder.value(encodeBytes);
+                    } else {
+                        restMessageEntityBuilder.value(msg.getValue().getNativeObject().toString());
+                    }
+                    if (messageId instanceof MessageIdImpl) {
+                        restMessageEntityBuilder.ledgerId(((MessageIdImpl) messageId).getLedgerId())
+                                .entryId(((MessageIdImpl) messageId).getEntryId());
+                    } else if (messageId instanceof TopicMessageIdImpl) {
+                        MessageIdImpl innerMessageId = (MessageIdImpl) ((TopicMessageIdImpl) messageId).getInnerMessageId();
+                        restMessageEntityBuilder.ledgerId(innerMessageId.getLedgerId())
+                                .entryId(innerMessageId.getEntryId())
+                                .partition(innerMessageId.getPartitionIndex());
+                    }
+                    RestMessageEntity entity = restMessageEntityBuilder.build();
+                    messages.add(entity);
+                }
+            } while (messages.size() < maxMessages);
+        } catch (Exception ex) {
+            return FutureUtil.failedFuture(ex);
+        }
+        return CompletableFuture.completedFuture(messages);
+    }
+
+    protected CompletableFuture<Void> internalDeleteConsumer(String consumerId) {
+        Consumer<org.apache.pulsar.client.api.schema.GenericRecord> consumer = consumers.remove(consumerId);
+        if (consumer == null) {
+            return CompletableFuture.completedFuture(null);
+        }
+        return consumer.closeAsync();
+    }
+
+    protected CompletableFuture<Void> validateHandlerBroker(boolean authoritative) {
+        if(topicName.isPartitioned()) {
+            return validateTopicOwnershipAsync(topicName, authoritative);
+        } else {
+            return pulsar().getBrokerService().fetchPartitionedTopicMetadataAsync(topicName)
+                    .thenCompose(partitionedTopicMetadata -> {
+                        if (partitionedTopicMetadata.partitions > 0) {
+                            return validateTopicOwnershipAsync(topicName.getPartition(0), authoritative);
+                        } else {
+                            return validateTopicOwnershipAsync(topicName, authoritative);
+                        }
+                    });
         }
     }
 
