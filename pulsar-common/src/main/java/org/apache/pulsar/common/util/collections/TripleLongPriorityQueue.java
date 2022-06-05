@@ -51,7 +51,7 @@ public class TripleLongPriorityQueue implements AutoCloseable {
     private int capacity;
     private int size;
     /**
-     * When size < capacity * shrinkFactor, may trigger shrinking
+     * When size < capacity * shrinkFactor, may trigger shrinking.
      */
     private final float shrinkFactor;
 
