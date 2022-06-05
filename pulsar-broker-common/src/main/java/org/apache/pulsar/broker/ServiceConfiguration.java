@@ -2000,7 +2000,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
         category = CATEGORY_LOAD_BALANCER,
         deprecated = true,
-        doc = "Usage threshold to determine a broker as under-loaded (only used by SimpleLoadManagerImpl)"
+        doc = "Usage threshold to determine a broker as under-loaded (used by SimpleLoadManagerImpl and "
+                + "ModularLoadManagerImpl)"
     )
     @Deprecated
     private int loadBalancerBrokerUnderloadedThresholdPercentage = 50;
@@ -2103,7 +2104,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_LOAD_BALANCER,
         deprecated = true,
         doc = "Usage threshold to determine a broker is having just right level of load"
-            + " (only used by SimpleLoadManagerImpl)"
+            + " (used by SimpleLoadManagerImpl and ModularLoadManagerImpl)"
     )
     private int loadBalancerBrokerComfortLoadLevelPercentage = 65;
     @FieldContext(
