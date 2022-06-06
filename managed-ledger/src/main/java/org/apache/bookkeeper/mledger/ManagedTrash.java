@@ -19,28 +19,36 @@
 package org.apache.bookkeeper.mledger;
 
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
 
 public interface ManagedTrash {
 
-    String MANAGED_LEDGER = "managed-ledger";
+    enum ManagedType {
+        MANAGED_LEDGER("managed-ledger"),
+        MANAGED_CURSOR("managed-cursor"),
+        SCHEMA("schema");
+        private final String name;
 
-    String MANAGED_CURSOR = "managed-cursor";
+        ManagedType(String name) {
+            this.name = name;
+        }
 
-    String SCHEMA = "schema";
+        public String getName() {
+            return name;
+        }
+    }
 
-    String LEDGER = "L";
-
-    String OFFLOADED_LEDGER = "OL";
+    enum LedgerType {
+        OFFLOAD_LEDGER,
+        LEDGER
+    }
 
     String name();
 
     CompletableFuture<?> initialize();
 
-    void appendLedgerTrashData(long ledgerId, LedgerInfo context, String type)
-            throws ManagedLedgerException;
+    void appendLedgerTrashData(long ledgerId, LedgerInfo context, LedgerType type) throws ManagedLedgerException;
 
     CompletableFuture<?> asyncUpdateTrashData();
 

@@ -159,7 +159,7 @@ public class EtcdMetadataStore extends AbstractBatchedMetadataStore {
     }
 
     @Override
-    public void batchOperation(List<MetadataOp> ops) {
+    protected void batchOperation(List<MetadataOp> ops) {
         try {
             Txn txn = kv.txn();
 

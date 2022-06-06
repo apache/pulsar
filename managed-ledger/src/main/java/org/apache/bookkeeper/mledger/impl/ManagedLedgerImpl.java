@@ -341,7 +341,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
         this.inactiveLedgerRollOverTimeMs = config.getInactiveLedgerRollOverTimeMs();
         this.managedTrash = config.isSupportTwoPhaseDeletion()
-                ? new ManagedTrashImpl(ManagedTrash.MANAGED_LEDGER, name, metadataStore, config, scheduledExecutor,
+                ? new ManagedTrashImpl(ManagedTrash.ManagedType.MANAGED_LEDGER, name, metadataStore, config, scheduledExecutor,
                         executor, bookKeeper) : new ManagedTrashDisableImpl();
     }
 
@@ -2682,11 +2682,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         CompletableFuture<?> future = new CompletableFuture<>();
         try {
             for (Long ledgerId : deletableLedgerIds) {
-                managedTrash.appendLedgerTrashData(ledgerId, null, ManagedTrash.LEDGER);
+                managedTrash.appendLedgerTrashData(ledgerId, null, ManagedTrash.LedgerType.LEDGER);
             }
             for (Long ledgerId : deletableOffloadedLedgerIds) {
-                managedTrash.appendLedgerTrashData(ledgerId, ledgers.get(ledgerId),
-                        ManagedTrash.OFFLOADED_LEDGER);
+                managedTrash.appendLedgerTrashData(ledgerId, ledgers.get(ledgerId), ManagedTrash.LedgerType.OFFLOAD_LEDGER);
             }
             future.complete(null);
         } catch (ManagedLedgerException e) {
@@ -3081,7 +3080,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                         } else {
                                             try {
                                                 managedTrash.appendLedgerTrashData(ledgerId, ledgers.get(ledgerId),
-                                                                ManagedTrash.OFFLOADED_LEDGER);
+                                                                ManagedTrash.LedgerType.OFFLOAD_LEDGER);
                                                 managedTrash.asyncUpdateTrashData();
                                             } catch (ManagedLedgerException e) {
                                                 log.warn("[{}]-{} Failed to append trash data.", this.name, ledgerId);
@@ -3215,7 +3214,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                     "Previous failed offload");
                         } else {
                             managedTrash.appendLedgerTrashData(ledgerId, oldInfo,
-                                    ManagedTrash.OFFLOADED_LEDGER);
+                                    ManagedTrash.LedgerType.OFFLOAD_LEDGER);
                             managedTrash.asyncUpdateTrashData();
                         }
                     }
@@ -3908,7 +3907,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                         asyncDeleteLedger(lh.getId(), DEFAULT_LEDGER_DELETE_RETRIES);
                     } else {
                         try {
-                            managedTrash.appendLedgerTrashData(lh.getId(), null, ManagedTrash.LEDGER);
+                            managedTrash.appendLedgerTrashData(lh.getId(), null, ManagedTrash.LedgerType.LEDGER);
                             managedTrash.asyncUpdateTrashData();
                         } catch (ManagedLedgerException e) {
                             log.warn("[{}]-{} Failed to append trash data.", this.name, lh.getId());

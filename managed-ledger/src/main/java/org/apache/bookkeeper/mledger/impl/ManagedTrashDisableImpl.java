@@ -19,11 +19,10 @@
 package org.apache.bookkeeper.mledger.impl;
 
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
+import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedTrash;
-import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
 
 public class ManagedTrashDisableImpl implements ManagedTrash {
@@ -41,7 +40,8 @@ public class ManagedTrashDisableImpl implements ManagedTrash {
     }
 
     @Override
-    public void appendLedgerTrashData(long ledgerId, LedgerInfo context, String type) {
+    public void appendLedgerTrashData(long ledgerId, LedgerInfo context, LedgerType type)
+            throws ManagedLedgerException {
     }
 
     @Override
