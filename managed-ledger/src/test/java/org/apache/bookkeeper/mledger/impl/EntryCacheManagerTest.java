@@ -20,7 +20,6 @@ package org.apache.bookkeeper.mledger.impl;
 
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
