@@ -307,6 +307,12 @@ public class MessageImpl<T> implements Message<T> {
                 && (System.currentTimeMillis() > entryTimestamp + TimeUnit.SECONDS.toMillis(messageTTLInSeconds));
     }
 
+    public static boolean isEntryExpired(int messageTTLInSeconds, long entryTimestamp, long delayTime) {
+        return messageTTLInSeconds != 0
+                && (System.currentTimeMillis() > entryTimestamp + TimeUnit.SECONDS.toMillis(messageTTLInSeconds))
+                && (delayTime < TimeUnit.SECONDS.toMillis(messageTTLInSeconds));
+    }
+
     public static boolean isEntryPublishedEarlierThan(long entryTimestamp, long timestamp) {
         return entryTimestamp < timestamp;
     }

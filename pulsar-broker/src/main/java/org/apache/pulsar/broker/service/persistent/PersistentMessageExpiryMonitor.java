@@ -80,16 +80,8 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback {
                     // give up checking the TTL of the current delayed message, because the time of the delayed
                     // message has not yet arrived, we cannot delete these messages.
                     long delayTime = entryMetadata.getDelayTime();
-                    if (delayTime / 1000L - messageTTLInSeconds > 0) {
-                        if (log.isDebugEnabled()) {
-                            log.debug("TTL policy can't expire delay messages, delayTime: {} - ttlTime: {}",
-                                    delayTime / 1000L, messageTTLInSeconds);
-                        }
-                        return false;
-                    }
-
                     long entryTimestamp = entryMetadata.getPublishTime();
-                    return MessageImpl.isEntryExpired(messageTTLInSeconds, entryTimestamp);
+                    return MessageImpl.isEntryExpired(messageTTLInSeconds, entryTimestamp, delayTime);
                 } catch (Exception e) {
                     log.error("[{}][{}] Error deserializing message for expiry check", topicName, subName, e);
                 } finally {
