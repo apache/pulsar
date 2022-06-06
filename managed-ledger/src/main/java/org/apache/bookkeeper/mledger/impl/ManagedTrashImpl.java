@@ -465,15 +465,15 @@ public class ManagedTrashImpl implements ManagedTrash {
                     String.format("[%s] is not initialized, current state: %s", name(), state))));
             return;
         }
-
         asyncUpdateTrashData().thenAccept(ignore -> {
             NavigableMap<TrashKey, LedgerInfo> persistArchive = new ConcurrentSkipListMap<>();
             //here we didn't lock trashData, so maybe the persistArchive is discontinuous. such as: 1,2,3,10,12...
             for (Map.Entry<TrashKey, LedgerInfo> entry : trashData.entrySet()) {
-                persistArchive.put(entry.getKey(), entry.getValue());
-                if (persistArchive.size() >= archiveDataLimitSize) {
+                //in theory, the retryCount can't more than 0.
+                if (entry.getKey().retryCount > 0 || persistArchive.size() >= archiveDataLimitSize) {
                     break;
                 }
+                persistArchive.put(entry.getKey(), entry.getValue());
             }
 
             Map.Entry<TrashKey, LedgerInfo> lastEntry = persistArchive.lastEntry();
@@ -488,7 +488,7 @@ public class ManagedTrashImpl implements ManagedTrash {
                 }
                 persistArchive.keySet().forEach(ele -> trashData.remove(ele));
                 trashIsDirty = false;
-                for (int i = 0; i < archiveDataLimitSize; i++) {
+                for (int i = 0; i < persistArchive.size(); i++) {
                     toArchiveCount.decrementAndGet();
                 }
                 asyncUpdateTrashData().whenComplete((res1, e1) -> {
