@@ -32,7 +32,7 @@ BOOKIE_CONF=${BOOKIE_CONF:-"$BK_HOME/conf/bookkeeper.conf"}
 # BOOKIE_LOG_CONF=
 
 # Logs location
-# BOOKIE_LOG_DIR=
+BOOKIE_LOG_DIR=${BOOKIE_LOG_DIR:-"${PULSAR_LOG_DIR}"}
 
 # Memory size options
 BOOKIE_MEM=${BOOKIE_MEM:-${PULSAR_MEM:-"-Xms2g -Xmx2g -XX:MaxDirectMemorySize=2g"}}
