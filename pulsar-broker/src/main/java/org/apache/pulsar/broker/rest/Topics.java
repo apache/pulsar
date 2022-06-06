@@ -166,7 +166,7 @@ public class Topics extends TopicsBase {
 
     @POST
     @Path("/persistent/{tenant}/{namespace}/{topic}/subscription/{subscription}")
-    @ApiOperation(value = "Create a consumer on a topic for subscription.",
+    @ApiOperation(value = "Create a consumer on the topic of subscription.",
             response = CreateConsumerResponse.class)
     @ApiResponses(value = {
             @ApiResponse(code = 404, message = "tenant/namespace/topic doesn't exit"),
@@ -202,7 +202,7 @@ public class Topics extends TopicsBase {
 
     @DELETE
     @Path("/persistent/{tenant}/{namespace}/{topic}/subscription/{subscription}/consumers/{consumerId}")
-    @ApiOperation(value = "Delete a consumer on a topic for subscription.")
+    @ApiOperation(value = "Delete a consumer on the topic of subscription.")
     @ApiResponses(value = {
             @ApiResponse(code = 404, message = "tenant/namespace/topic doesn't exit"),
             @ApiResponse(code = 412, message = "Namespace name is not valid"),
@@ -228,7 +228,7 @@ public class Topics extends TopicsBase {
                     asyncResponse.resume(Response.ok().build());
                 }).exceptionally(ex -> {
                     if (!isRedirectException(ex)) {
-                        log.error("[{}] Create subscription {} on {} fail.", clientAppId(), subscription, topicName);
+                        log.error("[{}] Delete subscription {} on {} fail.", clientAppId(), subscription, topicName);
                     }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
@@ -237,7 +237,7 @@ public class Topics extends TopicsBase {
 
     @GET
     @Path("/persistent/{tenant}/{namespace}/{topic}/subscription/{subscription}/consumer/{consumerId}/messages")
-    @ApiOperation(value = "Consume messages on topic.")
+    @ApiOperation(value = "Consume messages on the topic.")
     @ApiResponses(value = {
             @ApiResponse(code = 404, message = "tenant/namespace/topic doesn't exit"),
             @ApiResponse(code = 412, message = "Namespace name is not valid"),
@@ -271,7 +271,7 @@ public class Topics extends TopicsBase {
 
     @POST
     @Path("/persistent/{tenant}/{namespace}/{topic}/subscription/{subscription}/consumer/{consumerId}/cursor")
-    @ApiOperation(value = "Acknowledge messages on topic.")
+    @ApiOperation(value = "Acknowledge messages on the topic.")
     @ApiResponses(value = {
             @ApiResponse(code = 404, message = "tenant/namespace/topic doesn't exit"),
             @ApiResponse(code = 412, message = "Namespace name is not valid"),
