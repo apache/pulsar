@@ -120,7 +120,7 @@ To enable it, set the following configurations in the `${project.root}/conf/pres
 
 ```properties
 
-pulsar.authorization-enabled=enable
+pulsar.authorization-enabled=true
 pulsar.broker-binary-service-url=pulsar://localhost:6650
 
 ```
