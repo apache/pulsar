@@ -2216,11 +2216,7 @@ public abstract class NamespacesBase extends AdminResource {
                         return policies;
                     });
 
-                }).exceptionally(ex -> {
-                    Throwable realCause = FutureUtil.unwrapCompletionException(ex);
-                    throw new RestException(Status.INTERNAL_SERVER_ERROR, realCause);
                 });
-
         return ret;
     }
 
