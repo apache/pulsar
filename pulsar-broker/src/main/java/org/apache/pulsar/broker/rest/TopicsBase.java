@@ -58,8 +58,17 @@ import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.schema.SchemaRegistry;
 import org.apache.pulsar.broker.service.schema.exceptions.SchemaException;
 import org.apache.pulsar.broker.web.RestException;
-import org.apache.pulsar.client.api.*;
-import org.apache.pulsar.client.impl.*;
+import org.apache.pulsar.client.api.CompressionType;
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.client.impl.MessageImpl;
+import org.apache.pulsar.client.impl.TopicMessageIdImpl;
 import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
 import org.apache.pulsar.client.impl.schema.AvroBaseStructSchema;
 import org.apache.pulsar.client.impl.schema.KeyValueSchemaImpl;
@@ -84,7 +93,10 @@ import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
-import org.apache.pulsar.websocket.data.*;
+import org.apache.pulsar.websocket.data.ProducerAck;
+import org.apache.pulsar.websocket.data.ProducerAcks;
+import org.apache.pulsar.websocket.data.ProducerMessage;
+import org.apache.pulsar.websocket.data.ProducerMessages;
 
 /**
  * Contains methods used by REST api to producer/consumer/read messages to/from pulsar topics.

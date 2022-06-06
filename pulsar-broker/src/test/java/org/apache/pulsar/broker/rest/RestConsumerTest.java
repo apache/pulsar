@@ -6,14 +6,28 @@ import lombok.AllArgsConstructor;
 import lombok.Cleanup;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import okhttp3.*;
+import okhttp3.Call;
+import okhttp3.MediaType;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
 import org.apache.bookkeeper.common.util.JsonUtil;
-import org.apache.pulsar.broker.rest.entity.*;
+import org.apache.pulsar.broker.rest.entity.AckMessageRequest;
+import org.apache.pulsar.broker.rest.entity.CreateConsumerRequest;
+import org.apache.pulsar.broker.rest.entity.CreateConsumerResponse;
+import org.apache.pulsar.broker.rest.entity.GetMessagesResponse;
+import org.apache.pulsar.broker.rest.entity.RestAckPosition;
+import org.apache.pulsar.broker.rest.entity.RestAckType;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.common.policies.data.*;
+import org.apache.pulsar.common.policies.data.ConsumerStats;
+import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
+import org.apache.pulsar.common.policies.data.PartitionedTopicInternalStats;
+import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
+import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -21,7 +35,10 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.util.*;
+import java.util.Base64;
+import java.util.List;
+import java.util.Objects;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 public class RestConsumerTest extends ProducerConsumerBase {
@@ -495,9 +512,6 @@ public class RestConsumerTest extends ProducerConsumerBase {
             }
         });
     }
-
-
-
 
     @Data
     @AllArgsConstructor
