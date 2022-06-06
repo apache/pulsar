@@ -158,7 +158,7 @@ public class MongoSink implements Sink<byte[]> {
         }
     }
 
-    private class DocsToInsertSubscriber implements Subscriber<InsertManyResult> {
+    private static class DocsToInsertSubscriber implements Subscriber<InsertManyResult> {
         final List<Document> docsToInsert;
         final List<Record<byte[]>> recordsToInsert;
         final List<Integer> idxToAck;

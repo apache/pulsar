@@ -40,6 +40,7 @@ import org.apache.pulsar.io.core.PushSource;
 import org.apache.pulsar.io.core.SourceContext;
 import org.apache.pulsar.io.core.annotations.Connector;
 import org.apache.pulsar.io.core.annotations.IOType;
+import org.bson.BsonDocument;
 import org.bson.Document;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
@@ -133,9 +134,12 @@ public class MongoSource extends PushSource<byte[]> {
                     recordValue.put("ns", doc.getNamespace());
                     recordValue.put("operation", doc.getOperationType());
 
-                    consume(new DocRecord(
-                            Optional.of(doc.getDocumentKey().toJson()),
-                            mapper.writeValueAsString(recordValue).getBytes(StandardCharsets.UTF_8)));
+                    BsonDocument key = doc.getDocumentKey();
+                    if (key != null) {
+                        consume(new DocRecord(
+                                Optional.of(key.toJson()),
+                                mapper.writeValueAsString(recordValue).getBytes(StandardCharsets.UTF_8)));
+                    }
 
                 } catch (JsonProcessingException e) {
                     log.error("Processing doc from mongo", e);
