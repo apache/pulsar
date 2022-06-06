@@ -1502,8 +1502,13 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         // get function stats
         getFunctionStatsEmpty(functionName);
 
-        // publish and consume result
-        publishAndConsumeMessages(inputTopicName, logTopicName, numMessages, "-log");
+        try {
+            // publish and consume result
+            publishAndConsumeMessages(inputTopicName, logTopicName, numMessages, "-log");
+        } finally {
+            // dump function logs so that it's easier to investigate failures
+            pulsarCluster.dumpFunctionLogs(functionName);
+        }
 
         // get function status
         getFunctionStatus(functionName, numMessages, true);

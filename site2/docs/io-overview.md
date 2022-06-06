@@ -73,7 +73,7 @@ When creating a connector, you can set the processing guarantee with the followi
 Here takes **Admin CLI** as an example. For more information about **REST API** or **JAVA Admin API**, see [here](io-use.md#create). 
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="io-choice"
   defaultValue="Source"
   values={[{"label":"Source","value":"Source"},{"label":"Sink","value":"Sink"}]}>
 
@@ -120,7 +120,7 @@ After creating a connector, you can update the processing guarantee with the fol
 Here takes **Admin CLI** as an example. For more information about **REST API** or **JAVA Admin API**, see [here](io-use.md#create). 
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="io-choice"
   defaultValue="Source"
   values={[{"label":"Source","value":"Source"},{"label":"Sink","value":"Sink"}]}>
 
