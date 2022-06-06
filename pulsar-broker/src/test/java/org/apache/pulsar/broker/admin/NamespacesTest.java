@@ -486,32 +486,37 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testGlobalNamespaceReplicationConfiguration() throws Exception {
-        assertEquals(
-                namespaces.getNamespaceReplicationClusters(this.testGlobalNamespaces.get(0).getTenant(),
-                        this.testGlobalNamespaces.get(0).getCluster(), this.testGlobalNamespaces.get(0).getLocalName()),
-                Sets.newHashSet());
 
-        namespaces.setNamespaceReplicationClusters(this.testGlobalNamespaces.get(0).getTenant(),
-                this.testGlobalNamespaces.get(0).getCluster(), this.testGlobalNamespaces.get(0).getLocalName(),
-                Lists.newArrayList("use", "usw"));
-        assertEquals(
-                namespaces.getNamespaceReplicationClusters(this.testGlobalNamespaces.get(0).getTenant(),
-                        this.testGlobalNamespaces.get(0).getCluster(), this.testGlobalNamespaces.get(0).getLocalName()),
-                Lists.newArrayList("use", "usw"));
+        Set<String> repCluster = (Set<String>) asyncRequests(rsp -> namespaces.getNamespaceReplicationClusters(rsp,
+                this.testGlobalNamespaces.get(0).getTenant(), this.testGlobalNamespaces.get(0).getCluster(),
+                this.testGlobalNamespaces.get(0).getLocalName()));
+        assertEquals(repCluster, Sets.newHashSet());
+
+        asyncRequests(rsp -> namespaces.setNamespaceReplicationClusters(rsp,
+                this.testGlobalNamespaces.get(0).getTenant(), this.testGlobalNamespaces.get(0).getCluster(),
+                this.testGlobalNamespaces.get(0).getLocalName(),
+                Lists.newArrayList("use", "usw")));
+
+        repCluster = (Set<String>) asyncRequests(rsp -> namespaces.getNamespaceReplicationClusters(rsp,
+                this.testGlobalNamespaces.get(0).getTenant(), this.testGlobalNamespaces.get(0).getCluster(),
+                this.testGlobalNamespaces.get(0).getLocalName()));
+        assertEquals(repCluster, Lists.newArrayList("use", "usw"));
 
         try {
-            namespaces.setNamespaceReplicationClusters(this.testGlobalNamespaces.get(0).getTenant(),
-                    this.testGlobalNamespaces.get(0).getCluster(), this.testGlobalNamespaces.get(0).getLocalName(),
-                    Lists.newArrayList("use", "invalid-cluster"));
+            asyncRequests(rsp -> namespaces.setNamespaceReplicationClusters(rsp,
+                    this.testGlobalNamespaces.get(0).getTenant(), this.testGlobalNamespaces.get(0).getCluster(),
+                    this.testGlobalNamespaces.get(0).getLocalName(),
+                    Lists.newArrayList("use", "invalid-cluster")));
             fail("should have failed");
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), Status.FORBIDDEN.getStatusCode());
         }
 
         try {
-            namespaces.setNamespaceReplicationClusters(this.testGlobalNamespaces.get(0).getTenant(),
-                    this.testGlobalNamespaces.get(0).getCluster(), this.testGlobalNamespaces.get(0).getLocalName(),
-                    Lists.newArrayList("use", "global"));
+            asyncRequests(rsp -> namespaces.setNamespaceReplicationClusters(rsp,
+                    this.testGlobalNamespaces.get(0).getTenant(), this.testGlobalNamespaces.get(0).getCluster(),
+                    this.testGlobalNamespaces.get(0).getLocalName(),
+                    Lists.newArrayList("use", "global")));
             fail("should have failed");
         } catch (RestException e) {
             // Ok, global should not be allowed in the list of replication clusters
@@ -519,8 +524,9 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         }
 
         try {
-            namespaces.setNamespaceReplicationClusters(this.testTenant, "global",
-                    this.testGlobalNamespaces.get(0).getLocalName(), Lists.newArrayList("use", "invalid-cluster"));
+            asyncRequests(rsp -> namespaces.setNamespaceReplicationClusters(rsp, this.testTenant, "global",
+                    this.testGlobalNamespaces.get(0).getLocalName(),
+                    Lists.newArrayList("use", "invalid-cluster")));
             fail("should have failed");
         } catch (RestException e) {
             // Ok, invalid-cluster is an invalid cluster id
@@ -531,8 +537,8 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
                 new TenantInfoImpl(Sets.newHashSet("role1", "role2"), Sets.newHashSet("use", "usc")));
 
         try {
-            namespaces.setNamespaceReplicationClusters(this.testTenant, "global",
-                    this.testGlobalNamespaces.get(0).getLocalName(), Lists.newArrayList("use", "usw"));
+            asyncRequests(rsp -> namespaces.setNamespaceReplicationClusters(rsp, this.testTenant, "global",
+                    this.testGlobalNamespaces.get(0).getLocalName(), Lists.newArrayList("use", "usw")));
             fail("should have failed");
         } catch (RestException e) {
             // Ok, usw was not configured in the list of allowed clusters
@@ -544,8 +550,8 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         mockZooKeeperGlobal.setAlwaysFail(Code.SESSIONEXPIRED);
 
         try {
-            namespaces.setNamespaceReplicationClusters(this.testTenant, "global",
-                    this.testGlobalNamespaces.get(0).getLocalName(), Lists.newArrayList("use"));
+            asyncRequests(rsp -> namespaces.setNamespaceReplicationClusters(rsp, this.testTenant, "global",
+                    this.testGlobalNamespaces.get(0).getLocalName(), Lists.newArrayList("use")));
             fail("should have failed");
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), Status.INTERNAL_SERVER_ERROR.getStatusCode());
@@ -566,23 +572,24 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         policiesCache.invalidateAll();
         store.invalidateAll();
         try {
-            namespaces.setNamespaceReplicationClusters(this.testTenant, "global",
-                    this.testGlobalNamespaces.get(0).getLocalName(), Lists.newArrayList("use"));
+            asyncRequests(rsp -> namespaces.setNamespaceReplicationClusters(rsp, this.testTenant, "global",
+                    this.testGlobalNamespaces.get(0).getLocalName(), Lists.newArrayList("use")));
             fail("should have failed");
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), 500);
         }
 
         try {
-            namespaces.getNamespaceReplicationClusters(this.testTenant, "global", "non-existing-ns");
+            asyncRequests(rsp -> namespaces.getNamespaceReplicationClusters(rsp, this.testTenant,
+                                                                     "global", "non-existing-ns"));
             fail("should have failed");
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), Status.NOT_FOUND.getStatusCode());
         }
 
         try {
-            namespaces.setNamespaceReplicationClusters(this.testTenant, "global", "non-existing-ns",
-                    Lists.newArrayList("use"));
+            asyncRequests(rsp -> namespaces.setNamespaceReplicationClusters(rsp, this.testTenant,
+                    "global", "non-existing-ns", Lists.newArrayList("use")));
             fail("should have failed");
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), Status.NOT_FOUND.getStatusCode());
@@ -597,24 +604,25 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         store.invalidateAll();
         // ensure the ZooKeeper read happens, bypassing the cache
         try {
-            namespaces.getNamespaceReplicationClusters(this.testTenant, "global",
-                    this.testGlobalNamespaces.get(0).getLocalName());
+            asyncRequests(rsp -> namespaces.getNamespaceReplicationClusters(rsp,
+                    this.testGlobalNamespaces.get(0).getTenant(), this.testGlobalNamespaces.get(0).getCluster(),
+                    this.testGlobalNamespaces.get(0).getLocalName()));
             fail("should have failed");
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), 500);
         }
 
         try {
-            namespaces.getNamespaceReplicationClusters(this.testTenant, this.testLocalCluster,
-                    this.testLocalNamespaces.get(0).getLocalName());
+            asyncRequests(rsp -> namespaces.getNamespaceReplicationClusters(rsp, this.testTenant,
+                    this.testLocalCluster, this.testLocalNamespaces.get(0).getLocalName()));
             fail("should have failed");
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), Status.PRECONDITION_FAILED.getStatusCode());
         }
 
         try {
-            namespaces.setNamespaceReplicationClusters(this.testTenant, this.testLocalCluster,
-                    this.testLocalNamespaces.get(0).getLocalName(), Lists.newArrayList("use"));
+            asyncRequests(rsp -> namespaces.setNamespaceReplicationClusters(rsp, this.testTenant, this.testLocalCluster,
+                    this.testLocalNamespaces.get(0).getLocalName(), Lists.newArrayList("use")));
             fail("should have failed");
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), Status.PRECONDITION_FAILED.getStatusCode());

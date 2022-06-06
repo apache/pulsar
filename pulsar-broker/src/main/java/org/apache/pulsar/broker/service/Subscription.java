@@ -103,6 +103,8 @@ public interface Subscription {
 
     Map<String, String> getSubscriptionProperties();
 
+    CompletableFuture<Void> updateSubscriptionProperties(Map<String, String> subscriptionProperties);
+
     default void processReplicatedSubscriptionSnapshot(ReplicatedSubscriptionsSnapshot snapshot) {
         // Default is no-op
     }

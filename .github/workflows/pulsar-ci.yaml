@@ -159,6 +159,8 @@ jobs:
             timeout: 75
           - name: Proxy
             group: PROXY
+          - name: Pulsar IO
+            group: PULSAR_IO
 
     steps:
       - name: checkout
@@ -243,6 +245,15 @@ jobs:
           name: Unit-${{ matrix.group }}-surefire-reports
           path: surefire-reports
           retention-days: 7
+
+      - name: Upload possible heap dump
+        uses: actions/upload-artifact@v3
+        if: ${{ always() && needs.changed_files_job.outputs.docs_only != 'true' }}
+        with:
+          name: Unit-${{ matrix.group }}-heapdump
+          path: /tmp/*.hprof
+          retention-days: 7
+          if-no-files-found: ignore
 
       - name: Wait for ssh connection when build fails
         # ssh access is enabled for builds in own forks

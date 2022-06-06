@@ -1,40 +1,44 @@
 ---
-id: tiered-storage-aliyun
-title: Use Aliyun OSS offloader with Pulsar
-sidebar_label: "Aliyun OSS offloader"
+id: tiered-storage-s3
+title: Use S3 offloader with Pulsar
+sidebar_label: "S3 offloader"
 ---
 
-This chapter guides you through every step of installing and configuring the Aliyun Object Storage Service (OSS) offloader and using it with Pulsar.
+S3 offloader is introduced to serve S3-compatible storage, which means that the storage employs the S3 API as its “language" and applications that speak the S3 API are able to plug and play with S3-compatible storage. 
+
+This chapter guides you through every step of installing and configuring the S3 offloader and using it with Pulsar. 
 
 ## Installation
 
-Follow the steps below to install the Aliyun OSS offloader.
+Follow the steps below to install the S3 offloader.
 
 ### Prerequisite
 
-- Pulsar: 2.8.0 or later versions
+- Pulsar: 2.9.3 or later versions
   
-### Step
+### Steps
 
-This example uses Pulsar 2.8.0.
+This example uses Pulsar 2.9.3.
 
 1. [Download the Pulsar tarball](getting-started-standalone.md#install-pulsar-using-binary-release).
 
 2. Download and untar the Pulsar offloaders package, then copy the Pulsar offloaders as `offloaders` in the Pulsar directory. See [Install tiered storage offloaders](getting-started-standalone.md#install-tiered-storage-offloaders-optional).
 
    **Output**
+   
+   As shown from the output, Pulsar uses [Apache jclouds](https://jclouds.apache.org) to support [AWS S3](https://aws.amazon.com/s3/), [GCS](https://cloud.google.com/storage/), [Azure](https://portal.azure.com/#home), and [Aliyun OSS](https://www.aliyun.com/product/oss) for long-term storage.
 
    ```
    
-   tiered-storage-file-system-2.8.0.nar
-   tiered-storage-jcloud-2.8.0.nar
+   tiered-storage-file-system-2.9.3.nar
+   tiered-storage-jcloud-2.9.3.nar
    
    ```
 
    :::note
 
-   * If you are running Pulsar in a bare-metal cluster, make sure that `offloaders` tarball is unzipped in every broker's Pulsar directory.
-   * If you are running Pulsar in Docker or deploying Pulsar using a Docker image (such as K8s and DCOS), you can use the `apachepulsar/pulsar-all` image. The `apachepulsar/pulsar-all` image has already bundled tiered storage offloaders.
+   * If you run Pulsar in a bare-metal cluster, ensure that `offloaders` tarball is unzipped in every broker's Pulsar directory.
+   * If you run Pulsar in Docker or deploy Pulsar using a Docker image (such as K8s and DCOS), you can use the `apachepulsar/pulsar-all` image. The `apachepulsar/pulsar-all` image has already bundled tiered storage offloaders.
 
    :::
 
@@ -42,22 +46,23 @@ This example uses Pulsar 2.8.0.
 
 :::note
 
-Before offloading data from BookKeeper to Aliyun OSS, you need to configure some properties of the Aliyun OSS offload driver. Besides, you can also configure the Aliyun OSS offloader to run it automatically or trigger it manually.
+Before offloading data from BookKeeper to S3-compatible storage, you need to configure some properties of the S3 offload driver. Besides, you can also configure the S3 offloader to run it automatically or trigger it manually.
 
 :::
 
-### Configure Aliyun OSS offloader driver
 
-You can configure the Aliyun OSS offloader driver in the configuration file `broker.conf` or `standalone.conf`.
+### Configure S3 offloader driver
+
+You can configure the S3 offloader driver in the configuration file `broker.conf` or `standalone.conf`.
 
 - **Required** configurations are as below.
   
   | Required configuration | Description | Example value |
   | --- | --- |--- |
-  | `managedLedgerOffloadDriver` | Offloader driver name, which is case-insensitive. | aliyun-oss |
+  | `managedLedgerOffloadDriver` | Offloader driver name, which is case-insensitive. | S3 |
   | `offloadersDirectory` | Offloader directory | offloaders |
   | `managedLedgerOffloadBucket` | [Bucket](#bucket-required) | pulsar-topic-offload |
-  | `managedLedgerOffloadServiceEndpoint` | [Endpoint](#endpoint-required) | http://oss-cn-hongkong.aliyuncs.com |
+  | `managedLedgerOffloadServiceEndpoint` | [Endpoint](#endpoint-required) | http://localhost:9000 |
 
 - **Optional** configurations are as below.
 
@@ -65,12 +70,12 @@ You can configure the Aliyun OSS offloader driver in the configuration file `bro
   | --- | --- | --- |
   | `managedLedgerOffloadReadBufferSizeInBytes` | Block size for each individual read when reading back data from S3-compatible storage. | 1 MB |
   | `managedLedgerOffloadMaxBlockSizeInBytes` | Maximum block size sent during a multi-part upload to S3-compatible storage. It **cannot** be smaller than 5 MB. | 64 MB |
-  | `managedLedgerMinLedgerRolloverTimeMinutes` | Minimum time between ledger rollover for a topic.<br /><br />It's **not** recommended to change the default value in a production environment. | 2 |
+  | `managedLedgerMinLedgerRolloverTimeMinutes` | Minimum time between ledger rollover for a topic.<br /><br />**Note**: It's **not** recommended to change the default value in a production environment. | 2 |
   | `managedLedgerMaxEntriesPerLedger` | Maximum number of entries to append to a ledger before triggering a rollover.<br /><br />**Note**: It's **not** recommended to change the default value in a production environment. | 5000 |
 
 #### Bucket (required)
 
-A bucket is a basic container that holds your data. Everything you store in Aliyun OSS must be contained in a bucket. You can use a bucket to organize your data and control access to your data, but unlike directory and folder, you cannot nest a bucket.
+A bucket is a basic container that holds your data. Everything you store in S3-compatible storage must be contained in a bucket. You can use a bucket to organize your data and control access to your data, but unlike directory and folder, you cannot nest a bucket.
 
 ##### Example
 
@@ -86,33 +91,27 @@ managedLedgerOffloadBucket=pulsar-topic-offload
 
 The endpoint is the region where a bucket is located.
 
-:::tip
-
-For more information about Aliyun OSS regions and endpoints,  see [International website](https://www.alibabacloud.com/help/doc-detail/31837.htm) or [Chinese website](https://help.aliyun.com/document_detail/31837.html).
-
-:::
-
  
 ##### Example
 
-This example sets the endpoint as `oss-us-west-1-internal`.
+This example sets the endpoint as `localhost`.
 
 ```
 
-managedLedgerOffloadServiceEndpoint=http://oss-us-west-1-internal.aliyuncs.com
+managedLedgerOffloadServiceEndpoint=http://localhost:9000
 
 ```
 
-#### Authentication (required)
+#### Authentication (optional)
 
-To be able to access Aliyun OSS, you need to authenticate with Aliyun OSS.
+To be able to access S3-compatible storage, you need to authenticate with S3-compatible storage.
 
-Set the environment variables `ALIYUN_OSS_ACCESS_KEY_ID` and `ALIYUN_OSS_ACCESS_KEY_SECRET` in `conf/pulsar_env.sh`.
+Set the environment variables `ACCESS_KEY_ID` and `ACCESS_KEY_SECRET` in `conf/pulsar_env.sh`.
 
 ```bash
 
-export ALIYUN_OSS_ACCESS_KEY_ID=ABC123456789
-export ALIYUN_OSS_ACCESS_KEY_SECRET=ded7db27a4558e2ea8bbf0bf37ae0e8521618f366c
+export ACCESS_KEY_ID=ABC123456789
+export ACCESS_KEY_SECRET=ded7db27a4558e2ea8bbf0bf37ae0e8521618f366c
 
 ```
 
@@ -122,7 +121,7 @@ Exporting these environment variables makes them available in the environment of
 
 :::
 
-### Run Aliyun OSS offloader automatically
+### Run S3 offloader automatically
 
 Namespace policy can be configured to offload data automatically once a threshold is reached. The threshold is based on the size of data that a topic has stored in a Pulsar cluster. Once the topic reaches the threshold, an offloading operation is triggered automatically. 
 
@@ -132,7 +131,7 @@ Namespace policy can be configured to offload data automatically once a threshol
 | = 0 | It causes a broker to offload data as soon as possible. |
 | < 0 | It disables automatic offloading operation. |
 
-Automatic offloading runs when a new segment is added to a topic log. If you set the threshold on a namespace, but few messages are being produced to the topic, the offloader does not work until the current segment is full.
+Automatic offloading runs when a new segment is added to a topic log. If you set the threshold for a namespace, but few messages are being produced to the topic, the offloader does not work until the current segment is full.
 
 You can configure the threshold size using CLI tools, such as [`pulsar-admin`](/tools/pulsar-admin/).
 
@@ -140,7 +139,7 @@ The offload configurations in `broker.conf` and `standalone.conf` are used for t
  
 #### Example
 
-This example sets the Aliyun OSS offloader threshold size to 10 MB using `pulsar-admin`.
+This example sets the S3 offloader threshold size to 10 MB using `pulsar-admin`.
 
 ```bash
 
@@ -154,19 +153,19 @@ For more information about the `pulsar-admin namespaces set-offload-threshold op
 
 :::
 
-### Run Aliyun OSS offloader manually
+### Run S3 offloader manually
 
-For individual topics, you can trigger the Aliyun OSS offloader manually using one of the following methods:
+For individual topics, you can trigger the S3 offloader manually using one of the following methods:
 
 - Use REST endpoint.
 
 - Use CLI tools, such as [`pulsar-admin`](/tools/pulsar-admin/). 
 
-  To trigger it via CLI tools, you need to specify the maximum amount of data (threshold) that should be retained in a Pulsar cluster for a topic. If the size of the topic data on the Pulsar cluster exceeds this threshold, segments from the topic are moved to Aliyun OSS until the threshold is no longer exceeded. Older segments are moved first.
+ To trigger it via CLI tools, you need to specify the maximum amount of data (threshold) that should be retained in a Pulsar cluster for a topic. If the size of the topic data in the Pulsar cluster exceeds this threshold, segments from the topic are moved to S3-compatible storage until the threshold is no longer exceeded. Older segments are moved first.
 
 #### Example
 
-- This example triggers the Aliyun OSS offloader to run manually using `pulsar-admin`.
+- This example triggers the S3 offloader to run manually using `pulsar-admin`.
 
   ```bash
   
@@ -188,7 +187,7 @@ For individual topics, you can trigger the Aliyun OSS offloader manually using o
 
   :::
 
-- This example checks the Aliyun OSS offloader status using `pulsar-admin`.
+- This example checks the S3 offloader status using `pulsar-admin`.
 
   ```bash
   
@@ -204,7 +203,7 @@ For individual topics, you can trigger the Aliyun OSS offloader manually using o
   
   ```
 
-  To wait for the Aliyun OSS offloader to complete the job, add the `-w` flag.
+  To wait for the S3 offloader to complete the job, add the `-w` flag.
 
   ```bash
   
@@ -244,4 +243,5 @@ For individual topics, you can trigger the Aliyun OSS offloader manually using o
   For more information about the `pulsar-admin topics offload-status options` command, including flags, descriptions, and default values, see [Pulsar admin docs](/tools/pulsar-admin/). 
 
   :::
+
 

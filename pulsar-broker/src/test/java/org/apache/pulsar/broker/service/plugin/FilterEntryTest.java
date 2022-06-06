@@ -69,10 +69,13 @@ public class FilterEntryTest extends BrokerTestBase {
     }
 
     public void testFilter() throws Exception {
-
+        Map<String, String> map = new HashMap<>();
+        map.put("1","1");
+        map.put("2","2");
         String topic = "persistent://prop/ns-abc/topic" + UUID.randomUUID();
         String subName = "sub";
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(topic)
+                .subscriptionProperties(map)
                 .subscriptionName(subName).subscribe();
         // mock entry filters
         PersistentSubscription subscription = (PersistentSubscription) pulsar.getBrokerService()
@@ -132,9 +135,6 @@ public class FilterEntryTest extends BrokerTestBase {
         });
         consumer.close();
 
-        Map<String, String> map = new HashMap<>();
-        map.put("1","1");
-        map.put("2","2");
         consumer = pulsarClient.newConsumer(Schema.STRING).topic(topic).subscriptionProperties(map)
                 .subscriptionName(subName).subscribe();
         for (int i = 0; i < 10; i++) {
