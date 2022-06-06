@@ -32,7 +32,6 @@ import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLong;
 import lombok.Data;
-import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -53,8 +52,7 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
     static final String MEMORY_SCHEME_IDENTIFIER = "memory:";
 
     @Data
-    @Getter
-    protected static class Value {
+    private static class Value {
         final long version;
         final byte[] data;
         final long createdTimestamp;
@@ -62,8 +60,8 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
         final boolean ephemeral;
     }
 
-    protected final NavigableMap<String, Value> map;
-    protected final AtomicLong sequentialIdGenerator;
+    private final NavigableMap<String, Value> map;
+    private final AtomicLong sequentialIdGenerator;
 
     private static final Map<String, NavigableMap<String, Value>> STATIC_MAPS = new MapMaker()
             .weakValues().makeMap();

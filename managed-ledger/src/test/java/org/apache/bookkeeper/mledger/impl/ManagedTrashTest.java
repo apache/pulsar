@@ -23,7 +23,6 @@ import com.google.common.base.Charsets;
 import java.lang.reflect.Field;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
-import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -43,16 +42,10 @@ import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedTrash;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
-import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
-import org.apache.pulsar.metadata.api.MetadataStoreException;
-import org.apache.pulsar.metadata.api.Notification;
-import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.Stat;
-import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.impl.FaultInjectionMetadataStore;
-import org.apache.pulsar.metadata.impl.LocalMemoryMetadataStore;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -72,66 +65,20 @@ public class ManagedTrashTest extends MockedBookKeeperTestCase {
 
     @Override
     protected void setUpTestCase() throws Exception {
-        MetadataStoreExtended metadataStoreExtended =
-                new LocalMemoryMetadataStore("memory:local", MetadataStoreConfig.builder().build()) {
-                    @Override
-                    public CompletableFuture<Stat> storePut(String path, byte[] data, Optional<Long> optExpectedVersion,
-                                                            EnumSet<CreateOption> options) {
-                        if (!isValidPath(path)) {
-                            return FutureUtil.failedFuture(new MetadataStoreException.InvalidPathException(path));
-                        }
-                        synchronized (map) {
-                            boolean hasVersion = optExpectedVersion.isPresent();
-                            int expectedVersion = optExpectedVersion.orElse(-1L).intValue();
-
-                            if (options.contains(CreateOption.Sequential)) {
-                                path += Long.toString(sequentialIdGenerator.getAndIncrement());
-                            }
-
-                            long now = System.currentTimeMillis();
-
-                            if (hasVersion && expectedVersion == -1) {
-                                Value newValue = new Value(0, data, now, now, options.contains(CreateOption.Ephemeral));
-                                Value existingValue = map.putIfAbsent(path, newValue);
-                                if (existingValue != null) {
-                                    return FutureUtils.exception(new MetadataStoreException.BadVersionException(""));
-                                } else {
-                                    persistedData.put(path, data);
-                                    receivedNotification(new Notification(NotificationType.Created, path));
-                                    notifyParentChildrenChanged(path);
-                                    return FutureUtils.value(new Stat(path, 0, now, now, newValue.isEphemeral(), true));
-                                }
-                            } else {
-                                Value existingValue = map.get(path);
-                                long existingVersion = existingValue != null ? existingValue.getVersion() : -1;
-                                if (hasVersion && expectedVersion != existingVersion) {
-                                    return FutureUtils.exception(new MetadataStoreException.BadVersionException(""));
-                                } else {
-                                    long newVersion = existingValue != null ? existingValue.getVersion() + 1 : 0;
-                                    long createdTimestamp =
-                                            existingValue != null ? existingValue.getCreatedTimestamp() : now;
-                                    Value newValue = new Value(newVersion, data, createdTimestamp, now,
-                                            options.contains(CreateOption.Ephemeral));
-                                    persistedData.put(path, data);
-                                    map.put(path, newValue);
-
-                                    NotificationType type =
-                                            existingValue == null ? NotificationType.Created :
-                                                    NotificationType.Modified;
-                                    receivedNotification(new Notification(type, path));
-                                    if (type == NotificationType.Created) {
-                                        notifyParentChildrenChanged(path);
-                                    }
-                                    return FutureUtils
-                                            .value(new Stat(path, newValue.getVersion(), newValue.getCreatedTimestamp(),
-                                                    newValue.getModifiedTimestamp(),
-                                                    false, true));
-                                }
-                            }
-                        }
+        metadataStore = new FaultInjectionMetadataStore(
+                MetadataStoreExtended.create("memory:local", MetadataStoreConfig.builder().build())) {
+            @Override
+            public CompletableFuture<Stat> put(String path, byte[] value, Optional<Long> expectedVersion) {
+                CompletableFuture<Stat> future = super.put(path, value, expectedVersion);
+                future.whenComplete((res, e) -> {
+                    if (e != null) {
+                        return;
                     }
-                };
-        metadataStore = new FaultInjectionMetadataStore(metadataStoreExtended);
+                    persistedData.put(path, value);
+                });
+                return future;
+            }
+        };
         bkc = new PulsarMockBookKeeper(executor) {
             @Override
             public void asyncDeleteLedger(long lId, AsyncCallback.DeleteCallback cb, Object ctx) {

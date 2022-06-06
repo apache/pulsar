@@ -83,7 +83,7 @@ public class ManagedLedgerConfig {
     private boolean cacheEvictionByMarkDeletedPosition = false;
     private boolean supportTwoPhaseDeletion = false;
     private int archiveDataLimitSize = 500;
-    private int deleteIntervalSeconds = 60000;
+    private int deleteIntervalSeconds = 60;
 
     public boolean isCreateIfMissing() {
         return createIfMissing;

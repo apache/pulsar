@@ -151,7 +151,7 @@ public class ManagedTrashImpl implements ManagedTrash {
                 return;
             }
             if (res.isEmpty()) {
-                STATE_UPDATER.set(this, State.INITIALIZED);
+                STATE_UPDATER.set(this, State.Initialized);
                 checkTrashPersistTask =
                         scheduledExecutor.scheduleAtFixedRate(safeRun(this::persistTrashIfNecessary), 30L, 30L,
                                 TimeUnit.MINUTES);
@@ -167,7 +167,7 @@ public class ManagedTrashImpl implements ManagedTrash {
                 checkTrashPersistTask =
                         scheduledExecutor.scheduleAtFixedRate(safeRun(this::persistTrashIfNecessary), 30L, 30L,
                                 TimeUnit.MINUTES);
-                STATE_UPDATER.set(this, State.INITIALIZED);
+                STATE_UPDATER.set(this, State.Initialized);
                 triggerDeleteInBackground();
             } catch (InvalidProtocolBufferException exc) {
                 future.completeExceptionally(ManagedLedgerException.getManagedLedgerException(exc));
@@ -197,7 +197,7 @@ public class ManagedTrashImpl implements ManagedTrash {
     public void appendLedgerTrashData(long ledgerId, LedgerInfo context, LedgerType type)
             throws ManagedLedgerException {
         State state = STATE_UPDATER.get(this);
-        if (state != State.INITIALIZED) {
+        if (state != State.Initialized) {
             throw ManagedLedgerException.getManagedLedgerException(new IllegalStateException(
                     String.format("[%s] is not initialized, current state: %s", name(), state)));
         }
@@ -230,7 +230,7 @@ public class ManagedTrashImpl implements ManagedTrash {
 
     private void doAsyncUpdateTrashData(CompletableFuture<?> future) {
         State state = STATE_UPDATER.get(this);
-        if (state != State.INITIALIZED) {
+        if (state != State.Initialized) {
             future.completeExceptionally(ManagedLedgerException.getManagedLedgerException(new IllegalStateException(
                     String.format("[%s] is not initialized, current state: %s", name(), state))));
             return;
@@ -306,7 +306,7 @@ public class ManagedTrashImpl implements ManagedTrash {
 
     private void triggerDelete() {
         State state = STATE_UPDATER.get(this);
-        if (state != State.INITIALIZED) {
+        if (state != State.Initialized) {
             log.warn("[{}] is not initialized, current state: {}", name(), state);
             return;
         }
@@ -460,7 +460,7 @@ public class ManagedTrashImpl implements ManagedTrash {
         log.info("[{}] Start async update archive data", name());
 
         State state = STATE_UPDATER.get(this);
-        if (state != State.INITIALIZED) {
+        if (state != State.Initialized) {
             future.completeExceptionally(ManagedLedgerException.getManagedLedgerException(new IllegalStateException(
                     String.format("[%s] is not initialized, current state: %s", name(), state))));
             return;
@@ -754,7 +754,7 @@ public class ManagedTrashImpl implements ManagedTrash {
 
     public enum State {
         None,
-        INITIALIZED,
+        Initialized,
         Closed,
     }
 

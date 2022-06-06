@@ -341,8 +341,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
         this.inactiveLedgerRollOverTimeMs = config.getInactiveLedgerRollOverTimeMs();
         this.managedTrash = config.isSupportTwoPhaseDeletion()
-                ? new ManagedTrashImpl(ManagedTrash.ManagedType.MANAGED_LEDGER, name, metadataStore, config, scheduledExecutor,
-                        executor, bookKeeper) : new ManagedTrashDisableImpl();
+                ? new ManagedTrashImpl(ManagedTrash.ManagedType.MANAGED_LEDGER, name, metadataStore, config,
+                scheduledExecutor, executor, bookKeeper) : new ManagedTrashDisableImpl();
     }
 
     synchronized void initialize(final ManagedLedgerInitializeLedgerCallback callback, final Object ctx) {
@@ -2688,7 +2688,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 managedTrash.appendLedgerTrashData(ledgerId, null, ManagedTrash.LedgerType.LEDGER);
             }
             for (Long ledgerId : deletableOffloadedLedgerIds) {
-                managedTrash.appendLedgerTrashData(ledgerId, ledgers.get(ledgerId), ManagedTrash.LedgerType.OFFLOAD_LEDGER);
+                managedTrash.appendLedgerTrashData(ledgerId, ledgers.get(ledgerId),
+                        ManagedTrash.LedgerType.OFFLOAD_LEDGER);
             }
             future.complete(null);
         } catch (ManagedLedgerException e) {
