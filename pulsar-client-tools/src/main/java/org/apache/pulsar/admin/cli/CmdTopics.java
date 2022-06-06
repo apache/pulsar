@@ -606,7 +606,7 @@ public class CmdTopics extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Get the non-partitioned topic properties.")
+    @Parameters(commandDescription = "Get the topic properties.")
     private class GetPropertiesCmd extends CliCommand {
 
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
@@ -615,7 +615,7 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws Exception {
             String topic = validateTopicName(params);
-            print(getTopics().getPartitionedTopicMetadata(topic));
+            print(getTopics().getProperties(topic));
         }
     }
 
