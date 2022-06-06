@@ -86,7 +86,8 @@
         "tiered-storage-gcs",
         "tiered-storage-filesystem",
         "tiered-storage-azure",
-        "tiered-storage-aliyun"
+        "tiered-storage-aliyun",
+        "tiered-storage-s3"
       ]
     },
     {

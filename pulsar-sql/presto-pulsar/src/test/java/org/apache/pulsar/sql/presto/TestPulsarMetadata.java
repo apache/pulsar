@@ -26,6 +26,8 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
+import org.mockito.Mockito;
+import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import javax.ws.rs.ClientErrorException;
@@ -35,6 +37,7 @@ import java.util.stream.Collectors;
 
 import static io.prestosql.spi.StandardErrorCode.NOT_FOUND;
 import static io.prestosql.spi.StandardErrorCode.NOT_SUPPORTED;
+import static io.prestosql.spi.StandardErrorCode.PERMISSION_DENIED;
 import static org.mockito.Mockito.*;
 import static org.testng.Assert.*;
 
@@ -376,5 +379,60 @@ public class TestPulsarMetadata extends TestPulsarConnector {
         }
 
         assertTrue(fieldNames.isEmpty());
+    }
+
+    @Test
+    public void testPulsarAuthCheck() {
+        this.pulsarConnectorConfig.setAuthorizationEnabled(true);
+        doNothing().when(this.pulsarAuth).checkTopicAuth(isA(ConnectorSession.class), isA(String.class));
+
+        // Test getTableHandle should pass the auth check
+        SchemaTableName schemaTableName = new SchemaTableName(TOPIC_1.getNamespace(), TOPIC_1.getLocalName());
+        this.pulsarMetadata.getTableHandle(mock(ConnectorSession.class), schemaTableName);
+
+        // Test getTableMetadata should pass the auth check
+        TopicName topic = TOPIC_1;
+        PulsarTableHandle pulsarTableHandle = new PulsarTableHandle(
+                topic.toString(),
+                topic.getNamespace(),
+                topic.getLocalName(),
+                topic.getLocalName()
+        );
+        this.pulsarMetadata.getTableMetadata(mock(ConnectorSession.class),
+                pulsarTableHandle);
+
+        // Test getColumnHandles should pass the auth check
+        this.pulsarMetadata.getColumnHandles(mock(ConnectorSession.class), pulsarTableHandle);
+
+        doThrow(new PrestoException(PERMISSION_DENIED, "not authorized")).when(this.pulsarAuth)
+                .checkTopicAuth(isA(ConnectorSession.class), isA(String.class));
+
+        // Test getTableHandle should fail the auth check
+        try {
+            this.pulsarMetadata.getTableHandle(mock(ConnectorSession.class), schemaTableName);
+            Assert.fail("Test getTableHandle should fail the auth check"); // should fail
+        } catch (PrestoException e) {
+            Assert.assertEquals(PERMISSION_DENIED.toErrorCode(), e.getErrorCode());
+        }
+
+        // Test getTableMetadata should fail the auth check
+        try {
+            this.pulsarMetadata.getTableMetadata(mock(ConnectorSession.class),
+                    pulsarTableHandle);
+            Assert.fail("Test getTableMetadata should fail the auth check"); // should fail
+        } catch (PrestoException e) {
+            Assert.assertEquals(PERMISSION_DENIED.toErrorCode(), e.getErrorCode());
+        }
+
+        // Test getColumnHandles should fail the auth check
+        try {
+            this.pulsarMetadata.getColumnHandles(mock(ConnectorSession.class), pulsarTableHandle);
+            Assert.fail("Test getColumnHandles should fail the auth check"); // should fail
+        } catch (PrestoException e) {
+            Assert.assertEquals(PERMISSION_DENIED.toErrorCode(), e.getErrorCode());
+        }
+
+        this.pulsarMetadata.cleanupQuery(mock(ConnectorSession.class));
+        Mockito.verify(this.pulsarAuth, Mockito.times(1)).cleanSession(isA(ConnectorSession.class));
     }
 }

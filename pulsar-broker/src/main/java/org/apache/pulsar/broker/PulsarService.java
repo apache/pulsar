@@ -127,6 +127,8 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.TransactionBufferClient;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.client.impl.conf.ConfigurationDataUtils;
+import org.apache.pulsar.client.internal.PropertiesUtils;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.conf.InternalConfigurationData;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
@@ -485,6 +487,10 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 transactionBufferSnapshotService = null;
             }
 
+            if (transactionBufferClient != null) {
+                transactionBufferClient.close();
+            }
+
             if (client != null) {
                 client.close();
                 client = null;
@@ -515,10 +521,6 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             if (protocolHandlers != null) {
                 protocolHandlers.close();
                 protocolHandlers = null;
-            }
-
-            if (transactionBufferClient != null) {
-                transactionBufferClient.close();
             }
 
             if (coordinationService != null) {
@@ -1276,7 +1278,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         });
     }
 
-    public synchronized LedgerOffloader createManagedLedgerOffloader(OffloadPoliciesImpl offloadPolicies)
+    public LedgerOffloader createManagedLedgerOffloader(OffloadPoliciesImpl offloadPolicies)
             throws PulsarServerException {
         try {
             if (StringUtils.isNotBlank(offloadPolicies.getManagedLedgerOffloadDriver())) {
@@ -1284,25 +1286,30 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                     "Offloader driver is configured to be '%s' but no offloaders directory is configured.",
                         offloadPolicies.getManagedLedgerOffloadDriver());
 
-                Offloaders offloaders = offloadersCache.getOrLoadOffloaders(
-                        offloadPolicies.getOffloadersDirectory(), config.getNarExtractionDirectory());
+                synchronized (this) {
+                    Offloaders offloaders = offloadersCache.getOrLoadOffloaders(
+                            offloadPolicies.getOffloadersDirectory(), config.getNarExtractionDirectory());
 
-                LedgerOffloaderFactory offloaderFactory = offloaders.getOffloaderFactory(
-                        offloadPolicies.getManagedLedgerOffloadDriver());
-                try {
-                    return offloaderFactory.create(
-                        offloadPolicies,
-                        ImmutableMap.of(
-                            LedgerOffloader.METADATA_SOFTWARE_VERSION_KEY.toLowerCase(), PulsarVersion.getVersion(),
-                            LedgerOffloader.METADATA_SOFTWARE_GITSHA_KEY.toLowerCase(), PulsarVersion.getGitSha(),
-                            LedgerOffloader.METADATA_PULSAR_CLUSTER_NAME.toLowerCase(), config.getClusterName()
-                        ),
-                        schemaStorage, getOffloaderScheduler(offloadPolicies), this.offloaderStats);
-                } catch (IOException ioe) {
-                    throw new PulsarServerException(ioe.getMessage(), ioe.getCause());
+                    LedgerOffloaderFactory offloaderFactory = offloaders.getOffloaderFactory(
+                            offloadPolicies.getManagedLedgerOffloadDriver());
+                    try {
+                        return offloaderFactory.create(
+                                offloadPolicies,
+                                ImmutableMap.of(
+                                        LedgerOffloader.METADATA_SOFTWARE_VERSION_KEY.toLowerCase(),
+                                        PulsarVersion.getVersion(),
+                                        LedgerOffloader.METADATA_SOFTWARE_GITSHA_KEY.toLowerCase(),
+                                        PulsarVersion.getGitSha(),
+                                        LedgerOffloader.METADATA_PULSAR_CLUSTER_NAME.toLowerCase(),
+                                        config.getClusterName()
+                                ),
+                                schemaStorage, getOffloaderScheduler(offloadPolicies), this.offloaderStats);
+                    } catch (IOException ioe) {
+                        throw new PulsarServerException(ioe.getMessage(), ioe.getCause());
+                    }
                 }
             } else {
-                LOG.info("No ledger offloader configured, using NULL instance");
+                LOG.debug("No ledger offloader configured, using NULL instance");
                 return NullLedgerOffloader.INSTANCE;
             }
         } catch (Throwable t) {
@@ -1395,10 +1402,19 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     public synchronized PulsarClient getClient() throws PulsarServerException {
         if (this.client == null) {
             try {
-                ClientConfigurationData conf = new ClientConfigurationData();
+                ClientConfigurationData initialConf = new ClientConfigurationData();
 
-                // Disable memory limit for broker client
-                conf.setMemoryLimitBytes(0);
+                // Disable memory limit for broker client and disable stats
+                initialConf.setMemoryLimitBytes(0);
+                initialConf.setStatsIntervalSeconds(0);
+
+                // Apply all arbitrary configuration. This must be called before setting any fields annotated as
+                // @Secret on the ClientConfigurationData object because of the way they are serialized.
+                // See https://github.com/apache/pulsar/issues/8509 for more information.
+                Map<String, Object> overrides = PropertiesUtils
+                        .filterAndMapProperties(this.getConfiguration().getProperties(), "brokerClient_");
+                ClientConfigurationData conf =
+                        ConfigurationDataUtils.loadData(overrides, initialConf, ClientConfigurationData.class);
 
                 conf.setServiceUrl(this.getConfiguration().isTlsEnabled()
                                 ? this.brokerServiceUrlTls : this.brokerServiceUrl);
@@ -1427,8 +1443,6 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                             this.getConfiguration().getBrokerClientAuthenticationPlugin(),
                             this.getConfiguration().getBrokerClientAuthenticationParameters()));
                 }
-
-                conf.setStatsIntervalSeconds(0);
                 this.client = createClientImpl(conf);
             } catch (Exception e) {
                 throw new PulsarServerException(e);
@@ -1448,10 +1462,16 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                             + ", webServiceAddressTls: " + webServiceAddressTls
                             + ", webServiceAddress: " + webServiceAddress);
                 }
-                PulsarAdminBuilder builder = PulsarAdmin.builder().serviceHttpUrl(adminApiUrl) //
-                        .authentication(//
-                                conf.getBrokerClientAuthenticationPlugin(), //
-                                conf.getBrokerClientAuthenticationParameters());
+                PulsarAdminBuilder builder = PulsarAdmin.builder().serviceHttpUrl(adminApiUrl);
+
+                // Apply all arbitrary configuration. This must be called before setting any fields annotated as
+                // @Secret on the ClientConfigurationData object because of the way they are serialized.
+                // See https://github.com/apache/pulsar/issues/8509 for more information.
+                builder.loadConf(PropertiesUtils.filterAndMapProperties(config.getProperties(), "brokerClient_"));
+
+                builder.authentication(
+                        conf.getBrokerClientAuthenticationPlugin(),
+                        conf.getBrokerClientAuthenticationParameters());
 
                 if (conf.isBrokerClientTlsEnabled()) {
                     builder.tlsCiphers(config.getBrokerClientTlsCiphers())
