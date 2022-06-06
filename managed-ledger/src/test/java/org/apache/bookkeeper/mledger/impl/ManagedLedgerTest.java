@@ -2588,7 +2588,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         Set<ManagedCursor> activeCursors = Sets.newHashSet();
         activeCursors.add(cursor1);
         activeCursors.add(cursor2);
-        EntryCache entryCache = Whitebox.getInternalState(ledger, "entryCache", EntryCache.class);
+        EntryCache entryCache = Whitebox.getInternalState(ledger, "entryCache");
 
         Iterator<ManagedCursor> activeCursor = ledger.getActiveCursors().iterator();
 
@@ -2660,7 +2660,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
     @Test
     public void testActiveDeactiveCursor() throws Exception {
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("cache_eviction_ledger");
-        EntryCache entryCache = Whitebox.getInternalState(ledger, "entryCache", EntryCache.class);
+        EntryCache entryCache = Whitebox.getInternalState(ledger, "entryCache");
 
         final int totalInsertedEntries = 20;
         for (int i = 0; i < totalInsertedEntries; i++) {
