@@ -44,7 +44,7 @@ public class TripleLongPriorityQueue implements AutoCloseable {
      */
     private static final float RESERVATION_FACTOR = 0.9f;
 
-    private final ByteBuf buffer;
+    private ByteBuf buffer;
 
     private final int initialCapacity;
 
@@ -54,6 +54,8 @@ public class TripleLongPriorityQueue implements AutoCloseable {
      * When size < capacity * shrinkFactor, may trigger shrinking.
      */
     private final float shrinkFactor;
+
+    private float shrinkThreshold;
 
     /**
      * Create a new priority queue with default initial capacity.
@@ -66,7 +68,8 @@ public class TripleLongPriorityQueue implements AutoCloseable {
         checkArgument(shrinkFactor > 0);
         this.initialCapacity = initialCapacity;
         this.capacity = initialCapacity;
-        this.buffer = PooledByteBufAllocator.DEFAULT.directBuffer(initialCapacity * ITEMS_COUNT * SIZE_OF_LONG);
+        this.shrinkThreshold = this.capacity * shrinkFactor;
+        this.buffer = PooledByteBufAllocator.DEFAULT.directBuffer(initialCapacity * TUPLE_SIZE);
         this.size = 0;
         this.shrinkFactor = shrinkFactor;
     }
@@ -171,11 +174,12 @@ public class TripleLongPriorityQueue implements AutoCloseable {
     private void increaseCapacity() {
         // For bigger sizes, increase by 50%
         this.capacity += (capacity <= 256 ? capacity : capacity / 2);
+        this.shrinkThreshold = this.capacity * shrinkFactor;
         buffer.capacity(this.capacity * TUPLE_SIZE);
     }
 
     private void shrinkCapacity() {
-        if (capacity > initialCapacity &&  size < capacity * shrinkFactor) {
+        if (capacity > initialCapacity &&  size < shrinkThreshold) {
             int decreasingSize = (int) (capacity * shrinkFactor * RESERVATION_FACTOR);
             if (decreasingSize <= 0) {
                 return;
@@ -185,7 +189,12 @@ public class TripleLongPriorityQueue implements AutoCloseable {
             } else {
                 this.capacity = capacity - decreasingSize;
             }
-            buffer.capacity(this.capacity * TUPLE_SIZE);
+            this.shrinkThreshold = this.capacity * shrinkFactor;
+
+            ByteBuf newBuffer = PooledByteBufAllocator.DEFAULT.directBuffer(this.capacity * TUPLE_SIZE);
+            buffer.getBytes(0, newBuffer, size * TUPLE_SIZE);
+            buffer.release();
+            this.buffer = newBuffer;
         }
     }
 
