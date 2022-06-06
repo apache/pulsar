@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.bookkeeper.mledger.impl;
+package org.apache.bookkeeper.mledger.impl.cache;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -34,6 +34,9 @@ import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.impl.EntryImpl;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
 import org.apache.bookkeeper.mledger.util.RangeCache;
 import org.apache.commons.lang3.tuple.Pair;
@@ -43,9 +46,9 @@ import org.slf4j.LoggerFactory;
 /**
  * Cache data payload for entries of all ledgers.
  */
-public class EntryCacheImpl implements EntryCache {
+public class RangeEntryCacheImpl implements EntryCache {
 
-    private final EntryCacheManager manager;
+    private final RangeEntryCacheManagerImpl manager;
     private final ManagedLedgerImpl ml;
     private ManagedLedgerInterceptor interceptor;
     private final RangeCache<PositionImpl, EntryImpl> entries;
@@ -53,7 +56,7 @@ public class EntryCacheImpl implements EntryCache {
 
     private static final double MB = 1024 * 1024;
 
-    public EntryCacheImpl(EntryCacheManager manager, ManagedLedgerImpl ml, boolean copyEntries) {
+    public RangeEntryCacheImpl(RangeEntryCacheManagerImpl manager, ManagedLedgerImpl ml, boolean copyEntries) {
         this.manager = manager;
         this.ml = ml;
         this.interceptor = ml.getManagedLedgerInterceptor();
@@ -214,10 +217,10 @@ public class EntryCacheImpl implements EntryCache {
                             Iterator<LedgerEntry> iterator = ledgerEntries.iterator();
                             if (iterator.hasNext()) {
                                 LedgerEntry ledgerEntry = iterator.next();
-                                EntryImpl returnEntry = EntryCacheManager.create(ledgerEntry, interceptor);
+                                EntryImpl returnEntry = RangeEntryCacheManagerImpl.create(ledgerEntry, interceptor);
 
                                 manager.mlFactoryMBean.recordCacheMiss(1, returnEntry.getLength());
-                                ml.mbean.addReadEntriesSample(1, returnEntry.getLength());
+                                ml.getMbean().addReadEntriesSample(1, returnEntry.getLength());
                                 callback.readEntryComplete(returnEntry, ctx);
                             } else {
                                 // got an empty sequence
@@ -299,14 +302,14 @@ public class EntryCacheImpl implements EntryCache {
                             long totalSize = 0;
                             final List<EntryImpl> entriesToReturn = Lists.newArrayListWithExpectedSize(entriesToRead);
                             for (LedgerEntry e : ledgerEntries) {
-                                EntryImpl entry = EntryCacheManager.create(e, interceptor);
+                                EntryImpl entry = RangeEntryCacheManagerImpl.create(e, interceptor);
 
                                 entriesToReturn.add(entry);
                                 totalSize += entry.getLength();
                             }
 
                             manager.mlFactoryMBean.recordCacheMiss(entriesToReturn.size(), totalSize);
-                            ml.getMBean().addReadEntriesSample(entriesToReturn.size(), totalSize);
+                            ml.getMbean().addReadEntriesSample(entriesToReturn.size(), totalSize);
 
                             callback.readEntriesComplete((List) entriesToReturn, ctx);
                         } finally {
@@ -364,5 +367,5 @@ public class EntryCacheImpl implements EntryCache {
         manager.entriesRemoved(evictedSize);
     }
 
-    private static final Logger log = LoggerFactory.getLogger(EntryCacheImpl.class);
+    private static final Logger log = LoggerFactory.getLogger(RangeEntryCacheImpl.class);
 }
