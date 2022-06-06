@@ -50,7 +50,6 @@ BINDIR=`dirname "$0"`
 BK_HOME=`cd -P $BINDIR/..;pwd`
 
 BOOKIE_LOG_DIR=${BOOKIE_LOG_DIR:-"$BK_HOME/logs"}
-BOOKIE_GC_LOG_DIR=${BOOKIE_GC_LOG_DIR:-"$BOOKIE_LOG_DIR"}
 
 DEFAULT_CONF=$BK_HOME/conf/bookkeeper.conf
 DEFAULT_LOG_CONF=$BK_HOME/conf/log4j2.yaml

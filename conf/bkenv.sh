@@ -61,6 +61,8 @@ if [[ -z "$BOOKIE_GC_LOG" ]]; then
   BOOKIE_GC_LOG="$PULSAR_GC_LOG"
 fi
 
+BOOKIE_GC_LOG_DIR=${BOOKIE_GC_LOG_DIR:-"${PULSAR_GC_LOG_DIR:-"${BOOKIE_LOG_DIR}"}"}
+
 if [[ -z "$BOOKIE_GC_LOG" ]]; then
   if [[ $JAVA_MAJOR_VERSION -gt 8 ]]; then
     BOOKIE_GC_LOG="-Xlog:gc*,safepoint:${BOOKIE_GC_LOG_DIR}/pulsar_bookie_gc_%p.log:time,uptime,tags:filecount=10,filesize=20M"

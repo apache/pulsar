@@ -41,7 +41,6 @@ BINDIR=$(dirname "$0")
 PULSAR_HOME=$(cd -P $BINDIR/..;pwd)
 # log directory
 export PULSAR_LOG_DIR=${PULSAR_LOG_DIR:-"$PULSAR_HOME/logs"}
-export PULSAR_GC_LOG_DIR=${PULSAR_GC_LOG_DIR:-"$PULSAR_LOG_DIR"}
 
 if [ $# = 0 ]; then
     usage
@@ -65,8 +64,6 @@ shift
 # Check bookkeeper env and load bkenv.sh
 if [ -f "$PULSAR_HOME/conf/bkenv.sh" ]
 then
-    export BOOKIE_LOG_DIR=${BOOKIE_LOG_DIR:-"${PULSAR_LOG_DIR}"}
-    export BOOKIE_GC_LOG_DIR=${BOOKIE_GC_LOG_DIR:-"${PULSAR_GC_LOG_DIR}"}
     . "$PULSAR_HOME/conf/bkenv.sh"
 fi
 

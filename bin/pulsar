@@ -24,7 +24,6 @@ export BK_HOME=`cd -P $BINDIR/..;pwd`
 
 # log directory
 PULSAR_LOG_DIR=${PULSAR_LOG_DIR:-"$PULSAR_HOME/logs"}
-PULSAR_GC_LOG_DIR=${PULSAR_GC_LOG_DIR:-"$PULSAR_LOG_DIR"}
 
 DEFAULT_BROKER_CONF=$PULSAR_HOME/conf/broker.conf
 DEFAULT_BOOKKEEPER_CONF=$PULSAR_HOME/conf/bookkeeper.conf
@@ -114,8 +113,6 @@ shift
 # Check bookkeeper env and load bkenv.sh
 if [ -f "$PULSAR_HOME/conf/bkenv.sh" ]
 then
-    BOOKIE_LOG_DIR=${BOOKIE_LOG_DIR:-"${PULSAR_LOG_DIR}"}
-    BOOKIE_GC_LOG_DIR=${BOOKIE_GC_LOG_DIR:-"${PULSAR_GC_LOG_DIR}"}
     . "$PULSAR_HOME/conf/bkenv.sh"
 fi
 

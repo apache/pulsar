@@ -63,6 +63,8 @@ for token in $("$JAVA_BIN" -version 2>&1 | grep 'version "'); do
     fi
 done
 
+PULSAR_GC_LOG_DIR=${PULSAR_GC_LOG_DIR:-"${PULSAR_LOG_DIR}"}
+
 if [[ -z "$PULSAR_GC_LOG" ]]; then
   if [[ $JAVA_MAJOR_VERSION -gt 8 ]]; then
     PULSAR_GC_LOG="-Xlog:gc*,safepoint:${PULSAR_GC_LOG_DIR}/pulsar_gc_%p.log:time,uptime,tags:filecount=10,filesize=20M"
