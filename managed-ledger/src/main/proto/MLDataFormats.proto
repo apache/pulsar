@@ -105,6 +105,11 @@ message LongProperty {
     required int64 value  = 2;
 }
 
+message StringProperty {
+    required string name = 1;
+    required string value = 2;
+}
+
 message ManagedCursorInfo {
     // If the ledger id is -1, then the mark-delete position is
     // the one from the (ledgerId, entryId) snapshot below
@@ -123,6 +128,10 @@ message ManagedCursorInfo {
 
     // Store which index in the batch message has been deleted
     repeated BatchedEntryDeletionIndexInfo batchedEntryDeletionIndexInfo = 7;
+
+    // Additional custom properties associated with
+    // the cursor
+    repeated StringProperty cursorProperties = 8;
 }
 
 enum CompressionType {

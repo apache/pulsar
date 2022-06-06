@@ -54,7 +54,7 @@ If you'd like to enable *only* non-persistent topics in a broker, you can set th
 
 ## Managing with cli
 
-Non-persistent topics can be managed using the [`pulsar-admin non-persistent`](reference-pulsar-admin.md#non-persistent) command-line interface. With that interface you can perform actions like [create a partitioned non-persistent topic](reference-pulsar-admin.md#non-persistent-create-partitioned-topic), get [stats](reference-pulsar-admin.md#non-persistent-stats) for a non-persistent topic, [list](reference-pulsar-admin) non-persistent topics under a namespace, and more.
+Non-persistent topics can be managed using the [`pulsar-admin non-persistent`](/tools/pulsar-admin/) command-line interface. With that interface you can perform actions like [create a partitioned non-persistent topic](/tools/pulsar-admin/), get [stats](/tools/pulsar-admin/) for a non-persistent topic, [list](/tools/pulsar-admin/) non-persistent topics under a namespace, and more.
 
 ## Using with Pulsar clients
 

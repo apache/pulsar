@@ -44,6 +44,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.SizeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -317,6 +318,7 @@ public class LoadSimulationClient {
                     .serviceHttpUrl(arguments.serviceURL)
                     .build();
         client = PulsarClient.builder()
+                    .memoryLimit(0, SizeUnit.BYTES)
                     .serviceUrl(arguments.serviceURL)
                     .connectionsPerBroker(4)
                     .ioThreads(Runtime.getRuntime().availableProcessors())

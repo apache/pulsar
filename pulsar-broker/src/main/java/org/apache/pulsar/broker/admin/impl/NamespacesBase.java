@@ -751,45 +751,52 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
-    protected Set<String> internalGetNamespaceReplicationClusters() {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.REPLICATION, PolicyOperation.READ);
-
-        if (!namespaceName.isGlobal()) {
-            throw new RestException(Status.PRECONDITION_FAILED,
-                    "Cannot get the replication clusters for a non-global namespace");
-        }
-
-        Policies policies = getNamespacePolicies(namespaceName);
-        return policies.replication_clusters;
+    protected CompletableFuture<Set<String>> internalGetNamespaceReplicationClustersAsync() {
+        return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.REPLICATION, PolicyOperation.READ)
+                .thenAccept(__ -> {
+                    if (!namespaceName.isGlobal()) {
+                        throw new RestException(Status.PRECONDITION_FAILED,
+                                "Cannot get the replication clusters for a non-global namespace");
+                    }
+                }).thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
+                .thenApply(policies -> policies.replication_clusters);
     }
 
-    protected void internalSetNamespaceReplicationClusters(List<String> clusterIds) {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.REPLICATION, PolicyOperation.WRITE);
-        validatePoliciesReadOnlyAccess();
-        checkNotNull(clusterIds, "ClusterIds should not be null");
-
-        Set<String> replicationClusterSet = Sets.newHashSet(clusterIds);
-        if (!namespaceName.isGlobal()) {
-            throw new RestException(Status.PRECONDITION_FAILED, "Cannot set replication on a non-global namespace");
-        }
-
-        if (replicationClusterSet.contains("global")) {
-            throw new RestException(Status.PRECONDITION_FAILED,
-                    "Cannot specify global in the list of replication clusters");
-        }
-
-        Set<String> clusters = clusters();
-        for (String clusterId : replicationClusterSet) {
-            if (!clusters.contains(clusterId)) {
-                throw new RestException(Status.FORBIDDEN, "Invalid cluster id: " + clusterId);
-            }
-            validatePeerClusterConflict(clusterId, replicationClusterSet);
-            validateClusterForTenant(namespaceName.getTenant(), clusterId);
-        }
-        updatePolicies(namespaceName, policies ->{
-            policies.replication_clusters = replicationClusterSet;
-            return policies;
-        });
+    @SuppressWarnings("checkstyle:WhitespaceAfter")
+    protected CompletableFuture<Void> internalSetNamespaceReplicationClusters(List<String> clusterIds) {
+        return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.REPLICATION, PolicyOperation.WRITE)
+                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
+                .thenApply(__ -> {
+                    checkNotNull(clusterIds, "ClusterIds should not be null");
+                    if (!namespaceName.isGlobal()) {
+                        throw new RestException(Status.PRECONDITION_FAILED,
+                                "Cannot set replication on a non-global namespace");
+                    }
+                    Set<String> replicationClusterSet = Sets.newHashSet(clusterIds);
+                    if (replicationClusterSet.contains("global")) {
+                        throw new RestException(Status.PRECONDITION_FAILED,
+                                "Cannot specify global in the list of replication clusters");
+                    }
+                    return replicationClusterSet;
+                }).thenCompose(replicationClusterSet -> clustersAsync()
+                        .thenCompose(clusters -> {
+                            List<CompletableFuture<Void>> futures =
+                                    replicationClusterSet.stream().map(clusterId -> {
+                                        if (!clusters.contains(clusterId)) {
+                                            throw new RestException(Status.FORBIDDEN,
+                                                    "Invalid cluster id: " + clusterId);
+                                        }
+                                        return validatePeerClusterConflictAsync(clusterId, replicationClusterSet)
+                                                .thenCompose(__ ->
+                                                        validateClusterForTenantAsync(
+                                                                namespaceName.getTenant(), clusterId));
+                                    }).collect(Collectors.toList());
+                            return FutureUtil.waitForAll(futures).thenApply(__ -> replicationClusterSet);
+                        }))
+                .thenCompose(replicationClusterSet -> updatePoliciesAsync(namespaceName, policies -> {
+                    policies.replication_clusters = replicationClusterSet;
+                    return policies;
+                }));
     }
 
     protected CompletableFuture<Void> internalSetNamespaceMessageTTLAsync(Integer messageTTL) {
@@ -1363,43 +1370,30 @@ public abstract class NamespacesBase extends AdminResource {
         return policies.subscriptionDispatchRate.get(pulsar().getConfiguration().getClusterName());
     }
 
-    protected void internalSetSubscribeRate(SubscribeRate subscribeRate) {
-        validateSuperUserAccess();
+    protected CompletableFuture<Void> internalSetSubscribeRateAsync(SubscribeRate subscribeRate) {
         log.info("[{}] Set namespace subscribe-rate {}/{}", clientAppId(), namespaceName, subscribeRate);
-        try {
-            updatePolicies(namespaceName, policies -> {
-                policies.clusterSubscribeRate.put(pulsar().getConfiguration().getClusterName(), subscribeRate);
-                return policies;
-            });
+        return validateSuperUserAccessAsync().thenCompose(__ -> updatePoliciesAsync(namespaceName, policies -> {
+            policies.clusterSubscribeRate.put(pulsar().getConfiguration().getClusterName(), subscribeRate);
             log.info("[{}] Successfully updated the subscribeRate for cluster on namespace {}", clientAppId(),
                     namespaceName);
-        } catch (Exception e) {
-            log.error("[{}] Failed to update the subscribeRate for cluster on namespace {}", clientAppId(),
-                    namespaceName, e);
-            throw new RestException(e);
-        }
+            return policies;
+        }));
     }
 
-    protected void internalDeleteSubscribeRate() {
-        validateSuperUserAccess();
-        try {
-            updatePolicies(namespaceName, policies -> {
-                policies.clusterSubscribeRate.remove(pulsar().getConfiguration().getClusterName());
-                return policies;
-            });
+    protected CompletableFuture<Void> internalDeleteSubscribeRateAsync() {
+        return validateSuperUserAccessAsync().thenCompose(__ -> updatePoliciesAsync(namespaceName, policies -> {
+            policies.clusterSubscribeRate.remove(pulsar().getConfiguration().getClusterName());
             log.info("[{}] Successfully delete the subscribeRate for cluster on namespace {}", clientAppId(),
                     namespaceName);
-        } catch (Exception e) {
-            log.error("[{}] Failed to delete the subscribeRate for cluster on namespace {}", clientAppId(),
-                    namespaceName, e);
-            throw new RestException(e);
-        }
+            return policies;
+        }));
     }
 
-    protected SubscribeRate internalGetSubscribeRate() {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.RATE, PolicyOperation.READ);
-        Policies policies = getNamespacePolicies(namespaceName);
-        return policies.clusterSubscribeRate.get(pulsar().getConfiguration().getClusterName());
+
+    protected CompletableFuture<SubscribeRate> internalGetSubscribeRateAsync() {
+        return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.RATE, PolicyOperation.READ)
+                .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
+                .thenApply(policies -> policies.clusterSubscribeRate.get(pulsar().getConfiguration().getClusterName()));
     }
 
     protected void internalRemoveReplicatorDispatchRate() {
