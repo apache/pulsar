@@ -193,7 +193,8 @@ public class Topics extends TopicsBase {
                     asyncResponse.resume(consumerInfo);
                 }).exceptionally(ex -> {
                     if (!isRedirectException(ex)) {
-                        log.error("[{}] Create subscription {} on {} fail.", clientAppId(), subscription, topicName, ex);
+                        log.error("[{}] Create subscription {} on {} fail.",
+                                clientAppId(), subscription, topicName, ex);
                     }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;

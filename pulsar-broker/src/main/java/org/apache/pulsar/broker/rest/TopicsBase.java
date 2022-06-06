@@ -30,7 +30,16 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Base64;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
@@ -53,7 +62,11 @@ import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.admin.impl.PersistentTopicsBase;
 import org.apache.pulsar.broker.lookup.LookupResult;
 import org.apache.pulsar.broker.namespace.LookupOptions;
-import org.apache.pulsar.broker.rest.entity.*;
+import org.apache.pulsar.broker.rest.entity.AckMessageRequest;
+import org.apache.pulsar.broker.rest.entity.CreateConsumerRequest;
+import org.apache.pulsar.broker.rest.entity.CreateConsumerResponse;
+import org.apache.pulsar.broker.rest.entity.GetMessagesResponse;
+import org.apache.pulsar.broker.rest.entity.RestAckPosition;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.schema.SchemaRegistry;
 import org.apache.pulsar.broker.service.schema.exceptions.SchemaException;
@@ -104,7 +117,8 @@ import org.apache.pulsar.websocket.data.ProducerMessages;
 @Slf4j
 public class TopicsBase extends PersistentTopicsBase {
 
-    private static final Map<String, Consumer<org.apache.pulsar.client.api.schema.GenericRecord>> consumers = new ConcurrentHashMap<>();
+    private static final Map<String, Consumer<org.apache.pulsar.client.api.schema.GenericRecord>>
+            consumers = new ConcurrentHashMap<>();
     private static String defaultProducerName = "RestProducer";
     private static final int HANDLER_PARTITION_INDEX = 0;
 
@@ -803,7 +817,7 @@ public class TopicsBase extends PersistentTopicsBase {
                         String consumerKey = String.format("%s_%s_%s", subscription,
                                 createConsumerRequest.getConsumerName(), UUID.randomUUID());
                         consumers.put(consumerKey, consumer);
-                        return new CreateConsumerResponse(consumerKey, isRequestHttps()?
+                        return new CreateConsumerResponse(consumerKey, isRequestHttps() ?
                                 pulsar().getWebServiceAddressTls() : pulsar().getWebServiceAddress());
                     });
     }
@@ -820,17 +834,18 @@ public class TopicsBase extends PersistentTopicsBase {
         List<GetMessagesResponse> messages = new ArrayList<>();
         try {
             do {
-                if ((System.currentTimeMillis() - startTime >= timeout) ||
-                        (maxBytes != null && currentByte >= maxBytes)) {
+                if ((System.currentTimeMillis() - startTime >= timeout)
+                        || (maxBytes != null && currentByte >= maxBytes)) {
                     break;
                 }
-                Message<org.apache.pulsar.client.api.schema.GenericRecord> msg
-                        = consumer.receive(timeout, TimeUnit.MILLISECONDS);
+                Message<org.apache.pulsar.client.api.schema.GenericRecord> msg =
+                        consumer.receive(timeout, TimeUnit.MILLISECONDS);
                 if (msg != null) {
                     MessageId messageId = msg.getMessageId();
                     byte[] payload = msg.getData();
                     currentByte += payload.length;
-                    GetMessagesResponse.GetMessagesResponseBuilder restMessageEntityBuilder = GetMessagesResponse.builder()
+                    GetMessagesResponse.GetMessagesResponseBuilder restMessageEntityBuilder =
+                            GetMessagesResponse.builder()
                             .eventTime(msg.getEventTime())
                             .key(msg.getKey())
                             .properties(msg.getProperties())
@@ -847,7 +862,8 @@ public class TopicsBase extends PersistentTopicsBase {
                                 .entryId(((MessageIdImpl) messageId).getEntryId())
                                 .partition(((MessageIdImpl) messageId).getPartitionIndex());
                     } else if (messageId instanceof TopicMessageIdImpl) {
-                        MessageIdImpl innerMessageId = (MessageIdImpl) ((TopicMessageIdImpl) messageId).getInnerMessageId();
+                        MessageIdImpl innerMessageId =
+                                (MessageIdImpl) ((TopicMessageIdImpl) messageId).getInnerMessageId();
                         restMessageEntityBuilder.ledgerId(innerMessageId.getLedgerId())
                                 .entryId(innerMessageId.getEntryId())
                                 .partition(innerMessageId.getPartitionIndex());
@@ -871,13 +887,14 @@ public class TopicsBase extends PersistentTopicsBase {
     }
 
     protected CompletableFuture<Void> validateHandlerBroker(boolean authoritative) {
-        if(topicName.isPartitioned()) {
+        if (topicName.isPartitioned()) {
             return validateTopicOwnershipAsync(topicName, authoritative);
         } else {
             return pulsar().getBrokerService().fetchPartitionedTopicMetadataAsync(topicName)
                     .thenCompose(partitionedTopicMetadata -> {
                         if (partitionedTopicMetadata.partitions > 0) {
-                            return validateTopicOwnershipAsync(topicName.getPartition(HANDLER_PARTITION_INDEX), authoritative);
+                            return validateTopicOwnershipAsync(
+                                    topicName.getPartition(HANDLER_PARTITION_INDEX), authoritative);
                         } else {
                             return validateTopicOwnershipAsync(topicName, authoritative);
                         }
@@ -913,7 +930,7 @@ public class TopicsBase extends PersistentTopicsBase {
                                     .thenApply(__ -> messagePosition)
                                     .exceptionally(ex -> {
                                         log.warn("[{}] Subscription {} ack message {} on {} fail.",
-                                                clientAppId(),subscription,  messagePosition, topicName, ex);
+                                                clientAppId(), subscription,  messagePosition, topicName, ex);
                                         return null;
                                     });
                         }).collect(Collectors.toList());

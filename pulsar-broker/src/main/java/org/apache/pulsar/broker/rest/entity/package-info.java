@@ -17,16 +17,3 @@
  * under the License.
  */
 package org.apache.pulsar.broker.rest.entity;
-
-import java.util.List;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-
-@Data
-@AllArgsConstructor
-@NoArgsConstructor
-public class AckMessageRequest {
-    RestAckType ackType;
-    List<RestAckPosition> messagePositions;
-}
