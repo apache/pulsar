@@ -320,8 +320,8 @@ public class TransactionsImpl extends BaseResource implements Transactions {
         asyncGetRequest(path,
                 new InvocationCallback<TransactionPendingAckInternalStats>() {
                     @Override
-                    public void completed(TransactionPendingAckInternalStats positionInPendingAckStats) {
-                        future.complete(null);
+                    public void completed(TransactionPendingAckInternalStats stats) {
+                        future.complete(stats);
                     }
 
                     @Override
