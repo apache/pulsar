@@ -718,6 +718,22 @@ public interface Topics {
     CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadataAsync(String topic);
 
     /**
+     * Get properties of a non-partitioned topic.
+     * @param topic
+     *            Topic name
+     * @return Non-partitioned topic properties
+     */
+    Map<String, String> getProperties(String topic) throws PulsarAdminException;
+
+    /**
+     * Get properties of a non-partitioned topic asynchronously.
+     * @param topic
+     *            Topic name
+     * @return a future that can be used to track when the non-partitioned topic properties is returned
+     */
+    CompletableFuture<Map<String, String>> getPropertiesAsync(String topic);
+
+    /**
      * Delete a partitioned topic and its schemas.
      * <p/>
      * It will also delete all the partitions of the topic if it exists.

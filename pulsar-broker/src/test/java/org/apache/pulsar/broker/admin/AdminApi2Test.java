@@ -859,6 +859,19 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    public void testCreateAndGetNonPartitionedTopicProperties() throws Exception {
+        final String namespace = "prop-xyz/ns2";
+        final String topicName = "persistent://" + namespace + "/testGetNonPartitionedTopicProperties";
+        admin.namespaces().createNamespace(namespace, 20);
+        Map<String, String> properties = new HashMap<>();
+        properties.put("key1", "value1");
+        admin.topics().createNonPartitionedTopic(topicName, properties);
+        Map<String, String> properties2 = admin.topics().getProperties(topicName);
+        Assert.assertNotNull(properties2);
+        Assert.assertEquals(properties2.get("key1"), "value1");
+    }
+
+    @Test
     public void testNonPersistentTopics() throws Exception {
         final String namespace = "prop-xyz/ns2";
         final String topicName = "non-persistent://" + namespace + "/topic";

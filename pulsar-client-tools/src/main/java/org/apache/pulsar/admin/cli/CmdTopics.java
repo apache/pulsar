@@ -117,6 +117,7 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("create", new CreateNonPartitionedCmd());
         jcommander.addCommand("update-partitioned-topic", new UpdatePartitionedCmd());
         jcommander.addCommand("get-partitioned-topic-metadata", new GetPartitionedTopicMetadataCmd());
+        jcommander.addCommand("get-properties", new GetPropertiesCmd());
 
         jcommander.addCommand("delete-partitioned-topic", new DeletePartitionedCmd());
         jcommander.addCommand("peek-messages", new PeekMessages());
@@ -594,6 +595,19 @@ public class CmdTopics extends CmdBase {
     @Parameters(commandDescription = "Get the partitioned topic metadata. "
             + "If the topic is not created or is a non-partitioned topic, it returns empty topic with 0 partitions")
     private class GetPartitionedTopicMetadataCmd extends CliCommand {
+
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws Exception {
+            String topic = validateTopicName(params);
+            print(getTopics().getPartitionedTopicMetadata(topic));
+        }
+    }
+
+    @Parameters(commandDescription = "Get the non-partitioned topic properties.")
+    private class GetPropertiesCmd extends CliCommand {
 
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
