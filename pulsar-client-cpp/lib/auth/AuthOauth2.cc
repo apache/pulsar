@@ -143,16 +143,8 @@ ClientCredentialFlow::ClientCredentialFlow(ParamMap& params)
       audience_(params["audience"]),
       scope_(params["scope"]) {}
 
-const std::string ClientCredentialFlow::getWellKnownOpenIdConfigurationUrl() {
-    if (issuerUrl_.empty()) {
-        LOG_ERROR("Failed to get well known openid configuration: issuer_url is not set");
-        return "";
-    }
-    std::string configurationUrl = issuerUrl_;
-    if (configurationUrl.back() == '/') {
-        configurationUrl.pop_back();
-    }
-    return configurationUrl.append("/.well-known/openid-configuration");
+std::string ClientCredentialFlow::getTokenEndPoint() const {
+    return tokenEndPoint_;
 }
 
 static size_t curlWriteCallback(void* contents, size_t size, size_t nmemb, void* responseDataPtr) {
@@ -180,7 +172,12 @@ void ClientCredentialFlow::initialize() {
     curl_easy_setopt(handle, CURLOPT_CUSTOMREQUEST, "GET");
 
     // set URL: well-know endpoint
-    curl_easy_setopt(handle, CURLOPT_URL, getWellKnownOpenIdConfigurationUrl().c_str());
+    std::string wellKnownUrl = issuerUrl_;
+    if (wellKnownUrl.back() == '/') {
+        wellKnownUrl.pop_back();
+    }
+    wellKnownUrl.append("/.well-known/openid-configuration");
+    curl_easy_setopt(handle, CURLOPT_URL,wellKnownUrl.c_str());
 
     // Write callback
     curl_easy_setopt(handle, CURLOPT_WRITEFUNCTION, curlWriteCallback);

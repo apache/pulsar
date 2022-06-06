@@ -412,18 +412,24 @@ TEST(AuthPluginTest, testOauth2RequestBody) {
     ASSERT_EQ(flow2.generateParamMap(), expectedResult2);
 }
 
-TEST(AuthPluginTest, getWellKnownOpenIdConfigurationUrl) {
+TEST(AuthPluginTest, testInitialize) {
     std::string issuerUrl = "https://dev-kt-aa9ne.us.auth0.com";
-    std::string configurationUrl = "https://dev-kt-aa9ne.us.auth0.com/.well-known/openid-configuration";
+    std::string expectedTokenEndPoint = issuerUrl + "/oauth/token";
 
     ParamMap params;
     params["issuer_url"] = issuerUrl;
-    ClientCredentialFlow flow1(params);
-    ASSERT_EQ(flow1.getWellKnownOpenIdConfigurationUrl(), configurationUrl);
+    params["client_id"] = "Xd23RHsUnvUlP7wchjNYOaIfazgeHd9x";
+    params["client_secret"] = "rT7ps7WY8uhdVuBTKWZkttwLdQotmdEliaM5rLfmgNibvqziZ-g07ZH52N_poGAb";
+    params["audience"] = "https://dev-kt-aa9ne.us.auth0.com/api/v2/";
 
-    params["issuer_url"] = issuerUrl.append("/");
+    ClientCredentialFlow flow1(params);
+    flow1.initialize();
+    ASSERT_EQ(flow1.getTokenEndPoint(), expectedTokenEndPoint);
+
+    params["issuer_url"] = issuerUrl + "/";
     ClientCredentialFlow flow2(params);
-    ASSERT_EQ(flow2.getWellKnownOpenIdConfigurationUrl(), configurationUrl);
+    flow2.initialize();
+    ASSERT_EQ(flow2.getTokenEndPoint(), expectedTokenEndPoint);
 }
 
 TEST(AuthPluginTest, testOauth2Failure) {
