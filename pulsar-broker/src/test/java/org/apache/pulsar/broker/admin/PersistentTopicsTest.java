@@ -523,6 +523,12 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
             Assert.assertEquals(responseCaptor2.getValue().properties.size(), 1);
             Assert.assertEquals(responseCaptor2.getValue().properties, topicMetadata);
         });
+        AsyncResponse response3 = mock(AsyncResponse.class);
+        ArgumentCaptor<Map> metaResponseCaptor2 = ArgumentCaptor.forClass(Map.class);
+        persistentTopics.getProperties(response3, testTenant, testNamespace, topicName2, true);
+        verify(response3, timeout(5000).times(1)).resume(metaResponseCaptor2.capture());
+        Assert.assertNotNull(metaResponseCaptor2.getValue());
+        Assert.assertEquals(metaResponseCaptor2.getValue().get("key1"), "value1");
     }
 
     @Test
