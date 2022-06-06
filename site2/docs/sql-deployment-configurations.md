@@ -14,13 +14,13 @@ You can configure Presto Pulsar Connector in the `${project.root}/conf/presto/ca
 # name of the connector to be displayed in the catalog
 connector.name=pulsar
 
-# the url of Pulsar broker service
+# the URL of Pulsar broker service
 pulsar.web-service-url=http://localhost:8080
 
-# the url of Pulsar broker binary service
+# the URL of Pulsar broker binary service
 pulsar.broker-binary-service-url=pulsar://localhost:6650
 
-# the url of Zookeeper cluster
+# the URL of Zookeeper cluster
 pulsar.zookeeper-uri=localhost:2181
 
 # minimum number of entries to read at a single time
@@ -32,10 +32,10 @@ pulsar.target-num-splits=4
 # max size of one batch message (default value is 5MB)
 pulsar.max-message-size=5242880
 
-# number of split used when querying data from pulsar
+# number of split used when querying data from Pulsar
 pulsar.target-num-splits=2
 
-# size of queue to buffer entry read from pulsar
+# size of queue to buffer entry read from Pulsar
 pulsar.max-split-entry-queue-size=1000
 
 # size of queue to buffer message extract from entries
@@ -80,7 +80,7 @@ pulsar.tls-hostname-verification-enable=null
 # path for the trusted TLS certificate file of Pulsar broker
 pulsar.tls-trust-cert-file-path=null
 
-## whether to enable pulsar authorization
+## whether to enable Pulsar authorization
 pulsar.authorization-enabled=false
 
 # set the threshold for BookKeeper request throttle, default is disabled
