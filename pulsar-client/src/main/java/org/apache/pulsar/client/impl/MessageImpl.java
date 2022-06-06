@@ -36,6 +36,8 @@ import java.util.Optional;
 import java.util.TreeMap;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+
+import lombok.Data;
 import lombok.Getter;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
@@ -273,13 +275,31 @@ public class MessageImpl<T> implements Message<T> {
         return msg;
     }
 
-    public static long getDelayTime(ByteBuf headersAndPayloadWithBrokerEntryMetadata) throws IOException {
-        MessageMetadata messageMetadata = Commands.parseMessageMetadata(headersAndPayloadWithBrokerEntryMetadata);
-        long deliverAtTime = 0;
+    @Data
+    public static class EntryMetadata {
+        long publishTime;
+        long delayTime;
+    }
+
+    public static EntryMetadata getEntryMetadata(ByteBuf headersAndPayloadWithBrokerEntryMetadata) throws IOException {
+        EntryMetadata entryMetadata = new EntryMetadata();
+
+        // get broker timestamp first if BrokerEntryMetadata is enabled with AppendBrokerTimestampMetadataInterceptor
+        BrokerEntryMetadata brokerEntryMetadata =
+                Commands.parseBrokerEntryMetadataIfExist(headersAndPayloadWithBrokerEntryMetadata);
+        MessageMetadata messageMetadata =
+                Commands.parseMessageMetadata(headersAndPayloadWithBrokerEntryMetadata);
         if (messageMetadata.hasDeliverAtTime()) {
-            deliverAtTime = messageMetadata.getDeliverAtTime();
+            entryMetadata.delayTime = messageMetadata.getDeliverAtTime();
         }
-        return deliverAtTime;
+        if (brokerEntryMetadata != null && brokerEntryMetadata.hasBrokerTimestamp()) {
+            entryMetadata.publishTime = brokerEntryMetadata.getBrokerTimestamp();
+            return entryMetadata;
+        }
+
+        // otherwise get the publish_time
+        entryMetadata.publishTime = messageMetadata.getPublishTime();
+        return entryMetadata;
     }
 
     public static boolean isEntryExpired(int messageTTLInSeconds, long entryTimestamp) {
