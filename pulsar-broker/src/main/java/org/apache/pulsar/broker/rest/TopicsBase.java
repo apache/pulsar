@@ -94,6 +94,8 @@ public class TopicsBase extends PersistentTopicsBase {
 
     private static final Map<String, Consumer<org.apache.pulsar.client.api.schema.GenericRecord>> consumers = new ConcurrentHashMap<>();
     private static String defaultProducerName = "RestProducer";
+    private static final int HANDLER_PARTITION_INDEX = 0;
+
 
     // Publish message to a topic, can be partitioned or non-partitioned
     protected void publishMessages(AsyncResponse asyncResponse, ProducerMessages request, boolean authoritative) {
@@ -830,7 +832,8 @@ public class TopicsBase extends PersistentTopicsBase {
                     }
                     if (messageId instanceof MessageIdImpl) {
                         restMessageEntityBuilder.ledgerId(((MessageIdImpl) messageId).getLedgerId())
-                                .entryId(((MessageIdImpl) messageId).getEntryId());
+                                .entryId(((MessageIdImpl) messageId).getEntryId())
+                                .partition(((MessageIdImpl) messageId).getPartitionIndex());
                     } else if (messageId instanceof TopicMessageIdImpl) {
                         MessageIdImpl innerMessageId = (MessageIdImpl) ((TopicMessageIdImpl) messageId).getInnerMessageId();
                         restMessageEntityBuilder.ledgerId(innerMessageId.getLedgerId())
@@ -862,7 +865,7 @@ public class TopicsBase extends PersistentTopicsBase {
             return pulsar().getBrokerService().fetchPartitionedTopicMetadataAsync(topicName)
                     .thenCompose(partitionedTopicMetadata -> {
                         if (partitionedTopicMetadata.partitions > 0) {
-                            return validateTopicOwnershipAsync(topicName.getPartition(0), authoritative);
+                            return validateTopicOwnershipAsync(topicName.getPartition(HANDLER_PARTITION_INDEX), authoritative);
                         } else {
                             return validateTopicOwnershipAsync(topicName, authoritative);
                         }
@@ -881,9 +884,19 @@ public class TopicsBase extends PersistentTopicsBase {
             case SINGLE : {
               List<CompletableFuture<RestAckPosition>> futures = ackMessageRequest.getMessagePositions().stream()
                         .map(messagePosition -> {
-                            MessageIdImpl messageId = new MessageIdImpl(
+                            MessageId messageId;
+                            MessageIdImpl messageIdImpl = new MessageIdImpl(
                                     messagePosition.getLedgerId(), messagePosition.getEntryId(),
                                     messagePosition.getPartition());
+                            if (messagePosition.getPartition() >= 0) {
+                                String topic = consumer.getTopic();
+                                TopicName topicNameEntity = TopicName.get(topic);
+                                messageId = new TopicMessageIdImpl(
+                                        topicNameEntity.getPartition(messagePosition.getPartition()).toString(), topic,
+                                        messageIdImpl);
+                            } else {
+                                messageId = messageIdImpl;
+                            }
                             return consumer.acknowledgeAsync(messageId)
                                     .thenApply(__ -> messagePosition)
                                     .exceptionally(ex -> {

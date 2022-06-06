@@ -13,9 +13,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.common.policies.data.ConsumerStats;
-import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
-import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
+import org.apache.pulsar.common.policies.data.*;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -59,6 +57,26 @@ public class RestConsumerTest extends ProducerConsumerBase {
         Assert.assertTrue(consumers.stream().anyMatch(status -> Objects.equals(status.getConsumerName(), consumerName)));
     }
 
+    @Test
+    public void testCreatePartitionedTopicConsumer() throws IOException, JsonUtil.ParseJsonException, PulsarAdminException {
+        String topicName = "persistent://public/default/producer-consumer-topic";
+        admin.topics().createPartitionedTopic(topicName, 10);
+        String consumerName = "test-consumer";
+        String subscriptionName = "test-sub";
+        createConsumer("persistent", "public", "default",
+                "producer-consumer-topic", consumerName, subscriptionName);
+        PartitionedTopicStats partitionedStats = admin.topics().getPartitionedStats(topicName, true);
+        List<? extends ConsumerStats> consumers = partitionedStats.getPartitions().values()
+                .stream()
+                .flatMap(v -> v.getSubscriptions().values().stream()
+                        .flatMap(s -> s.getConsumers().stream()))
+                .collect(Collectors.toList());
+        Assert.assertEquals(consumers.size(), 10);
+        for (ConsumerStats consumer : consumers) {
+            Assert.assertEquals(consumer.getConsumerName(), consumerName);
+        }
+    }
+
     private CreateConsumerResponse createConsumer(String domain, String tenant, String ns, String topic, String consumerName,
                                                   String subscriptionName) throws JsonUtil.ParseJsonException, IOException {
         String serviceUrl = admin.getServiceUrl();
@@ -96,6 +114,36 @@ public class RestConsumerTest extends ProducerConsumerBase {
         Assert.assertEquals(200, res.code());
     }
 
+
+    @Test
+    public void testDeletePartitionedConsumer() throws JsonUtil.ParseJsonException, IOException, PulsarAdminException {
+        String topicRandom = "producer-consumer-test-" + UUID.randomUUID();
+        String topicName = "persistent://public/default/" + topicRandom;
+        String consumerName = "test-consumer";
+        String subscriptionName = "test-sub";
+        admin.topics().createPartitionedTopic(topicName, 10);
+        CreateConsumerResponse consumer = createConsumer("persistent", "public", "default",
+                topicRandom, consumerName, subscriptionName);
+        PartitionedTopicStats partitionedStats = admin.topics().getPartitionedStats(topicName, true);
+        List<? extends ConsumerStats> consumerStatsList = partitionedStats.getPartitions().values()
+                .stream()
+                .flatMap(v -> v.getSubscriptions().values().stream()
+                        .flatMap(s -> s.getConsumers().stream()))
+                .collect(Collectors.toList());
+        Assert.assertEquals(consumerStatsList.size(), 10);
+        for (ConsumerStats consumerStats : consumerStatsList) {
+            Assert.assertEquals(consumerStats.getConsumerName(), consumerName);
+        }
+        deleteConsumer("persistent", "public", "default",
+                topicRandom, subscriptionName, consumer.getId());
+        PartitionedTopicStats partitionedStats2 = admin.topics().getPartitionedStats(topicName, true);
+        List<? extends ConsumerStats> consumerStatsList2 = partitionedStats2.getPartitions().values()
+                .stream()
+                .flatMap(v -> v.getSubscriptions().values().stream()
+                        .flatMap(s -> s.getConsumers().stream()))
+                .collect(Collectors.toList());
+        Assert.assertEquals(consumerStatsList2.size(), 0);
+    }
 
     @Test
     public void testDeleteConsumer() throws JsonUtil.ParseJsonException, IOException, PulsarAdminException {
@@ -191,11 +239,63 @@ public class RestConsumerTest extends ProducerConsumerBase {
     }
 
     @Test
+    public void testFetchMessagesFromPartitionedTopicStringSchema() throws
+            JsonUtil.ParseJsonException, IOException, PulsarAdminException {
+        String topicRandom = "producer-consumer-test-" + UUID.randomUUID();
+        String topicName = "persistent://public/default/" + topicRandom;
+        String consumerName = "test-consumer";
+        String subscriptionName = "test-sub";
+        admin.topics().createPartitionedTopic(topicName, 10);
+        CreateConsumerResponse consumer = createConsumer("persistent", "public", "default",
+                topicRandom, consumerName, subscriptionName);
+        String id = consumer.getId();
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topicName)
+                .enableBatching(false)
+                .create();
+        for (int i = 0; i < 100; i++) {
+            String content = UUID.randomUUID().toString();
+            producer.send(content);
+            List<GetMessagesResponse> restMessageEntities =
+                    receiveMessage("persistent", "public", "default",
+                            topicRandom, subscriptionName, id, 1, 1000, 99999);
+            Assert.assertEquals(restMessageEntities.size(), 1);
+            Assert.assertEquals(restMessageEntities.get(0).getValue(), content);
+        }
+    }
+
+    @Test
     public void testFetchMessagesFromNonPartitionedTopicBytesSchema() throws JsonUtil.ParseJsonException, IOException {
         String topicRandom = "producer-consumer-test-" + UUID.randomUUID();
         String topicName = "persistent://public/default/" + topicRandom;
         String consumerName = "test-consumer";
         String subscriptionName = "test-sub";
+        CreateConsumerResponse consumer = createConsumer("persistent", "public", "default",
+                topicRandom, consumerName, subscriptionName);
+        String id = consumer.getId();
+        Producer<byte[]> producer = pulsarClient.newProducer(Schema.BYTES)
+                .topic(topicName)
+                .enableBatching(false)
+                .create();
+        for (int i = 0; i < 100; i++) {
+            byte[] content = UUID.randomUUID().toString().getBytes(StandardCharsets.UTF_8);
+            producer.send(content);
+            List<GetMessagesResponse> restMessageEntities =
+                    receiveMessage("persistent", "public", "default",
+                            topicRandom, subscriptionName, id, 1, 1000, 99999);
+            Assert.assertEquals(restMessageEntities.size(), 1);
+            Assert.assertEquals(Base64.getDecoder().decode(restMessageEntities.get(0).getValue()), content);
+        }
+    }
+
+    @Test
+    public void testFetchMessagesFromPartitionedTopicBytesSchema() throws
+            JsonUtil.ParseJsonException, IOException, PulsarAdminException {
+        String topicRandom = "producer-consumer-test-" + UUID.randomUUID();
+        String topicName = "persistent://public/default/" + topicRandom;
+        String consumerName = "test-consumer";
+        String subscriptionName = "test-sub";
+        admin.topics().createPartitionedTopic(topicName, 10);
         CreateConsumerResponse consumer = createConsumer("persistent", "public", "default",
                 topicRandom, consumerName, subscriptionName);
         String id = consumer.getId();
@@ -238,6 +338,32 @@ public class RestConsumerTest extends ProducerConsumerBase {
         }
     }
 
+    @Test
+    public void testFetchMessagesFromPartitionedTopicJsonSchema()
+            throws JsonUtil.ParseJsonException, IOException, PulsarAdminException {
+        String topicRandom = "producer-consumer-test-" + UUID.randomUUID();
+        String topicName = "persistent://public/default/" + topicRandom;
+        String consumerName = "test-consumer";
+        String subscriptionName = "test-sub";
+        admin.topics().createPartitionedTopic(topicName, 10);
+        CreateConsumerResponse consumer = createConsumer("persistent", "public", "default",
+                topicRandom, consumerName, subscriptionName);
+        String id = consumer.getId();
+        Producer<Student> producer = pulsarClient.newProducer(Schema.JSON(Student.class))
+                .topic(topicName)
+                .enableBatching(false)
+                .create();
+        for (int i = 0; i < 100; i++) {
+            Student content = new Student("abc", 123);
+            producer.send(content);
+            List<GetMessagesResponse> restMessageEntities =
+                    receiveMessage("persistent", "public", "default",
+                            topicRandom, subscriptionName, id, 1, 1000, 99999);
+            Assert.assertEquals(restMessageEntities.size(), 1);
+            Assert.assertEquals(mapper.readValue(restMessageEntities.get(0).getValue(), Student.class), content);
+        }
+    }
+
 
     @Test
     public void testFetchMessagesFromNonPartitionedTopicAvroSchema() throws JsonUtil.ParseJsonException, IOException {
@@ -245,6 +371,32 @@ public class RestConsumerTest extends ProducerConsumerBase {
         String topicName = "persistent://public/default/" + topicRandom;
         String consumerName = "test-consumer";
         String subscriptionName = "test-sub";
+        CreateConsumerResponse consumer = createConsumer("persistent", "public", "default",
+                topicRandom, consumerName, subscriptionName);
+        String id = consumer.getId();
+        Producer<Student> producer = pulsarClient.newProducer(Schema.AVRO(Student.class))
+                .topic(topicName)
+                .enableBatching(false)
+                .create();
+        for (int i = 0; i < 100; i++) {
+            Student content = new Student("abc", 123);
+            producer.send(content);
+            List<GetMessagesResponse> restMessageEntities =
+                    receiveMessage("persistent", "public", "default",
+                            topicRandom, subscriptionName, id, 1, 1000, 99999);
+            Assert.assertEquals(restMessageEntities.size(), 1);
+            Assert.assertEquals(mapper.readValue(restMessageEntities.get(0).getValue(), Student.class), content);
+        }
+    }
+
+    @Test
+    public void testFetchMessagesFromPartitionedTopicAvroSchema()
+            throws JsonUtil.ParseJsonException, IOException, PulsarAdminException {
+        String topicRandom = "producer-consumer-test-" + UUID.randomUUID();
+        String topicName = "persistent://public/default/" + topicRandom;
+        String consumerName = "test-consumer";
+        String subscriptionName = "test-sub";
+        admin.topics().createPartitionedTopic(topicName, 10);
         CreateConsumerResponse consumer = createConsumer("persistent", "public", "default",
                 topicRandom, consumerName, subscriptionName);
         String id = consumer.getId();
@@ -300,6 +452,50 @@ public class RestConsumerTest extends ProducerConsumerBase {
             Assert.assertEquals(cursorStats.markDeletePosition, stats.lastConfirmedEntry);
         });
     }
+
+    @Test
+    public void testAckForPartitionedTopic() throws JsonUtil.ParseJsonException,
+            IOException, PulsarAdminException {
+        String topicRandom = "producer-consumer-test-" + UUID.randomUUID();
+        String topicName = "persistent://public/default/" + topicRandom;
+        String consumerName = "test-consumer";
+        String subscriptionName = "test-sub";
+        admin.topics().createPartitionedTopic(topicName, 10);
+        CreateConsumerResponse consumer = createConsumer("persistent", "public", "default",
+                topicRandom, consumerName, subscriptionName);
+        String id = consumer.getId();
+        Producer<Student> producer = pulsarClient.newProducer(Schema.AVRO(Student.class))
+                .topic(topicName)
+                .enableBatching(false)
+                .create();
+        for (int i = 0; i < 100; i++) {
+            Student content = new Student("abc", 123);
+            producer.send(content);
+            List<GetMessagesResponse> restMessageEntities =
+                    receiveMessage("persistent", "public", "default",
+                            topicRandom, subscriptionName, id, 1, 1000, 99999);
+            Assert.assertEquals(restMessageEntities.size(), 1);
+            Assert.assertEquals(mapper.readValue(restMessageEntities.get(0).getValue(), Student.class), content);
+            List<RestAckPosition> msgIds = restMessageEntities
+                    .stream()
+                    .map(v -> new RestAckPosition(v.getLedgerId(), v.getEntryId(), v.getPartition()))
+                    .collect(Collectors.toList());
+            List<RestAckPosition> ackMessageResponses =
+                    ackMessages("persistent", "public", "default",
+                            topicRandom, subscriptionName, id, msgIds, RestAckType.SINGLE);
+            Assert.assertEquals(ackMessageResponses.size(), msgIds.size());
+        }
+        Awaitility.await().untilAsserted(() -> {
+            PartitionedTopicInternalStats partitionedInternalStats = admin.topics().getPartitionedInternalStats(topicName);
+            for (PersistentTopicInternalStats internalStats : partitionedInternalStats.partitions.values()) {
+                String lastConfirmedEntry = internalStats.lastConfirmedEntry;
+                Assert.assertEquals(internalStats.cursors.size(), 1);
+                ManagedLedgerInternalStats.CursorStats cursorStats = internalStats.cursors.get(subscriptionName);
+                Assert.assertEquals(lastConfirmedEntry, cursorStats.markDeletePosition);
+            }
+        });
+    }
+
 
 
 
