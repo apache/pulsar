@@ -134,12 +134,9 @@ public class MongoSource extends PushSource<byte[]> {
                     recordValue.put("ns", doc.getNamespace());
                     recordValue.put("operation", doc.getOperationType());
 
-                    BsonDocument key = doc.getDocumentKey();
-                    if (key != null) {
-                        consume(new DocRecord(
-                                Optional.of(key.toJson()),
-                                mapper.writeValueAsString(recordValue).getBytes(StandardCharsets.UTF_8)));
-                    }
+                    consume(new DocRecord(
+                            Optional.ofNullable(doc.getDocumentKey()).map(BsonDocument::toJson),
+                            mapper.writeValueAsString(recordValue).getBytes(StandardCharsets.UTF_8)));
 
                 } catch (JsonProcessingException e) {
                     log.error("Processing doc from mongo", e);
