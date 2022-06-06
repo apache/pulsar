@@ -187,7 +187,7 @@ To run a connector, you can perform the following operations:
 
 ### `create`
 
-You can create a connector using **Admin CLI**, **REST API** or **JAVA admin API**.f
+You can create a connector using **Admin CLI**, **REST API** or **JAVA admin API**.
 
 #### Source
 

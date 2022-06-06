@@ -169,32 +169,9 @@
         <cpe>cpe:/a:apache:rocketmq</cpe>
     </suppress>
     <suppress>
-        <notes><![CDATA[
-     file name: spring-core-3.2.18.RELEASE.jar
-     ]]></notes>
-        <sha1>0e2bd9c162280cd79c2ea0f67f174ee5d7b84ddd</sha1>
-        <cpe>cpe:/a:pivotal_software:spring_framework</cpe>
-    </suppress>
-    <suppress>
-        <notes><![CDATA[
-     file name: spring-core-3.2.18.RELEASE.jar
-     ]]></notes>
-        <sha1>0e2bd9c162280cd79c2ea0f67f174ee5d7b84ddd</sha1>
-        <cpe>cpe:/a:springsource:spring_framework</cpe>
-    </suppress>
-    <suppress>
-        <notes><![CDATA[
-     file name: spring-core-3.2.18.RELEASE.jar
-     ]]></notes>
-        <sha1>0e2bd9c162280cd79c2ea0f67f174ee5d7b84ddd</sha1>
-        <cpe>cpe:/a:vmware:spring_framework</cpe>
-    </suppress>
-    <suppress>
-        <notes><![CDATA[
-     file name: spring-core-3.2.18.RELEASE.jar
-     ]]></notes>
-        <sha1>0e2bd9c162280cd79c2ea0f67f174ee5d7b84ddd</sha1>
-        <cpe>cpe:/a:vmware:springsource_spring_framework</cpe>
+        <notes><![CDATA[Ignored since we are not vulnerable]]></notes>
+        <packageUrl regex="true">^pkg:maven/org\.springframework/spring.*$</packageUrl>
+        <cve>CVE-2016-1000027</cve>
     </suppress>
     <suppress>
         <notes><![CDATA[

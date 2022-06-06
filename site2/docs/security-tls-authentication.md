@@ -189,7 +189,7 @@ pulsar::Client client("pulsar+ssl://broker.example.com:6651/", config);
 
 ### Node.js client
 
-```JavaScript
+```javascript
 
 const Pulsar = require('pulsar-client');
 

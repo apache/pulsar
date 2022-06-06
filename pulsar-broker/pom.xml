@@ -773,7 +773,7 @@
       </build>
     </profile>
     <profile>
-      <id>brokerSkipTest</id>
+      <id>skipTestsForUnitGroupOther</id>
       <build>
         <plugins>
           <plugin>
