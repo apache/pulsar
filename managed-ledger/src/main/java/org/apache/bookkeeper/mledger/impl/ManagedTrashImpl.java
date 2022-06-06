@@ -476,9 +476,7 @@ public class ManagedTrashImpl implements ManagedTrash {
                 persistArchive.put(entry.getKey(), entry.getValue());
             }
 
-            Map.Entry<TrashKey, LedgerInfo> lastEntry = persistArchive.lastEntry();
-
-            metadataStore.put(buildArchivePath(lastEntry.getKey().ledgerId), serialize(persistArchive),
+            metadataStore.put(buildArchivePath(System.currentTimeMillis()), serialize(persistArchive),
                     Optional.of(-1L)).whenCompleteAsync((res, e) -> {
                 if (e != null) {
                     log.error("[{}] Persist archive data failed.", name(), e);
