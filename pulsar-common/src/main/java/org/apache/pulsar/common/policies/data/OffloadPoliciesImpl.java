@@ -66,7 +66,7 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
     public static final int DEFAULT_OFFLOAD_MAX_THREADS = 2;
     public static final int DEFAULT_OFFLOAD_MAX_PREFETCH_ROUNDS = 1;
     public static final ImmutableList<String> DRIVER_NAMES = ImmutableList
-      .of("S3", "aws-s3", "google-cloud-storage", "filesystem", "azureblob", "s3-compatible-storage");
+            .of("S3", "aws-s3", "google-cloud-storage", "filesystem", "azureblob", "aliyun-oss");
     public static final String DEFAULT_OFFLOADER_DIRECTORY = "./offloaders";
     public static final Long DEFAULT_OFFLOAD_THRESHOLD_IN_BYTES = null;
     public static final Long DEFAULT_OFFLOAD_DELETION_LAG_IN_MILLIS = null;

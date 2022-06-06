@@ -170,11 +170,10 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
 
 
     /**
-     * tiered storage which compatible with S3 APIs, such as aliyun oss, tencent cloud cos
-     * aliyun oss docs: https://www.alibabacloud.com/help/doc-detail/64919.htm
-     * tencent cos docs: https://intl.cloud.tencent.com/document/product/436/34688
+     * Aliyun OSS is compatible with the S3 API.
+     * https://www.alibabacloud.com/help/doc-detail/64919.htm
      */
-    S3_COMPATIBLE_STORAGE("s3-compatible-storage", new AnonymousProviderMetadata(new S3ApiMetadata(), "")) {
+    ALIYUN_OSS("aliyun-oss", new AnonymousProviderMetadata(new S3ApiMetadata(), "")) {
         @Override
         public void validate(TieredStorageConfiguration config) throws IllegalArgumentException {
             S3_VALIDATION.validate(config);
@@ -427,10 +426,17 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
 
     static final CredentialBuilder S3_CREDENTIAL_BUILDER = (TieredStorageConfiguration config) -> {
         String accountName = System.getenv().getOrDefault("ACCESS_KEY_ID", "");
+        // For forward compatibility
+        if (StringUtils.isEmpty(accountName.trim())) {
+            accountName = System.getenv().getOrDefault("ALIYUN_OSS_ACCESS_KEY_ID", "");
+        }
         if (StringUtils.isEmpty(accountName.trim())) {
             throw new IllegalArgumentException("Couldn't get the access key id.");
         }
         String accountKey = System.getenv().getOrDefault("ACCESS_KEY_SECRET", "");
+        if (StringUtils.isEmpty(accountKey.trim())) {
+            accountKey = System.getenv().getOrDefault("ALIYUN_OSS_ACCESS_KEY_SECRET", "");
+        }
         if (StringUtils.isEmpty(accountKey.trim())) {
             throw new IllegalArgumentException("Couldn't get the access key secret.");
         }
