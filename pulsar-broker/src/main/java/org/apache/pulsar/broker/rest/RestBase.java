@@ -164,8 +164,9 @@ public class RestBase extends PersistentTopicsBase {
                 producerAck.setMessageId(messageId.toString());
                 producerAckResults.add(producerAck);
             }
-            producerFuture.join().closeAsync();
-            pulsarClient.closeAsync();
+            producerFuture.join().closeAsync().whenComplete((v, ex) -> {
+                pulsarClient.closeAsync();
+            });
             return new ProducerAcks(producerAckResults, ((LongSchemaVersion) schemaMetadata.version).getVersion());
         }));
     }
