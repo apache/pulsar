@@ -817,8 +817,8 @@ public class TopicsBase extends PersistentTopicsBase {
                         String consumerKey = String.format("%s_%s_%s", subscription,
                                 createConsumerRequest.getConsumerName(), UUID.randomUUID());
                         consumers.put(consumerKey, consumer);
-                        return new CreateConsumerResponse(consumerKey, isRequestHttps() ?
-                                pulsar().getWebServiceAddressTls() : pulsar().getWebServiceAddress());
+                        return new CreateConsumerResponse(consumerKey, isRequestHttps()
+                                ? pulsar().getWebServiceAddressTls() : pulsar().getWebServiceAddress());
                     });
     }
 
