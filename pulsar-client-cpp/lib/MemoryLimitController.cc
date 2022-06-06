@@ -45,16 +45,23 @@ bool MemoryLimitController::tryReserveMemory(uint64_t size) {
     }
 }
 
-void MemoryLimitController::reserveMemory(uint64_t size) {
+bool MemoryLimitController::reserveMemory(uint64_t size) {
     if (!tryReserveMemory(size)) {
         std::unique_lock<std::mutex> lock(mutex_);
 
         // Check again, while holding the lock, to ensure we reserve attempt and the waiting for the condition
         // are synchronized.
         while (!tryReserveMemory(size)) {
+            if (isClosed_) {
+                // Interrupt the waiting if the client is closing
+                return false;
+            }
+
             condition_.wait(lock);
         }
     }
+
+    return true;
 }
 
 void MemoryLimitController::releaseMemory(uint64_t size) {
@@ -69,5 +76,11 @@ void MemoryLimitController::releaseMemory(uint64_t size) {
 }
 
 uint64_t MemoryLimitController::currentUsage() const { return currentUsage_; }
+
+void MemoryLimitController::close() {
+    std::unique_lock<std::mutex> lock(mutex_);
+    isClosed_ = true;
+    condition_.notify_all();
+}
 
 }  // namespace pulsar

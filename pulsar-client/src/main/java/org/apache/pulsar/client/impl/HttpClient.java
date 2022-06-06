@@ -137,6 +137,7 @@ public class HttpClient implements Closeable {
                 }
 
                 confBuilder.setUseInsecureTrustManager(conf.isTlsAllowInsecureConnection());
+                confBuilder.setDisableHttpsEndpointIdentificationAlgorithm(!conf.isTlsHostnameVerificationEnable());
             } catch (GeneralSecurityException e) {
                 throw new PulsarClientException.InvalidConfigurationException(e);
             } catch (Exception e) {

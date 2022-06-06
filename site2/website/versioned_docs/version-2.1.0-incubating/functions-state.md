@@ -1,7 +1,7 @@
 ---
-id: version-2.1.0-incubating-functions-state
+id: functions-state
 title: Pulsar Functions State Storage (Developer Preview)
-sidebar_label: State Storage
+sidebar_label: "State Storage"
 original_id: functions-state
 ---
 
@@ -18,12 +18,14 @@ you are using [Java SDK](functions-api.md#java-sdk-functions) functions.
 #### incrCounter
 
 ```java
+
     /**
      * Increment the builtin distributed counter referred by key
      * @param key The name of the key
      * @param amount The amount to be incremented
      */
     void incrCounter(String key, long amount);
+
 ```
 
 Application can use `incrCounter` to change the counter of a given `key` by the given `amount`.
@@ -31,6 +33,7 @@ Application can use `incrCounter` to change the counter of a given `key` by the 
 #### getCounter
 
 ```java
+
     /**
      * Retrieve the counter value for the key.
      *
@@ -38,6 +41,7 @@ Application can use `incrCounter` to change the counter of a given `key` by the 
      * @return the amount of the counter value for this key
      */
     long getCounter(String key);
+
 ```
 
 Application can use `getCounter` to retrieve the counter of a given `key` mutated by `incrCounter`.
@@ -48,6 +52,7 @@ general key/value state.
 #### putState
 
 ```java
+
     /**
      * Update the state value for the key.
      *
@@ -55,11 +60,13 @@ general key/value state.
      * @param value state value of the key
      */
     void putState(String key, ByteBuffer value);
+
 ```
 
 #### getState
 
 ```
+
     /**
      * Retrieve the state value for the key.
      *
@@ -67,6 +74,7 @@ general key/value state.
      * @return the state value for the key.
      */
     ByteBuffer getState(String key);
+
 ```
 
 ### Python API
@@ -80,6 +88,7 @@ and retrieving state back from Pulsar's state storage. Additionally Pulsar also 
 CLI commands for querying its state.
 
 ```shell
+
 $ bin/pulsar-admin functions querystate \
     --tenant <tenant> \
     --namespace <namespace> \
@@ -87,6 +96,7 @@ $ bin/pulsar-admin functions querystate \
     --state-storage-url <bookkeeper-service-url> \
     --key <state-key> \
     [---watch]
+
 ```
 
 If `--watch` is specified, the CLI will watch the value of the provided `state-key`.
@@ -95,10 +105,11 @@ If `--watch` is specified, the CLI will watch the value of the provided `state-k
 
 ### Java Example
 
-{@inject: github:`WordCountFunction`:/pulsar-functions/java-examples/src/main/java/org/apache/pulsar/functions/api/examples/WordCountFunction.java} is a very good example
+{@inject: github:WordCountFunction:/pulsar-functions/java-examples/src/main/java/org/apache/pulsar/functions/api/examples/WordCountFunction.java} is a very good example
 demonstrating on how Application can easily store `state` in Pulsar Functions.
 
 ```java
+
 public class WordCountFunction implements Function<String, Void> {
     @Override
     public Void process(String input, Context context) throws Exception {
@@ -106,6 +117,7 @@ public class WordCountFunction implements Function<String, Void> {
         return null;
     }
 }
+
 ```
 
 The logic of this `WordCount` function is pretty simple and straightforward:

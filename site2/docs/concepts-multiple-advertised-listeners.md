@@ -1,7 +1,7 @@
 ---
 id: concepts-multiple-advertised-listeners
 title: Multiple advertised listeners
-sidebar_label: Multiple advertised listeners
+sidebar_label: "Multiple advertised listeners"
 ---
 
 When a Pulsar cluster is deployed in the production environment, it may require to expose multiple advertised addresses for the broker. For example, when you deploy a Pulsar cluster in Kubernetes and want other clients, which are not in the same Kubernetes cluster, to connect to the Pulsar cluster, you need to assign a broker URL to external clients. But clients in the same Kubernetes cluster can still connect to the Pulsar cluster through the internal network of Kubernetes.
@@ -24,15 +24,20 @@ This example shows how a Pulsar client uses multiple advertised listeners.
 1. Configure multiple advertised listeners in the broker configuration file.
 
 ```shell
+
 advertisedListeners={listenerName}:pulsar://xxxx:6650,
 {listenerName}:pulsar+ssl://xxxx:6651
+
 ```
 
 2. Specify the listener name for the client.
 
 ```java
+
 PulsarClient client = PulsarClient.builder()
     .serviceUrl("pulsar://xxxx:6650")
     .listenerName("external")
     .build();
+
 ```
+

@@ -274,6 +274,13 @@ public class ElasticSearchConfig implements Serializable {
     )
     private CompatibilityMode compatibilityMode = CompatibilityMode.AUTO;
 
+    @FieldDoc(
+            defaultValue = "false",
+            help = "If canonicalKeyFields is true and record key schema is JSON or AVRO, the serialized object will "
+                    + "not consider the properties order."
+    )
+    private boolean canonicalKeyFields = false;
+
     public enum MalformedDocAction {
         IGNORE,
         WARN,

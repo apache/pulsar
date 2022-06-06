@@ -1,7 +1,7 @@
 ---
 author: Sijie Guo
 authorURL: https://twitter.com/sijieg
-title: Apache Pulsar 2.1.0-incubating
+title: "Apache Pulsar 2.1.0-incubating"
 ---
 
 We are glad to present the new 2.1.0-incubating release of Pulsar.
@@ -50,8 +50,7 @@ It is as simple as writing a Pulsar function.
 
 ## Tiered Storage
 
-One of the advantages of Apache Pulsar is [its segment storage](https://streaml.io/blog/pulsar-segment-based-architecture) using
-[Apache BookKeeper](https://bookkeeper.apache.org/). You can store a topic backlog as large as you want.
+One of the advantages of Apache Pulsar is [its segment storage](https://streaml.io/blog/pulsar-segment-based-architecture) using [Apache BookKeeper](https://bookkeeper.apache.org/). You can store a topic backlog as large as you want.
 When the cluster starts to run out of space, you just add another storage node, and the system will automatically
 pickup the new storage nodes and start using them without rebalancing partitions. However, this can start to get expensive after a while.
 
@@ -82,7 +81,6 @@ support for [Avro](https://avro.apache.org/) and [Protobuf](https://developers.g
 
 ## Clients
 
-We have introduced a new [Go](/docs/client-libraries-go) client in 2.1 release. The Pulsar Go client library is based on the
-[C++](/docs/client-libraries-cpp/) client library.
+We have introduced a new [Go](/docs/client-libraries-go) client in 2.1 release. The Pulsar Go client library is based on the [C++](/docs/client-libraries-cpp/) client library.
 
 Follow [the instructions](/docs/client-libraries-go/#installing-go-package) to try it out in your Go applications!
