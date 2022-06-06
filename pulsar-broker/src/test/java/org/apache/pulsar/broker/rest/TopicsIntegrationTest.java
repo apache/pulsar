@@ -137,14 +137,15 @@ public class TopicsIntegrationTest extends MultiBrokerBaseTest {
     public void testProduceToNonPersistentTopicSpecificPartition() throws Exception {
         String topicName = "non-persistent://" + testTenant + "/" + testNamespace + "/testProduceToNonPersistentTopicSpecificPartition";
         admin.topics().createPartitionedTopic(topicName, 3);
-        Schema<String> schema = StringSchema.utf8();
+        Schema keyValueSchema = KeyValueSchemaImpl.of(StringSchema.utf8(), StringSchema.utf8(),
+                KeyValueEncodingType.SEPARATED);
         @Cleanup
-        Consumer consumer = pulsarClient.newConsumer(Schema.STRING)
+        Consumer consumer = pulsarClient.newConsumer(keyValueSchema)
                 .topic(topicName)
                 .subscriptionName("my-sub")
                 .subscriptionType(SubscriptionType.Shared)
-                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe();
+        Schema<String> schema = StringSchema.utf8();
         ProducerMessages producerMessages = new ProducerMessages();
         producerMessages.setKeySchema(ObjectMapperFactory.getThreadLocal().
                 writeValueAsString(schema.getSchemaInfo()));
