@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.rest;
 
-import static org.apache.pulsar.client.impl.auth.AuthenticationDataToken.HTTP_HEADER_NAME;
 import com.google.common.base.MoreObjects;
 import io.netty.buffer.ByteBuf;
 import java.io.IOException;
@@ -37,7 +36,6 @@ import java.util.Base64;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import javax.ws.rs.WebApplicationException;
@@ -56,27 +54,22 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.admin.impl.PersistentTopicsBase;
-import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
-import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
 import org.apache.pulsar.broker.namespace.LookupOptions;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.schema.exceptions.SchemaException;
 import org.apache.pulsar.broker.web.RestException;
-import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
-import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.ProducerBase;
-import org.apache.pulsar.client.impl.auth.AuthenticationToken;
 import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
 import org.apache.pulsar.client.impl.schema.AvroBaseStructSchema;
 import org.apache.pulsar.client.impl.schema.KeyValueSchemaImpl;
@@ -110,8 +103,6 @@ import org.apache.pulsar.websocket.data.ProducerMessages;
 @Slf4j
 public class RestBase extends PersistentTopicsBase {
 
-    static final String HTTP_HEADER_VALUE_PREFIX = "Bearer ";
-
     protected CompletableFuture<ProducerAcks> publishMessagesByProducer(ProducerMessages request,
                                                                         boolean authoritative) {
         return getPublishTopicName(authoritative)
@@ -137,10 +128,8 @@ public class RestBase extends PersistentTopicsBase {
     private CompletableFuture<ProducerAcks> publishMessages(ProducerMessages request,
                                                             SchemaAndMetadata schemaMetadata) {
         CompletableFuture<Producer<byte[]>> producerFuture;
-        PulsarClient pulsarClient;
         try {
-            pulsarClient = getPulsarClient();
-            ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer();
+            ProducerBuilder<byte[]> producerBuilder = pulsar().getClient().newProducer();
             producerBuilder.topic(topicName.getPartitionedTopicName());
             producerBuilder.producerName(getProducerName(request));
             producerBuilder.enableBatching(false);
@@ -164,32 +153,9 @@ public class RestBase extends PersistentTopicsBase {
                 producerAck.setMessageId(messageId.toString());
                 producerAckResults.add(producerAck);
             }
-            producerFuture.join().closeAsync().whenComplete((v, ex) -> {
-                pulsarClient.closeAsync();
-            });
+            producerFuture.thenAccept(producer -> producer.closeAsync());
             return new ProducerAcks(producerAckResults, ((LongSchemaVersion) schemaMetadata.version).getVersion());
         }));
-    }
-
-    private PulsarClient getPulsarClient() throws Exception {
-        ClientBuilder builder = PulsarClient.builder();
-        builder.serviceUrl(config().isTlsEnabled()
-                ? pulsar().getBrokerServiceUrlTls() : this.pulsar().getBrokerServiceUrl());
-        String token = null;
-        AuthenticationDataSource authenticationDataSource = clientAuthData();
-        if (authenticationDataSource != null && authenticationDataSource.hasDataFromHttp()) {
-            String httpHeaderValue = authenticationDataSource.getHttpHeader(HTTP_HEADER_NAME);
-            if (httpHeaderValue != null && httpHeaderValue.startsWith(HTTP_HEADER_VALUE_PREFIX)) {
-                token = httpHeaderValue.substring(HTTP_HEADER_VALUE_PREFIX.length());
-            }
-        }
-        if (token != null) {
-            Set<String> authenticationProviders = config().getAuthenticationProviders();
-            if (authenticationProviders.contains(AuthenticationProviderToken.class.getName())) {
-                builder.authentication(new AuthenticationToken(token));
-            }
-        }
-        return builder.build();
     }
 
     protected CompletableFuture<ProducerAcks> publishMessages(ProducerMessages request, boolean authoritative) {
