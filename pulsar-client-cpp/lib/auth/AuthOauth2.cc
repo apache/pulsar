@@ -143,9 +143,7 @@ ClientCredentialFlow::ClientCredentialFlow(ParamMap& params)
       audience_(params["audience"]),
       scope_(params["scope"]) {}
 
-std::string ClientCredentialFlow::getTokenEndPoint() const {
-    return tokenEndPoint_;
-}
+std::string ClientCredentialFlow::getTokenEndPoint() const { return tokenEndPoint_; }
 
 static size_t curlWriteCallback(void* contents, size_t size, size_t nmemb, void* responseDataPtr) {
     ((std::string*)responseDataPtr)->append((char*)contents, size * nmemb);
@@ -177,7 +175,7 @@ void ClientCredentialFlow::initialize() {
         wellKnownUrl.pop_back();
     }
     wellKnownUrl.append("/.well-known/openid-configuration");
-    curl_easy_setopt(handle, CURLOPT_URL,wellKnownUrl.c_str());
+    curl_easy_setopt(handle, CURLOPT_URL, wellKnownUrl.c_str());
 
     // Write callback
     curl_easy_setopt(handle, CURLOPT_WRITEFUNCTION, curlWriteCallback);
