@@ -26,6 +26,7 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.stats.JvmMetrics;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.websocket.WebSocketService;
@@ -51,7 +52,8 @@ public class ProxyStats {
     public ProxyStats(WebSocketService service) {
         super();
         this.service = service;
-        this.jvmMetrics = new JvmMetrics(service);
+        this.jvmMetrics = JvmMetrics.create(
+                service.getExecutor(), "prx", service.getConfig().getJvmGCMetricsLoggerClassName());
         this.topicStats =
                 ConcurrentOpenHashMap.<String, ProxyNamespaceStats>newBuilder()
                         .build();
@@ -113,7 +115,7 @@ public class ProxyStats {
         if (log.isDebugEnabled()) {
             log.debug("Add jvm-stats to metrics");
         }
-        tempMetricsCollection.add(jvmMetrics.generate());
+        tempMetricsCollection.add(jvmMetrics.generate().get(0));
 
         // swap tempmetrics to stat-metrics
         List<Metrics> tempRef = metricsCollection;
