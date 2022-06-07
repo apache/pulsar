@@ -528,7 +528,7 @@ The Apache Software License, Version 2.0
     - org.apache.zookeeper-zookeeper-jute-3.8.0.jar
     - org.apache.zookeeper-zookeeper-prometheus-metrics-3.8.0.jar
   * Snappy Java
-    - org.xerial.snappy-snappy-java-1.1.7.jar
+    - org.xerial.snappy-snappy-java-1.1.8.4.jar
   * Google HTTP Client
     - com.google.http-client-google-http-client-gson-1.41.0.jar
     - com.google.http-client-google-http-client-1.41.0.jar

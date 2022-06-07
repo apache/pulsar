@@ -426,6 +426,15 @@ public abstract class AdminResource extends PulsarWebResource {
         }
     }
 
+    protected CompletableFuture<Set<String>> clustersAsync() {
+        return clusterResources().listAsync()
+                .thenApply(list ->
+                        list.stream()
+                                .filter(cluster -> !Constants.GLOBAL_CLUSTER.equals(cluster))
+                                .collect(Collectors.toSet())
+                );
+    }
+
     protected void setServletContext(ServletContext servletContext) {
         this.servletContext = servletContext;
     }

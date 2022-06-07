@@ -27,34 +27,44 @@ import org.testcontainers.containers.GenericContainer;
 
 public abstract class PulsarIOTestBase extends PulsarFunctionsTestBase {
 
-	@SuppressWarnings({ "unchecked", "rawtypes" })
-	protected void testSink(SinkTester tester, boolean builtin) throws Exception {
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    protected void testSink(SinkTester tester, boolean builtin) throws Exception {
         tester.startServiceContainer(pulsarCluster);
         try {
-        	PulsarIOSinkRunner runner = new PulsarIOSinkRunner(pulsarCluster, functionRuntimeType.toString());
+            PulsarIOSinkRunner runner = new PulsarIOSinkRunner(pulsarCluster, functionRuntimeType.toString());
             runner.runSinkTester(tester, builtin);
         } finally {
-            tester.stopServiceContainer(pulsarCluster);
+            try {
+                tester.close();
+            } finally {
+                tester.stopServiceContainer(pulsarCluster);
+            }
         }
     }
 
-	@SuppressWarnings("rawtypes")
-	protected <ServiceContainerT extends GenericContainer>  void testSink(SinkTester<ServiceContainerT> sinkTester,
-			boolean builtinSink,
-			SourceTester<ServiceContainerT> sourceTester) throws Exception {
+    @SuppressWarnings("rawtypes")
+    protected <ServiceContainerT extends GenericContainer> void testSink(SinkTester<ServiceContainerT> sinkTester,
+                                                                         boolean builtinSink,
+                                                                         SourceTester<ServiceContainerT> sourceTester)
+            throws Exception {
 
-		ServiceContainerT serviceContainer = sinkTester.startServiceContainer(pulsarCluster);
+        ServiceContainerT serviceContainer = sinkTester.startServiceContainer(pulsarCluster);
 
-		try {
-			PulsarIOSinkRunner runner = new PulsarIOSinkRunner(pulsarCluster, functionRuntimeType.toString());
+        try {
+            PulsarIOSinkRunner runner = new PulsarIOSinkRunner(pulsarCluster, functionRuntimeType.toString());
             runner.runSinkTester(sinkTester, builtinSink);
-			if (null != sourceTester) {
-				PulsarIOSourceRunner sourceRunner = new PulsarIOSourceRunner(pulsarCluster, functionRuntimeType.toString());
-				sourceTester.setServiceContainer(serviceContainer);
-				sourceRunner.testSource(sourceTester);
-			}
-		} finally {
-			sinkTester.stopServiceContainer(pulsarCluster);
-		}
+            if (null != sourceTester) {
+                PulsarIOSourceRunner sourceRunner =
+                        new PulsarIOSourceRunner(pulsarCluster, functionRuntimeType.toString());
+                sourceTester.setServiceContainer(serviceContainer);
+                sourceRunner.testSource(sourceTester);
+            }
+        } finally {
+            try {
+                sinkTester.close();
+            } finally {
+                sinkTester.stopServiceContainer(pulsarCluster);
+            }
+        }
     }
 }

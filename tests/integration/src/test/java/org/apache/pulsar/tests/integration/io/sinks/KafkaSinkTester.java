@@ -21,7 +21,6 @@ package org.apache.pulsar.tests.integration.io.sinks;
 import static org.apache.pulsar.tests.integration.topologies.PulsarTestBase.randomName;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
-
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Iterator;
@@ -32,7 +31,6 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.serialization.StringDeserializer;
-import org.apache.pulsar.tests.integration.io.sinks.SinkTester.SinkType;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.testcontainers.containers.Container.ExecResult;
 import org.testcontainers.containers.KafkaContainer;
@@ -49,7 +47,7 @@ public class KafkaSinkTester extends SinkTester<KafkaContainer> {
 
     private final String containerName;
 
-      public KafkaSinkTester(String containerName) {
+    public KafkaSinkTester(String containerName) {
         super(containerName, SinkType.KAFKA);
         this.containerName = containerName;
         String suffix = randomName(8) + "_" + System.currentTimeMillis();
@@ -68,35 +66,35 @@ public class KafkaSinkTester extends SinkTester<KafkaContainer> {
                 .withEmbeddedZookeeper()
                 .withNetworkAliases(containerName)
                 .withCreateContainerCmdModifier(createContainerCmd -> createContainerCmd
-                    .withName(containerName)
-                    .withHostName(cluster.getClusterName() + "-" + containerName));
+                        .withName(containerName)
+                        .withHostName(cluster.getClusterName() + "-" + containerName));
     }
 
     @Override
     public void prepareSink() throws Exception {
         ExecResult execResult = serviceContainer.execInContainer(
-            "/usr/bin/kafka-topics",
-            "--create",
-            "--zookeeper",
-            "localhost:2181",
-            "--partitions",
-            "1",
-            "--replication-factor",
-            "1",
-            "--topic",
-            kafkaTopicName);
+                "/usr/bin/kafka-topics",
+                "--create",
+                "--zookeeper",
+                "localhost:2181",
+                "--partitions",
+                "1",
+                "--replication-factor",
+                "1",
+                "--topic",
+                kafkaTopicName);
         assertTrue(
-            execResult.getStdout().contains("Created topic"),
-            execResult.getStdout());
+                execResult.getStdout().contains("Created topic"),
+                execResult.getStdout());
 
         kafkaConsumer = new KafkaConsumer<>(
-            ImmutableMap.of(
-                ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, serviceContainer.getBootstrapServers(),
-                ConsumerConfig.GROUP_ID_CONFIG, "sink-test-" + randomName(8),
-                ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest"
-            ),
-            new StringDeserializer(),
-            new StringDeserializer()
+                ImmutableMap.of(
+                        ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, serviceContainer.getBootstrapServers(),
+                        ConsumerConfig.GROUP_ID_CONFIG, "sink-test-" + randomName(8),
+                        ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest"
+                ),
+                new StringDeserializer(),
+                new StringDeserializer()
         );
         kafkaConsumer.subscribe(Arrays.asList(kafkaTopicName));
         log.info("Successfully subscribe to kafka topic {}", kafkaTopicName);
@@ -108,7 +106,7 @@ public class KafkaSinkTester extends SinkTester<KafkaContainer> {
         while (kvIter.hasNext()) {
             ConsumerRecords<String, String> records = kafkaConsumer.poll(Duration.ofSeconds(1L));
             log.info("Received {} records from kafka topic {}",
-                records.count(), kafkaTopicName);
+                    records.count(), kafkaTopicName);
             if (records.isEmpty()) {
                 continue;
             }
@@ -120,6 +118,14 @@ public class KafkaSinkTester extends SinkTester<KafkaContainer> {
                 assertEquals(expectedRecord.getKey(), consumerRecord.key());
                 assertEquals(expectedRecord.getValue(), consumerRecord.value());
             }
+        }
+    }
+
+    @Override
+    public void close() throws Exception {
+        if (kafkaConsumer != null) {
+            kafkaConsumer.close();
+            kafkaConsumer = null;
         }
     }
 }
