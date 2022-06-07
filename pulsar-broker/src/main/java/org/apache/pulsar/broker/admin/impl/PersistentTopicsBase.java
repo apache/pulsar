@@ -566,11 +566,11 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected CompletableFuture<Map<String, String>> internalGetPropertiesAsync(boolean authoritative) {
-        return pulsar().getBrokerService().fetchPartitionedTopicMetadataAsync(topicName)
+        return validateTopicOperationAsync(topicName, TopicOperation.GET_METADATA)
+                .thenCompose(__ -> pulsar().getBrokerService().fetchPartitionedTopicMetadataAsync(topicName))
                 .thenCompose(metadata -> {
                     if (metadata.partitions == 0 || topicName.isPartitioned()) {
                         return validateTopicOwnershipAsync(topicName, authoritative)
-                                .thenCompose(__ -> validateTopicOperationAsync(topicName, TopicOperation.GET_METADATA))
                                 .thenCompose(__ -> pulsar().getBrokerService().getTopicIfExists(topicName.toString()))
                                 .thenApply(opt -> {
                                     if (!opt.isPresent()) {
