@@ -245,7 +245,7 @@ In order to safely distribute secrets, Pulasr Functions can reference Kubernetes
 
 You can create a secret in the namespace where your functions are deployed. For example, you deploy functions to the `pulsar-func` Kubernetes namespace, and you have a secret named `database-creds` with a field name `password`, which you want to mount in the pod as an environment variable called `DATABASE_PASSWORD`. The following functions configuration enables you to reference that secret and mount the value as an environment variable in the pod.
 
-```Yaml
+```yaml
 
 tenant: "mytenant"
 namespace: "mynamespace"
@@ -269,7 +269,7 @@ The `org.apache.pulsar.functions.auth.KubernetesFunctionAuthProvider` interface 
 
 Pulsar includes an implementation of this interface for token authentication, and distributes the certificate authority via the same implementation. The configuration is similar as follows:
 
-```Yaml
+```yaml
 
 functionAuthProviderClassName: org.apache.pulsar.functions.auth.KubernetesSecretsTokenAuthProvider
 
@@ -291,7 +291,7 @@ When you run a functions worker in a standalone process (that is, not embedded i
 
 For example, if you use token authentication, you need to configure the following properties in the `function-worker.yml` file.
 
-```Yaml
+```yaml
 
 clientAuthenticationPlugin: org.apache.pulsar.client.impl.auth.AuthenticationToken
 clientAuthenticationParameters: file:///etc/pulsar/token/admin-token.txt
@@ -368,14 +368,14 @@ If you run multiple clusters tied together with geo-replication, it is important
 
 For example, if you have two clusters: `east-1` and `west-1`, you can configure the functions workers for `east-1` and `west-1` perspectively as follows.
 
-```Yaml
+```yaml
 
 pulsarFunctionsCluster: east-1
 pulsarFunctionsNamespace: public/functions-east-1
 
 ```
 
-```Yaml
+```yaml
 
 pulsarFunctionsCluster: west-1
 pulsarFunctionsNamespace: public/functions-west-1
@@ -390,7 +390,7 @@ When configuring a standalone functions worker, you need to configure properties
 
 You need to configure the following required properties.
 
-```Yaml
+```yaml
 
 workerPort: 8080
 workerPortTls: 8443 # when using TLS

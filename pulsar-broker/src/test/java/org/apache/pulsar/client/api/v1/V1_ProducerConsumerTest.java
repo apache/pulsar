@@ -47,8 +47,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import lombok.Cleanup;
-import org.apache.bookkeeper.mledger.impl.EntryCacheImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.bookkeeper.mledger.impl.cache.EntryCache;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
@@ -648,7 +648,7 @@ public class V1_ProducerConsumerTest extends V1_ProducerConsumerBase {
         PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topic).get();
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) topicRef.getManagedLedger();
 
-        EntryCacheImpl entryCache = spy((EntryCacheImpl) Whitebox.getInternalState(ledger, "entryCache"));
+        EntryCache entryCache = spy((EntryCache) Whitebox.getInternalState(ledger, "entryCache"));
         Whitebox.setInternalState(ledger, "entryCache", entryCache);
 
         Message<byte[]>msg = null;

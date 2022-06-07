@@ -30,7 +30,7 @@ The language-native function, which adds an exclamation point to all incoming st
   values={[{"label":"Java","value":"Java"},{"label":"Python","value":"Python"}]}>
 <TabItem value="Java">
 
-```Java
+```java
 
 import java.util.function.Function;
 
@@ -85,7 +85,7 @@ The following example uses Pulsar Functions SDK.
   values={[{"label":"Java","value":"Java"},{"label":"Python","value":"Python"},{"label":"Go","value":"Go"}]}>
 <TabItem value="Java">
 
-```Java
+```java
 
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
@@ -122,7 +122,7 @@ For complete code, see [here](https://github.com/apache/pulsar/blob/master/pulsa
 </TabItem>
 <TabItem value="Go">
 
-```Go
+```go
 
 package main
 
@@ -171,7 +171,7 @@ The following example uses the extended interface of Pulsar Function SDK for Jav
   values={[{"label":"Java","value":"Java"}]}>
 <TabItem value="Java">
 
-```Java
+```java
 
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;

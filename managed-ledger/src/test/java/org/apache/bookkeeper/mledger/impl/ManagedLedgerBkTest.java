@@ -48,6 +48,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerAlready
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.impl.cache.EntryCacheManager;
 import org.apache.bookkeeper.test.BookKeeperClusterTestCase;
 import org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats;
 import org.testng.annotations.Test;
@@ -216,12 +217,12 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
             future.get();
         }
 
-        cacheManager.mlFactoryMBean.refreshStats(1, TimeUnit.SECONDS);
+        factory.getMbean().refreshStats(1, TimeUnit.SECONDS);
 
-        assertTrue(cacheManager.mlFactoryMBean.getCacheHitsRate() > 0.0);
-        assertEquals(cacheManager.mlFactoryMBean.getCacheMissesRate(), 0.0);
-        assertTrue(cacheManager.mlFactoryMBean.getCacheHitsThroughput() > 0.0);
-        assertEquals(cacheManager.mlFactoryMBean.getNumberOfCacheEvictions(), 0);
+        assertTrue(factory.getMbean().getCacheHitsRate() > 0.0);
+        assertEquals(factory.getMbean().getCacheMissesRate(), 0.0);
+        assertTrue(factory.getMbean().getCacheHitsThroughput() > 0.0);
+        assertEquals(factory.getMbean().getNumberOfCacheEvictions(), 0);
     }
 
     @Test
