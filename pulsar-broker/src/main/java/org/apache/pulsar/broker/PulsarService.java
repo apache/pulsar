@@ -1279,7 +1279,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                             ),
                             schemaStorage,
                             getOffloaderScheduler(offloadPolicies),
-			    this.offloaderStats);
+                            this.offloaderStats);
                     } catch (IOException ioe) {
                         throw new PulsarServerException(ioe.getMessage(), ioe.getCause());
                     }
