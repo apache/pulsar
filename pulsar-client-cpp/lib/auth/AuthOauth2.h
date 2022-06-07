@@ -57,6 +57,7 @@ class ClientCredentialFlow : public Oauth2Flow {
     void close();
 
     ParamMap generateParamMap() const;
+    std::string getTokenEndPoint() const;
 
    private:
     std::string tokenEndPoint_;
