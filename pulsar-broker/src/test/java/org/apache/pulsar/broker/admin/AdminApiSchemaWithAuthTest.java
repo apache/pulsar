@@ -56,9 +56,6 @@ public class AdminApiSchemaWithAuthTest extends MockedPulsarServiceBaseTest {
 
     private static final SecretKey SECRET_KEY = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
     private static final String ADMIN_TOKEN = Jwts.builder().setSubject("admin").signWith(SECRET_KEY).compact();
-
-    private static final String PRODUCE_TOKEN = Jwts.builder().setSubject("producer").signWith(SECRET_KEY).compact();
-    private static final String CONSUME_TOKEN = Jwts.builder().setSubject("consumer").signWith(SECRET_KEY).compact();
     private static final String PRODUCE_CONSUME_TOKEN = Jwts.builder().setSubject("producer+consumer").signWith(SECRET_KEY).compact();
 
     @BeforeMethod
@@ -103,17 +100,13 @@ public class AdminApiSchemaWithAuthTest extends MockedPulsarServiceBaseTest {
         PulsarAdmin adminWithoutPermission = PulsarAdmin.builder()
                 .serviceHttpUrl(brokerUrl != null ? brokerUrl.toString() : brokerUrlTls.toString())
                 .build();
-        PulsarAdmin adminWithProducerPermission = PulsarAdmin.builder()
+        PulsarAdmin adminWithAdminPermission = PulsarAdmin.builder()
                 .serviceHttpUrl(brokerUrl != null ? brokerUrl.toString() : brokerUrlTls.toString())
-                .authentication(AuthenticationToken.class.getName(), PRODUCE_TOKEN)
+                .authentication(AuthenticationToken.class.getName(), ADMIN_TOKEN)
                 .build();
         PulsarAdmin adminWithProducerConsumePermission = PulsarAdmin.builder()
                 .serviceHttpUrl(brokerUrl != null ? brokerUrl.toString() : brokerUrlTls.toString())
                 .authentication(AuthenticationToken.class.getName(), PRODUCE_CONSUME_TOKEN)
-                .build();
-        PulsarAdmin adminWithConsumerPermission = PulsarAdmin.builder()
-                .serviceHttpUrl(brokerUrl != null ? brokerUrl.toString() : brokerUrlTls.toString())
-                .authentication(AuthenticationToken.class.getName(), CONSUME_TOKEN)
                 .build();
         SchemaInfo si = Schema.BOOL.getSchemaInfo();
         try {
@@ -122,23 +115,23 @@ public class AdminApiSchemaWithAuthTest extends MockedPulsarServiceBaseTest {
         } catch (Exception ignore) {
         }
         admin.topics().grantPermission(topicName, "producer+consumer", EnumSet.of(AuthAction.produce, AuthAction.consume));
-        adminWithProducerConsumePermission.schemas().createSchema(topicName, si);
+        adminWithAdminPermission.schemas().createSchema(topicName, si);
         try {
             adminWithoutPermission.schemas().getSchemaInfo(topicName);
             fail("Should have failed");
         } catch (Exception ignore) {
         }
         admin.topics().grantPermission(topicName, "consumer", EnumSet.of(AuthAction.consume));
-        SchemaInfo readSi = adminWithConsumerPermission.schemas().getSchemaInfo(topicName);
+        SchemaInfo readSi = adminWithProducerConsumePermission.schemas().getSchemaInfo(topicName);
         assertEquals(readSi, si);
         try {
             adminWithoutPermission.schemas().getSchemaInfo(topicName, 0);
             fail("Should have failed");
         } catch (Exception ignore) {
         }
-        readSi = adminWithConsumerPermission.schemas().getSchemaInfo(topicName, 0);
+        readSi = adminWithProducerConsumePermission.schemas().getSchemaInfo(topicName, 0);
         assertEquals(readSi, si);
-        List<SchemaInfo> allSchemas = adminWithConsumerPermission.schemas().getAllSchemas(topicName);
+        List<SchemaInfo> allSchemas = adminWithProducerConsumePermission.schemas().getAllSchemas(topicName);
         assertEquals(allSchemas.size(), 1);
         SchemaInfo schemaInfo2 = Schema.BOOL.getSchemaInfo();
         try {
@@ -146,14 +139,14 @@ public class AdminApiSchemaWithAuthTest extends MockedPulsarServiceBaseTest {
             fail("Should have failed");
         } catch (Exception ignore) {
         }
-        boolean compatibility = adminWithConsumerPermission.schemas().testCompatibility(topicName, schemaInfo2).isCompatibility();
+        boolean compatibility = adminWithAdminPermission.schemas().testCompatibility(topicName, schemaInfo2).isCompatibility();
         assertTrue(compatibility);
         try {
             adminWithoutPermission.schemas().getVersionBySchema(topicName, si);
             fail("Should have failed");
         } catch (Exception ignore) {
         }
-        Long versionBySchema = adminWithConsumerPermission.schemas().getVersionBySchema(topicName, si);
+        Long versionBySchema = adminWithProducerConsumePermission.schemas().getVersionBySchema(topicName, si);
         assertEquals(versionBySchema, Long.valueOf(0L));
         try {
             adminWithoutPermission.schemas().deleteSchema(topicName);
@@ -161,6 +154,6 @@ public class AdminApiSchemaWithAuthTest extends MockedPulsarServiceBaseTest {
         } catch (Exception ignore) {
         }
         admin.topics().grantPermission(topicName, "producer", EnumSet.of(AuthAction.produce));
-        adminWithProducerPermission.schemas().deleteSchema(topicName);
+        adminWithAdminPermission.schemas().deleteSchema(topicName);
     }
 }
