@@ -25,7 +25,6 @@ import static org.apache.pulsar.common.api.proto.CommandSubscribe.SubType.Exclus
 import static org.apache.pulsar.common.api.proto.CommandSubscribe.SubType.Failover;
 import static org.apache.pulsar.common.api.proto.CommandSubscribe.SubType.Key_Shared;
 import static org.apache.pulsar.common.api.proto.CommandSubscribe.SubType.Shared;
-import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
@@ -39,7 +38,6 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import java.net.InetSocketAddress;
-import java.util.Optional;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
@@ -79,7 +77,7 @@ public class MessageCumulativeAckTest {
         executor = OrderedExecutor.newBuilder().numThreads(1).name("persistent-dispatcher-cumulative-ack-test").build();
         ServiceConfiguration svcConfig = spy(ServiceConfiguration.class);
         svcConfig.setBrokerShutdownTimeoutMs(0L);
-        svcConfig.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
+        svcConfig.setLoadBalancerOverrideBrokerNicSpeedGbps(1.0d);
         svcConfig.setClusterName("pulsar-cluster");
         pulsar = spyWithClassAndConstructorArgs(PulsarService.class, svcConfig);
         doReturn(svcConfig).when(pulsar).getConfiguration();
@@ -89,7 +87,7 @@ public class MessageCumulativeAckTest {
         doReturn(TransactionTestBase.createMockBookKeeper(executor))
             .when(pulsar).getBookKeeperClient();
 
-        store = MetadataStoreFactory.create("memory:local", MetadataStoreConfig.builder().build());
+        store = MetadataStoreFactory.create("memory://local", MetadataStoreConfig.builder().build());
         doReturn(store).when(pulsar).getLocalMetadataStore();
         doReturn(store).when(pulsar).getConfigurationMetadataStore();
 
@@ -154,8 +152,7 @@ public class MessageCumulativeAckTest {
     @Test(timeOut = 5000, dataProvider = "individualAckModes")
     public void testAckWithIndividualAckMode(CommandSubscribe.SubType subType) throws Exception {
         Consumer consumer = new Consumer(sub, subType, "topic-1", consumerId, 0,
-            "Cons1", true, serverCnx, "myrole-1", emptyMap(), false, null,
-            MessageId.latest, DEFAULT_CONSUMER_EPOCH);
+            "Cons1", 50000, serverCnx, "myrole-1", emptyMap(), false, CommandSubscribe.InitialPosition.Latest, null, MessageId.latest);
 
         CommandAck commandAck = new CommandAck();
         commandAck.setAckType(Cumulative);
@@ -169,8 +166,7 @@ public class MessageCumulativeAckTest {
     @Test(timeOut = 5000, dataProvider = "notIndividualAckModes")
     public void testAckWithNotIndividualAckMode(CommandSubscribe.SubType subType) throws Exception {
         Consumer consumer = new Consumer(sub, subType, "topic-1", consumerId, 0,
-            "Cons1", true, serverCnx, "myrole-1", emptyMap(), false, null,
-            MessageId.latest, DEFAULT_CONSUMER_EPOCH);
+                "Cons1", 50000, serverCnx, "myrole-1", emptyMap(), false, CommandSubscribe.InitialPosition.Latest, null, MessageId.latest);
 
         CommandAck commandAck = new CommandAck();
         commandAck.setAckType(Cumulative);
@@ -184,8 +180,7 @@ public class MessageCumulativeAckTest {
     @Test(timeOut = 5000)
     public void testAckWithMoreThanNoneMessageIds() throws Exception {
         Consumer consumer = new Consumer(sub, Failover, "topic-1", consumerId, 0,
-            "Cons1", true, serverCnx, "myrole-1", emptyMap(), false, null,
-            MessageId.latest, DEFAULT_CONSUMER_EPOCH);
+                "Cons1", 50000, serverCnx, "myrole-1", emptyMap(), false, CommandSubscribe.InitialPosition.Latest, null, MessageId.latest);
 
         CommandAck commandAck = new CommandAck();
         commandAck.setAckType(Cumulative);
