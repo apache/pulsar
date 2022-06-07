@@ -201,10 +201,6 @@ public class TransactionBufferClientTest extends TransactionTestBase {
         }
 
         assertEquals(pending.size(), 1);
-
-        for (PrometheusMetricsTest.Metric metric : pending) {
-            assertTrue(metric.value >= 0D);
-        }
     }
 
     @Test
