@@ -108,23 +108,26 @@ import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl.VoidCallback;
 import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
+import org.apache.bookkeeper.mledger.impl.cache.EntryCache;
+import org.apache.bookkeeper.mledger.impl.cache.EntryCacheManager;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
 import org.apache.bookkeeper.mledger.util.Futures;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
-import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
-import org.apache.pulsar.metadata.api.extended.SessionEvent;
-import org.apache.pulsar.metadata.impl.FaultInjectionMetadataStore;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.commons.lang3.mutable.MutableObject;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
+import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.Stat;
+import org.apache.pulsar.metadata.api.extended.SessionEvent;
+import org.apache.pulsar.metadata.impl.FaultInjectionMetadataStore;
 import org.awaitility.Awaitility;
 import org.mockito.Mockito;
+import org.powermock.reflect.Whitebox;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -2484,6 +2487,35 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
     }
 
     @Test
+    public void testGetNumberOfEntriesInStorage() throws Exception {
+        ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
+        managedLedgerConfig.setMaxEntriesPerLedger(5);
+        ManagedLedgerImpl managedLedger =
+                (ManagedLedgerImpl) factory.open("testGetNumberOfEntriesInStorage", managedLedgerConfig);
+        // open cursor to prevent ledger to be deleted when ledger rollover
+        ManagedCursorImpl managedCursor = (ManagedCursorImpl) managedLedger.openCursor("cursor");
+        int numberOfEntries = 10;
+        for (int i = 0; i < numberOfEntries; i++) {
+            managedLedger.addEntry(("entry-" + i).getBytes(Encoding));
+        }
+
+        //trigger ledger rollover and wait for the new ledger created
+        Field stateUpdater = ManagedLedgerImpl.class.getDeclaredField("state");
+        stateUpdater.setAccessible(true);
+        stateUpdater.set(managedLedger, ManagedLedgerImpl.State.LedgerOpened);
+        managedLedger.rollCurrentLedgerIfFull();
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(managedLedger.getLedgersInfo().size(), 2);
+            assertEquals(managedLedger.getState(), ManagedLedgerImpl.State.ClosedLedger);
+        });
+        assertEquals(5, managedLedger.getLedgersInfoAsList().get(0).getEntries());
+        assertEquals(5, managedLedger.getLedgersInfoAsList().get(1).getEntries());
+        log.info("### ledgers {}", managedLedger.getLedgersInfo());
+        long length = managedCursor.getNumberOfEntriesInStorage();
+        assertEquals(length, numberOfEntries);
+    }
+
+    @Test
     public void testEstimatedBacklogSize() throws Exception {
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("testEstimatedBacklogSize");
         ManagedCursor c1 = ledger.openCursor("c1");
@@ -2556,9 +2588,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         Set<ManagedCursor> activeCursors = Sets.newHashSet();
         activeCursors.add(cursor1);
         activeCursors.add(cursor2);
-        Field cacheField = ManagedLedgerImpl.class.getDeclaredField("entryCache");
-        cacheField.setAccessible(true);
-        EntryCacheImpl entryCache = (EntryCacheImpl) cacheField.get(ledger);
+        EntryCache entryCache = Whitebox.getInternalState(ledger, "entryCache");
 
         Iterator<ManagedCursor> activeCursor = ledger.getActiveCursors().iterator();
 
@@ -2630,10 +2660,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
     @Test
     public void testActiveDeactiveCursor() throws Exception {
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("cache_eviction_ledger");
-
-        Field cacheField = ManagedLedgerImpl.class.getDeclaredField("entryCache");
-        cacheField.setAccessible(true);
-        EntryCacheImpl entryCache = (EntryCacheImpl) cacheField.get(ledger);
+        EntryCache entryCache = Whitebox.getInternalState(ledger, "entryCache");
 
         final int totalInsertedEntries = 20;
         for (int i = 0; i < totalInsertedEntries; i++) {

@@ -11,11 +11,11 @@ Apache Pulsar is one of the fastest growing, most engaged open source projects, 
 
 A cloud-native messaging and event streaming platform, Apache Pulsar was committed to open source in 2016, and graduated as a Top-Level Project (TLP) in September 2018. Since its inception, the project has received 10k+ Github stars, 2.7k+ forks, and 6.1k+ Slack users.
 
-![pulsar star history](../img/pulsar-stars-line.png)
+![pulsar star history](/img/pulsar-stars-line.png)
 
 The number of contributors in an open-source project is meaningful because it signals project adoption, growth, advancement, and accelerated development of the technology. This milestone is even more exciting, considering the speed at which the community is growing, adding an additional 100 contributors in under seven months, representing 8X contributor growth since becoming a top-level Apache Software Foundation project. 
 
-![pulsar contributor history](../img/pulsar-contributors-line.png)
+![pulsar contributor history](/img/pulsar-contributors-line.png)
 
 ## Get Involved
 

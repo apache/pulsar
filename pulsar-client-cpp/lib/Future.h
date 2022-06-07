@@ -75,6 +75,26 @@ class Future {
         return state->result;
     }
 
+    template <typename Duration>
+    bool get(Result& res, Type& value, Duration d) {
+        InternalState<Result, Type>* state = state_.get();
+        Lock lock(state->mutex);
+
+        if (!state->complete) {
+            // Wait for result
+            while (!state->complete) {
+                if (!state->condition.wait_for(lock, d, [&state] { return state->complete; })) {
+                    // Timeout while waiting for the future to complete
+                    return false;
+                }
+            }
+        }
+
+        value = state->value;
+        res = state->result;
+        return true;
+    }
+
    private:
     typedef std::shared_ptr<InternalState<Result, Type> > InternalStatePtr;
     Future(InternalStatePtr state) : state_(state) {}

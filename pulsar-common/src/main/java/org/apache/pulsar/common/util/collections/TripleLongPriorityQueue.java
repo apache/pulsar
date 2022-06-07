@@ -19,6 +19,7 @@
 package org.apache.pulsar.common.util.collections;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
 
@@ -31,16 +32,30 @@ public class TripleLongPriorityQueue implements AutoCloseable {
 
     private static final int SIZE_OF_LONG = 8;
     private static final int DEFAULT_INITIAL_CAPACITY = 16;
+    private static final float DEFAULT_SHRINK_FACTOR = 0.5f;
 
     // Each item is composed of 3 longs
     private static final int ITEMS_COUNT = 3;
 
     private static final int TUPLE_SIZE = ITEMS_COUNT * SIZE_OF_LONG;
 
-    private final ByteBuf buffer;
+    /**
+     * Reserve 10% of the capacity when shrinking to avoid frequent expansion and shrinkage.
+     */
+    private static final float RESERVATION_FACTOR = 0.9f;
+
+    private ByteBuf buffer;
+
+    private final int initialCapacity;
 
     private int capacity;
     private int size;
+    /**
+     * When size < capacity * shrinkFactor, may trigger shrinking.
+     */
+    private final float shrinkFactor;
+
+    private float shrinkThreshold;
 
     /**
      * Create a new priority queue with default initial capacity.
@@ -49,14 +64,22 @@ public class TripleLongPriorityQueue implements AutoCloseable {
         this(DEFAULT_INITIAL_CAPACITY);
     }
 
+    public TripleLongPriorityQueue(int initialCapacity, float shrinkFactor) {
+        checkArgument(shrinkFactor > 0);
+        this.initialCapacity = initialCapacity;
+        this.capacity = initialCapacity;
+        this.shrinkThreshold = this.capacity * shrinkFactor;
+        this.buffer = PooledByteBufAllocator.DEFAULT.directBuffer(initialCapacity * TUPLE_SIZE);
+        this.size = 0;
+        this.shrinkFactor = shrinkFactor;
+    }
+
     /**
      * Create a new priority queue with a given initial capacity.
      * @param initialCapacity
      */
     public TripleLongPriorityQueue(int initialCapacity) {
-        capacity = initialCapacity;
-        buffer = PooledByteBufAllocator.DEFAULT.directBuffer(initialCapacity * ITEMS_COUNT * SIZE_OF_LONG);
-        size = 0;
+        this(initialCapacity, DEFAULT_SHRINK_FACTOR);
     }
 
     /**
@@ -122,6 +145,7 @@ public class TripleLongPriorityQueue implements AutoCloseable {
         swap(0, size - 1);
         size--;
         siftDown(0);
+        shrinkCapacity();
     }
 
     /**
@@ -144,12 +168,34 @@ public class TripleLongPriorityQueue implements AutoCloseable {
     public void clear() {
         this.buffer.clear();
         this.size = 0;
+        shrinkCapacity();
     }
 
     private void increaseCapacity() {
         // For bigger sizes, increase by 50%
         this.capacity += (capacity <= 256 ? capacity : capacity / 2);
+        this.shrinkThreshold = this.capacity * shrinkFactor;
         buffer.capacity(this.capacity * TUPLE_SIZE);
+    }
+
+    private void shrinkCapacity() {
+        if (capacity > initialCapacity &&  size < shrinkThreshold) {
+            int decreasingSize = (int) (capacity * shrinkFactor * RESERVATION_FACTOR);
+            if (decreasingSize <= 0) {
+                return;
+            }
+            if (capacity - decreasingSize <= initialCapacity) {
+                this.capacity = initialCapacity;
+            } else {
+                this.capacity = capacity - decreasingSize;
+            }
+            this.shrinkThreshold = this.capacity * shrinkFactor;
+
+            ByteBuf newBuffer = PooledByteBufAllocator.DEFAULT.directBuffer(this.capacity * TUPLE_SIZE);
+            buffer.getBytes(0, newBuffer, size * TUPLE_SIZE);
+            buffer.release();
+            this.buffer = newBuffer;
+        }
     }
 
     private void siftUp(int idx) {
@@ -228,5 +274,10 @@ public class TripleLongPriorityQueue implements AutoCloseable {
         buffer.setLong(i2, tmp1);
         buffer.setLong(i2 + 1 * SIZE_OF_LONG, tmp2);
         buffer.setLong(i2 + 2 * SIZE_OF_LONG, tmp3);
+    }
+
+    @VisibleForTesting
+    ByteBuf getBuffer() {
+        return buffer;
     }
 }

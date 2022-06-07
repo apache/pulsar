@@ -901,9 +901,13 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
 
         // create non partitioned topic and compaction on it
         response = mock(AsyncResponse.class);
-        persistentTopics.createNonPartitionedTopic(response, testTenant, testNamespace, nonPartitionTopicName, true, null);
-        persistentTopics.compact(response, testTenant, testNamespace, nonPartitionTopicName, true);
         ArgumentCaptor<Response> responseCaptor = ArgumentCaptor.forClass(Response.class);
+        persistentTopics.createNonPartitionedTopic(response, testTenant, testNamespace, nonPartitionTopicName, true, null);
+        verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
+        Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
+        response = mock(AsyncResponse.class);
+        responseCaptor = ArgumentCaptor.forClass(Response.class);
+        persistentTopics.compact(response, testTenant, testNamespace, nonPartitionTopicName, true);
         verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
         Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
 
@@ -959,7 +963,7 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
             completableFuture = batchProducer.sendAsync("a".getBytes());
         }
         completableFuture.get();
-        Assert.assertEquals(Optional.ofNullable(admin.topics().getBacklogSizeByMessageId(topicName + "-partition-0", MessageId.earliest)), Optional.of(350L));
+        Assert.assertEquals(Optional.ofNullable(admin.topics().getBacklogSizeByMessageId(topicName + "-partition-0", MessageId.earliest)), Optional.of(320L));
     }
 
     @Test

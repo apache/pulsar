@@ -467,8 +467,6 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
     public void testSchemaCompatibilityStrategyPermission() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        conf.setSystemTopicEnabled(true);
-        conf.setTopicLevelPoliciesEnabled(true);
         conf.setAnonymousUserRole("superUser");
         conf.setAuthorizationProvider(PulsarAuthorizationProvider.class.getName());
         setup();

@@ -133,8 +133,6 @@ public class AdminApiMaxUnackedMessages extends MockedPulsarServiceBaseTest {
         int namespaceLevelPolicy = 2;
         int topicLevelPolicy = 1;
         cleanup();
-        conf.setSystemTopicEnabled(true);
-        conf.setTopicLevelPoliciesEnabled(true);
         conf.setMaxUnackedMessagesPerConsumer(brokerLevelPolicy);
         setup();
         final String namespace = "max-unacked-messages/priority-on-consumers";

@@ -106,4 +106,9 @@ public class RabbitMQSinkTester extends SinkTester<RabbitMQContainer> {
         private final String key;
         private final byte[] body;
     }
+
+    @Override
+    public void close() throws Exception {
+
+    }
 }

@@ -26,6 +26,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import lombok.SneakyThrows;
@@ -97,9 +98,14 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
 
     private final CompletableFuture<Void> transactionBufferFuture = new CompletableFuture<>();
 
+    /**
+     * The map is used to store the lowWaterMarks which key is TC ID and value is lowWaterMark of the TC.
+     */
     private final ConcurrentHashMap<Long, Long> lowWaterMarks = new ConcurrentHashMap<>();
 
     public final RecoverTimeRecord recoverTime = new RecoverTimeRecord();
+
+    private final Semaphore handleLowWaterMark = new Semaphore(1);
 
     public TopicTransactionBuffer(PersistentTopic topic) {
         super(State.None);
@@ -292,13 +298,6 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
 
     @Override
     public CompletableFuture<Void> commitTxn(TxnID txnID, long lowWaterMark) {
-        lowWaterMarks.compute(txnID.getMostSigBits(), (tcId, oldLowWaterMark) -> {
-            if (oldLowWaterMark == null || oldLowWaterMark < lowWaterMark) {
-                return lowWaterMark;
-            } else {
-                return oldLowWaterMark;
-            }
-        });
         if (log.isDebugEnabled()) {
             log.debug("Transaction {} commit on topic {}.", txnID.toString(), topic.getName());
         }
@@ -339,13 +338,6 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
 
     @Override
     public CompletableFuture<Void> abortTxn(TxnID txnID, long lowWaterMark) {
-        lowWaterMarks.compute(txnID.getMostSigBits(), (tcId, oldLowWaterMark) -> {
-            if (oldLowWaterMark == null || oldLowWaterMark < lowWaterMark) {
-                return lowWaterMark;
-            } else {
-                return oldLowWaterMark;
-            }
-        });
         if (log.isDebugEnabled()) {
             log.debug("Transaction {} abort on topic {}.", txnID.toString(), topic.getName());
         }
@@ -365,12 +357,12 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                         synchronized (TopicTransactionBuffer.this) {
                             aborts.put(txnID, (PositionImpl) position);
                             updateMaxReadPosition(txnID);
-                            handleLowWaterMark(txnID, lowWaterMark);
                             changeMaxReadPositionAndAddAbortTimes.getAndIncrement();
                             clearAbortedTransactions();
                             takeSnapshotByChangeTimes();
                         }
                         completableFuture.complete(null);
+                        handleLowWaterMark(txnID, lowWaterMark);
                     }
 
                     @Override
@@ -391,30 +383,36 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
     }
 
     private void handleLowWaterMark(TxnID txnID, long lowWaterMark) {
-        if (!ongoingTxns.isEmpty()) {
-            TxnID firstTxn = ongoingTxns.firstKey();
-            if (firstTxn.getMostSigBits() == txnID.getMostSigBits() && lowWaterMark >= firstTxn.getLeastSigBits()) {
-                ByteBuf abortMarker = Markers.newTxnAbortMarker(-1L,
-                        firstTxn.getMostSigBits(), firstTxn.getLeastSigBits());
-                try {
-                    topic.getManagedLedger().asyncAddEntry(abortMarker, new AsyncCallbacks.AddEntryCallback() {
-                        @Override
-                        public void addComplete(Position position, ByteBuf entryData, Object ctx) {
-                            synchronized (TopicTransactionBuffer.this) {
-                                aborts.put(firstTxn, (PositionImpl) position);
-                                updateMaxReadPosition(firstTxn);
-                            }
-                        }
-
-                        @Override
-                        public void addFailed(ManagedLedgerException exception, Object ctx) {
-                            log.error("Failed to abort low water mark for txn {}", txnID, exception);
-                        }
-                    }, null);
-                } finally {
-                    abortMarker.release();
+        lowWaterMarks.compute(txnID.getMostSigBits(), (tcId, oldLowWaterMark) -> {
+            if (oldLowWaterMark == null || oldLowWaterMark < lowWaterMark) {
+                return lowWaterMark;
+            } else {
+                return oldLowWaterMark;
+            }
+        });
+        if (handleLowWaterMark.tryAcquire()) {
+            if (!ongoingTxns.isEmpty()) {
+                TxnID firstTxn = ongoingTxns.firstKey();
+                long tCId = firstTxn.getMostSigBits();
+                Long lowWaterMarkOfFirstTxnId = lowWaterMarks.get(tCId);
+                if (lowWaterMarkOfFirstTxnId != null && firstTxn.getLeastSigBits() <= lowWaterMarkOfFirstTxnId) {
+                    abortTxn(firstTxn, lowWaterMarkOfFirstTxnId)
+                            .thenRun(() -> {
+                                log.warn("Successes to abort low water mark for txn [{}], topic [{}],"
+                                        + " lowWaterMark [{}]", firstTxn, topic.getName(), lowWaterMarkOfFirstTxnId);
+                                handleLowWaterMark.release();
+                            })
+                            .exceptionally(ex -> {
+                                log.warn("Failed to abort low water mark for txn {}, topic [{}], "
+                                        + "lowWaterMark [{}], ", firstTxn, topic.getName(), lowWaterMarkOfFirstTxnId,
+                                        ex);
+                                handleLowWaterMark.release();
+                                return null;
+                            });
+                    return;
                 }
             }
+            handleLowWaterMark.release();
         }
     }
 

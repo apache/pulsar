@@ -176,6 +176,12 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
     }
 
     @Override
+    protected void doInitConf() throws Exception {
+        super.doInitConf();
+        conf.setMaxTenants(10);
+    }
+
+    @Override
     @AfterMethod(alwaysRun = true)
     public void cleanup() throws Exception {
         super.internalCleanup();
@@ -253,8 +259,8 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
                         .parameters(parameters1)
                         .build())
                 .build();
-        AsyncResponse response = mock(AsyncResponse.class);
-        clusters.setNamespaceIsolationPolicy(response,"use", "policy1", policyData);
+        asyncRequests(ctx -> clusters.setNamespaceIsolationPolicy(ctx,
+                "use", "policy1", policyData));
         asyncRequests(ctx -> clusters.getNamespaceIsolationPolicies(ctx, "use"));
 
         try {
@@ -264,7 +270,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
             assertEquals(e.getResponse().getStatus(), 412);
         }
 
-        clusters.deleteNamespaceIsolationPolicy("use", "policy1");
+        asyncRequests(ctx -> clusters.deleteNamespaceIsolationPolicy(ctx, "use", "policy1"));
         assertTrue(((Map<String, NamespaceIsolationDataImpl>) asyncRequests(ctx ->
                 clusters.getNamespaceIsolationPolicies(ctx, "use"))).isEmpty());
 
@@ -403,8 +409,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), Status.PRECONDITION_FAILED.getStatusCode());
         }
-        verify(clusters, times(22)).validateSuperUserAccessAsync();
-        verify(clusters, times(2)).validateSuperUserAccess();
+        verify(clusters, times(24)).validateSuperUserAccessAsync();
     }
 
     @Test
@@ -617,6 +622,32 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
             assertEquals(e.getResponse().getStatus(), Status.PRECONDITION_FAILED.getStatusCode());
         }
 
+        // Check max tenant count
+        int maxTenants = pulsar.getConfiguration().getMaxTenants();
+        List<String> tenants = pulsar.getPulsarResources().getTenantResources().listTenants();
+
+        for(int tenantSize = tenants.size();tenantSize < maxTenants; tenantSize++ ){
+            final int tenantIndex = tenantSize;
+            Response obj = (Response) asyncRequests(ctx ->
+                    properties.createTenant(ctx, "test-tenant-" + tenantIndex, tenantInfo));
+            Assert.assertTrue(obj.getStatus() < 400 && obj.getStatus() >= 200);
+        }
+        try {
+            Response obj = (Response) asyncRequests(ctx ->
+                    properties.createTenant(ctx, "test-tenant-" +  maxTenants, tenantInfo));
+            fail("should have failed");
+        } catch (RestException e) {
+            assertEquals(e.getResponse().getStatus(), Status.PRECONDITION_FAILED.getStatusCode());
+        }
+
+        // Check creating existing property when tenant reach max count.
+        try {
+            response = asyncRequests(ctx -> properties.createTenant(ctx, "test-tenant-" +  (maxTenants-1), tenantInfo));
+            fail("should have failed");
+        } catch (RestException e) {
+            assertEquals(e.getResponse().getStatus(), Status.CONFLICT.getStatusCode());
+        }
+
         AsyncResponse response2 = mock(AsyncResponse.class);
         namespaces.deleteNamespace(response2, "my-tenant", "use", "my-namespace", false, false);
         ArgumentCaptor<Response> captor = ArgumentCaptor.forClass(Response.class);
@@ -662,9 +693,11 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         double defaultBandwidth = 1000;
         quota.setBandwidthIn(defaultBandwidth);
         quota.setBandwidthOut(defaultBandwidth);
-        resourceQuotas.setDefaultResourceQuota(quota);
-        assertEquals(defaultBandwidth, resourceQuotas.getDefaultResourceQuota().getBandwidthIn());
-        assertEquals(defaultBandwidth, resourceQuotas.getDefaultResourceQuota().getBandwidthOut());
+        resourceQuotas.setDefaultResourceQuotaAsync(quota);
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(defaultBandwidth, resourceQuotas.getDefaultResourceQuota().getBandwidthIn()));
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(defaultBandwidth, resourceQuotas.getDefaultResourceQuota().getBandwidthOut()));
 
         String property = "prop-xyz";
         String cluster = "use";
@@ -672,17 +705,18 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         String bundleRange = "0x00000000_0xffffffff";
         Policies policies = new Policies();
         doReturn(policies).when(resourceQuotas).getNamespacePolicies(NamespaceName.get(property, cluster, namespace));
+        doReturn(CompletableFuture.completedFuture(policies)).when(resourceQuotas).getNamespacePoliciesAsync(NamespaceName.get(property, cluster, namespace));
         doReturn("client-id").when(resourceQuotas).clientAppId();
 
         try {
-            resourceQuotas.setNamespaceBundleResourceQuota(property, cluster, namespace, bundleRange, quota);
+            asyncRequests(ctx -> resourceQuotas.setNamespaceBundleResourceQuota(ctx, property, cluster, namespace, bundleRange, quota));
             fail();
         } catch (Exception e) {
             // OK : should fail without creating policies
         }
 
         try {
-            resourceQuotas.removeNamespaceBundleResourceQuota(property, cluster, namespace, bundleRange);
+            asyncRequests(ctx -> resourceQuotas.removeNamespaceBundleResourceQuota(ctx, property, cluster, namespace, bundleRange));
             fail();
         } catch (Exception e) {
             // OK : should fail without creating policies
@@ -702,14 +736,14 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         quota.setBandwidthOut(customizeBandwidth);
 
         // set and get Resource Quota
-        resourceQuotas.setNamespaceBundleResourceQuota(property, cluster, namespace, bundleRange, quota);
-        ResourceQuota bundleQuota = resourceQuotas.getNamespaceBundleResourceQuota(property, cluster, namespace,
-                bundleRange);
+        asyncRequests(ctx -> resourceQuotas.setNamespaceBundleResourceQuota(ctx, property, cluster, namespace, bundleRange, quota));
+        ResourceQuota bundleQuota = (ResourceQuota) asyncRequests(ctx -> resourceQuotas.getNamespaceBundleResourceQuota(ctx, property, cluster, namespace,
+                bundleRange));
         assertEquals(quota, bundleQuota);
 
         // remove quota which sets to default quota
-        resourceQuotas.removeNamespaceBundleResourceQuota(property, cluster, namespace, bundleRange);
-        bundleQuota = resourceQuotas.getNamespaceBundleResourceQuota(property, cluster, namespace, bundleRange);
+        asyncRequests(ctx -> resourceQuotas.removeNamespaceBundleResourceQuota(ctx, property, cluster, namespace, bundleRange));
+        bundleQuota = (ResourceQuota) asyncRequests(ctx -> resourceQuotas.getNamespaceBundleResourceQuota(ctx, property, cluster, namespace, bundleRange));
         assertEquals(defaultBandwidth, bundleQuota.getBandwidthIn());
         assertEquals(defaultBandwidth, bundleQuota.getBandwidthOut());
     }

@@ -85,7 +85,7 @@ public class PulsarIOSinkRunner extends PulsarIOTestRunner {
 
             // produce messages
             Map<String, String> kvs;
-            if (tester instanceof JdbcPostgresSinkTester) {
+            if (tester instanceof JdbcPostgresSinkTester && !((JdbcPostgresSinkTester)tester).isKeyValueSchema()) {
                 kvs = produceSchemaInsertMessagesToInputTopic(inputTopicName, numMessages, AvroSchema.of(JdbcPostgresSinkTester.Foo.class));
                 // wait for sink to process messages
                 Failsafe.with(statusRetryPolicy).run(() ->

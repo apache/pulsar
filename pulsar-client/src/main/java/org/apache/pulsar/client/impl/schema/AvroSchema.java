@@ -115,8 +115,8 @@ public class AvroSchema<T> extends AvroBaseStructSchema<T> {
         reflectData.addLogicalTypeConversion(new TimeConversions.DateConversion());
         reflectData.addLogicalTypeConversion(new TimeConversions.TimeMillisConversion());
         reflectData.addLogicalTypeConversion(new TimeConversions.TimeMicrosConversion());
-        reflectData.addLogicalTypeConversion(new TimeConversions.TimestampMicrosConversion());
         if (jsr310ConversionEnabled) {
+            // The conversion that is registered first is higher priority than the registered later.
             reflectData.addLogicalTypeConversion(new TimeConversions.TimestampMillisConversion());
         } else {
             try {
@@ -125,6 +125,7 @@ public class AvroSchema<T> extends AvroBaseStructSchema<T> {
             } catch (ClassNotFoundException e) {
                 // Skip if have not provide joda-time dependency.
             }
+            reflectData.addLogicalTypeConversion(new TimeConversions.TimestampMicrosConversion());
         }
         reflectData.addLogicalTypeConversion(new Conversions.UUIDConversion());
     }
