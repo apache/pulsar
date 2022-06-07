@@ -47,6 +47,7 @@ import org.apache.pulsar.broker.service.SendMessageInfo;
 import org.apache.pulsar.broker.service.StickyKeyConsumerSelector;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.client.api.Range;
+import org.apache.pulsar.client.impl.Backoff;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
 import org.apache.pulsar.common.api.proto.KeySharedMode;
@@ -60,6 +61,9 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
 
     private boolean isDispatcherStuckOnReplays = false;
     private final KeySharedMode keySharedMode;
+
+    protected final Backoff unMatchConsumerBackoff = new Backoff(5, TimeUnit.SECONDS,
+            30, TimeUnit.SECONDS, 0, TimeUnit.MILLISECONDS);
 
     /**
      * When a consumer joins, it will be added to this map with the current read position.
@@ -215,13 +219,18 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         final Map<Consumer, Set<Integer>> consumerStickyKeyHashesMap = new HashMap<>();
 
         for (Entry entry : entries) {
-            int stickyKeyHash = getStickyKeyHash(entry);
+            final int stickyKeyHash = getStickyKeyHash(entry);
+            final long ledgerId = entry.getLedgerId();
+            final long entryId = entry.getEntryId();
             Consumer c = selector.select(stickyKeyHash);
             if (c != null) {
                 groupedEntries.computeIfAbsent(c, k -> new ArrayList<>()).add(entry);
                 consumerStickyKeyHashesMap.computeIfAbsent(c, k -> new HashSet<>()).add(stickyKeyHash);
             } else {
-                addMessageToReplay(entry.getLedgerId(), entry.getEntryId(), stickyKeyHash);
+                topic.getBrokerService().executor().schedule(() -> {
+                    addMessageToReplay(ledgerId, entryId, stickyKeyHash);
+                }, unMatchConsumerBackoff.next(), TimeUnit.MILLISECONDS);
+
                 entry.release();
             }
         }

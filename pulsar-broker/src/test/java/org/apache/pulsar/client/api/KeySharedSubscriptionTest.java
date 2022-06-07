@@ -364,6 +364,51 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     }
 
     @Test(dataProvider = "batch")
+    public void testKeySendAndReceiveWithHashRangeExclusiveStickyKeyUnMatchConsumer(boolean enableBatch)
+            throws PulsarClientException, InterruptedException {
+        this.conf.setSubscriptionKeySharedEnable(true);
+        String topic = "persistent://public/default/key_shared_none_key_exclusive-" + UUID.randomUUID();
+
+        int slot = Murmur3_32Hash.getInstance().makeHash("key1".getBytes())
+                % KeySharedPolicy.DEFAULT_HASH_RANGE_SIZE;
+
+        int slot2 = Murmur3_32Hash.getInstance().makeHash("key2".getBytes())
+                % KeySharedPolicy.DEFAULT_HASH_RANGE_SIZE;
+
+        @Cleanup
+        Consumer<Integer> consumer1 = createConsumer(topic, KeySharedPolicy.stickyHashRange()
+                .ranges(Range.of(slot, slot)));
+
+        @Cleanup
+        Producer<Integer> producer = createProducer(topic, enableBatch);
+
+        for (int i = 0; i < 2; i++) {
+            producer.newMessage()
+                    .key("key2")
+                    .value(i)
+                    .send();
+        }
+
+        for (int i = 0; i < 10; i++) {
+            producer.newMessage()
+                    .key("key1")
+                    .value(i)
+                    .send();
+        }
+
+        List<KeyValue<Consumer<Integer>, Integer>> checkList = new ArrayList<>();
+        checkList.add(new KeyValue<>(consumer1, 10));
+        receiveAndCheck(checkList);
+
+        Consumer<Integer> consumer2 = createConsumer(topic, KeySharedPolicy.stickyHashRange()
+                .ranges(Range.of(slot2, slot2)), SubscriptionInitialPosition.Earliest);
+
+        List<KeyValue<Consumer<Integer>, Integer>> checkList2 = new ArrayList<>();
+        checkList2.add(new KeyValue<>(consumer2, 2));
+        receiveAndCheck(checkList2);
+    }
+
+    @Test(dataProvider = "batch")
     public void testOrderingKeyWithHashRangeAutoSplitStickyKeyConsumerSelector(boolean enableBatch)
             throws PulsarClientException {
         this.conf.setSubscriptionKeySharedEnable(true);
@@ -1225,9 +1270,16 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
 
     private Consumer<Integer> createConsumer(String topic, KeySharedPolicy keySharedPolicy)
             throws PulsarClientException {
+        return createConsumer(topic, null, SubscriptionInitialPosition.Latest);
+    }
+
+    private Consumer<Integer> createConsumer(String topic, KeySharedPolicy keySharedPolicy,
+                                             SubscriptionInitialPosition initialPosition)
+            throws PulsarClientException {
         ConsumerBuilder<Integer> builder = pulsarClient.newConsumer(Schema.INT32);
         builder.topic(topic)
                 .subscriptionName("key_shared")
+                .subscriptionInitialPosition(initialPosition)
                 .subscriptionType(SubscriptionType.Key_Shared)
                 .ackTimeout(3, TimeUnit.SECONDS);
         if (keySharedPolicy != null) {
