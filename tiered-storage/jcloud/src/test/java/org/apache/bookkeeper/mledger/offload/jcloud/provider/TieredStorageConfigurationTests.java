@@ -217,9 +217,10 @@ public class TieredStorageConfigurationTests {
         System.setProperty("jclouds.region", "jclouds-region");
         TieredStorageConfiguration config = new TieredStorageConfiguration(map);
         Properties properties = config.getOverrides();
-        System.out.println(properties.toString());
         assertEquals(properties.get("jclouds.region"), "jclouds-region");
         assertEquals(config.getServiceEndpoint(), "http://localhost");
         assertEquals(properties.get("jclouds.SystemPropertyA"), "A");
+        System.clearProperty("jclouds.SystemPropertyA");
+        System.clearProperty("jclouds.region");
     }
 }
