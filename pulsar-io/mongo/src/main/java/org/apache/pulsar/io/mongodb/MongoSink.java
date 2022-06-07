@@ -68,7 +68,7 @@ public class MongoSink implements Sink<byte[]> {
 
     private MongoCollection<Document> collection;
 
-    private List<Record<byte[]>> incomingList;
+    private List<Record<byte[]>> incomingList = Lists.newArrayList();
 
     private ScheduledExecutorService flushExecutor;
 
@@ -98,7 +98,6 @@ public class MongoSink implements Sink<byte[]> {
         final MongoDatabase db = mongoClient.getDatabase(mongoConfig.getDatabase());
         collection = db.getCollection(mongoConfig.getCollection());
 
-        incomingList = Lists.newArrayList();
         flushExecutor = Executors.newScheduledThreadPool(1);
         flushExecutor.scheduleAtFixedRate(() -> flush(),
                 mongoConfig.getBatchTimeMs(), mongoConfig.getBatchTimeMs(), TimeUnit.MILLISECONDS);
