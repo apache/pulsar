@@ -1590,6 +1590,10 @@ public class BrokerService implements Closeable {
                             serviceConfig.getManagedLedgerInactiveLedgerRolloverTimeSeconds(), TimeUnit.SECONDS);
                     managedLedgerConfig.setCacheEvictionByMarkDeletedPosition(
                             serviceConfig.isCacheEvictionByMarkDeletedPosition());
+                    managedLedgerConfig.setExposeManagedLedgerMetricsInPrometheus(
+                            serviceConfig.isExposeManagedLedgerMetricsInPrometheus());
+                    managedLedgerConfig.setExposeManagedCursorMetricsInPrometheus(
+                            serviceConfig.isExposeManagedCursorMetricsInPrometheus());
 
                     OffloadPoliciesImpl nsLevelOffloadPolicies =
                             (OffloadPoliciesImpl) policies.map(p -> p.offload_policies).orElse(null);

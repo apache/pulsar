@@ -308,7 +308,7 @@ public class ManagedCursorImpl implements ManagedCursor {
             // Disable mark-delete rate limiter
             markDeleteLimiter = null;
         }
-        this.mbean = new ManagedCursorMXBeanImpl(this);
+        this.mbean = ManagedCursorMXBeanImpl.create(this, config.isExposeManagedCursorMetricsInPrometheus());
     }
 
     @Override

@@ -48,7 +48,6 @@ import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.stats.TimeWindow;
 import org.apache.pulsar.broker.stats.WindowWrap;
-import org.apache.pulsar.broker.stats.metrics.ManagedCursorMetrics;
 import org.apache.pulsar.broker.stats.metrics.ManagedLedgerCacheMetrics;
 import org.apache.pulsar.broker.stats.metrics.ManagedLedgerMetrics;
 import org.apache.pulsar.common.stats.Metrics;
@@ -228,12 +227,6 @@ public class PrometheusMetricsGenerator {
         if (pulsar.getConfiguration().isExposeManagedLedgerMetricsInPrometheus()) {
             // generate managedLedger metrics
             parseMetricsToPrometheusMetrics(new ManagedLedgerMetrics(pulsar).generate(),
-                clusterName, Collector.Type.GAUGE, stream);
-        }
-
-        if (pulsar.getConfiguration().isExposeManagedCursorMetricsInPrometheus()) {
-            // generate managedCursor metrics
-            parseMetricsToPrometheusMetrics(new ManagedCursorMetrics(pulsar).generate(),
                 clusterName, Collector.Type.GAUGE, stream);
         }
 

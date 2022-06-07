@@ -18,21 +18,20 @@
  */
 package org.apache.pulsar.broker.stats;
 
+import com.google.common.collect.Lists;
+import com.google.common.collect.Multimap;
+import java.io.ByteArrayOutputStream;
+import java.nio.charset.StandardCharsets;
+import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.bookkeeper.client.PulsarMockLedgerHandle;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
-import org.apache.pulsar.broker.stats.metrics.ManagedCursorMetrics;
-import org.apache.pulsar.client.api.ClientBuilder;
-import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
+import org.apache.pulsar.client.api.*;
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.PulsarTestClient;
-import org.apache.pulsar.common.stats.Metrics;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -45,6 +44,7 @@ public class ManagedCursorMetricsTest extends MockedPulsarServiceBaseTest {
     @BeforeMethod(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
+        conf.setExposeManagedCursorMetricsInPrometheus(true);
         conf.setTopicLevelPoliciesEnabled(false);
         conf.setSystemTopicEnabled(false);
         super.internalSetup();
@@ -67,13 +67,14 @@ public class ManagedCursorMetricsTest extends MockedPulsarServiceBaseTest {
         final String topicName = "persistent://my-namespace/use/my-ns/my-topic1";
         final int messageSize = 10;
 
-        ManagedCursorMetrics metrics = new ManagedCursorMetrics(pulsar);
-
-        List<Metrics> metricsList = metrics.generate();
-        Assert.assertTrue(metricsList.isEmpty());
-
-        metricsList = metrics.generate();
-        Assert.assertTrue(metricsList.isEmpty());
+        Multimap<String, PrometheusMetricsTest.Metric> metricsMap = generateMetrics();
+        int num = 0;
+        for (String metricName : metricsMap.keySet()) {
+            if (metricName.contains("ml_cursor")) {
+                num++;
+            }
+        }
+        Assert.assertEquals(num, 0);
 
         PulsarTestClient pulsarClient = (PulsarTestClient) this.pulsarClient;
         @Cleanup
@@ -101,13 +102,23 @@ public class ManagedCursorMetricsTest extends MockedPulsarServiceBaseTest {
         }
 
         Awaitility.await().until(() -> pulsarClient.getConnection(topicName).get().getPendingRequests().size() == 0);
-        metricsList = metrics.generate();
-        Assert.assertFalse(metricsList.isEmpty());
-        Assert.assertNotEquals(metricsList.get(0).getMetrics().get("brk_ml_cursor_persistLedgerSucceed"), 0L);
-        Assert.assertNotEquals(metricsList.get(0).getMetrics().get("brk_ml_cursor_persistLedgerErrors"), 0L);
-        Assert.assertNotEquals(metricsList.get(0).getMetrics().get("brk_ml_cursor_persistZookeeperSucceed"), 0L);
-        Assert.assertEquals(metricsList.get(0).getMetrics().get("brk_ml_cursor_persistZookeeperErrors"), 0L);
-        Assert.assertEquals(metricsList.get(0).getMetrics().get("brk_ml_cursor_nonContiguousDeletedMessagesRange"), 0L);
+
+        metricsMap = generateMetrics();
+        Collection<PrometheusMetricsTest.Metric> metrics = metricsMap.get("pulsar_ml_cursor_persistLedgerSucceed");
+        Assert.assertNotEquals(metrics.size(), 0);
+        Assert.assertNotEquals(Lists.newArrayList(metrics).get(0).value, 0D, 0D);
+
+        metrics = metricsMap.get("pulsar_ml_cursor_persistZookeeperSucceed");
+        Assert.assertNotEquals(metrics.size(), 0);
+        Assert.assertNotEquals(Lists.newArrayList(metrics).get(0).value, 0D, 0D);
+
+        metrics = metricsMap.get("pulsar_ml_cursor_persistZookeeperErrors");
+        Assert.assertNotEquals(metrics.size(), 0);
+        Assert.assertEquals(Lists.newArrayList(metrics).get(0).value, 0D, 0D);
+
+        metrics = metricsMap.get("pulsar_ml_cursor_nonContiguousDeletedMessagesRange");
+        Assert.assertNotEquals(metrics.size(), 0);
+        Assert.assertEquals(Lists.newArrayList(metrics).get(0).value, 0D, 0D);
     }
 
     @Test
@@ -116,13 +127,14 @@ public class ManagedCursorMetricsTest extends MockedPulsarServiceBaseTest {
         final String topicName = "persistent://my-namespace/use/my-ns/read-write";
         final int messageSize = 10;
 
-        ManagedCursorMetrics metrics = new ManagedCursorMetrics(pulsar);
-
-        List<Metrics> metricsList = metrics.generate();
-        Assert.assertTrue(metricsList.isEmpty());
-
-        metricsList = metrics.generate();
-        Assert.assertTrue(metricsList.isEmpty());
+        Multimap<String, PrometheusMetricsTest.Metric> metricsMap = generateMetrics();
+        int num = 0;
+        for (String metricName : metricsMap.keySet()) {
+            if (metricName.contains("ml_cursor")) {
+                num++;
+            }
+        }
+        Assert.assertEquals(num, 0);
 
         @Cleanup
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
@@ -158,14 +170,32 @@ public class ManagedCursorMetricsTest extends MockedPulsarServiceBaseTest {
                 consumer2.acknowledge(consumer.receive().getMessageId());
             }
         }
-        metricsList = metrics.generate();
-        Assert.assertEquals(metricsList.size(), 2);
-        Assert.assertEquals(metricsList.get(0).getMetrics().get("brk_ml_cursor_writeLedgerSize"), 26L);
-        Assert.assertEquals(metricsList.get(0).getMetrics().get("brk_ml_cursor_writeLedgerLogicalSize"), 13L);
-        Assert.assertEquals(metricsList.get(0).getMetrics().get("brk_ml_cursor_readLedgerSize"), 0L);
 
-        Assert.assertEquals(metricsList.get(1).getMetrics().get("brk_ml_cursor_writeLedgerSize"), 26L);
-        Assert.assertEquals(metricsList.get(1).getMetrics().get("brk_ml_cursor_writeLedgerLogicalSize"), 13L);
-        Assert.assertEquals(metricsList.get(1).getMetrics().get("brk_ml_cursor_readLedgerSize"), 0L);
+        metricsMap = generateMetrics();
+        Collection<PrometheusMetricsTest.Metric> metrics = metricsMap.get("pulsar_ml_cursor_writeLedgerSize");
+        Assert.assertEquals(metrics.size(), 2);
+        List<PrometheusMetricsTest.Metric> metricsList = Lists.newArrayList(metrics);
+        Assert.assertEquals(metricsList.get(0).value, 26D, 0D);
+        Assert.assertEquals(metricsList.get(1).value, 26D, 0D);
+
+        metrics = metricsMap.get("pulsar_ml_cursor_writeLedgerLogicalSize");
+        Assert.assertEquals(metrics.size(), 2);
+        metricsList = Lists.newArrayList(metrics);
+        Assert.assertEquals(metricsList.get(0).value, 13D, 0D);
+        Assert.assertEquals(metricsList.get(1).value, 13D, 0D);
+
+        metrics = metricsMap.get("pulsar_ml_cursor_readLedgerSize");
+        Assert.assertEquals(metrics.size(), 2);
+        metricsList = Lists.newArrayList(metrics);
+        Assert.assertEquals(metricsList.get(0).value, 0D, 0D);
+        Assert.assertEquals(metricsList.get(1).value, 0D, 0D);
+    }
+
+
+    private Multimap<String, PrometheusMetricsTest.Metric> generateMetrics() throws Exception {
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        PrometheusMetricsGenerator.generate(pulsar, false, false, false, output);
+        String metricsStr = output.toString(StandardCharsets.UTF_8);
+        return PrometheusMetricsTest.parseMetrics(metricsStr);
     }
 }

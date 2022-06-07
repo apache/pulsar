@@ -82,6 +82,13 @@ public class ManagedLedgerConfig {
     @Setter
     private boolean cacheEvictionByMarkDeletedPosition = false;
 
+    @Getter
+    @Setter
+    private boolean exposeManagedLedgerMetricsInPrometheus = true;
+    @Getter
+    @Setter
+    private boolean exposeManagedCursorMetricsInPrometheus = false;
+
     public boolean isCreateIfMissing() {
         return createIfMissing;
     }
