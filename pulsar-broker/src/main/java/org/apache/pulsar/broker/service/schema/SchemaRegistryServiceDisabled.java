@@ -22,11 +22,14 @@ import static java.util.concurrent.CompletableFuture.completedFuture;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import org.apache.pulsar.broker.PulsarServerException;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
+import org.apache.pulsar.common.protocol.schema.SchemaStorage;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 
-public class DefaultSchemaRegistryService implements SchemaRegistryService {
+public class SchemaRegistryServiceDisabled implements SchemaRegistryService {
     @Override
     public CompletableFuture<SchemaAndMetadata> getSchema(String schemaId) {
         return completedFuture(null);
@@ -71,17 +74,17 @@ public class DefaultSchemaRegistryService implements SchemaRegistryService {
     }
 
     @Override
-    public CompletableFuture<SchemaVersion> deleteSchema(String schemaId, String user, boolean force) {
+    public CompletableFuture<SchemaVersion> putEmptySchema(String schemaId, String user, boolean force) {
         return completedFuture(null);
     }
 
     @Override
-    public CompletableFuture<SchemaVersion> deleteSchemaStorage(String schemaId) {
+    public CompletableFuture<SchemaVersion> deleteSchemaFromStorage(String schemaId) {
         return completedFuture(null);
     }
 
     @Override
-    public CompletableFuture<SchemaVersion> deleteSchemaStorage(String schemaId, boolean forcefully) {
+    public CompletableFuture<SchemaVersion> deleteSchemaFromStorage(String schemaId, boolean forcefully) {
         return completedFuture(null);
     }
 
@@ -92,15 +95,13 @@ public class DefaultSchemaRegistryService implements SchemaRegistryService {
     }
 
     @Override
-    public CompletableFuture<Void> checkCompatible(String schemaId, SchemaData schema,
-                                                   SchemaCompatibilityStrategy strategy) {
-        return completedFuture(null);
-    }
-
-    @Override
     public SchemaVersion versionFromBytes(byte[] version) {
         return null;
     }
+
+    @Override
+    public void initialize(ServiceConfiguration configuration, SchemaStorage schemaStorage)
+            throws PulsarServerException {}
 
     @Override
     public void close() throws Exception {

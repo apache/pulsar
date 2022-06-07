@@ -154,6 +154,10 @@ public class PulsarClusterSpec {
      */
     Map<String, String> brokerMountFiles;
 
+    String schemaRegistryStorageClassName;
+
+    String schemaRegistryClassName;
+
     @Default
     int maxMessageSize = Commands.DEFAULT_MAX_MESSAGE_SIZE;
 }

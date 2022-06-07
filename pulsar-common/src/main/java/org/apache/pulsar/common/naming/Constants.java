@@ -24,6 +24,11 @@ package org.apache.pulsar.common.naming;
 public class Constants {
 
     public static final String GLOBAL_CLUSTER = "global";
+    public static final String SCHEMA_REGISTRY_CLASS_NAME;
+
+    static {
+        SCHEMA_REGISTRY_CLASS_NAME = "org.apache.pulsar.broker.service.schema.SchemaRegistryServiceDisabled";
+    }
 
     private Constants() {}
 }

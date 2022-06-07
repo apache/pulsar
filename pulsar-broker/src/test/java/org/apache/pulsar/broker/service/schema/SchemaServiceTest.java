@@ -91,7 +91,8 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
         storage.start();
         Map<SchemaType, SchemaCompatibilityCheck> checkMap = new HashMap<>();
         checkMap.put(SchemaType.AVRO, new AvroSchemaCompatibilityCheck());
-        schemaRegistryService = new SchemaRegistryServiceImpl(storage, checkMap, MockClock);
+        schemaRegistryService = new SchemaRegistryServiceImpl(MockClock);
+        schemaRegistryService.initialize(conf, storage);
     }
 
     @AfterMethod(alwaysRun = true)
@@ -352,7 +353,7 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
     }
 
     private void deleteSchema(String schemaId, SchemaVersion expectedVersion) throws Exception {
-        SchemaVersion version = schemaRegistryService.deleteSchema(schemaId, userId, false).get();
+        SchemaVersion version = schemaRegistryService.putEmptySchema(schemaId, userId, false).get();
         assertEquals(expectedVersion, version);
     }
 

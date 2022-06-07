@@ -20,10 +20,13 @@ package org.apache.pulsar.broker.service.schema.validator;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import org.apache.pulsar.broker.PulsarServerException;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.service.schema.exceptions.InvalidSchemaDataException;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
+import org.apache.pulsar.common.protocol.schema.SchemaStorage;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.util.FutureUtil;
 
@@ -40,6 +43,12 @@ public class SchemaRegistryServiceWithSchemaDataValidator implements SchemaRegis
 
     private SchemaRegistryServiceWithSchemaDataValidator(SchemaRegistryService service) {
         this.service = service;
+    }
+
+    @Override
+    public void initialize(ServiceConfiguration configuration, SchemaStorage schemaStorage)
+          throws PulsarServerException {
+        this.service.initialize(configuration, schemaStorage);
     }
 
     @Override
@@ -97,18 +106,18 @@ public class SchemaRegistryServiceWithSchemaDataValidator implements SchemaRegis
     }
 
     @Override
-    public CompletableFuture<SchemaVersion> deleteSchema(String schemaId, String user, boolean force) {
-        return service.deleteSchema(schemaId, user, force);
+    public CompletableFuture<SchemaVersion> putEmptySchema(String schemaId, String user, boolean force) {
+        return service.putEmptySchema(schemaId, user, force);
     }
 
     @Override
-    public CompletableFuture<SchemaVersion> deleteSchemaStorage(String schemaId) {
-        return deleteSchemaStorage(schemaId, false);
+    public CompletableFuture<SchemaVersion> deleteSchemaFromStorage(String schemaId) {
+        return deleteSchemaFromStorage(schemaId, false);
     }
 
     @Override
-    public CompletableFuture<SchemaVersion> deleteSchemaStorage(String schemaId, boolean forcefully) {
-        return service.deleteSchemaStorage(schemaId, forcefully);
+    public CompletableFuture<SchemaVersion> deleteSchemaFromStorage(String schemaId, boolean forcefully) {
+        return service.deleteSchemaFromStorage(schemaId, forcefully);
     }
 
     @Override
@@ -120,18 +129,6 @@ public class SchemaRegistryServiceWithSchemaDataValidator implements SchemaRegis
             return FutureUtil.failedFuture(e);
         }
         return service.isCompatible(schemaId, schema, strategy);
-    }
-
-    @Override
-    public CompletableFuture<Void> checkCompatible(String schemaId,
-                                                   SchemaData schema,
-                                                   SchemaCompatibilityStrategy strategy) {
-        try {
-            SchemaDataValidator.validateSchemaData(schema);
-        } catch (InvalidSchemaDataException e) {
-            return FutureUtil.failedFuture(e);
-        }
-        return service.checkCompatible(schemaId, schema, strategy);
     }
 
     @Override

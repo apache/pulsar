@@ -190,6 +190,10 @@ test_group_pulsar_io_ora() {
   mvn_run_integration_test --no-retry "$@" -DintegrationTestSuiteFile=pulsar-io-ora-source.xml -DintegrationTests -Dgroups=source -DtestRetryCount=0
 }
 
+test_group_schema() {
+  mvn_run_integration_test --no-retry "$@" -DintegrationTestSuiteFile=pulsar-schema-suite.xml -DintegrationTests
+}
+
 list_test_groups() {
   declare -F | awk '{print $NF}' | sort | grep -E '^test_group_' | sed 's/^test_group_//g' | tr '[:lower:]' '[:upper:]'
 }
