@@ -1175,8 +1175,8 @@ public class PersistentSubscription implements Subscription {
         return this.pendingAckHandle.checkIfPendingAckStoreInit();
     }
 
-    public PositionInPendingAckStats checkPositionInPendingAckState(PositionImpl position) {
-        return pendingAckHandle.checkPositionInPendingAckState(position);
+    public PositionInPendingAckStats checkPositionInPendingAckState(PositionImpl position, Integer batchIndex) {
+        return pendingAckHandle.checkPositionInPendingAckState(position, batchIndex);
     }
 
     private static final Logger log = LoggerFactory.getLogger(PersistentSubscription.class);

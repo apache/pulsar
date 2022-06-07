@@ -450,12 +450,12 @@ public abstract class TransactionsBase extends AdminResource {
     }
 
     protected CompletableFuture<PositionInPendingAckStats> internalGetPositionStatsPendingAckStats(
-            boolean authoritative, String subName, PositionImpl position) {
+            boolean authoritative, String subName, PositionImpl position, Integer batchIndex) {
         CompletableFuture<PositionInPendingAckStats> completableFuture = new CompletableFuture<>();
         getExistingPersistentTopicAsync(authoritative)
                 .thenAccept(topic -> {
                     PositionInPendingAckStats result = topic.getSubscription(subName)
-                    .checkPositionInPendingAckState(position);
+                    .checkPositionInPendingAckState(position, batchIndex);
                     completableFuture.complete(result);
                 }).exceptionally(ex -> {
                     completableFuture.completeExceptionally(ex);

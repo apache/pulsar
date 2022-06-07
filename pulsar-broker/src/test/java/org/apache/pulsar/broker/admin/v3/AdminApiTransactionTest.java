@@ -602,17 +602,17 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
          Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
          MessageIdImpl messageId = (MessageIdImpl) message.getMessageId();
          PositionInPendingAckStats result = admin.transactions().checkPositionInPendingAckState(topic, subName,
-                 new PositionImpl(messageId.getLedgerId(), messageId.getEntryId()).toString());
+                 new PositionImpl(messageId.getLedgerId(), messageId.getEntryId()).toString(), null);
          assertEquals(result.state, PositionInPendingAckStats.State.NotInPendingAck);
 
          consumer.acknowledgeAsync(messageId, transaction).get();
          result = admin.transactions().checkPositionInPendingAckState(topic, subName,
-                new PositionImpl(messageId.getLedgerId(), messageId.getEntryId()).toString());
+                new PositionImpl(messageId.getLedgerId(), messageId.getEntryId()).toString(), null);
         assertEquals(result.state, PositionInPendingAckStats.State.PendingAck);
         transaction.commit().get();
 
         result = admin.transactions().checkPositionInPendingAckState(topic, subName,
-                new PositionImpl(messageId.getLedgerId(), messageId.getEntryId()).toString());
+                new PositionImpl(messageId.getLedgerId(), messageId.getEntryId()).toString(), null);
         assertEquals(result.state, PositionInPendingAckStats.State.MarkDelete);
     }
 
@@ -669,17 +669,14 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         BatchMessageIdImpl messageId = (BatchMessageIdImpl) message2.getMessageId();
         consumer.acknowledgeAsync(messageId, transaction).get();
 
-        long [] ackSet = new long[4];
-        ackSet[0] = 5;
         PositionInPendingAckStats positionStatsInPendingAckStats =
                 admin.transactions().checkPositionInPendingAckState(topic, subscriptionName,
-                new PositionImpl(messageId.getLedgerId(), messageId.getEntryId(), ackSet).getAckSetAsString());
+                new PositionImpl(messageId.getLedgerId(), messageId.getEntryId()).toString(), 2);
         assertEquals(positionStatsInPendingAckStats.state, PositionInPendingAckStats.State.PendingAck);
-
-        ackSet[0] = 6;
+        
         positionStatsInPendingAckStats =
                 admin.transactions().checkPositionInPendingAckState(topic, subscriptionName,
-                        new PositionImpl(messageId.getLedgerId(), messageId.getEntryId(), ackSet).getAckSetAsString());
+                        new PositionImpl(messageId.getLedgerId(), messageId.getEntryId()).toString(), 1);
         assertEquals(positionStatsInPendingAckStats.state, PositionInPendingAckStats.State.NotInPendingAck);
     }
 

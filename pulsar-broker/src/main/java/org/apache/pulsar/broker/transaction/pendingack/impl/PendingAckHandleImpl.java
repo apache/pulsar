@@ -926,7 +926,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
     }
 
     @Override
-    public PositionInPendingAckStats checkPositionInPendingAckState(PositionImpl position) {
+    public PositionInPendingAckStats checkPositionInPendingAckState(PositionImpl position, Integer batchIndex) {
         if (persistentSubscription.getCursor().getPersistentMarkDeletedPosition() != null && position.compareTo(
                         (PositionImpl) persistentSubscription.getCursor().getPersistentMarkDeletedPosition()) <= 0) {
             return new PositionInPendingAckStats(PositionInPendingAckStats.State.MarkDelete);
@@ -935,17 +935,12 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
         }
         MutablePair<PositionImpl, Integer> positionIntegerMutablePair = individualAckPositions.get(position);
         if (positionIntegerMutablePair != null) {
-            if (!position.hasAckSet()) {
+            if (batchIndex == null) {
                 return new PositionInPendingAckStats(PositionInPendingAckStats.State.PendingAck);
             } else {
-                BitSetRecyclable bitSetRecyclable = BitSetRecyclable.valueOf(position.getAckSet());
-                if (positionIntegerMutablePair.right > bitSetRecyclable.size()) {
-                    bitSetRecyclable.set(positionIntegerMutablePair.right);
-                }
-                bitSetRecyclable.set(positionIntegerMutablePair.right, bitSetRecyclable.size());
-                long[] ackSetOverlap = bitSetRecyclable.toLongArray();
-                bitSetRecyclable.recycle();
-                if (isAckSetOverlap(ackSetOverlap, positionIntegerMutablePair.left.getAckSet())) {
+                BitSetRecyclable bitSetRecyclable = BitSetRecyclable
+                        .valueOf(positionIntegerMutablePair.left.getAckSet());
+                if (bitSetRecyclable.get(batchIndex)) {
                     return new PositionInPendingAckStats(PositionInPendingAckStats.State.PendingAck);
                 } else {
                     return new PositionInPendingAckStats(PositionInPendingAckStats.State.NotInPendingAck);

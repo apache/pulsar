@@ -355,7 +355,9 @@ public class TransactionsImpl extends BaseResource implements Transactions {
     @Override
     public CompletableFuture<PositionInPendingAckStats> checkPositionInPendingAckStateAsync(String topic,
                                                                                             String subName,
-                                                                                            String position) {
+                                                                                            String position,
+                                                                                            Integer batchIndex) {
+        position = position + ":" + batchIndex;
         TopicName tn = TopicName.get(topic);
         WebTarget path = adminV3Transactions.path("getPositionStatsInPendingAck");
         path = path.path(tn.getRestPath(false));
@@ -378,8 +380,10 @@ public class TransactionsImpl extends BaseResource implements Transactions {
     }
 
 
-    public PositionInPendingAckStats checkPositionInPendingAckState(String topic, String subName, String position)
+    @Override
+    public PositionInPendingAckStats checkPositionInPendingAckState(String topic, String subName, String position,
+                                                                    Integer batchIndex)
             throws PulsarAdminException {
-        return sync(() -> checkPositionInPendingAckStateAsync(topic, subName, position));
+        return sync(() -> checkPositionInPendingAckStateAsync(topic, subName, position, batchIndex));
     }
 }

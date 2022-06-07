@@ -138,33 +138,4 @@ public class PositionImpl implements Position, Comparable<PositionImpl> {
     public PositionInfo getPositionInfo() {
         return PositionInfo.newBuilder().setLedgerId(ledgerId).setEntryId(entryId).build();
     }
-
-    public String getAckSetAsString() {
-        if (ackSet != null) {
-            StringBuilder stringBuilder = new StringBuilder(this.toString());
-            for (int i = 0; i < ackSet.length; i++) {
-                stringBuilder.append(":");
-                stringBuilder.append(ackSet[i]);
-            }
-            return stringBuilder.toString();
-        } else {
-            return this.toString();
-        }
-    }
-
-    public static PositionImpl parsePositionFromString(String positionString) {
-        String[] args = positionString.split(":");
-        int length = args.length;
-        if (length == 2) {
-            return new PositionImpl(Long.parseLong(args[0]), Long.parseLong(args[1]));
-        } else if (length > 2) {
-            long[] ackSet = new long[length - 2];
-            for (int i = 2; i < length; i++) {
-                ackSet[i - 2] = Long.parseLong(args[i]);
-            }
-            return new PositionImpl(Long.parseLong(args[0]), Long.parseLong(args[1]), ackSet);
-        } else {
-            throw new  IllegalArgumentException("Can not parse Position from [{}]" + positionString);
-        }
-    }
 }

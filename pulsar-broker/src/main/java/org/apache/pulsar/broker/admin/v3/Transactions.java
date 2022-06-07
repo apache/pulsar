@@ -365,8 +365,11 @@ public class Transactions extends TransactionsBase {
             checkArgument(position != null, "Message position should not be null.");
             checkTransactionCoordinatorEnabled();
             validateTopicName(tenant, namespace, encodedTopic);
-            PositionImpl positionImpl = PositionImpl.parsePositionFromString(position);
-            internalGetPositionStatsPendingAckStats(authoritative, subName, positionImpl)
+            String[] args = position.split(":");
+            int length = args.length;
+            Integer batchIndex = args[2].equals("null") ? null : Integer.parseInt(args[2]);
+            internalGetPositionStatsPendingAckStats(authoritative, subName,
+                    new PositionImpl(Long.parseLong(args[0]), Long.parseLong(args[1])), batchIndex)
                     .thenAccept(positionInPendingAckStats -> asyncResponse.resume(positionInPendingAckStats))
                     .exceptionally(ex -> {
                         log.warn("{} Failed to check position [{}] stats for topic [{}], subscription [{}]",

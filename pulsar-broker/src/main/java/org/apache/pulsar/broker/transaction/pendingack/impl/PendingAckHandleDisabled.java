@@ -103,7 +103,7 @@ public class PendingAckHandleDisabled implements PendingAckHandle {
     }
 
     @Override
-    public PositionInPendingAckStats checkPositionInPendingAckState(PositionImpl position) {
+    public PositionInPendingAckStats checkPositionInPendingAckState(PositionImpl position, Integer batchIndex) {
         return null;
     }
 }
