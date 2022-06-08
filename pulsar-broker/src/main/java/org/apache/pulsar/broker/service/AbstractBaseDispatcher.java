@@ -63,29 +63,6 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
         this.dispatchThrottlingOnBatchMessageEnabled = serviceConfig.isDispatchThrottlingOnBatchMessageEnabled();
     }
 
-    /**
-     * Update Entries with the metadata of each entry.
-     *
-     * @param entries
-     * @return
-     */
-    protected int updateEntryWrapperWithMetadata(EntryWrapper[] entryWrappers, List<Entry> entries) {
-        int totalMessages = 0;
-        for (int i = 0, entriesSize = entries.size(); i < entriesSize; i++) {
-            Entry entry = entries.get(i);
-            if (entry == null) {
-                continue;
-            }
-
-            ByteBuf metadataAndPayload = entry.getDataBuffer();
-            MessageMetadata msgMetadata = Commands.peekMessageMetadata(metadataAndPayload, subscription.toString(), -1);
-            EntryWrapper entryWrapper = EntryWrapper.get(entry, msgMetadata);
-            entryWrappers[i] = entryWrapper;
-            int batchSize = msgMetadata.getNumMessagesInBatch();
-            totalMessages += batchSize;
-        }
-        return totalMessages;
-    }
 
     /**
      * Filter messages that are being sent to a consumers.
@@ -114,7 +91,17 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
                 isReplayRead, consumer);
     }
 
-    public int filterEntriesForConsumer(Optional<EntryWrapper[]> entryWrapper, int entryWrapperOffset,
+
+    /**
+     * Filter entries with prefetched message metadata range so that there is no need to peek metadata from Entry.
+     *
+     * @param optMetadataArray the optional message metadata array
+     * @param startOffset the index in `optMetadataArray` of the first Entry's message metadata
+     *
+     * @see AbstractBaseDispatcher#filterEntriesForConsumer(List, EntryBatchSizes, SendMessageInfo,
+     *   EntryBatchIndexesAcks, ManagedCursor, boolean, Consumer)
+     */
+    public int filterEntriesForConsumer(Optional<MessageMetadata[]> optMetadataArray, int startOffset,
              List<Entry> entries, EntryBatchSizes batchSizes, SendMessageInfo sendMessageInfo,
              EntryBatchIndexesAcks indexesAcks, ManagedCursor cursor, boolean isReplayRead, Consumer consumer) {
         int totalMessages = 0;
@@ -129,14 +116,9 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
                 continue;
             }
             ByteBuf metadataAndPayload = entry.getDataBuffer();
-            int entryWrapperIndex = i + entryWrapperOffset;
-            MessageMetadata msgMetadata = entryWrapper.isPresent() && entryWrapper.get()[entryWrapperIndex] != null
-                    ? entryWrapper.get()[entryWrapperIndex].getMetadata()
-                    : null;
-            msgMetadata = msgMetadata == null
-                    ? Commands.peekMessageMetadata(metadataAndPayload, subscription.toString(), -1)
-                    : msgMetadata;
-
+            final int metadataIndex = i + startOffset;
+            final MessageMetadata msgMetadata = optMetadataArray.map(metadataArray -> metadataArray[metadataIndex])
+                    .orElse(Commands.peekMessageMetadata(metadataAndPayload, subscription.toString(), -1));
             int entryMsgCnt = msgMetadata == null ? 1 : msgMetadata.getNumMessagesInBatch();
             this.filterProcessedMsgs.add(entryMsgCnt);
 
