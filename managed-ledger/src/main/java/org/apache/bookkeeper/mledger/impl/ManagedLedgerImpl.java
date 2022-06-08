@@ -71,6 +71,7 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import lombok.Getter;
 import org.apache.bookkeeper.client.AsyncCallback;
 import org.apache.bookkeeper.client.AsyncCallback.CreateCallback;
 import org.apache.bookkeeper.client.AsyncCallback.OpenCallback;
@@ -119,6 +120,7 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.WaitingEntryCallBack;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl.VoidCallback;
 import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
+import org.apache.bookkeeper.mledger.impl.cache.EntryCache;
 import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
 import org.apache.bookkeeper.mledger.offload.OffloadUtils;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
@@ -267,9 +269,16 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             AtomicReferenceFieldUpdater.newUpdater(ManagedLedgerImpl.class, State.class, "state");
     protected volatile State state = null;
 
+    @Getter
     private final OrderedScheduler scheduledExecutor;
+
+    @Getter
     private final OrderedExecutor executor;
-    final ManagedLedgerFactoryImpl factory;
+
+    @Getter
+    private final ManagedLedgerFactoryImpl factory;
+
+    @Getter
     protected final ManagedLedgerMBeanImpl mbean;
     protected final Clock clock;
 
@@ -1911,7 +1920,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
     }
 
-    void invalidateLedgerHandle(ReadHandle ledgerHandle) {
+    public void invalidateLedgerHandle(ReadHandle ledgerHandle) {
         long ledgerId = ledgerHandle.getId();
         LedgerHandle currentLedger = this.currentLedger;
 
@@ -2277,15 +2286,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
     }
 
-    PositionImpl startReadOperationOnLedger(PositionImpl position, OpReadEntry opReadEntry) {
+    PositionImpl startReadOperationOnLedger(PositionImpl position) {
         Long ledgerId = ledgers.ceilingKey(position.getLedgerId());
-        if (null == ledgerId) {
-            opReadEntry.readEntriesFailed(new ManagedLedgerException.NoMoreEntriesToReadException("The ceilingKey(K key"
-                    + ") method is used to return the least key greater than or equal to the given key, "
-                    + "or null if there is no such key"), null);
-        }
-
-        if (ledgerId != position.getLedgerId()) {
+        if (ledgerId != null && ledgerId != position.getLedgerId()) {
             // The ledger pointed by this position does not exist anymore. It was deleted because it was empty. We need
             // to skip on the next available ledger
             position = new PositionImpl(ledgerId, 0);
@@ -3667,14 +3670,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         return ledgers;
     }
 
-    OrderedScheduler getScheduledExecutor() {
-        return scheduledExecutor;
-    }
-
-    OrderedExecutor getExecutor() {
-        return executor;
-    }
-
     private ManagedLedgerInfo getManagedLedgerInfo() {
         return buildManagedLedgerInfo(ledgers);
     }
@@ -3780,10 +3775,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     public State getState() {
         return STATE_UPDATER.get(this);
-    }
-
-    public ManagedLedgerMBeanImpl getMBean() {
-        return mbean;
     }
 
     public long getCacheSize() {
