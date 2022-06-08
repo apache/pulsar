@@ -68,7 +68,7 @@ public class MongoSink implements Sink<byte[]> {
 
     private MongoCollection<Document> collection;
 
-    private List<Record<byte[]>> incomingList = Lists.newArrayList();
+    private List<Record<byte[]>> incomingList = new ArrayList<>();
 
     private ScheduledExecutorService flushExecutor;
 
