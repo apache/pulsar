@@ -13,19 +13,22 @@ import TabItem from '@theme/TabItem';
 
 If you want to enable security on functions, you need to [enable security settings](functions-worker.md#enable-security-settings) on function workers first.
 
-## Procedures
 
-To use the secret APIs from the context, you need to set `secretsProviderConfiguratorClassName` and `secretsProviderConfiguratorConfig` for function workers.
+## Configure function workers
 
-The `org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator` interface is used by function workers to choose the `SecretProvider` class name (if any) and its associated configurations at the time of starting the function instances.
+To use the secret APIs from the context, you need to set the following two parameters for function workers.
+* `secretsProviderConfiguratorClassName`
+* `secretsProviderConfiguratorConfig`
 
 Pulsar Functions provided two types of `SecretsProviderConfigurator` implementation and both can be used as the value of `secretsProviderConfiguratorClassName` directly:
 * `org.apache.pulsar.functions.secretsproviderconfigurator.DefaultSecretsProviderConfigurator`: This is a barebones version of a secrets provider which wires in `ClearTextSecretsProvider` to the function instances.
 * `org.apache.pulsar.functions.secretsproviderconfigurator.KubernetesSecretsProviderConfigurator`: This is used by default for running in Kubernetes and it uses kubernetes built-in secrets and bind them as environment variables (via `EnvironmentBasedSecretsProvider`) within the function container to ensure that the secrets are available to the function at runtime. 
 
-You can also implemet your own `SecretsProviderConfigurator` if you want to use different `SecretsProvider` for function instances.
+Function workers use the `org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator` interface to choose the `SecretsProvider` class name and its associated configurations at the time of starting the function instances.
 
-The `org.apache.pulsar.functions.secretsprovider.SecretsProvider` interface is used by the function instances/containers to actually fetch the secrets. The implementation that `SecretsProvider` uses is determined by `SecretsProviderConfigurator`.
+Function instances use the `org.apache.pulsar.functions.secretsprovider.SecretsProvider` interface to fetch the secrets. The implementation that `SecretsProvider` uses is determined by `SecretsProviderConfigurator`.
+
+You can also implemet your own `SecretsProviderConfigurator` if you want to use different `SecretsProvider` for function instances.
 
 :::note
 
