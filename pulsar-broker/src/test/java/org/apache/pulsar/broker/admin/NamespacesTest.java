@@ -87,6 +87,7 @@ import org.apache.pulsar.common.naming.NamespaceBundles;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AuthAction;
+import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
@@ -156,6 +157,8 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
     @BeforeMethod
     public void setup() throws Exception {
         resetConfig();
+        conf.setTopicLevelPoliciesEnabled(false);
+        conf.setSystemTopicEnabled(false);
         conf.setClusterName(testLocalCluster);
         super.internalSetup();
 
@@ -483,32 +486,37 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testGlobalNamespaceReplicationConfiguration() throws Exception {
-        assertEquals(
-                namespaces.getNamespaceReplicationClusters(this.testGlobalNamespaces.get(0).getTenant(),
-                        this.testGlobalNamespaces.get(0).getCluster(), this.testGlobalNamespaces.get(0).getLocalName()),
-                Sets.newHashSet());
 
-        namespaces.setNamespaceReplicationClusters(this.testGlobalNamespaces.get(0).getTenant(),
-                this.testGlobalNamespaces.get(0).getCluster(), this.testGlobalNamespaces.get(0).getLocalName(),
-                Lists.newArrayList("use", "usw"));
-        assertEquals(
-                namespaces.getNamespaceReplicationClusters(this.testGlobalNamespaces.get(0).getTenant(),
-                        this.testGlobalNamespaces.get(0).getCluster(), this.testGlobalNamespaces.get(0).getLocalName()),
-                Lists.newArrayList("use", "usw"));
+        Set<String> repCluster = (Set<String>) asyncRequests(rsp -> namespaces.getNamespaceReplicationClusters(rsp,
+                this.testGlobalNamespaces.get(0).getTenant(), this.testGlobalNamespaces.get(0).getCluster(),
+                this.testGlobalNamespaces.get(0).getLocalName()));
+        assertEquals(repCluster, Sets.newHashSet());
+
+        asyncRequests(rsp -> namespaces.setNamespaceReplicationClusters(rsp,
+                this.testGlobalNamespaces.get(0).getTenant(), this.testGlobalNamespaces.get(0).getCluster(),
+                this.testGlobalNamespaces.get(0).getLocalName(),
+                Lists.newArrayList("use", "usw")));
+
+        repCluster = (Set<String>) asyncRequests(rsp -> namespaces.getNamespaceReplicationClusters(rsp,
+                this.testGlobalNamespaces.get(0).getTenant(), this.testGlobalNamespaces.get(0).getCluster(),
+                this.testGlobalNamespaces.get(0).getLocalName()));
+        assertEquals(repCluster, Lists.newArrayList("use", "usw"));
 
         try {
-            namespaces.setNamespaceReplicationClusters(this.testGlobalNamespaces.get(0).getTenant(),
-                    this.testGlobalNamespaces.get(0).getCluster(), this.testGlobalNamespaces.get(0).getLocalName(),
-                    Lists.newArrayList("use", "invalid-cluster"));
+            asyncRequests(rsp -> namespaces.setNamespaceReplicationClusters(rsp,
+                    this.testGlobalNamespaces.get(0).getTenant(), this.testGlobalNamespaces.get(0).getCluster(),
+                    this.testGlobalNamespaces.get(0).getLocalName(),
+                    Lists.newArrayList("use", "invalid-cluster")));
             fail("should have failed");
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), Status.FORBIDDEN.getStatusCode());
         }
 
         try {
-            namespaces.setNamespaceReplicationClusters(this.testGlobalNamespaces.get(0).getTenant(),
-                    this.testGlobalNamespaces.get(0).getCluster(), this.testGlobalNamespaces.get(0).getLocalName(),
-                    Lists.newArrayList("use", "global"));
+            asyncRequests(rsp -> namespaces.setNamespaceReplicationClusters(rsp,
+                    this.testGlobalNamespaces.get(0).getTenant(), this.testGlobalNamespaces.get(0).getCluster(),
+                    this.testGlobalNamespaces.get(0).getLocalName(),
+                    Lists.newArrayList("use", "global")));
             fail("should have failed");
         } catch (RestException e) {
             // Ok, global should not be allowed in the list of replication clusters
@@ -516,8 +524,9 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         }
 
         try {
-            namespaces.setNamespaceReplicationClusters(this.testTenant, "global",
-                    this.testGlobalNamespaces.get(0).getLocalName(), Lists.newArrayList("use", "invalid-cluster"));
+            asyncRequests(rsp -> namespaces.setNamespaceReplicationClusters(rsp, this.testTenant, "global",
+                    this.testGlobalNamespaces.get(0).getLocalName(),
+                    Lists.newArrayList("use", "invalid-cluster")));
             fail("should have failed");
         } catch (RestException e) {
             // Ok, invalid-cluster is an invalid cluster id
@@ -528,8 +537,8 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
                 new TenantInfoImpl(Sets.newHashSet("role1", "role2"), Sets.newHashSet("use", "usc")));
 
         try {
-            namespaces.setNamespaceReplicationClusters(this.testTenant, "global",
-                    this.testGlobalNamespaces.get(0).getLocalName(), Lists.newArrayList("use", "usw"));
+            asyncRequests(rsp -> namespaces.setNamespaceReplicationClusters(rsp, this.testTenant, "global",
+                    this.testGlobalNamespaces.get(0).getLocalName(), Lists.newArrayList("use", "usw")));
             fail("should have failed");
         } catch (RestException e) {
             // Ok, usw was not configured in the list of allowed clusters
@@ -541,8 +550,8 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         mockZooKeeperGlobal.setAlwaysFail(Code.SESSIONEXPIRED);
 
         try {
-            namespaces.setNamespaceReplicationClusters(this.testTenant, "global",
-                    this.testGlobalNamespaces.get(0).getLocalName(), Lists.newArrayList("use"));
+            asyncRequests(rsp -> namespaces.setNamespaceReplicationClusters(rsp, this.testTenant, "global",
+                    this.testGlobalNamespaces.get(0).getLocalName(), Lists.newArrayList("use")));
             fail("should have failed");
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), Status.INTERNAL_SERVER_ERROR.getStatusCode());
@@ -563,23 +572,24 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         policiesCache.invalidateAll();
         store.invalidateAll();
         try {
-            namespaces.setNamespaceReplicationClusters(this.testTenant, "global",
-                    this.testGlobalNamespaces.get(0).getLocalName(), Lists.newArrayList("use"));
+            asyncRequests(rsp -> namespaces.setNamespaceReplicationClusters(rsp, this.testTenant, "global",
+                    this.testGlobalNamespaces.get(0).getLocalName(), Lists.newArrayList("use")));
             fail("should have failed");
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), 500);
         }
 
         try {
-            namespaces.getNamespaceReplicationClusters(this.testTenant, "global", "non-existing-ns");
+            asyncRequests(rsp -> namespaces.getNamespaceReplicationClusters(rsp, this.testTenant,
+                                                                     "global", "non-existing-ns"));
             fail("should have failed");
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), Status.NOT_FOUND.getStatusCode());
         }
 
         try {
-            namespaces.setNamespaceReplicationClusters(this.testTenant, "global", "non-existing-ns",
-                    Lists.newArrayList("use"));
+            asyncRequests(rsp -> namespaces.setNamespaceReplicationClusters(rsp, this.testTenant,
+                    "global", "non-existing-ns", Lists.newArrayList("use")));
             fail("should have failed");
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), Status.NOT_FOUND.getStatusCode());
@@ -594,24 +604,25 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         store.invalidateAll();
         // ensure the ZooKeeper read happens, bypassing the cache
         try {
-            namespaces.getNamespaceReplicationClusters(this.testTenant, "global",
-                    this.testGlobalNamespaces.get(0).getLocalName());
+            asyncRequests(rsp -> namespaces.getNamespaceReplicationClusters(rsp,
+                    this.testGlobalNamespaces.get(0).getTenant(), this.testGlobalNamespaces.get(0).getCluster(),
+                    this.testGlobalNamespaces.get(0).getLocalName()));
             fail("should have failed");
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), 500);
         }
 
         try {
-            namespaces.getNamespaceReplicationClusters(this.testTenant, this.testLocalCluster,
-                    this.testLocalNamespaces.get(0).getLocalName());
+            asyncRequests(rsp -> namespaces.getNamespaceReplicationClusters(rsp, this.testTenant,
+                    this.testLocalCluster, this.testLocalNamespaces.get(0).getLocalName()));
             fail("should have failed");
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), Status.PRECONDITION_FAILED.getStatusCode());
         }
 
         try {
-            namespaces.setNamespaceReplicationClusters(this.testTenant, this.testLocalCluster,
-                    this.testLocalNamespaces.get(0).getLocalName(), Lists.newArrayList("use"));
+            asyncRequests(rsp -> namespaces.setNamespaceReplicationClusters(rsp, this.testTenant, this.testLocalCluster,
+                    this.testLocalNamespaces.get(0).getLocalName(), Lists.newArrayList("use")));
             fail("should have failed");
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), Status.PRECONDITION_FAILED.getStatusCode());
@@ -1673,6 +1684,44 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         assertInvalidRetentionPolicyAsPartOfAllPolicies(policies, 0, -1);
         assertInvalidRetentionPolicyAsPartOfAllPolicies(policies, -2, 1);
         assertInvalidRetentionPolicyAsPartOfAllPolicies(policies, 1, -2);
+    }
+
+    @Test
+    public void testOptionsAutoTopicCreation() throws Exception {
+        String namespace = "auto_topic_namespace";
+        AutoTopicCreationOverride autoTopicCreationOverride =
+                AutoTopicCreationOverride.builder().allowAutoTopicCreation(true).topicType("partitioned")
+                        .defaultNumPartitions(4).build();
+        try {
+            asyncRequests(response -> namespaces.setAutoTopicCreation(response, this.testTenant, this.testLocalCluster,
+                    namespace, autoTopicCreationOverride));
+            fail("should have failed");
+        } catch (RestException e) {
+            assertEquals(e.getResponse().getStatus(), Status.NOT_FOUND.getStatusCode());
+        }
+
+        asyncRequests(response -> namespaces.createNamespace(response, this.testTenant, this.testLocalCluster,
+                namespace, BundlesData.builder().build()));
+
+        // 1. set auto topic creation
+        asyncRequests(response -> namespaces.setAutoTopicCreation(response, this.testTenant, this.testLocalCluster,
+                namespace, autoTopicCreationOverride));
+
+        // 2. assert get auto topic creation
+        AutoTopicCreationOverride autoTopicCreationOverrideRsp = (AutoTopicCreationOverride) asyncRequests(
+                response -> namespaces.getAutoTopicCreation(response, this.testTenant, this.testLocalCluster,
+                        namespace));
+        assertEquals(autoTopicCreationOverride.getTopicType(), autoTopicCreationOverrideRsp.getTopicType());
+        assertEquals(autoTopicCreationOverride.getDefaultNumPartitions(),
+                                          autoTopicCreationOverrideRsp.getDefaultNumPartitions());
+        assertEquals(autoTopicCreationOverride.isAllowAutoTopicCreation(),
+                                          autoTopicCreationOverrideRsp.isAllowAutoTopicCreation());
+        // 2. remove auto topic creation and assert get null
+        asyncRequests(response -> namespaces.removeAutoTopicCreation(response, this.testTenant,
+                this.testLocalCluster, namespace));
+        assertNull(asyncRequests(
+                response -> namespaces.getAutoTopicCreation(response, this.testTenant, this.testLocalCluster,
+                        namespace)));
     }
 
     @Test

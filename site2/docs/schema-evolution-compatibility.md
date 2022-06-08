@@ -96,10 +96,10 @@ Suppose that you have a topic containing three schemas (V1, V2, and V3), V1 is t
 
 Suppose that you have a topic containing three schemas (V1, V2, and V3), V1 is the oldest and V3 is the latest:
 
-| Compatibility check strategy | Definition  | Description |
-|---|---|---|
-`BACKWARD` | Consumers using the new schema can process data written by producers using the **last schema**. | The consumers using the schema V3 can process data written by producers using the schema V3 or V2. |
-`BACKWARD_TRANSITIVE` | Consumers using the new schema can process data written by producers using **all previous schemas**. | The consumers using the schema V3 can process data written by producers using the schema V3, V2, or V1. |
+| Compatibility check strategy | Definition                                                                                           | Description                                                                                             |
+|------------------------------|------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------|
+| `BACKWARD`                   | Consumers using the new schema can process data written by producers using the **last schema**.      | The consumers using the schema V3 can process data written by producers using the schema V3 or V2.      |
+| `BACKWARD_TRANSITIVE`        | Consumers using the new schema can process data written by producers using **all previous schemas**. | The consumers using the schema V3 can process data written by producers using the schema V3, V2, or V1. |
 
 #### Example  
   
@@ -119,10 +119,10 @@ Suppose that you have a topic containing three schemas (V1, V2, and V3), V1 is t
 
 Suppose that you have a topic containing three schemas (V1, V2, and V3), V1 is the oldest and V3 is the latest:
 
-| Compatibility check strategy | Definition | Description |
-|---|---|---|
-`FORWARD` | Consumers using the **last schema** can process data written by producers using a new schema, even though they may not be able to use the full capabilities of the new schema. | The consumers using the schema V3 or V2 can process data written by producers using the schema V3. |
-`FORWARD_TRANSITIVE` | Consumers using **all previous schemas** can process data written by producers using a new schema. | The consumers using the schema V3, V2, or V1 can process data written by producers using the schema V3. 
+| Compatibility check strategy | Definition                                                                                                                                                                     | Description                                                                                             |
+|------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------|
+| `FORWARD`                    | Consumers using the **last schema** can process data written by producers using a new schema, even though they may not be able to use the full capabilities of the new schema. | The consumers using the schema V3 or V2 can process data written by producers using the schema V3.      |
+| `FORWARD_TRANSITIVE`         | Consumers using **all previous schemas** can process data written by producers using a new schema.                                                                             | The consumers using the schema V3, V2, or V1 can process data written by producers using the schema V3. |
 
 #### Example  
   
@@ -155,7 +155,7 @@ In some data formats, for example, Avro, you can define fields with default valu
 
 :::tip
 
-You can set schema compatibility check strategy at the topic, namespace or broker level. For how to set the strategy, see [here](schema-manage.md/#set-schema-compatibility-check-strategy).
+You can set schema compatibility check strategy at the topic, namespace or broker level. For how to set the strategy, see [here](schema-manage.md#set-schema-compatibility-check-strategy).
 
 :::
 
@@ -193,13 +193,13 @@ The order of upgrading client applications is determined by the compatibility ch
 
 For example, the producers using schemas to write data to Pulsar and the consumers using schemas to read data from Pulsar. 
 
-|  Compatibility check strategy  |   Upgrade first  |   Description  | 
-| --- | --- | --- |
-|  `ALWAYS_COMPATIBLE`  |   Any order  |   The compatibility check is disabled. Consequently, you can upgrade the producers and consumers in **any order**.  | 
-|  `ALWAYS_INCOMPATIBLE`  |   None  |   The schema evolution is disabled.  | 
-|  <li>`BACKWARD` </li><li>`BACKWARD_TRANSITIVE` </li> |   Consumers  |   There is no guarantee that consumers using the old schema can read data produced using the new schema. Consequently, **upgrade all consumers first**, and then start producing new data.  | 
-|  <li>`FORWARD` </li><li>`FORWARD_TRANSITIVE` </li> |   Producers  |   There is no guarantee that consumers using the new schema can read data produced using the old schema. Consequently, **upgrade all producers first**<li>to use the new schema and ensure that the data already produced using the old schemas are not available to consumers, and then upgrade the consumers. </li> | 
-|  <li>`FULL` </li><li>`FULL_TRANSITIVE` </li> |   Any order  |   There is no guarantee that consumers using the old schema can read data produced using the new schema and consumers using the new schema can read data produced using the old schema. Consequently, you can upgrade the producers and consumers in **any order**.  | 
+|  Compatibility check strategy  |   Upgrade first  | Description                                                                                                                                                                                                                                                                                                         | 
+| --- | --- |---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+|  `ALWAYS_COMPATIBLE`  |   Any order  | The compatibility check is disabled. Consequently, you can upgrade the producers and consumers in **any order**.                                                                                                                                                                                                    | 
+|  `ALWAYS_INCOMPATIBLE`  |   None  | The schema evolution is disabled.                                                                                                                                                                                                                                                                                   | 
+|  <li>`BACKWARD` </li><li>`BACKWARD_TRANSITIVE` </li> |   Consumers  | There is no guarantee that consumers using the old schema can read data produced using the new schema. Consequently, **upgrade all consumers first**, and then start producing new data.                                                                                                                            | 
+|  <li>`FORWARD` </li><li>`FORWARD_TRANSITIVE` </li> |   Producers  | There is no guarantee that consumers using the new schema can read data produced using the old schema. Consequently, **upgrade all producers first**<li>to use the new schema and ensure that the data already produced using the old schemas are not available to consumers, and then upgrade the consumers. </li> | 
+|  <li>`FULL` </li><li>`FULL_TRANSITIVE` </li> |   Any order  | It is guaranteed that consumers using the old schema can read data produced using the new schema and consumers using the new schema can read data produced using the old schema. Consequently, you can upgrade the producers and consumers in **any order**.                                                        | 
 
 
 

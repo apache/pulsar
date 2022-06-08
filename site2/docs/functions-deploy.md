@@ -13,13 +13,13 @@ To deploy and manage Pulsar Functions, you need to have a Pulsar cluster running
 
 If you run a non-[standalone](reference-terminology.md#standalone) cluster, you need to obtain the service URL for the cluster. How you obtain the service URL depends on how you deploy your Pulsar cluster.
 
-If you want to deploy and trigger Python user-defined functions, you need to install [the pulsar python client](http://pulsar.apache.org/docs/en/client-libraries-python/) on all the machines running [functions workers](functions-worker).
+If you want to deploy and trigger Python user-defined functions, you need to install [the pulsar python client](/docs/en/client-libraries-python/) on all the machines running [functions workers](functions-worker).
 
 ## Command-line interface
 
-Pulsar Functions are deployed and managed using the [`pulsar-admin functions`](reference-pulsar-admin.md#functions) interface, which contains commands such as [`create`](reference-pulsar-admin.md#functions-create) for deploying functions in [cluster mode](#cluster-mode), [`trigger`](reference-pulsar-admin.md#trigger) for [triggering](#triggering-pulsar-functions) functions, [`list`](reference-pulsar-admin.md#list-2) for listing deployed functions.
+Pulsar Functions are deployed and managed using the [`pulsar-admin functions`](/tools/pulsar-admin/) interface, which contains commands such as [`create`](/tools/pulsar-admin/) for deploying functions in [cluster mode](#cluster-mode), [`trigger`](/tools/pulsar-admin/) for [triggering](#triggering-pulsar-functions) functions, [`list`](/tools/pulsar-admin/) for listing deployed functions.
 
-To learn more commands, refer to [`pulsar-admin functions`](reference-pulsar-admin.md#functions).
+To learn more commands, refer to [`pulsar-admin functions`](/tools/pulsar-admin/).
 
 ### Default arguments
 
@@ -52,7 +52,7 @@ The function has default values for the function name (`MyFunction`), tenant (`p
 
 ## Local run mode
 
-If you run a Pulsar Function in **local run** mode, it runs on the machine from which you enter the commands (on your laptop, an [AWS EC2](https://aws.amazon.com/ec2/) instance, and so on). The following is a [`localrun`](reference-pulsar-admin.md#localrun) command example.
+If you run a Pulsar Function in **local run** mode, it runs on the machine from which you enter the commands (on your laptop, an [AWS EC2](https://aws.amazon.com/ec2/) instance, and so on). The following is a [`localrun`](/tools/pulsar-admin/) command example.
 
 ```bash
 
@@ -76,7 +76,7 @@ $ bin/pulsar-admin functions localrun \
 
 ## Cluster mode
 
-When you run a Pulsar Function in **cluster** mode, the function code is uploaded to a Pulsar broker and runs *alongside the broker* rather than in your [local environment](#local-run-mode). You can run a function in cluster mode using the [`create`](reference-pulsar-admin.md#create-1) command. 
+When you run a Pulsar Function in **cluster** mode, the function code is uploaded to a Pulsar broker and runs *alongside the broker* rather than in your [local environment](#local-run-mode). You can run a function in cluster mode using the [`create`](/tools/pulsar-admin/) command. 
 
 ```bash
 
@@ -90,7 +90,7 @@ $ bin/pulsar-admin functions create \
 
 ### Update functions in cluster mode 
 
-You can use the [`update`](reference-pulsar-admin.md#update-1) command to update a Pulsar Function running in cluster mode. The following command updates the function created in the [cluster mode](#cluster-mode) section.
+You can use the [`update`](/tools/pulsar-admin/) command to update a Pulsar Function running in cluster mode. The following command updates the function created in the [cluster mode](#cluster-mode) section.
 
 ```bash
 
@@ -106,7 +106,7 @@ $ bin/pulsar-admin functions update \
 
 Pulsar Functions run as processes or threads, which are called **instances**. When you run a Pulsar Function, it runs as a single instance by default. With one localrun command, you can only run a single instance of a function. If you want to run multiple instances, you can use localrun command multiple times. 
 
-When you create a function, you can specify the *parallelism* of a function (the number of instances to run). You can set the parallelism factor using the `--parallelism` flag of the [`create`](reference-pulsar-admin.md#functions-create) command. 
+When you create a function, you can specify the *parallelism* of a function (the number of instances to run). You can set the parallelism factor using the `--parallelism` flag of the [`create`](r/tools/pulsar-admin/) command. 
 
 ```bash
 
@@ -116,7 +116,7 @@ $ bin/pulsar-admin functions create \
 
 ```
 
-You can adjust the parallelism of an already created function using the [`update`](reference-pulsar-admin.md#update-1) interface.
+You can adjust the parallelism of an already created function using the [`update`](/tools/pulsar-admin/) interface.
 
 ```bash
 
@@ -199,7 +199,7 @@ When you have a ready to use package URL, you can create the function with packa
 
 If a Pulsar Function is running in [cluster mode](#cluster-mode), you can **trigger** it at any time using the command line. Triggering a function means that you send a message with a specific value to the function and get the function output (if any) via the command line.
 
-> Triggering a function is to invoke a function by producing a message on one of the input topics. With the [`pulsar-admin functions trigger`](reference-pulsar-admin.md#trigger) command, you can send messages to functions without using the [`pulsar-client`](reference-cli-tools.md#pulsar-client) tool or a language-specific client library.
+> Triggering a function is to invoke a function by producing a message on one of the input topics. With the [`pulsar-admin functions trigger`](/tools/pulsar-admin/) command, you can send messages to functions without using the [`pulsar-client`](reference-cli-tools.md#pulsar-client) tool or a language-specific client library.
 
 To learn how to trigger a function, you can start with Python function that returns a simple string based on the input.
 

@@ -70,8 +70,6 @@ public class AdminApiOffloadTest extends MockedPulsarServiceBaseTest {
     public void setup() throws Exception {
         conf.setManagedLedgerMaxEntriesPerLedger(10);
         conf.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
-        conf.setSystemTopicEnabled(true);
-        conf.setTopicLevelPoliciesEnabled(true);
 
         super.internalSetup();
 

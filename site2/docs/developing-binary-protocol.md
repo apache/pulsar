@@ -28,39 +28,39 @@ The Pulsar protocol allows for two types of commands:
 
 Simple (payload-free) commands have this basic structure:
 
-| Component     | Description                                                                             | Size (in bytes) |
-|:--------------|:----------------------------------------------------------------------------------------|:----------------|
-| `totalSize`   | The size of the frame, counting everything that comes after it (in bytes)               | 4               |
-| `commandSize` | The size of the protobuf-serialized command                                             | 4               |
-| `message`     | The protobuf message serialized in a raw binary format (rather than in protobuf format) |                 |
+| Component     | Description                                                               | Size (in bytes) |
+|:--------------|:--------------------------------------------------------------------------|:----------------|
+| `totalSize`   | The size of the frame, counting everything that comes after it (in bytes) | 4               |
+| `commandSize` | The size of the protobuf-serialized command                               | 4               |
+| `command`     | The protobuf serialized command                                           |                 |
 
-### Payload commands
+### Message commands
 
 Payload commands have this basic structure:
 
-| Component                          | Required or optional| Description                                                                                 | Size (in bytes) |
-|:-----------------------------------|:----------|:--------------------------------------------------------------------------------------------|:----------------|
-| `totalSize`                        | Required  | The size of the frame, counting everything that comes after it (in bytes)                   | 4               |
-| `commandSize`                      | Required  | The size of the protobuf-serialized command                                                 | 4               |
-| `message`                          | Required  | The protobuf message serialized in a raw binary format (rather than in protobuf format)     |                 |
-| `magicNumberOfBrokerEntryMetadata` | Optional  | A 2-byte byte array (`0x0e02`) identifying the broker entry metadata   <br /> **Note**: `magicNumberOfBrokerEntryMetadata` , `brokerEntryMetadataSize`, and `brokerEntryMetadata` should be used **together**.                     | 2               |
-| `brokerEntryMetadataSize`          | Optional  | The size of the broker entry metadata                                                       | 4               |
-| `brokerEntryMetadata`              | Optional  | The broker entry metadata stored as a binary protobuf message                               |                 |
-| `magicNumber`                      | Required  | A 2-byte byte array (`0x0e01`) identifying the current format                               | 2               |
-| `checksum`                         | Required  | A [CRC32-C checksum](http://www.evanjones.ca/crc32c.html) of everything that comes after it | 4               |
-| `metadataSize`                     | Required  | The size of the message [metadata](#message-metadata)                                       | 4               |
-| `metadata`                         | Required  | The message [metadata](#message-metadata) stored as a binary protobuf message               |                 |
-| `payload`                          | Required  | Anything left in the frame is considered the payload and can include any sequence of bytes  |                 |
+| Component                          | Required or optional | Description                                                                                                                                                                                                    | Size (in bytes) |
+|:-----------------------------------|:---------------------|:---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|:----------------|
+| `totalSize`                        | Required             | The size of the frame, counting everything that comes after it (in bytes)                                                                                                                                      | 4               |
+| `commandSize`                      | Required             | The size of the protobuf-serialized command                                                                                                                                                                    | 4               |
+| `command`                          | Required             | The protobuf serialized command                                                                                                                                                                                |                 |
+| `magicNumberOfBrokerEntryMetadata` | Optional             | A 2-byte byte array (`0x0e02`) identifying the broker entry metadata   <br /> **Note**: `magicNumberOfBrokerEntryMetadata` , `brokerEntryMetadataSize`, and `brokerEntryMetadata` should be used **together**. | 2               |
+| `brokerEntryMetadataSize`          | Optional             | The size of the broker entry metadata                                                                                                                                                                          | 4               |
+| `brokerEntryMetadata`              | Optional             | The broker entry metadata stored as a binary protobuf message                                                                                                                                                  |                 |
+| `magicNumber`                      | Required             | A 2-byte byte array (`0x0e01`) identifying the current format                                                                                                                                                  | 2               |
+| `checksum`                         | Required             | A [CRC32-C checksum](http://www.evanjones.ca/crc32c.html) of everything that comes after it                                                                                                                    | 4               |
+| `metadataSize`                     | Required             | The size of the message [metadata](#message-metadata)                                                                                                                                                          | 4               |
+| `metadata`                         | Required             | The message [metadata](#message-metadata) stored as a binary protobuf message                                                                                                                                  |                 |
+| `payload`                          | Required             | Anything left in the frame is considered the payload and can include any sequence of bytes                                                                                                                     |                 |
 
 ## Broker entry metadata
 
 Broker entry metadata is stored alongside the message metadata as a serialized protobuf message.
 It is created by the broker when the message arrived at the broker and passed without changes to the consumer if configured.
 
-| Field              | Required or optional       | Description                                                                                                                   |
-|:-------------------|:----------------|:------------------------------------------------------------------------------------------------------------------------------|
-| `broker_timestamp` | Optional        | The timestamp when a message arrived at the broker (`id est` as the number of milliseconds since January 1st, 1970 in UTC)      |
-| `index`            | Optional        | The index of the message. It is assigned by the broker.
+| Field              | Required or optional | Description                                                                                                                |
+|:-------------------|:---------------------|:---------------------------------------------------------------------------------------------------------------------------|
+| `broker_timestamp` | Optional             | The timestamp when a message arrived at the broker (`id est` as the number of milliseconds since January 1st, 1970 in UTC) |
+| `index`            | Optional             | The index of the message. It is assigned by the broker.                                                                    |
 
 If you want to use broker entry metadata for **brokers**, configure the [`brokerEntryMetadataInterceptors`](reference-configuration.md#broker) parameter in the `broker.conf` file.
 
@@ -191,6 +191,12 @@ If the client does not receive a response indicating producer creation success o
 the client should first send a command to close the original producer before sending a
 command to re-attempt producer creation.
 
+:::note
+
+Before creating or connecting a producer, you need to perform [topic lookup](#topic-lookup) first.
+
+:::
+
 ##### Command Producer
 
 ```protobuf
@@ -240,7 +246,7 @@ Command `Send` is used to publish a new message within the context of an
 already existing producer. If a producer has not yet been created for the
 connection, the broker will terminate the connection. This command is used
 in a frame that includes command as well as message payload, for which the
-complete format is specified in the [payload commands](#payload-commands) section.
+complete format is specified in the [message commands](#message-commands) section.
 
 ```protobuf
 
@@ -284,7 +290,7 @@ Fields:
  * `sequence_id`: The sequence ID of the published message.
  * `message_id`: The message ID assigned by the system to the published message
    Unique within a single cluster. Message ID is composed of 2 longs, `ledgerId`
-   and `entryId`, that reflect that this unique ID is assigned when appending
+   and `entryId`, which reflects that this unique ID is assigned when appending
    to a BookKeeper ledger.
 
 
@@ -320,6 +326,12 @@ After every reconnection, a client needs to subscribe to the topic. If a
 subscription is not already there, a new one will be created.
 
 ![Consumer](/assets/binary-protocol-consumer.png)
+
+:::note
+
+Before creating or connecting a consumer, you need to perform [topic lookup](#topic-lookup) first.
+
+:::
 
 #### Flow control
 
@@ -387,7 +399,7 @@ within the limits of the given permits.
 
 
 This command is used in a frame that includes the message payload as well, for
-which the complete format is specified in the [payload commands](#payload-commands)
+which the complete format is specified in the [message commands](#message-commands)
 section.
 
 ```protobuf

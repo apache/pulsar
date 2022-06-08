@@ -19,7 +19,7 @@
 package org.apache.pulsar.broker.service.nonpersistent;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static org.apache.bookkeeper.mledger.impl.EntryCacheManager.create;
+import static org.apache.bookkeeper.mledger.impl.cache.RangeEntryCacheManagerImpl.create;
 import static org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
 import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
 import com.carrotsearch.hppc.ObjectObjectHashMap;
@@ -169,7 +169,6 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
                         updateTopicPolicyByNamespacePolicy(policies);
                         isEncryptionRequired = policies.encryption_required;
                         isAllowAutoUpdateSchema = policies.is_allow_auto_update_schema;
-                        schemaValidationEnforced = policies.schema_validation_enforced;
                     }
                     updatePublishDispatcher();
                     updateResourceGroupLimiter(optPolicies);
@@ -1008,7 +1007,6 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
 
         isEncryptionRequired = data.encryption_required;
         isAllowAutoUpdateSchema = data.is_allow_auto_update_schema;
-        schemaValidationEnforced = data.schema_validation_enforced;
 
         List<CompletableFuture<Void>> producerCheckFutures = new ArrayList<>(producers.size());
         producers.values().forEach(producer -> producerCheckFutures.add(
