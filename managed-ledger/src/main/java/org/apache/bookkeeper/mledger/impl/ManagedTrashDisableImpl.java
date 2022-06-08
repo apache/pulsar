@@ -78,4 +78,9 @@ public class ManagedTrashDisableImpl implements ManagedTrash {
     public void asyncClose(AsyncCallbacks.CloseCallback callback, Object ctx) {
         callback.closeComplete(ctx);
     }
+
+    @Override
+    public boolean allTrashDataDeleteOnce() {
+        return false;
+    }
 }

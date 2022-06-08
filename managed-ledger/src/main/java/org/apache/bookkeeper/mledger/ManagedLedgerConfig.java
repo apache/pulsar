@@ -84,6 +84,7 @@ public class ManagedLedgerConfig {
     private boolean supportTwoPhaseDeletion = false;
     private int archiveDataLimitSize = 500;
     private int deleteIntervalSeconds = 60;
+    private int maxDeleteCount = 5;
 
     public boolean isCreateIfMissing() {
         return createIfMissing;
@@ -708,5 +709,13 @@ public class ManagedLedgerConfig {
 
     public void setDeleteIntervalSeconds(int deleteIntervalSeconds) {
         this.deleteIntervalSeconds = deleteIntervalSeconds;
+    }
+
+    public void setMaxDeleteCount(int maxDeleteCount) {
+        this.maxDeleteCount = maxDeleteCount;
+    }
+
+    public int getMaxDeleteCount() {
+        return maxDeleteCount;
     }
 }

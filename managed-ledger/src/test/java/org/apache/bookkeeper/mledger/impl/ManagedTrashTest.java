@@ -19,6 +19,8 @@
 package org.apache.bookkeeper.mledger.impl;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
 import com.google.common.base.Charsets;
 import java.lang.reflect.Field;
 import java.nio.charset.Charset;
@@ -197,6 +199,7 @@ public class ManagedTrashTest extends MockedBookKeeperTestCase {
         managedLedgerConfig.setSupportTwoPhaseDeletion(true);
         managedLedgerConfig.setDeleteIntervalSeconds(1);
         managedLedgerConfig.setArchiveDataLimitSize(archiveLimit);
+        managedLedgerConfig.setMaxDeleteCount(1);
         ManagedLedger ledger = factory.open("my_test_ledger", managedLedgerConfig);
 
         Field field = ManagedLedgerImpl.class.getDeclaredField("managedTrash");
@@ -313,6 +316,7 @@ public class ManagedTrashTest extends MockedBookKeeperTestCase {
         managedLedgerConfig.setSupportTwoPhaseDeletion(true);
         managedLedgerConfig.setDeleteIntervalSeconds(1);
         managedLedgerConfig.setArchiveDataLimitSize(archiveLimit);
+        managedLedgerConfig.setMaxDeleteCount(1);
         ManagedLedger ledger = factory.open("my_test_ledger", managedLedgerConfig);
 
         Field field = ManagedLedgerImpl.class.getDeclaredField("managedTrash");
@@ -343,6 +347,7 @@ public class ManagedTrashTest extends MockedBookKeeperTestCase {
         managedLedgerConfig.setSupportTwoPhaseDeletion(true);
         managedLedgerConfig.setDeleteIntervalSeconds(1);
         managedLedgerConfig.setArchiveDataLimitSize(archiveLimit);
+        managedLedgerConfig.setMaxDeleteCount(1);
         ManagedLedger ledger = factory.open("my_test_ledger", managedLedgerConfig);
 
         Field field = ManagedLedgerImpl.class.getDeclaredField("managedTrash");
@@ -377,7 +382,35 @@ public class ManagedTrashTest extends MockedBookKeeperTestCase {
             Assert.assertEquals(entry.getKey().getType(), ManagedTrash.LedgerType.LEDGER);
             i++;
         }
-
     }
 
+    @Test
+    public void testAllTrashDataDeleteOnce() throws Exception {
+        int entryCount = 30;
+        int archiveLimit = 10;
+
+        ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
+        managedLedgerConfig.setSupportTwoPhaseDeletion(true);
+        managedLedgerConfig.setDeleteIntervalSeconds(1);
+        managedLedgerConfig.setArchiveDataLimitSize(archiveLimit);
+        managedLedgerConfig.setMaxDeleteCount(1);
+        ManagedLedger ledger = factory.open("my_test_ledger", managedLedgerConfig);
+
+        Field field = ManagedLedgerImpl.class.getDeclaredField("managedTrash");
+        ManagedTrashImpl managedTrash = (ManagedTrashImpl) field.get(ledger);
+
+
+        //the ledgerId >= 10000, it will delete failed. see line_142.
+        for (int i = 0; i < entryCount; i++) {
+            managedTrash.appendLedgerTrashData(10000 + i, null, ManagedTrash.LedgerType.LEDGER);
+        }
+
+        assertFalse(managedTrash.allTrashDataDeleteOnce());
+
+        managedTrash.triggerDeleteInBackground();
+
+        Awaitility.await().untilAsserted(() -> {
+            assertTrue(managedTrash.allTrashDataDeleteOnce());
+        });
+    }
 }

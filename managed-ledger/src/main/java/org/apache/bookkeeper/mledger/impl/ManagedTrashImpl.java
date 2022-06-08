@@ -72,8 +72,6 @@ public class ManagedTrashImpl implements ManagedTrash {
 
     private static final String TRASH_KEY_SEPARATOR = "-";
 
-    private static final int RETRY_COUNT = 3;
-
     private static final long EMPTY_LEDGER_ID = -1L;
 
     private static final LedgerInfo EMPTY_LEDGER_INFO = LedgerInfo.newBuilder().setLedgerId(EMPTY_LEDGER_ID).build();
@@ -117,6 +115,8 @@ public class ManagedTrashImpl implements ManagedTrash {
 
     private final long deleteIntervalMillis;
 
+    private final int maxDeleteCount;
+
     private volatile boolean trashIsDirty;
 
     private ScheduledFuture<?> checkTrashPersistTask;
@@ -134,6 +134,7 @@ public class ManagedTrashImpl implements ManagedTrash {
         this.bookKeeper = bookKeeper;
         this.archiveDataLimitSize = config.getArchiveDataLimitSize();
         this.deleteIntervalMillis = TimeUnit.SECONDS.toMillis(config.getDeleteIntervalSeconds());
+        this.maxDeleteCount = Integer.max(1, config.getMaxDeleteCount());
         this.managedTrashMXBean = new ManagedTrashMXBeanImpl(this);
         STATE_UPDATER.set(this, State.None);
     }
@@ -208,9 +209,9 @@ public class ManagedTrashImpl implements ManagedTrash {
         }
         TrashKey key = null;
         if (ManagedTrash.LedgerType.LEDGER.equals(type)) {
-            key = TrashKey.buildKey(RETRY_COUNT, ledgerId, 0L, type);
+            key = TrashKey.buildKey(maxDeleteCount, ledgerId, 0L, type);
         } else if (ManagedTrash.LedgerType.OFFLOAD_LEDGER.equals(type)) {
-            key = TrashKey.buildKey(RETRY_COUNT, ledgerId, context.getOffloadContext().getUidMsb(), type);
+            key = TrashKey.buildKey(maxDeleteCount, ledgerId, context.getOffloadContext().getUidMsb(), type);
         }
         trashData.put(key, context);
         managedTrashMXBean.increaseTotalNumberOfDeleteLedgers();
@@ -322,6 +323,7 @@ public class ManagedTrashImpl implements ManagedTrash {
             deleteMutex.unlock();
             return;
         }
+        //filter trashData which last time and current time differ by no more than deleteIntervalMillis.
         toDelete.removeIf(ele -> System.currentTimeMillis() - ele.key.lastDeleteTs < deleteIntervalMillis);
 
         List<CompletableFuture<?>> futures = new ArrayList<>();
@@ -332,6 +334,14 @@ public class ManagedTrashImpl implements ManagedTrash {
             deleteMutex.unlock();
             continueDeleteIfNecessary();
         });
+    }
+
+    @Override
+    public boolean allTrashDataDeleteOnce() {
+        if (trashData.isEmpty()) {
+            return true;
+        }
+        return trashData.lastEntry().getKey().retryCount < maxDeleteCount;
     }
 
     @Override
@@ -566,10 +576,10 @@ public class ManagedTrashImpl implements ManagedTrash {
                 String info = null;
                 if (helper.key.isLedger()) {
                     info = String.format("[%s] Delete ledger %d reach retry limit %d.", name(), helper.key.ledgerId,
-                            RETRY_COUNT);
+                            maxDeleteCount);
                 } else if (helper.key.isOffloadLedger()) {
                     info = String.format("[%s] Delete offload ledger %d reach retry limit %d.", name(),
-                            helper.key.ledgerId, RETRY_COUNT);
+                            helper.key.ledgerId, maxDeleteCount);
                 }
                 log.warn(info);
             }

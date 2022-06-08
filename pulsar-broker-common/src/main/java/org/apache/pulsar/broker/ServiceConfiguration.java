@@ -2525,7 +2525,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             dynamic = true,
             category = CATEGORY_STORAGE_ML,
-            doc = "To control managedTrash archive data size, if reach, persist archive data. (Default 500)"
+            doc = "To control managedTrash archive data size. If reach, persist archive data. (Default 500)"
     )
     private int managedTrashArchiveDataLimitSize = 500;
 
@@ -2535,6 +2535,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "The interval of deletion at same ledger in managedTrash. (Default 60 seconds)"
     )
     private int managedTrashDeleteInternalSeconds = 60;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_STORAGE_ML,
+            doc = "The max delete count of delete same ledger or offload ledger in managedTrash. "
+                    + "If a ledger delete count reach it, the ledger will be archived. (Default is 5)"
+    )
+    private int managedLedgerMaxDeleteCount = 5;
 
     @FieldContext(
             category = CATEGORY_STORAGE_ML,

@@ -65,4 +65,6 @@ public interface ManagedTrash {
     long getToArchiveDataSize();
 
     void asyncClose(AsyncCallbacks.CloseCallback callback, Object ctx);
+
+    boolean allTrashDataDeleteOnce();
 }
