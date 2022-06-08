@@ -19,6 +19,7 @@
 package org.apache.bookkeeper.mledger.impl;
 
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
@@ -59,8 +60,8 @@ public class ManagedTrashDisableImpl implements ManagedTrash {
     }
 
     @Override
-    public CompletableFuture<List<LedgerInfo>> getArchiveData(long index) {
-        return (CompletableFuture<List<LedgerInfo>>) COMPLETABLE_FUTURE;
+    public CompletableFuture<Map<ManagedTrashImpl.TrashKey, LedgerInfo>> getArchiveData(long index) {
+        return (CompletableFuture<Map<ManagedTrashImpl.TrashKey, LedgerInfo>>) COMPLETABLE_FUTURE;
     }
 
     @Override

@@ -190,7 +190,7 @@ public class ManagedTrashTest extends MockedBookKeeperTestCase {
 
     @Test
     public void testManagedTrashArchive() throws Exception {
-        int ledgerCount = 30;
+        int entryCount = 30;
         int archiveLimit = 10;
 
         ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
@@ -204,7 +204,7 @@ public class ManagedTrashTest extends MockedBookKeeperTestCase {
 
 
         //the ledgerId >= 10000, it will delete failed. see line_142.
-        for (int i = 0; i < ledgerCount; i++) {
+        for (int i = 0; i < entryCount; i++) {
             managedTrash.appendLedgerTrashData(10000 + i, null, ManagedTrash.LedgerType.LEDGER);
         }
         managedTrash.triggerDeleteInBackground();
@@ -237,7 +237,7 @@ public class ManagedTrashTest extends MockedBookKeeperTestCase {
             }
         }
 
-        assertEquals(totalArchive.size(), ledgerCount);
+        assertEquals(totalArchive.size(), entryCount);
         int index = 0;
         for (Map.Entry<ManagedTrashImpl.TrashKey, LedgerInfo> entry : totalArchive.entrySet()) {
             assertEquals(entry.getKey().getLedgerId(), 10000 + index);
@@ -265,7 +265,7 @@ public class ManagedTrashTest extends MockedBookKeeperTestCase {
         managedTrash.appendLedgerTrashData(7, null, ManagedTrash.LedgerType.LEDGER);
         ledger.close();
         assertEquals(persistedData.size(), 2);
-        //        //managed_ledger/my_test_ledger/delete
+
         byte[] content = persistedData.get("/managed-trash/managed-ledger/my_test_ledger/delete");
         NavigableMap<ManagedTrashImpl.TrashKey, LedgerInfo> persistedTrashData =
                 managedTrash.deSerialize(content);
@@ -302,6 +302,82 @@ public class ManagedTrashTest extends MockedBookKeeperTestCase {
         Assert.assertEquals(entry.getKey().getLedgerId(), 100);
         Assert.assertEquals(entry.getKey().getMsb(), 0);
         Assert.assertEquals(entry.getKey().getType(), ManagedTrash.LedgerType.LEDGER);
+    }
+
+    @Test
+    public void testGetAllArchiveIndex() throws Exception {
+        int entryCount = 30;
+        int archiveLimit = 10;
+
+        ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
+        managedLedgerConfig.setSupportTwoPhaseDeletion(true);
+        managedLedgerConfig.setDeleteIntervalSeconds(1);
+        managedLedgerConfig.setArchiveDataLimitSize(archiveLimit);
+        ManagedLedger ledger = factory.open("my_test_ledger", managedLedgerConfig);
+
+        Field field = ManagedLedgerImpl.class.getDeclaredField("managedTrash");
+        ManagedTrashImpl managedTrash = (ManagedTrashImpl) field.get(ledger);
+
+
+        //the ledgerId >= 10000, it will delete failed. see line_142.
+        for (int i = 0; i < entryCount; i++) {
+            managedTrash.appendLedgerTrashData(10000 + i, null, ManagedTrash.LedgerType.LEDGER);
+        }
+        managedTrash.triggerDeleteInBackground();
+
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(5, persistedData.size());
+        });
+
+        CompletableFuture<List<Long>> index = managedTrash.getAllArchiveIndex();
+
+        assertEquals(index.get().size(), 3);
+    }
+
+    @Test
+    public void testGetArchiveData() throws Exception {
+        int entryCount = 30;
+        int archiveLimit = 10;
+
+        ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
+        managedLedgerConfig.setSupportTwoPhaseDeletion(true);
+        managedLedgerConfig.setDeleteIntervalSeconds(1);
+        managedLedgerConfig.setArchiveDataLimitSize(archiveLimit);
+        ManagedLedger ledger = factory.open("my_test_ledger", managedLedgerConfig);
+
+        Field field = ManagedLedgerImpl.class.getDeclaredField("managedTrash");
+        ManagedTrashImpl managedTrash = (ManagedTrashImpl) field.get(ledger);
+
+
+        //the ledgerId >= 10000, it will delete failed. see line_142.
+        for (int i = 0; i < entryCount; i++) {
+            managedTrash.appendLedgerTrashData(10000 + i, null, ManagedTrash.LedgerType.LEDGER);
+        }
+        managedTrash.triggerDeleteInBackground();
+
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(5, persistedData.size());
+        });
+
+        CompletableFuture<List<Long>> indexFuture = managedTrash.getAllArchiveIndex();
+
+        List<Long> indexes = indexFuture.get();
+
+        Map<ManagedTrashImpl.TrashKey, LedgerInfo> trashedData = new ConcurrentSkipListMap<>();
+        for (Long index : indexes) {
+            trashedData.putAll(managedTrash.getArchiveData(index).get());
+        }
+        assertEquals(trashedData.size(), 30);
+
+        int i = 0;
+        for (Map.Entry<ManagedTrashImpl.TrashKey, LedgerInfo> entry : trashedData.entrySet()) {
+            Assert.assertEquals(entry.getKey().getRetryCount(), 0);
+            Assert.assertEquals(entry.getKey().getLedgerId(), 10000 + i);
+            Assert.assertEquals(entry.getKey().getMsb(), 0);
+            Assert.assertEquals(entry.getKey().getType(), ManagedTrash.LedgerType.LEDGER);
+            i++;
+        }
 
     }
+
 }

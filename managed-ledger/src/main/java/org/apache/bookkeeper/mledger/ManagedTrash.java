@@ -19,7 +19,9 @@
 package org.apache.bookkeeper.mledger;
 
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import org.apache.bookkeeper.mledger.impl.ManagedTrashImpl;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
 
 public interface ManagedTrash {
@@ -56,7 +58,7 @@ public interface ManagedTrash {
 
     CompletableFuture<List<Long>> getAllArchiveIndex();
 
-    CompletableFuture<List<LedgerInfo>> getArchiveData(long index);
+    CompletableFuture<Map<ManagedTrashImpl.TrashKey, LedgerInfo>> getArchiveData(long index);
 
     long getTrashDataSize();
 

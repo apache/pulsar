@@ -352,14 +352,14 @@ public class ManagedTrashImpl implements ManagedTrash {
     }
 
     @Override
-    public CompletableFuture<List<LedgerInfo>> getArchiveData(final long index) {
+    public CompletableFuture<Map<TrashKey, LedgerInfo>> getArchiveData(final long index) {
         return metadataStore.get(buildArchivePath(index)).thenComposeAsync(optResult -> {
-            CompletableFuture<List<LedgerInfo>> future = new CompletableFuture<>();
+            CompletableFuture<Map<TrashKey, LedgerInfo>> future = new CompletableFuture<>();
             if (optResult.isPresent()) {
                 byte[] content = optResult.get().getValue();
                 try {
                     Map<TrashKey, LedgerInfo> result = deSerialize(content);
-                    future.complete(result.values().stream().toList());
+                    future.complete(result);
                 } catch (InvalidProtocolBufferException e) {
                     future.completeExceptionally(e);
                 }
@@ -469,7 +469,7 @@ public class ManagedTrashImpl implements ManagedTrash {
             NavigableMap<TrashKey, LedgerInfo> persistArchive = new ConcurrentSkipListMap<>();
             //here we didn't lock trashData, so maybe the persistArchive is discontinuous. such as: 1,2,3,10,12...
             for (Map.Entry<TrashKey, LedgerInfo> entry : trashData.entrySet()) {
-                //in theory, the retryCount can't more than 0.
+                //in theory, the retryCount can't greater than 0.
                 if (entry.getKey().retryCount > 0 || persistArchive.size() >= archiveDataLimitSize) {
                     break;
                 }
