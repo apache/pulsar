@@ -318,6 +318,7 @@ public class ManagedTrashImpl implements ManagedTrash {
         }
         List<DelHelper> toDelete = getToDeleteData();
         if (toDelete.size() == 0) {
+            continueDeleteImmediately.set(0);
             deleteMutex.unlock();
             return;
         }
