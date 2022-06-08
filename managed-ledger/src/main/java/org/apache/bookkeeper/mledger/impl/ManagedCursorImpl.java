@@ -1888,7 +1888,8 @@ public class ManagedCursorImpl implements ManagedCursor {
                 log.info("Skipping updating mark delete position to {}. The persisted mark delete position {} "
                         + "is later.", mdEntry.newPosition, persistentMarkDeletePosition);
             }
-            mdEntry.triggerComplete();
+            // run with executor to prevent deadlock
+            ledger.getExecutor().executeOrdered(ledger.getName(), safeRun(() -> mdEntry.triggerComplete()));
             return;
         }
 
@@ -1906,7 +1907,8 @@ public class ManagedCursorImpl implements ManagedCursor {
                 log.info("Skipping updating mark delete position to {}. The mark delete position update "
                         + "in progress {} is later.", mdEntry.newPosition, inProgressLatest);
             }
-            mdEntry.triggerComplete();
+            // run with executor to prevent deadlock
+            ledger.getExecutor().executeOrdered(ledger.getName(), safeRun(() -> mdEntry.triggerComplete()));
             return;
         }
 
