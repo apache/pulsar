@@ -24,12 +24,14 @@ import com.google.common.collect.Range;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+import java.util.stream.Stream;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -47,7 +49,6 @@ import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.EntryBatchIndexesAcks;
 import org.apache.pulsar.broker.service.EntryBatchSizes;
-import org.apache.pulsar.broker.service.EntryWrapper;
 import org.apache.pulsar.broker.service.InMemoryRedeliveryTracker;
 import org.apache.pulsar.broker.service.RedeliveryTracker;
 import org.apache.pulsar.broker.service.RedeliveryTrackerDisabled;
@@ -59,6 +60,7 @@ import org.apache.pulsar.broker.transaction.exception.buffer.TransactionBufferEx
 import org.apache.pulsar.client.impl.Backoff;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.Codec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -512,8 +514,13 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             readMoreEntries();
             return;
         }
-        EntryWrapper[] entryWrappers = new EntryWrapper[entries.size()];
-        int remainingMessages = updateEntryWrapperWithMetadata(entryWrappers, entries);
+        final MessageMetadata[] metadataArray = entries.stream()
+                .map(entry -> Commands.peekMessageMetadata(entry.getDataBuffer(), subscription.toString(), -1))
+                .toArray(MessageMetadata[]::new);
+        int remainingMessages = Stream.of(metadataArray).filter(Objects::nonNull)
+                .map(MessageMetadata::getNumMessagesInBatch)
+                .reduce(0, Integer::sum);
+
         int start = 0;
         long totalMessagesSent = 0;
         long totalBytesSent = 0;
@@ -564,7 +571,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
                 EntryBatchSizes batchSizes = EntryBatchSizes.get(entriesForThisConsumer.size());
                 EntryBatchIndexesAcks batchIndexesAcks = EntryBatchIndexesAcks.get(entriesForThisConsumer.size());
-                totalEntries += filterEntriesForConsumer(Optional.ofNullable(entryWrappers), start,
+                totalEntries += filterEntriesForConsumer(Optional.of(metadataArray), start,
                         entriesForThisConsumer, batchSizes, sendMessageInfo, batchIndexesAcks, cursor,
                         readType == ReadType.Replay, c);
 
@@ -584,13 +591,6 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 }
                 totalMessagesSent += sendMessageInfo.getTotalMessages();
                 totalBytesSent += sendMessageInfo.getTotalBytes();
-            }
-        }
-
-        // release entry-wrapper
-        for (EntryWrapper entry : entryWrappers) {
-            if (entry != null) {
-                entry.recycle();
             }
         }
 
