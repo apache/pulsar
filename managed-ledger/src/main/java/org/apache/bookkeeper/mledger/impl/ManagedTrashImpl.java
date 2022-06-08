@@ -99,7 +99,7 @@ public class ManagedTrashImpl implements ManagedTrash {
 
     private volatile Stat deleteStat;
 
-    private volatile boolean continueDeleteImmediately;
+    private final AtomicInteger continueDeleteImmediately = new AtomicInteger();
 
     private final String type;
 
@@ -313,7 +313,7 @@ public class ManagedTrashImpl implements ManagedTrash {
             return;
         }
         if (!deleteMutex.tryLock()) {
-            continueDeleteImmediately = true;
+            continueDeleteImmediately.incrementAndGet();
             return;
         }
         List<DelHelper> toDelete = getToDeleteData();
@@ -582,9 +582,9 @@ public class ManagedTrashImpl implements ManagedTrash {
             return;
         }
         if (lastEntry.getKey().retryCount > 0) {
-            if (continueDeleteImmediately) {
+            if (continueDeleteImmediately.get() > 0) {
                 triggerDeleteInBackground();
-                continueDeleteImmediately = false;
+                continueDeleteImmediately.decrementAndGet();
             } else {
                 scheduledExecutor.schedule(this::triggerDeleteInBackground, deleteIntervalMillis / 5,
                         TimeUnit.MILLISECONDS);
