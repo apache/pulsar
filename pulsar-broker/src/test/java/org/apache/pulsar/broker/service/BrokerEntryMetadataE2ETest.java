@@ -391,13 +391,10 @@ public class BrokerEntryMetadataE2ETest extends BrokerTestBase {
         managedLedger.rollCurrentLedgerIfFull();
 
         Awaitility.await().atMost(Duration.ofSeconds(3))
-                .untilAsserted(() -> {
-                    Assert.assertEquals(managedLedger.getLedgersInfo().size(), 1);
-                    Assert.assertEquals(managedLedger.getState(), ManagedLedgerImpl.State.ClosedLedger);
-                });
+                .until(() -> managedLedger.getLedgersInfo().size() > 1);
 
         final List<LedgerInfo> ledgerInfoList = managedLedger.getLedgersInfoAsList();
-        Assert.assertEquals(ledgerInfoList.size(), 1);
+        Assert.assertEquals(ledgerInfoList.size(), 2);
         Assert.assertEquals(ledgerInfoList.get(0).getSize(), managedLedger.getTotalSize());
 
         cursor.close();
