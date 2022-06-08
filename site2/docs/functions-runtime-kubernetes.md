@@ -34,7 +34,7 @@ For example, you [deploy a function](functions-deploy.md) to the `pulsar-func` K
 tenant: "mytenant"
 namespace: "mynamespace"
 name: "myfunction"
-topicName: "persistent://mytenant/mynamespace/myfuncinput"
+inputs: [ "persistent://mytenant/mynamespace/myfuncinput" ]
 className: "com.company.pulsar.myfunction"
 
 secrets:

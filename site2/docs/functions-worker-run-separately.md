@@ -32,7 +32,7 @@ To run function workers separately, you need to keep `functionsWorkerEnabled` as
 Configure the required parameters for workers in the `conf/functions_worker.yml` file.
 - `workerId`: The identity of a worker node, which is unique across clusters. The type is string.
 - `workerHostname`: The hostname of the worker node.
-- `workerPort`: The port that the worker server listens on. Keep it as default if you don't customize it.
+- `workerPort`: The port that the worker server listens on. Keep it as default if you don't customize it. Set it to `null` to disable the plaintext port.
 - `workerPortTls`: The TLS port that the worker server listens on. Keep it as default if you don't customize it. For more information about TLS encryption settings, refer to [settings](#enable-tls-encryption).
 
 :::note
@@ -59,8 +59,9 @@ Configure the required parameter for function metadata in the `conf/functions_wo
 - `pulsarFunctionsCluster`: Set the value to your Pulsar cluster name (same as the `clusterName` setting in the `conf/broker.conf` file).
 
 If authentication is enabled on your broker cluster, you must configure the following authentication settings for the function workers to communicate with the brokers.
-- `brokerClientAuthenticationPlugin`
-- `brokerClientAuthenticationParameters`
+- `brokerClientAuthenticationEnabled`: Whether to enable the broker client authentication used by function workers to talk to brokers.
+- `clientAuthenticationPlugin`: The authentication plugin to be used by the Pulsar client used in worker service.
+- `clientAuthenticationParameters`: The authentication parameter to be used by the Pulsar client used in worker service.
 
 ### Enable security settings
 
@@ -145,13 +146,13 @@ authenticationProviders: ['org.apache.pulsar.broker.authentication.Authenticatio
 
 ```
 
-For SASL authentication provider, add `saslJaasClientAllowedIds` and `saslJaasBrokerSectionName` under `properties`. 
+For SASL authentication provider, add `saslJaasClientAllowedIds` and `saslJaasServerSectionName` under `properties`. 
 
 ```properties
 
 properties:
   saslJaasClientAllowedIds: .*pulsar.*
-  saslJaasBrokerSectionName: PulsarBroker
+  saslJaasServerSectionName: Broker
 
 ```
 

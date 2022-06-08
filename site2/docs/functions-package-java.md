@@ -4,6 +4,12 @@ title: Package Java Functions
 sidebar_label: "Package Java Functions"
 ---
 
+:::note
+
+For the runtime Java version, refer to [Pulsar Runtime Java Version Recommendation](https://github.com/apache/pulsar/blob/master/README.md#pulsar-runtime-java-version-recommendation) according to your target Pulsar version.
+
+:::
+
 To package a Java function, complete the following steps.
 
 1. Create a new maven project with a pom file. In the following code sample, the value of `mainClass` is your package name.
@@ -57,8 +63,7 @@ To package a Java function, complete the following steps.
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-compiler-plugin</artifactId>
                     <configuration>
-                        <source>8</source>
-                        <target>8</target>
+                        <release>17</release>
                     </configuration>
                 </plugin>
             </plugins>
