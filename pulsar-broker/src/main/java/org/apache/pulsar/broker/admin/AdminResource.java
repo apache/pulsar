@@ -854,4 +854,8 @@ public abstract class AdminResource extends PulsarWebResource {
                 && ((WebApplicationException) realCause).getResponse().getStatus()
                 == Status.TEMPORARY_REDIRECT.getStatusCode();
     }
+
+    protected static String getTopicNotFoundErrorMessage(String topic) {
+        return String.format("Topic %s not found", topic);
+    }
 }

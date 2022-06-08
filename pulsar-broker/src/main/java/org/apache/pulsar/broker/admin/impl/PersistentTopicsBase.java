@@ -568,6 +568,34 @@ public class PersistentTopicsBase extends AdminResource {
             validateClientVersion();
         }
         return metadata;
+}
+
+    protected CompletableFuture<Map<String, String>> internalGetPropertiesAsync(boolean authoritative) {
+        return validateTopicOwnershipAsync(topicName, authoritative)
+                .thenCompose(__ -> validateTopicOperationAsync(topicName, TopicOperation.GET_METADATA))
+                .thenCompose(__ -> {
+                    if (topicName.isPartitioned()) {
+                        return getPropertiesAsync();
+                    }
+                    return pulsar().getBrokerService().fetchPartitionedTopicMetadataAsync(topicName)
+                            .thenCompose(metadata -> {
+                                if (metadata.partitions == 0) {
+                                    return getPropertiesAsync();
+                                }
+                                return CompletableFuture.completedFuture(metadata.properties);
+                            });
+                });
+    }
+
+    private CompletableFuture<Map<String, String>> getPropertiesAsync() {
+        return pulsar().getBrokerService().getTopicIfExists(topicName.toString())
+                .thenApply(opt -> {
+                    if (!opt.isPresent()) {
+                        throw new RestException(Status.NOT_FOUND,
+                                getTopicNotFoundErrorMessage(topicName.toString()));
+                    }
+                    return ((PersistentTopic) opt.get()).getManagedLedger().getProperties();
+        });
     }
 
     protected void internalDeletePartitionedTopic(AsyncResponse asyncResponse, boolean authoritative,
