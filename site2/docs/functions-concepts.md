@@ -64,7 +64,7 @@ The following table outlines the three types of function runtime.
 
 | Type   | Description     |
 |--------|-----------------|
-| Thread runtime     | Each instance runs as a thread.<br /><br />Since the code for thread mode is written in Java, it is only applicable to Java instances**. When a function runs in thread mode, it runs on the same Java virtual machine (JVM) with a function worker. |
+| Thread runtime     | Each instance runs as a thread.<br /><br />Since the code for thread mode is written in Java, it is **only** applicable to Java instances. When a function runs in thread mode, it runs on the same Java virtual machine (JVM) with a function worker. |
 | Process runtime    | Each instance runs as a process.<br /><br />When a function runs in process mode, it runs on the same machine that the function worker runs.|
 | Kubernetes runtime | Function is submitted as Kubernetes StatefulSet by workers and each function instance runs as a pod. Pulsar supports adding labels to the Kubernetes StatefulSets and services while launching functions, which facilitates selecting the target Kubernetes objects. |
 
@@ -109,6 +109,32 @@ bin/pulsar-admin functions update \
   # Other function configs
 
 ```
+
+## Context
+
+Java, Python, and Go SDKs provide access to a **context object** that can be used by a function. This context object provides a wide variety of information and functionality to the function including:
+* The name and ID of a function.
+* The message ID of a message. Each message is automatically assigned with an ID.
+* The key, event time, properties, and partition key of a message.
+* The name of the topic that a message is sent to.
+* The names of all input topics as well as the output topic associated with the function.
+* The name of the class used for [SerDe](functions-develop-serde).
+* The tenant and namespace associated with the function.
+* The ID of the function instance running the function.
+* The version of the function.
+* The [logger object](functions-develop-log) used by the function, which is used to create log messages.
+* Access to arbitrary [user configuration](functions-develop-user-defined-configs) values supplied via the CLI.
+* An interface for recording [metrics](functions-develop-metrics).
+* An interface for storing and retrieving state in [state storage](functions-develop-state).
+* A function to publish new messages onto arbitrary topics.
+* A function to acknowledge the message being processed (if auto-ack is disabled).
+* (Java) get Pulsar admin client.
+
+:::tip
+
+For more information about code examples, refer to [Java](https://github.com/apache/pulsar/blob/master/pulsar-functions/api-java/src/main/java/org/apache/pulsar/functions/api/BaseContext.java), [Python](https://github.com/apache/pulsar/blob/master/pulsar-functions/instance/src/main/python/contextimpl.py) and [Go](https://github.com/apache/pulsar/blob/master/pulsar-function-go/pf/context.go).
+
+:::
 
 ## Function message types
 

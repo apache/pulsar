@@ -1,5 +1,5 @@
 ---
-id: functions-develop-context-admin-api
+id: functions-develop-admin-api
 title: Call Pulsar admin APIs
 sidebar_label: "Call Pulsar admin APIs"
 ---

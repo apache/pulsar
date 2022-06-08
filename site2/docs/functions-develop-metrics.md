@@ -23,7 +23,7 @@ You can use both built-in metrics and customized metrics to monitor functions.
 - Set your customized metrics.
   In addition to the built-in metrics, Pulsar allows you to customize metrics for Java and Python functions. Function workers collect user-defined metrics to Prometheus automatically and you can check them in Grafana.
 
-Here is an example of how to customize metrics for Java, Python and Go functions by using the [`Context object`](functions-develop-context) on a per-key basis. For example, you can set a metric for the `process-count` key and set another one for the `elevens-count` key every time the function processes a message. 
+Here is an example of how to customize metrics for Java, Python and Go functions by using the [`Context object`](functions-concepts.md#context) on a per-key basis. For example, you can set a metric for the `process-count` key and set another one for the `elevens-count` key every time the function processes a message. 
 
 
 ````mdx-code-block

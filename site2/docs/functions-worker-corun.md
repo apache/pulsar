@@ -6,7 +6,7 @@ sidebar_label: "Run function workers with brokers"
 
 The following diagram illustrates the deployment of function workers running along with brokers. 
 
-![assets/functions-worker-corun.svg](/assets/functions-worker-corun.svg)
+![assets/functions-worker-corun.svg](/assets/function-workers-corun.svg)
 
 :::note
  
@@ -17,7 +17,7 @@ The `Service URLs` in the illustration represent Pulsar service URLs that Pulsar
 To set up function workers to run with brokers, complete the following steps:
 1. [Enable function workers](#enable-function-workers-to-run-with-brokers)
 2. [Configure function workers](#configure-function-workers-to-run-with-brokers)
-3. [Start function workers](#start-function-workers-with-brokers-to-run-with-brokers)
+3. [Start function workers](#start-function-workers-to-run-with-brokers)
 
 
 ### Enable function workers to run with brokers

@@ -1,5 +1,5 @@
 ---
-id: functions-develop-context-user-defined-configs
+id: functions-develop-user-defined-configs
 title: Pass user-defined configurations
 sidebar_label: "Pass user-defined configurations"
 ---
@@ -96,7 +96,7 @@ class WordFilter(Function):
 
 ```
 
-The [`Context`](functions-develop-context) object of Python SDK enables you to access key/value pairs provided to functions via the command line (as JSON). The following example passes a key/value pair.
+The context object of Python SDK enables you to access key/value pairs provided to functions via the command line (as JSON). The following example passes a key/value pair.
 
 ```bash
 

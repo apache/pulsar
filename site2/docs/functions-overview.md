@@ -61,7 +61,7 @@ This figure illustrates the process of implementing the classic word count examp
 
 ### Content-based routing example
 
-For example, a function takes items (strings) as input and publishes them to either a `fruits` or `vegetables` topic, depending on the item. If an item is neither fruit nor vegetable, a warning is logged to a [log topic](functions-develop-context-log.md).
+For example, a function takes items (strings) as input and publishes them to either a `fruits` or `vegetables` topic, depending on the item. If an item is neither fruit nor vegetable, a warning is logged to a [log topic](functions-develop-log.md).
 
 This figure demonstrates the process of implementing a content-based routing using Pulsar Functions. 
 

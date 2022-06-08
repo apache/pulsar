@@ -1,7 +1,7 @@
 ---
 id: functions-develop
 title: Develop Pulsar Functions
-sidebar_label: "Develop Pulsar Functions"
+sidebar_label: "How to develop"
 ---
 
 :::note
@@ -14,9 +14,11 @@ Develop functions in Java, Python, or Go.
 
 To develop Pulsar Functions, you can leverage the following tools and features.
 * [APIs](functions-develop-api)
-* [Schema registry](functions-schema-registry)
-* [SerDe](functions-develop-serde)
-* [Context object](functions-develop-context)
+* [User-defined configs](functions-develop-user-defined-configs)
+* [Logs](functions-develop-log)
 * [Metrics](functions-develop-metrics)
 * [Security](functions-develop-security)
 * [Stage storage](functions-develop-state)
+* [Admin APIs](functions-develop-admin-api)
+* [Schema registry](functions-schema-registry)
+* [SerDe](functions-develop-serde)

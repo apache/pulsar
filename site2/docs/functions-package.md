@@ -1,7 +1,7 @@
 ---
 id: functions-package
 title: Package Pulsar Functions
-sidebar_label: "Package Pulsar Functions"
+sidebar_label: "How to package"
 ---
 
 If you want to submit and run functions in cluster mode, you need to package your functions first. 

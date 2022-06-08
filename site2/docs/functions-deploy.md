@@ -1,7 +1,7 @@
 ---
 id: functions-deploy
 title: Deploy Pulsar Functions
-sidebar_label: "Deploy Pulsar Functions"
+sidebar_label: "How to deploy"
 ---
 
 Pulsar provides two modes to deploy a function:

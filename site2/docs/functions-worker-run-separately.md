@@ -6,11 +6,11 @@ sidebar_label: "Run function workers separately"
 
 The following diagram illustrates how function workers run as a separate process in separate machines.
 
-![assets/functions-worker-separated.svg](/assets/functions-worker-separated.svg)
+![assets/functions-worker-separated.svg](/assets/function-workers-separated.svg)
 
 :::note  
 
-The `---Service URLs---` in the illustration represent Pulsar service URLs that Pulsar client and Pulsar admin use to connect to a Pulsar cluster.
+The `Service URLs` in the illustration represent Pulsar service URLs that Pulsar client and Pulsar admin use to connect to a Pulsar cluster.
 
 :::
 
@@ -233,7 +233,13 @@ Before starting function workers, make sure [function runtime](functions-runtime
 
 When you are running function workers in a separate cluster, the admin rest endpoints are split into two clusters as shown in the following figure. The `functions`, `function-worker`, `source`, and `sink` endpoints are now served by the worker cluster, while all the other remaining endpoints are served by the broker cluster. This requires you to use the right service URL accordingly in the `pulsar-admin` CLI. To address this inconvenience, you can start a proxy cluster that serves as the central entry point of the admin service for routing admin rest requests.
 
-![assets/functions-worker-separated-proxy.svg](/assets/functions-worker-separated-proxy.svg)
+![assets/functions-worker-separated-proxy.svg](/assets/function-workers-separated-with-proxy.svg)
+
+:::tip
+
+If you haven't set up a proxy cluster yet, follow the [instructions](administration-proxy.md) to deploy one.
+
+:::
 
 To enable a proxy for routing function-related admin requests to function workers, you can edit the `conf/proxy.conf` file to modify the following settings:
 
@@ -243,9 +249,3 @@ functionWorkerWebServiceURL=<pulsar-functions-worker-web-service-url>
 functionWorkerWebServiceURLTLS=<pulsar-functions-worker-web-service-url>
 
 ```
-
-:::tip
-
-If you haven't set up a proxy cluster yet, follow the [instructions](administration-proxy.md) to deploy one.
-
-:::

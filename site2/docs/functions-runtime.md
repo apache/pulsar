@@ -1,18 +1,18 @@
 ---
 id: functions-runtime
-title: Configure Functions runtime
-sidebar_label: "Configure Functions runtime"
+title: Configure function runtime
+sidebar_label: "Configure function runtime"
 ---
 
-You can configure a specific [function runtime](functions-concepts.md#function-runtime) for your functions.
+Pulsar supports three types of [function runtime](functions-concepts.md#function-runtime) with different costs and isolation guarantees to maximize deployment flexibility of your functions.
 
 The following table outlines the supported programming languages for each type of function runtime.
 
-| Function runtime					                          | Supported programming languages of functions |
-| —---------------------------------------------------|----------------------------------------------|
-| [Thread runtime](functions-runtime-thread)      		| Java 				                                 |
-| [Process runtime](functions-runtime-process)      	| Java, Python, Go			                       |
-| [Kubernetes runtime](functions-runtime-kubernetes)	| Java, Python, Go		                         |
+| Function runtime                                   | Supported programming languages of functions |
+|----------------------------------------------------|----------------------------------------------|
+| [Thread runtime](functions-runtime-thread)         | Java                                         |
+| [Process runtime](functions-runtime-process)       | Java, Python, Go                             |
+| [Kubernetes runtime](functions-runtime-kubernetes) | Java, Python, Go                             |
 
 :::note
 

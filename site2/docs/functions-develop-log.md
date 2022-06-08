@@ -1,5 +1,5 @@
 ---
-id: functions-develop-context-log
+id: functions-develop-log
 title: Produce function logs
 sidebar_label: "Produce function logs"
 ---

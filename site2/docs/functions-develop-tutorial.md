@@ -12,7 +12,7 @@ The following example is a stateful function. By default, the state of a functio
 
 :::
 
-1. Write the function in Java using the [SDK for Java](functions-develop-api-sdk.md).
+1. Write the function in Java using the [SDK for Java](functions-develop-api.md).
 
    ```java
 
@@ -53,7 +53,7 @@ The following example is a stateful function. By default, the state of a functio
 
 ## Write a function for content-based routing
 
-1. Write the function in Python using the [SDK for Python](functions-develop-api-sdk.md).
+1. Write the function in Python using the [SDK for Python](functions-develop-api.md).
 
    ```python
 
@@ -103,7 +103,7 @@ Currently, window function is only available in Java.
 
 :::
 
-This example demonstrates how to use the [language-native interface](functions-develop-api-language-native.md) to write a window function in Java. 
+This example demonstrates how to use the [language-native interface](functions-develop-api.md) to write a window function in Java. 
 
 Each input message is a sentence that is split into words and each word counted. The built-in counter state is used to keep track of the word count in a persistent and consistent manner.
 

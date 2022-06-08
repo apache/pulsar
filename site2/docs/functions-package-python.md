@@ -5,13 +5,13 @@ sidebar_label: "Package Python Functions"
 ---
 
 Python functions support the following three packaging formats:
-- One python file
+- One Python file
 - ZIP file
 - PIP
 
-## One python file
+## One Python file
 
-To package a Python function into **one python file**, complete the following steps.
+To package a Python function into **one Python file**, complete the following steps.
 
 1. Write a Python function.
 

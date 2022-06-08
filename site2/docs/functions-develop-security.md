@@ -9,28 +9,35 @@ import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
 ````
 
-**Prerequisites**
+## Prerequisites
 
 If you want to enable security on functions, you need to [enable security settings](functions-worker.md#enable-security-settings) on function workers first.
 
+## Procedures
 
 To use the secret APIs from the context, you need to set `secretsProviderConfiguratorClassName` and `secretsProviderConfiguratorConfig` for function workers.
 
 The `org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator` interface is used by function workers to choose the `SecretProvider` class name (if any) and its associated configurations at the time of starting the function instances.
 
-Pulsar Functions provided two types of `SecretsProviderConfigurator` implementation and can be used as the value of `secretsProviderConfiguratorClassName` directly:
-`org.apache.pulsar.functions.secretsproviderconfigurator.DefaultSecretsProviderConfigurator`: This is a barebones version of a secrets provider which wires in `ClearTextSecretsProvider` to the function instances.
-`org.apache.pulsar.functions.secretsproviderconfigurator.KubernetesSecretsProviderConfigurator`: This is used by default for running in Kubernetes and it uses kubernetes built-in secrets and bind them as environment variables (via `EnvironmentBasedSecretsProvider`) within the function container to ensure that the secrets are available to the function at runtime. 
+Pulsar Functions provided two types of `SecretsProviderConfigurator` implementation and both can be used as the value of `secretsProviderConfiguratorClassName` directly:
+* `org.apache.pulsar.functions.secretsproviderconfigurator.DefaultSecretsProviderConfigurator`: This is a barebones version of a secrets provider which wires in `ClearTextSecretsProvider` to the function instances.
+* `org.apache.pulsar.functions.secretsproviderconfigurator.KubernetesSecretsProviderConfigurator`: This is used by default for running in Kubernetes and it uses kubernetes built-in secrets and bind them as environment variables (via `EnvironmentBasedSecretsProvider`) within the function container to ensure that the secrets are available to the function at runtime. 
 
 You can also implemet your own `SecretsProviderConfigurator` if you want to use different `SecretsProvider` for function instances.
 
 The `org.apache.pulsar.functions.secretsprovider.SecretsProvider` interface is used by the function instances/containers to actually fetch the secrets. The implementation that `SecretsProvider` uses is determined by `SecretsProviderConfigurator`.
 
+:::note
+
 Currently, only Java and Python runtime support `SecretsProvider`. The Java and Python Runtime have the following two providers:
 - ClearTextSecretsProvider (default for `DefaultSecretsProviderConfigurator`)
-- EnvironmentBasedSecretsProvider (default for `KubernetesSecretsProviderConfigurator`​​)
+- EnvironmentBasedSecretsProvider (default for `KubernetesSecretsProviderConfigurator`)
 
-Once `SecretsProviderConfigurator` is set, you can get the secret using the  [`Context`](functions-develop-context) object as follows.
+:::
+
+## Get the secret
+
+Once `SecretsProviderConfigurator` is set, you can get the secret using the [`Context`](functions-concepts.md#context) object as follows.
 
 ````mdx-code-block
 <Tabs groupId="lang-choice"
