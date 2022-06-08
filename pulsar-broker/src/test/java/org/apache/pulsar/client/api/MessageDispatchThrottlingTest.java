@@ -1070,7 +1070,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
         admin.namespaces().createNamespace(namespace, Sets.newHashSet(cluster));
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
         PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
-        DispatchRateLimiter dispatchRateLimiter = new DispatchRateLimiter(topic, DispatchRateLimiter.Type.TOPIC);
+        Optional<DispatchRateLimiter> dispatchRateLimiter;
 
         Policies policies = new Policies();
         DispatchRateImpl clusterDispatchRate = DispatchRateImpl.builder()
@@ -1085,21 +1085,25 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
                 .build();
 
         // (1) If both clusterDispatchRate and topicDispatchRate are empty, dispatch throttling is disabled
-        dispatchRateLimiter.onPoliciesUpdate(policies);
-        Assert.assertEquals(dispatchRateLimiter.getDispatchRateOnMsg(), -1);
-        Assert.assertEquals(dispatchRateLimiter.getDispatchRateOnByte(), -1);
+        topic.onPoliciesUpdate(policies).get();
+        dispatchRateLimiter = topic.getDispatchRateLimiter();
+        Assert.assertFalse(dispatchRateLimiter.isPresent());
 
         // (2) If topicDispatchRate is empty, clusterDispatchRate is effective
         policies.clusterDispatchRate.put(cluster, clusterDispatchRate);
-        dispatchRateLimiter.onPoliciesUpdate(policies);
-        Assert.assertEquals(dispatchRateLimiter.getDispatchRateOnMsg(), 100);
-        Assert.assertEquals(dispatchRateLimiter.getDispatchRateOnByte(), 512);
+        topic.onPoliciesUpdate(policies).get();
+        dispatchRateLimiter = topic.getDispatchRateLimiter();
+        Assert.assertTrue(dispatchRateLimiter.isPresent());
+        Assert.assertEquals(dispatchRateLimiter.get().getDispatchRateOnMsg(), 100);
+        Assert.assertEquals(dispatchRateLimiter.get().getDispatchRateOnByte(), 512);
 
         // (3) If topicDispatchRate is not empty, topicDispatchRate is effective
         policies.topicDispatchRate.put(cluster, topicDispatchRate);
-        dispatchRateLimiter.onPoliciesUpdate(policies);
-        Assert.assertEquals(dispatchRateLimiter.getDispatchRateOnMsg(), 200);
-        Assert.assertEquals(dispatchRateLimiter.getDispatchRateOnByte(), 1024);
+        topic.onPoliciesUpdate(policies).get();
+        dispatchRateLimiter = topic.getDispatchRateLimiter();
+        Assert.assertTrue(dispatchRateLimiter.isPresent());
+        Assert.assertEquals(dispatchRateLimiter.get().getDispatchRateOnMsg(), 200);
+        Assert.assertEquals(dispatchRateLimiter.get().getDispatchRateOnByte(), 1024);
 
         producer.close();
         topic.close().get();
