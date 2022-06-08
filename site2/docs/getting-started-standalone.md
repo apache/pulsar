@@ -262,7 +262,7 @@ Press `Ctrl+C` to stop a local standalone Pulsar.
 :::tip
 
 If the service runs as a background process using the `bin/pulsar-daemon start standalone` command, then use the `bin/pulsar-daemon stop standalone`  command to stop the service.
-For more information, see [pulsar-daemon](/docs/en/reference-cli-tools/#pulsar-daemon).
+For more information, see [pulsar-daemon](reference-cli-tools.md#pulsar-daemon).
 
 :::
 

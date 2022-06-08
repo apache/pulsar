@@ -19,9 +19,9 @@ Follow the steps below to install the Aliyun OSS offloader.
 
 This example uses Pulsar 2.8.0.
 
-1. Download the Pulsar tarball, see [here](https://pulsar.apache.org/docs/en/standalone/#install-pulsar-using-binary-release).
+1. Download the Pulsar tarball, see [here](standalone.md#install-pulsar-using-binary-release).
 
-2. Download and untar the Pulsar offloaders package, then copy the Pulsar offloaders as `offloaders` in the Pulsar directory, see [here](https://pulsar.apache.org/docs/en/standalone/#install-tiered-storage-offloaders-optional).
+2. Download and untar the Pulsar offloaders package, then copy the Pulsar offloaders as `offloaders` in the Pulsar directory, see [here](standalone.md#install-tiered-storage-offloaders-optional).
 
    **Output**
    
@@ -146,7 +146,7 @@ Automatic offloading runs when a new segment is added to a topic log. If you set
 
 You can configure the threshold size using CLI tools, such as pulsar-admin.
 
-The offload configurations in `broker.conf` and `standalone.conf` are used for the namespaces that do not have namespace level offload policies. Each namespace can have its own offload policy. If you want to set offload policy for each namespace, use the command [`pulsar-admin namespaces set-offload-policies options`](https://pulsar.apache.org/tools/pulsar-admin/2.6.0-SNAPSHOT/#-em-set-offload-policies-em-) command.
+The offload configurations in `broker.conf` and `standalone.conf` are used for the namespaces that do not have namespace level offload policies. Each namespace can have its own offload policy. If you want to set offload policy for each namespace, use the command [`pulsar-admin namespaces set-offload-policies options`](/tools/pulsar-admin/) command.
  
 #### Example
 
@@ -160,7 +160,7 @@ bin/pulsar-admin namespaces set-offload-threshold --size 10M my-tenant/my-namesp
 
 :::tip
 
-For more information about the `pulsar-admin namespaces set-offload-threshold options` command, including flags, descriptions, and default values, see [here](https://pulsar.apache.org/tools/pulsar-admin/2.6.0-SNAPSHOT/#-em-set-offload-threshold-em-). 
+For more information about the `pulsar-admin namespaces set-offload-threshold options` command, including flags, descriptions, and default values, see [here](/tools/pulsar-admin/). 
 
 :::
 
@@ -194,7 +194,7 @@ For individual topics, you can trigger the Aliyun OSS offloader manually using o
 
   :::tip
 
-  For more information about the `pulsar-admin topics offload options` command, including flags, descriptions, and default values, see [here](https://pulsar.apache.org/tools/pulsar-admin/2.6.0-SNAPSHOT/#-em-offload-em-). 
+  For more information about the `pulsar-admin topics offload options` command, including flags, descriptions, and default values, see [here](/tools/pulsar-admin/). 
 
   :::
 
@@ -251,7 +251,7 @@ For individual topics, you can trigger the Aliyun OSS offloader manually using o
 
   :::tip
 
-  For more information about the `pulsar-admin topics offload-status options` command, including flags, descriptions, and default values, see [here](https://pulsar.apache.org/tools/pulsar-admin/2.6.0-SNAPSHOT/#-em-offload-status-em-). 
+  For more information about the `pulsar-admin topics offload-status options` command, including flags, descriptions, and default values, see [here](/tools/pulsar-admin/). 
 
   :::
 
