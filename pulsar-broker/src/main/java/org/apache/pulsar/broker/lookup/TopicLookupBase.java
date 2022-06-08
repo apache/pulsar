@@ -127,6 +127,7 @@ public class TopicLookupBase extends PulsarWebResource {
                                 log.debug("Lookup succeeded for topic {} -- broker: {}", topicName,
                                         result.getLookupData());
                             }
+                            pulsar().getBrokerService().getLookupRequestSemaphore().release();
                             return result.getLookupData();
                         }
                     });

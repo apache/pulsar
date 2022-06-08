@@ -72,7 +72,7 @@ public class TopicLookup extends TopicLookupBase {
             listenerName = listenerNameHeader;
         }
         internalLookupTopicAsync(topicName, authoritative, listenerName)
-                .thenAccept(lookupData -> completeLookupResponseSuccessfully(asyncResponse, lookupData))
+                .thenAccept(lookupData -> asyncResponse.resume(lookupData))
                 .exceptionally(ex -> {
                     if (log.isDebugEnabled()) {
                         log.debug("Failed to check exist for topic {} when lookup", topicName, ex);
