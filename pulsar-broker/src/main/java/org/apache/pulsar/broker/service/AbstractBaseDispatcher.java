@@ -131,7 +131,7 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
             ByteBuf metadataAndPayload = entry.getDataBuffer();
             final int metadataIndex = i + startOffset;
             final MessageMetadata msgMetadata = optMetadataArray.map(metadataArray -> metadataArray[metadataIndex])
-                    .orElse(Commands.peekMessageMetadata(metadataAndPayload, subscription.toString(), -1));
+                    .orElseGet(() -> Commands.peekMessageMetadata(metadataAndPayload, subscription.toString(), -1));
             if (CollectionUtils.isNotEmpty(entryFilters)) {
                 fillContext(filterContext, msgMetadata, subscription, consumer);
                 EntryFilter.FilterResult filterResult = getFilterResult(filterContext, entry, entryFilters);
