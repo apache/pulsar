@@ -104,6 +104,7 @@ flexible messaging model and an intuitive client API.</description>
     <testRealAWS>false</testRealAWS>
     <testRetryCount>1</testRetryCount>
     <testJacocoAgentArgument></testJacocoAgentArgument>
+    <testHeapDumpPath>/tmp</testHeapDumpPath>
     <docker.organization>apachepulsar</docker.organization>
     <skipSourceReleaseAssembly>false</skipSourceReleaseAssembly>
     <skipBuildDistribution>false</skipBuildDistribution>
@@ -224,6 +225,7 @@ flexible messaging model and an intuitive client API.</description>
     <seancfoley.ipaddress.version>5.3.3</seancfoley.ipaddress.version>
     <disruptor.version>3.4.3</disruptor.version>
     <zstd-jni.version>1.5.2-3</zstd-jni.version>
+    <netty-reactive-streams.version>2.0.6</netty-reactive-streams.version>
 
     <!-- test dependencies -->
     <cassandra.version>3.6.0</cassandra.version>
@@ -1289,6 +1291,12 @@ flexible messaging model and an intuitive client API.</description>
         <artifactId>zstd-jni</artifactId>
         <version>${zstd-jni.version}</version>
       </dependency>
+
+      <dependency>
+          <groupId>com.typesafe.netty</groupId>
+          <artifactId>netty-reactive-streams</artifactId>
+          <version>${netty-reactive-streams.version}</version>
+      </dependency>
     </dependencies>
   </dependencyManagement>
 
@@ -1420,7 +1428,7 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
         <configuration>
-          <argLine>${testJacocoAgentArgument} -XX:+ExitOnOutOfMemoryError -Xmx1G -XX:+UseG1GC
+          <argLine>${testJacocoAgentArgument} -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=${testHeapDumpPath} -XX:+ExitOnOutOfMemoryError -Xmx1G -XX:+UseG1GC
             -Dpulsar.allocator.pooled=true
             -Dpulsar.allocator.leak_detection=Advanced
             -Dpulsar.allocator.exit_on_oom=false
@@ -2351,6 +2359,20 @@ flexible messaging model and an intuitive client API.</description>
       <properties>
         <os.detected.classifier>osx-x86_64</os.detected.classifier>
       </properties>
+    </profile>
+
+    <profile>
+      <id>pulsar-io-tests</id>
+      <modules>
+        <module>pulsar-io</module>
+      </modules>
+    </profile>
+
+    <profile>
+      <id>pulsar-sql-tests</id>
+      <modules>
+        <module>pulsar-sql</module>
+      </modules>
     </profile>
   </profiles>
 

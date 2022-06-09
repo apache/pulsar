@@ -1255,7 +1255,7 @@ pulsar-admin topics last-message-id topic-name
 </TabItem>
 <TabItem value="Java">
 
-```Java
+```java
 
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 admin.topics().getLastMessage(topic);

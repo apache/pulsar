@@ -373,11 +373,13 @@ public class Consumer {
         if (ack.getAckType() == AckType.Cumulative) {
             if (ack.getMessageIdsCount() != 1) {
                 log.warn("[{}] [{}] Received multi-message ack", subscription, consumerId);
+                return CompletableFuture.completedFuture(null);
             }
 
             if (Subscription.isIndividualAckMode(subType)) {
                 log.warn("[{}] [{}] Received cumulative ack on shared subscription, ignoring",
                         subscription, consumerId);
+                return CompletableFuture.completedFuture(null);
             }
             PositionImpl position = PositionImpl.EARLIEST;
             if (ack.getMessageIdsCount() == 1) {
@@ -491,8 +493,11 @@ public class Consumer {
                 position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId());
                 ackedCount = batchSize;
             }
-
-            positionsAcked.add(new MutablePair<>(position, (int) batchSize));
+            if (msgId.hasBatchSize()) {
+                positionsAcked.add(new MutablePair<>(position, msgId.getBatchSize()));
+            } else {
+                positionsAcked.add(new MutablePair<>(position, (int) batchSize));
+            }
 
             addAndGetUnAckedMsgs(ackOwnerConsumer, -(int) ackedCount);
 

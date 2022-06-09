@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.bookkeeper.mledger.impl;
+package org.apache.bookkeeper.mledger.impl.cache;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Collections.reverseOrder;
@@ -89,7 +89,7 @@ public class EntryCacheDefaultEvictionPolicy implements EntryCacheEvictionPolicy
         }
 
         log.info("Completed cache eviction. Removed {} entries from {} caches. ({} Mb)", evictedEntries,
-                cachesToEvict.size(), evictedSize / EntryCacheManager.MB);
+                cachesToEvict.size(), evictedSize / RangeEntryCacheManagerImpl.MB);
     }
 
     private static final Logger log = LoggerFactory.getLogger(EntryCacheDefaultEvictionPolicy.class);
