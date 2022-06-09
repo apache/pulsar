@@ -40,12 +40,17 @@ import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 
 import java.nio.charset.StandardCharsets;
-import java.util.concurrent.TimeUnit;
-import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
+import java.io.IOException;
+import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.elasticsearch.client.BulkProcessor;
@@ -67,19 +72,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
-<<<<<<< HEAD
-=======
-import java.util.Locale;
-import java.io.IOException;
-import java.util.HashMap;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
-import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
->>>>>>> 06dd1826954 ([feat][elasticsearch] Add hashed id support)
+
 
 import static org.testng.Assert.assertNull;
 
