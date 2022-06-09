@@ -250,4 +250,12 @@ Result Consumer::seek(uint64_t timestamp) {
 
 bool Consumer::isConnected() const { return impl_ && impl_->isConnected(); }
 
+void Consumer::getLastMessageIdAsync(BrokerGetLastMessageIdCallback callback) {
+    if (!impl_) {
+        callback(ResultConsumerNotInitialized);
+        return;
+    }
+    impl_->getLastMessageIdAsync(callback);
+}
+
 }  // namespace pulsar
