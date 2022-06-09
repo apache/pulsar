@@ -338,11 +338,6 @@ public class TopicLookupBase extends PulsarWebResource {
         asyncResponse.resume(cause);
     }
 
-    protected void completeLookupResponseSuccessfully(AsyncResponse asyncResponse, LookupData lookupData) {
-        pulsar().getBrokerService().getLookupRequestSemaphore().release();
-        asyncResponse.resume(lookupData);
-    }
-
     protected TopicName getTopicName(String topicDomain, String tenant, String cluster, String namespace,
             @Encoded String encodedTopic) {
         String decodedName = Codec.decode(encodedTopic);
