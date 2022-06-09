@@ -1243,7 +1243,7 @@ class Consumer:
 
     def get_last_message_id(self):
         """
-        Get the latest message id for a topic.
+        Get the latest message id for the consumer's topic.
         """
         self._consumer.get_last_message_id()
 

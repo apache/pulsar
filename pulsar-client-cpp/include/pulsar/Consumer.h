@@ -390,6 +390,11 @@ class PULSAR_PUBLIC Consumer {
      */
     bool isConnected() const;
 
+    /**
+     * Get the latest message id for the consumer's topic.
+     */
+    virtual void getLastMessageIdAsync(BrokerGetLastMessageIdCallback callback);
+
    private:
     ConsumerImplBasePtr impl_;
     explicit Consumer(ConsumerImplBasePtr);
