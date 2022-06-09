@@ -365,8 +365,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
 
     @Test(dataProvider = "batch")
     public void testKeySendAndReceiveWithHashRangeExclusiveStickyKeyUnMatchConsumer(boolean enableBatch)
-            throws PulsarClientException, InterruptedException {
-        this.conf.setSubscriptionKeySharedEnable(true);
+            throws PulsarClientException {
         String topic = "persistent://public/default/key_shared_none_key_exclusive-" + UUID.randomUUID();
 
         int slot = Murmur3_32Hash.getInstance().makeHash("key1".getBytes())
