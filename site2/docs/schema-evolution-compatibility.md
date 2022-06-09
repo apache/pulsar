@@ -42,7 +42,7 @@ The process of how Pulsar supports schema evolution is described as follows.
 
    :::note
 
-   Each schema type corresponds to one instance of schema compatibility checker. Currently, Avro, JSON and Protobuf have their own compatibility checkers, while all the other schema types share the default compatibility checker which disables the schema evolution. In a word, schema evolution is only available in Avro, JSON and Protobuf schema.
+   Each schema type corresponds to one instance of schema compatibility checker. Currently, Avro, JSON, and Protobuf have their own compatibility checkers, while all the other schema types share the default compatibility checker which disables the schema evolution. In a word, schema evolution is only available in Avro, JSON, and Protobuf schema.
 
    :::
 
