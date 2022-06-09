@@ -117,6 +117,7 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("create", new CreateNonPartitionedCmd());
         jcommander.addCommand("update-partitioned-topic", new UpdatePartitionedCmd());
         jcommander.addCommand("get-partitioned-topic-metadata", new GetPartitionedTopicMetadataCmd());
+        jcommander.addCommand("get-properties", new GetPropertiesCmd());
 
         jcommander.addCommand("delete-partitioned-topic", new DeletePartitionedCmd());
         jcommander.addCommand("peek-messages", new PeekMessages());
@@ -602,6 +603,19 @@ public class CmdTopics extends CmdBase {
         void run() throws Exception {
             String topic = validateTopicName(params);
             print(getTopics().getPartitionedTopicMetadata(topic));
+        }
+    }
+
+    @Parameters(commandDescription = "Get the topic properties.")
+    private class GetPropertiesCmd extends CliCommand {
+
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws Exception {
+            String topic = validateTopicName(params);
+            print(getTopics().getProperties(topic));
         }
     }
 

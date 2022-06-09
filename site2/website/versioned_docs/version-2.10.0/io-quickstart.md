@@ -240,7 +240,7 @@ For more information, see [Cassandra sink connector](io-cassandra-sink).
 
 ### Create a Cassandra sink
 
-You can use the [Connector Admin CLI](https://pulsar.apache.org/tools/pulsar-admin/) 
+You can use the [Connector Admin CLI](/tools/pulsar-admin/) 
 to create a sink connector and perform other operations on them.
 
 Run the following command to create a Cassandra sink connector with sink type _cassandra_ and the config file _examples/cassandra-sink.yml_ created previously.
@@ -267,7 +267,7 @@ as a Pulsar Function and writes the messages produced in the topic _test_cassand
 
 ### Inspect a Cassandra sink
 
-You can use the [Connector Admin CLI](https://pulsar.apache.org/tools/pulsar-admin/) 
+You can use the [Connector Admin CLI](/tools/pulsar-admin/) 
 to monitor a connector and perform other operations on it.
 
 * Get the information of a Cassandra sink. 
@@ -431,7 +431,7 @@ to monitor a connector and perform other operations on it.
 
 ### Delete a Cassandra Sink
 
-You can use the [Connector Admin CLI](https://pulsar.apache.org/tools/pulsar-admin/) 
+You can use the [Connector Admin CLI](/tools/pulsar-admin/) 
 to delete a connector and perform other operations on it.
 
 ```bash
@@ -615,7 +615,7 @@ In this section, you need to configure a JDBC sink connector.
 
 ### Create a JDBC sink
 
-You can use the [Connector Admin CLI](https://pulsar.apache.org/tools/pulsar-admin/) 
+You can use the [Connector Admin CLI](/tools/pulsar-admin/) 
 to create a sink connector and perform other operations on it.
 
 This example creates a sink connector and specifies the desired information.
@@ -647,7 +647,7 @@ This sink connector runs as a Pulsar Function and writes the messages produced i
 
 :::tip
 
-For more information about `pulsar-admin sinks create options`, see [Pulsar admin docs](https://pulsar.apache.org/tools/pulsar-admin/).
+For more information about `pulsar-admin sinks create options`, see [Pulsar admin docs](/tools/pulsar-admin/).
 
 :::
 
@@ -661,7 +661,7 @@ Created successfully
 
 ### Inspect a JDBC sink
 
-You can use the [Connector Admin CLI](https://pulsar.apache.org/tools/pulsar-admin/) 
+You can use the [Connector Admin CLI](/tools/pulsar-admin/) 
 to monitor a connector and perform other operations on it.
 
 * List all running JDBC sink(s).
@@ -676,7 +676,7 @@ to monitor a connector and perform other operations on it.
 
   :::tip
 
-  For more information about `pulsar-admin sinks list options`, see [Pulsar admin docs](https://pulsar.apache.org/tools/pulsar-admin/).
+  For more information about `pulsar-admin sinks list options`, see [Pulsar admin docs](/tools/pulsar-admin/).
 
   :::
 
@@ -703,7 +703,7 @@ to monitor a connector and perform other operations on it.
 
   :::tip
 
-  For more information about `pulsar-admin sinks get options`, see [Pulsar admin docs](https://pulsar.apache.org/tools/pulsar-admin/).
+  For more information about `pulsar-admin sinks get options`, see [Pulsar admin docs](/tools/pulsar-admin/).
 
   :::
 
@@ -748,7 +748,7 @@ to monitor a connector and perform other operations on it.
 
   :::tip
 
-  For more information about `pulsar-admin sinks status options`, see [Pulsar admin docs](https://pulsar.apache.org/tools/pulsar-admin/).
+  For more information about `pulsar-admin sinks status options`, see [Pulsar admin docs](/tools/pulsar-admin/).
 
   :::
 
@@ -781,7 +781,7 @@ to monitor a connector and perform other operations on it.
 
 ### Stop a JDBC sink
 
-You can use the [Connector Admin CLI](https://pulsar.apache.org/tools/pulsar-admin/) 
+You can use the [Connector Admin CLI](/tools/pulsar-admin/) 
 to stop a connector and perform other operations on it.
 
 ```bash
@@ -795,7 +795,7 @@ $ bin/pulsar-admin sinks stop \
 
 :::tip
 
-For more information about `pulsar-admin sinks stop options`, see [Pulsar admin docs](https://pulsar.apache.org/tools/pulsar-admin/).
+For more information about `pulsar-admin sinks stop options`, see [Pulsar admin docs](/tools/pulsar-admin/).
 
 :::
 
@@ -809,7 +809,7 @@ Stopped successfully
 
 ### Restart a JDBC sink
 
-You can use the [Connector Admin CLI](https://pulsar.apache.org/tools/pulsar-admin/) 
+You can use the [Connector Admin CLI](/tools/pulsar-admin/) 
 to restart a connector and perform other operations on it.
 
 ```bash
@@ -823,7 +823,7 @@ $ bin/pulsar-admin sinks restart \
 
 :::tip
 
-For more information about `pulsar-admin sinks restart options`, see [Pulsar admin docs](https://pulsar.apache.org/tools/pulsar-admin/).
+For more information about `pulsar-admin sinks restart options`, see [Pulsar admin docs](/tools/pulsar-admin/).
 
 :::
 
@@ -839,13 +839,13 @@ Started successfully
 
 * Optionally, you can run a standalone sink connector using `pulsar-admin sinks localrun options`. 
 Note that `pulsar-admin sinks localrun options` **runs a sink connector locally**, while `pulsar-admin sinks start options` **starts a sink connector in a cluster**.
-* For more information about `pulsar-admin sinks localrun options`, see [Pulsar admin docs](https://pulsar.apache.org/tools/pulsar-admin/).
+* For more information about `pulsar-admin sinks localrun options`, see [Pulsar admin docs](/tools/pulsar-admin/).
 
 :::
 
 ### Update a JDBC sink
 
-You can use the [Connector Admin CLI](https://pulsar.apache.org/tools/pulsar-admin/) 
+You can use the [Connector Admin CLI](/tools/pulsar-admin/) 
 to update a connector and perform other operations on it.
 
 This example updates the parallelism of the _pulsar-postgres-jdbc-sink_ sink connector to 2.
@@ -860,7 +860,7 @@ $ bin/pulsar-admin sinks update \
 
 :::tip
 
-For more information about `pulsar-admin sinks update options`, see [Pulsar admin docs](https://pulsar.apache.org/tools/pulsar-admin/).
+For more information about `pulsar-admin sinks update options`, see [Pulsar admin docs](/tools/pulsar-admin/).
 
 :::
 
@@ -913,7 +913,7 @@ The result shows that the parallelism is 2.
 
 ### Delete a JDBC sink
 
-You can use the [Connector Admin CLI](https://pulsar.apache.org/tools/pulsar-admin/) 
+You can use the [Connector Admin CLI](/tools/pulsar-admin/) 
 to delete a connector and perform other operations on it.
 
 This example deletes the _pulsar-postgres-jdbc-sink_ sink connector.
@@ -929,7 +929,7 @@ $ bin/pulsar-admin sinks delete \
 
 :::tip
 
-For more information about `pulsar-admin sinks delete options`, see [Pulsar admin docs](https://pulsar.apache.org/tools/pulsar-admin/).
+For more information about `pulsar-admin sinks delete options`, see [Pulsar admin docs](/tools/pulsar-admin/).
 
 :::
 

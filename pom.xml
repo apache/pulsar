@@ -225,6 +225,7 @@ flexible messaging model and an intuitive client API.</description>
     <seancfoley.ipaddress.version>5.3.3</seancfoley.ipaddress.version>
     <disruptor.version>3.4.3</disruptor.version>
     <zstd-jni.version>1.5.2-3</zstd-jni.version>
+    <netty-reactive-streams.version>2.0.6</netty-reactive-streams.version>
 
     <!-- test dependencies -->
     <cassandra.version>3.6.0</cassandra.version>
@@ -1289,6 +1290,12 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>com.github.luben</groupId>
         <artifactId>zstd-jni</artifactId>
         <version>${zstd-jni.version}</version>
+      </dependency>
+
+      <dependency>
+          <groupId>com.typesafe.netty</groupId>
+          <artifactId>netty-reactive-streams</artifactId>
+          <version>${netty-reactive-streams.version}</version>
       </dependency>
     </dependencies>
   </dependencyManagement>

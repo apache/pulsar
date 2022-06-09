@@ -1896,7 +1896,8 @@ public class ManagedCursorImpl implements ManagedCursor {
                 log.info("Skipping updating mark delete position to {}. The persisted mark delete position {} "
                         + "is later.", mdEntry.newPosition, persistentMarkDeletePosition);
             }
-            mdEntry.triggerComplete();
+            // run with executor to prevent deadlock
+            ledger.getExecutor().executeOrdered(ledger.getName(), safeRun(() -> mdEntry.triggerComplete()));
             return;
         }
 
@@ -1914,7 +1915,8 @@ public class ManagedCursorImpl implements ManagedCursor {
                 log.info("Skipping updating mark delete position to {}. The mark delete position update "
                         + "in progress {} is later.", mdEntry.newPosition, inProgressLatest);
             }
-            mdEntry.triggerComplete();
+            // run with executor to prevent deadlock
+            ledger.getExecutor().executeOrdered(ledger.getName(), safeRun(() -> mdEntry.triggerComplete()));
             return;
         }
 
@@ -2832,7 +2834,7 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     boolean shouldCloseLedger(LedgerHandle lh) {
         long now = clock.millis();
-        if (ledger.factory.isMetadataServiceAvailable()
+        if (ledger.getFactory().isMetadataServiceAvailable()
                 && (lh.getLastAddConfirmed() >= config.getMetadataMaxEntriesPerLedger()
                 || lastLedgerSwitchTimestamp < (now - config.getLedgerRolloverTimeout() * 1000))
                 && (STATE_UPDATER.get(this) != State.Closed && STATE_UPDATER.get(this) != State.Closing)) {
