@@ -22,6 +22,7 @@ package org.apache.pulsar.io.kafka.connect.schema;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.base.Preconditions;
 import java.io.IOException;
+import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -37,31 +38,90 @@ import org.apache.pulsar.client.api.schema.GenericRecord;
 
 @Slf4j
 public class KafkaConnectData {
+
+    private static List<Object> arrayToList(Object nativeObject, Schema kafkaValueSchema) {
+        Preconditions.checkArgument(nativeObject.getClass().isArray());
+        int length = Array.getLength(nativeObject);
+        List<Object> out = new ArrayList<>(length);
+        for (int i = 0; i < length; i++) {
+            // this handles primitive values too
+            Object elem = Array.get(nativeObject, i);
+            out.add(getKafkaConnectData(elem, kafkaValueSchema));
+        }
+        return out;
+    }
+
+    @SuppressWarnings("unchecked")
     public static Object getKafkaConnectData(Object nativeObject, Schema kafkaSchema) {
         if (kafkaSchema == null) {
             return nativeObject;
         }
 
-        if (nativeObject instanceof JsonNode) {
-            JsonNode node = (JsonNode) nativeObject;
-            return jsonAsConnectData(node, kafkaSchema);
-        } else if (nativeObject instanceof GenericData.Record) {
-            GenericData.Record avroRecord = (GenericData.Record) nativeObject;
-            return avroAsConnectData(avroRecord, kafkaSchema);
-        } else if (nativeObject instanceof GenericRecord) {
-            // Pulsar's GenericRecord
-            GenericRecord pulsarGenericRecord = (GenericRecord) nativeObject;
-            return pulsarGenericRecordAsConnectData(pulsarGenericRecord, kafkaSchema);
-        }
-
-        return castToKafkaSchema(nativeObject, kafkaSchema);
-    }
-
-    public static Object castToKafkaSchema(Object nativeObject, Schema kafkaSchema) {
         if (nativeObject == null) {
             return defaultOrThrow(kafkaSchema);
         }
 
+        if (nativeObject instanceof JsonNode) {
+            JsonNode node = (JsonNode) nativeObject;
+            return jsonAsConnectData(node, kafkaSchema);
+        }
+
+        switch (kafkaSchema.type()) {
+            case ARRAY:
+                 if (nativeObject instanceof List) {
+                    List arr = (List) nativeObject;
+                    return arr.stream()
+                            .map(x -> getKafkaConnectData(x, kafkaSchema.valueSchema()))
+                            .toList();
+                } else if (nativeObject.getClass().isArray()) {
+                    return arrayToList(nativeObject, kafkaSchema.valueSchema());
+                }
+                throw new IllegalStateException("Don't know how to convert " + nativeObject.getClass()
+                        + " into kafka ARRAY");
+            case MAP:
+                if (nativeObject instanceof Map) {
+                    Map<Object, Object> map = (Map<Object, Object>) nativeObject;
+                    Map<Object, Object> responseMap = new HashMap<>(map.size());
+                    for (Map.Entry<Object, Object> kv : map.entrySet()) {
+                        Object key = getKafkaConnectData(kv.getKey(), kafkaSchema.keySchema());
+                        Object val = getKafkaConnectData(kv.getValue(), kafkaSchema.valueSchema());
+                        responseMap.put(key, val);
+                    }
+                    return responseMap;
+                } else if (nativeObject instanceof org.apache.pulsar.common.schema.KeyValue) {
+                    org.apache.pulsar.common.schema.KeyValue kv =
+                            (org.apache.pulsar.common.schema.KeyValue) nativeObject;
+                    Map<Object, Object> responseMap = new HashMap<>();
+                    Object key = getKafkaConnectData(kv.getKey(), kafkaSchema.keySchema());
+                    Object val = getKafkaConnectData(kv.getValue(), kafkaSchema.valueSchema());
+                    responseMap.put(key, val);
+                    return responseMap;
+                }
+                throw new IllegalStateException("Don't know how to convert " + nativeObject.getClass()
+                        + " into kafka MAP");
+            case STRUCT:
+                if (nativeObject instanceof GenericData.Record) {
+                    GenericData.Record avroRecord = (GenericData.Record) nativeObject;
+                    return avroAsConnectData(avroRecord, kafkaSchema);
+                } else if (nativeObject instanceof GenericRecord) {
+                    GenericRecord pulsarGenericRecord = (GenericRecord) nativeObject;
+                    // Pulsar's GenericRecord
+                    if (pulsarGenericRecord.getNativeObject() instanceof JsonNode
+                            || pulsarGenericRecord.getNativeObject() instanceof GenericData.Record) {
+                        return getKafkaConnectData(pulsarGenericRecord.getNativeObject(), kafkaSchema);
+                    }
+                    return pulsarGenericRecordAsConnectData(pulsarGenericRecord, kafkaSchema);
+                }
+                throw new IllegalStateException("Don't know how to convert " + nativeObject.getClass()
+                        + "into kafka STRUCT");
+            default:
+                Preconditions.checkArgument(kafkaSchema.type().isPrimitive(),
+                        "Expected primitive schema but got " + kafkaSchema.type());
+                return castToKafkaSchema(nativeObject, kafkaSchema);
+        }
+    }
+
+    public static Object castToKafkaSchema(Object nativeObject, Schema kafkaSchema) {
         if (nativeObject instanceof Number) {
             // This is needed in case
             // jackson decided to fit value into some other type internally
@@ -121,6 +181,19 @@ public class KafkaConnectData {
             }
         }
 
+        if (nativeObject instanceof Character) {
+            Character ch = (Character) nativeObject;
+            if (kafkaSchema.type() == Schema.Type.STRING) {
+                return ch.toString();
+            }
+            return castToKafkaSchema(Character.getNumericValue(ch), kafkaSchema);
+        }
+
+        if (kafkaSchema.type() == Schema.Type.STRING && nativeObject instanceof CharSequence) {
+            // e.g. org.apache.avro.util.Utf8
+            return nativeObject.toString();
+        }
+
         return nativeObject;
     }
 
@@ -161,23 +234,8 @@ public class KafkaConnectData {
             if (jsonNode == null || jsonNode.isNull()) {
                 return null;
             }
-            switch (jsonNode.getNodeType()) {
-                case BINARY:
-                    try {
-                        return jsonNode.binaryValue();
-                    } catch (IOException e) {
-                        throw new DataException("Cannot get binary value for " + jsonNode);
-                    }
-                case BOOLEAN:
-                    return jsonNode.booleanValue();
-                case NUMBER:
-                    return jsonNode.doubleValue();
-                case STRING:
-                    return jsonNode.textValue();
-                default:
-                    throw new DataException("Don't know how to convert " + jsonNode
-                            + " to Connect data (schema is null).");
-            }
+            throw new DataException("Don't know how to convert " + jsonNode
+                + " to Connect data (schema is null).");
         }
 
         if (jsonNode == null || jsonNode.isNull()) {
@@ -186,39 +244,65 @@ public class KafkaConnectData {
 
         switch (kafkaSchema.type()) {
             case INT8:
+                Preconditions.checkArgument(jsonNode.isNumber());
                 return (byte) jsonNode.shortValue();
             case INT16:
+                Preconditions.checkArgument(jsonNode.isNumber());
                 return jsonNode.shortValue();
             case INT32:
+                if (jsonNode.isTextual() && jsonNode.textValue().length() == 1) {
+                    // char encoded as String instead of Integer
+                    return Character.getNumericValue(jsonNode.textValue().charAt(0));
+                }
+                Preconditions.checkArgument(jsonNode.isNumber());
                 return jsonNode.intValue();
             case INT64:
+                Preconditions.checkArgument(jsonNode.isNumber());
                 return  jsonNode.longValue();
             case FLOAT32:
+                Preconditions.checkArgument(jsonNode.isNumber());
                 return jsonNode.floatValue();
             case FLOAT64:
+                Preconditions.checkArgument(jsonNode.isNumber());
                 return jsonNode.doubleValue();
             case BOOLEAN:
+                Preconditions.checkArgument(jsonNode.isBoolean());
                 return jsonNode.booleanValue();
             case STRING:
+                Preconditions.checkArgument(jsonNode.isTextual());
                 return jsonNode.textValue();
             case BYTES:
+                Preconditions.checkArgument(jsonNode.isBinary());
                 try {
                     return jsonNode.binaryValue();
                 } catch (IOException e) {
                     throw new DataException("Cannot get binary value for " + jsonNode + " with schema " + kafkaSchema);
                 }
             case ARRAY:
-                List<Object> list = new ArrayList<>();
+                if (jsonNode.isTextual() && kafkaSchema.valueSchema().type() == Schema.Type.INT32) {
+                    // char[] encoded as String in json
+                    List<Object> list = new ArrayList<>();
+                    for (char ch: jsonNode.textValue().toCharArray()) {
+                        list.add(Character.getNumericValue(ch));
+                    }
+                    return list;
+                }
+
                 Preconditions.checkArgument(jsonNode.isArray(), "jsonNode has to be an array");
-                for (Iterator<JsonNode> it = jsonNode.elements(); it.hasNext(); ) {
+                List<Object> list = new ArrayList<>();
+                for (Iterator<JsonNode> it = jsonNode.elements(); it.hasNext();) {
                     list.add(jsonAsConnectData(it.next(), kafkaSchema.valueSchema()));
                 }
                 return list;
             case MAP:
+                Preconditions.checkArgument(jsonNode.isObject(), "jsonNode has to be an Object node");
+                Preconditions.checkArgument(kafkaSchema.keySchema().type() == Schema.Type.STRING,
+                        "kafka schema for json map is expected to be STRING");
                 Map<String, Object> map = new HashMap<>();
                 for (Iterator<Map.Entry<String, JsonNode>> it = jsonNode.fields(); it.hasNext(); ) {
                     Map.Entry<String, JsonNode> elem = it.next();
-                    map.put(elem.getKey(), jsonAsConnectData(elem.getValue(), kafkaSchema.valueSchema()));
+                    map.put(elem.getKey(),
+                            jsonAsConnectData(elem.getValue(), kafkaSchema.valueSchema()));
                 }
                 return map;
             case STRUCT:
