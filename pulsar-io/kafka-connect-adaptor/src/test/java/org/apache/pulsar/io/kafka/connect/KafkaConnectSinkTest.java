@@ -998,14 +998,15 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
     }
 
     private static PulsarSchemaToKafkaSchemaTest.ComplexStruct getPojoComplexStruct() {
+        Map<String, PulsarSchemaToKafkaSchemaTest.StructWithAnnotations> map = new HashMap<>();
+        map.put("key1", getPojoStructWithAnnotations());
+        map.put("key2", getPojoStructWithAnnotations());
         return new PulsarSchemaToKafkaSchemaTest.ComplexStruct()
                 .setStringList(Lists.newArrayList("str11", "str22"))
                 .setStructArr(new PulsarSchemaToKafkaSchemaTest.StructWithAnnotations[]{getPojoStructWithAnnotations()})
                 .setStructList(Lists.newArrayList(getPojoStructWithAnnotations()))
                 .setStruct(getPojoStructWithAnnotations())
-                .setStructMap(Map.of("key1", getPojoStructWithAnnotations(),
-                        "key2", getPojoStructWithAnnotations()))
-
+                .setStructMap(map)
                 .setByteField((byte) 1)
                 .setShortField((short) 2)
                 .setIntField(3)
