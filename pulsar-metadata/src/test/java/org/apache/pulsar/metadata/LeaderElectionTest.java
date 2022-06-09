@@ -111,21 +111,21 @@ public class LeaderElectionTest extends BaseMetadataStoreTest {
 
         LeaderElectionState les1 = le1.elect("test-1").join();
         assertEquals(les1, LeaderElectionState.Leading);
-        assertEquals(le1.getLeaderValueIfPresent(), Optional.of("test-1"));
+        assertEqualsAndRetry(() -> le1.getLeaderValueIfPresent(), Optional.of("test-1"), Optional.empty());
         assertEquals(le1.getLeaderValue().join(), Optional.of("test-1"));
         assertEquals(n1.poll(3, TimeUnit.SECONDS), LeaderElectionState.Leading);
 
         LeaderElectionState les2 = le2.elect("test-2").join();
         assertEquals(les2, LeaderElectionState.Following);
         assertEquals(le2.getLeaderValue().join(), Optional.of("test-1"));
-        assertEquals(le2.getLeaderValueIfPresent(), Optional.of("test-1"));
+        assertEqualsAndRetry(() -> le2.getLeaderValueIfPresent(), Optional.of("test-1"), Optional.empty());
         assertEquals(n2.poll(3, TimeUnit.SECONDS), LeaderElectionState.Following);
 
         le1.close();
 
         assertEquals(n2.poll(3, TimeUnit.SECONDS), LeaderElectionState.Leading);
         assertEquals(le2.getState(), LeaderElectionState.Leading);
-        assertEquals(le2.getLeaderValueIfPresent(), Optional.of("test-2"));
+        assertEqualsAndRetry(() -> le2.getLeaderValueIfPresent(), Optional.of("test-2"), Optional.empty());
         assertEquals(le2.getLeaderValue().join(), Optional.of("test-2"));
     }
 
@@ -209,7 +209,7 @@ public class LeaderElectionTest extends BaseMetadataStoreTest {
         LeaderElectionState les = le.elect("test-2").join();
         assertEquals(les, LeaderElectionState.Leading);
         assertEquals(le.getLeaderValue().join(), Optional.of("test-2"));
-        assertEquals(le.getLeaderValueIfPresent(), Optional.of("test-2"));
+        assertEqualsAndRetry(() -> le.getLeaderValueIfPresent(), Optional.of("test-2"), Optional.empty());
     }
 
     @Test(dataProvider = "impl")
@@ -244,7 +244,7 @@ public class LeaderElectionTest extends BaseMetadataStoreTest {
         LeaderElectionState les = le.elect("test-1").join();
         assertEquals(les, LeaderElectionState.Leading);
         assertEquals(le.getLeaderValue().join(), Optional.of("test-1"));
-        assertEquals(le.getLeaderValueIfPresent(), Optional.of("test-1"));
+        assertEqualsAndRetry(() -> le.getLeaderValueIfPresent(), Optional.of("test-1"), Optional.empty());
     }
 
 
@@ -280,6 +280,6 @@ public class LeaderElectionTest extends BaseMetadataStoreTest {
         LeaderElectionState les = le.elect("test-2").join();
         assertEquals(les, LeaderElectionState.Following);
         assertEquals(le.getLeaderValue().join(), Optional.of("test-1"));
-        assertEquals(le.getLeaderValueIfPresent(), Optional.of("test-1"));
+        assertEqualsAndRetry(() -> le.getLeaderValueIfPresent(), Optional.of("test-1"), Optional.empty());
     }
 }

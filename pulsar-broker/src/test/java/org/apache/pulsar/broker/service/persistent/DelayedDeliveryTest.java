@@ -27,6 +27,7 @@ import static org.testng.Assert.assertTrue;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Random;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.UUID;
@@ -57,8 +58,6 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
     @Override
     @BeforeClass
     public void setup() throws Exception {
-        conf.setSystemTopicEnabled(true);
-        conf.setTopicLevelPoliciesEnabled(true);
         conf.setDelayedDeliveryTickTimeMillis(1024);
         super.internalSetup();
         super.producerBaseSetup();
@@ -492,4 +491,93 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
         admin.topics().skipAllMessages(topic, subName);
         Awaitility.await().untilAsserted(() -> Assert.assertEquals(dispatcher.getNumberOfDelayedMessages(), 0));
     }
+
+    @Test
+    public void testDelayedDeliveryWithAllConsumersDisconnecting() throws Exception {
+        String topic = BrokerTestUtil.newUniqueName("persistent://public/default/testDelays");
+
+        Consumer<String> c1 = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("sub")
+                .subscriptionType(SubscriptionType.Shared)
+                .subscribe();
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .create();
+
+        producer.newMessage()
+                    .value("msg")
+                    .deliverAfter(5, TimeUnit.SECONDS)
+                    .send();
+
+        Dispatcher dispatcher = pulsar.getBrokerService().getTopicReference(topic).get().getSubscription("sub").getDispatcher();
+        Awaitility.await().untilAsserted(() -> Assert.assertEquals(dispatcher.getNumberOfDelayedMessages(), 1));
+
+        c1.close();
+
+        // Attach a new consumer. Since there are no consumers connected, this will trigger the cursor rewind
+        @Cleanup
+        Consumer<String> c2 = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("sub")
+                .subscriptionType(SubscriptionType.Shared)
+                .receiverQueueSize(1)
+                .subscribe();
+
+        Awaitility.await().untilAsserted(() -> Assert.assertEquals(dispatcher.getNumberOfDelayedMessages(), 1));
+
+        Message<String> msg = c2.receive(10, TimeUnit.SECONDS);
+        assertNotNull(msg);
+
+        // No more messages
+        msg = c2.receive(1, TimeUnit.SECONDS);
+        assertNull(msg);
+
+        Awaitility.await().untilAsserted(() -> Assert.assertEquals(dispatcher.getNumberOfDelayedMessages(), 0));
+    }
+
+    @Test
+    public void testInterleavedMessagesOnKeySharedSubscription() throws Exception {
+        String topic = BrokerTestUtil.newUniqueName("testInterleavedMessagesOnKeySharedSubscription");
+
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("key-shared-sub")
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .subscribe();
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .create();
+
+        Random random = new Random(0);
+        for (int i = 0; i < 10; i++) {
+            // Publish 1 message without delay and 1 with delay
+            producer.newMessage()
+                    .value("immediate-msg-" + i)
+                    .sendAsync();
+
+            int delayMillis = 1000 + random.nextInt(1000);
+            producer.newMessage()
+                    .value("delayed-msg-" + i)
+                    .deliverAfter(delayMillis, TimeUnit.MILLISECONDS)
+                    .sendAsync();
+            Thread.sleep(1000);
+        }
+
+        producer.flush();
+
+        Set<String> receivedMessages = new HashSet<>();
+
+        while (receivedMessages.size() < 20) {
+            Message<String> msg = consumer.receive(3, TimeUnit.SECONDS);
+            receivedMessages.add(msg.getValue());
+            consumer.acknowledge(msg);
+        }
+    }
+
 }

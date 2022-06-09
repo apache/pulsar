@@ -20,11 +20,21 @@ package org.apache.pulsar.tests.integration.io.sinks;
 
 import static org.testng.Assert.assertTrue;
 
-import java.io.IOException;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
+import co.elastic.clients.elasticsearch.ElasticsearchClient;
+import co.elastic.clients.elasticsearch.core.SearchRequest;
+import co.elastic.clients.elasticsearch.core.SearchResponse;
+import co.elastic.clients.json.jackson.JacksonJsonpMapper;
+import co.elastic.clients.transport.ElasticsearchTransport;
+import co.elastic.clients.transport.rest_client.RestClientTransport;
+import com.google.common.collect.ImmutableMap;
 import lombok.AllArgsConstructor;
 import lombok.Cleanup;
 import lombok.Data;
@@ -36,20 +46,17 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.apache.pulsar.tests.integration.containers.ElasticSearchContainer;
-import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.awaitility.Awaitility;
-import org.opensearch.action.search.SearchRequest;
-import org.opensearch.action.search.SearchResponse;
-import org.opensearch.client.RequestOptions;
-import org.opensearch.client.RestClient;
-import org.opensearch.client.RestClientBuilder;
-import org.opensearch.client.RestHighLevelClient;
+import org.elasticsearch.client.RestClient;
+import org.elasticsearch.client.RestClientBuilder;
+import org.testcontainers.elasticsearch.ElasticsearchContainer;
 
 @Slf4j
-public class ElasticSearchSinkTester extends SinkTester<ElasticSearchContainer> {
+public abstract class ElasticSearchSinkTester extends SinkTester<ElasticsearchContainer> {
 
-    private RestHighLevelClient elasticClient;
+    private static final String NAME = "elastic-search";
+
+    private ElasticsearchClient elasticClient;
     private boolean schemaEnable;
     private final Schema<KeyValue<SimplePojo, SimplePojo>> kvSchema;
 
@@ -58,6 +65,9 @@ public class ElasticSearchSinkTester extends SinkTester<ElasticSearchContainer> 
     public static final class SimplePojo {
         private String field1;
         private String field2;
+        private List<Integer> list1;
+        private Set<Long> set1;
+        private Map<String, String> map1;
     }
 
     /**
@@ -75,9 +85,9 @@ public class ElasticSearchSinkTester extends SinkTester<ElasticSearchContainer> 
     }
 
     public ElasticSearchSinkTester(boolean schemaEnable) {
-        super(ElasticSearchContainer.NAME, SinkType.ELASTIC_SEARCH);
+        super(NAME, SinkType.ELASTIC_SEARCH);
 
-        sinkConfig.put("elasticSearchUrl", "http://" + ElasticSearchContainer.NAME + ":9200");
+        sinkConfig.put("elasticSearchUrl", "http://" + NAME + ":9200");
         sinkConfig.put("indexName", "test-index");
         this.schemaEnable = schemaEnable;
         if (schemaEnable) {
@@ -92,40 +102,24 @@ public class ElasticSearchSinkTester extends SinkTester<ElasticSearchContainer> 
 
 
     @Override
-    protected ElasticSearchContainer createSinkService(PulsarCluster cluster) {
-        return new ElasticSearchContainer(cluster.getClusterName());
-    }
-
-    @Override
     public void prepareSink() throws Exception {
         RestClientBuilder builder = RestClient.builder(
             new HttpHost(
                 "localhost",
                 serviceContainer.getMappedPort(9200),
                 "http"));
-        elasticClient = new RestHighLevelClient(builder);
-    }
-
-    @Override
-    public void stopServiceContainer(PulsarCluster cluster) {
-        try {
-            if (elasticClient != null) {
-                elasticClient.close();
-            }
-        } catch (IOException e) {
-            log.warn("Error closing elasticClient, ignoring", e);
-        } finally {
-            super.stopServiceContainer(cluster);
-        }
+        ElasticsearchTransport transport = new RestClientTransport(builder.build(),
+                new JacksonJsonpMapper());
+        elasticClient = new ElasticsearchClient(transport);
     }
 
     @Override
     public void validateSinkResult(Map<String, String> kvs) {
-        SearchRequest searchRequest = new SearchRequest("test-index");
-
         Awaitility.await().untilAsserted(() -> {
-            SearchResponse searchResult = elasticClient.search(searchRequest, RequestOptions.DEFAULT);
-            assertTrue(searchResult.getHits().getTotalHits().value > 0, searchResult.toString());
+            SearchResponse searchResult = elasticClient.search(new SearchRequest.Builder().index("test-index")
+                    .q("*:*")
+                    .build(), Map.class);
+            assertTrue(searchResult.hits().total().value() > 0, searchResult.toString());
         });
     }
 
@@ -142,9 +136,20 @@ public class ElasticSearchSinkTester extends SinkTester<ElasticSearchContainer> 
             for (int i = 0; i < numMessages; i++) {
                 String key = "key-" + i;
                 kvs.put(key, key);
+                final SimplePojo keyPojo = new SimplePojo(
+                        "f1_" + i,
+                        "f2_" + i,
+                        Arrays.asList(i, i +1),
+                        new HashSet<>(Arrays.asList((long) i)),
+                        ImmutableMap.of("map1_k_" + i, "map1_kv_" + i));
+                final SimplePojo valuePojo = new SimplePojo(
+                        "f1_" + i,
+                        "f2_" + i,
+                        Arrays.asList(i, i +1),
+                        new HashSet<>(Arrays.asList((long) i)),
+                        ImmutableMap.of("map1_v_" + i, "map1_vv_" + i));
                 producer.newMessage()
-                        .value(new KeyValue<>(new SimplePojo("f1_" + i, "f2_" + i),
-                                new SimplePojo("v1_" + i, "v2_" + i)))
+                        .value(new KeyValue<>(keyPojo, valuePojo))
                         .send();
             }
 
@@ -171,4 +176,11 @@ public class ElasticSearchSinkTester extends SinkTester<ElasticSearchContainer> 
         }
     }
 
+    @Override
+    public void close() throws Exception {
+        if (elasticClient != null) {
+            elasticClient._transport().close();
+            elasticClient = null;
+        }
+    }
 }

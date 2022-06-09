@@ -23,6 +23,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.BatchReceivePolicy;
@@ -42,6 +43,7 @@ import org.apache.pulsar.client.impl.conf.ReaderConfigurationData;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.naming.TopicName;
 
+@Slf4j
 public class ReaderImpl<T> implements Reader<T> {
     private static final BatchReceivePolicy DISABLED_BATCH_RECEIVE_POLICY = BatchReceivePolicy.builder()
             .timeout(0, TimeUnit.MILLISECONDS)
@@ -70,6 +72,13 @@ public class ReaderImpl<T> implements Reader<T> {
         consumerConfiguration.setReceiverQueueSize(readerConfiguration.getReceiverQueueSize());
         consumerConfiguration.setReadCompacted(readerConfiguration.isReadCompacted());
         consumerConfiguration.setPoolMessages(readerConfiguration.isPoolMessages());
+
+        // chunking configuration
+        consumerConfiguration.setMaxPendingChunkedMessage(readerConfiguration.getMaxPendingChunkedMessage());
+        consumerConfiguration.setAutoAckOldestChunkedMessageOnQueueFull(
+                readerConfiguration.isAutoAckOldestChunkedMessageOnQueueFull());
+        consumerConfiguration.setExpireTimeOfIncompleteChunkedMessageMillis(
+                readerConfiguration.getExpireTimeOfIncompleteChunkedMessageMillis());
 
         // Reader doesn't need any batch receiving behaviours
         // disable the batch receive timer for the ConsumerImpl instance wrapped by the ReaderImpl
@@ -119,7 +128,7 @@ public class ReaderImpl<T> implements Reader<T> {
                         this, readerConfiguration.getReaderInterceptorList());
         final int partitionIdx = TopicName.getPartitionIndex(readerConfiguration.getTopicName());
         consumer = new ConsumerImpl<>(client, readerConfiguration.getTopicName(), consumerConfiguration,
-                executorProvider, partitionIdx, false, consumerFuture,
+                executorProvider, partitionIdx, false, false, consumerFuture,
                 readerConfiguration.getStartMessageId(), readerConfiguration.getStartMessageFromRollbackDurationInSec(),
                 schema, consumerInterceptors, true /* createTopicIfDoesNotExist */);
     }
@@ -144,7 +153,11 @@ public class ReaderImpl<T> implements Reader<T> {
 
         // Acknowledge message immediately because the reader is based on non-durable subscription. When it reconnects,
         // it will specify the subscription position anyway
-        consumer.acknowledgeCumulativeAsync(msg);
+        consumer.acknowledgeCumulativeAsync(msg).exceptionally(ex -> {
+            log.warn("[{}][{}] acknowledge message {} cumulative fail.", getTopic(),
+                    getConsumer().getSubscription(), msg.getMessageId(), ex);
+            return null;
+        });
         return msg;
     }
 
@@ -153,7 +166,11 @@ public class ReaderImpl<T> implements Reader<T> {
         Message<T> msg = consumer.receive(timeout, unit);
 
         if (msg != null) {
-            consumer.acknowledgeCumulativeAsync(msg);
+            consumer.acknowledgeCumulativeAsync(msg).exceptionally(ex -> {
+                log.warn("[{}][{}] acknowledge message {} cumulative fail.", getTopic(),
+                        getConsumer().getSubscription(), msg.getMessageId(), ex);
+                return null;
+            });
         }
         return msg;
     }
@@ -163,7 +180,11 @@ public class ReaderImpl<T> implements Reader<T> {
         CompletableFuture<Message<T>> receiveFuture = consumer.receiveAsync();
         receiveFuture.whenComplete((msg, t) -> {
            if (msg != null) {
-               consumer.acknowledgeCumulativeAsync(msg);
+               consumer.acknowledgeCumulativeAsync(msg).exceptionally(ex -> {
+                   log.warn("[{}][{}] acknowledge message {} cumulative fail.", getTopic(),
+                           getConsumer().getSubscription(), msg.getMessageId(), ex);
+                   return null;
+               });
            }
         });
         return receiveFuture;

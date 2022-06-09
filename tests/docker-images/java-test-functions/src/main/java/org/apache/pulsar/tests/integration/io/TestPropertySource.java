@@ -22,10 +22,8 @@ import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.Source;
 import org.apache.pulsar.io.core.SourceContext;
 
-import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Optional;
 
 public class TestPropertySource implements Source<String> {
 
@@ -37,10 +35,6 @@ public class TestPropertySource implements Source<String> {
     public Record<String> read() throws Exception {
         Thread.sleep(50);
         return new Record<String>() {
-            @Override
-            public Optional<String> getKey() {
-                return Optional.empty();
-            }
 
             @Override
             public String getValue() {

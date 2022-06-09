@@ -21,7 +21,7 @@
 # Run C++ unit tests within a Docker container
 
 # Fail script in case of errors
-set -e
+set -e -x
 
 if [ "$1" = "--help" ]; then
     echo "Usage:"
@@ -34,7 +34,7 @@ ROOT_DIR=$(git rev-parse --show-toplevel)
 cd $ROOT_DIR/pulsar-client-cpp
 
 BUILD_IMAGE_NAME="${BUILD_IMAGE_NAME:-apachepulsar/pulsar-build}"
-BUILD_IMAGE_VERSION="${BUILD_IMAGE_VERSION:-ubuntu-16.04-pb3}"
+BUILD_IMAGE_VERSION="${BUILD_IMAGE_VERSION:-ubuntu-20.04}"
 
 IMAGE="$BUILD_IMAGE_NAME:$BUILD_IMAGE_VERSION"
 
@@ -65,7 +65,10 @@ DISABLE_COLOR_OUTPUT=""
 if [ "$GTEST_COLOR" = "no" ]; then
   DISABLE_COLOR_OUTPUT="| cat"
 fi
-$DOCKER_CMD bash -c "set -o pipefail; cd /pulsar/pulsar-client-cpp && ./run-unit-tests.sh ${tests} $DISABLE_COLOR_OUTPUT"
+
+# Java17 is required for CLI e.g) bin/pulsar create-token
+$DOCKER_CMD bash -c "apt-get -y install openjdk-17-jre-headless &&\
+ set -o pipefail; cd /pulsar/pulsar-client-cpp && ./run-unit-tests.sh ${tests} $DISABLE_COLOR_OUTPUT"
 RES=$?
 if [ $RES -ne 0 ]; then
   (

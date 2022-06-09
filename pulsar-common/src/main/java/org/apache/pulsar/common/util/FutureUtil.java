@@ -19,6 +19,8 @@
 package org.apache.pulsar.common.util;
 
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -28,7 +30,10 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * This class is aimed at simplifying work with {@code CompletableFuture}.
@@ -36,35 +41,86 @@ import java.util.function.Supplier;
 public class FutureUtil {
 
     /**
-     * Return a future that represents the completion of the futures in the provided list.
+     * Return a future that represents the completion of the futures in the provided Collection.
      *
      * @param futures futures to wait for
      * @return a new CompletableFuture that is completed when all of the given CompletableFutures complete
      */
-    public static CompletableFuture<Void> waitForAll(List<? extends CompletableFuture<?>> futures) {
+    public static CompletableFuture<Void> waitForAll(Collection<? extends CompletableFuture<?>> futures) {
         return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
     }
 
+    public static <T> CompletableFuture<List<T>> waitForAll(Stream<CompletableFuture<List<T>>> futures) {
+        return futures.reduce(CompletableFuture.completedFuture(new ArrayList<>()),
+                (pre, curr) -> pre.thenCompose(preV -> curr.thenApply(currV -> {
+                    preV.addAll(currV);
+                    return preV;
+                })));
+    }
+
     /**
-     * Return a future that represents the completion of any future in the provided list.
+     * Return a future that represents the completion of any future in the provided Collection.
      *
      * @param futures futures to wait any
      * @return a new CompletableFuture that is completed when any of the given CompletableFutures complete
      */
-    public static CompletableFuture<Object> waitForAny(List<? extends CompletableFuture<?>> futures) {
+    public static CompletableFuture<Object> waitForAny(Collection<? extends CompletableFuture<?>> futures) {
         return CompletableFuture.anyOf(futures.toArray(new CompletableFuture[0]));
+    }
+
+    /**
+     * Return a future that represents the completion of any future that match the predicate in the provided Collection.
+     *
+     * @param futures futures to wait any
+     * @param tester if any future match the predicate
+     * @return a new CompletableFuture that is completed when any of the given CompletableFutures match the tester
+     */
+    public static CompletableFuture<Optional<Object>> waitForAny(Collection<? extends CompletableFuture<?>> futures,
+                                                       Predicate<Object> tester) {
+        return waitForAny(futures).thenCompose(v -> {
+            if (tester.test(v)) {
+                futures.forEach(f -> {
+                    if (!f.isDone()) {
+                        f.cancel(true);
+                    }
+                });
+                return CompletableFuture.completedFuture(Optional.of(v));
+            }
+            Collection<CompletableFuture<?>> doneFutures = futures.stream()
+                    .filter(f -> f.isDone())
+                    .collect(Collectors.toList());
+            futures.removeAll(doneFutures);
+            Optional<?> value = doneFutures.stream()
+                    .filter(f -> !f.isCompletedExceptionally())
+                    .map(CompletableFuture::join)
+                    .filter(tester)
+                    .findFirst();
+            if (!value.isPresent()) {
+                if (futures.size() == 0) {
+                    return CompletableFuture.completedFuture(Optional.empty());
+                }
+                return waitForAny(futures, tester);
+            }
+            futures.forEach(f -> {
+                if (!f.isDone()) {
+                    f.cancel(true);
+                }
+            });
+            return CompletableFuture.completedFuture(Optional.of(value.get()));
+        });
     }
 
 
     /**
-     * Return a future that represents the completion of the futures in the provided list.
+     * Return a future that represents the completion of the futures in the provided Collection.
      * The future will support {@link CompletableFuture#cancel(boolean)}. It will cancel
      * all unfinished futures when the future gets cancelled.
      *
      * @param futures futures to wait for
      * @return a new CompletableFuture that is completed when all of the given CompletableFutures complete
      */
-    public static CompletableFuture<Void> waitForAllAndSupportCancel(List<? extends CompletableFuture<?>> futures) {
+    public static CompletableFuture<Void> waitForAllAndSupportCancel(
+                                                    Collection<? extends CompletableFuture<?>> futures) {
         CompletableFuture[] futuresArray = futures.toArray(new CompletableFuture[0]);
         CompletableFuture<Void> combinedFuture = CompletableFuture.allOf(futuresArray);
         whenCancelledOrTimedOut(combinedFuture, () -> {

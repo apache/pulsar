@@ -25,6 +25,8 @@ import io.netty.util.TimerTask;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import lombok.SneakyThrows;
@@ -37,6 +39,7 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.collections4.map.LinkedMap;
+import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.systopic.SystemTopicClient;
@@ -54,6 +57,7 @@ import org.apache.pulsar.common.policies.data.TransactionBufferStats;
 import org.apache.pulsar.common.policies.data.TransactionInBufferStats;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Markers;
+import org.apache.pulsar.common.util.Codec;
 import org.jctools.queues.MessagePassingQueue;
 import org.jctools.queues.SpscArrayQueue;
 
@@ -92,6 +96,13 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
     private volatile long lastSnapshotTimestamps;
 
     private final CompletableFuture<Void> transactionBufferFuture = new CompletableFuture<>();
+
+    /**
+     * The map is used to store the lowWaterMarks which key is TC ID and value is lowWaterMark of the TC.
+     */
+    private final ConcurrentHashMap<Long, Long> lowWaterMarks = new ConcurrentHashMap<>();
+
+    private final Semaphore handleLowWaterMark = new Semaphore(1);
 
     public TopicTransactionBuffer(PersistentTopic topic) {
         super(State.None);
@@ -178,20 +189,29 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                     }
 
                     @Override
-                    public void recoverExceptionally(Exception e) {
-                        if (e instanceof PulsarClientException.BrokerMetadataException) {
-                            log.warn("Closing topic {} due to read transaction buffer snapshot while recovering the "
-                                    + "transaction buffer throw exception", topic.getName(), e);
-                            topic.close();
+                    public void recoverExceptionally(Throwable e) {
+
+                        log.warn("Closing topic {} due to read transaction buffer snapshot while recovering the "
+                                + "transaction buffer throw exception", topic.getName(), e);
+                        // when create reader or writer fail throw PulsarClientException,
+                        // should close this topic and then reinit this topic
+                        if (e instanceof PulsarClientException) {
+                            // if transaction buffer recover fail throw PulsarClientException,
+                            // we need to change the PulsarClientException to ServiceUnitNotReadyException,
+                            // the tc do op will retry
+                            transactionBufferFuture.completeExceptionally
+                                    (new BrokerServiceException.ServiceUnitNotReadyException(e.getMessage(), e));
+                        } else {
+                            transactionBufferFuture.completeExceptionally(e);
                         }
-                        transactionBufferFuture.completeExceptionally(e);
+                        topic.close(true);
                     }
-                }, this.topic, this));
+                }, this.topic, this, takeSnapshotWriter));
     }
 
     @Override
     public CompletableFuture<TransactionMeta> getTransactionMeta(TxnID txnID) {
-        return null;
+        return CompletableFuture.completedFuture(null);
     }
 
     @Override
@@ -217,8 +237,8 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                     completableFuture.complete(null);
                 }
             }).exceptionally(exception -> {
-                log.error("Topic {}: TransactionBuffer recover failed", this.topic.getName(), exception);
-                completableFuture.completeExceptionally(exception);
+                log.error("Topic {}: TransactionBuffer recover failed", this.topic.getName(), exception.getCause());
+                completableFuture.completeExceptionally(exception.getCause());
                 return null;
             });
             return completableFuture;
@@ -229,6 +249,13 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
     @Override
     public CompletableFuture<Position> appendBufferToTxn(TxnID txnId, long sequenceId, ByteBuf buffer) {
         CompletableFuture<Position> completableFuture = new CompletableFuture<>();
+        Long lowWaterMark = lowWaterMarks.get(txnId.getMostSigBits());
+        if (lowWaterMark != null && lowWaterMark >= txnId.getLeastSigBits()) {
+            completableFuture.completeExceptionally(new BrokerServiceException
+                    .NotAllowedException("Transaction [" + txnId + "] has been ended. "
+                    + "Please use a new transaction to send message."));
+            return completableFuture;
+        }
         topic.getManagedLedger().asyncAddEntry(buffer, new AsyncCallbacks.AddEntryCallback() {
             @Override
             public void addComplete(Position position, ByteBuf entryData, Object ctx) {
@@ -295,8 +322,8 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                 commitMarker.release();
             }
         }).exceptionally(exception -> {
-            log.error("Transaction {} commit on topic {}.", txnID.toString(), topic.getName(), exception);
-            completableFuture.completeExceptionally(exception);
+            log.error("Transaction {} commit on topic {}.", txnID.toString(), topic.getName(), exception.getCause());
+            completableFuture.completeExceptionally(exception.getCause());
             return null;
         });
         return completableFuture;
@@ -323,12 +350,12 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                         synchronized (TopicTransactionBuffer.this) {
                             aborts.put(txnID, (PositionImpl) position);
                             updateMaxReadPosition(txnID);
-                            handleLowWaterMark(txnID, lowWaterMark);
                             changeMaxReadPositionAndAddAbortTimes.getAndIncrement();
                             clearAbortedTransactions();
                             takeSnapshotByChangeTimes();
                         }
                         completableFuture.complete(null);
+                        handleLowWaterMark(txnID, lowWaterMark);
                     }
 
                     @Override
@@ -341,38 +368,44 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                 abortMarker.release();
             }
         }).exceptionally(exception -> {
-            log.error("Transaction {} abort on topic {}.", txnID.toString(), topic.getName());
-            completableFuture.completeExceptionally(exception);
+            log.error("Transaction {} abort on topic {}.", txnID.toString(), topic.getName(), exception.getCause());
+            completableFuture.completeExceptionally(exception.getCause());
             return null;
         });
         return completableFuture;
     }
 
     private void handleLowWaterMark(TxnID txnID, long lowWaterMark) {
-        if (!ongoingTxns.isEmpty()) {
-            TxnID firstTxn = ongoingTxns.firstKey();
-            if (firstTxn.getMostSigBits() == txnID.getMostSigBits() && lowWaterMark >= firstTxn.getLeastSigBits()) {
-                ByteBuf abortMarker = Markers.newTxnAbortMarker(-1L,
-                        firstTxn.getMostSigBits(), firstTxn.getLeastSigBits());
-                try {
-                    topic.getManagedLedger().asyncAddEntry(abortMarker, new AsyncCallbacks.AddEntryCallback() {
-                        @Override
-                        public void addComplete(Position position, ByteBuf entryData, Object ctx) {
-                            synchronized (TopicTransactionBuffer.this) {
-                                aborts.put(firstTxn, (PositionImpl) position);
-                                updateMaxReadPosition(firstTxn);
-                            }
-                        }
-
-                        @Override
-                        public void addFailed(ManagedLedgerException exception, Object ctx) {
-                            log.error("Failed to abort low water mark for txn {}", txnID, exception);
-                        }
-                    }, null);
-                } finally {
-                    abortMarker.release();
+        lowWaterMarks.compute(txnID.getMostSigBits(), (tcId, oldLowWaterMark) -> {
+            if (oldLowWaterMark == null || oldLowWaterMark < lowWaterMark) {
+                return lowWaterMark;
+            } else {
+                return oldLowWaterMark;
+            }
+        });
+        if (handleLowWaterMark.tryAcquire()) {
+            if (!ongoingTxns.isEmpty()) {
+                TxnID firstTxn = ongoingTxns.firstKey();
+                long tCId = firstTxn.getMostSigBits();
+                Long lowWaterMarkOfFirstTxnId = lowWaterMarks.get(tCId);
+                if (lowWaterMarkOfFirstTxnId != null && firstTxn.getLeastSigBits() <= lowWaterMarkOfFirstTxnId) {
+                    abortTxn(firstTxn, lowWaterMarkOfFirstTxnId)
+                            .thenRun(() -> {
+                                log.warn("Successes to abort low water mark for txn [{}], topic [{}],"
+                                        + " lowWaterMark [{}]", firstTxn, topic.getName(), lowWaterMarkOfFirstTxnId);
+                                handleLowWaterMark.release();
+                            })
+                            .exceptionally(ex -> {
+                                log.warn("Failed to abort low water mark for txn {}, topic [{}], "
+                                        + "lowWaterMark [{}], ", firstTxn, topic.getName(), lowWaterMarkOfFirstTxnId,
+                                        ex);
+                                handleLowWaterMark.release();
+                                return null;
+                            });
+                    return;
                 }
             }
+            handleLowWaterMark.release();
         }
     }
 
@@ -541,119 +574,137 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
 
         private final TopicTransactionBuffer topicTransactionBuffer;
 
+        private final CompletableFuture<SystemTopicClient.Writer<TransactionBufferSnapshot>> takeSnapshotWriter;
+
         private TopicTransactionBufferRecover(TopicTransactionBufferRecoverCallBack callBack, PersistentTopic topic,
-                                              TopicTransactionBuffer transactionBuffer) {
+                                              TopicTransactionBuffer transactionBuffer, CompletableFuture<
+                SystemTopicClient.Writer<TransactionBufferSnapshot>> takeSnapshotWriter) {
             this.topic = topic;
             this.callBack = callBack;
             this.entryQueue = new SpscArrayQueue<>(2000);
             this.topicTransactionBuffer = transactionBuffer;
+            this.takeSnapshotWriter = takeSnapshotWriter;
         }
 
         @SneakyThrows
         @Override
         public void run() {
-            if (!this.topicTransactionBuffer.changeToInitializingState()) {
-                log.warn("TransactionBuffer {} of topic {} can not change state to Initializing",
-                        this, topic.getName());
-                return;
-            }
-            topic.getBrokerService().getPulsar().getTransactionBufferSnapshotService()
-                    .createReader(TopicName.get(topic.getName())).thenAcceptAsync(reader -> {
-                try {
-                    boolean hasSnapshot = false;
-                    while (reader.hasMoreEvents()) {
-                        Message<TransactionBufferSnapshot> message = reader.readNext();
-                        if (topic.getName().equals(message.getKey())) {
-                            TransactionBufferSnapshot transactionBufferSnapshot = message.getValue();
-                            if (transactionBufferSnapshot != null) {
-                                hasSnapshot = true;
-                                callBack.handleSnapshot(transactionBufferSnapshot);
-                                this.startReadCursorPosition = PositionImpl.get(
-                                        transactionBufferSnapshot.getMaxReadPositionLedgerId(),
-                                        transactionBufferSnapshot.getMaxReadPositionEntryId());
-                            }
-                        }
-                    }
-                    if (!hasSnapshot) {
-                        callBack.noNeedToRecover();
-                        return;
-                    }
-                } catch (PulsarClientException pulsarClientException) {
-                    log.error("[{}]Transaction buffer recover fail when read "
-                            + "transactionBufferSnapshot!", topic.getName(), pulsarClientException);
-                    callBack.recoverExceptionally(pulsarClientException);
-                    reader.closeAsync().exceptionally(e -> {
-                        log.error("[{}]Transaction buffer reader close error!", topic.getName(), e);
-                        return null;
-                    });
+            this.takeSnapshotWriter.thenRunAsync(() -> {
+                if (!this.topicTransactionBuffer.changeToInitializingState()) {
+                    log.warn("TransactionBuffer {} of topic {} can not change state to Initializing",
+                            this, topic.getName());
                     return;
                 }
-                reader.closeAsync().exceptionally(e -> {
-                    log.error("[{}]Transaction buffer reader close error!", topic.getName(), e);
-                    return null;
-                });
-
-                ManagedCursor managedCursor;
-                try {
-                    managedCursor = topic.getManagedLedger()
-                            .newNonDurableCursor(this.startReadCursorPosition, SUBSCRIPTION_NAME);
-                } catch (ManagedLedgerException e) {
-                    callBack.recoverExceptionally(e);
-                    log.error("[{}]Transaction buffer recover fail when open cursor!", topic.getName(), e);
-                    return;
-                }
-                PositionImpl lastConfirmedEntry = (PositionImpl) topic.getManagedLedger().getLastConfirmedEntry();
-                PositionImpl currentLoadPosition = (PositionImpl) this.startReadCursorPosition;
-                FillEntryQueueCallback fillEntryQueueCallback = new FillEntryQueueCallback(entryQueue,
-                        managedCursor, TopicTransactionBufferRecover.this);
-                if (lastConfirmedEntry.getEntryId() != -1) {
-                    while (lastConfirmedEntry.compareTo(currentLoadPosition) > 0
-                            && fillEntryQueueCallback.fillQueue()) {
-                        Entry entry = entryQueue.poll();
-                        if (entry != null) {
+                topic.getBrokerService().getPulsar().getTransactionBufferSnapshotService()
+                        .createReader(TopicName.get(topic.getName())).thenAcceptAsync(reader -> {
                             try {
-                                currentLoadPosition = PositionImpl.get(entry.getLedgerId(), entry.getEntryId());
-                                callBack.handleTxnEntry(entry);
-                            } finally {
-                                entry.release();
+                                boolean hasSnapshot = false;
+                                while (reader.hasMoreEvents()) {
+                                    Message<TransactionBufferSnapshot> message = reader.readNext();
+                                    if (topic.getName().equals(message.getKey())) {
+                                        TransactionBufferSnapshot transactionBufferSnapshot = message.getValue();
+                                        if (transactionBufferSnapshot != null) {
+                                            hasSnapshot = true;
+                                            callBack.handleSnapshot(transactionBufferSnapshot);
+                                            this.startReadCursorPosition = PositionImpl.get(
+                                                    transactionBufferSnapshot.getMaxReadPositionLedgerId(),
+                                                    transactionBufferSnapshot.getMaxReadPositionEntryId());
+                                        }
+                                    }
+                                }
+                                if (!hasSnapshot) {
+                                    closeReader(reader);
+                                    callBack.noNeedToRecover();
+                                    return;
+                                }
+                            } catch (Exception ex) {
+                                log.error("[{}] Transaction buffer recover fail when read "
+                                        + "transactionBufferSnapshot!", topic.getName(), ex);
+                                callBack.recoverExceptionally(ex);
+                                closeReader(reader);
+                                return;
                             }
-                        } else {
-                            try {
-                                Thread.sleep(1);
-                            } catch (InterruptedException e) {
-                                //no-op
-                            }
-                        }
-                    }
-                }
+                            closeReader(reader);
 
-                closeCursor(managedCursor);
-                callBack.recoverComplete();
-            }, topic.getBrokerService().getPulsar().getTransactionExecutorProvider().getExecutor(this))
-                    .exceptionally(e -> {
-                callBack.recoverExceptionally(new Exception(e));
-                log.error("[{}]Transaction buffer new snapshot reader fail!", topic.getName(), e);
+                            ManagedCursor managedCursor;
+                            try {
+                                managedCursor = topic.getManagedLedger()
+                                        .newNonDurableCursor(this.startReadCursorPosition, SUBSCRIPTION_NAME);
+                            } catch (ManagedLedgerException e) {
+                                callBack.recoverExceptionally(e);
+                                log.error("[{}]Transaction buffer recover fail when open cursor!", topic.getName(), e);
+                                return;
+                            }
+                            PositionImpl lastConfirmedEntry =
+                                    (PositionImpl) topic.getManagedLedger().getLastConfirmedEntry();
+                            PositionImpl currentLoadPosition = (PositionImpl) this.startReadCursorPosition;
+                            FillEntryQueueCallback fillEntryQueueCallback = new FillEntryQueueCallback(entryQueue,
+                                    managedCursor, TopicTransactionBufferRecover.this);
+                            if (lastConfirmedEntry.getEntryId() != -1) {
+                                while (lastConfirmedEntry.compareTo(currentLoadPosition) > 0
+                                        && fillEntryQueueCallback.fillQueue()) {
+                                    Entry entry = entryQueue.poll();
+                                    if (entry != null) {
+                                        try {
+                                            currentLoadPosition = PositionImpl.get(entry.getLedgerId(),
+                                                    entry.getEntryId());
+                                            callBack.handleTxnEntry(entry);
+                                        } finally {
+                                            entry.release();
+                                        }
+                                    } else {
+                                        try {
+                                            Thread.sleep(1);
+                                        } catch (InterruptedException e) {
+                                            //no-op
+                                        }
+                                    }
+                                }
+                            }
+
+                            closeCursor(SUBSCRIPTION_NAME);
+                            callBack.recoverComplete();
+                        }, topic.getBrokerService().getPulsar().getTransactionExecutorProvider()
+                                .getExecutor(this)).exceptionally(e -> {
+                            callBack.recoverExceptionally(e.getCause());
+                            log.error("[{}]Transaction buffer new snapshot reader fail!", topic.getName(), e);
+                            return null;
+                        });
+            }, topic.getBrokerService().getPulsar().getTransactionExecutorProvider()
+                    .getExecutor(this)).exceptionally(e -> {
+                callBack.recoverExceptionally(e.getCause());
+                log.error("[{}]Transaction buffer create snapshot writer fail!",
+                        topic.getName(), e);
                 return null;
             });
         }
 
-        private void closeCursor(ManagedCursor cursor) {
-            cursor.asyncClose(new AsyncCallbacks.CloseCallback() {
+        private void closeCursor(String subscriptionName) {
+            topic.getManagedLedger().asyncDeleteCursor(Codec.encode(subscriptionName),
+                    new AsyncCallbacks.DeleteCursorCallback() {
                 @Override
-                public void closeComplete(Object ctx) {
+                public void deleteCursorComplete(Object ctx) {
                     log.info("[{}]Transaction buffer snapshot recover cursor close complete.", topic.getName());
                 }
 
                 @Override
-                public void closeFailed(ManagedLedgerException exception, Object ctx) {
+                public void deleteCursorFailed(ManagedLedgerException exception, Object ctx) {
                     log.error("[{}]Transaction buffer snapshot recover cursor close fail.", topic.getName());
                 }
+
             }, null);
         }
 
         private void callBackException(ManagedLedgerException e) {
             log.error("Transaction buffer recover fail when recover transaction entry!", e);
             this.exceptionNumber.getAndIncrement();
+        }
+
+        private void closeReader(SystemTopicClient.Reader<TransactionBufferSnapshot> reader) {
+            reader.closeAsync().exceptionally(e -> {
+                log.error("[{}]Transaction buffer reader close error!", topic.getName(), e);
+                return null;
+            });
         }
     }
 
@@ -669,6 +720,8 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
 
         private volatile boolean isReadable = true;
 
+        private static final int NUMBER_OF_PER_READ_ENTRY = 100;
+
         private FillEntryQueueCallback(SpscArrayQueue<Entry> entryQueue, ManagedCursor cursor,
                                        TopicTransactionBufferRecover recover) {
             this.entryQueue = entryQueue;
@@ -676,10 +729,12 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
             this.recover = recover;
         }
         boolean fillQueue() {
-            if (entryQueue.size() < entryQueue.capacity() && outstandingReadsRequests.get() == 0) {
+            if (entryQueue.size() + NUMBER_OF_PER_READ_ENTRY < entryQueue.capacity()
+                    && outstandingReadsRequests.get() == 0) {
                 if (cursor.hasMoreEntries()) {
                     outstandingReadsRequests.incrementAndGet();
-                    cursor.asyncReadEntries(100, this, System.nanoTime(), PositionImpl.LATEST);
+                    cursor.asyncReadEntries(NUMBER_OF_PER_READ_ENTRY,
+                            this, System.nanoTime(), PositionImpl.LATEST);
                 } else {
                     if (entryQueue.size() == 0) {
                         isReadable = false;
@@ -708,11 +763,13 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
             if (recover.topic.getManagedLedger().getConfig().isAutoSkipNonRecoverableData()
                     && exception instanceof ManagedLedgerException.NonRecoverableLedgerException
-                    || exception instanceof ManagedLedgerException.ManagedLedgerFencedException) {
+                    || exception instanceof ManagedLedgerException.ManagedLedgerFencedException
+                    || exception instanceof ManagedLedgerException.CursorAlreadyClosedException) {
                 isReadable = false;
+            } else {
+                outstandingReadsRequests.decrementAndGet();
             }
             recover.callBackException(exception);
-            outstandingReadsRequests.decrementAndGet();
         }
     }
 }

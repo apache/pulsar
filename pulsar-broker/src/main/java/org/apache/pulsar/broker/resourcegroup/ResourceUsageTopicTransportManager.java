@@ -44,6 +44,7 @@ import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderListener;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
+import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.slf4j.Logger;
@@ -69,7 +70,7 @@ public class ResourceUsageTopicTransportManager implements ResourceUsageTranspor
             final int sendTimeoutSecs = 10;
 
             return pulsarClient.newProducer(Schema.BYTEBUFFER)
-                    .topic(RESOURCE_USAGE_TOPIC_NAME)
+                    .topic(SystemTopicNames.RESOURCE_USAGE_TOPIC.toString())
                     .batchingMaxPublishDelay(publishDelayMilliSecs, TimeUnit.MILLISECONDS)
                     .sendTimeout(sendTimeoutSecs, TimeUnit.SECONDS)
                     .blockIfQueueFull(false)
@@ -123,7 +124,7 @@ public class ResourceUsageTopicTransportManager implements ResourceUsageTranspor
 
         public ResourceUsageReader() throws PulsarClientException {
             consumer =  pulsarClient.newReader()
-                    .topic(RESOURCE_USAGE_TOPIC_NAME)
+                    .topic(SystemTopicNames.RESOURCE_USAGE_TOPIC.toString())
                     .startMessageId(MessageId.latest)
                     .readerListener(this)
                     .create();
@@ -165,7 +166,6 @@ public class ResourceUsageTopicTransportManager implements ResourceUsageTranspor
     }
 
     private static final Logger LOG = LoggerFactory.getLogger(ResourceUsageTopicTransportManager.class);
-    public  static final String RESOURCE_USAGE_TOPIC_NAME = "non-persistent://pulsar/system/resource-usage";
     private final PulsarService pulsarService;
     private final PulsarClient pulsarClient;
     private final ResourceUsageWriterTask pTask;
@@ -177,7 +177,7 @@ public class ResourceUsageTopicTransportManager implements ResourceUsageTranspor
 
     private void createTenantAndNamespace() throws PulsarServerException, PulsarAdminException {
         // Create a public tenant and default namespace
-        TopicName topicName = TopicName.get(RESOURCE_USAGE_TOPIC_NAME);
+        TopicName topicName = SystemTopicNames.RESOURCE_USAGE_TOPIC;
 
         PulsarAdmin admin = pulsarService.getAdminClient();
         ServiceConfiguration config = pulsarService.getConfig();

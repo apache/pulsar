@@ -75,15 +75,13 @@ class DLInputStream {
                     }
                     return;
                 }
-                CompletableFuture.runAsync(() -> {
-                    logRecordWithDLSNS.forEach(logRecord -> {
-                        try {
-                            outputStream.write(logRecord.getPayload());
-                        } catch (IOException e) {
-                            readFuture.completeExceptionally(e);
-                        }
-                    });
-                }).thenRun(() -> read(outputStream, readFuture, num));
+                CompletableFuture.runAsync(() -> logRecordWithDLSNS.forEach(logRecord -> {
+                    try {
+                        outputStream.write(logRecord.getPayload());
+                    } catch (IOException e) {
+                        readFuture.completeExceptionally(e);
+                    }
+                })).thenRun(() -> read(outputStream, readFuture, num));
             });
     }
 

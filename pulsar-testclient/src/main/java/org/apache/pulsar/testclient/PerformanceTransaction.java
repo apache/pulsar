@@ -62,6 +62,7 @@ import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SizeUnit;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.Transaction;
@@ -142,7 +143,7 @@ public class PerformanceTransaction {
 
         @Parameter(names = {"-c",
                 "--max-connections"}, description = "Max number of TCP connections to a single broker")
-        public int maxConnections = 100;
+        public int maxConnections = 1;
 
         @Parameter(names = {"-time",
                 "--test-duration"}, description = "Test duration (in second). 0 means keeping publishing")
@@ -295,7 +296,9 @@ public class PerformanceTransaction {
         }
 
         ClientBuilder clientBuilder =
-                PulsarClient.builder().enableTransaction(!arguments.isDisableTransaction)
+                PulsarClient.builder()
+                        .memoryLimit(0, SizeUnit.BYTES)
+                        .enableTransaction(!arguments.isDisableTransaction)
                         .serviceUrl(arguments.serviceURL)
                         .connectionsPerBroker(arguments.maxConnections)
                         .statsInterval(0, TimeUnit.SECONDS)

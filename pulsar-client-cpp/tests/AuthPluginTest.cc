@@ -25,6 +25,7 @@
 #include <lib/LogUtils.h>
 #include <lib/auth/AuthOauth2.h>
 
+#include <lib/Latch.h>
 #include "lib/Future.h"
 #include "lib/Utils.h"
 DECLARE_LOG_OBJECT()
@@ -190,7 +191,7 @@ TEST(AuthPluginTest, testTlsDetectHttpsWithHostNameValidation) {
 
 namespace testAthenz {
 std::string principalToken;
-void mockZTS(int port) {
+void mockZTS(Latch& latch, int port) {
     LOG_INFO("-- MockZTS started");
     boost::asio::io_service io;
     boost::asio::ip::tcp::iostream stream;
@@ -198,6 +199,7 @@ void mockZTS(int port) {
                                             boost::asio::ip::tcp::endpoint(boost::asio::ip::tcp::v4(), port));
 
     LOG_INFO("-- MockZTS waiting for connnection");
+    latch.countdown();
     acceptor.accept(*stream.rdbuf());
     LOG_INFO("-- MockZTS got connection");
 
@@ -226,7 +228,8 @@ void mockZTS(int port) {
 }  // namespace testAthenz
 
 TEST(AuthPluginTest, testAthenz) {
-    std::thread zts(std::bind(&testAthenz::mockZTS, 9999));
+    Latch latch(1);
+    std::thread zts(std::bind(&testAthenz::mockZTS, std::ref(latch), 9999));
     pulsar::AuthenticationDataPtr data;
     std::string params = R"({
         "tenantDomain": "pulsar.test.tenant",
@@ -238,6 +241,7 @@ TEST(AuthPluginTest, testAthenz) {
     })";
 
     LOG_INFO("PARAMS: " << params);
+    latch.wait();
     pulsar::AuthenticationPtr auth = pulsar::AuthAthenz::create(params);
     ASSERT_EQ(auth->getAuthMethodName(), "athenz");
     ASSERT_EQ(auth->getAuthData(data), pulsar::ResultOk);
@@ -296,7 +300,8 @@ TEST(AuthPluginTest, testAuthFactoryTls) {
 }
 
 TEST(AuthPluginTest, testAuthFactoryAthenz) {
-    std::thread zts(std::bind(&testAthenz::mockZTS, 9998));
+    Latch latch(1);
+    std::thread zts(std::bind(&testAthenz::mockZTS, std::ref(latch), 9998));
     pulsar::AuthenticationDataPtr data;
     std::string params = R"({
         "tenantDomain": "pulsar.test2.tenant",
@@ -307,6 +312,7 @@ TEST(AuthPluginTest, testAuthFactoryAthenz) {
         "ztsUrl": "http://localhost:9998"
     })";
     LOG_INFO("PARAMS: " << params);
+    latch.wait();
     pulsar::AuthenticationPtr auth = pulsar::AuthFactory::create("athenz", params);
     ASSERT_EQ(auth->getAuthMethodName(), "athenz");
     ASSERT_EQ(auth->getAuthData(data), pulsar::ResultOk);

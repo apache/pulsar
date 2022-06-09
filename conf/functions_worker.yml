@@ -23,6 +23,7 @@
 
 workerId: standalone
 workerHostname: localhost
+# Set to null to disable the non-TLS service port.
 workerPort: 6750
 workerPortTls: 6751
 
@@ -48,6 +49,8 @@ metadataStoreCacheExpirySeconds: 300
 
 numFunctionPackageReplicas: 1
 downloadDirectory: download/pulsar_functions
+#Enable Functions Worker to use packageManagement Service to store package.
+functionsWorkerEnablePackageManagement: false
 # Classname of Pluggable JVM GC metrics logger that can log GC specific metrics
 # jvmGCMetricsLoggerClassName:
 
@@ -317,6 +320,62 @@ tlsAllowInsecureConnection: false
 tlsEnableHostnameVerification: false
 # Tls cert refresh duration in seconds (set 0 to check on every new connection)
 tlsCertRefreshCheckDurationSec: 300
+# Whether client certificates are required for TLS. Connections are rejected if the client
+# certificate isn't trusted.
+tlsRequireTrustedClientCertOnConnect: false
+
+### --- TLS config variables --- ###
+## Note that some of the above TLS configs also apply to the KeyStore TLS configuration.
+
+# Specify the TLS provider for the web service: SunJSSE, Conscrypt and etc.
+tlsProvider: Conscrypt
+
+# Enable TLS with KeyStore type configuration in function worker.
+tlsEnabledWithKeyStore: false
+
+# TLS KeyStore type configuration in function worker: JKS, PKCS12
+tlsKeyStoreType: JKS
+
+# TLS KeyStore path in function worker
+tlsKeyStore:
+
+# TLS KeyStore password for function worker
+tlsKeyStorePassword:
+
+# TLS TrustStore type configuration in function worker: JKS, PKCS12
+tlsTrustStoreType: JKS
+
+# TLS TrustStore path in function worker
+tlsTrustStore:
+
+# TLS TrustStore password in function worker, default value is empty password
+tlsTrustStorePassword:
+
+# Specify the tls protocols the function worker's web service will use to negotiate during TLS handshake
+# (a comma-separated list of protocol names).
+# Examples:- [TLSv1.3, TLSv1.2]
+webServiceTlsProtocols:
+
+# Specify the tls cipher the function worker will use to negotiate during TLS Handshake
+# (a comma-separated list of ciphers).
+# Examples:- [TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256]
+webServiceTlsCiphers:
+
+### --- SASL Authentication Provider --- ###
+
+# This is a regexp, which limits the range of possible ids which can connect to the Broker using SASL.
+# Default value: `SaslConstants.JAAS_CLIENT_ALLOWED_IDS_DEFAULT`, which is ".*pulsar.*",
+# so only clients whose id contains 'pulsar' are allowed to connect.
+saslJaasClientAllowedIds: .*pulsar.*
+
+# Service Principal, for login context name.
+# Default value `SaslConstants.JAAS_DEFAULT_BROKER_SECTION_NAME`, which is "PulsarFunction".
+saslJaasServerSectionName: PulsarFunction
+
+# Path to file containing the secret to be used to SaslRoleTokenSigner
+# The Path can be specified like:
+# saslJaasServerRoleTokenSignerSecretPath=file:///my/saslRoleTokenSignerSecret.key
+saslJaasServerRoleTokenSignerSecretPath:
 
 ########################
 # State Management
@@ -338,6 +397,26 @@ validateConnectorConfig: false
 # Whether to initialize distributed log metadata by runtime.
 # If it is set to true, you must ensure that it has been initialized by "bin/pulsar initialize-cluster-metadata" command.
 initializedDlogMetadata: false
+
+###########################
+# Arbitrary Configuration
+###########################
+# When a configuration parameter is not explicitly named in the WorkerConfig class, it is only accessible from the
+# properties map. This map can be configured by supplying values to the properties map in this config file.
+
+# Configure the DLog bookkeeper client by prefixing configurations with "bookkeeper_". Because these are arbitrary, they
+# must be added to the properties map to get correctly applied. This configuration applies to the Dlog bookkeeper client
+# in both the standalone function workers and function workers initialized in the broker.
+
+# You can add extra configuration options for the Pulsar Client and the Pulsar Admin Client
+# by prefixing them with "brokerClient_". These configurations are applied after hard coded configuration
+# and before the above brokerClient configurations named above.
+
+## For example, when using the token authentication provider (AuthenticationProviderToken), you must configure several
+## custom configurations. Here is a sample for configuring one of the necessary configs:
+#properties:
+#    tokenPublicKey: "file:///path/to/my/key"
+#    tokenPublicAlg: "RSA256"
 
 ### --- Deprecated settings --- ###
 configurationStoreServers: localhost:2181

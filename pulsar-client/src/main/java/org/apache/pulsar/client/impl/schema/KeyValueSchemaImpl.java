@@ -21,7 +21,9 @@ package org.apache.pulsar.client.impl.schema;
 import static com.google.common.base.Preconditions.checkArgument;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Schema;
@@ -47,6 +49,8 @@ public class KeyValueSchemaImpl<K, V> extends AbstractSchema<KeyValue<K, V>> imp
     private final Schema<V> valueSchema;
 
     private final KeyValueEncodingType keyValueEncodingType;
+
+    private final Map<SchemaVersion, Schema<?>> schemaMap = new ConcurrentHashMap<>();
 
     // schemaInfo combined by KeySchemaInfo and ValueSchemaInfo:
     //   [keyInfo.length][keyInfo][valueInfo.length][ValueInfo]
@@ -292,12 +296,23 @@ public class KeyValueSchemaImpl<K, V> extends AbstractSchema<KeyValue<K, V>> imp
         if (!supportSchemaVersioning()) {
             return this;
         } else {
-            Schema<?> keySchema = this.keySchema instanceof AbstractSchema ? ((AbstractSchema) this.keySchema)
-                    .atSchemaVersion(schemaVersion) : this.keySchema;
-            Schema<?> valueSchema = this.valueSchema instanceof AbstractSchema ? ((AbstractSchema) this.valueSchema)
-                    .atSchemaVersion(schemaVersion) : this.valueSchema;
-            return KeyValueSchemaImpl.of(keySchema, valueSchema, keyValueEncodingType);
+            if (schemaVersion == null) {
+                return internalAtSchemaVersion(null);
+            }
+            return schemaMap.computeIfAbsent(
+                    BytesSchemaVersion.of(schemaVersion),
+                    __ -> internalAtSchemaVersion(schemaVersion));
         }
+    }
+
+    private Schema<?> internalAtSchemaVersion(byte[] schemaVersion) {
+        Schema<?> keySchema = this.keySchema instanceof AbstractSchema
+                ? ((AbstractSchema) this.keySchema).atSchemaVersion(schemaVersion)
+                : this.keySchema;
+        Schema<?> valueSchema = this.valueSchema instanceof AbstractSchema
+                ? ((AbstractSchema) this.valueSchema).atSchemaVersion(schemaVersion)
+                : this.valueSchema;
+        return KeyValueSchemaImpl.of(keySchema, valueSchema, keyValueEncodingType);
     }
 
     /**
@@ -354,7 +369,7 @@ public class KeyValueSchemaImpl<K, V> extends AbstractSchema<KeyValue<K, V>> imp
             throw new SchemaSerializationException("Can't get accurate schema information for " + topicName + " "
                     + "using KeyValueSchemaImpl because SchemaInfoProvider is not set yet");
         } else {
-            SchemaInfo schemaInfo = null;
+            SchemaInfo schemaInfo;
             try {
                 schemaInfo = schemaInfoProvider.getSchemaByVersion(schemaVersion.bytes()).get();
                 if (schemaInfo == null) {

@@ -141,7 +141,7 @@ public class BrokersImpl extends BaseResource implements Brokers {
 
     @Override
     public Map<String, String> getAllDynamicConfigurations() throws PulsarAdminException {
-        return sync(() -> getAllDynamicConfigurationsAsync());
+        return sync(this::getAllDynamicConfigurationsAsync);
     }
 
     @Override
@@ -165,7 +165,7 @@ public class BrokersImpl extends BaseResource implements Brokers {
 
     @Override
     public List<String> getDynamicConfigurationNames() throws PulsarAdminException {
-        return sync(() -> getDynamicConfigurationNamesAsync());
+        return sync(this::getDynamicConfigurationNamesAsync);
     }
 
     @Override
@@ -189,7 +189,7 @@ public class BrokersImpl extends BaseResource implements Brokers {
 
     @Override
     public Map<String, String> getRuntimeConfigurations() throws PulsarAdminException {
-        return sync(() -> getRuntimeConfigurationsAsync());
+        return sync(this::getRuntimeConfigurationsAsync);
     }
 
     @Override
@@ -213,7 +213,7 @@ public class BrokersImpl extends BaseResource implements Brokers {
 
     @Override
     public InternalConfigurationData getInternalConfigurationData() throws PulsarAdminException {
-        return sync(() -> getInternalConfigurationDataAsync());
+        return sync(this::getInternalConfigurationDataAsync);
     }
 
     @Override
@@ -237,7 +237,7 @@ public class BrokersImpl extends BaseResource implements Brokers {
 
     @Override
     public void backlogQuotaCheck() throws PulsarAdminException {
-        sync(() -> backlogQuotaCheckAsync());
+        sync(this::backlogQuotaCheckAsync);
     }
 
     @Override
@@ -313,7 +313,7 @@ public class BrokersImpl extends BaseResource implements Brokers {
 
     @Override
     public String getVersion() throws PulsarAdminException {
-        return sync(() -> getVersionAsync());
+        return sync(this::getVersionAsync);
     }
 
     public CompletableFuture<String> getVersionAsync() {

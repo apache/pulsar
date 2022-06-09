@@ -23,23 +23,33 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.avro.util.Utf8;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.GenericSchema;
+import org.apache.pulsar.client.api.schema.RecordSchemaBuilder;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
 import org.apache.pulsar.client.impl.schema.generic.GenericAvroSchema;
 import org.apache.pulsar.client.impl.schema.generic.GenericSchemaImpl;
+import org.apache.pulsar.common.schema.KeyValue;
+import org.apache.pulsar.common.schema.KeyValueEncodingType;
+import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.source.PulsarRecord;
+import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
@@ -66,7 +76,7 @@ public class SqliteJdbcSinkTest {
         private int field3;
     }
 
-    @BeforeMethod
+    @BeforeMethod(alwaysRun = true)
     public void setUp() throws Exception {
         sqliteUtils.setUp();
         sqliteUtils.createTable(
@@ -111,7 +121,7 @@ public class SqliteJdbcSinkTest {
     }
 
     private void testOpenAndWriteSinkNullValue(Map<String, String> actionProperties) throws Exception {
-        Message<GenericRecord> insertMessage = mock(MessageImpl.class);
+        Message<GenericObject> insertMessage = mock(MessageImpl.class);
         GenericSchema<GenericRecord> genericAvroSchema;
         // prepare a foo Record
         Foo insertObj = new Foo();
@@ -123,7 +133,7 @@ public class SqliteJdbcSinkTest {
 
         byte[] insertBytes = schema.encode(insertObj);
         CompletableFuture<Void> future = new CompletableFuture<>();
-        Record<GenericRecord> insertRecord = PulsarRecord.<GenericRecord>builder()
+        Record<GenericObject> insertRecord = PulsarRecord.<GenericObject>builder()
             .message(insertMessage)
             .topicName("fake_topic_name")
             .ackFunction(() -> future.complete(null))
@@ -155,7 +165,7 @@ public class SqliteJdbcSinkTest {
     }
 
     private void testOpenAndWriteSinkJson(Map<String, String> actionProperties) throws Exception {
-        Message<GenericRecord> insertMessage = mock(MessageImpl.class);
+        Message<GenericObject> insertMessage = mock(MessageImpl.class);
         GenericSchema<GenericRecord> genericAvroSchema;
         // prepare a foo Record
         Foo insertObj = new Foo();
@@ -166,7 +176,7 @@ public class SqliteJdbcSinkTest {
 
         byte[] insertBytes = schema.encode(insertObj);
         CompletableFuture<Void> future = new CompletableFuture<>();
-        Record<GenericRecord> insertRecord = PulsarRecord.<GenericRecord>builder()
+        Record<GenericObject> insertRecord = PulsarRecord.<GenericObject>builder()
             .message(insertMessage)
             .topicName("fake_topic_name")
             .ackFunction(() -> future.complete(null))
@@ -198,7 +208,7 @@ public class SqliteJdbcSinkTest {
     }
 
     private void testOpenAndWriteSinkNullValueJson(Map<String, String> actionProperties) throws Exception {
-        Message<GenericRecord> insertMessage = mock(MessageImpl.class);
+        Message<GenericObject> insertMessage = mock(MessageImpl.class);
         GenericSchema<GenericRecord> genericAvroSchema;
         // prepare a foo Record
         Foo insertObj = new Foo();
@@ -210,7 +220,7 @@ public class SqliteJdbcSinkTest {
 
         byte[] insertBytes = schema.encode(insertObj);
         CompletableFuture<Void> future = new CompletableFuture<>();
-        Record<GenericRecord> insertRecord = PulsarRecord.<GenericRecord>builder()
+        Record<GenericObject> insertRecord = PulsarRecord.<GenericObject>builder()
             .message(insertMessage)
             .topicName("fake_topic_name")
             .ackFunction(() -> future.complete(null))
@@ -228,6 +238,7 @@ public class SqliteJdbcSinkTest {
         jdbcSink.write(insertRecord);
         log.info("executed write");
         // sleep to wait backend flush complete
+        // sleep to wait backend flush complete
         future.get(1, TimeUnit.SECONDS);
 
         // value has been written to db, read it out and verify.
@@ -242,7 +253,7 @@ public class SqliteJdbcSinkTest {
     }
 
     private void testOpenAndWriteSink(Map<String, String> actionProperties) throws Exception {
-        Message<GenericRecord> insertMessage = mock(MessageImpl.class);
+        Message<GenericObject> insertMessage = mock(MessageImpl.class);
         GenericSchema<GenericRecord> genericAvroSchema;
         // prepare a foo Record
         Foo insertObj = new Foo();
@@ -253,7 +264,7 @@ public class SqliteJdbcSinkTest {
 
         byte[] insertBytes = schema.encode(insertObj);
         CompletableFuture<Void> future = new CompletableFuture<>();
-        Record<GenericRecord> insertRecord = PulsarRecord.<GenericRecord>builder()
+        Record<GenericObject> insertRecord = PulsarRecord.<GenericObject>builder()
             .message(insertMessage)
             .topicName("fake_topic_name")
             .ackFunction(() -> future.complete(null))
@@ -311,7 +322,7 @@ public class SqliteJdbcSinkTest {
 
     @Test
     public void TestUnknownAction() throws Exception {
-        Record<GenericRecord> recordRecord = mock(Record.class);
+        Record<GenericObject> recordRecord = mock(Record.class);
         when(recordRecord.getProperties()).thenReturn(ImmutableMap.of("ACTION", "UNKNOWN"));
         CompletableFuture<Void> future = new CompletableFuture<>();
         doAnswer(a -> future.complete(null)).when(recordRecord).fail();
@@ -330,9 +341,9 @@ public class SqliteJdbcSinkTest {
         updateObj.setField3(4);
 
         byte[] updateBytes = schema.encode(updateObj);
-        Message<GenericRecord> updateMessage = mock(MessageImpl.class);
+        Message<GenericObject> updateMessage = mock(MessageImpl.class);
         CompletableFuture<Void> future = new CompletableFuture<>();
-        Record<GenericRecord> updateRecord = PulsarRecord.<GenericRecord>builder()
+        Record<GenericObject> updateRecord = PulsarRecord.<GenericObject>builder()
                 .message(updateMessage)
                 .topicName("fake_topic_name")
                 .ackFunction(() -> future.complete(null))
@@ -371,9 +382,9 @@ public class SqliteJdbcSinkTest {
         deleteObj.setField3(5);
 
         byte[] deleteBytes = schema.encode(deleteObj);
-        Message<GenericRecord> deleteMessage = mock(MessageImpl.class);
+        Message<GenericObject> deleteMessage = mock(MessageImpl.class);
         CompletableFuture<Void> future = new CompletableFuture<>();
-        Record<GenericRecord> deleteRecord = PulsarRecord.<GenericRecord>builder()
+        Record<GenericObject> deleteRecord = PulsarRecord.<GenericObject>builder()
                 .message(deleteMessage)
                 .topicName("fake_topic_name")
                 .ackFunction(() -> future.complete(null))
@@ -396,6 +407,115 @@ public class SqliteJdbcSinkTest {
         // value has been written to db, read it out and verify.
         String deleteQuerySql = "SELECT * FROM " + tableName + " WHERE field3=5";
         Assert.assertEquals(sqliteUtils.select(deleteQuerySql, (resultSet) -> {}), 0);
+    }
+
+    @DataProvider(name = "schemaType")
+    public Object[] schemaType() {
+        return new Object[]{SchemaType.JSON, SchemaType.AVRO};
+    }
+
+
+    @Test(dataProvider = "schemaType")
+    public void testKeyValueSchema(SchemaType schemaType) throws Exception {
+        RecordSchemaBuilder keySchemaBuilder = org.apache.pulsar.client.api.schema.SchemaBuilder.record("key");
+        keySchemaBuilder.field("key").type(SchemaType.STRING).optional().defaultValue(null);
+        GenericSchema<GenericRecord> keySchema = Schema.generic(keySchemaBuilder.build(schemaType));
+        GenericRecord keyGenericRecord = keySchema.newRecordBuilder()
+                .set("key", "mykey")
+                .build();
+
+        RecordSchemaBuilder valueSchemaBuilder = org.apache.pulsar.client.api.schema.SchemaBuilder.record("value");
+        valueSchemaBuilder.field("string").type(SchemaType.STRING).optional().defaultValue(null);
+        valueSchemaBuilder.field("stringutf8").type(SchemaType.STRING).optional().defaultValue(null);
+        valueSchemaBuilder.field("int").type(SchemaType.INT32).optional().defaultValue(null);
+        valueSchemaBuilder.field("bool").type(SchemaType.BOOLEAN).optional().defaultValue(null);
+        valueSchemaBuilder.field("double").type(SchemaType.DOUBLE).optional().defaultValue(null);
+        valueSchemaBuilder.field("float").type(SchemaType.FLOAT).optional().defaultValue(null);
+        valueSchemaBuilder.field("long").type(SchemaType.INT64).optional().defaultValue(null);
+        GenericSchema<GenericRecord> valueSchema = Schema.generic(valueSchemaBuilder.build(schemaType));
+
+        GenericRecord valueGenericRecord = valueSchema.newRecordBuilder()
+                .set("string", "thestring")
+                .set("stringutf8", schemaType == SchemaType.AVRO ? new Utf8("thestringutf8"): "thestringutf8")
+                .set("int", Integer.MAX_VALUE)
+                .set("bool", true)
+                .set("double", Double.MAX_VALUE)
+                .set("float", Float.MAX_VALUE)
+                .set("long", Long.MIN_VALUE)
+                .build();
+
+        Schema<KeyValue<GenericRecord, GenericRecord>> keyValueSchema = Schema.KeyValue(keySchema, valueSchema, KeyValueEncodingType.INLINE);
+        KeyValue<GenericRecord, GenericRecord> keyValue = new KeyValue<>(keyGenericRecord, valueGenericRecord);
+        GenericObject genericObject = new GenericObject() {
+            @Override
+            public SchemaType getSchemaType() {
+                return SchemaType.KEY_VALUE;
+            }
+
+            @Override
+            public Object getNativeObject() {
+                return keyValue;
+            }
+        };
+        Record<GenericObject> genericObjectRecord = new Record<>() {
+            @Override
+            public Optional<String> getTopicName() {
+                return Optional.of("topic");
+            }
+
+            @Override
+            public org.apache.pulsar.client.api.Schema getSchema() {
+                return keyValueSchema;
+            }
+
+            @Override
+            public GenericObject getValue() {
+                return genericObject;
+            }
+        };
+        jdbcSink.close();
+        sqliteUtils.createTable(
+                "CREATE TABLE kvtable (" +
+                        "    key  TEXT," +
+                        "    int  INTEGER," +
+                        "    string TEXT," +
+                        "    stringutf8 TEXT," +
+                        "    nulltext  TEXT," +
+                        "    bool  NUMERIC," +
+                        "    double NUMERIC," +
+                        "    float NUMERIC," +
+                        "    long INTEGER," +
+                        "PRIMARY KEY (key));"
+        );
+        String jdbcUrl = sqliteUtils.sqliteUri();
+
+        Map<String, Object> conf = Maps.newHashMap();
+        conf.put("jdbcUrl", jdbcUrl);
+        conf.put("tableName", "kvtable");
+        conf.put("key", "key");
+        conf.put("nonKey", "long,int,double,float,bool,nulltext,string,stringutf8");
+        // change batchSize to 1, to flush on each write.
+        conf.put("batchSize", 1);
+        try (SqliteJdbcAutoSchemaSink kvSchemaJdbcSink = new SqliteJdbcAutoSchemaSink();) {
+            kvSchemaJdbcSink.open(conf, null);
+            kvSchemaJdbcSink.write(genericObjectRecord);
+
+            Awaitility.await().untilAsserted(() -> {
+                final int count = sqliteUtils.select("select int,string,stringutf8,bool,double,float," +
+                        "long,nulltext from kvtable where key='mykey'", (resultSet) -> {
+                    int index = 1;
+                    Assert.assertEquals(resultSet.getInt(index++), Integer.MAX_VALUE);
+                    Assert.assertEquals(resultSet.getString(index++), "thestring");
+                    Assert.assertEquals(resultSet.getString(index++), "thestringutf8");
+                    Assert.assertEquals(resultSet.getBoolean(index++), true);
+                    Assert.assertEquals(resultSet.getDouble(index++), Double.MAX_VALUE);
+                    Assert.assertEquals(resultSet.getFloat(index++), Float.MAX_VALUE);
+                    Assert.assertEquals(resultSet.getLong(index++), Long.MIN_VALUE);
+                    Assert.assertNull(resultSet.getString(index++));
+                });
+                Assert.assertEquals(count, 1);
+            });
+        }
     }
 
 }

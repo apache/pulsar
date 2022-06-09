@@ -105,7 +105,8 @@ public class MockManagedLedger implements ManagedLedger {
 
     @Override
     public ManagedCursor openCursor(String name, CommandSubscribe.InitialPosition initialPosition,
-                                    Map<String, Long> properties) throws InterruptedException, ManagedLedgerException {
+                                    Map<String, Long> properties, Map<String, String> cursorProperties)
+            throws InterruptedException, ManagedLedgerException {
         return null;
     }
 
@@ -155,7 +156,8 @@ public class MockManagedLedger implements ManagedLedger {
 
     @Override
     public void asyncOpenCursor(String name, CommandSubscribe.InitialPosition initialPosition,
-                                Map<String, Long> properties, AsyncCallbacks.OpenCursorCallback callback, Object ctx) {
+                                Map<String, Long> properties, Map<String, String> cursorProperties,
+                                AsyncCallbacks.OpenCursorCallback callback, Object ctx) {
 
     }
 
@@ -338,7 +340,7 @@ public class MockManagedLedger implements ManagedLedger {
 
     @Override
     public CompletableFuture<Position> asyncFindPosition(Predicate<Entry> predicate) {
-        return null;
+        return CompletableFuture.completedFuture(null);
     }
 
     @Override
@@ -359,7 +361,7 @@ public class MockManagedLedger implements ManagedLedger {
 
     @Override
     public CompletableFuture<ManagedLedgerInternalStats> getManagedLedgerInternalStats(boolean includeLedgerMetadata) {
-        return null;
+        return CompletableFuture.completedFuture(null);
     }
 
     @Override

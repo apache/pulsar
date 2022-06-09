@@ -21,6 +21,10 @@ package org.apache.pulsar.io.elasticsearch;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.databind.json.JsonMapper;
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import java.nio.charset.StandardCharsets;
@@ -29,6 +33,7 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.Message;
@@ -56,7 +61,8 @@ public class ElasticSearchSink implements Sink<GenericObject> {
 
     private ElasticSearchConfig elasticSearchConfig;
     private ElasticSearchClient elasticsearchClient;
-    private ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper = new ObjectMapper();
+    private ObjectMapper sortedObjectMapper;
     private List<String> primaryFields = null;
 
     @Override
@@ -66,6 +72,19 @@ public class ElasticSearchSink implements Sink<GenericObject> {
         elasticsearchClient = new ElasticSearchClient(elasticSearchConfig);
         if (!Strings.isNullOrEmpty(elasticSearchConfig.getPrimaryFields())) {
             primaryFields = Arrays.asList(elasticSearchConfig.getPrimaryFields().split(","));
+        }
+        if (elasticSearchConfig.isCanonicalKeyFields()) {
+            sortedObjectMapper = JsonMapper
+                    .builder()
+                            .configure(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS, true)
+                    .nodeFactory(new JsonNodeFactory() {
+                        @Override
+                        public ObjectNode objectNode() {
+                            return new ObjectNode(this, new TreeMap<String, JsonNode>());
+                        }
+
+                    })
+                    .build();
         }
     }
 
@@ -238,9 +257,11 @@ public class ElasticSearchSink implements Sink<GenericObject> {
         }
     }
 
+
     /**
      * Convert a JsonNode to an Elasticsearch id.
      */
+
     public String stringifyKey(JsonNode jsonNode) throws JsonProcessingException {
         List<String> fields = new ArrayList<>();
         jsonNode.fieldNames().forEachRemaining(fields::add);
@@ -248,15 +269,24 @@ public class ElasticSearchSink implements Sink<GenericObject> {
     }
 
     public String stringifyKey(JsonNode jsonNode, List<String> fields) throws JsonProcessingException {
+        JsonNode toConvert;
         if (fields.size() == 1) {
-            JsonNode singleNode = jsonNode.get(fields.get(0));
-            String id = objectMapper.writeValueAsString(singleNode);
-            return (id.startsWith("\"") && id.endsWith("\""))
-                    ? id.substring(1, id.length() - 1)  // remove double quotes
-                    : id;
+            toConvert = jsonNode.get(fields.get(0));
         } else {
-            return JsonConverter.toJsonArray(jsonNode, fields).toString();
+            toConvert = JsonConverter.toJsonArray(jsonNode, fields);
         }
+
+        String serializedId;
+        if (elasticSearchConfig.isCanonicalKeyFields()) {
+            final Object obj = sortedObjectMapper.treeToValue(toConvert, Object.class);
+            serializedId = sortedObjectMapper.writeValueAsString(obj);
+        } else {
+            serializedId = objectMapper.writeValueAsString(toConvert);
+        }
+
+        return (serializedId.startsWith("\"") && serializedId.endsWith("\""))
+                ? serializedId.substring(1, serializedId.length() - 1)  // remove double quotes
+                : serializedId;
     }
 
     public String stringifyValue(Schema<?> schema, Object val) throws JsonProcessingException {

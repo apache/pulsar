@@ -2750,7 +2750,7 @@ public interface Namespaces {
     CompletableFuture<InactiveTopicPolicies> getInactiveTopicPoliciesAsync(String namespace);
 
     /**
-     * As same as setInactiveTopicPoliciesAsync，but it is synchronous.
+     * As same as setInactiveTopicPoliciesAsync, but it is synchronous.
      * @param namespace
      * @param inactiveTopicPolicies
      */

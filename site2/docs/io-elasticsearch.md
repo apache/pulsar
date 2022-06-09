@@ -1,5 +1,5 @@
 ---
 id: io-elasticsearch
-title: ElasticSearch Connector
-sidebar_label: ElasticSearch Connector
+title: Elasticsearch Connector
+sidebar_label: "Elasticsearch Connector"
 ---

@@ -1,3 +1,4 @@
+
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -46,12 +47,12 @@ RUN curl -O -L https://www.cpan.org/src/5.0/perl-5.10.0.tar.gz && \
 ####################################
 
 # ZLib
-RUN curl -O -L https://zlib.net/zlib-1.2.11.tar.gz && \
-    tar xvfz zlib-1.2.11.tar.gz && \
-    cd zlib-1.2.11 && \
+RUN curl -O -L https://zlib.net/zlib-1.2.12.tar.gz && \
+    tar xvfz zlib-1.2.12.tar.gz && \
+    cd zlib-1.2.12 && \
     CFLAGS="-fPIC -O3" ./configure && \
     make && make install && \
-    rm -rf /zlib-1.2.11.tar.gz /zlib-1.2.11
+    rm -rf /zlib-1.2.12.tar.gz /zlib-1.2.12
 
 # Compile OpenSSL
 RUN curl -O -L https://github.com/openssl/openssl/archive/OpenSSL_1_1_0j.tar.gz && \
@@ -70,12 +71,12 @@ RUN curl -O -L https://boostorg.jfrog.io/artifactory/main/release/1.68.0/source/
     rm -rf /boost_1_68_0.tar.gz /boost_1_68_0
 
 # Download and copile protoubf
-RUN curl -O -L  https://github.com/google/protobuf/releases/download/v3.3.0/protobuf-cpp-3.3.0.tar.gz && \
-    tar xvfz protobuf-cpp-3.3.0.tar.gz && \
-    cd protobuf-3.3.0/ && \
+RUN curl -O -L  https://github.com/google/protobuf/releases/download/v3.20.0/protobuf-cpp-3.20.0.tar.gz && \
+    tar xvfz protobuf-cpp-3.20.0.tar.gz && \
+    cd protobuf-3.20.0/ && \
     CXXFLAGS=-fPIC ./configure && \
     make && make install && ldconfig && \
-    rm -rf /protobuf-cpp-3.3.0.tar.gz /protobuf-3.3.0
+    rm -rf /protobuf-cpp-3.20.0.tar.gz /protobuf-3.20.0
 
 # Compile APR
 RUN curl -O -L  http://archive.apache.org/dist/apr/apr-1.5.2.tar.gz && \
@@ -152,8 +153,6 @@ RUN curl -O -L  https://github.com/curl/curl/releases/download/curl-7_61_0/curl-
 
 RUN pip install twine
 RUN pip install fastavro
-RUN pip install six
-RUN pip install enum34
 
 
 ENV PYTHON_INCLUDE_DIR /opt/python/${PYTHON_SPEC}/include

@@ -25,7 +25,8 @@
 extern "C" {
 #endif
 
-typedef enum {
+typedef enum
+{
     pulsar_result_Ok,  /// Operation successful
 
     pulsar_result_UnknownError,  /// Unknown error happened on broker
@@ -89,7 +90,8 @@ typedef enum {
     pulsar_result_TransactionNotFound,                  /// Transaction not found
     pulsar_result_ProducerFenced,                       /// Producer was fenced by broker
 
-    pulsar_result_MemoryBufferIsFull  /// Client-wide memory limit has been reached
+    pulsar_result_MemoryBufferIsFull,  /// Client-wide memory limit has been reached
+    pulsar_result_Interrupted,         /// Interrupted while waiting to dequeue
 } pulsar_result;
 
 // Return string representation of result code
