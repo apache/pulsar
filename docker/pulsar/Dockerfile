@@ -46,7 +46,7 @@ ARG DEBIAN_FRONTEND=noninteractive
 RUN apt-get update \
      && apt-get -y dist-upgrade \
      && apt-get -y install openjdk-11-jdk-headless netcat dnsutils less procps iputils-ping \
-                 python3 python3-dev python3-setuptools python3-yaml python3-kazoo \
+                 python3 python3-dev python3-setuptools python3-kazoo \
                  libreadline-gplv2-dev libncursesw5-dev libssl-dev libsqlite3-dev tk-dev libgdbm-dev libc6-dev libbz2-dev \
                  curl \
      && apt-get -y --purge autoremove \
@@ -58,6 +58,7 @@ RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
 RUN python3 get-pip.py
 
 RUN update-alternatives --install /usr/bin/python python /usr/bin/python3 10
+RUN pip3 install pyyaml==5.4.1
 
 ENV JAVA_HOME /usr/lib/jvm/java-11-openjdk-amd64
 RUN echo networkaddress.cache.ttl=1 >> /usr/lib/jvm/java-11-openjdk-amd64/conf/security/java.security
