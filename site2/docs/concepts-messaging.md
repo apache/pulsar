@@ -873,19 +873,19 @@ There are diverse system topics depending on namespaces. The following table out
 | host/port | `heartbeat` | Persistent | 1 | Heartbeat detection |
 | User-defined-ns | [`__change_events`](concepts-multi-tenancy.md#namespace-change-events-and-topic-level-policies) | Persistent | Default 4 | Topic events |
 | User-defined-ns | `__transaction_buffer_snapshot` | Persistent | One per namespace | Transaction buffer snapshots |
-| User-defined-ns | `${topicName}__transaction_pending_ack` | Persistent | one per every topic sub that acknowledged with transaction | Ack with Transaction |
+| User-defined-ns | `${topicName}__transaction_pending_ack` | Persistent | One per every topic subscription acknowledged with transactions | Acknowledgements with transactions |
 
 :::note
 
+* You cannot create any system topics. To list system topics, you can add the option `--include-system-topic` when you get the topic list by using [Pulsar admin API](/tools/pulsar-admin).
+
 * Since Pulsar version 2.11.0, system topics are enabled by default.
-  In earlier versions, you need to change the following configurations in `conf/broker.conf` or `conf/standalone.conf` to enable system topics.
+  In earlier versions, you need to change the following configurations in the `conf/broker.conf` or `conf/standalone.conf` file to enable system topics.
 
   ```conf
   systemTopicEnabled=true
   topicLevelPoliciesEnabled=true
   ```
-
-* You are not allowed to create or list any system topics.
 
 :::
 
