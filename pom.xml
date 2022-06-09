@@ -205,7 +205,7 @@ flexible messaging model and an intuitive client API.</description>
     <spring-context.version>5.3.15</spring-context.version>
     <apache-http-client.version>4.5.13</apache-http-client.version>
     <seancfoley.ipaddress.version>5.3.3</seancfoley.ipaddress.version>
-
+    <netty-reactive-streams.version>2.0.6</netty-reactive-streams.version>
     <!-- test dependencies -->
     <cassandra.version>3.6.0</cassandra.version>
     <disruptor.version>3.4.0</disruptor.version>
@@ -1244,6 +1244,11 @@ flexible messaging model and an intuitive client API.</description>
         <version>${kotlin-stdlib.version}</version>
       </dependency>
 
+      <dependency>
+        <groupId>com.typesafe.netty</groupId>
+        <artifactId>netty-reactive-streams</artifactId>
+        <version>${netty-reactive-streams.version}</version>
+      </dependency>
     </dependencies>
   </dependencyManagement>
 
