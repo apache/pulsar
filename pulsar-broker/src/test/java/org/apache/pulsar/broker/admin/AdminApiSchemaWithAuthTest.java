@@ -27,6 +27,7 @@ import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.auth.AuthenticationToken;
 import org.apache.pulsar.common.policies.data.AuthAction;
@@ -44,9 +45,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
-
 /**
  * Unit tests for schema admin api.
  */
@@ -56,7 +56,7 @@ public class AdminApiSchemaWithAuthTest extends MockedPulsarServiceBaseTest {
 
     private static final SecretKey SECRET_KEY = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
     private static final String ADMIN_TOKEN = Jwts.builder().setSubject("admin").signWith(SECRET_KEY).compact();
-    private static final String PRODUCE_CONSUME_TOKEN = Jwts.builder().setSubject("producer+consumer").signWith(SECRET_KEY).compact();
+    private static final String CONSUME_TOKEN = Jwts.builder().setSubject("consumer").signWith(SECRET_KEY).compact();
 
     @BeforeMethod
     @Override
@@ -104,56 +104,36 @@ public class AdminApiSchemaWithAuthTest extends MockedPulsarServiceBaseTest {
                 .serviceHttpUrl(brokerUrl != null ? brokerUrl.toString() : brokerUrlTls.toString())
                 .authentication(AuthenticationToken.class.getName(), ADMIN_TOKEN)
                 .build();
-        PulsarAdmin adminWithProducerConsumePermission = PulsarAdmin.builder()
+        PulsarAdmin adminWithConsumePermission = PulsarAdmin.builder()
                 .serviceHttpUrl(brokerUrl != null ? brokerUrl.toString() : brokerUrlTls.toString())
-                .authentication(AuthenticationToken.class.getName(), PRODUCE_CONSUME_TOKEN)
+                .authentication(AuthenticationToken.class.getName(), CONSUME_TOKEN)
                 .build();
-        SchemaInfo si = Schema.BOOL.getSchemaInfo();
-        try {
-            adminWithoutPermission.schemas().createSchema(topicName, si);
-            fail("Should have failed");
-        } catch (Exception ignore) {
-        }
-        admin.topics().grantPermission(topicName, "producer+consumer", EnumSet.of(AuthAction.produce, AuthAction.consume));
-        adminWithAdminPermission.schemas().createSchema(topicName, si);
-        try {
-            adminWithoutPermission.schemas().getSchemaInfo(topicName);
-            fail("Should have failed");
-        } catch (Exception ignore) {
-        }
         admin.topics().grantPermission(topicName, "consumer", EnumSet.of(AuthAction.consume));
-        SchemaInfo readSi = adminWithProducerConsumePermission.schemas().getSchemaInfo(topicName);
-        assertEquals(readSi, si);
-        try {
-            adminWithoutPermission.schemas().getSchemaInfo(topicName, 0);
-            fail("Should have failed");
-        } catch (Exception ignore) {
-        }
-        readSi = adminWithProducerConsumePermission.schemas().getSchemaInfo(topicName, 0);
-        assertEquals(readSi, si);
-        List<SchemaInfo> allSchemas = adminWithProducerConsumePermission.schemas().getAllSchemas(topicName);
-        assertEquals(allSchemas.size(), 1);
-        SchemaInfo schemaInfo2 = Schema.BOOL.getSchemaInfo();
-        try {
-            adminWithoutPermission.schemas().testCompatibility(topicName, schemaInfo2);
-            fail("Should have failed");
-        } catch (Exception ignore) {
-        }
-        boolean compatibility = adminWithAdminPermission.schemas().testCompatibility(topicName, schemaInfo2).isCompatibility();
-        assertTrue(compatibility);
-        try {
-            adminWithoutPermission.schemas().getVersionBySchema(topicName, si);
-            fail("Should have failed");
-        } catch (Exception ignore) {
-        }
-        Long versionBySchema = adminWithProducerConsumePermission.schemas().getVersionBySchema(topicName, si);
-        assertEquals(versionBySchema, Long.valueOf(0L));
-        try {
-            adminWithoutPermission.schemas().deleteSchema(topicName);
-            fail("Should have failed");
-        } catch (Exception ignore) {
-        }
         admin.topics().grantPermission(topicName, "producer", EnumSet.of(AuthAction.produce));
+
+        SchemaInfo si = Schema.BOOL.getSchemaInfo();
+        assertThrows(PulsarAdminException.class, () -> adminWithoutPermission.schemas().createSchema(topicName, si));
+        adminWithAdminPermission.schemas().createSchema(topicName, si);
+
+        assertThrows(PulsarAdminException.class, () -> adminWithoutPermission.schemas().getSchemaInfo(topicName));
+        SchemaInfo readSi = adminWithConsumePermission.schemas().getSchemaInfo(topicName);
+        assertEquals(readSi, si);
+
+        assertThrows(PulsarAdminException.class, () -> adminWithoutPermission.schemas().getSchemaInfo(topicName, 0));
+        readSi = adminWithConsumePermission.schemas().getSchemaInfo(topicName, 0);
+        assertEquals(readSi, si);
+        List<SchemaInfo> allSchemas = adminWithConsumePermission.schemas().getAllSchemas(topicName);
+        assertEquals(allSchemas.size(), 1);
+
+        SchemaInfo schemaInfo2 = Schema.BOOL.getSchemaInfo();
+        assertThrows(PulsarAdminException.class, () -> adminWithoutPermission.schemas().testCompatibility(topicName, schemaInfo2));
+        assertTrue(adminWithAdminPermission.schemas().testCompatibility(topicName, schemaInfo2).isCompatibility());
+
+        assertThrows(PulsarAdminException.class, () -> adminWithoutPermission.schemas().getVersionBySchema(topicName, si));
+        Long versionBySchema = adminWithConsumePermission.schemas().getVersionBySchema(topicName, si);
+        assertEquals(versionBySchema, Long.valueOf(0L));
+
+        assertThrows(PulsarAdminException.class, () -> adminWithoutPermission.schemas().deleteSchema(topicName));
         adminWithAdminPermission.schemas().deleteSchema(topicName);
     }
 }
