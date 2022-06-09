@@ -81,6 +81,11 @@ void Consumer_seek_timestamp(Consumer& consumer, uint64_t timestamp) {
         [timestamp, &consumer](ResultCallback callback) { consumer.seekAsync(timestamp, callback); });
 }
 
+void Consumer_get_last_message_id(Consumer& consumer) {
+    waitForAsyncResult(
+        [&consumer](ResultCallback callback) { consumer.getLastMessageIdAsync(callback); });
+}
+
 bool Consumer_is_connected(Consumer& consumer) { return consumer.isConnected(); }
 
 void export_consumer() {
@@ -105,5 +110,6 @@ void export_consumer() {
         .def("redeliver_unacknowledged_messages", &Consumer::redeliverUnacknowledgedMessages)
         .def("seek", &Consumer_seek)
         .def("seek", &Consumer_seek_timestamp)
+        .def("get_last_message_id", &Consumer_get_last_message_id)
         .def("is_connected", &Consumer_is_connected);
 }

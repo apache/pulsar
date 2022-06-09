@@ -486,6 +486,23 @@ class PulsarTest(TestCase):
         self.assertFalse(consumer.is_connected())
         client.close()
 
+    def test_consumer_get_last_message_id(self):
+        client = Client(self.serviceUrl)
+        topic = "test_consumer_get_last_message_id"
+        sub = "sub"
+        consumer = client.subscribe(topic, sub)
+
+        producer = client.create_producer(topic)
+
+        for i in range(10):
+            producer.send(b"hello-%d" % i)
+            message_id = consumer.get_last_message_id()
+            self.assertEqual(message_id.entry_id, i - 1)
+
+        producer.close()
+        consumer.close()
+        client.close()
+
     def test_reader_simple(self):
         client = Client(self.serviceUrl)
         reader = client.create_reader("my-python-topic-reader-simple", MessageId.earliest)
