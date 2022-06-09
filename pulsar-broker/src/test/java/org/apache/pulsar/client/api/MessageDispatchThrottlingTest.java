@@ -33,6 +33,7 @@ import lombok.Cleanup;
 
 import java.lang.reflect.Field;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -1082,7 +1083,8 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
         PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
         Optional<DispatchRateLimiter> dispatchRateLimiter;
 
-        Policies policies = new Policies();
+        Policies policies = admin.namespaces().getPolicies(namespace);
+        policies.clusterSubscribeRate = new HashMap<>();
         DispatchRateImpl clusterDispatchRate = DispatchRateImpl.builder()
                 .dispatchThrottlingRateInMsg(100)
                 .dispatchThrottlingRateInByte(512)
