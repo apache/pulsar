@@ -226,6 +226,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             if (c != null) {
                 groupedEntries.computeIfAbsent(c, k -> new ArrayList<>()).add(entry);
                 consumerStickyKeyHashesMap.computeIfAbsent(c, k -> new HashSet<>()).add(stickyKeyHash);
+                unMatchConsumerBackoff.reset();
             } else {
                 topic.getBrokerService().executor().schedule(() -> {
                     addMessageToReplay(ledgerId, entryId, stickyKeyHash);
