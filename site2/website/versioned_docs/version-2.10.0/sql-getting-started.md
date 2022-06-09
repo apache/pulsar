@@ -22,7 +22,18 @@ To query data in Pulsar with Pulsar SQL, complete the following steps.
 
 ```
 
-2. Start a Pulsar SQL worker.
+2. Adjust configuration. (JDK17)
+
+If you use JDK17, you need to add the following options to the configuration file `conf/presto/jvm.config`. Please note that these two lines can not be put into one line.
+
+```bash
+
+--add-opens
+java.base/java.lang=ALL-UNNAMED
+
+```
+
+3. Start a Pulsar SQL worker.
 
 ```bash
 
@@ -30,7 +41,7 @@ To query data in Pulsar with Pulsar SQL, complete the following steps.
 
 ```
 
-3. After initializing Pulsar standalone cluster and the SQL worker, run SQL CLI.
+4. After initializing Pulsar standalone cluster and the SQL worker, run SQL CLI.
 
 ```bash
 
@@ -38,7 +49,7 @@ To query data in Pulsar with Pulsar SQL, complete the following steps.
 
 ```
 
-4. Test with SQL commands.
+5. Test with SQL commands.
 
 ```bash
 
@@ -81,7 +92,7 @@ Splits: 19 total, 19 done (100.00%)
 
 Since there is no data in Pulsar, no records is returned. 
 
-5. Start the built-in connector _DataGeneratorSource_ and ingest some mock data.
+6. Start the built-in connector _DataGeneratorSource_ and ingest some mock data.
 
 ```bash
 
