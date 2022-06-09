@@ -29,6 +29,12 @@ public class CastStep implements TransformStep {
     private final SchemaType valueSchemaType;
 
     public CastStep(SchemaType keySchemaType, SchemaType valueSchemaType) {
+        if (keySchemaType != null && keySchemaType != SchemaType.STRING) {
+            throw new IllegalArgumentException("Unsupported key schema-type for Cast: " + keySchemaType);
+        }
+        if (valueSchemaType != null && valueSchemaType != SchemaType.STRING) {
+            throw new IllegalArgumentException("Unsupported value schema-type for Cast: " + valueSchemaType);
+        }
         this.keySchemaType = keySchemaType;
         this.valueSchemaType = valueSchemaType;
     }

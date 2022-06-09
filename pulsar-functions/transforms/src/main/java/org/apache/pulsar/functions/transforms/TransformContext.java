@@ -40,7 +40,7 @@ import org.apache.pulsar.functions.api.Record;
 @Slf4j
 @Data
 public class TransformContext {
-    private Context context;
+    private final Context context;
     private Schema<?> keySchema;
     private Object keyObject;
     private boolean keyModified;
@@ -57,8 +57,6 @@ public class TransformContext {
         this.context = context;
         this.outputTopic = context.getOutputTopic();
         Schema<?> schema = currentRecord.getSchema();
-        //TODO: should we make a copy ?
-        this.properties = currentRecord.getProperties();
         if (schema instanceof KeyValueSchema && value instanceof KeyValue) {
             KeyValueSchema kvSchema = (KeyValueSchema) schema;
             KeyValue kv = (KeyValue) value;
@@ -113,9 +111,9 @@ public class TransformContext {
             log.debug("output {} schema {}", outputObject, outputSchema);
         }
         TypedMessageBuilder<?> message = context.newOutputMessage(outputTopic, outputSchema)
-                .properties(properties)
+                .properties(properties == null ? context.getCurrentRecord().getProperties() : properties)
                 .value(outputObject);
-        if (key != null) {
+        if (keySchema == null && key != null) {
             message.key(key);
         }
         message.send();

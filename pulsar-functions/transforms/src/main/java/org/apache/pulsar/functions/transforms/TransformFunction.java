@@ -32,6 +32,54 @@ import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.Record;
 
+
+/**
+ * <code>TransformFunction</code> is a {@link Function} that provides an easy way to apply a set of usual basic
+ * transformations to the data.
+ * <p>
+ * It provides the following transformations:
+ * <ul>
+ * <li><code>cast</code>: modifies the key or value schema to a target compatible schema passed in the
+ * <code>schema-type</code> argument.
+ * This PR only enables <code>STRING</code> schema-type.
+ * The <code>part</code> argument allows to choose on which part to apply between <code>key</code> and
+ * <code>value</code>.
+ * If <code>part</code> is null or absent the transformations applies to both the key and value.</li>
+ * <li><code>drop-fields</code>: drops fields given as a string list in parameter <code>fields</code>.
+ * The <code>part</code> argument allows to choose on which part to apply between <code>key</code> and
+ * <code>value</code>.
+ * If <code>part</code> is null or absent the transformations applies to both the key and value.
+ * Currently only AVRO is supported.</li>
+ * <li><code>merge-key-value</code>: merges the fields of KeyValue records where both the key and value are
+ * structured types of the same schema type. Currently only AVRO is supported.</li>
+ * <li><code>unwrap-key-value</code>: if the record is a KeyValue, extract the KeyValue's value and make it the
+ * record value. If parameter <code>unwrapKey</code> is present and set to <code>true</code>, extract the
+ * KeyValue's key instead.</li>
+ * </ul>
+ * <p>
+ * The <code>TransformFunction</code> reads its configuration as Json from the {@link Context} <code>userConfig</code>
+ * in the format:
+ *<pre><code class="lang-json">
+ * {
+ *   "steps": [
+ *     {
+ *       "type": "drop-fields", "fields": "keyField1,keyField2", "part": "key"
+ *     },
+ *     {
+ *       "type": "merge-key-value"
+ *     },
+ *     {
+ *       "type": "unwrap-key-value"
+ *     },
+ *     {
+ *       "type": "cast", "schema-type": "STRING"
+ *     }
+ *   ]
+ * }
+ * </code></pre>
+ * @see <a href="https://github.com/apache/pulsar/issues/15902">
+ *     PIP-173 : Create a built-in Function implementing the most common basic transformations</a>
+ */
 @Slf4j
 public class TransformFunction implements Function<GenericObject, Void>, TransformStep {
 
@@ -44,7 +92,8 @@ public class TransformFunction implements Function<GenericObject, Void>, Transfo
                 .orElseThrow(() -> new IllegalArgumentException("missing required 'steps' parameter"));
         LinkedList<Map<String, Object>> stepsConfig;
         try {
-            TypeToken<LinkedList<Map<String, Object>>> typeToken = new TypeToken<LinkedList<Map<String, Object>>>(){};
+            TypeToken<LinkedList<Map<String, Object>>> typeToken = new TypeToken<>() {
+            };
             stepsConfig = gson.fromJson((gson.toJson(config)), typeToken.getType());
         } catch (Exception e) {
             throw new IllegalArgumentException("could not parse configuration", e);
