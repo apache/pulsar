@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.resources;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.google.common.base.Joiner;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -37,6 +38,8 @@ import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
  *            type of configuration-resources.
  */
 public class BaseResources<T> {
+
+    protected static final String BASE_POLICIES_PATH = "/admin/policies";
 
     @Getter
     private final MetadataStoreExtended store;
@@ -163,5 +166,11 @@ public class BaseResources<T> {
 
     public CompletableFuture<Boolean> existsAsync(String path) {
         return cache.exists(path);
+    }
+
+    protected static String joinPath(String... parts) {
+        StringBuilder sb = new StringBuilder();
+        Joiner.on('/').appendTo(sb, parts);
+        return sb.toString();
     }
 }
