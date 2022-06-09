@@ -69,4 +69,7 @@ public class GoInstanceConfig {
     private String deadLetterTopic = "";
 
     private int metricsPort;
+
+    private String clientAuthPlugin = "";
+    private String clientAuthParams = "";
 }

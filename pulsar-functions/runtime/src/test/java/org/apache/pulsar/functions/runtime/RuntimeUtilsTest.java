@@ -116,7 +116,14 @@ public class RuntimeUtilsTest {
 
         instanceConfig.setFunctionDetails(functionDetails);
 
-        List<String> commands = RuntimeUtils.getGoInstanceCmd(instanceConfig, "config", "pulsar://localhost:6650", k8sRuntime);
+        JSONObject clientAuthenticationParameters = new JSONObject();
+        clientAuthenticationParameters.put("token","eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhZG1pbiJ9.B_2qcs2mtNMnC6VJ3eoLu_y-hhNGZSjlcfVQFb6CtBQ");
+        AuthenticationConfig authenticationConfig = AuthenticationConfig.builder()
+                .clientAuthenticationPlugin("token")
+                .clientAuthenticationParameters(clientAuthenticationParameters.toJSONString())
+                .build();
+
+        List<String> commands = RuntimeUtils.getGoInstanceCmd(instanceConfig,authenticationConfig, "config", "pulsar://localhost:6650", k8sRuntime);
         if (k8sRuntime) {
             goInstanceConfig = new ObjectMapper().readValue(commands.get(2).replaceAll("^\'|\'$", ""), HashMap.class);
         } else {
@@ -160,6 +167,8 @@ public class RuntimeUtilsTest {
         Assert.assertEquals(goInstanceConfig.get("deadLetterTopic"), "go-func-deadletter");
         Assert.assertEquals(goInstanceConfig.get("userConfig"), userConfig.toString());
         Assert.assertEquals(goInstanceConfig.get("metricsPort"), 60000);
+        Assert.assertEquals(goInstanceConfig.get("clientAuthPlugin"), "token");
+        Assert.assertEquals(goInstanceConfig.get("clientAuthParams"), clientAuthenticationParameters.toJSONString());
     }
 
     @DataProvider(name = "k8sRuntime")

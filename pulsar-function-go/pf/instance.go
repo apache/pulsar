@@ -189,9 +189,15 @@ CLOSE:
 }
 
 func (gi *goInstance) setupClient() error {
-	client, err := pulsar.NewClient(pulsar.ClientOptions{
 
-		URL: gi.context.instanceConf.pulsarServiceURL,
+	authentication, err := pulsar.NewAuthentication(gi.context.instanceConf.clientAuthPlugin, gi.context.instanceConf.clientAuthParams)
+	if err != nil {
+		log.Errorf("create authentication error:%v", err)
+	}
+
+	client, err := pulsar.NewClient(pulsar.ClientOptions{
+		Authentication: authentication,
+		URL:            gi.context.instanceConf.pulsarServiceURL,
 	})
 	if err != nil {
 		log.Errorf("create client error:%v", err)
