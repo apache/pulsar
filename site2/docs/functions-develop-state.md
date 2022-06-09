@@ -27,7 +27,7 @@ Pulsar Functions expose APIs for mutating and accessing `state`. These APIs are 
 
 The following table outlines the states that can be accessed within Java and Python functions.
 
-| State-related API                       | API for Java                           | Python         |
+| State-related API                       | Java                                   | Python         |
 |-----------------------------------------|----------------------------------------|----------------|
 | [Increment counter](#increment-counter) | `incrCounter` <br />`incrCounterAsync` | `incr_counter` |
 | [Retrieve counter](#retrieve-counter)   | `getCounter` <br />`getCounterAsync`   | `get_counter`  |
