@@ -83,7 +83,7 @@ void Consumer_seek_timestamp(Consumer& consumer, uint64_t timestamp) {
 
 void Consumer_get_last_message_id(Consumer& consumer) {
     waitForAsyncResult(
-        [&consumer](ResultCallback callback) { consumer.getLastMessageIdAsync(callback); });
+        [&consumer](BrokerGetLastMessageIdCallback callback) { consumer.getLastMessageIdAsync(callback); });
 }
 
 bool Consumer_is_connected(Consumer& consumer) { return consumer.isConnected(); }
