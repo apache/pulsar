@@ -143,7 +143,7 @@ public class MockBrokerService {
                 return;
             }
             // default
-            ctx.writeAndFlush(Commands.newConnected(connect.getProtocolVersion()));
+            ctx.writeAndFlush(Commands.newConnected(connect.getProtocolVersion(), false));
         }
 
         @Override

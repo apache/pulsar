@@ -119,9 +119,11 @@ public class PulsarClientImpl implements PulsarClient {
     // These sets are updated from multiple threads, so they require a threadsafe data structure
     private final Set<ProducerBase<?>> producers = Collections.newSetFromMap(new ConcurrentHashMap<>());
     private final Set<ConsumerBase<?>> consumers = Collections.newSetFromMap(new ConcurrentHashMap<>());
+    private final Set<TopicListWatcher> topicListWatchers = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
     private final AtomicLong producerIdGenerator = new AtomicLong();
     private final AtomicLong consumerIdGenerator = new AtomicLong();
+    private final AtomicLong topicListWatcherIdGenerator = new AtomicLong();
     private final AtomicLong requestIdGenerator =
             new AtomicLong(ThreadLocalRandom.current().nextLong(0, Long.MAX_VALUE / 2));
 
@@ -739,6 +741,12 @@ public class PulsarClientImpl implements PulsarClient {
             }
             return null;
         })));
+        topicListWatchers.forEach(c -> futures.add(c.closeAsync().handle((__, t) -> {
+            if (t != null) {
+                log.error("Error closing topic list watcher {}", c, t);
+            }
+            return null;
+        })));
 
         // Need to run the shutdown sequence in a separate thread to prevent deadlocks
         // If there are consumers or producers that need to be shutdown we cannot use the same thread
@@ -929,6 +937,11 @@ public class PulsarClientImpl implements PulsarClient {
                 .thenCompose(pair -> getConnection(pair.getLeft(), pair.getRight()));
     }
 
+    public CompletableFuture<ClientCnx> getConnectionToServiceUrl() {
+        InetSocketAddress address = lookup.resolveHost();
+        return getConnection(address, address);
+    }
+
     public CompletableFuture<ClientCnx> getConnection(final InetSocketAddress logicalAddress,
                                                       final InetSocketAddress physicalAddress) {
         return cnxPool.getConnection(logicalAddress, physicalAddress);
@@ -949,6 +962,10 @@ public class PulsarClientImpl implements PulsarClient {
 
     long newConsumerId() {
         return consumerIdGenerator.getAndIncrement();
+    }
+
+    long newTopicListWatcherId() {
+        return topicListWatcherIdGenerator.getAndIncrement();
     }
 
     public long newRequestId() {
@@ -1061,6 +1078,10 @@ public class PulsarClientImpl implements PulsarClient {
 
     void cleanupConsumer(ConsumerBase<?> consumer) {
         consumers.remove(consumer);
+    }
+
+    void cleanupTopicListWatcher(TopicListWatcher watcher) {
+        topicListWatchers.remove(watcher);
     }
 
     @VisibleForTesting

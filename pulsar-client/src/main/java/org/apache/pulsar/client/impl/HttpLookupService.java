@@ -124,6 +124,11 @@ public class HttpLookupService implements LookupService {
     }
 
     @Override
+    public InetSocketAddress resolveHost() {
+        return httpClient.resolveHost();
+    }
+
+    @Override
     public CompletableFuture<GetTopicsResult> getTopicsUnderNamespace(NamespaceName namespace, Mode mode,
                                                                       String topicsPattern, String topicsHash) {
         CompletableFuture<GetTopicsResult> future = new CompletableFuture<>();

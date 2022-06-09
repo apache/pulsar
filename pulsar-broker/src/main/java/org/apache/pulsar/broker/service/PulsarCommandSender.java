@@ -61,7 +61,7 @@ public interface PulsarCommandSender {
 
     void sendGetOrCreateSchemaErrorResponse(long requestId, ServerError error, String errorMessage);
 
-    void sendConnectedResponse(int clientProtocolVersion, int maxMessageSize);
+    void sendConnectedResponse(int clientProtocolVersion, int maxMessageSize, boolean supportsTopicWatchers);
 
     void sendLookupResponse(String brokerServiceUrl, String brokerServiceUrlTls, boolean authoritative,
                             CommandLookupTopicResponse.LookupType response, long requestId,
@@ -92,4 +92,9 @@ public interface PulsarCommandSender {
     void sendEndTxnResponse(long requestId, TxnID txnID, int txnAction);
 
     void sendEndTxnErrorResponse(long requestId, TxnID txnID, ServerError error, String message);
+
+    void sendWatchTopicListSuccess(long requestId, long watcherId, String topicsHash, List<String> topics);
+
+    void sendWatchTopicListUpdate(long watcherId,
+                                         List<String> newTopics, List<String> deletedTopics, String topicsHash);
 }

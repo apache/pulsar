@@ -102,6 +102,7 @@ import org.apache.pulsar.common.api.proto.CommandSendReceipt;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.CommandSuccess;
+import org.apache.pulsar.common.api.proto.CommandWatchTopicListSuccess;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.ProtocolVersion;
 import org.apache.pulsar.common.api.proto.ServerError;
@@ -216,6 +217,8 @@ public class ServerCnxTest {
         doReturn(CompletableFuture.completedFuture(true)).when(namespaceService).checkTopicOwnership(any());
         doReturn(CompletableFuture.completedFuture(topics)).when(namespaceService).getListOfTopics(
                 NamespaceName.get("use", "ns-abc"), CommandGetTopicsOfNamespace.Mode.ALL);
+        doReturn(CompletableFuture.completedFuture(topics)).when(namespaceService).getListOfPersistentTopics(
+                NamespaceName.get("use", "ns-abc"));
 
         setupMLAsyncCallbackMocks();
 
@@ -1956,6 +1959,26 @@ public class ServerCnxTest {
         assertEquals(response.getTopicsHash(), TopicList.calculateHash(matchingTopics));
         assertFalse(response.isChanged());
         assertTrue(response.isFiltered());
+
+        channel.finish();
+    }
+
+    @Test
+    public void testWatchTopicList() throws Exception {
+        svcConfig.setEnableBrokerSideSubscriptionPatternEvaluation(true);
+        resetChannel();
+        setChannelConnected();
+        BaseCommand command = Commands.newWatchTopicList(1, 3, "use/ns-abc", "use/ns-abc/topic-.*", null);
+        ByteBuf serializedCommand = Commands.serializeWithSize(command);
+
+        channel.writeInbound(serializedCommand);
+        Object resp = getResponse();
+        System.out.println(resp);
+        CommandWatchTopicListSuccess response = (CommandWatchTopicListSuccess) resp;
+
+        assertEquals(response.getTopicsList(), matchingTopics);
+        assertEquals(response.getTopicsHash(), TopicList.calculateHash(matchingTopics));
+        assertEquals(response.getWatcherId(), 3);
 
         channel.finish();
     }

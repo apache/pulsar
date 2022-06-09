@@ -119,6 +119,8 @@ import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.CommandTcClientConnectRequest;
 import org.apache.pulsar.common.api.proto.CommandUnsubscribe;
+import org.apache.pulsar.common.api.proto.CommandUnwatchTopicList;
+import org.apache.pulsar.common.api.proto.CommandWatchTopicList;
 import org.apache.pulsar.common.api.proto.FeatureFlags;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
 import org.apache.pulsar.common.api.proto.KeySharedMode;
@@ -164,6 +166,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     private final ConcurrentLongHashMap<CompletableFuture<Consumer>> consumers;
     private final boolean enableSubscriptionPatternEvaluation;
     private final int maxSubscriptionPatternLength;
+    private final TopicListService topicListService;
     private State state;
     private volatile boolean isActive = true;
     String authRole = null;
@@ -272,6 +275,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         this.connectionController = new ConnectionController.DefaultConnectionController(conf);
         this.enableSubscriptionPatternEvaluation = conf.isEnableBrokerSideSubscriptionPatternEvaluation();
         this.maxSubscriptionPatternLength = conf.getSubscriptionPatternMaxLength();
+        this.topicListService = new TopicListService(pulsar, this,
+                enableSubscriptionPatternEvaluation, maxSubscriptionPatternLength);
     }
 
     @Override
@@ -334,6 +339,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 }
             }
         });
+        this.topicListService.inactivate();
         this.service.getPulsarStats().recordConnectionClose();
     }
 
@@ -623,8 +629,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     }
 
     // complete the connect and sent newConnected command
-    private void completeConnect(int clientProtoVersion, String clientVersion) {
-        ctx.writeAndFlush(Commands.newConnected(clientProtoVersion, maxMessageSize));
+    private void completeConnect(int clientProtoVersion, String clientVersion, boolean supportsTopicWatchers) {
+        ctx.writeAndFlush(Commands.newConnected(clientProtoVersion, maxMessageSize, supportsTopicWatchers));
         state = State.Connected;
         service.getPulsarStats().recordConnectionCreateSuccess();
         if (log.isDebugEnabled()) {
@@ -683,7 +689,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
             if (state != State.Connected) {
                 // First time authentication is done
-                completeConnect(clientProtocolVersion, clientVersion);
+                completeConnect(clientProtocolVersion, clientVersion, enableSubscriptionPatternEvaluation);
             } else {
                 // If the connection was already ready, it means we're doing a refresh
                 if (!StringUtils.isEmpty(authRole)) {
@@ -790,7 +796,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         }
 
         if (!service.isAuthenticationEnabled()) {
-            completeConnect(clientProtocolVersion, clientVersion);
+            completeConnect(clientProtocolVersion, clientVersion, enableSubscriptionPatternEvaluation);
             return;
         }
 
@@ -818,7 +824,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 authRole = getBrokerService().getAuthenticationService().getAnonymousUserRole()
                     .orElseThrow(() ->
                         new AuthenticationException("No anonymous role, and no authentication provider configured"));
-                completeConnect(clientProtocolVersion, clientVersion);
+                completeConnect(clientProtocolVersion, clientVersion, enableSubscriptionPatternEvaluation);
                 return;
             }
 
@@ -2511,6 +2517,53 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                         transactionMetadataStoreService.handleOpFail(ex, tcId);
                     }
                 }));
+    }
+
+    protected void handleCommandWatchTopicList(CommandWatchTopicList commandWatchTopicList) {
+        final long requestId = commandWatchTopicList.getRequestId();
+        final long watcherId = commandWatchTopicList.getWatcherId();
+        final NamespaceName namespaceName = NamespaceName.get(commandWatchTopicList.getNamespace());
+
+        final Semaphore lookupSemaphore = service.getLookupRequestSemaphore();
+        if (lookupSemaphore.tryAcquire()) {
+            if (invalidOriginalPrincipal(originalPrincipal)) {
+                final String msg = "Valid Proxy Client role should be provided for watchTopicListRequest ";
+                log.warn("[{}] {} with role {} and proxyClientAuthRole {} on namespace {}", remoteAddress, msg,
+                        authRole, originalPrincipal, namespaceName);
+                commandSender.sendErrorResponse(watcherId, ServerError.AuthorizationError, msg);
+                lookupSemaphore.release();
+                return;
+            }
+            isNamespaceOperationAllowed(namespaceName, NamespaceOperation.GET_TOPICS).thenApply(isAuthorized -> {
+                if (isAuthorized) {
+                    topicListService.handleWatchTopicList(commandWatchTopicList, lookupSemaphore);
+                } else {
+                    final String msg = "Proxy Client is not authorized to watchTopicList";
+                    log.warn("[{}] {} with role {} on namespace {}", remoteAddress, msg, getPrincipal(), namespaceName);
+                    commandSender.sendErrorResponse(requestId, ServerError.AuthorizationError, msg);
+                    lookupSemaphore.release();
+                }
+                return null;
+            }).exceptionally(ex -> {
+                logNamespaceNameAuthException(remoteAddress, "watchTopicList", getPrincipal(),
+                        Optional.of(namespaceName), ex);
+                final String msg = "Exception occurred while trying to handle command WatchTopicList";
+                commandSender.sendErrorResponse(requestId, ServerError.AuthorizationError, msg);
+                lookupSemaphore.release();
+                return null;
+            });
+        } else {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Failed WatchTopicList due to too many lookup-requests {}", remoteAddress,
+                        namespaceName);
+            }
+            commandSender.sendErrorResponse(requestId, ServerError.TooManyRequests,
+                    "Failed due to too many pending lookup requests");
+        }
+    }
+
+    protected void handleCommandUnwatchTopicList(CommandUnwatchTopicList commandUnwatchTopicList) {
+        topicListService.handleUnwatchTopicList(commandUnwatchTopicList);
     }
 
     @Override
