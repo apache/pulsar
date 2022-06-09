@@ -129,9 +129,6 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
                 return;
             }
 
-            connectionHandler.setClientCnx(cnx);
-            cnx.registerTransactionMetaStoreHandler(transactionCoordinatorId, this);
-
             // if broker protocol version < 19, don't send TcClientConnectRequest to broker.
             if (cnx.getRemoteEndpointProtocolVersion() > ProtocolVersion.v18.getValue()) {
                 long requestId = client.newRequestId();
@@ -145,6 +142,8 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
                             cnx.channel().close();
                         }
 
+                        connectionHandler.setClientCnx(cnx);
+                        cnx.registerTransactionMetaStoreHandler(transactionCoordinatorId, this);
                         if (!this.connectFuture.isDone()) {
                             this.connectFuture.complete(null);
                         }
@@ -168,6 +167,9 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
             } else {
                 if (!changeToReadyState()) {
                     cnx.channel().close();
+                } else {
+                    connectionHandler.setClientCnx(cnx);
+                    cnx.registerTransactionMetaStoreHandler(transactionCoordinatorId, this);
                 }
                 this.connectFuture.complete(null);
             }
