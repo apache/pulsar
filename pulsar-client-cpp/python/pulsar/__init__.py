@@ -1241,6 +1241,12 @@ class Consumer:
         """
         self._consumer.seek(messageid)
 
+    def get_last_message_id(self):
+        """
+        Get the latest message id for a topic.
+        """
+        self._consumer.get_last_message_id()
+
     def close(self):
         """
         Close the consumer.
