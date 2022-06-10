@@ -151,7 +151,7 @@ To enable message chunking, set the `chunkingEnabled` parameter to `true` when c
 
 :::note
 
-If the consumer fails to receive all chunks of a message within a specified time period, it expires incomplete chunks. The default value is 1 minute. For more information about the `expireTimeOfIncompleteChunkedMessage` parameter, refer to [org.apache.pulsar.client.api](https://pulsar.apache.org/api/client/).
+If the consumer fails to receive all chunks of a message within a specified time period, it expires incomplete chunks. The default value is 1 minute. For more information about the `expireTimeOfIncompleteChunkedMessage` parameter, refer to [org.apache.pulsar.client.api](/api/client/).
 
 :::
 
@@ -817,7 +817,7 @@ In non-persistent topics, brokers immediately deliver messages to all connected 
 
 > With non-persistent topics, message data lives only in memory. If a message broker fails or message data can otherwise not be retrieved from memory, your message data may be lost. Use non-persistent topics only if you're *certain* that your use case requires it and can sustain it.
 
-By default, non-persistent topics are enabled on Pulsar brokers. You can disable them in the broker's [configuration](reference-configuration.md#broker-enableNonPersistentTopics). You can manage non-persistent topics using the `pulsar-admin topics` command. For more information, see [`pulsar-admin`](https://pulsar.apache.org/tools/pulsar-admin/).
+By default, non-persistent topics are enabled on Pulsar brokers. You can disable them in the broker's [configuration](reference-configuration.md#broker-enableNonPersistentTopics). You can manage non-persistent topics using the `pulsar-admin topics` command. For more information, see [`pulsar-admin`](/tools/pulsar-admin/).
 
 ### Performance
 
@@ -853,6 +853,38 @@ Producer<byte[]> producer = client.newProducer()
                 .create();
 
 ```
+
+
+## System topic
+
+System topic is a predefined topic for internal use within Pulsar. It can be either persistent or non-persistent topic.
+
+System topics serve to implement certain features and eliminate dependencies on third-party components, such as transactions, heartbeat detections, topic-level policies, and resource group services. System topics empower the implementation of these features to be simplified, dependent, and flexible. Take heartbeat detections for example, you can leverage the system topic for healthcheck to internally enable producer/reader to procude/consume messages under the heartbeat namespace, which can detect whether the current service is still alive.
+
+There are diverse system topics depending on namespaces. The following table outlines the available system topics for each specific namespace.
+
+| Namespace | TopicName | Domain | Count | Usage |
+|-----------|-----------|--------|-------|-------|
+| pulsar/system | `transaction_coordinator_assign_${id}` | Persistent | Default 16 | Transaction coordinator |
+| pulsar/system | `_transaction_log${tc_id}` | Persistent | Default 16 | Transaction log |
+| pulsar/system | `resource-usage` | Non-persistent | Default 4 | Resource group service |
+| host/port | `heartbeat` | Persistent | 1 | Heartbeat detection |
+| User-defined-ns | [`__change_events`](concepts-multi-tenancy.md#namespace-change-events-and-topic-level-policies) | Persistent | Default 4 | Topic events |
+| User-defined-ns | `__transaction_buffer_snapshot` | Persistent | One per namespace | Transaction buffer snapshots |
+| User-defined-ns | `${topicName}__transaction_pending_ack` | Persistent | One per every topic subscription acknowledged with transactions | Acknowledgements with transactions |
+
+:::note
+
+* You cannot create any system topics.
+* By default, system topics are disabled. To enable system topics, you need to change the following configurations in the `conf/broker.conf` or `conf/standalone.conf` file.
+
+  ```conf
+  systemTopicEnabled=true
+  topicLevelPoliciesEnabled=true
+  ```
+
+:::
+
 
 ## Message redelivery
 

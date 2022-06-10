@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -18,14 +17,6 @@
 # under the License.
 #
 
-ROOT_DIR=$(git rev-parse --show-toplevel)
-container_id=$(docker ps | grep pulsar-website-nginx | awk '{print $1}')
-
-if [ -n "$container_id" ]
-then
-docker rm -f $container_id
-fi
-
-docker run --name pulsar-website-nginx -p 80:80 -v $ROOT_DIR/generated-site/content:/usr/share/nginx/html:ro -d nginx
-
-echo "Website is running: http://localhost"
+name: exclamation
+description: Exclamation function
+functionClass: org.apache.pulsar.functions.api.examples.ExclamationFunction

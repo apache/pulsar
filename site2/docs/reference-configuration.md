@@ -258,6 +258,7 @@ brokerServiceCompactionThresholdInBytes|If the estimated backlog size is greater
 |schemaRegistryStorageClassName|The schema storage implementation used by this broker.|org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorageFactory|
 |isSchemaValidationEnforced| Whether to enable schema validation, when schema validation is enabled, if a producer without a schema attempts to produce the message to a topic with schema, the producer is rejected and disconnected.|false|
 |isAllowAutoUpdateSchemaEnabled|Allow schema to be auto updated at broker level.|true|
+|schemaRegistryCompatibilityCheckers | Deploy the schema compatibility checker for a specific schema type to enforce schema compatibility check. |org.apache.pulsar.broker.service.schema.JsonSchemaCompatibilityCheck,org.apache.pulsar.broker.service.schema.AvroSchemaCompatibilityCheck,org.apache.pulsar.broker.service.schema.ProtobufNativeSchemaCompatibilityCheck |
 |schemaCompatibilityStrategy| The schema compatibility strategy at broker level, see [here](schema-evolution-compatibility.md#schema-compatibility-check-strategy) for available values.|FULL|
 |systemTopicSchemaCompatibilityStrategy| The schema compatibility strategy is used for system topics, see [here](schema-evolution-compatibility.md#schema-compatibility-check-strategy) for available values.|ALWAYS_COMPATIBLE|
 | topicFencingTimeoutSeconds | If a topic remains fenced for a certain time period (in seconds), it is closed forcefully. If set to 0 or a negative number, the fenced topic is not closed. | 0 |
@@ -731,6 +732,7 @@ You can set the log level and configuration in the  [log4j2.yaml](https://github
 |schemaRegistryStorageClassName|The schema storage implementation used by this broker.|org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorageFactory|
 |isSchemaValidationEnforced| Whether to enable schema validation, when schema validation is enabled, if a producer without a schema attempts to produce the message to a topic with schema, the producer is rejected and disconnected.|false|
 |isAllowAutoUpdateSchemaEnabled|Allow schema to be auto updated at broker level.|true|
+|schemaRegistryCompatibilityCheckers | Deploy the schema compatibility checker for a specific schema type to enforce schema compatibility check. |org.apache.pulsar.broker.service.schema.JsonSchemaCompatibilityCheck,org.apache.pulsar.broker.service.schema.AvroSchemaCompatibilityCheck,org.apache.pulsar.broker.service.schema.ProtobufNativeSchemaCompatibilityCheck |
 |schemaCompatibilityStrategy| The schema compatibility strategy at broker level, see [here](schema-evolution-compatibility.md#schema-compatibility-check-strategy) for available values.|FULL|
 |systemTopicSchemaCompatibilityStrategy| The schema compatibility strategy is used for system topics, see [here](schema-evolution-compatibility.md#schema-compatibility-check-strategy) for available values.|ALWAYS_COMPATIBLE|
 |managedCursorInfoCompressionType | The compression type of managed cursor information. <br />Available options are `NONE`, `LZ4`, `ZLIB`, `ZSTD`, and `SNAPPY`). <br />If this value is `NONE`, managed cursor information is not compressed. | NONE

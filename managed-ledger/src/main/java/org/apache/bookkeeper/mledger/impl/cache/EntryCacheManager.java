@@ -16,18 +16,24 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.utils.functions;
+package org.apache.bookkeeper.mledger.impl.cache;
 
-import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
-import lombok.Data;
-import org.apache.pulsar.common.functions.FunctionDefinition;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 
-@Data
-public class Functions {
-    final List<FunctionDefinition> functionsDefinitions = new ArrayList<>();
-    final Map<String, Path> functions = new TreeMap<>();
+public interface EntryCacheManager {
+    EntryCache getEntryCache(ManagedLedgerImpl ml);
+
+    void removeEntryCache(String name);
+
+    long getSize();
+
+    long getMaxSize();
+
+    void clear();
+
+    void updateCacheSizeAndThreshold(long maxSize);
+
+    void updateCacheEvictionWatermark(double cacheEvictionWatermark);
+
+    double getCacheEvictionWatermark();
 }

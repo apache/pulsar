@@ -174,5 +174,50 @@ public class AdminApiSubscriptionTest extends MockedPulsarServiceBaseTest {
             assertTrue(subscriptionStats2.getSubscriptionProperties().isEmpty());
         }
 
+        // clear the properties on subscriptionName
+        admin.topics().updateSubscriptionProperties(topic, subscriptionName, new HashMap<>());
+
+        if (partitioned) {
+            PartitionedTopicMetadata partitionedTopicMetadata = admin.topics().getPartitionedTopicMetadata(topic);
+            for (int i = 0; i < partitionedTopicMetadata.partitions; i++) {
+                SubscriptionStats subscriptionStats = admin.topics().getStats(topic + "-partition-" + i)
+                        .getSubscriptions().get(subscriptionName);
+                assertTrue(subscriptionStats.getSubscriptionProperties().isEmpty());
+            }
+
+            // aggregated properties
+            SubscriptionStats subscriptionStats = admin.topics().getPartitionedStats(topic, false)
+                    .getSubscriptions().get(subscriptionName);
+            assertTrue(subscriptionStats.getSubscriptionProperties().isEmpty());
+
+        } else {
+            SubscriptionStats subscriptionStats = admin.topics().getStats(topic).getSubscriptions().get(subscriptionName);
+            assertTrue(subscriptionStats.getSubscriptionProperties().isEmpty());
+        }
+
+        // update the properties on subscriptionName
+        admin.topics().updateSubscriptionProperties(topic, subscriptionName, properties);
+
+        if (partitioned) {
+            PartitionedTopicMetadata partitionedTopicMetadata = admin.topics().getPartitionedTopicMetadata(topic);
+            for (int i = 0; i < partitionedTopicMetadata.partitions; i++) {
+                SubscriptionStats subscriptionStats = admin.topics().getStats(topic + "-partition-" + i)
+                        .getSubscriptions().get(subscriptionName);
+                assertEquals(value, subscriptionStats.getSubscriptionProperties().get("foo"));
+            }
+
+            // aggregated properties
+            SubscriptionStats subscriptionStats = admin.topics().getPartitionedStats(topic, false)
+                    .getSubscriptions().get(subscriptionName);
+            assertEquals(value, subscriptionStats.getSubscriptionProperties().get("foo"));
+
+        } else {
+            SubscriptionStats subscriptionStats = admin.topics().getStats(topic).getSubscriptions().get(subscriptionName);
+            assertEquals(value, subscriptionStats.getSubscriptionProperties().get("foo"));
+
+            SubscriptionStats subscriptionStats2 = admin.topics().getStats(topic).getSubscriptions().get(subscriptionName2);
+            assertTrue(subscriptionStats2.getSubscriptionProperties().isEmpty());
+        }
+
     }
 }

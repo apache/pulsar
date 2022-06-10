@@ -436,7 +436,6 @@ public class CmdFunctionsTest {
                 "--jar", BUILTIN_NAR,
                 "--tenant", "sample",
                 "--namespace", "ns1",
-                "--className", DummyFunction.class.getName(),
         });
 
         CreateFunction creater = cmd.getCreater();

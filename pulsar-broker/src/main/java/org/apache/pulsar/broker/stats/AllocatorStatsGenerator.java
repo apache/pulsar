@@ -25,7 +25,7 @@ import io.netty.buffer.PoolChunkMetric;
 import io.netty.buffer.PoolSubpageMetric;
 import io.netty.buffer.PooledByteBufAllocator;
 import java.util.stream.Collectors;
-import org.apache.bookkeeper.mledger.impl.EntryCacheImpl;
+import org.apache.bookkeeper.mledger.impl.cache.RangeEntryCacheImpl;
 import org.apache.pulsar.common.stats.AllocatorStats;
 import org.apache.pulsar.common.stats.AllocatorStats.PoolArenaStats;
 import org.apache.pulsar.common.stats.AllocatorStats.PoolChunkListStats;
@@ -38,7 +38,7 @@ public class AllocatorStatsGenerator {
         if ("default".equals(allocatorName)) {
             allocator = PooledByteBufAllocator.DEFAULT;
         } else if ("ml-cache".equals(allocatorName)) {
-            allocator = EntryCacheImpl.ALLOCATOR;
+            allocator = RangeEntryCacheImpl.ALLOCATOR;
         } else {
             throw new IllegalArgumentException("Invalid allocator name : " + allocatorName);
         }

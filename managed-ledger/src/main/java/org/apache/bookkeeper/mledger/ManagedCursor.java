@@ -23,6 +23,7 @@ import com.google.common.collect.Range;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.common.annotation.InterfaceAudience;
 import org.apache.bookkeeper.common.annotation.InterfaceStability;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ClearBacklogCallback;
@@ -78,6 +79,20 @@ public interface ManagedCursor {
      * Return any properties that were associated with the last stored position.
      */
     Map<String, Long> getProperties();
+
+    /**
+     * Return any properties that were associated with the cursor.
+     */
+    Map<String, String> getCursorProperties();
+
+     /**
+      * Updates the properties.
+      * @param cursorProperties
+      * @return a handle to the result of the operation
+      */
+     default CompletableFuture<Void> setCursorProperties(Map<String, String> cursorProperties) {
+         return CompletableFuture.completedFuture(null);
+     }
 
     /**
      * Add a property associated with the last stored position.
