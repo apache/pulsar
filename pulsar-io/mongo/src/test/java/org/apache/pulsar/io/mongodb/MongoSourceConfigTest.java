@@ -19,24 +19,22 @@
 
 package org.apache.pulsar.io.mongodb;
 
-import org.testng.annotations.Test;
-
+import static org.testng.Assert.assertEquals;
 import java.io.File;
 import java.io.IOException;
 import java.util.Map;
+import org.testng.annotations.Test;
 
-import static org.testng.Assert.assertEquals;
-
-public class MongoConfigTest {
+public class MongoSourceConfigTest {
 
     private static File getFile(String fileName) {
-        return new File(MongoConfigTest.class.getClassLoader().getResource(fileName).getFile());
+        return new File(MongoSourceConfigTest.class.getClassLoader().getResource(fileName).getFile());
     }
 
     @Test
     public void testMap() throws IOException {
         final Map<String, Object> map = TestHelper.createMap(true);
-        final MongoConfig cfg = MongoConfig.load(map);
+        final MongoSourceConfig cfg = MongoSourceConfig.load(map);
 
         assertEquals(cfg.getMongoUri(), TestHelper.URI);
         assertEquals(cfg.getDatabase(), TestHelper.DB);
@@ -48,9 +46,9 @@ public class MongoConfigTest {
             expectedExceptionsMessageRegExp = "Required property not set.")
     public void testBadMap() throws IOException {
         final Map<String, Object> map = TestHelper.createMap(false);
-        final MongoConfig cfg = MongoConfig.load(map);
+        final MongoSourceConfig cfg = MongoSourceConfig.load(map);
 
-        cfg.validate(true, true);
+        cfg.validate();
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class,
@@ -58,9 +56,9 @@ public class MongoConfigTest {
     public void testBadBatchSize() throws IOException {
         final Map<String, Object> map = TestHelper.createMap(true);
         map.put("batchSize", 0);
-        final MongoConfig cfg = MongoConfig.load(map);
+        final MongoSourceConfig cfg = MongoSourceConfig.load(map);
 
-        cfg.validate(true, true);
+        cfg.validate();
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class,
@@ -68,15 +66,15 @@ public class MongoConfigTest {
     public void testBadBatchTime() throws IOException {
         final Map<String, Object> map = TestHelper.createMap(true);
         map.put("batchTimeMs", 0);
-        final MongoConfig cfg = MongoConfig.load(map);
+        final MongoSourceConfig cfg = MongoSourceConfig.load(map);
 
-        cfg.validate(true, true);
+        cfg.validate();
     }
 
     @Test
     public void testYaml() throws IOException {
-        final File yaml = getFile("mongoSinkConfig.yaml");
-        final MongoConfig cfg = MongoConfig.load(yaml.getAbsolutePath());
+        final File yaml = getFile("MongoSourceConfig.yaml");
+        final MongoSourceConfig cfg = MongoSourceConfig.load(yaml.getAbsolutePath());
 
         assertEquals(cfg.getMongoUri(), TestHelper.URI);
         assertEquals(cfg.getDatabase(), TestHelper.DB);
