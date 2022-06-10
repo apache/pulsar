@@ -509,7 +509,6 @@ public class SchemaBuilderTest {
                 AvroSchema.of(SchemaDefinition.
                         builder()
                         .withJsonDef(writer.getSchemaInfo().getSchemaDefinition())
-                        .withAlwaysAllowNull(false)
                         .build())
                         .getAvroSchema(),
                 Thread.currentThread().getContextClassLoader(),

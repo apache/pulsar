@@ -89,9 +89,12 @@ public class AvroSchema<T> extends AvroBaseStructSchema<T> {
                     schemaDefinition.getSchemaWriterOpt().get(), parseSchemaInfo(schemaDefinition, SchemaType.AVRO));
         }
         ClassLoader pojoClassLoader = null;
-        if (schemaDefinition.getPojo() != null) {
+        if (schemaDefinition.getClassLoader() != null) {
+            pojoClassLoader = schemaDefinition.getClassLoader();
+        } else if (schemaDefinition.getPojo() != null) {
             pojoClassLoader = schemaDefinition.getPojo().getClassLoader();
         }
+
         return new AvroSchema<>(parseSchemaInfo(schemaDefinition, SchemaType.AVRO), pojoClassLoader);
     }
 

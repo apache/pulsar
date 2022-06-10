@@ -58,12 +58,7 @@ public class SchemaUtil {
         Class pojo = schemaDefinition.getPojo();
 
         if (StringUtils.isNotBlank(schemaDefinition.getJsonDef())) {
-            Schema schema = parseAvroSchema(schemaDefinition.getJsonDef());
-            Class schemaClass = ReflectData.get().getClass(schema);
-            if (schemaClass == null) {
-                return schema;
-            }
-            return extractAvroSchema(schemaDefinition, schemaClass);
+            return parseAvroSchema(schemaDefinition.getJsonDef());
         } else if (pojo != null) {
             ThreadLocal<Boolean> validateDefaults = null;
 
