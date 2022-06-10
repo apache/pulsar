@@ -60,6 +60,9 @@ for token in $("$JAVA_BIN" -version 2>&1 | grep 'version "'); do
           JAVA_MAJOR_VERSION=${BASH_REMATCH[1]}
         fi
         break
+    elif [[ $token =~ \"([[:digit:]]+)(.*)\" ]]; then
+        JAVA_MAJOR_VERSION=${BASH_REMATCH[1]}
+        break
     fi
 done
 
