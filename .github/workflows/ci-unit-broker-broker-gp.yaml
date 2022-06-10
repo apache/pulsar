@@ -73,7 +73,7 @@ jobs:
         if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
         with:
           distribution: 'temurin'
-          java-version: '11.0.4'
+          java-version: '11.0.14+101'
 
       - name: build modules
         if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
