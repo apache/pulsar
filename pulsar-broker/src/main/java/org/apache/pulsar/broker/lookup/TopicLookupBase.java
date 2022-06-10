@@ -130,6 +130,9 @@ public class TopicLookupBase extends PulsarWebResource {
                             pulsar().getBrokerService().getLookupRequestSemaphore().release();
                             return result.getLookupData();
                         }
+                    }).exceptionally(ex->{
+                        pulsar().getBrokerService().getLookupRequestSemaphore().release();
+                        throw FutureUtil.wrapToCompletionException(ex);
                     });
                 });
     }
@@ -330,12 +333,6 @@ public class TopicLookupBase extends PulsarWebResource {
         });
 
         return lookupfuture;
-    }
-
-    protected void completeLookupResponseExceptionally(AsyncResponse asyncResponse, Throwable t) {
-        pulsar().getBrokerService().getLookupRequestSemaphore().release();
-        Throwable cause = FutureUtil.unwrapCompletionException(t);
-        asyncResponse.resume(cause);
     }
 
     protected TopicName getTopicName(String topicDomain, String tenant, String cluster, String namespace,
