@@ -33,13 +33,23 @@ import org.apache.pulsar.common.schema.SchemaType;
  */
 public class StringSchema extends AbstractSchema<String> {
 
-    static final String CHARSET_KEY = "__charset";
+    static final String CHARSET_KEY;
 
-    private static final SchemaInfo DEFAULT_SCHEMA_INFO = new SchemaInfoImpl()
-            .setName("String")
-            .setType(SchemaType.STRING)
-            .setSchema(new byte[0]);
-    private static final StringSchema UTF8 = new StringSchema(StandardCharsets.UTF_8);;
+    private static final SchemaInfo DEFAULT_SCHEMA_INFO;
+    private static final Charset DEFAULT_CHARSET;
+    private static final StringSchema UTF8;
+
+    static {
+        // Ensure the ordering of the static initialization
+        CHARSET_KEY = "__charset";
+        DEFAULT_CHARSET = StandardCharsets.UTF_8;
+        DEFAULT_SCHEMA_INFO = new SchemaInfoImpl()
+                .setName("String")
+                .setType(SchemaType.STRING)
+                .setSchema(new byte[0]);
+
+        UTF8 = new StringSchema(StandardCharsets.UTF_8);
+    }
 
     private static final FastThreadLocal<byte[]> tmpBuffer = new FastThreadLocal<byte[]>() {
         @Override
@@ -66,7 +76,7 @@ public class StringSchema extends AbstractSchema<String> {
     private final SchemaInfo schemaInfo;
 
     public StringSchema() {
-        this.charset = StandardCharsets.UTF_8;
+        this.charset = DEFAULT_CHARSET;
         this.schemaInfo = DEFAULT_SCHEMA_INFO;
     }
 
