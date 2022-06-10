@@ -39,10 +39,13 @@ import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.PolicyName;
 import org.apache.pulsar.common.policies.data.PolicyOperation;
+import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
@@ -159,4 +162,39 @@ public class NamespacesV2Test extends MockedPulsarServiceBaseTest {
         }
     }
 
+    @Test
+    public void testOperationPublishRate() throws Exception {
+        // 1. set publish rate
+        asyncRequests(response -> namespaces.setPublishRate(response, this.testTenant, this.testNamespace,
+                new PublishRate()));
+
+        // 2. get publish rate and check
+        PublishRate publishRate = (PublishRate) asyncRequests(response -> namespaces.getPublishRate(response,
+                this.testTenant, this.testNamespace));
+        assertTrue(Objects.nonNull(publishRate));
+
+        // 3. remove publish rate and check
+        asyncRequests(responses -> namespaces.removePublishRate(responses, this.testTenant, this.testNamespace));
+        publishRate = (PublishRate) asyncRequests(response -> namespaces.getPublishRate(response,
+                this.testTenant, this.testNamespace));
+        assertTrue(Objects.isNull(publishRate));
+    }
+
+    @Test
+    public void testOperationDispatchRate() throws Exception {
+        // 1. set dispatch rate
+        asyncRequests(response -> namespaces.setDispatchRate(response, this.testTenant, this.testNamespace,
+                new DispatchRateImpl()));
+
+        // 2. get dispatch rate and check
+        DispatchRate dispatchRate = (DispatchRateImpl) asyncRequests(response -> namespaces.getDispatchRate(response,
+                this.testTenant, this.testNamespace));
+        assertTrue(Objects.nonNull(dispatchRate));
+
+        // 3. remove dispatch rate and check
+        asyncRequests(responses -> namespaces.deleteDispatchRate(responses, this.testTenant, this.testNamespace));
+        dispatchRate = (DispatchRateImpl) asyncRequests(response -> namespaces.getDispatchRate(response,
+                this.testTenant, this.testNamespace));
+        assertTrue(Objects.isNull(dispatchRate));
+    }
 }
