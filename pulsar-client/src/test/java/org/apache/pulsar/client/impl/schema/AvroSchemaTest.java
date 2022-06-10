@@ -491,9 +491,11 @@ public class AvroSchemaTest {
                 .withPojo(TimestampPojo.class)
                 .withJSR310ConversionEnabled(false).build());
 
-        TimestampPojo timestampPojo = new TimestampPojo(Instant.now());
+        TimestampPojo timestampPojo = new TimestampPojo(Instant.parse("2022-06-10T12:38:59.039084Z"));
         byte[] encode = schemaWithPojo.encode(timestampPojo);
         TimestampPojo decodeWithPojo = schemaWithPojo.decode(encode);
+
+        Assert.assertEquals(decodeWithPojo, timestampPojo);
 
         String schemaDefinition = new String(schemaWithPojo.schemaInfo.getSchema());
         AvroSchema<TimestampPojo> schemaWithJsonDef = AvroSchema.of(SchemaDefinition.<TimestampPojo>builder()
@@ -503,7 +505,6 @@ public class AvroSchemaTest {
 
         TimestampPojo decodeWithJson = schemaWithJsonDef.decode(encode);
 
-        Assert.assertEquals(timestampPojo, decodeWithPojo);
         Assert.assertEquals(decodeWithJson, decodeWithPojo);
         Assert.assertEquals(Instant.class, decodeWithJson.getValue().getClass());
 
@@ -522,9 +523,11 @@ public class AvroSchemaTest {
                 .withPojo(TimestampPojo.class)
                 .withJSR310ConversionEnabled(true).build());
 
-        TimestampPojo timestampPojo = new TimestampPojo(Instant.now());
+        TimestampPojo timestampPojo = new TimestampPojo(Instant.parse("2022-06-10T12:38:59.039084Z"));
         byte[] encode = schemaWithPojo.encode(timestampPojo);
         TimestampPojo decodeWithPojo = schemaWithPojo.decode(encode);
+
+        Assert.assertNotEquals(decodeWithPojo, timestampPojo);
 
         String schemaDefinition = new String(schemaWithPojo.schemaInfo.getSchema());
         AvroSchema<TimestampPojo> schemaWithJsonDef = AvroSchema.of(SchemaDefinition.<TimestampPojo>builder()
@@ -534,7 +537,6 @@ public class AvroSchemaTest {
 
         TimestampPojo decodeWithJson = schemaWithJsonDef.decode(encode);
 
-        Assert.assertNotEquals(timestampPojo, decodeWithPojo);
         Assert.assertEquals(decodeWithJson, decodeWithPojo);
         Assert.assertEquals(Instant.class, decodeWithJson.getValue().getClass());
 
