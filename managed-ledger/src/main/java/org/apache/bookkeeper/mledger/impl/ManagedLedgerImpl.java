@@ -3088,7 +3088,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                             try {
                                                 managedTrash.appendLedgerTrashData(ledgerId, ledgers.get(ledgerId),
                                                                 ManagedTrash.LedgerType.OFFLOAD_LEDGER);
-                                                managedTrash.asyncUpdateTrashData();
+                                                managedTrash.asyncUpdateTrashData().thenAccept(ignore1 -> {
+                                                    managedTrash.triggerDeleteInBackground();
+                                                });
                                             } catch (ManagedLedgerException e) {
                                                 log.warn("[{}]-{} Failed to append trash data.", this.name, ledgerId);
                                             }
@@ -3222,7 +3224,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                         } else {
                             managedTrash.appendLedgerTrashData(ledgerId, oldInfo,
                                     ManagedTrash.LedgerType.OFFLOAD_LEDGER);
-                            managedTrash.asyncUpdateTrashData();
+                            managedTrash.asyncUpdateTrashData().thenAccept(ignore -> {
+                                managedTrash.triggerDeleteInBackground();
+                            });
                         }
                     }
                     LedgerInfo.Builder builder = oldInfo.toBuilder();
@@ -3903,7 +3907,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     } else {
                         try {
                             managedTrash.appendLedgerTrashData(lh.getId(), null, ManagedTrash.LedgerType.LEDGER);
-                            managedTrash.asyncUpdateTrashData();
+                            managedTrash.asyncUpdateTrashData().thenAccept(ignore -> {
+                                managedTrash.triggerDeleteInBackground();
+                            });
                         } catch (ManagedLedgerException e) {
                             log.warn("[{}]-{} Failed to append trash data.", this.name, lh.getId());
                         }
