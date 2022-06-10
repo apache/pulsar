@@ -42,7 +42,7 @@ function broker_group_1() {
 }
 
 function broker_group_2() {
-  $MVN_TEST_COMMAND -pl pulsar-broker -Dgroups='schema,utils,functions-worker,broker-io,broker-discovery,broker-compaction,broker-naming,websocket,other'
+  $MVN_TEST_COMMAND -pl pulsar-broker -Dgroups='schema,utils,functions-worker,broker-io,broker-discovery,broker-compaction,broker-naming,websocket,other' -DtestReuseFork=false
 }
 
 function broker_client_api() {
