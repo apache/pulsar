@@ -45,6 +45,7 @@
       "items": [
         "functions-overview",
         "functions-concepts",
+        "functions-quickstart",
         {
           "type": "category",
           "label": "Set up function workers",
