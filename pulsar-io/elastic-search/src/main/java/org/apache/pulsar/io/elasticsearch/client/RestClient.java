@@ -101,6 +101,7 @@ public abstract class RestClient implements Closeable {
     public abstract boolean deleteDocument(String index, String documentId) throws IOException;
 
     public abstract long totalHits(String index) throws IOException;
+    public abstract long totalHits(String index, String query) throws IOException;
 
     public abstract BulkProcessor getBulkProcessor();
 
