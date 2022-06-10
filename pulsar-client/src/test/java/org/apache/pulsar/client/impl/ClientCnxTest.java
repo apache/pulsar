@@ -163,13 +163,12 @@ public class ClientCnxTest {
 
         long consumerId = 1;
         cnx.registerConsumer(consumerId, mock(ConsumerImpl.class));
+        assertEquals(cnx.consumers.size(), 1);
 
         CommandCloseConsumer closeConsumer = new CommandCloseConsumer()
                 .setConsumerId(1);
-        assertEquals(cnx.getConsumers().size(), 1);
-
         cnx.handleCloseConsumer(closeConsumer);
-        assertEquals(cnx.getConsumers().size(), 0);
+        assertEquals(cnx.consumers.size(), 0);
 
         eventLoop.shutdownGracefully();
     }
