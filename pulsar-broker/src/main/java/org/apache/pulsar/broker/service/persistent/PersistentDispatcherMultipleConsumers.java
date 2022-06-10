@@ -515,7 +515,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             return;
         }
         final MessageMetadata[] metadataArray = entries.stream()
-                .map(entry -> Commands.peekMessageMetadata(entry.getDataBuffer(), subscription.toString(), -1))
+                .map(entry -> Commands.peekAndCopyMessageMetadata(entry.getDataBuffer(), subscription.toString(), -1))
                 .toArray(MessageMetadata[]::new);
         int remainingMessages = Stream.of(metadataArray).filter(Objects::nonNull)
                 .map(MessageMetadata::getNumMessagesInBatch)
