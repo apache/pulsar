@@ -707,10 +707,10 @@ public abstract class TestPulsarConnector {
         when(PulsarConnectorCache.instance.getManagedLedgerFactory()).thenReturn(managedLedgerFactory);
 
         for (Map.Entry<TopicName, PulsarSplit> split : splits.entrySet()) {
-            PulsarRecordCursor pulsarRecordCursor = spy(new PulsarRecordCursor(
+            PulsarRecordCursor pulsarRecordCursor = new PulsarRecordCursor(
                     topicsToColumnHandles.get(split.getKey()), split.getValue(),
                     pulsarConnectorConfig, managedLedgerFactory, new ManagedLedgerConfig(),
-                    new PulsarConnectorMetricsTracker(new NullStatsProvider()),dispatchingRowDecoderFactory));
+                    new PulsarConnectorMetricsTracker(new NullStatsProvider()),dispatchingRowDecoderFactory);
             this.pulsarRecordCursors.put(split.getKey(), pulsarRecordCursor);
         }
     }
