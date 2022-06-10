@@ -98,7 +98,8 @@ public class ProxyConfiguration implements PulsarConfiguration {
     @FieldContext(
         category = CATEGORY_BROKER_DISCOVERY,
         deprecated = true,
-        doc = "Configuration store connection string (as a comma-separated list)"
+        doc = "Configuration store connection string (as a comma-separated list). Deprecated in favor of "
+                + "`configurationMetadataStoreUrl`"
     )
     @Deprecated
     private String configurationStoreServers;

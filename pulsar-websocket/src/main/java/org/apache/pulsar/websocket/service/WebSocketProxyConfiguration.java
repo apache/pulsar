@@ -61,7 +61,9 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     @Deprecated
     @FieldContext(
             deprecated = true,
-            doc = "Connection string of configuration store servers")
+            doc = "Configuration store connection string (as a comma-separated list). Deprecated in favor of "
+                    + "`configurationMetadataStoreUrl`"
+    )
     private String configurationStoreServers;
 
     @FieldContext(doc = "Connection string of configuration metadata store servers")
