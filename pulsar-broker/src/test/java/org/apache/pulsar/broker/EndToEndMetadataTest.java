@@ -31,6 +31,7 @@ import org.apache.pulsar.metadata.BaseMetadataStoreTest;
 import org.testng.annotations.Test;
 
 @Slf4j
+@Test(groups = "broker")
 public class EndToEndMetadataTest extends BaseMetadataStoreTest {
 
     @Test(dataProvider = "impl")
