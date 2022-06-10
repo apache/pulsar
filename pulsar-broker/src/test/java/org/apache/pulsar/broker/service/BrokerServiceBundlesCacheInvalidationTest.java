@@ -28,6 +28,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Slf4j
+@Test(groups = "broker-admin")
 public class BrokerServiceBundlesCacheInvalidationTest extends BrokerTestBase {
 
     @BeforeMethod
