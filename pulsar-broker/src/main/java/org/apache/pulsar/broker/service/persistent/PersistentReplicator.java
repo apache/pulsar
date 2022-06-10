@@ -705,22 +705,19 @@ public class PersistentReplicator extends AbstractReplicator
     }
 
     @Override
-    public boolean initializeDispatchRateLimiterIfNeeded() {
+    public void initializeDispatchRateLimiterIfNeeded() {
         synchronized (dispatchRateLimiterLock) {
             if (!dispatchRateLimiter.isPresent()
                 && DispatchRateLimiter.isDispatchRateEnabled(topic.getReplicatorDispatchRate())) {
                 this.dispatchRateLimiter = Optional.of(new DispatchRateLimiter(topic, Type.REPLICATOR));
-                return true;
             }
-            return false;
         }
     }
 
     @Override
     public void updateRateLimiter() {
-        if (!initializeDispatchRateLimiterIfNeeded()) {
-            dispatchRateLimiter.ifPresent(DispatchRateLimiter::updateDispatchRate);
-        }
+        initializeDispatchRateLimiterIfNeeded();
+        dispatchRateLimiter.ifPresent(DispatchRateLimiter::updateDispatchRate);
     }
 
     private void checkReplicatedSubscriptionMarker(Position position, MessageImpl<?> msg, ByteBuf payload) {
