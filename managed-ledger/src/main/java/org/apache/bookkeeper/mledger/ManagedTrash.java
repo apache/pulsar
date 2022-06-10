@@ -42,6 +42,7 @@ public interface ManagedTrash {
     }
 
     enum LedgerType {
+        BOTH,
         OFFLOAD_LEDGER,
         LEDGER
     }
@@ -66,5 +67,5 @@ public interface ManagedTrash {
 
     void asyncClose(AsyncCallbacks.CloseCallback callback, Object ctx);
 
-    boolean allTrashDataDeleteOnce();
+    CompletableFuture<?> allTrashDataDeleteOnce();
 }

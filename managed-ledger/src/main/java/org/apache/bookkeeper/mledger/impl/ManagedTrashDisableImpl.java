@@ -80,7 +80,7 @@ public class ManagedTrashDisableImpl implements ManagedTrash {
     }
 
     @Override
-    public boolean allTrashDataDeleteOnce() {
-        return false;
+    public CompletableFuture<?> allTrashDataDeleteOnce() {
+        return COMPLETABLE_FUTURE;
     }
 }

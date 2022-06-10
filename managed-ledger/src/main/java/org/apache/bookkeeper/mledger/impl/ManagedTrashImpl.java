@@ -123,12 +123,16 @@ public class ManagedTrashImpl implements ManagedTrash {
 
     private final ManagedTrashMXBean managedTrashMXBean;
 
+    private final NavigableMap<Long, LedgerInfo> managedLedgers;
+
     public ManagedTrashImpl(ManagedType type, String name, MetadataStore metadataStore, ManagedLedgerConfig config,
-                            OrderedScheduler scheduledExecutor, OrderedExecutor executor, BookKeeper bookKeeper) {
+                            OrderedScheduler scheduledExecutor, OrderedExecutor executor, BookKeeper bookKeeper,
+                            NavigableMap<Long, LedgerInfo> managedLedgers) {
         this.type = type.getName();
         this.name = name;
         this.config = config;
         this.metadataStore = metadataStore;
+        this.managedLedgers = managedLedgers;
         this.scheduledExecutor = scheduledExecutor;
         this.executor = executor;
         this.bookKeeper = bookKeeper;
@@ -150,7 +154,7 @@ public class ManagedTrashImpl implements ManagedTrash {
         metadataStore.get(buildDeletePath()).whenCompleteAsync((res, e) -> {
             if (e != null) {
                 log.error("[{}] Get delete data failed.", name(), e);
-                future.completeExceptionally(e);
+                future.completeExceptionally(ManagedLedgerException.getManagedLedgerException(e));
                 return;
             }
             if (res.isEmpty()) {
@@ -175,7 +179,7 @@ public class ManagedTrashImpl implements ManagedTrash {
             } catch (InvalidProtocolBufferException exc) {
                 future.completeExceptionally(ManagedLedgerException.getManagedLedgerException(exc));
             }
-        }, scheduledExecutor.chooseThread(name));
+        }, executor.chooseThread(name));
         return future;
     }
 
@@ -200,7 +204,7 @@ public class ManagedTrashImpl implements ManagedTrash {
     public void appendLedgerTrashData(long ledgerId, LedgerInfo context, LedgerType type)
             throws ManagedLedgerException {
         State state = STATE_UPDATER.get(this);
-        if (state != State.Initialized) {
+        if (State.FENCED == state || State.Closed == state) {
             throw ManagedLedgerException.getManagedLedgerException(new IllegalStateException(
                     String.format("[%s] is not initialized, current state: %s", name(), state)));
         }
@@ -233,9 +237,9 @@ public class ManagedTrashImpl implements ManagedTrash {
 
     private void doAsyncUpdateTrashData(CompletableFuture<?> future) {
         State state = STATE_UPDATER.get(this);
-        if (state != State.Initialized) {
-            future.completeExceptionally(ManagedLedgerException.getManagedLedgerException(new IllegalStateException(
-                    String.format("[%s] is not initialized, current state: %s", name(), state))));
+        if (State.Closed == state) {
+            future.completeExceptionally(ManagedLedgerException.getManagedLedgerException(
+                    new IllegalStateException(String.format("[%s] is closed.", name()))));
             return;
         }
         if (!trashMutex.tryLock()) {
@@ -304,30 +308,41 @@ public class ManagedTrashImpl implements ManagedTrash {
 
     @Override
     public void triggerDeleteInBackground() {
-        executor.executeOrdered(name, safeRun(this::triggerDelete));
+        State state = STATE_UPDATER.get(this);
+        LedgerType type;
+        //if state fenced, means that it only delete ledgers
+        if (State.FENCED == state) {
+            type = LedgerType.LEDGER;
+        } else {
+            type = LedgerType.BOTH;
+        }
+        executor.executeOrdered(name, safeRun(() -> triggerDelete(type)));
     }
 
-    private void triggerDelete() {
+
+    private void triggerDelete(LedgerType type) {
         State state = STATE_UPDATER.get(this);
-        if (state != State.Initialized) {
-            log.warn("[{}] is not initialized, current state: {}", name(), state);
+        if (State.Closed == state) {
+            log.warn("[{}] is closed", name());
             return;
         }
         if (!deleteMutex.tryLock()) {
             continueDeleteImmediately.incrementAndGet();
             return;
         }
-        List<DelHelper> toDelete = getToDeleteData();
-        if (toDelete.size() == 0) {
-            continueDeleteImmediately.set(0);
+        Tuple tuple = getToDeleteData(type);
+        if (tuple.toDelete.size() == 0) {
             deleteMutex.unlock();
+            //if filtered, means that there still
+            if (tuple.filtered) {
+                continueDeleteIfNecessary();
+            } else {
+                continueDeleteImmediately.set(0);
+            }
             return;
         }
-        //filter trashData which last time and current time differ by no more than deleteIntervalMillis.
-        toDelete.removeIf(ele -> System.currentTimeMillis() - ele.key.lastDeleteTs < deleteIntervalMillis);
-
         List<CompletableFuture<?>> futures = new ArrayList<>();
-        for (DelHelper delHelper : toDelete) {
+        for (DelHelper delHelper : tuple.toDelete) {
             futures.add(asyncDeleteTrash(delHelper));
         }
         FutureUtil.waitForAll(futures).whenCompleteAsync((res, e) -> {
@@ -337,11 +352,51 @@ public class ManagedTrashImpl implements ManagedTrash {
     }
 
     @Override
-    public boolean allTrashDataDeleteOnce() {
+    public CompletableFuture<?> allTrashDataDeleteOnce() {
+        //ensure can't add more trashData.
+        STATE_UPDATER.set(this, State.FENCED);
+        CompletableFuture<?> future = new CompletableFuture<>();
+        allTrashDataDeleteOnce(future);
+        return future.thenCompose(ignore -> {
+            CompletableFuture<?> finalFuture = new CompletableFuture<>();
+            asyncClose(new AsyncCallbacks.CloseCallback() {
+                @Override
+                public void closeComplete(Object ctx) {
+                    finalFuture.complete(null);
+                }
+
+                @Override
+                public void closeFailed(ManagedLedgerException exception, Object ctx) {
+                    finalFuture.completeExceptionally(exception);
+                }
+            }, null);
+            return finalFuture;
+        });
+    }
+
+    private void allTrashDataDeleteOnce(CompletableFuture<?> future) {
         if (trashData.isEmpty()) {
-            return true;
+            future.complete(null);
+            return;
         }
-        return trashData.lastEntry().getKey().retryCount < maxDeleteCount;
+        Optional<Map.Entry<TrashKey, LedgerInfo>> lastLedgerTrashData =
+                trashData.descendingMap().entrySet().stream().filter(ele ->
+                        LedgerType.OFFLOAD_LEDGER != ele.getKey().getType()).findFirst();
+        if (lastLedgerTrashData.isEmpty()) {
+            future.complete(null);
+            return;
+        }
+        if (lastLedgerTrashData.get().getKey().getRetryCount() < maxDeleteCount) {
+            future.complete(null);
+            return;
+        }
+        triggerDeleteInBackground();
+        scheduledExecutor.schedule(() -> allTrashDataDeleteOnceInBackground(future), 1000,
+                TimeUnit.MILLISECONDS);
+    }
+
+    private void allTrashDataDeleteOnceInBackground(CompletableFuture<?> future) {
+        executor.executeOrdered(name, safeRun(() -> allTrashDataDeleteOnce(future)));
     }
 
     @Override
@@ -394,7 +449,7 @@ public class ManagedTrashImpl implements ManagedTrash {
 
     @Override
     public void asyncClose(AsyncCallbacks.CloseCallback callback, Object ctx) {
-        if (STATE_UPDATER.get(this) == State.Closed) {
+        if (State.Closed == STATE_UPDATER.get(this)) {
             callback.closeComplete(ctx);
             return;
         }
@@ -441,9 +496,9 @@ public class ManagedTrashImpl implements ManagedTrash {
     }
 
     //take 1/10 trash to delete, if the size over 10, use 10 to delete.
-    private List<DelHelper> getToDeleteData() {
+    private Tuple getToDeleteData(LedgerType type) {
         if (trashData.size() == 0) {
-            return Collections.emptyList();
+            return new Tuple(Collections.emptyList(), false);
         }
         int batchSize = trashData.size() / 10;
         if (batchSize > 10) {
@@ -452,18 +507,41 @@ public class ManagedTrashImpl implements ManagedTrash {
         if (batchSize == 0) {
             batchSize = 1;
         }
+        boolean filtered = false;
         List<DelHelper> toDelete = new ArrayList<>(batchSize);
+
         for (Map.Entry<TrashKey, LedgerInfo> entry : trashData.descendingMap().entrySet()) {
             //if last retryCount is zero, the before data retryCount is zero too.
             if (entry.getKey().retryCount == 0) {
                 break;
             }
+            if (LedgerType.BOTH != type && type != entry.getKey().getType()) {
+                continue;
+            }
+            //1.filter trashData which last time and current time differ by no more than deleteIntervalMillis.
+            //2.filter trashData which still exist in managedLedgers
+            if (System.currentTimeMillis() - entry.getKey().lastDeleteTs < deleteIntervalMillis
+                    || managedLedgers.containsKey(entry.getKey().getLedgerId())) {
+                filtered = true;
+                continue;
+            }
+
             toDelete.add(DelHelper.buildHelper(entry.getKey(), entry.getValue()));
             if (toDelete.size() == batchSize) {
                 break;
             }
         }
-        return toDelete;
+        return new Tuple(toDelete, filtered);
+    }
+
+    private static class Tuple {
+        private List<DelHelper> toDelete;
+        private boolean filtered;
+
+        public Tuple(List<DelHelper> toDelete, boolean filtered) {
+            this.toDelete = toDelete;
+            this.filtered = filtered;
+        }
     }
 
     private void asyncUpdateArchiveData(CompletableFuture<?> future) {
@@ -474,9 +552,9 @@ public class ManagedTrashImpl implements ManagedTrash {
         log.info("[{}] Start async update archive data", name());
 
         State state = STATE_UPDATER.get(this);
-        if (state != State.Initialized) {
-            future.completeExceptionally(ManagedLedgerException.getManagedLedgerException(new IllegalStateException(
-                    String.format("[%s] is not initialized, current state: %s", name(), state))));
+        if (State.Closed == state) {
+            future.completeExceptionally(ManagedLedgerException.getManagedLedgerException(
+                    new IllegalStateException(String.format("[%s] is closed.", name()))));
             return;
         }
         asyncUpdateTrashData().thenAccept(ignore -> {
@@ -589,7 +667,7 @@ public class ManagedTrashImpl implements ManagedTrash {
 
     private void continueDeleteIfNecessary() {
         Map.Entry<TrashKey, LedgerInfo> lastEntry = trashData.lastEntry();
-        if (lastEntry == null) {
+        if (trashData.isEmpty()) {
             return;
         }
         if (lastEntry.getKey().retryCount > 0) {
@@ -772,6 +850,7 @@ public class ManagedTrashImpl implements ManagedTrash {
     public enum State {
         None,
         Initialized,
+        FENCED,
         Closed,
     }
 
