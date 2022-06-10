@@ -290,6 +290,9 @@ if [[ -z "$IS_JAVA_8" ]]; then
   OPTS="$OPTS --add-opens java.base/sun.net=ALL-UNNAMED --add-opens java.management/sun.management=ALL-UNNAMED"
 fi
 
+# Specify default nar tmp dir
+OPTS="$OPTS -Dnar.extraction.tmpdir=$PULSAR_HOME/tmp"
+
 OPTS="-cp $PULSAR_CLASSPATH $OPTS"
 
 if [ $COMMAND == "bookie" ]; then

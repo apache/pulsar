@@ -139,7 +139,7 @@ public class NarClassLoader extends URLClassLoader {
 
     private static final String TMP_DIR_PREFIX = "pulsar-nar";
 
-    public static final String DEFAULT_NAR_EXTRACTION_DIR = System.getProperty("java.io.tmpdir");
+    public static final String DEFAULT_NAR_EXTRACTION_DIR = System.getProperty("nar.extraction.tmpdir");
 
     static NarClassLoader getFromArchive(File narPath, Set<String> additionalJars, ClassLoader parent,
                                                 String narExtractionDirectory)
