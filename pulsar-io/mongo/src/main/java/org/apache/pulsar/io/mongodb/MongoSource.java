@@ -52,7 +52,7 @@ import org.reactivestreams.Subscription;
         name = "mongo",
         type = IOType.SOURCE,
         help = "A source connector that sends mongodb documents to pulsar",
-        configClass = MongoSinkConfig.class
+        configClass = MongoSourceConfig.class
 )
 @Slf4j
 public class MongoSource extends PushSource<byte[]> {

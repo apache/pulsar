@@ -41,7 +41,7 @@ public class MongoAbstractConfig implements Serializable {
     @FieldDoc(
             required = true,
             defaultValue = "",
-            help = "The uri of mongodb that the connector connects to "
+            help = "The URI of MongoDB that the connector connects to "
                     + "(see: https://docs.mongodb.com/manual/reference/connection-string/)"
     )
     private String mongoUri;
