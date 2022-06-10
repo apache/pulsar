@@ -118,7 +118,7 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
             ByteBuf metadataAndPayload = entry.getDataBuffer();
             final int metadataIndex = i + startOffset;
             final MessageMetadata msgMetadata = optMetadataArray.map(metadataArray -> metadataArray[metadataIndex])
-                    .orElse(Commands.peekMessageMetadata(metadataAndPayload, subscription.toString(), -1));
+                    .orElseGet(() -> Commands.peekMessageMetadata(metadataAndPayload, subscription.toString(), -1));
             int entryMsgCnt = msgMetadata == null ? 1 : msgMetadata.getNumMessagesInBatch();
             this.filterProcessedMsgs.add(entryMsgCnt);
 
