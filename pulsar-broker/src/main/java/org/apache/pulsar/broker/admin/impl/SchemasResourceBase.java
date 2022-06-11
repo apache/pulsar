@@ -89,7 +89,7 @@ public class SchemasResourceBase extends AdminResource {
     }
 
     public void getSchema(boolean authoritative, AsyncResponse response) {
-        validateDestinationAndAdminOperation(authoritative);
+        validateOwnershipAndOperation(authoritative, TopicOperation.GET_METADATA);
         String schemaId = getSchemaId();
         pulsar().getSchemaRegistryService().getSchema(schemaId).handle((schema, error) -> {
             handleGetSchemaResponse(response, schema, error);
@@ -104,7 +104,7 @@ public class SchemasResourceBase extends AdminResource {
     }
 
     public void getSchema(boolean authoritative, String version, AsyncResponse response) {
-        validateDestinationAndAdminOperation(authoritative);
+        validateOwnershipAndOperation(authoritative, TopicOperation.GET_METADATA);
         String schemaId = getSchemaId();
         ByteBuffer bbVersion = ByteBuffer.allocate(Long.BYTES);
         bbVersion.putLong(Long.parseLong(version));
@@ -128,7 +128,7 @@ public class SchemasResourceBase extends AdminResource {
     }
 
     public void getAllSchemas(boolean authoritative, AsyncResponse response) {
-        validateDestinationAndAdminOperation(authoritative);
+        validateOwnershipAndOperation(authoritative, TopicOperation.GET_METADATA);
 
         String schemaId = getSchemaId();
         pulsar().getSchemaRegistryService().trimDeletedSchemaAndGetList(schemaId).handle((schema, error) -> {
@@ -293,7 +293,7 @@ public class SchemasResourceBase extends AdminResource {
     }
 
     public void getVersionBySchema(PostSchemaPayload payload, boolean authoritative, AsyncResponse response) {
-        validateDestinationAndAdminOperation(authoritative);
+        validateOwnershipAndOperation(authoritative, TopicOperation.GET_METADATA);
 
         String schemaId = getSchemaId();
 
@@ -426,6 +426,19 @@ public class SchemasResourceBase extends AdminResource {
     private CompletableFuture<Void> validateDestinationAndAdminOperationAsync(boolean authoritative) {
         return validateTopicOwnershipAsync(topicName, authoritative)
                 .thenCompose(__ -> validateAdminAccessForTenantAsync(topicName.getTenant()));
+    }
+
+    private void validateOwnershipAndOperation(boolean authoritative, TopicOperation operation) {
+        try {
+            validateTopicOwnership(topicName, authoritative);
+            validateTopicOperation(topicName, operation);
+        } catch (RestException e) {
+            if (e.getResponse().getStatus() == Response.Status.UNAUTHORIZED.getStatusCode()) {
+                throw new RestException(Response.Status.UNAUTHORIZED, e.getMessage());
+            } else {
+                throw e;
+            }
+        }
     }
 
     private CompletableFuture<Void> validateOwnershipAndOperationAsync(boolean authoritative,
