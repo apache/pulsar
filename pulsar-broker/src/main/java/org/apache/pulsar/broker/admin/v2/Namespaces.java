@@ -773,9 +773,10 @@ public class Namespaces extends NamespacesBase {
             @PathParam("namespace") String namespace) {
         validateNamespaceName(property, namespace);
         internalGetPublishRateAsync()
-                .thenAccept(publishRate -> asyncResponse.resume(publishRate))
+                .thenAccept(asyncResponse::resume)
                 .exceptionally(ex -> {
                     log.error("Failed to get publish rate for namespace {}", namespaceName, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
     }
