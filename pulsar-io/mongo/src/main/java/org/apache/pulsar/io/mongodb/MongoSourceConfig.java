@@ -18,9 +18,9 @@
  */
 package org.apache.pulsar.io.mongodb;
 
+import static com.google.common.base.Preconditions.checkNotNull;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-import com.google.common.base.Preconditions;
 import java.io.File;
 import java.io.IOException;
 import java.util.Map;
@@ -97,6 +97,6 @@ public class MongoSourceConfig extends MongoAbstractConfig {
     @Override
     public void validate() {
         super.validate();
-        Preconditions.checkNotNull(getSyncType(), "syncType not set.");
+        checkNotNull(getSyncType(), "syncType not set.");
     }
 }

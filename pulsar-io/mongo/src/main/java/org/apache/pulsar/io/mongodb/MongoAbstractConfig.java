@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.io.mongodb;
 
-import com.google.common.base.Preconditions;
+import static com.google.common.base.Preconditions.checkArgument;
 import java.io.Serializable;
 import lombok.Data;
 import lombok.experimental.Accessors;
@@ -74,8 +74,8 @@ public class MongoAbstractConfig implements Serializable {
     private long batchTimeMs = DEFAULT_BATCH_TIME_MS;
 
     public void validate() {
-        Preconditions.checkArgument(!StringUtils.isEmpty(getMongoUri()), "Required MongoDB URI is not set.");
-        Preconditions.checkArgument(getBatchSize() > 0, "batchSize must be a positive integer.");
-        Preconditions.checkArgument(getBatchTimeMs() > 0, "batchTimeMs must be a positive long.");
+        checkArgument(!StringUtils.isEmpty(getMongoUri()), "Required MongoDB URI is not set.");
+        checkArgument(getBatchSize() > 0, "batchSize must be a positive integer.");
+        checkArgument(getBatchTimeMs() > 0, "batchTimeMs must be a positive long.");
     }
 }
