@@ -451,6 +451,7 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
 
     @Test(dataProvider = "impl")
     public void testConcurrentPut(String provider, Supplier<String> urlSupplier) throws Exception {
+        @Cleanup
         MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
 
         String k = newKey();
@@ -465,6 +466,7 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
 
     @Test(dataProvider = "impl")
     public void testConcurrentDelete(String provider, Supplier<String> urlSupplier) throws Exception {
+        @Cleanup
         MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
 
         String k = newKey();
