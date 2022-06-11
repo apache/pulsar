@@ -61,6 +61,7 @@ for token in $("$JAVA_BIN" -version 2>&1 | grep 'version "'); do
         fi
         break
     elif [[ $token =~ \"([[:digit:]]+)(.*)\" ]]; then
+        # Process the java versions without dots, such as `17-internal`.
         JAVA_MAJOR_VERSION=${BASH_REMATCH[1]}
         break
     fi
