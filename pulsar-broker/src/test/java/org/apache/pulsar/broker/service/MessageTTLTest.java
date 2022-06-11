@@ -112,7 +112,7 @@ public class MessageTTLTest extends BrokerTestBase {
     @Test
     public void testTTLPoliciesUpdate() throws Exception {
         final String namespace = "prop/ns-abc";
-        final String topicName = "persistent://prop/ns-abc/testTTLPoliciesUpdate";
+        final String topicName = "persistent://" + namespace + "/testTTLPoliciesUpdate";
 
         @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
