@@ -66,4 +66,35 @@ public interface ManagedLedgerFactoryMXBean {
      * Get the number of cache evictions during the last minute.
      */
     long getNumberOfCacheEvictions();
+
+
+    /**
+     * Get the number of bytes that cache used.
+     */
+    long getCachePoolUsed();
+
+    /**
+     * Get the number of bytes that cache allocated.
+     */
+    long getCachePoolAllocated();
+
+    /**
+     * Get the number of currently active allocations.
+     */
+    long getCachePoolActiveAllocations();
+
+    /**
+     * Get the number of currently active small allocations.
+     */
+    long getCachePoolActiveAllocationsSmall();
+
+    /**
+     * Get the number of currently active normal allocations.
+     */
+    long getCachePoolActiveAllocationsNormal();
+
+    /**
+     * Get the number of currently active huge allocations.
+     */
+    long getCachePoolActiveAllocationsHuge();
 }

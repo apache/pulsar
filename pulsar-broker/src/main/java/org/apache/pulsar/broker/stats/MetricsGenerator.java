@@ -23,8 +23,8 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.broker.stats.metrics.ManagedLedgerCacheMetrics;
 import org.apache.pulsar.broker.stats.metrics.ManagedLedgerMetrics;
 import org.apache.pulsar.common.stats.JvmMetrics;
 import org.apache.pulsar.common.stats.Metrics;
@@ -49,7 +49,7 @@ public class MetricsGenerator {
 
         // add the collectors here
         metricsCollection.addAll(jvmMetrics.generate());
-        metricsCollection.addAll(new ManagedLedgerCacheMetrics(pulsar).generate());
+        metricsCollection.addAll(((ManagedLedgerFactoryImpl) pulsar.getManagedLedgerFactory()).getMbean().generate());
         metricsCollection.addAll(new ManagedLedgerMetrics(pulsar).generate());
         metricsCollection.addAll(pulsar.getBrokerService().getTopicMetrics());
         metricsCollection.addAll(pulsar.getLoadManager().get().getLoadBalancingMetrics());

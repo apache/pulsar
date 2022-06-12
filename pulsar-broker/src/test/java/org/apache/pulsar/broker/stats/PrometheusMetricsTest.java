@@ -1453,6 +1453,29 @@ public class PrometheusMetricsTest extends BrokerTestBase {
     }
 
     @Test
+    public void testManagedLedgerFactoryMetrics() throws Exception {
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        PrometheusMetricsGenerator.generate(pulsar, false, false, false, output);
+        String metricsStr = output.toString(StandardCharsets.UTF_8);
+
+        Multimap<String, Metric> metricsMap = parseMetrics(metricsStr);
+
+        Assert.assertNotEquals(metricsMap.get("pulsar_ml_count").size(), 0);
+        Assert.assertNotEquals(metricsMap.get("pulsar_ml_cache_used_size").size(), 0);
+        Assert.assertNotEquals(metricsMap.get("pulsar_ml_cache_evictions").size(), 0);
+        Assert.assertNotEquals(metricsMap.get("pulsar_ml_cache_hits_rate").size(), 0);
+        Assert.assertNotEquals(metricsMap.get("pulsar_ml_cache_misses_rate").size(), 0);
+        Assert.assertNotEquals(metricsMap.get("pulsar_ml_cache_hits_throughput").size(), 0);
+        Assert.assertNotEquals(metricsMap.get("pulsar_ml_cache_misses_throughput").size(), 0);
+        Assert.assertNotEquals(metricsMap.get("pulsar_ml_cache_pool_used").size(), 0);
+        Assert.assertNotEquals(metricsMap.get("pulsar_ml_cache_pool_allocated").size(), 0);
+        Assert.assertNotEquals(metricsMap.get("pulsar_ml_cache_pool_active_allocations").size(), 0);
+        Assert.assertNotEquals(metricsMap.get("pulsar_ml_cache_pool_active_allocations_small").size(), 0);
+        Assert.assertNotEquals(metricsMap.get("pulsar_ml_cache_pool_active_allocations_normal").size(), 0);
+        Assert.assertNotEquals(metricsMap.get("pulsar_ml_cache_pool_active_allocations_huge").size(), 0);
+    }
+
+    @Test
     public void testSplitTopicAndPartitionLabel() throws Exception {
         String ns1 = "prop/ns-abc1";
         String ns2 = "prop/ns-abc2";

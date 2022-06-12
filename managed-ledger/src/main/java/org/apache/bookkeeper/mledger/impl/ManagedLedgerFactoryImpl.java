@@ -192,7 +192,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         this.store = new MetaStoreImpl(metadataStore, scheduledExecutor, config.getManagedLedgerInfoCompressionType(),
                 config.getManagedCursorInfoCompressionType());
         this.config = config;
-        this.mbean = new ManagedLedgerFactoryMBeanImpl(this);
+        this.mbean = new ManagedLedgerFactoryMBeanImpl(this, config.getStatsPeriodSeconds());
         this.entryCacheManager = new RangeEntryCacheManagerImpl(this);
         this.statsTask = scheduledExecutor.scheduleWithFixedDelay(catchingAndLoggingThrowables(this::refreshStats),
                 0, config.getStatsPeriodSeconds(), TimeUnit.SECONDS);
@@ -596,6 +596,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         }));
         cacheEvictionExecutor.shutdownNow();
         entryCacheManager.clear();
+        this.mbean.close();
         return FutureUtil.waitForAll(futures);
     }
 
@@ -652,7 +653,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
 
         scheduledExecutor.shutdownNow();
         cacheEvictionExecutor.shutdownNow();
-
+        this.mbean.close();
         entryCacheManager.clear();
     }
 
