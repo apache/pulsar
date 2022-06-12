@@ -136,27 +136,26 @@ public class TenantsBase extends PulsarWebResource {
             return;
         }
 
-        tenantResources().listTenantsAsync().whenComplete((tenants, e) -> {
-            if (e != null) {
-                log.error("[{}] Failed to create tenant ", clientAppId, e.getCause());
-                asyncResponse.resume(new RestException(e));
+        tenantResources().tenantExistsAsync(tenant).thenAccept(exist -> {
+            if (exist) {
+                asyncResponse.resume(new RestException(Status.CONFLICT, "Tenant already exist"));
                 return;
             }
-
-            int maxTenants = pulsar().getConfiguration().getMaxTenants();
-            // Due to the cost of distributed locks, no locks are added here.
-            // In a concurrent scenario, the threshold will be exceeded.
-            if (maxTenants > 0) {
-                if (tenants != null && tenants.size() >= maxTenants) {
-                    asyncResponse.resume(
-                            new RestException(Status.PRECONDITION_FAILED, "Exceed the maximum number of tenants"));
+            tenantResources().listTenantsAsync().whenComplete((tenants, e) -> {
+                if (e != null) {
+                    log.error("[{}] Failed to create tenant ", clientAppId, e.getCause());
+                    asyncResponse.resume(new RestException(e));
                     return;
                 }
-            }
-            tenantResources().tenantExistsAsync(tenant).thenAccept(exist -> {
-                if (exist) {
-                    asyncResponse.resume(new RestException(Status.CONFLICT, "Tenant already exist"));
-                    return;
+                int maxTenants = pulsar().getConfiguration().getMaxTenants();
+                // Due to the cost of distributed locks, no locks are added here.
+                // In a concurrent scenario, the threshold will be exceeded.
+                if (maxTenants > 0) {
+                    if (tenants != null && tenants.size() >= maxTenants) {
+                        asyncResponse.resume(
+                                new RestException(Status.PRECONDITION_FAILED, "Exceed the maximum number of tenants"));
+                        return;
+                    }
                 }
                 tenantResources().createTenantAsync(tenant, tenantInfo).thenAccept((r) -> {
                     log.info("[{}] Created tenant {}", clientAppId(), tenant);
