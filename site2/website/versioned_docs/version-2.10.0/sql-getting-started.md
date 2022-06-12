@@ -24,7 +24,7 @@ To query data in Pulsar with Pulsar SQL, complete the following steps.
 
 2. Adjust configuration.
 
-If you use JDK17, you need to add the following options to the configuration file `conf/presto/jvm.config`.
+If you use JDK17 and Pulsar version is less or equal than 2.10, you need to add the following options to the configuration file `conf/presto/jvm.config`.
 
 ```bash
 
