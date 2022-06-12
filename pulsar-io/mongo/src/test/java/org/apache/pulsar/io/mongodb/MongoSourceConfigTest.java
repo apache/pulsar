@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
@@ -27,36 +27,53 @@ import org.testng.annotations.Test;
 
 public class MongoSourceConfigTest {
 
-    private static File getFile(String fileName) {
-        return new File(MongoSourceConfigTest.class.getClassLoader().getResource(fileName).getFile());
-    }
-
     @Test
-    public void testMap() throws IOException {
-        final Map<String, Object> map = TestHelper.createMap(true);
-        final MongoSourceConfig cfg = MongoSourceConfig.load(map);
+    public void testLoadMapConfig() throws IOException {
+        final Map<String, Object> configMap = TestHelper.createCommonConfigMap();
+        TestHelper.putSyncType(configMap, TestHelper.SYNC_TYPE);
+
+        final MongoSourceConfig cfg = MongoSourceConfig.load(configMap);
 
         assertEquals(cfg.getMongoUri(), TestHelper.URI);
         assertEquals(cfg.getDatabase(), TestHelper.DB);
         assertEquals(cfg.getCollection(), TestHelper.COLL);
+        assertEquals(cfg.getSyncType(), TestHelper.SYNC_TYPE);
         assertEquals(cfg.getBatchSize(), TestHelper.BATCH_SIZE);
+        assertEquals(cfg.getBatchTimeMs(), TestHelper.BATCH_TIME);
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class,
-            expectedExceptionsMessageRegExp = "Required property not set.")
-    public void testBadMap() throws IOException {
-        final Map<String, Object> map = TestHelper.createMap(false);
-        final MongoSourceConfig cfg = MongoSourceConfig.load(map);
+            expectedExceptionsMessageRegExp = "Required MongoDB URI is not set.")
+    public void testBadMongoUri() throws IOException {
+        final Map<String, Object> configMap = TestHelper.createCommonConfigMap();
+        TestHelper.removeMongoUri(configMap);
+
+        final MongoSourceConfig cfg = MongoSourceConfig.load(configMap);
 
         cfg.validate();
+    }
+
+    /**
+     * Test if the default sync type is incr when the sync type is not set.
+     */
+    @Test
+    public void testBadSyncType() throws IOException {
+        final Map<String, Object> configMap = TestHelper.createCommonConfigMap();
+        TestHelper.putSyncType(configMap, null);
+
+        final MongoSourceConfig cfg = MongoSourceConfig.load(configMap);
+
+        cfg.validate();
+        assertEquals(cfg.getSyncType(), MongoSourceConfig.DEFAULT_SYNC_TYPE);
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class,
             expectedExceptionsMessageRegExp = "batchSize must be a positive integer.")
     public void testBadBatchSize() throws IOException {
-        final Map<String, Object> map = TestHelper.createMap(true);
-        map.put("batchSize", 0);
-        final MongoSourceConfig cfg = MongoSourceConfig.load(map);
+        final Map<String, Object> configMap = TestHelper.createCommonConfigMap();
+        TestHelper.putBatchSize(configMap, 0);
+
+        final MongoSourceConfig cfg = MongoSourceConfig.load(configMap);
 
         cfg.validate();
     }
@@ -64,21 +81,23 @@ public class MongoSourceConfigTest {
     @Test(expectedExceptions = IllegalArgumentException.class,
             expectedExceptionsMessageRegExp = "batchTimeMs must be a positive long.")
     public void testBadBatchTime() throws IOException {
-        final Map<String, Object> map = TestHelper.createMap(true);
-        map.put("batchTimeMs", 0);
-        final MongoSourceConfig cfg = MongoSourceConfig.load(map);
+        final Map<String, Object> configMap = TestHelper.createCommonConfigMap();
+        TestHelper.putBatchTime(configMap, 0L);
+
+        final MongoSourceConfig cfg = MongoSourceConfig.load(configMap);
 
         cfg.validate();
     }
 
     @Test
-    public void testYaml() throws IOException {
-        final File yaml = getFile("MongoSourceConfig.yaml");
+    public void testLoadYamlConfig() throws IOException {
+        final File yaml = TestHelper.getFile(MongoSourceConfigTest.class, "MongoSourceConfig.yaml");
         final MongoSourceConfig cfg = MongoSourceConfig.load(yaml.getAbsolutePath());
 
         assertEquals(cfg.getMongoUri(), TestHelper.URI);
         assertEquals(cfg.getDatabase(), TestHelper.DB);
         assertEquals(cfg.getCollection(), TestHelper.COLL);
+        assertEquals(cfg.getSyncType(), TestHelper.SYNC_TYPE);
         assertEquals(cfg.getBatchSize(), TestHelper.BATCH_SIZE);
         assertEquals(cfg.getBatchTimeMs(), TestHelper.BATCH_TIME);
     }
