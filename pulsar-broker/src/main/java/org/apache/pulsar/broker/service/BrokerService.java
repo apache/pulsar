@@ -2308,6 +2308,45 @@ public class BrokerService implements Closeable {
         // add listener to notify topic subscriptionTypesEnabled changed.
         registerConfigurationListener("subscriptionTypesEnabled", this::updateBrokerSubscriptionTypesEnabled);
 
+        // add listener to notify topic allowAutoTopicCreation  changed.
+        registerConfigurationListener("allowAutoTopicCreation", (allowAutoTopicCreation) -> {
+            this.pulsar.getConfiguration().setAllowAutoTopicCreation((boolean) allowAutoTopicCreation);
+        });
+
+        // add listener to notify topic allowAutoTopicCreationType
+        registerConfigurationListener("allowAutoTopicCreationType", (allowAutoTopicCreationType) -> {
+            this.pulsar.getConfiguration().setAllowAutoTopicCreationType((String) allowAutoTopicCreationType);
+        });
+
+        // add listener to notify topic brokerDeleteInactiveTopicsEnabled
+        registerConfigurationListener("brokerDeleteInactiveTopicsEnabled",
+                (brokerDeleteInactiveTopicsEnabled) -> {
+            this.pulsar.getConfiguration()
+                    .setBrokerDeleteInactiveTopicsEnabled((boolean) brokerDeleteInactiveTopicsEnabled);
+        });
+
+        // add listener to notify topic brokerDeleteInactiveTopicsFrequencySeconds
+        registerConfigurationListener("brokerDeleteInactiveTopicsFrequencySeconds",
+                (brokerDeleteInactiveTopicsFrequencySeconds) -> {
+                this.pulsar.getConfiguration()
+                    .setBrokerDeleteInactiveTopicsFrequencySeconds((int) brokerDeleteInactiveTopicsFrequencySeconds);
+        });
+
+
+        // add listener to notify topic brokerDeleteInactiveTopicsMaxInactiveDurationSeconds
+        registerConfigurationListener("brokerDeleteInactiveTopicsMaxInactiveDurationSeconds",
+                (brokerDeleteInactiveTopicsMaxInactiveDurationSeconds) -> {
+                this.pulsar.getConfiguration()
+                        .setBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds(
+                                (int) brokerDeleteInactiveTopicsMaxInactiveDurationSeconds);
+        });
+
+        // add listener to notify topic allowAutoSubscriptionCreation
+        registerConfigurationListener("allowAutoSubscriptionCreation", allowAutoSubscriptionCreation -> {
+            this.pulsar.getConfiguration().setAllowAutoSubscriptionCreation((boolean) allowAutoSubscriptionCreation);
+        });
+
+
         // add more listeners here
     }
 
