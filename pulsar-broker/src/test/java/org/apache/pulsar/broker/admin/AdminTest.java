@@ -125,6 +125,12 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
     }
 
     @Override
+    protected void doInitConf() throws Exception {
+        super.doInitConf();
+        conf.setMaxTenants(10);
+    }
+
+    @Override
     @BeforeMethod
     public void setup() throws Exception {
         conf.setClusterName(configClusterName);
@@ -625,6 +631,33 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
             fail("should have failed");
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), Status.PRECONDITION_FAILED.getStatusCode());
+        }
+
+        // Check max tenant count
+        int maxTenants = pulsar.getConfiguration().getMaxTenants();
+        List<String> tenants = pulsar.getPulsarResources().getTenantResources().listTenants();
+
+        for(int tenantSize = tenants.size();tenantSize < maxTenants; tenantSize++ ){
+            final int tenantIndex = tenantSize;
+            Response obj = (Response)asynRequests(ctx ->
+                    properties.createTenant(ctx, "test-tenant-" + tenantIndex, tenantInfo));
+            Assert.assertTrue(obj.getStatus() < 400 && obj.getStatus() >= 200);
+        }
+        try {
+            response = asynRequests(ctx ->
+                    properties.createTenant(ctx, "test-tenant-" +  maxTenants, tenantInfo));
+            fail("should have failed");
+        } catch (RestException e) {
+            assertEquals(e.getResponse().getStatus(), Status.PRECONDITION_FAILED.getStatusCode());
+        }
+
+        // Check creating existing property when tenant reach max count.
+        try {
+            response = asynRequests(ctx ->
+                    properties.createTenant(ctx, "test-tenant-" +  (maxTenants-1), tenantInfo));
+            fail("should have failed");
+        } catch (RestException e) {
+            assertEquals(e.getResponse().getStatus(), Status.CONFLICT.getStatusCode());
         }
 
         AsyncResponse response2 = mock(AsyncResponse.class);
