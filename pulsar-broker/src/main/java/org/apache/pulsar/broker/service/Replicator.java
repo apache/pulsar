@@ -41,6 +41,9 @@ public interface Replicator {
         //No-op
     }
 
+    default void updateRateLimiter() {
+    }
+
     default Optional<DispatchRateLimiter> getRateLimiter() {
         return Optional.empty();
     }

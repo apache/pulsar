@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
+import static org.testng.AssertJUnit.assertFalse;
 import com.google.common.collect.Sets;
 import java.lang.reflect.Method;
 import java.util.concurrent.TimeUnit;
@@ -74,6 +75,133 @@ public class ReplicatorRateLimiterTest extends ReplicatorTestBase {
     @DataProvider(name = "dispatchRateType")
     public Object[][] dispatchRateProvider() {
         return new Object[][] { { DispatchRateType.messageRate }, { DispatchRateType.byteRate } };
+    }
+
+    @Test
+    public void testReplicatorRateLimiterWithOnlyTopicLevel() throws Exception {
+        cleanup();
+        config1.setDispatchThrottlingRatePerReplicatorInMsg(0); // disable broker level
+        config1.setDispatchThrottlingRatePerReplicatorInByte(0L);
+        setup();
+
+        final String namespace = "pulsar/replicatorchange-" + System.currentTimeMillis();
+        final String topicName = "persistent://" + namespace + "/testReplicatorRateLimiterWithOnlyTopicLevel";
+
+        admin1.namespaces().createNamespace(namespace);
+        // set 2 clusters, there will be 1 replicator in each topic
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"));
+        @Cleanup
+        PulsarClient client1 = PulsarClient.builder().serviceUrl(url1.toString())
+            .statsInterval(0, TimeUnit.SECONDS).build();
+        client1.newProducer().topic(topicName).create().close();
+        PersistentTopic topic = (PersistentTopic) pulsar1.getBrokerService().getOrCreateTopic(topicName).get();
+
+        // rate limiter disable by default
+        assertFalse(topic.getReplicators().values().get(0).getRateLimiter().isPresent());
+
+        //set topic-level policy, which should take effect
+        DispatchRate topicRate = DispatchRate.builder()
+            .dispatchThrottlingRateInMsg(10)
+            .dispatchThrottlingRateInByte(20)
+            .ratePeriodInSecond(30)
+            .build();
+        admin1.topics().setReplicatorDispatchRate(topicName, topicRate);
+        Awaitility.await().untilAsserted(() ->
+            assertEquals(admin1.topics().getReplicatorDispatchRate(topicName), topicRate));
+        assertTrue(topic.getReplicators().values().get(0).getRateLimiter().isPresent());
+        assertEquals(topic.getReplicators().values().get(0).getRateLimiter().get().getDispatchRateOnMsg(), 10);
+        assertEquals(topic.getReplicators().values().get(0).getRateLimiter().get().getDispatchRateOnByte(), 20L);
+
+        //remove topic-level policy
+        admin1.topics().removeReplicatorDispatchRate(topicName);
+        Awaitility.await().untilAsserted(() ->
+            assertNull(admin1.topics().getReplicatorDispatchRate(topicName)));
+        assertEquals(topic.getReplicators().values().get(0).getRateLimiter().get().getDispatchRateOnMsg(), -1);
+        assertEquals(topic.getReplicators().values().get(0).getRateLimiter().get().getDispatchRateOnByte(),
+            -1L);
+    }
+
+    @Test
+    public void testReplicatorRateLimiterWithOnlyNamespaceLevel() throws Exception {
+        cleanup();
+        config1.setDispatchThrottlingRatePerReplicatorInMsg(0); // disable broker level
+        config1.setDispatchThrottlingRatePerReplicatorInByte(0L);
+        setup();
+
+        final String namespace = "pulsar/replicatorchange-" + System.currentTimeMillis();
+        final String topicName = "persistent://" + namespace + "/testReplicatorRateLimiterWithOnlyNamespaceLevel";
+
+        admin1.namespaces().createNamespace(namespace);
+        // set 2 clusters, there will be 1 replicator in each topic
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"));
+        @Cleanup
+        PulsarClient client1 = PulsarClient.builder().serviceUrl(url1.toString())
+            .statsInterval(0, TimeUnit.SECONDS).build();
+        client1.newProducer().topic(topicName).create().close();
+        PersistentTopic topic = (PersistentTopic) pulsar1.getBrokerService().getOrCreateTopic(topicName).get();
+
+        // rate limiter disable by default
+        assertFalse(topic.getReplicators().values().get(0).getRateLimiter().isPresent());
+
+        //set namespace-level policy, which should take effect
+        DispatchRate topicRate = DispatchRate.builder()
+            .dispatchThrottlingRateInMsg(10)
+            .dispatchThrottlingRateInByte(20)
+            .ratePeriodInSecond(30)
+            .build();
+        admin1.namespaces().setReplicatorDispatchRate(namespace, topicRate);
+        Awaitility.await().untilAsserted(() ->
+            assertEquals(admin1.namespaces().getReplicatorDispatchRate(namespace), topicRate));
+        assertTrue(topic.getReplicators().values().get(0).getRateLimiter().isPresent());
+        assertEquals(topic.getReplicators().values().get(0).getRateLimiter().get().getDispatchRateOnMsg(), 10);
+        assertEquals(topic.getReplicators().values().get(0).getRateLimiter().get().getDispatchRateOnByte(), 20L);
+
+        //remove topic-level policy
+        admin1.namespaces().removeReplicatorDispatchRate(namespace);
+        Awaitility.await().untilAsserted(() ->
+            assertNull(admin1.namespaces().getReplicatorDispatchRate(namespace)));
+        assertEquals(topic.getReplicators().values().get(0).getRateLimiter().get().getDispatchRateOnMsg(), -1);
+        assertEquals(topic.getReplicators().values().get(0).getRateLimiter().get().getDispatchRateOnByte(),
+            -1L);
+    }
+
+    @Test
+    public void testReplicatorRateLimiterWithOnlyBrokerLevel() throws Exception {
+        cleanup();
+        config1.setDispatchThrottlingRatePerReplicatorInMsg(0); // disable broker level when init
+        config1.setDispatchThrottlingRatePerReplicatorInByte(0L);
+        setup();
+
+        final String namespace = "pulsar/replicatorchange-" + System.currentTimeMillis();
+        final String topicName = "persistent://" + namespace + "/testReplicatorRateLimiterWithOnlyBrokerLevel";
+
+        admin1.namespaces().createNamespace(namespace);
+        // set 2 clusters, there will be 1 replicator in each topic
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"));
+        @Cleanup
+        PulsarClient client1 = PulsarClient.builder().serviceUrl(url1.toString())
+            .statsInterval(0, TimeUnit.SECONDS).build();
+        client1.newProducer().topic(topicName).create().close();
+        PersistentTopic topic = (PersistentTopic) pulsar1.getBrokerService().getOrCreateTopic(topicName).get();
+
+        // rate limiter disable by default
+        assertFalse(topic.getReplicators().values().get(0).getRateLimiter().isPresent());
+
+        //set broker-level policy, which should take effect
+        admin1.brokers().updateDynamicConfiguration("dispatchThrottlingRatePerReplicatorInMsg", "10");
+        admin1.brokers().updateDynamicConfiguration("dispatchThrottlingRatePerReplicatorInByte", "20");
+        Awaitility.await().untilAsserted(() -> {
+            assertTrue(admin1.brokers()
+                .getAllDynamicConfigurations().containsKey("dispatchThrottlingRatePerReplicatorInByte"));
+            assertEquals(admin1.brokers()
+                .getAllDynamicConfigurations().get("dispatchThrottlingRatePerReplicatorInMsg"), "10");
+            assertEquals(admin1.brokers()
+                .getAllDynamicConfigurations().get("dispatchThrottlingRatePerReplicatorInByte"), "20");
+        });
+
+        assertTrue(topic.getReplicators().values().get(0).getRateLimiter().isPresent());
+        assertEquals(topic.getReplicators().values().get(0).getRateLimiter().get().getDispatchRateOnMsg(), 10);
+        assertEquals(topic.getReplicators().values().get(0).getRateLimiter().get().getDispatchRateOnByte(), 20L);
     }
 
     @Test
