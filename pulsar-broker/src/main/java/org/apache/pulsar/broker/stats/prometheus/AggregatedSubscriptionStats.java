@@ -36,6 +36,8 @@ public class AggregatedSubscriptionStats {
 
     public double msgRateOut;
 
+    public double messageAckRate;
+
     public double msgThroughputOut;
 
     public long msgDelayed;

@@ -45,7 +45,12 @@ public class ConsumerStatsImpl implements ConsumerStats {
     /** Total rate of messages redelivered by this consumer (msg/s). */
     public double msgRateRedeliver;
 
-    /** Total chunked messages dispatched. */
+    /**
+     * Total rate of message ack(msg/s).
+     */
+    public double messageAckRate;
+
+    /** The total rate of chunked messages delivered to this consumer. */
     public double chunkedMessageRate;
 
     /** Name of the consumer. */
@@ -103,6 +108,7 @@ public class ConsumerStatsImpl implements ConsumerStats {
     public ConsumerStatsImpl add(ConsumerStatsImpl stats) {
         Objects.requireNonNull(stats);
         this.msgRateOut += stats.msgRateOut;
+        this.messageAckRate += stats.messageAckRate;
         this.msgThroughputOut += stats.msgThroughputOut;
         this.bytesOutCounter += stats.bytesOutCounter;
         this.msgOutCounter += stats.msgOutCounter;
