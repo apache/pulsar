@@ -38,6 +38,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.BrokerMetadataException;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.api.proto.CommandCloseConsumer;
+import org.apache.pulsar.common.api.proto.CommandCloseProducer;
 import org.apache.pulsar.common.api.proto.CommandError;
 import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.protocol.Commands;
@@ -156,7 +157,7 @@ public class ClientCnxTest {
 
     @Test
     public void testHandleCloseConsumer() {
-        ThreadFactory threadFactory = new DefaultThreadFactory("testReceiveErrorAtSendConnectFrameState");
+        ThreadFactory threadFactory = new DefaultThreadFactory("testHandleCloseConsumer");
         EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, false, threadFactory);
         ClientConfigurationData conf = new ClientConfigurationData();
         ClientCnx cnx = new ClientCnx(conf, eventLoop);
@@ -165,10 +166,27 @@ public class ClientCnxTest {
         cnx.registerConsumer(consumerId, mock(ConsumerImpl.class));
         assertEquals(cnx.consumers.size(), 1);
 
-        CommandCloseConsumer closeConsumer = new CommandCloseConsumer()
-                .setConsumerId(1);
+        CommandCloseConsumer closeConsumer = new CommandCloseConsumer().setConsumerId(consumerId);
         cnx.handleCloseConsumer(closeConsumer);
         assertEquals(cnx.consumers.size(), 0);
+
+        eventLoop.shutdownGracefully();
+    }
+
+    @Test
+    public void testHandleCloseProducer() {
+        ThreadFactory threadFactory = new DefaultThreadFactory("testHandleCloseProducer");
+        EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, false, threadFactory);
+        ClientConfigurationData conf = new ClientConfigurationData();
+        ClientCnx cnx = new ClientCnx(conf, eventLoop);
+
+        long producerId = 1;
+        cnx.registerProducer(producerId, mock(ProducerImpl.class));
+        assertEquals(cnx.producers.size(), 1);
+
+        CommandCloseProducer closeProducerCmd = new CommandCloseProducer().setProducerId(producerId);
+        cnx.handleCloseProducer(closeProducerCmd);
+        assertEquals(cnx.producers.size(), 0);
 
         eventLoop.shutdownGracefully();
     }
