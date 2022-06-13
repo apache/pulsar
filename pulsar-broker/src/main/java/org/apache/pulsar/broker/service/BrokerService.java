@@ -2318,7 +2318,7 @@ public class BrokerService implements Closeable {
                         ((AbstractTopic) topic).updateBrokerReplicatorDispatchRate();
                     }
                     topic.getReplicators().forEach((name, persistentReplicator) ->
-                        persistentReplicator.getRateLimiter().ifPresent(DispatchRateLimiter::updateDispatchRate));
+                        persistentReplicator.updateRateLimiter());
                 }
             );
         });

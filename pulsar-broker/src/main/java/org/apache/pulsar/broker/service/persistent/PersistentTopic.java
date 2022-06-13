@@ -392,10 +392,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     dispatcher.initializeDispatchRateLimiterIfNeeded();
                 }
             });
-
-            // dispatch rate limiter for each replicator
-            replicators.forEach((name, replicator) ->
-                replicator.initializeDispatchRateLimiterIfNeeded());
         }
     }
 
@@ -2416,9 +2412,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             });
 
             return FutureUtil.waitForAll(subscriptionCheckFutures).thenCompose((___) -> {
-                replicators.forEach((name, replicator) ->
-                        replicator.getRateLimiter().ifPresent(DispatchRateLimiter::updateDispatchRate)
-                );
+                replicators.forEach((name, replicator) -> replicator.updateRateLimiter());
                 checkMessageExpiry();
                 CompletableFuture<Void> replicationFuture = checkReplicationAndRetryOnFailure();
                 CompletableFuture<Void> dedupFuture = checkDeduplicationStatus();
@@ -3075,8 +3069,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 subscribeRateLimiter.ifPresent(subscribeRateLimiter ->
                         subscribeRateLimiter.onSubscribeRateUpdate(policies.getSubscribeRate()));
             }
-            replicators.forEach((name, replicator) -> replicator.getRateLimiter()
-                    .ifPresent(DispatchRateLimiter::updateDispatchRate));
+            replicators.forEach((name, replicator) -> replicator.updateRateLimiter());
 
             if (policies.getReplicationClusters() != null) {
                 checkReplicationAndRetryOnFailure();
