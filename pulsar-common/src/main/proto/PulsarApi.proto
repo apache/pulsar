@@ -717,6 +717,9 @@ message CommandConsumerStatsResponse {
 
         /// Number of messages in the subscription backlog
         optional uint64 msgBacklog                  = 15;
+
+        /// Total rate of messages ack. msg/s
+        optional double messageAckRate              = 16;
 }
 
 message CommandGetLastMessageId {

@@ -1717,6 +1717,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             double subMsgRateOut = 0;
             double subMsgThroughputOut = 0;
             double subMsgRateRedeliver = 0;
+            double subMsgAckRate = 0;
 
             // Start subscription name & consumers
             try {
@@ -1730,6 +1731,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
                     ConsumerStatsImpl consumerStats = consumer.getStats();
                     subMsgRateOut += consumerStats.msgRateOut;
+                    subMsgAckRate += consumerStats.messageAckRate;
                     subMsgThroughputOut += consumerStats.msgThroughputOut;
                     subMsgRateRedeliver += consumerStats.msgRateRedeliver;
 
@@ -1744,6 +1746,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                         subscription.getNumberOfEntriesInBacklog(true));
                 topicStatsStream.writePair("msgRateExpired", subscription.getExpiredMessageRate());
                 topicStatsStream.writePair("msgRateOut", subMsgRateOut);
+                topicStatsStream.writePair("messageAckRate", subMsgAckRate);
                 topicStatsStream.writePair("msgThroughputOut", subMsgThroughputOut);
                 topicStatsStream.writePair("msgRateRedeliver", subMsgRateRedeliver);
                 topicStatsStream.writePair("numberOfEntriesSinceFirstNotAckedMessage",

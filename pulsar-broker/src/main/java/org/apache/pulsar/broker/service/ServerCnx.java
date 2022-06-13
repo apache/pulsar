@@ -616,6 +616,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 .setConnectedSince(consumerStats.getConnectedSince())
                 .setMsgBacklog(subscription.getNumberOfEntriesInBacklog(false))
                 .setMsgRateExpired(subscription.getExpiredMessageRate())
+                .setMessageAckRate(consumerStats.messageAckRate)
                 .setType(subscription.getTypeString());
 
         return Commands.serializeWithSize(cmd);
