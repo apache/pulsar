@@ -177,7 +177,7 @@ public class SchemasResource extends SchemasResourceBase {
         @PathParam("namespace") String namespace,
         @PathParam("topic") String topic,
         @ApiParam(
-            value = "A JSON value presenting a schema playload. An example of the expected schema can be found down"
+            value = "A JSON value presenting a schema payload. An example of the expected schema can be found down"
                 + " here.",
             examples = @Example(
                 value = @ExampleProperty(
@@ -212,7 +212,7 @@ public class SchemasResource extends SchemasResourceBase {
             @PathParam("namespace") String namespace,
             @PathParam("topic") String topic,
             @ApiParam(
-                    value = "A JSON value presenting a schema playload."
+                    value = "A JSON value presenting a schema payload."
                             + " An example of the expected schema can be found down here.",
                     examples = @Example(
                             value = @ExampleProperty(
@@ -249,7 +249,7 @@ public class SchemasResource extends SchemasResourceBase {
             @PathParam("namespace") String namespace,
             @PathParam("topic") String topic,
             @ApiParam(
-                    value = "A JSON value presenting a schema playload."
+                    value = "A JSON value presenting a schema payload."
                             + " An example of the expected schema can be found down here.",
                     examples = @Example(
                             value = @ExampleProperty(
