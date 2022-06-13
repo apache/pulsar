@@ -350,7 +350,7 @@ Before starting stateful functions, you need to [start Pulsar](#start-standalone
 
    :::tip
     
-   For more information about the `pulsar-admin functions querystate options` command, including flags, descriptions, default values, and shorthands, see [Admin API](admin-api-functions#fetch-state-associated-with-a-function).
+   For more information about the `pulsar-admin functions querystate options` command, including flags, descriptions, default values, and shorthands, see [Admin API](/tools/pulsar-admin/).
 
    :::
 
@@ -382,7 +382,7 @@ Before starting stateful functions, you need to [start Pulsar](#start-standalone
 
      :::tip
       
-     For more information about the `pulsar-admin functions putstate options` command, including flags, descriptions, default values, and shorthands, see [Admin API](admin-api-functions/#put-state-associated-with-a-function).
+     For more information about the `pulsar-admin functions putstate options` command, including flags, descriptions, default values, and shorthands, see [Admin API](/tools/pulsar-admin/).
     
      :::
 

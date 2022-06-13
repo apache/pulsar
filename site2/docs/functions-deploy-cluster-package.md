@@ -6,7 +6,7 @@ sidebar_label: "Enable package management service"
 
 [Package management service](admin-api-packages) enables both version management and simplified upgrade/rollback processes for functions, sinks, and sources. When using the same function, sink, and source in different namespaces, you can upload them to a common package management system.
 
-With the package management service enabled, you can [upload your function package](admin-api-packages.md#upload-a-package) to the service and get the [package URL](admin-api-packages.md#package-url). Thus you can create the function by setting `--jar`, `--py`, or `--go` to the package URL with the [`pulsar-admin`](/tools/pulsar-admin/) CLI. 
+With the package management service enabled, you can [upload your function package](/tools/pulsar-admin/) to the service and get the package URL. Thus you can create the function by setting `--jar`, `--py`, or `--go` to the package URL. 
 
 By default, the package management service is disabled. To enable it in your cluster, set the properties in the `conf/broker.conf` file as follows.
 
