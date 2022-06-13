@@ -154,13 +154,15 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
                     }
                 } finally {
                     this.lock.readLock().unlock();
-                    if (acknowledgementGroupTimeMicros == 0 || pendingIndividualAcks.size() >= MAX_ACK_GROUP_SIZE) {
+                    if (acknowledgementGroupTimeMicros == 0 || pendingIndividualAcks.size() >= MAX_ACK_GROUP_SIZE
+                            || pendingIndividualBatchIndexAcks.size() >= MAX_ACK_GROUP_SIZE) {
                         flush();
                     }
                 }
             } else {
                 addListAcknowledgment(messageIds);
-                if (acknowledgementGroupTimeMicros == 0 || pendingIndividualAcks.size() >= MAX_ACK_GROUP_SIZE) {
+                if (acknowledgementGroupTimeMicros == 0 || pendingIndividualAcks.size() >= MAX_ACK_GROUP_SIZE
+                        || pendingIndividualBatchIndexAcks.size() >= MAX_ACK_GROUP_SIZE) {
                     flush();
                 }
                 return CompletableFuture.completedFuture(null);
