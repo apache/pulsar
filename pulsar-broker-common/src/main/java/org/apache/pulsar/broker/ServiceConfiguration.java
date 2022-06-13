@@ -540,6 +540,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean brokerDeleteInactiveTopicsEnabled = true;
     @FieldContext(
             category = CATEGORY_POLICIES,
+            dynamic = true,
             doc = "Metadata of inactive partitioned topic will not be automatically cleaned up by default.\n"
             + "Note: If `allowAutoTopicCreation` and this option are enabled at the same time,\n"
             + "it may appear that a partitioned topic has just been deleted but is automatically created as a "
@@ -555,6 +556,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_POLICIES,
+        dynamic = true,
         doc = "Set the inactive topic delete mode. Default is delete_when_no_subscriptions\n"
         + "'delete_when_no_subscriptions' mode only delete the topic which has no subscriptions and no active "
         + "producers\n"
@@ -1199,6 +1201,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_SERVER,
+            dynamic = true,
             doc = "The number of partitions per partitioned topic.\n"
                 + "If try to create or update partitioned topics by exceeded number of partitions, then fail."
     )
@@ -1789,6 +1792,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean allowAutoSubscriptionCreation = true;
     @FieldContext(
             category = CATEGORY_STORAGE_ML,
+            dynamic = true,
             doc = "The number of partitioned topics that is allowed to be automatically created"
                     + "if allowAutoTopicCreationType is partitioned."
     )

@@ -22,6 +22,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
 import com.google.common.collect.Sets;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -596,4 +597,64 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
         Assert.assertTrue(V1Partitions.contains(healthCheckTopicV1));
         Assert.assertTrue(V2Partitions.contains(healthCheckTopicV2));
     }
+
+    @Test
+    public void testDynamicConfigurationBrokerDeleteInactiveTopicsEnabled() throws Exception {
+        conf.setBrokerDeleteInactiveTopicsEnabled(true);
+        super.baseSetup();
+        admin.brokers().updateDynamicConfiguration("brokerDeleteInactiveTopicsEnabled", "false");
+        Awaitility.await().untilAsserted(()->{
+            assertFalse(conf.isBrokerDeleteInactiveTopicsEnabled());
+        });
+    }
+
+    @Test
+    public void testDynamicConfigurationBrokerDeleteInactiveTopicsFrequencySeconds() throws Exception {
+        conf.setBrokerDeleteInactiveTopicsFrequencySeconds(30);
+        super.baseSetup();
+        admin.brokers()
+                .updateDynamicConfiguration("brokerDeleteInactiveTopicsFrequencySeconds", "60");
+        Awaitility.await().untilAsserted(()->{
+            assertEquals(conf.getBrokerDeleteInactiveTopicsFrequencySeconds(), 60);
+        });
+    }
+
+    @Test
+    public void testDynamicConfigurationBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds() throws Exception {
+        conf.setBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds(30);
+        super.baseSetup();
+        admin.brokers()
+                .updateDynamicConfiguration("brokerDeleteInactiveTopicsMaxInactiveDurationSeconds", "60");
+        Awaitility.await().untilAsserted(()->{
+            assertEquals(conf.getBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds(), 60);
+        });
+    }
+
+    @Test
+    public void testDynamicConfigurationBrokerDeleteInactiveTopicsMode() throws Exception {
+        conf.setBrokerDeleteInactiveTopicsMode (InactiveTopicDeleteMode.delete_when_no_subscriptions);
+        super.baseSetup();
+        String expect = InactiveTopicDeleteMode.delete_when_subscriptions_caught_up.toString();
+        admin.brokers()
+                .updateDynamicConfiguration("brokerDeleteInactiveTopicsMode",
+                        expect);
+        Awaitility.await().untilAsserted(()->{
+            assertEquals(conf.getBrokerDeleteInactiveTopicsMode().toString(), expect);
+        });
+    }
+
+    @Test
+    public void testBrokerDeleteInactivePartitionedTopicMetadataEnabled() throws Exception {
+        conf.setBrokerDeleteInactivePartitionedTopicMetadataEnabled(false);
+        super.baseSetup();
+        admin.brokers()
+                .updateDynamicConfiguration("brokerDeleteInactivePartitionedTopicMetadataEnabled",
+                        "true");
+        Thread.sleep(2000);
+        Awaitility.await().untilAsserted(()->{
+            assertTrue(conf.isBrokerDeleteInactivePartitionedTopicMetadataEnabled());
+        });
+    }
+
+
 }

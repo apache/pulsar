@@ -2308,46 +2308,37 @@ public class BrokerService implements Closeable {
         // add listener to notify topic subscriptionTypesEnabled changed.
         registerConfigurationListener("subscriptionTypesEnabled", this::updateBrokerSubscriptionTypesEnabled);
 
-        // add listener to notify topic allowAutoTopicCreation  changed.
-        registerConfigurationListener("allowAutoTopicCreation", (allowAutoTopicCreation) -> {
-            this.pulsar.getConfiguration().setAllowAutoTopicCreation((boolean) allowAutoTopicCreation);
+        // add listener to notify partitioned topic defaultNumPartitions changed
+        registerConfigurationListener("defaultNumPartitions", defaultNumPartitions -> {
+            this.updateDefaultNumPartitions((int) defaultNumPartitions);
         });
 
-        // add listener to notify topic allowAutoTopicCreationType
-        registerConfigurationListener("allowAutoTopicCreationType", (allowAutoTopicCreationType) -> {
-            this.pulsar.getConfiguration().setAllowAutoTopicCreationType((String) allowAutoTopicCreationType);
+        // add listener to notify partitioned topic maxNumPartitionsPerPartitionedTopic changed
+        registerConfigurationListener("maxNumPartitionsPerPartitionedTopic", maxNumPartitions -> {
+            this.updateMaxNumPartitionsPerPartitionedTopic((int) maxNumPartitions);
         });
-
-        // add listener to notify topic brokerDeleteInactiveTopicsEnabled
-        registerConfigurationListener("brokerDeleteInactiveTopicsEnabled",
-                (brokerDeleteInactiveTopicsEnabled) -> {
-            this.pulsar.getConfiguration()
-                    .setBrokerDeleteInactiveTopicsEnabled((boolean) brokerDeleteInactiveTopicsEnabled);
-        });
-
-        // add listener to notify topic brokerDeleteInactiveTopicsFrequencySeconds
-        registerConfigurationListener("brokerDeleteInactiveTopicsFrequencySeconds",
-                (brokerDeleteInactiveTopicsFrequencySeconds) -> {
-                this.pulsar.getConfiguration()
-                    .setBrokerDeleteInactiveTopicsFrequencySeconds((int) brokerDeleteInactiveTopicsFrequencySeconds);
-        });
-
-
-        // add listener to notify topic brokerDeleteInactiveTopicsMaxInactiveDurationSeconds
-        registerConfigurationListener("brokerDeleteInactiveTopicsMaxInactiveDurationSeconds",
-                (brokerDeleteInactiveTopicsMaxInactiveDurationSeconds) -> {
-                this.pulsar.getConfiguration()
-                        .setBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds(
-                                (int) brokerDeleteInactiveTopicsMaxInactiveDurationSeconds);
-        });
-
-        // add listener to notify topic allowAutoSubscriptionCreation
-        registerConfigurationListener("allowAutoSubscriptionCreation", allowAutoSubscriptionCreation -> {
-            this.pulsar.getConfiguration().setAllowAutoSubscriptionCreation((boolean) allowAutoSubscriptionCreation);
-        });
-
 
         // add more listeners here
+    }
+
+    private void updateDefaultNumPartitions(int numPartitions) {
+        int maxNumPartitions = pulsar.getConfiguration().getMaxNumPartitionsPerPartitionedTopic();
+        if (maxNumPartitions == 0 || maxNumPartitions > numPartitions) {
+            this.pulsar.getConfiguration().setDefaultNumPartitions(numPartitions);
+        } else {
+            this.pulsar.getConfiguration().setDefaultNumPartitions(maxNumPartitions);
+        }
+    }
+
+    private void updateMaxNumPartitionsPerPartitionedTopic(int maxNumPartitions) {
+        if (maxNumPartitions == 0) {
+            this.pulsar.getConfiguration().setMaxNumPartitionsPerPartitionedTopic(maxNumPartitions);
+            return;
+        }
+        if (this.pulsar.getConfiguration().getDefaultNumPartitions() > maxNumPartitions) {
+            this.pulsar.getConfiguration().setDefaultNumPartitions(maxNumPartitions);
+        }
+        this.pulsar.getConfiguration().setMaxNumPartitionsPerPartitionedTopic(maxNumPartitions);
     }
 
     private void updateBrokerDispatchThrottlingMaxRate() {
