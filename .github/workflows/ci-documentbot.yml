@@ -37,7 +37,7 @@ jobs:
       - name: Checkout action
         uses: actions/checkout@v3
         with:
-          repository: apache/pulsar-test-infra/docbot
+          repository: apache/pulsar-test-infra
           ref: master
 
       - name: Set up Go
