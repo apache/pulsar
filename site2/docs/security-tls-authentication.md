@@ -46,7 +46,7 @@ $ openssl req -config openssl.cnf \
 
 :::note
 
-If openssl.cnf is not specified, read [Certificate authority](/docs/en/security-tls-transport/#certificate-authority) to get the openssl.cnf.
+If openssl.cnf is not specified, read [Certificate authority](security-tls-transport.md#certificate-authority) to get the openssl.cnf.
 
 :::
 

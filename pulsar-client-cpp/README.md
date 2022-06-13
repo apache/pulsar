@@ -103,7 +103,10 @@ apt-get install -y g++ cmake libssl-dev libcurl4-openssl-dev liblog4cxx-dev \
 cd /usr/src/gtest
 sudo cmake .
 sudo make
-sudo cp *.a /usr/lib
+
+# Copy the libraries you just built to the OS library path.
+# GTEST_LIB_PATH may be `/usr/src/gtest`, `/usr/src/gtest/lib` or other path you provided when building gtest above.
+sudo cp ${GTEST_LIB_PATH}/*.a /usr/lib
 ```
 
 
@@ -113,7 +116,10 @@ sudo cp *.a /usr/lib
 cd /usr/src/gmock
 sudo cmake .
 sudo make
-sudo cp *.a /usr/lib
+
+# Copy the libraries you just built to the OS library path.
+# GMOCK_LIB_PATH may be `/usr/src/gmock`, `/usr/src/gmock/lib` or other path you provided when building gmock above.
+sudo cp ${GMOCK_LIB_PATH}/*.a /usr/lib
 ```
 
 

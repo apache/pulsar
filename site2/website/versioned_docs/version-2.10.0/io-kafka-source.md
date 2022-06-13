@@ -213,7 +213,7 @@ This example explains how to create a Kafka source connector in an on-premises c
    
    ```
 
-2. Reload all [built-in connectors](https://pulsar.apache.org/docs/en/next/io-connectors/).
+2. Reload all [built-in connectors](io-connectors).
 
    ```
    
@@ -229,7 +229,7 @@ This example explains how to create a Kafka source connector in an on-premises c
    
    ```
 
-4. Create a Kafka source connector on a Pulsar cluster using the [`pulsar-admin sources create`](http://pulsar.apache.org/tools/pulsar-admin/2.10.0-SNAPSHOT/#-em-create-em--14) command.
+4. Create a Kafka source connector on a Pulsar cluster using the [`pulsar-admin sources create`](/tools/pulsar-admin/) command.
 
    ```
    

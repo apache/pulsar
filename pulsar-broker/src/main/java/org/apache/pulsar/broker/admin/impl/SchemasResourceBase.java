@@ -42,6 +42,7 @@ import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.internal.DefaultImplementation;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
+import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.protocol.schema.DeleteSchemaResponse;
 import org.apache.pulsar.common.protocol.schema.GetAllVersionsSchemaResponse;
 import org.apache.pulsar.common.protocol.schema.GetSchemaResponse;
@@ -97,7 +98,7 @@ public class SchemasResourceBase extends AdminResource {
     }
 
     public CompletableFuture<SchemaAndMetadata> getSchemaAsync(boolean authoritative) {
-        return validateDestinationAndAdminOperationAsync(authoritative)
+        return validateOwnershipAndOperationAsync(authoritative, TopicOperation.GET_METADATA)
                 .thenApply(__ -> getSchemaId())
                 .thenCompose(schemaId -> pulsar().getSchemaRegistryService().getSchema(schemaId));
     }
@@ -115,7 +116,7 @@ public class SchemasResourceBase extends AdminResource {
     }
 
     public CompletableFuture<SchemaAndMetadata> getSchemaAsync(boolean authoritative, String version) {
-        return validateDestinationAndAdminOperationAsync(authoritative)
+        return validateOwnershipAndOperationAsync(authoritative, TopicOperation.GET_METADATA)
                 .thenApply(__ -> getSchemaId())
                 .thenCompose(schemaId -> {
                     ByteBuffer bbVersion = ByteBuffer.allocate(Long.BYTES);
@@ -137,7 +138,7 @@ public class SchemasResourceBase extends AdminResource {
     }
 
     public CompletableFuture<List<SchemaAndMetadata>> getAllSchemasAsync(boolean authoritative) {
-        return validateDestinationAndAdminOperationAsync(authoritative)
+        return validateOwnershipAndOperationAsync(authoritative, TopicOperation.GET_METADATA)
                 .thenCompose(__ -> {
                     String schemaId = getSchemaId();
                     return pulsar().getSchemaRegistryService().trimDeletedSchemaAndGetList(schemaId);
@@ -312,7 +313,7 @@ public class SchemasResourceBase extends AdminResource {
     }
 
     public CompletableFuture<Long> getVersionBySchemaAsync(PostSchemaPayload payload, boolean authoritative) {
-        return validateDestinationAndAdminOperationAsync(authoritative)
+        return validateOwnershipAndOperationAsync(authoritative, TopicOperation.GET_METADATA)
                 .thenCompose(__ -> {
                     String schemaId = getSchemaId();
                     return pulsar().getSchemaRegistryService()
@@ -425,6 +426,12 @@ public class SchemasResourceBase extends AdminResource {
     private CompletableFuture<Void> validateDestinationAndAdminOperationAsync(boolean authoritative) {
         return validateTopicOwnershipAsync(topicName, authoritative)
                 .thenCompose(__ -> validateAdminAccessForTenantAsync(topicName.getTenant()));
+    }
+
+    private CompletableFuture<Void> validateOwnershipAndOperationAsync(boolean authoritative,
+                                                                       TopicOperation operation) {
+        return validateTopicOwnershipAsync(topicName, authoritative)
+                .thenCompose(__ -> validateTopicOperationAsync(topicName, operation));
     }
 
     private static final Logger log = LoggerFactory.getLogger(SchemasResourceBase.class);
