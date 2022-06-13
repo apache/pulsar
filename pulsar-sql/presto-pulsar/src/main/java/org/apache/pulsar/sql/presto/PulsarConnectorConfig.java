@@ -43,6 +43,7 @@ import org.apache.pulsar.common.protocol.Commands;
 public class PulsarConnectorConfig implements AutoCloseable {
 
     private String brokerServiceUrl = "http://localhost:8080";
+    private String brokerBinaryServiceUrl = "pulsar://localhost:6650/";
     private String webServiceUrl = ""; //leave empty
     private String zookeeperUri = "localhost:2181";
     private int entryReadBatchSize = 100;
@@ -63,11 +64,18 @@ public class PulsarConnectorConfig implements AutoCloseable {
     private boolean namespaceDelimiterRewriteEnable = false;
     private String rewriteNamespaceDelimiter = "/";
 
+    private boolean authorizationEnabled = false;
+
     // --- Ledger Offloading ---
     private String managedLedgerOffloadDriver = null;
     private int managedLedgerOffloadMaxThreads = 2;
     private String offloadersDirectory = "./offloaders";
     private Map<String, String> offloaderProperties = new HashMap<>();
+
+    //--- Ledger metrics ---
+    private boolean exposeTopicLevelMetricsInPrometheus = false;
+    private boolean exposeManagedLedgerMetricsInPrometheus = false;
+    private int managedLedgerStatsPeriodSeconds = 60;
 
     private PulsarAdmin pulsarAdmin;
 
@@ -80,7 +88,6 @@ public class PulsarConnectorConfig implements AutoCloseable {
 
     // --- ManagedLedger
     private long managedLedgerCacheSizeMB = 0L;
-    private int managedLedgerNumWorkerThreads = Runtime.getRuntime().availableProcessors();
     private int managedLedgerNumSchedulerThreads = Runtime.getRuntime().availableProcessors();
 
     // --- Nar extraction
@@ -97,6 +104,14 @@ public class PulsarConnectorConfig implements AutoCloseable {
     @Config("pulsar.broker-service-url")
     public PulsarConnectorConfig setBrokerServiceUrl(String brokerServiceUrl) {
         this.brokerServiceUrl = brokerServiceUrl;
+        return this;
+    }
+    public String getBrokerBinaryServiceUrl() {
+        return this.brokerBinaryServiceUrl;
+    }
+    @Config("pulsar.broker-binary-service-url")
+    public PulsarConnectorConfig setBrokerBinaryServiceUrl(String brokerBinaryServiceUrl) {
+        this.brokerBinaryServiceUrl = brokerBinaryServiceUrl;
         return this;
     }
     @Config("pulsar.web-service-url")
@@ -234,6 +249,16 @@ public class PulsarConnectorConfig implements AutoCloseable {
         return this;
     }
 
+    public boolean getAuthorizationEnabled() {
+        return authorizationEnabled;
+    }
+
+    @Config("pulsar.authorization-enabled")
+    public PulsarConnectorConfig setAuthorizationEnabled(boolean authorizationEnabled) {
+        this.authorizationEnabled = authorizationEnabled;
+        return this;
+    }
+
     // --- Ledger Offloading ---
 
     public int getManagedLedgerOffloadMaxThreads() {
@@ -276,6 +301,37 @@ public class PulsarConnectorConfig implements AutoCloseable {
     public PulsarConnectorConfig setOffloaderProperties(String offloaderProperties) throws IOException {
         this.offloaderProperties = new ObjectMapper().readValue(offloaderProperties, Map.class);
         return this;
+    }
+
+    @Config("pulsar.expose-topic-level-metrics-in-prometheus")
+    public PulsarConnectorConfig setExposeTopicLevelMetricsInPrometheus(boolean exposeTopicLevelMetricsInPrometheus) {
+        this.exposeTopicLevelMetricsInPrometheus = exposeTopicLevelMetricsInPrometheus;
+        return this;
+    }
+
+    public boolean isExposeTopicLevelMetricsInPrometheus() {
+        return exposeTopicLevelMetricsInPrometheus;
+    }
+
+    @Config("pulsar.expose-managed-ledger-metrics-in-prometheus")
+    public PulsarConnectorConfig setExposeManagedLedgerMetricsInPrometheus(
+            boolean exposeManagedLedgerMetricsInPrometheus) {
+        this.exposeManagedLedgerMetricsInPrometheus = exposeManagedLedgerMetricsInPrometheus;
+        return this;
+    }
+
+    public boolean isExposeManagedLedgerMetricsInPrometheus() {
+        return exposeManagedLedgerMetricsInPrometheus;
+    }
+
+    @Config("pulsar.managed-ledger-stats-period-seconds")
+    public PulsarConnectorConfig setManagedLedgerStatsPeriodSeconds(int managedLedgerStatsPeriodSeconds) {
+        this.managedLedgerStatsPeriodSeconds = managedLedgerStatsPeriodSeconds;
+        return this;
+    }
+
+    public int getManagedLedgerStatsPeriodSeconds() {
+        return managedLedgerStatsPeriodSeconds;
     }
 
     // --- Authentication ---
@@ -390,16 +446,6 @@ public class PulsarConnectorConfig implements AutoCloseable {
     @Config("pulsar.managed-ledger-cache-size-MB")
     public PulsarConnectorConfig setManagedLedgerCacheSizeMB(int managedLedgerCacheSizeMB) {
         this.managedLedgerCacheSizeMB = managedLedgerCacheSizeMB * 1024 * 1024;
-        return this;
-    }
-
-    public int getManagedLedgerNumWorkerThreads() {
-        return managedLedgerNumWorkerThreads;
-    }
-
-    @Config("pulsar.managed-ledger-num-worker-threads")
-    public PulsarConnectorConfig setManagedLedgerNumWorkerThreads(int managedLedgerNumWorkerThreads) {
-        this.managedLedgerNumWorkerThreads = managedLedgerNumWorkerThreads;
         return this;
     }
 

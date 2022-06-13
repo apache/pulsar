@@ -44,7 +44,7 @@ public class MLPendingAckReplyCallBack implements PendingAckReplyCallBack {
 
     @Override
     public void replayComplete() {
-        synchronized (pendingAckHandle) {
+        pendingAckHandle.getInternalPinnedExecutor().execute(() -> {
             log.info("Topic name : [{}], SubName : [{}] pending ack state reply success!",
                     pendingAckHandle.getTopicName(), pendingAckHandle.getSubName());
 
@@ -56,8 +56,8 @@ public class MLPendingAckReplyCallBack implements PendingAckReplyCallBack {
                 log.error("Topic name : [{}], SubName : [{}] pending ack state reply fail!",
                         pendingAckHandle.getTopicName(), pendingAckHandle.getSubName());
             }
-        }
-        pendingAckHandle.handleCacheRequest();
+            pendingAckHandle.handleCacheRequest();
+        });
     }
 
     @Override

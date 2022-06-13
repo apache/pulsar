@@ -24,7 +24,6 @@ import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
-import java.util.Locale;
 import java.util.Map;
 import lombok.Data;
 import lombok.experimental.Accessors;
@@ -50,7 +49,11 @@ public class ElasticSearchConfig implements Serializable {
     @FieldDoc(
         required = false,
         defaultValue = "",
-        help = "The index name that the connector writes messages to, the default is the topic name"
+        help = "The index name to which the connector writes messages. The default value is the topic name."
+                + " It accepts date formats in the name to support event time based index with"
+                + " the pattern %{+<date-format>}. For example, suppose the event time of the record"
+                + " is 1645182000000L, the indexName is \"logs-%{+yyyy-MM-dd}\", then the formatted"
+                + " index name would be \"logs-2022-02-18\"."
     )
     private String indexName;
 
@@ -109,6 +112,22 @@ public class ElasticSearchConfig implements Serializable {
 
     @FieldDoc(
             required = false,
+            defaultValue = "",
+            sensitive = true,
+            help = "The token used by the connector to connect to the ElasticSearch cluster. Only one between basic/token/apiKey authentication mode must be configured."
+    )
+    private String token;
+
+    @FieldDoc(
+            required = false,
+            defaultValue = "",
+            sensitive = true,
+            help = "The apiKey used by the connector to connect to the ElasticSearch cluster. Only one between basic/token/apiKey authentication mode must be configured."
+    )
+    private String apiKey;
+
+    @FieldDoc(
+            required = false,
             defaultValue = "1",
             help = "The maximum number of retries for elasticsearch requests. Use -1 to disable it."
     )
@@ -164,10 +183,10 @@ public class ElasticSearchConfig implements Serializable {
 
     @FieldDoc(
             required = false,
-            defaultValue = "-1",
-            help = "The bulk flush interval flushing any bulk request pending if the interval passes. Default is -1 meaning not set."
+            defaultValue = "1000",
+            help = "The bulk flush interval flushing any bulk request pending if the interval passes. -1 or zero means the scheduled flushing is disabled."
     )
-    private long bulkFlushIntervalInMs = -1;
+    private long bulkFlushIntervalInMs = 1000L;
 
     // connection settings, see https://www.elastic.co/guide/en/elasticsearch/client/java-rest/current/java-rest-low-config.html
     @FieldDoc(
@@ -244,6 +263,37 @@ public class ElasticSearchConfig implements Serializable {
     )
     private boolean stripNulls = true;
 
+    @FieldDoc(
+            required = false,
+            defaultValue = "AUTO",
+            help = "Specify compatibility mode with the ElasticSearch cluster. "
+                    + "'AUTO' value will try to auto detect the correct compatibility mode to use. "
+                    + "Use 'ELASTICSEARCH_7' if the target cluster is running ElasticSearch 7 or prior. "
+                    + "Use 'ELASTICSEARCH' if the target cluster is running ElasticSearch 8 or higher. "
+                    + "Use 'OPENSEARCH' if the target cluster is running OpenSearch."
+    )
+    private CompatibilityMode compatibilityMode = CompatibilityMode.AUTO;
+
+    @FieldDoc(
+            defaultValue = "false",
+            help = "If canonicalKeyFields is true and record key schema is JSON or AVRO, the serialized object will "
+                    + "not consider the properties order."
+    )
+    private boolean canonicalKeyFields = false;
+
+    @FieldDoc(
+            defaultValue = "true",
+            help = "If stripNonPrintableCharacters is true, all non-printable characters will be removed from the document."
+    )
+    private boolean stripNonPrintableCharacters = true;
+
+    @FieldDoc(
+            defaultValue = "NONE",
+            help = "Hashing algorithm to use for the document id. This is useful in order to be compliant with "
+                    + "the ElasticSearch _id hard limit of 512 bytes."
+    )
+    private IdHashingAlgorithm idHashingAlgorithm = IdHashingAlgorithm.NONE;
+
     public enum MalformedDocAction {
         IGNORE,
         WARN,
@@ -254,6 +304,19 @@ public class ElasticSearchConfig implements Serializable {
         IGNORE,
         DELETE,
         FAIL
+    }
+
+    public enum CompatibilityMode {
+        AUTO,
+        ELASTICSEARCH_7,
+        ELASTICSEARCH,
+        OPENSEARCH
+    }
+
+    public enum IdHashingAlgorithm {
+        NONE,
+        SHA256,
+        SHA512
     }
 
     public static ElasticSearchConfig load(String yamlFile) throws IOException {
@@ -273,9 +336,8 @@ public class ElasticSearchConfig implements Serializable {
 
         if (StringUtils.isNotEmpty(indexName) && createIndexIfNeeded) {
             // see https://www.elastic.co/guide/en/elasticsearch/reference/current/indices-create-index.html#indices-create-api-path-params
-            if (!indexName.toLowerCase(Locale.ROOT).equals(indexName)) {
-                throw new IllegalArgumentException("indexName should be lowercase only.");
-            }
+            // date format may contain upper cases, so we need to valid against parsed index name
+            IndexNameFormatter.validate(indexName);
             if (indexName.startsWith("-") || indexName.startsWith("_") || indexName.startsWith("+")) {
                 throw new IllegalArgumentException("indexName start with an invalid character.");
             }
@@ -288,8 +350,18 @@ public class ElasticSearchConfig implements Serializable {
         }
 
         if ((StringUtils.isNotEmpty(username) && StringUtils.isEmpty(password))
-           || (StringUtils.isEmpty(username) && StringUtils.isNotEmpty(password))) {
+                || (StringUtils.isEmpty(username) && StringUtils.isNotEmpty(password))) {
             throw new IllegalArgumentException("Values for both Username & password are required.");
+        }
+
+        boolean basicAuthSet = StringUtils.isNotEmpty(username) && StringUtils.isNotEmpty(password);
+        boolean tokenAuthSet = StringUtils.isNotEmpty(token);
+        boolean apiKeySet = StringUtils.isNotEmpty(apiKey);
+        if ((basicAuthSet && tokenAuthSet && apiKeySet)
+                || (basicAuthSet && tokenAuthSet)
+                || (basicAuthSet && apiKeySet)
+                || (tokenAuthSet && apiKeySet)) {
+            throw new IllegalArgumentException("Only one between basic/token/apiKey authentication mode must be configured.");
         }
 
         if (indexNumberOfShards <= 0) {

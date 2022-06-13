@@ -133,6 +133,8 @@ public interface ProducerBuilder<T> extends Cloneable {
      * <li>{@link ProducerAccessMode#Shared}: By default multiple producers can publish on a topic
      * <li>{@link ProducerAccessMode#Exclusive}: Require exclusive access for producer. Fail immediately if there's
      * already a producer connected.
+     * <li>{@link ProducerAccessMode#ExclusiveWithFencing}: Require exclusive access for the producer.
+     * Any existing producer will be removed and invalidated immediately.
      * <li>{@link ProducerAccessMode#WaitForExclusive}: Producer creation is pending until it can acquire exclusive
      * access
      * </ul>
@@ -335,13 +337,23 @@ public interface ProducerBuilder<T> extends Cloneable {
      * (sometime due to broker-restart or publish time, producer might fail to publish entire large message
      * so, consumer will not be able to consume and ack those messages. So, those messages can
      * be only discared by msg ttl) Or configure
-     * {@link ConsumerBuilder#expireTimeOfIncompleteChunkedMessage()}
+     * {@link ConsumerBuilder#expireTimeOfIncompleteChunkedMessage}
      * 5. Consumer configuration: consumer should also configure receiverQueueSize and maxPendingChunkedMessage
      * </pre>
      * @param enableChunking
      * @return
      */
     ProducerBuilder<T> enableChunking(boolean enableChunking);
+
+    /**
+     * Max chunk message size in bytes. Producer chunks the message if chunking is enabled and message size is larger
+     * than max chunk-message size. By default chunkMaxMessageSize value is -1 and in that case, producer chunks based
+     * on max-message size configured at broker.
+     *
+     * @param chunkMaxMessageSize
+     * @return
+     */
+    ProducerBuilder<T> chunkMaxMessageSize(int chunkMaxMessageSize);
 
     /**
      * Sets a {@link CryptoKeyReader}.

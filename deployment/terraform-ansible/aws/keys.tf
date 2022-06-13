@@ -23,6 +23,6 @@ resource "random_id" "key_pair_name" {
 }
 
 resource "aws_key_pair" "default" {
-  key_name   = "${random_id.key_pair_name.hex}"
-  public_key = "${file(var.public_key_path)}"
+  key_name   = random_id.key_pair_name.hex
+  public_key = file(var.public_key_path)
 }

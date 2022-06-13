@@ -51,6 +51,15 @@ import org.apache.pulsar.common.policies.data.TopicStats;
  */
 public interface Topics {
 
+    enum QueryParam {
+        Bundle("bundle");
+
+        public final String value;
+
+        private QueryParam(String value) {
+            this.value = value;
+        }
+    }
     /**
      * Get the both persistent and non-persistent topics under a namespace.
      * <p/>
@@ -104,6 +113,46 @@ public interface Topics {
     List<String> getList(String namespace, TopicDomain topicDomain) throws PulsarAdminException;
 
     /**
+     * @deprecated use {@link #getList(String, TopicDomain, ListTopicsOptions)} instead.
+     */
+    @Deprecated
+    List<String> getList(String namespace, TopicDomain topicDomain, Map<QueryParam, Object> params)
+            throws PulsarAdminException;
+
+    /**
+     * Get the list of topics under a namespace.
+     * <p/>
+     * Response example:
+     *
+     * <pre>
+     * <code>["topic://my-tenant/my-namespace/topic-1",
+     *  "topic://my-tenant/my-namespace/topic-2"]</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     *
+     * @param topicDomain
+     *            use {@link TopicDomain#persistent} to get persistent topics
+     *            use {@link TopicDomain#non_persistent} to get non-persistent topics
+     *            Use null to get both persistent and non-persistent topics
+     *
+     * @param options
+     *            params to query the topics
+     *
+     * @return a list of topics
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    List<String> getList(String namespace, TopicDomain topicDomain, ListTopicsOptions options)
+            throws PulsarAdminException;
+
+    /**
      * Get both persistent and non-persistent topics under a namespace asynchronously.
      * <p/>
      * Response example:
@@ -140,6 +189,37 @@ public interface Topics {
      * @return a list of topics
      */
     CompletableFuture<List<String>> getListAsync(String namespace, TopicDomain topicDomain);
+
+    /**
+     * @deprecated use {@link #getListAsync(String, TopicDomain, ListTopicsOptions)} instead.
+     */
+    @Deprecated
+    CompletableFuture<List<String>> getListAsync(String namespace, TopicDomain topicDomain,
+                                                 Map<QueryParam, Object> params);
+    /**
+     * Get the list of topics under a namespace asynchronously.
+     * <p/>
+     * Response example:
+     *
+     * <pre>
+     * <code>["topic://my-tenant/my-namespace/topic-1",
+     *  "topic://my-tenant/my-namespace/topic-2"]</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     *
+     * @param topicDomain
+     *            use {@link TopicDomain#persistent} to get persistent topics
+     *            use {@link TopicDomain#non_persistent} to get non-persistent topics
+     *            Use null to get both persistent and non-persistent topics
+     *
+     * @param options
+     *            params to get the topics
+     *
+     * @return a list of topics
+     */
+    CompletableFuture<List<String>> getListAsync(String namespace, TopicDomain topicDomain, ListTopicsOptions options);
 
     /**
      * Get the list of partitioned topics under a namespace.
@@ -179,6 +259,49 @@ public interface Topics {
      * @return a list of partitioned topics
      */
     CompletableFuture<List<String>> getPartitionedTopicListAsync(String namespace);
+
+    /**
+     * Get the list of partitioned topics under a namespace.
+     * <p/>
+     * Response example:
+     *
+     * <pre>
+     * <code>["persistent://my-tenant/my-namespace/topic-1",
+     *  "persistent://my-tenant/my-namespace/topic-2"]</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @param options
+     *            params to get the topics
+     * @return a list of partitioned topics
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    List<String> getPartitionedTopicList(String namespace, ListTopicsOptions options) throws PulsarAdminException;
+
+    /**
+     * Get the list of partitioned topics under a namespace asynchronously.
+     * <p/>
+     * Response example:
+     *
+     * <pre>
+     * <code>["persistent://my-tenant/my-namespace/topic-1",
+     *  "persistent://my-tenant/my-namespace/topic-2"]</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @param options
+     *           params to filter the results
+     * @return a list of partitioned topics
+     */
+    CompletableFuture<List<String>> getPartitionedTopicListAsync(String namespace, ListTopicsOptions options);
 
     /**
      * Get list of topics exist into given bundle.
@@ -595,7 +718,23 @@ public interface Topics {
     CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadataAsync(String topic);
 
     /**
-     * Delete a partitioned topic.
+     * Get properties of a topic.
+     * @param topic
+     *            Topic name
+     * @return Topic properties
+     */
+    Map<String, String> getProperties(String topic) throws PulsarAdminException;
+
+    /**
+     * Get properties of a topic asynchronously.
+     * @param topic
+     *            Topic name
+     * @return a future that can be used to track when the topic properties is returned
+     */
+    CompletableFuture<Map<String, String>> getPropertiesAsync(String topic);
+
+    /**
+     * Delete a partitioned topic and its schemas.
      * <p/>
      * It will also delete all the partitions of the topic if it exists.
      * <p/>
@@ -605,21 +744,27 @@ public interface Topics {
      * @param force
      *            Delete topic forcefully
      * @param deleteSchema
-     *            Delete topic's schema storage
+     *            Delete topic's schema storage and it is always true even if it is specified as false
      *
      * @throws PulsarAdminException
+     * @deprecated Use {@link Topics#deletePartitionedTopic(String, boolean)} instead because parameter
+     * `deleteSchema` is always true
      */
+    @Deprecated
     void deletePartitionedTopic(String topic, boolean force, boolean deleteSchema) throws PulsarAdminException;
 
     /**
      * @see Topics#deletePartitionedTopic(String, boolean, boolean)
+     * IMPORTANT NOTICE: the application is not able to connect to the topic(delete then re-create with same name) again
+     * if the schema auto uploading is disabled. Besides, users should to use the truncate method to clean up
+     * data of the topic instead of delete method if users continue to use this topic later.
      */
     default void deletePartitionedTopic(String topic, boolean force) throws PulsarAdminException {
-        deletePartitionedTopic(topic, force, false);
+        deletePartitionedTopic(topic, force, true);
     }
 
     /**
-     * Delete a partitioned topic asynchronously.
+     * Delete a partitioned topic and its schemas asynchronously.
      * <p/>
      * It will also delete all the partitions of the topic if it exists.
      * <p/>
@@ -629,17 +774,20 @@ public interface Topics {
      * @param force
      *            Delete topic forcefully
      * @param deleteSchema
-     *            Delete topic's schema storage
+     *            Delete topic's schema storage and it is always true even if it is specified as false
      *
      * @return a future that can be used to track when the partitioned topic is deleted
+     * @deprecated Use {@link Topics#deletePartitionedTopicAsync(String, boolean)} instead because parameter
+     * `deleteSchema` is always true
      */
+    @Deprecated
     CompletableFuture<Void> deletePartitionedTopicAsync(String topic, boolean force, boolean deleteSchema);
 
     /**
      * @see Topics#deletePartitionedTopic(String, boolean, boolean)
      */
     default CompletableFuture<Void> deletePartitionedTopicAsync(String topic, boolean force) {
-        return deletePartitionedTopicAsync(topic, force, false);
+        return deletePartitionedTopicAsync(topic, force, true);
     }
 
     /**
@@ -667,7 +815,7 @@ public interface Topics {
     CompletableFuture<Void> deletePartitionedTopicAsync(String topic);
 
     /**
-     * Delete a topic.
+     * Delete a topic and its schemas.
      * <p/>
      * Delete a topic. The topic cannot be deleted if force flag is disable and there's any active
      * subscription or producer connected to the it. Force flag deletes topic forcefully by closing
@@ -679,7 +827,7 @@ public interface Topics {
      * @param force
      *            Delete topic forcefully
      * @param deleteSchema
-     *            Delete topic's schema storage
+     *            Delete topic's schema storage and it is always true even if it is specified as false
      *
      * @throws NotAuthorizedException
      *             Don't have admin permission
@@ -689,18 +837,24 @@ public interface Topics {
      *             Topic has active subscriptions or producers
      * @throws PulsarAdminException
      *             Unexpected error
+     * @deprecated Use {@link Topics#delete(String, boolean)} instead because
+     * parameter `deleteSchema` is always true
      */
+    @Deprecated
     void delete(String topic, boolean force, boolean deleteSchema) throws PulsarAdminException;
 
     /**
      * @see Topics#delete(String, boolean, boolean)
+     * IMPORTANT NOTICE: the application is not able to connect to the topic(delete then re-create with same name) again
+     * if the schema auto uploading is disabled. Besides, users should to use the truncate method to clean up
+     * data of the topic instead of delete method if users continue to use this topic later.
      */
     default void delete(String topic, boolean force) throws PulsarAdminException {
-        delete(topic, force, false);
+        delete(topic, force, true);
     }
 
     /**
-     * Delete a topic asynchronously.
+     * Delete a topic and its schemas asynchronously.
      * <p/>
      * Delete a topic asynchronously. The topic cannot be deleted if force flag is disable and there's any active
      * subscription or producer connected to the it. Force flag deletes topic forcefully by closing all active producers
@@ -712,17 +866,20 @@ public interface Topics {
      * @param force
      *            Delete topic forcefully
      * @param deleteSchema
-     *            Delete topic's schema storage
+     *            Delete topic's schema storage and it is always true even if it is specified as false
      *
      * @return a future that can be used to track when the topic is deleted
+     * @deprecated Use {@link Topics#deleteAsync(String, boolean)} instead because
+     * parameter `deleteSchema` is always true
      */
+    @Deprecated
     CompletableFuture<Void> deleteAsync(String topic, boolean force, boolean deleteSchema);
 
     /**
      * @see Topics#deleteAsync(String, boolean, boolean)
      */
     default CompletableFuture<Void> deleteAsync(String topic, boolean force) {
-        return deleteAsync(topic, force, false);
+        return deleteAsync(topic, force, true);
     }
 
     /**
@@ -1526,8 +1683,10 @@ public interface Topics {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void createSubscription(String topic, String subscriptionName, MessageId messageId)
-            throws PulsarAdminException;
+    default void createSubscription(String topic, String subscriptionName, MessageId messageId)
+            throws PulsarAdminException {
+        createSubscription(topic, subscriptionName, messageId, false);
+    };
 
     /**
      * Create a new subscription on a topic.
@@ -1540,7 +1699,101 @@ public interface Topics {
      *            The {@link MessageId} on where to initialize the subscription. It could be {@link MessageId#latest},
      *            {@link MessageId#earliest} or a specific message id.
      */
-    CompletableFuture<Void> createSubscriptionAsync(String topic, String subscriptionName, MessageId messageId);
+    default CompletableFuture<Void> createSubscriptionAsync(String topic, String subscriptionName,
+                                                            MessageId messageId) {
+        return createSubscriptionAsync(topic, subscriptionName, messageId, false);
+    }
+
+    /**
+     * Create a new subscription on a topic.
+     *
+     * @param topic
+     *            topic name
+     * @param subscriptionName
+     *            Subscription name
+     * @param messageId
+     *            The {@link MessageId} on where to initialize the subscription. It could be {@link MessageId#latest},
+     *            {@link MessageId#earliest} or a specific message id.
+     * @param replicated
+     *            replicated subscriptions.
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws ConflictException
+     *             Subscription already exists
+     * @throws NotAllowedException
+     *             Command disallowed for requested resource
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    default void createSubscription(String topic, String subscriptionName, MessageId messageId, boolean replicated)
+            throws PulsarAdminException {
+        createSubscription(topic, subscriptionName, messageId, replicated, null);
+    }
+
+    /**
+     * Create a new subscription on a topic.
+     *
+     * @param topic
+     *            topic name
+     * @param subscriptionName
+     *            Subscription name
+     * @param messageId
+     *            The {@link MessageId} on where to initialize the subscription. It could be {@link MessageId#latest},
+     *            {@link MessageId#earliest} or a specific message id.
+     * @param replicated
+     *            replicated subscriptions.
+     * @param properties
+     *            subscription properties.
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws ConflictException
+     *             Subscription already exists
+     * @throws NotAllowedException
+     *             Command disallowed for requested resource
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void createSubscription(String topic, String subscriptionName, MessageId messageId, boolean replicated,
+                            Map<String, String> properties)
+            throws PulsarAdminException;
+
+    /**
+     * Create a new subscription on a topic.
+     *
+     * @param topic
+     *            topic name
+     * @param subscriptionName
+     *            Subscription name
+     * @param messageId
+     *            The {@link MessageId} on where to initialize the subscription. It could be {@link MessageId#latest},
+     *            {@link MessageId#earliest} or a specific message id.
+     *
+     * @param replicated
+     *           replicated subscriptions.
+     */
+    default CompletableFuture<Void> createSubscriptionAsync(String topic, String subscriptionName, MessageId messageId,
+                                                    boolean replicated) {
+        return createSubscriptionAsync(topic, subscriptionName, messageId, replicated, null);
+    }
+
+    /**
+     * Create a new subscription on a topic.
+     *
+     * @param topic
+     *            topic name
+     * @param subscriptionName
+     *            Subscription name
+     * @param messageId
+     *            The {@link MessageId} on where to initialize the subscription. It could be {@link MessageId#latest},
+     *            {@link MessageId#earliest} or a specific message id.
+     *
+     * @param replicated
+     *           replicated subscriptions.
+     * @param properties
+     *            subscription properties.
+     */
+    CompletableFuture<Void> createSubscriptionAsync(String topic, String subscriptionName, MessageId messageId,
+                                                    boolean replicated, Map<String, String> properties);
 
     /**
      * Reset cursor position on a topic subscription.
@@ -1576,6 +1829,17 @@ public interface Topics {
     void resetCursor(String topic, String subName, MessageId messageId, boolean isExcluded) throws PulsarAdminException;
 
     /**
+     * Update Subscription Properties on a topic subscription.
+     * The new properties will override the existing values, properties that are not passed will be removed.
+     * @param topic
+     * @param subName
+     * @param subscriptionProperties
+     * @throws PulsarAdminException
+     */
+    void updateSubscriptionProperties(String topic, String subName, Map<String, String> subscriptionProperties)
+            throws PulsarAdminException;
+
+    /**
      * Reset cursor position on a topic subscription.
      *
      * @param topic
@@ -1598,6 +1862,16 @@ public interface Topics {
      * @return
      */
     CompletableFuture<Void> resetCursorAsync(String topic, String subName, MessageId messageId, boolean isExcluded);
+
+    /**
+     * Update Subscription Properties on a topic subscription.
+     * The new properties will override the existing values, properties that are not passed will be removed.
+     * @param topic
+     * @param subName
+     * @param subscriptionProperties
+     */
+    CompletableFuture<Void>  updateSubscriptionPropertiesAsync(String topic, String subName,
+                                                               Map<String, String> subscriptionProperties);
 
     /**
      * Reset cursor position on a topic subscription.
@@ -3776,4 +4050,34 @@ public interface Topics {
      * @return a map of replicated subscription status on a topic
      */
     CompletableFuture<Map<String, Boolean>> getReplicatedSubscriptionStatusAsync(String topic, String subName);
+
+    /**
+     * Get schema validation enforced for a topic.
+     *
+     * @param topic topic name
+     * @return whether the schema validation enforced is set or not
+     */
+    boolean getSchemaValidationEnforced(String topic, boolean applied) throws PulsarAdminException;
+
+    /**
+     * Get schema validation enforced for a topic.
+     *
+     * @param topic topic name
+     */
+    void setSchemaValidationEnforced(String topic, boolean enable) throws PulsarAdminException;
+
+    /**
+     * Get schema validation enforced for a topic asynchronously.
+     *
+     * @param topic topic name
+     * @return whether the schema validation enforced is set or not
+     */
+    CompletableFuture<Boolean> getSchemaValidationEnforcedAsync(String topic, boolean applied);
+
+    /**
+     * Get schema validation enforced for a topic asynchronously.
+     *
+     * @param topic topic name
+     */
+    CompletableFuture<Void> setSchemaValidationEnforcedAsync(String topic, boolean enable);
 }

@@ -43,6 +43,7 @@ import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import org.apache.pulsar.client.admin.GetStatsOptions;
+import org.apache.pulsar.client.admin.ListTopicsOptions;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.OffloadProcessStatus;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -95,7 +96,6 @@ import org.slf4j.LoggerFactory;
 public class TopicsImpl extends BaseResource implements Topics {
     private final WebTarget adminTopics;
     private final WebTarget adminV2Topics;
-    private final WebTarget adminV3Topics;
     // CHECKSTYLE.OFF: MemberName
     private static final String BATCH_HEADER = "X-Pulsar-num-batch-message";
     private static final String BATCH_SIZE_HEADER = "X-Pulsar-batch-size";
@@ -133,7 +133,6 @@ public class TopicsImpl extends BaseResource implements Topics {
         super(auth, readTimeoutMs);
         adminTopics = web.path("/admin");
         adminV2Topics = web.path("/admin/v2");
-        adminV3Topics = web.path("/admin/v3");
     }
 
     @Override
@@ -143,7 +142,23 @@ public class TopicsImpl extends BaseResource implements Topics {
 
     @Override
     public List<String> getList(String namespace, TopicDomain topicDomain) throws PulsarAdminException {
-        return sync(() -> getListAsync(namespace, topicDomain));
+        return getList(namespace, topicDomain, ListTopicsOptions.EMPTY);
+    }
+
+    @Override
+    public List<String> getList(String namespace, TopicDomain topicDomain, Map<QueryParam, Object> params)
+            throws PulsarAdminException {
+        ListTopicsOptions options = ListTopicsOptions
+                .builder()
+                .bundle((String) params.get(QueryParam.Bundle))
+                .build();
+        return getList(namespace, topicDomain, options);
+    }
+
+    @Override
+    public List<String> getList(String namespace, TopicDomain topicDomain, ListTopicsOptions options)
+            throws PulsarAdminException {
+        return sync(() -> getListAsync(namespace, topicDomain, options));
     }
 
     @Override
@@ -153,9 +168,31 @@ public class TopicsImpl extends BaseResource implements Topics {
 
     @Override
     public CompletableFuture<List<String>> getListAsync(String namespace, TopicDomain topicDomain) {
+        return getListAsync(namespace, topicDomain, ListTopicsOptions.EMPTY);
+    }
+
+    @Override
+    public CompletableFuture<List<String>> getListAsync(String namespace, TopicDomain topicDomain,
+                                                        Map<QueryParam, Object> params) {
+        ListTopicsOptions options = ListTopicsOptions
+                .builder()
+                .bundle((String) params.get(QueryParam.Bundle.value))
+                .build();
+        return getListAsync(namespace, topicDomain, options);
+    }
+
+    @Override
+    public CompletableFuture<List<String>> getListAsync(String namespace, TopicDomain topicDomain,
+                                                        ListTopicsOptions options) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget persistentPath = namespacePath("persistent", ns);
         WebTarget nonPersistentPath = namespacePath("non-persistent", ns);
+        persistentPath = persistentPath
+                .queryParam("bundle", options.getBundle())
+                .queryParam("includeSystemTopic", options.isIncludeSystemTopic());
+        nonPersistentPath = nonPersistentPath
+                .queryParam("bundle", options.getBundle())
+                .queryParam("includeSystemTopic", options.isIncludeSystemTopic());
         final CompletableFuture<List<String>> persistentList = new CompletableFuture<>();
         final CompletableFuture<List<String>> nonPersistentList = new CompletableFuture<>();
         if (topicDomain == null || TopicDomain.persistent.equals(topicDomain)) {
@@ -198,14 +235,27 @@ public class TopicsImpl extends BaseResource implements Topics {
 
     @Override
     public List<String> getPartitionedTopicList(String namespace) throws PulsarAdminException {
-        return sync(() -> getPartitionedTopicListAsync(namespace));
+        return getPartitionedTopicList(namespace, ListTopicsOptions.EMPTY);
+    }
+
+    @Override
+    public List<String> getPartitionedTopicList(String namespace, ListTopicsOptions options)
+            throws PulsarAdminException {
+        return sync(() -> getPartitionedTopicListAsync(namespace, options));
     }
 
     @Override
     public CompletableFuture<List<String>> getPartitionedTopicListAsync(String namespace) {
+        return getPartitionedTopicListAsync(namespace, ListTopicsOptions.EMPTY);
+    }
+
+    @Override
+    public CompletableFuture<List<String>> getPartitionedTopicListAsync(String namespace, ListTopicsOptions options) {
         NamespaceName ns = NamespaceName.get(namespace);
         WebTarget persistentPath = namespacePath("persistent", ns, "partitioned");
         WebTarget nonPersistentPath = namespacePath("non-persistent", ns, "partitioned");
+        persistentPath = persistentPath.queryParam("includeSystemTopic", options.isIncludeSystemTopic());
+        nonPersistentPath = nonPersistentPath.queryParam("includeSystemTopic", options.isIncludeSystemTopic());
         final CompletableFuture<List<String>> persistentList = new CompletableFuture<>();
         final CompletableFuture<List<String>> nonPersistentList = new CompletableFuture<>();
         asyncGetRequest(persistentPath,
@@ -347,12 +397,12 @@ public class TopicsImpl extends BaseResource implements Topics {
             String topic, int numPartitions, boolean createLocalTopicOnly, Map<String, String> properties) {
         checkArgument(numPartitions > 0, "Number of partitions should be more than 0");
         TopicName tn = validateTopic(topic);
-        WebTarget path = topicPath(tn, properties, "partitions")
+        WebTarget path = topicPath(tn, "partitions")
                 .queryParam("createLocalTopicOnly", Boolean.toString(createLocalTopicOnly));
         Entity entity;
-        if (properties != null) {
+        if (properties != null && !properties.isEmpty()) {
             PartitionedTopicMetadata metadata = new PartitionedTopicMetadata(numPartitions, properties);
-            entity = Entity.entity(metadata, MediaType.APPLICATION_JSON);
+            entity = Entity.entity(metadata, MediaType.valueOf(PartitionedTopicMetadata.MEDIA_TYPE));
         } else {
             entity = Entity.entity(numPartitions, MediaType.APPLICATION_JSON);
         }
@@ -433,6 +483,32 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
+    public Map<String, String> getProperties(String topic) throws PulsarAdminException {
+        return sync(() -> getPropertiesAsync(topic));
+    }
+
+    @Override
+    public CompletableFuture<Map<String, String>> getPropertiesAsync(String topic) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn, "properties");
+        final CompletableFuture<Map<String, String>> future = new CompletableFuture<>();
+        asyncGetRequest(path,
+                new InvocationCallback<Map<String, String>>() {
+
+                    @Override
+                    public void completed(Map<String, String> response) {
+                        future.complete(response);
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+        return future;
+    }
+
+    @Override
     public void deletePartitionedTopic(String topic) throws PulsarAdminException {
         deletePartitionedTopic(topic, false);
     }
@@ -444,7 +520,7 @@ public class TopicsImpl extends BaseResource implements Topics {
 
     @Override
     public void deletePartitionedTopic(String topic, boolean force, boolean deleteSchema) throws PulsarAdminException {
-        sync(() -> deletePartitionedTopicAsync(topic, force, deleteSchema));
+        sync(() -> deletePartitionedTopicAsync(topic, force, true));
     }
 
     @Override
@@ -452,7 +528,7 @@ public class TopicsImpl extends BaseResource implements Topics {
         TopicName tn = validateTopic(topic);
         WebTarget path = topicPath(tn, "partitions") //
                 .queryParam("force", Boolean.toString(force)) //
-                .queryParam("deleteSchema", Boolean.toString(deleteSchema));
+                .queryParam("deleteSchema", "true");
         return asyncDeleteRequest(path);
     }
 
@@ -468,7 +544,7 @@ public class TopicsImpl extends BaseResource implements Topics {
 
     @Override
     public void delete(String topic, boolean force, boolean deleteSchema) throws PulsarAdminException {
-        sync(() -> deleteAsync(topic, force, deleteSchema));
+        sync(() -> deleteAsync(topic, force, true));
     }
 
     @Override
@@ -476,7 +552,7 @@ public class TopicsImpl extends BaseResource implements Topics {
         TopicName tn = validateTopic(topic);
         WebTarget path = topicPath(tn) //
                 .queryParam("force", Boolean.toString(force)) //
-                .queryParam("deleteSchema", Boolean.toString(deleteSchema));
+                .queryParam("deleteSchema", "true");
         return asyncDeleteRequest(path);
     }
 
@@ -1081,25 +1157,27 @@ public class TopicsImpl extends BaseResource implements Topics {
 
 
     @Override
-    public void createSubscription(String topic, String subscriptionName, MessageId messageId)
+    public void createSubscription(String topic, String subscriptionName, MessageId messageId, boolean replicated,
+                                   Map<String, String> properties)
             throws PulsarAdminException {
-        try {
-            TopicName tn = validateTopic(topic);
-            String encodedSubName = Codec.encode(subscriptionName);
-            WebTarget path = topicPath(tn, "subscription", encodedSubName);
-            request(path).put(Entity.entity(messageId, MediaType.APPLICATION_JSON), ErrorData.class);
-        } catch (Exception e) {
-            throw getApiException(e);
-        }
+        sync(() -> createSubscriptionAsync(topic, subscriptionName, messageId, replicated, properties));
     }
 
     @Override
     public CompletableFuture<Void> createSubscriptionAsync(String topic, String subscriptionName,
-            MessageId messageId) {
+            MessageId messageId, boolean replicated, Map<String, String> properties) {
         TopicName tn = validateTopic(topic);
         String encodedSubName = Codec.encode(subscriptionName);
         WebTarget path = topicPath(tn, "subscription", encodedSubName);
-        return asyncPutRequest(path, Entity.entity(messageId, MediaType.APPLICATION_JSON));
+        path = path.queryParam("replicated", replicated);
+        Object payload = messageId;
+        if (properties != null && !properties.isEmpty()) {
+            ResetCursorData resetCursorData = messageId != null
+                    ? new ResetCursorData(messageId) : new ResetCursorData(MessageId.latest);
+            resetCursorData.setProperties(properties);
+            payload = resetCursorData;
+        }
+        return asyncPutRequest(path, Entity.entity(payload, MediaType.APPLICATION_JSON));
     }
 
     @Override
@@ -1127,6 +1205,25 @@ public class TopicsImpl extends BaseResource implements Topics {
     @Override
     public void resetCursor(String topic, String subName, MessageId messageId) throws PulsarAdminException {
         sync(() -> resetCursorAsync(topic, subName, messageId));
+    }
+
+    @Override
+    public void updateSubscriptionProperties(String topic, String subName, Map<String, String> subscriptionProperties)
+            throws PulsarAdminException {
+        sync(() -> updateSubscriptionPropertiesAsync(topic, subName, subscriptionProperties));
+    }
+
+    @Override
+    public CompletableFuture<Void> updateSubscriptionPropertiesAsync(String topic, String subName,
+                                                                     Map<String, String> subscriptionProperties) {
+        TopicName tn = validateTopic(topic);
+        String encodedSubName = Codec.encode(subName);
+        WebTarget path = topicPath(tn, "subscription", encodedSubName,
+                "properties");
+        if (subscriptionProperties == null) {
+            subscriptionProperties = new HashMap<>();
+        }
+        return asyncPutRequest(path, Entity.entity(subscriptionProperties, MediaType.APPLICATION_JSON));
     }
 
     @Override
@@ -1249,22 +1346,6 @@ public class TopicsImpl extends BaseResource implements Topics {
         WebTarget namespacePath = base.path(domain).path(namespace.toString());
         namespacePath = WebTargets.addParts(namespacePath, parts);
         return namespacePath;
-    }
-
-    /**
-     *  As we support topic metadata, user can add some properties when create topic.
-     *  For compatibility, we have to define a new method, so when metadata is not null, v3 will be called.
-     *  Details could be found here : https://github.com/apache/pulsar/pull/12818#discussion_r789340203
-     * @param topic
-     * @param metadata
-     * @param parts
-     * @return
-     */
-    private WebTarget topicPath(TopicName topic, Map<String, String> metadata, String... parts) {
-        final WebTarget base = metadata != null ? adminV3Topics : (topic.isV2() ? adminV2Topics : adminTopics);
-        WebTarget topicPath = base.path(topic.getRestPath());
-        topicPath = WebTargets.addParts(topicPath, parts);
-        return topicPath;
     }
 
     private WebTarget topicPath(TopicName topic, String... parts) {
@@ -2932,6 +3013,44 @@ public class TopicsImpl extends BaseResource implements Topics {
                     }
                 });
         return future;
+    }
+
+    @Override
+    public boolean getSchemaValidationEnforced(String topic, boolean applied) throws PulsarAdminException {
+        return sync(() -> getSchemaValidationEnforcedAsync(topic, applied));
+    }
+
+    @Override
+    public void setSchemaValidationEnforced(String topic, boolean enable) throws PulsarAdminException {
+        sync(() -> setSchemaValidationEnforcedAsync(topic, enable));
+    }
+
+    @Override
+    public CompletableFuture<Boolean> getSchemaValidationEnforcedAsync(String topic, boolean applied) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn, "schemaValidationEnforced");
+        path = path.queryParam("applied", applied);
+        final CompletableFuture<Boolean> future = new CompletableFuture<>();
+        asyncGetRequest(path,
+                new InvocationCallback<Boolean>() {
+                    @Override
+                    public void completed(Boolean enforced) {
+                        future.complete(enforced);
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+        return future;
+    }
+
+    @Override
+    public CompletableFuture<Void> setSchemaValidationEnforcedAsync(String topic, boolean schemaValidationEnforced) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn, "schemaValidationEnforced");
+        return asyncPostRequest(path, Entity.entity(schemaValidationEnforced, MediaType.APPLICATION_JSON));
     }
 
     @Override

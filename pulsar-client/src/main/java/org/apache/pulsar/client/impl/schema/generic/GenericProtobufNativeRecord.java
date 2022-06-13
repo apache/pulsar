@@ -20,17 +20,19 @@ package org.apache.pulsar.client.impl.schema.generic;
 
 import com.google.protobuf.Descriptors;
 import com.google.protobuf.DynamicMessage;
+import java.util.List;
 import org.apache.pulsar.client.api.schema.Field;
 import org.apache.pulsar.common.schema.SchemaType;
-
-import java.util.List;
 
 public class GenericProtobufNativeRecord extends VersionedGenericRecord {
 
     private final DynamicMessage record;
     private final Descriptors.Descriptor msgDesc;
 
-    protected GenericProtobufNativeRecord(byte[] schemaVersion, Descriptors.Descriptor msgDesc, List<Field> fields, DynamicMessage record) {
+    protected GenericProtobufNativeRecord(byte[] schemaVersion,
+                                          Descriptors.Descriptor msgDesc,
+                                          List<Field> fields,
+                                          DynamicMessage record) {
         super(schemaVersion, fields);
         this.msgDesc = msgDesc;
         this.record = record;

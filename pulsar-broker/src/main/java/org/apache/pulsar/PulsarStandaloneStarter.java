@@ -23,19 +23,17 @@ import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import java.io.FileInputStream;
 import java.util.Arrays;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.util.CmdGenerateDocs;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@Slf4j
 public class PulsarStandaloneStarter extends PulsarStandalone {
     @Parameter(names = {"-g", "--generate-docs"}, description = "Generate docs")
     private boolean generateDocs = false;
-
-    private static final Logger log = LoggerFactory.getLogger(PulsarStandaloneStarter.class);
 
     public PulsarStandaloneStarter(String[] args) throws Exception {
 
@@ -70,12 +68,9 @@ public class PulsarStandaloneStarter extends PulsarStandalone {
                     inputStream, ServiceConfiguration.class);
         }
 
-        String zkServers = "127.0.0.1";
-
         if (this.getAdvertisedAddress() != null) {
             // Use advertised address from command line
             config.setAdvertisedAddress(this.getAdvertisedAddress());
-            zkServers = this.getAdvertisedAddress();
         } else if (isBlank(config.getAdvertisedAddress()) && isBlank(config.getAdvertisedListeners())) {
             // Use advertised address as local hostname
             config.setAdvertisedAddress("localhost");
@@ -87,35 +82,39 @@ public class PulsarStandaloneStarter extends PulsarStandalone {
         // Priority: args > conf > default
         if (!argsContains(args, "--zookeeper-port")) {
             if (StringUtils.isNotBlank(config.getMetadataStoreUrl())) {
-                this.setZkPort(Integer.parseInt(config.getMetadataStoreUrl().split(":")[1]));
-            }
-        }
-        config.setZookeeperServers(zkServers + ":" + this.getZkPort());
-        config.setConfigurationStoreServers(zkServers + ":" + this.getZkPort());
-
-        config.setRunningStandalone(true);
-
-        Runtime.getRuntime().addShutdownHook(new Thread() {
-            public void run() {
-                try {
-                    if (fnWorkerService != null) {
-                        fnWorkerService.stop();
+                String[] metadataStoreUrl = config.getMetadataStoreUrl().split(",")[0].split(":");
+                if (metadataStoreUrl.length == 2) {
+                    this.setZkPort(Integer.parseInt(metadataStoreUrl[1]));
+                } else if ((metadataStoreUrl.length == 3)){
+                    String zkPort = metadataStoreUrl[2];
+                    if (zkPort.contains("/")) {
+                        this.setZkPort(Integer.parseInt(zkPort.substring(0, zkPort.lastIndexOf("/"))));
+                    } else {
+                        this.setZkPort(Integer.parseInt(zkPort));
                     }
-
-                    if (broker != null) {
-                        broker.close();
-                    }
-
-                    if (bkEnsemble != null) {
-                        bkEnsemble.stop();
-                    }
-
-                    LogManager.shutdown();
-                } catch (Exception e) {
-                    log.error("Shutdown failed: {}", e.getMessage(), e);
                 }
             }
-        });
+        }
+
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            try {
+                if (fnWorkerService != null) {
+                    fnWorkerService.stop();
+                }
+
+                if (broker != null) {
+                    broker.close();
+                }
+
+                if (bkEnsemble != null) {
+                    bkEnsemble.stop();
+                }
+            } catch (Exception e) {
+                log.error("Shutdown failed: {}", e.getMessage(), e);
+            } finally {
+                LogManager.shutdown();
+            }
+        }));
     }
 
     private static boolean argsContains(String[] args, String arg) {

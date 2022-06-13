@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -62,7 +62,7 @@ for conf_filename in conf_files:
         v = os.environ[k].strip()
 
         # Hide the value in logs if is password.
-        if "password" in k:
+        if "password" in k.lower():
             displayValue = "********"
         else:
             displayValue = v
@@ -75,14 +75,18 @@ for conf_filename in conf_files:
             lines[idx] = '%s=%s\n' % (k, v)
 
 
-    # Add new keys from Env
+    # Ensure we have a new-line at the end of the file, to avoid issue
+    # when appending more lines to the config
+    lines.append('\n')
+    
+    # Add new keys from Env    
     for k in sorted(os.environ.keys()):
         v = os.environ[k]
         if not k.startswith(PF_ENV_PREFIX):
             continue
 
         # Hide the value in logs if is password.
-        if "password" in k:
+        if "password" in k.lower():
             displayValue = "********"
         else:
             displayValue = v

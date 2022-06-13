@@ -214,6 +214,18 @@ ConsumerConfiguration& ConsumerConfiguration::setProperties(
     return *this;
 }
 
+std::map<std::string, std::string>& ConsumerConfiguration::getSubscriptionProperties() const {
+    return impl_->subscriptionProperties;
+}
+
+ConsumerConfiguration& ConsumerConfiguration::setSubscriptionProperties(
+    const std::map<std::string, std::string>& subscriptionProperties) {
+    for (const auto& subscriptionProperty : subscriptionProperties) {
+        impl_->subscriptionProperties.emplace(subscriptionProperty.first, subscriptionProperty.second);
+    }
+    return *this;
+}
+
 ConsumerConfiguration& ConsumerConfiguration::setPriorityLevel(int priorityLevel) {
     if (priorityLevel < 0) {
         throw std::invalid_argument("Consumer Config Exception: PriorityLevel should be nonnegative number.");
@@ -238,13 +250,13 @@ ConsumerConfiguration& ConsumerConfiguration::setMaxPendingChunkedMessage(size_t
 
 size_t ConsumerConfiguration::getMaxPendingChunkedMessage() const { return impl_->maxPendingChunkedMessage; }
 
-ConsumerConfiguration& ConsumerConfiguration::setAutoOldestChunkedMessageOnQueueFull(
+ConsumerConfiguration& ConsumerConfiguration::setAutoAckOldestChunkedMessageOnQueueFull(
     bool autoAckOldestChunkedMessageOnQueueFull) {
     impl_->autoAckOldestChunkedMessageOnQueueFull = autoAckOldestChunkedMessageOnQueueFull;
     return *this;
 }
 
-bool ConsumerConfiguration::isAutoOldestChunkedMessageOnQueueFull() const {
+bool ConsumerConfiguration::isAutoAckOldestChunkedMessageOnQueueFull() const {
     return impl_->autoAckOldestChunkedMessageOnQueueFull;
 }
 

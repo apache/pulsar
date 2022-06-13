@@ -403,6 +403,28 @@ public class ConsumerBatchReceiveTest extends ProducerConsumerBase {
         receiveAllBatchesAndVerifyBatchSizeIsEqualToMaxNumMessages(consumer, batchReceivePolicy, messagesToSend / muxNumMessages);
     }
 
+    @Test
+    public void verifyNumBytesSmallerThanMessageSize() throws Exception {
+        final int messagesToSend = 500;
+
+        final String topic = "persistent://my-property/my-ns/batch-receive-" + UUID.randomUUID();
+        BatchReceivePolicy batchReceivePolicy = BatchReceivePolicy.builder().maxNumBytes(10).build();
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("s2")
+                .batchReceivePolicy(batchReceivePolicy)
+                .subscribe();
+
+        sendMessagesAsyncAndWait(producer, messagesToSend);
+        CountDownLatch latch = new CountDownLatch(messagesToSend+1);
+        receiveAsync(consumer, messagesToSend, latch);
+        latch.await();
+    }
+
 
     private void receiveAllBatchesAndVerifyBatchSizeIsEqualToMaxNumMessages(Consumer<String> consumer,
                                                                             BatchReceivePolicy batchReceivePolicy,

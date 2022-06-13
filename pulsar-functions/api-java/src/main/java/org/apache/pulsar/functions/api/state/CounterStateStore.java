@@ -36,7 +36,7 @@ public interface CounterStateStore extends StateStore {
 
     /**
      * Increment the builtin distributed counter referred by key
-     * but dont wait for the completion of the increment operation
+     * but dont wait for the completion of the increment operation.
      *
      * @param key    The name of the key
      * @param amount The amount to be incremented
@@ -53,7 +53,7 @@ public interface CounterStateStore extends StateStore {
 
     /**
      * Retrieve the counter value for the key, but don't wait
-     * for the operation to be completed
+     * for the operation to be completed.
      *
      * @param key name of the key
      * @return the amount of the counter value for this key

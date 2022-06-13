@@ -24,7 +24,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.transaction.TransactionTestBase;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.ServiceUrlProvider;
-import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
@@ -81,7 +81,7 @@ public class TransactionMetaStoreAssignmentTest extends TransactionTestBase {
         // close pulsar client will not init tc again
         pulsarClient.close();
 
-        admin.topics().unload(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString());
+        admin.topics().unload(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN.toString());
 
         for (int i = 0; i < 16; i++) {
             final int f = i;

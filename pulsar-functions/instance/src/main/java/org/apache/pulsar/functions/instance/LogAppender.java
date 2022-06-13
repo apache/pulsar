@@ -18,23 +18,28 @@
  */
 package org.apache.pulsar.functions.instance;
 
+import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
+import java.util.concurrent.TimeUnit;
 import org.apache.logging.log4j.core.Appender;
 import org.apache.logging.log4j.core.ErrorHandler;
 import org.apache.logging.log4j.core.Layout;
 import org.apache.logging.log4j.core.LogEvent;
+import org.apache.logging.log4j.core.appender.DefaultErrorHandler;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
-
-import java.io.Serializable;
-import java.util.concurrent.TimeUnit;
 
 /**
  * LogAppender class that is used to send log statements from Pulsar Functions logger
  * to a log topic.
  */
 public class LogAppender implements Appender {
+
+    private static final String LOG_LEVEL = "loglevel";
+    private static final String INSTANCE = "instance";
+    private static final String FQN = "fqn";
+
     private PulsarClient pulsarClient;
     private String logTopic;
     private String fqn;
@@ -48,15 +53,16 @@ public class LogAppender implements Appender {
         this.logTopic = logTopic;
         this.fqn = fqn;
         this.instance = instance;
+        this.errorHandler = new DefaultErrorHandler(this);
     }
 
     @Override
     public void append(LogEvent logEvent) {
         producer.newMessage()
                 .value(logEvent.getMessage().getFormattedMessage().getBytes(StandardCharsets.UTF_8))
-                .property("loglevel", logEvent.getLevel().name())
-                .property("instance", instance)
-                .property("fqn", fqn)
+                .property(LOG_LEVEL, logEvent.getLevel().name())
+                .property(INSTANCE, instance)
+                .property(FQN, fqn)
                 .sendAsync();
     }
 
@@ -82,6 +88,12 @@ public class LogAppender implements Appender {
 
     @Override
     public void setHandler(ErrorHandler errorHandler) {
+        if (errorHandler == null) {
+            throw new RuntimeException("The log error handler cannot be set to null");
+        }
+        if (isStarted()) {
+            throw new RuntimeException("The log error handler cannot be changed once the appender is started");
+        }
         this.errorHandler = errorHandler;
     }
 

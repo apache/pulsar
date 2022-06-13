@@ -54,6 +54,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.common.functions.Utils;
 import org.apache.pulsar.common.policies.data.FunctionInstanceStatsDataImpl;
 import org.apache.pulsar.common.policies.data.FunctionStatsImpl;
 import org.apache.pulsar.common.policies.data.FunctionStatus;
@@ -76,7 +77,7 @@ import org.testng.annotations.Test;
 @Test(groups = "broker-io")
 public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
 
-    protected static FunctionConfig createFunctionConfig(String tenant, String namespace, String functionName, String sourceTopic, String sinkTopic, String subscriptionName) {
+    protected static FunctionConfig createFunctionConfig(String tenant, String namespace, String functionName, boolean isBuiltin, String sourceTopic, String sinkTopic, String subscriptionName) {
         FunctionConfig functionConfig = new FunctionConfig();
         functionConfig.setTenant(tenant);
         functionConfig.setNamespace(namespace);
@@ -89,7 +90,9 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
             functionConfig.setTopicsPattern(sourceTopicPattern);
         }
         functionConfig.setAutoAck(true);
-        functionConfig.setClassName("org.apache.pulsar.functions.api.examples.ExclamationFunction");
+        if (!isBuiltin) {
+            functionConfig.setClassName("org.apache.pulsar.functions.api.examples.ExclamationFunction");
+        }
         functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
         functionConfig.setOutput(sinkTopic);
         functionConfig.setCleanupSubscription(true);
@@ -121,14 +124,26 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(sinkTopic2).subscriptionName("sub").subscribe();
 
         FunctionConfig functionConfig = createFunctionConfig(tenant, namespacePortion, functionName,
-                "my.*", sinkTopic, subscriptionName);
+                jarFilePathUrl.startsWith(Utils.BUILTIN), "my.*", sinkTopic, subscriptionName);
         functionConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
-        admin.functions().createFunctionWithUrl(functionConfig, jarFilePathUrl);
+
+        if (jarFilePathUrl.startsWith(Utils.BUILTIN)) {
+            functionConfig.setJar(jarFilePathUrl);
+            admin.functions().createFunction(functionConfig, null);
+        } else {
+            admin.functions().createFunctionWithUrl(functionConfig, jarFilePathUrl);
+        }
 
         // try to update function to test: update-function functionality
         functionConfig.setParallelism(2);
         functionConfig.setOutput(sinkTopic2);
-        admin.functions().updateFunctionWithUrl(functionConfig, jarFilePathUrl);
+
+        if (jarFilePathUrl.startsWith(Utils.BUILTIN)) {
+            functionConfig.setJar(jarFilePathUrl);
+            admin.functions().updateFunction(functionConfig, null);
+        } else {
+            admin.functions().updateFunctionWithUrl(functionConfig, jarFilePathUrl);
+        }
 
         Awaitility.await().ignoreExceptions().untilAsserted(() -> {
             TopicStats topicStats = admin.topics().getStats(sinkTopic2);
@@ -186,6 +201,18 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
         testE2EPulsarFunction(fileServer.getUrl("/pulsar-functions-api-examples.jar"));
     }
 
+    @Test(timeOut = 20000, groups = "builtin")
+    public void testPulsarFunctionBuiltin() throws Exception {
+        String jarFilePathUrl = String.format("%s://exclamation", Utils.BUILTIN);
+        testE2EPulsarFunction(jarFilePathUrl);
+    }
+
+    @Test(timeOut = 20000, groups = "builtin", expectedExceptions = {PulsarAdminException.class}, expectedExceptionsMessageRegExp = "No Function foo found")
+    public void testPulsarFunctionBuiltinDoesNotExist() throws Exception {
+        String jarFilePathUrl = String.format("%s://foo", Utils.BUILTIN);
+        testE2EPulsarFunction(jarFilePathUrl);
+    }
+
     @Test(timeOut = 30000)
     public void testReadCompactedFunction() throws Exception {
         final String namespacePortion = "io";
@@ -225,7 +252,7 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
 
         // 4 Setup function
         // set source topic to null because we are setting the topic information separately
-        FunctionConfig functionConfig = createFunctionConfig(tenant, namespacePortion, functionName,
+        FunctionConfig functionConfig = createFunctionConfig(tenant, namespacePortion, functionName, false,
                 null, sinkTopic, subscriptionName);
         Map<String, ConsumerConfig> inputSpecs = new HashMap<>();
         ConsumerConfig consumerConfig = new ConsumerConfig();
@@ -237,7 +264,7 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
         String jarFilePathUrl = getPulsarApiExamplesJar().toURI().toString();
         admin.functions().createFunctionWithUrl(functionConfig, jarFilePathUrl);
 
-        // 5 Function should only read compacted value，so we will only receive compacted messages
+        // 5 Function should only read compacted value, so we will only receive compacted messages
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(sinkTopic).subscriptionName("sink-sub").subscribe();
         int count = 0;
         while (true) {
@@ -275,7 +302,7 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(sourceTopic).create();
 
         String jarFilePathUrl = getPulsarApiExamplesJar().toURI().toString();
-        FunctionConfig functionConfig = createFunctionConfig(tenant, namespacePortion, functionName,
+        FunctionConfig functionConfig = createFunctionConfig(tenant, namespacePortion, functionName, false,
                 "my.*", sinkTopic, subscriptionName);
         admin.functions().createFunctionWithUrl(functionConfig, jarFilePathUrl);
 
@@ -611,7 +638,7 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(sourceTopic).create();
 
         String jarFilePathUrl = getPulsarApiExamplesJar().toURI().toString();
-        FunctionConfig functionConfig = createFunctionConfig(tenant, namespacePortion, functionName,
+        FunctionConfig functionConfig = createFunctionConfig(tenant, namespacePortion, functionName, false,
                 "my.*", sinkTopic, subscriptionName);
         admin.functions().createFunctionWithUrl(functionConfig, jarFilePathUrl);
 
@@ -693,7 +720,7 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
         admin.tenants().updateTenant(tenant, propAdmin);
 
         String jarFilePathUrl = getPulsarApiExamplesJar().toURI().toString();
-        FunctionConfig functionConfig = createFunctionConfig(tenant, namespacePortion, functionName,
+        FunctionConfig functionConfig = createFunctionConfig(tenant, namespacePortion, functionName, false,
                 "my.*", sinkTopic, subscriptionName);
         if (!validRoleName) {
             // create a non-superuser admin to test the api
@@ -735,7 +762,7 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(sourceTopic).create();
 
         String jarFilePathUrl = getPulsarApiExamplesJar().toURI().toString();
-        FunctionConfig functionConfig = createFunctionConfig(tenant, namespacePortion, functionName,
+        FunctionConfig functionConfig = createFunctionConfig(tenant, namespacePortion, functionName, false,
                 sourceTopicName, sinkTopic, subscriptionName);
         admin.functions().createFunctionWithUrl(functionConfig, jarFilePathUrl);
 

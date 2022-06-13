@@ -40,6 +40,16 @@ public final class DispatchRateImpl implements DispatchRate {
         return new DispatchRateImplBuilder();
     }
 
+    public static DispatchRateImpl normalize(DispatchRateImpl dispatchRate) {
+        if (dispatchRate != null
+            && (dispatchRate.getDispatchThrottlingRateInMsg() > 0
+            || dispatchRate.getDispatchThrottlingRateInByte() > 0)) {
+            return dispatchRate;
+        } else {
+            return null;
+        }
+    }
+
     public static class DispatchRateImplBuilder implements DispatchRate.Builder {
 
         private int dispatchThrottlingRateInMsg = -1;

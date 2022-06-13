@@ -36,13 +36,13 @@ import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.UUID;
-
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaValidationException;
 import org.apache.avro.SchemaValidator;
 import org.apache.avro.SchemaValidatorBuilder;
+import org.apache.avro.data.TimeConversions;
 import org.apache.avro.io.BinaryEncoder;
 import org.apache.avro.io.BufferedBinaryEncoder;
 import org.apache.avro.reflect.AvroDefault;
@@ -438,4 +438,46 @@ public class AvroSchemaTest {
         assertEquals(pojo1.uid, pojo2.uid);
     }
 
+    static class MyBigDecimalPojo {
+        public BigDecimal value1;
+        @org.apache.avro.reflect.AvroSchema("{\n" +
+                "  \"type\": \"bytes\",\n" +
+                "  \"logicalType\": \"decimal\",\n" +
+                "  \"precision\": 4,\n" +
+                "  \"scale\": 2\n" +
+                "}")
+        public BigDecimal value2;
+    }
+
+    @Test
+    public void testAvroBigDecimal() {
+        org.apache.pulsar.client.api.Schema<MyBigDecimalPojo> schema =
+                org.apache.pulsar.client.api.Schema.AVRO(MyBigDecimalPojo.class);
+        MyBigDecimalPojo myBigDecimalPojo = new MyBigDecimalPojo();
+        myBigDecimalPojo.value1 = new BigDecimal("10.21");
+        myBigDecimalPojo.value2 = new BigDecimal("10.22");
+        MyBigDecimalPojo pojo2 = schema.decode(schema.encode(myBigDecimalPojo));
+        assertEquals(pojo2.value1, myBigDecimalPojo.value1);
+        assertEquals(pojo2.value2, myBigDecimalPojo.value2);
+    }
+
+
+    @Data
+    private static class TimestampStruct {
+        Instant value;
+    }
+
+    @Test
+    public void testTimestampWithJsr310Conversion() {
+        AvroSchema<TimestampStruct> schema = AvroSchema.of(TimestampStruct.class);
+        Assert.assertEquals(
+                schema.getAvroSchema().getFields().get(0).schema().getTypes().get(1).getLogicalType().getName(),
+                new TimeConversions.TimestampMicrosConversion().getLogicalTypeName());
+
+        AvroSchema<TimestampStruct> schema2 = AvroSchema.of(SchemaDefinition.<TimestampStruct>builder()
+                .withPojo(TimestampStruct.class).withJSR310ConversionEnabled(true).build());
+        Assert.assertEquals(
+                schema2.getAvroSchema().getFields().get(0).schema().getTypes().get(1).getLogicalType().getName(),
+                new TimeConversions.TimestampMillisConversion().getLogicalTypeName());
+    }
 }

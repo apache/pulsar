@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -1266,5 +1266,18 @@ class SchemaTest(TestCase):
 
         client.close()
 
+    def test_json_schema_encode_remove_reserved_key(self):
+        class SchemaB(Record):
+            field = String(required=True)
+
+        class SchemaA(Record):
+            field = SchemaB()
+
+        a = SchemaA(field=SchemaB(field="something"))
+        b = JsonSchema(SchemaA).encode(a)
+        # reserved field should not be in the encoded json
+        self.assertTrue(b'_default' not in b)
+        self.assertTrue(b'_required' not in b)
+        self.assertTrue(b'_required_default' not in b)
 if __name__ == '__main__':
     main()

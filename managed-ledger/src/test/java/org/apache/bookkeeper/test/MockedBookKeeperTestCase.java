@@ -67,7 +67,7 @@ public abstract class MockedBookKeeperTestCase {
     public final void setUp(Method method) throws Exception {
         LOG.info(">>>>>> starting {}", method);
         metadataStore = new FaultInjectionMetadataStore(
-                MetadataStoreExtended.create("memory://local", MetadataStoreConfig.builder().build()));
+                MetadataStoreExtended.create("memory:local", MetadataStoreConfig.builder().build()));
 
         try {
             // start bookkeeper service

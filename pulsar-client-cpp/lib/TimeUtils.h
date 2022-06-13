@@ -19,6 +19,8 @@
 #pragma once
 
 #include <boost/date_time/local_time/local_time.hpp>
+#include <atomic>
+#include <chrono>
 
 #include <pulsar/defines.h>
 
@@ -33,4 +35,50 @@ class PULSAR_PUBLIC TimeUtils {
     static ptime now();
     static int64_t currentTimeMillis();
 };
+
+// This class processes a timeout with the following semantics:
+//  > 0: wait at most the timeout until a blocking operation completes
+//  == 0: do not wait the blocking operation
+//  < 0: wait infinitely until a blocking operation completes.
+//
+// Here is a simple example usage:
+//
+// ```c++
+// // Wait at most 300 milliseconds
+// TimeoutProcessor<std::chrono::milliseconds> timeoutProcessor{300};
+// while (!allOperationsAreDone()) {
+//     timeoutProcessor.tik();
+//     // This method may block for some time
+//     performBlockingOperation(timeoutProcessor.getLeftTimeout());
+//     timeoutProcessor.tok();
+// }
+// ```
+//
+// The template argument is the same as std::chrono::duration.
+template <typename Duration>
+class TimeoutProcessor {
+   public:
+    using Clock = std::chrono::high_resolution_clock;
+
+    TimeoutProcessor(long timeout) : leftTimeout_(timeout) {}
+
+    long getLeftTimeout() const noexcept { return leftTimeout_; }
+
+    void tik() { before_ = Clock::now(); }
+
+    void tok() {
+        if (leftTimeout_ > 0) {
+            leftTimeout_ -= std::chrono::duration_cast<Duration>(Clock::now() - before_).count();
+            if (leftTimeout_ <= 0) {
+                // The timeout exceeds, getLeftTimeout() will return 0 to indicate we should not wait more
+                leftTimeout_ = 0;
+            }
+        }
+    }
+
+   private:
+    std::atomic_long leftTimeout_;
+    std::chrono::time_point<Clock> before_;
+};
+
 }  // namespace pulsar

@@ -70,10 +70,9 @@ public class ProxyPublishConsumeTlsTest extends TlsProducerConsumerBase {
         config.setTlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH);
         config.setBrokerClientTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH);
         config.setClusterName("use");
-        config.setConfigurationStoreServers("dummy-zk-servers");
         config.setBrokerClientAuthenticationParameters("tlsCertFile:" + TLS_CLIENT_CERT_FILE_PATH + ",tlsKeyFile:" + TLS_CLIENT_KEY_FILE_PATH);
         config.setBrokerClientAuthenticationPlugin(AuthenticationTls.class.getName());
-        config.setConfigurationStoreServers(GLOBAL_DUMMY_VALUE);
+        config.setConfigurationMetadataStoreUrl(GLOBAL_DUMMY_VALUE);
         service = spyWithClassAndConstructorArgs(WebSocketService.class, config);
         doReturn(new ZKMetadataStore(mockZooKeeperGlobal)).when(service).createMetadataStore(anyString(), anyInt());
         proxyServer = new ProxyServer(config);
@@ -104,7 +103,7 @@ public class ProxyPublishConsumeTlsTest extends TlsProducerConsumerBase {
 
         SslContextFactory sslContextFactory = new SslContextFactory();
         sslContextFactory.setSslContext(SecurityUtility
-                .createSslContext(false, SecurityUtility.loadCertificatesFromPemFile(TLS_TRUST_CERT_FILE_PATH)));
+                .createSslContext(false, SecurityUtility.loadCertificatesFromPemFile(TLS_TRUST_CERT_FILE_PATH), null));
 
         WebSocketClient consumeClient = new WebSocketClient(sslContextFactory);
         SimpleConsumerSocket consumeSocket = new SimpleConsumerSocket();

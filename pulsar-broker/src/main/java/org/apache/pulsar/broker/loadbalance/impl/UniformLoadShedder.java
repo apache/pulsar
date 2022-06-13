@@ -21,32 +21,34 @@ package org.apache.pulsar.broker.loadbalance.impl;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
 import java.util.Map;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.mutable.MutableDouble;
 import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.commons.lang3.mutable.MutableObject;
 import org.apache.commons.lang3.tuple.Triple;
-import org.apache.pulsar.broker.BrokerData;
-import org.apache.pulsar.broker.BundleData;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.TimeAverageMessageData;
 import org.apache.pulsar.broker.loadbalance.LoadData;
 import org.apache.pulsar.broker.loadbalance.LoadSheddingStrategy;
+import org.apache.pulsar.policies.data.loadbalancer.BrokerData;
+import org.apache.pulsar.policies.data.loadbalancer.BundleData;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.pulsar.policies.data.loadbalancer.TimeAverageMessageData;
 
 /**
- * This strategy tends to distribute load uniformly across all brokers. This strategy checks laod difference between
+ * This strategy tends to distribute load uniformly across all brokers. This strategy checks load difference between
  * broker with highest load and broker with lowest load. If the difference is higher than configured thresholds
- * {@link ServiceConfiguration#getLoadBalancerMsgRateDifferenceShedderThreshold()} and
- * {@link ServiceConfiguration#getLoadBalancerMsgRateDifferenceShedderThreshold()} then it finds out bundles which can
- * be unloaded to distribute traffic evenly across all brokers.
+ * {@link ServiceConfiguration#getLoadBalancerMsgRateDifferenceShedderThreshold()} or
+ * {@link ServiceConfiguration#getLoadBalancerMsgThroughputMultiplierDifferenceShedderThreshold()} then it finds out
+ * bundles which can be unloaded to distribute traffic evenly across all brokers.
  *
  */
+@Slf4j
 public class UniformLoadShedder implements LoadSheddingStrategy {
 
-    private static final Logger log = LoggerFactory.getLogger(UniformLoadShedder.class);
-
+    private static final int MB = 1024 * 1024;
+    private static final double MAX_UNLOAD_PERCENTAGE = 0.2;
+    private static final int MIN_UNLOAD_MESSAGE = 1000;
+    private static final int MIN_UNLOAD_THROUGHPUT = 1 * MB;
     private final Multimap<String, String> selectedBundlesCache = ArrayListMultimap.create();
     private static final double EPS = 1e-6;
 
@@ -125,12 +127,14 @@ public class UniformLoadShedder implements LoadSheddingStrategy {
                         underloadedBroker.getValue(), minMsgRate.getValue(), minThroughputRate.getValue());
             }
             MutableInt msgRateRequiredFromUnloadedBundles = new MutableInt(
-                    (int) ((maxMsgRate.getValue() - minMsgRate.getValue()) / 2));
+                    (int) ((maxMsgRate.getValue() - minMsgRate.getValue()) * MAX_UNLOAD_PERCENTAGE));
             MutableInt msgThroughputRequiredFromUnloadedBundles = new MutableInt(
-                    (int) ((maxThroughputRate.getValue() - minThroughputRate.getValue()) / 2));
+                    (int) ((maxThroughputRate.getValue() - minThroughputRate.getValue()) * MAX_UNLOAD_PERCENTAGE));
             LocalBrokerData overloadedBrokerData = brokersData.get(overloadedBroker.getValue()).getLocalData();
 
-            if (overloadedBrokerData.getBundles().size() > 1) {
+            if (overloadedBrokerData.getBundles().size() > 1
+                && (msgRateRequiredFromUnloadedBundles.getValue() >= MIN_UNLOAD_MESSAGE
+                    || msgThroughputRequiredFromUnloadedBundles.getValue() >= MIN_UNLOAD_THROUGHPUT)) {
                 // Sort bundles by throughput, then pick the bundle which can help to reduce load uniformly with
                 // under-loaded broker
                 loadBundleData.entrySet().stream()
@@ -144,7 +148,6 @@ public class UniformLoadShedder implements LoadSheddingStrategy {
                                     : shortTermData.getMsgThroughputIn() + shortTermData.getMsgThroughputOut();
                             return Triple.of(bundle, bundleData, throughput);
                         }).filter(e -> !recentlyUnloadedBundles.containsKey(e.getLeft()))
-                        .filter(e -> overloadedBrokerData.getBundles().contains(e.getLeft()))
                         .sorted((e1, e2) -> Double.compare(e2.getRight(), e1.getRight())).forEach((e) -> {
                             String bundle = e.getLeft();
                             BundleData bundleData = e.getMiddle();

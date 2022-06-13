@@ -22,7 +22,6 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -76,7 +75,7 @@ public interface Context extends BaseContext {
     String getFunctionName();
 
     /**
-     * The id of the function that we are executing
+     * The id of the function that we are executing.
      *
      * @return The function id
      */
@@ -130,7 +129,7 @@ public interface Context extends BaseContext {
      * @return A future that completes when the framework is done publishing the message
      * @deprecated in favor of using {@link #newOutputMessage(String, Schema)}
      */
-    <O> CompletableFuture<Void> publish(String topicName, O object, String schemaOrSerdeClassName);
+    <X> CompletableFuture<Void> publish(String topicName, X object, String schemaOrSerdeClassName);
 
     /**
      * Publish an object to the topic using default schemas.
@@ -140,26 +139,26 @@ public interface Context extends BaseContext {
      * @return A future that completes when the framework is done publishing the message
      * @deprecated in favor of using {@link #newOutputMessage(String, Schema)}
      */
-    <O> CompletableFuture<Void> publish(String topicName, O object);
+    <X> CompletableFuture<Void> publish(String topicName, X object);
 
     /**
-     * New output message using schema for serializing to the topic
+     * New output message using schema for serializing to the topic.
      *
      * @param topicName The name of the topic for output message
      * @param schema provide a way to convert between serialized data and domain objects
-     * @param <O>
+     * @param <X>
      * @return the message builder instance
      * @throws PulsarClientException
      */
-    <O> TypedMessageBuilder<O> newOutputMessage(String topicName, Schema<O> schema) throws PulsarClientException;
+    <X> TypedMessageBuilder<X> newOutputMessage(String topicName, Schema<X> schema) throws PulsarClientException;
 
     /**
      * Create a ConsumerBuilder with the schema.
      *
      * @param schema provide a way to convert between serialized data and domain objects
-     * @param <O>
+     * @param <X>
      * @return the consumer builder instance
      * @throws PulsarClientException
      */
-    <O> ConsumerBuilder<O> newConsumerBuilder(Schema<O> schema) throws PulsarClientException;
+    <X> ConsumerBuilder<X> newConsumerBuilder(Schema<X> schema) throws PulsarClientException;
 }

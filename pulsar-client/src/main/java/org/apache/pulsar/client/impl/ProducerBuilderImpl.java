@@ -18,16 +18,17 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-
 import java.util.stream.Collectors;
 import lombok.AccessLevel;
 import lombok.Getter;
+import lombok.NonNull;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.BatcherBuilder;
 import org.apache.pulsar.client.api.CompressionType;
@@ -46,10 +47,6 @@ import org.apache.pulsar.client.api.interceptor.ProducerInterceptorWrapper;
 import org.apache.pulsar.client.impl.conf.ConfigurationDataUtils;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.common.util.FutureUtil;
-
-import lombok.NonNull;
-
-import static com.google.common.base.Preconditions.checkArgument;
 
 @Getter(AccessLevel.PUBLIC)
 public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
@@ -70,7 +67,7 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
     }
 
     /**
-     * Allow to override schema in builder implementation
+     * Allow to override schema in builder implementation.
      * @return
      */
     public ProducerBuilder<T> schema(Schema<T> schema) {
@@ -104,13 +101,13 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
 
         try {
             setMessageRoutingMode();
-        } catch(PulsarClientException pce) {
+        } catch (PulsarClientException pce) {
             return FutureUtil.failedFuture(pce);
         }
 
-        return interceptorList == null || interceptorList.size() == 0 ?
-                client.createProducerAsync(conf, schema, null) :
-                client.createProducerAsync(conf, schema, new ProducerInterceptors(interceptorList));
+        return interceptorList == null || interceptorList.size() == 0
+                ? client.createProducerAsync(conf, schema, null)
+                : client.createProducerAsync(conf, schema, new ProducerInterceptors(interceptorList));
     }
 
     @Override
@@ -201,6 +198,12 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
     }
 
     @Override
+    public ProducerBuilder<T> chunkMaxMessageSize(int chunkMaxMessageSize) {
+        conf.setChunkMaxMessageSize(chunkMaxMessageSize);
+        return this;
+    }
+
+    @Override
     public ProducerBuilder<T> cryptoKeyReader(@NonNull CryptoKeyReader cryptoKeyReader) {
         conf.setCryptoKeyReader(cryptoKeyReader);
         return this;
@@ -278,7 +281,6 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
 
     @Override
     public ProducerBuilder<T> properties(@NonNull Map<String, String> properties) {
-        checkArgument(!properties.isEmpty(), "properties cannot be empty");
         properties.entrySet().forEach(entry ->
             checkArgument(StringUtils.isNotBlank(entry.getKey()) && StringUtils.isNotBlank(entry.getValue()),
                     "properties' key/value cannot be blank"));
@@ -329,17 +331,34 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
         return this;
     }
 
+    /**
+     * Use this config to automatically create an initial subscription when creating the topic.
+     * If this field is not set, the initial subscription will not be created.
+     * If this field is set but the broker's `allowAutoSubscriptionCreation` is disabled, the producer will fail to
+     * be created.
+     * This method is limited to internal use. This method will only be used when the consumer creates the dlq producer.
+     *
+     * @param initialSubscriptionName Name of the initial subscription of the topic.
+     * @return the producer builder implementation instance
+     */
+    public ProducerBuilderImpl<T> initialSubscriptionName(String initialSubscriptionName) {
+        conf.setInitialSubscriptionName(initialSubscriptionName);
+        return this;
+    }
+
     private void setMessageRoutingMode() throws PulsarClientException {
-        if(conf.getMessageRoutingMode() == null && conf.getCustomMessageRouter() == null) {
+        if (conf.getMessageRoutingMode() == null && conf.getCustomMessageRouter() == null) {
             messageRoutingMode(MessageRoutingMode.RoundRobinPartition);
-        } else if(conf.getMessageRoutingMode() == null && conf.getCustomMessageRouter() != null) {
+        } else if (conf.getMessageRoutingMode() == null && conf.getCustomMessageRouter() != null) {
             messageRoutingMode(MessageRoutingMode.CustomPartition);
-        } else if((conf.getMessageRoutingMode() == MessageRoutingMode.CustomPartition
-                && conf.getCustomMessageRouter() == null)
-                || (conf.getMessageRoutingMode() != MessageRoutingMode.CustomPartition
-                && conf.getCustomMessageRouter() != null)) {
-            throw new PulsarClientException("When 'messageRouter' is set, 'messageRoutingMode' " +
-                    "should be set as " + MessageRoutingMode.CustomPartition);
+        } else if (conf.getMessageRoutingMode() == MessageRoutingMode.CustomPartition
+                && conf.getCustomMessageRouter() == null) {
+            throw new PulsarClientException("When 'messageRoutingMode' is " + MessageRoutingMode.CustomPartition
+                + ", 'messageRouter' should be set");
+        } else if (conf.getMessageRoutingMode() != MessageRoutingMode.CustomPartition
+                && conf.getCustomMessageRouter() != null) {
+            throw new PulsarClientException("When 'messageRouter' is set, 'messageRoutingMode' "
+                    + "should be set as " + MessageRoutingMode.CustomPartition);
         }
     }
 

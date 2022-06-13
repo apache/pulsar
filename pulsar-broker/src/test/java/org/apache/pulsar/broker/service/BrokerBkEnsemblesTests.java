@@ -48,6 +48,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.zookeeper.ZooKeeper;
+import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -150,7 +151,9 @@ public class BrokerBkEnsemblesTests extends BkEnsemblesTestBase {
         Assert.assertNotEquals(cursorLedgerId, newCursorLedgerId);
 
         // cursor node must be deleted
-        Assert.assertNull(zk.exists(ledgerPath, false));
+        Awaitility.await().untilAsserted(() -> {
+            Assert.assertNull(zk.exists(ledgerPath, false));
+        });
 
         producer.close();
         consumer.close();

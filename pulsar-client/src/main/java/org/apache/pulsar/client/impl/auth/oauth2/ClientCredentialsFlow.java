@@ -18,12 +18,6 @@
  */
 package org.apache.pulsar.client.impl.auth.oauth2;
 
-import org.apache.commons.io.IOUtils;
-import org.apache.pulsar.client.impl.auth.oauth2.protocol.ClientCredentialsExchangeRequest;
-import org.apache.pulsar.client.impl.auth.oauth2.protocol.ClientCredentialsExchanger;
-import org.apache.pulsar.client.impl.auth.oauth2.protocol.TokenClient;
-import org.apache.pulsar.client.impl.auth.oauth2.protocol.TokenExchangeException;
-import org.apache.pulsar.client.impl.auth.oauth2.protocol.TokenResult;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -35,7 +29,13 @@ import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import lombok.Builder;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.io.IOUtils;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.impl.auth.oauth2.protocol.ClientCredentialsExchangeRequest;
+import org.apache.pulsar.client.impl.auth.oauth2.protocol.ClientCredentialsExchanger;
+import org.apache.pulsar.client.impl.auth.oauth2.protocol.TokenClient;
+import org.apache.pulsar.client.impl.auth.oauth2.protocol.TokenExchangeException;
+import org.apache.pulsar.client.impl.auth.oauth2.protocol.TokenResult;
 
 /**
  * Implementation of OAuth 2.0 Client Credentials flow.

@@ -52,23 +52,6 @@ import org.testng.annotations.Test;
 
 @Slf4j
 public class ProxyKeyStoreTlsTestWithAuth extends MockedPulsarServiceBaseTest {
-    protected final String BROKER_KEYSTORE_FILE_PATH =
-            "./src/test/resources/authentication/keystoretls/broker.keystore.jks";
-    protected final String BROKER_TRUSTSTORE_FILE_PATH =
-            "./src/test/resources/authentication/keystoretls/broker.truststore.jks";
-    protected final String BROKER_KEYSTORE_PW = "111111";
-    protected final String BROKER_TRUSTSTORE_PW = "111111";
-
-    protected final String CLIENT_KEYSTORE_FILE_PATH =
-            "./src/test/resources/authentication/keystoretls/client.keystore.jks";
-    protected final String CLIENT_TRUSTSTORE_FILE_PATH =
-            "./src/test/resources/authentication/keystoretls/client.truststore.jks";
-    protected final String CLIENT_KEYSTORE_PW = "111111";
-    protected final String CLIENT_TRUSTSTORE_PW = "111111";
-
-    protected final String CLIENT_KEYSTORE_CN = "clientuser";
-    protected final String KEYSTORE_TYPE = "JKS";
-
     private ProxyService proxyService;
     private ProxyConfiguration proxyConfig = new ProxyConfiguration();
 
@@ -78,6 +61,7 @@ public class ProxyKeyStoreTlsTestWithAuth extends MockedPulsarServiceBaseTest {
         internalSetup();
 
         proxyConfig.setServicePort(Optional.of(0));
+        proxyConfig.setBrokerProxyAllowedTargetPorts("*");
         proxyConfig.setServicePortTls(Optional.of(0));
         proxyConfig.setWebServicePort(Optional.of(0));
         proxyConfig.setWebServicePortTls(Optional.of(0));
@@ -91,8 +75,8 @@ public class ProxyKeyStoreTlsTestWithAuth extends MockedPulsarServiceBaseTest {
         proxyConfig.setTlsTrustStore(CLIENT_TRUSTSTORE_FILE_PATH);
         proxyConfig.setTlsTrustStorePassword(CLIENT_TRUSTSTORE_PW);
 
-        proxyConfig.setZookeeperServers(DUMMY_VALUE);
-        proxyConfig.setConfigurationStoreServers(GLOBAL_DUMMY_VALUE);
+        proxyConfig.setMetadataStoreUrl(DUMMY_VALUE);
+        proxyConfig.setConfigurationMetadataStoreUrl(GLOBAL_DUMMY_VALUE);
 
         // config for authentication and authorization.
         proxyConfig.setTlsRequireTrustedClientCertOnConnect(true);

@@ -28,6 +28,8 @@ import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
+import io.netty.resolver.dns.DnsAddressResolverGroup;
+import io.netty.resolver.dns.DnsNameResolverBuilder;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import io.prometheus.client.Counter;
 import io.prometheus.client.Gauge;
@@ -36,6 +38,7 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -52,12 +55,15 @@ import org.apache.pulsar.broker.ServiceConfigurationUtils;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.resources.PulsarResources;
+import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsServlet;
+import org.apache.pulsar.broker.stats.prometheus.PrometheusRawMetricsProvider;
 import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServlets;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
+import org.apache.pulsar.common.util.netty.DnsResolverUtil;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
@@ -73,6 +79,10 @@ public class ProxyService implements Closeable {
 
     private final ProxyConfiguration proxyConfig;
     private final Authentication proxyClientAuthentication;
+    @Getter
+    private final DnsAddressResolverGroup dnsAddressResolverGroup;
+    @Getter
+    private final BrokerProxyValidator brokerProxyValidator;
     private String serviceUrl;
     private String serviceUrlTls;
     private final AuthenticationService authenticationService;
@@ -103,8 +113,6 @@ public class ProxyService implements Closeable {
 
     private final ScheduledExecutorService statsExecutor;
 
-    private static final int numThreads = Runtime.getRuntime().availableProcessors();
-
     static final Gauge ACTIVE_CONNECTIONS = Gauge
             .build("pulsar_proxy_active_connections", "Number of connections currently active in the proxy").create()
             .register();
@@ -130,6 +138,9 @@ public class ProxyService implements Closeable {
     @Getter
     private AdditionalServlets proxyAdditionalServlets;
 
+    private PrometheusMetricsServlet metricsServlet;
+    private List<PrometheusRawMetricsProvider> pendingMetricsProviders;
+
     public ProxyService(ProxyConfiguration proxyConfig,
                         AuthenticationService authenticationService) throws Exception {
         requireNonNull(proxyConfig);
@@ -145,9 +156,22 @@ public class ProxyService implements Closeable {
         } else {
             proxyLogLevel = 0;
         }
-        this.acceptorGroup = EventLoopUtil.newEventLoopGroup(1, false, acceptorThreadFactory);
-        this.workerGroup = EventLoopUtil.newEventLoopGroup(numThreads, false, workersThreadFactory);
+        this.acceptorGroup = EventLoopUtil.newEventLoopGroup(proxyConfig.getNumAcceptorThreads(),
+                false, acceptorThreadFactory);
+        this.workerGroup = EventLoopUtil.newEventLoopGroup(proxyConfig.getNumIOThreads(),
+                false, workersThreadFactory);
         this.authenticationService = authenticationService;
+
+        DnsNameResolverBuilder dnsNameResolverBuilder = new DnsNameResolverBuilder()
+                .channelType(EventLoopUtil.getDatagramChannelClass(workerGroup));
+        DnsResolverUtil.applyJdkDnsCacheSettings(dnsNameResolverBuilder);
+
+        dnsAddressResolverGroup = new DnsAddressResolverGroup(dnsNameResolverBuilder);
+
+        brokerProxyValidator = new BrokerProxyValidator(dnsAddressResolverGroup.getResolver(workerGroup.next()),
+                proxyConfig.getBrokerProxyAllowedHostNames(),
+                proxyConfig.getBrokerProxyAllowedIPAddresses(),
+                proxyConfig.getBrokerProxyAllowedTargetPorts());
 
         // Initialize the message protocol handlers
         proxyExtensions = ProxyExtensions.load(proxyConfig);
@@ -181,7 +205,7 @@ public class ProxyService implements Closeable {
                     + "authenticationEnabled=true when authorization is enabled with authorizationEnabled=true.");
         }
 
-        if (!isBlank(proxyConfig.getZookeeperServers()) && !isBlank(proxyConfig.getConfigurationStoreServers())) {
+        if (!isBlank(proxyConfig.getMetadataStoreUrl()) && !isBlank(proxyConfig.getConfigurationMetadataStoreUrl())) {
             localMetadataStore = createLocalMetadataStore();
             configMetadataStore = createConfigurationMetadataStore();
             pulsarResources = new PulsarResources(localMetadataStore, configMetadataStore);
@@ -191,6 +215,7 @@ public class ProxyService implements Closeable {
         }
 
         ServerBootstrap bootstrap = new ServerBootstrap();
+        bootstrap.option(ChannelOption.SO_REUSEADDR, true);
         bootstrap.childOption(ChannelOption.ALLOCATOR, PulsarByteBufAllocator.DEFAULT);
         bootstrap.group(acceptorGroup, workerGroup);
         bootstrap.childOption(ChannelOption.TCP_NODELAY, true);
@@ -235,6 +260,8 @@ public class ProxyService implements Closeable {
             this.serviceUrlTls = null;
         }
 
+        createMetricsServlet();
+
         // Initialize the message protocol handlers.
         // start the protocol handlers only after the broker is ready,
         // so that the protocol handlers can access broker service properly.
@@ -242,6 +269,14 @@ public class ProxyService implements Closeable {
         Map<String, Map<InetSocketAddress, ChannelInitializer<SocketChannel>>> protocolHandlerChannelInitializers =
                 this.proxyExtensions.newChannelInitializers();
         startProxyExtensions(protocolHandlerChannelInitializers, bootstrap);
+    }
+
+    private synchronized void createMetricsServlet() {
+        this.metricsServlet = new PrometheusMetricsServlet(-1L, proxyConfig.getClusterName());
+        if (pendingMetricsProviders != null) {
+            pendingMetricsProviders.forEach(provider -> metricsServlet.addRawMetricsProvider(provider));
+            this.pendingMetricsProviders = null;
+        }
     }
 
     // This call is used for starting additional protocol handlers
@@ -268,6 +303,7 @@ public class ProxyService implements Closeable {
         boolean useSeparateThreadPool = proxyConfig.isUseSeparateThreadPoolForProxyExtensions();
         if (useSeparateThreadPool) {
             bootstrap = new ServerBootstrap();
+            bootstrap.option(ChannelOption.SO_REUSEADDR, true);
             bootstrap.childOption(ChannelOption.ALLOCATOR, PulsarByteBufAllocator.DEFAULT);
             bootstrap.childOption(ChannelOption.TCP_NODELAY, true);
             bootstrap.childOption(ChannelOption.RCVBUF_ALLOCATOR,
@@ -276,7 +312,7 @@ public class ProxyService implements Closeable {
             EventLoopUtil.enableTriggeredMode(bootstrap);
             DefaultThreadFactory defaultThreadFactory = new DefaultThreadFactory("pulsar-ext-" + extensionName);
             EventLoopGroup dedicatedWorkerGroup =
-                    EventLoopUtil.newEventLoopGroup(numThreads, false, defaultThreadFactory);
+                    EventLoopUtil.newEventLoopGroup(proxyConfig.getNumIOThreads(), false, defaultThreadFactory);
             extensionsWorkerGroups.add(dedicatedWorkerGroup);
             bootstrap.channel(EventLoopUtil.getServerSocketChannelClass(dedicatedWorkerGroup));
             bootstrap.group(this.acceptorGroup, dedicatedWorkerGroup);
@@ -297,6 +333,8 @@ public class ProxyService implements Closeable {
     }
 
     public void close() throws IOException {
+        dnsAddressResolverGroup.close();
+
         if (discoveryProvider != null) {
             discoveryProvider.close();
         }
@@ -318,6 +356,8 @@ public class ProxyService implements Closeable {
             proxyAdditionalServlets = null;
         }
 
+        resetMetricsServlet();
+
         if (localMetadataStore != null) {
             try {
                 localMetadataStore.close();
@@ -337,6 +377,10 @@ public class ProxyService implements Closeable {
         for (EventLoopGroup group : extensionsWorkerGroups) {
             group.shutdownGracefully();
         }
+    }
+
+    private synchronized void resetMetricsServlet() {
+        metricsServlet = null;
     }
 
     public String getServiceUrl() {
@@ -384,17 +428,32 @@ public class ProxyService implements Closeable {
     }
 
     public MetadataStoreExtended createLocalMetadataStore() throws MetadataStoreException {
-        return PulsarResources.createMetadataStore(proxyConfig.getZookeeperServers(),
-                proxyConfig.getZookeeperSessionTimeoutMs());
+        return PulsarResources.createMetadataStore(proxyConfig.getMetadataStoreUrl(),
+                proxyConfig.getMetadataStoreSessionTimeoutMillis());
     }
 
     public MetadataStoreExtended createConfigurationMetadataStore() throws MetadataStoreException {
-        return PulsarResources.createMetadataStore(proxyConfig.getConfigurationStoreServers(),
-                proxyConfig.getZookeeperSessionTimeoutMs());
+        return PulsarResources.createMetadataStore(proxyConfig.getConfigurationMetadataStoreUrl(),
+                proxyConfig.getMetadataStoreSessionTimeoutMillis());
     }
 
     public Authentication getProxyClientAuthenticationPlugin() {
         return this.proxyClientAuthentication;
+    }
+
+    public synchronized PrometheusMetricsServlet getMetricsServlet() {
+        return metricsServlet;
+    }
+
+    public synchronized void addPrometheusRawMetricsProvider(PrometheusRawMetricsProvider metricsProvider) {
+        if (metricsServlet == null) {
+            if (pendingMetricsProviders == null) {
+                pendingMetricsProviders = new LinkedList<>();
+            }
+            pendingMetricsProviders.add(metricsProvider);
+        } else {
+            this.metricsServlet.addRawMetricsProvider(metricsProvider);
+        }
     }
 
     private static final Logger LOG = LoggerFactory.getLogger(ProxyService.class);

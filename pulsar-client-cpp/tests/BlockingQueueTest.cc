@@ -18,6 +18,7 @@
  */
 #include <gtest/gtest.h>
 #include <lib/BlockingQueue.h>
+#include <lib/Latch.h>
 
 #include <future>
 #include <iostream>
@@ -152,72 +153,6 @@ TEST(BlockingQueueTest, testTimeout) {
     ASSERT_FALSE(popReturn);
 }
 
-TEST(BlockingQueueTest, testReservedSpot) {
-    size_t size = 3;
-    BlockingQueue<int> queue(size);
-
-    ASSERT_TRUE(queue.empty());
-    ASSERT_FALSE(queue.full());
-    ASSERT_EQ(0, queue.size());
-
-    queue.push(1);
-    ASSERT_FALSE(queue.empty());
-    ASSERT_FALSE(queue.full());
-    ASSERT_EQ(1, queue.size());
-
-    BlockingQueue<int>::ReservedSpot spot1 = queue.reserve();
-    ASSERT_FALSE(queue.empty());
-    ASSERT_FALSE(queue.full());
-    ASSERT_EQ(1, queue.size());
-
-    queue.push(2, spot1);
-
-    ASSERT_FALSE(queue.empty());
-    ASSERT_FALSE(queue.full());
-    ASSERT_EQ(2, queue.size());
-
-    {
-        BlockingQueue<int>::ReservedSpot spot2 = queue.reserve();
-
-        ASSERT_FALSE(queue.empty());
-        ASSERT_TRUE(queue.full());
-        ASSERT_EQ(2, queue.size());
-    }
-
-    ASSERT_FALSE(queue.empty());
-    ASSERT_FALSE(queue.full());
-    ASSERT_EQ(2, queue.size());
-
-    BlockingQueue<int>::ReservedSpot spot3 = queue.reserve();
-
-    int res;
-    queue.pop(res);
-    ASSERT_EQ(1, res);
-
-    ASSERT_FALSE(queue.empty());
-    ASSERT_FALSE(queue.full());
-    ASSERT_EQ(1, queue.size());
-
-    queue.pop(res);
-    ASSERT_EQ(2, res);
-
-    ASSERT_TRUE(queue.empty());
-    ASSERT_FALSE(queue.full());
-    ASSERT_EQ(0, queue.size());
-
-    spot3.release();
-
-    {
-        BlockingQueue<int>::ReservedSpot spot1 = queue.reserve();
-        BlockingQueue<int>::ReservedSpot spot2 = queue.reserve();
-        BlockingQueue<int>::ReservedSpot spot3 = queue.reserve();
-
-        ASSERT_TRUE(queue.empty());
-        ASSERT_TRUE(queue.full());
-        ASSERT_EQ(0, queue.size());
-    }
-}
-
 TEST(BlockingQueueTest, testPushPopRace) {
     auto test_logic = []() {
         size_t size = 5;
@@ -253,4 +188,50 @@ TEST(BlockingQueueTest, testPushPopRace) {
     };
 
     ASSERT_EXIT(test_logic(), ::testing::ExitedWithCode(0), "Exiting");
+}
+
+TEST(BlockingQueueTest, testCloseInterruptOnEmpty) {
+    BlockingQueue<int> queue(10);
+    pulsar::Latch latch(1);
+
+    auto thread = std::thread([&]() {
+        int v;
+        bool res = queue.pop(v);
+        ASSERT_FALSE(res);
+        latch.countdown();
+    });
+
+    // Sleep to allow for background thread to call pop and be blocked there
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+
+    queue.close();
+    bool wasUnblocked = latch.wait(std::chrono::seconds(5));
+
+    ASSERT_TRUE(wasUnblocked);
+    thread.join();
+}
+
+TEST(BlockingQueueTest, testCloseInterruptOnFull) {
+    BlockingQueue<int> queue(10);
+    pulsar::Latch latch(1);
+
+    auto thread = std::thread([&]() {
+        int i = 0;
+        while (true) {
+            bool res = queue.push(i++);
+            if (!res) {
+                latch.countdown();
+                return;
+            }
+        }
+    });
+
+    // Sleep to allow for background thread to fill the queue and be blocked there
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+
+    queue.close();
+    bool wasUnblocked = latch.wait(std::chrono::seconds(5));
+
+    ASSERT_TRUE(wasUnblocked);
+    thread.join();
 }

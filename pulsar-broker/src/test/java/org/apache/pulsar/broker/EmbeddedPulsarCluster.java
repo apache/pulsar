@@ -56,7 +56,10 @@ public class EmbeddedPulsarCluster implements AutoCloseable {
         this.numBrokers = numBrokers;
         this.numBookies = numBookies;
         this.metadataStoreUrl = metadataStoreUrl;
-        this.bkCluster = new BKCluster(metadataStoreUrl, numBookies);
+        this.bkCluster = BKCluster.builder()
+                .metadataServiceUri(metadataStoreUrl)
+                .numBookies(numBookies)
+                .build();
 
         for (int i = 0; i < numBrokers; i++) {
             PulsarService s = new PulsarService(getConf());
@@ -100,6 +103,7 @@ public class EmbeddedPulsarCluster implements AutoCloseable {
         conf.setDefaultNumberOfNamespaceBundles(1);
         conf.setMetadataStoreUrl(metadataStoreUrl);
         conf.setBrokerShutdownTimeoutMs(0L);
+        conf.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
         conf.setBrokerServicePort(Optional.of(0));
         conf.setWebServicePort(Optional.of(0));
         conf.setNumExecutorThreadPoolSize(1);
@@ -110,7 +114,6 @@ public class EmbeddedPulsarCluster implements AutoCloseable {
         conf.setBookkeeperClientNumWorkerThreads(1);
         conf.setBookkeeperNumberOfChannelsPerBookie(1);
         conf.setManagedLedgerNumSchedulerThreads(1);
-        conf.setManagedLedgerNumWorkerThreads(1);
         conf.setWebSocketNumIoThreads(1);
         conf.setNumTransactionReplayThreadPoolSize(1);
         conf.setNumHttpServerThreads(4);

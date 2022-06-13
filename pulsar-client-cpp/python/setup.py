@@ -21,7 +21,6 @@ from setuptools import setup
 from distutils.core import Extension
 from distutils.util import strtobool
 from os import environ
-import subprocess
 
 from distutils.command import build_ext
 
@@ -50,11 +49,13 @@ def get_name():
     base = 'pulsar-client'
     return base + postfix
 
+
 VERSION = get_version()
 NAME = get_name()
 
 print(VERSION)
 print(NAME)
+
 
 # This is a workaround to have setuptools to include
 # the already compiled _pulsar.so library
@@ -70,11 +71,10 @@ class my_build_ext(build_ext.build_ext):
                 raise
         shutil.copyfile('_pulsar.so', self.get_ext_fullpath(ext.name))
 
+
 # Core Client dependencies
 dependencies = [
-    'six',
     'certifi',
-    'enum34>=1.1.9; python_version < "3.4"'
 ]
 
 extras_require = {}
@@ -82,7 +82,7 @@ extras_require = {}
 # functions dependencies
 extras_require["functions"] = sorted(
     {
-      "protobuf>=3.6.1",
+      "protobuf>=3.6.1,<=3.20.*",
       "grpcio<1.28,>=1.8.2",
       "apache-bookkeeper-client>=4.9.2",
       "prometheus_client",

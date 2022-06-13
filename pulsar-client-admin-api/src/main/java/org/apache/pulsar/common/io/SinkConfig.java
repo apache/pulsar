@@ -72,10 +72,13 @@ public class SinkConfig {
     private Integer parallelism;
     private FunctionConfig.ProcessingGuarantees processingGuarantees;
     private Boolean retainOrdering;
+    private Boolean retainKeyOrdering;
     private Resources resources;
     private Boolean autoAck;
     private Long timeoutMs;
     private Long negativeAckRedeliveryDelayMs;
+
+    private String sinkType;
     private String archive;
     // Whether the subscriptions the functions created/used should be deleted when the functions is deleted
     private Boolean cleanupSubscription;

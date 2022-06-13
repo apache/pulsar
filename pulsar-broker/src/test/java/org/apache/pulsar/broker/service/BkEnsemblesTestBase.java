@@ -76,11 +76,12 @@ public abstract class BkEnsemblesTestBase extends TestRetrySupport {
             if (config == null) {
                 config = new ServiceConfiguration();
             }
-            config.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
+            config.setMetadataStoreUrl("zk:127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
             config.setAdvertisedAddress("localhost");
             config.setWebServicePort(Optional.of(0));
             config.setClusterName("usc");
             config.setBrokerShutdownTimeoutMs(0L);
+            config.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
             config.setBrokerServicePort(Optional.of(0));
             config.setAuthorizationEnabled(false);
             config.setAuthenticationEnabled(false);
@@ -88,7 +89,7 @@ public abstract class BkEnsemblesTestBase extends TestRetrySupport {
             config.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
             config.setAdvertisedAddress("127.0.0.1");
             config.setAllowAutoTopicCreationType("non-partitioned");
-            config.setZooKeeperOperationTimeoutSeconds(10);
+            config.setMetadataStoreOperationTimeoutSeconds(10);
             config.setNumIOThreads(1);
             Properties properties = new Properties();
             properties.put("bookkeeper_numWorkerThreads", "1");

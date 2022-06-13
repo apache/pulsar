@@ -34,13 +34,14 @@ import org.testng.collections.Maps;
  * A tester used for testing a specific sink.
  */
 @Getter
-public abstract class SinkTester<ServiceContainerT extends GenericContainer> {
+public abstract class SinkTester<ServiceContainerT extends GenericContainer> implements AutoCloseable {
 
     @Getter
     public enum SinkType {
         UNDEFINED("undefined"),
         CASSANDRA("cassandra"),
         KAFKA("kafka"),
+        KINESIS("kinesis"),
         JDBC_POSTGRES("jdbc-postgres"),
         HDFS("hdfs"),
         ELASTIC_SEARCH("elastic_search"),
@@ -126,6 +127,4 @@ public abstract class SinkTester<ServiceContainerT extends GenericContainer> {
                     .send();
         }
     }
-
-
 }

@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.impl;
 
 import com.google.common.collect.ComparisonChain;
-
 import java.util.Objects;
 
 public class ConsumerId implements Comparable<ConsumerId> {

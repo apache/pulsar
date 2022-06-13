@@ -21,11 +21,12 @@ package org.apache.pulsar.broker.loadbalance;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-import org.apache.pulsar.broker.BundleData;
+import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.stats.Metrics;
+import org.apache.pulsar.policies.data.loadbalancer.BundleData;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 
 /**
@@ -111,6 +112,11 @@ public interface ModularLoadManager {
      * @return
      */
     Set<String> getAvailableBrokers();
+
+    /**
+     * Get available broker list in cluster by async invoke.
+     */
+    CompletableFuture<Set<String>> getAvailableBrokersAsync();
 
     /**
      * Fetch local-broker data from load-manager broker cache.

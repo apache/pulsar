@@ -68,6 +68,11 @@ public class ManagedCursorContainerTest {
         }
 
         @Override
+        public Map<String, String> getCursorProperties() {
+            return Collections.emptyMap();
+        }
+
+        @Override
         public boolean putProperty(String key, Long value) {
             return false;
         }
@@ -237,7 +242,8 @@ public class ManagedCursorContainerTest {
         }
 
         @Override
-        public void asyncResetCursor(final Position position, AsyncCallbacks.ResetCursorCallback callback) {
+        public void asyncResetCursor(final Position position, boolean forceReset,
+                AsyncCallbacks.ResetCursorCallback callback) {
 
         }
 

@@ -21,6 +21,8 @@ package org.apache.pulsar.common.util;
 import io.netty.handler.ssl.ClientAuth;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
+import io.netty.handler.ssl.SslHandler;
+import io.netty.handler.ssl.SslProvider;
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 import java.io.BufferedReader;
 import java.io.File;
@@ -56,14 +58,15 @@ import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.KeyManager;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLException;
+import javax.net.ssl.SSLParameters;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.tls.TlsHostnameVerifier;
-import org.eclipse.jetty.util.ssl.SslContextFactory;
 
 /**
  * Helper class for the security domain.
@@ -195,23 +198,27 @@ public class SecurityUtility {
         return provider;
     }
 
-    public static SSLContext createSslContext(boolean allowInsecureConnection, Certificate[] trustCertificates)
+    public static SSLContext createSslContext(boolean allowInsecureConnection, Certificate[] trustCertificates,
+                                              String providerName)
             throws GeneralSecurityException {
-        return createSslContext(allowInsecureConnection, trustCertificates, (Certificate[]) null, (PrivateKey) null);
+        return createSslContext(allowInsecureConnection, trustCertificates, null, null, providerName);
     }
 
-    public static SslContext createNettySslContextForClient(boolean allowInsecureConnection, String trustCertsFilePath)
+    public static SslContext createNettySslContextForClient(SslProvider sslProvider, boolean allowInsecureConnection,
+                                                            String trustCertsFilePath, Set<String> ciphers,
+                                                            Set<String> protocols)
             throws GeneralSecurityException, SSLException, FileNotFoundException, IOException {
-        return createNettySslContextForClient(allowInsecureConnection, trustCertsFilePath, (Certificate[]) null,
-                (PrivateKey) null);
+        return createNettySslContextForClient(sslProvider, allowInsecureConnection, trustCertsFilePath,
+                (Certificate[]) null,
+                (PrivateKey) null, ciphers, protocols);
     }
 
     public static SSLContext createSslContext(boolean allowInsecureConnection, String trustCertsFilePath,
-            String certFilePath, String keyFilePath) throws GeneralSecurityException {
+            String certFilePath, String keyFilePath, String providerName) throws GeneralSecurityException {
         X509Certificate[] trustCertificates = loadCertificatesFromPemFile(trustCertsFilePath);
         X509Certificate[] certificates = loadCertificatesFromPemFile(certFilePath);
         PrivateKey privateKey = loadPrivateKeyFromPemFile(keyFilePath);
-        return createSslContext(allowInsecureConnection, trustCertificates, certificates, privateKey);
+        return createSslContext(allowInsecureConnection, trustCertificates, certificates, privateKey, providerName);
     }
 
     /**
@@ -229,12 +236,15 @@ public class SecurityUtility {
      * @throws FileNotFoundException
      * @throws IOException
      */
-    public static SslContext createAutoRefreshSslContextForClient(boolean allowInsecureConnection,
-            String trustCertsFilePath, String certFilePath, String keyFilePath, String sslContextAlgorithm,
-            int refreshDurationSec, ScheduledExecutorService executor)
+    public static SslContext createAutoRefreshSslContextForClient(SslProvider sslProvider,
+                                                                  boolean allowInsecureConnection,
+                                                                  String trustCertsFilePath, String certFilePath,
+                                                                  String keyFilePath, String sslContextAlgorithm,
+                                                                  int refreshDurationSec,
+                                                                  ScheduledExecutorService executor)
             throws GeneralSecurityException, SSLException, FileNotFoundException, IOException {
         KeyManagerProxy keyManager = new KeyManagerProxy(certFilePath, keyFilePath, refreshDurationSec, executor);
-        SslContextBuilder sslContexBuilder = SslContextBuilder.forClient();
+        SslContextBuilder sslContexBuilder = SslContextBuilder.forClient().sslProvider(sslProvider);
         sslContexBuilder.keyManager(keyManager);
         if (allowInsecureConnection) {
             sslContexBuilder.trustManager(InsecureTrustManagerFactory.INSTANCE);
@@ -245,46 +255,62 @@ public class SecurityUtility {
         return sslContexBuilder.build();
     }
 
-    public static SslContext createNettySslContextForClient(boolean allowInsecureConnection, String trustCertsFilePath,
-            String certFilePath, String keyFilePath)
+    public static SslContext createNettySslContextForClient(SslProvider sslProvider, boolean allowInsecureConnection,
+                                                            String trustCertsFilePath,
+                                                            String certFilePath, String keyFilePath,
+                                                            Set<String> ciphers,
+                                                            Set<String> protocols)
             throws GeneralSecurityException, SSLException, FileNotFoundException, IOException {
         X509Certificate[] certificates = loadCertificatesFromPemFile(certFilePath);
         PrivateKey privateKey = loadPrivateKeyFromPemFile(keyFilePath);
-        return createNettySslContextForClient(allowInsecureConnection, trustCertsFilePath, certificates, privateKey);
+        return createNettySslContextForClient(sslProvider, allowInsecureConnection, trustCertsFilePath, certificates,
+                privateKey, ciphers, protocols);
     }
 
-    public static SslContext createNettySslContextForClient(boolean allowInsecureConnection, String trustCertsFilePath,
-            Certificate[] certificates, PrivateKey privateKey)
+    public static SslContext createNettySslContextForClient(SslProvider sslProvider, boolean allowInsecureConnection,
+                                                            String trustCertsFilePath,
+                                                            Certificate[] certificates, PrivateKey privateKey,
+                                                            Set<String> ciphers,
+                                                            Set<String> protocols)
             throws GeneralSecurityException, SSLException, FileNotFoundException, IOException {
 
         if (StringUtils.isNotBlank(trustCertsFilePath)) {
             try (FileInputStream trustCertsStream = new FileInputStream(trustCertsFilePath)) {
-                return createNettySslContextForClient(allowInsecureConnection, trustCertsStream, certificates,
-                        privateKey);
+                return createNettySslContextForClient(sslProvider, allowInsecureConnection, trustCertsStream,
+                        certificates,
+                        privateKey, ciphers, protocols);
             }
         } else {
-            return createNettySslContextForClient(allowInsecureConnection, (InputStream) null, certificates,
-                    privateKey);
+            return createNettySslContextForClient(sslProvider, allowInsecureConnection, (InputStream) null,
+                    certificates,
+                    privateKey, ciphers, protocols);
         }
     }
 
-    public static SslContext createNettySslContextForClient(boolean allowInsecureConnection,
-            InputStream trustCertsStream, Certificate[] certificates, PrivateKey privateKey)
+    public static SslContext createNettySslContextForClient(SslProvider sslProvider, boolean allowInsecureConnection,
+                                                            InputStream trustCertsStream, Certificate[] certificates,
+                                                            PrivateKey privateKey, Set<String> ciphers,
+                                                            Set<String> protocols)
             throws GeneralSecurityException, SSLException, FileNotFoundException, IOException {
-        SslContextBuilder builder = SslContextBuilder.forClient();
+        SslContextBuilder builder = SslContextBuilder.forClient().sslProvider(sslProvider);
         setupTrustCerts(builder, allowInsecureConnection, trustCertsStream);
         setupKeyManager(builder, privateKey, (X509Certificate[]) certificates);
+        setupCiphers(builder, ciphers);
+        setupProtocols(builder, protocols);
         return builder.build();
     }
 
-    public static SslContext createNettySslContextForServer(boolean allowInsecureConnection, String trustCertsFilePath,
-            String certFilePath, String keyFilePath, Set<String> ciphers, Set<String> protocols,
-            boolean requireTrustedClientCertOnConnect)
+    public static SslContext createNettySslContextForServer(SslProvider sslProvider, boolean allowInsecureConnection,
+                                                            String trustCertsFilePath,
+                                                            String certFilePath, String keyFilePath,
+                                                            Set<String> ciphers, Set<String> protocols,
+                                                            boolean requireTrustedClientCertOnConnect)
             throws GeneralSecurityException, SSLException, FileNotFoundException, IOException {
         X509Certificate[] certificates = loadCertificatesFromPemFile(certFilePath);
         PrivateKey privateKey = loadPrivateKeyFromPemFile(keyFilePath);
 
-        SslContextBuilder builder = SslContextBuilder.forServer(privateKey, (X509Certificate[]) certificates);
+        SslContextBuilder builder =
+                SslContextBuilder.forServer(privateKey, (X509Certificate[]) certificates).sslProvider(sslProvider);
         setupCiphers(builder, ciphers);
         setupProtocols(builder, protocols);
         if (StringUtils.isNotBlank(trustCertsFilePath)) {
@@ -300,18 +326,25 @@ public class SecurityUtility {
     }
 
     public static SSLContext createSslContext(boolean allowInsecureConnection, Certificate[] trustCertficates,
-            Certificate[] certificates, PrivateKey privateKey) throws GeneralSecurityException {
+                                              Certificate[] certificates, PrivateKey privateKey)
+            throws GeneralSecurityException {
+        return createSslContext(allowInsecureConnection, trustCertficates, certificates, privateKey, null);
+    }
+
+    public static SSLContext createSslContext(boolean allowInsecureConnection, Certificate[] trustCertficates,
+                                              Certificate[] certificates, PrivateKey privateKey, String providerName)
+            throws GeneralSecurityException {
         KeyStoreHolder ksh = new KeyStoreHolder();
         TrustManager[] trustManagers = null;
         KeyManager[] keyManagers = null;
+        Provider provider = resolveProvider(providerName);
 
-        trustManagers = setupTrustCerts(ksh, allowInsecureConnection, trustCertficates, CONSCRYPT_PROVIDER);
+        trustManagers = setupTrustCerts(ksh, allowInsecureConnection, trustCertficates, provider);
         keyManagers = setupKeyManager(ksh, privateKey, certificates);
 
-        SSLContext sslCtx = CONSCRYPT_PROVIDER != null ? SSLContext.getInstance("TLS", CONSCRYPT_PROVIDER)
+        SSLContext sslCtx = provider != null ? SSLContext.getInstance("TLS", provider)
                 : SSLContext.getInstance("TLS");
         sslCtx.init(keyManagers, trustManagers, new SecureRandom());
-        sslCtx.getDefaultSSLParameters();
         return sslCtx;
     }
 
@@ -518,51 +551,23 @@ public class SecurityUtility {
         }
     }
 
-    public static SslContextFactory createSslContextFactory(boolean tlsAllowInsecureConnection,
-            String tlsTrustCertsFilePath, String tlsCertificateFilePath, String tlsKeyFilePath,
-            boolean tlsRequireTrustedClientCertOnConnect, boolean autoRefresh, long certRefreshInSec)
-            throws GeneralSecurityException, SSLException, FileNotFoundException, IOException {
-        SslContextFactory sslCtxFactory = null;
-        if (autoRefresh) {
-            sslCtxFactory = new SslContextFactoryWithAutoRefresh(tlsAllowInsecureConnection, tlsTrustCertsFilePath,
-                tlsCertificateFilePath, tlsKeyFilePath, tlsRequireTrustedClientCertOnConnect, 0);
-        } else {
-            sslCtxFactory = new SslContextFactory();
-            SSLContext sslCtx = createSslContext(tlsAllowInsecureConnection, tlsTrustCertsFilePath,
-                tlsCertificateFilePath, tlsKeyFilePath);
-            sslCtxFactory.setSslContext(sslCtx);
-        }
-        if (tlsRequireTrustedClientCertOnConnect) {
-            sslCtxFactory.setNeedClientAuth(true);
-        } else {
-            sslCtxFactory.setWantClientAuth(true);
-        }
-        sslCtxFactory.setTrustAll(true);
-        return sslCtxFactory;
+    public static void configureSSLHandler(SslHandler handler) {
+        SSLEngine sslEngine = handler.engine();
+        SSLParameters sslParameters = sslEngine.getSSLParameters();
+        sslParameters.setEndpointIdentificationAlgorithm("HTTPS");
+        sslEngine.setSSLParameters(sslParameters);
     }
 
-    /**
-     * {@link SslContextFactory} that auto-refresh SSLContext.
-     */
-    static class SslContextFactoryWithAutoRefresh extends SslContextFactory {
-
-        private final DefaultSslContextBuilder sslCtxRefresher;
-
-        public SslContextFactoryWithAutoRefresh(boolean tlsAllowInsecureConnection, String tlsTrustCertsFilePath,
-                String tlsCertificateFilePath, String tlsKeyFilePath, boolean tlsRequireTrustedClientCertOnConnect,
-                long certRefreshInSec)
-                throws SSLException, FileNotFoundException, GeneralSecurityException, IOException {
-            super();
-            sslCtxRefresher = new DefaultSslContextBuilder(tlsAllowInsecureConnection, tlsTrustCertsFilePath,
-                    tlsCertificateFilePath, tlsKeyFilePath, tlsRequireTrustedClientCertOnConnect, certRefreshInSec);
-            if (CONSCRYPT_PROVIDER != null) {
-                setProvider(CONSCRYPT_PROVIDER.getName());
-            }
+    public static Provider resolveProvider(String providerName) throws NoSuchAlgorithmException {
+        Provider provider = null;
+        if (!StringUtils.isEmpty(providerName)) {
+            provider = Security.getProvider(providerName);
         }
 
-        @Override
-        public SSLContext getSslContext() {
-            return sslCtxRefresher.get();
+        if (provider == null) {
+            provider = SSLContext.getDefault().getProvider();
         }
+
+        return provider;
     }
 }

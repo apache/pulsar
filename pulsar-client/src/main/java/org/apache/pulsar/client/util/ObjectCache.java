@@ -18,9 +18,9 @@
  */
 package org.apache.pulsar.client.util;
 
-import java.util.function.Supplier;
 import java.time.Clock;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 
 public class ObjectCache<T> implements Supplier<T> {
 

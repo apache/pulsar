@@ -37,6 +37,7 @@ import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
 import org.apache.pulsar.common.policies.data.impl.BacklogQuotaImpl;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
 
 @Slf4j
 public class BacklogQuotaManager {
@@ -60,12 +61,19 @@ public class BacklogQuotaManager {
 
     public BacklogQuotaImpl getBacklogQuota(NamespaceName namespace, BacklogQuotaType backlogQuotaType) {
         try {
-            return namespaceResources.getPolicies(namespace)
-                    .map(p -> (BacklogQuotaImpl) p.backlog_quota_map
-                            .getOrDefault(backlogQuotaType, defaultQuota))
-                    .orElse(defaultQuota);
-        } catch (Exception e) {
-            log.warn("Failed to read policies data, will apply the default backlog quota: namespace={}", namespace, e);
+            if (namespaceResources == null) {
+                log.warn("Failed to read policies data from metadata store because namespaceResources is null."
+                        + "default backlog quota will be applied: namespace={}", namespace);
+                return this.defaultQuota;
+            } else {
+                return namespaceResources.getPolicies(namespace)
+                        .map(p -> (BacklogQuotaImpl) p.backlog_quota_map
+                                .getOrDefault(backlogQuotaType, defaultQuota))
+                        .orElse(defaultQuota);
+            }
+        } catch (MetadataStoreException e) {
+            log.warn("Failed to read policies data from metadata store,"
+                    + " will apply the default backlog quota: namespace={}", namespace, e);
             return this.defaultQuota;
         }
     }

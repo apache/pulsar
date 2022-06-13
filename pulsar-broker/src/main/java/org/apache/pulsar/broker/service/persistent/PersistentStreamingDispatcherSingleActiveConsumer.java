@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service.persistent;
 
 import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
+import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
 import com.google.common.collect.Lists;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
@@ -164,12 +165,12 @@ public class PersistentStreamingDispatcherSingleActiveConsumer extends Persisten
             SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
             EntryBatchIndexesAcks batchIndexesAcks = EntryBatchIndexesAcks.get(1);
             filterEntriesForConsumer(Lists.newArrayList(entry), batchSizes, sendMessageInfo, batchIndexesAcks,
-                    cursor, false);
+                    cursor, false, consumer);
             // Update cursor's read position.
             cursor.seek(((ManagedLedgerImpl) cursor.getManagedLedger())
                     .getNextValidPosition((PositionImpl) entry.getPosition()));
             dispatchEntriesToConsumer(currentConsumer, Lists.newArrayList(entry), batchSizes,
-                    batchIndexesAcks, sendMessageInfo);
+                    batchIndexesAcks, sendMessageInfo, DEFAULT_CONSUMER_EPOCH);
         }
     }
 

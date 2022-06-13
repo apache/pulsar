@@ -42,6 +42,10 @@ public class BookKeeperPackagesStorageConfiguration implements PackagesStorageCo
         return getProperty("zookeeperServers");
     }
 
+    String getMetadataStoreUrl() {
+        return getProperty("metadataStoreUrl");
+    }
+
     String getPackagesManagementLedgerRootPath() {
         return getProperty("packagesManagementLedgerRootPath");
     }
@@ -58,6 +62,10 @@ public class BookKeeperPackagesStorageConfiguration implements PackagesStorageCo
         return getProperty("bookkeeperClientAuthenticationParameters");
     }
 
+    @Override
+    public Properties getProperties() {
+        return configuration.getProperties();
+    }
 
     @Override
     public String getProperty(String key) {

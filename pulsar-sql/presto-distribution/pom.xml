@@ -25,7 +25,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar-sql</artifactId>
-    <version>2.10.0-SNAPSHOT</version>
+    <version>2.11.0-SNAPSHOT</version>
   </parent>
 
   <artifactId>pulsar-presto-distribution</artifactId>
@@ -34,15 +34,12 @@
   <properties>
     <skipBuildDistribution>false</skipBuildDistribution>
     <jersey.version>2.34</jersey.version>
-    <presto.version>332</presto.version>
-    <airlift.version>0.170</airlift.version>
     <objenesis.version>2.6</objenesis.version>
     <objectsize.version>0.0.12</objectsize.version>
-    <guice.version>4.2.0</guice.version>
-    <jackson.version>2.12.6</jackson.version>
+    <jackson.version>2.13.2</jackson.version>
     <!--fix Security Vulnerabilities-->
     <!--https://www.cvedetails.com/vulnerability-list/vendor_id-15866/product_id-42991/Fasterxml-Jackson-databind.html-->
-    <jackson.databind.version>2.12.6</jackson.databind.version>
+    <jackson.databind.version>2.13.2.1</jackson.databind.version>
     <maven.version>3.0.5</maven.version>
     <guava.version>31.0.1-jre</guava.version>
     <asynchttpclient.version>2.12.1</asynchttpclient.version>
@@ -100,6 +97,10 @@
           <groupId>javax.activation</groupId>
           <artifactId>activation</artifactId>
         </exclusion>
+        <exclusion>
+          <groupId>com.google.inject.extensions</groupId>
+          <artifactId>guice-multibindings</artifactId>
+        </exclusion>
       </exclusions>
     </dependency>
 
@@ -135,13 +136,6 @@
       <groupId>com.twitter.common</groupId>
       <artifactId>objectsize</artifactId>
       <version>${objectsize.version}</version>
-    </dependency>
-
-    <!-- make sure guice is set to the correct version -->
-    <dependency>
-      <groupId>com.google.inject.extensions</groupId>
-      <artifactId>guice-multibindings</artifactId>
-      <version>${guice.version}</version>
     </dependency>
 
     <!-- jackson dependencies -->
@@ -198,6 +192,13 @@
       <groupId>com.fasterxml.jackson.dataformat</groupId>
       <artifactId>jackson-dataformat-smile</artifactId>
       <version>${jackson.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>java-version-trim-agent</artifactId>
+      <version>${project.version}</version>
+      <scope>provided</scope>
     </dependency>
 
   </dependencies>

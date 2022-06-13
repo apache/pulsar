@@ -73,6 +73,7 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
 
         this.objCache = Caffeine.newBuilder()
                 .refreshAfterWrite(CACHE_REFRESH_TIME_MILLIS, TimeUnit.MILLISECONDS)
+                .expireAfterWrite(CACHE_REFRESH_TIME_MILLIS * 2, TimeUnit.MILLISECONDS)
                 .buildAsync(new AsyncCacheLoader<String, Optional<CacheGetResult<T>>>() {
                     @Override
                     public CompletableFuture<Optional<CacheGetResult<T>>> asyncLoad(String key, Executor executor) {
@@ -262,10 +263,7 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
     @Override
     public void refresh(String path) {
         // Refresh object of path if only it is cached before.
-        if (objCache.getIfPresent(path) != null) {
-            objCache.synchronous().invalidate(path);
-            objCache.synchronous().refresh(path);
-        }
+        objCache.asMap().computeIfPresent(path, (oldKey, oldValue) -> readValueFromStore(path));
     }
 
     @VisibleForTesting
@@ -279,11 +277,7 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
         switch (t.getType()) {
         case Created:
         case Modified:
-            if (objCache.synchronous().getIfPresent(path) != null) {
-                // Trigger background refresh of the cached item, but before make sure
-                // to invalidate the entry so that we won't serve a stale cached version
-                refresh(path);
-            }
+            refresh(path);
             break;
 
         case Deleted:

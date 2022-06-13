@@ -19,24 +19,27 @@
 package org.apache.pulsar.broker.service.plugin;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Collections;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.nar.NarClassLoader;
+import org.apache.pulsar.common.nar.NarClassLoaderBuilder;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 
 @Slf4j
 public class EntryFilterProvider {
 
-    static final String ENTRY_FILTER_DEFINITION_FILE = "entry_filter.yml";
+    @VisibleForTesting
+    static final String ENTRY_FILTER_DEFINITION_FILE = "entry_filter";
 
     /**
      * create entry filter instance.
@@ -104,14 +107,23 @@ public class EntryFilterProvider {
     private static EntryFilterDefinition getEntryFilterDefinition(String narPath,
                                                                               String narExtractionDirectory)
             throws IOException {
-        try (NarClassLoader ncl = NarClassLoader.getFromArchive(new File(narPath), Collections.emptySet(),
-                narExtractionDirectory)) {
+        try (NarClassLoader ncl = NarClassLoaderBuilder.builder()
+                .narFile(new File(narPath))
+                .extractionDirectory(narExtractionDirectory)
+                .build()) {
             return getEntryFilterDefinition(ncl);
         }
     }
 
-    private static EntryFilterDefinition getEntryFilterDefinition(NarClassLoader ncl) throws IOException {
-        String configStr = ncl.getServiceDefinition(ENTRY_FILTER_DEFINITION_FILE);
+    @VisibleForTesting
+    static EntryFilterDefinition getEntryFilterDefinition(NarClassLoader ncl) throws IOException {
+        String configStr;
+
+        try {
+            configStr = ncl.getServiceDefinition(ENTRY_FILTER_DEFINITION_FILE + ".yaml");
+        } catch (NoSuchFileException e) {
+            configStr = ncl.getServiceDefinition(ENTRY_FILTER_DEFINITION_FILE + ".yml");
+        }
 
         return ObjectMapperFactory.getThreadLocalYaml().readValue(
                 configStr, EntryFilterDefinition.class
@@ -121,11 +133,12 @@ public class EntryFilterProvider {
     private static EntryFilterWithClassLoader load(EntryFilterMetaData metadata,
                                                                String narExtractionDirectory)
             throws IOException {
-        NarClassLoader ncl = NarClassLoader.getFromArchive(
-                metadata.getArchivePath().toAbsolutePath().toFile(),
-                Collections.emptySet(),
-                EntryFilter.class.getClassLoader(), narExtractionDirectory);
-
+        final File narFile = metadata.getArchivePath().toAbsolutePath().toFile();
+        NarClassLoader ncl = NarClassLoaderBuilder.builder()
+                .narFile(narFile)
+                .parentClassLoader(EntryFilter.class.getClassLoader())
+                .extractionDirectory(narExtractionDirectory)
+                .build();
         EntryFilterDefinition def = getEntryFilterDefinition(ncl);
         if (StringUtils.isBlank(def.getEntryFilterClass())) {
             throw new IOException("Entry filters `" + def.getName() + "` does NOT provide a entry"

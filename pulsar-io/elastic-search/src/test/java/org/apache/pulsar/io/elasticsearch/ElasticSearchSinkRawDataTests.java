@@ -18,19 +18,21 @@
  */
 package org.apache.pulsar.io.elasticsearch;
 
+import lombok.AllArgsConstructor;
+import lombok.Data;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.SinkContext;
-import org.junit.AfterClass;
 import org.mockito.Mock;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.testcontainers.elasticsearch.ElasticsearchContainer;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.nio.charset.StandardCharsets;
@@ -42,13 +44,15 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.testng.Assert.fail;
 
-public class ElasticSearchSinkRawDataTests {
-
-    public static final String ELASTICSEARCH_IMAGE = Optional.ofNullable(System.getenv("ELASTICSEARCH_IMAGE"))
-            .orElse("docker.elastic.co/elasticsearch/elasticsearch:7.16.3-amd64");
+public abstract class ElasticSearchSinkRawDataTests extends ElasticSearchTestBase {
 
     private static ElasticsearchContainer container;
+
+    public ElasticSearchSinkRawDataTests(String elasticImageName) {
+        super(elasticImageName);
+    }
 
     @Mock
     protected Record<GenericObject> mockRecord;
@@ -63,22 +67,25 @@ public class ElasticSearchSinkRawDataTests {
 
     static Schema<byte[]> schema;
 
-    @BeforeClass
-    public static final void initBeforeClass() {
-        container = new ElasticsearchContainer(ELASTICSEARCH_IMAGE);
+    @BeforeMethod(alwaysRun = true)
+    public final void initBeforeClass() {
+        if (container != null) {
+            return;
+        }
+        container = createElasticsearchContainer();
+        container.start();
         schema = Schema.BYTES;
     }
 
-    @AfterClass
+    @AfterClass(alwaysRun = true)
     public static void closeAfterClass() {
         container.close();
+        container = null;
     }
 
     @SuppressWarnings("unchecked")
     @BeforeMethod
     public final void setUp() throws Exception {
-        container.start();
-
         map = new HashMap<String, Object> ();
         map.put("elasticSearchUrl", "http://"+container.getHttpHostAddress());
         map.put("schemaEnable", "false");
@@ -130,6 +137,48 @@ public class ElasticSearchSinkRawDataTests {
     protected final void send(int numRecords) throws Exception {
         for (int idx = 0; idx < numRecords; idx++) {
             sink.write(mockRecord);
+        }
+    }
+
+    @Data
+    @AllArgsConstructor
+    private static class StripNonPrintableCharactersTestConfig {
+        private boolean stripNonPrintableCharacters;
+        private boolean bulkEnabled;
+
+    }
+    @DataProvider(name = "stripNonPrintableCharacters")
+    public Object[] stripNonPrintableCharacters() {
+        return new Object[]{
+                new StripNonPrintableCharactersTestConfig(true, true),
+                new StripNonPrintableCharactersTestConfig(true, false),
+                new StripNonPrintableCharactersTestConfig(false, true),
+                new StripNonPrintableCharactersTestConfig(false, false),
+        };
+    }
+
+
+    @Test(dataProvider = "stripNonPrintableCharacters")
+    public final void testStripNonPrintableCharacters(StripNonPrintableCharactersTestConfig conf) throws Exception {
+        map.put("indexName", "test-index");
+        map.put("bulkEnabled", conf.isBulkEnabled());
+        map.put("bulkActions", 1);
+        map.put("maxRetries", 1);
+        map.put("stripNonPrintableCharacters", conf.isStripNonPrintableCharacters());
+        sink.open(map, mockSinkContext);
+
+        final String data = "\t" + ((char)0) + "{\"a\":\"b" + ((char)31) + "\"}";
+        when(mockMessage.getData()).thenReturn(data.getBytes(StandardCharsets.UTF_8));
+        try {
+            send(1);
+            if (!conf.isStripNonPrintableCharacters()) {
+                fail("with stripNonPrintableCharacters=false it should have raised an exception");
+            }
+            verify(mockRecord, times(1)).ack();
+        } catch (Throwable t) {
+            if (conf.isStripNonPrintableCharacters()) {
+                throw t;
+            }
         }
     }
 

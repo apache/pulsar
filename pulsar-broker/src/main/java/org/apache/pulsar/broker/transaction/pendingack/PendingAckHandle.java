@@ -50,15 +50,13 @@ public interface PendingAckHandle {
      *
      * @param txnID                  {@link TxnID} TransactionID of an ongoing transaction trying to sck message.
      * @param positions              {@link MutablePair} the pair of positions and these batch size.
-     * @param isInCacheRequest       {@link Boolean} the boolean of the request in cache whether or not.
      * @return the future of this operation.
      * @throws TransactionConflictException if the ack with transaction is conflict with pending ack.
      * @throws NotAllowedException if Use this method incorrectly eg. not use
      * PositionImpl or cumulative ack with a list of positions.
      */
     CompletableFuture<Void> individualAcknowledgeMessage(TxnID txnID, List<MutablePair<PositionImpl,
-            Integer>> positions, boolean isInCacheRequest);
-
+            Integer>> positions);
     /**
      * Acknowledge message(s) for an ongoing transaction.
      * <p>
@@ -76,14 +74,12 @@ public interface PendingAckHandle {
      *
      * @param txnID                  {@link TxnID} TransactionID of an ongoing transaction trying to sck message.
      * @param positions              {@link MutablePair} the pair of positions and these batch size.
-     * @param isInCacheRequest       {@link Boolean} the boolean of the request in cache whether or not.
      * @return the future of this operation.
      * @throws TransactionConflictException if the ack with transaction is conflict with pending ack.
      * @throws NotAllowedException if Use this method incorrectly eg. not use
      * PositionImpl or cumulative ack with a list of positions.
      */
-    CompletableFuture<Void> cumulativeAcknowledgeMessage(TxnID txnID, List<PositionImpl> positions,
-                                                         boolean isInCacheRequest);
+    CompletableFuture<Void> cumulativeAcknowledgeMessage(TxnID txnID, List<PositionImpl> positions);
 
     /**
      * Commit a transaction.
@@ -92,11 +88,9 @@ public interface PendingAckHandle {
      * @param properties Additional user-defined properties that can be
      *                   associated with a particular cursor position.
      * @param lowWaterMark the low water mark of this transaction
-     * @param isInCacheRequest       {@link Boolean} the boolean of the request in cache whether or not.
      * @return the future of this operation.
      */
-    CompletableFuture<Void> commitTxn(TxnID txnID, Map<String, Long> properties,
-                                      long lowWaterMark, boolean isInCacheRequest);
+    CompletableFuture<Void> commitTxn(TxnID txnID, Map<String, Long> properties, long lowWaterMark);
 
     /**
      * Abort a transaction.
@@ -104,10 +98,9 @@ public interface PendingAckHandle {
      * @param txnId  {@link TxnID} to identify the transaction.
      * @param consumer {@link Consumer} which aborting transaction.
      * @param lowWaterMark the low water mark of this transaction
-     * @param isInCacheRequest       {@link Boolean} the boolean of the request in cache whether or not.
      * @return the future of this operation.
      */
-    CompletableFuture<Void> abortTxn(TxnID txnId, Consumer consumer, long lowWaterMark, boolean isInCacheRequest);
+    CompletableFuture<Void> abortTxn(TxnID txnId, Consumer consumer, long lowWaterMark);
 
     /**
      * Sync the position ack set, in order to clean up the cache of this position for pending ack handle.

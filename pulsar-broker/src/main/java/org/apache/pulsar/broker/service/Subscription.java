@@ -87,7 +87,7 @@ public interface Subscription {
 
     boolean expireMessages(Position position);
 
-    void redeliverUnacknowledgedMessages(Consumer consumer);
+    void redeliverUnacknowledgedMessages(Consumer consumer, long consumerEpoch);
 
     void redeliverUnacknowledgedMessages(Consumer consumer, List<PositionImpl> positions);
 
@@ -100,6 +100,10 @@ public interface Subscription {
     String getTypeString();
 
     void addUnAckedMessages(int unAckMessages);
+
+    Map<String, String> getSubscriptionProperties();
+
+    CompletableFuture<Void> updateSubscriptionProperties(Map<String, String> subscriptionProperties);
 
     default void processReplicatedSubscriptionSnapshot(ReplicatedSubscriptionsSnapshot snapshot) {
         // Default is no-op

@@ -352,6 +352,9 @@ public class CmdSinks extends CmdBase {
         @Parameter(names = "--parallelism",
                 description = "The sink's parallelism factor (i.e. the number of sink instances to run)")
         protected Integer parallelism;
+        @Parameter(names = "--retain-key-ordering",
+                description = "Sink consumes and processes messages in key order")
+        protected Boolean retainKeyOrdering;
         @Parameter(names = {"-a", "--archive"}, description = "Path to the archive file for the sink. It also supports "
                 + "url-path [http/https/file (file protocol assumes that file already exists on worker host)] from "
                 + "which worker can download the package.", listConverter = StringConverter.class)
@@ -460,6 +463,10 @@ public class CmdSinks extends CmdBase {
                 sinkConfig.setRetainOrdering(retainOrdering);
             }
 
+            if (retainKeyOrdering != null) {
+                sinkConfig.setRetainKeyOrdering(retainKeyOrdering);
+            }
+
             if (null != inputs) {
                 sinkConfig.setInputs(Arrays.asList(inputs.split(",")));
             }
@@ -511,6 +518,8 @@ public class CmdSinks extends CmdBase {
 
             if (sinkType != null) {
                 sinkConfig.setArchive(validateSinkType(sinkType));
+            } else if (sinkConfig.getSinkType() != null) {
+                sinkConfig.setArchive(validateSinkType(sinkConfig.getSinkType()));
             }
 
             Resources resources = sinkConfig.getResources();

@@ -23,6 +23,7 @@ import static java.nio.charset.StandardCharsets.US_ASCII;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doReturn;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Sets;
@@ -44,9 +45,13 @@ import org.apache.pulsar.client.impl.schema.StringSchema;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.SchemaAutoUpdateCompatibilityStrategy;
+import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaInfoWithVersion;
+import org.apache.pulsar.common.schema.SchemaType;
+import org.awaitility.Awaitility;
+import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
@@ -60,9 +65,13 @@ import org.testng.annotations.Test;
 public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
 
     final String cluster = "test";
+    private final String schemaCompatibilityNamespace = "schematest/test-schema-compatibility-ns";
+
     @BeforeMethod
     @Override
     public void setup() throws Exception {
+        conf.setSystemTopicEnabled(false);
+        conf.setTopicLevelPoliciesEnabled(false);
         super.internalSetup();
 
         // Setup namespaces
@@ -71,6 +80,7 @@ public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
         admin.tenants().createTenant("schematest", tenantInfo);
         admin.namespaces().createNamespace("schematest/test", Sets.newHashSet("test"));
         admin.namespaces().createNamespace("schematest/"+cluster+"/test", Sets.newHashSet("test"));
+        admin.namespaces().createNamespace(schemaCompatibilityNamespace, Sets.newHashSet("test"));
     }
 
     @AfterMethod(alwaysRun = true)
@@ -202,7 +212,7 @@ public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
             admin.schemas().createSchema(topicName, fooSchemaInfo);
             fail("Should have failed");
         } catch (PulsarAdminException.NotFoundException e) {
-            assertTrue(e.getMessage().contains("HTTP 404"));
+            assertTrue(e.getMessage().contains("Namespace does not exist"));
         }
     }
 
@@ -237,6 +247,25 @@ public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
         SchemaInfo schemaInfo = admin.schemas().getSchemaInfo(topicName);
 
         assertEquals(keyValueSchema.getSchemaInfo(), schemaInfo);
+    }
+
+
+    @Test(dataProvider = "version")
+    public void testInvalidSchemaDataException(ApiVersion version) {
+        String namespace = format("%s%s%s", "schematest", (ApiVersion.V1.equals(version) ? "/" + cluster + "/" : "/"),
+                "test");
+        String topicName = "persistent://"+ namespace + "/test-invalid-schema-data-exception";
+        SchemaInfo schemaInfo = SchemaInfo.builder()
+                .schema(new byte[0])
+                .type(SchemaType.AVRO)
+                .name("test")
+                .build();
+        try {
+            admin.schemas().createSchema(topicName, schemaInfo);
+        } catch (PulsarAdminException e) {
+            Assert.assertEquals(e.getStatusCode(), 422);
+            Assert.assertEquals(e.getMessage(), "HTTP 422 Invalid schema definition data for AVRO schema");
+        }
     }
 
     @Test
@@ -347,5 +376,52 @@ public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
         assertEquals(ledgerInfo.ledgerId, ledgerId);
         assertEquals(ledgerInfo.entries, entryId + 1);
         assertEquals(ledgerInfo.size, length);
+    }
+
+    @Test
+    public void testGetSchemaCompatibilityStrategy() throws PulsarAdminException {
+        assertEquals(admin.namespaces().getSchemaCompatibilityStrategy(schemaCompatibilityNamespace),
+                SchemaCompatibilityStrategy.UNDEFINED);
+    }
+
+    @Test
+    public void testGetSchemaAutoUpdateCompatibilityStrategy() throws PulsarAdminException {
+        assertNull(admin.namespaces().getSchemaAutoUpdateCompatibilityStrategy(schemaCompatibilityNamespace));
+    }
+
+    @Test
+    public void testGetSchemaCompatibilityStrategyWhenSetSchemaAutoUpdateCompatibilityStrategy()
+            throws PulsarAdminException {
+        assertEquals(admin.namespaces().getSchemaCompatibilityStrategy(schemaCompatibilityNamespace),
+                SchemaCompatibilityStrategy.UNDEFINED);
+
+        admin.namespaces().setSchemaAutoUpdateCompatibilityStrategy(schemaCompatibilityNamespace,
+                SchemaAutoUpdateCompatibilityStrategy.Forward);
+        Awaitility.await().untilAsserted(() -> assertEquals(SchemaAutoUpdateCompatibilityStrategy.Forward,
+                admin.namespaces().getSchemaAutoUpdateCompatibilityStrategy(schemaCompatibilityNamespace)
+        ));
+
+        assertEquals(admin.namespaces().getSchemaCompatibilityStrategy(schemaCompatibilityNamespace),
+                SchemaCompatibilityStrategy.UNDEFINED);
+
+        admin.namespaces().setSchemaCompatibilityStrategy(schemaCompatibilityNamespace,
+                SchemaCompatibilityStrategy.BACKWARD);
+        Awaitility.await().untilAsserted(() -> assertEquals(SchemaCompatibilityStrategy.BACKWARD,
+                admin.namespaces().getSchemaCompatibilityStrategy(schemaCompatibilityNamespace)));
+    }
+
+    @Test
+    public void testGetSchemaCompatibilityStrategyWhenSetBrokerLevelAndSchemaAutoUpdateCompatibilityStrategy()
+            throws PulsarAdminException {
+        pulsar.getConfiguration().setSchemaCompatibilityStrategy(SchemaCompatibilityStrategy.FORWARD);
+
+        assertEquals(admin.namespaces().getSchemaCompatibilityStrategy(schemaCompatibilityNamespace),
+                SchemaCompatibilityStrategy.UNDEFINED);
+
+        admin.namespaces().setSchemaAutoUpdateCompatibilityStrategy(schemaCompatibilityNamespace,
+                SchemaAutoUpdateCompatibilityStrategy.AlwaysCompatible);
+        Awaitility.await().untilAsserted(() -> assertEquals(
+                admin.namespaces().getSchemaCompatibilityStrategy(schemaCompatibilityNamespace),
+                SchemaCompatibilityStrategy.UNDEFINED));
     }
 }

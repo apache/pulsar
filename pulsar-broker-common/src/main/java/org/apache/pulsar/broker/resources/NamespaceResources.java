@@ -23,6 +23,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.Getter;
@@ -72,12 +74,27 @@ public class NamespaceResources extends BaseResources<Policies> {
         return getChildrenAsync(joinPath(BASE_POLICIES_PATH, tenant));
     }
 
+    public CompletableFuture<Boolean> getPoliciesReadOnlyAsync() {
+        return super.existsAsync(POLICIES_READONLY_FLAG_PATH);
+    }
+
     public boolean getPoliciesReadOnly() throws MetadataStoreException {
-        return super.exists(POLICIES_READONLY_FLAG_PATH);
+        try {
+            return getPoliciesReadOnlyAsync().get(getOperationTimeoutSec(), TimeUnit.SECONDS);
+        } catch (ExecutionException e) {
+            throw (e.getCause() instanceof MetadataStoreException) ? (MetadataStoreException) e.getCause()
+                    : new MetadataStoreException(e.getCause());
+        } catch (Exception e) {
+            throw new MetadataStoreException("Failed to check exist " + POLICIES_READONLY_FLAG_PATH, e);
+        }
     }
 
     public void createPolicies(NamespaceName ns, Policies policies) throws MetadataStoreException{
         create(joinPath(BASE_POLICIES_PATH, ns.toString()), policies);
+    }
+
+    public CompletableFuture<Void> createPoliciesAsync(NamespaceName ns, Policies policies) {
+        return createAsync(joinPath(BASE_POLICIES_PATH, ns.toString()), policies);
     }
 
     public boolean namespaceExists(NamespaceName ns) throws MetadataStoreException {
@@ -130,6 +147,11 @@ public class NamespaceResources extends BaseResources<Policies> {
                 && path.substring(BASE_POLICIES_PATH.length() + 1).contains("/");
     }
 
+    public static boolean pathIsNamespaceLocalPolicies(String path) {
+        return path.startsWith(LOCAL_POLICIES_ROOT + "/")
+                && path.substring(LOCAL_POLICIES_ROOT.length() + 1).contains("/");
+    }
+
     // clear resource of `/namespace/{namespaceName}` for zk-node
     public CompletableFuture<Void> deleteNamespaceAsync(NamespaceName ns) {
         final String namespacePath = joinPath(NAMESPACE_BASE_PATH, ns.toString());
@@ -144,6 +166,10 @@ public class NamespaceResources extends BaseResources<Policies> {
 
     public static NamespaceName namespaceFromPath(String path) {
         return NamespaceName.get(path.substring(BASE_POLICIES_PATH.length() + 1));
+    }
+
+    public static NamespaceName namespaceFromLocalPoliciesPath(String path) {
+        return NamespaceName.get(path.substring(LOCAL_POLICIES_ROOT.length() + 1));
     }
 
     public static class IsolationPolicyResources extends BaseResources<Map<String, NamespaceIsolationDataImpl>> {
@@ -161,8 +187,17 @@ public class NamespaceResources extends BaseResources<Policies> {
             return data.isPresent() ? Optional.of(new NamespaceIsolationPolicies(data.get())) : Optional.empty();
         }
 
+        public CompletableFuture<Optional<NamespaceIsolationPolicies>> getIsolationDataPoliciesAsync(String cluster) {
+            return getAsync(joinPath(BASE_CLUSTERS_PATH, cluster, NAMESPACE_ISOLATION_POLICIES))
+                    .thenApply(data -> data.map(NamespaceIsolationPolicies::new));
+        }
+
         public void deleteIsolationData(String cluster) throws MetadataStoreException {
             delete(joinPath(BASE_CLUSTERS_PATH, cluster, NAMESPACE_ISOLATION_POLICIES));
+        }
+
+        public CompletableFuture<Void> deleteIsolationDataAsync(String cluster) {
+            return deleteAsync(joinPath(BASE_CLUSTERS_PATH, cluster, NAMESPACE_ISOLATION_POLICIES));
         }
 
         public void createIsolationData(String cluster, Map<String, NamespaceIsolationDataImpl> id)
@@ -175,6 +210,21 @@ public class NamespaceResources extends BaseResources<Policies> {
                                              NamespaceIsolationDataImpl>> modifyFunction)
                 throws MetadataStoreException {
             set(joinPath(BASE_CLUSTERS_PATH, cluster, NAMESPACE_ISOLATION_POLICIES), modifyFunction);
+        }
+
+        public CompletableFuture<Void> setIsolationDataAsync(String cluster,
+                                                             Function<Map<String, NamespaceIsolationDataImpl>,
+                                                             Map<String, NamespaceIsolationDataImpl>> modifyFunction) {
+            return setAsync(joinPath(BASE_CLUSTERS_PATH, cluster, NAMESPACE_ISOLATION_POLICIES), modifyFunction);
+        }
+
+        public CompletableFuture<Void> setIsolationDataWithCreateAsync(String cluster,
+                                                                       Function<Optional<Map<String,
+                                                                       NamespaceIsolationDataImpl>>,
+                                                                       Map<String, NamespaceIsolationDataImpl>>
+                                                                               createFunction) {
+            return setWithCreateAsync(joinPath(BASE_CLUSTERS_PATH, cluster, NAMESPACE_ISOLATION_POLICIES),
+                    createFunction);
         }
 
         public void setIsolationDataWithCreate(String cluster,

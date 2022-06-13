@@ -30,6 +30,7 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import java.lang.reflect.Method;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
@@ -79,6 +80,7 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
         super.setUp(m);
         ServiceConfiguration svcConfig = spy(ServiceConfiguration.class);
         svcConfig.setBrokerShutdownTimeoutMs(0L);
+        svcConfig.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
         @Cleanup
         PulsarService pulsar = spyWithClassAndConstructorArgs(PulsarService.class, svcConfig);
         doReturn(svcConfig).when(pulsar).getConfiguration();
@@ -134,40 +136,36 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
         final CountDownLatch counter = new CountDownLatch(2);
         final AtomicBoolean gotException = new AtomicBoolean(false);
 
-        Thread deleter = new Thread() {
-            public void run() {
-                try {
-                    barrier.await();
-                    // assertTrue(topic.unsubscribe(successSubName).isDone());
-                    Thread.sleep(5, 0);
-                    log.info("deleter outcome is {}", topic.delete().get());
-                } catch (Exception e) {
-                    e.printStackTrace();
-                    gotException.set(true);
-                } finally {
-                    counter.countDown();
-                }
+        Thread deleter = new Thread(() -> {
+            try {
+                barrier.await();
+                // assertTrue(topic.unsubscribe(successSubName).isDone());
+                Thread.sleep(5, 0);
+                log.info("deleter outcome is {}", topic.delete().get());
+            } catch (Exception e) {
+                e.printStackTrace();
+                gotException.set(true);
+            } finally {
+                counter.countDown();
             }
-        };
+        });
 
-        Thread unsubscriber = new Thread() {
-            public void run() {
-                try {
-                    barrier.await();
-                    // do subscription delete
-                    ConcurrentOpenHashMap<String, PersistentSubscription> subscriptions = topic.getSubscriptions();
-                    PersistentSubscription ps = subscriptions.get(successSubName);
-                    // Thread.sleep(2,0);
-                    log.info("unsubscriber outcome is {}", ps.doUnsubscribe(ps.getConsumers().get(0)).get());
-                    // assertFalse(ps.delete().isCompletedExceptionally());
-                } catch (Exception e) {
-                    e.printStackTrace();
-                    gotException.set(true);
-                } finally {
-                    counter.countDown();
-                }
+        Thread unsubscriber = new Thread(() -> {
+            try {
+                barrier.await();
+                // do subscription delete
+                ConcurrentOpenHashMap<String, PersistentSubscription> subscriptions = topic.getSubscriptions();
+                PersistentSubscription ps = subscriptions.get(successSubName);
+                // Thread.sleep(2,0);
+                log.info("unsubscriber outcome is {}", ps.doUnsubscribe(ps.getConsumers().get(0)).get());
+                // assertFalse(ps.delete().isCompletedExceptionally());
+            } catch (Exception e) {
+                e.printStackTrace();
+                gotException.set(true);
+            } finally {
+                counter.countDown();
             }
-        };
+        });
 
         deleter.start();
         unsubscriber.start();
@@ -196,46 +194,42 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
         final CountDownLatch counter = new CountDownLatch(2);
         final AtomicBoolean gotException = new AtomicBoolean(false);
 
-        Thread deleter = new Thread() {
-            public void run() {
-                try {
-                    barrier.await();
-                    // assertTrue(topic.unsubscribe(successSubName).isDone());
-                    // Thread.sleep(5,0);
-                    log.info("{} forcing topic GC ", Thread.currentThread());
-                    for (int i = 0; i < 2000; i++) {
-                        topic.getInactiveTopicPolicies().setMaxInactiveDurationSeconds(0);
-                        topic.getInactiveTopicPolicies().setInactiveTopicDeleteMode(InactiveTopicDeleteMode.delete_when_no_subscriptions);
-                        topic.checkGC();
-                    }
-                    log.info("GC done..");
-                } catch (Exception e) {
-                    e.printStackTrace();
-                    gotException.set(true);
-                } finally {
-                    counter.countDown();
+        Thread deleter = new Thread(() -> {
+            try {
+                barrier.await();
+                // assertTrue(topic.unsubscribe(successSubName).isDone());
+                // Thread.sleep(5,0);
+                log.info("{} forcing topic GC ", Thread.currentThread());
+                for (int i = 0; i < 2000; i++) {
+                    topic.getInactiveTopicPolicies().setMaxInactiveDurationSeconds(0);
+                    topic.getInactiveTopicPolicies().setInactiveTopicDeleteMode(InactiveTopicDeleteMode.delete_when_no_subscriptions);
+                    topic.checkGC();
                 }
+                log.info("GC done..");
+            } catch (Exception e) {
+                e.printStackTrace();
+                gotException.set(true);
+            } finally {
+                counter.countDown();
             }
-        };
+        });
 
-        Thread unsubscriber = new Thread() {
-            public void run() {
-                try {
-                    barrier.await();
-                    // do subscription delete
-                    ConcurrentOpenHashMap<String, PersistentSubscription> subscriptions = topic.getSubscriptions();
-                    PersistentSubscription ps = subscriptions.get(successSubName);
-                    // Thread.sleep(2,0);
-                    log.info("unsubscriber outcome is {}", ps.doUnsubscribe(ps.getConsumers().get(0)).get());
-                    // assertFalse(ps.delete().isCompletedExceptionally());
-                } catch (Exception e) {
-                    e.printStackTrace();
-                    gotException.set(true);
-                } finally {
-                    counter.countDown();
-                }
+        Thread unsubscriber = new Thread(() -> {
+            try {
+                barrier.await();
+                // do subscription delete
+                ConcurrentOpenHashMap<String, PersistentSubscription> subscriptions = topic.getSubscriptions();
+                PersistentSubscription ps = subscriptions.get(successSubName);
+                // Thread.sleep(2,0);
+                log.info("unsubscriber outcome is {}", ps.doUnsubscribe(ps.getConsumers().get(0)).get());
+                // assertFalse(ps.delete().isCompletedExceptionally());
+            } catch (Exception e) {
+                e.printStackTrace();
+                gotException.set(true);
+            } finally {
+                counter.countDown();
             }
-        };
+        });
 
         deleter.start();
         unsubscriber.start();
@@ -264,40 +258,36 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
         final CountDownLatch counter = new CountDownLatch(2);
         final AtomicBoolean gotException = new AtomicBoolean(false);
 
-        Thread deleter = new Thread() {
-            public void run() {
-                try {
-                    barrier.await();
-                    Thread.sleep(4, 700);
-                    log.info("deleter outcome is {}", topic.delete().get());
-                } catch (Exception e) {
-                    e.printStackTrace();
-                    gotException.set(true);
-                } finally {
-                    counter.countDown();
-                }
+        Thread deleter = new Thread(() -> {
+            try {
+                barrier.await();
+                Thread.sleep(4, 700);
+                log.info("deleter outcome is {}", topic.delete().get());
+            } catch (Exception e) {
+                e.printStackTrace();
+                gotException.set(true);
+            } finally {
+                counter.countDown();
             }
-        };
+        });
 
-        Thread unsubscriber = new Thread() {
-            public void run() {
-                try {
-                    barrier.await();
-                    // Thread.sleep(2,0);
-                    // assertTrue(topic.unsubscribe(successSubName).isDone());
-                    ConcurrentOpenHashMap<String, PersistentSubscription> subscriptions = topic.getSubscriptions();
-                    PersistentSubscription ps = subscriptions.get(successSubName);
-                    log.info("unsubscribe result : {}", topic.unsubscribe(successSubName).get());
-                    log.info("closing consumer..");
-                    ps.getConsumers().get(0).close();
-                } catch (Exception e) {
-                    e.printStackTrace();
-                    gotException.set(true);
-                } finally {
-                    counter.countDown();
-                }
+        Thread unsubscriber = new Thread(() -> {
+            try {
+                barrier.await();
+                // Thread.sleep(2,0);
+                // assertTrue(topic.unsubscribe(successSubName).isDone());
+                ConcurrentOpenHashMap<String, PersistentSubscription> subscriptions = topic.getSubscriptions();
+                PersistentSubscription ps = subscriptions.get(successSubName);
+                log.info("unsubscribe result : {}", topic.unsubscribe(successSubName).get());
+                log.info("closing consumer..");
+                ps.getConsumers().get(0).close();
+            } catch (Exception e) {
+                e.printStackTrace();
+                gotException.set(true);
+            } finally {
+                counter.countDown();
             }
-        };
+        });
 
         deleter.start();
         unsubscriber.start();
@@ -326,40 +316,36 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
         final CountDownLatch counter = new CountDownLatch(2);
         final AtomicBoolean gotException = new AtomicBoolean(false);
 
-        Thread deleter = new Thread() {
-            public void run() {
-                try {
-                    barrier.await();
-                    Thread.sleep(4, 730);
-                    log.info("@@@@@@@@ DELETER TH");
-                    log.info("deleter outcome is " + topic.delete().get());
-                } catch (Exception e) {
-                    e.printStackTrace();
-                    gotException.set(true);
-                } finally {
-                    counter.countDown();
-                }
+        Thread deleter = new Thread(() -> {
+            try {
+                barrier.await();
+                Thread.sleep(4, 730);
+                log.info("@@@@@@@@ DELETER TH");
+                log.info("deleter outcome is " + topic.delete().get());
+            } catch (Exception e) {
+                e.printStackTrace();
+                gotException.set(true);
+            } finally {
+                counter.countDown();
             }
-        };
+        });
 
-        Thread unsubscriber = new Thread() {
-            public void run() {
-                try {
-                    barrier.await();
-                    log.info("&&&&&&&&& UNSUBSCRIBER TH");
-                    // Thread.sleep(2,0);
-                    // assertTrue(topic.unsubscribe(successSubName).isDone());
-                    ConcurrentOpenHashMap<String, PersistentSubscription> subscriptions = topic.getSubscriptions();
-                    PersistentSubscription ps = subscriptions.get(successSubName);
-                    log.info("unsubscribe result : " + ps.doUnsubscribe(ps.getConsumers().get(0)).get());
-                } catch (Exception e) {
-                    e.printStackTrace();
-                    gotException.set(true);
-                } finally {
-                    counter.countDown();
-                }
+        Thread unsubscriber = new Thread(() -> {
+            try {
+                barrier.await();
+                log.info("&&&&&&&&& UNSUBSCRIBER TH");
+                // Thread.sleep(2,0);
+                // assertTrue(topic.unsubscribe(successSubName).isDone());
+                ConcurrentOpenHashMap<String, PersistentSubscription> subscriptions = topic.getSubscriptions();
+                PersistentSubscription ps = subscriptions.get(successSubName);
+                log.info("unsubscribe result : " + ps.doUnsubscribe(ps.getConsumers().get(0)).get());
+            } catch (Exception e) {
+                e.printStackTrace();
+                gotException.set(true);
+            } finally {
+                counter.countDown();
             }
-        };
+        });
 
         deleter.start();
         unsubscriber.start();

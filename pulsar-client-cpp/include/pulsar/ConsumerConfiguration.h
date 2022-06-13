@@ -425,6 +425,21 @@ class PULSAR_PUBLIC ConsumerConfiguration {
     ConsumerConfiguration& setProperties(const std::map<std::string, std::string>& properties);
 
     /**
+     * Get all the subscription properties attached to this subscription.
+     */
+    std::map<std::string, std::string>& getSubscriptionProperties() const;
+
+    /**
+     * Sets a new subscription properties for this subscription.
+     * Notice: SubscriptionProperties are immutable, and consumers under the same subscription will fail to
+     * create a subscription if they use different properties.
+     *
+     * @param subscriptionProperties all the subscription properties in the provided map
+     */
+    ConsumerConfiguration& setSubscriptionProperties(
+        const std::map<std::string, std::string>& subscriptionProperties);
+
+    /**
      * Set the Priority Level for consumer (0 is the default value and means the highest priority).
      *
      * @param priorityLevel the priority of this consumer
@@ -450,11 +465,11 @@ class PULSAR_PUBLIC ConsumerConfiguration {
      * Buffering large number of outstanding uncompleted chunked messages can create memory pressure and it
      * can be guarded by providing this maxPendingChunkedMessage threshold. Once, consumer reaches this
      * threshold, it drops the outstanding unchunked-messages by silently acking or asking broker to redeliver
-     * later by marking it unacked. See setAutoOldestChunkedMessageOnQueueFull.
+     * later by marking it unacked. See setAutoAckOldestChunkedMessageOnQueueFull.
      *
      * If it's zero, the pending chunked messages will not be limited.
      *
-     * Default: 100
+     * Default: 10
      *
      * @param maxPendingChunkedMessage the number of max pending chunked messages
      */
@@ -475,13 +490,13 @@ class PULSAR_PUBLIC ConsumerConfiguration {
      *
      * @param autoAckOldestChunkedMessageOnQueueFull whether to ack the discarded chunked message
      */
-    ConsumerConfiguration& setAutoOldestChunkedMessageOnQueueFull(
+    ConsumerConfiguration& setAutoAckOldestChunkedMessageOnQueueFull(
         bool autoAckOldestChunkedMessageOnQueueFull);
 
     /**
-     * The associated getter of setAutoOldestChunkedMessageOnQueueFull
+     * The associated getter of setAutoAckOldestChunkedMessageOnQueueFull
      */
-    bool isAutoOldestChunkedMessageOnQueueFull() const;
+    bool isAutoAckOldestChunkedMessageOnQueueFull() const;
 
     friend class PulsarWrapper;
 

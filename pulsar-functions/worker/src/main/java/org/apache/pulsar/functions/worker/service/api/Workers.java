@@ -23,7 +23,6 @@ import java.net.URI;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.common.functions.WorkerInfo;
 import org.apache.pulsar.common.io.ConnectorDefinition;
@@ -42,19 +41,19 @@ public interface Workers<W extends WorkerService> {
 
     Map<String, Collection<String>> getAssignments(String clientRole);
 
-    List<Metrics> getWorkerMetrics(final String clientRole);
+    List<Metrics> getWorkerMetrics(String clientRole);
 
     List<WorkerFunctionInstanceStats> getFunctionsMetrics(String clientRole) throws IOException;
 
     List<ConnectorDefinition> getListOfConnectors(String clientRole);
 
-    void rebalance(final URI uri, final String clientRole);
+    void rebalance(URI uri, String clientRole);
 
-    void drain(final URI uri, final String workerId, final String clientRole, boolean leaderUri);
+    void drain(URI uri, String workerId, String clientRole, boolean leaderUri);
 
-    LongRunningProcessStatus getDrainStatus(final URI uri, final String workerId, final String clientRole,
+    LongRunningProcessStatus getDrainStatus(URI uri, String workerId, String clientRole,
                                             boolean leaderUri);
 
-    Boolean isLeaderReady(final String clientRole);
+    Boolean isLeaderReady(String clientRole);
 
 }

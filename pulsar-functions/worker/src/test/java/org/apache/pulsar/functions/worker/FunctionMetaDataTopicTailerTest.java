@@ -36,6 +36,7 @@ import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 /**
@@ -44,14 +45,13 @@ import org.testng.annotations.Test;
 @Slf4j
 public class FunctionMetaDataTopicTailerTest {
 
-    private static final String TEST_NAME = "test-fmt";
+    private Reader reader;
+    private ReaderBuilder readerBuilder;
+    private FunctionMetaDataManager fsm;
+    private FunctionMetaDataTopicTailer fsc;
 
-    private final Reader reader;
-    private final ReaderBuilder readerBuilder;
-    private final FunctionMetaDataManager fsm;
-    private final FunctionMetaDataTopicTailer fsc;
-
-    public FunctionMetaDataTopicTailerTest() throws Exception {
+    @BeforeMethod(alwaysRun = true)
+    public void before() throws Exception {
         this.reader = mock(Reader.class);
         this.readerBuilder = mock(ReaderBuilder.class);
         when(readerBuilder.topic(anyString())).thenReturn(readerBuilder);

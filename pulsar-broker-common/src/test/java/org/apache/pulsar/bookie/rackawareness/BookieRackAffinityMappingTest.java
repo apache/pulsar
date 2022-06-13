@@ -49,7 +49,7 @@ public class BookieRackAffinityMappingTest {
 
     @BeforeMethod
     public void setUp() throws Exception {
-        store = MetadataStoreFactory.create("memory://local", MetadataStoreConfig.builder().build());
+        store = MetadataStoreFactory.create("memory:local", MetadataStoreConfig.builder().build());
         BOOKIE1 = new BookieSocketAddress("127.0.0.1:3181");
         BOOKIE2 = new BookieSocketAddress("127.0.0.2:3181");
         BOOKIE3 = new BookieSocketAddress("127.0.0.3:3181");

@@ -44,7 +44,7 @@ public class BundlesQuotasTest {
 
     @BeforeMethod
     public void setup() throws Exception {
-        store = MetadataStoreFactory.create("memory://local", MetadataStoreConfig.builder().build());
+        store = MetadataStoreFactory.create("memory:local", MetadataStoreConfig.builder().build());
 
         PulsarService pulsar = mock(PulsarService.class);
         when(pulsar.getLocalMetadataStore()).thenReturn(mock(MetadataStoreExtended.class));

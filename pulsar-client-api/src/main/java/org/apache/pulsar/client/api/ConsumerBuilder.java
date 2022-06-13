@@ -658,7 +658,7 @@ public interface ConsumerBuilder<T> extends Cloneable {
 
     /**
      * If enabled, the consumer will auto retry message.
-     * default unabled.
+     * default disabled.
      *
      * @param retryEnable
      *            whether to auto retry message
@@ -687,7 +687,7 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * the outstanding unchunked-messages by silently acking or asking broker to redeliver later by marking it unacked.
      * This behavior can be controlled by configuration: @autoAckOldestChunkedMessageOnQueueFull
      *
-     * @default 100
+     * The default value is 10.
      *
      * @param maxPendingChuckedMessage
      * @return
@@ -712,7 +712,7 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * the outstanding unchunked-messages by silently acking or asking broker to redeliver later by marking it unacked.
      * This behavior can be controlled by configuration: @autoAckOldestChunkedMessageOnQueueFull
      *
-     * @default 100
+     * The default value is 10.
      *
      * @param maxPendingChunkedMessage
      * @return
@@ -734,7 +734,7 @@ public interface ConsumerBuilder<T> extends Cloneable {
 
     /**
      * If producer fails to publish all the chunks of a message then consumer can expire incomplete chunks if consumer
-     * won't be able to receive all chunks in expire times (default 1 hour).
+     * won't be able to receive all chunks in expire times (default 1 minute).
      *
      * @param duration
      * @param unit
@@ -766,13 +766,28 @@ public interface ConsumerBuilder<T> extends Cloneable {
      *
      * <p>Example:
      * <pre>
-     * client.newConsumer().negativeAckRedeliveryBackoff(NegativeAckRedeliveryExponentialBackoff.builder()
+     * client.newConsumer().negativeAckRedeliveryBackoff(ExponentialRedeliveryBackoff.builder()
      *              .minNackTimeMs(1000)
      *              .maxNackTimeMs(60 * 1000)
      *              .build()).subscribe();
      * </pre>
      */
-    ConsumerBuilder<T> negativeAckRedeliveryBackoff(NegativeAckRedeliveryBackoff negativeAckRedeliveryBackoff);
+    ConsumerBuilder<T> negativeAckRedeliveryBackoff(RedeliveryBackoff negativeAckRedeliveryBackoff);
+
+    /**
+     * Notice: the redeliveryBackoff will not work with `consumer.negativeAcknowledge(MessageId messageId)`
+     * because we are not able to get the redelivery count from the message ID.
+     *
+     * <p>Example:
+     * <pre>
+     * client.newConsumer().ackTimeout(10, TimeUnit.SECOND)
+     *              .ackTimeoutRedeliveryBackoff(ExponentialRedeliveryBackoff.builder()
+     *              .minNackTimeMs(1000)
+     *              .maxNackTimeMs(60 * 1000)
+     *              .build()).subscribe();
+     * </pre>
+     */
+    ConsumerBuilder<T> ackTimeoutRedeliveryBackoff(RedeliveryBackoff ackTimeoutRedeliveryBackoff);
 
     /**
      * Start the consumer in a paused state. When enabled, the consumer does not immediately fetch messages when
@@ -783,4 +798,18 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * @default false
      */
     ConsumerBuilder<T> startPaused(boolean paused);
+
+    /**
+     * If this is enabled, consumer receiver queue size is init as a very small value, 1 by default,
+     * and it will double itself until it reaches the value set by {@link #receiverQueueSize(int)}, if and only if
+     * 1) User calls receive() and there is no messages in receiver queue.
+     * 2) The last message we put in the receiver queue took the last space available in receiver queue.
+     *
+     * This is disabled by default and currentReceiverQueueSize is init as maxReceiverQueueSize.
+     *
+     * The feature should be able to reduce client memory usage.
+     *
+     * @param enabled whether to enable AutoScaledReceiverQueueSize.
+     */
+    ConsumerBuilder<T> autoScaledReceiverQueueSizeEnabled(boolean enabled);
 }

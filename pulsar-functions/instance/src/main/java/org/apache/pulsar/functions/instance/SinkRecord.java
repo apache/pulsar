@@ -29,6 +29,7 @@ import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
 import org.apache.pulsar.client.impl.schema.KeyValueSchemaImpl;
 import org.apache.pulsar.functions.api.KVRecord;
 import org.apache.pulsar.functions.api.Record;
+import org.apache.pulsar.functions.source.PulsarRecord;
 
 @Slf4j
 @Data
@@ -82,6 +83,30 @@ public class SinkRecord<T> implements Record<T> {
         sourceRecord.ack();
     }
 
+    /**
+     * Some sink sometimes wants to control the ack type.
+     */
+    public void cumulativeAck() {
+        if (sourceRecord instanceof PulsarRecord) {
+            PulsarRecord pulsarRecord = (PulsarRecord) sourceRecord;
+            pulsarRecord.cumulativeAck();
+        } else {
+            throw new RuntimeException("SourceRecord class type must be PulsarRecord");
+        }
+    }
+
+    /**
+     * Some sink sometimes wants to control the ack type.
+     */
+    public void individualAck() {
+        if (sourceRecord instanceof PulsarRecord) {
+            PulsarRecord pulsarRecord = (PulsarRecord) sourceRecord;
+            pulsarRecord.individualAck();
+        } else {
+            throw new RuntimeException("SourceRecord class type must be PulsarRecord");
+        }
+    }
+
     @Override
     public void fail() {
         sourceRecord.fail();
@@ -100,7 +125,7 @@ public class SinkRecord<T> implements Record<T> {
 
         if (sourceRecord.getSchema() != null) {
             // unwrap actual schema
-            Schema<T> schema =  sourceRecord.getSchema();
+            Schema<T> schema = sourceRecord.getSchema();
             // AutoConsumeSchema is a special schema, that comes into play
             // when the Sink is going to handle any Schema
             // usually you see Sink<GenericObject> or Sink<GenericRecord> in this case

@@ -72,6 +72,9 @@ import org.rocksdb.WriteOptions;
  */
 @Slf4j
 public class RocksdbMetadataStore extends AbstractMetadataStore {
+
+    static final String ROCKSDB_SCHEME_IDENTIFIER = "rocksdb:";
+
     private static final byte[] SEQUENTIAL_ID_KEY = toBytes("__metadata_sequentialId_key");
     private static final byte[] INSTANCE_ID_KEY = toBytes("__metadata_instanceId_key");
 
@@ -200,7 +203,7 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
     private final String metadataUrl;
 
     /**
-     * @param metadataURL         format "rocksdb://{storePath}"
+     * @param metadataURL         format "rocksdb:{storePath}"
      * @param metadataStoreConfig
      * @throws MetadataStoreException
      */
@@ -213,12 +216,12 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
             throw new MetadataStoreException("Failed to load RocksDB JNI library", t);
         }
 
-        String dataDir = metadataURL.substring("rocksdb://".length());
+        String dataDir = metadataURL.substring("rocksdb:".length());
         Path dataPath = FileSystems.getDefault().getPath(dataDir);
         try {
             Files.createDirectories(dataPath);
         } catch (IOException e) {
-            e.printStackTrace();
+            throw new MetadataStoreException("Fail to create RocksDB file directory", e);
         }
 
         db = openDB(dataPath.toString(), metadataStoreConfig.getConfigFilePath());

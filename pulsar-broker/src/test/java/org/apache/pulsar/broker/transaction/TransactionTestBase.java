@@ -50,9 +50,11 @@ import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.naming.NamespaceName;
-import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.naming.SystemTopicNames;
+import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.pulsar.tests.TestRetrySupport;
@@ -84,6 +86,7 @@ public abstract class TransactionTestBase extends TestRetrySupport {
 
     public static final String TENANT = "tnx";
     protected static final String NAMESPACE1 = TENANT + "/ns1";
+    protected ServiceConfiguration conf = new ServiceConfiguration();
 
     public void internalSetup() throws Exception {
         incrementSetupNumber();
@@ -122,7 +125,7 @@ public abstract class TransactionTestBase extends TestRetrySupport {
         admin.tenants().createTenant(NamespaceName.SYSTEM_NAMESPACE.getTenant(),
                 new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
         admin.namespaces().createNamespace(NamespaceName.SYSTEM_NAMESPACE.toString());
-        admin.topics().createPartitionedTopic(TopicName.TRANSACTION_COORDINATOR_ASSIGN.toString(), numPartitionsOfTC);
+        createTransactionCoordinatorAssign(numPartitionsOfTC);
         if (topic != null) {
             admin.tenants().createTenant(TENANT,
                     new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
@@ -143,21 +146,28 @@ public abstract class TransactionTestBase extends TestRetrySupport {
                 .build();
     }
 
+    protected void createTransactionCoordinatorAssign(int numPartitionsOfTC) throws MetadataStoreException {
+        pulsarServiceList.get(0).getPulsarResources()
+                .getNamespaceResources()
+                .getPartitionedTopicResources()
+                .createPartitionedTopic(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN,
+                        new PartitionedTopicMetadata(numPartitionsOfTC));
+    }
+
     protected void startBroker() throws Exception {
         for (int i = 0; i < brokerCount; i++) {
-            ServiceConfiguration conf = new ServiceConfiguration();
             conf.setClusterName(CLUSTER_NAME);
             conf.setAdvertisedAddress("localhost");
             conf.setManagedLedgerCacheSizeMB(8);
             conf.setActiveConsumerFailoverDelayTimeMillis(0);
             conf.setDefaultNumberOfNamespaceBundles(1);
-            conf.setZookeeperServers("localhost:2181");
-            conf.setConfigurationStoreServers("localhost:3181");
+            conf.setMetadataStoreUrl("zk:localhost:2181");
+            conf.setConfigurationMetadataStoreUrl("zk:localhost:3181");
             conf.setAllowAutoTopicCreationType("non-partitioned");
             conf.setBookkeeperClientExposeStatsToPrometheus(true);
-            conf.setAcknowledgmentAtBatchIndexLevelEnabled(true);
-
+            conf.setForceDeleteNamespaceAllowed(true);
             conf.setBrokerShutdownTimeoutMs(0L);
+            conf.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
             conf.setBrokerServicePort(Optional.of(0));
             conf.setBrokerServicePortTls(Optional.of(0));
             conf.setAdvertisedAddress("localhost");
@@ -165,10 +175,8 @@ public abstract class TransactionTestBase extends TestRetrySupport {
             conf.setWebServicePortTls(Optional.of(0));
             conf.setTransactionCoordinatorEnabled(true);
             conf.setBrokerDeduplicationEnabled(true);
-            conf.setSystemTopicEnabled(true);
             conf.setTransactionBufferSnapshotMaxTransactionCount(2);
             conf.setTransactionBufferSnapshotMinTimeInMillis(2000);
-            conf.setTopicLevelPoliciesEnabled(true);
             serviceConfigurationList.add(conf);
 
             PulsarService pulsar = spyWithClassAndConstructorArgs(PulsarService.class, conf);

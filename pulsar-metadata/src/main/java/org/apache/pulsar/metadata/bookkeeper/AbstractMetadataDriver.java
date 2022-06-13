@@ -30,13 +30,14 @@ import org.apache.bookkeeper.meta.LedgerManagerFactory;
 import org.apache.bookkeeper.meta.LegacyHierarchicalLedgerManagerFactory;
 import org.apache.bookkeeper.meta.exceptions.Code;
 import org.apache.bookkeeper.meta.exceptions.MetadataException;
+import org.apache.bookkeeper.util.BookKeeperConstants;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 
 public abstract class AbstractMetadataDriver implements Closeable {
 
-    protected static final String METADATA_STORE_SCHEME = "metadata-store";
+    public static final String METADATA_STORE_SCHEME = "metadata-store";
 
     public static final String METADATA_STORE_INSTANCE = "metadata-store-instance";
 
@@ -55,7 +56,7 @@ public abstract class AbstractMetadataDriver implements Closeable {
         this.ledgersRootPath = resolveLedgersRootPath();
         createMetadataStore();
         this.registrationClient = new PulsarRegistrationClient(store, ledgersRootPath);
-        this.registrationManager = new PulsarRegistrationManager(store, ledgersRootPath, conf);
+        createRegistrationManager();
         this.layoutManager = new PulsarLayoutManager(store, ledgersRootPath);
         this.ledgerManagerFactory = new PulsarLedgerManagerFactory();
 
@@ -64,6 +65,13 @@ public abstract class AbstractMetadataDriver implements Closeable {
         } catch (IOException e) {
             throw new MetadataException(Code.METADATA_SERVICE_ERROR, e);
         }
+    }
+
+    public RegistrationManager createRegistrationManager() {
+        if (registrationManager == null) {
+            registrationManager = new PulsarRegistrationManager(store, ledgersRootPath, conf);
+        }
+        return registrationManager;
     }
 
     @SneakyThrows
@@ -97,7 +105,9 @@ public abstract class AbstractMetadataDriver implements Closeable {
 
             String url;
             try {
-                url = conf.getMetadataServiceUri().replaceFirst(METADATA_STORE_SCHEME + ":", "");
+                url = conf.getMetadataServiceUri()
+                        .replaceFirst(METADATA_STORE_SCHEME + ":", "")
+                        .replace(";", ",");
             } catch (Exception e) {
                 throw new MetadataException(Code.METADATA_SERVICE_ERROR, e);
             }
@@ -125,6 +135,6 @@ public abstract class AbstractMetadataDriver implements Closeable {
         }
         URI metadataServiceUri = URI.create(metadataServiceUriStr);
         String path = metadataServiceUri.getPath();
-        return path == null ? "/ledgers" : path;
+        return path == null ? BookKeeperConstants.DEFAULT_ZK_LEDGERS_ROOT_PATH : path;
     }
 }

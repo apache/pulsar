@@ -27,12 +27,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerService;
-import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
-import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.util.RateLimiter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -52,22 +49,7 @@ public class SubscribeRateLimiter {
         subscribeRateLimiter = new ConcurrentHashMap<>();
         this.executorService = brokerService.pulsar().getExecutor();
         // get subscribeRate from topic level policies
-        this.subscribeRate = topic.getTopicPolicies()
-                .map(TopicPolicies::getSubscribeRate)
-                .orElse(null);
-
-        // subscribeRate of topic level policies not set, get from zookeeper
-        if (this.subscribeRate == null) {
-            this.subscribeRate = getPoliciesSubscribeRate();
-        }
-
-        // get subscribeRate from broker.conf
-        if (this.subscribeRate == null) {
-            this.subscribeRate = new SubscribeRate(brokerService.pulsar()
-                    .getConfiguration().getSubscribeThrottlingRatePerConsumer(),
-                    brokerService.pulsar().getConfiguration().getSubscribeRatePeriodPerConsumerInSecond());
-
-        }
+        this.subscribeRate = topic.getSubscribeRate();
         if (isSubscribeRateEnabled(this.subscribeRate)) {
             resetTask = createTask();
             log.info("[{}] configured subscribe-dispatch rate at broker {}", this.topicName, subscribeRate);
@@ -157,40 +139,9 @@ public class SubscribeRateLimiter {
         }
     }
 
-    public void onPoliciesUpdate(Policies data) {
-        // if subscribe rate is set on topic policy, skip subscribe rate update
-        SubscribeRate subscribeRate = brokerService.getTopicPolicies(TopicName.get(topicName))
-                .map(TopicPolicies::getSubscribeRate)
-                .orElse(null);
-        if (subscribeRate != null) {
-            return;
-        }
-
-        String cluster = brokerService.pulsar().getConfiguration().getClusterName();
-
-        subscribeRate = data.clusterSubscribeRate.get(cluster);
-
-        onSubscribeRateUpdate(subscribeRate);
-
-    }
-
     public void onSubscribeRateUpdate(SubscribeRate subscribeRate) {
-        final SubscribeRate namespacePolicySubscribeRate = getPoliciesSubscribeRate();
-        final SubscribeRate newSubscribeRate = new SubscribeRate(
-                brokerService.pulsar().getConfiguration().getSubscribeThrottlingRatePerConsumer(),
-                brokerService.pulsar().getConfiguration().getSubscribeRatePeriodPerConsumerInSecond()
-                );
-
-        // if policy-throttling rate is disabled and cluster-throttling is enabled then apply
-        // cluster-throttling rate
-        // if topic policy-throttling rate is disabled
-        if (!isSubscribeRateEnabled(subscribeRate) && isSubscribeRateEnabled(namespacePolicySubscribeRate)) {
-            subscribeRate = namespacePolicySubscribeRate;
-        }
-
-        if (!isSubscribeRateEnabled(subscribeRate) && !isSubscribeRateEnabled(namespacePolicySubscribeRate)
-                && isSubscribeRateEnabled(newSubscribeRate)) {
-            subscribeRate = newSubscribeRate;
+        if (this.subscribeRate.equals(subscribeRate)) {
+            return;
         }
         this.subscribeRate = subscribeRate;
         stopResetTask();
@@ -214,23 +165,6 @@ public class SubscribeRateLimiter {
      */
     public SubscribeRate getPoliciesSubscribeRate() {
         return getPoliciesSubscribeRate(brokerService, topicName);
-    }
-
-    public static boolean isDispatchRateNeeded(BrokerService brokerService, Optional<Policies> policies,
-            String topicName) {
-        ServiceConfiguration serviceConfig = brokerService.pulsar().getConfiguration();
-        policies = policies.isPresent() ? policies : DispatchRateLimiter.getPolicies(brokerService, topicName);
-        return isDispatchRateNeeded(serviceConfig, policies, topicName);
-    }
-
-    private static boolean isDispatchRateNeeded(final ServiceConfiguration serviceConfig,
-            final Optional<Policies> policies, final String topicName) {
-        SubscribeRate subscribeRate = getPoliciesSubscribeRate(serviceConfig.getClusterName(), policies, topicName);
-        if (subscribeRate == null) {
-            return serviceConfig.getSubscribeThrottlingRatePerConsumer() > 0
-                    && serviceConfig.getSubscribeRatePeriodPerConsumerInSecond() > 0;
-        }
-        return true;
     }
 
     public static SubscribeRate getPoliciesSubscribeRate(BrokerService brokerService, final String topicName) {
@@ -262,8 +196,8 @@ public class SubscribeRateLimiter {
                 != null ? subscribeRateLimiter.get(consumerIdentifier).getRate() : -1;
     }
 
-    private static boolean isSubscribeRateEnabled(SubscribeRate subscribeRate) {
-        return subscribeRate != null && (subscribeRate.subscribeThrottlingRatePerConsumer > 0);
+    public static boolean isSubscribeRateEnabled(SubscribeRate subscribeRate) {
+        return subscribeRate.subscribeThrottlingRatePerConsumer > 0 && subscribeRate.ratePeriodInSecond > 0;
     }
 
     public void close() {

@@ -269,22 +269,25 @@ class AdminProxyHandler extends ProxyServlet {
                     AuthenticationDataProvider authData = auth.getAuthData();
                     if (authData.hasDataForTls()) {
                         sslCtx = SecurityUtility.createSslContext(
-                            config.isTlsAllowInsecureConnection(),
-                            trustCertificates,
-                            authData.getTlsCertificates(),
-                            authData.getTlsPrivateKey()
+                                config.isTlsAllowInsecureConnection(),
+                                trustCertificates,
+                                authData.getTlsCertificates(),
+                                authData.getTlsPrivateKey(),
+                                config.getBrokerClientSslProvider()
                         );
                     } else {
                         sslCtx = SecurityUtility.createSslContext(
-                            config.isTlsAllowInsecureConnection(),
-                            trustCertificates
+                                config.isTlsAllowInsecureConnection(),
+                                trustCertificates,
+                                config.getBrokerClientSslProvider()
                         );
                     }
 
-
-                    SslContextFactory contextFactory = new SslContextFactory.Client(true);
+                    SslContextFactory contextFactory = new SslContextFactory.Client();
                     contextFactory.setSslContext(sslCtx);
-
+                    if (!config.isTlsHostnameVerificationEnabled()) {
+                        contextFactory.setEndpointIdentificationAlgorithm(null);
+                    }
                     return new JettyHttpClient(contextFactory);
                 } catch (Exception e) {
                     LOG.error("new jetty http client exception ", e);

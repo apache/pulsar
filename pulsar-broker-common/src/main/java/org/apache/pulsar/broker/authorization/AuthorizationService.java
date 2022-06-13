@@ -37,6 +37,7 @@ import org.apache.pulsar.common.policies.data.PolicyOperation;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantOperation;
 import org.apache.pulsar.common.policies.data.TopicOperation;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.RestException;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.slf4j.Logger;
@@ -85,16 +86,16 @@ public class AuthorizationService {
      *
      * Grant authorization-action permission on a namespace to the given client.
      *
+     * NOTE: used to complete with {@link IllegalArgumentException} when namespace not found or with
+     * {@link IllegalStateException} when failed to grant permission.
+     *
      * @param namespace
      * @param actions
      * @param role
      * @param authDataJson
      *            additional authdata in json for targeted authorization provider
-     * @return
-     * @throws IllegalArgumentException
-     *             when namespace not found
-     * @throws IllegalStateException
-     *             when failed to grant permission
+     * @completesWith null when the permissions are updated successfully.
+     * @completesWith {@link MetadataStoreException} when the MetadataStore is not updated.
      */
     public CompletableFuture<Void> grantPermissionAsync(NamespaceName namespace, Set<AuthAction> actions, String role,
                                                         String authDataJson) {
@@ -198,11 +199,11 @@ public class AuthorizationService {
     public boolean canProduce(TopicName topicName, String role, AuthenticationDataSource authenticationData)
             throws Exception {
         try {
-            return canProduceAsync(topicName, role, authenticationData).get(conf.getZooKeeperOperationTimeoutSeconds(),
-                    SECONDS);
+            return canProduceAsync(topicName, role, authenticationData).get(
+                    conf.getMetadataStoreOperationTimeoutSeconds(), SECONDS);
         } catch (InterruptedException e) {
-            log.warn("Time-out {} sec while checking authorization on {} ", conf.getZooKeeperOperationTimeoutSeconds(),
-                    topicName);
+            log.warn("Time-out {} sec while checking authorization on {} ",
+                    conf.getMetadataStoreOperationTimeoutSeconds(), topicName);
             throw e;
         } catch (Exception e) {
             log.warn("Producer-client  with Role - {} failed to get permissions for topic - {}. {}", role, topicName,
@@ -215,10 +216,10 @@ public class AuthorizationService {
                               String subscription) throws Exception {
         try {
             return canConsumeAsync(topicName, role, authenticationData, subscription)
-                    .get(conf.getZooKeeperOperationTimeoutSeconds(), SECONDS);
+                    .get(conf.getMetadataStoreOperationTimeoutSeconds(), SECONDS);
         } catch (InterruptedException e) {
-            log.warn("Time-out {} sec while checking authorization on {} ", conf.getZooKeeperOperationTimeoutSeconds(),
-                    topicName);
+            log.warn("Time-out {} sec while checking authorization on {} ",
+                    conf.getMetadataStoreOperationTimeoutSeconds(), topicName);
             throw e;
         } catch (Exception e) {
             log.warn("Consumer-client  with Role - {} failed to get permissions for topic - {}. {}", role, topicName,
@@ -241,10 +242,10 @@ public class AuthorizationService {
             throws Exception {
         try {
             return canLookupAsync(topicName, role, authenticationData)
-                    .get(conf.getZooKeeperOperationTimeoutSeconds(), SECONDS);
+                    .get(conf.getMetadataStoreOperationTimeoutSeconds(), SECONDS);
         } catch (InterruptedException e) {
-            log.warn("Time-out {} sec while checking authorization on {} ", conf.getZooKeeperOperationTimeoutSeconds(),
-                    topicName);
+            log.warn("Time-out {} sec while checking authorization on {} ",
+                    conf.getMetadataStoreOperationTimeoutSeconds(), topicName);
             throw e;
         } catch (Exception e) {
             log.warn("Role - {} failed to get lookup permissions for topic - {}. {}", role, topicName,
@@ -356,10 +357,11 @@ public class AuthorizationService {
                                         TenantOperation operation,
                                         String originalRole,
                                         String role,
-                                        AuthenticationDataSource authData) {
+                                        AuthenticationDataSource authData) throws Exception {
         try {
             return allowTenantOperationAsync(
-                    tenantName, operation, originalRole, role, authData).get();
+                    tenantName, operation, originalRole, role, authData).get(
+                            conf.getMetadataStoreOperationTimeoutSeconds(), SECONDS);
         } catch (InterruptedException e) {
             throw new RestException(e);
         } catch (ExecutionException e) {
@@ -404,21 +406,6 @@ public class AuthorizationService {
                     (isRoleAuthorized, isOriginalAuthorized) -> isRoleAuthorized && isOriginalAuthorized);
         } else {
             return allowNamespaceOperationAsync(namespaceName, operation, role, authData);
-        }
-    }
-
-    public boolean allowNamespaceOperation(NamespaceName namespaceName,
-                                           NamespaceOperation operation,
-                                           String originalRole,
-                                           String role,
-                                           AuthenticationDataSource authData) {
-        try {
-            return allowNamespaceOperationAsync(
-                    namespaceName, operation, originalRole, role, authData).get();
-        } catch (InterruptedException e) {
-            throw new RestException(e);
-        } catch (ExecutionException e) {
-            throw new RestException(e.getCause());
         }
     }
 
@@ -469,10 +456,11 @@ public class AuthorizationService {
                                                  PolicyOperation operation,
                                                  String originalRole,
                                                  String role,
-                                                 AuthenticationDataSource authData) {
+                                                 AuthenticationDataSource authData) throws Exception {
         try {
             return allowNamespacePolicyOperationAsync(
-                    namespaceName, policy, operation, originalRole, role, authData).get();
+                    namespaceName, policy, operation, originalRole, role, authData).get(
+                            conf.getMetadataStoreOperationTimeoutSeconds(), SECONDS);
         } catch (InterruptedException e) {
             throw new RestException(e);
         } catch (ExecutionException e) {
@@ -507,8 +495,11 @@ public class AuthorizationService {
                                                                      String originalRole,
                                                                      String role,
                                                                      AuthenticationDataSource authData) {
-
-        validateOriginalPrincipal(conf.getProxyRoles(), role, originalRole);
+        try {
+            validateOriginalPrincipal(conf.getProxyRoles(), role, originalRole);
+        } catch (RestException e) {
+            return FutureUtil.failedFuture(e);
+        }
         if (isProxyRole(role)) {
             CompletableFuture<Boolean> isRoleAuthorizedFuture = allowTopicPolicyOperationAsync(
                     topicName, policy, operation, role, authData);
@@ -527,10 +518,11 @@ public class AuthorizationService {
                                              PolicyOperation operation,
                                              String originalRole,
                                              String role,
-                                             AuthenticationDataSource authData) {
+                                             AuthenticationDataSource authData) throws Exception {
         try {
             return allowTopicPolicyOperationAsync(
-                    topicName, policy, operation, originalRole, role, authData).get();
+                    topicName, policy, operation, originalRole, role, authData).get(
+                            conf.getMetadataStoreOperationTimeoutSeconds(), SECONDS);
         } catch (InterruptedException e) {
             throw new RestException(e);
         } catch (ExecutionException e) {
@@ -607,9 +599,10 @@ public class AuthorizationService {
                                        TopicOperation operation,
                                        String originalRole,
                                        String role,
-                                       AuthenticationDataSource authData) {
+                                       AuthenticationDataSource authData) throws Exception {
         try {
-            return allowTopicOperationAsync(topicName, operation, originalRole, role, authData).get();
+            return allowTopicOperationAsync(topicName, operation, originalRole, role, authData).get(
+                    conf.getMetadataStoreOperationTimeoutSeconds(), SECONDS);
         } catch (InterruptedException e) {
             throw new RestException(e);
         } catch (ExecutionException e) {

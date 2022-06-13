@@ -102,13 +102,14 @@ public class OwnerShipForCurrentServerTestBase {
             conf.setManagedLedgerCacheSizeMB(8);
             conf.setActiveConsumerFailoverDelayTimeMillis(0);
             conf.setDefaultNumberOfNamespaceBundles(1);
-            conf.setZookeeperServers("localhost:2181");
-            conf.setConfigurationStoreServers("localhost:3181");
+            conf.setMetadataStoreUrl("zk:localhost:2181");
+            conf.setConfigurationMetadataStoreUrl("zk:localhost:3181");
             conf.setAllowAutoTopicCreationType("non-partitioned");
             conf.setBookkeeperClientExposeStatsToPrometheus(true);
             conf.setAcknowledgmentAtBatchIndexLevelEnabled(true);
 
             conf.setBrokerShutdownTimeoutMs(0L);
+            conf.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
             conf.setBrokerServicePort(Optional.of(0));
             conf.setBrokerServicePortTls(Optional.of(0));
             conf.setAdvertisedAddress("localhost");

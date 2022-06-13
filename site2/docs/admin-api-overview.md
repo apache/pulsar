@@ -1,8 +1,14 @@
 ---
 id: admin-api-overview
 title: Pulsar admin interface
-sidebar_label: Overview
+sidebar_label: "Overview"
 ---
+
+````mdx-code-block
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+````
+
 
 The Pulsar admin interface enables you to manage all important entities in a Pulsar instance, such as tenants, topics, and namespaces.
 
@@ -10,34 +16,45 @@ You can interact with the admin interface via:
 
 - The `pulsar-admin` CLI tool, which is available in the `bin` folder of your Pulsar installation:
 
-    ```shell
-    bin/pulsar-admin
-    ```
+  ```shell
+  
+  bin/pulsar-admin
+  
+  ```
 
-  > **Important**
-  > 
-  > For the latest and complete information about `Pulsar admin`, including commands, flags, descriptions, and more information, see [Pulsar admin doc](https://pulsar.apache.org/tools/pulsar-admin/).
+  :::tip
+   
+  For the latest and complete information about `Pulsar admin`, including commands, flags, descriptions, and more information, see [Pulsar admin doc](/tools/pulsar-admin/).
+
+  :::
 
 - HTTP calls, which are made against the admin {@inject: rest:REST:/} API provided by Pulsar brokers. For some RESTful APIs, they might be redirected to the owner brokers for serving with [`307 Temporary Redirect`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/307), hence the HTTP callers should handle `307 Temporary Redirect`. If you use `curl` commands, you should specify `-L` to handle redirections.
   
-  > **Important**
-  >
-  > For the latest and complete information about `REST API`, including parameters, responses, samples, and more, see {@inject: rest:REST:/} API doc.
+  :::tip
+  
+  For the latest and complete information about `REST API`, including parameters, responses, samples, and more, see {@inject: rest:REST:/} API doc.
+
+  :::
 
 - A Java client interface.
   
-  > **Important**
-  > 
-  > For the latest and complete information about `Java admin API`, including classes, methods, descriptions, and more, see [Java admin API doc](https://pulsar.apache.org/api/admin/).
+  :::tip
+   
+  For the latest and complete information about `Java admin API`, including classes, methods, descriptions, and more, see [Java admin API doc](/api/admin/).
 
+  :::
+  
 > **The REST API is the admin interface**. Both the `pulsar-admin` CLI tool and the Java client use the REST API. If you implement your own admin interface client, you should use the REST API. 
 
 ## Admin setup
 
 Each of the three admin interfaces (the `pulsar-admin` CLI tool, the {@inject: rest:REST:/} API, and the [Java admin API](/api/admin)) requires some special setup if you have enabled authentication in your Pulsar instance.
 
-<!--DOCUSAURUS_CODE_TABS-->
-<!--pulsar-admin-->
+````mdx-code-block
+<Tabs groupId="api-choice"
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
 
 If you have enabled authentication, you need to provide an auth configuration to use the `pulsar-admin` tool. By default, the configuration for the `pulsar-admin` tool is in the [`conf/client.conf`](reference-configuration.md#client) file. The following are the available parameters:
 
@@ -51,15 +68,18 @@ If you have enabled authentication, you need to provide an auth configuration to
 |tlsAllowInsecureConnection|Accept untrusted TLS certificate from client.|false|
 |tlsTrustCertsFilePath|Path for the trusted TLS certificate file.| |
 
-<!--REST API-->
+</TabItem>
+<TabItem value="REST API">
 
 You can find details for the REST API exposed by Pulsar brokers in this {@inject: rest:document:/}.
 
-<!--Java-->
+</TabItem>
+<TabItem value="Java">
 
 To use the Java admin API, instantiate a {@inject: javadoc:PulsarAdmin:/admin/org/apache/pulsar/client/admin/PulsarAdmin} object, and specify a URL for a Pulsar broker and a {@inject: javadoc:PulsarAdminBuilder:/admin/org/apache/pulsar/client/admin/PulsarAdminBuilder}. The following is a minimal example using `localhost`:
 
 ```java
+
 String url = "http://localhost:8080";
 // Pass auth-plugin class fully-qualified name if Pulsar-security enabled
 String authPluginClassName = "com.org.MyAuthPluginClass";
@@ -74,10 +94,13 @@ PulsarAdmin admin = PulsarAdmin.builder()
 .tlsTrustCertsFilePath(tlsTrustCertsFilePath)
 .allowTlsInsecureConnection(tlsAllowInsecureConnection)
 .build();
+
 ```
 
 If you use multiple brokers, you can use multi-host like Pulsar service. For example,
+
 ```java
+
 String url = "http://localhost:8080,localhost:8081,localhost:8082";
 // Pass auth-plugin class fully-qualified name if Pulsar-security enabled
 String authPluginClassName = "com.org.MyAuthPluginClass";
@@ -92,8 +115,13 @@ PulsarAdmin admin = PulsarAdmin.builder()
 .tlsTrustCertsFilePath(tlsTrustCertsFilePath)
 .allowTlsInsecureConnection(tlsAllowInsecureConnection)
 .build();
+
 ```
-<!--END_DOCUSAURUS_CODE_TABS-->
+
+</TabItem>
+
+</Tabs>
+````
 
 ## How to define Pulsar resource names when running Pulsar in Kubernetes
 If you run Pulsar Functions or connectors on Kubernetes, you need to follow Kubernetes naming convention to define the names of your Pulsar resources, whichever admin interface you use.
@@ -112,9 +140,10 @@ Kubernetes requires a name that can be used as a DNS subdomain name as defined i
   
 - Replace beginning and ending non-alphanumeric characters with 0
   
-> **Tip** 
-> 
-> - If you get an error in translating Pulsar object names into Kubernetes resource labels (for example, you may have a naming collision if your Pulsar object name is too long) or want to customize the translating rules, see [customize Kubernetes runtime](https://pulsar.apache.org/docs/en/next/functions-runtime/#customize-kubernetes-runtime).
-> 
-> - For how to configure Kubernetes runtime, see [here](https://pulsar.apache.org/docs/en/next/functions-runtime/#configure-kubernetes-runtime).
+:::tip
+
+- If you get an error in translating Pulsar object names into Kubernetes resource labels (for example, you may have a naming collision if your Pulsar object name is too long) or want to customize the translating rules, see [customize Kubernetes runtime](/functions-runtime.md#customize-kubernetes-runtime).
+- For how to configure Kubernetes runtime, see [here](/functions-runtime.md#configure-kubernetes-runtime).
+
+:::
 

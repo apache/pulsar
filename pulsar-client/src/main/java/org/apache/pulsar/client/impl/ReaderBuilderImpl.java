@@ -20,7 +20,6 @@ package org.apache.pulsar.client.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.pulsar.client.api.KeySharedPolicy.DEFAULT_HASH_RANGE_SIZE;
-import com.google.common.base.Preconditions;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -38,6 +37,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderBuilder;
+import org.apache.pulsar.client.api.ReaderInterceptor;
 import org.apache.pulsar.client.api.ReaderListener;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.conf.ConfigurationDataUtils;
@@ -85,11 +85,12 @@ public class ReaderBuilderImpl<T> implements ReaderBuilder<T> {
                     .failedFuture(new IllegalArgumentException("Topic name must be set on the reader builder"));
         }
 
-        if (conf.getStartMessageId() != null && conf.getStartMessageFromRollbackDurationInSec() > 0 ||
-                conf.getStartMessageId() == null && conf.getStartMessageFromRollbackDurationInSec() <= 0) {
+        if (conf.getStartMessageId() != null && conf.getStartMessageFromRollbackDurationInSec() > 0
+                || conf.getStartMessageId() == null && conf.getStartMessageFromRollbackDurationInSec() <= 0) {
             return FutureUtil
                     .failedFuture(new IllegalArgumentException(
-                            "Start message id or start message from roll back must be specified but they cannot be specified at the same time"));
+                            "Start message id or start message from roll back must be specified but they cannot be"
+                                    + " specified at the same time"));
         }
 
         if (conf.getStartMessageFromRollbackDurationInSec() > 0) {
@@ -205,7 +206,7 @@ public class ReaderBuilderImpl<T> implements ReaderBuilder<T> {
 
     @Override
     public ReaderBuilder<T> keyHashRange(Range... ranges) {
-        Preconditions.checkArgument(ranges != null && ranges.length > 0,
+        checkArgument(ranges != null && ranges.length > 0,
                 "Cannot specify a null ofr an empty key hash ranges for a reader");
         for (int i = 0; i < ranges.length; i++) {
             Range range1 = ranges[i];
@@ -229,4 +230,45 @@ public class ReaderBuilderImpl<T> implements ReaderBuilder<T> {
         conf.setPoolMessages(poolMessages);
         return this;
     }
+
+    @Override
+    public ReaderBuilder<T> autoUpdatePartitions(boolean autoUpdate) {
+        this.conf.setAutoUpdatePartitions(autoUpdate);
+        return this;
+    }
+
+    @Override
+    public ReaderBuilder<T> autoUpdatePartitionsInterval(int interval, TimeUnit unit) {
+        long intervalSeconds = unit.toSeconds(interval);
+        checkArgument(intervalSeconds >= 1, "Auto update partition interval needs to be >= 1 second");
+        this.conf.setAutoUpdatePartitionsIntervalSeconds(intervalSeconds);
+        return this;
+    }
+
+    @Override
+    public ReaderBuilder<T> intercept(ReaderInterceptor<T>... interceptors) {
+        if (interceptors != null) {
+            this.conf.setReaderInterceptorList(Arrays.asList(interceptors));
+        }
+        return this;
+    }
+
+    @Override
+    public ReaderBuilder<T> maxPendingChunkedMessage(int maxPendingChunkedMessage) {
+        conf.setMaxPendingChunkedMessage(maxPendingChunkedMessage);
+        return this;
+    }
+
+    @Override
+    public ReaderBuilder<T> autoAckOldestChunkedMessageOnQueueFull(boolean autoAckOldestChunkedMessageOnQueueFull) {
+        conf.setAutoAckOldestChunkedMessageOnQueueFull(autoAckOldestChunkedMessageOnQueueFull);
+        return this;
+    }
+
+    @Override
+    public ReaderBuilder<T> expireTimeOfIncompleteChunkedMessage(long duration, TimeUnit unit) {
+        conf.setExpireTimeOfIncompleteChunkedMessageMillis(unit.toMillis(duration));
+        return this;
+    }
+
 }

@@ -25,6 +25,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
+import org.apache.pulsar.broker.service.persistent.SubscribeRateLimiter;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.NamespaceStats;
 import org.apache.pulsar.client.api.MessageId;
@@ -33,6 +34,8 @@ import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
+import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
+import org.apache.pulsar.common.policies.data.HierarchyTopicPolicies;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
@@ -140,6 +143,11 @@ public interface Topic {
      */
     void recordAddLatency(long latency, TimeUnit unit);
 
+    /**
+     * increase the publishing limited times.
+     */
+    long increasePublishLimitedTimes();
+
     @Deprecated
     CompletableFuture<Consumer> subscribe(TransportCnx cnx, String subscriptionName, long consumerId, SubType subType,
                                           int priorityLevel, String consumerName, boolean isDurable,
@@ -157,7 +165,7 @@ public interface Topic {
     CompletableFuture<Consumer> subscribe(SubscriptionOption option);
 
     CompletableFuture<Subscription> createSubscription(String subscriptionName, InitialPosition initialPosition,
-            boolean replicateSubscriptionState);
+            boolean replicateSubscriptionState, Map<String, String> properties);
 
     CompletableFuture<Void> unsubscribe(String subName);
 
@@ -213,7 +221,7 @@ public interface Topic {
 
     CompletableFuture<Void> onPoliciesUpdate(Policies data);
 
-    boolean isBacklogQuotaExceeded(String producerName, BacklogQuota.BacklogQuotaType backlogQuotaType);
+    CompletableFuture<Void> checkBacklogQuotaExceeded(String producerName, BacklogQuotaType backlogQuotaType);
 
     boolean isEncryptionRequired();
 
@@ -221,7 +229,7 @@ public interface Topic {
 
     boolean isReplicated();
 
-    BacklogQuota getBacklogQuota(BacklogQuota.BacklogQuotaType backlogQuotaType);
+    BacklogQuota getBacklogQuota(BacklogQuotaType backlogQuotaType);
 
     void updateRates(NamespaceStats nsStats, NamespaceBundleStats currentBundleStats,
             StatsOutputStream topicStatsStream, ClusterReplicationMetrics clusterReplicationMetrics,
@@ -278,6 +286,10 @@ public interface Topic {
         return Optional.empty();
     }
 
+    default Optional<SubscribeRateLimiter> getSubscribeRateLimiter() {
+        return Optional.empty();
+    }
+
     default Optional<DispatchRateLimiter> getBrokerDispatchRateLimiter() {
         return Optional.empty();
     }
@@ -321,5 +333,11 @@ public interface Topic {
      * @return
      */
     BrokerService getBrokerService();
+
+    /**
+     * Get HierarchyTopicPolicies.
+     * @return
+     */
+    HierarchyTopicPolicies getHierarchyTopicPolicies();
 
 }

@@ -19,10 +19,9 @@
 package org.apache.pulsar.client.impl.schema;
 
 import io.netty.buffer.ByteBuf;
+import java.sql.Timestamp;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
-
-import java.sql.Timestamp;
 
 /**
  * A schema for `java.sql.Timestamp`.

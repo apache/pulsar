@@ -19,21 +19,46 @@
 package org.apache.pulsar.broker.systopic;
 
 import com.google.common.collect.Sets;
+import lombok.Cleanup;
+import org.apache.bookkeeper.mledger.LedgerOffloader;
+import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
+import org.apache.bookkeeper.mledger.impl.NullLedgerOffloader;
 import org.apache.commons.lang.RandomStringUtils;
+import org.apache.pulsar.broker.admin.impl.BrokersBase;
+import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerTestBase;
+import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.client.admin.ListTopicsOptions;
 import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.common.events.EventsTopicNames;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.SystemTopicNames;
+import org.apache.pulsar.common.policies.data.BacklogQuota;
+import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.naming.TopicVersion;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.awaitility.Awaitility;
+import org.mockito.Mockito;
+import org.powermock.reflect.Whitebox;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 @Test(groups = "broker")
 public class PartitionedSystemTopicTest extends BrokerTestBase {
@@ -47,9 +72,8 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
         conf.setAllowAutoTopicCreation(false);
         conf.setAllowAutoTopicCreationType("partitioned");
         conf.setDefaultNumPartitions(PARTITIONS);
-
-        conf.setSystemTopicEnabled(true);
-        conf.setTopicLevelPoliciesEnabled(true);
+        conf.setManagedLedgerMaxEntriesPerLedger(1);
+        conf.setBrokerDeleteInactiveTopicsEnabled(false);
 
         super.baseSetup();
     }
@@ -70,10 +94,14 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
         SystemTopicClient.Reader reader = systemTopicClientForNamespace.newReader();
 
         int partitions = admin.topics().getPartitionedTopicMetadata(
-                String.format("persistent://%s/%s", ns, EventsTopicNames.NAMESPACE_EVENTS_LOCAL_NAME)).partitions;
-        Assert.assertEquals(admin.topics().getPartitionedTopicList(ns).size(), 1);
+                String.format("persistent://%s/%s", ns, SystemTopicNames.NAMESPACE_EVENTS_LOCAL_NAME)).partitions;
+        List<String> partitionedTopicList = admin.topics().getPartitionedTopicList(ns,
+                ListTopicsOptions.builder().includeSystemTopic(true).build());
+        Assert.assertEquals(partitionedTopicList.size(), 1);
         Assert.assertEquals(partitions, PARTITIONS);
-        Assert.assertEquals(admin.topics().getList(ns).size(), PARTITIONS);
+        Assert.assertEquals(admin.topics().getList(ns, null,
+                ListTopicsOptions.builder().includeSystemTopic(true).build()).size(), PARTITIONS);
+        reader.close();
     }
 
     @Test(timeOut = 1000 * 60)
@@ -97,6 +125,114 @@ public class PartitionedSystemTopicTest extends BrokerTestBase {
                     .subscribeAsync());
         }
         FutureUtil.waitForAll(futureList).get();
+        // Close all the consumers after check
+        for (CompletableFuture<Consumer<byte[]>> consumer : futureList) {
+            consumer.join().close();
+        }
     }
 
+    @Test
+    public void testProduceAndConsumeUnderSystemNamespace() throws Exception {
+        TenantInfo tenantInfo = TenantInfo
+                .builder()
+                .adminRoles(Sets.newHashSet("admin"))
+                .allowedClusters(Sets.newHashSet("test"))
+                .build();
+        admin.tenants().createTenant("pulsar", tenantInfo);
+        admin.namespaces().createNamespace("pulsar/system", 2);
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer().topic("pulsar/system/__topic-1").create();
+        producer.send("test".getBytes(StandardCharsets.UTF_8));
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
+                .topic("pulsar/system/__topic-1")
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscriptionName("sub1")
+                .subscriptionType(SubscriptionType.Shared)
+                .subscribe();
+        Message<byte[]> receive = consumer.receive(5, TimeUnit.SECONDS);
+        Assert.assertNotNull(receive);
+    }
+
+    @Test
+    public void testHealthCheckTopicNotOffload() throws Exception {
+        NamespaceName namespaceName = NamespaceService.getHeartbeatNamespaceV2(pulsar.getAdvertisedAddress(),
+                pulsar.getConfig());
+        TopicName topicName = TopicName.get("persistent", namespaceName, BrokersBase.HEALTH_CHECK_TOPIC_SUFFIX);
+        PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService()
+                .getTopic(topicName.toString(), true).get().get();
+        ManagedLedgerConfig config = persistentTopic.getManagedLedger().getConfig();
+        config.setLedgerOffloader(NullLedgerOffloader.INSTANCE);
+        admin.brokers().healthcheck(TopicVersion.V2);
+        admin.topics().triggerOffload(topicName.toString(), MessageId.earliest);
+        Awaitility.await().untilAsserted(() -> {
+            Assert.assertEquals(persistentTopic.getManagedLedger().getOffloadedSize(), 0);
+        });
+        LedgerOffloader ledgerOffloader = Mockito.mock(LedgerOffloader.class);
+        config.setLedgerOffloader(ledgerOffloader);
+        Assert.assertEquals(config.getLedgerOffloader(), ledgerOffloader);
+        admin.topicPolicies().setMaxConsumers(topicName.toString(), 2);
+        Awaitility.await().pollDelay(5, TimeUnit.SECONDS).untilAsserted(() -> {
+            Assert.assertEquals(persistentTopic.getManagedLedger().getConfig().getLedgerOffloader(),
+                    NullLedgerOffloader.INSTANCE);
+        });
+    }
+
+    @Test
+    private void testSetBacklogCausedCreatingProducerFailure() throws Exception {
+        final String ns = "prop/ns-test";
+        final String topic = ns + "/topic-1";
+
+        admin.namespaces().createNamespace(ns, 2);
+        admin.topics().createPartitionedTopic(String.format("persistent://%s", topic), 1);
+        BacklogQuota quota = BacklogQuota.builder()
+                .limitTime(2)
+                .limitSize(-1)
+                .retentionPolicy(BacklogQuota.RetentionPolicy.producer_exception)
+                .build();
+        admin.namespaces().setBacklogQuota(ns, quota, BacklogQuota.BacklogQuotaType.message_age);
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .create();
+
+        String partition0 = TopicName.get(String.format("persistent://%s", topic)).getPartition(0).toString();
+        Optional<Topic> topicReference = pulsar.getBrokerService().getTopicReference(partition0);
+        Assert.assertTrue(topicReference.isPresent());
+        PersistentTopic persistentTopic = (PersistentTopic) topicReference.get();
+        ManagedLedgerConfig config = persistentTopic.getManagedLedger().getConfig();
+        config.setMinimumRolloverTime(1, TimeUnit.SECONDS);
+        config.setMaximumRolloverTime(1, TimeUnit.SECONDS);
+        persistentTopic.getManagedLedger().setConfig(config);
+        Whitebox.invokeMethod(persistentTopic.getManagedLedger(), "updateLastLedgerCreatedTimeAndScheduleRolloverTask");
+        String msg1 = "msg-1";
+        producer.send(msg1);
+        Thread.sleep(3 * 1000);
+
+        Consumer<String> consumer2 = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("sub-1")
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .subscribe();
+
+        Message<String> receive = consumer2.receive();
+        consumer2.acknowledge(receive);
+
+        Thread.sleep(3 * 1000);
+
+        try {
+            Producer<String> producerN = PulsarClient.builder()
+                    .maxBackoffInterval(3, TimeUnit.SECONDS)
+                    .operationTimeout(5, TimeUnit.SECONDS)
+                    .serviceUrl(lookupUrl.toString()).connectionTimeout(2, TimeUnit.SECONDS).build()
+                    .newProducer(Schema.STRING).topic(topic).sendTimeout(3, TimeUnit.SECONDS).create();
+            Assert.assertTrue(producerN.isConnected());
+            producerN.close();
+        } catch (Exception ex) {
+            Assert.fail("failed to create producer");
+        }
+    }
 }

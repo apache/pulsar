@@ -101,12 +101,10 @@ public class WebSocketServiceStarter {
         proxyServer.addWebSocketServlet(WebSocketPingPongServlet.SERVLET_PATH_V2,
                 new WebSocketPingPongServlet(service));
 
-        proxyServer.addRestResources(ADMIN_PATH_V1, WebSocketProxyStatsV1.class.getPackage().getName(),
-                ATTRIBUTE_PROXY_SERVICE_NAME, service);
-        proxyServer.addRestResources(ADMIN_PATH_V2, WebSocketProxyStatsV2.class.getPackage().getName(),
-                ATTRIBUTE_PROXY_SERVICE_NAME, service);
-        proxyServer.addRestResources("/", VipStatus.class.getPackage().getName(),
-                VipStatus.ATTRIBUTE_STATUS_FILE_PATH, service.getConfig().getStatusFilePath());
+        proxyServer.addRestResource(ADMIN_PATH_V1, ATTRIBUTE_PROXY_SERVICE_NAME, service, WebSocketProxyStatsV1.class);
+        proxyServer.addRestResource(ADMIN_PATH_V2, ATTRIBUTE_PROXY_SERVICE_NAME, service, WebSocketProxyStatsV2.class);
+        proxyServer.addRestResource("/", VipStatus.ATTRIBUTE_STATUS_FILE_PATH, service.getConfig().getStatusFilePath(),
+                VipStatus.class);
         proxyServer.start();
         service.start();
     }

@@ -42,7 +42,7 @@
         pulsar_version: "2.8.1"
     - name: Download Pulsar binary package
       unarchive:
-        src: https://www.apache.org/dyn/mirrors/mirrors.cgi?action=download&filename=pulsar/pulsar-{{ pulsar_version }}/apache-pulsar-{{ pulsar_version }}-bin.tar.gz
+        src: https://archive.apache.org/dist/pulsar/pulsar-{{ pulsar_version }}/apache-pulsar-{{ pulsar_version }}-bin.tar.gz
         remote_src: yes
         dest: /opt/pulsar
         extra_opts: ["--strip-components=1"]
@@ -132,7 +132,7 @@
         - connectors
     - name: Download Pulsar IO packages
       get_url:
-        url: https://www.apache.org/dyn/mirrors/mirrors.cgi?action=download&filename=pulsar/pulsar-{{ pulsar_version }}/connectors/pulsar-io-{{ item }}-{{ pulsar_version }}.nar
+        url: https://archive.apache.org/dist/pulsar/pulsar-{{ pulsar_version }}/connectors/pulsar-io-{{ item }}-{{ pulsar_version }}.nar
         dest: /opt/pulsar/connectors/pulsar-io-{{ item }}-{{ pulsar_version }}.nar
       loop:
 #        - aerospike

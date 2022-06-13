@@ -207,7 +207,7 @@ public abstract class AbstractReplicator {
 
     public CompletableFuture<Void> remove() {
         // No-op
-        return null;
+        return CompletableFuture.completedFuture(null);
     }
 
     protected boolean isWritable() {
@@ -259,4 +259,8 @@ public abstract class AbstractReplicator {
     }
 
     private static final Logger log = LoggerFactory.getLogger(AbstractReplicator.class);
+
+    public State getState() {
+        return state;
+    }
 }
