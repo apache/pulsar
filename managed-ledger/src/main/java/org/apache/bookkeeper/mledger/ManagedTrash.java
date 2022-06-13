@@ -67,5 +67,5 @@ public interface ManagedTrash {
 
     void asyncClose(AsyncCallbacks.CloseCallback callback, Object ctx);
 
-    CompletableFuture<?> allTrashDataDeleteOnce();
+    CompletableFuture<?> asyncCloseAfterAllTrashDataDeleteOnce();
 }

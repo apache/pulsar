@@ -262,7 +262,7 @@ public class ManagedTrashImpl implements ManagedTrash {
     }
 
 
-    public byte[] serialize(Map<TrashKey, LedgerInfo> toPersist) {
+    public static byte[] serialize(Map<TrashKey, LedgerInfo> toPersist) {
         Map<String, LedgerInfo> transfer = transferTo(toPersist);
         TrashDataComponent.Builder builder = TrashDataComponent.newBuilder();
         for (Map.Entry<String, LedgerInfo> entry : transfer.entrySet()) {
@@ -275,7 +275,7 @@ public class ManagedTrashImpl implements ManagedTrash {
         return builder.build().toByteArray();
     }
 
-    private Map<String, LedgerInfo> transferTo(Map<TrashKey, LedgerInfo> to) {
+    private static Map<String, LedgerInfo> transferTo(Map<TrashKey, LedgerInfo> to) {
         Map<String, LedgerInfo> result = new ConcurrentSkipListMap<>();
         for (Map.Entry<TrashKey, LedgerInfo> entry : to.entrySet()) {
             result.put(entry.getKey().toStringKey(), entry.getValue());
@@ -283,7 +283,7 @@ public class ManagedTrashImpl implements ManagedTrash {
         return result;
     }
 
-    public NavigableMap<TrashKey, LedgerInfo> deSerialize(byte[] content) throws InvalidProtocolBufferException {
+    public static NavigableMap<TrashKey, LedgerInfo> deSerialize(byte[] content) throws InvalidProtocolBufferException {
         TrashDataComponent component = TrashDataComponent.parseFrom(content);
         List<MLDataFormats.TrashData> componentList = component.getComponentList();
         Map<String, LedgerInfo> result = new ConcurrentSkipListMap<>();
@@ -298,7 +298,7 @@ public class ManagedTrashImpl implements ManagedTrash {
     }
 
 
-    private NavigableMap<TrashKey, LedgerInfo> transferFrom(Map<String, LedgerInfo> from) {
+    private static NavigableMap<TrashKey, LedgerInfo> transferFrom(Map<String, LedgerInfo> from) {
         NavigableMap<TrashKey, LedgerInfo> result = new ConcurrentSkipListMap<>();
         for (Map.Entry<String, LedgerInfo> entry : from.entrySet()) {
             result.put(TrashKey.buildKey(entry.getKey()), entry.getValue());
@@ -352,7 +352,7 @@ public class ManagedTrashImpl implements ManagedTrash {
     }
 
     @Override
-    public CompletableFuture<?> allTrashDataDeleteOnce() {
+    public CompletableFuture<?> asyncCloseAfterAllTrashDataDeleteOnce() {
         //ensure can't add more trashData.
         STATE_UPDATER.set(this, State.FENCED);
         CompletableFuture<?> future = new CompletableFuture<>();
@@ -496,7 +496,7 @@ public class ManagedTrashImpl implements ManagedTrash {
     }
 
     //take 1/10 trash to delete, if the size over 10, use 10 to delete.
-    private Tuple getToDeleteData(LedgerType type) {
+    protected Tuple getToDeleteData(LedgerType type) {
         if (trashData.size() == 0) {
             return new Tuple(Collections.emptyList(), false);
         }
@@ -534,13 +534,21 @@ public class ManagedTrashImpl implements ManagedTrash {
         return new Tuple(toDelete, filtered);
     }
 
-    private static class Tuple {
+    static class Tuple {
         private List<DelHelper> toDelete;
         private boolean filtered;
 
         public Tuple(List<DelHelper> toDelete, boolean filtered) {
             this.toDelete = toDelete;
             this.filtered = filtered;
+        }
+
+        public List<DelHelper> getToDelete() {
+            return toDelete;
+        }
+
+        public boolean isFiltered() {
+            return filtered;
         }
     }
 
@@ -746,13 +754,21 @@ public class ManagedTrashImpl implements ManagedTrash {
         }
     }
 
-    private static class DelHelper {
+    protected static class DelHelper {
         private final TrashKey key;
         private final LedgerInfo context;
 
         public DelHelper(TrashKey key, LedgerInfo context) {
             this.key = key;
             this.context = context;
+        }
+
+        public TrashKey getKey() {
+            return key;
+        }
+
+        public LedgerInfo getContext() {
+            return context;
         }
 
         public static DelHelper buildHelper(TrashKey key, LedgerInfo context) {
@@ -844,6 +860,17 @@ public class ManagedTrashImpl implements ManagedTrash {
                 return c3 > 0 ? 1 : -1;
             }
             return this.type.compareTo(other.type);
+        }
+
+        @Override
+        public String toString() {
+            return "TrashKey{" +
+                    "retryCount=" + retryCount +
+                    ", ledgerId=" + ledgerId +
+                    ", msb=" + msb +
+                    ", type=" + type +
+                    ", lastDeleteTs=" + lastDeleteTs +
+                    '}';
         }
     }
 

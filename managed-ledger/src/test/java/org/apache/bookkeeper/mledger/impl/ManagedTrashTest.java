@@ -79,6 +79,7 @@ public class ManagedTrashTest extends MockedBookKeeperTestCase {
                 });
                 return future;
             }
+
         };
         bkc = new PulsarMockBookKeeper(executor) {
             @Override
@@ -113,6 +114,14 @@ public class ManagedTrashTest extends MockedBookKeeperTestCase {
         persistedData.clear();
     }
 
+    private LedgerInfo buildOffloadLedgerInfo(long ledgerId, UUID uuid) {
+        LedgerInfo.Builder builder = LedgerInfo.newBuilder().setLedgerId(ledgerId);
+        builder.getOffloadContextBuilder()
+                .setUidMsb(uuid.getMostSignificantBits())
+                .setUidLsb(uuid.getLeastSignificantBits());
+        return builder.build();
+    }
+
     @Test
     public void testTrashKeyOrder() throws Exception {
         ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
@@ -122,6 +131,7 @@ public class ManagedTrashTest extends MockedBookKeeperTestCase {
         ManagedLedger ledger = factory.open("my_test_ledger", managedLedgerConfig);
 
         Field field = ManagedLedgerImpl.class.getDeclaredField("managedTrash");
+        field.setAccessible(true);
         ManagedTrashImpl managedTrash = (ManagedTrashImpl) field.get(ledger);
 
         managedTrash.appendLedgerTrashData(10, null, ManagedTrash.LedgerType.LEDGER);
@@ -131,17 +141,14 @@ public class ManagedTrashTest extends MockedBookKeeperTestCase {
         managedTrash.appendLedgerTrashData(7, null, ManagedTrash.LedgerType.LEDGER);
 
 
-        LedgerInfo.Builder builder = LedgerInfo.newBuilder().setLedgerId(7);
         UUID uuid = UUID.randomUUID();
-        builder.getOffloadContextBuilder()
-                .setUidMsb(uuid.getMostSignificantBits())
-                .setUidLsb(uuid.getLeastSignificantBits());
-        LedgerInfo ledgerInfo = builder.build();
+        LedgerInfo ledgerInfo = buildOffloadLedgerInfo(7, uuid);
         managedTrash.appendLedgerTrashData(7, ledgerInfo, ManagedTrash.LedgerType.OFFLOAD_LEDGER);
 
         Field field1 = ManagedTrashImpl.class.getDeclaredField("trashData");
         field1.setAccessible(true);
         ConcurrentSkipListMap map = (ConcurrentSkipListMap) field1.get(managedTrash);
+        System.out.println(map);
 
         Map.Entry<ManagedTrashImpl.TrashKey, LedgerInfo> entry = map.pollFirstEntry();
         Assert.assertEquals(entry.getKey().getLedgerId(), 3);
@@ -153,15 +160,27 @@ public class ManagedTrashTest extends MockedBookKeeperTestCase {
         Assert.assertEquals(entry.getKey().getMsb(), 0);
         Assert.assertEquals(entry.getKey().getType(), ManagedTrash.LedgerType.LEDGER);
 
-        entry = map.pollFirstEntry();
-        Assert.assertEquals(entry.getKey().getLedgerId(), 7);
-        Assert.assertEquals(entry.getKey().getMsb(), uuid.getMostSignificantBits());
-        Assert.assertEquals(entry.getKey().getType(), ManagedTrash.LedgerType.OFFLOAD_LEDGER);
+        if (uuid.getMostSignificantBits() > 0) {
+            entry = map.pollFirstEntry();
+            Assert.assertEquals(entry.getKey().getLedgerId(), 7);
+            Assert.assertEquals(entry.getKey().getMsb(), 0);
+            Assert.assertEquals(entry.getKey().getType(), ManagedTrash.LedgerType.LEDGER);
 
-        entry = map.pollFirstEntry();
-        Assert.assertEquals(entry.getKey().getLedgerId(), 7);
-        Assert.assertEquals(entry.getKey().getMsb(), 0);
-        Assert.assertEquals(entry.getKey().getType(), ManagedTrash.LedgerType.LEDGER);
+            entry = map.pollFirstEntry();
+            Assert.assertEquals(entry.getKey().getLedgerId(), 7);
+            Assert.assertEquals(entry.getKey().getMsb(), uuid.getMostSignificantBits());
+            Assert.assertEquals(entry.getKey().getType(), ManagedTrash.LedgerType.OFFLOAD_LEDGER);
+        } else {
+            entry = map.pollFirstEntry();
+            Assert.assertEquals(entry.getKey().getLedgerId(), 7);
+            Assert.assertEquals(entry.getKey().getMsb(), uuid.getMostSignificantBits());
+            Assert.assertEquals(entry.getKey().getType(), ManagedTrash.LedgerType.OFFLOAD_LEDGER);
+
+            entry = map.pollFirstEntry();
+            Assert.assertEquals(entry.getKey().getLedgerId(), 7);
+            Assert.assertEquals(entry.getKey().getMsb(), 0);
+            Assert.assertEquals(entry.getKey().getType(), ManagedTrash.LedgerType.LEDGER);
+        }
 
         entry = map.pollFirstEntry();
         Assert.assertEquals(entry.getKey().getLedgerId(), 10);
@@ -173,6 +192,205 @@ public class ManagedTrashTest extends MockedBookKeeperTestCase {
         Assert.assertEquals(entry.getKey().getMsb(), 0);
         Assert.assertEquals(entry.getKey().getType(), ManagedTrash.LedgerType.LEDGER);
     }
+
+
+    @Test
+    public void testGetToDeleteDataFilterByManagedLedgers() throws Exception {
+        ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
+        managedLedgerConfig.setSupportTwoPhaseDeletion(true);
+        managedLedgerConfig.setMaxEntriesPerLedger(10);
+        managedLedgerConfig.setRetentionTime(3, TimeUnit.SECONDS);
+        ManagedLedger ledger = factory.open("my_test_ledger", managedLedgerConfig);
+
+        Field field = ManagedLedgerImpl.class.getDeclaredField("managedTrash");
+        field.setAccessible(true);
+        ManagedTrashImpl managedTrash = (ManagedTrashImpl) field.get(ledger);
+
+        Field field1 = ManagedTrashImpl.class.getDeclaredField("managedLedgers");
+        field1.setAccessible(true);
+
+        NavigableMap<Long, LedgerInfo> managedLedgers = (NavigableMap<Long, LedgerInfo>) field1.get(managedTrash);
+
+        LedgerInfo emptyLedgerInfo = LedgerInfo.newBuilder().setLedgerId(-1).build();
+        for (int i = 0; i < 30; i++) {
+            long ledgerId = 10000 + i;
+            managedLedgers.put(ledgerId, emptyLedgerInfo);
+            if (i % 2 == 0) {
+                managedTrash.appendLedgerTrashData(ledgerId, null, ManagedTrash.LedgerType.LEDGER);
+            } else {
+                //build offload ledger
+                UUID uuid = UUID.randomUUID();
+                LedgerInfo ledgerInfo = buildOffloadLedgerInfo(ledgerId, uuid);
+                managedTrash.appendLedgerTrashData(ledgerId, ledgerInfo, ManagedTrash.LedgerType.OFFLOAD_LEDGER);
+            }
+        }
+        ManagedTrashImpl.Tuple tuple = managedTrash.getToDeleteData(ManagedTrash.LedgerType.BOTH);
+        assertEquals(tuple.getToDelete().size(), 0);
+        assertEquals(tuple.isFiltered(), true);
+
+        //when managedLedgers remove 29, it can be to delete.
+        managedLedgers.remove(10029L);
+
+        tuple = managedTrash.getToDeleteData(ManagedTrash.LedgerType.BOTH);
+        assertEquals(tuple.getToDelete().size(), 1);
+        assertEquals(tuple.isFiltered(), true);
+        assertEquals(tuple.getToDelete().get(0).getKey().getLedgerId(), 10029L);
+        assertEquals(tuple.getToDelete().get(0).getKey().getType(), ManagedTrash.LedgerType.OFFLOAD_LEDGER);
+
+
+        tuple = managedTrash.getToDeleteData(ManagedTrash.LedgerType.LEDGER);
+        assertEquals(tuple.getToDelete().size(), 0);
+        assertEquals(tuple.isFiltered(), true);
+
+
+        tuple = managedTrash.getToDeleteData(ManagedTrash.LedgerType.OFFLOAD_LEDGER);
+        assertEquals(tuple.getToDelete().size(), 1);
+        assertEquals(tuple.isFiltered(), true);
+        assertEquals(tuple.getToDelete().get(0).getKey().getLedgerId(), 10029L);
+        assertEquals(tuple.getToDelete().get(0).getKey().getType(), ManagedTrash.LedgerType.OFFLOAD_LEDGER);
+
+        managedLedgers.remove(10028L);
+
+        tuple = managedTrash.getToDeleteData(ManagedTrash.LedgerType.BOTH);
+        assertEquals(tuple.getToDelete().size(), 2);
+        assertEquals(tuple.isFiltered(), true);
+        assertEquals(tuple.getToDelete().get(0).getKey().getLedgerId(), 10029L);
+        assertEquals(tuple.getToDelete().get(0).getKey().getType(), ManagedTrash.LedgerType.OFFLOAD_LEDGER);
+        assertEquals(tuple.getToDelete().get(1).getKey().getLedgerId(), 10028L);
+        assertEquals(tuple.getToDelete().get(1).getKey().getType(), ManagedTrash.LedgerType.LEDGER);
+
+        tuple = managedTrash.getToDeleteData(ManagedTrash.LedgerType.LEDGER);
+        assertEquals(tuple.getToDelete().size(), 1);
+        assertEquals(tuple.isFiltered(), true);
+        assertEquals(tuple.getToDelete().get(0).getKey().getLedgerId(), 10028L);
+        assertEquals(tuple.getToDelete().get(0).getKey().getType(), ManagedTrash.LedgerType.LEDGER);
+
+        tuple = managedTrash.getToDeleteData(ManagedTrash.LedgerType.OFFLOAD_LEDGER);
+        assertEquals(tuple.getToDelete().size(), 1);
+        assertEquals(tuple.isFiltered(), true);
+        assertEquals(tuple.getToDelete().get(0).getKey().getLedgerId(), 10029L);
+        assertEquals(tuple.getToDelete().get(0).getKey().getType(), ManagedTrash.LedgerType.OFFLOAD_LEDGER);
+    }
+
+    @Test
+    public void testGetToDeleteDataFilterByLastTimeStamp() throws Exception {
+        int maxDeleteCount = 3;
+        int deleteIntervalSeconds = 5;
+        ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
+        managedLedgerConfig.setSupportTwoPhaseDeletion(true);
+        managedLedgerConfig.setMaxEntriesPerLedger(10);
+        managedLedgerConfig.setRetentionTime(3, TimeUnit.SECONDS);
+        managedLedgerConfig.setMaxDeleteCount(maxDeleteCount);
+        managedLedgerConfig.setDeleteIntervalSeconds(deleteIntervalSeconds);
+        ManagedLedger ledger = factory.open("my_test_ledger", managedLedgerConfig);
+
+        Field field = ManagedLedgerImpl.class.getDeclaredField("managedTrash");
+        field.setAccessible(true);
+        ManagedTrashImpl managedTrash = (ManagedTrashImpl) field.get(ledger);
+
+        Field field1 = ManagedTrashImpl.class.getDeclaredField("managedLedgers");
+        field1.setAccessible(true);
+
+        for (int i = 0; i < 30; i++) {
+            long ledgerId = 10000 + i;
+            if (i % 2 == 0) {
+                managedTrash.appendLedgerTrashData(ledgerId, null, ManagedTrash.LedgerType.LEDGER);
+            } else {
+                //build offload ledger
+                UUID uuid = UUID.randomUUID();
+                LedgerInfo ledgerInfo = buildOffloadLedgerInfo(ledgerId, uuid);
+                managedTrash.appendLedgerTrashData(ledgerId, ledgerInfo, ManagedTrash.LedgerType.OFFLOAD_LEDGER);
+            }
+        }
+        ManagedTrashImpl.Tuple tuple = managedTrash.getToDeleteData(ManagedTrash.LedgerType.BOTH);
+        assertEquals(tuple.getToDelete().size(), 3);
+        assertEquals(tuple.isFiltered(), false);
+
+        tuple = managedTrash.getToDeleteData(ManagedTrash.LedgerType.LEDGER);
+        assertEquals(tuple.getToDelete().size(), 3);
+        assertEquals(tuple.isFiltered(), false);
+
+        tuple = managedTrash.getToDeleteData(ManagedTrash.LedgerType.OFFLOAD_LEDGER);
+        assertEquals(tuple.getToDelete().size(), 3);
+        assertEquals(tuple.isFiltered(), false);
+
+        for (int i = 0; i < 10; i++) {
+            managedTrash.triggerDeleteInBackground();
+        }
+
+
+        Field field2 = ManagedTrashImpl.class.getDeclaredField("trashData");
+        field2.setAccessible(true);
+        ConcurrentSkipListMap<ManagedTrashImpl.TrashKey, LedgerInfo> trashData =
+                (ConcurrentSkipListMap<ManagedTrashImpl.TrashKey, LedgerInfo>) field2.get(managedTrash);
+
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(trashData.lastEntry().getKey().getRetryCount(), maxDeleteCount - 1);
+        });
+
+
+        tuple = managedTrash.getToDeleteData(ManagedTrash.LedgerType.BOTH);
+        assertEquals(tuple.getToDelete().size(), 0);
+        assertEquals(tuple.isFiltered(), true);
+
+        tuple = managedTrash.getToDeleteData(ManagedTrash.LedgerType.LEDGER);
+        assertEquals(tuple.getToDelete().size(), 0);
+        assertEquals(tuple.isFiltered(), true);
+
+        tuple = managedTrash.getToDeleteData(ManagedTrash.LedgerType.OFFLOAD_LEDGER);
+        assertEquals(tuple.getToDelete().size(), 0);
+        assertEquals(tuple.isFiltered(), true);
+
+        Thread.sleep(deleteIntervalSeconds * 1000);
+
+        tuple = managedTrash.getToDeleteData(ManagedTrash.LedgerType.BOTH);
+        assertEquals(tuple.getToDelete().size(), 3);
+        assertEquals(tuple.isFiltered(), false);
+
+        tuple = managedTrash.getToDeleteData(ManagedTrash.LedgerType.LEDGER);
+        assertEquals(tuple.getToDelete().size(), 3);
+        assertEquals(tuple.isFiltered(), false);
+
+        tuple = managedTrash.getToDeleteData(ManagedTrash.LedgerType.OFFLOAD_LEDGER);
+        assertEquals(tuple.getToDelete().size(), 3);
+        assertEquals(tuple.isFiltered(), false);
+    }
+
+    @Test
+    public void testRecover() throws Exception {
+        int entryCount = 30;
+        ConcurrentSkipListMap<ManagedTrashImpl.TrashKey, LedgerInfo> map = new ConcurrentSkipListMap<>();
+        LedgerInfo emptyLedgerInfo = LedgerInfo.newBuilder().setLedgerId(-1).build();
+        for (int i = 0; i < entryCount; i++) {
+            ManagedTrashImpl.TrashKey trashKey = new ManagedTrashImpl.TrashKey(3, i, 0, ManagedTrash.LedgerType.LEDGER);
+            map.put(trashKey, emptyLedgerInfo);
+        }
+        metadataStore.put("/managed-trash/managed-ledger/my_test_ledger/delete", ManagedTrashImpl.serialize(map),
+                Optional.of(-1L));
+        ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
+        managedLedgerConfig.setSupportTwoPhaseDeletion(true);
+        managedLedgerConfig.setMaxEntriesPerLedger(10);
+        managedLedgerConfig.setRetentionTime(1, TimeUnit.SECONDS);
+        ManagedLedger ledger = factory.open("my_test_ledger", managedLedgerConfig);
+
+        Field field = ManagedLedgerImpl.class.getDeclaredField("managedTrash");
+        field.setAccessible(true);
+        ManagedTrashImpl managedTrash = (ManagedTrashImpl) field.get(ledger);
+
+        Field field1 = ManagedTrashImpl.class.getDeclaredField("trashData");
+        field1.setAccessible(true);
+        ConcurrentSkipListMap<ManagedTrashImpl.TrashKey, LedgerInfo> trashData =
+                (ConcurrentSkipListMap<ManagedTrashImpl.TrashKey, LedgerInfo>) field1.get(managedTrash);
+
+        assertEquals(trashData.size(), entryCount);
+
+        for (int i = 0; i < entryCount; i++) {
+            Map.Entry<ManagedTrashImpl.TrashKey, LedgerInfo> entry1 = map.pollFirstEntry();
+            Map.Entry<ManagedTrashImpl.TrashKey, LedgerInfo> entry2 = trashData.pollFirstEntry();
+            assertEquals(entry1.getKey().getLedgerId(), entry2.getKey().getLedgerId());
+        }
+    }
+
 
     @Test
     public void testManagedTrashDelete() throws Exception {
@@ -202,6 +420,7 @@ public class ManagedTrashTest extends MockedBookKeeperTestCase {
         ManagedLedger ledger = factory.open("my_test_ledger", managedLedgerConfig);
 
         Field field = ManagedLedgerImpl.class.getDeclaredField("managedTrash");
+        field.setAccessible(true);
         ManagedTrashImpl managedTrash = (ManagedTrashImpl) field.get(ledger);
 
 
@@ -258,6 +477,7 @@ public class ManagedTrashTest extends MockedBookKeeperTestCase {
         ManagedLedger ledger = factory.open("my_test_ledger", managedLedgerConfig);
 
         Field field = ManagedLedgerImpl.class.getDeclaredField("managedTrash");
+        field.setAccessible(true);
         ManagedTrashImpl managedTrash = (ManagedTrashImpl) field.get(ledger);
 
         managedTrash.appendLedgerTrashData(10, null, ManagedTrash.LedgerType.LEDGER);
@@ -319,6 +539,7 @@ public class ManagedTrashTest extends MockedBookKeeperTestCase {
         ManagedLedger ledger = factory.open("my_test_ledger", managedLedgerConfig);
 
         Field field = ManagedLedgerImpl.class.getDeclaredField("managedTrash");
+        field.setAccessible(true);
         ManagedTrashImpl managedTrash = (ManagedTrashImpl) field.get(ledger);
 
 
@@ -350,6 +571,7 @@ public class ManagedTrashTest extends MockedBookKeeperTestCase {
         ManagedLedger ledger = factory.open("my_test_ledger", managedLedgerConfig);
 
         Field field = ManagedLedgerImpl.class.getDeclaredField("managedTrash");
+        field.setAccessible(true);
         ManagedTrashImpl managedTrash = (ManagedTrashImpl) field.get(ledger);
 
 
@@ -384,7 +606,7 @@ public class ManagedTrashTest extends MockedBookKeeperTestCase {
     }
 
     @Test
-    public void testAllTrashDataDeleteOnce() throws Exception {
+    public void testAsyncCloseAfterAllTrashDataDeleteOnce() throws Exception {
         int entryCount = 30;
         int archiveLimit = 10;
         int maxDeleteCount = 3;
@@ -397,6 +619,7 @@ public class ManagedTrashTest extends MockedBookKeeperTestCase {
         ManagedLedger ledger = factory.open("my_test_ledger", managedLedgerConfig);
 
         Field field = ManagedLedgerImpl.class.getDeclaredField("managedTrash");
+        field.setAccessible(true);
         ManagedTrashImpl managedTrash = (ManagedTrashImpl) field.get(ledger);
 
 
@@ -406,7 +629,7 @@ public class ManagedTrashTest extends MockedBookKeeperTestCase {
         }
 
         try {
-            managedTrash.allTrashDataDeleteOnce().get();
+            managedTrash.asyncCloseAfterAllTrashDataDeleteOnce().get();
         } catch (Exception e) {
             Assert.fail();
         }

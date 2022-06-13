@@ -2914,7 +2914,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         asyncUpdateTrashData(deletableLedgers, deletableOffloadedLedgers).thenCompose(ignore -> {
             managedTrash.triggerDeleteInBackground();
             return deleteMetadata();
-        }).thenAccept(ignore -> managedTrash.allTrashDataDeleteOnce().whenComplete((res, e) -> {
+        }).thenAccept(ignore -> managedTrash.asyncCloseAfterAllTrashDataDeleteOnce().whenComplete((res, e) -> {
             if (e != null) {
                 log.error("[{}] ManagedTrash all trash data delete once exception.", name, e);
             }
