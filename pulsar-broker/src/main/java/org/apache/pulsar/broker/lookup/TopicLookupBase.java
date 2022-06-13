@@ -29,7 +29,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import javax.ws.rs.Encoded;
 import javax.ws.rs.WebApplicationException;
-import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Response;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarService;
