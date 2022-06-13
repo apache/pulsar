@@ -23,6 +23,7 @@ import static org.apache.bookkeeper.mledger.util.PositionAckSetUtil.compareToWit
 import static org.apache.bookkeeper.mledger.util.PositionAckSetUtil.isAckSetOverlap;
 import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -769,6 +770,13 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                 }
 
                 if (!individualAckPositions.containsKey(position)) {
+                    // if the position not exist, should new the same position and put the new position on the map
+                    // because when another ack the same batch message will change the ackSet with the transaction
+                    // when commit the first txn will ack all of the ackSet which has in pending ack status
+                    MutablePair<PositionImpl, Integer> positionPair = positions.get(i);
+                    positionPair.left = PositionImpl.get(positionPair.getLeft().getLedgerId(),
+                            positionPair.getLeft().getEntryId(),
+                            Arrays.copyOf(positionPair.left.getAckSet(), positionPair.left.getAckSet().length));
                     this.individualAckPositions.put(position, positions.get(i));
                 } else {
                     MutablePair<PositionImpl, Integer> positionPair =
