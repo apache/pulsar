@@ -28,63 +28,62 @@ import org.apache.pulsar.functions.api.Record;
 
 @EqualsAndHashCode(callSuper = true)
 @ToString
-public class SinkRecord<T> extends AbstractSinkRecord<T> {
-    private final Record<T> sourceRecord;
-    private final T value;
+public class TargetSinkRecord<T> extends AbstractSinkRecord<T> {
 
-    public SinkRecord(Record<T> sourceRecord, T value) {
+    private final Record<T> sinkRecord;
+
+    public TargetSinkRecord(Record<T> sourceRecord, Record<T> sinkRecord) {
         super(sourceRecord);
-        this.sourceRecord = sourceRecord;
-        this.value = value;
+        this.sinkRecord = sinkRecord;
     }
 
     @Override
     public Optional<String> getKey() {
-        return sourceRecord.getKey();
+        return sinkRecord.getKey();
     }
 
     @Override
     public T getValue() {
-        return value;
+        return sinkRecord.getValue();
     }
 
     @Override
     public Optional<String> getPartitionId() {
-        return sourceRecord.getPartitionId();
+        return sinkRecord.getPartitionId();
     }
 
     @Override
     public Optional<Integer> getPartitionIndex() {
-        return sourceRecord.getPartitionIndex();
+        return sinkRecord.getPartitionIndex();
     }
 
     @Override
     public Optional<Long> getRecordSequence() {
-        return sourceRecord.getRecordSequence();
+        return sinkRecord.getRecordSequence();
     }
 
-    @Override
+     @Override
     public Map<String, String> getProperties() {
-        return sourceRecord.getProperties();
+        return sinkRecord.getProperties();
     }
 
     @Override
     public Optional<String> getDestinationTopic() {
-        return sourceRecord.getDestinationTopic();
+        return sinkRecord.getDestinationTopic();
     }
 
     @Override
     public Schema<T> getSchema() {
-        return getRecordSchema(sourceRecord);
+        return getRecordSchema(sinkRecord);
     }
 
     @Override
     public Optional<Long> getEventTime() {
-        return sourceRecord.getEventTime();
+        return sinkRecord.getEventTime();
     }
 
     @Override
     public Optional<Message<T>> getMessage() {
-        return sourceRecord.getMessage();
+        return sinkRecord.getMessage();
     }
 }
