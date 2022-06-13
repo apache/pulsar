@@ -668,5 +668,5 @@ All the transaction metrics are labelled with the following labels:
 | pulsar_txn_tb_client_abort_latency | Summary | The latency of aborting transactions for `transaction buffer client`. |
 | pulsar_txn_tb_client_commit_latency | Summary | The latency of committing transactions for `transaction buffer client`. |
 | pulsar_txn_tb_client_pending_requests | Counter | The number of pending requests for `transaction buffer client`. |
-| pulsar_txn_tp_committed_count | Counter | The number of committed transactions for consumers. |
-| pulsar_txn_tp_aborted_count | Counter | The number of aborted transactions for consumers. |
+| pulsar_txn_tp_committed_count | Counter | The number of committed transactions for pending ack store. |
+| pulsar_txn_tp_aborted_count | Counter | The number of aborted transactions for pending ack store. |
