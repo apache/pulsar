@@ -282,7 +282,7 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
 
         ByteArrayOutputStream output = new ByteArrayOutputStream();
         PrometheusMetricsGenerator.generate(pulsar, exposeTopicLevelMetrics, true, true, output);
-        String metricStr = output.toString(StandardCharsets.UTF_8);
+        String metricStr = output.toString(StandardCharsets.UTF_8.name());
 
         Multimap<String, PrometheusMetricsTest.Metric> metricsMap = PrometheusMetricsTest.parseMetrics(metricStr);
         Collection<PrometheusMetricsTest.Metric> metrics = metricsMap.get("pulsar_consumer_msg_ack_rate");
