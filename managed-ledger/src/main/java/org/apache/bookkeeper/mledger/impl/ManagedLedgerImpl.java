@@ -2909,7 +2909,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                         return;
                                     }
                                     callback.deleteLedgerComplete(ctx);
-                                });                            }
+                                });
+                            }
                             break;
 
                         default:
