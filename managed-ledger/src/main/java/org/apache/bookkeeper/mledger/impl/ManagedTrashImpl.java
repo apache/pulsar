@@ -39,7 +39,6 @@ import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
-import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedTrash;
@@ -70,7 +69,7 @@ public class ManagedTrashImpl implements ManagedTrash {
 
     private static final String ARCHIVE_SUFFIX = "/" + ARCHIVE;
 
-    private static final String TRASH_KEY_SEPARATOR = "-";
+    private static final String TRASH_KEY_SEPARATOR = ";";
 
     private static final long EMPTY_LEDGER_ID = -1L;
 
@@ -113,7 +112,9 @@ public class ManagedTrashImpl implements ManagedTrash {
 
     private final int archiveDataLimitSize;
 
-    private final long deleteIntervalMillis;
+    private final long retryDeleteIntervalMillis;
+
+    private final long nextDeleteDelayMillis;
 
     private final int maxDeleteCount;
 
@@ -137,10 +138,15 @@ public class ManagedTrashImpl implements ManagedTrash {
         this.executor = executor;
         this.bookKeeper = bookKeeper;
         this.archiveDataLimitSize = config.getArchiveDataLimitSize();
-        this.deleteIntervalMillis = TimeUnit.SECONDS.toMillis(config.getDeleteIntervalSeconds());
+        this.retryDeleteIntervalMillis = TimeUnit.SECONDS.toMillis(config.getRetryDeleteIntervalSeconds());
+        this.nextDeleteDelayMillis = calculateNextDeleteDelayMillis(this.retryDeleteIntervalMillis);
         this.maxDeleteCount = Integer.max(1, config.getMaxDeleteCount());
         this.managedTrashMXBean = new ManagedTrashMXBeanImpl(this);
         STATE_UPDATER.set(this, State.None);
+    }
+
+    protected long calculateNextDeleteDelayMillis(long retryDeleteIntervalMillis) {
+        return retryDeleteIntervalMillis / 5;
     }
 
     @Override
@@ -352,24 +358,20 @@ public class ManagedTrashImpl implements ManagedTrash {
     }
 
     @Override
-    public CompletableFuture<?> asyncCloseAfterAllTrashDataDeleteOnce() {
+    public CompletableFuture<?> asyncCloseAfterAllLedgerDeleteOnce() {
         //ensure can't add more trashData.
         STATE_UPDATER.set(this, State.FENCED);
         CompletableFuture<?> future = new CompletableFuture<>();
         allTrashDataDeleteOnce(future);
         return future.thenCompose(ignore -> {
             CompletableFuture<?> finalFuture = new CompletableFuture<>();
-            asyncClose(new AsyncCallbacks.CloseCallback() {
-                @Override
-                public void closeComplete(Object ctx) {
-                    finalFuture.complete(null);
+            asyncClose().whenComplete((res, e) -> {
+                if (e != null) {
+                    finalFuture.completeExceptionally(e);
+                    return;
                 }
-
-                @Override
-                public void closeFailed(ManagedLedgerException exception, Object ctx) {
-                    finalFuture.completeExceptionally(exception);
-                }
-            }, null);
+                finalFuture.complete(null);
+            });
             return finalFuture;
         });
     }
@@ -448,10 +450,11 @@ public class ManagedTrashImpl implements ManagedTrash {
     }
 
     @Override
-    public void asyncClose(AsyncCallbacks.CloseCallback callback, Object ctx) {
+    public CompletableFuture<?> asyncClose() {
+        CompletableFuture<?> future = new CompletableFuture<>();
         if (State.Closed == STATE_UPDATER.get(this)) {
-            callback.closeComplete(ctx);
-            return;
+            future.complete(null);
+            return future;
         }
         if (checkTrashPersistTask != null) {
             checkTrashPersistTask.cancel(true);
@@ -459,12 +462,13 @@ public class ManagedTrashImpl implements ManagedTrash {
         }
         asyncUpdateTrashData().whenComplete((res, e) -> {
             if (e != null) {
-                callback.closeFailed((ManagedLedgerException) e, ctx);
+                future.completeExceptionally(e);
                 return;
             }
-            callback.closeComplete(ctx);
+            future.complete(null);
         });
         STATE_UPDATER.set(this, State.Closed);
+        return future;
     }
 
     private CompletableFuture<?> increaseArchiveCountWhenDeleteFailed() {
@@ -520,7 +524,7 @@ public class ManagedTrashImpl implements ManagedTrash {
             }
             //1.filter trashData which last time and current time differ by no more than deleteIntervalMillis.
             //2.filter trashData which still exist in managedLedgers
-            if (System.currentTimeMillis() - entry.getKey().lastDeleteTs < deleteIntervalMillis
+            if (System.currentTimeMillis() - entry.getKey().lastDeleteTs < retryDeleteIntervalMillis
                     || managedLedgers.containsKey(entry.getKey().getLedgerId())) {
                 filtered = true;
                 continue;
@@ -683,7 +687,7 @@ public class ManagedTrashImpl implements ManagedTrash {
                 triggerDeleteInBackground();
                 continueDeleteImmediately.decrementAndGet();
             } else {
-                scheduledExecutor.schedule(this::triggerDeleteInBackground, deleteIntervalMillis / 5,
+                scheduledExecutor.schedule(this::triggerDeleteInBackground, nextDeleteDelayMillis,
                         TimeUnit.MILLISECONDS);
             }
         }
@@ -864,13 +868,18 @@ public class ManagedTrashImpl implements ManagedTrash {
 
         @Override
         public String toString() {
-            return "TrashKey{" +
-                    "retryCount=" + retryCount +
-                    ", ledgerId=" + ledgerId +
-                    ", msb=" + msb +
-                    ", type=" + type +
-                    ", lastDeleteTs=" + lastDeleteTs +
-                    '}';
+            return "TrashKey{"
+                    + "retryCount="
+                    + retryCount
+                    + ", ledgerId="
+                    + ledgerId
+                    + ", msb="
+                    + msb
+                    + ", type="
+                    + type
+                    + ", lastDeleteTs="
+                    + lastDeleteTs
+                    + '}';
         }
     }
 

@@ -2532,9 +2532,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             dynamic = true,
             category = CATEGORY_STORAGE_ML,
-            doc = "The interval of deletion at same ledger in managedTrash. (Default 60 seconds)"
+            doc = "The interval of retry delete same ledger again. (Default 60 seconds)"
     )
-    private int managedTrashDeleteInternalSeconds = 60;
+    private int managedTrashRetryDeleteInternalSeconds = 60;
 
     @FieldContext(
             dynamic = true,

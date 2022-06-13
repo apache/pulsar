@@ -65,7 +65,7 @@ public interface ManagedTrash {
 
     long getToArchiveDataSize();
 
-    void asyncClose(AsyncCallbacks.CloseCallback callback, Object ctx);
+    CompletableFuture<?> asyncClose();
 
-    CompletableFuture<?> asyncCloseAfterAllTrashDataDeleteOnce();
+    CompletableFuture<?> asyncCloseAfterAllLedgerDeleteOnce();
 }

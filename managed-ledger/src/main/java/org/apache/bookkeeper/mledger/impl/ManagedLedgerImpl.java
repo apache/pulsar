@@ -1441,22 +1441,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         LedgerHandle lh = currentLedger;
 
         List<CompletableFuture<?>> futures = new ArrayList<>();
-
-        CompletableFuture<?> closeTrashFuture = new CompletableFuture<>();
-        futures.add(closeTrashFuture);
-
-        managedTrash.asyncClose(new CloseCallback() {
-            @Override
-            public void closeComplete(Object ctx) {
-                closeTrashFuture.complete(null);
-            }
-
-            @Override
-            public void closeFailed(ManagedLedgerException exception, Object ctx) {
-                closeTrashFuture.completeExceptionally(exception);
-            }
-        }, ctx);
-
+        futures.add(managedTrash.asyncClose());
 
         CompletableFuture<?> closeCursorFuture = new CompletableFuture<>();
         futures.add(closeCursorFuture);
@@ -2902,27 +2887,66 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             });
             return;
         }
-        // Mark deletable ledgers
-        Set<Long> deletableLedgers = ledgers.stream().filter(ls -> !ls.getOffloadContext().getBookkeeperDeleted())
-                .map(LedgerInfo::getLedgerId).collect(Collectors.toSet());
+        if (managedTrash instanceof ManagedTrashDisableImpl) {
+            AtomicInteger ledgersToDelete = new AtomicInteger(ledgers.size());
+            for (LedgerInfo ls : ledgers) {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] Deleting ledger {}", name, ls);
+                }
+                bookKeeper.asyncDeleteLedger(ls.getLedgerId(), (rc, ctx1) -> {
+                    switch (rc) {
+                        case Code.NoSuchLedgerExistsException:
+                        case Code.NoSuchLedgerExistsOnMetadataServerException:
+                            log.warn("[{}] Ledger {} not found when deleting it", name, ls.getLedgerId());
+                            // Continue anyway
 
-        // Mark deletable offloaded ledgers
-        Set<Long> deletableOffloadedLedgers = ledgers.stream()
-                .filter(ls -> ls.getOffloadContext().hasUidMsb())
-                .map(LedgerInfo::getLedgerId).collect(Collectors.toSet());
+                        case BKException.Code.OK:
+                            if (ledgersToDelete.decrementAndGet() == 0) {
+                                // All ledgers deleted, now remove ML metadata
+                                deleteMetadata().whenComplete((res, e) -> {
+                                    if (e != null) {
+                                        callback.deleteLedgerFailed((ManagedLedgerException) e, ctx);
+                                        return;
+                                    }
+                                    callback.deleteLedgerComplete(ctx);
+                                });                            }
+                            break;
 
-        asyncUpdateTrashData(deletableLedgers, deletableOffloadedLedgers).thenCompose(ignore -> {
-            managedTrash.triggerDeleteInBackground();
-            return deleteMetadata();
-        }).thenAccept(ignore -> managedTrash.asyncCloseAfterAllTrashDataDeleteOnce().whenComplete((res, e) -> {
-            if (e != null) {
-                log.error("[{}] ManagedTrash all trash data delete once exception.", name, e);
+                        default:
+                            // Handle error
+                            log.warn("[{}] Failed to delete ledger {} -- {}", name, ls.getLedgerId(),
+                                    BKException.getMessage(rc));
+                            int toDelete = ledgersToDelete.get();
+                            if (toDelete != -1 && ledgersToDelete.compareAndSet(toDelete, -1)) {
+                                // Trigger callback only once
+                                callback.deleteLedgerFailed(createManagedLedgerException(rc), ctx);
+                            }
+                    }
+                }, null);
             }
-            callback.deleteLedgerComplete(ctx);
-        })).exceptionally(e -> {
-            callback.deleteLedgerFailed(createManagedLedgerException(e), ctx);
-            return null;
-        });
+        } else {
+            // Mark deletable ledgers
+            Set<Long> deletableLedgers = ledgers.stream().filter(ls -> !ls.getOffloadContext().getBookkeeperDeleted())
+                    .map(LedgerInfo::getLedgerId).collect(Collectors.toSet());
+
+            // Mark deletable offloaded ledgers
+            Set<Long> deletableOffloadedLedgers = ledgers.stream()
+                    .filter(ls -> ls.getOffloadContext().hasUidMsb())
+                    .map(LedgerInfo::getLedgerId).collect(Collectors.toSet());
+
+            asyncUpdateTrashData(deletableLedgers, deletableOffloadedLedgers).thenCompose(ignore -> {
+                managedTrash.triggerDeleteInBackground();
+                return deleteMetadata();
+            }).thenAccept(ignore -> managedTrash.asyncCloseAfterAllLedgerDeleteOnce().whenComplete((res, e) -> {
+                if (e != null) {
+                    log.error("[{}] ManagedTrash all trash data delete once exception.", name, e);
+                }
+                callback.deleteLedgerComplete(ctx);
+            })).exceptionally(e -> {
+                callback.deleteLedgerFailed(createManagedLedgerException(e), ctx);
+                return null;
+            });
+        }
     }
 
     private CompletableFuture<?> deleteMetadata() {

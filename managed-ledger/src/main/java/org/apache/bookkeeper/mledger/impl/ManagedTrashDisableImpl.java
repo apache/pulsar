@@ -75,12 +75,12 @@ public class ManagedTrashDisableImpl implements ManagedTrash {
     }
 
     @Override
-    public void asyncClose(AsyncCallbacks.CloseCallback callback, Object ctx) {
-        callback.closeComplete(ctx);
+    public CompletableFuture<?> asyncClose() {
+        return COMPLETABLE_FUTURE;
     }
 
     @Override
-    public CompletableFuture<?> asyncCloseAfterAllTrashDataDeleteOnce() {
+    public CompletableFuture<?> asyncCloseAfterAllLedgerDeleteOnce() {
         return COMPLETABLE_FUTURE;
     }
 }

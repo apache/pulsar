@@ -1593,7 +1593,7 @@ public class BrokerService implements Closeable {
                     managedLedgerConfig.setSupportTwoPhaseDeletion(
                             serviceConfig.isManagedLedgerSupportTwoPhaseDeletion());
                     managedLedgerConfig.setArchiveDataLimitSize(serviceConfig.getManagedTrashArchiveDataLimitSize());
-                    managedLedgerConfig.setDeleteIntervalSeconds(serviceConfig.getManagedTrashDeleteInternalSeconds());
+                    managedLedgerConfig.setRetryDeleteIntervalSeconds(serviceConfig.getManagedTrashRetryDeleteInternalSeconds());
                     managedLedgerConfig.setMaxDeleteCount(serviceConfig.getManagedLedgerMaxDeleteCount());
 
                     OffloadPoliciesImpl nsLevelOffloadPolicies =
