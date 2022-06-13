@@ -1,7 +1,7 @@
 ---
-id: version-2.1.0-incubating-io-connectors
+id: io-connectors
 title: Builtin Connectors
-sidebar_label: Builtin Connectors
+sidebar_label: "Builtin Connectors"
 original_id: io-connectors
 ---
 
@@ -10,10 +10,10 @@ These connectors import and export data from some of the most commonly used data
 as easy as writing a simple connector configuration and running the connector locally or submitting the connector to a
 Pulsar Functions cluster.
 
-- [Aerospike Sink Connector](io-aerospike.md)
-- [Cassandra Sink Connector](io-cassandra.md)
+- [Aerospike Sink Connector](io-aerospike)
+- [Cassandra Sink Connector](io-cassandra)
 - [Kafka Sink Connector](io-kafka.md#sink)
 - [Kafka Source Connector](io-kafka.md#source)
 - [Kinesis Sink Connector](io-kinesis.md#sink)
 - [RabbitMQ Source Connector](io-rabbitmq.md#source)
-- [Twitter Firehose Source Connector](io-twitter.md)
+- [Twitter Firehose Source Connector](io-twitter)

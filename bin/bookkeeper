@@ -49,6 +49,8 @@ fi
 BINDIR=`dirname "$0"`
 BK_HOME=`cd -P $BINDIR/..;pwd`
 
+BOOKIE_LOG_DIR=${BOOKIE_LOG_DIR:-"$BK_HOME/logs"}
+
 DEFAULT_CONF=$BK_HOME/conf/bookkeeper.conf
 DEFAULT_LOG_CONF=$BK_HOME/conf/log4j2.yaml
 
@@ -193,7 +195,6 @@ if [ $COMMAND == "shell" ]; then
 BOOKIE_LOG_APPENDER=Console
 fi
 
-BOOKIE_LOG_DIR=${BOOKIE_LOG_DIR:-"$BK_HOME/logs"}
 BOOKIE_LOG_FILE=${BOOKIE_LOG_FILE:-"bookkeeper-server.log"}
 if [ ! -d "$BOOKIE_LOG_DIR" ]; then
   mkdir -p "$BOOKIE_LOG_DIR"

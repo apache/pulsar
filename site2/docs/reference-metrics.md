@@ -1,14 +1,10 @@
 ---
 id: reference-metrics
 title: Pulsar Metrics
-sidebar_label: Pulsar Metrics
+sidebar_label: "Pulsar Metrics"
 ---
 
-<style type="text/css">
-  table{
-    font-size: 80%;
-  }
-</style>
+
 
 Pulsar exposes the following metrics in Prometheus format. You can monitor your clusters with those metrics.
 
@@ -95,15 +91,15 @@ The following metrics are available for broker:
   - [Journal metrics](#journal-metrics)
   - [Storage metrics](#storage-metrics)
 - [Broker](#broker)
+  - [Broker metrics](#broker-metrics)
   - [Namespace metrics](#namespace-metrics)
-    - [Replication metrics](#replication-metrics)
+  - [Replication metrics](#replication-metrics)
   - [Topic metrics](#topic-metrics)
-    - [Replication metrics](#replication-metrics-1)
-  - [ManagedLedgerCache metrics](#managedledgercache-metrics)
+  - [Replication metrics](#replication-metrics-1)
   - [ManagedLedger metrics](#managedledger-metrics)
   - [LoadBalancing metrics](#loadbalancing-metrics)
-    - [BundleUnloading metrics](#bundleunloading-metrics)
-    - [BundleSplit metrics](#bundlesplit-metrics)
+  - [BundleUnloading metrics](#bundleunloading-metrics)
+  - [BundleSplit metrics](#bundlesplit-metrics)
   - [Subscription metrics](#subscription-metrics)
   - [Consumer metrics](#consumer-metrics)
   - [Managed ledger bookie client metrics](#managed-ledger-bookie-client-metrics)
@@ -113,10 +109,39 @@ The following metrics are available for broker:
   - [Jetty metrics](#jetty-metrics)
   - [Schema metrics](#schema-metrics)
   - [Offload metrics](#offload-metrics)
+  - [Web service executor metrics](#web-service-executor-metrics)
 - [Pulsar Functions](#pulsar-functions)
 - [Proxy](#proxy)
 - [Pulsar SQL Worker](#pulsar-sql-worker)
 - [Pulsar transaction](#pulsar-transaction)
+
+### Broker metrics
+All the broker metrics are labelled with the following labels:
+- cluster: cluster=${pulsar_cluster}. ${pulsar_cluster} is the cluster name that you have configured in the `broker.conf` file.
+
+| Name | Type   | Description                                          |
+|---|---|---|
+| pulsar_ml_cache_evictions | Gauge  | The number of cache evictions during the last minute. |
+| pulsar_ml_cache_hits_rate | Gauge  | The number of cache hits per second on the broker side. |
+| pulsar_ml_cache_hits_throughput | Gauge  | The amount of data (byte per second) retrieved from the cache on the broker side. |
+| pulsar_ml_cache_misses_rate | Gauge  | The number of cache missed per second on the broker side. |
+| pulsar_ml_cache_misses_throughput | Gauge  | The amount of data (byte per second) that cannot be retrieved from the cache on the broker side. |
+| pulsar_ml_cache_pool_active_allocations | Gauge  | The number of currently active allocations in direct arena. |
+| pulsar_ml_cache_pool_active_allocations_huge | Gauge  | The number of currently active huge allocation in direct arena. |
+| pulsar_ml_cache_pool_active_allocations_normal | Gauge  | The number of currently active normal allocations in direct arena. |
+| pulsar_ml_cache_pool_active_allocations_small | Gauge  | The number of currently active small allocations in direct arena. |
+| pulsar_ml_cache_pool_allocated | Gauge  | The total allocated memory of chunk lists in direct arena. |
+| pulsar_ml_cache_pool_used | Gauge  | The total used memory of chunk lists in direct arena. |
+| pulsar_ml_cache_used_size | Gauge  | The size used to store the payloads of entries (in bytes). |
+| pulsar_ml_count | Gauge  | The number of currently opened managed ledgers. |
+| topic_load_times | Summary | The topic load latency calculated in milliseconds. |
+| pulsar_active_connections| Gauge | The number of active connections. |
+| pulsar_connection_created_total_count | Gauge | The total number of connections. |
+| pulsar_connection_create_success_count | Gauge | The number of successfully created connections. |
+| pulsar_connection_create_fail_count | Gauge | The number of failed connections. |
+| pulsar_connection_closed_total_count | Gauge | The total number of closed connections. |
+| pulsar_broker_throttled_connections | Gauge | The number of throttled connections. |
+| pulsar_broker_throttled_connections_global_limit | Gauge | The number of throttled connections due to per-connection limit. |
 
 ### BookKeeper client metrics
 
@@ -248,26 +273,6 @@ All the replication metrics are labelled with `remoteCluster=${pulsar_remote_clu
 | pulsar_broker_lookup_pending_requests | Gauge | The number of pending lookups in broker. When it is up to the threshold, new requests are rejected. |
 | pulsar_broker_topic_load_pending_requests | Gauge | The load of pending topic operations. |
 
-### ManagedLedgerCache metrics
-All the ManagedLedgerCache metrics are labelled with the following labels:
-- cluster: cluster=${pulsar_cluster}. ${pulsar_cluster} is the cluster name that you have configured in the `broker.conf` file.
-
-| Name | Type | Description |
-| --- | --- | --- |
-| pulsar_ml_cache_evictions | Gauge | The number of cache evictions during the last minute. |
-| pulsar_ml_cache_hits_rate | Gauge | The number of cache hits per second on the broker side. |
-| pulsar_ml_cache_hits_throughput | Gauge | The amount of data is retrieved from the cache on the broker side (in byte/s).  |
-| pulsar_ml_cache_misses_rate | Gauge | The number of cache misses per second on the broker side. |
-| pulsar_ml_cache_misses_throughput | Gauge | The amount of data is not retrieved from the cache on the broker side (in byte/s). |
-| pulsar_ml_cache_pool_active_allocations | Gauge | The number of currently active allocations in direct arena |
-| pulsar_ml_cache_pool_active_allocations_huge | Gauge | The number of currently active huge allocation in direct arena |
-| pulsar_ml_cache_pool_active_allocations_normal | Gauge | The number of currently active normal allocations in direct arena |
-| pulsar_ml_cache_pool_active_allocations_small | Gauge | The number of currently active small allocations in direct arena |
-| pulsar_ml_cache_pool_allocated | Gauge | The total allocated memory of chunk lists in direct arena |
-| pulsar_ml_cache_pool_used | Gauge | The total used memory of chunk lists in direct arena |
-| pulsar_ml_cache_used_size | Gauge | The size in byte used to store the entries payloads |
-| pulsar_ml_count | Gauge | The number of currently opened managed ledgers  |
-
 ### ManagedLedger metrics
 All the managedLedger metrics are labelled with the following labels:
 - cluster: cluster=${pulsar_cluster}. ${pulsar_cluster} is the cluster name that you have configured in the `broker.conf` file.
@@ -279,13 +284,13 @@ All the managedLedger metrics are labelled with the following labels:
 | pulsar_ml_AddEntryBytesRate | Gauge | The B/s rate of messages added |
 | pulsar_ml_AddEntryWithReplicasBytesRate | Gauge | The B/s rate of messages added with replicas |
 | pulsar_ml_AddEntryErrors | Gauge | The number of addEntry requests that failed |
-| pulsar_ml_AddEntryLatencyBuckets | Histogram | The latency of adding a ledger entry with a given quantile (threshold), including time spent on waiting in queue on the broker side.<br> Available quantile: <br><ul><li> quantile="0.0_0.5" is AddEntryLatency between (0.0ms, 0.5ms]</li> <li>quantile="0.5_1.0" is AddEntryLatency between (0.5ms, 1.0ms]</li><li>quantile="1.0_5.0" is AddEntryLatency between (1ms, 5ms]</li><li>quantile="5.0_10.0" is AddEntryLatency between (5ms, 10ms]</li><li>quantile="10.0_20.0" is AddEntryLatency between (10ms, 20ms]</li><li>quantile="20.0_50.0" is AddEntryLatency between (20ms, 50ms]</li><li>quantile="50.0_100.0" is AddEntryLatency between (50ms, 100ms]</li><li>quantile="100.0_200.0" is AddEntryLatency between (100ms, 200ms]</li><li>quantile="200.0_1000.0" is AddEntryLatency between (200ms, 1s]</li></ul>|
+| pulsar_ml_AddEntryLatencyBuckets | Histogram | The latency of adding a ledger entry with a given quantile (threshold), including time spent on waiting in queue on the broker side.<br /> Available quantile: <br /><ul><li> quantile="0.0_0.5" is AddEntryLatency between (0.0ms, 0.5ms]</li> <li>quantile="0.5_1.0" is AddEntryLatency between (0.5ms, 1.0ms]</li><li>quantile="1.0_5.0" is AddEntryLatency between (1ms, 5ms]</li><li>quantile="5.0_10.0" is AddEntryLatency between (5ms, 10ms]</li><li>quantile="10.0_20.0" is AddEntryLatency between (10ms, 20ms]</li><li>quantile="20.0_50.0" is AddEntryLatency between (20ms, 50ms]</li><li>quantile="50.0_100.0" is AddEntryLatency between (50ms, 100ms]</li><li>quantile="100.0_200.0" is AddEntryLatency between (100ms, 200ms]</li><li>quantile="200.0_1000.0" is AddEntryLatency between (200ms, 1s]</li></ul>|
 | pulsar_ml_AddEntryLatencyBuckets_OVERFLOW | Gauge | The number of times the AddEntryLatency is longer than 1 second |
 | pulsar_ml_AddEntryMessagesRate | Gauge | The msg/s rate of messages added |
 | pulsar_ml_AddEntrySucceed | Gauge | The number of addEntry requests that succeeded |
-| pulsar_ml_EntrySizeBuckets | Histogram | The added entry size of a ledger with a given quantile.<br> Available quantile: <br><ul><li>quantile="0.0_128.0" is EntrySize between (0byte, 128byte]</li><li>quantile="128.0_512.0" is EntrySize between (128byte, 512byte]</li><li>quantile="512.0_1024.0" is EntrySize between (512byte, 1KB]</li><li>quantile="1024.0_2048.0" is EntrySize between (1KB, 2KB]</li><li>quantile="2048.0_4096.0" is EntrySize between (2KB, 4KB]</li><li>quantile="4096.0_16384.0" is EntrySize between (4KB, 16KB]</li><li>quantile="16384.0_102400.0" is EntrySize between (16KB, 100KB]</li><li>quantile="102400.0_1232896.0" is EntrySize between (100KB, 1MB]</li></ul> |
+| pulsar_ml_EntrySizeBuckets | Histogram | The added entry size of a ledger with a given quantile.<br /> Available quantile: <br /><ul><li>quantile="0.0_128.0" is EntrySize between (0byte, 128byte]</li><li>quantile="128.0_512.0" is EntrySize between (128byte, 512byte]</li><li>quantile="512.0_1024.0" is EntrySize between (512byte, 1KB]</li><li>quantile="1024.0_2048.0" is EntrySize between (1KB, 2KB]</li><li>quantile="2048.0_4096.0" is EntrySize between (2KB, 4KB]</li><li>quantile="4096.0_16384.0" is EntrySize between (4KB, 16KB]</li><li>quantile="16384.0_102400.0" is EntrySize between (16KB, 100KB]</li><li>quantile="102400.0_1232896.0" is EntrySize between (100KB, 1MB]</li></ul> |
 | pulsar_ml_EntrySizeBuckets_OVERFLOW |Gauge  | The number of times the EntrySize is larger than 1MB |
-| pulsar_ml_LedgerSwitchLatencyBuckets | Histogram | The ledger switch latency with a given quantile. <br> Available quantile: <br><ul><li>quantile="0.0_0.5" is EntrySize between (0ms, 0.5ms]</li><li>quantile="0.5_1.0" is EntrySize between (0.5ms, 1ms]</li><li>quantile="1.0_5.0" is EntrySize between (1ms, 5ms]</li><li>quantile="5.0_10.0" is EntrySize between (5ms, 10ms]</li><li>quantile="10.0_20.0" is EntrySize between (10ms, 20ms]</li><li>quantile="20.0_50.0" is EntrySize between (20ms, 50ms]</li><li>quantile="50.0_100.0" is EntrySize between (50ms, 100ms]</li><li>quantile="100.0_200.0" is EntrySize between (100ms, 200ms]</li><li>quantile="200.0_1000.0" is EntrySize between (200ms, 1000ms]</li></ul> |
+| pulsar_ml_LedgerSwitchLatencyBuckets | Histogram | The ledger switch latency with a given quantile. <br /> Available quantile: <br /><ul><li>quantile="0.0_0.5" is EntrySize between (0ms, 0.5ms]</li><li>quantile="0.5_1.0" is EntrySize between (0.5ms, 1ms]</li><li>quantile="1.0_5.0" is EntrySize between (1ms, 5ms]</li><li>quantile="5.0_10.0" is EntrySize between (5ms, 10ms]</li><li>quantile="10.0_20.0" is EntrySize between (10ms, 20ms]</li><li>quantile="20.0_50.0" is EntrySize between (20ms, 50ms]</li><li>quantile="50.0_100.0" is EntrySize between (50ms, 100ms]</li><li>quantile="100.0_200.0" is EntrySize between (100ms, 200ms]</li><li>quantile="200.0_1000.0" is EntrySize between (200ms, 1000ms]</li></ul> |
 | pulsar_ml_LedgerSwitchLatencyBuckets_OVERFLOW | Gauge | The number of times the ledger switch latency is longer than 1 second |
 | pulsar_ml_LedgerAddEntryLatencyBuckets | Histogram | The latency for bookie client to persist a ledger entry from broker to BookKeeper service with a given quantile (threshold). <br /> Available quantile: <br /><ul><li> quantile="0.0_0.5" is LedgerAddEntryLatency between (0.0ms, 0.5ms]</li> <li>quantile="0.5_1.0" is LedgerAddEntryLatency between (0.5ms, 1.0ms]</li><li>quantile="1.0_5.0" is LedgerAddEntryLatency between (1ms, 5ms]</li><li>quantile="5.0_10.0" is LedgerAddEntryLatency between (5ms, 10ms]</li><li>quantile="10.0_20.0" is LedgerAddEntryLatency between (10ms, 20ms]</li><li>quantile="20.0_50.0" is LedgerAddEntryLatency between (20ms, 50ms]</li><li>quantile="50.0_100.0" is LedgerAddEntryLatency between (50ms, 100ms]</li><li>quantile="100.0_200.0" is LedgerAddEntryLatency between (100ms, 200ms]</li><li>quantile="200.0_1000.0" is LedgerAddEntryLatency between (200ms, 1s]</li></ul>|
 | pulsar_ml_LedgerAddEntryLatencyBuckets_OVERFLOW | Gauge | The number of times the LedgerAddEntryLatency is longer than 1 second |
@@ -422,9 +427,9 @@ All the managed ledger bookie client metrics are labelled with the following lab
 
 | Name | Type | Description |
 | --- | --- | --- |
-| pulsar_managedLedger_client_bookkeeper_ml_scheduler_completed_tasks_* | Gauge |  The number of tasks the scheduler executor execute completed. <br>The number of metrics determined by the scheduler executor thread number configured by `managedLedgerNumSchedulerThreads` in `broker.conf`. <br> |
-| pulsar_managedLedger_client_bookkeeper_ml_scheduler_queue_* | Gauge | The number of tasks queued in the scheduler executor's queue. <br>The number of metrics determined by scheduler executor's thread number configured by `managedLedgerNumSchedulerThreads` in `broker.conf`. <br> |
-| pulsar_managedLedger_client_bookkeeper_ml_scheduler_total_tasks_* | Gauge | The total number of tasks the scheduler executor received. <br>The number of metrics determined by scheduler executor's thread number configured by `managedLedgerNumSchedulerThreads` in `broker.conf`. <br> |
+| pulsar_managedLedger_client_bookkeeper_ml_scheduler_completed_tasks_* | Gauge |  The number of tasks the scheduler executor execute completed. <br />The number of metrics determined by the scheduler executor thread number configured by `managedLedgerNumSchedulerThreads` in `broker.conf`. <br /> |
+| pulsar_managedLedger_client_bookkeeper_ml_scheduler_queue_* | Gauge | The number of tasks queued in the scheduler executor's queue. <br />The number of metrics determined by scheduler executor's thread number configured by `managedLedgerNumSchedulerThreads` in `broker.conf`. <br /> |
+| pulsar_managedLedger_client_bookkeeper_ml_scheduler_total_tasks_* | Gauge | The total number of tasks the scheduler executor received. <br />The number of metrics determined by scheduler executor's thread number configured by `managedLedgerNumSchedulerThreads` in `broker.conf`. <br /> |
 | pulsar_managedLedger_client_bookkeeper_ml_scheduler_task_execution | Summary | The scheduler task execution latency calculated in milliseconds. |
 | pulsar_managedLedger_client_bookkeeper_ml_scheduler_task_queued | Summary | The scheduler task queued latency calculated in milliseconds. |
 
@@ -452,24 +457,6 @@ All the authentication metrics are labelled with the following labels:
 |---|---|---|
 | pulsar_authentication_success_count| Counter | The number of successful authentication operations. |
 | pulsar_authentication_failures_count | Counter | The number of failing authentication operations. |
-
-### Connection metrics
-
-All the connection metrics are labelled with the following labels:
-
-- *cluster*: `cluster=${pulsar_cluster}`. `${pulsar_cluster}` is the cluster name that you have configured in the `broker.conf` file.
-- *broker*: `broker=${advertised_address}`. `${advertised_address}` is the advertised address of the broker.
-- *metric*: `metric=${metric}`. `${metric}` is the connection metric collective name.
-
-| Name | Type | Description |
-|---|---|---|
-| pulsar_active_connections| Gauge | The number of active connections. |
-| pulsar_connection_created_total_count | Gauge | The total number of connections. |
-| pulsar_connection_create_success_count | Gauge | The number of successfully created connections. |
-| pulsar_connection_create_fail_count | Gauge | The number of failed connections. |
-| pulsar_connection_closed_total_count | Gauge | The total number of closed connections. |
-| pulsar_broker_throttled_connections | Gauge | The number of throttled connections. |
-| pulsar_broker_throttled_connections_global_limit | Gauge | The number of throttled connections because of per-connection limit. |
 
 ### Jetty metrics
 
@@ -539,6 +526,22 @@ All the offload metrics are labelled with the following labels:
 | brk_ledgeroffloader_read_ledger_latency        | Summary | The latency of reading entries from BookKeeper.                                 |
 | brk_ledgeroffloader_delete_offload_ops         | Counter | The total number of successful and failed operations to delete offload ledgers. |
 
+
+### Web service executor metrics
+
+> For functions workers running separately from brokers, their Jetty metrics are only exposed when `includeStandardPrometheusMetrics` is set to `true`.
+
+All the web service executor metrics are labelled with the following labels:
+
+- *cluster*: `cluster=${pulsar_cluster}`. `${pulsar_cluster}` is the cluster name that you have configured in the `broker.conf` file.
+
+| Name | Type | Description |
+|---|---|---|
+| pulsar_web_executor_max_threads | GAUGE | The max threads of pulsar-web  thread pool |
+| pulsar_web_executor_min_threads | GAUGE | The min threads of pulsar-web thread pool |
+| pulsar_web_executor_idle_threads | GAUGE | The idle threads of pulsar-web thread pool |
+| pulsar_web_executor_active_threads | GAUGE | The number of threads performing tasks of pulsar-web thread pool |
+| pulsar_web_executor_current_threads | GAUGE | The number of threads in the pulsar-web thread pool |
 
 ## Pulsar Functions
 
@@ -662,7 +665,7 @@ All the transaction metrics are labelled with the following labels:
 | pulsar_txn_aborted_count | Counter | Number of aborted transactions of this coordinator. |
 | pulsar_txn_timeout_count | Counter | Number of timeout transactions. |
 | pulsar_txn_append_log_count | Counter | Number of append transaction logs. |
-| pulsar_txn_execution_latency_le_* | Histogram | Transaction execution latency. <br /> Available latencies are as below: <br /><ul><li> latency="10" is TransactionExecutionLatency between (0ms, 10ms]</li> <li>latency="20" is TransactionExecutionLatency between (10ms, 20ms]</li><li>latency="50" is TransactionExecutionLatency between (20ms, 50ms]</li><li>latency="100" is TransactionExecutionLatency between (50ms, 100ms]</li><li>latency="500" is TransactionExecutionLatency between (100ms, 500ms]</li><li>latency="1000" is TransactionExecutionLatency between (500ms, 1000ms]</li><li>latency="5000" is TransactionExecutionLatency between (1s, 5s]</li><li>latency="15000" is TransactionExecutionLatency between (5s, 15s]</li><li>latency="30000" is TransactionExecutionLatency between (15s, 30s]</li></li><li>latency="60000" is TransactionExecutionLatency between (30s, 60s]</li><li>latency="300000" is TransactionExecutionLatency between (1m,5m]</li><li>latency="1500000" is TransactionExecutionLatency between (5m,15m]</li><li>latency="3000000" is TransactionExecutionLatency between (15m,30m]</li><li>latency="overflow" is TransactionExecutionLatency between (30m,∞]</li></ul>|
+| pulsar_txn_execution_latency_le_* | Histogram | Transaction execution latency. <br /> Available latencies are as below: <br /><ul><li> latency="10" is TransactionExecutionLatency between (0ms, 10ms]</li> <li>latency="20" is TransactionExecutionLatency between (10ms, 20ms]</li><li>latency="50" is TransactionExecutionLatency between (20ms, 50ms]</li><li>latency="100" is TransactionExecutionLatency between (50ms, 100ms]</li><li>latency="500" is TransactionExecutionLatency between (100ms, 500ms]</li><li>latency="1000" is TransactionExecutionLatency between (500ms, 1000ms]</li><li>latency="5000" is TransactionExecutionLatency between (1s, 5s]</li><li>latency="15000" is TransactionExecutionLatency between (5s, 15s]</li><li>latency="30000" is TransactionExecutionLatency between (15s, 30s]</li><li>latency="60000" is TransactionExecutionLatency between (30s, 60s]</li><li>latency="300000" is TransactionExecutionLatency between (1m,5m]</li><li>latency="1500000" is TransactionExecutionLatency between (5m,15m]</li><li>latency="3000000" is TransactionExecutionLatency between (15m,30m]</li><li>latency="overflow" is TransactionExecutionLatency between (30m,∞]</li></ul>|
 | pulsar_txn_tb_client_abort_failed | Counter | The number of failures to abort transactions for `transaction buffer client`. |
 | pulsar_txn_tb_client_commit_failed | Counter | The number of failures to commit transaction for `transaction buffer client`. |
 | pulsar_txn_tb_client_abort_latency | Summary | The latency of aborting transactions for `transaction buffer client`. |

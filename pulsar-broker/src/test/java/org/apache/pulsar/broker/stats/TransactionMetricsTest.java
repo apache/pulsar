@@ -72,6 +72,9 @@ public class TransactionMetricsTest extends BrokerTestBase {
         ServiceConfiguration serviceConfiguration = getDefaultConf();
         serviceConfiguration.setTransactionCoordinatorEnabled(true);
         super.baseSetup(serviceConfiguration);
+    }
+
+    protected void afterSetup() throws Exception {
         admin.tenants().createTenant(NamespaceName.SYSTEM_NAMESPACE.getTenant(),
                 TenantInfo.builder()
                         .adminRoles(Sets.newHashSet("appid1"))
@@ -224,6 +227,13 @@ public class TransactionMetricsTest extends BrokerTestBase {
 
     @Test
     public void testManagedLedgerMetrics() throws Exception{
+        cleanup();
+        ServiceConfiguration serviceConfiguration = getDefaultConf();
+        serviceConfiguration.setTopicLevelPoliciesEnabled(false);
+        serviceConfiguration.setSystemTopicEnabled(false);
+        serviceConfiguration.setTransactionCoordinatorEnabled(true);
+        super.baseSetup(serviceConfiguration);
+
         String ns1 = "prop/ns-abc1";
         admin.namespaces().createNamespace(ns1);
         String topic = "persistent://" + ns1 + "/test_managed_ledger_metrics";

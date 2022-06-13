@@ -84,7 +84,7 @@ public class FunctionConfigUtilsTest {
         producerConfig.setUseThreadLocalProducers(true);
         producerConfig.setBatchBuilder("DEFAULT");
         functionConfig.setProducerConfig(producerConfig);
-        Function.FunctionDetails functionDetails = FunctionConfigUtils.convert(functionConfig, null);
+        Function.FunctionDetails functionDetails = FunctionConfigUtils.convert(functionConfig, (ClassLoader) null);
         FunctionConfig convertedConfig = FunctionConfigUtils.convertFromDetails(functionDetails);
 
         // add default resources
@@ -125,7 +125,7 @@ public class FunctionConfigUtilsTest {
         producerConfig.setUseThreadLocalProducers(true);
         producerConfig.setBatchBuilder("KEY_BASED");
         functionConfig.setProducerConfig(producerConfig);
-        Function.FunctionDetails functionDetails = FunctionConfigUtils.convert(functionConfig, null);
+        Function.FunctionDetails functionDetails = FunctionConfigUtils.convert(functionConfig, (ClassLoader) null);
         FunctionConfig convertedConfig = FunctionConfigUtils.convertFromDetails(functionDetails);
 
         // add default resources
@@ -584,7 +584,7 @@ public class FunctionConfigUtilsTest {
     @Test
     public void testPoolMessages() {
         FunctionConfig functionConfig = createFunctionConfig();
-        Function.FunctionDetails functionDetails = FunctionConfigUtils.convert(functionConfig, null);
+        Function.FunctionDetails functionDetails = FunctionConfigUtils.convert(functionConfig, (ClassLoader) null);
         assertFalse(functionDetails.getSource().getInputSpecsMap().get("test-input").getPoolMessages());
         FunctionConfig convertedConfig = FunctionConfigUtils.convertFromDetails(functionDetails);
         assertFalse(convertedConfig.getInputSpecs().get("test-input").isPoolMessages());
@@ -594,7 +594,7 @@ public class FunctionConfigUtilsTest {
                 .poolMessages(true).build());
         functionConfig.setInputSpecs(inputSpecs);
 
-        functionDetails = FunctionConfigUtils.convert(functionConfig, null);
+        functionDetails = FunctionConfigUtils.convert(functionConfig, (ClassLoader) null);
         assertTrue(functionDetails.getSource().getInputSpecsMap().get("test-input").getPoolMessages());
 
         convertedConfig = FunctionConfigUtils.convertFromDetails(functionDetails);

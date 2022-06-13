@@ -48,6 +48,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerAlready
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.impl.cache.EntryCacheManager;
 import org.apache.bookkeeper.test.BookKeeperClusterTestCase;
 import org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats;
 import org.testng.annotations.Test;
@@ -68,7 +69,7 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         config.setEnsembleSize(1).setWriteQuorumSize(1).setAckQuorumSize(1).setMetadataEnsembleSize(1)
                 .setMetadataAckQuorumSize(1);
-        ManagedLedger ledger = factory.open("my-ledger", config);
+        ManagedLedger ledger = factory.open("my-ledger" + testName, config);
         ManagedCursor cursor = ledger.openCursor("c1");
 
         int N = 1;
@@ -88,7 +89,7 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(metadataStore, bkc);
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         config.setEnsembleSize(2).setAckQuorumSize(2).setMetadataEnsembleSize(2);
-        ManagedLedger ledger = factory.open("my-ledger", config);
+        ManagedLedger ledger = factory.open("my-ledger" + testName, config);
         ManagedCursor cursor = ledger.openCursor("my-cursor");
         ledger.addEntry("entry-0".getBytes());
 
@@ -121,7 +122,7 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         factory.shutdown();
 
         factory = new ManagedLedgerFactoryImpl(metadataStore, bkc);
-        ledger = factory.open("my-ledger", config);
+        ledger = factory.open("my-ledger" + testName, config);
         cursor = ledger.openCursor("my-cursor");
 
         // Next add should succeed
@@ -159,7 +160,7 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         EntryCacheManager cacheManager = factory.getEntryCacheManager();
         ManagedLedgerConfig conf = new ManagedLedgerConfig();
         conf.setEnsembleSize(2).setAckQuorumSize(2).setMetadataEnsembleSize(2);
-        final ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("my-ledger", conf);
+        final ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("my-ledger" + testName, conf);
 
         int NumProducers = 1;
         int NumConsumers = 1;
@@ -216,12 +217,12 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
             future.get();
         }
 
-        cacheManager.mlFactoryMBean.refreshStats(1, TimeUnit.SECONDS);
+        factory.getMbean().refreshStats(1, TimeUnit.SECONDS);
 
-        assertTrue(cacheManager.mlFactoryMBean.getCacheHitsRate() > 0.0);
-        assertEquals(cacheManager.mlFactoryMBean.getCacheMissesRate(), 0.0);
-        assertTrue(cacheManager.mlFactoryMBean.getCacheHitsThroughput() > 0.0);
-        assertEquals(cacheManager.mlFactoryMBean.getNumberOfCacheEvictions(), 0);
+        assertTrue(factory.getMbean().getCacheHitsRate() > 0.0);
+        assertEquals(factory.getMbean().getCacheMissesRate(), 0.0);
+        assertTrue(factory.getMbean().getCacheHitsThroughput() > 0.0);
+        assertEquals(factory.getMbean().getNumberOfCacheEvictions(), 0);
     }
 
     @Test
@@ -299,7 +300,7 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         ManagedLedgerConfig config = new ManagedLedgerConfig().setEnsembleSize(1).setWriteQuorumSize(1)
                 .setAckQuorumSize(1).setMetadataEnsembleSize(1).setMetadataWriteQuorumSize(1)
                 .setMetadataAckQuorumSize(1);
-        ManagedLedger ledger = factory.open("my_test_ledger", config);
+        ManagedLedger ledger = factory.open("my_test_ledger" + testName, config);
         ManagedCursor cursor = ledger.openCursor("c1");
 
         List<Position> positions = Lists.newArrayList();
@@ -348,7 +349,7 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(metadataStore, bkc);
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         config.setEnsembleSize(2).setAckQuorumSize(2).setMetadataEnsembleSize(2);
-        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("my_test_ledger", config);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("my_test_ledger" + testName, config);
         ManagedCursor c1 = ledger.openCursor("c1");
 
         PositionImpl p1 = (PositionImpl) ledger.addEntry("entry-1".getBytes());
@@ -378,7 +379,7 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         ManagedLedgerFactoryImpl factory1 = new ManagedLedgerFactoryImpl(metadataStore, bkc);
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         config.setEnsembleSize(2).setAckQuorumSize(2).setMetadataEnsembleSize(2);
-        ManagedLedgerImpl ledger1 = (ManagedLedgerImpl) factory1.open("my_test_ledger", config);
+        ManagedLedgerImpl ledger1 = (ManagedLedgerImpl) factory1.open("my_test_ledger" + testName, config);
         ledger1.openCursor("c");
 
         ledger1.addEntry("entry-1".getBytes());
@@ -386,7 +387,7 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         // Open the ML from another factory
         @Cleanup("shutdown")
         ManagedLedgerFactoryImpl factory2 = new ManagedLedgerFactoryImpl(metadataStore, bkc);
-        ManagedLedgerImpl ledger2 = (ManagedLedgerImpl) factory2.open("my_test_ledger", config);
+        ManagedLedgerImpl ledger2 = (ManagedLedgerImpl) factory2.open("my_test_ledger" + testName, config);
         ManagedCursor c2 = ledger2.openCursor("c");
 
         try {
@@ -477,7 +478,7 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(metadataStore, bkc);
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         config.setEnsembleSize(2).setAckQuorumSize(2).setMetadataEnsembleSize(2);
-        ManagedLedgerImpl ledger1 = (ManagedLedgerImpl) factory.open("my_test_ledger", config);
+        ManagedLedgerImpl ledger1 = (ManagedLedgerImpl) factory.open("my_test_ledger" + testName, config);
 
         int N = 100;
 
@@ -517,7 +518,7 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         config.setEnsembleSize(2).setAckQuorumSize(2).setMetadataEnsembleSize(2);
         config.setDigestType(DigestType.CRC32);
-        ManagedLedger ledger = factory.open("my_test_ledger", config);
+        ManagedLedger ledger = factory.open("my_test_ledger" + testName, config);
         ManagedCursor c1 = ledger.openCursor("c1");
 
         ledger.addEntry("entry-0".getBytes());
@@ -527,7 +528,7 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         ledger.close();
 
         config.setDigestType(DigestType.CRC32C);
-        ledger = factory.open("my_test_ledger", config);
+        ledger = factory.open("my_test_ledger" + testName, config);
         c1 = ledger.openCursor("c1");
 
         ledger.addEntry("entry-3".getBytes());

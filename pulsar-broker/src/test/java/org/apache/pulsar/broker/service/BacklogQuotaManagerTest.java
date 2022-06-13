@@ -104,6 +104,8 @@ public class BacklogQuotaManagerTest {
             config.setManagedLedgerMaxEntriesPerLedger(MAX_ENTRIES_PER_LEDGER);
             config.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
             config.setAllowAutoTopicCreationType("non-partitioned");
+            config.setSystemTopicEnabled(false);
+            config.setTopicLevelPoliciesEnabled(false);
 
             pulsar = new PulsarService(config);
             pulsar.start();
@@ -165,7 +167,7 @@ public class BacklogQuotaManagerTest {
                         .retentionPolicy(BacklogQuota.RetentionPolicy.producer_exception)
                         .build());
         try (PulsarClient client = PulsarClient.builder().serviceUrl(adminUrl.toString()).statsInterval(0, TimeUnit.SECONDS).build();) {
-            final String topic1 = "persistent://prop/ns-quota/topic1";
+            final String topic1 = "persistent://prop/ns-quota/topic1" + UUID.randomUUID();
             final int numMsgs = 20;
 
             Reader<byte[]> reader = client.newReader().topic(topic1).receiverQueueSize(1).startMessageId(MessageId.latest).create();
@@ -387,7 +389,7 @@ public class BacklogQuotaManagerTest {
         PulsarClient client = PulsarClient.builder().serviceUrl(adminUrl.toString()).statsInterval(0, TimeUnit.SECONDS)
                 .build();
 
-        final String topic1 = "persistent://prop/ns-quota/topic2";
+        final String topic1 = "persistent://prop/ns-quota/topic2" + UUID.randomUUID();
         final String subName1 = "c1";
         final String subName2 = "c2";
         final int numMsgs = 20;
@@ -422,7 +424,7 @@ public class BacklogQuotaManagerTest {
         PulsarClient client = PulsarClient.builder().serviceUrl(adminUrl.toString()).statsInterval(0, TimeUnit.SECONDS)
                 .build();
 
-        final String topic1 = "persistent://prop/ns-quota/topic3";
+        final String topic1 = "persistent://prop/ns-quota/topic3" + UUID.randomUUID();
         final String subName1 = "c1";
         final String subName2 = "c2";
         final int numMsgs = 9;
@@ -451,7 +453,7 @@ public class BacklogQuotaManagerTest {
         client.close();
     }
 
-    @Test
+    @Test(timeOut = 60000)
     public void testConsumerBacklogEvictionTimeQuota() throws Exception {
         assertEquals(admin.namespaces().getBacklogQuotaMap("prop/ns-quota"),
                 Maps.newHashMap());
@@ -463,7 +465,7 @@ public class BacklogQuotaManagerTest {
         PulsarClient client = PulsarClient.builder().serviceUrl(adminUrl.toString()).statsInterval(0, TimeUnit.SECONDS)
                 .build();
 
-        final String topic1 = "persistent://prop/ns-quota/topic3";
+        final String topic1 = "persistent://prop/ns-quota/topic3" + UUID.randomUUID();
         final String subName1 = "c1";
         final String subName2 = "c2";
         final int numMsgs = 14;
@@ -485,13 +487,15 @@ public class BacklogQuotaManagerTest {
         Thread.sleep((TIME_TO_CHECK_BACKLOG_QUOTA * 2) * 1000);
         rolloverStats();
 
-        stats = getTopicStats(topic1);
+        TopicStats stats2 = getTopicStats(topic1);
         PersistentTopic topic1Reference = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topic1).get();
         ManagedLedgerImpl ml = (ManagedLedgerImpl) topic1Reference.getManagedLedger();
         // Messages on first 2 ledgers should be expired, backlog is number of
         // message in current ledger.
-        assertEquals(stats.getSubscriptions().get(subName1).getMsgBacklog(), ml.getCurrentLedgerEntries());
-        assertEquals(stats.getSubscriptions().get(subName2).getMsgBacklog(), ml.getCurrentLedgerEntries());
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(stats2.getSubscriptions().get(subName1).getMsgBacklog(), ml.getCurrentLedgerEntries());
+            assertEquals(stats2.getSubscriptions().get(subName2).getMsgBacklog(), ml.getCurrentLedgerEntries());
+        });
         client.close();
     }
 
@@ -507,7 +511,7 @@ public class BacklogQuotaManagerTest {
         PulsarClient client = PulsarClient.builder().serviceUrl(adminUrl.toString()).statsInterval(0, TimeUnit.SECONDS)
                 .build();
 
-        final String topic = "persistent://prop/ns-quota/topic4";
+        final String topic = "persistent://prop/ns-quota/topic4" + UUID.randomUUID();
         final String subName = "c1";
 
         Consumer<byte[]> consumer = client.newConsumer().topic(topic).subscriptionName(subName).subscribe();
@@ -556,7 +560,7 @@ public class BacklogQuotaManagerTest {
                         .build());
         PulsarClient client = PulsarClient.builder().serviceUrl(adminUrl.toString()).build();
 
-        final String topic1 = "persistent://prop/ns-quota/topic11";
+        final String topic1 = "persistent://prop/ns-quota/topic11" + UUID.randomUUID();
         final String subName1 = "c11";
         final String subName2 = "c21";
         final int numMsgs = 20;
@@ -591,7 +595,7 @@ public class BacklogQuotaManagerTest {
         config.setPreciseTimeBasedBacklogQuotaCheck(true);
         PulsarClient client = PulsarClient.builder().serviceUrl(adminUrl.toString()).build();
 
-        final String topic1 = "persistent://prop/ns-quota/topic12";
+        final String topic1 = "persistent://prop/ns-quota/topic12" + UUID.randomUUID();
         final String subName1 = "c11";
         final String subName2 = "c21";
         final int numMsgs = 9;
@@ -654,7 +658,7 @@ public class BacklogQuotaManagerTest {
         @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(adminUrl.toString()).build();
 
-        final String topic1 = "persistent://prop/ns-quota/topic12";
+        final String topic1 = "persistent://prop/ns-quota/topic12" + UUID.randomUUID();
         final String subName1 = "c11";
         final String subName2 = "c21";
         final int numMsgs = 14;
@@ -721,7 +725,7 @@ public class BacklogQuotaManagerTest {
                         .retentionPolicy(BacklogQuota.RetentionPolicy.consumer_backlog_eviction)
                         .build());
 
-        final String topic1 = "persistent://prop/ns-quota/topic12";
+        final String topic1 = "persistent://prop/ns-quota/topic12" + UUID.randomUUID();
         final String subName1 = "c12";
         final String subName2 = "c22";
         final int numMsgs = 20;
@@ -792,7 +796,7 @@ public class BacklogQuotaManagerTest {
                         .retentionPolicy(BacklogQuota.RetentionPolicy.consumer_backlog_eviction)
                         .build());
 
-        final String topic1 = "persistent://prop/ns-quota/topic13";
+        final String topic1 = "persistent://prop/ns-quota/topic13" + UUID.randomUUID();
         final String subName1 = "c13";
         final String subName2 = "c23";
         final int numMsgs = 10;
@@ -856,7 +860,7 @@ public class BacklogQuotaManagerTest {
                         .retentionPolicy(BacklogQuota.RetentionPolicy.consumer_backlog_eviction)
                         .build());
 
-        final String topic1 = "persistent://prop/ns-quota/topic14";
+        final String topic1 = "persistent://prop/ns-quota/topic14" + UUID.randomUUID();
         final String subName1 = "c14";
         final String subName2 = "c24";
         final int numMsgs = 10;
@@ -1281,7 +1285,7 @@ public class BacklogQuotaManagerTest {
         PulsarClient client = PulsarClient.builder().serviceUrl(pulsar.getBrokerServiceUrl()).statsInterval(0, TimeUnit.SECONDS)
                 .build();
 
-        final String topic1 = "persistent://prop/ns-quota/topic2";
+        final String topic1 = "persistent://prop/ns-quota/topic2" + UUID.randomUUID();
         final String subName1 = "c1";
         final String subName2 = "c2";
         final int numMsgs = 20;

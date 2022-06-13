@@ -138,6 +138,8 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
     @BeforeMethod
     @Override
     public void setup() throws Exception {
+        conf.setTopicLevelPoliciesEnabled(false);
+        conf.setSystemTopicEnabled(false);
         conf.setLoadBalancerEnabled(true);
         conf.setBrokerServicePortTls(Optional.of(0));
         conf.setWebServicePortTls(Optional.of(0));
@@ -287,6 +289,7 @@ public class V1_AdminApiTest extends MockedPulsarServiceBaseTest {
             List<BrokerNamespaceIsolationData> isoList = admin.clusters().getBrokersWithNamespaceIsolationPolicy("use");
             assertEquals(isoList.size(), 1);
             assertTrue(isoList.get(0).isPrimary());
+            assertEquals(isoList.get(0).getPolicyName(), policyName1);
 
             // verify update of primary
             nsPolicyData1.getPrimary().remove(0);

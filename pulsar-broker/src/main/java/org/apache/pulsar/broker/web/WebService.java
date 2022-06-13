@@ -18,16 +18,15 @@
  */
 package org.apache.pulsar.broker.web;
 
-import static org.apache.pulsar.broker.web.Filters.addFilter;
-import static org.apache.pulsar.broker.web.Filters.addFilterClass;
 import com.google.common.collect.Lists;
 import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.jetty.JettyStatisticsCollector;
 import java.util.ArrayList;
-import java.util.Collections;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import javax.servlet.DispatcherType;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -43,6 +42,7 @@ import org.eclipse.jetty.server.handler.HandlerCollection;
 import org.eclipse.jetty.server.handler.RequestLogHandler;
 import org.eclipse.jetty.server.handler.ResourceHandler;
 import org.eclipse.jetty.server.handler.StatisticsHandler;
+import org.eclipse.jetty.servlet.FilterHolder;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.servlets.QoSFilter;
@@ -72,6 +72,7 @@ public class WebService implements AutoCloseable {
 
     private final ServerConnector httpConnector;
     private final ServerConnector httpsConnector;
+    private final FilterInitializer filterInitializer;
     private JettyStatisticsCollector jettyStatisticsCollector;
 
     public WebService(PulsarService pulsar) throws PulsarServerException {
@@ -144,12 +145,30 @@ public class WebService implements AutoCloseable {
         // Limit number of concurrent HTTP connections to avoid getting out of file descriptors
         connectors.forEach(c -> c.setAcceptQueueSize(config.getHttpServerAcceptQueueSize()));
         server.setConnectors(connectors.toArray(new ServerConnector[connectors.size()]));
+
+        filterInitializer = new FilterInitializer(pulsar);
     }
 
-    public void addRestResources(String basePath, String javaPackages, boolean requiresAuthentication,
-                                 Map<String, Object> attributeMap) {
+    public void addRestResources(String basePath, boolean requiresAuthentication, Map<String, Object> attributeMap,
+                                 String... javaPackages) {
         ResourceConfig config = new ResourceConfig();
-        config.packages("jersey.config.server.provider.packages", javaPackages);
+        for (String javaPackage : javaPackages) {
+            config.packages(false, javaPackage);
+        }
+        addResourceServlet(basePath, requiresAuthentication, attributeMap, config);
+    }
+
+    public void addRestResource(String basePath, boolean requiresAuthentication, Map<String, Object> attributeMap,
+                                Class<?>... resourceClasses) {
+        ResourceConfig config = new ResourceConfig();
+        for (Class<?> resourceClass : resourceClasses) {
+            config.register(resourceClass);
+        }
+        addResourceServlet(basePath, requiresAuthentication, attributeMap, config);
+    }
+
+    private void addResourceServlet(String basePath, boolean requiresAuthentication, Map<String, Object> attributeMap,
+                                    ResourceConfig config) {
         config.register(JsonMapperProvider.class);
         config.register(MultiPartFeature.class);
         ServletHolder servletHolder = new ServletHolder(new ServletContainer(config));
@@ -157,9 +176,67 @@ public class WebService implements AutoCloseable {
         addServlet(basePath, servletHolder, requiresAuthentication, attributeMap);
     }
 
+    private static class FilterInitializer {
+        private final List<FilterHolder> filterHolders = new ArrayList<>();
+        private final FilterHolder authenticationFilterHolder;
+        FilterInitializer(PulsarService pulsarService) {
+            ServiceConfiguration config = pulsarService.getConfiguration();
+            if (config.getMaxConcurrentHttpRequests() > 0) {
+                FilterHolder filterHolder = new FilterHolder(QoSFilter.class);
+                filterHolder.setInitParameter("maxRequests", String.valueOf(config.getMaxConcurrentHttpRequests()));
+                filterHolders.add(filterHolder);
+            }
+
+            if (config.isHttpRequestsLimitEnabled()) {
+                filterHolders.add(new FilterHolder(
+                        new RateLimitingFilter(config.getHttpRequestsMaxPerSecond())));
+            }
+
+            if (!config.getBrokerInterceptors().isEmpty()
+                    || !config.isDisableBrokerInterceptors()) {
+                ExceptionHandler handler = new ExceptionHandler();
+                // Enable PreInterceptFilter only when interceptors are enabled
+                filterHolders.add(
+                        new FilterHolder(new PreInterceptFilter(pulsarService.getBrokerInterceptor(), handler)));
+                filterHolders.add(new FilterHolder(new ProcessHandlerFilter(pulsarService)));
+            }
+
+            if (config.isAuthenticationEnabled()) {
+                authenticationFilterHolder = new FilterHolder(new AuthenticationFilter(
+                        pulsarService.getBrokerService().getAuthenticationService()));
+                filterHolders.add(authenticationFilterHolder);
+            } else {
+                authenticationFilterHolder = null;
+            }
+
+            if (config.isDisableHttpDebugMethods()) {
+                filterHolders.add(new FilterHolder(new DisableDebugHttpMethodFilter(config)));
+            }
+
+            if (config.getHttpMaxRequestSize() > 0) {
+                filterHolders.add(new FilterHolder(
+                        new MaxRequestSizeFilter(
+                                config.getHttpMaxRequestSize())));
+            }
+
+            filterHolders.add(new FilterHolder(new ResponseHandlerFilter(pulsarService)));
+        }
+
+        public void addFilters(ServletContextHandler context, boolean requiresAuthentication) {
+            for (FilterHolder filterHolder : filterHolders) {
+                if (requiresAuthentication || filterHolder != authenticationFilterHolder) {
+                    context.addFilter(filterHolder,
+                            MATCH_ALL, EnumSet.allOf(DispatcherType.class));
+                }
+            }
+        }
+
+    }
+
     public void addServlet(String path, ServletHolder servletHolder, boolean requiresAuthentication,
                            Map<String, Object> attributeMap) {
         ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
+        // Notice: each context path should be unique, but there's nothing here to verify that
         context.setContextPath(path);
         context.addServlet(servletHolder, MATCH_ALL);
         if (attributeMap != null) {
@@ -167,43 +244,7 @@ public class WebService implements AutoCloseable {
                 context.setAttribute(key, value);
             });
         }
-
-        ServiceConfiguration config = pulsar.getConfig();
-
-        if (config.getMaxConcurrentHttpRequests() > 0) {
-            addFilterClass(context, QoSFilter.class, Collections.singletonMap("maxRequests",
-                    String.valueOf(config.getMaxConcurrentHttpRequests())));
-        }
-
-        if (pulsar.getConfiguration().isHttpRequestsLimitEnabled()) {
-            addFilter(context,
-                    new RateLimitingFilter(pulsar.getConfiguration().getHttpRequestsMaxPerSecond()));
-        }
-
-        if (!config.getBrokerInterceptors().isEmpty()
-                || !config.isDisableBrokerInterceptors()) {
-            ExceptionHandler handler = new ExceptionHandler();
-            // Enable PreInterceptFilter only when interceptors are enabled
-            addFilter(context, new PreInterceptFilter(pulsar.getBrokerInterceptor(), handler));
-            addFilter(context, new ProcessHandlerFilter(pulsar));
-        }
-
-        if (requiresAuthentication && pulsar.getConfiguration().isAuthenticationEnabled()) {
-            addFilter(context, new AuthenticationFilter(
-                    pulsar.getBrokerService().getAuthenticationService()));
-        }
-
-        if (config.isDisableHttpDebugMethods()) {
-            addFilter(context, new DisableDebugHttpMethodFilter(config));
-        }
-
-        if (config.getHttpMaxRequestSize() > 0) {
-            addFilter(context,
-                    new MaxRequestSizeFilter(
-                            config.getHttpMaxRequestSize()));
-        }
-
-        addFilter(context, new ResponseHandlerFilter(pulsar));
+        filterInitializer.addFilters(context, requiresAuthentication);
         handlers.add(context);
     }
 

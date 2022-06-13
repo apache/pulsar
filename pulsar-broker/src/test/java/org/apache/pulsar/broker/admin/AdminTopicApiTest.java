@@ -18,38 +18,42 @@
  */
 package org.apache.pulsar.broker.admin;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertTrue;
+import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
-
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.common.naming.TopicDomain;
+import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.common.policies.data.stats.NonPersistentTopicStatsImpl;
+import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
-
-import java.util.List;
-import java.util.concurrent.TimeUnit;
-
-import static java.nio.charset.StandardCharsets.UTF_8;
 
 @Test(groups = "broker-admin")
 public class AdminTopicApiTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(AdminTopicApiTest.class);
 
     @Override
-    @BeforeMethod
+    @BeforeClass(alwaysRun = true)
     protected void setup() throws Exception {
         super.internalSetup();
         super.producerBaseSetup();
     }
 
     @Override
-    @AfterMethod(alwaysRun = true)
+    @BeforeClass(alwaysRun = true)
     protected void cleanup() throws Exception {
         super.internalCleanup();
     }
@@ -96,5 +100,43 @@ public class AdminTopicApiTest extends ProducerConsumerBase {
         Assert.assertEquals(new String(messages.get(2).getValue(), UTF_8), "value-2");
         Assert.assertEquals(new String(messages.get(3).getValue(), UTF_8), "value-3");
         Assert.assertEquals(new String(messages.get(4).getValue(), UTF_8), "value-4");
+    }
+
+    @DataProvider
+    public Object[] getStatsDataProvider() {
+        return new Object[]{
+                // v1 topic
+                TopicDomain.persistent + "://my-property/test/my-ns/" + UUID.randomUUID(),
+                TopicDomain.non_persistent+ "://my-property/test/my-ns/" + UUID.randomUUID(),
+                //v2 topic
+                TopicDomain.persistent+ "://my-property/my-ns/" + UUID.randomUUID(),
+                TopicDomain.non_persistent+ "://my-property/my-ns/" + UUID.randomUUID(),
+        };
+    }
+
+    @Test(dataProvider = "getStatsDataProvider")
+    public void testGetStats(String topic) throws Exception {
+        admin.topics().createNonPartitionedTopic(topic);
+
+        @Cleanup
+        PulsarClient newPulsarClient = PulsarClient.builder()
+                .serviceUrl(lookupUrl.toString())
+                .build();
+
+        final String subscriptionName = "my-sub";
+        @Cleanup
+        Consumer<byte[]> consumer = newPulsarClient.newConsumer()
+                .topic(topic)
+                .subscriptionName(subscriptionName)
+                .subscribe();
+
+        TopicStats stats = admin.topics().getStats(topic);
+        assertNotNull(stats);
+        if (topic.startsWith(TopicDomain.non_persistent.value())) {
+            assertTrue(stats instanceof NonPersistentTopicStatsImpl);
+        } else {
+            assertTrue(stats instanceof TopicStatsImpl);
+        }
+        assertTrue(stats.getSubscriptions().containsKey(subscriptionName));
     }
 }

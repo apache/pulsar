@@ -20,14 +20,22 @@ package org.apache.pulsar.broker.stats;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
+import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.broker.service.Subscription;
+import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
@@ -38,9 +46,13 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import java.io.ByteArrayOutputStream;
+import java.nio.charset.StandardCharsets;
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 @Slf4j
@@ -183,6 +195,7 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
                 "msgThroughputOut",
                 "bytesOutCounter",
                 "msgOutCounter",
+                "messageAckRate",
                 "msgRateRedeliver",
                 "chunkedMessageRate",
                 "consumerName",
@@ -219,5 +232,73 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
         }
 
         consumer.close();
+    }
+
+
+    @Test
+    public void testPersistentTopicMessageAckRateMetricTopicLevel() throws Exception {
+        String topicName = "persistent://public/default/msg_ack_rate" + UUID.randomUUID();
+        testMessageAckRateMetric(topicName, true);
+    }
+
+    @Test
+    public void testPersistentTopicMessageAckRateMetricNamespaceLevel() throws Exception {
+        String topicName = "persistent://public/default/msg_ack_rate" + UUID.randomUUID();
+        testMessageAckRateMetric(topicName, false);
+    }
+
+    private void testMessageAckRateMetric(String topicName, boolean exposeTopicLevelMetrics)
+            throws Exception {
+        final int messages = 100;
+        String subName = "test_sub";
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topicName).create();
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(topicName)
+                .subscriptionName(subName).isAckReceiptEnabled(true).subscribe();
+
+        String namespace = TopicName.get(topicName).getNamespace();
+
+        for (int i = 0; i < messages; i++) {
+            producer.send(UUID.randomUUID().toString());
+        }
+
+        for (int i = 0; i < messages; i++) {
+            Message<String> message = consumer.receive(20, TimeUnit.SECONDS);
+            if (message == null) {
+                break;
+            }
+
+            consumer.acknowledge(message);
+        }
+
+        Topic topic = pulsar.getBrokerService().getTopic(topicName, false).get().get();
+        Subscription subscription = topic.getSubscription(subName);
+        List<org.apache.pulsar.broker.service.Consumer> consumers = subscription.getConsumers();
+        Assert.assertEquals(consumers.size(), 1);
+        org.apache.pulsar.broker.service.Consumer consumer1 = consumers.get(0);
+        consumer1.updateRates();
+
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        PrometheusMetricsGenerator.generate(pulsar, exposeTopicLevelMetrics, true, true, output);
+        String metricStr = output.toString(StandardCharsets.UTF_8);
+
+        Multimap<String, PrometheusMetricsTest.Metric> metricsMap = PrometheusMetricsTest.parseMetrics(metricStr);
+        Collection<PrometheusMetricsTest.Metric> metrics = metricsMap.get("pulsar_consumer_msg_ack_rate");
+        Assert.assertTrue(metrics.size() > 0);
+
+        int num = 0;
+        for (PrometheusMetricsTest.Metric metric : metrics) {
+            if (exposeTopicLevelMetrics && metric.tags.get("subscription").equals(subName)) {
+                num++;
+                Assert.assertTrue(metric.value > 0);
+            } else if (!exposeTopicLevelMetrics && metric.tags.get("namespace").equals(namespace)) {
+                num++;
+                Assert.assertTrue(metric.value > 0);
+            }
+        }
+
+        Assert.assertTrue(num > 0);
     }
 }

@@ -1,7 +1,7 @@
 ---
-id: version-2.7.0-io-connectors
+id: io-connectors
 title: Built-in connector
-sidebar_label: Built-in connector
+sidebar_label: "Built-in connector"
 original_id: io-connectors
 ---
 

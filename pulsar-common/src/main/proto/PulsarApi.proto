@@ -99,6 +99,7 @@ enum ProducerAccessMode {
     Shared = 0; // By default multiple producers can publish on a topic
     Exclusive = 1; // Require exclusive access for producer. Fail immediately if there's already a producer connected.
     WaitForExclusive = 2; // Producer creation is pending until it can acquire exclusive access
+    ExclusiveWithFencing = 3; // Require exclusive access for producer. Fence out old producer.
 }
 
 message MessageMetadata {
@@ -716,6 +717,9 @@ message CommandConsumerStatsResponse {
 
         /// Number of messages in the subscription backlog
         optional uint64 msgBacklog                  = 15;
+
+        /// Total rate of messages ack. msg/s
+        optional double messageAckRate              = 16;
 }
 
 message CommandGetLastMessageId {

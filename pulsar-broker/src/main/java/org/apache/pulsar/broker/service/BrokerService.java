@@ -126,8 +126,10 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.SizeUnit;
 import org.apache.pulsar.client.impl.ClientBuilderImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.client.internal.PropertiesUtils;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.configuration.BindAddress;
 import org.apache.pulsar.common.configuration.FieldContext;
@@ -420,6 +422,7 @@ public class BrokerService implements Closeable {
         ServerBootstrap bootstrap;
         if (useSeparateThreadPool) {
             bootstrap = new ServerBootstrap();
+            bootstrap.option(ChannelOption.SO_REUSEADDR, true);
             bootstrap.childOption(ChannelOption.ALLOCATOR, PulsarByteBufAllocator.DEFAULT);
             bootstrap.childOption(ChannelOption.TCP_NODELAY, true);
             bootstrap.childOption(ChannelOption.RCVBUF_ALLOCATOR,
@@ -445,6 +448,7 @@ public class BrokerService implements Closeable {
 
     private ServerBootstrap defaultServerBootstrap() {
         ServerBootstrap bootstrap = new ServerBootstrap();
+        bootstrap.option(ChannelOption.SO_REUSEADDR, true);
         bootstrap.childOption(ChannelOption.ALLOCATOR, PulsarByteBufAllocator.DEFAULT);
         bootstrap.group(acceptorGroup, workerGroup);
         bootstrap.childOption(ChannelOption.TCP_NODELAY, true);
@@ -912,9 +916,9 @@ public class BrokerService implements Closeable {
                                 if (rateLimiter != null) {
                                     rateLimiter.acquire(1);
                                 }
-                                pulsar.getNamespaceService().unloadNamespaceBundle(su, pulsar.getConfiguration()
-                                                .getNamespaceBundleUnloadingTimeoutMs(), TimeUnit.MILLISECONDS,
-                                        closeWithoutWaitingClientDisconnect).get();
+                                long timeout = pulsar.getConfiguration().getNamespaceBundleUnloadingTimeoutMs();
+                                pulsar.getNamespaceService().unloadNamespaceBundle(su, timeout, TimeUnit.MILLISECONDS,
+                                        closeWithoutWaitingClientDisconnect).get(timeout, TimeUnit.MILLISECONDS);
                             } catch (Exception e) {
                                 log.warn("Failed to unload namespace bundle {}", su, e);
                             }
@@ -1174,6 +1178,16 @@ public class BrokerService implements Closeable {
                         .enableTcpNoDelay(false)
                         .connectionsPerBroker(pulsar.getConfiguration().getReplicationConnectionsPerBroker())
                         .statsInterval(0, TimeUnit.SECONDS);
+
+                // Disable memory limit for replication client
+                clientBuilder.memoryLimit(0, SizeUnit.BYTES);
+
+                // Apply all arbitrary configuration. This must be called before setting any fields annotated as
+                // @Secret on the ClientConfigurationData object because of the way they are serialized.
+                // See https://github.com/apache/pulsar/issues/8509 for more information.
+                clientBuilder.loadConf(PropertiesUtils.filterAndMapProperties(pulsar.getConfiguration().getProperties(),
+                        "brokerClient_"));
+
                 if (data.getAuthenticationPlugin() != null && data.getAuthenticationParameters() != null) {
                     clientBuilder.authentication(data.getAuthenticationPlugin(), data.getAuthenticationParameters());
                 } else if (pulsar.getConfiguration().isAuthenticationEnabled()) {
@@ -1249,10 +1263,16 @@ public class BrokerService implements Closeable {
 
                 boolean isTlsUrl = conf.isBrokerClientTlsEnabled() && isNotBlank(data.getServiceUrlTls());
                 String adminApiUrl = isTlsUrl ? data.getServiceUrlTls() : data.getServiceUrl();
-                PulsarAdminBuilder builder = PulsarAdmin.builder().serviceHttpUrl(adminApiUrl)
-                        .authentication(
-                                conf.getBrokerClientAuthenticationPlugin(),
-                                conf.getBrokerClientAuthenticationParameters());
+                PulsarAdminBuilder builder = PulsarAdmin.builder().serviceHttpUrl(adminApiUrl);
+
+                // Apply all arbitrary configuration. This must be called before setting any fields annotated as
+                // @Secret on the ClientConfigurationData object because of the way they are serialized.
+                // See https://github.com/apache/pulsar/issues/8509 for more information.
+                builder.loadConf(PropertiesUtils.filterAndMapProperties(conf.getProperties(), "brokerClient_"));
+
+                builder.authentication(
+                        conf.getBrokerClientAuthenticationPlugin(),
+                        conf.getBrokerClientAuthenticationParameters());
 
                 if (isTlsUrl) {
                     builder.allowTlsInsecureConnection(conf.isTlsAllowInsecureConnection());
@@ -1398,9 +1418,10 @@ public class BrokerService implements Closeable {
                                             if (topicFuture.isCompletedExceptionally()) {
                                                 log.warn("{} future is already completed with failure {}, closing the"
                                                         + " topic", topic, FutureUtil.getException(topicFuture));
-                                                persistentTopic.stopReplProducers().whenComplete((v, exception) -> {
-                                                    topics.remove(topic, topicFuture);
-                                                });
+                                                persistentTopic.stopReplProducers()
+                                                        .whenCompleteAsync((v, exception) -> {
+                                                            topics.remove(topic, topicFuture);
+                                                        }, executor());
                                             } else {
                                                 addTopicToStatsMaps(topicName, persistentTopic);
                                                 topicFuture.complete(Optional.of(persistentTopic));
@@ -1409,10 +1430,10 @@ public class BrokerService implements Closeable {
                                         .exceptionally((ex) -> {
                                             log.warn("Replication or dedup check failed."
                                                     + " Removing topic from topics list {}, {}", topic, ex);
-                                            persistentTopic.stopReplProducers().whenComplete((v, exception) -> {
+                                            persistentTopic.stopReplProducers().whenCompleteAsync((v, exception) -> {
                                                 topics.remove(topic, topicFuture);
                                                 topicFuture.completeExceptionally(ex);
-                                            });
+                                            }, executor());
                                             return null;
                                         });
                             } catch (PulsarServerException e) {
@@ -1531,6 +1552,8 @@ public class BrokerService implements Closeable {
 
                     managedLedgerConfig
                             .setMaxUnackedRangesToPersist(serviceConfig.getManagedLedgerMaxUnackedRangesToPersist());
+                    managedLedgerConfig.setPersistentUnackedRangesWithMultipleEntriesEnabled(
+                            serviceConfig.isPersistentUnackedRangesWithMultipleEntriesEnabled());
                     managedLedgerConfig.setMaxUnackedRangesToPersistInMetadataStore(
                             serviceConfig.getManagedLedgerMaxUnackedRangesToPersistInMetadataStore());
                     managedLedgerConfig.setMaxEntriesPerLedger(serviceConfig.getManagedLedgerMaxEntriesPerLedger());
@@ -2394,7 +2417,7 @@ public class BrokerService implements Closeable {
                         ((AbstractTopic) topic).updateBrokerReplicatorDispatchRate();
                     }
                     topic.getReplicators().forEach((name, persistentReplicator) ->
-                        persistentReplicator.getRateLimiter().ifPresent(DispatchRateLimiter::updateDispatchRate));
+                        persistentReplicator.updateRateLimiter());
                 }
             );
         });

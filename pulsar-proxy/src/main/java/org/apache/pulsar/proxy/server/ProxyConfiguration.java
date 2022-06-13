@@ -98,7 +98,8 @@ public class ProxyConfiguration implements PulsarConfiguration {
     @FieldContext(
         category = CATEGORY_BROKER_DISCOVERY,
         deprecated = true,
-        doc = "Configuration store connection string (as a comma-separated list)"
+        doc = "Configuration store connection string (as a comma-separated list). Deprecated in favor of "
+                + "`configurationMetadataStoreUrl`"
     )
     @Deprecated
     private String configurationStoreServers;
@@ -356,6 +357,14 @@ public class ProxyConfiguration implements PulsarConfiguration {
         doc = "Service Principal, for login context name. Default value is \"PulsarProxy\"."
     )
     private String saslJaasServerSectionName = SaslConstants.JAAS_DEFAULT_PROXY_SECTION_NAME;
+
+    @FieldContext(
+            category = CATEGORY_SASL_AUTH,
+            doc = "Path to file containing the secret to be used to SaslRoleTokenSigner\n"
+                    + "The secret can be specified like:\n"
+                    + "saslJaasServerRoleTokenSignerSecretPath=file:///my/saslRoleTokenSignerSecret.key."
+    )
+    private String saslJaasServerRoleTokenSignerSecretPath;
 
     @FieldContext(
         category = CATEGORY_SASL_AUTH,

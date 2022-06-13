@@ -72,7 +72,7 @@ public class PendingAckMetadataTest extends MockedBookKeeperTestCase {
         ManagedCursor cursor = completableFuture.get().openCursor("test");
         ManagedCursor subCursor = completableFuture.get().openCursor("test");
         MLPendingAckStore pendingAckStore =
-                new MLPendingAckStore(completableFuture.get(), cursor, subCursor);
+                new MLPendingAckStore(completableFuture.get(), cursor, subCursor, 500);
 
         Field field = MLPendingAckStore.class.getDeclaredField("managedLedger");
         field.setAccessible(true);

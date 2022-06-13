@@ -18,11 +18,11 @@
  */
 package org.apache.pulsar.common.util.collections;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 import com.google.common.collect.Lists;
 
 import java.util.ArrayList;
@@ -35,7 +35,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import org.apache.pulsar.common.util.collections.ConcurrentLongLongPairHashMap.LongPair;
-import org.junit.Test;
+import org.testng.annotations.Test;
 
 /**
  * Test the concurrent long-long pair hashmap class.
@@ -93,8 +93,8 @@ public class ConcurrentLongLongPairHashMapTest {
 
         assertTrue(map.remove(1, 1));
         assertEquals(map.size(), 2);
-        assertEquals(map.get(1, 1), null);
-        assertEquals(map.get(5, 5), null);
+        assertNull(map.get(1, 1));
+        assertNull(map.get(5, 5));
         assertEquals(map.size(), 2);
 
         assertTrue(map.put(1, 1, 11, 11));
@@ -129,15 +129,15 @@ public class ConcurrentLongLongPairHashMapTest {
                 .autoShrink(true)
                 .mapIdleFactor(0.25f)
                 .build();
-        assertTrue(map.capacity() == 4);
+        assertEquals(map.capacity(), 4);
 
         assertTrue(map.put(1, 1, 11, 11));
         assertTrue(map.put(2, 2, 22, 22));
         assertTrue(map.put(3, 3, 33, 33));
 
-        assertTrue(map.capacity() == 8);
+        assertEquals(map.capacity(), 8);
         map.clear();
-        assertTrue(map.capacity() == 4);
+        assertEquals(map.capacity(), 4);
     }
 
     @Test
@@ -153,24 +153,24 @@ public class ConcurrentLongLongPairHashMapTest {
         assertTrue(map.put(3, 3, 33, 33));
 
         // expand hashmap
-        assertTrue(map.capacity() == 8);
+        assertEquals(map.capacity(), 8);
 
         assertTrue(map.remove(1, 1, 11, 11));
         // not shrink
-        assertTrue(map.capacity() == 8);
+        assertEquals(map.capacity(), 8);
         assertTrue(map.remove(2, 2, 22, 22));
         // shrink hashmap
-        assertTrue(map.capacity() == 4);
+        assertEquals(map.capacity(), 4);
 
         // expand hashmap
         assertTrue(map.put(4, 4, 44, 44));
         assertTrue(map.put(5, 5, 55, 55));
-        assertTrue(map.capacity() == 8);
+        assertEquals(map.capacity(), 8);
 
         //verify that the map does not keep shrinking at every remove() operation
         assertTrue(map.put(6, 6, 66, 66));
         assertTrue(map.remove(6, 6, 66, 66));
-        assertTrue(map.capacity() == 8);
+        assertEquals(map.capacity(), 8);
     }
 
     @Test
@@ -181,13 +181,13 @@ public class ConcurrentLongLongPairHashMapTest {
                 .build();
 
         map.put(0, 0, 0, 0);
-        assertEquals(1, map.getUsedBucketCount());
+        assertEquals(map.getUsedBucketCount(), 1);
         map.put(0, 0, 1, 1);
-        assertEquals(1, map.getUsedBucketCount());
+        assertEquals(map.getUsedBucketCount(), 1);
         map.remove(0, 0);
-        assertEquals(0, map.getUsedBucketCount());
+        assertEquals(map.getUsedBucketCount(), 0);
         map.remove(0, 0);
-        assertEquals(0, map.getUsedBucketCount());
+        assertEquals(map.getUsedBucketCount(), 0);
     }
 
     @Test

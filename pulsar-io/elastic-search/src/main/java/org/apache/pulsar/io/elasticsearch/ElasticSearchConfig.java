@@ -274,6 +274,26 @@ public class ElasticSearchConfig implements Serializable {
     )
     private CompatibilityMode compatibilityMode = CompatibilityMode.AUTO;
 
+    @FieldDoc(
+            defaultValue = "false",
+            help = "If canonicalKeyFields is true and record key schema is JSON or AVRO, the serialized object will "
+                    + "not consider the properties order."
+    )
+    private boolean canonicalKeyFields = false;
+
+    @FieldDoc(
+            defaultValue = "true",
+            help = "If stripNonPrintableCharacters is true, all non-printable characters will be removed from the document."
+    )
+    private boolean stripNonPrintableCharacters = true;
+
+    @FieldDoc(
+            defaultValue = "NONE",
+            help = "Hashing algorithm to use for the document id. This is useful in order to be compliant with "
+                    + "the ElasticSearch _id hard limit of 512 bytes."
+    )
+    private IdHashingAlgorithm idHashingAlgorithm = IdHashingAlgorithm.NONE;
+
     public enum MalformedDocAction {
         IGNORE,
         WARN,
@@ -291,6 +311,12 @@ public class ElasticSearchConfig implements Serializable {
         ELASTICSEARCH_7,
         ELASTICSEARCH,
         OPENSEARCH
+    }
+
+    public enum IdHashingAlgorithm {
+        NONE,
+        SHA256,
+        SHA512
     }
 
     public static ElasticSearchConfig load(String yamlFile) throws IOException {
