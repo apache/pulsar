@@ -53,7 +53,7 @@ else
   JAVA_BIN="$JAVA_HOME/bin/java"
 fi
 for token in $("$JAVA_BIN" -version 2>&1 | grep 'version "'); do
-    if [[ $token =~ \"([[:digit:]]+)\.([[:digit:]]+)\.(.*)\" ]]; then
+    if [[ $token =~ \"([[:digit:]]+)\.([[:digit:]]+)(.*)\" ]]; then
         if [[ ${BASH_REMATCH[1]} == "1" ]]; then
           JAVA_MAJOR_VERSION=${BASH_REMATCH[2]}
         else
