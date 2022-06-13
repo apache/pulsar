@@ -209,7 +209,7 @@ void pulsar_producer_configuration_set_default_crypto_key_reader(pulsar_producer
     conf->conf.setCryptoKeyReader(keyReader);
 }
 
-pulsar_producer_crypto_failure_action pulsar_producer_configuration_set_crypto_failure_action(
+pulsar_producer_crypto_failure_action pulsar_producer_configuration_get_crypto_failure_action(
     pulsar_producer_configuration_t *conf) {
     return (pulsar_producer_crypto_failure_action)conf->conf.getCryptoFailureAction();
 }
