@@ -41,7 +41,10 @@ public class ManagedTrashMXBeanImpl implements ManagedTrashMXBean {
 
     @Override
     public long getCurrentNumberOfLedgersWaitingToDelete() {
-        return managedTrash.getTrashDataSize();
+        if (managedTrash instanceof ManagedTrashImpl) {
+            return ((ManagedTrashImpl) managedTrash).getTrashDataSize();
+        }
+        return 0;
     }
 
     @Override
@@ -56,7 +59,10 @@ public class ManagedTrashMXBeanImpl implements ManagedTrashMXBean {
 
     @Override
     public long getCurrentNumberOfLedgersWaitingToArchive() {
-        return managedTrash.getToArchiveDataSize();
+        if (managedTrash instanceof ManagedTrashImpl) {
+            return ((ManagedTrashImpl) managedTrash).getToArchiveDataSize();
+        }
+        return 0;
     }
 
     @Override

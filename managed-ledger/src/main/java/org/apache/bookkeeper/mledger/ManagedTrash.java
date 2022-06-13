@@ -47,25 +47,60 @@ public interface ManagedTrash {
         LEDGER
     }
 
+    /**
+     * ManagedTrash name.
+     *
+     * @return full topic name + type
+     */
     String name();
 
+    /**
+     * Initialize.
+     */
     CompletableFuture<?> initialize();
 
+    /**
+     * Append waiting to delete ledger.
+     *
+     * @param ledgerId ledgerId
+     * @param context ledgerInfo, if offload ledger, need offload context
+     * @param type LEDGER or OFFLOAD_LEDGER
+     * @throws ManagedLedgerException
+     */
     void appendLedgerTrashData(long ledgerId, LedgerInfo context, LedgerType type) throws ManagedLedgerException;
 
+    /**
+     * Persist trash data to meta store.
+     */
     CompletableFuture<?> asyncUpdateTrashData();
 
+    /**
+     * Trigger deletion procedure.
+     */
     void triggerDeleteInBackground();
 
+    /**
+     * Get all archive index, it needs combine with getArchiveData.
+     */
     CompletableFuture<List<Long>> getAllArchiveIndex();
 
+    /**
+     * Get archive data detail info.
+     *
+     * @param index archive index
+     * @return
+     */
     CompletableFuture<Map<ManagedTrashImpl.TrashKey, LedgerInfo>> getArchiveData(long index);
 
-    long getTrashDataSize();
-
-    long getToArchiveDataSize();
-
+    /**
+     * Async close managedTrash, it will persist trash data to meta store.
+     * @return
+     */
     CompletableFuture<?> asyncClose();
 
+    /**
+     * Async close managedTrash, it can ensure that all ledger least delete once (exclude offload_ledger).
+     * @return
+     */
     CompletableFuture<?> asyncCloseAfterAllLedgerDeleteOnce();
 }

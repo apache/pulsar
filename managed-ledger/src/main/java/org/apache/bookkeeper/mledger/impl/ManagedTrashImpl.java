@@ -439,12 +439,10 @@ public class ManagedTrashImpl implements ManagedTrash {
         }, executor.chooseThread(name));
     }
 
-    @Override
     public long getTrashDataSize() {
         return trashData.size();
     }
 
-    @Override
     public long getToArchiveDataSize() {
         return toArchiveCount.get();
     }
