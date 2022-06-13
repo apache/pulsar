@@ -4085,9 +4085,21 @@ public class PersistentTopicsBase extends AdminResource {
                 }
                 metadataFuture.complete(metadata);
             }).exceptionally(ex -> {
-            metadataFuture.completeExceptionally(ex.getCause());
-            return null;
-        });
+                    if (ex.getCause() instanceof MetadataStoreException.AlreadyExistsException) {
+                        // The partitioned topic might be created concurrently
+                        pulsar.getBrokerService().fetchPartitionedTopicMetadataAsync(topicName)
+                                .whenComplete((metadata, ex2) -> {
+                                    if (ex2 == null) {
+                                        metadataFuture.complete(metadata);
+                                    } else {
+                                        metadataFuture.completeExceptionally(ex2);
+                                    }
+                                });
+                    } else {
+                        metadataFuture.completeExceptionally(ex.getCause());
+                    }
+                    return null;
+                });
 
         return metadataFuture;
     }
