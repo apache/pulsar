@@ -1385,22 +1385,14 @@ public abstract class NamespacesBase extends AdminResource {
                 .thenApply(policies -> policies.topicDispatchRate.get(pulsar().getConfiguration().getClusterName()));
     }
 
-    protected void internalSetSubscriptionDispatchRate(DispatchRateImpl dispatchRate) {
-        validateSuperUserAccess();
-        log.info("[{}] Set namespace subscription dispatch-rate {}/{}", clientAppId(), namespaceName, dispatchRate);
-
-        try {
-            updatePolicies(namespaceName, (policies) -> {
-                policies.subscriptionDispatchRate.put(pulsar().getConfiguration().getClusterName(), dispatchRate);
-                return policies;
-            });
-            log.info("[{}] Successfully updated the subscriptionDispatchRate for cluster on namespace {}",
-                    clientAppId(), namespaceName);
-        } catch (Exception e) {
-            log.error("[{}] Failed to update the subscriptionDispatchRate for cluster on namespace {}", clientAppId(),
-                    namespaceName, e);
-            throw new RestException(e);
-        }
+    protected CompletableFuture<Void> internalSetSubscriptionDispatchRateAsync(DispatchRateImpl dispatchRate) {
+        return validateSuperUserAccessAsync()
+                .thenCompose(__ -> updatePoliciesAsync(namespaceName, policies -> {
+                    policies.subscriptionDispatchRate.put(pulsar().getConfiguration().getClusterName(), dispatchRate);
+                    log.info("[{}] Successfully updated the subscriptionDispatchRate for cluster on namespace {}",
+                            clientAppId(), namespaceName);
+                    return policies;
+                }));
     }
 
     protected CompletableFuture<Void> internalDeleteSubscriptionDispatchRateAsync() {
