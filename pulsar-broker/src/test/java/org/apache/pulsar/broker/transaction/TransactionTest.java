@@ -1028,6 +1028,8 @@ public class TransactionTest extends TransactionTestBase {
             producer.sendAsync(("test" + i).getBytes());
         }
 
+        producer.flush();
+
         Transaction txn1 = pulsarClient.newTransaction()
                 .withTransactionTimeout(10, TimeUnit.MINUTES).build().get();
         // ack the first message with transaction
