@@ -120,7 +120,7 @@ func main() {
 
 If you have multiple brokers, you can initiate a client object as below.
 
-```
+```go
 
 import (
     "log"
