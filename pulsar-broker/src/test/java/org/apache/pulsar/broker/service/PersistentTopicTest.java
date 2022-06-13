@@ -266,6 +266,14 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         final ManagedLedger ledgerMock = mock(ManagedLedger.class);
         doReturn(new ArrayList<>()).when(ledgerMock).getCursors();
 
+        doAnswer(new Answer<Object>() {
+            @Override
+            public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
+                ((DeleteCursorCallback) invocationOnMock.getArguments()[1]).deleteCursorComplete(null);
+                return null;
+            }
+        }).when(ledgerMock).asyncDeleteCursor(anyString(), any(DeleteCursorCallback.class), any());
+
         final String topicName = "persistent://prop/use/ns-abc/topic1";
         doAnswer(new Answer<Object>() {
             @Override
@@ -1590,7 +1598,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
                 ((DeleteCursorCallback) invocationOnMock.getArguments()[1]).deleteCursorComplete(null);
                 return null;
             }
-        }).when(ledgerMock).asyncDeleteCursor(matches(".*success.*"), any(DeleteCursorCallback.class), any());
+        }).when(ledgerMock).asyncDeleteCursor(anyString(), any(DeleteCursorCallback.class), any());
 
         doAnswer((invokactionOnMock) -> {
                 ((MarkDeleteCallback) invokactionOnMock.getArguments()[2])

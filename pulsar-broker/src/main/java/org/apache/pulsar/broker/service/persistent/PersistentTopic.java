@@ -3027,7 +3027,21 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 checkReplicationAndRetryOnFailure();
             }
 
-            checkDeduplicationStatus();
+            /**
+             * When execute command "pulsar-admin topicPolicies get-deduplication persistent://{tenant}/{ns}/{topic}"
+             * but "store.asyncRemoveCursor('pulsar.dedup')" failure, the 'pulsar-dedup' cursor will be disabled,
+             * zk-node: "/managed-ledgers/{tenant}/{ns}/persistent/{topic}/pulsar.dedup" still exists.
+             * Then this topic's ledger-store will not be deleted anymore, even if all message has been acknowledged.
+             * So when `checkDeduplicationStatus()` failure, stop this topic.
+             */
+            try {
+                checkDeduplicationStatus().get();
+            } catch (Exception ex) {
+                this.close(false);
+                if (!(ex instanceof CompletionException)){
+                    throw new CompletionException(ex);
+                }
+            }
 
             preCreateSubscriptionForCompactionIfNeeded();
 

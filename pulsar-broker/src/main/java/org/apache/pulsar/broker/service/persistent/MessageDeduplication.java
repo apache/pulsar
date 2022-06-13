@@ -55,7 +55,7 @@ public class MessageDeduplication {
     private final ManagedLedger managedLedger;
     private ManagedCursor managedCursor;
 
-    enum Status {
+    public enum Status {
 
         // Deduplication is initialized
         Initialized,
@@ -72,8 +72,14 @@ public class MessageDeduplication {
         // Turning off deduplication
         Removing,
 
-        // Failed to enable/disable
-        Failed,
+        // Failed to disable
+        DeleteCursorFailed,
+
+        // Failed open cursor to enable.
+        OpenCursorFailed,
+
+        // Failed recover sequence id to enable.
+        RecoverSequenceFailed;
     }
 
     @VisibleForTesting
@@ -212,98 +218,160 @@ public class MessageDeduplication {
                 pulsar.getExecutor().schedule(this::checkStatus, 1, TimeUnit.MINUTES);
                 return CompletableFuture.completedFuture(null);
             }
-            if (status == Status.Initialized && !shouldBeEnabled) {
-                status = Status.Removing;
-                managedLedger.asyncDeleteCursor(PersistentTopic.DEDUPLICATION_CURSOR_NAME,
-                        new DeleteCursorCallback() {
-                            @Override
-                            public void deleteCursorComplete(Object ctx) {
-                                status = Status.Disabled;
-                                log.info("[{}] Deleted deduplication cursor", topic.getName());
+            if (!shouldBeEnabled){
+                /**
+                 * case {@link Status#Initialized}: topic is new, maybe cursor was not deleted at the last broker-stop.
+                 *                                  redo deleted cursor.
+                 *                                  {@link ManagedLedgerException.CursorNotFoundException} will tell us
+                 *                                  to repeat the call
+                 * case {@link Status#Disabled}: admin disabled deduplication, do stop deduplication task.
+                 * case {@link Status#DeleteCursorFailed}: Retry delete cursor.
+                 * case {@link Status#RecoverSequenceFailed}: Delete the cursor that exists.
+                 * case {@link Status#OpenCursorFailed}: Anyway, retry stop deduplication task.
+                 *                                  {@link ManagedLedgerException.CursorNotFoundException} will tell us
+                 *                                  to repeat the call
+                 * case {@link Status#Enabled}: Make sure "managedCursor" is not working.
+                 */
+                switch (status){
+                    case Initialized:
+                    case Enabled:
+                    case DeleteCursorFailed:
+                    case RecoverSequenceFailed:
+                    case OpenCursorFailed:{
+                        CompletableFuture<Void> future = new CompletableFuture<>();
+                        // Ensure cursor pulsar.dedup is not exists
+                        boolean dedupCursorExists = false;
+                        for (ManagedCursor cursor : managedLedger.getCursors()){
+                            if (PersistentTopic.DEDUPLICATION_CURSOR_NAME.equals(cursor.getName())){
+                                dedupCursorExists = true;
                             }
-
-                            @Override
-                            public void deleteCursorFailed(ManagedLedgerException exception, Object ctx) {
-                                if (exception instanceof ManagedLedgerException.CursorNotFoundException) {
-                                    status = Status.Disabled;
-                                } else {
-                            log.error("[{}] Deleted deduplication cursor error", topic.getName(), exception);
                         }
-                    }
-                }, null);
-            }
-
-            if (status == Status.Enabled && !shouldBeEnabled) {
-                // Disabled deduping
-                CompletableFuture<Void> future = new CompletableFuture<>();
-                status = Status.Removing;
-                managedLedger.asyncDeleteCursor(PersistentTopic.DEDUPLICATION_CURSOR_NAME,
-                        new DeleteCursorCallback() {
-
-                            @Override
-                            public void deleteCursorComplete(Object ctx) {
-                                status = Status.Disabled;
-                                managedCursor = null;
-                                highestSequencedPushed.clear();
-                                highestSequencedPersisted.clear();
-                                future.complete(null);
-                                log.info("[{}] Disabled deduplication", topic.getName());
-                            }
-
-                            @Override
-                            public void deleteCursorFailed(ManagedLedgerException exception, Object ctx) {
-                                // It's ok for disable message deduplication.
-                                if (exception instanceof ManagedLedgerException.CursorNotFoundException) {
-                                    status = Status.Disabled;
-                                    managedCursor = null;
-                                    highestSequencedPushed.clear();
-                                    highestSequencedPersisted.clear();
-                                    future.complete(null);
-                                } else {
-                                    log.warn("[{}] Failed to disable deduplication: {}", topic.getName(),
-                                            exception.getMessage());
-                                    status = Status.Failed;
-                                    future.completeExceptionally(exception);
-                                }
-                            }
-                        }, null);
-
-                return future;
-            } else if ((status == Status.Disabled || status == Status.Initialized) && shouldBeEnabled) {
-                // Enable deduping
-                CompletableFuture<Void> future = new CompletableFuture<>();
-                managedLedger.asyncOpenCursor(PersistentTopic.DEDUPLICATION_CURSOR_NAME, new OpenCursorCallback() {
-
-                    @Override
-                    public void openCursorComplete(ManagedCursor cursor, Object ctx) {
-                        // We don't want to retain cache for this cursor
-                        cursor.setAlwaysInactive();
-                        managedCursor = cursor;
-                        recoverSequenceIdsMap().thenRun(() -> {
-                            status = Status.Enabled;
+                        if (!dedupCursorExists){
+                            status = Status.Disabled;
+                            managedCursor = null;
+                            highestSequencedPushed.clear();
+                            highestSequencedPersisted.clear();
                             future.complete(null);
-                            log.info("[{}] Enabled deduplication", topic.getName());
-                        }).exceptionally(ex -> {
-                            status = Status.Failed;
-                            log.warn("[{}] Failed to enable deduplication: {}", topic.getName(), ex.getMessage());
-                            future.completeExceptionally(ex);
-                            return null;
-                        });
-                    }
+                            log.info("[{}] Disabled deduplication", topic.getName());
+                            return future;
+                        }
+                        // Disabled deduplication
+                        status = Status.Removing;
+                        managedLedger.asyncDeleteCursor(PersistentTopic.DEDUPLICATION_CURSOR_NAME,
+                                new DeleteCursorCallback() {
 
-                    @Override
-                    public void openCursorFailed(ManagedLedgerException exception, Object ctx) {
-                        log.warn("[{}] Failed to enable deduplication: {}", topic.getName(),
-                                exception.getMessage());
-                        future.completeExceptionally(exception);
-                    }
+                                    @Override
+                                    public void deleteCursorComplete(Object ctx) {
+                                        status = Status.Disabled;
+                                        managedCursor = null;
+                                        highestSequencedPushed.clear();
+                                        highestSequencedPersisted.clear();
+                                        future.complete(null);
+                                        log.info("[{}] Disabled deduplication", topic.getName());
+                                    }
 
-                }, null);
-                return future;
+                                    @Override
+                                    public void deleteCursorFailed(ManagedLedgerException exception, Object ctx) {
+                                        // It's ok for disable message deduplication.
+                                        if (exception instanceof ManagedLedgerException.CursorNotFoundException) {
+                                            status = Status.Disabled;
+                                            managedCursor = null;
+                                            highestSequencedPushed.clear();
+                                            highestSequencedPersisted.clear();
+                                            future.complete(null);
+                                        } else {
+                                            log.warn("[{}] Failed to disable deduplication: {}", topic.getName(),
+                                                    exception.getMessage());
+                                            status = Status.DeleteCursorFailed;
+                                            future.completeExceptionally(exception);
+                                        }
+                                    }
+                                }, null);
+
+                        return future;
+                    }
+                    case Disabled: {
+                        if (managedCursor != null) {
+                            status = Status.DeleteCursorFailed;
+                            String errorMessage = String.format("[%s] Failed to disable deduplication: status is "
+                                    + "Disabled, but field-managedCursor is not null", topic.getName());
+                            log.warn(errorMessage);
+                            CompletableFuture<Void> future = new CompletableFuture<>();
+                            future.completeExceptionally(new ManagedLedgerException(errorMessage));
+                            return future;
+                        }
+                        // already deleted cursor.
+                        return CompletableFuture.completedFuture(null);
+                    }
+                }
             } else {
-                // Nothing to do, we are in the correct state
-                return CompletableFuture.completedFuture(null);
+                /**
+                 * case {@link Status#Initialized}: topic is new, do start deduplication task.
+                 * case {@link Status#Disabled}: admin reOpen deduplication, do start deduplication task.
+                 * case {@link Status#DeleteCursorFailed}: Anyway, retry start deduplication task.
+                 *                                           "managedLedger" will handle repeated calls.
+                 * case {@link Status#RecoverSequenceFailed}: Anyway, retry start deduplication task.
+                 *                                              "managedLedger" will handle repeated calls.
+                 * case {@link Status#OpenCursorFailed}: Retry start deduplication task.
+                 * case {@link Status#Enabled}: Make sure "managedCursor" is working.
+                 */
+                switch (status) {
+                    case Initialized:
+                    case Disabled:
+                    case DeleteCursorFailed:
+                    case RecoverSequenceFailed:
+                    case OpenCursorFailed:{
+                        // Enable deduplication
+                        CompletableFuture<Void> future = new CompletableFuture<>();
+                        status = Status.Recovering;
+                        managedLedger.asyncOpenCursor(PersistentTopic.DEDUPLICATION_CURSOR_NAME,
+                                new OpenCursorCallback(){
+
+                                    @Override
+                                    public void openCursorComplete(ManagedCursor cursor, Object ctx) {
+                                        // We don't want to retain cache for this cursor
+                                        cursor.setAlwaysInactive();
+                                        managedCursor = cursor;
+                                        recoverSequenceIdsMap().thenRun(() -> {
+                                            status = Status.Enabled;
+                                            future.complete(null);
+                                            log.info("[{}] Enabled deduplication", topic.getName());
+                                        }).exceptionally(ex -> {
+                                            status = Status.RecoverSequenceFailed;
+                                            log.warn("[{}] Failed to enable deduplication: {}", topic.getName(),
+                                                    ex.getMessage());
+                                            future.completeExceptionally(ex);
+                                            return null;
+                                        });
+                                    }
+
+                                    @Override
+                                    public void openCursorFailed(ManagedLedgerException exception, Object ctx) {
+                                        status = Status.OpenCursorFailed;
+                                        log.warn("[{}] Failed to enable deduplication: {}", topic.getName(),
+                                                exception.getMessage());
+                                        future.completeExceptionally(exception);
+                                    }
+
+                                }, null);
+                        return future;
+                    }
+                    case Enabled: {
+                        // already open cursor.
+                        if (managedCursor == null){
+                            status = Status.OpenCursorFailed;
+                            String errorMessage = String.format("[%s] Failed to enable deduplication: status is "
+                                    + "Enabled, but field-managedCursor is null", topic.getName());
+                            log.warn(errorMessage);
+                            CompletableFuture<Void> future = new CompletableFuture<>();
+                            future.completeExceptionally(new ManagedLedgerException(errorMessage));
+                            return future;
+                        }
+                        return CompletableFuture.completedFuture(null);
+                    }
+                }
             }
+            return CompletableFuture.completedFuture(null);
         }
     }
 
