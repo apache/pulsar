@@ -31,7 +31,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
-import java.util.stream.Stream;
+import java.util.stream.Collectors;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -47,6 +47,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Dispatcher;
+import org.apache.pulsar.broker.service.EntryAndMetadataList;
 import org.apache.pulsar.broker.service.EntryBatchIndexesAcks;
 import org.apache.pulsar.broker.service.EntryBatchSizes;
 import org.apache.pulsar.broker.service.InMemoryRedeliveryTracker;
@@ -60,7 +61,6 @@ import org.apache.pulsar.broker.transaction.exception.buffer.TransactionBufferEx
 import org.apache.pulsar.client.impl.Backoff;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
-import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.Codec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -502,22 +502,35 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         sendMessagesToConsumers(readType, entries);
     }
 
-    protected void sendMessagesToConsumers(ReadType readType, List<Entry> entries) {
+    protected void sendMessagesToConsumers(ReadType readType, List<Entry> originalEntries) {
 
         if (needTrimAckedMessages()) {
-            cursor.trimDeletedEntries(entries);
+            cursor.trimDeletedEntries(originalEntries);
         }
 
+        final EntryAndMetadataList entryAndMetadataList =
+                new EntryAndMetadataList(originalEntries, subscription.toString());
+        entryAndMetadataList.sortChunks();
+
+        // The entry whose index is greater than the watermark must be a chunk from an incomplete message, skip them
+        // and add them to the replay.
+        final int watermark = entryAndMetadataList.getWatermark();
+        final int size = entryAndMetadataList.size();
+        final List<Entry> entries = entryAndMetadataList.getEntries().subList(0, watermark);
+        final List<Entry> entriesOfIncompleteChunks = entryAndMetadataList.getEntries().subList(watermark, size);
         int entriesToDispatch = entries.size();
         // Trigger read more messages
         if (entriesToDispatch == 0) {
             readMoreEntries();
+            entriesOfIncompleteChunks.forEach(entry -> {
+                long stickyKeyHash = getStickyKeyHash(entry);
+                addMessageToReplay(entry.getLedgerId(), entry.getEntryId(), stickyKeyHash);
+                entry.release();
+            });
             return;
         }
-        final MessageMetadata[] metadataArray = entries.stream()
-                .map(entry -> Commands.peekAndCopyMessageMetadata(entry.getDataBuffer(), subscription.toString(), -1))
-                .toArray(MessageMetadata[]::new);
-        int remainingMessages = Stream.of(metadataArray).filter(Objects::nonNull)
+        final List<MessageMetadata> metadataList = entryAndMetadataList.getMetadataList().subList(0, entries.size());
+        int remainingMessages = metadataList.stream().filter(Objects::nonNull)
                 .map(MessageMetadata::getNumMessagesInBatch)
                 .reduce(0, Integer::sum);
 
@@ -529,7 +542,17 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
         int firstAvailableConsumerPermits, currentTotalAvailablePermits;
         boolean dispatchMessage;
+        int numSkippedConsumers = 0;
+        final int numConsumers = consumerList.size();
         while (entriesToDispatch > 0) {
+            if (numSkippedConsumers >= numConsumers) {
+                final List<String> permits = consumerList.stream()
+                        .map(c -> c.consumerName() + ":" + c.getAvailablePermits())
+                        .collect(Collectors.toList());
+                log.warn("All consumers don't have enough permits to receive a complete chunked message, permits: {}",
+                        permits);
+                break;
+            }
             firstAvailableConsumerPermits = getFirstAvailableConsumerPermits();
             currentTotalAvailablePermits = Math.max(totalAvailablePermits, firstAvailableConsumerPermits);
             dispatchMessage = currentTotalAvailablePermits > 0 && firstAvailableConsumerPermits > 0;
@@ -559,6 +582,13 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
             int end = Math.min(start + messagesForC, entries.size());
             List<Entry> entriesForThisConsumer = entries.subList(start, end);
+            if (entryAndMetadataList.containIncompleteChunks(start, end)) {
+                // Select another consumer to contain all chunks of a message
+                numSkippedConsumers++;
+                continue;
+            } else {
+                numSkippedConsumers = 0;
+            }
 
             // remove positions first from replay list first : sendMessages recycles entries
             if (readType == ReadType.Replay) {
@@ -571,7 +601,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
             EntryBatchSizes batchSizes = EntryBatchSizes.get(entriesForThisConsumer.size());
             EntryBatchIndexesAcks batchIndexesAcks = EntryBatchIndexesAcks.get(entriesForThisConsumer.size());
-            totalEntries += filterEntriesForConsumer(Optional.of(metadataArray), start,
+            totalEntries += filterEntriesForConsumer(Optional.of(metadataList.subList(start, end)),
                     entriesForThisConsumer, batchSizes, sendMessageInfo, batchIndexesAcks, cursor,
                     readType == ReadType.Replay, c);
 
@@ -619,6 +649,11 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 entry.release();
             });
         }
+        entriesOfIncompleteChunks.forEach(entry -> {
+            long stickyKeyHash = getStickyKeyHash(entry);
+            addMessageToReplay(entry.getLedgerId(), entry.getEntryId(), stickyKeyHash);
+            entry.release();
+        });
         readMoreEntries();
     }
 

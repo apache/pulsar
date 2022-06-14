@@ -100,7 +100,7 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
     public int filterEntriesForConsumer(List<Entry> entries, EntryBatchSizes batchSizes,
             SendMessageInfo sendMessageInfo, EntryBatchIndexesAcks indexesAcks,
             ManagedCursor cursor, boolean isReplayRead, Consumer consumer) {
-        return filterEntriesForConsumer(Optional.empty(), 0, entries, batchSizes, sendMessageInfo, indexesAcks, cursor,
+        return filterEntriesForConsumer(Optional.empty(), entries, batchSizes, sendMessageInfo, indexesAcks, cursor,
                 isReplayRead, consumer);
     }
 
@@ -108,13 +108,12 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
     /**
      * Filter entries with prefetched message metadata range so that there is no need to peek metadata from Entry.
      *
-     * @param optMetadataArray the optional message metadata array
-     * @param startOffset the index in `optMetadataArray` of the first Entry's message metadata
+     * @param optMetadataList optional message metadata list
      *
      * @see AbstractBaseDispatcher#filterEntriesForConsumer(List, EntryBatchSizes, SendMessageInfo,
      *   EntryBatchIndexesAcks, ManagedCursor, boolean, Consumer)
      */
-    public int filterEntriesForConsumer(Optional<MessageMetadata[]> optMetadataArray, int startOffset,
+    public int filterEntriesForConsumer(Optional<List<MessageMetadata>> optMetadataList,
              List<Entry> entries, EntryBatchSizes batchSizes, SendMessageInfo sendMessageInfo,
              EntryBatchIndexesAcks indexesAcks, ManagedCursor cursor, boolean isReplayRead, Consumer consumer) {
         int totalMessages = 0;
@@ -129,8 +128,8 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
                 continue;
             }
             ByteBuf metadataAndPayload = entry.getDataBuffer();
-            final int metadataIndex = i + startOffset;
-            final MessageMetadata msgMetadata = optMetadataArray.map(metadataArray -> metadataArray[metadataIndex])
+            final int index = i;
+            final MessageMetadata msgMetadata = optMetadataList.map(metadataList -> metadataList.get(index))
                     .orElseGet(() -> Commands.peekMessageMetadata(metadataAndPayload, subscription.toString(), -1));
             if (CollectionUtils.isNotEmpty(entryFilters)) {
                 fillContext(filterContext, msgMetadata, subscription, consumer);

@@ -29,6 +29,9 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 import java.util.Set;
@@ -45,8 +48,10 @@ import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
@@ -54,6 +59,8 @@ import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.SizeUnit;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.MessageImpl.SchemaState;
 import org.apache.pulsar.client.impl.ProducerImpl.OpSendMsg;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
@@ -62,6 +69,7 @@ import org.apache.pulsar.common.protocol.ByteBufPair;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Commands.ChecksumType;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -539,6 +547,54 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         assertEquals(consumer.conf.getMaxPendingChunkedMessage(), 12);
         assertTrue(consumer.conf.isAutoAckOldestChunkedMessageOnQueueFull());
         assertEquals(consumer.conf.getExpireTimeOfIncompleteChunkedMessageMillis(), 12);
+    }
+
+    @Test
+    public void testChunkMessagesWithSharedSubscriptions() throws Exception {
+        this.conf.setMaxMessageSize(50);
+        final String topic = "my-topic";
+        final ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer()
+                .topic(topic)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscriptionName("sub");
+        final int numConsumers = 3;
+        final List<List<byte[]>> valuesList = new ArrayList<>();
+        final List<Consumer<byte[]>> consumerList = new ArrayList<>();
+        for (int i = 0; i < numConsumers; i++) {
+            final List<byte[]> values = Collections.synchronizedList(new ArrayList<>());
+            valuesList.add(values);
+            consumerList.add(consumerBuilder.messageListener((MessageListener<byte[]>) (consumer, msg) -> {
+                values.add(msg.getValue());
+                consumer.acknowledgeAsync(msg);
+            }).subscribe());
+        }
+        final byte[] value = createMessagePayload(200).getBytes(StandardCharsets.UTF_8);
+        pulsarClient.newProducer().topic(topic).enableBatching(false).enableChunking(true).create()
+                .newMessage().value(value).send();
+
+        Awaitility.await().atMost(Duration.ofSeconds(3)).until(() ->
+            valuesList.stream().map(List::size).reduce(0, Integer::sum) > 0);
+
+        // Only 1 message could be received
+        int index = 0;
+        for (int i = 0; i < valuesList.size(); i++) {
+            if (!valuesList.get(i).isEmpty()) {
+                index = i;
+                break;
+            }
+        }
+        assertEquals(valuesList.get(index).size(), 1);
+        assertEquals(valuesList.get(index).get(0), value);
+        for (int i = 0; i < valuesList.size(); i++) {
+            if (i != index) {
+                assertTrue(valuesList.get(i).isEmpty());
+            }
+        }
+
+        for (Consumer<byte[]> consumer : consumerList) {
+            consumer.close();
+        }
     }
 
     private String createMessagePayload(int size) {
