@@ -1584,7 +1584,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         }
 
         for (int i = 0; i < numMessages; i++) {
-            Message<byte[]> msg = consumer.receive();
+            Message<byte[]> msg = consumer.receive(30, TimeUnit.SECONDS);
             String logMsg = new String(msg.getValue(), UTF_8);
             log.info("Received message: '{}'", logMsg);
             assertTrue(expectedMessages.contains(logMsg), "Message '" + logMsg + "' not expected");
