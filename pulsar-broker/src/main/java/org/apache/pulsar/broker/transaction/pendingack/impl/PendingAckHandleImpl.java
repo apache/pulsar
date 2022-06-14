@@ -772,7 +772,8 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                 if (!individualAckPositions.containsKey(position)) {
                     /**
                      *  if the position does not exist in individualAckPositions {@link individualAckPositions},
-                     *  should new the same position and put the new position into the individualAckPositions {@link individualAckPositions}
+                     *  should new the same position and put the new position into
+                     *  the individualAckPositions {@link individualAckPositions}
                      *  because when another ack the same batch message will change the ackSet with the new transaction
                      *  when the tc commits the first txn will ack all of the ackSet which has in pending ack status
                      *  individualAckPositions{@link individualAckPositions} can't include the same position
