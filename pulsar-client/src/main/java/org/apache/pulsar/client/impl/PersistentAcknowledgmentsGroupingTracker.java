@@ -154,15 +154,13 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
                     }
                 } finally {
                     this.lock.readLock().unlock();
-                    if (acknowledgementGroupTimeMicros == 0 || pendingIndividualAcks.size() >= MAX_ACK_GROUP_SIZE
-                            || pendingIndividualBatchIndexAcks.size() >= MAX_ACK_GROUP_SIZE) {
+                    if (acknowledgementGroupTimeMicros == 0 || pendingIndividualAcks.size() >= MAX_ACK_GROUP_SIZE) {
                         flush();
                     }
                 }
             } else {
                 addListAcknowledgment(messageIds);
-                if (acknowledgementGroupTimeMicros == 0 || pendingIndividualAcks.size() >= MAX_ACK_GROUP_SIZE
-                        || pendingIndividualBatchIndexAcks.size() >= MAX_ACK_GROUP_SIZE) {
+                if (acknowledgementGroupTimeMicros == 0 || pendingIndividualAcks.size() >= MAX_ACK_GROUP_SIZE) {
                     flush();
                 }
                 return CompletableFuture.completedFuture(null);
@@ -314,15 +312,9 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
                 return this.currentIndividualAckFuture;
             } finally {
                 this.lock.readLock().unlock();
-                if (pendingIndividualBatchIndexAcks.size() >= MAX_ACK_GROUP_SIZE) {
-                    flush();
-                }
             }
         } else {
             doIndividualBatchAckAsync(batchMessageId);
-            if (pendingIndividualBatchIndexAcks.size() >= MAX_ACK_GROUP_SIZE) {
-                flush();
-            }
             return CompletableFuture.completedFuture(null);
         }
     }
@@ -368,6 +360,9 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
                     return value;
                 });
         bitSet.clear(batchMessageId.getBatchIndex());
+        if (pendingIndividualBatchIndexAcks.size() >= MAX_ACK_GROUP_SIZE) {
+            flush();
+        }
     }
 
     private void doCumulativeAckAsync(MessageIdImpl msgId, BitSetRecyclable bitSet) {
