@@ -29,7 +29,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import javax.ws.rs.Encoded;
 import javax.ws.rs.WebApplicationException;
-import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Response;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarService;
@@ -127,8 +126,12 @@ public class TopicLookupBase extends PulsarWebResource {
                                 log.debug("Lookup succeeded for topic {} -- broker: {}", topicName,
                                         result.getLookupData());
                             }
+                            pulsar().getBrokerService().getLookupRequestSemaphore().release();
                             return result.getLookupData();
                         }
+                    }).exceptionally(ex->{
+                        pulsar().getBrokerService().getLookupRequestSemaphore().release();
+                        throw FutureUtil.wrapToCompletionException(ex);
                     });
                 });
     }
@@ -334,12 +337,6 @@ public class TopicLookupBase extends PulsarWebResource {
         });
 
         return lookupfuture;
-    }
-
-    protected void completeLookupResponseExceptionally(AsyncResponse asyncResponse, Throwable t) {
-        pulsar().getBrokerService().getLookupRequestSemaphore().release();
-        Throwable cause = FutureUtil.unwrapCompletionException(t);
-        asyncResponse.resume(cause);
     }
 
     protected TopicName getTopicName(String topicDomain, String tenant, String cluster, String namespace,
