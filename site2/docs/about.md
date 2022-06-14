@@ -50,7 +50,7 @@ You’ll notice an Edit button at the bottom and top of each page. Click it to o
 ## Join the Community!
 ***
 
-The Pulsar community on github is active, passionate, and knowledgeable.  Join discussions, voice opinions, suggest features, and dive into the code itself. Find your Pulsar family here at [apache/pulsar](https://github.com/apache/pulsar).
+The Pulsar community on GitHub is active, passionate, and knowledgeable.  Join discussions, voice opinions, suggest features, and dive into the code itself. Find your Pulsar family here at [apache/pulsar](https://github.com/apache/pulsar).
 
 An equally passionate community can be found in the [Pulsar Slack channel](https://apache-pulsar.slack.com/). You’ll need an invitation to join, but many Github Pulsar community members are Slack members too.  Join, hang out, learn, and make some new friends.
 
