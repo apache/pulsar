@@ -27,6 +27,10 @@ on:
       - labeled
       - unlabeled
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   label:
     if: ${{ github.repository == 'apache/pulsar' }}
