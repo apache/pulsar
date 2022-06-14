@@ -18,11 +18,11 @@
     under the License.
 
 -->
-<!DOCTYPE suite SYSTEM "https://testng.org/testng-1.0.dtd" >
-<!-- TODO: we have to put suite files in one file to avoid executing TESTNG test suites multiple times.
-           see {@link https://github.com/cbeust/testng/issues/508} -->
-<suite name="Pulsar Test Suite" parallel="instances" thread-count="1">
-    <suite-files>
-        <suite-file path="./pulsar-thread.xml" />
-    </suite-files>
-</suite>
+
+This directory is used for Etcd metadata testing.
+
+**Note: DO NOT EDIT THIS DIRECTORY STRUCTURE**
+
+The `cert` directory holds the Etcd TLS certificate.
+
+The `generate-self-signed-certificates.sh` is used to generate self-signed certificates based on [cfssl](https://github.com/cloudflare/cfssl).

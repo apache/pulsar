@@ -309,9 +309,11 @@ required plugins.
 Follow the instructions [here](https://howtodoinjava.com/automation/lombok-eclipse-installation-examples/)
 to configure your Eclipse setup.
 
-## Build Pulsar docs
+## Documentation
 
-Refer to the docs [README](site2/README.md).
+> **Tip**
+> 
+> For how to make contributions to Pulsar documentation, see [Pulsar Documentation Contribution Guide](https://docs.google.com/document/d/11DTnNPpvcPrebLkMAFcDEIFlD8ARD-k6F-LXoIwdD9Y/edit#).
 
 ## Contact
 

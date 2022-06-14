@@ -27,9 +27,12 @@ import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
+import com.google.common.hash.Hasher;
+import com.google.common.hash.Hashing;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -66,6 +69,7 @@ public class ElasticSearchSink implements Sink<GenericObject> {
     private ObjectMapper sortedObjectMapper;
     private List<String> primaryFields = null;
     private final Pattern nonPrintableCharactersPattern = Pattern.compile("[\\p{C}]");
+    private final Base64.Encoder base64Encoder = Base64.getEncoder().withoutPadding();
 
     @Override
     public void open(Map<String, Object> config, SinkContext sinkContext) throws Exception {
@@ -216,6 +220,27 @@ public class ElasticSearchSink implements Sink<GenericObject> {
                     log.error("Failed to read JSON", e);
                     throw e;
                 }
+            }
+
+            final ElasticSearchConfig.IdHashingAlgorithm idHashingAlgorithm =
+                    elasticSearchConfig.getIdHashingAlgorithm();
+            if (id != null
+                    && idHashingAlgorithm != null
+                    && idHashingAlgorithm != ElasticSearchConfig.IdHashingAlgorithm.NONE) {
+                Hasher hasher;
+                switch (idHashingAlgorithm) {
+                    case SHA256:
+                        hasher = Hashing.sha256().newHasher();
+                        break;
+                    case SHA512:
+                        hasher = Hashing.sha512().newHasher();
+                        break;
+                    default:
+                        throw new UnsupportedOperationException("Unsupported IdHashingAlgorithm: "
+                                + idHashingAlgorithm);
+                }
+                hasher.putString(id, StandardCharsets.UTF_8);
+                id = base64Encoder.encodeToString(hasher.hash().asBytes());
             }
 
             if (log.isDebugEnabled()) {

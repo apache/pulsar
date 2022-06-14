@@ -84,6 +84,7 @@ public class Consumer {
     private final Rate msgRedeliver;
     private final LongAdder msgOutCounter;
     private final LongAdder bytesOutCounter;
+    private final Rate messageAckRate;
 
     private long lastConsumedTimestamp;
     private long lastAckedTimestamp;
@@ -159,6 +160,7 @@ public class Consumer {
         this.msgRedeliver = new Rate();
         this.bytesOutCounter = new LongAdder();
         this.msgOutCounter = new LongAdder();
+        this.messageAckRate = new Rate();
         this.appId = appId;
 
         // Ensure we start from compacted view
@@ -363,6 +365,8 @@ public class Consumer {
     }
 
     public CompletableFuture<Void> messageAcked(CommandAck ack) {
+        CompletableFuture<Void> future;
+
         this.lastAckedTimestamp = System.currentTimeMillis();
         Map<String, Long> properties = Collections.emptyMap();
         if (ack.getPropertiesCount() > 0) {
@@ -396,20 +400,27 @@ public class Consumer {
             }
             if (ack.hasTxnidMostBits() && ack.hasTxnidLeastBits()) {
                 List<PositionImpl> positionsAcked = Collections.singletonList(position);
-                return transactionCumulativeAcknowledge(ack.getTxnidMostBits(),
+                future = transactionCumulativeAcknowledge(ack.getTxnidMostBits(),
                         ack.getTxnidLeastBits(), positionsAcked);
             } else {
                 List<Position> positionsAcked = Collections.singletonList(position);
                 subscription.acknowledgeMessage(positionsAcked, AckType.Cumulative, properties);
-                return CompletableFuture.completedFuture(null);
+                future = CompletableFuture.completedFuture(null);
             }
         } else {
             if (ack.hasTxnidLeastBits() && ack.hasTxnidMostBits()) {
-                return individualAckWithTransaction(ack);
+                future = individualAckWithTransaction(ack);
             } else {
-                return individualAckNormal(ack, properties);
+                future = individualAckNormal(ack, properties);
             }
         }
+
+        return future
+                .whenComplete((__, t) -> {
+                    if (t == null) {
+                        this.messageAckRate.recordEvent(ack.getMessageIdsCount());
+                    }
+                });
     }
 
     //this method is for individual ack not carry the transaction
@@ -739,7 +750,10 @@ public class Consumer {
         msgOut.calculateRate();
         chunkedMessageRate.calculateRate();
         msgRedeliver.calculateRate();
+        messageAckRate.calculateRate();
+
         stats.msgRateOut = msgOut.getRate();
+        stats.messageAckRate = messageAckRate.getRate();
         stats.msgThroughputOut = msgOut.getValueRate();
         stats.msgRateRedeliver = msgRedeliver.getRate();
         stats.chunkedMessageRate = chunkedMessageRate.getRate();
@@ -752,7 +766,7 @@ public class Consumer {
         lastAckedTimestamp = consumerStats.lastAckedTimestamp;
         lastConsumedTimestamp = consumerStats.lastConsumedTimestamp;
         MESSAGE_PERMITS_UPDATER.set(this, consumerStats.availablePermits);
-        if (log.isDebugEnabled()){
+        if (log.isDebugEnabled()) {
             log.debug("[{}-{}] Setting broker.service.Consumer's messagePermits to {} for consumer {}", topicName,
                     subscription, consumerStats.availablePermits, consumerId);
         }

@@ -115,6 +115,20 @@ public class BrokersBase extends AdminResource {
     }
 
     @GET
+    @ApiOperation(
+            value = "Get the list of active brokers (web service addresses) in the local cluster."
+                    + "If authorization is not enabled",
+            response = String.class,
+            responseContainer = "Set")
+    @ApiResponses(
+            value = {
+                    @ApiResponse(code = 401, message = "Authentication required"),
+                    @ApiResponse(code = 403, message = "This operation requires super-user access") })
+    public void getActiveBrokers(@Suspended final AsyncResponse asyncResponse) throws Exception {
+        getActiveBrokers(asyncResponse, null);
+    }
+
+    @GET
     @Path("/leaderBroker")
     @ApiOperation(
             value = "Get the information of the leader broker.",

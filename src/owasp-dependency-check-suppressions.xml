@@ -448,5 +448,14 @@
         <cve>CVE-2021-46666</cve>
         <cve>CVE-2021-46667</cve>
     </suppress>
+    <!-- only affects the server -->
+    <suppress>
+        <notes><![CDATA[
+       file name: cassandra-driver-core-3.11.2.jar
+       ]]></notes>
+        <sha1>e0aad9f8611e710b9a0ce49747f7465ce07d8404</sha1>
+        <cve>CVE-2020-17516</cve>
+        <cve>CVE-2021-44521</cve>
+    </suppress>
 
 </suppressions>

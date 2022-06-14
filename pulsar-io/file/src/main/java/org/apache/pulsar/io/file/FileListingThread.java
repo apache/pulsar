@@ -107,10 +107,10 @@ public class FileListingThread extends Thread {
     private Set<File> performListing(final File directory, final FileFilter filter,
             final boolean recurseSubdirectories) {
         Path p = directory.toPath();
-        if (!Files.isWritable(p) || !Files.isReadable(p)) {
-            throw new IllegalStateException("Directory '" + directory
-                    + "' does not have sufficient permissions (i.e., not writable and readable)");
+        if (!Files.isReadable(p)) {
+            throw new IllegalStateException("Cannot read directory: '" + directory);
         }
+
         final Set<File> queue = new HashSet<>();
         if (!directory.exists()) {
             return queue;

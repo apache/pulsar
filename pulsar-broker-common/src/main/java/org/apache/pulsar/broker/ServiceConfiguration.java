@@ -144,7 +144,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_SERVER,
         required = false,
         deprecated = true,
-        doc = "Configuration store connection string (as a comma-separated list)"
+        doc = "Configuration store connection string (as a comma-separated list). Deprecated in favor of "
+                + "`configurationMetadataStoreUrl`"
     )
     @Getter(AccessLevel.NONE)
     @Deprecated

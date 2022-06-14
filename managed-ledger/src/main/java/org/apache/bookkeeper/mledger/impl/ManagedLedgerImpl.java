@@ -2615,12 +2615,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     /**
      * Non-durable cursors have to be moved forward when data is trimmed since they are not retain that data.
-     * This method also addresses a corner case for durable cursors in which the cursor is caught up, i.e. the mark
-     * delete position happens to be the last entry in a ledger.  If the ledger is deleted, then subsequent
-     * calculations for backlog
-     * size may not be accurate since the method getNumberOfEntries we use in backlog calculation will not be able to
-     * fetch the ledger info of a deleted ledger. Thus, we need to update the mark delete position to the "-1" entry
-     * of the first ledger that is not marked for deletion.
      * This is to make sure that the `consumedEntries` counter is correctly updated with the number of skipped
      * entries and the stats are reported correctly.
      */
