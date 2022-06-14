@@ -193,8 +193,6 @@ void ClientCredentialFlow::initialize() {
     curl_easy_setopt(handle, CURLOPT_FORBID_REUSE, 1L);
 
     curl_easy_setopt(handle, CURLOPT_FOLLOWLOCATION, 1L);
-    curl_easy_setopt(handle, CURLOPT_SSL_VERIFYPEER, 0L);
-    curl_easy_setopt(handle, CURLOPT_SSL_VERIFYHOST, 0L);
 
     // Make get call to server
     res = curl_easy_perform(handle);
@@ -260,8 +258,6 @@ Oauth2TokenResultPtr ClientCredentialFlow::authenticate() {
     curl_easy_setopt(handle, CURLOPT_FORBID_REUSE, 1L);
 
     curl_easy_setopt(handle, CURLOPT_FOLLOWLOCATION, 1L);
-    curl_easy_setopt(handle, CURLOPT_SSL_VERIFYPEER, 0L);
-    curl_easy_setopt(handle, CURLOPT_SSL_VERIFYHOST, 0L);
 
     // fill in the request data
     boost::property_tree::ptree pt;
