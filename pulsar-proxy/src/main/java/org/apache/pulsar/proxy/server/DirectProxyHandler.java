@@ -247,7 +247,7 @@ public class DirectProxyHandler {
                 InetSocketAddress clientAddress = (InetSocketAddress) inboundChannel.remoteAddress();
                 String sourceAddress = clientAddress.getAddress().getHostAddress();
                 int sourcePort = clientAddress.getPort();
-                InetSocketAddress proxyAddress = (InetSocketAddress) inboundChannel.remoteAddress();
+                InetSocketAddress proxyAddress = (InetSocketAddress) outboundChannel.localAddress();
                 String destinationAddress = proxyAddress.getAddress().getHostAddress();
                 int destinationPort = proxyAddress.getPort();
                 HAProxyMessage msg = new HAProxyMessage(HAProxyProtocolVersion.V1, HAProxyCommand.PROXY,
