@@ -290,7 +290,7 @@ public class Namespaces extends NamespacesBase {
 
     @GET
     @Path("/{tenant}/{namespace}/messageTTL")
-    @ApiOperation(value = "Get the message TTL for the namespace")
+    @ApiOperation(value = "Get the message TTL for the namespace", response = Integer.class)
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist") })
     public Integer getNamespaceMessageTTL(@PathParam("tenant") String tenant,
