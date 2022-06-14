@@ -44,6 +44,7 @@ import io.netty.handler.codec.haproxy.HAProxyProxiedProtocol;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.handler.ssl.SslProvider;
+import io.netty.handler.timeout.IdleStateHandler;
 import io.netty.handler.timeout.ReadTimeoutHandler;
 import io.netty.util.CharsetUtil;
 import java.net.InetSocketAddress;
@@ -359,6 +360,9 @@ public class DirectProxyHandler {
 
                 if (service.proxyZeroCopyModeEnabled && service.proxyLogLevel == 0) {
                     if (!this.isTlsInboundChannel && !ProxyConnection.isTlsChannel(ctx.channel())) {
+                        if (ctx.pipeline().get(IdleStateHandler.class) != null) {
+                            ctx.pipeline().remove(IdleStateHandler.class);
+                        }
                         DirectProxyHandler.this.proxyConnection.spliceNIC2NIC((EpollSocketChannel) ctx.channel(),
                                 (EpollSocketChannel) inboundChannel);
                     }

@@ -29,9 +29,11 @@ import io.netty.channel.ChannelPromise;
 import io.netty.channel.epoll.EpollSocketChannel;
 import io.netty.handler.codec.haproxy.HAProxyMessage;
 import io.netty.handler.ssl.SslHandler;
+import io.netty.handler.timeout.IdleStateHandler;
 import io.netty.resolver.dns.DnsAddressResolverGroup;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import java.nio.channels.ClosedChannelException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -251,6 +253,9 @@ public class ProxyConnection extends PulsarHandler {
                 if (service.proxyZeroCopyModeEnabled && service.proxyLogLevel == 0) {
                     if (!ProxyConnection.isTlsChannel(ctx.channel())
                             && !ProxyConnection.isTlsChannel(directProxyHandler.outboundChannel)) {
+                        if (ctx.pipeline().get(IdleStateHandler.class) != null) {
+                            ctx.pipeline().remove(IdleStateHandler.class);
+                        }
                         spliceNIC2NIC((EpollSocketChannel) ctx.channel(),
                                 (EpollSocketChannel) directProxyHandler.outboundChannel);
                     }
@@ -280,7 +285,7 @@ public class ProxyConnection extends PulsarHandler {
         ChannelPromise promise = ctx.newPromise();
         inboundChannel.spliceTo(outboundChannel, SPLICE_BYTES, promise);
         promise.addListener((ChannelFutureListener) future -> {
-            if (!future.isSuccess()) {
+            if (!future.isSuccess() && !(future.cause() instanceof ClosedChannelException)) {
                 future.channel().pipeline().fireExceptionCaught(future.cause());
             } else {
                 ProxyService.OPS_COUNTER.inc();
