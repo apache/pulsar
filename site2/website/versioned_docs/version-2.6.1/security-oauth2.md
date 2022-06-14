@@ -18,7 +18,7 @@ This library allows you to authenticate the Pulsar client by using an access tok
 The authentication type determines how to obtain an access token through an OAuth 2.0 authorization flow.
 
 #### Note
-> Currently, the Pulsar Java client only supports the `client_credentials` authentication type .
+> Currently, the Pulsar Java client only supports the `client_credentials` authentication type.
 
 #### Client credentials
 
@@ -79,6 +79,8 @@ You can use the OAuth2 authentication provider with the following Pulsar clients
 You can use the factory method to configure authentication for Pulsar Java client.
 
 ```java
+
+import org.apache.pulsar.client.impl.auth.oauth2.AuthenticationFactoryOAuth2; 
 
 String issuerUrl = "https://dev-kt-aa9ne.us.auth0.com";
 String credentialsUrl = "file:///path/to/KeyFile.json";
@@ -165,7 +167,7 @@ tenants list
 
 ```
 
-Set the `admin-url` parameter to the Web service URL. A Web service URLis a combination of the protocol, hostname and port ID, such as `pulsar://localhost:6650`.
+Set the `admin-url` parameter to the Web service URL. A Web service URL is a combination of the protocol, hostname and port ID, such as `pulsar://localhost:6650`.
 Set the `privateKey`, `issuerUrl`, and `audience` parameters to the values based on the configuration in the key file. For details, see [authentication types](#authentication-types).
 
 ### pulsar-client
@@ -184,7 +186,7 @@ produce test-topic -m "test-message" -n 10
 
 ```
 
-Set the `admin-url` parameter to the Web service URL. A Web service URLis a combination of the protocol, hostname and port ID, such as `pulsar://localhost:6650`.
+Set the `admin-url` parameter to the Web service URL. A Web service URL is a combination of the protocol, hostname and port ID, such as `pulsar://localhost:6650`.
 Set the `privateKey`, `issuerUrl`, and `audience` parameters to the values based on the configuration in the key file. For details, see [authentication types](#authentication-types).
 
 ### pulsar-perf
@@ -202,5 +204,5 @@ bin/pulsar-perf produce --service-url pulsar+ssl://streamnative.cloud:6651 \
 
 ```
 
-Set the `admin-url` parameter to the Web service URL. A Web service URLis a combination of the protocol, hostname and port ID, such as `pulsar://localhost:6650`.
+Set the `admin-url` parameter to the Web service URL. A Web service URL is a combination of the protocol, hostname and port ID, such as `pulsar://localhost:6650`.
 Set the `privateKey`, `issuerUrl`, and `audience` parameters to the values based on the configuration in the key file. For details, see [authentication types](#authentication-types).
