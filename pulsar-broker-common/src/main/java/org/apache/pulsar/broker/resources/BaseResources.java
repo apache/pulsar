@@ -25,6 +25,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
+
+import com.google.common.base.Joiner;
 import lombok.Getter;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
@@ -37,6 +39,8 @@ import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
  *            type of configuration-resources.
  */
 public class BaseResources<T> {
+
+    protected static final String BASE_POLICIES_PATH = "/admin/policies";
 
     @Getter
     private final MetadataStoreExtended store;
@@ -163,5 +167,11 @@ public class BaseResources<T> {
 
     public CompletableFuture<Boolean> existsAsync(String path) {
         return cache.exists(path);
+    }
+
+    protected static String joinPath(String... parts) {
+        StringBuilder sb = new StringBuilder();
+        Joiner.on('/').appendTo(sb, parts);
+        return sb.toString();
     }
 }
