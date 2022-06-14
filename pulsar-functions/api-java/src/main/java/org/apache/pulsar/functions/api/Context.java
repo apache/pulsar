@@ -164,7 +164,9 @@ public interface Context extends BaseContext {
     <X> ConsumerBuilder<X> newConsumerBuilder(Schema<X> schema) throws PulsarClientException;
 
     /**
-     * Create a FunctionRecordBuilder.
+     * Creates a FunctionRecordBuilder initialized with values from this Context.
+     * It can be used in Functions to prepare a Record to return with default values taken from the Context and the
+     * input Record.
      *
      * @return the record builder instance
      */

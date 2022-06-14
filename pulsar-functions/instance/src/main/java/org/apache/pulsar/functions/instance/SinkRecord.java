@@ -87,4 +87,9 @@ public class SinkRecord<T> extends AbstractSinkRecord<T> {
     public Optional<Message<T>> getMessage() {
         return sourceRecord.getMessage();
     }
+
+    @Override
+    public boolean shouldAlwaysSetMessageProperties() {
+        return false;
+    }
 }

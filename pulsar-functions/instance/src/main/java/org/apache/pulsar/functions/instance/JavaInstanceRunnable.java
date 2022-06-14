@@ -377,7 +377,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         }
         AbstractSinkRecord<?> sinkRecord;
         if (output instanceof Record) {
-            sinkRecord = new TargetSinkRecord<>(srcRecord, (Record) output);
+            sinkRecord = new OutputRecordSinkRecord<>(srcRecord, (Record) output);
         } else {
             sinkRecord = new SinkRecord<>(srcRecord, output);
         }

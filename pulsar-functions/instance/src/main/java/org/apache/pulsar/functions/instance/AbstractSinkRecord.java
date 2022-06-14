@@ -38,6 +38,8 @@ public abstract class AbstractSinkRecord<T> implements Record<T> {
         this.sourceRecord = sourceRecord;
     }
 
+    public abstract boolean shouldAlwaysSetMessageProperties();
+
     public Record<?> getSourceRecord() {
         return sourceRecord;
     }

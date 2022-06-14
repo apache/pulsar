@@ -28,11 +28,11 @@ import org.apache.pulsar.functions.api.Record;
 
 @EqualsAndHashCode(callSuper = true)
 @ToString
-public class TargetSinkRecord<T> extends AbstractSinkRecord<T> {
+class OutputRecordSinkRecord<T> extends AbstractSinkRecord<T> {
 
     private final Record<T> sinkRecord;
 
-    public TargetSinkRecord(Record<T> sourceRecord, Record<T> sinkRecord) {
+    OutputRecordSinkRecord(Record<T> sourceRecord, Record<T> sinkRecord) {
         super(sourceRecord);
         this.sinkRecord = sinkRecord;
     }
@@ -85,5 +85,10 @@ public class TargetSinkRecord<T> extends AbstractSinkRecord<T> {
     @Override
     public Optional<Message<T>> getMessage() {
         return sinkRecord.getMessage();
+    }
+
+    @Override
+    public boolean shouldAlwaysSetMessageProperties() {
+        return true;
     }
 }

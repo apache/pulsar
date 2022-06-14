@@ -39,7 +39,17 @@ public class FunctionRecord<T> implements Record<T> {
     private final Integer partitionIndex;
     private final Long recordSequence;
 
-    public static <T> FunctionRecord.FunctionRecordBuilder<T> from(Context context) {
+    /**
+     * Creates a builder for a Record from a Function Context.
+     * The builder is initialized with the output topic from the Context and with the topicName, key, eventTime,
+     * properties, partitionId, partitionIndex and recordSequence from the Context input Record.
+     * It doesn't initialize a Message at the moment.
+     *
+     * @param context a Function Context
+     * @param <T> type of Record to build
+     * @return a Record builder initialised with values from the Function Context
+     */
+     public static <T> FunctionRecord.FunctionRecordBuilder<T> from(Context context) {
         Record<?> currentRecord = context.getCurrentRecord();
         FunctionRecordBuilder<T> builder = new FunctionRecordBuilder<T>()
                 .destinationTopic(context.getOutputTopic())
@@ -50,8 +60,6 @@ public class FunctionRecord<T> implements Record<T> {
         currentRecord.getPartitionId().ifPresent(builder::partitionId);
         currentRecord.getPartitionIndex().ifPresent(builder::partitionIndex);
         currentRecord.getRecordSequence().ifPresent(builder::recordSequence);
-
-        // TODO: add message
 
         return builder;
     }

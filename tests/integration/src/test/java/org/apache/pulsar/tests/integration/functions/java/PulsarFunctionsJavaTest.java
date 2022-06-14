@@ -165,7 +165,7 @@ public class PulsarFunctionsJavaTest extends PulsarFunctionsTest {
 
     @Test(groups = {"java_function", "function"})
     public void testMergeFunctionTest() throws Exception {
-	    testMergeFunction();
+        testMergeFunction();
     }
 
     @Test(groups = {"java_function", "function"})

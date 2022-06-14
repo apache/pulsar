@@ -30,8 +30,12 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
 import java.nio.ByteBuffer;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -350,5 +354,69 @@ public class ContextImplTest {
             // pass
         }
 
+    }
+
+    @Test
+    public void testNewOutputRecordBuilder() {
+        Map<String, String> properties = new HashMap<>();
+        properties.put("prop-key", "prop-value");
+        long now = System.currentTimeMillis();
+        context.setCurrentMessageContext(new Record<String>() {
+            @Override
+            public Optional<String> getTopicName() {
+                return Optional.of("input-topic");
+            }
+
+            @Override
+            public Optional<String> getKey() {
+                return Optional.of("input-key");
+            }
+
+            @Override
+            public Schema<String> getSchema() {
+                return Schema.STRING;
+            }
+
+            @Override
+            public String getValue() {
+                return "input-value";
+            }
+
+            @Override
+            public Optional<Long> getEventTime() {
+                return Optional.of(now);
+            }
+
+            @Override
+            public Optional<String> getPartitionId() {
+                return Optional.of("input-partition-id");
+            }
+
+            @Override
+            public Optional<Integer> getPartitionIndex() {
+                return Optional.of(42);
+            }
+
+            @Override
+            public Optional<Long> getRecordSequence() {
+                return Optional.of(43L);
+            }
+
+            @Override
+            public Map<String, String> getProperties() {
+                return properties;
+            }
+        });
+        Record<Integer> record = context.<Integer>newOutputRecordBuilder().build();
+        assertEquals(record.getTopicName().get(), "input-topic");
+        assertEquals(record.getKey().get(), "input-key");
+        assertEquals(record.getEventTime(), Optional.of(now));
+        assertEquals(record.getPartitionId().get(), "input-partition-id");
+        assertEquals(record.getPartitionIndex(), Optional.of(42));
+        assertEquals(record.getRecordSequence(), Optional.of(43L));
+        assertTrue(record.getProperties().containsKey("prop-key"));
+        assertEquals(record.getProperties().get("prop-key"), "prop-value");
+        assertNull(record.getValue());
+        assertNull(record.getSchema());
     }
 }
