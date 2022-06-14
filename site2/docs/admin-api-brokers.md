@@ -39,7 +39,32 @@ In addition to being configurable when you start them up, brokers can also be [d
 
 ### List active brokers
 
-Fetch all available active brokers that are serving traffic.
+Fetch all available active brokers that are serving traffic for local cluster .
+
+<!--DOCUSAURUS_CODE_TABS-->
+<!--pulsar-admin-->
+
+```shell
+$ pulsar-admin brokers list
+```
+
+```
+broker1.use.org.com:8080
+```
+
+<!--REST API-->
+
+{@inject: endpoint|GET|/admin/v2/brokers|operation/getActiveBrokers?version=[[pulsar:version_number]]}
+
+<!--JAVA-->
+
+```java
+admin.brokers().getActiveBrokers()
+```
+
+<!--END_DOCUSAURUS_CODE_TABS-->
+
+Fetch all available active brokers that are serving traffic with cluster name.
 
 ````mdx-code-block
 <Tabs groupId="api-choice"
