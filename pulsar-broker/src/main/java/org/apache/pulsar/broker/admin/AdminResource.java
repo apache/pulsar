@@ -196,7 +196,7 @@ public abstract class AdminResource extends PulsarWebResource {
         try {
             this.namespaceName = NamespaceName.get(property, namespace);
         } catch (IllegalArgumentException e) {
-            log.warn("[{}] Failed to create namespace with invalid name {}", clientAppId(), namespace, e);
+            log.warn("[{}] Invalid namespace name [{}/{}]", clientAppId(), property, namespace);
             throw new RestException(Status.PRECONDITION_FAILED, "Namespace name is not valid");
         }
     }
@@ -218,7 +218,7 @@ public abstract class AdminResource extends PulsarWebResource {
         try {
             this.namespaceName = NamespaceName.get(property, cluster, namespace);
         } catch (IllegalArgumentException e) {
-            log.warn("[{}] Failed to create namespace with invalid name {}", clientAppId(), namespace, e);
+            log.warn("[{}] Invalid namespace name [{}/{}/{}]", clientAppId(), property, cluster, namespace);
             throw new RestException(Status.PRECONDITION_FAILED, "Namespace name is not valid");
         }
     }
@@ -229,8 +229,7 @@ public abstract class AdminResource extends PulsarWebResource {
             this.namespaceName = NamespaceName.get(property, namespace);
             this.topicName = TopicName.get(domain(), namespaceName, topic);
         } catch (IllegalArgumentException e) {
-            log.warn("[{}] Failed to validate topic name {}://{}/{}/{}", clientAppId(), domain(), property, namespace,
-                    topic, e);
+            log.warn("[{}] Invalid topic name [{}://{}/{}/{}]", clientAppId(), domain(), property, namespace, topic);
             throw new RestException(Status.PRECONDITION_FAILED, "Topic name is not valid");
         }
     }
@@ -268,8 +267,8 @@ public abstract class AdminResource extends PulsarWebResource {
             this.namespaceName = NamespaceName.get(property, cluster, namespace);
             this.topicName = TopicName.get(domain(), namespaceName, topic);
         } catch (IllegalArgumentException e) {
-            log.warn("[{}] Failed to validate topic name {}://{}/{}/{}/{}", clientAppId(), domain(), property, cluster,
-                    namespace, topic, e);
+            log.warn("[{}] Invalid topic name {}://{}/{}/{}/{}", clientAppId(), domain(), property, cluster,
+                    namespace, topic);
             throw new RestException(Status.PRECONDITION_FAILED, "Topic name is not valid");
         }
     }
