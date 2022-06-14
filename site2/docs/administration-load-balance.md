@@ -31,7 +31,7 @@ Instead of individual topic or partition assignment, each broker takes ownership
 
 The namespace is the "administrative" unit: many config knobs or operations are done at the namespace level.
 
-For assignment, a namespace is sharded into a list of "bundles", with each bundle comprising a portion of overall hash range of the namespace.
+For assignment, a namespace is sharded into a list of "bundles", with each bundle comprising a portion of the overall hash range of the namespace.
 
 Topics are assigned to a particular bundle by taking the hash of the topic name and checking in which bundle the hash falls into.
 
@@ -218,3 +218,50 @@ loadBalancerOverrideBrokerNicSpeedGbps=
 
 When the value is empty, Pulsar uses the value that the OS reports.
 
+
+## Distribute anti-affinity namespaces across failure domains
+
+When your application has multiple namespaces and you want one of them available all the time to avoid any downtime, you can group these namespaces and distribute them across different [failure domains](reference-terminology.md#failure-domain) and different brokers. Thus, if one of the failure domains is down (due to release rollout or brokers restart), it only disrupts namespaces owned by that specific failure domain and the rest of the namespaces owned by other domains remain available without any impact.
+
+Such a group of namespaces has anti-affinity to each other, that is, all the namespaces in this group are [anti-affinity namespaces](reference-terminology.md#anti-affinity-namespaces) and are distributed to different failure domains in a load-balanced manner. 
+As illustrated in the following figure, Pulsar has 2 failure domains (Domain-1 and Domain-2) and each domain has 2 brokers in it. You have one anti-affinity group which has 4 namespaces in it. All 4 namespaces have anti-affinity to each other. However, Pulsar has only 2 failure domains, so each domain owns 2 namespaces. Also, the load-balancer tries to distribute namespaces evenly across all the brokers in the same domain. Since each domain has 2 brokers, every broker owns one namespace from this anti-affinity namespace group, and you can see that domain-1 and domain-2 own 2 namespaces each, and all 4 brokers own 1 namespace each.
+
+[Distribute anti-affinity namespaces across failure domains](/assets/anti-affinity-namespaces-across-failure-domains.svg)
+
+Each namespace can belong to only one anti-affinity group. If a namespace with an existing anti-affinity assignment is assigned to another anti-affinity group, the original assignment will be dropped.
+ 
+:::tip
+
+If there are more anti-affinity namespaces than failure domains, the load-manager distributes namespaces evenly across all the domains, and also every domain distributes namespaces evenly across all the brokers under that domain.
+
+:::
+
+### Create a failure domain and register brokers
+ 
+:::note
+
+One broker can only be registered to a single failure domain.
+
+:::
+ 
+To create a domain under a specific cluster and register brokers, run the following command:
+
+```bash
+
+pulsar-admin clusters create-failure-domain <cluster-name> --domain-name <domain-name> --broker-list <broker-list-comma-separated>
+
+```
+
+You can also view, update, and delete domains under a specific cluster. For more information, refer to [Pulsar admin doc](/tools/pulsar-admin/).
+
+### Create an anti-affinity namespace group
+
+An anti-affinity group is created automatically when the first namespace is assigned to the group. To assign a namespace to an anti-affinity group, run the following command. It sets an anti-affinity group name for a namespace.
+ 
+```bash
+
+pulsar-admin namespaces set-anti-affinity-group <namespace> --group <group-name>
+ 
+```
+
+For more information about `anti-affinity-group` related commands, refer to [Pulsar admin doc](/tools/pulsar-admin/).
