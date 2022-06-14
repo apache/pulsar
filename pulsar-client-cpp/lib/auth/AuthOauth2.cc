@@ -186,8 +186,6 @@ void ClientCredentialFlow::initialize() {
     curl_easy_setopt(handle, CURLOPT_FORBID_REUSE, 1L);
 
     curl_easy_setopt(handle, CURLOPT_FOLLOWLOCATION, 1L);
-    curl_easy_setopt(handle, CURLOPT_SSL_VERIFYPEER, 0L);
-    curl_easy_setopt(handle, CURLOPT_SSL_VERIFYHOST, 0L);
 
     char errorBuffer[CURL_ERROR_SIZE];
     curl_easy_setopt(handle, CURLOPT_ERRORBUFFER, errorBuffer);
@@ -312,8 +310,6 @@ Oauth2TokenResultPtr ClientCredentialFlow::authenticate() {
     curl_easy_setopt(handle, CURLOPT_FORBID_REUSE, 1L);
 
     curl_easy_setopt(handle, CURLOPT_FOLLOWLOCATION, 1L);
-    curl_easy_setopt(handle, CURLOPT_SSL_VERIFYPEER, 0L);
-    curl_easy_setopt(handle, CURLOPT_SSL_VERIFYHOST, 0L);
 
     curl_easy_setopt(handle, CURLOPT_POSTFIELDS, postData.c_str());
 
