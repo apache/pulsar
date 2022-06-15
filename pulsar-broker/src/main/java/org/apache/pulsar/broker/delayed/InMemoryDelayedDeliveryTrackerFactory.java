@@ -43,7 +43,8 @@ public class InMemoryDelayedDeliveryTrackerFactory implements DelayedDeliveryTra
 
     @Override
     public DelayedDeliveryTracker newTracker(PersistentDispatcherMultipleConsumers dispatcher) {
-        return new InMemoryDelayedDeliveryTracker(dispatcher, timer, tickTimeMillis, isDelayedDeliveryDeliverAtTimeStrict);
+        return new InMemoryDelayedDeliveryTracker(dispatcher, timer, tickTimeMillis,
+                isDelayedDeliveryDeliverAtTimeStrict);
     }
 
     @Override
