@@ -160,7 +160,7 @@ public class PrometheusTextFormatUtil {
                     stream.write('}');
                 }
                 stream.write(' ');
-                stream.write(sample.value);
+                stream.write(Collector.doubleToGoString(sample.value));
                 if (sample.timestampMs != null) {
                     stream.write(' ');
                     stream.write(sample.timestampMs.toString());
