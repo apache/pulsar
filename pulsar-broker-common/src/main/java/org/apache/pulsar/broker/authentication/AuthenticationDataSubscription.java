@@ -20,8 +20,6 @@ package org.apache.pulsar.broker.authentication;
 
 import java.net.SocketAddress;
 import java.security.cert.Certificate;
-import javax.net.ssl.SSLPeerUnverifiedException;
-import javax.net.ssl.SSLSession;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
