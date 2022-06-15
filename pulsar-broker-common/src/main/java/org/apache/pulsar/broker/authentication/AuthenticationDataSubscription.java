@@ -20,70 +20,55 @@ package org.apache.pulsar.broker.authentication;
 
 import java.net.SocketAddress;
 import java.security.cert.Certificate;
-import javax.net.ssl.SSLPeerUnverifiedException;
-import javax.net.ssl.SSLSession;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-public class AuthenticationDataCommand implements AuthenticationDataSource {
-    protected final String authData;
-    protected final SocketAddress remoteAddress;
-    protected final SSLSession sslSession;
+public class AuthenticationDataSubscription implements AuthenticationDataSource {
+    private final AuthenticationDataSource authData;
+    private final String subscription;
 
-    public AuthenticationDataCommand(String authData) {
-        this(authData, null, null);
-    }
-
-    public AuthenticationDataCommand(String authData, SocketAddress remoteAddress, SSLSession sslSession) {
+    public AuthenticationDataSubscription(AuthenticationDataSource authData, String subscription) {
         this.authData = authData;
-        this.remoteAddress = remoteAddress;
-        this.sslSession = sslSession;
+        this.subscription = subscription;
     }
-
-    /*
-     * Command
-     */
 
     @Override
     public boolean hasDataFromCommand() {
-        return (authData != null);
+        return authData.hasDataFromCommand();
     }
 
     @Override
     public String getCommandData() {
-        return authData;
+        return authData.getCommandData();
     }
-
-    /*
-     * Peer
-     */
 
     @Override
     public boolean hasDataFromPeer() {
-        return (remoteAddress != null);
+        return authData.hasDataFromPeer();
     }
 
     @Override
     public SocketAddress getPeerAddress() {
-        return remoteAddress;
+        return authData.getPeerAddress();
     }
-
-    /*
-     * TLS
-     */
 
     @Override
     public boolean hasDataFromTls() {
-        return (sslSession != null);
+        return authData.hasDataFromTls();
     }
 
     @Override
     public Certificate[] getTlsCertificates() {
-        try {
-            return sslSession.getPeerCertificates();
-        } catch (SSLPeerUnverifiedException e) {
-            log.error("Failed to verify the peer's identity", e);
-            return null;
-        }
+        return authData.getTlsCertificates();
+    }
+
+    @Override
+    public boolean hasSubscription() {
+        return this.subscription != null;
+    }
+
+    @Override
+    public String getSubscription() {
+        return subscription;
     }
 }

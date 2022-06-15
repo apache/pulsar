@@ -67,8 +67,8 @@ import org.apache.commons.lang3.mutable.MutableLong;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.TransactionMetadataStoreService;
-import org.apache.pulsar.broker.authentication.AuthenticationDataCommand;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.broker.authentication.AuthenticationDataSubscription;
 import org.apache.pulsar.broker.authentication.AuthenticationProvider;
 import org.apache.pulsar.broker.authentication.AuthenticationState;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
@@ -377,19 +377,20 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     // // Incoming commands handling
     // ////
 
-    private CompletableFuture<Boolean> isTopicOperationAllowed(TopicName topicName, TopicOperation operation) {
+    private CompletableFuture<Boolean> isTopicOperationAllowed(TopicName topicName, TopicOperation operation,
+                    AuthenticationDataSource authData) {
         if (!service.isAuthorizationEnabled()) {
             return CompletableFuture.completedFuture(true);
         }
         CompletableFuture<Boolean> isProxyAuthorizedFuture;
         if (originalPrincipal != null) {
             isProxyAuthorizedFuture = service.getAuthorizationService().allowTopicOperationAsync(
-                topicName, operation, originalPrincipal, getAuthenticationData());
+                topicName, operation, originalPrincipal, authData);
         } else {
             isProxyAuthorizedFuture = CompletableFuture.completedFuture(true);
         }
         CompletableFuture<Boolean> isAuthorizedFuture = service.getAuthorizationService().allowTopicOperationAsync(
-            topicName, operation, authRole, authenticationData);
+            topicName, operation, authRole, authData);
         return isProxyAuthorizedFuture.thenCombine(isAuthorizedFuture, (isProxyAuthorized, isAuthorized) -> {
             if (!isProxyAuthorized) {
                 log.warn("OriginalRole {} is not authorized to perform operation {} on topic {}",
@@ -406,15 +407,9 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     private CompletableFuture<Boolean> isTopicOperationAllowed(TopicName topicName, String subscriptionName,
                                                                TopicOperation operation) {
         if (service.isAuthorizationEnabled()) {
-            if (authenticationData == null) {
-                authenticationData = new AuthenticationDataCommand("", subscriptionName);
-            } else {
-                authenticationData.setSubscription(subscriptionName);
-            }
-            if (originalAuthData != null) {
-                originalAuthData.setSubscription(subscriptionName);
-            }
-            return isTopicOperationAllowed(topicName, operation);
+            AuthenticationDataSource authData =
+                    new AuthenticationDataSubscription(getAuthenticationData(), subscriptionName);
+            return isTopicOperationAllowed(topicName, operation, authData);
         } else {
             return CompletableFuture.completedFuture(true);
         }
@@ -449,7 +444,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 lookupSemaphore.release();
                 return;
             }
-            isTopicOperationAllowed(topicName, TopicOperation.LOOKUP).thenApply(isAuthorized -> {
+            isTopicOperationAllowed(topicName, TopicOperation.LOOKUP, getAuthenticationData()).thenApply(
+                    isAuthorized -> {
                 if (isAuthorized) {
                     lookupTopicAsync(getBrokerService().pulsar(), topicName, authoritative,
                             getPrincipal(), getAuthenticationData(),
@@ -512,7 +508,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 lookupSemaphore.release();
                 return;
             }
-            isTopicOperationAllowed(topicName, TopicOperation.LOOKUP).thenApply(isAuthorized -> {
+            isTopicOperationAllowed(topicName, TopicOperation.LOOKUP, getAuthenticationData()).thenApply(
+                    isAuthorized -> {
                 if (isAuthorized) {
                     unsafeGetPartitionedTopicMetadataAsync(getBrokerService().pulsar(), topicName)
                         .handle((metadata, ex) -> {
@@ -1194,12 +1191,13 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         }
 
         CompletableFuture<Boolean> isAuthorizedFuture = isTopicOperationAllowed(
-                topicName, TopicOperation.PRODUCE
+                topicName, TopicOperation.PRODUCE, getAuthenticationData()
         );
 
         if (!Strings.isNullOrEmpty(initialSubscriptionName)) {
             isAuthorizedFuture =
-                    isAuthorizedFuture.thenCombine(isTopicOperationAllowed(topicName, TopicOperation.SUBSCRIBE),
+                    isAuthorizedFuture.thenCombine(
+                            isTopicOperationAllowed(topicName, TopicOperation.SUBSCRIBE, getAuthenticationData()),
                             (canProduce, canSubscribe) -> canProduce && canSubscribe);
         }
 
