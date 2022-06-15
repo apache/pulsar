@@ -868,7 +868,7 @@ There are diverse system topics depending on namespaces. The following table out
 | Namespace | TopicName | Domain | Count | Usage |
 |-----------|-----------|--------|-------|-------|
 | pulsar/system | `transaction_coordinator_assign_${id}` | Persistent | Default 16 | Transaction coordinator |
-| pulsar/system | `_transaction_log${tc_id}` | Persistent | Default 16 | Transaction log |
+| pulsar/system | `__transaction_log_${tc_id}` | Persistent | Default 16 | Transaction log |
 | pulsar/system | `resource-usage` | Non-persistent | Default 4 | Resource group service |
 | host/port | `heartbeat` | Persistent | 1 | Heartbeat detection |
 | User-defined-ns | [`__change_events`](concepts-multi-tenancy.md#namespace-change-events-and-topic-level-policies) | Persistent | Default 4 | Topic events |
