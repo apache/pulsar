@@ -18,13 +18,11 @@
  */
 package org.apache.pulsar.broker.service;
 
-import com.google.common.annotations.VisibleForTesting;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.stream.Collectors;
 import lombok.Getter;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
@@ -35,20 +33,22 @@ public class EntryAndMetadataList {
 
     private List<Entry> entries;
     private List<MessageMetadata> metadataList;
-    @Getter
     private int watermark;
+    private boolean hasChunks;
 
     public EntryAndMetadataList(final List<Entry> entries, final String subscription) {
-        this(entries, entries.stream()
-                .map(e -> Commands.peekAndCopyMessageMetadata(e.getDataBuffer(), subscription, -1))
-                .collect(Collectors.toList()));
-    }
-
-    @VisibleForTesting
-    EntryAndMetadataList(final List<Entry> entries, final List<MessageMetadata> metadataList) {
         this.entries = entries;
-        this.metadataList = metadataList;
+        this.metadataList = new ArrayList<>();
         this.watermark = entries.size();
+        this.hasChunks = false;
+        entries.forEach(entry -> {
+            final MessageMetadata metadata =
+                    Commands.peekAndCopyMessageMetadata(entry.getDataBuffer(), subscription, -1);
+            if (!hasChunks && metadata != null && metadata.hasUuid()) {
+                hasChunks = true;
+            }
+            metadataList.add(metadata);
+        });
     }
 
     public int size() {
@@ -65,9 +65,7 @@ public class EntryAndMetadataList {
      *   M0, M2, M3, M1-C0, M1-C1, M4
      */
     public void sortChunks() {
-        boolean hasChunks = metadataList.stream().anyMatch(MessageMetadata::hasUuid);
         if (!hasChunks) {
-            watermark = metadataList.size();
             return;
         }
         final Map<String, List<Integer>> uuidToIndexes = new HashMap<>();
