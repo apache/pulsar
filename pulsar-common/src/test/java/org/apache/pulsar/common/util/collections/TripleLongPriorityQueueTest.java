@@ -135,4 +135,39 @@ public class TripleLongPriorityQueueTest {
 
         pq.close();
     }
+
+    @Test
+    public void testShrink() throws Exception {
+        int initialCapacity = 20;
+        int tupleSize = 3 * 8;
+        TripleLongPriorityQueue pq = new TripleLongPriorityQueue(initialCapacity, 0.5f);
+        pq.add(0, 0, 0);
+        assertEquals(pq.size(), 1);
+        assertEquals(pq.getBuffer().capacity(), initialCapacity * tupleSize);
+
+        // Scale out to capacity * 2
+        triggerScaleOut(initialCapacity, pq);
+        int scaleCapacity = initialCapacity * 2;
+        assertEquals(pq.getBuffer().capacity(), scaleCapacity * tupleSize);
+        // Trigger shrinking
+        for (int i = 0; i < initialCapacity / 2 + 1; i++) {
+             pq.pop();
+        }
+        int capacity = scaleCapacity - (int)(scaleCapacity * 0.5f * 0.9f);
+        assertEquals(pq.getBuffer().capacity(), capacity * tupleSize);
+        // Scale out to capacity * 2
+        triggerScaleOut(initialCapacity, pq);
+        scaleCapacity = capacity * 2;
+        assertEquals(pq.getBuffer().capacity(), scaleCapacity * tupleSize);
+        // Trigger shrinking
+        pq.clear();
+        capacity = scaleCapacity - (int)(scaleCapacity * 0.5f * 0.9f);
+        assertEquals(pq.getBuffer().capacity(), capacity * tupleSize);
+    }
+
+    private void triggerScaleOut(int initialCapacity, TripleLongPriorityQueue pq) {
+        for (long i = 0; i < initialCapacity + 1; i++) {
+            pq.add(i, i, i);
+        }
+    }
 }

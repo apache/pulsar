@@ -718,6 +718,22 @@ public interface Topics {
     CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadataAsync(String topic);
 
     /**
+     * Get properties of a topic.
+     * @param topic
+     *            Topic name
+     * @return Topic properties
+     */
+    Map<String, String> getProperties(String topic) throws PulsarAdminException;
+
+    /**
+     * Get properties of a topic asynchronously.
+     * @param topic
+     *            Topic name
+     * @return a future that can be used to track when the topic properties is returned
+     */
+    CompletableFuture<Map<String, String>> getPropertiesAsync(String topic);
+
+    /**
      * Delete a partitioned topic and its schemas.
      * <p/>
      * It will also delete all the partitions of the topic if it exists.
@@ -1813,6 +1829,17 @@ public interface Topics {
     void resetCursor(String topic, String subName, MessageId messageId, boolean isExcluded) throws PulsarAdminException;
 
     /**
+     * Update Subscription Properties on a topic subscription.
+     * The new properties will override the existing values, properties that are not passed will be removed.
+     * @param topic
+     * @param subName
+     * @param subscriptionProperties
+     * @throws PulsarAdminException
+     */
+    void updateSubscriptionProperties(String topic, String subName, Map<String, String> subscriptionProperties)
+            throws PulsarAdminException;
+
+    /**
      * Reset cursor position on a topic subscription.
      *
      * @param topic
@@ -1835,6 +1862,16 @@ public interface Topics {
      * @return
      */
     CompletableFuture<Void> resetCursorAsync(String topic, String subName, MessageId messageId, boolean isExcluded);
+
+    /**
+     * Update Subscription Properties on a topic subscription.
+     * The new properties will override the existing values, properties that are not passed will be removed.
+     * @param topic
+     * @param subName
+     * @param subscriptionProperties
+     */
+    CompletableFuture<Void>  updateSubscriptionPropertiesAsync(String topic, String subName,
+                                                               Map<String, String> subscriptionProperties);
 
     /**
      * Reset cursor position on a topic subscription.
@@ -4013,4 +4050,34 @@ public interface Topics {
      * @return a map of replicated subscription status on a topic
      */
     CompletableFuture<Map<String, Boolean>> getReplicatedSubscriptionStatusAsync(String topic, String subName);
+
+    /**
+     * Get schema validation enforced for a topic.
+     *
+     * @param topic topic name
+     * @return whether the schema validation enforced is set or not
+     */
+    boolean getSchemaValidationEnforced(String topic, boolean applied) throws PulsarAdminException;
+
+    /**
+     * Get schema validation enforced for a topic.
+     *
+     * @param topic topic name
+     */
+    void setSchemaValidationEnforced(String topic, boolean enable) throws PulsarAdminException;
+
+    /**
+     * Get schema validation enforced for a topic asynchronously.
+     *
+     * @param topic topic name
+     * @return whether the schema validation enforced is set or not
+     */
+    CompletableFuture<Boolean> getSchemaValidationEnforcedAsync(String topic, boolean applied);
+
+    /**
+     * Get schema validation enforced for a topic asynchronously.
+     *
+     * @param topic topic name
+     */
+    CompletableFuture<Void> setSchemaValidationEnforcedAsync(String topic, boolean enable);
 }

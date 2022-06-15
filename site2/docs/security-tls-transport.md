@@ -280,7 +280,7 @@ config.setValidateHostName(false);
 
 #### Node.js client
 
-```JavaScript
+```javascript
 
 const Pulsar = require('pulsar-client');
 

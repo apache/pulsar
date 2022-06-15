@@ -413,7 +413,7 @@ For more information about implementation details, see [PR-6825](https://github.
 
 ## More information
 
-- To download Apache Pulsar 2.6.0, click [here](https://pulsar.apache.org/en/download/).
+- To download Apache Pulsar 2.6.0, click [here](https://pulsar.apache.org/download/).
 - For more information about Apache Pulsar 2.6.0, see [2.6.0 release notes](https://pulsar.apache.org/release-notes/#2.6.0) and [2.6.0 PR list](https://github.com/apache/pulsar/pulls?q=milestone%3A2.6.0+-label%3Arelease%2F2.5.2+-label%3Arelease%2F2.5.1+).
 
 If you have any questions or suggestions, contact us with mailing lists or slack.

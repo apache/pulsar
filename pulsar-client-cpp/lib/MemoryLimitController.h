@@ -30,15 +30,18 @@ class MemoryLimitController {
    public:
     explicit MemoryLimitController(uint64_t memoryLimit);
     bool tryReserveMemory(uint64_t size);
-    void reserveMemory(uint64_t size);
+    bool reserveMemory(uint64_t size);
     void releaseMemory(uint64_t size);
     uint64_t currentUsage() const;
+
+    void close();
 
    private:
     const uint64_t memoryLimit_;
     std::atomic<uint64_t> currentUsage_;
     std::mutex mutex_;
     std::condition_variable condition_;
+    bool isClosed_ = false;
 };
 
 }  // namespace pulsar

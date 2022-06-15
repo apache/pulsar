@@ -29,11 +29,15 @@ import io.netty.util.AbstractReferenceCounted;
 import io.netty.util.ReferenceCounted;
 import org.apache.commons.lang3.tuple.Pair;
 import org.testng.annotations.Test;
+import java.util.UUID;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 public class RangeCacheTest {
 
     class RefString extends AbstractReferenceCounted implements ReferenceCounted {
-        final String s;
+        String s;
 
         RefString(String s) {
             super();
@@ -43,7 +47,7 @@ public class RangeCacheTest {
 
         @Override
         protected void deallocate() {
-            // no-op
+            s = null;
         }
 
         @Override
@@ -121,6 +125,7 @@ public class RangeCacheTest {
         assertEquals(cache.getSize(), 7);
         assertEquals(cache.getNumberOfEntries(), 2);
     }
+
 
     @Test
     public void customTimeExtraction() {
@@ -267,5 +272,25 @@ public class RangeCacheTest {
         assertEquals((int) res.getLeft(), 10);
         assertEquals((long) res.getRight(), 10);
         assertEquals(cache.getSize(), 90);
+    }
+
+    @Test
+    public void testInParallel() {
+        RangeCache<String, RefString> cache = new RangeCache<>(value -> value.s.length(), x -> 0);
+        ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
+        executor.scheduleWithFixedDelay(cache::clear, 10, 10, TimeUnit.MILLISECONDS);
+        for (int i = 0; i < 1000; i++) {
+            cache.put(UUID.randomUUID().toString(), new RefString("zero"));
+        }
+        executor.shutdown();
+    }
+
+    @Test
+    public void testPutSameObj() {
+        RangeCache<Integer, RefString> cache = new RangeCache<>(value -> value.s.length(), x -> 0);
+        RefString s0 = new RefString("zero");
+        assertEquals(s0.refCnt(), 1);
+        assertTrue(cache.put(0, s0));
+        assertFalse(cache.put(0, s0));
     }
 }

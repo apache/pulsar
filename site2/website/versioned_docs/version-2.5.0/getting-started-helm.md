@@ -275,7 +275,7 @@ brokerServiceUrl=pulsar://$(minikube ip):<exposed-binary-port>/
 
 Then proceed with the following steps:
 
-1. Download the Apache Pulsar tarball from [downloads page](https://pulsar.apache.org/en/download/).
+1. Download the Apache Pulsar tarball from [downloads page](https://pulsar.apache.org/download/).
 
 2. Decompress the tarball based on your download file.
 

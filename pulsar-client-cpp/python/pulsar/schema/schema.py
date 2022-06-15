@@ -77,6 +77,14 @@ class StringSchema(Schema):
         return 'StringSchema'
 
 
+def remove_reserved_key(data):
+    if '_default' in data:
+        del data['_default']
+    if '_required' in data:
+        del data['_required']
+    if '_required_default' in data:
+        del data['_required_default']
+
 
 class JsonSchema(Schema):
 
@@ -88,19 +96,15 @@ class JsonSchema(Schema):
         if isinstance(o, enum.Enum):
             return o.value
         else:
-            return o.__dict__
+            data = o.__dict__.copy()
+            remove_reserved_key(data)
+            return data
 
     def encode(self, obj):
         self._validate_object_type(obj)
         # Copy the dict of the object as to not modify the provided object via the reference provided
         data = obj.__dict__.copy()
-        if '_default' in data:
-            del data['_default']
-        if '_required' in data:
-            del data['_required']
-        if '_required_default' in data:
-            del data['_required_default']
-
+        remove_reserved_key(data)
         return json.dumps(data, default=self._get_serialized_value, indent=True).encode('utf-8')
 
     def decode(self, data):

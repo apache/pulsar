@@ -30,6 +30,64 @@ Broker is only supported on 64-bit JVM.
 
 :::
 
+#### Install JDK on M1
+In the current version, Pulsar uses a BookKeeper version which in turn uses RocksDB. RocksDB is compiled to work on x86 architecture and not ARM. Therefore, Pulsar can only work with x86 JDK. This is planned to be fixed in future versions of Pulsar.
+
+One of the ways to easily install an x86 JDK is to use [SDKMan](http://sdkman.io) as outlined in the following steps:
+
+1. Install [SDKMan](http://sdkman.io).
+
+* Method 1: follow instructions on the SDKMan website.
+
+* Method 2: if you have [Homebrew](https://brew.sh) installed, enter the following command.
+
+```shell
+
+brew install sdkman
+
+```
+
+2. Turn on Rosetta2 compatibility for SDKMan by editing `~/.sdkman/etc/config` and changing the following property from `false` to `true`.
+
+```properties
+
+sdkman_rosetta2_compatible=true
+
+```
+
+3. Close the current shell / terminal window and open a new one.
+4. Make sure you don't have any previously installed JVM of the same version by listing existing installed versions.
+
+```shell
+
+sdk list java|grep installed
+
+```
+
+Example output:
+
+```text
+
+               | >>> | 17.0.3.6.1   | amzn    | installed  | 17.0.3.6.1-amzn
+
+```
+
+If you have any Java 17 version installed, uninstall it.
+
+```shell
+
+sdk uinstall java 17.0.3.6.1
+
+```
+
+5. Install any Java versions greater than Java 8.
+
+```shell
+
+ sdk install java 17.0.3.6.1-amzn
+
+```
+
 ### Install Pulsar using binary release
 
 To get started with Pulsar, download a binary tarball release in one of the following ways:
@@ -63,7 +121,7 @@ The Pulsar binary package initially contains the following directories:
 
 Directory | Contains
 :---------|:--------
-`bin` | Pulsar's command-line tools, such as [`pulsar`](reference-cli-tools.md#pulsar) and [`pulsar-admin`](https://pulsar.apache.org/tools/pulsar-admin/).
+`bin` | Pulsar's command-line tools, such as [`pulsar`](reference-cli-tools.md#pulsar) and [`pulsar-admin`](/tools/pulsar-admin/).
 `conf` | Configuration files for Pulsar, including [broker configuration](reference-configuration.md#broker) and more.<br />**Note:** Pulsar standalone uses RocksDB as the local metadata store and its configuration file path [`metadataStoreConfigPath`](reference-configuration) is configurable in the `standalone.conf` file. For more information about the configurations of RocksDB, see [here](https://github.com/facebook/rocksdb/blob/main/examples/rocksdb_option_file_example.ini) and related [documentation](https://github.com/facebook/rocksdb/wiki/RocksDB-Tuning-Guide).
 `examples` | A Java JAR file containing [Pulsar Functions](functions-overview) example.
 `instances` | Artifacts created for [Pulsar Functions](functions-overview).
@@ -203,7 +261,7 @@ If you have started Pulsar successfully, you will see `INFO`-level log messages 
 
 :::
 
-You can also run the service as a background process using the `bin/pulsar-daemon start standalone` command. For more information, see [pulsar-daemon](https://pulsar.apache.org/docs/en/reference-cli-tools/#pulsar-daemon).
+You can also run the service as a background process using the `bin/pulsar-daemon start standalone` command. For more information, see [pulsar-daemon](/docs/en/reference-cli-tools/#pulsar-daemon).
 > 
 > * By default, there is no encryption, authentication, or authorization configured. Apache Pulsar can be accessed from remote server without any authorization. Please do check [Security Overview](security-overview) document to secure your deployment.
 >
@@ -262,7 +320,7 @@ Press `Ctrl+C` to stop a local standalone Pulsar.
 :::tip
 
 If the service runs as a background process using the `bin/pulsar-daemon start standalone` command, then use the `bin/pulsar-daemon stop standalone`  command to stop the service.
-For more information, see [pulsar-daemon](https://pulsar.apache.org/docs/en/reference-cli-tools/#pulsar-daemon).
+For more information, see [pulsar-daemon](reference-cli-tools.md#pulsar-daemon).
 
 :::
 

@@ -373,6 +373,6 @@ public class FunctionsImplTest {
 
     public static Function.FunctionDetails createDefaultFunctionDetails() {
         FunctionConfig functionConfig = createDefaultFunctionConfig();
-        return FunctionConfigUtils.convert(functionConfig, null);
+        return FunctionConfigUtils.convert(functionConfig, (ClassLoader) null);
     }
 }

@@ -240,10 +240,13 @@ public interface ManagedLedger {
      * @param properties
      *             user defined properties that will be attached to the first position of the cursor, if the open
      *             operation will trigger the creation of the cursor.
+     * @param cursorProperties
+     *            the properties for the Cursor
      * @return the ManagedCursor
      * @throws ManagedLedgerException
      */
-    ManagedCursor openCursor(String name, InitialPosition initialPosition, Map<String, Long> properties)
+    ManagedCursor openCursor(String name, InitialPosition initialPosition, Map<String, Long> properties,
+                             Map<String, String> cursorProperties)
             throws InterruptedException, ManagedLedgerException;
 
     /**
@@ -337,13 +340,15 @@ public interface ManagedLedger {
      * @param initialPosition
      *            the cursor will be set at lastest position or not when first created
      *            default is <b>true</b>
+     * @param cursorProperties
+     *            the properties for the Cursor
      * @param callback
      *            callback object
      * @param ctx
      *            opaque context
      */
     void asyncOpenCursor(String name, InitialPosition initialPosition, Map<String, Long> properties,
-                         OpenCursorCallback callback, Object ctx);
+                         Map<String, String> cursorProperties, OpenCursorCallback callback, Object ctx);
 
     /**
      * Get a list of all the cursors reading from this ManagedLedger.

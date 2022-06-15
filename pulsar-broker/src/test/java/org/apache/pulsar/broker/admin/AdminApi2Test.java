@@ -859,6 +859,27 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    public void testCreateAndGetTopicProperties() throws Exception {
+        final String namespace = "prop-xyz/ns2";
+        final String nonPartitionedTopicName = "persistent://" + namespace + "/non-partitioned-TopicProperties";
+        admin.namespaces().createNamespace(namespace, 20);
+        Map<String, String> nonPartitionedTopicProperties = new HashMap<>();
+        nonPartitionedTopicProperties.put("key1", "value1");
+        admin.topics().createNonPartitionedTopic(nonPartitionedTopicName, nonPartitionedTopicProperties);
+        Map<String, String> properties11 = admin.topics().getProperties(nonPartitionedTopicName);
+        Assert.assertNotNull(properties11);
+        Assert.assertEquals(properties11.get("key1"), "value1");
+
+        final String partitionedTopicName = "persistent://" + namespace + "/partitioned-TopicProperties";
+        Map<String, String> partitionedTopicProperties = new HashMap<>();
+        partitionedTopicProperties.put("key2", "value2");
+        admin.topics().createPartitionedTopic(partitionedTopicName, 2, partitionedTopicProperties);
+        Map<String, String> properties22 = admin.topics().getProperties(partitionedTopicName);
+        Assert.assertNotNull(properties22);
+        Assert.assertEquals(properties22.get("key2"), "value2");
+    }
+
+    @Test
     public void testNonPersistentTopics() throws Exception {
         final String namespace = "prop-xyz/ns2";
         final String topicName = "non-persistent://" + namespace + "/topic";
@@ -2471,5 +2492,21 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         assertEquals(topicStats.getPartitions().values().stream().map(e -> e.getPublishers().get(0).getProducerName()).distinct().count(), 2);
         assertEquals(topicStats.getPublishers().size(), 2);
         topicStats.getPublishers().forEach(p -> assertTrue(p.isSupportsPartialProducer()));
+    }
+
+    @Test(dataProvider = "topicType")
+    public void testSchemaValidationEnforced(String topicType) throws Exception {
+        final String topic = topicType + "://prop-xyz/ns1/test-schema-validation-enforced";
+        admin.topics().createPartitionedTopic(topic, 1);
+        @Cleanup
+        Producer<byte[]> producer1 = pulsarClient.newProducer()
+                .topic(topic + TopicName.PARTITIONED_TOPIC_SUFFIX + 0)
+                .create();
+        boolean schemaValidationEnforced = admin.topics().getSchemaValidationEnforced(topic, false);
+        assertEquals(schemaValidationEnforced, false);
+        admin.topics().setSchemaValidationEnforced(topic, true);
+        Awaitility.await().untilAsserted(() ->
+            assertEquals(admin.topics().getSchemaValidationEnforced(topic, false), true)
+        );
     }
 }

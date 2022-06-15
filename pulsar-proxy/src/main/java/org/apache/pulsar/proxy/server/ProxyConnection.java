@@ -31,6 +31,7 @@ import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadLocalRandom;
@@ -50,6 +51,8 @@ import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.ConnectionPool;
 import org.apache.pulsar.client.impl.PulsarChannelInitializer;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.client.impl.conf.ConfigurationDataUtils;
+import org.apache.pulsar.client.internal.PropertiesUtils;
 import org.apache.pulsar.common.api.AuthData;
 import org.apache.pulsar.common.api.proto.CommandAuthResponse;
 import org.apache.pulsar.common.api.proto.CommandConnect;
@@ -80,7 +83,6 @@ public class ProxyConnection extends PulsarHandler {
     private final DnsAddressResolverGroup dnsAddressResolverGroup;
     AuthenticationDataSource authenticationData;
     private State state;
-    private final Supplier<SslHandler> sslHandlerSupplier;
 
     private LookupProxyHandler lookupProxyHandler = null;
     @Getter
@@ -129,13 +131,11 @@ public class ProxyConnection extends PulsarHandler {
         return connectionPool;
     }
 
-    public ProxyConnection(ProxyService proxyService, Supplier<SslHandler> sslHandlerSupplier,
-                           DnsAddressResolverGroup dnsAddressResolverGroup) {
+    public ProxyConnection(ProxyService proxyService, DnsAddressResolverGroup dnsAddressResolverGroup) {
         super(30, TimeUnit.SECONDS);
         this.service = proxyService;
         this.dnsAddressResolverGroup = dnsAddressResolverGroup;
         this.state = State.Init;
-        this.sslHandlerSupplier = sslHandlerSupplier;
         this.brokerProxyValidator = service.getBrokerProxyValidator();
     }
 
@@ -358,8 +358,7 @@ public class ProxyConnection extends PulsarHandler {
     private void connectToBroker(InetSocketAddress brokerAddress) {
         checkState(ctx.executor().inEventLoop(), "This method should be called in the event loop");
         DirectProxyHandler directProxyHandler = new DirectProxyHandler(service, this);
-        directProxyHandler.connect(proxyToBrokerUrl, brokerAddress,
-                protocolVersionToAdvertise, sslHandlerSupplier);
+        directProxyHandler.connect(proxyToBrokerUrl, brokerAddress, protocolVersionToAdvertise);
     }
 
     public void brokerConnected(DirectProxyHandler directProxyHandler, CommandConnected connected) {
@@ -523,12 +522,21 @@ public class ProxyConnection extends PulsarHandler {
     }
 
     ClientConfigurationData createClientConfiguration() {
-        ClientConfigurationData clientConf = new ClientConfigurationData();
-        clientConf.setServiceUrl(service.getServiceUrl());
+        ClientConfigurationData initialConf = new ClientConfigurationData();
+        initialConf.setServiceUrl(service.getServiceUrl());
         ProxyConfiguration proxyConfig = service.getConfiguration();
+        // Apply all arbitrary configuration. This must be called before setting any fields annotated as
+        // @Secret on the ClientConfigurationData object because of the way they are serialized.
+        // See https://github.com/apache/pulsar/issues/8509 for more information.
+        Map<String, Object> overrides = PropertiesUtils
+                .filterAndMapProperties(proxyConfig.getProperties(), "brokerClient_");
+        ClientConfigurationData clientConf = ConfigurationDataUtils
+                .loadData(overrides, initialConf, ClientConfigurationData.class);
+
         clientConf.setAuthentication(this.getClientAuthentication());
         if (proxyConfig.isTlsEnabledWithBroker()) {
             clientConf.setUseTls(true);
+            clientConf.setTlsHostnameVerificationEnable(proxyConfig.isTlsHostnameVerificationEnabled());
             if (proxyConfig.isBrokerClientTlsEnabledWithKeyStore()) {
                 clientConf.setUseKeyStoreTls(true);
                 clientConf.setTlsTrustStoreType(proxyConfig.getBrokerClientTlsTrustStoreType());

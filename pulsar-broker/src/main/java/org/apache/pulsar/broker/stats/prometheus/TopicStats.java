@@ -248,6 +248,8 @@ class TopicStats {
                     subsStats.blockedSubscriptionOnUnackedMsgs ? 1 : 0, splitTopicAndPartitionIndexLabel);
             metric(metrics, cluster, namespace, topic, n, "pulsar_subscription_msg_rate_out",
                     subsStats.msgRateOut, splitTopicAndPartitionIndexLabel);
+            metric(metrics, cluster, namespace, topic, n, "pulsar_subscription_msg_ack_rate",
+                    subsStats.messageAckRate, splitTopicAndPartitionIndexLabel);
             metric(metrics, cluster, namespace, topic, n, "pulsar_subscription_msg_throughput_out",
                     subsStats.msgThroughputOut, splitTopicAndPartitionIndexLabel);
             metric(metrics, cluster, namespace, topic, n, "pulsar_out_bytes_total",
@@ -286,6 +288,11 @@ class TopicStats {
                 metric(metrics, cluster, namespace, topic, n, c.consumerName(), c.consumerId(),
                         "pulsar_consumer_msg_rate_out", consumerStats.msgRateOut,
                         splitTopicAndPartitionIndexLabel);
+
+                metric(metrics, cluster, namespace, topic, n, c.consumerName(), c.consumerId(),
+                        "pulsar_consumer_msg_ack_rate", consumerStats.msgAckRate,
+                        splitTopicAndPartitionIndexLabel);
+
                 metric(metrics, cluster, namespace, topic, n, c.consumerName(), c.consumerId(),
                         "pulsar_consumer_msg_throughput_out", consumerStats.msgThroughputOut,
                         splitTopicAndPartitionIndexLabel);

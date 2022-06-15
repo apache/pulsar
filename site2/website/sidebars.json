@@ -64,8 +64,7 @@
         "io-debug",
         "io-connectors",
         "io-cdc",
-        "io-develop",
-        "io-cli"
+        "io-develop"
       ]
     },
     {
@@ -87,7 +86,8 @@
         "tiered-storage-gcs",
         "tiered-storage-filesystem",
         "tiered-storage-azure",
-        "tiered-storage-aliyun"
+        "tiered-storage-aliyun",
+        "tiered-storage-s3"
       ]
     },
     {
@@ -146,6 +146,7 @@
         "security-athenz",
         "security-kerberos",
         "security-oauth2",
+        "security-basic-auth",
         "security-authorization",
         "security-encryption",
         "security-extending",

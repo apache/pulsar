@@ -33,6 +33,7 @@ public class AggregatedNamespaceStats {
     public double throughputIn;
     public double throughputOut;
 
+    public long messageAckRate;
     public long bytesInCounter;
     public long msgInCounter;
     public long bytesOutCounter;
@@ -122,6 +123,7 @@ public class AggregatedNamespaceStats {
                 consumerStats.blockedSubscriptionOnUnackedMsgs = v.blockedSubscriptionOnUnackedMsgs;
                 consumerStats.msgRateRedeliver += v.msgRateRedeliver;
                 consumerStats.unackedMessages += v.unackedMessages;
+                messageAckRate += v.msgAckRate;
             });
         });
 

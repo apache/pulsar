@@ -217,7 +217,7 @@ required plugins.
 1. Open Maven Importing Settings dialog by going to 
    **Settings** -> **Build, Execution, Deployment** -> **Build Tools** -> **Maven** -> **Importing**.
 
-2. Choose **Use Project JDK** for **JDK for Importer** setting. This uses the Java 11 JDK for running Maven 
+2. Choose **Use Project JDK** for **JDK for Importer** setting. This uses the Java 17 JDK for running Maven 
    when importing the project to IntelliJ. Some of the configuration in the Maven build is conditional based on 
    the JDK version. Incorrect configuration gets chosen when the "JDK for Importer" isn't the same as the "Project JDK".
 
@@ -309,9 +309,11 @@ required plugins.
 Follow the instructions [here](https://howtodoinjava.com/automation/lombok-eclipse-installation-examples/)
 to configure your Eclipse setup.
 
-## Build Pulsar docs
+## Documentation
 
-Refer to the docs [README](site2/README.md).
+> **Tip**
+> 
+> For how to make contributions to Pulsar documentation, see [Pulsar Documentation Contribution Guide](https://docs.google.com/document/d/11DTnNPpvcPrebLkMAFcDEIFlD8ARD-k6F-LXoIwdD9Y/edit#).
 
 ## Contact
 

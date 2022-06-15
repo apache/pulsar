@@ -64,7 +64,7 @@ public class TopicLookup extends TopicLookupBase {
                     if (log.isDebugEnabled()) {
                         log.debug("Failed to check exist for topic {} when lookup", topicName, ex);
                     }
-                    completeLookupResponseExceptionally(asyncResponse, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
     }

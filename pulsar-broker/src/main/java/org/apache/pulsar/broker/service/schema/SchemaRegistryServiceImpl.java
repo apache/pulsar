@@ -38,6 +38,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.stream.Collectors;
 import javax.validation.constraints.NotNull;
 import lombok.extern.slf4j.Slf4j;
@@ -67,17 +68,19 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
 
     @VisibleForTesting
     SchemaRegistryServiceImpl(SchemaStorage schemaStorage,
-                              Map<SchemaType, SchemaCompatibilityCheck> compatibilityChecks, Clock clock) {
+                              Map<SchemaType, SchemaCompatibilityCheck> compatibilityChecks, Clock clock,
+                              ScheduledExecutorService scheduler) {
         this.schemaStorage = schemaStorage;
         this.compatibilityChecks = compatibilityChecks;
         this.clock = clock;
-        this.stats = SchemaRegistryStats.getInstance();
+        this.stats = SchemaRegistryStats.getInstance(scheduler);
     }
 
     @VisibleForTesting
     SchemaRegistryServiceImpl(SchemaStorage schemaStorage,
-                              Map<SchemaType, SchemaCompatibilityCheck> compatibilityChecks) {
-        this(schemaStorage, compatibilityChecks, Clock.systemUTC());
+                              Map<SchemaType, SchemaCompatibilityCheck> compatibilityChecks,
+                              ScheduledExecutorService scheduler) {
+        this(schemaStorage, compatibilityChecks, Clock.systemUTC(), scheduler);
     }
 
     @Override

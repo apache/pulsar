@@ -243,7 +243,7 @@ public class KafkaConnectSink implements Sink<GenericObject> {
     @SuppressWarnings("rawtypes")
     protected SinkRecord toSinkRecord(Record<GenericObject> sourceRecord) {
         final int partition = sourceRecord.getPartitionIndex().orElse(0);
-        final String topic = sourceRecord.getTopicName().orElse(topicName);
+        final String topic = sanitizeNameIfNeeded(sourceRecord.getTopicName().orElse(topicName), sanitizeTopicName);
         final Object key;
         final Object value;
         final Schema keySchema;
@@ -300,7 +300,7 @@ public class KafkaConnectSink implements Sink<GenericObject> {
             // keep timestampType = TimestampType.NO_TIMESTAMP_TYPE
             timestamp = sourceRecord.getMessage().get().getPublishTime();
         }
-        return new SinkRecord(sanitizeNameIfNeeded(topic, sanitizeTopicName),
+        return new SinkRecord(topic,
                 partition,
                 keySchema,
                 key,
@@ -313,7 +313,7 @@ public class KafkaConnectSink implements Sink<GenericObject> {
 
     @VisibleForTesting
     protected long currentOffset(String topic, int partition) {
-        return taskContext.currentOffset(topic, partition);
+        return taskContext.currentOffset(sanitizeNameIfNeeded(topic, sanitizeTopicName), partition);
     }
 
     // Replace all non-letter, non-digit characters with underscore.

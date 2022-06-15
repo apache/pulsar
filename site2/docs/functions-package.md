@@ -30,7 +30,7 @@ To package a function in Java, complete the following steps.
 
 1. Create a new maven project with a pom file. In the following code sample, the value of `mainClass` is your package name.
 
-   ```Java
+   ```java
    
    <?xml version="1.0" encoding="UTF-8"?>
    <project xmlns="http://maven.apache.org/POM/4.0.0"
@@ -494,4 +494,4 @@ If you want to start a function in cluster mode, replace `localrun` with `create
  
  ```
 
-For information about parameters on `--classname`, `--jar`, `--py`, `--go`, `--inputs`, run the command `./bin/pulsar-admin functions` or see [here](reference-pulsar-admin.md#functions).
+For information about parameters on `--classname`, `--jar`, `--py`, `--go`, `--inputs`, run the command `./bin/pulsar-admin functions` or see [here](/tools/pulsar-admin/).

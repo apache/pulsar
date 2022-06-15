@@ -24,12 +24,10 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerService;
-import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.Policies;
-import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 import org.apache.pulsar.common.util.RateLimiter;
 import org.slf4j.Logger;
@@ -201,116 +199,6 @@ public class DispatchRateLimiter {
                 this.topicName, type, dispatchRate);
         }
         updateDispatchRate(dispatchRate);
-    }
-
-    public static boolean isDispatchRateNeeded(BrokerService brokerService, Optional<Policies> policies,
-            String topicName, Type type) {
-        final ServiceConfiguration serviceConfig = brokerService.pulsar().getConfiguration();
-        if (type == Type.BROKER) {
-            return brokerService.getBrokerDispatchRateLimiter().isDispatchRateLimitingEnabled();
-        }
-
-        Optional<DispatchRate> dispatchRate = getTopicPolicyDispatchRate(brokerService, topicName, type);
-        if (dispatchRate.isPresent()) {
-            return true;
-        }
-
-        policies = policies.isPresent() ? policies : getPolicies(brokerService, topicName);
-        return isDispatchRateNeeded(serviceConfig, policies, topicName, type);
-    }
-
-    public static Optional<DispatchRate> getTopicPolicyDispatchRate(BrokerService brokerService,
-                                                                    String topicName, Type type) {
-        Optional<DispatchRate> dispatchRate = Optional.empty();
-        final ServiceConfiguration serviceConfiguration = brokerService.pulsar().getConfiguration();
-        if (serviceConfiguration.isSystemTopicEnabled() && serviceConfiguration.isTopicLevelPoliciesEnabled()) {
-            try {
-                switch (type) {
-                    case TOPIC:
-                        dispatchRate = Optional.ofNullable(brokerService.pulsar().getTopicPoliciesService()
-                                .getTopicPolicies(TopicName.get(topicName)))
-                                .map(TopicPolicies::getDispatchRate);
-                        break;
-                    case SUBSCRIPTION:
-                        dispatchRate = Optional.ofNullable(brokerService.pulsar().getTopicPoliciesService()
-                                .getTopicPolicies(TopicName.get(topicName)))
-                                .map(TopicPolicies::getSubscriptionDispatchRate);
-                        break;
-                    case REPLICATOR:
-                        dispatchRate = Optional.ofNullable(brokerService.pulsar().getTopicPoliciesService()
-                                .getTopicPolicies(TopicName.get(topicName)))
-                                .map(TopicPolicies::getReplicatorDispatchRate);
-                        break;
-                    default:
-                        break;
-                }
-            } catch (BrokerServiceException.TopicPoliciesCacheNotInitException e) {
-                log.debug("Topic {} policies have not been initialized yet.", topicName);
-            } catch (Exception e) {
-                log.debug("[{}] Failed to get topic dispatch rate. ", topicName, e);
-            }
-        }
-
-        return dispatchRate;
-    }
-
-    public static boolean isDispatchRateNeeded(final ServiceConfiguration serviceConfig,
-            final Optional<Policies> policies, final String topicName, final Type type) {
-        DispatchRate dispatchRate = getPoliciesDispatchRate(serviceConfig.getClusterName(), policies, type);
-        if (dispatchRate == null) {
-            switch (type) {
-                case TOPIC:
-                    return serviceConfig.getDispatchThrottlingRatePerTopicInMsg() > 0
-                        || serviceConfig.getDispatchThrottlingRatePerTopicInByte() > 0;
-                case SUBSCRIPTION:
-                    return serviceConfig.getDispatchThrottlingRatePerSubscriptionInMsg() > 0
-                        || serviceConfig.getDispatchThrottlingRatePerSubscriptionInByte() > 0;
-                case REPLICATOR:
-                    return serviceConfig.getDispatchThrottlingRatePerReplicatorInMsg() > 0
-                        || serviceConfig.getDispatchThrottlingRatePerReplicatorInByte() > 0;
-                default:
-                    log.error("error DispatchRateLimiter type: {} ", type);
-                    return false;
-            }
-        }
-        return true;
-    }
-
-    @SuppressWarnings("deprecation")
-    public void onPoliciesUpdate(Policies data) {
-        String cluster = brokerService.pulsar().getConfiguration().getClusterName();
-
-        DispatchRate dispatchRate;
-
-        switch (type) {
-            case TOPIC:
-                dispatchRate = data.topicDispatchRate.get(cluster);
-                if (dispatchRate == null) {
-                    dispatchRate = data.clusterDispatchRate.get(cluster);
-                }
-                break;
-            case SUBSCRIPTION:
-                dispatchRate = data.subscriptionDispatchRate.get(cluster);
-                break;
-            case REPLICATOR:
-                dispatchRate = data.replicatorDispatchRate.get(cluster);
-                break;
-            default:
-                log.error("error DispatchRateLimiter type: {} ", type);
-                dispatchRate = null;
-        }
-
-        // update dispatch-rate only if it's configured in policies else ignore
-        if (dispatchRate != null) {
-            final DispatchRate newDispatchRate = createDispatchRate();
-
-            // if policy-throttling rate is disabled and cluster-throttling is enabled then apply
-            // cluster-throttling rate
-            if (!isDispatchRateEnabled(dispatchRate) && isDispatchRateEnabled(newDispatchRate)) {
-                dispatchRate = newDispatchRate;
-            }
-            updateDispatchRate(dispatchRate);
-        }
     }
 
     @SuppressWarnings("deprecation")

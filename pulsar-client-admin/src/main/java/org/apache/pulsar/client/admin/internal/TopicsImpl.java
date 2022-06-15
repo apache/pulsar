@@ -483,6 +483,32 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
+    public Map<String, String> getProperties(String topic) throws PulsarAdminException {
+        return sync(() -> getPropertiesAsync(topic));
+    }
+
+    @Override
+    public CompletableFuture<Map<String, String>> getPropertiesAsync(String topic) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn, "properties");
+        final CompletableFuture<Map<String, String>> future = new CompletableFuture<>();
+        asyncGetRequest(path,
+                new InvocationCallback<Map<String, String>>() {
+
+                    @Override
+                    public void completed(Map<String, String> response) {
+                        future.complete(response);
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+        return future;
+    }
+
+    @Override
     public void deletePartitionedTopic(String topic) throws PulsarAdminException {
         deletePartitionedTopic(topic, false);
     }
@@ -1179,6 +1205,25 @@ public class TopicsImpl extends BaseResource implements Topics {
     @Override
     public void resetCursor(String topic, String subName, MessageId messageId) throws PulsarAdminException {
         sync(() -> resetCursorAsync(topic, subName, messageId));
+    }
+
+    @Override
+    public void updateSubscriptionProperties(String topic, String subName, Map<String, String> subscriptionProperties)
+            throws PulsarAdminException {
+        sync(() -> updateSubscriptionPropertiesAsync(topic, subName, subscriptionProperties));
+    }
+
+    @Override
+    public CompletableFuture<Void> updateSubscriptionPropertiesAsync(String topic, String subName,
+                                                                     Map<String, String> subscriptionProperties) {
+        TopicName tn = validateTopic(topic);
+        String encodedSubName = Codec.encode(subName);
+        WebTarget path = topicPath(tn, "subscription", encodedSubName,
+                "properties");
+        if (subscriptionProperties == null) {
+            subscriptionProperties = new HashMap<>();
+        }
+        return asyncPutRequest(path, Entity.entity(subscriptionProperties, MediaType.APPLICATION_JSON));
     }
 
     @Override
@@ -2968,6 +3013,44 @@ public class TopicsImpl extends BaseResource implements Topics {
                     }
                 });
         return future;
+    }
+
+    @Override
+    public boolean getSchemaValidationEnforced(String topic, boolean applied) throws PulsarAdminException {
+        return sync(() -> getSchemaValidationEnforcedAsync(topic, applied));
+    }
+
+    @Override
+    public void setSchemaValidationEnforced(String topic, boolean enable) throws PulsarAdminException {
+        sync(() -> setSchemaValidationEnforcedAsync(topic, enable));
+    }
+
+    @Override
+    public CompletableFuture<Boolean> getSchemaValidationEnforcedAsync(String topic, boolean applied) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn, "schemaValidationEnforced");
+        path = path.queryParam("applied", applied);
+        final CompletableFuture<Boolean> future = new CompletableFuture<>();
+        asyncGetRequest(path,
+                new InvocationCallback<Boolean>() {
+                    @Override
+                    public void completed(Boolean enforced) {
+                        future.complete(enforced);
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+        return future;
+    }
+
+    @Override
+    public CompletableFuture<Void> setSchemaValidationEnforcedAsync(String topic, boolean schemaValidationEnforced) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn, "schemaValidationEnforced");
+        return asyncPostRequest(path, Entity.entity(schemaValidationEnforced, MediaType.APPLICATION_JSON));
     }
 
     @Override

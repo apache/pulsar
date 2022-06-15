@@ -60,7 +60,7 @@ Pulsar does not store the encryption key anywhere in the Pulsar service. If you 
 5. Configure a `CryptoKeyReader` to a producer, consumer or reader. 
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="lang-choice"
   defaultValue="Java"
   values={[{"label":"Java","value":"Java"},{"label":"C++","value":"C++"},{"label":"Python","value":"Python"},{"label":"Node.js","value":"Node.js"}]}>
 <TabItem value="Java">
@@ -100,7 +100,7 @@ Reader<byte[]> reader = pulsarClient.newReader()
 Client client("pulsar://localhost:6650");
 std::string topic = "persistent://my-tenant/my-ns/my-topic";
 // DefaultCryptoKeyReader is a built-in implementation that reads public key and private key from files
-auto keyReader = std::make_shared<DefaultCryptoKeyReader>("test_ecdsa_pubkey.pem", "test_ecdsa_privkey.pem");
+auto keyReader = std::make_shared<DefaultCryptoKeyReader>("test_rsa_pubkey.pem", "test_rsa_privkey.pem");
 
 Producer producer;
 ProducerConfiguration producerConf;
@@ -130,7 +130,7 @@ from pulsar import Client, CryptoKeyReader
 client = Client('pulsar://localhost:6650')
 topic = 'persistent://my-tenant/my-ns/my-topic'
 # CryptoKeyReader is a built-in implementation that reads public key and private key from files
-key_reader = CryptoKeyReader('test_ecdsa_pubkey.pem', 'test_ecdsa_privkey.pem')
+key_reader = CryptoKeyReader('test_rsa_pubkey.pem', 'test_rsa_privkey.pem')
 
 producer = client.create_producer(
     topic=topic,
@@ -218,7 +218,7 @@ await client.close();
 6. Below is an example of a **customized** `CryptoKeyReader` implementation.
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="lang-choice"
   defaultValue="Java"
   values={[{"label":"Java","value":"Java"},{"label":"C++","value":"C++"},{"label":"Python","value":"Python"},{"label":"Node.js","value":"Node.js"}]}>
 <TabItem value="Java">

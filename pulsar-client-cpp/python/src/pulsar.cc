@@ -35,7 +35,6 @@ PyObject* get_exception_class(Result result);
 static void translateException(const PulsarException& ex) {
     std::string err = "Pulsar error: ";
     err += strResult(ex._result);
-
     PyErr_SetString(get_exception_class(ex._result), err.c_str());
 }
 

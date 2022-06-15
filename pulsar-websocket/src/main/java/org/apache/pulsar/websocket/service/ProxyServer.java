@@ -18,14 +18,14 @@
  */
 package org.apache.pulsar.websocket.service;
 
-import static org.apache.pulsar.broker.web.Filters.addFilterClass;
 import java.net.MalformedURLException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import javax.servlet.DispatcherType;
 import javax.servlet.Servlet;
 import javax.servlet.ServletException;
 import javax.websocket.DeploymentException;
@@ -43,6 +43,7 @@ import org.eclipse.jetty.server.handler.ContextHandlerCollection;
 import org.eclipse.jetty.server.handler.DefaultHandler;
 import org.eclipse.jetty.server.handler.HandlerCollection;
 import org.eclipse.jetty.server.handler.RequestLogHandler;
+import org.eclipse.jetty.servlet.FilterHolder;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.servlets.QoSFilter;
@@ -58,6 +59,7 @@ public class ProxyServer {
     private final List<Handler> handlers = new ArrayList<>();
     private final WebSocketProxyConfiguration conf;
     private final WebExecutorThreadPool executorService;
+    private final FilterHolder qualityOfServiceFilterHolder;
 
     private ServerConnector connector;
     private ServerConnector connectorTls;
@@ -121,6 +123,14 @@ public class ProxyServer {
         // file descriptors
         connectors.stream().forEach(c -> c.setAcceptQueueSize(config.getHttpServerAcceptQueueSize()));
         server.setConnectors(connectors.toArray(new ServerConnector[connectors.size()]));
+
+        if (config.getMaxConcurrentHttpRequests() > 0) {
+            qualityOfServiceFilterHolder = new FilterHolder(QoSFilter.class);
+            qualityOfServiceFilterHolder.setInitParameter("maxRequests",
+                    String.valueOf(config.getMaxConcurrentHttpRequests()));
+        } else {
+            qualityOfServiceFilterHolder = null;
+        }
     }
 
     public void addWebSocketServlet(String basePath, Servlet socketServlet)
@@ -133,9 +143,9 @@ public class ProxyServer {
         handlers.add(context);
     }
 
-    public void addRestResources(String basePath, String javaPackages, String attribute, Object attributeValue) {
+    public void addRestResource(String basePath, String attribute, Object attributeValue, Class<?> resourceClass) {
         ResourceConfig config = new ResourceConfig();
-        config.packages("jersey.config.server.provider.packages", javaPackages);
+        config.register(resourceClass);
         config.register(JsonMapperProvider.class);
         ServletHolder servletHolder = new ServletHolder(new ServletContainer(config));
         servletHolder.setAsyncSupported(true);
@@ -148,9 +158,9 @@ public class ProxyServer {
     }
 
     private void addQosFilterIfNeeded(ServletContextHandler context) {
-        if (conf.getMaxConcurrentHttpRequests() > 0) {
-            addFilterClass(context, QoSFilter.class, Collections.singletonMap("maxRequests",
-                    String.valueOf(conf.getMaxConcurrentHttpRequests())));
+        if (qualityOfServiceFilterHolder != null) {
+            context.addFilter(qualityOfServiceFilterHolder,
+                    MATCH_ALL, EnumSet.allOf(DispatcherType.class));
         }
     }
 

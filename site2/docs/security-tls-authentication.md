@@ -46,7 +46,7 @@ $ openssl req -config openssl.cnf \
 
 :::note
 
-If openssl.cnf is not specified, read [Certificate authority](http://pulsar.apache.org/docs/en/security-tls-transport/#certificate-authority) to get the openssl.cnf.
+If openssl.cnf is not specified, read [Certificate authority](security-tls-transport.md#certificate-authority) to get the openssl.cnf.
 
 :::
 
@@ -122,7 +122,7 @@ When you use TLS authentication, client connects via TLS transport. You need to 
 
 ### CLI tools
 
-[Command-line tools](reference-cli-tools.md) like [`pulsar-admin`](reference-pulsar-admin), [`pulsar-perf`](reference-cli-tools.md#pulsar-perf), and [`pulsar-client`](reference-cli-tools.md#pulsar-client) use the `conf/client.conf` config file in a Pulsar installation.
+[Command-line tools](reference-cli-tools.md) like [`pulsar-admin`](/tools/pulsar-admin/), [`pulsar-perf`](reference-cli-tools.md#pulsar-perf), and [`pulsar-client`](reference-cli-tools.md#pulsar-client) use the `conf/client.conf` config file in a Pulsar installation.
 
 You need to add the following parameters to that file to use TLS authentication with the CLI tools of Pulsar:
 
@@ -189,7 +189,7 @@ pulsar::Client client("pulsar+ssl://broker.example.com:6651/", config);
 
 ### Node.js client
 
-```JavaScript
+```javascript
 
 const Pulsar = require('pulsar-client');
 
