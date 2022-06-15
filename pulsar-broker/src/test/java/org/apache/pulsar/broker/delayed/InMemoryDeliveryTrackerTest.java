@@ -56,7 +56,7 @@ import org.testng.annotations.Test;
 public class InMemoryDeliveryTrackerTest {
 
     // Create a single shared timer for the test.
-    Timer timer = new HashedWheelTimer(new DefaultThreadFactory("pulsar-in-memory-delayed-delivery-test"),
+    private final Timer timer = new HashedWheelTimer(new DefaultThreadFactory("pulsar-in-memory-delayed-delivery-test"),
             500, TimeUnit.MILLISECONDS);
 
     @AfterClass(alwaysRun = true)
