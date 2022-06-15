@@ -1840,6 +1840,15 @@ public interface Topics {
             throws PulsarAdminException;
 
     /**
+     * Get Subscription Properties on a topic subscription.
+     * @param topic
+     * @param subName
+     * @throws PulsarAdminException
+     */
+    Map<String, String> getSubscriptionProperties(String topic, String subName)
+            throws PulsarAdminException;
+
+    /**
      * Reset cursor position on a topic subscription.
      *
      * @param topic
@@ -1872,6 +1881,13 @@ public interface Topics {
      */
     CompletableFuture<Void>  updateSubscriptionPropertiesAsync(String topic, String subName,
                                                                Map<String, String> subscriptionProperties);
+
+    /**
+     * Get Subscription Properties on a topic subscription.
+     * @param topic
+     * @param subName
+     */
+    CompletableFuture<Map<String, String>> getSubscriptionPropertiesAsync(String topic, String subName);
 
     /**
      * Reset cursor position on a topic subscription.

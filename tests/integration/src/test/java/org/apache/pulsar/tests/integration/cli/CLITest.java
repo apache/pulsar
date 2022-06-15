@@ -207,6 +207,20 @@ public class CLITest extends PulsarTestSuite {
             );
             resultUpdate.assertNoOutput();
 
+            ContainerExecResult resultGet = container.execCmd(
+                    PulsarCluster.ADMIN_SCRIPT,
+                    "topics",
+                    "update-subscription-properties",
+                    "-p",
+                    "a=e",
+                    "persistent://public/default/" + topic,
+                    "--subscription",
+                    "" + subscriptionPrefix + i
+            );
+            assertEquals(
+                    "{\"a\":\"e\"}", resultGet.getStdout(),
+                    "unexpected output " + resultGet.getStdout() + " - error " + resultGet.getStderr());
+
             ContainerExecResult resultClear = container.execCmd(
                     PulsarCluster.ADMIN_SCRIPT,
                     "topics",

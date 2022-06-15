@@ -1214,6 +1214,12 @@ public class TopicsImpl extends BaseResource implements Topics {
     }
 
     @Override
+    public Map<String, String> getSubscriptionProperties(String topic, String subName)
+            throws PulsarAdminException {
+        return sync(() -> getSubscriptionPropertiesAsync(topic, subName));
+    }
+
+    @Override
     public CompletableFuture<Void> updateSubscriptionPropertiesAsync(String topic, String subName,
                                                                      Map<String, String> subscriptionProperties) {
         TopicName tn = validateTopic(topic);
@@ -1224,6 +1230,29 @@ public class TopicsImpl extends BaseResource implements Topics {
             subscriptionProperties = new HashMap<>();
         }
         return asyncPutRequest(path, Entity.entity(subscriptionProperties, MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public CompletableFuture<Map<String, String>> getSubscriptionPropertiesAsync(String topic, String subName) {
+        TopicName tn = validateTopic(topic);
+        String encodedSubName = Codec.encode(subName);
+        WebTarget path = topicPath(tn, "subscription", encodedSubName,
+                "properties");
+        final CompletableFuture<Map<String, String>> future = new CompletableFuture<>();
+        asyncGetRequest(path,
+                new InvocationCallback<Map<String, String>>() {
+
+                    @Override
+                    public void completed(Map<String, String> response) {
+                        future.complete(response);
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+        return future;
     }
 
     @Override
