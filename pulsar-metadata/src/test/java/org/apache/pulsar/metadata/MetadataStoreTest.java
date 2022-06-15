@@ -49,6 +49,7 @@ import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.Stat;
 import org.assertj.core.util.Lists;
+import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
 
 @Slf4j
@@ -446,5 +447,36 @@ public class MetadataStoreTest extends BaseMetadataStoreTest {
 
         assertEquals(successWrites.get(), maxValue);
         assertEquals(store.get(path).get().get().getValue()[0], maxValue);
+    }
+
+    @Test(dataProvider = "impl")
+    public void testConcurrentPut(String provider, Supplier<String> urlSupplier) throws Exception {
+        @Cleanup
+        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
+
+        String k = newKey();
+        CompletableFuture<Void> f1 =
+                CompletableFuture.runAsync(() -> store.put(k, new byte[0], Optional.of(-1L)).join());
+        CompletableFuture<Void> f2 =
+                CompletableFuture.runAsync(() -> store.put(k, new byte[0], Optional.of(-1L)).join());
+        Awaitility.await().until(() -> f1.isDone() && f2.isDone());
+        assertTrue(f1.isCompletedExceptionally() && !f2.isCompletedExceptionally() ||
+                ! f1.isCompletedExceptionally() && f2.isCompletedExceptionally());
+    }
+
+    @Test(dataProvider = "impl")
+    public void testConcurrentDelete(String provider, Supplier<String> urlSupplier) throws Exception {
+        @Cleanup
+        MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
+
+        String k = newKey();
+        store.put(k, new byte[0], Optional.of(-1L)).join();
+        CompletableFuture<Void> f1 =
+                CompletableFuture.runAsync(() -> store.delete(k, Optional.empty()).join());
+        CompletableFuture<Void> f2 =
+                CompletableFuture.runAsync(() -> store.delete(k, Optional.empty()).join());
+        Awaitility.await().until(() -> f1.isDone() && f2.isDone());
+        assertTrue(f1.isCompletedExceptionally() && !f2.isCompletedExceptionally() ||
+                ! f1.isCompletedExceptionally() && f2.isCompletedExceptionally());
     }
 }
