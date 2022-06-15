@@ -53,16 +53,16 @@ public class IntRange {
     }
 
     public boolean overlap(int start, int end) {
-        assert start <= end;
-        if (this.start < start) {
+        assert start < end;
+        if (this.start <= start) { // this.start <= start <= end
             return this.end > start;
-        } else {
-            return end > this.start;
+        } else { // start < this.start <= this.end
+            return this.start < end;
         }
     }
 
     public static IntRange get(int start, int end) {
-        assert start <= end;
+        assert start < end;
         final IntRange range = RECYCLER.get();
         range.start = start;
         range.end = end;

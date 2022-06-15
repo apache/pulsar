@@ -19,16 +19,13 @@
 package org.apache.pulsar.broker.service;
 
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
 import io.netty.buffer.ByteBuf;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.Entry;
@@ -86,40 +83,50 @@ public class EntryAndMetadataListTest {
     }
 
     @Test
-    public void testContainIncompleteChunks() {
+    public void testShrinkRangeEnd() {
         @Cleanup
         final EntryAndMetadataList entryAndMetadataList = new EntryAndMetadataList(attachMetadataList(
-                createMetadata("A", 0),
-                createMetadata("B", 0),
-                // entry id range of chunk C-0: [2, 5)
-                createMetadata("C", 0, 0, 3),
-                createMetadata("C", 0, 1, 3),
-                createMetadata("C", 0, 2, 3),
-                // entry id range of chunk C-1: [5, 7)
-                createMetadata("C", 1, 0, 2),
-                createMetadata("C", 1, 1, 2),
-                createMetadata("B", 1),
-                // entry id range of chunk D-0: [8, 11)
-                createMetadata("D", 0, 0, 3),
-                createMetadata("D", 0, 1, 3),
-                createMetadata("D", 0, 2, 3)
+                // B-0 has 3 chunks but only 2 chunks are received
+                createMetadata("B", 0, 0, 3),
+                createMetadata("B", 0, 1, 3),
+                createMetadata("A", 0, 0, 3),
+                createMetadata("A", 0, 1, 3),
+                createMetadata("A", 0, 2, 3),
+                createMetadata("A", 1),
+                createMetadata("A", 2, 0, 2),
+                createMetadata("A", 2, 1, 2),
+                createMetadata("A", 3)
         ), "sub");
-        final int size = entryAndMetadataList.getEntries().size();
-        for (int end = 1; end <= size; end++) {
-            if ((end > 2 && end < 5) || (end == 6) || (end > 8 && end < 11)) {
-                assertTrue(entryAndMetadataList.containIncompleteChunks(0, end));
-            } else {
-                assertFalse(entryAndMetadataList.containIncompleteChunks(0, end));
-            }
+        // The order: A-0-0, A-0-1, A-0-2, A-1, A-2-0, A-2-1, A-3, B-0-1, B-0-2
+        assertEquals(entryAndMetadataList.getWatermark(), 7);
+        // end is shrunk because it cannot include the whole A-0 (first overlapped chunked message)
+        assertEquals(entryAndMetadataList.shrinkEndIfNecessary(0, 1), 0);
+        assertEquals(entryAndMetadataList.shrinkEndIfNecessary(0, 2), 0);
+        // end is not shrunk
+        assertEquals(entryAndMetadataList.shrinkEndIfNecessary(0, 3), 3);
+        assertEquals(entryAndMetadataList.shrinkEndIfNecessary(0, 4), 4);
+        // end is shrunk because it cannot include the whole A-2 (last overlapped chunked message)
+        assertEquals(entryAndMetadataList.shrinkEndIfNecessary(0, 5), 4);
+        // end is not shrunk
+        for (int end = 6; end <= 10; end++) {
+            assertEquals(entryAndMetadataList.shrinkEndIfNecessary(0, end), end);
         }
-        final Set<Integer> indexOfNotFirstChunk = new HashSet<>(Arrays.asList(3, 4, 6, 9, 10));
-        for (int start = 0; start < size; start++) {
-            if (indexOfNotFirstChunk.contains(start)) {
-                assertTrue(entryAndMetadataList.containIncompleteChunks(start, size));
-            } else {
-                assertFalse(entryAndMetadataList.containIncompleteChunks(start, size));
-            }
+        assertEquals(entryAndMetadataList.shrinkEndIfNecessary(0, 6), 6);
+        assertEquals(entryAndMetadataList.shrinkEndIfNecessary(0, 7), 7);
+        // end is shrunk because it cannot include the whole A-2 (the only overlapped chunked message)
+        assertEquals(entryAndMetadataList.shrinkEndIfNecessary(3, 5), 4);
+        // end is not shrunk
+        for (int end = 6; end <= 10; end++) {
+            assertEquals(entryAndMetadataList.shrinkEndIfNecessary(3, end), end);
         }
+        // invalid start
+        assertEquals(entryAndMetadataList.shrinkEndIfNecessary(1, 4), -1);
+        assertEquals(entryAndMetadataList.shrinkEndIfNecessary(2, 4), -1);
+        assertEquals(entryAndMetadataList.shrinkEndIfNecessary(5, 100), -1);
+        // No overlapped chunked messages
+        assertEquals(entryAndMetadataList.shrinkEndIfNecessary(3, 4), 4);
+        assertEquals(entryAndMetadataList.shrinkEndIfNecessary(8, 100), 100);
+        assertEquals(entryAndMetadataList.shrinkEndIfNecessary(9, 110), 110);
     }
 
     private static List<Entry> attachMetadataList(MessageMetadata... metadataList) {

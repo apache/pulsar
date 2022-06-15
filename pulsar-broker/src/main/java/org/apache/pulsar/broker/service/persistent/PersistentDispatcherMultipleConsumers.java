@@ -523,6 +523,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         // Trigger read more messages
         if (entriesToDispatch == 0) {
             readMoreEntries();
+            // TODO: avoid parse the message metadata
             entriesOfIncompleteChunks.forEach(entry -> {
                 long stickyKeyHash = getStickyKeyHash(entry);
                 addMessageToReplay(entry.getLedgerId(), entry.getEntryId(), stickyKeyHash);
@@ -545,6 +546,9 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         boolean dispatchMessage;
         int numSkippedConsumers = 0;
         final int numConsumers = consumerList.size();
+        final int dispatcherMaxRoundRobinBatchSize = entryAndMetadataList.getChunkIndexRanges().isEmpty()
+                ? serviceConfig.getDispatcherMaxRoundRobinBatchSize()
+                : Integer.MAX_VALUE;
         while (entriesToDispatch > 0) {
             if (numSkippedConsumers >= numConsumers) {
                 final List<String> permits = consumerList.stream()
@@ -578,18 +582,24 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             }
 
             int messagesForC = Math.min(Math.min(remainingMessages, availablePermits),
-                    serviceConfig.getDispatcherMaxRoundRobinBatchSize());
+                    dispatcherMaxRoundRobinBatchSize);
             messagesForC = Math.max(messagesForC / avgBatchSizePerMsg, 1);
 
-            int end = Math.min(start + messagesForC, entries.size());
-            List<Entry> entriesForThisConsumer = entries.subList(start, end);
-            if (entryAndMetadataList.containIncompleteChunks(start, end)) {
-                // Select another consumer to contain all chunks of a message
+            int end = entryAndMetadataList.shrinkEndIfNecessary(start, Math.min(start + messagesForC, entries.size()));
+            if (end == -1) {
+                log.warn("Unexpected entries[{}] is a chunk whose chunk id is {} (not 0), skip dispatching",
+                        start, metadataList.get(start).getChunkId());
+                break;
+            }
+            if (end == start) {
+                // the start index represents the first chunk but this consumer cannot receive the whole chunked
+                // message because of the available permits, skip this consumer
                 numSkippedConsumers++;
                 continue;
-            } else {
-                numSkippedConsumers = 0;
             }
+            numSkippedConsumers = 0; // reset
+
+            List<Entry> entriesForThisConsumer = entries.subList(start, end);
 
             // remove positions first from replay list first : sendMessages recycles entries
             if (readType == ReadType.Replay) {

@@ -23,7 +23,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import lombok.Getter;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
@@ -81,39 +80,51 @@ public class EntryAndMetadataList implements Closeable {
         return entries.size();
     }
 
-    public boolean containIncompleteChunks(int start, int end) {
-        String currentUuid = null;
-        Optional<Boolean> optIsLastChunk = Optional.empty();
-        for (int i = start; i < end; i++) {
-            final MessageMetadata metadata = metadataList.get(i);
-            if (metadata == null) {
-                continue;
-            }
-            if (metadata.hasUuid()) {
-                final String uuid = metadata.getUuid();
-                if (!uuid.equals(currentUuid)) {
-                    if (metadata.getChunkId() != 0) {
-                        return true;
-                    }
-                    if (optIsLastChunk.isPresent() && !optIsLastChunk.get()) {
-                        return true;
-                    }
-                    currentUuid = uuid;
-                }
-                optIsLastChunk = Optional.of(metadata.getChunkId() == metadata.getNumChunksFromMsg() - 1);
-            } else if (currentUuid != null) {
-                if (!optIsLastChunk.get()) {
-                    return true;
-                }
-            }
+    /**
+     * Shrink the given range [start, end) to make it include all complete chunks.
+     *
+     * @param start the left-closed index
+     * @param end the right-open index
+     * @return the shrunk end index if the given range contains incomplete chunks, otherwise `end`
+     */
+    public int shrinkEndIfNecessary(final int start, final int end) {
+        if (start >= watermark) {
+            return end;
         }
-        if (optIsLastChunk.isEmpty()) {
-            // There are no chunks
-            return false;
+        final IntRange firstRange = chunkIndexRanges.stream()
+                .filter(range -> range.overlap(start, end))
+                .findFirst()
+                .orElse(null);
+        if (firstRange == null) {
+            return end;
+        }
+        if (firstRange.getStart() < start) {
+            // It should not happen because we assume entries.get(start) cannot be a chunk whose chunk id is non-zero
+            return -1;
+        }
+        if (firstRange.getEnd() <= end) {
+            // The first range is included in [start, end), let's check the last range
+            final IntRange lastRange = findLastOverlapChunk(start, end);
+            assert lastRange != null;
+            if (lastRange.getEnd() > end) {
+                // The last range is not included in [start, end), shrink the end
+                return lastRange.getStart();
+            }
         } else {
-            // Verify the last entry
-            return !optIsLastChunk.get();
+            // The first range is not included in [start, end), shrink the end
+            return firstRange.getStart();
         }
+        return end;
+    }
+
+    private IntRange findLastOverlapChunk(int start, int end) {
+        for (int i = chunkIndexRanges.size() - 1; i >= 0; i--) {
+            final IntRange range = chunkIndexRanges.get(i);
+            if (range.overlap(start, end)) {
+                return range;
+            }
+        }
+        return null;
     }
 
     private void sortChunks() {
