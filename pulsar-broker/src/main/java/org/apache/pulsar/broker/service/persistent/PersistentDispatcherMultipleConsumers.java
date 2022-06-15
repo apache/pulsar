@@ -511,7 +511,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         int entriesToDispatch = entries.size();
         // Trigger read more messages
         if (entriesToDispatch == 0) {
-            readMoreEntries();
+            topic.getBrokerService().executor().execute(() -> readMoreEntries());
             return;
         }
         final MessageMetadata[] metadataArray = entries.stream()
@@ -619,7 +619,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 entry.release();
             });
         }
-        readMoreEntries();
+        topic.getBrokerService().executor().execute(() -> readMoreEntries());
     }
 
     @Override
