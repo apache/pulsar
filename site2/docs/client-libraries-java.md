@@ -1114,7 +1114,7 @@ Consumer consumer2 = client.newConsumer()
         .subscriptionName("my-subscription")
         .subscriptionType(SubscriptionType.Shared)
         .subscribe()
-//Both consumer1 and consumer 2 is active consumers.
+//Both consumer1 and consumer2 are active consumers.
 
 ```
 
