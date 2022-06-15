@@ -79,7 +79,7 @@ In order to interact with Pulsar, you first need a client object. You can create
 
 Here is an example:
 
-```JavaScript
+```javascript
 
 const Pulsar = require('pulsar-client');
 
@@ -117,7 +117,7 @@ Pulsar producers publish messages to Pulsar topics. You can [configure](#produce
 
 Here is an example:
 
-```JavaScript
+```javascript
 
 const producer = await client.createProducer({
   topic: 'my-topic', // or 'my-tenant/my-namespace/my-topic' to specify topic's tenant and namespace 
@@ -170,7 +170,7 @@ Pulsar Node.js producers have the following methods available:
 
 This example creates a Node.js producer for the `my-topic` topic and sends 10 messages to that topic:
 
-```JavaScript
+```javascript
 
 const Pulsar = require('pulsar-client');
 
@@ -207,7 +207,7 @@ Pulsar consumers subscribe to one or more Pulsar topics and listen for incoming 
 
 Here is an example:
 
-```JavaScript
+```javascript
 
 const consumer = await client.subscribe({
   topic: 'my-topic',
@@ -266,7 +266,7 @@ Pulsar Node.js consumers have the following methods available:
 
 This example creates a Node.js consumer with the `my-subscription` subscription on the `my-topic` topic, receives messages, prints the content that arrive, and acknowledges each message to the Pulsar broker for 10 times:
 
-```JavaScript
+```javascript
 
 const Pulsar = require('pulsar-client');
 
@@ -298,7 +298,7 @@ const Pulsar = require('pulsar-client');
 
 Instead a consumer can be created with `listener` to process messages.
 
-```JavaScript
+```javascript
 
 // Create a consumer
 const consumer = await client.subscribe({
@@ -328,7 +328,7 @@ Pulsar readers process messages from Pulsar topics. Readers are different from c
 
 Here is an example:
 
-```JavaScript
+```javascript
 
 const reader = await client.createReader({
   topic: 'my-topic',
@@ -369,7 +369,7 @@ Pulsar Node.js readers have the following methods available:
 
 This example creates a Node.js reader with the `my-topic` topic, reads messages, and prints the content that arrive for 10 times:
 
-```JavaScript
+```javascript
 
 const Pulsar = require('pulsar-client');
 
@@ -404,7 +404,7 @@ In Pulsar Node.js client, you have to construct producer message object for prod
 
 Here is an example message:
 
-```JavaScript
+```javascript
 
 const msg = {
   data: Buffer.from('Hello, Pulsar'),
@@ -476,7 +476,7 @@ The following static methods are available for the message id object:
 
 ## End-to-end encryption
 
-[End-to-end encryption](https://pulsar.apache.org/docs/en/next/cookbooks-encryption/#docsNav) allows applications to encrypt messages at producers and decrypt at consumers.
+[End-to-end encryption](/cookbooks-encryption.md#docsNav) allows applications to encrypt messages at producers and decrypt at consumers.
 
 ### Configuration
 

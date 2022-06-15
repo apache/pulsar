@@ -58,7 +58,7 @@ superUserRoles=my-super-user-1,my-super-user-2,my-proxy-role
 
 Pulsar [instance](reference-terminology.md#instance) administrators or some kind of self-service portal typically provisions a Pulsar [tenant](reference-terminology.md#tenant). 
 
-You can manage tenants using the [`pulsar-admin`](reference-pulsar-admin) tool. 
+You can manage tenants using the [`pulsar-admin`](/tools/pulsar-admin/) tool. 
 
 ### Create a new tenant
 

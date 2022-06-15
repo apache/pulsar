@@ -159,8 +159,8 @@ To manage schemas, you can use one of the following methods.
 
 | Method |  Description | 
 | --- | --- |
-|  **Admin CLI**<li></li> |   You can use the `pulsar-admin` tool to manage Pulsar schemas, brokers, clusters, sources, sinks, topics, tenants and so on. For more information about how to use the `pulsar-admin` tool, see [here](reference-pulsar-admin).  | 
-|  **REST API**<li></li> |   Pulsar exposes schema related management API in Pulsar’s admin RESTful API. You can access the admin RESTful endpoint directly to manage schemas. For more information about how to use the Pulsar REST API, see [here](http://pulsar.apache.org/admin-rest-api/).  | 
+|  **Admin CLI**<li></li> |   You can use the `pulsar-admin` tool to manage Pulsar schemas, brokers, clusters, sources, sinks, topics, tenants and so on. For more information about how to use the `pulsar-admin` tool, see [here](/tools/pulsar-admin/).  | 
+|  **REST API**<li></li> |   Pulsar exposes schema related management API in Pulsar’s admin RESTful API. You can access the admin RESTful endpoint directly to manage schemas. For more information about how to use the Pulsar REST API, see [here](/admin-rest-api/).  | 
 |  **Java Admin API**<li></li> |  Pulsar provides Java admin library. | 
 
 ### Upload a schema
@@ -168,7 +168,7 @@ To manage schemas, you can use one of the following methods.
 To upload (register) a new schema for a topic, you can use one of the following methods.
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="Admin CLI"
   values={[{"label":"Admin CLI","value":"Admin CLI"},{"label":"REST API","value":"REST API"},{"label":"Java Admin API","value":"Java Admin API"}]}>
 
@@ -296,7 +296,7 @@ admin.createSchema("my-tenant/my-ns/my-topic", payload);
 To get the latest schema for a topic, you can use one of the following methods. 
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="Admin CLI"
   values={[{"label":"Admin CLI","value":"Admin CLI"},{"label":"REST API","value":"REST API"},{"label":"Java Admin API","value":"Java Admin API"}]}>
 
@@ -388,7 +388,7 @@ SchemaInfo si = admin.getSchema("my-tenant/my-ns/my-topic");
 To get a specific version of a schema, you can use one of the following methods.
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="Admin CLI"
   values={[{"label":"Admin CLI","value":"Admin CLI"},{"label":"REST API","value":"REST API"},{"label":"Java Admin API","value":"Java Admin API"}]}>
 
@@ -469,7 +469,7 @@ SchemaInfo si = admin.getSchema("my-tenant/my-ns/my-topic", 1L);
 To provide a schema via a topic, you can use the following method.
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="Admin CLI"
   values={[{"label":"Admin CLI","value":"Admin CLI"}]}>
 
@@ -499,7 +499,7 @@ In any case, the **delete** action deletes **all versions** of a schema register
 :::
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="Admin CLI"
   values={[{"label":"Admin CLI","value":"Admin CLI"},{"label":"REST API","value":"REST API"},{"label":"Java Admin API","value":"Java Admin API"}]}>
 
@@ -655,13 +655,13 @@ The schema compatibility check strategy set at different levels has priority: to
 To set a schema compatibility check strategy at the topic level, use one of the following methods.
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="Admin CLI"
   values={[{"label":"Admin CLI","value":"Admin CLI"},{"label":"REST API","value":"REST API"},{"label":"Java Admin API","value":"Java Admin API"}]}>
 
 <TabItem value="Admin CLI">
 
-Use the [`pulsar-admin topicPolicies set-schema-compatibility-strategy`](https://pulsar.apache.org/tools/pulsar-admin/) command. 
+Use the [`pulsar-admin topicPolicies set-schema-compatibility-strategy`](/tools/pulsar-admin/) command. 
 
 ```shell
 
@@ -701,13 +701,13 @@ admin.topicPolicies().setSchemaCompatibilityStrategy("my-tenant/my-ns/my-topic",
 To get the topic-level schema compatibility check strategy, use one of the following methods.
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="Admin CLI"
   values={[{"label":"Admin CLI","value":"Admin CLI"},{"label":"REST API","value":"REST API"},{"label":"Java Admin API","value":"Java Admin API"}]}>
 
 <TabItem value="Admin CLI">
 
-Use the [`pulsar-admin topicPolicies get-schema-compatibility-strategy`](https://pulsar.apache.org/tools/pulsar-admin/) command. 
+Use the [`pulsar-admin topicPolicies get-schema-compatibility-strategy`](/tools/pulsar-admin/) command. 
 
 ```shell
 
@@ -751,13 +751,13 @@ admin.topicPolicies().getSchemaCompatibilityStrategy("my-tenant/my-ns/my-topic",
 To remove the topic-level schema compatibility check strategy, use one of the following methods.
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="Admin CLI"
   values={[{"label":"Admin CLI","value":"Admin CLI"},{"label":"REST API","value":"REST API"},{"label":"Java Admin API","value":"Java Admin API"}]}>
 
 <TabItem value="Admin CLI">
 
-Use the [`pulsar-admin topicPolicies remove-schema-compatibility-strategy`](https://pulsar.apache.org/tools/pulsar-admin/) command. 
+Use the [`pulsar-admin topicPolicies remove-schema-compatibility-strategy`](/tools/pulsar-admin/) command. 
 
 ```shell
 
@@ -800,13 +800,13 @@ admin.removeSchemaCompatibilityStrategy("my-tenant/my-ns/my-topic");
 You can set schema compatibility check strategy at namespace level using one of the following methods.
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="Admin CLI"
-  values={[{"label":"Admin CLI","value":"Admin CLI"},{"label":"REST API","value":"REST API"},{"label":"Java Admin CLI","value":"Java Admin CLI"}]}>
+  values={[{"label":"Admin CLI","value":"Admin CLI"},{"label":"REST API","value":"REST API"},{"label":"Java Admin API","value":"Java Admin API"}]}>
 
 <TabItem value="Admin CLI">
 
-Use the [`pulsar-admin namespaces set-schema-compatibility-strategy`](https://pulsar.apache.org/tools/pulsar-admin/) command. 
+Use the [`pulsar-admin namespaces set-schema-compatibility-strategy`](/tools/pulsar-admin/) command. 
 
 ```shell
 
@@ -820,9 +820,9 @@ pulsar-admin namespaces set-schema-compatibility-strategy options
 Send a `PUT` request to this endpoint: {@inject: endpoint|PUT|/admin/v2/namespaces/:tenant/:namespace|operation/schemaCompatibilityStrategy?version=@pulsar:version_number@}
 
 </TabItem>
-<TabItem value="Java Admin CLI">
+<TabItem value="Java Admin API">
 
-Use the [`setSchemaCompatibilityStrategy`](https://pulsar.apache.org/api/admin/)method.
+Use the [`setSchemaCompatibilityStrategy`](/api/admin/)method.
 
 ```java
 

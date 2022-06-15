@@ -43,6 +43,7 @@ The following table shows version support timelines and will be updated with eac
 
 | Version | Supported          | Initial Release | At Least Until |
 |:-------:|:------------------:|:---------------:|:--------------:|
+| 2.10.x  | :white_check_mark: | April 2022      | April 2023     |
 | 2.9.x   | :white_check_mark: | November 2021   | November 2022  |
 | 2.8.x   | :white_check_mark: | June 2021       | June 2022      |
 | 2.7.x   | :white_check_mark: | November 2020   | November 2021  |

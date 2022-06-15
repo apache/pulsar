@@ -147,8 +147,9 @@ To run function-worker separately, you have to configure the following parameter
 
 If authentication is enabled for your broker cluster, you *should* configure the authentication plugin and parameters for the functions worker to communicate with the brokers.
 
-- `clientAuthenticationPlugin`
-- `clientAuthenticationParameters`
+- `brokerClientAuthenticationEnabled`: Whether to enable the broker client authentication used by function workers to talk to brokers.
+- `clientAuthenticationPlugin`: The authentication plugin to be used by the Pulsar client used in worker service.
+- `clientAuthenticationParameters`: The authentication parameter to be used by the Pulsar client used in worker service.
 
 #### Security settings
 

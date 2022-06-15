@@ -95,6 +95,10 @@ public class PulsarClientImpl implements PulsarClient {
     private static final int CLOSE_TIMEOUT_SECONDS = 60;
     private static final double THRESHOLD_FOR_CONSUMER_RECEIVER_QUEUE_SIZE_SHRINKING = 0.95;
 
+    // default limits for producers when memory limit controller is disabled
+    private static final int NO_MEMORY_LIMIT_DEFAULT_MAX_PENDING_MESSAGES = 1000;
+    private static final int NO_MEMORY_LIMIT_DEFAULT_MAX_PENDING_MESSAGES_ACROSS_PARTITIONS = 50000;
+
     protected final ClientConfigurationData conf;
     private final boolean createdExecutorProviders;
     private LookupService lookup;
@@ -262,7 +266,14 @@ public class PulsarClientImpl implements PulsarClient {
 
     @Override
     public <T> ProducerBuilder<T> newProducer(Schema<T> schema) {
-        return new ProducerBuilderImpl<>(this, schema);
+        ProducerBuilderImpl<T> producerBuilder = new ProducerBuilderImpl<>(this, schema);
+        if (!memoryLimitController.isMemoryLimited()) {
+            // set default limits for producers when memory limit controller is disabled
+            producerBuilder.maxPendingMessages(NO_MEMORY_LIMIT_DEFAULT_MAX_PENDING_MESSAGES);
+            producerBuilder.maxPendingMessagesAcrossPartitions(
+                    NO_MEMORY_LIMIT_DEFAULT_MAX_PENDING_MESSAGES_ACROSS_PARTITIONS);
+        }
+        return producerBuilder;
     }
 
     @Override
@@ -739,24 +750,23 @@ public class PulsarClientImpl implements PulsarClient {
         FutureUtil.addTimeoutHandling(combinedFuture, Duration.ofSeconds(CLOSE_TIMEOUT_SECONDS),
                 shutdownExecutor, () -> FutureUtil.createTimeoutException("Closing producers and consumers timed out.",
                         PulsarClientImpl.class, "closeAsync"));
-        combinedFuture.whenComplete((__, t) -> new Thread(() -> {
+        combinedFuture.handle((__, t) -> {
             if (t != null) {
                 log.error("Closing producers and consumers failed. Continuing with shutdown.", t);
             }
-            shutdownExecutor.shutdownNow();
-            // All producers & consumers are now closed, we can stop the client safely
-            try {
-                shutdown();
-                closeFuture.complete(null);
+            new Thread(() -> {
+                shutdownExecutor.shutdownNow();
+                // All producers & consumers are now closed, we can stop the client safely
+                try {
+                    shutdown();
+                } catch (PulsarClientException e) {
+                    log.error("Shutdown failed. Ignoring the exception.", e);
+                }
                 state.set(State.Closed);
-            } catch (PulsarClientException e) {
-                closeFuture.completeExceptionally(e);
-            }
-        }, "pulsar-client-shutdown-thread").start()).exceptionally(exception -> {
-            closeFuture.completeExceptionally(exception);
+                closeFuture.complete(null);
+            }, "pulsar-client-shutdown-thread").start();
             return null;
         });
-
         return closeFuture;
     }
 

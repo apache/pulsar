@@ -216,7 +216,7 @@ The message published to log topic contains several properties for better reason
 
 ## Use Functions CLI
 
-With [Pulsar Functions CLI](reference-pulsar-admin.md#functions), you can debug Pulsar Functions with the following subcommands:
+With [Pulsar Functions CLI](/tools/pulsar-admin/), you can debug Pulsar Functions with the following subcommands:
 
 * `get`
 * `status`
@@ -226,7 +226,7 @@ With [Pulsar Functions CLI](reference-pulsar-admin.md#functions), you can debug 
 
 :::tip
 
-For complete commands of **Pulsar Functions CLI**, see [here](reference-pulsar-admin.md#functions)。
+For complete commands of **Pulsar Functions CLI**, see [here](/tools/pulsar-admin/)。
 
 :::
 

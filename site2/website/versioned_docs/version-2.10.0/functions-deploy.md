@@ -14,7 +14,7 @@ To deploy and manage Pulsar Functions, you need to have a Pulsar cluster running
 
 If you run a non-[standalone](reference-terminology.md#standalone) cluster, you need to obtain the service URL for the cluster. How you obtain the service URL depends on how you deploy your Pulsar cluster.
 
-If you want to deploy and trigger Python user-defined functions, you need to install [the pulsar python client](http://pulsar.apache.org/docs/en/client-libraries-python/) on all the machines running [functions workers](functions-worker).
+If you want to deploy and trigger Python user-defined functions, you need to install [the pulsar python client](client-libraries-python) on all the machines running [functions workers](functions-worker).
 
 ## Command-line interface
 
