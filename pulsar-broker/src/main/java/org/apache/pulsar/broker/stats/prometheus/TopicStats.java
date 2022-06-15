@@ -146,7 +146,7 @@ class TopicStats {
         metric(stream, cluster, namespace, topic, "pulsar_storage_backlog_quota_limit_time",
                 stats.backlogQuotaLimitTime, splitTopicAndPartitionIndexLabel);
 
-        metric(stream, cluster, namespace, topic, "pulsar_delayed_delivery_tracker_memory_usage",
+        metric(stream, cluster, namespace, topic, "pulsar_delayed_message_index_size_bytes",
                 stats.delayedTrackerMemoryUsage, splitTopicAndPartitionIndexLabel);
 
         long[] latencyBuckets = stats.managedLedgerStats.storageWriteLatencyBuckets.getBuckets();

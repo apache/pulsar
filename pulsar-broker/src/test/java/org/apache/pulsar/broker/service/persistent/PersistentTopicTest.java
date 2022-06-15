@@ -36,6 +36,7 @@ import java.lang.reflect.Field;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 import com.google.common.collect.Multimap;
@@ -327,6 +328,9 @@ public class PersistentTopicTest extends BrokerTestBase {
         String namespace = TopicName.get(topic).getNamespace();
         admin.namespaces().createNamespace(namespace);
 
+        final int messages = 100;
+        CountDownLatch latch = new CountDownLatch(messages);
+
         @Cleanup
         Producer<String> producer = client.newProducer(Schema.STRING).topic(topic).enableBatching(false).create();
         @Cleanup
@@ -336,41 +340,48 @@ public class PersistentTopicTest extends BrokerTestBase {
                 .subscriptionType(SubscriptionType.Shared)
                 .messageListener((MessageListener<String>) (consumer1, msg) -> {
                     try {
+                        latch.countDown();
                         consumer1.acknowledge(msg);
                     } catch (PulsarClientException e) {
                         e.printStackTrace();
                     }
                 })
                 .subscribe();
-        for (int a = 0; a < 100; a++) {
-            producer.newMessage().value(UUID.randomUUID().toString()).deliverAfter(30, TimeUnit.SECONDS).send();
+        for (int a = 0; a < messages; a++) {
+            producer.newMessage()
+                    .value(UUID.randomUUID().toString())
+                    .deliverAfter(30, TimeUnit.SECONDS)
+                    .sendAsync();
         }
         producer.flush();
 
-        //wait for Dispatcher build delayed message index.
-        for (int a = 0; a < 100; a++) {
-            Thread.sleep(1);
-        }
-
+        latch.await(10, TimeUnit.SECONDS);
         ByteArrayOutputStream output = new ByteArrayOutputStream();
         PrometheusMetricsGenerator.generate(pulsar, exposeTopicLevelMetrics, true, true, output);
         String metricsStr = output.toString(StandardCharsets.UTF_8);
 
         Multimap<String, PrometheusMetricsTest.Metric> metricsMap = PrometheusMetricsTest.parseMetrics(metricsStr);
-        Collection<PrometheusMetricsTest.Metric> metrics = metricsMap.get("pulsar_delayed_delivery_tracker_memory_usage");
+        Collection<PrometheusMetricsTest.Metric> metrics = metricsMap.get("pulsar_delayed_message_index_size_bytes");
         Assert.assertTrue(metrics.size() > 0);
 
-        int num = 0;
+        int topicLevelNum = 0;
+        int namespaceLevelNum = 0;
         for (PrometheusMetricsTest.Metric metric : metrics) {
             if (exposeTopicLevelMetrics && metric.tags.get("topic").equals(topic)) {
                 Assert.assertTrue(metric.value > 0);
-                num++;
+                topicLevelNum++;
             } else if (!exposeTopicLevelMetrics && metric.tags.get("namespace").equals(namespace)) {
                 Assert.assertTrue(metric.value > 0);
-                num++;
+                namespaceLevelNum++;
             }
         }
 
-        Assert.assertTrue(num > 0);
+        if (exposeTopicLevelMetrics) {
+            Assert.assertTrue(topicLevelNum > 0);
+            Assert.assertEquals(0, namespaceLevelNum);
+        } else {
+            Assert.assertTrue(namespaceLevelNum > 0);
+            Assert.assertEquals(namespaceLevelNum, 0);
+        }
     }
 }
