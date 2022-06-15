@@ -996,4 +996,57 @@ public class TransactionTest extends TransactionTestBase {
 
         transaction.commit().get();
     }
+
+    @Test
+    public void testPendingAckBatchMessageCommit() throws Exception {
+        String topic = NAMESPACE1 + "/testPendingAckBatchMessageCommit";
+
+        // enable batch index ack
+        conf.setAcknowledgmentAtBatchIndexLevelEnabled(true);
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient
+                .newProducer(Schema.BYTES)
+                .topic(topic)
+                .enableBatching(true)
+                // ensure that batch message is sent
+                .batchingMaxPublishDelay(3, TimeUnit.SECONDS)
+                .sendTimeout(0, TimeUnit.SECONDS)
+                .create();
+
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
+                .subscriptionType(SubscriptionType.Shared)
+                .topic(topic)
+                .subscriptionName("sub")
+                .subscribe();
+
+        // send batch message, the size is 5
+        for (int i = 0; i < 5; i++) {
+            producer.sendAsync(("test" + i).getBytes());
+        }
+
+        producer.flush();
+
+        Transaction txn1 = pulsarClient.newTransaction()
+                .withTransactionTimeout(10, TimeUnit.MINUTES).build().get();
+        // ack the first message with transaction
+        consumer.acknowledgeAsync(consumer.receive().getMessageId(), txn1).get();
+        Transaction txn2 = pulsarClient.newTransaction()
+                .withTransactionTimeout(10, TimeUnit.MINUTES).build().get();
+        // ack the second message with transaction
+        MessageId messageId = consumer.receive().getMessageId();
+        consumer.acknowledgeAsync(messageId, txn2).get();
+
+        // commit the txn1
+        txn1.commit().get();
+        // abort the txn2
+        txn2.abort().get();
+
+        Transaction txn3 = pulsarClient.newTransaction()
+                .withTransactionTimeout(10, TimeUnit.MINUTES).build().get();
+        // repeat ack the second message, can ack successful
+        consumer.acknowledgeAsync(messageId, txn3).get();
+    }
 }

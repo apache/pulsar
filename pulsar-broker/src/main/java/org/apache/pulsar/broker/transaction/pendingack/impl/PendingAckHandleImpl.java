@@ -23,6 +23,7 @@ import static org.apache.bookkeeper.mledger.util.PositionAckSetUtil.compareToWit
 import static org.apache.bookkeeper.mledger.util.PositionAckSetUtil.isAckSetOverlap;
 import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -769,6 +770,19 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                 }
 
                 if (!individualAckPositions.containsKey(position)) {
+                    /**
+                     *  if the position does not exist in individualAckPositions {@link individualAckPositions},
+                     *  should new the same position and put the new position into
+                     *  the individualAckPositions {@link individualAckPositions}
+                     *  because when another ack the same batch message will change the ackSet with the new transaction
+                     *  when the tc commits the first txn will ack all of the ackSet which has in pending ack status
+                     *  individualAckPositions{@link individualAckPositions} can't include the same position
+                     *  object on individualAckOfTransaction {@link individualAckOfTransaction}
+                     */
+                    MutablePair<PositionImpl, Integer> positionPair = positions.get(i);
+                    positionPair.left = PositionImpl.get(positionPair.getLeft().getLedgerId(),
+                            positionPair.getLeft().getEntryId(),
+                            Arrays.copyOf(positionPair.left.getAckSet(), positionPair.left.getAckSet().length));
                     this.individualAckPositions.put(position, positions.get(i));
                 } else {
                     MutablePair<PositionImpl, Integer> positionPair =
