@@ -198,6 +198,8 @@ public class CmdFunctions extends CmdBase {
         protected String deprecatedClassName;
         @Parameter(names = "--classname", description = "The class name of a Pulsar Function")
         protected String className;
+        @Parameter(names = { "-t", "--function-type" }, description = "The built-in Pulsar Function type")
+        protected String functionType;
         @Parameter(names = "--jar", description = "Path to the JAR file for the function "
                 + "(if the function is written in Java). It also supports URL path [http/https/file "
                 + "(file protocol assumes that file already exists on worker host)/function "
@@ -617,8 +619,18 @@ public class CmdFunctions extends CmdBase {
                 functionConfig.setDeadLetterTopic(deadLetterTopic);
             }
 
+            if (jarFile != null && functionType != null) {
+                throw new ParameterException("Cannot specify both jar and function-type");
+            }
+
             if (null != jarFile) {
                 functionConfig.setJar(jarFile);
+            }
+
+            if (functionType != null) {
+                functionConfig.setJar("builtin://" + functionType);
+            } else if (functionConfig.getFunctionType() != null) {
+                functionConfig.setJar("builtin://" + functionConfig.getFunctionType());
             }
 
             if (null != pyFile) {
