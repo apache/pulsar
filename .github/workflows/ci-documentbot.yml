@@ -27,6 +27,10 @@ on:
       - labeled
       - unlabeled
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   label:
     if: ${{ github.repository == 'apache/pulsar' }}
@@ -46,7 +50,7 @@ jobs:
           go-version: 1.18
 
       - name: Labeling
-        uses: apache/pulsar-test-infra/docbot@master
+        uses: ./docbot
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           LABEL_WATCH_LIST: 'doc,doc-required,doc-not-needed,doc-complete'
