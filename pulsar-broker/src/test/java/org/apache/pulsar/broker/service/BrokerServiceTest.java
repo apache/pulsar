@@ -827,8 +827,11 @@ public class BrokerServiceTest extends BrokerTestBase {
         }
     }
 
-//    @Test
+    @Test
     public void testTopicLoadingOnDisableNamespaceBundle() throws Exception {
+        conf.setWebServicePort(Optional.of(0));
+        restartBroker();
+
         final String namespace = "prop/disableBundle";
         admin.namespaces().createNamespace(namespace);
         admin.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("test"));

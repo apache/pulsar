@@ -92,7 +92,7 @@ public class ProxyServiceStarterTest extends MockedPulsarServiceBaseTest {
         }
     }
 
-//    @Test
+    @Test
     public void testProduceAndConsumeMessageWithWebsocket() throws Exception {
         HttpClient producerClient = new HttpClient();
         WebSocketClient producerWebSocketClient = new WebSocketClient(producerClient);
