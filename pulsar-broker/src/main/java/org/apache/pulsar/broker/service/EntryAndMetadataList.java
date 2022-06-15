@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service;
 
+import java.io.Closeable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -29,82 +30,57 @@ import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.protocol.Commands;
 
 @Getter
-public class EntryAndMetadataList {
+public class EntryAndMetadataList implements Closeable {
 
+    private final List<IntRange> chunkIndexRanges = new ArrayList<>();
     private List<Entry> entries;
     private List<MessageMetadata> metadataList;
     private int watermark;
-    private boolean hasChunks;
 
+    /**
+     * It will first parse the metadata into the metadata list and then sort the entries and metadata list.
+     *
+     * The sort operation is performed to make all chunks of the same message consistent in distribution.
+     *
+     * All incomplete chunks, i.e. chunks whose message has N chunks but less than N chunks are received, will be put at
+     * the end. And the `watermark` field indicates the index of the first incomplete chunk. This design makes it easy
+     * to skip all incomplete chunks when dispatching entries to consumer.
+     *
+     * For example, assuming the original entries are:
+     *   M0, M1-C0, M2, M3-C0, M1-C1, M4
+     * where M1 and M3 are chunked messages that both have 2 chunks.
+     * We should sort them to:
+     *   M0, M3, M1-C0, M1-C1, M4, M3-C0
+     * and the watermark will be 5 that is the index of `M3-C0` because `M3-C1` is not received.
+     */
     public EntryAndMetadataList(final List<Entry> entries, final String subscription) {
         this.entries = entries;
         this.metadataList = new ArrayList<>();
         this.watermark = entries.size();
-        this.hasChunks = false;
-        entries.forEach(entry -> {
+
+        boolean hasChunks = false;
+        for (Entry entry : entries) {
             final MessageMetadata metadata =
                     Commands.peekAndCopyMessageMetadata(entry.getDataBuffer(), subscription, -1);
             if (!hasChunks && metadata != null && metadata.hasUuid()) {
                 hasChunks = true;
             }
             metadataList.add(metadata);
-        });
+        }
+        if (hasChunks) {
+            sortChunks();
+        }
+    }
+
+    @Override
+    public void close() {
+        chunkIndexRanges.forEach(IntRange::recycle);
     }
 
     public int size() {
         return entries.size();
     }
 
-    /**
-     * it will sort the entries to make all chunks of the same message consistent in distribution.
-     *
-     * For example, if the original entries are:
-     *   M0, M1-C0, M2, M3, M1-C1, M4
-     * where M1 is a chunked message that has 2 chunks (C0 and C1).
-     * We should sort them to:
-     *   M0, M2, M3, M1-C0, M1-C1, M4
-     */
-    public void sortChunks() {
-        if (!hasChunks) {
-            return;
-        }
-        final Map<String, List<Integer>> uuidToIndexes = new HashMap<>();
-        final List<Entry> sortedEntries = new ArrayList<>();
-        final List<MessageMetadata> sortedMetadataList = new ArrayList<>();
-        for (int i = 0; i < entries.size(); i++) {
-            final MessageMetadata metadata = metadataList.get(i);
-            if (metadata == null) {
-                continue;
-            }
-            if (metadata.hasUuid()) {
-                final String uuid = metadata.getUuid();
-                final List<Integer> indexes = uuidToIndexes.computeIfAbsent(uuid, __ -> new ArrayList<>());
-                indexes.add(i);
-                if (metadata.getChunkId() + 1 == metadata.getNumChunksFromMsg()) {
-                    indexes.forEach(index -> {
-                        sortedEntries.add(entries.get(index));
-                        sortedMetadataList.add(metadataList.get(index));
-                    });
-                    uuidToIndexes.remove(uuid);
-                }
-            } else {
-                sortedEntries.add(entries.get(i));
-                sortedMetadataList.add(metadata);
-            }
-        }
-        watermark = sortedEntries.size();
-        // Process all incomplete chunks
-        uuidToIndexes.values().forEach(indexes -> {
-            indexes.forEach(index -> {
-                sortedEntries.add(entries.get(index));
-                sortedMetadataList.add(metadataList.get(index));
-            });
-        });
-        entries = sortedEntries;
-        metadataList = sortedMetadataList;
-    }
-
-    // NOTE: it must be called after sortChunks() to ensure chunks of the same message are distributed consistently.
     public boolean containIncompleteChunks(int start, int end) {
         String currentUuid = null;
         Optional<Boolean> optIsLastChunk = Optional.empty();
@@ -138,5 +114,46 @@ public class EntryAndMetadataList {
             // Verify the last entry
             return !optIsLastChunk.get();
         }
+    }
+
+    private void sortChunks() {
+        final Map<String, List<Integer>> uuidToIndexes = new HashMap<>();
+        final List<Entry> sortedEntries = new ArrayList<>();
+        final List<MessageMetadata> sortedMetadataList = new ArrayList<>();
+        for (int i = 0; i < size(); i++) {
+            final MessageMetadata metadata = metadataList.get(i);
+            if (metadata == null) {
+                continue;
+            }
+            if (metadata.hasUuid()) {
+                final String uuid = metadata.getUuid();
+                final List<Integer> indexes = uuidToIndexes.computeIfAbsent(uuid, __ -> new ArrayList<>());
+                indexes.add(i);
+                if (metadata.getChunkId() + 1 == metadata.getNumChunksFromMsg()) {
+                    // A complete chunk is met
+                    int start = sortedEntries.size();
+                    int end = start + metadata.getNumChunksFromMsg();
+                    chunkIndexRanges.add(IntRange.get(start, end));
+                    indexes.forEach(index -> {
+                        sortedEntries.add(entries.get(index));
+                        sortedMetadataList.add(metadataList.get(index));
+                    });
+                    uuidToIndexes.remove(uuid);
+                }
+            } else {
+                sortedEntries.add(entries.get(i));
+                sortedMetadataList.add(metadata);
+            }
+        }
+        watermark = sortedEntries.size();
+        // Process all incomplete chunks
+        uuidToIndexes.values().forEach(indexes -> {
+            indexes.forEach(index -> {
+                sortedEntries.add(entries.get(index));
+                sortedMetadataList.add(metadataList.get(index));
+            });
+        });
+        entries = sortedEntries;
+        metadataList = sortedMetadataList;
     }
 }

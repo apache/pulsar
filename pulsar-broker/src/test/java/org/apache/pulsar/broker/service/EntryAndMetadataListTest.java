@@ -25,10 +25,12 @@ import static org.testng.Assert.assertTrue;
 import io.netty.buffer.ByteBuf;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
+import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.impl.EntryImpl;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
@@ -45,16 +47,16 @@ public class EntryAndMetadataListTest {
                 createMetadata("B", 0),
                 createMetadata("A", 1)
         );
+        @Cleanup
         final EntryAndMetadataList entryAndMetadataList = new EntryAndMetadataList(entries, "sub");
-        assertFalse(entryAndMetadataList.isHasChunks());
-
-        entryAndMetadataList.sortChunks();
         assertSame(entryAndMetadataList.getEntries(), entries);
         assertEquals(entryAndMetadataList.getWatermark(), entries.size());
+        assertTrue(entryAndMetadataList.getChunkIndexRanges().isEmpty());
     }
 
     @Test
     public void testSortChunks() {
+        @Cleanup
         final EntryAndMetadataList entryAndMetadataList = new EntryAndMetadataList(attachMetadataList(
                 createMetadata("A", 0),
                 createMetadata("B", 0, 0, 3),
@@ -66,8 +68,6 @@ public class EntryAndMetadataListTest {
                 createMetadata("B", 0, 2, 3),
                 createMetadata("A", 2)
         ), "sub");
-        assertTrue(entryAndMetadataList.isHasChunks());
-        entryAndMetadataList.sortChunks();
         final List<String> metadataDescriptionList = entryAndMetadataList.getMetadataList().stream()
                 .map(m -> {
                     if (m == null) {
@@ -78,13 +78,16 @@ public class EntryAndMetadataListTest {
                         return m.getProducerName() + "-" + m.getSequenceId();
                     }
                 }).collect(Collectors.toList());
+        // C-0 has 4 chunks while the latest chunk's id is 1, so C-0-0 and C-0-1 will be put at the end
         assertEquals(metadataDescriptionList,
                 Arrays.asList("A-0", "A-1", "D-0", "B-0-0", "B-0-1", "B-0-2", "A-2", "C-0-0", "C-0-1"));
+        assertEquals(entryAndMetadataList.getChunkIndexRanges(), Collections.singletonList(IntRange.get(3, 6)));
         assertEquals(entryAndMetadataList.getWatermark(), 7);
     }
 
     @Test
     public void testContainIncompleteChunks() {
+        @Cleanup
         final EntryAndMetadataList entryAndMetadataList = new EntryAndMetadataList(attachMetadataList(
                 createMetadata("A", 0),
                 createMetadata("B", 0),

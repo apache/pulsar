@@ -32,6 +32,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.stream.Collectors;
+import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -508,9 +509,9 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             cursor.trimDeletedEntries(originalEntries);
         }
 
+        @Cleanup
         final EntryAndMetadataList entryAndMetadataList =
                 new EntryAndMetadataList(originalEntries, subscription.toString());
-        entryAndMetadataList.sortChunks();
 
         // The entry whose index is greater than the watermark must be a chunk from an incomplete message, skip them
         // and add them to the replay.
