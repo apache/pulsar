@@ -356,7 +356,8 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
          */
         @Override
         public AuthData authenticate(AuthData authData) throws AuthenticationException {
-            // There's no additional auth stage required
+            String token = new String(authData.getBytes(), UTF_8);
+            checkExpiration(token);
             return null;
         }
 
