@@ -2474,7 +2474,7 @@ public class PersistentTopicsBase extends AdminResource {
                             TopicName topicNamePartition = topicName.getPartition(i);
                             try {
                                 futures.add(pulsar().getAdminClient().topics()
-                                        .internalGetSubscriptionPropertiesAsync(topicNamePartition.toString(),
+                                        .getSubscriptionPropertiesAsync(topicNamePartition.toString(),
                                                 subName));
                             } catch (Exception e) {
                                 log.error("[{}] Failed to update properties for subscription {} {}",
