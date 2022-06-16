@@ -2050,7 +2050,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             category = CATEGORY_LOAD_BALANCER,
             doc = "Resource history Usage Percentage When adding new resource usage info"
     )
-    private double loadBalancerHistoryResourcePercentage = 0.9;
+    private double loadBalancerHistoryResourcePercentage = 90;
 
     @FieldContext(
             dynamic = true,
