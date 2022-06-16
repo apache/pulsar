@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.testclient;
 
-import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
@@ -27,7 +26,6 @@ import com.beust.jcommander.Parameters;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.util.concurrent.RateLimiter;
-import java.io.FileInputStream;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.List;

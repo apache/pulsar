@@ -19,7 +19,6 @@
 package org.apache.pulsar.testclient;
 
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
-import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
@@ -27,7 +26,6 @@ import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
-import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
@@ -267,7 +265,7 @@ public class PerformanceTransaction {
                         .connectionsPerBroker(arguments.maxConnections)
                         .statsInterval(0, TimeUnit.SECONDS)
                         .ioThreads(arguments.ioThreads)
-                        .tlsTrustCertsFilePath(arguments.tlsTrustCertsFilePath);;
+                        .tlsTrustCertsFilePath(arguments.tlsTrustCertsFilePath);
 
         if (isNotBlank(arguments.authPluginClassName)) {
             clientBuilder.authentication(arguments.authPluginClassName, arguments.authParams);
