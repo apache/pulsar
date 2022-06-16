@@ -19,10 +19,12 @@
 package org.apache.pulsar.broker.service;
 
 import java.io.Closeable;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.BiConsumer;
 import lombok.Getter;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
@@ -115,6 +117,42 @@ public class EntryAndMetadataList implements Closeable {
             return firstRange.getStart();
         }
         return end;
+    }
+
+    /**
+     * Process the entries in the given range.
+     *
+     * @param start the left-closed index of the range
+     * @param end the right-open index of the range
+     * @param processor the processor that accepts an Entry and the sticky key's hash value
+     */
+    public void processEntries(final int start, final int end,
+                               final BiConsumer<Entry, Long> processor) {
+        for (int i = start; i < end; i++) {
+            final byte[] stickyKey = peekStickyKey(i);
+            if (stickyKey == null) { // the metadata is null
+                continue;
+            }
+            final long stickyKeyHash = StickyKeyConsumerSelector.makeStickyKeyHash(stickyKey);
+            processor.accept(entries.get(i), stickyKeyHash);
+        }
+    }
+
+    /**
+     * @see Commands#peekStickyKey
+     */
+    private byte[] peekStickyKey(final int index) {
+        final MessageMetadata metadata = metadataList.get(index);
+        if (metadata == null) {
+            return null;
+        }
+        if (metadata.hasOrderingKey()) {
+            return metadata.getOrderingKey();
+        } else if (metadata.hasPartitionKey()) {
+            return metadata.getPartitionKey().getBytes(StandardCharsets.UTF_8);
+        } else {
+            return "NONE_KEY".getBytes(StandardCharsets.UTF_8);
+        }
     }
 
     private IntRange findLastOverlapChunk(int start, int end) {

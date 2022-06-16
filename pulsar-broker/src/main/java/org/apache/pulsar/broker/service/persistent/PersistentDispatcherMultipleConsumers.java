@@ -523,10 +523,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         // Trigger read more messages
         if (entriesToDispatch == 0) {
             readMoreEntries();
-            // TODO: avoid parse the message metadata
-            entriesOfIncompleteChunks.forEach(entry -> {
-                long stickyKeyHash = getStickyKeyHash(entry);
-                addMessageToReplay(entry.getLedgerId(), entry.getEntryId(), stickyKeyHash);
+            entryAndMetadataList.processEntries(watermark, size, (entry, hash) -> {
+                addMessageToReplay(entry.getLedgerId(), entry.getEntryId(), hash);
                 entry.release();
             });
             return;
@@ -654,15 +652,9 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 log.debug("[{}] No consumers found with available permits, storing {} positions for later replay", name,
                         entries.size() - start);
             }
-            entries.subList(start, entries.size()).forEach(entry -> {
-                long stickyKeyHash = getStickyKeyHash(entry);
-                addMessageToReplay(entry.getLedgerId(), entry.getEntryId(), stickyKeyHash);
-                entry.release();
-            });
         }
-        entriesOfIncompleteChunks.forEach(entry -> {
-            long stickyKeyHash = getStickyKeyHash(entry);
-            addMessageToReplay(entry.getLedgerId(), entry.getEntryId(), stickyKeyHash);
+        entryAndMetadataList.processEntries(start, size, (entry, hash) -> {
+            addMessageToReplay(entry.getLedgerId(), entry.getEntryId(), hash);
             entry.release();
         });
         readMoreEntries();
