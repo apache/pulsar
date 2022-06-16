@@ -864,6 +864,8 @@ $ pulsar-perf transaction options
 `-tto`, `--txn-timeout`|Set the time of transaction timeout (in second). <br /><br /> If you want `--txn-timeout` takes effect, set `--txn-enable` to true.|5
 `-abort`|Abort the transaction. <br /><br /> If you want `-abort` takes effect, set `--txn-disEnable` to false.|true
 `-txnRate`|Set the rate of opened transactions or tasks. <br /><br /> 0 means no limit.|0
+`--trust-cert-file`|Path for the trusted TLS certificate file||
+`--tls-allow-insecure`|Allow insecure TLS connection||
 
 ### `help`
 This help message
