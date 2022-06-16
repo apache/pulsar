@@ -143,12 +143,28 @@ To use the strategy, configure brokers with this value.
 ![Shedding strategy - ThresholdShedder](/assets/ThresholdShedder.png)
 
 ### OverloadShedder
-This strategy will attempt to shed exactly one bundle on brokers which are overloaded, that is, whose maximum system resource usage exceeds `loadBalancerBrokerOverloadedThresholdPercentage`. To see which resources are considered when determining the maximum system resource. A bundle is recommended for unloading off that broker if and only if the following conditions hold: The broker has at least two bundles assigned and the broker has at least one bundle that has not been unloaded recently according to LoadBalancerSheddingGracePeriodMinutes. The unloaded bundle will be the most expensive bundle in terms of message rate that has not been recently unloaded. Note that this strategy does not take into account "underloaded" brokers when determining which bundles to unload. If you are looking for a strategy that spreads load evenly across all brokers, see ThresholdShedder. 
+This strategy will attempt to shed exactly one bundle on brokers which are overloaded, that is, whose maximum system resource usage exceeds [`loadBalancerBrokerOverloadedThresholdPercentage`](#broker-overload-thresholds). To see which resources are considered when determining the maximum system resource. A bundle is recommended for unloading off that broker if and only if the following conditions hold: The broker has at least two bundles assigned and the broker has at least one bundle that has not been unloaded recently according to LoadBalancerSheddingGracePeriodMinutes. The unloaded bundle will be the most expensive bundle in terms of message rate that has not been recently unloaded. Note that this strategy does not take into account "underloaded" brokers when determining which bundles to unload. If you are looking for a strategy that spreads load evenly across all brokers, see ThresholdShedder. 
 
 To use the strategy, configure brokers with this value.
 `loadBalancerLoadSheddingStrategy=org.apache.pulsar.broker.loadbalance.impl.OverloadShedder`
 
 ![Shedding strategy - OverloadShedder](/assets/OverloadShedder.png)
+
+#### Broker overload thresholds
+
+The determination of when a broker is overloaded is based on the threshold of CPU, network, and memory usage. Whenever either of those metrics reaches the threshold, the system triggers the shedding (if enabled).
+
+:::note
+
+The overload threshold `loadBalancerBrokerOverloadedThresholdPercentage` only applies to the [`OverloadShedder`](#overloadshedder) shedding strategy. By default, it is set to 85%.
+
+:::
+
+Pulsar gathers the CPU, network, and memory usage stats from the system metrics. In some cases of network utilization, the network interface speed that Linux reports is not correct and needs to be manually overridden. This is the case in AWS EC2 instances with 1Gbps NIC speed for which the OS reports 10Gbps speed.
+
+Because of the incorrect max speed, the load manager might think the broker has not reached the NIC capacity, while in fact the broker already uses all the bandwidth and the traffic is slowed down.
+
+You can set `loadBalancerOverrideBrokerNicSpeedGbps` in the `conf/broker.conf` file to correct the max NIC speed. When the value is empty, Pulsar uses the value that the OS reports.
 
 ### UniformLoadShedder
 This strategy tends to distribute load uniformly across all brokers. This strategy checks the load difference between the broker with the highest load and the broker with the lowest load. If the difference is higher than configured thresholds `loadBalancerMsgRateDifferenceShedderThreshold` and `loadBalancerMsgThroughputMultiplierDifferenceShedderThreshold` then it finds out bundles that can be unloaded to distribute traffic evenly across all brokers. 
@@ -157,39 +173,6 @@ To use the strategy, configure brokers with this value.
 `loadBalancerLoadSheddingStrategy=org.apache.pulsar.broker.loadbalance.impl.UniformLoadShedder`
 
 ![Shedding strategy - UniformLoadShedder](/assets/UniformLoadShedder.png)
-
-### Broker overload thresholds
-
-The determination of when a broker is overloaded is based on the threshold of CPU, network, and memory usage. Whenever either of those metrics reaches the threshold, the system triggers the shedding (if enabled).
-
-:::note
-
-The overload threshold `loadBalancerBrokerOverloadedThresholdPercentage` only applies to the `[OverloadShedder](#overloadshedder)` shedding strategy. By default, it is set to 85%.
-
-:::
-
-Pulsar gathers the CPU, network, and memory usage stats from the system metrics.
-
-In case of network utilization, in some cases the network interface speed that Linux reports is not correct and needs to be manually overridden. This is the case in AWS EC2 instances with 1Gbps NIC speed for which the OS reports 10Gbps speed.
-
-Because of the incorrect max speed, the Pulsar load manager might think the broker has not reached the NIC capacity, while in fact the broker already uses all the bandwidth and the traffic is slowed down.
-
-You can use the following setting to correct the max NIC speed:
-
-```conf
-
-# Override the auto-detection of the network interfaces max speed.
-# This option is useful in some environments (eg: EC2 VMs) where the max speed
-# reported by Linux is not reflecting the real bandwidth available to the broker.
-# Since the network usage is employed by the load manager to decide when a broker
-# is overloaded, it is important to make sure the info is correct or override it
-# with the right value here. The configured value can be a double (eg: 0.8) and that
-# can be used to trigger load-shedding even before hitting on NIC limits.
-loadBalancerOverrideBrokerNicSpeedGbps=
-
-```
-
-When the value is empty, Pulsar uses the value that the OS reports.
 
 ## Unload topics and bundles
 
