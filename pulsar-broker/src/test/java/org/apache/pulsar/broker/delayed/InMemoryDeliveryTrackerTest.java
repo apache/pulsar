@@ -21,13 +21,16 @@ package org.apache.pulsar.broker.delayed;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyLong;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verifyZeroInteractions;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 
+import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timeout;
 import io.netty.util.Timer;
 import io.netty.util.TimerTask;
@@ -40,27 +43,38 @@ import java.util.TreeMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
+import io.netty.util.concurrent.DefaultThreadFactory;
 import lombok.Cleanup;
 
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
+import org.awaitility.Awaitility;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
 public class InMemoryDeliveryTrackerTest {
 
+    // Create a single shared timer for the test.
+    private final Timer timer = new HashedWheelTimer(new DefaultThreadFactory("pulsar-in-memory-delayed-delivery-test"),
+            500, TimeUnit.MILLISECONDS);
+
+    @AfterClass(alwaysRun = true)
+    public void cleanup() {
+        timer.stop();
+    }
+
     @Test
     public void test() throws Exception {
         PersistentDispatcherMultipleConsumers dispatcher = mock(PersistentDispatcherMultipleConsumers.class);
-
-        Timer timer = mock(Timer.class);
 
         AtomicLong clockTime = new AtomicLong();
         Clock clock = mock(Clock.class);
         when(clock.millis()).then(x -> clockTime.get());
 
         @Cleanup
-        InMemoryDelayedDeliveryTracker tracker = new InMemoryDelayedDeliveryTracker(dispatcher, timer, 1, clock);
+        InMemoryDelayedDeliveryTracker tracker = new InMemoryDelayedDeliveryTracker(dispatcher, timer, 1, clock,
+                false);
 
         assertFalse(tracker.hasMessageAvailable());
 
@@ -131,7 +145,8 @@ public class InMemoryDeliveryTrackerTest {
         });
 
         @Cleanup
-        InMemoryDelayedDeliveryTracker tracker = new InMemoryDelayedDeliveryTracker(dispatcher, timer, 1, clock);
+        InMemoryDelayedDeliveryTracker tracker = new InMemoryDelayedDeliveryTracker(dispatcher, timer, 1, clock,
+                false);
 
         assertTrue(tasks.isEmpty());
         assertTrue(tracker.addMessage(2, 2, 20));
@@ -160,29 +175,143 @@ public class InMemoryDeliveryTrackerTest {
 
     /**
      * Adding a message that is about to expire within the tick time should lead
-     * to a rejection from the tracker.
+     * to a rejection from the tracker when isDelayedDeliveryDeliverAtTimeStrict is false.
      */
     @Test
     public void testAddWithinTickTime() {
         PersistentDispatcherMultipleConsumers dispatcher = mock(PersistentDispatcherMultipleConsumers.class);
-
-        Timer timer = mock(Timer.class);
 
         AtomicLong clockTime = new AtomicLong();
         Clock clock = mock(Clock.class);
         when(clock.millis()).then(x -> clockTime.get());
 
         @Cleanup
-        InMemoryDelayedDeliveryTracker tracker = new InMemoryDelayedDeliveryTracker(dispatcher, timer, 100, clock);
+        InMemoryDelayedDeliveryTracker tracker = new InMemoryDelayedDeliveryTracker(dispatcher, timer, 100, clock,
+                false);
 
         clockTime.set(0);
 
         assertFalse(tracker.addMessage(1, 1, 10));
         assertFalse(tracker.addMessage(2, 2, 99));
-        assertTrue(tracker.addMessage(3, 3, 100));
-        assertTrue(tracker.addMessage(4, 4, 200));
+        assertFalse(tracker.addMessage(3, 3, 100));
+        assertTrue(tracker.addMessage(4, 4, 101));
+        assertTrue(tracker.addMessage(5, 5, 200));
 
         assertEquals(tracker.getNumberOfDelayedMessages(), 2);
     }
 
+    public void testAddMessageWithStrictDelay() {
+        PersistentDispatcherMultipleConsumers dispatcher = mock(PersistentDispatcherMultipleConsumers.class);
+
+        AtomicLong clockTime = new AtomicLong();
+        Clock clock = mock(Clock.class);
+        when(clock.millis()).then(x -> clockTime.get());
+
+        @Cleanup
+        InMemoryDelayedDeliveryTracker tracker = new InMemoryDelayedDeliveryTracker(dispatcher, timer, 100, clock,
+                true);
+
+        clockTime.set(10);
+
+        // Verify behavior for the less than, equal to, and greater than deliverAt times.
+        assertFalse(tracker.addMessage(1, 1, 9));
+        assertFalse(tracker.addMessage(4, 4, 10));
+        assertTrue(tracker.addMessage(1, 1, 11));
+
+        assertEquals(tracker.getNumberOfDelayedMessages(), 1);
+        assertFalse(tracker.hasMessageAvailable());
+    }
+
+    /**
+     * In this test, the deliverAt time is after now, but the deliverAt time is too early to run another tick, so the
+     * tickTimeMillis determines the delay.
+     */
+    public void testAddMessageWithDeliverAtTimeAfterNowBeforeTickTimeFrequencyWithStrict() throws Exception {
+        PersistentDispatcherMultipleConsumers dispatcher = mock(PersistentDispatcherMultipleConsumers.class);
+
+        AtomicLong clockTime = new AtomicLong();
+        Clock clock = mock(Clock.class);
+        when(clock.millis()).then(x -> clockTime.get());
+
+        // Use a short tick time to show that the timer task is run based on the deliverAt time in this scenario.
+        @Cleanup
+        InMemoryDelayedDeliveryTracker tracker = new InMemoryDelayedDeliveryTracker(dispatcher, timer,
+                1000, clock, true);
+
+        // Set clock time, then run tracker to inherit clock time as the last tick time.
+        clockTime.set(10000);
+        Timeout timeout = mock(Timeout.class);
+        when(timeout.isCancelled()).then(x -> false);
+        tracker.run(timeout);
+        verify(dispatcher, times(1)).readMoreEntries();
+
+        // Add a message that has a delivery time just after the previous run. It will get delivered based on the
+        // tick delay plus the last tick run.
+        assertTrue(tracker.addMessage(1, 1, 10001));
+
+        // Wait longer than the tick time plus the HashedWheelTimer's tick time to ensure that enough time has
+        // passed where it would have been triggered if the tick time was doing the triggering.
+        Thread.sleep(600);
+        verify(dispatcher, times(1)).readMoreEntries();
+
+        // Not wait for the message delivery to get triggered.
+        Awaitility.await().atMost(10, TimeUnit.SECONDS)
+                .untilAsserted(() -> verify(dispatcher).readMoreEntries());
+    }
+
+    /**
+     * In this test, the deliverAt time is after now, but before the (tickTimeMillis + now). Because there wasn't a
+     * recent tick run, the deliverAt time determines the delay.
+     */
+    public void testAddMessageWithDeliverAtTimeAfterNowAfterTickTimeFrequencyWithStrict() {
+        PersistentDispatcherMultipleConsumers dispatcher = mock(PersistentDispatcherMultipleConsumers.class);
+
+        AtomicLong clockTime = new AtomicLong();
+        Clock clock = mock(Clock.class);
+        when(clock.millis()).then(x -> clockTime.get());
+
+        // Use a large tick time to show that the message will get delivered earlier because there wasn't
+        // a previous tick run.
+        @Cleanup
+        InMemoryDelayedDeliveryTracker tracker = new InMemoryDelayedDeliveryTracker(dispatcher, timer,
+                100000, clock, true);
+
+        clockTime.set(500000);
+
+        assertTrue(tracker.addMessage(1, 1, 500005));
+
+        // Wait long enough for the runnable to run, but not longer than the tick time. The point is that the delivery
+        // should get scheduled early when the tick duration has passed since the last tick.
+        Awaitility.await().atMost(10, TimeUnit.SECONDS)
+                .untilAsserted(() -> verify(dispatcher).readMoreEntries());
+    }
+
+    /**
+     * In this test, the deliverAt time is after now plus tickTimeMillis, so the tickTimeMillis determines the delay.
+     */
+    public void testAddMessageWithDeliverAtTimeAfterFullTickTimeWithStrict() throws Exception {
+        PersistentDispatcherMultipleConsumers dispatcher = mock(PersistentDispatcherMultipleConsumers.class);
+
+        AtomicLong clockTime = new AtomicLong();
+        Clock clock = mock(Clock.class);
+        when(clock.millis()).then(x -> clockTime.get());
+
+        // Use a short tick time to show that the timer task is run based on the deliverAt time in this scenario.
+        @Cleanup
+        InMemoryDelayedDeliveryTracker tracker = new InMemoryDelayedDeliveryTracker(dispatcher, timer,
+                500, clock, true);
+
+        clockTime.set(0);
+
+        assertTrue(tracker.addMessage(1, 1, 2000));
+
+        // Wait longer than the tick time plus the HashedWheelTimer's tick time to ensure that enough time has
+        // passed where it would have been triggered if the tick time was doing the triggering.
+        Thread.sleep(1000);
+        verifyNoInteractions(dispatcher);
+
+        // Not wait for the message delivery to get triggered.
+        Awaitility.await().atMost(10, TimeUnit.SECONDS)
+                .untilAsserted(() -> verify(dispatcher).readMoreEntries());
+    }
 }
