@@ -23,6 +23,7 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.gson.Gson;
 import java.io.File;
+import java.lang.reflect.Field;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
@@ -34,10 +35,12 @@ import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.BookKeeper.DigestType;
 import org.apache.bookkeeper.client.LedgerHandle;
+import org.apache.bookkeeper.client.RackawareEnsemblePlacementPolicy;
 import org.apache.bookkeeper.conf.ServerConfiguration;
 import org.apache.bookkeeper.net.BookieId;
 import org.apache.bookkeeper.proto.BookieServer;
 import org.apache.bookkeeper.stats.NullStatsLogger;
+import org.apache.bookkeeper.net.NetworkTopologyImpl;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.policies.data.BookieInfo;
 import org.apache.pulsar.bookie.rackawareness.BookieRackAffinityMapping;
@@ -241,6 +244,13 @@ public class RackAwareTest extends BkEnsemblesTestBase {
         });
 
         BookKeeper bkc = this.pulsar.getBookKeeperClient();
+        Field field = bkc.getClass().getDeclaredField("placementPolicy");
+        field.setAccessible(true);
+        RackawareEnsemblePlacementPolicy ensemblePlacementPolicy = (RackawareEnsemblePlacementPolicy) field.get(bkc);
+        Field topoField =
+                ensemblePlacementPolicy.getClass().getSuperclass().getSuperclass().getDeclaredField("topology");
+        topoField.setAccessible(true);
+        NetworkTopologyImpl networkTopology = (NetworkTopologyImpl) topoField.get(ensemblePlacementPolicy);
 
         // 3. test create ledger
         try {
@@ -277,6 +287,10 @@ public class RackAwareTest extends BkEnsemblesTestBase {
                     .collect(Collectors.toSet());
             assertEquals(racks.size(), 2);
             assertTrue(racks.containsAll(Lists.newArrayList("rack-0", "rack-1")));
+        });
+
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(networkTopology.getNumOfRacks(), 2);
         });
 
         // 5. create ledger required for 2 racks
