@@ -2692,9 +2692,10 @@ public abstract class NamespacesBase extends AdminResource {
         return (OffloadPoliciesImpl) policies.offload_policies;
     }
 
-    protected Integer internalGetMaxTopicsPerNamespace() {
+    protected int internalGetMaxTopicsPerNamespace() {
         validateNamespacePolicyOperation(namespaceName, PolicyName.MAX_TOPICS, PolicyOperation.READ);
-        return getNamespacePolicies(namespaceName).max_topics_per_namespace;
+        return getNamespacePolicies(namespaceName).max_topics_per_namespace != null
+                ? getNamespacePolicies(namespaceName).max_topics_per_namespace : 0;
     }
 
    protected void internalRemoveMaxTopicsPerNamespace() {
