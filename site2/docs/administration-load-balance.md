@@ -11,9 +11,9 @@ You can use multiple settings and tools to control the traffic distribution whic
 
 The following sections introduce how the load-balanced assignments work across Pulsar brokers and how you can leverage the framework to adjust.
 
-## Dynamic load-balanced assignments
+## Dynamic assignments
 
-Topics are dynamically assigned to brokers based on the load conditions of all brokers in the cluster. The assignment of topics to brokers is not done at the topic level but at the **bundle** level (a higher level). Instead of individual topic assignment, each broker takes ownership of a subset of the topics for a namespace. This subset is called a bundle and effectively this subset is a sharding mechanism. 
+Topics are dynamically assigned to brokers based on the load conditions of all brokers in the cluster. The assignment of topics to brokers is not done at the topic level but at the **bundle** level (a higher level). Instead of individual topic assignments, each broker takes ownership of a subset of the topics for a namespace. This subset is called a bundle and effectively this subset is a sharding mechanism. 
 
 In other words, each namespace is an "administrative" unit and sharded into a list of bundles, with each bundle comprising a portion of the overall hash range of the namespace. Topics are assigned to a particular bundle by taking the hash of the topic name and checking in which bundle the hash falls. Each bundle is independent of the others and thus is independently assigned to different brokers.
 
@@ -32,9 +32,9 @@ For partitioned topics, different partitions are assigned to different brokers. 
 
 When you create a new namespace, a number of bundles are assigned to the namespace. You can set this number in the `conf/broker.conf` file:
 
-```properties
+```conf
 
-# When a namespace is created without specifying the number of bundle, this
+# When a namespace is created without specifying the number of bundles, this
 # value will be used as the default
 defaultNumberOfNamespaceBundles=4
 
@@ -59,21 +59,23 @@ On the same note, it is beneficial to start with more bundles than the number of
 
 Since the load for the topics in a bundle might change over time and predicting the load might be hard, bundle split is designed to resolve these chanllenges. The broker splits a bundle into two and the new smaller bundles can be reassigned to different brokers.
 
-The splitting is based on some tunable thresholds. Any existing bundle that exceeds any of the thresholds is a candidate to be split. By default the newly split bundles are immediately reassigned to other brokers, to facilitate the traffic distribution. 
-
-To split namespace bundles, set `supportedNamespaceBundleSplitAlgorithms` to either of the following values in the `broker.conf` file. 
+Pulsar supports the following two bundle split algorithms:
 * `range_equally_divide`: split the bundle into two parts with the same hash range size.
-* `topic_count_equally_divide`: split the bundle into two parts with the same number of topics. 
+* `topic_count_equally_divide`: split the bundle into two parts with the same number of topics.
 
-You can also configure other parameters for namespace bundles.
+To enable bundle split, you need to configure the following settings in the `broker.conf` file, and set `defaultNamespaceBundleSplitAlgorithm` based on your needs.
 
-```properties
+```conf
 
-# enable/disable namespace bundle auto split
 loadBalancerAutoBundleSplitEnabled=true
-
-# enable/disable automatic unloading of split bundles
 loadBalancerAutoUnloadSplitBundlesEnabled=true
+defaultNamespaceBundleSplitAlgorithm=range_equally_divide
+
+```
+
+You can configure more parameters for splitting thresholds. Any existing bundle that exceeds any of the thresholds is a candidate to be split. By default, the newly split bundles are immediately reassigned to other brokers, to facilitate the traffic distribution. 
+
+```conf
 
 # maximum topics in a bundle, otherwise bundle split will be triggered
 loadBalancerNamespaceBundleMaxTopics=1000
@@ -109,7 +111,7 @@ For example, the default threshold is 85% and if a broker is over quota at 95% C
 
 Additional settings that apply to shedding:
 
-```properties
+```conf
 
 # Load shedding interval. Broker periodically checks whether some traffic should be offload from
 # some over-loaded broker to other under-loaded brokers
@@ -174,7 +176,7 @@ Because of the incorrect max speed, the Pulsar load manager might think the brok
 
 You can use the following setting to correct the max NIC speed:
 
-```properties
+```conf
 
 # Override the auto-detection of the network interfaces max speed.
 # This option is useful in some environments (eg: EC2 VMs) where the max speed
@@ -221,7 +223,16 @@ Such a group of namespaces has anti-affinity to each other, that is, all the nam
 
 As illustrated in the following figure, Pulsar has 2 failure domains (Domain1 and Domain2) and each domain has 2 brokers in it. You can create an anti-affinity namespace group that has 4 namespaces in it, and all the 4 namespaces have anti-affinity to each other. The load manager tries to distribute namespaces evenly across all the brokers in the same domain. Since each domain has 2 brokers, every broker owns one namespace from this anti-affinity namespace group, and you can see each domain owns 2 namespaces, and each broker owns 1 namespace.
 
-[Distribute anti-affinity namespaces across failure domains](/assets/anti-affinity-namespaces-across-failure-domains.svg)
+![Distribute anti-affinity namespaces across failure domains](/assets/anti-affinity-namespaces-across-failure-domains.svg)
+
+The load manager follows an even distribution policy across failure domains to assign anti-affinity namespaces. The following table outlines the even-distributed assignment sequence illustrated in the above figure.
+
+| Assignment sequence | Namespace | Failure domain candidates | Broker candidates | Selected broker |
+|:---|:------------|:------------------|:------------------------------------|:-----------------|
+| 1 | Namespace1 | Domain1, Domain2 | Broker1, Broker2, Broker3, Broker4 | Domain1:Broker1 |
+| 2 | Namespace2 | Domain2          | Broker3, Broker4                   | Domain2:Broker3 |
+| 3 | Namespace3 | Domain1, Domain2 | Broker2, Broker4                   | Domain1:Broker2 |
+| 4 | Namespace4 | Domain2          | Broker4                            | Domain2:Broker4 |
  
 :::tip
 
