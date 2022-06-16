@@ -104,10 +104,6 @@ public class PerformanceReader {
                 "--use-tls" }, description = "Use TLS encryption on the connection")
         public boolean useTls;
 
-        @Parameter(names = {
-                "--tls-allow-insecure" }, description = "Allow insecure TLS connection")
-        public Boolean tlsAllowInsecureConnection = null;
-
         @Parameter(names = { "-time",
                 "--test-duration" }, description = "Test duration in secs. If <= 0, it will keep consuming")
         public long testTime = 0;
