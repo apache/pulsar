@@ -58,7 +58,7 @@ The following shows a typical original OAuth2 request, which is used to obtain t
 ```bash
 
 curl --request POST \
-  --url https://dev-kt-aa9ne.us.auth0.com \
+  --url https://dev-kt-aa9ne.us.auth0.com/oauth/token \
   --header 'content-type: application/json' \
   --data '{
   "client_id":"Xd23RHsUnvUlP7wchjNYOaIfazgeHd9x",
