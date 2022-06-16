@@ -10,7 +10,7 @@ If you have not installed Docker, download the [Community edition](https://www.d
 
 ## Start Pulsar in Docker
 
-For macOS, Linux and Windows, run the following command to start Pulsar withink a Docker container.
+For macOS, Linux, and Windows, run the following command to start Pulsar within a Docker container.
 
 ```shell
   
