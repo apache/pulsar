@@ -43,6 +43,7 @@ import javax.ws.rs.core.Response;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeoutException;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
 
@@ -396,11 +397,15 @@ public class AuthorizationService {
                                         AuthenticationDataSource authData) {
         try {
             return allowTenantOperationAsync(
-                    tenantName, operation, originalRole, role, authData).get();
+                    tenantName, operation, originalRole, role, authData).get(
+                    conf.getZooKeeperOperationTimeoutSeconds(), SECONDS);
         } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
             throw new RestException(e);
         } catch (ExecutionException e) {
             throw new RestException(e.getCause());
+        } catch (TimeoutException e) {
+            throw new RestException(e);
         }
     }
 
@@ -521,11 +526,15 @@ public class AuthorizationService {
                                                  AuthenticationDataSource authData) {
         try {
             return allowNamespacePolicyOperationAsync(
-                    namespaceName, policy, operation, originalRole, role, authData).get();
+                    namespaceName, policy, operation, originalRole, role, authData).get(
+                    conf.getZooKeeperOperationTimeoutSeconds(), SECONDS);
         } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
             throw new RestException(e);
         } catch (ExecutionException e) {
             throw new RestException(e.getCause());
+        } catch (TimeoutException e) {
+            throw new RestException(e);
         }
     }
 
@@ -585,11 +594,15 @@ public class AuthorizationService {
                                              AuthenticationDataSource authData) {
         try {
             return allowTopicPolicyOperationAsync(
-                    topicName, policy, operation, originalRole, role, authData).get();
+                    topicName, policy, operation, originalRole, role, authData).get(
+                    conf.getZooKeeperOperationTimeoutSeconds(), SECONDS);
         } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
             throw new RestException(e);
         } catch (ExecutionException e) {
             throw new RestException(e.getCause());
+        } catch (TimeoutException e) {
+            throw new RestException(e);
         }
     }
 
@@ -667,9 +680,10 @@ public class AuthorizationService {
                                        TopicOperation operation,
                                        String originalRole,
                                        String role,
-                                       AuthenticationDataSource authData) {
+                                       AuthenticationDataSource authData) throws Exception {
         try {
-            return allowTopicOperationAsync(topicName, operation, originalRole, role, authData).get();
+            return allowTopicOperationAsync(topicName, operation, originalRole, role, authData).get(
+                    conf.getZooKeeperOperationTimeoutSeconds(), SECONDS);
         } catch (InterruptedException e) {
             throw new RestException(e);
         } catch (ExecutionException e) {

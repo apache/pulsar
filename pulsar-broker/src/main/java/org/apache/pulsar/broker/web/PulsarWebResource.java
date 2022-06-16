@@ -245,6 +245,85 @@ public abstract class PulsarWebResource {
         }
     }
 
+    protected static CompletableFuture<Void> validateAdminAccessForTenantAsync(
+            PulsarService pulsar, String clientAppId,
+            String originalPrincipal, String tenant,
+            AuthenticationDataSource authenticationData) {
+        if (log.isDebugEnabled()) {
+            log.debug("check admin access on tenant: {} - Authenticated: {} -- role: {}", tenant,
+                    (isClientAuthenticated(clientAppId)), clientAppId);
+        }
+        return pulsar.getPulsarResources().getTenantResources().getTenantAsync(tenant)
+                .thenCompose(tenantInfoOptional -> {
+                    if (!tenantInfoOptional.isPresent()) {
+                        throw new RestException(Status.NOT_FOUND, "Tenant does not exist");
+                    }
+                    TenantInfo tenantInfo = tenantInfoOptional.get();
+                    if (pulsar.getConfiguration().isAuthenticationEnabled() && pulsar.getConfiguration()
+                            .isAuthorizationEnabled()) {
+                        if (!isClientAuthenticated(clientAppId)) {
+                            throw new RestException(Status.FORBIDDEN, "Need to authenticate to perform the request");
+                        }
+                        validateOriginalPrincipal(pulsar.getConfiguration().getProxyRoles(), clientAppId,
+                                originalPrincipal);
+                        if (pulsar.getConfiguration().getProxyRoles().contains(clientAppId)) {
+                            AuthorizationService authorizationService =
+                                    pulsar.getBrokerService().getAuthorizationService();
+                            return authorizationService.isTenantAdmin(tenant, clientAppId, tenantInfo,
+                                            authenticationData)
+                                    .thenCompose(isTenantAdmin -> {
+                                        String debugMsg = "Successfully authorized {} (proxied by {}) on tenant {}";
+                                        if (!isTenantAdmin) {
+                                            return authorizationService.isSuperUser(clientAppId, authenticationData)
+                                                    .thenCombine(authorizationService.isSuperUser(originalPrincipal,
+                                                                    authenticationData),
+                                                            (proxyAuthorized, originalPrincipalAuthorized) -> {
+                                                                if (!proxyAuthorized || !originalPrincipalAuthorized) {
+                                                                    throw new RestException(Status.UNAUTHORIZED,
+                                                                            String.format("Proxy not authorized to access "
+                                                                                            + "resource (proxy:%s,original:%s)"
+                                                                                    , clientAppId, originalPrincipal));
+                                                                } else {
+                                                                    if (log.isDebugEnabled()) {
+                                                                        log.debug(debugMsg, originalPrincipal, clientAppId,
+                                                                                tenant);
+                                                                    }
+                                                                    return null;
+                                                                }
+                                                            });
+                                        } else {
+                                            if (log.isDebugEnabled()) {
+                                                log.debug(debugMsg, originalPrincipal, clientAppId, tenant);
+                                            }
+                                            return CompletableFuture.completedFuture(null);
+                                        }
+                                    });
+                        } else {
+                            return pulsar.getBrokerService()
+                                    .getAuthorizationService()
+                                    .isSuperUser(clientAppId, authenticationData)
+                                    .thenCompose(isSuperUser -> {
+                                        if (!isSuperUser) {
+                                            return pulsar.getBrokerService().getAuthorizationService()
+                                                    .isTenantAdmin(tenant, clientAppId, tenantInfo, authenticationData);
+                                        } else {
+                                            return CompletableFuture.completedFuture(true);
+                                        }
+                                    }).thenAccept(authorized -> {
+                                        if (!authorized) {
+                                            throw new RestException(Status.UNAUTHORIZED,
+                                                    "Don't have permission to administrate resources on this tenant");
+                                        } else {
+                                            log.debug("Successfully authorized {} on tenant {}", clientAppId, tenant);
+                                        }
+                                    });
+                        }
+                    } else {
+                        return CompletableFuture.completedFuture(null);
+                    }
+                });
+    }
+
     protected static void validateAdminAccessForTenant(PulsarService pulsar, String clientAppId,
                                                        String originalPrincipal, String tenant,
                                                        AuthenticationDataSource authenticationData)
@@ -795,18 +874,22 @@ public abstract class PulsarWebResource {
         return null;
     }
 
-    protected static void checkAuthorization(PulsarService pulsarService, TopicName topicName, String role,
-            AuthenticationDataSource authenticationData) throws Exception {
+    protected static CompletableFuture<Void> checkAuthorizationAsync(PulsarService pulsarService,
+                                                                     TopicName topicName, String role,
+                                                                     AuthenticationDataSource authenticationData) {
         if (!pulsarService.getConfiguration().isAuthorizationEnabled()) {
             // No enforcing of authorization policies
-            return;
+            return CompletableFuture.completedFuture(null);
         }
         // get zk policy manager
-        if (!pulsarService.getBrokerService().getAuthorizationService().allowTopicOperation(topicName,
-                TopicOperation.LOOKUP, null, role, authenticationData)) {
-            log.warn("[{}] Role {} is not allowed to lookup topic", topicName, role);
-            throw new RestException(Status.UNAUTHORIZED, "Don't have permission to connect to this namespace");
-        }
+        return pulsarService.getBrokerService().getAuthorizationService().allowTopicOperationAsync(topicName,
+                TopicOperation.LOOKUP, null, role, authenticationData).thenAccept(allow -> {
+            if (!allow) {
+                log.warn("[{}] Role {} is not allowed to lookup topic", topicName, role);
+                throw new RestException(Status.UNAUTHORIZED,
+                        "Don't have permission to connect to this namespace");
+            }
+        });
     }
 
     // Used for unit tests access
