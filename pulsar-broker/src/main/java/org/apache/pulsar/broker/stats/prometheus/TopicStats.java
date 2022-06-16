@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
@@ -20,6 +20,8 @@ package org.apache.pulsar.broker.stats.prometheus;
 
 import static org.apache.pulsar.common.naming.TopicName.PARTITIONED_TOPIC_SUFFIX;
 import io.prometheus.client.Collector;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
@@ -458,8 +460,16 @@ class TopicStats {
         familySamples.samples.add(new Collector.MetricFamilySamples.Sample(name,
                 labels.keySet().stream().toList(),
                 labels.values().stream().toList(),
-                value,
+                round(value),
                 System.currentTimeMillis()));
         metrics.put(name, familySamples);
+    }
+
+    // This replicates the SimpleTextOutputStream.write(double d) String formatting
+    // to ensure values are rounded to 3 decimal places
+    static double round(double value) {
+        BigDecimal bd = new BigDecimal(Double.toString(value));
+        bd = bd.setScale(3, RoundingMode.DOWN);
+        return bd.doubleValue();
     }
 }
