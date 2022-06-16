@@ -63,7 +63,8 @@ public class EntryAndMetadataListTest {
                 createMetadata("B", 0, 1, 3),
                 createMetadata("D", 0),
                 createMetadata("B", 0, 2, 3),
-                createMetadata("A", 2)
+                createMetadata("A", 2),
+                createMetadata("A", 3, 1, 3)
         ), "sub");
         final List<String> metadataDescriptionList = entryAndMetadataList.getMetadataList().stream()
                 .map(m -> {
@@ -77,7 +78,9 @@ public class EntryAndMetadataListTest {
                 }).collect(Collectors.toList());
         // C-0 has 4 chunks while the latest chunk's id is 1, so C-0-0 and C-0-1 will be put at the end
         assertEquals(metadataDescriptionList,
-                Arrays.asList("A-0", "A-1", "D-0", "B-0-0", "B-0-1", "B-0-2", "A-2", "C-0-0", "C-0-1"));
+                Arrays.asList("A-0", "A-1", "D-0", "B-0-0", "B-0-1", "B-0-2", "A-2", "A-3-1", "C-0-0", "C-0-1"));
+        assertEquals(entryAndMetadataList.getEntries().stream().map(Entry::getEntryId).collect(Collectors.toList()),
+                Arrays.asList(0L, 3L, 6L, 1L, 5L, 7L, 8L, 9L, 2L, 4L));
         assertEquals(entryAndMetadataList.getChunkIndexRanges(), Collections.singletonList(IntRange.get(3, 6)));
         assertEquals(entryAndMetadataList.getWatermark(), 7);
     }

@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service;
 
+import io.netty.util.Recycler;
 import java.io.Closeable;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -26,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.BiConsumer;
 import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.protocol.Commands;
@@ -166,7 +168,7 @@ public class EntryAndMetadataList implements Closeable {
     }
 
     private void sortChunks() {
-        final Map<String, List<Integer>> uuidToIndexes = new HashMap<>();
+        final Map<String, ChunkedMessageContext> uuidToContext = new HashMap<>();
         final List<Entry> sortedEntries = new ArrayList<>();
         final List<MessageMetadata> sortedMetadataList = new ArrayList<>();
         for (int i = 0; i < size(); i++) {
@@ -176,18 +178,19 @@ public class EntryAndMetadataList implements Closeable {
             }
             if (metadata.hasUuid()) {
                 final String uuid = metadata.getUuid();
-                final List<Integer> indexes = uuidToIndexes.computeIfAbsent(uuid, __ -> new ArrayList<>());
-                indexes.add(i);
-                if (metadata.getChunkId() + 1 == metadata.getNumChunksFromMsg()) {
-                    // A complete chunk is met
+                final ChunkedMessageContext context =
+                        uuidToContext.computeIfAbsent(uuid, __ -> ChunkedMessageContext.get());
+                context.add(i, metadata);
+                if (context.complete && context.ordered) {
                     int start = sortedEntries.size();
-                    int end = start + metadata.getNumChunksFromMsg();
+                    int end = sortedEntries.size() + context.indexes.size();
                     chunkIndexRanges.add(IntRange.get(start, end));
-                    indexes.forEach(index -> {
+                    context.indexes.forEach(index -> {
                         sortedEntries.add(entries.get(index));
                         sortedMetadataList.add(metadataList.get(index));
                     });
-                    uuidToIndexes.remove(uuid);
+                    context.recycle();
+                    uuidToContext.remove(uuid);
                 }
             } else {
                 sortedEntries.add(entries.get(i));
@@ -196,13 +199,58 @@ public class EntryAndMetadataList implements Closeable {
         }
         watermark = sortedEntries.size();
         // Process all incomplete chunks
-        uuidToIndexes.values().forEach(indexes -> {
-            indexes.forEach(index -> {
+        uuidToContext.values().forEach(context -> {
+            context.indexes.forEach(index -> {
                 sortedEntries.add(entries.get(index));
                 sortedMetadataList.add(metadataList.get(index));
             });
+            context.recycle();
         });
         entries = sortedEntries;
         metadataList = sortedMetadataList;
+    }
+
+    @RequiredArgsConstructor
+    private static class ChunkedMessageContext {
+        static final Recycler<ChunkedMessageContext> RECYCLER = new Recycler<ChunkedMessageContext>() {
+            @Override
+            protected ChunkedMessageContext newObject(Handle<ChunkedMessageContext> handle) {
+                return new ChunkedMessageContext(handle);
+            }
+        };
+
+        final Recycler.Handle<ChunkedMessageContext> handle;
+
+        List<Integer> indexes;
+        int lastChunkId;
+        boolean ordered;
+        boolean complete;
+
+        void add(final int index, final MessageMetadata metadata) {
+            indexes.add(index);
+            final int chunkId = metadata.getChunkId();
+            if (ordered) {
+                ordered = (lastChunkId + 1 == chunkId);
+            }
+            lastChunkId = chunkId;
+            complete = (chunkId + 1 == metadata.getNumChunksFromMsg());
+        }
+
+        static ChunkedMessageContext get() {
+            final ChunkedMessageContext context = RECYCLER.get();
+            context.indexes = new ArrayList<>();
+            context.lastChunkId = -1; // the first chunk id (0) == lastChunkId (-1) + 1
+            context.ordered = true;
+            context.complete = false;
+            return context;
+        }
+
+        void recycle() {
+            indexes = null;
+            lastChunkId = -1;
+            ordered = true;
+            complete = false;
+            handle.recycle(this);
+        }
     }
 }

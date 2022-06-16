@@ -518,7 +518,6 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         final int watermark = entryAndMetadataList.getWatermark();
         final int size = entryAndMetadataList.size();
         final List<Entry> entries = entryAndMetadataList.getEntries().subList(0, watermark);
-        final List<Entry> entriesOfIncompleteChunks = entryAndMetadataList.getEntries().subList(watermark, size);
         int entriesToDispatch = entries.size();
         // Trigger read more messages
         if (entriesToDispatch == 0) {
@@ -549,11 +548,14 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 : Integer.MAX_VALUE;
         while (entriesToDispatch > 0) {
             if (numSkippedConsumers >= numConsumers) {
+                final List<String> chunkRanges = entryAndMetadataList.getChunkIndexRanges().stream()
+                        .map(range -> range.getStart() + "-" + range.getEnd())
+                        .collect(Collectors.toList());
                 final List<String> permits = consumerList.stream()
                         .map(c -> c.consumerName() + ":" + c.getAvailablePermits())
                         .collect(Collectors.toList());
-                log.warn("All consumers don't have enough permits to receive a complete chunked message, permits: {}",
-                        permits);
+                log.warn("All consumers don't have enough permits to receive a complete chunked message, "
+                                + "chunks: {}, permits: {}", chunkRanges, permits);
                 break;
             }
             firstAvailableConsumerPermits = getFirstAvailableConsumerPermits();

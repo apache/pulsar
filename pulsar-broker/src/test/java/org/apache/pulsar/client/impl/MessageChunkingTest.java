@@ -569,11 +569,11 @@ public class MessageChunkingTest extends ProducerConsumerBase {
                 consumer.acknowledgeAsync(msg);
             }).subscribe());
         }
-        final byte[] value = createMessagePayload(200).getBytes(StandardCharsets.UTF_8);
+        final byte[] value = createMessagePayload(1000).getBytes(StandardCharsets.UTF_8);
         pulsarClient.newProducer().topic(topic).enableBatching(false).enableChunking(true).create()
                 .newMessage().value(value).send();
 
-        Awaitility.await().atMost(Duration.ofSeconds(3)).until(() ->
+        Awaitility.await().atMost(Duration.ofSeconds(5)).until(() ->
             valuesList.stream().map(List::size).reduce(0, Integer::sum) > 0);
 
         // Only 1 message could be received
