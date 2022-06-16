@@ -88,7 +88,7 @@ public class DirectProxyHandler {
     private final Runnable onHandshakeCompleteAction;
     private final boolean tlsHostnameVerificationEnabled;
     private final boolean tlsEnabledWithKeyStore;
-    private final boolean tlsEnabledWithBroker;
+    final boolean tlsEnabledWithBroker;
     private final SslContextAutoRefreshBuilder<SslContext> clientSslCtxRefresher;
     private final NettySSLContextAutoRefreshBuilder clientSSLContextAutoRefreshBuilder;
 
@@ -216,7 +216,6 @@ public class DirectProxyHandler {
                 log.warn("[{}] Establishing connection to {} ({}) failed. Closing inbound channel.", inboundChannel,
                         targetBrokerAddress, brokerHostAndPort, future.cause());
                 inboundChannel.close();
-                return;
             }
         });
     }

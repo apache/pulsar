@@ -114,7 +114,6 @@ public class ProxyService implements Closeable {
     protected int proxyLogLevel;
 
     @Getter
-    @Setter
     protected boolean proxyZeroCopyModeEnabled;
 
     private final ScheduledExecutorService statsExecutor;
