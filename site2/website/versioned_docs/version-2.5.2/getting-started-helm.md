@@ -87,6 +87,9 @@ We use [Minikube](https://minikube.sigs.k8s.io/docs/start/) in this quick start 
 
 3. Run the script `prepare_helm_release.sh` to create secrets required for installing the Apache Pulsar Helm chart. The username `pulsar` and password `pulsar` are used for logging into the Grafana dashboard and Pulsar Manager.
 
+   > **NOTE**
+   > When running the script, you can use `-n` to specify the Kubernetes namespace where the Pulsar Helm chart is installed, `-k` to define the Pulsar Helm release name, and `-c` to create the Kubernetes namespace. For more information about the script, run `./scripts/pulsar/prepare_helm_release.sh --help`.
+
    ```bash
    
    ./scripts/pulsar/prepare_helm_release.sh \
