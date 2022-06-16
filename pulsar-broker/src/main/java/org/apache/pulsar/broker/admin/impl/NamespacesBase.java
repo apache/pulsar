@@ -1406,7 +1406,6 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected CompletableFuture<DispatchRate> internalGetSubscriptionDispatchRateAsync() {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.RATE, PolicyOperation.READ);
         return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.RATE, PolicyOperation.READ)
                 .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
                 .thenApply(policies ->
