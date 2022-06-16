@@ -105,7 +105,7 @@ public class ProxyConnection extends PulsarHandler {
     private String proxyToBrokerUrl;
     private HAProxyMessage haProxyMessage;
 
-    private static final Integer SPLICE_BYTES = 1024 * 1024 * 1024;
+    protected static final Integer SPLICE_BYTES = 1024 * 1024 * 1024;
     private static final byte[] EMPTY_CREDENTIALS = new byte[0];
 
     boolean isTlsInboundChannel = false;
@@ -255,7 +255,12 @@ public class ProxyConnection extends PulsarHandler {
                 if (service.proxyZeroCopyModeEnabled && service.proxyLogLevel == 0) {
                     if (!directProxyHandler.isTlsOutboundChannel && !isTlsInboundChannel) {
                         spliceNIC2NIC((EpollSocketChannel) ctx.channel(),
-                                (EpollSocketChannel) directProxyHandler.outboundChannel);
+                                (EpollSocketChannel) directProxyHandler.outboundChannel, SPLICE_BYTES)
+                                .addListener(future -> {
+                                    ProxyService.OPS_COUNTER.inc();
+                                    ProxyService.BYTES_COUNTER.inc(SPLICE_BYTES);
+                                    directProxyHandler.getInboundChannelRequestsRate().recordEvent(SPLICE_BYTES);
+                                });
                     }
                 }
             } else {
@@ -279,18 +284,16 @@ public class ProxyConnection extends PulsarHandler {
      * @param inboundChannel input channel
      * @param outboundChannel output channel
      */
-    protected void spliceNIC2NIC(EpollSocketChannel inboundChannel, EpollSocketChannel outboundChannel) {
-        ChannelPromise promise = ctx.newPromise();
-        inboundChannel.spliceTo(outboundChannel, SPLICE_BYTES, promise);
+    protected static ChannelPromise spliceNIC2NIC(EpollSocketChannel inboundChannel,
+                                                  EpollSocketChannel outboundChannel, int spliceLength) {
+        ChannelPromise promise = inboundChannel.newPromise();
+        inboundChannel.spliceTo(outboundChannel, spliceLength, promise);
         promise.addListener((ChannelFutureListener) future -> {
             if (!future.isSuccess() && !(future.cause() instanceof ClosedChannelException)) {
                 future.channel().pipeline().fireExceptionCaught(future.cause());
-            } else {
-                ProxyService.OPS_COUNTER.inc();
-                directProxyHandler.getInboundChannelRequestsRate().recordEvent(SPLICE_BYTES);
-                ProxyService.BYTES_COUNTER.inc(SPLICE_BYTES);
             }
         });
+        return promise;
     }
 
     protected static boolean isTlsChannel(Channel channel) {

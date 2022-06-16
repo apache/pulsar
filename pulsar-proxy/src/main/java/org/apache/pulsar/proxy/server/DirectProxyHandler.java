@@ -357,8 +357,14 @@ public class DirectProxyHandler {
 
                 if (service.proxyZeroCopyModeEnabled && service.proxyLogLevel == 0) {
                     if (!isTlsOutboundChannel && !DirectProxyHandler.this.proxyConnection.isTlsInboundChannel) {
-                        DirectProxyHandler.this.proxyConnection.spliceNIC2NIC((EpollSocketChannel) ctx.channel(),
-                                (EpollSocketChannel) inboundChannel);
+                        ProxyConnection.spliceNIC2NIC((EpollSocketChannel) ctx.channel(),
+                                        (EpollSocketChannel) inboundChannel, ProxyConnection.SPLICE_BYTES)
+                                .addListener(future -> {
+                                    if (future.isSuccess()) {
+                                        ProxyService.OPS_COUNTER.inc();
+                                        ProxyService.BYTES_COUNTER.inc(ProxyConnection.SPLICE_BYTES);
+                                    }
+                                });
                     }
                 }
 
