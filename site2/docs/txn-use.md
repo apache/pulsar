@@ -69,12 +69,9 @@ This section provides an example of how to use the transaction API to send and r
    ```
    
    PulsarClient client = PulsarClient.builder()
-
-   .serviceUrl(“pulsar://localhost:6650”)
-
-   .enableTransaction(true)
-
-   .build();
+      .serviceUrl(“pulsar://localhost:6650”)
+      .enableTransaction(true)
+      .build();
    
    ```
 
@@ -100,8 +97,7 @@ Consumer<byte[]> sinkConsumer = pulsarClient
     .newConsumer()
     .topic(transferTopic)
     .subscriptionName("sink-topic")
-
-.subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+    .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
     .subscriptionType(SubscriptionType.Shared)
     .enableBatchIndexAcknowledgment(true) // enable batch index acknowledgement
     .subscribe();
