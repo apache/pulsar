@@ -75,6 +75,7 @@ public class DirectProxyHandler {
     private final ProxyConnection proxyConnection;
     @Getter
     Channel outboundChannel;
+    boolean isTlsOutboundChannel = false;
     @Getter
     private final Rate inboundChannelRequestsRate;
     private final String originalPrincipal;
@@ -298,7 +299,6 @@ public class DirectProxyHandler {
         protected ChannelHandlerContext ctx;
         private final ProxyConfiguration config;
         private final int protocolVersion;
-        private boolean isTlsInboundChannel = false;
 
         public ProxyBackendHandler(ProxyConfiguration config, int protocolVersion, String remoteHostName) {
             this.config = config;
@@ -322,7 +322,7 @@ public class DirectProxyHandler {
                     null /* target broker */, originalPrincipal, clientAuthData, clientAuthMethod);
             outboundChannel.writeAndFlush(command)
                     .addListener(ChannelFutureListener.FIRE_EXCEPTION_ON_FAILURE);
-            isTlsInboundChannel = ProxyConnection.isTlsChannel(inboundChannel);
+            isTlsOutboundChannel = ProxyConnection.isTlsChannel(inboundChannel);
         }
 
         @Override
@@ -356,7 +356,7 @@ public class DirectProxyHandler {
                         .addListener(ChannelFutureListener.FIRE_EXCEPTION_ON_FAILURE);
 
                 if (service.proxyZeroCopyModeEnabled && service.proxyLogLevel == 0) {
-                    if (!this.isTlsInboundChannel && !ProxyConnection.isTlsChannel(ctx.channel())) {
+                    if (!isTlsOutboundChannel && !DirectProxyHandler.this.proxyConnection.isTlsInboundChannel) {
                         DirectProxyHandler.this.proxyConnection.spliceNIC2NIC((EpollSocketChannel) ctx.channel(),
                                 (EpollSocketChannel) inboundChannel);
                     }

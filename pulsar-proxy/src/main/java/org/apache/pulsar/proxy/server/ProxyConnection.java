@@ -108,6 +108,8 @@ public class ProxyConnection extends PulsarHandler {
     private static final Integer SPLICE_BYTES = 1024 * 1024 * 1024;
     private static final byte[] EMPTY_CREDENTIALS = new byte[0];
 
+    boolean isTlsInboundChannel = false;
+
     enum State {
         Init,
 
@@ -166,6 +168,7 @@ public class ProxyConnection extends PulsarHandler {
         super.channelActive(ctx);
         ProxyService.NEW_CONNECTIONS.inc();
         service.getClientCnxs().add(this);
+        isTlsInboundChannel = ProxyConnection.isTlsChannel(ctx.channel());
         LOG.info("[{}] New connection opened", remoteAddress);
     }
 
@@ -250,7 +253,7 @@ public class ProxyConnection extends PulsarHandler {
                         .addListener(ChannelFutureListener.FIRE_EXCEPTION_ON_FAILURE);
 
                 if (service.proxyZeroCopyModeEnabled && service.proxyLogLevel == 0) {
-                    if (!directProxyHandler.tlsEnabledWithBroker && !ProxyConnection.isTlsChannel(ctx.channel())) {
+                    if (!directProxyHandler.isTlsOutboundChannel && !isTlsInboundChannel) {
                         spliceNIC2NIC((EpollSocketChannel) ctx.channel(),
                                 (EpollSocketChannel) directProxyHandler.outboundChannel);
                     }
