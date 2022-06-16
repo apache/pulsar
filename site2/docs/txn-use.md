@@ -93,10 +93,10 @@ Let’s walk through this example step by step.
 
 ```
 
-Consumer<byte[]> sinkConsumer = pulsarClient
+Consumer<byte[]> consumer = pulsarClient
     .newConsumer()
     .topic(transferTopic)
-    .subscriptionName("sink-topic")
+    .subscriptionName("transaction-sub")
     .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
     .subscriptionType(SubscriptionType.Shared)
     .enableBatchIndexAcknowledgment(true) // enable batch index acknowledgement
