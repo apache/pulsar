@@ -114,6 +114,7 @@ public class FunctionConfig {
     private String jar;
     private String py;
     private String go;
+    private String functionType;
     // Whether the subscriptions the functions created/used should be deleted when the functions is deleted
     private Boolean cleanupSubscription;
     // This is an arbitrary string that can be interpreted by the function runtime
