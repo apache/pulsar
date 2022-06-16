@@ -104,13 +104,7 @@ public class PerformanceProducer {
     private static IMessageFormatter messageFormatter = null;
 
     @Parameters(commandDescription = "Test pulsar producer performance.")
-    static class Arguments {
-
-        @Parameter(names = { "-h", "--help" }, description = "Help message", help = true)
-        boolean help;
-
-        @Parameter(names = { "-cf", "--conf-file" }, description = "Configuration file")
-        public String confFile;
+    static class Arguments extends PerformanceBaseArguments {
 
         @Parameter(description = "persistent://prop/ns/my-topic", required = true)
         public List<String> topics;
@@ -143,17 +137,11 @@ public class PerformanceProducer {
         @Parameter(names = { "-pn", "--producer-name" }, description = "Producer Name")
         public String producerName = null;
 
-        @Parameter(names = { "-u", "--service-url" }, description = "Pulsar Service URL")
-        public String serviceURL;
-
         @Parameter(names = { "-au", "--admin-url" }, description = "Pulsar Admin URL")
         public String adminURL;
 
         @Parameter(names = { "--auth_plugin" }, description = "Authentication plugin class name", hidden = true)
         public String deprecatedAuthPluginClassName;
-
-        @Parameter(names = { "--auth-plugin" }, description = "Authentication plugin class name")
-        public String authPluginClassName;
 
         @Parameter(names = { "--listener-name" }, description = "Listener name for the broker.")
         String listenerName = null;
@@ -162,13 +150,6 @@ public class PerformanceProducer {
                 "--chunking" }, description = "Should split the message and publish in chunks if message size is "
                 + "larger than allowed max size")
         private boolean chunkingAllowed = false;
-
-        @Parameter(
-            names = { "--auth-params" },
-            description = "Authentication parameters, whose format is determined by the implementation "
-                    + "of method `configure` in authentication plugin class, for example \"key1:val1,key2:val2\" "
-                    + "or \"{\"key1\":\"val1\",\"key2\":\"val2\"}.")
-        public String authParams;
 
         @Parameter(names = { "-o", "--max-outstanding" }, description = "Max number of outstanding messages")
         public int maxOutstanding = DEFAULT_MAX_PENDING_MESSAGES;
@@ -228,14 +209,6 @@ public class PerformanceProducer {
         @Parameter(names = "--warmup-time", description = "Warm-up time in seconds (Default: 1 sec)")
         public double warmupTimeSeconds = 1.0;
 
-        @Parameter(names = {
-                "--trust-cert-file" }, description = "Path for the trusted TLS certificate file")
-        public String tlsTrustCertsFilePath = "";
-
-        @Parameter(names = {
-                "--tls-allow-insecure" }, description = "Allow insecure TLS connection")
-        public Boolean tlsAllowInsecureConnection = null;
-
         @Parameter(names = { "-k", "--encryption-key-name" }, description = "The public key name to encrypt payload")
         public String encKeyName = null;
 
@@ -292,6 +265,20 @@ public class PerformanceProducer {
 
         @Parameter(names = { "--histogram-file" }, description = "HdrHistogram output file")
         public String histogramFile = null;
+
+        @Override
+        public void fillArgumentsFromProperties(Properties prop) {
+            if (adminURL == null) {
+                adminURL = prop.getProperty("webServiceUrl");
+            }
+            if (adminURL == null) {
+                adminURL = prop.getProperty("adminURL", "http://localhost:8080/");
+            }
+
+            if (isBlank(messageKeyGenerationMode)) {
+                messageKeyGenerationMode = prop.getProperty("messageKeyGenerationMode", null);
+            }
+        }
     }
 
     public static void main(String[] args) throws Exception {
@@ -333,49 +320,7 @@ public class PerformanceProducer {
             }
         }
 
-        if (arguments.confFile != null) {
-            Properties prop = new Properties(System.getProperties());
-            prop.load(new FileInputStream(arguments.confFile));
-
-            if (arguments.serviceURL == null) {
-                arguments.serviceURL = prop.getProperty("brokerServiceUrl");
-            }
-
-            if (arguments.serviceURL == null) {
-                arguments.serviceURL = prop.getProperty("webServiceUrl");
-            }
-
-            // fallback to previous-version serviceUrl property to maintain backward-compatibility
-            if (arguments.serviceURL == null) {
-                arguments.serviceURL = prop.getProperty("serviceUrl", "http://localhost:8080/");
-            }
-
-            if (arguments.adminURL == null) {
-                arguments.adminURL = prop.getProperty("webServiceUrl");
-            }
-            if (arguments.adminURL == null) {
-                arguments.adminURL = prop.getProperty("adminURL", "http://localhost:8080/");
-            }
-
-            if (arguments.authPluginClassName == null) {
-                arguments.authPluginClassName = prop.getProperty("authPlugin", null);
-            }
-
-            if (arguments.authParams == null) {
-                arguments.authParams = prop.getProperty("authParams", null);
-            }
-
-            if (isBlank(arguments.tlsTrustCertsFilePath)) {
-               arguments.tlsTrustCertsFilePath = prop.getProperty("tlsTrustCertsFilePath", "");
-            }
-            if (isBlank(arguments.messageKeyGenerationMode)) {
-                arguments.messageKeyGenerationMode = prop.getProperty("messageKeyGenerationMode", null);
-            }
-            if (arguments.tlsAllowInsecureConnection == null) {
-                arguments.tlsAllowInsecureConnection = Boolean.parseBoolean(prop
-                        .getProperty("tlsAllowInsecureConnection", ""));
-            }
-        }
+        arguments.fillArgumentsFromProperties();
 
         // Dump config variables
         PerfClientUtils.printJVMInformation(log);

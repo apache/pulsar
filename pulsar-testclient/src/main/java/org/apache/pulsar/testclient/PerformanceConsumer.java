@@ -87,13 +87,7 @@ public class PerformanceConsumer {
     private static final Recorder cumulativeRecorder = new Recorder(TimeUnit.DAYS.toMillis(10), 5);
 
     @Parameters(commandDescription = "Test pulsar consumer performance.")
-    static class Arguments {
-
-        @Parameter(names = { "-h", "--help" }, description = "Help message", help = true)
-        boolean help;
-
-        @Parameter(names = { "-cf", "--conf-file" }, description = "Configuration file")
-        public String confFile;
+    static class Arguments extends PerformanceBaseArguments {
 
         @Parameter(description = "persistent://prop/ns/my-topic", required = true)
         public List<String> topic;
@@ -158,14 +152,8 @@ public class PerformanceConsumer {
                 description = "Statistics Interval Seconds. If 0, statistics will be disabled")
         public long statsIntervalSeconds = 0;
 
-        @Parameter(names = { "-u", "--service-url" }, description = "Pulsar Service URL")
-        public String serviceURL;
-
         @Parameter(names = { "--auth_plugin" }, description = "Authentication plugin class name", hidden = true)
         public String deprecatedAuthPluginClassName;
-
-        @Parameter(names = { "--auth-plugin" }, description = "Authentication plugin class name")
-        public String authPluginClassName;
 
         @Parameter(names = { "--listener-name" }, description = "Listener name for the broker.")
         String listenerName = null;
@@ -181,21 +169,6 @@ public class PerformanceConsumer {
                 "--expire_time_incomplete_chunked_messages" },
                 description = "Expire time in ms for incomplete chunk messages")
         private long expireTimeOfIncompleteChunkedMessageMs = 0;
-
-        @Parameter(
-            names = { "--auth-params" },
-            description = "Authentication parameters, whose format is determined by the implementation "
-                    + "of method `configure` in authentication plugin class, for example \"key1:val1,key2:val2\" "
-                    + "or \"{\"key1\":\"val1\",\"key2\":\"val2\"}.")
-        public String authParams;
-
-        @Parameter(names = {
-                "--trust-cert-file" }, description = "Path for the trusted TLS certificate file")
-        public String tlsTrustCertsFilePath = "";
-
-        @Parameter(names = {
-                "--tls-allow-insecure" }, description = "Allow insecure TLS connection")
-        public Boolean tlsAllowInsecureConnection = null;
 
         @Parameter(names = { "-v",
                 "--encryption-key-value-file" },
@@ -245,6 +218,10 @@ public class PerformanceConsumer {
 
         @Parameter(names = { "--histogram-file" }, description = "HdrHistogram output file")
         public String histogramFile = null;
+
+        @Override
+        public void fillArgumentsFromProperties(Properties prop) {
+        }
     }
 
     public static void main(String[] args) throws Exception {
@@ -308,41 +285,7 @@ public class PerformanceConsumer {
                 PerfClientUtils.exit(-1);
             }
         }
-
-        if (arguments.confFile != null) {
-            Properties prop = new Properties(System.getProperties());
-            prop.load(new FileInputStream(arguments.confFile));
-
-            if (arguments.serviceURL == null) {
-                arguments.serviceURL = prop.getProperty("brokerServiceUrl");
-            }
-
-            if (arguments.serviceURL == null) {
-                arguments.serviceURL = prop.getProperty("webServiceUrl");
-            }
-
-            // fallback to previous-version serviceUrl property to maintain backward-compatibility
-            if (arguments.serviceURL == null) {
-                arguments.serviceURL = prop.getProperty("serviceUrl", "http://localhost:8080/");
-            }
-
-            if (arguments.authPluginClassName == null) {
-                arguments.authPluginClassName = prop.getProperty("authPlugin", null);
-            }
-
-            if (arguments.authParams == null) {
-                arguments.authParams = prop.getProperty("authParams", null);
-            }
-
-            if (isBlank(arguments.tlsTrustCertsFilePath)) {
-                arguments.tlsTrustCertsFilePath = prop.getProperty("tlsTrustCertsFilePath", "");
-            }
-
-            if (arguments.tlsAllowInsecureConnection == null) {
-                arguments.tlsAllowInsecureConnection = Boolean.parseBoolean(prop
-                        .getProperty("tlsAllowInsecureConnection", ""));
-            }
-        }
+        arguments.fillArgumentsFromProperties();
 
         // Dump config variables
         PerfClientUtils.printJVMInformation(log);

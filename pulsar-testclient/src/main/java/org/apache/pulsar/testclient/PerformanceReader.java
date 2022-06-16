@@ -64,13 +64,8 @@ public class PerformanceReader {
     private static Recorder cumulativeRecorder = new Recorder(TimeUnit.DAYS.toMillis(10), 5);
 
     @Parameters(commandDescription = "Test pulsar reader performance.")
-    static class Arguments {
+    static class Arguments extends PerformanceBaseArguments {
 
-        @Parameter(names = { "-h", "--help" }, description = "Help message", help = true)
-        boolean help;
-
-        @Parameter(names = { "-cf", "--conf-file" }, description = "Configuration file")
-        public String confFile;
 
         @Parameter(description = "persistent://prop/ns/my-topic", required = true)
         public List<String> topic;
@@ -104,29 +99,12 @@ public class PerformanceReader {
                 description = "Statistics Interval Seconds. If 0, statistics will be disabled")
         public long statsIntervalSeconds = 0;
 
-        @Parameter(names = { "-u", "--service-url" }, description = "Pulsar Service URL")
-        public String serviceURL;
-
-        @Parameter(names = { "--auth-plugin" }, description = "Authentication plugin class name")
-        public String authPluginClassName;
-
         @Parameter(names = { "--listener-name" }, description = "Listener name for the broker.")
         String listenerName = null;
-
-        @Parameter(
-            names = { "--auth-params" },
-            description = "Authentication parameters, whose format is determined by the implementation "
-                    + "of method `configure` in authentication plugin class, for example \"key1:val1,key2:val2\" "
-                    + "or \"{\"key1\":\"val1\",\"key2\":\"val2\"}.")
-        public String authParams;
 
         @Parameter(names = {
                 "--use-tls" }, description = "Use TLS encryption on the connection")
         public boolean useTls;
-
-        @Parameter(names = {
-                "--trust-cert-file" }, description = "Path for the trusted TLS certificate file")
-        public String tlsTrustCertsFilePath = "";
 
         @Parameter(names = {
                 "--tls-allow-insecure" }, description = "Allow insecure TLS connection")
@@ -143,6 +121,13 @@ public class PerformanceReader {
         @Parameter(names = {"-lt", "--num-listener-threads"}, description = "Set the number of threads"
                 + " to be used for message listeners")
         public int listenerThreads = 1;
+
+        @Override
+        public void fillArgumentsFromProperties(Properties prop) {
+            if (!useTls) {
+                useTls = Boolean.parseBoolean(prop.getProperty("useTls"));
+            }
+        }
     }
 
     public static void main(String[] args) throws Exception {
@@ -178,45 +163,7 @@ public class PerformanceReader {
                 PerfClientUtils.exit(-1);
             }
         }
-
-        if (arguments.confFile != null) {
-            Properties prop = new Properties(System.getProperties());
-            prop.load(new FileInputStream(arguments.confFile));
-
-            if (arguments.serviceURL == null) {
-                arguments.serviceURL = prop.getProperty("brokerServiceUrl");
-            }
-
-            if (arguments.serviceURL == null) {
-                arguments.serviceURL = prop.getProperty("webServiceUrl");
-            }
-
-            // fallback to previous-version serviceUrl property to maintain backward-compatibility
-            if (arguments.serviceURL == null) {
-                arguments.serviceURL = prop.getProperty("serviceUrl", "http://localhost:8080/");
-            }
-
-            if (arguments.authPluginClassName == null) {
-                arguments.authPluginClassName = prop.getProperty("authPlugin", null);
-            }
-
-            if (arguments.authParams == null) {
-                arguments.authParams = prop.getProperty("authParams", null);
-            }
-
-            if (!arguments.useTls) {
-                arguments.useTls = Boolean.parseBoolean(prop.getProperty("useTls"));
-            }
-
-            if (isBlank(arguments.tlsTrustCertsFilePath)) {
-                arguments.tlsTrustCertsFilePath = prop.getProperty("tlsTrustCertsFilePath", "");
-            }
-
-            if (arguments.tlsAllowInsecureConnection == null) {
-                arguments.tlsAllowInsecureConnection = Boolean.parseBoolean(prop
-                        .getProperty("tlsAllowInsecureConnection", ""));
-            }
-        }
+        arguments.fillArgumentsFromProperties();
 
         // Dump config variables
         PerfClientUtils.printJVMInformation(log);

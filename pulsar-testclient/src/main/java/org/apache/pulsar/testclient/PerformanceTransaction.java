@@ -19,6 +19,7 @@
 package org.apache.pulsar.testclient;
 
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
+import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
@@ -97,13 +98,7 @@ public class PerformanceTransaction {
 
 
     @Parameters(commandDescription = "Test pulsar transaction performance.")
-    static class Arguments {
-
-        @Parameter(names = {"-h", "--help"}, description = "Help message", help = true)
-        boolean help;
-
-        @Parameter(names = { "-cf", "--conf-file" }, description = "Configuration file")
-        public String confFile;
+    static class Arguments  extends PerformanceBaseArguments {
 
         @Parameter(names = "--topics-c", description = "All topics that need ack for a transaction", required =
                 true)
@@ -120,21 +115,8 @@ public class PerformanceTransaction {
                 + "thereby increasing the intensity of the stress test.")
         public int numTestThreads = 1;
 
-        @Parameter(names = { "--auth-plugin" }, description = "Authentication plugin class name")
-        public String authPluginClassName;
-
-        @Parameter(
-                names = { "--auth-params" },
-                description = "Authentication parameters, whose format is determined by the implementation "
-                        + "of method `configure` in authentication plugin class, for example \"key1:val1,key2:val2\" "
-                        + "or \"{\"key1\":\"val1\",\"key2\":\"val2\"}.")
-        public String authParams;
-
         @Parameter(names = {"-au", "--admin-url"}, description = "Pulsar Admin URL")
         public String adminURL;
-
-        @Parameter(names = {"-u", "--service-url"}, description = "Pulsar Service URL")
-        public String serviceURL;
 
         @Parameter(names = {"-np",
                 "--partitions"}, description = "Create partitioned topics with a given number of partitions, 0 means"
@@ -198,6 +180,16 @@ public class PerformanceTransaction {
 
         @Parameter(names = "-txnRate", description = "Set the rate of opened transaction or task. 0 means no limit")
         public int openTxnRate = 0;
+
+        @Override
+        public void fillArgumentsFromProperties(Properties prop) {
+            if (adminURL == null) {
+                adminURL = prop.getProperty("webServiceUrl");
+            }
+            if (adminURL == null) {
+                adminURL = prop.getProperty("adminURL", "http://localhost:8080/");
+            }
+        }
     }
 
     public static void main(String[] args)
@@ -218,40 +210,7 @@ public class PerformanceTransaction {
             jc.usage();
             PerfClientUtils.exit(-1);
         }
-
-        if (arguments.confFile != null) {
-            Properties prop = new Properties(System.getProperties());
-            prop.load(new FileInputStream(arguments.confFile));
-
-            if (arguments.serviceURL == null) {
-                arguments.serviceURL = prop.getProperty("brokerServiceUrl");
-            }
-
-            if (arguments.serviceURL == null) {
-                arguments.serviceURL = prop.getProperty("webServiceUrl");
-            }
-
-            // fallback to previous-version serviceUrl property to maintain backward-compatibility
-            if (arguments.serviceURL == null) {
-                arguments.serviceURL = prop.getProperty("serviceUrl", "http://localhost:8080/");
-            }
-
-            if (arguments.adminURL == null) {
-                arguments.adminURL = prop.getProperty("webServiceUrl");
-            }
-            if (arguments.adminURL == null) {
-                arguments.adminURL = prop.getProperty("adminURL", "http://localhost:8080/");
-            }
-
-            if (arguments.authPluginClassName == null) {
-                arguments.authPluginClassName = prop.getProperty("authPlugin", null);
-            }
-
-            if (arguments.authParams == null) {
-                arguments.authParams = prop.getProperty("authParams", null);
-            }
-        }
-
+        arguments.fillArgumentsFromProperties();
 
         // Dump config variables
         PerfClientUtils.printJVMInformation(log);
@@ -267,10 +226,15 @@ public class PerformanceTransaction {
         }
         if (arguments.partitions != null) {
             PulsarAdminBuilder clientBuilder = PulsarAdmin.builder()
-                    .serviceHttpUrl(arguments.adminURL);
+                    .serviceHttpUrl(arguments.adminURL)
+                    .tlsTrustCertsFilePath(arguments.tlsTrustCertsFilePath);
 
             if (isNotBlank(arguments.authPluginClassName)) {
                 clientBuilder.authentication(arguments.authPluginClassName, arguments.authParams);
+            }
+
+            if (arguments.tlsAllowInsecureConnection != null) {
+                clientBuilder.allowTlsInsecureConnection(arguments.tlsAllowInsecureConnection);
             }
 
             try (PulsarAdmin client = clientBuilder.build()) {
@@ -302,10 +266,14 @@ public class PerformanceTransaction {
                         .serviceUrl(arguments.serviceURL)
                         .connectionsPerBroker(arguments.maxConnections)
                         .statsInterval(0, TimeUnit.SECONDS)
-                        .ioThreads(arguments.ioThreads);
+                        .ioThreads(arguments.ioThreads)
+                        .tlsTrustCertsFilePath(arguments.tlsTrustCertsFilePath);;
 
         if (isNotBlank(arguments.authPluginClassName)) {
             clientBuilder.authentication(arguments.authPluginClassName, arguments.authParams);
+        }
+        if (arguments.tlsAllowInsecureConnection != null) {
+            clientBuilder.allowTlsInsecureConnection(arguments.tlsAllowInsecureConnection);
         }
 
         PulsarClient client = clientBuilder.build();
