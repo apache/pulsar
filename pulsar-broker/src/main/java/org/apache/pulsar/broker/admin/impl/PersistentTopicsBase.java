@@ -2500,18 +2500,18 @@ public class PersistentTopicsBase extends AdminResource {
                                 }
                             }
 
-                            Map<String, String> result = new HashMap<>();
+                            Map<String, String> aggregatedResult = new HashMap<>();
                             futures.forEach(f -> {
                                 // in theory all the partitions have the same properties
                                 try {
-                                    result.putAll(f.get());
+                                    aggregatedResult.putAll(f.get());
                                 } catch (Exception impossible) {
                                     // we already waited for this Future
                                     asyncResponse.resume(new RestException(impossible));
                                 }
                             });
 
-                            asyncResponse.resume(Response.ok(result).build());
+                            asyncResponse.resume(Response.ok(aggregatedResult).build());
                             return null;
                         });
                     } else {
