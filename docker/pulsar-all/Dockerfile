@@ -21,11 +21,12 @@ FROM busybox as pulsar-all
 
 ARG PULSAR_IO_DIR
 ARG PULSAR_OFFLOADER_TARBALL
+ARG PULSAR_VERSION
 
 ADD ${PULSAR_IO_DIR} /connectors
 ADD ${PULSAR_OFFLOADER_TARBALL} /
 RUN mv /apache-pulsar-offloaders-*/offloaders /offloaders
 
-FROM apachepulsar/pulsar:latest
+FROM apachepulsar/pulsar:${PULSAR_VERSION}
 COPY --from=pulsar-all /connectors /pulsar/connectors
 COPY --from=pulsar-all /offloaders /pulsar/offloaders
