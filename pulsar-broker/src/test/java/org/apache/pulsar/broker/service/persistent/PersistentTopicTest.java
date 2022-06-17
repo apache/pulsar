@@ -35,6 +35,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import com.google.common.collect.Sets;
+import lombok.Cleanup;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.pulsar.broker.service.BrokerTestBase;
@@ -268,5 +269,23 @@ public class PersistentTopicTest extends BrokerTestBase {
         for (Producer producer : producerSet) {
             producer.close();
         }
+    }
+
+    @Test
+    public void testAutoCreatPartitionTopicWithKeywords() throws Exception {
+        final String topicName = "persistent://prop/autoNs/test-partition-abcde";
+        final String ns = "prop/autoNs";
+        admin.namespaces().createNamespace(ns);
+        pulsar.getConfiguration().setAllowAutoTopicCreationType("partitioned");
+        pulsar.getConfiguration().setDefaultNumPartitions(5);
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
+                .create();
+        List<String> topics = admin.topics().getList(ns);
+        assertEquals(topics.size(), 1);
+        assertEquals(topics.get(0), topicName);
+        TopicStats stats = admin.topics().getStats(topicName);
+        assertEquals(stats.getPublishers().size(), 1);
+        pulsar.getConfiguration().setAllowAutoTopicCreationType("non-partitioned");
     }
 }

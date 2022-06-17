@@ -2634,6 +2634,9 @@ public class BrokerService implements Closeable {
                                     if (metadata.partitions == 0
                                             && !topicExists
                                             && !topicName.isPartitioned()
+                                            // If the local topic name contains `-partition-` keywords,
+                                            // don't allow to create metadata
+                                            && !topicName.getLocalName().contains(TopicName.PARTITIONED_TOPIC_SUFFIX)
                                             && pulsar.getBrokerService().isAllowAutoTopicCreation(topicName)
                                             && pulsar.getBrokerService().isDefaultTopicTypePartitioned(topicName)) {
 
