@@ -91,14 +91,9 @@ public class FunctionCommon {
         }
     }
 
-    public static Class<?>[] getFunctionTypes(FunctionConfig functionConfig, ClassLoader classLoader)
-            throws ClassNotFoundException {
-        return getFunctionTypes(functionConfig, classLoader.loadClass(functionConfig.getClassName()));
-    }
-
-    public static Class<?>[] getFunctionTypes(FunctionConfig functionConfig, Class functionClass)
-            throws ClassNotFoundException {
+    public static Class<?>[] getFunctionTypes(FunctionConfig functionConfig, ClassLoader classLoader) throws ClassNotFoundException {
         boolean isWindowConfigPresent = functionConfig.getWindowConfig() != null;
+        Class functionClass = classLoader.loadClass(functionConfig.getClassName());
         return getFunctionTypes(functionClass, isWindowConfigPresent);
     }
     

@@ -23,10 +23,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
-
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
@@ -39,9 +35,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails;
-import org.apache.pulsar.functions.utils.functions.FunctionUtils;
 
-import java.io.IOException;
 import java.io.File;
 import java.lang.reflect.Type;
 import java.net.MalformedURLException;
@@ -61,15 +55,6 @@ import static org.apache.pulsar.functions.utils.FunctionCommon.convertFromFuncti
 
 @Slf4j
 public class FunctionConfigUtils {
-
-    @Getter
-    @Setter
-    @AllArgsConstructor
-    public static class ExtractedFunctionDetails {
-        private String functionClassName;
-        private String typeArg0;
-        private String typeArg1;
-    }
 
 	static final Integer MAX_PENDING_ASYNC_REQUESTS_DEFAULT = 1000;
 	static final Boolean FORWARD_SOURCE_MESSAGE_PROPERTY_DEFAULT = Boolean.TRUE;
@@ -94,42 +79,31 @@ public class FunctionConfigUtils {
     public static FunctionDetails convert(FunctionConfig functionConfig, ClassLoader classLoader)
             throws IllegalArgumentException {
 
+        boolean isBuiltin = !org.apache.commons.lang3.StringUtils.isEmpty(functionConfig.getJar()) && functionConfig.getJar().startsWith(org.apache.pulsar.common.functions.Utils.BUILTIN);
+
+        Class<?>[] typeArgs = null;
         if (functionConfig.getRuntime() == FunctionConfig.Runtime.JAVA) {
             if (classLoader != null) {
                 try {
-                    Class<?>[] typeArgs = FunctionCommon.getFunctionTypes(functionConfig, classLoader);
-                    return convert(
-                            functionConfig,
-                            new ExtractedFunctionDetails(
-                                    functionConfig.getClassName(),
-                                    typeArgs[0].getName(),
-                                    typeArgs[1].getName()));
+                    typeArgs = FunctionCommon.getFunctionTypes(functionConfig, classLoader);
                 } catch (ClassNotFoundException | NoClassDefFoundError e) {
                     throw new IllegalArgumentException(
                             String.format("Function class %s must be in class path", functionConfig.getClassName()), e);
                 }
             }
         }
-        return convert(functionConfig, new ExtractedFunctionDetails(functionConfig.getClassName(), null, null));
-    }
-
-    public static FunctionDetails convert(FunctionConfig functionConfig, ExtractedFunctionDetails extractedDetails)
-             throws IllegalArgumentException {
-
-        boolean isBuiltin = !StringUtils.isEmpty(functionConfig.getJar())
-                && functionConfig.getJar().startsWith(org.apache.pulsar.common.functions.Utils.BUILTIN);
 
         FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
 
         // Setup source
         Function.SourceSpec.Builder sourceSpecBuilder = Function.SourceSpec.newBuilder();
         if (functionConfig.getInputs() != null) {
-            functionConfig.getInputs().forEach((topicName ->
+            functionConfig.getInputs().forEach((topicName -> {
                 sourceSpecBuilder.putInputSpecs(topicName,
                         Function.ConsumerSpec.newBuilder()
                                 .setIsRegexPattern(false)
-                                .build())
-            ));
+                                .build());
+            }));
         }
         if (functionConfig.getTopicsPattern() != null && !functionConfig.getTopicsPattern().isEmpty()) {
             sourceSpecBuilder.putInputSpecs(functionConfig.getTopicsPattern(),
@@ -208,7 +182,7 @@ public class FunctionConfigUtils {
 
         // Set subscription position
         if (functionConfig.getSubscriptionPosition() != null) {
-            Function.SubscriptionPosition subPosition;
+            Function.SubscriptionPosition subPosition = null;
             if (SubscriptionInitialPosition.Earliest == functionConfig.getSubscriptionPosition()) {
                 subPosition = Function.SubscriptionPosition.EARLIEST;
             } else {
@@ -217,8 +191,8 @@ public class FunctionConfigUtils {
             sourceSpecBuilder.setSubscriptionPosition(subPosition);
         }
 
-        if (extractedDetails.getTypeArg0() != null) {
-            sourceSpecBuilder.setTypeClassName(extractedDetails.getTypeArg0());
+        if (typeArgs != null) {
+            sourceSpecBuilder.setTypeClassName(typeArgs[0].getName());
         }
         if (functionConfig.getTimeoutMs() != null) {
             sourceSpecBuilder.setTimeoutMs(functionConfig.getTimeoutMs());
@@ -258,8 +232,8 @@ public class FunctionConfigUtils {
                 throw new IllegalArgumentException(String.format("Incorrect custom schema outputs,Topic %s ", functionConfig.getOutput()));
             }
         }
-        if (extractedDetails.getTypeArg1() != null) {
-            sinkSpecBuilder.setTypeClassName(extractedDetails.getTypeArg1());
+        if (typeArgs != null) {
+            sinkSpecBuilder.setTypeClassName(typeArgs[1].getName());
         }
         if (functionConfig.getProducerConfig() != null) {
             ProducerConfig producerConf = functionConfig.getProducerConfig();
@@ -326,14 +300,14 @@ public class FunctionConfigUtils {
         // windowing related
         WindowConfig windowConfig = functionConfig.getWindowConfig();
         if (windowConfig != null) {
-            windowConfig.setActualWindowFunctionClassName(extractedDetails.getFunctionClassName());
+            windowConfig.setActualWindowFunctionClassName(functionConfig.getClassName());
             configs.put(WindowConfig.WINDOW_CONFIG_KEY, windowConfig);
             // set class name to window function executor
             functionDetailsBuilder.setClassName("org.apache.pulsar.functions.windowing.WindowFunctionExecutor");
 
         } else {
-            if (extractedDetails.getFunctionClassName() != null) {
-                functionDetailsBuilder.setClassName(extractedDetails.getFunctionClassName());
+            if (functionConfig.getClassName() != null) {
+                functionDetailsBuilder.setClassName(functionConfig.getClassName());
             }
         }
         if (!configs.isEmpty()) {
@@ -558,21 +532,10 @@ public class FunctionConfigUtils {
         }
     }
 
-    private static ExtractedFunctionDetails doJavaChecks(FunctionConfig functionConfig, ClassLoader clsLoader) {
+    private static void doJavaChecks(FunctionConfig functionConfig, ClassLoader clsLoader) {
 
-        String functionClassName = functionConfig.getClassName();
-        Class functionClass;
         try {
-            // if class name in function config is not set, this should be a built-in function
-            // thus we should try to find its class name in the NAR service definition
-            if (functionClassName == null) {
-                try {
-                    functionClassName = FunctionUtils.getFunctionClass(clsLoader);
-                } catch (IOException e) {
-                    throw new IllegalArgumentException("Failed to extract source class from archive", e);
-                }
-            }
-            functionClass = clsLoader.loadClass(functionClassName);
+            Class functionClass = clsLoader.loadClass(functionConfig.getClassName());
 
             if (!org.apache.pulsar.functions.api.Function.class.isAssignableFrom(functionClass)
                     && !java.util.function.Function.class.isAssignableFrom(functionClass)
@@ -588,7 +551,7 @@ public class FunctionConfigUtils {
 
         Class<?>[] typeArgs;
         try {
-            typeArgs = FunctionCommon.getFunctionTypes(functionConfig, functionClass);
+            typeArgs = FunctionCommon.getFunctionTypes(functionConfig, clsLoader);
         } catch (ClassNotFoundException | NoClassDefFoundError e) {
             throw new IllegalArgumentException(
                     String.format("Function class %s must be in class path", functionConfig.getClassName()), e);
@@ -641,10 +604,7 @@ public class FunctionConfigUtils {
         }
 
         if (Void.class.equals(typeArgs[1])) {
-            return new FunctionConfigUtils.ExtractedFunctionDetails(
-                    functionClassName,
-                    typeArgs[0].getName(),
-                    typeArgs[1].getName());
+            return;
         }
 
         // One and only one of outputSchemaType and outputSerdeClassName should be set
@@ -664,10 +624,6 @@ public class FunctionConfigUtils {
         if (functionConfig.getProducerConfig() != null && functionConfig.getProducerConfig().getCryptoConfig() != null) {
             ValidatorUtils.validateCryptoKeyReader(functionConfig.getProducerConfig().getCryptoConfig(), clsLoader, true);
         }
-        return new FunctionConfigUtils.ExtractedFunctionDetails(
-                functionClassName,
-                typeArgs[0].getName(),
-                typeArgs[1].getName());
     }
 
     private static void doPythonChecks(FunctionConfig functionConfig) {
@@ -714,10 +670,6 @@ public class FunctionConfigUtils {
         }
     }
 
-    private static boolean isBuiltin(FunctionConfig functionConfig) {
-        return functionConfig.getJar() != null && functionConfig.getJar().startsWith("builtin://");
-    }
-
     private static void doCommonChecks(FunctionConfig functionConfig) {
         if (isEmpty(functionConfig.getTenant())) {
             throw new IllegalArgumentException("Function tenant cannot be null");
@@ -729,8 +681,7 @@ public class FunctionConfigUtils {
             throw new IllegalArgumentException("Function name cannot be null");
         }
         // go doesn't need className
-        if (functionConfig.getRuntime() == FunctionConfig.Runtime.PYTHON
-                || (functionConfig.getRuntime() == FunctionConfig.Runtime.JAVA && !isBuiltin(functionConfig))) {
+        if (functionConfig.getRuntime() == FunctionConfig.Runtime.PYTHON || functionConfig.getRuntime() == FunctionConfig.Runtime.JAVA){
             if (isEmpty(functionConfig.getClassName())) {
                 throw new IllegalArgumentException("Function classname cannot be null");
             }
@@ -876,7 +827,7 @@ public class FunctionConfigUtils {
     public static ClassLoader validate(FunctionConfig functionConfig, File functionPackageFile) {
         doCommonChecks(functionConfig);
         if (functionConfig.getRuntime() == FunctionConfig.Runtime.JAVA) {
-            ClassLoader classLoader;
+            ClassLoader classLoader = null;
             if (functionPackageFile != null) {
                 try {
                     classLoader = loadJar(functionPackageFile);
@@ -910,10 +861,9 @@ public class FunctionConfigUtils {
         }
     }
 
-    public static ExtractedFunctionDetails validateJavaFunction(FunctionConfig functionConfig,
-                                                                ClassLoader classLoader) {
+    public static void validateJavaFunction(FunctionConfig functionConfig, ClassLoader classLoader) {
         doCommonChecks(functionConfig);
-        return doJavaChecks(functionConfig, classLoader);
+        doJavaChecks(functionConfig, classLoader);
     }
 
     public static FunctionConfig validateUpdate(FunctionConfig existingConfig, FunctionConfig newConfig) {

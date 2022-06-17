@@ -39,6 +39,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URL;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -77,7 +78,6 @@ import org.apache.pulsar.functions.proto.Function.SubscriptionType;
 import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.source.TopicSchema;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
-import org.apache.pulsar.functions.utils.functions.FunctionArchive;
 import org.apache.pulsar.functions.utils.functions.FunctionUtils;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
@@ -1534,12 +1534,14 @@ public class FunctionApiV3ResourceTest {
         when(worker.getWorkerConfig()).thenReturn(config);
         FunctionsImpl function = new FunctionsImpl(() -> worker);
 
-        TreeMap<String, FunctionArchive> functions = new TreeMap<>();
-        FunctionArchive functionArchive = FunctionArchive.builder().archivePath(file.toPath()).build();
-        functions.put("cassandra", functionArchive);
+        Map<String, Path> functionsMap = new TreeMap<>();
+        functionsMap.put("cassandra", file.toPath());
+        org.apache.pulsar.functions.utils.functions.Functions mockedFunctions =
+                mock(org.apache.pulsar.functions.utils.functions.Functions.class);
+        when(mockedFunctions.getFunctions()).thenReturn(functionsMap);
 
         mockStatic(FunctionUtils.class, ctx -> {
-            ctx.when(() -> FunctionUtils.searchForFunctions(anyString(), anyBoolean())).thenReturn(functions);
+            ctx.when(() -> FunctionUtils.searchForFunctions(anyString(), anyBoolean())).thenReturn(mockedFunctions);
 
         });
 
@@ -1650,6 +1652,6 @@ public class FunctionApiV3ResourceTest {
 
     public static FunctionDetails createDefaultFunctionDetails() {
         FunctionConfig functionConfig = createDefaultFunctionConfig();
-        return FunctionConfigUtils.convert(functionConfig, (ClassLoader) null);
+        return FunctionConfigUtils.convert(functionConfig, null);
     }
 }

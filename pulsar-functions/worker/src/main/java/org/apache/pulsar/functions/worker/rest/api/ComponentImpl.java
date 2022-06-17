@@ -35,7 +35,6 @@ import io.netty.buffer.Unpooled;
 
 import java.io.FileInputStream;
 import java.nio.file.Files;
-import java.util.TreeMap;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.api.StorageClient;
 import org.apache.bookkeeper.api.kv.Table;
@@ -81,8 +80,8 @@ import org.apache.pulsar.functions.utils.ComponentTypeUtils;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 import org.apache.pulsar.functions.utils.FunctionMetaDataUtils;
-import org.apache.pulsar.functions.utils.functions.FunctionArchive;
 import org.apache.pulsar.functions.utils.functions.FunctionUtils;
+import org.apache.pulsar.functions.utils.functions.Functions;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.FunctionRuntimeInfo;
 import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
@@ -1288,9 +1287,8 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
                 String sType = pkgPath.replaceFirst("^builtin://", "");
                 final String connectorsDir = worker().getWorkerConfig().getConnectorsDirectory();
                 log.warn("Processing package {} ; looking at the dir {}", pkgPath, connectorsDir);
-                TreeMap<String, FunctionArchive> sinksOrSources =
-                        FunctionUtils.searchForFunctions(connectorsDir, true);
-                Path narPath = sinksOrSources.get(sType).getArchivePath();
+                Functions sinksOrSources = FunctionUtils.searchForFunctions(connectorsDir, true);
+                Path narPath = sinksOrSources.getFunctions().get(sType);
                 if (narPath == null) {
                     throw new IllegalStateException("Didn't find " + pkgPath + " in " + connectorsDir);
                 }

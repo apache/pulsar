@@ -20,26 +20,27 @@ package org.apache.pulsar.functions.worker;
 
 import java.io.IOException;
 import java.nio.file.Path;
-import java.util.TreeMap;
+import java.util.List;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.functions.utils.functions.FunctionArchive;
-import org.apache.pulsar.functions.utils.functions.FunctionUtils;
 
+import org.apache.pulsar.common.functions.FunctionDefinition;
+import org.apache.pulsar.functions.utils.functions.FunctionUtils;
+import org.apache.pulsar.functions.utils.functions.Functions;
 @Slf4j
 public class FunctionsManager {
 
-    private TreeMap<String, FunctionArchive> functions;
+    private Functions functions;
 
     public FunctionsManager(WorkerConfig workerConfig) throws IOException {
         this.functions = FunctionUtils.searchForFunctions(workerConfig.getFunctionsDirectory());
     }
 
-    public FunctionArchive getFunction(String functionType) {
-        return functions.get(functionType);
+    public List<FunctionDefinition> getFunctions() {
+        return functions.getFunctionsDefinitions();
     }
 
     public Path getFunctionArchive(String functionType) {
-        return functions.get(functionType).getArchivePath();
+        return functions.getFunctions().get(functionType);
     }
 
     public void reloadFunctions(WorkerConfig workerConfig) throws IOException {

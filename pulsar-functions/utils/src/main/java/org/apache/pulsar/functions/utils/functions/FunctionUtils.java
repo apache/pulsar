@@ -24,7 +24,8 @@ import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.TreeMap;
+import java.util.Collections;
+
 import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
 
@@ -44,7 +45,7 @@ public class FunctionUtils {
     private static final String PULSAR_IO_SERVICE_NAME = "pulsar-io.yaml";
 
     /**
-     * Extract the Pulsar Function class from a function or archive.
+     * Extract the Pulsar Function class from a functionctor archive.
      */
     public static String getFunctionClass(ClassLoader classLoader) throws IOException {
         NarClassLoader ncl = (NarClassLoader) classLoader;
@@ -71,21 +72,23 @@ public class FunctionUtils {
         return conf.getFunctionClass();
     }
 
-    public static FunctionDefinition getFunctionDefinition(NarClassLoader narClassLoader) throws IOException {
-        String configStr = narClassLoader.getServiceDefinition(PULSAR_IO_SERVICE_NAME);
-        return ObjectMapperFactory.getThreadLocalYaml().readValue(configStr, FunctionDefinition.class);
+    public static FunctionDefinition getFunctionDefinition(String narPath) throws IOException {
+        try (NarClassLoader ncl = NarClassLoaderBuilder.builder()
+                .narFile(new File(narPath))
+                .build();) {
+            String configStr = ncl.getServiceDefinition(PULSAR_IO_SERVICE_NAME);
+            return ObjectMapperFactory.getThreadLocalYaml().readValue(configStr, FunctionDefinition.class);
+        }
     }
-
-    public static TreeMap<String, FunctionArchive> searchForFunctions(String functionsDirectory) throws IOException {
+    public static Functions searchForFunctions(String functionsDirectory) throws IOException {
         return searchForFunctions(functionsDirectory, false);
     }
 
-    public static TreeMap<String, FunctionArchive> searchForFunctions(String functionsDirectory,
-                                                                      boolean alwaysPopulatePath) throws IOException {
+    public static Functions searchForFunctions(String functionsDirectory, boolean alwaysPopulatePath) throws IOException {
         Path path = Paths.get(functionsDirectory).toAbsolutePath();
         log.info("Searching for functions in {}", path);
 
-        TreeMap<String, FunctionArchive> functions = new TreeMap<>();
+        Functions functions = new Functions();
 
         if (!path.toFile().exists()) {
             log.warn("Functions archive directory not found");
@@ -95,28 +98,23 @@ public class FunctionUtils {
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(path, "*.nar")) {
             for (Path archive : stream) {
                 try {
-
-                    NarClassLoader ncl = NarClassLoaderBuilder.builder()
-                            .narFile(new File(archive.toString()))
-                            .build();
-
-                    FunctionArchive.FunctionArchiveBuilder functionArchiveBuilder = FunctionArchive.builder();
-                    FunctionDefinition cntDef = FunctionUtils.getFunctionDefinition(ncl);
+                    FunctionDefinition cntDef = FunctionUtils.getFunctionDefinition(archive.toString());
                     log.info("Found function {} from {}", cntDef, archive);
-
-                    functionArchiveBuilder.archivePath(archive);
-
-                    functionArchiveBuilder.classLoader(ncl);
-                    functionArchiveBuilder.functionDefinition(cntDef);
-
+                    log.error(cntDef.getName());
+                    log.error(cntDef.getFunctionClass());
                     if (alwaysPopulatePath || !StringUtils.isEmpty(cntDef.getFunctionClass())) {
-                        functions.put(cntDef.getName(), functionArchiveBuilder.build());
+                        functions.functions.put(cntDef.getName(), archive);
                     }
+
+                    functions.functionsDefinitions.add(cntDef);
                 } catch (Throwable t) {
                     log.warn("Failed to load function from {}", archive, t);
                 }
             }
         }
+
+        Collections.sort(functions.functionsDefinitions,
+                (c1, c2) -> String.CASE_INSENSITIVE_ORDER.compare(c1.getName(), c2.getName()));
 
         return functions;
     }

@@ -19,14 +19,17 @@
 package org.apache.pulsar.functions.utils.functions;
 
 import java.nio.file.Path;
-import lombok.Builder;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
+
 import lombok.Data;
+
 import org.apache.pulsar.common.functions.FunctionDefinition;
 
-@Builder
 @Data
-public class FunctionArchive {
-    private Path archivePath;
-    private ClassLoader classLoader;
-    private FunctionDefinition functionDefinition;
+public class Functions {
+    final List<FunctionDefinition> functionsDefinitions = new ArrayList<>();
+    final Map<String, Path> functions = new TreeMap<>();
 }
