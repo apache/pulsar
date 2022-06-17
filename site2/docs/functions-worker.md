@@ -11,8 +11,9 @@ You have two ways to set up [function workers](function-concepts.md#function-wor
 - [Run function workers separately](functions-worker-run-separately.md). Use it when you want to separate functions and brokers.
 
 **Optional configurations**
-* [Enable stateful functions](functions-worker-stateful)
-* [Configure function workers for geo-replicated clusters](functions-worker-for-geo-replication)
+* [Configure temporary file path](functions-worker-tmp-file-path.md)
+* [Enable stateful functions](functions-worker-stateful.md)
+* [Configure function workers for geo-replicated clusters](functions-worker-for-geo-replication.md)
 
 **Reference**
-* [Troubleshooting](functions-worker-troubleshooting)
+* [Troubleshooting](functions-worker-troubleshooting.md)
