@@ -35,12 +35,6 @@
   <dependencies>
     <dependency>
       <groupId>${project.groupId}</groupId>
-      <artifactId>pulsar-zookeeper-utils</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-metadata</artifactId>
       <version>${project.version}</version>
     </dependency>
