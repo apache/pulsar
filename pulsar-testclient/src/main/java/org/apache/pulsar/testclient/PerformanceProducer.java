@@ -67,7 +67,6 @@ import org.apache.pulsar.client.api.ProducerAccessMode;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.api.SizeUnit;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
@@ -142,9 +141,6 @@ public class PerformanceProducer {
         @Parameter(names = { "--auth_plugin" }, description = "Authentication plugin class name", hidden = true)
         public String deprecatedAuthPluginClassName;
 
-        @Parameter(names = { "--listener-name" }, description = "Listener name for the broker.")
-        String listenerName = null;
-
         @Parameter(names = { "-ch",
                 "--chunking" }, description = "Should split the message and publish in chunks if message size is "
                 + "larger than allowed max size")
@@ -161,19 +157,10 @@ public class PerformanceProducer {
                 + "of partitions, set 0 to not try to create the topic")
         public Integer partitions = null;
 
-        @Parameter(names = { "-c",
-                "--max-connections" }, description = "Max number of TCP connections to a single broker")
-        public int maxConnections = 1;
-
         @Parameter(names = { "-m",
                 "--num-messages" }, description = "Number of messages to publish in total. If <= 0, it will keep "
                 + "publishing")
         public long numMessages = 0;
-
-        @Parameter(names = { "-i",
-                "--stats-interval-seconds" }, description = "Statistics Interval Seconds. If 0, statistics will be "
-                + "disabled")
-        public long statsIntervalSeconds = 0;
 
         @Parameter(names = { "-z", "--compression" }, description = "Compress messages payload")
         public CompressionType compression = CompressionType.NONE;
@@ -227,13 +214,6 @@ public class PerformanceProducer {
         @Parameter(names = {"-mk", "--message-key-generation-mode"}, description = "The generation mode of message key"
                 + ", valid options are: [autoIncrement, random]")
         public String messageKeyGenerationMode = null;
-
-        @Parameter(names = {"-ioThreads", "--num-io-threads"}, description = "Set the number of threads to be "
-                + "used for handling connections to brokers. The default value is 1.")
-        public int ioThreads = 1;
-
-        @Parameter(names = {"-bw", "--busy-wait"}, description = "Enable Busy-Wait on the Pulsar client")
-        public boolean enableBusyWait = false;
 
         @Parameter(names = { "-am", "--access-mode" }, description = "Producer access mode")
         public ProducerAccessMode producerAccessMode = ProducerAccessMode.Shared;
@@ -363,28 +343,19 @@ public class PerformanceProducer {
         }));
 
         if (arguments.partitions  != null) {
-            PulsarAdminBuilder clientBuilder = PulsarAdmin.builder()
-                    .serviceHttpUrl(arguments.adminURL)
-                    .tlsTrustCertsFilePath(arguments.tlsTrustCertsFilePath);
+            final PulsarAdminBuilder adminBuilder = PerfClientUtils
+                    .createAdminBuilderFromArguments(arguments, arguments.adminURL);
 
-            if (isNotBlank(arguments.authPluginClassName)) {
-                clientBuilder.authentication(arguments.authPluginClassName, arguments.authParams);
-            }
-
-            if (arguments.tlsAllowInsecureConnection != null) {
-                clientBuilder.allowTlsInsecureConnection(arguments.tlsAllowInsecureConnection);
-            }
-
-            try (PulsarAdmin client = clientBuilder.build()) {
+            try (PulsarAdmin adminClient = adminBuilder.build()) {
                 for (String topic : arguments.topics) {
                     log.info("Creating partitioned topic {} with {} partitions", topic, arguments.partitions);
                     try {
-                        client.topics().createPartitionedTopic(topic, arguments.partitions);
+                        adminClient.topics().createPartitionedTopic(topic, arguments.partitions);
                     } catch (PulsarAdminException.ConflictException alreadyExists) {
                         if (log.isDebugEnabled()) {
                             log.debug("Topic {} already exists: {}", topic, alreadyExists);
                         }
-                        PartitionedTopicMetadata partitionedTopicMetadata = client.topics()
+                        PartitionedTopicMetadata partitionedTopicMetadata = adminClient.topics()
                                 .getPartitionedTopicMetadata(topic);
                         if (partitionedTopicMetadata.partitions != arguments.partitions) {
                             log.error("Topic {} already exists but it has a wrong number of partitions: {}, "
@@ -516,27 +487,9 @@ public class PerformanceProducer {
             // Now processing command line arguments
             List<Future<Producer<byte[]>>> futures = new ArrayList<>();
 
-            ClientBuilder clientBuilder = PulsarClient.builder() //
-                    .memoryLimit(0, SizeUnit.BYTES)
-                    .enableTransaction(arguments.isEnableTransaction)//
-                    .serviceUrl(arguments.serviceURL) //
-                    .connectionsPerBroker(arguments.maxConnections) //
-                    .ioThreads(arguments.ioThreads) //
-                    .statsInterval(arguments.statsIntervalSeconds, TimeUnit.SECONDS) //
-                    .enableBusyWait(arguments.enableBusyWait)
-                    .tlsTrustCertsFilePath(arguments.tlsTrustCertsFilePath);
 
-            if (isNotBlank(arguments.authPluginClassName)) {
-                clientBuilder.authentication(arguments.authPluginClassName, arguments.authParams);
-            }
-
-            if (arguments.tlsAllowInsecureConnection != null) {
-                clientBuilder.allowTlsInsecureConnection(arguments.tlsAllowInsecureConnection);
-            }
-
-            if (isNotBlank(arguments.listenerName)) {
-                clientBuilder.listenerName(arguments.listenerName);
-            }
+            ClientBuilder clientBuilder = PerfClientUtils.createClientBuilderFromArguments(arguments)
+                    .enableTransaction(arguments.isEnableTransaction);
 
             client = clientBuilder.build();
             ProducerBuilder<byte[]> producerBuilder = client.newProducer() //

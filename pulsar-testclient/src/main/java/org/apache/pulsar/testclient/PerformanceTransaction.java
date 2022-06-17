@@ -19,7 +19,6 @@
 package org.apache.pulsar.testclient;
 
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
-import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
@@ -61,7 +60,6 @@ import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.api.SizeUnit;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.Transaction;
@@ -121,17 +119,9 @@ public class PerformanceTransaction {
                 + "not trying to create a topic")
         public Integer partitions = null;
 
-        @Parameter(names = {"-c",
-                "--max-connections"}, description = "Max number of TCP connections to a single broker")
-        public int maxConnections = 1;
-
         @Parameter(names = {"-time",
                 "--test-duration"}, description = "Test duration (in second). 0 means keeping publishing")
         public long testTime = 0;
-
-        @Parameter(names = {"-ioThreads", "--num-io-threads"}, description = "Set the number of threads to be "
-                + "used for handling connections to brokers. The default value is 1.")
-        public int ioThreads = 1;
 
         @Parameter(names = {"-ss",
                 "--subscriptions"}, description = "A list of subscriptions to consume (for example, sub1,sub2)")
@@ -223,29 +213,20 @@ public class PerformanceTransaction {
             payloadBytes[i] = (byte) (random.nextInt(26) + 65);
         }
         if (arguments.partitions != null) {
-            PulsarAdminBuilder clientBuilder = PulsarAdmin.builder()
-                    .serviceHttpUrl(arguments.adminURL)
-                    .tlsTrustCertsFilePath(arguments.tlsTrustCertsFilePath);
+            final PulsarAdminBuilder adminBuilder = PerfClientUtils
+                    .createAdminBuilderFromArguments(arguments, arguments.adminURL);
 
-            if (isNotBlank(arguments.authPluginClassName)) {
-                clientBuilder.authentication(arguments.authPluginClassName, arguments.authParams);
-            }
-
-            if (arguments.tlsAllowInsecureConnection != null) {
-                clientBuilder.allowTlsInsecureConnection(arguments.tlsAllowInsecureConnection);
-            }
-
-            try (PulsarAdmin client = clientBuilder.build()) {
+            try (PulsarAdmin adminClient = adminBuilder.build()) {
                 for (String topic : arguments.producerTopic) {
                     log.info("Creating  produce partitioned topic {} with {} partitions", topic, arguments.partitions);
                     try {
-                        client.topics().createPartitionedTopic(topic, arguments.partitions);
+                        adminClient.topics().createPartitionedTopic(topic, arguments.partitions);
                     } catch (PulsarAdminException.ConflictException alreadyExists) {
                         if (log.isDebugEnabled()) {
                             log.debug("Topic {} already exists: {}", topic, alreadyExists);
                         }
                         PartitionedTopicMetadata partitionedTopicMetadata =
-                                client.topics().getPartitionedTopicMetadata(topic);
+                                adminClient.topics().getPartitionedTopicMetadata(topic);
                         if (partitionedTopicMetadata.partitions != arguments.partitions) {
                             log.error(
                                     "Topic {} already exists but it has a wrong number of partitions: {}, expecting {}",
@@ -257,22 +238,8 @@ public class PerformanceTransaction {
             }
         }
 
-        ClientBuilder clientBuilder =
-                PulsarClient.builder()
-                        .memoryLimit(0, SizeUnit.BYTES)
-                        .enableTransaction(!arguments.isDisableTransaction)
-                        .serviceUrl(arguments.serviceURL)
-                        .connectionsPerBroker(arguments.maxConnections)
-                        .statsInterval(0, TimeUnit.SECONDS)
-                        .ioThreads(arguments.ioThreads)
-                        .tlsTrustCertsFilePath(arguments.tlsTrustCertsFilePath);
-
-        if (isNotBlank(arguments.authPluginClassName)) {
-            clientBuilder.authentication(arguments.authPluginClassName, arguments.authParams);
-        }
-        if (arguments.tlsAllowInsecureConnection != null) {
-            clientBuilder.allowTlsInsecureConnection(arguments.tlsAllowInsecureConnection);
-        }
+        ClientBuilder clientBuilder = PerfClientUtils.createClientBuilderFromArguments(arguments)
+                        .enableTransaction(!arguments.isDisableTransaction);
 
         PulsarClient client = clientBuilder.build();
 

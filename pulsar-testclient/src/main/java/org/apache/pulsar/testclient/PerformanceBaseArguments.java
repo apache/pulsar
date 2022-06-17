@@ -54,6 +54,32 @@ public abstract class PerformanceBaseArguments {
             "--tls-allow-insecure" }, description = "Allow insecure TLS connection")
     public Boolean tlsAllowInsecureConnection = null;
 
+    @Parameter(names = {
+            "--tls-hostname-verification" }, description = "Enable TLS hostname verification")
+    public Boolean tlsHostnameVerificationEnable = null;
+
+    @Parameter(names = { "-c",
+            "--max-connections" }, description = "Max number of TCP connections to a single broker")
+    public int maxConnections = 1;
+
+    @Parameter(names = { "-i",
+            "--stats-interval-seconds" },
+            description = "Statistics Interval Seconds. If 0, statistics will be disabled")
+    public long statsIntervalSeconds = 0;
+
+    @Parameter(names = {"-ioThreads", "--num-io-threads"}, description = "Set the number of threads to be "
+            + "used for handling connections to brokers. The default value is 1.")
+    public int ioThreads = 1;
+
+    @Parameter(names = {"-bw", "--busy-wait"}, description = "Enable Busy-Wait on the Pulsar client")
+    public boolean enableBusyWait = false;
+
+    @Parameter(names = { "--listener-name" }, description = "Listener name for the broker.")
+    public String listenerName = null;
+
+    @Parameter(names = {"-lt", "--num-listener-threads"}, description = "Set the number of threads"
+            + " to be used for message listeners")
+    public int listenerThreads = 1;
 
     public abstract void fillArgumentsFromProperties(Properties prop);
 
@@ -96,6 +122,12 @@ public abstract class PerformanceBaseArguments {
         if (tlsAllowInsecureConnection == null) {
             tlsAllowInsecureConnection = Boolean.parseBoolean(prop
                     .getProperty("tlsAllowInsecureConnection", ""));
+        }
+
+        if (tlsHostnameVerificationEnable == null) {
+            tlsHostnameVerificationEnable = Boolean.parseBoolean(prop
+                    .getProperty("tlsEnableHostnameVerification", ""));
+
         }
         fillArgumentsFromProperties(prop);
     }

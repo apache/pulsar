@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.testclient;
 
-import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
@@ -41,7 +40,6 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderBuilder;
 import org.apache.pulsar.client.api.ReaderListener;
-import org.apache.pulsar.client.api.SizeUnit;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -88,18 +86,6 @@ public class PerformanceReader {
                 + "it will keep consuming")
         public long numMessages = 0;
 
-        @Parameter(names = { "-c",
-                "--max-connections" }, description = "Max number of TCP connections to a single broker")
-        public int maxConnections = 1;
-
-        @Parameter(names = { "-i",
-                "--stats-interval-seconds" },
-                description = "Statistics Interval Seconds. If 0, statistics will be disabled")
-        public long statsIntervalSeconds = 0;
-
-        @Parameter(names = { "--listener-name" }, description = "Listener name for the broker.")
-        String listenerName = null;
-
         @Parameter(names = {
                 "--use-tls" }, description = "Use TLS encryption on the connection")
         public boolean useTls;
@@ -107,14 +93,6 @@ public class PerformanceReader {
         @Parameter(names = { "-time",
                 "--test-duration" }, description = "Test duration in secs. If <= 0, it will keep consuming")
         public long testTime = 0;
-
-        @Parameter(names = {"-ioThreads", "--num-io-threads"}, description = "Set the number of threads to be "
-                + "used for handling connections to brokers, default is 1 thread")
-        public int ioThreads = 1;
-
-        @Parameter(names = {"-lt", "--num-listener-threads"}, description = "Set the number of threads"
-                + " to be used for message listeners")
-        public int listenerThreads = 1;
 
         @Override
         public void fillArgumentsFromProperties(Properties prop) {
@@ -198,27 +176,8 @@ public class PerformanceReader {
             }
         };
 
-        ClientBuilder clientBuilder = PulsarClient.builder() //
-                .memoryLimit(0, SizeUnit.BYTES)
-                .serviceUrl(arguments.serviceURL) //
-                .connectionsPerBroker(arguments.maxConnections) //
-                .statsInterval(arguments.statsIntervalSeconds, TimeUnit.SECONDS) //
-                .ioThreads(arguments.ioThreads) //
-                .listenerThreads(arguments.listenerThreads)
-                .enableTls(arguments.useTls) //
-                .tlsTrustCertsFilePath(arguments.tlsTrustCertsFilePath);
-
-        if (isNotBlank(arguments.authPluginClassName)) {
-            clientBuilder.authentication(arguments.authPluginClassName, arguments.authParams);
-        }
-
-        if (arguments.tlsAllowInsecureConnection != null) {
-            clientBuilder.allowTlsInsecureConnection(arguments.tlsAllowInsecureConnection);
-        }
-
-        if (isNotBlank(arguments.listenerName)) {
-            clientBuilder.listenerName(arguments.listenerName);
-        }
+        ClientBuilder clientBuilder = PerfClientUtils.createClientBuilderFromArguments(arguments)
+                .enableTls(arguments.useTls);
 
         PulsarClient pulsarClient = clientBuilder.build();
 
