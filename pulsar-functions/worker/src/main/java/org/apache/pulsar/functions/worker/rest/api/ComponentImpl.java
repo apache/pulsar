@@ -312,24 +312,32 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
             // if the function worker image does not include connectors
             if (isBuiltin) {
                 if (worker().getWorkerConfig().getUploadBuiltinSinksSources()) {
-                    File sinkOrSource;
-                    if (componentType == FunctionDetails.ComponentType.SOURCE) {
-                        String archiveName = functionDetails.getSource().getBuiltin();
-                        sinkOrSource = worker().getConnectorsManager().getSourceArchive(archiveName).toFile();
-                    } else {
-                        String archiveName = functionDetails.getSink().getBuiltin();
-                        sinkOrSource = worker().getConnectorsManager().getSinkArchive(archiveName).toFile();
-                    }
+                    File component;
+                    String archiveName;
+                    switch (componentType) {
+                        case SOURCE:
+                            archiveName = functionDetails.getSource().getBuiltin();
+                            component = worker().getConnectorsManager().getSourceArchive(archiveName).toFile();
+                            break;
+                        case SINK:
+                            archiveName = functionDetails.getSink().getBuiltin();
+                            component = worker().getConnectorsManager().getSinkArchive(archiveName).toFile();
+                            break;
+                        default:
+                            archiveName = functionDetails.getBuiltin();
+                            component = worker().getFunctionsManager().getFunctionArchive(archiveName).toFile();
+                            break;
+                        }
                     packageLocationMetaDataBuilder.setPackagePath(createPackagePath(tenant, namespace, componentName,
-                            sinkOrSource.getName()));
-                    packageLocationMetaDataBuilder.setOriginalFileName(sinkOrSource.getName());
+                            component.getName()));
+                    packageLocationMetaDataBuilder.setOriginalFileName(component.getName());
                     if (isPackageManagementEnabled) {
                         packageLocationMetaDataBuilder.setPackagePath(packageName.toString());
                         worker().getBrokerAdmin().packages().upload(metadata,
-                                packageName.toString(), sinkOrSource.getAbsolutePath());
+                                packageName.toString(), component.getAbsolutePath());
                     } else {
                         WorkerUtils.uploadFileToBookkeeper(packageLocationMetaDataBuilder.getPackagePath(),
-                                sinkOrSource, worker().getDlogNamespace());
+                                component, worker().getDlogNamespace());
                     }
                     log.info("Uploading {} package to {}", ComponentTypeUtils.toString(componentType),
                             packageLocationMetaDataBuilder.getPackagePath());
