@@ -2175,17 +2175,22 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
     }
 
-    void doCacheEviction(long maxTimestamp) {
-        if (entryCache.getSize() <= 0) {
-            return;
-        }
+    public PositionImpl getEvictionPosition(){
         PositionImpl evictionPos;
         if (config.isCacheEvictionByMarkDeletedPosition()) {
-            evictionPos = getEarlierMarkDeletedPositionForActiveCursors().getNext();
+            PositionImpl earlierMarkDeletedPosition = getEarlierMarkDeletedPositionForActiveCursors();
+            evictionPos = earlierMarkDeletedPosition != null ? earlierMarkDeletedPosition.getNext() : null;
         } else {
             // Always remove all entries already read by active cursors
             evictionPos = getEarlierReadPositionForActiveCursors();
         }
+        return evictionPos;
+    }
+    void doCacheEviction(long maxTimestamp) {
+        if (entryCache.getSize() <= 0) {
+            return;
+        }
+        PositionImpl evictionPos = getEvictionPosition();
         if (evictionPos != null) {
             entryCache.invalidateEntries(evictionPos);
         }
