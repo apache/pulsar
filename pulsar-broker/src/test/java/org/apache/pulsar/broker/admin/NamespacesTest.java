@@ -90,6 +90,7 @@ import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
@@ -99,6 +100,7 @@ import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 import org.apache.pulsar.metadata.cache.impl.MetadataCacheImpl;
 import org.apache.pulsar.metadata.impl.AbstractMetadataStore;
 import org.apache.zookeeper.KeeperException.Code;
@@ -1838,4 +1840,41 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         BundlesData bundles = admin.namespaces().getBundles(namespace);
         assertEquals(bundles.getNumBundles(), 14);
     }
+
+    @Test
+    public void testOperationSubscriptionDispatchRate() throws Exception {
+        String namespace = "sub-dispatchrate-namespace";
+
+        // 0. create subscription dispatch rate test namespace
+        asyncRequests(response -> namespaces.createNamespace(response, this.testTenant, this.testLocalCluster,
+                namespace, BundlesData.builder().build()));
+
+        // 1. set subscription dispatch
+        asyncRequests(response -> namespaces.setSubscriptionDispatchRate(response, this.testTenant, this.testLocalCluster,
+                namespace, DispatchRateImpl.builder().build()));
+
+        // 2. check subscription dispatch
+        DispatchRate dispatchRate = (DispatchRate) asyncRequests(
+                response -> namespaces.getSubscriptionDispatchRate(response,
+                        this.testTenant, this.testLocalCluster, namespace));
+        assertNotNull(dispatchRate);
+        assertEquals(-1, dispatchRate.getDispatchThrottlingRateInMsg());
+
+        // 3. delete & check subscription dispatch
+        asyncRequests(response -> namespaces.deleteSubscriptionDispatchRate(response,
+                this.testTenant, this.testLocalCluster, namespace));
+        assertNull(asyncRequests(response -> namespaces.getSubscriptionDispatchRate(response,
+                this.testTenant, this.testLocalCluster,
+                namespace)));
+
+        // 4. exception check
+        try {
+            asyncRequests(response -> namespaces.setSubscriptionDispatchRate(response,
+                    this.testTenant, this.testLocalCluster, "testNamespace", null));
+            fail("should have failed");
+        } catch (RestException e) {
+            assertEquals(e.getResponse().getStatus(), Status.NOT_FOUND.getStatusCode());
+        }
+    }
+
 }
