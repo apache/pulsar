@@ -41,12 +41,12 @@
     <suppress>
         <notes>CVE-2022-23712 is only related to Elastic server</notes>
         <gav>co.elastic.clients:elasticsearch-java:8.1.0</gav>
-        <vulnerabilityName regex="true">.*</vulnerabilityName>
+        <cve>CVE-2022-23712</cve>
     </suppress>
     <suppress>
         <notes>CVE-2022-23712 is only related to Elastic server</notes>
         <gav>org.elasticsearch.client:elasticsearch-rest-client:8.1.0</gav>
-        <vulnerabilityName regex="true">.*</vulnerabilityName>
+        <cve>CVE-2022-23712</cve>
     </suppress>
 
     <!-- see https://github.com/apache/pulsar/pull/14629 -->
