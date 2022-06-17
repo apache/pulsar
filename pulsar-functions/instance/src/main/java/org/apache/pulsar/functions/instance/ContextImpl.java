@@ -62,6 +62,7 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.api.StateStore;
+import org.apache.pulsar.functions.api.utils.FunctionRecord;
 import org.apache.pulsar.functions.instance.state.DefaultStateStore;
 import org.apache.pulsar.functions.instance.state.StateManager;
 import org.apache.pulsar.functions.instance.stats.ComponentStatsManager;
@@ -479,6 +480,11 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
     @Override
     public <T> ConsumerBuilder<T> newConsumerBuilder(Schema<T> schema) throws PulsarClientException {
         return this.client.newConsumer(schema);
+    }
+
+    @Override
+    public <X> FunctionRecord.FunctionRecordBuilder<X> newOutputRecordBuilder() {
+        return FunctionRecord.from(this);
     }
 
     @Override
