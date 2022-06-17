@@ -48,9 +48,13 @@ import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.sink.SinkConnector;
 import org.apache.kafka.connect.sink.SinkRecord;
 import org.apache.kafka.connect.sink.SinkTask;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.client.api.schema.KeyValueSchema;
+import org.apache.pulsar.client.impl.BatchMessageIdImpl;
+import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.client.impl.TopicMessageIdImpl;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.functions.api.Record;
@@ -90,6 +94,9 @@ public class KafkaConnectSink implements Sink<GenericObject> {
     private final Cache<String, String> sanitizedTopicCache =
             CacheBuilder.newBuilder().maximumSize(1000)
                     .expireAfterAccess(30, TimeUnit.MINUTES).build();
+
+    private int maxBatchBitsForOffset = 12;
+    private boolean useIndexAsOffset = true;
 
     @Override
     public void write(Record<GenericObject> sourceRecord) {
@@ -146,6 +153,11 @@ public class KafkaConnectSink implements Sink<GenericObject> {
         topicName = kafkaSinkConfig.getTopic();
         unwrapKeyValueIfAvailable = kafkaSinkConfig.isUnwrapKeyValueIfAvailable();
         sanitizeTopicName = kafkaSinkConfig.isSanitizeTopicName();
+
+        useIndexAsOffset = kafkaSinkConfig.isUseIndexAsOffset();
+        maxBatchBitsForOffset = kafkaSinkConfig.getMaxBatchBitsForOffset();
+        Preconditions.checkArgument(maxBatchBitsForOffset <= 20,
+                "Cannot use more than 20 bits for maxBatchBitsForOffset");
 
         String kafkaConnectorFQClassName = kafkaSinkConfig.getKafkaConnectorSinkClass();
         kafkaSinkConfig.getKafkaConnectorConfigProperties().forEach(props::put);
@@ -240,6 +252,58 @@ public class KafkaConnectSink implements Sink<GenericObject> {
         }
     }
 
+    private long getMessageOffset(Record<GenericObject> sourceRecord) {
+
+        if (sourceRecord.getMessage().isPresent()) {
+            // Use index added by org.apache.pulsar.common.intercept.AppendIndexMetadataInterceptor if present.
+            // Requires enableExposingBrokerEntryMetadataToClient=true on brokers.
+            if (useIndexAsOffset && sourceRecord.getMessage().get().hasIndex()) {
+                return sourceRecord.getMessage().get()
+                        .getIndex().orElse(-1L);
+            }
+
+            MessageId messageId = sourceRecord.getMessage().get().getMessageId();
+            MessageIdImpl msgId = (MessageIdImpl) ((messageId instanceof TopicMessageIdImpl)
+                    ? ((TopicMessageIdImpl) messageId).getInnerMessageId()
+                    : messageId);
+
+            // sourceRecord.getRecordSequence() is not unique
+            // for the messages from the same batch.
+            // Special case for FunctionCommon.getSequenceId()
+            if (maxBatchBitsForOffset > 0 && msgId instanceof BatchMessageIdImpl) {
+                BatchMessageIdImpl batchMsgId = (BatchMessageIdImpl) msgId;
+                long ledgerId = batchMsgId.getLedgerId();
+                long entryId = batchMsgId.getEntryId();
+
+                if (entryId > (1 << (28 - maxBatchBitsForOffset))) {
+                    log.error("EntryId of the message {} over max, chance of duplicate offsets", entryId);
+                }
+
+                int batchIdx = batchMsgId.getBatchIndex();
+
+                if (batchIdx < 0) {
+                    // Should not happen unless data corruption
+                    log.error("BatchIdx {} of the message is negative, chance of duplicate offsets", batchIdx);
+                    batchIdx = 0;
+                }
+                if (batchIdx > (1 << maxBatchBitsForOffset)) {
+                    log.error("BatchIdx of the message {} over max, chance of duplicate offsets", batchIdx);
+                }
+                // Combine entry id and batchIdx
+                entryId = (entryId << maxBatchBitsForOffset) | batchIdx;
+
+                // The same as FunctionCommon.getSequenceId():
+                // Combine ledger id and entry id to form offset
+                // Use less than 32 bits to represent entry id since it will get
+                // rolled over way before overflowing the max int range
+                long offset = (ledgerId << 28) | entryId;
+                return offset;
+            }
+        }
+        return sourceRecord.getRecordSequence()
+                .orElse(-1L);
+    }
+
     @SuppressWarnings("rawtypes")
     protected SinkRecord toSinkRecord(Record<GenericObject> sourceRecord) {
         final int partition = sourceRecord.getPartitionIndex().orElse(0);
@@ -282,8 +346,7 @@ public class KafkaConnectSink implements Sink<GenericObject> {
             value = KafkaConnectData.getKafkaConnectData(sourceRecord.getValue().getNativeObject(), valueSchema);
         }
 
-        long offset = sourceRecord.getRecordSequence()
-                .orElse(-1L);
+        long offset = getMessageOffset(sourceRecord);
         if (offset < 0) {
             log.error("Message without sequenceId. Key: {} Value: {}", key, value);
             throw new IllegalStateException("Message without sequenceId");
