@@ -19,8 +19,11 @@
 package org.apache.pulsar.testclient;
 
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+
+import java.io.FileInputStream;
 import java.lang.management.ManagementFactory;
 import java.util.Objects;
+import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import lombok.experimental.UtilityClass;
@@ -118,7 +121,6 @@ public class PerfClientUtils {
 
         return pulsarAdminBuilder;
     }
-
 
 
 }
