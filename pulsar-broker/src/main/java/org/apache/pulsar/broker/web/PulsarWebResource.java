@@ -280,13 +280,14 @@ public abstract class PulsarWebResource {
                                                             (proxyAuthorized, originalPrincipalAuthorized) -> {
                                                                 if (!proxyAuthorized || !originalPrincipalAuthorized) {
                                                                     throw new RestException(Status.UNAUTHORIZED,
-                                                                            String.format("Proxy not authorized to access "
-                                                                                            + "resource (proxy:%s,original:%s)"
+                                                                            String.format(
+                                                                                    "Proxy not authorized to access "
+                                                                                    + "resource (proxy:%s,original:%s)"
                                                                                     , clientAppId, originalPrincipal));
                                                                 } else {
                                                                     if (log.isDebugEnabled()) {
-                                                                        log.debug(debugMsg, originalPrincipal, clientAppId,
-                                                                                tenant);
+                                                                        log.debug(debugMsg, originalPrincipal,
+                                                                                clientAppId, tenant);
                                                                     }
                                                                     return null;
                                                                 }

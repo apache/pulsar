@@ -270,7 +270,7 @@ public class TopicLookupBase extends PulsarWebResource {
         }).exceptionally(ex -> {
             validationFuture.completeExceptionally(FutureUtil.unwrapCompletionException(ex));
             return null;
-        });;
+        });
 
         // Initiate lookup once validation completes
         validationFuture.thenAccept(validationFailureResponse -> {
