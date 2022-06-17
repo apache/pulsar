@@ -313,7 +313,7 @@ public class KafkaConnectSink implements Sink<GenericObject> {
 
         if (sourceRecord.getMessage().isPresent()) {
             // Use index added by org.apache.pulsar.common.intercept.AppendIndexMetadataInterceptor if present.
-            // Requires enableExposingBrokerEntryMetadataToClient=true on brokers.
+            // Requires exposingBrokerEntryMetadataToClientEnabled=true on brokers.
             if (useIndexAsOffset && sourceRecord.getMessage().get().hasIndex()) {
                 return sourceRecord.getMessage().get()
                         .getIndex().orElse(-1L);
