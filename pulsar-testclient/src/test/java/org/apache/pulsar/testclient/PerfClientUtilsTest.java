@@ -21,7 +21,6 @@ package org.apache.pulsar.testclient;
 import java.io.IOException;
 import java.util.Map;
 import java.util.Properties;
-
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.ClientBuilderImpl;

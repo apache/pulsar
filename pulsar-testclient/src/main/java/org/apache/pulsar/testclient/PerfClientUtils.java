@@ -19,11 +19,8 @@
 package org.apache.pulsar.testclient;
 
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
-
-import java.io.FileInputStream;
 import java.lang.management.ManagementFactory;
 import java.util.Objects;
-import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import lombok.experimental.UtilityClass;
@@ -36,8 +33,6 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SizeUnit;
 import org.apache.pulsar.common.util.DirectMemoryUtils;
 import org.slf4j.Logger;
-
-
 
 /**
  * Utility for test clients.
