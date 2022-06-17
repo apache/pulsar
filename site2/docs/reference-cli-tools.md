@@ -537,6 +537,24 @@ The table below lists the environment variables that you can use to configure th
 |`PULSAR_EXTRA_CLASSPATH`|Extra paths for Pulsar's classpath||
 |`PULSAR_GC_LOG`|Gc options to be passed to the jvm||
 
+Commands `consume`, `produce`, `read` and `transaction` share the following client options:
+
+|Flag|Description|Default|
+|---|---|---|
+|`--auth-params`|Authentication parameters, whose format is determined by the implementation of method `configure` in authentication plugin class. For example, `key1:val1,key2:val2` or `{"key1":"val1","key2":"val2"}`.||
+|`--auth-plugin`|Authentication plugin class name||
+|`-bw`, `--busy-wait`|Enable or disable Busy-Wait on the Pulsar client|false|
+|`-c`, `--max-connections`|Max number of TCP connections to a single broker|100|
+|`-cf`, `--conf-file`|Configuration file||
+|`-i`, `--stats-interval-seconds`|Statistics interval seconds. If 0, statistics will be disabled|0|
+|`-ioThreads`, `--num-io-threads`|Set the number of threads to be used for handling connections to brokers|1|
+|`--listener-name`|Listener name for the broker||
+|`-lt`, `--num-listener-threads`|Set the number of threads to be used for message listeners|1|
+|`--tls-allow-insecure`|Allow insecure TLS connection||
+|`--tls-hostname-verification`|Enable TLS hostname verification||
+|`--trust-cert-file`|Path for the trusted TLS certificate file||
+|`-u`, `--service-url`|Pulsar service URL||
+
 
 ### `consume`
 Run a consumer
@@ -553,23 +571,14 @@ Options
 
 |Flag|Description|Default|
 |---|---|---|
-|`--auth-params`|Authentication parameters, whose format is determined by the implementation of method `configure` in authentication plugin class. For example, `key1:val1,key2:val2` or `{"key1":"val1","key2":"val2"}`.||
-|`--auth-plugin`|Authentication plugin class name||
 |`-ac`, `--auto_ack_chunk_q_full`|Auto ack for the oldest message in consumer's receiver queue if the queue full|false|
-|`--listener-name`|Listener name for the broker||
 |`--acks-delay-millis`|Acknowledgements grouping delay in millis|100|
 |`--batch-index-ack`|Enable or disable the batch index acknowledgment|false|
-|`-bw`, `--busy-wait`|Enable or disable Busy-Wait on the Pulsar client|false|
 |`-v`, `--encryption-key-value-file`|The file which contains the private key to decrypt payload||
-|`-h`, `--help`|Help message|false|
-|`-cf`, `--conf-file`|Configuration file||
 |`-m`, `--num-messages`|Number of messages to consume in total. If the value is equal to or smaller than 0, it keeps consuming messages.|0|
 |`-e`, `--expire_time_incomplete_chunked_messages`|The expiration time for incomplete chunk messages (in milliseconds)|0|
-|`-c`, `--max-connections`|Max number of TCP connections to a single broker|100|
 |`-mc`, `--max_chunked_msg`|Max pending chunk messages|0|
 |`-n`, `--num-consumers`|Number of consumers (per topic)|1|
-|`-ioThreads`, `--num-io-threads`|Set the number of threads to be used for handling connections to brokers|1|
-|`-lt`, `--num-listener-threads`|Set the number of threads to be used for message listeners|1|
 |`-ns`, `--num-subscriptions`|Number of subscriptions (per topic)|1|
 |`-t`, `--num-topics`|The number of topics|1|
 |`-pm`, `--pool-messages`|Use the pooled message|true|
@@ -577,15 +586,12 @@ Options
 |`-q`, `--receiver-queue-size`|Size of the receiver queue|1000|
 |`-p`, `--receiver-queue-size-across-partitions`|Max total size of the receiver queue across partitions|50000|
 |`--replicated`|Whether the subscription status should be replicated|false|
-|`-u`, `--service-url`|Pulsar service URL||
-|`-i`, `--stats-interval-seconds`|Statistics interval seconds. If 0, statistics will be disabled|0|
 |`-s`, `--subscriber-name`|Subscriber name prefix||
 |`-ss`, `--subscriptions`|A list of subscriptions to consume on (e.g. sub1,sub2)|sub|
 |`-st`, `--subscription-type`|Subscriber type. Possible values are Exclusive, Shared, Failover, Key_Shared.|Exclusive|
 |`-sp`, `--subscription-position`|Subscriber position. Possible values are Latest, Earliest.|Latest|
 |`-time`, `--test-duration`|Test duration (in seconds). If this value is less than or equal to 0, it keeps consuming messages.|0|
-|`--trust-cert-file`|Path for the trusted TLS certificate file||
-|`--tls-allow-insecure`|Allow insecure TLS connection||
+
 
 Below are **transaction** related options.
 
@@ -616,29 +622,22 @@ Options
 |---|---|---|
 |`-am`, `--access-mode`|Producer access mode. Valid values are `Shared`, `Exclusive` and `WaitForExclusive`|Shared|
 |`-au`, `--admin-url`|Pulsar admin URL||
-|`--auth-params`|Authentication parameters, whose format is determined by the implementation of method `configure` in authentication plugin class. For example, `key1:val1,key2:val2` or `{"key1":"val1","key2":"val2"}`.||
-|`--auth-plugin`|Authentication plugin class name||
-|`--listener-name`|Listener name for the broker||
 |`-b`, `--batch-time-window`|Batch messages in a window of the specified number of milliseconds|1|
 |`-bb`, `--batch-max-bytes`|Maximum number of bytes per batch|4194304|
 |`-bm`, `--batch-max-messages`|Maximum number of messages per batch|1000|
-|`-bw`, `--busy-wait`|Enable or disable Busy-Wait on the Pulsar client|false|
 |`-ch`, `--chunking`|Split the message and publish in chunks if the message size is larger than allowed max size|false|
 |`-d`, `--delay`|Mark messages with a given delay in seconds|0s|
 |`-z`, `--compression`|Compress messages’ payload. Possible values are NONE, LZ4, ZLIB, ZSTD or SNAPPY.||
-|`-cf`, `--conf-file`|Configuration file||
 |`-k`, `--encryption-key-name`|The public key name to encrypt payload||
 |`-v`, `--encryption-key-value-file`|The file which contains the public key to encrypt payload||
 |`-ef`, `--exit-on-failure`|Exit from the process on publish failure|false|
 |`-fc`, `--format-class`|Custom Formatter class name|org.apache.pulsar.testclient.DefaultMessageFormatter|
 |`-fp`, `--format-payload`|Format %i as a message index in the stream from producer and/or %t as the timestamp nanoseconds|false|
 |`-h`, `--help`|Help message|false|
-|`-c`, `--max-connections`|Max number of TCP connections to a single broker|100|
 |`-o`, `--max-outstanding`|Max number of outstanding messages|1000|
 |`-p`, `--max-outstanding-across-partitions`|Max number of outstanding messages across partitions|50000|
 |`-m`, `--num-messages`|Number of messages to publish in total. If this value is less than or equal to 0, it keeps publishing messages.|0|
 |`-mk`, `--message-key-generation-mode`|The generation mode of message key. Valid options are `autoIncrement`, `random`||
-|`-ioThreads`, `--num-io-threads`|Set the number of threads to be used for handling connections to brokers|1|
 |`-n`, `--num-producers`|The number of producers (per topic)|1|
 |`-threads`, `--num-test-threads`|Number of test threads|1|
 |`-t`, `--num-topic`|The number of topics|1|
@@ -649,13 +648,9 @@ Options
 |`-r`, `--rate`|Publish rate msg/s across topics|100|
 |`--send-timeout`|Set the sendTimeout|0|
 |`--separator`|Separator between the topic and topic number|-|
-|`-u`, `--service-url`|Pulsar service URL||
 |`-s`, `--size`|Message size (in bytes)|1024|
-|`-i`, `--stats-interval-seconds`|Statistics interval seconds. If 0, statistics will be disabled.|0|
 |`-time`, `--test-duration`|Test duration (in seconds). If this value is less than or equal to 0, it keeps publishing messages.|0|
-|`--trust-cert-file`|Path for the trusted TLS certificate file||
 |`--warmup-time`|Warm-up time in seconds|1|
-|`--tls-allow-insecure`|Allow insecure TLS connection||
 
 Below are **transaction** related options.
 
@@ -683,25 +678,14 @@ Options
 
 |Flag|Description|Default|
 |---|---|---|
-|`--auth-params`|Authentication parameters, whose format is determined by the implementation of method `configure` in authentication plugin class. For example, `key1:val1,key2:val2` or `{"key1":"val1","key2":"val2"}`.||
-|`--auth-plugin`|Authentication plugin class name||
-|`--listener-name`|Listener name for the broker||
-|`-cf`, `--conf-file`|Configuration file||
 |`-h`, `--help`|Help message|false|
 |`-n`, `--num-messages`|Number of messages to consume in total. If the value is equal to or smaller than 0, it keeps consuming messages.|0|
-|`-c`, `--max-connections`|Max number of TCP connections to a single broker|100|
-|`-ioThreads`, `--num-io-threads`|Set the number of threads to be used for handling connections to brokers|1|
-|`-lt`, `--num-listener-threads`|Set the number of threads to be used for message listeners|1|
 |`-t`, `--num-topics`|The number of topics|1|
 |`-r`, `--rate`|Simulate a slow message reader (rate in msg/s)|0|
 |`-q`, `--receiver-queue-size`|Size of the receiver queue|1000|
-|`-u`, `--service-url`|Pulsar service URL||
 |`-m`, `--start-message-id`|Start message id. This can be either 'earliest', 'latest' or a specific message id by using 'lid:eid'|earliest|
-|`-i`, `--stats-interval-seconds`|Statistics interval seconds. If 0, statistics will be disabled.|0|
 |`-time`, `--test-duration`|Test duration (in seconds). If this value is less than or equal to 0, it keeps consuming messages.|0|
-|`--trust-cert-file`|Path for the trusted TLS certificate file||
 |`--use-tls`|Use TLS encryption on the connection|false|
-|`--tls-allow-insecure`|Allow insecure TLS connection||
 
 ### `websocket-producer`
 Run a websocket producer
@@ -839,13 +823,8 @@ $ pulsar-perf transaction options
 
 |Flag|Description|Default|
 |---|---|---|
-`--auth-params`|Authentication parameters, whose format is determined by the implementation of method `configure` in authentication plugin class. For example, `key1:val1,key2:val2` or `{"key1":"val1","key2":"val2"}`.|N/A
-`--auth-plugin`|Authentication plugin class name.|N/A
 `-au`, `--admin-url`|Pulsar admin URL.|N/A
-`-cf`, `--conf-file`|Configuration file.|N/A
 `-h`, `--help`|Help messages.|N/A
-`-c`, `--max-connections`|Maximum number of TCP connections to a single broker.|100
-`-ioThreads`, `--num-io-threads`|Set the number of threads to be used for handling connections to brokers. |1
 `-ns`, `--num-subscriptions`|Number of subscriptions per topic.|1
 `-threads`, `--num-test-threads`|Number of test threads. <br /><br />This thread is for a new transaction to ack messages from consumer topics, produce messages to producer topics, and commit or abort this transaction. <br /><br /> Increasing the number of threads increases the parallelism of the performance test, consequently, it increases the intensity of the stress test.|1
 `-nmc`, `--numMessage-perTransaction-consume`|Set the number of messages consumed in a transaction. <br /><br /> If transaction is disabled, it means the number of messages consumed in a task instead of in a transaction.|1
@@ -853,7 +832,6 @@ $ pulsar-perf transaction options
 `-ntxn`, `--number-txn`|Set the number of transactions. <br /><br /> 0 means the number of transactions is unlimited. <br /><br /> If transaction is disabled, it means the number of tasks instead of transactions. |0
 `-np`, `--partitions`|Create partitioned topics with a given number of partitions. <br /><br /> 0 means not trying to create a topic.
 `-q`, `--receiver-queue-size`|Size of the receiver queue.|1000
-`-u`, `--service-url`|Pulsar service URL.|N/A
 `-sp`, `--subscription-position`|Subscription position.|Earliest
 `-st`, `--subscription-type`|Subscription type.|Shared
 `-ss`, `--subscriptions`|A list of subscriptions to consume. <br /><br /> For example, sub1,sub2.|[sub]
