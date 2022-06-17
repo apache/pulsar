@@ -753,9 +753,9 @@ public class Consumer {
         messageAckRate.calculateRate();
 
         stats.msgRateOut = msgOut.getRate();
-        stats.messageAckRate = messageAckRate.getRate();
         stats.msgThroughputOut = msgOut.getValueRate();
         stats.msgRateRedeliver = msgRedeliver.getRate();
+        stats.messageAckRate = messageAckRate.getValueRate();
         stats.chunkedMessageRate = chunkedMessageRate.getRate();
     }
 
