@@ -27,8 +27,8 @@ import org.apache.commons.io.FileUtils;
 import org.testng.Assert;
 
 /**
- * Creates a temporary directory that contains 3 subdirectories,
- * "narExtractionDirectory", "downloadDirectory" and "connectorsDirectory",
+ * Creates a temporary directory that contains 4 subdirectories,
+ * "narExtractionDirectory", "downloadDirectory", "connectorsDirectory" and "functionsDirectory",
  * which are assigned to the provided workerConfig's respective settings with
  * the {@link #useTemporaryDirectoriesForWorkerConfig(WorkerConfig)} method
  */
@@ -37,6 +37,7 @@ public class PulsarFunctionTestTemporaryDirectory {
     private final File narExtractionDirectory;
     private final File downloadDirectory;
     private final File connectorsDirectory;
+    private final File functionsDirectory;
 
     private PulsarFunctionTestTemporaryDirectory(String tempDirectoryNamePrefix) throws IOException {
         tempDirectory = Files.createTempDirectory(tempDirectoryNamePrefix).toFile();
@@ -46,6 +47,8 @@ public class PulsarFunctionTestTemporaryDirectory {
         downloadDirectory.mkdir();
         connectorsDirectory = new File(tempDirectory, "connectorsDirectory");
         connectorsDirectory.mkdir();
+        functionsDirectory = new File(tempDirectory, "functionsDirectory");
+        functionsDirectory.mkdir();
     }
 
     public static PulsarFunctionTestTemporaryDirectory create(String tempDirectoryNamePrefix) {
@@ -60,6 +63,7 @@ public class PulsarFunctionTestTemporaryDirectory {
         workerConfig.setNarExtractionDirectory(narExtractionDirectory.getAbsolutePath());
         workerConfig.setDownloadDirectory(downloadDirectory.getAbsolutePath());
         workerConfig.setConnectorsDirectory(connectorsDirectory.getAbsolutePath());
+        workerConfig.setFunctionsDirectory(functionsDirectory.getAbsolutePath());
     }
 
     public void delete() {
