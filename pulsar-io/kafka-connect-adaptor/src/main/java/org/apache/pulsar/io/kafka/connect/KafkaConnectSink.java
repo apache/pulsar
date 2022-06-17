@@ -81,7 +81,8 @@ public class KafkaConnectSink implements Sink<GenericObject> {
             Executors.newSingleThreadScheduledExecutor(new ThreadFactoryBuilder()
                     .setNameFormat("pulsar-io-kafka-adaptor-sink-flush-%d")
                     .build());
-    private final ConcurrentLinkedDeque<Record<GenericObject>> pendingFlushQueue = new ConcurrentLinkedDeque<>();
+    @VisibleForTesting
+    protected final ConcurrentLinkedDeque<Record<GenericObject>> pendingFlushQueue = new ConcurrentLinkedDeque<>();
     private final AtomicBoolean isFlushRunning = new AtomicBoolean(false);
     private volatile boolean isRunning = false;
 
@@ -223,28 +224,84 @@ public class KafkaConnectSink implements Sink<GenericObject> {
         }
 
         final Record<GenericObject> lastNotFlushed = pendingFlushQueue.getLast();
+        Map<TopicPartition, OffsetAndMetadata> committedOffsets = null;
         try {
             Map<TopicPartition, OffsetAndMetadata> currentOffsets = taskContext.currentOffsets();
-            Map<TopicPartition, OffsetAndMetadata> committedOffsets = task.preCommit(currentOffsets);
-            if (committedOffsets.isEmpty()) {
+            committedOffsets = task.preCommit(currentOffsets);
+            if (committedOffsets == null || committedOffsets.isEmpty()) {
                 log.info("Task returned empty committedOffsets map; skipping flush; task will retry later");
                 return;
             }
-            taskContext.flushOffsets(currentOffsets);
-            ackUntil(lastNotFlushed, Record::ack);
+            if (log.isDebugEnabled() && !areMapsEqual(committedOffsets, currentOffsets)) {
+                log.debug("committedOffsets {} differ from currentOffsets {}", committedOffsets, currentOffsets);
+            }
+            taskContext.flushOffsets(committedOffsets);
+            ackUntil(lastNotFlushed, committedOffsets, Record::ack);
             log.info("Flush succeeded");
         } catch (Throwable t) {
             log.error("error flushing pending records", t);
-            ackUntil(lastNotFlushed, Record::fail);
+            ackUntil(lastNotFlushed, committedOffsets, Record::fail);
         } finally {
             isFlushRunning.compareAndSet(true, false);
         }
     }
 
-    private void ackUntil(Record<GenericObject> lastNotFlushed, java.util.function.Consumer<Record<GenericObject>> cb) {
-        while (!pendingFlushQueue.isEmpty()) {
-            Record<GenericObject> r = pendingFlushQueue.pollFirst();
+    private static boolean areMapsEqual(Map<TopicPartition, OffsetAndMetadata> first,
+                                        Map<TopicPartition, OffsetAndMetadata> second) {
+        if (first.size() != second.size()) {
+            return false;
+        }
+
+        return first.entrySet().stream()
+                .allMatch(e -> e.getValue().equals(second.get(e.getKey())));
+    }
+
+    @VisibleForTesting
+    protected void ackUntil(Record<GenericObject> lastNotFlushed,
+                          Map<TopicPartition, OffsetAndMetadata> committedOffsets,
+                          java.util.function.Consumer<Record<GenericObject>> cb) {
+        // lastNotFlushed is needed in case of default preCommit() implementation
+        // which calls flush() and returns currentOffsets passed to it.
+        // We don't want to ack messages added to pendingFlushQueue after the preCommit/flush call
+
+        // to avoid creation of new TopicPartition for each record in pendingFlushQueue
+        Map<String, Map<Integer, Long>> topicOffsets = new HashMap<>();
+        for (Map.Entry<TopicPartition, OffsetAndMetadata> e: committedOffsets.entrySet()) {
+            TopicPartition tp = e.getKey();
+            if (!topicOffsets.containsKey(tp.topic())) {
+                topicOffsets.put(tp.topic(), new HashMap<>());
+            }
+            Map<Integer, Long> partitionOffset = topicOffsets.get(tp.topic());
+            partitionOffset.put(tp.partition(), e.getValue().offset());
+        }
+
+        for (Record<GenericObject> r : pendingFlushQueue) {
+            final String topic = sanitizeNameIfNeeded(r.getTopicName().orElse(topicName), sanitizeTopicName);
+            final int partition = r.getPartitionIndex().orElse(0);
+
+            Long lastCommittedOffset = null;
+            if (topicOffsets.containsKey(topic)) {
+                lastCommittedOffset = topicOffsets.get(topic).get(partition);
+            }
+
+            if (lastCommittedOffset == null) {
+                if (r == lastNotFlushed) {
+                    break;
+                }
+                continue;
+            }
+
+            long offset = getMessageOffset(r);
+
+            if (offset > lastCommittedOffset) {
+                if (r == lastNotFlushed) {
+                    break;
+                }
+                continue;
+            }
+
             cb.accept(r);
+            pendingFlushQueue.remove(r);
             currentBatchSize.addAndGet(-1 * r.getMessage().get().size());
             if (r == lastNotFlushed) {
                 break;

@@ -33,6 +33,7 @@ import org.apache.avro.io.DecoderFactory;
 import org.apache.avro.io.Encoder;
 import org.apache.avro.io.EncoderFactory;
 import org.apache.avro.reflect.ReflectDatumWriter;
+import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.connect.data.Struct;
 import org.apache.kafka.connect.sink.SinkRecord;
@@ -83,6 +84,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
@@ -1159,6 +1161,67 @@ public class KafkaConnectSinkTest extends ProducerConsumerBase  {
             seenOffsets.add(offset);
         }
         assertEquals(seenOffsets.size(), 1);
+
+        sink.close();
+    }
+
+
+    @Test
+    public void partialPreCommitTest() throws Exception {
+        props.put("useIndexAsOffset", "false");
+        props.put("maxBatchBitsForOffset", "0");
+        final String topicName = "testTopic";
+
+        KafkaConnectSink sink = new KafkaConnectSink();
+        when(context.getSubscriptionType()).thenReturn(SubscriptionType.Exclusive);
+        sink.open(props, context);
+
+        final int numPartitions = 3;
+        for (long i = 0; i < 30; i++) {
+            final AtomicLong ledgerId = new AtomicLong(0L);
+            final AtomicLong entryId = new AtomicLong(i);
+            final GenericRecord rec = getGenericRecord("value", Schema.STRING);
+            Message msg = mock(MessageImpl.class);
+            when(msg.getValue()).thenReturn(rec);
+            when(msg.getMessageId()).then(x -> new MessageIdImpl(ledgerId.get(), entryId.get(), 0));
+            when(msg.hasIndex()).thenReturn(false);
+
+            final int partition = (int)(i % numPartitions);
+            final AtomicInteger status = new AtomicInteger(0);
+            Record<GenericObject> record = PulsarRecord.<String>builder()
+                    .topicName(topicName)
+                    .partition(partition)
+                    .message(msg)
+                    .ackFunction(status::incrementAndGet)
+                    .failFunction(status::decrementAndGet)
+                    .schema(Schema.STRING)
+                    .build();
+
+            sink.write(record);
+        }
+
+        ConcurrentLinkedDeque<Record<GenericObject>> pendingFlushQueue = sink.pendingFlushQueue;
+        assertEquals(pendingFlushQueue.size(), 30);
+
+        Map<TopicPartition, OffsetAndMetadata> committedOffsets = new HashMap<>();
+        committedOffsets.put(new TopicPartition(topicName, 0),
+                new OffsetAndMetadata(3L, Optional.empty(), null));
+        committedOffsets.put(new TopicPartition(topicName, 1),
+                new OffsetAndMetadata(4L, Optional.empty(), null));
+        committedOffsets.put(new TopicPartition(topicName, 2),
+                new OffsetAndMetadata(5L, Optional.empty(), null));
+
+        Record<GenericObject> lastNotFlushed = pendingFlushQueue.peekFirst();
+        Record<GenericObject> lastNotFlushedAfter = (Record<GenericObject>) pendingFlushQueue.stream().toArray()[15];
+
+        final AtomicInteger ackedMessagesCount = new AtomicInteger(0);
+        sink.ackUntil(lastNotFlushed, committedOffsets, x -> ackedMessagesCount.incrementAndGet());
+        assertEquals(ackedMessagesCount.get(), 1);
+        assertEquals(pendingFlushQueue.size(), 29);
+
+        sink.ackUntil(lastNotFlushedAfter, committedOffsets, x -> ackedMessagesCount.incrementAndGet());
+        assertEquals(ackedMessagesCount.get(), 6);
+        assertEquals(pendingFlushQueue.size(), 24);
 
         sink.close();
     }
