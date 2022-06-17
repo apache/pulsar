@@ -807,20 +807,26 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
         boolean shouldCloseClassLoader = false;
         try {
 
-            // if sink is not builtin, attempt to extract classloader from package file if it exists
-            if (classLoader == null && componentPackageFile != null) {
-                classLoader = getClassLoaderFromPackage(functionConfig.getClassName(),
-                        componentPackageFile, worker().getWorkerConfig().getNarExtractionDirectory());
+            if (functionConfig.getRuntime() == FunctionConfig.Runtime.JAVA) {
+                // if function is not builtin, attempt to extract classloader from package file if it exists
+                if (classLoader == null && componentPackageFile != null) {
+                    classLoader = getClassLoaderFromPackage(functionConfig.getClassName(),
+                            componentPackageFile, worker().getWorkerConfig().getNarExtractionDirectory());
+                    shouldCloseClassLoader = true;
+                }
+
+                if (classLoader == null) {
+                    throw new IllegalArgumentException("Function package is not provided");
+                }
+
+                FunctionConfigUtils.ExtractedFunctionDetails functionDetails = FunctionConfigUtils.validateJavaFunction(
+                        functionConfig, classLoader);
+                return FunctionConfigUtils.convert(functionConfig, functionDetails);
+            } else {
+                classLoader = FunctionConfigUtils.validate(functionConfig, componentPackageFile);
                 shouldCloseClassLoader = true;
+                return FunctionConfigUtils.convert(functionConfig, classLoader);
             }
-
-            if (classLoader == null) {
-                throw new IllegalArgumentException("Function package is not provided");
-            }
-
-            FunctionConfigUtils.ExtractedFunctionDetails functionDetails = FunctionConfigUtils.validateJavaFunction(
-                    functionConfig, classLoader);
-            return FunctionConfigUtils.convert(functionConfig, functionDetails);
         } finally {
             if (shouldCloseClassLoader) {
                 ClassLoaderUtils.closeClassLoader(classLoader);
