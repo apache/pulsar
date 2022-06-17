@@ -142,8 +142,8 @@ Kubernetes requires a name that can be used as a DNS subdomain name as defined i
   
 :::tip
 
-- If you get an error in translating Pulsar object names into Kubernetes resource labels (for example, you may have a naming collision if your Pulsar object name is too long) or want to customize the translating rules, see [customize Kubernetes runtime](/functions-runtime.md#customize-kubernetes-runtime).
-- For how to configure Kubernetes runtime, see [here](/functions-runtime.md#configure-kubernetes-runtime).
+- If you get an error in translating Pulsar object names into Kubernetes resource labels (for example, you may have a naming collision if your Pulsar object name is too long) or want to customize the translating rules, see [customize Kubernetes runtime](functions-runtime-kubernetes.md#customize-kubernetes-runtime).
+- For how to configure Kubernetes runtime, see [instructions](functions-runtime-kubernetes.md).
 
 :::
 
