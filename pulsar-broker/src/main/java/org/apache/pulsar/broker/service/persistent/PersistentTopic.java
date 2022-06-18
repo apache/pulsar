@@ -2361,6 +2361,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         return checkPersistencePolicies();
     }
 
+    @Override
     public void updateDispatchRateLimiter() {
         initializeDispatchRateLimiterIfNeeded();
         dispatchRateLimiter.ifPresent(DispatchRateLimiter::updateDispatchRate);
