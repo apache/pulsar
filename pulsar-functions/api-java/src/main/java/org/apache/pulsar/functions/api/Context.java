@@ -30,6 +30,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
+import org.apache.pulsar.functions.api.utils.FunctionRecord;
 
 /**
  * Context provides contextual information to the executing function.
@@ -162,4 +163,13 @@ public interface Context extends BaseContext {
      * @throws PulsarClientException
      */
     <O> ConsumerBuilder<O> newConsumerBuilder(Schema<O> schema) throws PulsarClientException;
+
+    /**
+     * Creates a FunctionRecordBuilder initialized with values from this Context.
+     * It can be used in Functions to prepare a Record to return with default values taken from the Context and the
+     * input Record.
+     *
+     * @return the record builder instance
+     */
+    <X> FunctionRecord.FunctionRecordBuilder<X> newOutputRecordBuilder();
 }
