@@ -3023,9 +3023,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             updateSubscribeRateLimiter();
             replicators.forEach((name, replicator) -> replicator.updateRateLimiter());
             checkMessageExpiry();
-            if (policies.getReplicationClusters() != null) {
-                checkReplicationAndRetryOnFailure();
-            }
+            checkReplicationAndRetryOnFailure();
 
             checkDeduplicationStatus();
 
