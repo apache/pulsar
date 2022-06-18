@@ -620,7 +620,7 @@ public class PerformanceTransaction {
     static final DecimalFormat DEC = new PaddingDecimalFormat("0.000", 7);
     static final DecimalFormat INTFORMAT = new PaddingDecimalFormat("0", 7);
     static final DecimalFormat TOTALFORMAT = new DecimalFormat("0.000");
-    private static final Logger log = LoggerFactory.getLogger(PerformanceProducer.class);
+    private static final Logger log = LoggerFactory.getLogger(PerformanceTransaction.class);
 
 
     private static  List<List<Consumer<byte[]>>> buildConsumer(PulsarClient client, Arguments arguments)
