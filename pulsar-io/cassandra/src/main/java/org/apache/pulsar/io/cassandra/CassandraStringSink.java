@@ -26,7 +26,7 @@ import org.apache.pulsar.io.core.annotations.IOType;
 
 /**
  * Cassandra sink that treats incoming messages on the input topic as Strings
- * and write identical key/value pairs.
+ * and writes key/value pairs.
  */
 @Connector(
     name = "cassandra",

@@ -20,36 +20,32 @@
 package org.apache.pulsar.io.cassandra;
 
 import com.datastax.driver.core.*;
-import com.datastax.driver.core.ResultSet;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.MoreExecutors;
-import java.util.Map;
+import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.common.IOConfigUtils;
-import org.apache.pulsar.io.core.KeyValue;
 import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.SinkContext;
 
-/**
- * A Simple abstract class for Cassandra sink.
- * Users need to implement extractKeyValue function to use this sink
- */
-public abstract class CassandraAbstractSink<K, V> implements Sink<byte[]> {
+import java.util.Map;
+
+public class CassandraSink implements Sink<GenericRecord> {
 
     private CassandraConnector connector;
     private CassandraSinkConfig cassandraSinkConfig;
+    private PreparedStatement stmt;
+    private BoundStatement boundStatement;
 
     @Override
-    public void open(Map<String, Object> config, SinkContext sinkContext) throws Exception {
+    public void open(Map<String, Object> config, SinkContext ctx) throws Exception {
 
-        cassandraSinkConfig = IOConfigUtils.loadWithSecrets(config, CassandraSinkConfig.class, sinkContext);
+        cassandraSinkConfig = IOConfigUtils.loadWithSecrets(config, CassandraSinkConfig.class, ctx);
 
         if (cassandraSinkConfig.getRoots() == null
                 || cassandraSinkConfig.getKeyspace() == null
-                || cassandraSinkConfig.getKeyname() == null
-                || cassandraSinkConfig.getColumnFamily() == null
-                || cassandraSinkConfig.getColumnName() == null) {
+                || cassandraSinkConfig.getColumnFamily() == null) {
             throw new IllegalArgumentException("Required property not set.");
         }
 
@@ -58,19 +54,19 @@ public abstract class CassandraAbstractSink<K, V> implements Sink<byte[]> {
     }
 
     @Override
-    public void close() throws Exception {
-        connector.close();
-    }
+    public void write(Record<GenericRecord> record) throws Exception {
 
-    @Override
-    public void write(Record<byte[]> record) {
+        Object[] boundValues = new Object[connector.getTableFields().size()];
+        GenericRecord generic = record.getValue();
 
-        KeyValue<K, V> keyValue = extractKeyValue(record);
+        for (int idx = 0; idx < connector.getTableFields().size(); idx++) {
+            String fieldName = connector.getTableFields().get(idx);
+            boundValues[idx] = generic.getField(fieldName);
+        }
 
-        BoundStatement bound = connector.getPreparedStatement()
-                .bind(keyValue.getKey(), keyValue.getValue());
+        BoundStatement bs = getBoundStatement().bind(boundValues);
 
-        ResultSetFuture future = connector.getSession().executeAsync(bound);
+        ResultSetFuture future = connector.getSession().executeAsync(bs);
 
         Futures.addCallback(future,
                 new FutureCallback<ResultSet>() {
@@ -86,5 +82,23 @@ public abstract class CassandraAbstractSink<K, V> implements Sink<byte[]> {
                 }, MoreExecutors.directExecutor());
     }
 
-    public abstract KeyValue<K, V> extractKeyValue(Record<byte[]> record);
+    @Override
+    public void close() throws Exception {
+        connector.close();
+    }
+
+    private PreparedStatement getStatement() {
+        if (stmt == null) {
+           stmt = connector.getPreparedStatement();
+        }
+        return stmt;
+    }
+
+    private BoundStatement getBoundStatement() {
+        if (boundStatement == null) {
+            boundStatement = getStatement().bind();
+            boundStatement.setConsistencyLevel(ConsistencyLevel.ALL);
+        }
+        return boundStatement;
+    }
 }
