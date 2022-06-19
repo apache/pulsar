@@ -445,7 +445,7 @@ class Array(Field):
         for x in val:
             if type(x) != self.array_type.python_type():
                 raise TypeError('Array field ' + name + ' items should all be of type ' +
-                                str(self.array_type.python_type()))
+                                str(self.array_type.type()))
         return val
 
     def schema(self):

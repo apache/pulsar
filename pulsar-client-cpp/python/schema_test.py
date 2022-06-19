@@ -1286,6 +1286,6 @@ class SchemaTest(TestCase):
         # descriptive error message
         with self.assertRaises(TypeError) as e:
             SomeSchema(some_field=["not", "integer"])
-        self.assertEqual(str(e.exception), "Array field some_field items should all be of type <class 'int'>")
+        self.assertEqual(str(e.exception), "Array field some_field items should all be of type int")
 if __name__ == '__main__':
     main()
