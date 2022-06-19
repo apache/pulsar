@@ -1136,7 +1136,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
      * @throws Exception
      */
     public void loadNamespaceTopics(NamespaceBundle bundle) {
-        executor.submit(() -> {
+        executor.execute(() -> {
             LOG.info("Loading all topics on bundle: {}", bundle);
 
             NamespaceName nsName = bundle.getNamespaceObject();

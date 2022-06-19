@@ -1134,7 +1134,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                                               Throwable error,
                                               CompletableFuture<Void> subscribeFuture) {
         log.warn("[{}] Failed to subscribe for topic [{}] in topics consumer {}", topic, topicName, error.getMessage());
-        client.externalExecutorProvider().getExecutor().submit(() -> {
+        client.externalExecutorProvider().getExecutor().execute(() -> {
             AtomicInteger toCloseNum = new AtomicInteger(0);
             consumers.values().stream().filter(consumer1 -> {
                 String consumerTopicName = consumer1.getTopic();
