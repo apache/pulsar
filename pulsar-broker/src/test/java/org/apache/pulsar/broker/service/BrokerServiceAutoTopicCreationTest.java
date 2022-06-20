@@ -429,11 +429,12 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
         final String topic = "persistent://" + namespaceName + "/test-dynamicConfiguration-topic-auto-creation-"
                 + UUID.randomUUID();
         try {
-            org.apache.pulsar.client.api.Producer<byte[]> producer = pulsarClient.newProducer()
+            pulsarClient.newProducer()
                     .topic(topic)
                     .create();
+           fail();
         } catch (Exception e) {
-            assertTrue(e instanceof PulsarClientException);
+            assertTrue(e instanceof PulsarClientException.NotFoundException);
         }
     }
 
