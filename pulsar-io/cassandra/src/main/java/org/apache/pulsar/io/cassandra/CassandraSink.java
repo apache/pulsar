@@ -19,24 +19,34 @@
 
 package org.apache.pulsar.io.cassandra;
 
-import com.datastax.driver.core.*;
+import com.datastax.driver.core.BoundStatement;
+import com.datastax.driver.core.PreparedStatement;
+import com.datastax.driver.core.ResultSet;
+import com.datastax.driver.core.ResultSetFuture;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.MoreExecutors;
-import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.functions.api.Record;
+import org.apache.pulsar.io.cassandra.util.*;
 import org.apache.pulsar.io.common.IOConfigUtils;
 import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.SinkContext;
+import org.apache.pulsar.io.core.annotations.Connector;
+import org.apache.pulsar.io.core.annotations.IOType;
 
 import java.util.Map;
 
-public class CassandraSink implements Sink<GenericRecord> {
+@Connector(
+        name = "cassandra",
+        type = IOType.SINK,
+        help = "The CassandraStringSink is used for moving messages from Pulsar to Cassandra.",
+        configClass = CassandraSinkConfig.class)
+public abstract class CassandraSink<T> implements Sink<T> {
 
-    private CassandraConnector connector;
-    private CassandraSinkConfig cassandraSinkConfig;
-    private PreparedStatement stmt;
-    private BoundStatement boundStatement;
+    CassandraConnector connector;
+    CassandraSinkConfig cassandraSinkConfig;
+    PreparedStatement stmt;
+    BoundStatementProvider boundStatementProvider;
 
     @Override
     public void open(Map<String, Object> config, SinkContext ctx) throws Exception {
@@ -51,20 +61,19 @@ public class CassandraSink implements Sink<GenericRecord> {
 
         connector = new CassandraConnector(cassandraSinkConfig);
         connector.connect();
+
+        boundStatementProvider = new BoundStatementProvider(
+                TableMetadataProvider.getTableDefinition(
+                        connector.getTableMetadata(),
+                        cassandraSinkConfig.getKeyspace(),
+                        cassandraSinkConfig.getColumnFamily()));
     }
 
     @Override
-    public void write(Record<GenericRecord> record) throws Exception {
+    public void write(Record<T> record) throws Exception {
 
-        Object[] boundValues = new Object[connector.getTableFields().size()];
-        GenericRecord generic = record.getValue();
-
-        for (int idx = 0; idx < connector.getTableFields().size(); idx++) {
-            String fieldName = connector.getTableFields().get(idx);
-            boundValues[idx] = generic.getField(fieldName);
-        }
-
-        BoundStatement bs = getBoundStatement().bind(boundValues);
+        BoundStatement bs = boundStatementProvider.bindStatement(
+                getStatement(), wrapRecord(record));
 
         ResultSetFuture future = connector.getSession().executeAsync(bs);
 
@@ -87,18 +96,13 @@ public class CassandraSink implements Sink<GenericRecord> {
         connector.close();
     }
 
-    private PreparedStatement getStatement() {
+    abstract RecordWrapper<T> wrapRecord(Record<T> record);
+
+    PreparedStatement getStatement() {
         if (stmt == null) {
-           stmt = connector.getPreparedStatement();
+            stmt = connector.getPreparedStatement();
         }
         return stmt;
     }
 
-    private BoundStatement getBoundStatement() {
-        if (boundStatement == null) {
-            boundStatement = getStatement().bind();
-            boundStatement.setConsistencyLevel(ConsistencyLevel.ALL);
-        }
-        return boundStatement;
-    }
 }

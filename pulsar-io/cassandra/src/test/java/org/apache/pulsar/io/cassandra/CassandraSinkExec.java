@@ -30,6 +30,7 @@ import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.common.io.SinkConfig;
 import org.apache.pulsar.functions.LocalRunner;
 import org.apache.pulsar.io.cassandra.producers.InputTopicProducerThread;
+import org.apache.pulsar.io.cassandra.producers.InputTopicStringProducer;
 import org.apache.pulsar.io.cassandra.producers.ReadingSchemaRecordProducer;
 import org.yaml.snakeyaml.Yaml;
 
@@ -40,9 +41,8 @@ import org.yaml.snakeyaml.Yaml;
 public class CassandraSinkExec {
 
     public static final String BROKER_URL = "pulsar://localhost:6650";
-    // public static final String INPUT_TOPIC = "persistent://public/default/cassandra-observation-avro";
-    // public static final String INPUT_TOPIC = "persistent://public/default/cassandra-observation-string";
-    public static final String INPUT_TOPIC = "persistent://public/default/air-quality-reading-avro-3";
+    public static final String INPUT_TOPIC = "persistent://public/default/air-quality-reading-generic";
+    // public static final String INPUT_TOPIC = "persistent://public/default/air-quality-reading-string";
     public static final String CONFIG_FILE = "cassandra-sink-config.yaml";
 
     public static void main(String[] args) throws Exception {
@@ -70,7 +70,7 @@ public class CassandraSinkExec {
                 .autoAck(true)
                 .cleanupSubscription(Boolean.TRUE)
                 .configs(getConfigs())
-                .className(CassandraSink.class.getName())
+                .className(CassandraGenericRecordSink.class.getName())
                 .inputs(Collections.singletonList(INPUT_TOPIC))
                 .name("CassandraSink")
                 .build();

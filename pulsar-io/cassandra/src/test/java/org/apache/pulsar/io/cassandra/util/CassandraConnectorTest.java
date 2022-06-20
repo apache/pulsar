@@ -1,5 +1,7 @@
-package org.apache.pulsar.io.cassandra;
+package org.apache.pulsar.io.cassandra.util;
 
+import org.apache.pulsar.io.cassandra.CassandraSinkConfig;
+import org.apache.pulsar.io.cassandra.util.CassandraConnector;
 import org.junit.Ignore;
 import org.junit.Test;
 

@@ -19,20 +19,51 @@
 
 package org.apache.pulsar.io.cassandra.producers;
 
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 import org.apache.pulsar.client.api.Schema;
 
+import java.lang.reflect.Type;
+import java.util.HashMap;
 import java.util.Random;
+import java.util.SortedMap;
+import java.util.TreeMap;
 
 public class InputTopicStringProducer extends InputTopicProducerThread<String> {
 
+    private Random rnd = new Random();
+    int lastReadingId = rnd.nextInt(900000);
+    
     public InputTopicStringProducer(String brokerUrl, String inputTopic) {
         super(brokerUrl, inputTopic);
     }
 
     @Override
     String getValue() {
-        String val = "{\"dateObserved\":\"2022-06-08 \",\"hourObserved\":11,\"localTimeZone\":\"PST\",\"reportingArea\":\"Redwood City\",\"stateCode\":\"CA\",\"latitude\":37.48,\"longitude\":-122.22,\"parameterName\":\"PM2.5\",\"aqi\":20,\"category\":{\"number\":1,\"name\":\"Good\",\"additionalProperties\":{}}";
-        return val;
+
+        SortedMap<String, Object> elements = new TreeMap();
+        elements.put("readingid", lastReadingId++ + "");
+        elements.put("avg_ozone", rnd.nextDouble());
+        elements.put("min_ozone", rnd.nextDouble());
+        elements.put("max_ozone", rnd.nextDouble());
+        elements.put("avg_pm10", rnd.nextDouble());
+        elements.put("min_pm10", rnd.nextDouble());
+        elements.put("max_pm10", rnd.nextDouble());
+        elements.put("avg_pm25", rnd.nextDouble());
+        elements.put("min_pm25", rnd.nextDouble());
+        elements.put("max_pm25", rnd.nextDouble());
+        elements.put("local_time_zone", "PST");
+        elements.put("state_code", "CA");
+        elements.put("reporting_area", lastReadingId + "");
+        elements.put("hour_observed", rnd.nextInt(24));
+        elements.put("date_observed", "2022-06-18");
+        elements.put("latitude", Float.valueOf(40.021f));
+        elements.put("longitude", Float.valueOf(-122.33f));
+
+        Gson gson = new Gson();
+        Type gsonType = new TypeToken<HashMap>(){}.getType();
+        String gsonString = gson.toJson(elements,gsonType);
+        return gsonString;
     }
 
     @Override

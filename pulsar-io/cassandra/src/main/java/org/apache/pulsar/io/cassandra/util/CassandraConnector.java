@@ -17,10 +17,11 @@
  * under the License.
  */
 
-package org.apache.pulsar.io.cassandra;
+package org.apache.pulsar.io.cassandra.util;
 
 import com.datastax.driver.core.*;
 import com.datastax.driver.core.Session;
+import org.apache.pulsar.io.cassandra.CassandraSinkConfig;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -42,10 +43,14 @@ public class CassandraConnector {
     }
 
     public Session getSession() {
-        if (session == null) {
+        if (session == null || session.isClosed()) {
             this.connect();
         }
         return session;
+    }
+
+    public Metadata getTableMetadata() {
+        return getCluster().getMetadata();
     }
 
     public PreparedStatement getPreparedStatement() {

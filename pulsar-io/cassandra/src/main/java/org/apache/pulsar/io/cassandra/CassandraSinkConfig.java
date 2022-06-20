@@ -39,7 +39,7 @@ public class CassandraSinkConfig implements Serializable {
             required = false,
             defaultValue = "",
             sensitive = true,
-            help = "Username used to connect to the database specified by `jdbcUrl`"
+            help = "Username used to connect to the database specified by `root`"
     )
     private String userName;
 
@@ -47,7 +47,7 @@ public class CassandraSinkConfig implements Serializable {
             required = false,
             defaultValue = "",
             sensitive = true,
-            help = "Password used to connect to the database specified by `jdbcUrl`"
+            help = "Password used to connect to the database specified by `root`"
     )
     private String password;
 
@@ -66,20 +66,8 @@ public class CassandraSinkConfig implements Serializable {
     @FieldDoc(
         required = true,
         defaultValue = "",
-        help = "The key name of the cassandra column family")
-    private String keyname;
-
-    @FieldDoc(
-        required = true,
-        defaultValue = "",
         help = "The cassandra column family name")
     private String columnFamily;
-
-    @FieldDoc(
-        required = true,
-        defaultValue = "",
-        help = "The column name of the cassandra column family")
-    private String columnName;
 
     public static CassandraSinkConfig load(String yamlFile) throws IOException {
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
