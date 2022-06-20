@@ -105,9 +105,12 @@ public class TransactionMetaStoreHandler extends HandlerState
                 .create(),
             this);
         this.connectFuture = connectFuture;
-        this.connectionHandler.grabCnx();
+        this.internalPinnedExecutor = pulsarClient.getInternalExecutorService();
         this.timer = pulsarClient.timer();
-        internalPinnedExecutor = pulsarClient.getInternalExecutorService();
+    }
+
+    public void start() {
+        this.connectionHandler.grabCnx();
     }
 
     @Override
