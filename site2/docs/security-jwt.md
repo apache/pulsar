@@ -255,6 +255,18 @@ $ bin/pulsar tokens create --secret-key file:///path/to/my-secret.key \
 
 ```
 
+:::note
+
+To grant permissions to the user role that generates the token, you need to configure `superUserRoles` in the `conf/broker.conf` or `conf/standalone.conf` file, and the `conf/proxy.conf` file if you want to use proxies to authenticate clients.
+
+```conf
+
+superUserRoles=test-user
+
+```
+
+:::
+
 ### Authorization
 
 The token itself does not have any permission associated. The authorization engine determines whether the token should have permissions or not. Once you have created the token, you can grant permission for this token to do certain actions. The following is an example.
