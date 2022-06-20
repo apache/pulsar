@@ -216,7 +216,7 @@ public class CLITest extends PulsarTestSuite {
                     "" + subscriptionPrefix + i
             );
             assertEquals(
-                    resultGet.getStdout(), "{\"a\":\"e\"}",
+                    resultGet.getStdout().trim(), "{\"a\":\"e\"}",
                     "unexpected output " + resultGet.getStdout() + " - error " + resultGet.getStderr());
 
             ContainerExecResult resultClear = container.execCmd(
@@ -239,7 +239,7 @@ public class CLITest extends PulsarTestSuite {
                     "" + subscriptionPrefix + i
             );
             assertEquals(
-                    resultGetAfterClear.getStdout(), "{}",
+                    resultGetAfterClear.getStdout().trim(), "{}",
                     "unexpected output " + resultGetAfterClear.getStdout()
                             + " - error " + resultGetAfterClear.getStderr());
 
