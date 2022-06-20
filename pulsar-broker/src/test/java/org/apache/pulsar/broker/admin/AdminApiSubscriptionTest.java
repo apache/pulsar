@@ -163,7 +163,7 @@ public class AdminApiSubscriptionTest extends MockedPulsarServiceBaseTest {
                         .getSubscriptions().get(subscriptionName2);
                 assertTrue(subscriptionStats.getSubscriptionProperties().isEmpty());
 
-                Map<String, String> props = admin.topics().getSubscriptionProperties(topic + "-partition-" + i, subscriptionName);
+                Map<String, String> props = admin.topics().getSubscriptionProperties(topic + "-partition-" + i, subscriptionName2);
                 assertTrue(props.isEmpty());
             }
 

@@ -210,15 +210,13 @@ public class CLITest extends PulsarTestSuite {
             ContainerExecResult resultGet = container.execCmd(
                     PulsarCluster.ADMIN_SCRIPT,
                     "topics",
-                    "update-subscription-properties",
-                    "-p",
-                    "a=e",
+                    "get-subscription-properties",
                     "persistent://public/default/" + topic,
                     "--subscription",
                     "" + subscriptionPrefix + i
             );
             assertEquals(
-                    "{\"a\":\"e\"}", resultGet.getStdout(),
+                    resultGet.getStdout(), "{\"a\":\"e\"}",
                     "unexpected output " + resultGet.getStdout() + " - error " + resultGet.getStderr());
 
             ContainerExecResult resultClear = container.execCmd(
@@ -231,6 +229,20 @@ public class CLITest extends PulsarTestSuite {
                     "" + subscriptionPrefix + i
             );
             resultClear.assertNoOutput();
+
+            ContainerExecResult resultGetAfterClear = container.execCmd(
+                    PulsarCluster.ADMIN_SCRIPT,
+                    "topics",
+                    "get-subscription-properties",
+                    "persistent://public/default/" + topic,
+                    "--subscription",
+                    "" + subscriptionPrefix + i
+            );
+            assertEquals(
+                    resultGetAfterClear.getStdout(), "{}",
+                    "unexpected output " + resultGetAfterClear.getStdout()
+                            + " - error " + resultGetAfterClear.getStderr());
+
             i++;
         }
     }
