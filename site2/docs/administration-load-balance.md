@@ -137,10 +137,10 @@ Pulsar supports the following types of automatic load shedding strategies.
 ### ThresholdShedder
 This strategy tends to shed the bundles if any broker's usage is above the configured threshold. It does this by first computing the average resource usage per broker for the whole cluster. The resource usage for each broker is calculated using the following method `LocalBrokerData#getMaxResourceUsageWithWeight`. Historical observations are included in the running average based on the broker's setting for `loadBalancerHistoryResourcePercentage`. Once the average resource usage is calculated, a broker's current/historical usage is compared to the average broker usage. If a broker's usage is greater than the average usage per broker plus the `loadBalancerBrokerThresholdShedderPercentage`, this load shedder proposes removing enough bundles to bring the unloaded broker 5% below the current average broker usage. Note that recently unloaded bundles are not unloaded again. 
 
-To use the strategy, configure brokers with this value.
-`loadBalancerLoadSheddingStrategy=org.apache.pulsar.broker.loadbalance.impl.ThresholdShedder`
-
 ![Shedding strategy - ThresholdShedder](/assets/ThresholdShedder.png)
+
+To use the `ThresholdShedder` strategy, configure brokers with this value.
+`loadBalancerLoadSheddingStrategy=org.apache.pulsar.broker.loadbalance.impl.ThresholdShedder`
 
 You can configure the weights for each resource per broker in the `conf/broker.conf` file. 
 
@@ -166,10 +166,10 @@ loadBalancerDirectMemoryResourceWeight=1.0
 ### OverloadShedder
 This strategy will attempt to shed exactly one bundle on brokers which are overloaded, that is, whose maximum system resource usage exceeds [`loadBalancerBrokerOverloadedThresholdPercentage`](#broker-overload-thresholds). To see which resources are considered when determining the maximum system resource. A bundle is recommended for unloading off that broker if and only if the following conditions hold: The broker has at least two bundles assigned and the broker has at least one bundle that has not been unloaded recently according to LoadBalancerSheddingGracePeriodMinutes. The unloaded bundle will be the most expensive bundle in terms of message rate that has not been recently unloaded. Note that this strategy does not take into account "underloaded" brokers when determining which bundles to unload. If you are looking for a strategy that spreads load evenly across all brokers, see ThresholdShedder. 
 
-To use the strategy, configure brokers with this value.
-`loadBalancerLoadSheddingStrategy=org.apache.pulsar.broker.loadbalance.impl.OverloadShedder`
-
 ![Shedding strategy - OverloadShedder](/assets/OverloadShedder.png)
+
+To use the `OverloadShedder` strategy, configure brokers with this value.
+`loadBalancerLoadSheddingStrategy=org.apache.pulsar.broker.loadbalance.impl.OverloadShedder`
 
 #### Broker overload thresholds
 
@@ -190,10 +190,10 @@ You can set `loadBalancerOverrideBrokerNicSpeedGbps` in the `conf/broker.conf` f
 ### UniformLoadShedder
 This strategy tends to distribute load uniformly across all brokers. This strategy checks the load difference between the broker with the highest load and the broker with the lowest load. If the difference is higher than configured thresholds `loadBalancerMsgRateDifferenceShedderThreshold` and `loadBalancerMsgThroughputMultiplierDifferenceShedderThreshold` then it finds out bundles that can be unloaded to distribute traffic evenly across all brokers. 
 
-To use the strategy, configure brokers with this value.
-`loadBalancerLoadSheddingStrategy=org.apache.pulsar.broker.loadbalance.impl.UniformLoadShedder`
-
 ![Shedding strategy - UniformLoadShedder](/assets/UniformLoadShedder.png)
+
+To use the `UniformLoadShedder` strategy, configure brokers with this value.
+`loadBalancerLoadSheddingStrategy=org.apache.pulsar.broker.loadbalance.impl.UniformLoadShedder`
 
 ## Unload topics and bundles
 
