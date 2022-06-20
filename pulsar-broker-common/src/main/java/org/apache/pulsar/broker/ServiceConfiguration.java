@@ -2744,6 +2744,20 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private Set<String> additionalServlets = new TreeSet<>();
 
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_SERVER,
+            doc = "recycle connection in broker when no consumers and producers"
+    )
+    private boolean enableConnectionRecyle = false;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_SERVER,
+            doc = "recycle connection interval in broker when no consumers and producers"
+    )
+    private int connectionRecyleIntervalSeconds = 30;
+
     public String getMetadataStoreUrl() {
         if (StringUtils.isNotBlank(metadataStoreUrl)) {
             return metadataStoreUrl;

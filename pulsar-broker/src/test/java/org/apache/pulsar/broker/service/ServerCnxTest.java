@@ -2101,4 +2101,40 @@ public class ServerCnxTest {
             channel.finish();
         }
     }
+
+    @Test(timeOut = 30000)
+    public void testRecycleOpen() throws Exception {
+        resetChannel();
+        setChannelConnected();
+
+        this.svcConfig.setEnableConnectionRecyle(true);
+        this.svcConfig.setConnectionRecyleIntervalSeconds(1);
+        // test PRODUCER success case
+        ByteBuf clientCommand = Commands.newProducer(successTopicName, 1 /* producer id */, 1 /* request id */,
+                "prod-name", Collections.emptyMap(), false);
+        channel.writeInbound(clientCommand);
+        assertTrue(getResponse() instanceof CommandProducerSuccess);
+        ByteBuf closeProducer = Commands.newCloseProducer(1 /* producer id */, 2 /* request id */ );
+        channel.writeInbound(closeProducer);
+        TimeUnit.SECONDS.sleep(2);
+        assertFalse(serverCnx.ctx().channel().isActive());
+    }
+
+    @Test(timeOut = 30000)
+    public void testRecycleClose() throws Exception {
+        resetChannel();
+        setChannelConnected();
+
+        this.svcConfig.setEnableConnectionRecyle(false);
+        this.svcConfig.setConnectionRecyleIntervalSeconds(1);
+        // test PRODUCER success case
+        ByteBuf clientCommand = Commands.newProducer(successTopicName, 1 /* producer id */, 1 /* request id */,
+                "prod-name", Collections.emptyMap(), false);
+        channel.writeInbound(clientCommand);
+        assertTrue(getResponse() instanceof CommandProducerSuccess);
+        ByteBuf closeProducer = Commands.newCloseProducer(1 /* producer id */, 2 /* request id */ );
+        channel.writeInbound(closeProducer);
+        TimeUnit.SECONDS.sleep(2);
+        assertTrue(serverCnx.ctx().channel().isActive());
+    }
 }

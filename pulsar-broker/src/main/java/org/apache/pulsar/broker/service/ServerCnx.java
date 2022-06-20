@@ -34,6 +34,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOption;
 import io.netty.handler.codec.haproxy.HAProxyMessage;
 import io.netty.handler.ssl.SslHandler;
+import io.netty.util.HashedWheelTimer;
 import io.netty.util.concurrent.FastThreadLocal;
 import io.netty.util.concurrent.Promise;
 import io.prometheus.client.Gauge;
@@ -231,6 +232,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         Start, Connected, Failed, Connecting
     }
 
+    private static HashedWheelTimer connRecycleTimer = new HashedWheelTimer(1, TimeUnit.MILLISECONDS);
     public ServerCnx(PulsarService pulsar) {
         this(pulsar, null);
     }
@@ -994,7 +996,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                             service.getPulsar().getConfiguration().getMaxConsumerMetadataSize());
                 } catch (IllegalArgumentException iae) {
                     final String msg = iae.getMessage();
-                    consumers.remove(consumerId, consumerFuture);
+                    innerRemoveConsumer(consumerId, consumerFuture);
                     commandSender.sendErrorResponse(requestId, ServerError.MetadataError, msg);
                     return null;
                 }
@@ -1014,7 +1016,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                         ServerError error = getErrorCodeWithErrorLog(existingConsumerFuture, true,
                                 String.format("Consumer subscribe failure. remoteAddress: %s, subscription: %s",
                                         remoteAddress, subscriptionName));
-                        consumers.remove(consumerId, existingConsumerFuture);
+                        innerRemoveConsumer(consumerId, existingConsumerFuture);
                         commandSender.sendErrorResponse(requestId, error,
                                 "Consumer that failed is already present on the connection");
                     } else {
@@ -1098,7 +1100,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                                     + " after timeout on client side {}: {}",
                                             remoteAddress, consumer, e.getMessage());
                                 }
-                                consumers.remove(consumerId, consumerFuture);
+                                innerRemoveConsumer(consumerId, consumerFuture);
                             }
 
                         })
@@ -1129,7 +1131,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                         BrokerServiceException.getClientErrorCode(exception),
                                         exception.getCause().getMessage());
                             }
-                            consumers.remove(consumerId, consumerFuture);
+                            innerRemoveConsumer(consumerId, consumerFuture);
 
                             return null;
 
@@ -1137,13 +1139,13 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             } else {
                 String msg = "Client is not authorized to subscribe";
                 log.warn("[{}] {} with role {}", remoteAddress, msg, getPrincipal());
-                consumers.remove(consumerId, consumerFuture);
+                innerRemoveConsumer(consumerId, consumerFuture);
                 ctx.writeAndFlush(Commands.newError(requestId, ServerError.AuthorizationError, msg));
             }
             return null;
         }).exceptionally(ex -> {
             logAuthException(remoteAddress, "subscribe", getPrincipal(), Optional.of(topicName), ex);
-            consumers.remove(consumerId, consumerFuture);
+            innerRemoveConsumer(consumerId, consumerFuture);
             commandSender.sendErrorResponse(requestId, ServerError.AuthorizationError, ex.getMessage());
             return null;
         });
@@ -1243,7 +1245,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     } else {
                         error = getErrorCode(existingProducerFuture);
                         // remove producer with producerId as it's already completed with exception
-                        producers.remove(producerId, existingProducerFuture);
+                        innerRemoveProducer(producerId, existingProducerFuture);
                     }
                     log.warn("[{}][{}] Producer with id is already present on the connection, producerId={}",
                             remoteAddress, topicName, producerId);
@@ -1270,7 +1272,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                         if (producerFuture.completeExceptionally(new ServerMetadataException(msg))) {
                             commandSender.sendErrorResponse(requestId, ServerError.MetadataError, msg);
                         }
-                        producers.remove(producerId, producerFuture);
+                        innerRemoveProducer(producerId, producerFuture);
                         return;
                     }
 
@@ -1290,7 +1292,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                         }
                         log.error("Try add schema failed, remote address {}, topic {}, producerId {}", remoteAddress,
                                 topicName, producerId, exception);
-                        producers.remove(producerId, producerFuture);
+                        innerRemoveProducer(producerId, producerFuture);
                         return null;
                     });
 
@@ -1311,7 +1313,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                         commandSender.sendErrorResponse(requestId,
                                                 ServerError.NotAllowedError, msg);
                                     }
-                                    producers.remove(producerId, producerFuture);
+                                    innerRemoveProducer(producerId, producerFuture);
                                     return;
                                 }
                                 createInitSubFuture =
@@ -1331,7 +1333,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                         commandSender.sendErrorResponse(requestId,
                                                 BrokerServiceException.getClientErrorCode(ex), msg);
                                     }
-                                    producers.remove(producerId, producerFuture);
+                                    innerRemoveProducer(producerId, producerFuture);
                                     return;
                                 }
 
@@ -1348,7 +1350,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                         ServiceUnitNotReadyException.getClientErrorCode(cause),
                                         cause.getMessage());
                             }
-                            producers.remove(producerId, producerFuture);
+                            innerRemoveProducer(producerId, producerFuture);
                             return null;
                         });
                     });
@@ -1372,7 +1374,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                     illegalStateException.getMessage());
                         }
                     }
-                    producers.remove(producerId, producerFuture);
+                    innerRemoveProducer(producerId, producerFuture);
                     return null;
                 }
 
@@ -1394,7 +1396,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     commandSender.sendErrorResponse(requestId,
                             BrokerServiceException.getClientErrorCode(cause), cause.getMessage());
                 }
-                producers.remove(producerId, producerFuture);
+                innerRemoveProducer(producerId, producerFuture);
                 return null;
             });
             return null;
@@ -1445,7 +1447,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                 "Producer created after connection was closed"));
             }
 
-            producers.remove(producerId, producerFuture);
+            innerRemoveProducer(producerId, producerFuture);
         }).exceptionally(ex -> {
             if (ex.getCause() instanceof BrokerServiceException.ProducerFencedException) {
                 if (log.isDebugEnabled()) {
@@ -1738,13 +1740,13 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             log.info("[{}] Closed producer before its creation was completed. producerId={}",
                      remoteAddress, producerId);
             commandSender.sendSuccessResponse(requestId);
-            producers.remove(producerId, producerFuture);
+            innerRemoveProducer(producerId, producerFuture);
             return;
         } else if (producerFuture.isCompletedExceptionally()) {
             log.info("[{}] Closed producer that already failed to be created. producerId={}",
                      remoteAddress, producerId);
             commandSender.sendSuccessResponse(requestId);
-            producers.remove(producerId, producerFuture);
+            innerRemoveProducer(producerId, producerFuture);
             return;
         }
 
@@ -1758,8 +1760,27 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                      producer.getTopic(), producer.getProducerName(),
                      remoteAddress, producerId);
             commandSender.sendSuccessResponse(requestId);
-            producers.remove(producerId, producerFuture);
+            innerRemoveProducer(producerId, producerFuture);
         });
+    }
+
+    private boolean innerRemoveProducer(long producerId, CompletableFuture<Producer> producerFuture) {
+        boolean result = producers.remove(producerId, producerFuture);
+        boolean enableConnectionRecyle = this.service.getPulsar().getConfig().isEnableConnectionRecyle();
+        int connectionRecyleIntervalSeconds =
+                this.service.getPulsar().getConfig().getConnectionRecyleIntervalSeconds();
+        if (enableConnectionRecyle) {
+            if (producers.size() == 0 && consumers.size() == 0) {
+                connRecycleTimer.newTimeout(timeout -> {
+                    if (producers.size() == 0 && consumers.size() == 0) {
+                        log.info("[{}] Close producer because of no active consumer and producer, producerId={}",
+                                remoteAddress, producerId);
+                        this.close();
+                    }
+                }, connectionRecyleIntervalSeconds, TimeUnit.SECONDS);
+            }
+        }
+        return result;
     }
 
     @Override
@@ -1799,13 +1820,33 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         Consumer consumer = consumerFuture.getNow(null);
         try {
             consumer.close();
-            consumers.remove(consumerId, consumerFuture);
+            innerRemoveConsumer(consumerId, consumerFuture);
             commandSender.sendSuccessResponse(requestId);
             log.info("[{}] Closed consumer, consumerId={}", remoteAddress, consumerId);
         } catch (BrokerServiceException e) {
             log.warn("[{]] Error closing consumer {} : {}", remoteAddress, consumer, e);
             commandSender.sendErrorResponse(requestId, BrokerServiceException.getClientErrorCode(e), e.getMessage());
         }
+    }
+
+    private boolean innerRemoveConsumer(long consumerId, CompletableFuture<Consumer> consumerFuture) {
+        boolean result = consumers.remove(consumerId, consumerFuture);
+        boolean enableConnectionRecyle = this.service.getPulsar().getConfig().isEnableConnectionRecyle();
+        int connectionRecyleIntervalSeconds =
+                this.service.getPulsar().getConfig().getConnectionRecyleIntervalSeconds();
+        if (enableConnectionRecyle) {
+            if (producers.size() == 0 && consumers.size() == 0) {
+                connRecycleTimer.newTimeout(timeout -> {
+                    if (producers.size() == 0 && consumers.size() == 0) {
+                        log.info("[{}] Close consumer because of no active consumer and producer, consumerId={}",
+                                remoteAddress,
+                                consumerId);
+                        this.close();
+                    }
+                }, connectionRecyleIntervalSeconds, TimeUnit.SECONDS);
+            }
+        }
+        return result;
     }
 
     @Override
@@ -2581,7 +2622,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         if (future != null) {
             future.whenComplete((producer2, exception) -> {
                     if (exception != null || producer2 == producer) {
-                        producers.remove(producerId, future);
+                        innerRemoveProducer(producerId, future);
                     }
                 });
         }
@@ -2596,7 +2637,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         if (future != null) {
             future.whenComplete((consumer2, exception) -> {
                     if (exception != null || consumer2 == consumer) {
-                        consumers.remove(consumerId, future);
+                        innerRemoveConsumer(consumerId, future);
                     }
                 });
         }
