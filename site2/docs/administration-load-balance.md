@@ -57,7 +57,7 @@ On the same note, it is beneficial to start with more bundles than the number of
 
 ## Split namespace bundles
 
-Since the load for the topics in a bundle might change over time and predicting the load might be hard, bundle split is designed to resolve these chanllenges. The broker splits a bundle into two and the new smaller bundles can be reassigned to different brokers.
+Since the load for the topics in a bundle might change over time and predicting the load might be hard, bundle split is designed to resolve these challenges. The broker splits a bundle into two and the new smaller bundles can be reassigned to different brokers.
 
 Pulsar supports the following two bundle split algorithms:
 * `range_equally_divide`: split the bundle into two parts with the same hash range size.
@@ -164,7 +164,7 @@ loadBalancerDirectMemoryResourceWeight=1.0
 ```
 
 ### OverloadShedder
-This strategy will attempt to shed exactly one bundle on brokers which are overloaded, that is, whose maximum system resource usage exceeds [`loadBalancerBrokerOverloadedThresholdPercentage`](#broker-overload-thresholds). To see which resources are considered when determining the maximum system resource. A bundle is recommended for unloading off that broker if and only if the following conditions hold: The broker has at least two bundles assigned and the broker has at least one bundle that has not been unloaded recently according to LoadBalancerSheddingGracePeriodMinutes. The unloaded bundle will be the most expensive bundle in terms of message rate that has not been recently unloaded. Note that this strategy does not take into account "underloaded" brokers when determining which bundles to unload. If you are looking for a strategy that spreads load evenly across all brokers, see ThresholdShedder. 
+This strategy attempts to shed exactly one bundle on brokers which are overloaded, that is, whose maximum system resource usage exceeds [`loadBalancerBrokerOverloadedThresholdPercentage`](#broker-overload-thresholds). To see which resources are considered when determining the maximum system resource. A bundle is recommended for unloading off that broker if and only if the following conditions hold: The broker has at least two bundles assigned and the broker has at least one bundle that has not been unloaded recently according to LoadBalancerSheddingGracePeriodMinutes. The unloaded bundle will be the most expensive bundle in terms of message rate that has not been recently unloaded. Note that this strategy does not take into account "underloaded" brokers when determining which bundles to unload. If you are looking for a strategy that spreads load evenly across all brokers, see ThresholdShedder. 
 
 ![Shedding strategy - OverloadShedder](/assets/OverloadShedder.png)
 
