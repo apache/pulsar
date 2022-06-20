@@ -1036,7 +1036,7 @@ public class TransactionTest extends TransactionTestBase {
 
         try {
             consumer.acknowledgeAsync(message.getMessageId(), transaction).get();
-            org.junit.Assert.fail();
+            fail();
         } catch (ExecutionException e) {
             Assert.assertTrue(e.getCause() instanceof PulsarClientException.ConnectException);
         }
