@@ -2,6 +2,7 @@
 id: administration-load-balance
 title: Load balance across brokers
 sidebar_label: "Load balance"
+original_id: administration-load-balance
 ---
 
 
