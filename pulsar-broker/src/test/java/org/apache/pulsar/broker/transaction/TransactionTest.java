@@ -113,6 +113,7 @@ import org.apache.pulsar.transaction.coordinator.impl.MLTransactionLogImpl;
 import org.apache.pulsar.transaction.coordinator.impl.MLTransactionSequenceIdGenerator;
 import org.apache.pulsar.transaction.coordinator.impl.MLTransactionMetadataStore;
 import org.awaitility.Awaitility;
+import org.powermock.reflect.Whitebox;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -1020,12 +1021,8 @@ public class TransactionTest extends TransactionTestBase {
         for (int i = 0; i < 10; i++) {
             producer.newMessage().value(Bytes.toBytes(i)).send();
         }
-        Method method = ConsumerImpl.class.getDeclaredMethod("cnx");
-        method.setAccessible(true);
-        ClientCnx cnx = (ClientCnx) method.invoke(consumer);
-        Method method1 = ConsumerImpl.class.getDeclaredMethod("connectionClosed", ClientCnx.class);
-        method1.setAccessible(true);
-        method1.invoke(consumer, cnx);
+        ClientCnx cnx = Whitebox.invokeMethod(consumer, "cnx");
+        Whitebox.invokeMethod(consumer, "connectionClosed", cnx);
 
         Message<byte[]> message = consumer.receive();
         Transaction transaction = pulsarClient

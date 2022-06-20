@@ -2683,7 +2683,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         if (cnx == null) {
             return FutureUtil.failedFuture(new PulsarClientException
                     .ConnectException("Failed to ack message [" + messageId + "] "
-                    + "for transaction [" + txnID + "] due to cnx = null"));
+                    + "for transaction [" + txnID + "] due to consumer connect fail, consumer state: " + getState()));
         } else {
             return cnx.newAckForReceipt(cmd, requestId);
         }
