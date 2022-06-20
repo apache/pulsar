@@ -50,6 +50,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.common.util.Bytes;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
@@ -88,6 +89,8 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.client.impl.ClientCnx;
+import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
@@ -997,4 +1000,46 @@ public class TransactionTest extends TransactionTestBase {
 
         transaction.commit().get();
     }
+
+    @Test
+    public void testGetConnectExceptionForAckMsgWhenCnxIsNull() throws Exception {
+        String topic = NAMESPACE1 + "/testGetConnectExceptionForAckMsgWhenCnxIsNull";
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient
+                .newProducer(Schema.BYTES)
+                .topic(topic)
+                .sendTimeout(0, TimeUnit.SECONDS)
+                .create();
+
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient
+                .newConsumer()
+                .topic(topic)
+                .subscriptionName("sub")
+                .subscribe();
+
+        for (int i = 0; i < 10; i++) {
+            producer.newMessage().value(Bytes.toBytes(i)).send();
+        }
+        Method method = ConsumerImpl.class.getDeclaredMethod("cnx");
+        method.setAccessible(true);
+        ClientCnx cnx = (ClientCnx) method.invoke(consumer);
+        Method method1 = ConsumerImpl.class.getDeclaredMethod("connectionClosed", ClientCnx.class);
+        method1.setAccessible(true);
+        method1.invoke(consumer, cnx);
+
+        Message<byte[]> message = consumer.receive();
+        Transaction transaction = pulsarClient
+                .newTransaction()
+                .withTransactionTimeout(5, TimeUnit.SECONDS)
+                .build().get();
+
+        try {
+            consumer.acknowledgeAsync(message.getMessageId(), transaction).get();
+            org.junit.Assert.fail();
+        } catch (ExecutionException e) {
+            Assert.assertTrue(e.getCause() instanceof PulsarClientException.ConnectException);
+        }
+    }
+
 }
