@@ -99,7 +99,7 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("unsubscribe", new DeleteSubscription());
         jcommander.addCommand("create-subscription", new CreateSubscription());
         jcommander.addCommand("update-subscription-properties", new UpdateSubscriptionProperties());
-        jcommander.addCommand("update-subscription-properties", new GetSubscriptionProperties());
+        jcommander.addCommand("get-subscription-properties", new GetSubscriptionProperties());
 
         jcommander.addCommand("stats", new GetStats());
         jcommander.addCommand("stats-internal", new GetInternalStats());

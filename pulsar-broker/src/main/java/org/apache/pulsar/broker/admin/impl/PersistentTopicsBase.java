@@ -1619,8 +1619,8 @@ public class PersistentTopicsBase extends AdminResource {
                                                                             boolean authoritative) {
         validateTopicOwnershipAsync(topicName, authoritative)
                 .thenRun(() -> validateTopicOperation(topicName, TopicOperation.CONSUME))
-                .thenApply(__ -> {
-                    Topic topic = getTopicReference(topicName);
+                .thenCompose(__ -> getTopicReferenceAsync(topicName))
+                .thenApply((Topic topic) -> {
                     Subscription sub = topic.getSubscription(subName);
                     if (sub == null) {
                         throw new RestException(Status.NOT_FOUND,
