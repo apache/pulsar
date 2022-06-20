@@ -20,7 +20,7 @@ is permitted to do some actions (eg: publish to a topic or consume from a topic)
 
 A user typically gets a token string from the administrator (or some automated service).
 
-The compact representation of a signed JWT is a string that looks like as the following:
+The compact representation of a signed JWT is a string that looks like the following:
 
 ```
 
@@ -189,7 +189,7 @@ JWT supports two different kinds of keys in order to generate and validate the t
 
 When you use a secret key, the administrator creates the key and uses the key to generate the client tokens. You can also configure this key to brokers in order to validate the clients.
 
-Output file is generated in the root of your Pulsar installation directory. You can also provide absolute path for the output file using the command below.
+The output file is generated in the root of your Pulsar installation directory. You can also provide an absolute path for the output file using the command below.
 
 ```shell
 
@@ -197,7 +197,7 @@ $ bin/pulsar tokens create-secret-key --output my-secret.key
 
 ```
 
-Enter this command to generate base64 encoded private key.
+Enter this command to generate a base64 encoded private key.
 
 ```shell
 
@@ -209,7 +209,7 @@ $ bin/pulsar tokens create-secret-key --output  /opt/my-secret.key --base64
 
 With Public and Private keys, you need to create a pair of keys. Pulsar supports all algorithms that the Java JWT library (shown [here](https://github.com/jwtk/jjwt#signature-algorithms-keys)) supports.
 
-Output file is generated in the root of your Pulsar installation directory. You can also provide absolute path for the output file using the command below.
+The output file is generated in the root of your Pulsar installation directory. You can also provide an absolute path for the output file using the command below.
 
 ```shell
 
@@ -222,7 +222,7 @@ $ bin/pulsar tokens create-key-pair --output-private-key my-private.key --output
 
 ### Generate tokens
 
-A token is the credential associated with a user. The association is done through the "principal" or "role". In the case of JWT tokens, this field is typically referred as **subject**, though they are exactly the same concept.
+A token is a credential associated with a user. The association is done through the "principal" or "role". In the case of JWT tokens, this field is typically referred as **subject**, though they are exactly the same concept.
 
 Then, you need to use this command to require the generated token to have a **subject** field set.
 
@@ -281,8 +281,10 @@ authenticationProviders=org.apache.pulsar.broker.authentication.AuthenticationPr
 brokerClientTlsEnabled=true
 brokerClientAuthenticationPlugin=org.apache.pulsar.client.impl.auth.AuthenticationToken
 brokerClientAuthenticationParameters={"token":"eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0ZXN0LXVzZXIifQ.9OHgE9ZUDeBTZs7nSMEFIuGNEX18FLR3qvy8mqxSxXw"}
-# Or, alternatively, read token from file
-# brokerClientAuthenticationParameters={"file":"///path/to/proxy-token.txt"}
+# Either configure the token string or specify to read it from a file. The following three available formats are all valid:
+# brokerClientAuthenticationParameters={"token":"your-token-string"}
+# brokerClientAuthenticationParameters=token:your-token-string
+# brokerClientAuthenticationParameters=file:///path/to/token
 brokerClientTrustCertsFilePath=/path/my-ca/certs/ca.cert.pem
 
 # If this flag is set then the broker authenticates the original Auth data
@@ -316,8 +318,10 @@ tokenSecretKey=file:///path/to/secret.key
 # For the proxy to connect to brokers
 brokerClientAuthenticationPlugin=org.apache.pulsar.client.impl.auth.AuthenticationToken
 brokerClientAuthenticationParameters={"token":"eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0ZXN0LXVzZXIifQ.9OHgE9ZUDeBTZs7nSMEFIuGNEX18FLR3qvy8mqxSxXw"}
-# Or, alternatively, read token from file
-# brokerClientAuthenticationParameters={"file":"///path/to/proxy-token.txt"}
+# Either configure the token string or specify to read it from a file. The following three available formats are all valid:
+# brokerClientAuthenticationParameters={"token":"your-token-string"}
+# brokerClientAuthenticationParameters=token:your-token-string
+# brokerClientAuthenticationParameters=file:///path/to/token
 
 # Whether client authorization credentials are forwarded to the broker for re-authorization.
 # Authentication must be enabled via authenticationEnabled=true for this to take effect.
