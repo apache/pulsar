@@ -40,6 +40,11 @@ public interface ConsumerStats {
     /** Total rate of messages redelivered by this consumer (msg/s). */
     double getMsgRateRedeliver();
 
+    /**
+     * Total rate of message ack(msg/s).
+     */
+    double getMessageAckRate();
+
     /** Total chunked messages dispatched. */
     double getChunkedMessageRate();
 
