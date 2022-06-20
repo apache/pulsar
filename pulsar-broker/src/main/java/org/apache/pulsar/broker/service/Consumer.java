@@ -367,6 +367,7 @@ public class Consumer {
     public CompletableFuture<Void> messageAcked(CommandAck ack) {
         CompletableFuture<Void> future;
 
+        long totalAckedMsgs = ack.getMessageIdsList().stream().mapToLong(this::getBatchSize).sum();
         this.lastAckedTimestamp = System.currentTimeMillis();
         Map<String, Long> properties = Collections.emptyMap();
         if (ack.getPropertiesCount() > 0) {
@@ -418,7 +419,7 @@ public class Consumer {
         return future
                 .whenComplete((__, t) -> {
                     if (t == null) {
-                        this.messageAckRate.recordEvent(ack.getMessageIdsCount());
+                        this.messageAckRate.recordEvent(totalAckedMsgs);
                     }
                 });
     }

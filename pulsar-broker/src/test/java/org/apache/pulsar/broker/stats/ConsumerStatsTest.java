@@ -289,8 +289,6 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
         producer.flush();
 
         latch.await(20, TimeUnit.SECONDS);
-        c1.close();
-        c2.close();
         TimeUnit.SECONDS.sleep(1);
 
         Topic topic = pulsar.getBrokerService().getTopic(topicName, false).get().get();
