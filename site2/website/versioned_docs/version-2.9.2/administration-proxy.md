@@ -1,7 +1,7 @@
 ---
-id: version-2.9.2-administration-proxy
+id: administration-proxy
 title: Pulsar proxy
-sidebar_label: Pulsar proxy
+sidebar_label: "Pulsar proxy"
 original_id: administration-proxy
 ---
 
@@ -14,9 +14,12 @@ Before using the proxy, you need to configure it with the brokers addresses in t
 ### Use service discovery
 
 Pulsar uses [ZooKeeper](https://zookeeper.apache.org) for service discovery. To connect the proxy to ZooKeeper, specify the following in `conf/proxy.conf`.
+
 ```properties
+
 zookeeperServers=zk-0,zk-1,zk-2
 configurationStoreServers=zk-0:2184,zk-remote:2184
+
 ```
 
 > To use service discovery, you need to open the network ACLs, so the proxy can connects to the ZooKeeper nodes through the ZooKeeper client port (port `2181`) and the configuration store client port (port `2184`).
@@ -32,16 +35,21 @@ Proxy authorization requires access to ZooKeeper, so if you use these broker URL
 You can configure the broker URLs in `conf/proxy.conf` as follows.
 
 ```properties
+
 brokerServiceURL=pulsar://brokers.example.com:6650
 brokerWebServiceURL=http://brokers.example.com:8080
 functionWorkerWebServiceURL=http://function-workers.example.com:8080
+
 ```
 
 If you use TLS, configure the broker URLs in the following way:
+
 ```properties
+
 brokerServiceURLTLS=pulsar+ssl://brokers.example.com:6651
 brokerWebServiceURLTLS=https://brokers.example.com:8443
 functionWorkerWebServiceURL=https://function-workers.example.com:8443
+
 ```
 
 The hostname in the URLs provided should be a DNS entry which points to multiple brokers or a virtual IP address, which is backed by multiple broker IP addresses, so that the proxy does not lose connectivity to Pulsar cluster if a single broker becomes unavailable.
@@ -55,8 +63,10 @@ Note that if you do not use functions, you do not need to configure `functionWor
 To start the proxy:
 
 ```bash
+
 $ cd /path/to/pulsar/directory
 $ bin/pulsar proxy
+
 ```
 
 > You can run multiple instances of the Pulsar proxy in a cluster.

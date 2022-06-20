@@ -49,6 +49,7 @@ import org.apache.pulsar.common.functions.Utils;
 import org.apache.pulsar.common.functions.WorkerInfo;
 import org.apache.pulsar.common.policies.data.ExceptionInformation;
 import org.apache.pulsar.common.policies.data.FunctionStatus;
+import org.apache.pulsar.common.util.ClassLoaderUtils;
 import org.apache.pulsar.common.util.RestException;
 import org.apache.pulsar.functions.auth.FunctionAuthData;
 import org.apache.pulsar.functions.instance.InstanceUtils;
@@ -57,7 +58,9 @@ import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.utils.ComponentTypeUtils;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
+import org.apache.pulsar.functions.utils.functions.FunctionArchive;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
+import org.apache.pulsar.functions.worker.FunctionsManager;
 import org.apache.pulsar.functions.worker.PulsarWorkerService;
 import org.apache.pulsar.functions.worker.WorkerUtils;
 import org.apache.pulsar.functions.worker.service.api.Functions;
@@ -118,7 +121,7 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
             if (namespaces != null && !namespaces.contains(qualifiedNamespace)) {
                 String qualifiedNamespaceWithCluster = String.format("%s/%s/%s", tenant,
                         worker().getWorkerConfig().getPulsarFunctionsCluster(), namespace);
-                if (namespaces != null && !namespaces.contains(qualifiedNamespaceWithCluster)) {
+                if (!namespaces.contains(qualifiedNamespaceWithCluster)) {
                     log.error("{}/{}/{} Namespace {} does not exist", tenant, namespace, functionName, namespace);
                     throw new RestException(Response.Status.BAD_REQUEST, "Namespace does not exist");
                 }
@@ -144,7 +147,7 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
                     ComponentTypeUtils.toString(componentType), functionName));
         }
 
-        Function.FunctionDetails functionDetails = null;
+        Function.FunctionDetails functionDetails;
         boolean isPkgUrlProvided = isNotBlank(functionPkgUrl);
         File componentPackageFile = null;
         try {
@@ -329,7 +332,7 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
             throw new RestException(Response.Status.BAD_REQUEST, "Update contains no change");
         }
 
-        Function.FunctionDetails functionDetails = null;
+        Function.FunctionDetails functionDetails;
         File componentPackageFile = null;
         try {
 
@@ -775,35 +778,39 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
                                                                  final String namespace,
                                                                  final String componentName,
                                                                  final FunctionConfig functionConfig,
-                                                                 final File componentPackageFile) throws IOException {
+                                                                 final File componentPackageFile) {
 
         // The rest end points take precedence over whatever is there in function config
-        Path archivePath = null;
         functionConfig.setTenant(tenant);
         functionConfig.setNamespace(namespace);
         functionConfig.setName(componentName);
         FunctionConfigUtils.inferMissingArguments(
                 functionConfig, worker().getWorkerConfig().isForwardSourceMessageProperty());
 
-        if (!StringUtils.isEmpty(functionConfig.getJar())) {
-            String builtinArchive = functionConfig.getJar();
-            if (builtinArchive.startsWith(org.apache.pulsar.common.functions.Utils.BUILTIN)) {
-                builtinArchive = builtinArchive.replaceFirst("^builtin://", "");
-            }
-            try {
-                archivePath = this.worker().getFunctionsManager().getFunctionArchive(builtinArchive);
-            } catch (Exception e) {
-                throw new IllegalArgumentException(String.format("No Function archive %s found", archivePath));
+        String archive = functionConfig.getJar();
+        if (!StringUtils.isEmpty(archive)) {
+            if (archive.startsWith(org.apache.pulsar.common.functions.Utils.BUILTIN)) {
+                archive = archive.replaceFirst("^builtin://", "");
+
+                FunctionsManager functionsManager = this.worker().getFunctionsManager();
+                FunctionArchive function = functionsManager.getFunction(archive);
+
+                // check if builtin function exists
+                if (function == null) {
+                    throw new IllegalArgumentException(String.format("No Function %s found", archive));
+                }
+                return FunctionConfigUtils.convert(
+                        functionConfig,
+                        FunctionConfigUtils.validateJavaFunction(functionConfig, function.getClassLoader()));
             }
         }
         ClassLoader clsLoader = null;
-        if (archivePath != null) {
-            clsLoader = FunctionConfigUtils.validate(functionConfig, archivePath.toFile());
-        } else {
+        try {
             clsLoader = FunctionConfigUtils.validate(functionConfig, componentPackageFile);
+            return FunctionConfigUtils.convert(functionConfig, clsLoader);
+        } finally {
+            ClassLoaderUtils.closeClassLoader(clsLoader);
         }
-        return FunctionConfigUtils.convert(functionConfig, clsLoader);
-
     }
 
     private File downloadPackageFile(String packageName) throws IOException, PulsarAdminException {

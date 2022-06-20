@@ -81,4 +81,12 @@ public class MetadataStoreFactoryImpl {
         }
         return metadataURL;
     }
+
+    public static boolean isBasedOnZookeeper(String metadataURL) {
+        if (!metadataURL.contains("://")) {
+            return true;
+        }
+
+        return metadataURL.startsWith("zk");
+    }
 }

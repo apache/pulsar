@@ -181,6 +181,7 @@ TEST(ProducerTest, testBacklogQuotasExceeded) {
         int res = makePostRequest(adminUrl + "admin/v2/namespaces/" + ns + "/backlogQuota", body);
         LOG_INFO(res << " | Change the backlog policy to: " << body);
         ASSERT_TRUE(res == 204 || res == 409);
+        std::this_thread::sleep_for(std::chrono::seconds(1));
     };
 
     Client client(serviceUrl);

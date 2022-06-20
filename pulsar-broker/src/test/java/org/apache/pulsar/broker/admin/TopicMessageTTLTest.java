@@ -49,8 +49,6 @@ public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
     @Override
     protected void setup() throws Exception {
         resetConfig();
-        this.conf.setSystemTopicEnabled(true);
-        this.conf.setTopicLevelPoliciesEnabled(true);
         this.conf.setTtlDurationDefaultInSeconds(3600);
         super.internalSetup();
 
@@ -128,7 +126,6 @@ public class TopicMessageTTLTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testTopicPolicyDisabled() throws Exception {
         super.internalCleanup();
-        this.conf.setSystemTopicEnabled(true);
         this.conf.setTopicLevelPoliciesEnabled(false);
         super.internalSetup();
 

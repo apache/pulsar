@@ -1,9 +1,15 @@
 ---
-id: version-2.8.2-security-encryption
+id: security-encryption
 title: Pulsar Encryption
-sidebar_label: End-to-End Encryption
+sidebar_label: "End-to-End Encryption"
 original_id: security-encryption
 ---
+
+````mdx-code-block
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+````
+
 
 Applications can use Pulsar encryption to encrypt messages at the producer side and decrypt messages at the consumer side. You can use the public and private key pair that the application configures to perform encryption. Only the consumers with a valid key can decrypt the encrypted messages.
 
@@ -20,18 +26,20 @@ You can encrypt a message with more than one key. Any one of the keys used for e
 Pulsar does not store the encryption key anywhere in the Pulsar service. If you lose or delete the private key, your message is irretrievably lost, and is unrecoverable.
 
 ## Producer
-![alt text](assets/pulsar-encryption-producer.jpg "Pulsar Encryption Producer")
+![alt text](/assets/pulsar-encryption-producer.jpg "Pulsar Encryption Producer")
 
 ## Consumer
-![alt text](assets/pulsar-encryption-consumer.jpg "Pulsar Encryption Consumer")
+![alt text](/assets/pulsar-encryption-consumer.jpg "Pulsar Encryption Consumer")
 
 ## Get started
 
 1. Enter the commands below to create your ECDSA or RSA public and private key pair.
 
 ```shell
+
 openssl ecparam -name secp521r1 -genkey -param_enc explicit -out test_ecdsa_privkey.pem
 openssl ec -in test_ecdsa_privkey.pem -pubout -outform pem -out test_ecdsa_pubkey.pem
+
 ```
 
 2. Add the public and private key to the key management and configure your producers to retrieve public keys and consumers clients to retrieve private keys.
@@ -42,10 +50,14 @@ openssl ec -in test_ecdsa_privkey.pem -pubout -outform pem -out test_ecdsa_pubke
 
 5. Configure a `CryptoKeyReader` to a producer, consumer or reader. 
 
-<!--DOCUSAURUS_CODE_TABS-->
-<!--Java-->
+````mdx-code-block
+<Tabs 
+  defaultValue="Java"
+  values={[{"label":"Java","value":"Java"},{"label":"C++","value":"C++"},{"label":"Python","value":"Python"},{"label":"Node.JS","value":"Node.JS"}]}>
+<TabItem value="Java">
 
 ```java
+
 PulsarClient pulsarClient = PulsarClient.builder().serviceUrl("pulsar://localhost:6650").build();
 String topic = "persistent://my-tenant/my-ns/my-topic";
 // RawFileKeyReader is just an example implementation that's not provided by Pulsar
@@ -68,11 +80,14 @@ Reader<byte[]> reader = pulsarClient.newReader()
         .startMessageId(MessageId.earliest)
         .cryptoKeyReader(keyReader)
         .create();
+
 ```
 
-<!--C++-->
+</TabItem>
+<TabItem value="C++">
 
 ```c++
+
 Client client("pulsar://localhost:6650");
 std::string topic = "persistent://my-tenant/my-ns/my-topic";
 // DefaultCryptoKeyReader is a built-in implementation that reads public key and private key from files
@@ -93,11 +108,14 @@ Reader reader;
 ReaderConfiguration readerConf;
 readerConf.setCryptoKeyReader(keyReader);
 client.createReader(topic, MessageId::earliest(), readerConf, reader);
+
 ```
 
-<!--Python-->
+</TabItem>
+<TabItem value="Python">
 
 ```python
+
 from pulsar import Client, CryptoKeyReader
 
 client = Client('pulsar://localhost:6650')
@@ -124,11 +142,14 @@ reader = client.create_reader(
 )
 
 client.close()
+
 ```
 
-<!--Node.JS-->
+</TabItem>
+<TabItem value="Node.JS">
 
 ```nodejs
+
 const Pulsar = require('pulsar-client');
 
 (async () => {
@@ -177,15 +198,24 @@ await consumer.close();
 await producer.close();
 await client.close();
 })();
+
 ```
 
-<!--END_DOCUSAURUS_CODE_TABS-->
+</TabItem>
+
+</Tabs>
+````
 
 6. Below is an example of a **customized** `CryptoKeyReader` implementation.
 
-<!--DOCUSAURUS_CODE_TABS-->
-<!--Java-->
+````mdx-code-block
+<Tabs 
+  defaultValue="Java"
+  values={[{"label":"Java","value":"Java"},{"label":"C++","value":"C++"},{"label":"Python","value":"Python"},{"label":"Node.JS","value":"Node.JS"}]}>
+<TabItem value="Java">
+
 ```java
+
 class RawFileKeyReader implements CryptoKeyReader {
 
     String publicKeyFile = "";
@@ -220,10 +250,14 @@ class RawFileKeyReader implements CryptoKeyReader {
         return keyInfo;
     }
 }
+
 ```
 
-<!--C++-->
+</TabItem>
+<TabItem value="C++">
+
 ```c++
+
 class CustomCryptoKeyReader : public CryptoKeyReader {
     public:
     Result getPublicKey(const std::string& keyName, std::map<std::string, std::string>& metadata,
@@ -241,17 +275,25 @@ class CustomCryptoKeyReader : public CryptoKeyReader {
 
 auto keyReader = std::make_shared<CustomCryptoKeyReader>(/* ... */);
 // TODO: create producer, consumer or reader based on keyReader here
+
 ```
 
 Besides, you can use the **default** implementation of `CryptoKeyReader` by specifying the paths of `private key` and `public key`.
 
-<!--Python-->
+</TabItem>
+<TabItem value="Python">
+
 Currently, **customized** `CryptoKeyReader` implementation is not supported in Python. However, you can use the **default** implementation by specifying the path of `private key` and `public key`.
 
-<!--Node.JS-->
+</TabItem>
+<TabItem value="Node.JS">
+
 Currently, **customized** `CryptoKeyReader` implementation is not supported in Node.JS. However, you can use the **default** implementation by specifying the path of `private key` and `public key`.
 
-<!--END_DOCUSAURUS_CODE_TABS-->
+</TabItem>
+
+</Tabs>
+````
 
 ## Key rotation
 Pulsar generates a new AES data key every 4 hours or after publishing a certain number of messages. A producer fetches the asymmetric public key every 4 hours by calling CryptoKeyReader.getPublicKey() to retrieve the latest version.
@@ -266,8 +308,11 @@ When producers want to encrypt the messages with multiple keys, producers add al
 If you need to encrypt the messages using 2 keys (myapp.messagekey1 and myapp.messagekey2), refer to the following example.
 
 ```java
+
 PulsarClient.newProducer().addEncryptionKey("myapp.messagekey1").addEncryptionKey("myapp.messagekey2");
+
 ```
+
 ## Decrypt encrypted messages at the consumer application
 Consumers require access one of the private keys to decrypt messages that the producer produces. If you want to receive encrypted messages, create a public or private key and give your public key to the producer application to encrypt messages using your public key.
 

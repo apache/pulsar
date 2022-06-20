@@ -1,7 +1,7 @@
 ---
-id: version-2.9.2-client-libraries-node
+id: client-libraries-node
 title: The Pulsar Node.js client
-sidebar_label: Node.js
+sidebar_label: "Node.js"
 original_id: client-libraries-node
 ---
 
@@ -36,32 +36,42 @@ If an incompatible version of the C++ client is installed, you may fail to build
 Install the `pulsar-client` library via [npm](https://www.npmjs.com/):
 
 ```shell
+
 $ npm install pulsar-client
+
 ```
 
-> #### Note
-> 
-> Also, this library works only in Node.js 10.x or later because it uses the [`node-addon-api`](https://github.com/nodejs/node-addon-api) module to wrap the C++ library.
+:::note
+
+Also, this library works only in Node.js 10.x or later because it uses the [`node-addon-api`](https://github.com/nodejs/node-addon-api) module to wrap the C++ library.
+
+:::
 
 ## Connection URLs
-To connect to Pulsar using client libraries, you need to specify a [Pulsar protocol](developing-binary-protocol.md) URL.
+To connect to Pulsar using client libraries, you need to specify a [Pulsar protocol](developing-binary-protocol) URL.
 
 Pulsar protocol URLs are assigned to specific clusters, use the `pulsar` scheme and have a default port of 6650. Here is an example for `localhost`:
 
 ```http
+
 pulsar://localhost:6650
+
 ```
 
 A URL for a production Pulsar cluster may look something like this:
 
 ```http
+
 pulsar://pulsar.us-west.example.com:6650
+
 ```
 
-If you are using [TLS encryption](security-tls-transport.md) or [TLS Authentication](security-tls-authentication.md), the URL looks like this:
+If you are using [TLS encryption](security-tls-transport.md) or [TLS Authentication](security-tls-authentication), the URL looks like this:
 
 ```http
+
 pulsar+ssl://pulsar.us-west.example.com:6651
+
 ```
 
 ## Create a client
@@ -71,6 +81,7 @@ In order to interact with Pulsar, you first need a client object. You can create
 Here is an example:
 
 ```JavaScript
+
 const Pulsar = require('pulsar-client');
 
 (async () => {
@@ -80,6 +91,7 @@ const Pulsar = require('pulsar-client');
   
   await client.close();
 })();
+
 ```
 
 ### Client configuration
@@ -89,7 +101,7 @@ The following configurable parameters are available for Pulsar clients:
 | Parameter | Description | Default |
 | :-------- | :---------- | :------ |
 | `serviceUrl` | The connection URL for the Pulsar cluster. See [above](#connection-urls) for more info. |  |
-| `authentication` | Configure the authentication provider. (default: no authentication). See [TLS Authentication](security-tls-authentication.md) for more info. | |
+| `authentication` | Configure the authentication provider. (default: no authentication). See [TLS Authentication](security-tls-authentication) for more info. | |
 | `operationTimeoutSeconds` | The timeout for Node.js client operations (creating producers, subscribing to and unsubscribing from [topics](reference-terminology.md#topic)). Retries occur until this threshold is reached, at which point the operation fails. | 30 |
 | `ioThreads` | The number of threads to use for handling connections to Pulsar [brokers](reference-terminology.md#broker). | 1 |
 | `messageListenerThreads` | The number of threads used by message listeners ([consumers](#consumers) and [readers](#readers)). | 1 |
@@ -107,6 +119,7 @@ Pulsar producers publish messages to Pulsar topics. You can [configure](#produce
 Here is an example:
 
 ```JavaScript
+
 const producer = await client.createProducer({
   topic: 'my-topic',
 });
@@ -116,6 +129,7 @@ await producer.send({
 });
 
 await producer.close();
+
 ```
 
 > #### Promise operation
@@ -140,7 +154,7 @@ Pulsar Node.js producers have the following methods available:
 | :-------- | :---------- | :------ |
 | `topic` | The Pulsar [topic](reference-terminology.md#topic) to which the producer publishes messages. | |
 | `producerName` | A name for the producer. If you do not explicitly assign a name, Pulsar automatically generates a globally unique name.  If you choose to explicitly assign a name, it needs to be unique across *all* Pulsar clusters, otherwise the creation operation throws an error. | |
-| `sendTimeoutMs` | When publishing a message to a topic, the producer waits for an acknowledgment from the responsible Pulsar [broker](reference-terminology.md#broker). If a message is not acknowledged within the threshold set by this parameter, an error is thrown. If you set `sendTimeoutMs` to -1, the timeout is set to infinity (and thus removed). Removing the send timeout is recommended when using Pulsar's [message de-duplication](cookbooks-deduplication.md) feature. | 30000 |
+| `sendTimeoutMs` | When publishing a message to a topic, the producer waits for an acknowledgment from the responsible Pulsar [broker](reference-terminology.md#broker). If a message is not acknowledged within the threshold set by this parameter, an error is thrown. If you set `sendTimeoutMs` to -1, the timeout is set to infinity (and thus removed). Removing the send timeout is recommended when using Pulsar's [message de-duplication](cookbooks-deduplication) feature. | 30000 |
 | `initialSequenceId` | The initial sequence ID of the message. When producer send message, add sequence ID to message. The ID is increased each time to send. | |
 | `maxPendingMessages` | The maximum size of the queue holding pending messages (i.e. messages waiting to receive an acknowledgment from the [broker](reference-terminology.md#broker)). By default, when the queue is full all calls to the `send` method fails *unless* `blockIfQueueFull` is set to `true`. | 1000 |
 | `maxPendingMessagesAcrossPartitions` | The maximum size of the sum of partition's  pending queue. | 50000 |
@@ -158,6 +172,7 @@ Pulsar Node.js producers have the following methods available:
 This example creates a Node.js producer for the `my-topic` topic and sends 10 messages to that topic:
 
 ```JavaScript
+
 const Pulsar = require('pulsar-client');
 
 (async () => {
@@ -184,6 +199,7 @@ const Pulsar = require('pulsar-client');
   await producer.close();
   await client.close();
 })();
+
 ```
 
 ## Consumers
@@ -193,6 +209,7 @@ Pulsar consumers subscribe to one or more Pulsar topics and listen for incoming 
 Here is an example:
 
 ```JavaScript
+
 const consumer = await client.subscribe({
   topic: 'my-topic',
   subscription: 'my-subscription',
@@ -203,6 +220,7 @@ console.log(msg.getData().toString());
 consumer.acknowledge(msg);
 
 await consumer.close();
+
 ```
 
 > #### Promise operation
@@ -243,13 +261,14 @@ Pulsar Node.js consumers have the following methods available:
 | `consumerName` | The name of consumer. Currently(v2.4.1), [failover](concepts-messaging.md#failover) mode use consumer name in ordering. | |
 | `properties` | The metadata of consumer. | |
 | `listener`| A listener that is called for a message received. | |
-| `readCompacted`| If enabling `readCompacted`, a consumer reads messages from a compacted topic rather than reading a full message backlog of a topic.<br/><br/>A consumer only sees the latest value for each key in the compacted topic, up until reaching the point in the topic message when compacting backlog. Beyond that point, send messages as normal.<br/><br/> `readCompacted` can only be enabled on subscriptions to persistent topics, which have a single active consumer (like failure or exclusive subscriptions).<br/><br/>Attempting to enable it on subscriptions to non-persistent topics or on shared subscriptions leads to a subscription call throwing a `PulsarClientException`. | false |
+| `readCompacted`| If enabling `readCompacted`, a consumer reads messages from a compacted topic rather than reading a full message backlog of a topic.<br /><br />A consumer only sees the latest value for each key in the compacted topic, up until reaching the point in the topic message when compacting backlog. Beyond that point, send messages as normal.<br /><br /> `readCompacted` can only be enabled on subscriptions to persistent topics, which have a single active consumer (like failure or exclusive subscriptions).<br /><br />Attempting to enable it on subscriptions to non-persistent topics or on shared subscriptions leads to a subscription call throwing a `PulsarClientException`. | false |
 
 ### Consumer example
 
 This example creates a Node.js consumer with the `my-subscription` subscription on the `my-topic` topic, receives messages, prints the content that arrive, and acknowledges each message to the Pulsar broker for 10 times:
 
 ```JavaScript
+
 const Pulsar = require('pulsar-client');
 
 (async () => {
@@ -275,11 +294,13 @@ const Pulsar = require('pulsar-client');
   await consumer.close();
   await client.close();
 })();
+
 ```
 
 Instead a consumer can be created with `listener` to process messages.
 
 ```JavaScript
+
 // Create a consumer
 const consumer = await client.subscribe({
   topic: 'my-topic',
@@ -290,6 +311,7 @@ const consumer = await client.subscribe({
     msgConsumer.acknowledge(msg);
   },
 });
+
 ```
 
 ## Readers
@@ -299,6 +321,7 @@ Pulsar readers process messages from Pulsar topics. Readers are different from c
 Here is an example:
 
 ```JavaScript
+
 const reader = await client.createReader({
   topic: 'my-topic',
   startMessageId: Pulsar.MessageId.earliest(),
@@ -308,6 +331,7 @@ const msg = await reader.readNext();
 console.log(msg.getData().toString());
 
 await reader.close();
+
 ```
 
 ### Reader operations
@@ -330,7 +354,7 @@ Pulsar Node.js readers have the following methods available:
 | `receiverQueueSize` | Sets the size of the reader's receiver queue, i.e. the number of messages that can be accumulated by the reader before the application calls `readNext`. A value higher than the default of 1000 could increase reader throughput, though at the expense of more memory utilization. | 1000 |
 | `readerName` | The name of the reader. |  |
 | `subscriptionRolePrefix` | The subscription role prefix. | |
-| `readCompacted` | If enabling `readCompacted`, a consumer reads messages from a compacted topic rather than reading a full message backlog of a topic.<br/><br/>A consumer only sees the latest value for each key in the compacted topic, up until reaching the point in the topic message when compacting backlog. Beyond that point, send messages as normal.<br/><br/> `readCompacted` can only be enabled on subscriptions to persistent topics, which have a single active consumer (like failure or exclusive subscriptions).<br/><br/>Attempting to enable it on subscriptions to non-persistent topics or on shared subscriptions leads to a subscription call throwing a `PulsarClientException`. | `false` |
+| `readCompacted` | If enabling `readCompacted`, a consumer reads messages from a compacted topic rather than reading a full message backlog of a topic.<br /><br />A consumer only sees the latest value for each key in the compacted topic, up until reaching the point in the topic message when compacting backlog. Beyond that point, send messages as normal.<br /><br /> `readCompacted` can only be enabled on subscriptions to persistent topics, which have a single active consumer (like failure or exclusive subscriptions).<br /><br />Attempting to enable it on subscriptions to non-persistent topics or on shared subscriptions leads to a subscription call throwing a `PulsarClientException`. | `false` |
 
 
 ### Reader example
@@ -338,6 +362,7 @@ Pulsar Node.js readers have the following methods available:
 This example creates a Node.js reader with the `my-topic` topic, reads messages, and prints the content that arrive for 10 times:
 
 ```JavaScript
+
 const Pulsar = require('pulsar-client');
 
 (async () => {
@@ -362,6 +387,7 @@ const Pulsar = require('pulsar-client');
   await reader.close();
   await client.close();
 })();
+
 ```
 
 ## Messages
@@ -371,6 +397,7 @@ In Pulsar Node.js client, you have to construct producer message object for prod
 Here is an example message:
 
 ```JavaScript
+
 const msg = {
   data: Buffer.from('Hello, Pulsar'),
   partitionKey: 'key1',
@@ -385,6 +412,7 @@ const msg = {
 }
 
 await producer.send(msg);
+
 ```
 
 The following keys are available for producer message objects:
@@ -447,8 +475,10 @@ The following static methods are available for the message id object:
 If you want to use the end-to-end encryption feature in the Node.js client, you need to configure `publicKeyPath` and `privateKeyPath` for both producer and consumer.
 
 ```
+
 publicKeyPath: "./public.pem"
 privateKeyPath: "./private.pem"
+
 ```
 
 ### Tutorial
@@ -463,136 +493,151 @@ This section provides step-by-step instructions on how to use the end-to-end enc
 
 1. Create both public and private key pairs.
 
-    **Input**
+   **Input**
 
-    ```shell
-    openssl genrsa -out private.pem 2048
-    openssl rsa -in private.pem -pubout -out public.pem
-    ```
+   ```shell
+   
+   openssl genrsa -out private.pem 2048
+   openssl rsa -in private.pem -pubout -out public.pem
+   
+   ```
 
 2. Create a producer to send encrypted messages.
 
-    **Input**
+   **Input**
 
-    ```nodejs
-    const Pulsar = require('pulsar-client');
+   ```nodejs
+   
+   const Pulsar = require('pulsar-client');
 
-    (async () => {
-      // Create a client
-      const client = new Pulsar.Client({
-        serviceUrl: 'pulsar://localhost:6650',
-        operationTimeoutSeconds: 30,
-      });
+   (async () => {
+     // Create a client
+     const client = new Pulsar.Client({
+       serviceUrl: 'pulsar://localhost:6650',
+       operationTimeoutSeconds: 30,
+     });
 
-      // Create a producer
-      const producer = await client.createProducer({
-        topic: 'persistent://public/default/my-topic',
-        sendTimeoutMs: 30000,
-        batchingEnabled: true,
-        publicKeyPath: "./public.pem",
-        privateKeyPath: "./private.pem",
-        encryptionKey: "encryption-key"
-      });
+     // Create a producer
+     const producer = await client.createProducer({
+       topic: 'persistent://public/default/my-topic',
+       sendTimeoutMs: 30000,
+       batchingEnabled: true,
+       publicKeyPath: "./public.pem",
+       privateKeyPath: "./private.pem",
+       encryptionKey: "encryption-key"
+     });
 
-      console.log(producer.ProducerConfig)
-      // Send messages
-      for (let i = 0; i < 10; i += 1) {
-        const msg = `my-message-${i}`;
-        producer.send({
-          data: Buffer.from(msg),
-        });
-        console.log(`Sent message: ${msg}`);
-      }
-      await producer.flush();
+     console.log(producer.ProducerConfig)
+     // Send messages
+     for (let i = 0; i < 10; i += 1) {
+       const msg = `my-message-${i}`;
+       producer.send({
+         data: Buffer.from(msg),
+       });
+       console.log(`Sent message: ${msg}`);
+     }
+     await producer.flush();
 
-      await producer.close();
-      await client.close();
-    })();
-    ```
+     await producer.close();
+     await client.close();
+   })();
+   
+   ```
 
 3. Create a consumer to receive encrypted messages.
 
-    **Input**
+   **Input**
 
-    ```nodejs
-    const Pulsar = require('pulsar-client');
+   ```nodejs
+   
+   const Pulsar = require('pulsar-client');
 
-    (async () => {
-      // Create a client
-      const client = new Pulsar.Client({
-        serviceUrl: 'pulsar://172.25.0.3:6650',
-        operationTimeoutSeconds: 30
-      });
+   (async () => {
+     // Create a client
+     const client = new Pulsar.Client({
+       serviceUrl: 'pulsar://172.25.0.3:6650',
+       operationTimeoutSeconds: 30
+     });
 
-      // Create a consumer
-      const consumer = await client.subscribe({
-        topic: 'persistent://public/default/my-topic',
-        subscription: 'sub1',
-        subscriptionType: 'Shared',
-        ackTimeoutMs: 10000,
-        publicKeyPath: "./public.pem",
-        privateKeyPath: "./private.pem"
-      });
+     // Create a consumer
+     const consumer = await client.subscribe({
+       topic: 'persistent://public/default/my-topic',
+       subscription: 'sub1',
+       subscriptionType: 'Shared',
+       ackTimeoutMs: 10000,
+       publicKeyPath: "./public.pem",
+       privateKeyPath: "./private.pem"
+     });
 
-      console.log(consumer)
-      // Receive messages
-      for (let i = 0; i < 10; i += 1) {
-        const msg = await consumer.receive();
-        console.log(msg.getData().toString());
-        consumer.acknowledge(msg);
-      }
+     console.log(consumer)
+     // Receive messages
+     for (let i = 0; i < 10; i += 1) {
+       const msg = await consumer.receive();
+       console.log(msg.getData().toString());
+       consumer.acknowledge(msg);
+     }
 
-      await consumer.close();
-      await client.close();
-    })();
-    ```
+     await consumer.close();
+     await client.close();
+   })();
+   
+   ```
 
 4. Run the consumer to receive encrypted messages.
 
-    **Input**
+   **Input**
 
-    ```shell
-    node consumer.js
-    ```
+   ```shell
+   
+   node consumer.js
+   
+   ```
 
 5. In a new terminal tab, run the producer to produce encrypted messages.
 
-    **Input**
+   **Input**
 
-    ```shell
-    node producer.js
-    ```
+   ```shell
+   
+   node producer.js
+   
+   ```
 
-    Now you can see the producer sends messages and the consumer receives messages successfully.
+   Now you can see the producer sends messages and the consumer receives messages successfully.
 
-    **Output**
+   **Output**
 
-    This is from the producer side.
+   This is from the producer side.
 
-    ```
-    Sent message: my-message-0
-    Sent message: my-message-1
-    Sent message: my-message-2
-    Sent message: my-message-3
-    Sent message: my-message-4
-    Sent message: my-message-5
-    Sent message: my-message-6
-    Sent message: my-message-7
-    Sent message: my-message-8
-    Sent message: my-message-9
-    ```
+   ```
+   
+   Sent message: my-message-0
+   Sent message: my-message-1
+   Sent message: my-message-2
+   Sent message: my-message-3
+   Sent message: my-message-4
+   Sent message: my-message-5
+   Sent message: my-message-6
+   Sent message: my-message-7
+   Sent message: my-message-8
+   Sent message: my-message-9
+   
+   ```
 
-    This is from the consumer side.
+   This is from the consumer side.
 
-    ```
-    my-message-0
-    my-message-1
-    my-message-2
-    my-message-3
-    my-message-4
-    my-message-5
-    my-message-6
-    my-message-7
-    my-message-8
-    my-message-9
-    ```
+   ```
+   
+   my-message-0
+   my-message-1
+   my-message-2
+   my-message-3
+   my-message-4
+   my-message-5
+   my-message-6
+   my-message-7
+   my-message-8
+   my-message-9
+   
+   ```
+

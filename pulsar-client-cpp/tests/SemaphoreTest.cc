@@ -127,3 +127,24 @@ TEST(SemaphoreTest, testSingleRelease) {
     t2.join();
     t3.join();
 }
+
+TEST(SemaphoreTest, testCloseInterruptOnFull) {
+    Semaphore s(100);
+    s.acquire(100);
+    Latch latch(1);
+
+    auto thread = std::thread([&]() {
+        bool res = s.acquire(1);
+        ASSERT_FALSE(res);
+        latch.countdown();
+    });
+
+    // Sleep to allow for background thread to fill the queue and be blocked there
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+
+    s.close();
+    bool wasUnblocked = latch.wait(std::chrono::seconds(5));
+
+    ASSERT_TRUE(wasUnblocked);
+    thread.join();
+}

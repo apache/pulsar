@@ -487,7 +487,7 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
             }
             try (Transaction transaction = db.beginTransaction(optionSync)) {
                 byte[] pathBytes = toBytes(path);
-                byte[] oldValueData = transaction.getForUpdate(optionDontCache, pathBytes, false);
+                byte[] oldValueData = transaction.getForUpdate(optionDontCache, pathBytes, true);
                 MetaValue metaValue = MetaValue.parse(oldValueData);
                 if (metaValue == null) {
                     throw new MetadataStoreException.NotFoundException(String.format("path %s not found.", path));
@@ -504,6 +504,9 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
                 return CompletableFuture.completedFuture(null);
             }
         } catch (Throwable e) {
+            if (log.isDebugEnabled()) {
+                log.debug("error in storeDelete,path={}", path, e);
+            }
             return FutureUtil.failedFuture(MetadataStoreException.wrap(e));
         } finally {
             dbStateLock.readLock().unlock();
@@ -523,7 +526,7 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
             }
             try (Transaction transaction = db.beginTransaction(optionSync)) {
                 byte[] pathBytes = toBytes(path);
-                byte[] oldValueData = transaction.getForUpdate(optionDontCache, pathBytes, false);
+                byte[] oldValueData = transaction.getForUpdate(optionDontCache, pathBytes, true);
                 MetaValue metaValue = MetaValue.parse(oldValueData);
                 if (expectedVersion.isPresent()) {
                     if (metaValue == null && expectedVersion.get() != -1
@@ -572,6 +575,9 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
                                 metaValue.ephemeral, true));
             }
         } catch (Throwable e) {
+            if (log.isDebugEnabled()) {
+                log.debug("error in storePut,path={}", path, e);
+            }
             return FutureUtil.failedFuture(MetadataStoreException.wrap(e));
         } finally {
             dbStateLock.readLock().unlock();

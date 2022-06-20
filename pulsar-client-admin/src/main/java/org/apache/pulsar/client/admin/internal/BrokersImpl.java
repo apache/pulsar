@@ -43,13 +43,23 @@ public class BrokersImpl extends BaseResource implements Brokers {
     }
 
     @Override
+    public List<String> getActiveBrokers() throws PulsarAdminException {
+        return sync(() -> getActiveBrokersAsync(null));
+    }
+
+    @Override
+    public CompletableFuture<List<String>> getActiveBrokersAsync() {
+        return getActiveBrokersAsync(null);
+    }
+
+    @Override
     public List<String> getActiveBrokers(String cluster) throws PulsarAdminException {
         return sync(() -> getActiveBrokersAsync(cluster));
     }
 
     @Override
     public CompletableFuture<List<String>> getActiveBrokersAsync(String cluster) {
-        WebTarget path = adminBrokers.path(cluster);
+        WebTarget path = cluster == null ? adminBrokers : adminBrokers.path(cluster);
         final CompletableFuture<List<String>> future = new CompletableFuture<>();
         asyncGetRequest(path,
                 new InvocationCallback<List<String>>() {

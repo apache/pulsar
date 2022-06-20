@@ -174,6 +174,54 @@ public class CLITest extends PulsarTestSuite {
     }
 
     @Test
+    public void testCreateUpdateSubscriptionWithPropertiesCommand() throws Exception {
+        String topic = "testCreateSubscriptionCommmand";
+
+        String subscriptionPrefix = "subscription-";
+
+        int i = 0;
+        for (BrokerContainer container : pulsarCluster.getBrokers()) {
+            ContainerExecResult result = container.execCmd(
+                    PulsarCluster.ADMIN_SCRIPT,
+                    "topics",
+                    "create-subscription",
+                    "-p",
+                    "a=b",
+                    "-p",
+                    "c=d",
+                    "persistent://public/default/" + topic,
+                    "--subscription",
+                    "" + subscriptionPrefix + i
+            );
+            result.assertNoOutput();
+
+            ContainerExecResult resultUpdate = container.execCmd(
+                    PulsarCluster.ADMIN_SCRIPT,
+                    "topics",
+                    "update-subscription-properties",
+                    "-p",
+                    "a=e",
+                    "persistent://public/default/" + topic,
+                    "--subscription",
+                    "" + subscriptionPrefix + i
+            );
+            resultUpdate.assertNoOutput();
+
+            ContainerExecResult resultClear = container.execCmd(
+                    PulsarCluster.ADMIN_SCRIPT,
+                    "topics",
+                    "update-subscription-properties",
+                    "-c",
+                    "persistent://public/default/" + topic,
+                    "--subscription",
+                    "" + subscriptionPrefix + i
+            );
+            resultClear.assertNoOutput();
+            i++;
+        }
+    }
+
+    @Test
     public void testTopicTerminationOnTopicsWithoutConnectedConsumers() throws Exception {
         String topicName = "persistent://public/default/test-topic-termination";
         BrokerContainer container = pulsarCluster.getAnyBroker();

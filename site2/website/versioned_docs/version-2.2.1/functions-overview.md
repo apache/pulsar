@@ -1,7 +1,7 @@
 ---
-id: version-2.2.1-functions-overview
+id: functions-overview
 title: Pulsar Functions overview
-sidebar_label: Overview
+sidebar_label: "Overview"
 original_id: functions-overview
 ---
 
@@ -14,19 +14,23 @@ original_id: functions-overview
 Here's an example Pulsar Function for Java (using the [native interface](functions-api.md#java-native-functions)):
 
 ```java
+
 import java.util.Function;
 
 public class ExclamationFunction implements Function<String, String> {
     @Override
     public String apply(String input) { return String.format("%s!", input); }
 }
+
 ```
 
 Here's an equivalent function in Python (also using the [native interface](functions-api.md#python-native-functions)):
 
 ```python
+
 def process(input):
     return "{0}!".format(input)
+
 ```
 
 Functions are executed each time a message is published to the input topic. If a function is listening on the topic `tweet-stream`, for example, then the function would be run each time a message is published to that topic.
@@ -57,22 +61,23 @@ The core programming model behind Pulsar Functions is very simple:
 
 * Functions receive messages from one or more **input [topics](reference-terminology.md#topic)**. Every time a message is received, the function can do a variety of things:
   * Apply some processing logic to the input and write output to:
-    * An **output topic** in Pulsar
-    * [Apache BookKeeper](#state-storage)
+  * An **output topic** in Pulsar
+  * [Apache BookKeeper](#state-storage)
   * Write logs to a **log topic** (potentially for debugging purposes)
   * Increment a [counter](#word-count-example)
 
-![Pulsar Functions core programming model](assets/pulsar-functions-overview.png)
+![Pulsar Functions core programming model](/assets/pulsar-functions-overview.png)
 
 ### Word count example
 
 If you were to implement the classic word count example using Pulsar Functions, it might look something like this:
 
-![Pulsar Functions word count example](assets/pulsar-functions-word-count.png)
+![Pulsar Functions word count example](/assets/pulsar-functions-word-count.png)
 
 If you were writing the function in [Java](functions-api.md#functions-for-java) using the [Pulsar Functions SDK for Java](functions-api.md#java-sdk-functions), you could write the function like this...
 
 ```java
+
 package org.example.functions;
 
 import org.apache.pulsar.functions.api.Context;
@@ -91,11 +96,13 @@ public class WordCountFunction implements Function<String, Void> {
         return null;
     }
 }
+
 ```
 
 ...and then [deploy it](#cluster-run-mode) in your Pulsar cluster using the [command line](#command-line-interface) like this:
 
 ```bash
+
 $ bin/pulsar-admin functions create \
   --jar target/my-jar-with-dependencies.jar \
   --classname org.example.functions.WordCountFunction \
@@ -104,6 +111,7 @@ $ bin/pulsar-admin functions create \
   --name word-count \
   --inputs persistent://public/default/sentences \
   --output persistent://public/default/count
+
 ```
 
 ### Content-based routing example
@@ -112,11 +120,12 @@ The use cases for Pulsar Functions are essentially endless, but let's dig into a
 
 Imagine a function that takes items (strings) as input and publishes them to either a fruits or vegetables topic, depending on the item. Or, if an item is neither a fruit nor a vegetable, a warning is logged to a [log topic](#logging). Here's a visual representation:
 
-![Pulsar Functions routing example](assets/pulsar-functions-routing-example.png)
+![Pulsar Functions routing example](/assets/pulsar-functions-routing-example.png)
 
 If you were implementing this routing functionality in Python, it might look something like this:
 
 ```python
+
 from pulsar import Function
 
 class RoutingFunction(Function):
@@ -140,18 +149,21 @@ class RoutingFunction(Function):
         else:
             warning = "The item {0} is neither a fruit nor a vegetable".format(item)
             context.get_logger().warn(warning)
+
 ```
 
 ## Command-line interface
 
-Pulsar Functions are managed using the [`pulsar-admin`](reference-pulsar-admin.md) CLI tool (in particular the [`functions`](reference-pulsar-admin.md#functions) command). Here's an example command that would run a function in [local run mode](#local-run-mode):
+Pulsar Functions are managed using the [`pulsar-admin`](reference-pulsar-admin) CLI tool (in particular the [`functions`](reference-pulsar-admin.md#functions) command). Here's an example command that would run a function in [local run mode](#local-run-mode):
 
 ```bash
+
 $ bin/pulsar-functions localrun \
   --inputs persistent://public/default/test_src \
   --output persistent://public/default/test_result \
   --jar examples/api-examples.jar \
   --classname org.apache.pulsar.functions.api.examples.ExclamationFunction
+
 ```
 
 ## Fully Qualified Function Name (FQFN)
@@ -159,7 +171,9 @@ $ bin/pulsar-functions localrun \
 Each Pulsar Function has a **Fully Qualified Function Name** (FQFN) that consists of three elements: the function's tenant, namespace, and function name. FQFN's look like this:
 
 ```http
+
 tenant/namespace/name
+
 ```
 
 FQFNs enable you to, for example, create multiple functions with the same name provided that they're in different namespaces.
@@ -174,13 +188,16 @@ Pulsar Functions can be configured in two ways:
 If you're supplying a YAML configuration, you must specify a path to the file on the command line. Here's an example:
 
 ```bash
+
 $ bin/pulsar-admin functions create \
   --function-config-file ./my-function.yaml
+
 ```
 
 And here's an example `my-function.yaml` file:
 
 ```yaml
+
 name: my-function
 tenant: public
 namespace: default
@@ -189,6 +206,7 @@ className: org.example.pulsar.functions.MyFunction
 inputs:
 - persistent://public/default/test_src
 output: persistent://public/default/test_result
+
 ```
 
 You can also mix and match configuration methods by specifying some function attributes via the CLI and others via YAML configuration.
@@ -231,6 +249,7 @@ If you'd like a Pulsar Function to have access to a [context object](#function-c
 Here's an example Java function that uses information about its context:
 
 ```java
+
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
 import org.slf4j.Logger;
@@ -246,6 +265,7 @@ public class ContextAwareFunction implements Function<String, Void> {
         return null;
     }
 }
+
 ```
 
 ### Python
@@ -253,6 +273,7 @@ public class ContextAwareFunction implements Function<String, Void> {
 Here's an example Python function that uses information about its context:
 
 ```python
+
 from pulsar import Function
 
 class ContextAwareFunction(Function):
@@ -262,6 +283,7 @@ class ContextAwareFunction(Function):
         function_namespace = context.get_function_namespace()
         function_name = context.get_function_name()
         log.info("Function tenant/namespace/name: {0}/{1}/{2}".format(function_tenant, function_namespace, function_name))
+
 ```
 
 ## Deployment
@@ -270,27 +292,30 @@ The Pulsar Functions feature was built to support a variety of deployment option
 
 Deployment mode | Description
 :---------------|:-----------
-[Local run mode](#local-run-mode) | The function runs in your local environment, for example on your laptop
-[Cluster mode](#cluster-run-mode) | The function runs *inside of* your Pulsar cluster, on the same machines as your Pulsar [brokers](reference-terminology.md#broker)
+[Local run mode](#local-run-mode) | The function runs in your local environment, for example on your laptop [Cluster mode](#cluster-run-mode) | The function runs *inside of* your Pulsar cluster, on the same machines as your Pulsar [brokers](reference-terminology.md#broker)
 
 ### Local run mode
 
 If you run a Pulsar Function in **local run** mode, it will run on the machine from which the command is run (this could be your laptop, an [AWS EC2](https://aws.amazon.com/ec2/) instance, etc.). Here's an example [`localrun`](reference-pulsar-admin.md#localrun) command:
 
 ```bash
+
 $ bin/pulsar-admin functions localrun \
   --py myfunc.py \
   --classname myfunc.SomeFunction \
   --inputs persistent://public/default/input-1 \
   --output persistent://public/default/output-1
+
 ```
 
 By default, the function will connect to a Pulsar cluster running on the same machine, via a local broker service URL of `pulsar://localhost:6650`. If you'd like to use local run mode to run a function but connect it to a non-local Pulsar cluster, you can specify a different broker URL using the `--brokerServiceUrl` flag. Here's an example:
 
 ```bash
+
 $ bin/pulsar-admin functions localrun \
   --broker-service-url pulsar://my-cluster-host:6650 \
   # Other function parameters
+
 ```
 
 ### Cluster run mode
@@ -298,11 +323,13 @@ $ bin/pulsar-admin functions localrun \
 When you run a Pulsar Function in **cluster mode**, the function code will be uploaded to a Pulsar broker and run *alongside the broker* rather than in your [local environment](#local-run-mode). You can run a function in cluster mode using the [`create`](reference-pulsar-admin.md#create-1) command. Here's an example:
 
 ```bash
+
 $ bin/pulsar-admin functions create \
   --py myfunc.py \
   --classname myfunc.SomeFunction \
   --inputs persistent://public/default/input-1 \
   --output persistent://public/default/output-1
+
 ```
 
 This command will upload `myfunc.py` to Pulsar, which will use the code to start one [or more](#parallelism) instances of the function.
@@ -314,6 +341,7 @@ By default, only one **instance** of a Pulsar Function runs when you create and 
 This command, for example, would create and run a function with a parallelism of 5 (i.e. 5 instances):
 
 ```bash
+
 $ bin/pulsar-admin functions create \
   --name parallel-fun \
   --tenant public \
@@ -321,6 +349,7 @@ $ bin/pulsar-admin functions create \
   --py func.py \
   --classname func.ParallelFunction \
   --parallelism 5
+
 ```
 
 ### Function instance resources
@@ -336,12 +365,14 @@ Disk space | The number of bytes | Docker
 Here's an example function creation command that allocates 8 cores, 8 GB of RAM, and 10 GB of disk space to a function:
 
 ```bash
+
 $ bin/pulsar-admin functions create \
   --jar target/my-functions.jar \
   --classname org.example.functions.MyFunction \
   --cpu 8 \
   --ram 8589934592 \
   --disk 10737418240
+
 ```
 
 For more information on resources, see the [Deploying and Managing Pulsar Functions](functions-deploying.md#resources) documentation.
@@ -351,15 +382,18 @@ For more information on resources, see the [Deploying and Managing Pulsar Functi
 Pulsar Functions created using the [Pulsar Functions SDK](#the-pulsar-functions-sdk) can send logs to a log topic that you specify as part of the function's configuration. The function created using the command below, for example, would produce all logs on the `persistent://public/default/my-func-1-log` topic:
 
 ```bash
+
 $ bin/pulsar-admin functions create \
   --name my-func-1 \
   --log-topic persistent://public/default/my-func-1-log \
   # Other configs
+
 ```
 
 Here's an example [Java function](functions-api.md#java-logging) that logs at different log levels based on the function's input:
 
 ```java
+
 public class LoggerFunction implements Function<String, Void> {
     @Override
     public Void process(String input, Context context) {
@@ -371,6 +405,7 @@ public class LoggerFunction implements Function<String, Void> {
         }
     }
 }
+
 ```
 
 ### User configuration
@@ -380,14 +415,17 @@ Pulsar Functions can be passed arbitrary key-values via the command line (both k
 Here's an example of passing a user configuration to a function:
 
 ```bash
+
 $ bin/pulsar-admin functions create \
   --user-config '{"key-1":"value-1","key-2","value-2"}' \
   # Other configs
+
 ```
 
 Here's an example of a function that accesses that config map:
 
 ```java
+
 public class ConfigMapFunction implements Function<String, Void> {
     @Override
     public Void process(String input, Context context) {
@@ -397,6 +435,7 @@ public class ConfigMapFunction implements Function<String, Void> {
         return null;
     }
 }
+
 ```
 
 ### Triggering Pulsar Functions
@@ -408,18 +447,22 @@ Pulsar Functions running in [cluster mode](#cluster-run-mode) can be [triggered]
 Let's take an example Pulsar Function written in Python (using the [native interface](functions-api.md#python-native-functions)) that simply reverses string inputs:
 
 ```python
+
 def process(input):
     return input[::-1]
+
 ```
 
 If that function were running in a Pulsar cluster, it could be triggered like this:
 
 ```bash
+
 $ bin/pulsar-admin functions trigger \
   --tenant public \
   --namespace default \
   --name reverse-func \
   --trigger-value "snoitcnuf raslup ot emoclew"
+
 ```
 
 That should return `welcome to pulsar functions` as the console output.
@@ -439,15 +482,17 @@ Delivery semantics | Description
 This command, for example, would run a function in [cluster mode](#cluster-run-mode) with effectively-once guarantees applied:
 
 ```bash
+
 $ bin/pulsar-admin functions create \
   --name my-effectively-once-function \
   --processing-guarantees EFFECTIVELY_ONCE \
   # Other function configs
+
 ```
 
 ## Metrics
 
-Pulsar Functions that use the [Pulsar Functions SDK](#the-pulsar-functions-sdk) can publish metrics to Pulsar. For more information, see [Metrics for Pulsar Functions](functions-metrics.md).
+Pulsar Functions that use the [Pulsar Functions SDK](#the-pulsar-functions-sdk) can publish metrics to Pulsar. For more information, see [Metrics for Pulsar Functions](functions-metrics).
 
 ## State storage
 

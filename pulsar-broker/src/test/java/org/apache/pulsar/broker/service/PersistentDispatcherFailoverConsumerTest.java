@@ -119,6 +119,8 @@ public class PersistentDispatcherFailoverConsumerTest {
         svcConfig.setBrokerShutdownTimeoutMs(0L);
         svcConfig.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
         svcConfig.setClusterName("pulsar-cluster");
+        svcConfig.setSystemTopicEnabled(false);
+        svcConfig.setTopicLevelPoliciesEnabled(false);
         pulsar = spyWithClassAndConstructorArgs(PulsarService.class, svcConfig);
         doReturn(svcConfig).when(pulsar).getConfiguration();
 

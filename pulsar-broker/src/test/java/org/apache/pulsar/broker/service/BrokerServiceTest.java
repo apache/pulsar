@@ -119,6 +119,8 @@ public class BrokerServiceTest extends BrokerTestBase {
     @BeforeClass
     @Override
     protected void setup() throws Exception {
+        conf.setSystemTopicEnabled(false);
+        conf.setTopicLevelPoliciesEnabled(false);
         super.baseSetup();
     }
 

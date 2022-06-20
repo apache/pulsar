@@ -1,16 +1,16 @@
 ---
-id: version-2.6.1-concepts-clients
+id: concepts-clients
 title: Pulsar Clients
-sidebar_label: Clients
+sidebar_label: "Clients"
 original_id: concepts-clients
 ---
 
-Pulsar exposes a client API with language bindings for [Java](client-libraries-java.md),  [Go](client-libraries-go.md), [Python](client-libraries-python.md), [C++](client-libraries-cpp.md) and [C#](client-libraries-dotnet.md). The client API optimizes and encapsulates Pulsar's client-broker communication protocol and exposes a simple and intuitive API for use by applications.
+Pulsar exposes a client API with language bindings for [Java](client-libraries-java.md),  [Go](client-libraries-go.md), [Python](client-libraries-python.md), [C++](client-libraries-cpp.md) and [C#](client-libraries-dotnet). The client API optimizes and encapsulates Pulsar's client-broker communication protocol and exposes a simple and intuitive API for use by applications.
 
 Under the hood, the current official Pulsar client libraries support transparent reconnection and/or connection failover to brokers, queuing of messages until acknowledged by the broker, and heuristics such as connection retries with backoff.
 
 > #### Custom client libraries
-> If you'd like to create your own client library, we recommend consulting the documentation on Pulsar's custom [binary protocol](developing-binary-protocol.md)
+> If you'd like to create your own client library, we recommend consulting the documentation on Pulsar's custom [binary protocol](developing-binary-protocol)
 
 
 ## Client setup phase
@@ -38,11 +38,11 @@ Internally, the reader interface is implemented as a consumer using an exclusive
 
 [ **IMPORTANT** ]
 
-Unlike subscription/consumer, readers are non-durable in nature and will not prevent data in a topic from being deleted, thus it is ***strongly*** advised that [data retention](cookbooks-retention-expiry.md) be configured.   If data retention for a topic is not configured for an adequate amount of time, messages that the reader has not yet read might be deleted .  This will cause readers to essentially skip messages.  Configuring the data retention for a topic guarantees the reader with have a certain duration to read a message.
+Unlike subscription/consumer, readers are non-durable in nature and will not prevent data in a topic from being deleted, thus it is ***strongly*** advised that [data retention](cookbooks-retention-expiry) be configured.   If data retention for a topic is not configured for an adequate amount of time, messages that the reader has not yet read might be deleted .  This will cause readers to essentially skip messages.  Configuring the data retention for a topic guarantees the reader with have a certain duration to read a message.
 
 Please also note that a reader can have a "backlog", but the metric is just to allow users to know how behind the reader is and is not considered for any backlog quota calculations. 
 
-![The Pulsar consumer and reader interfaces](assets/pulsar-reader-consumer-interfaces.png)
+![The Pulsar consumer and reader interfaces](/assets/pulsar-reader-consumer-interfaces.png)
 
 > ### Non-partitioned topics only
 > The reader interface for Pulsar cannot currently be used with [partitioned topics](concepts-messaging.md#partitioned-topics).
@@ -50,6 +50,7 @@ Please also note that a reader can have a "backlog", but the metric is just to a
 Here's a Java example that begins reading from the earliest available message on a topic:
 
 ```java
+
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Reader;
@@ -65,24 +66,30 @@ while (true) {
 
     // Process the message
 }
+
 ```
 
 To create a reader that will read from the latest available message:
 
 ```java
+
 Reader<byte[]> reader = pulsarClient.newReader()
     .topic(topic)
     .startMessageId(MessageId.latest)
     .create();
+
 ```
 
 To create a reader that will read from some message between earliest and latest:
 
 ```java
+
 byte[] msgIdBytes = // Some byte array
 MessageId id = MessageId.fromByteArray(msgIdBytes);
 Reader<byte[]> reader = pulsarClient.newReader()
     .topic(topic)
     .startMessageId(id)
     .create();
+
 ```
+

@@ -1,7 +1,7 @@
 ---
-id: version-2.1.0-incubating-io-aerospike
+id: io-aerospike
 title: Aerospike Sink Connector
-sidebar_label: Aerospike Sink Connector
+sidebar_label: "Aerospike Sink Connector"
 original_id: io-aerospike
 ---
 

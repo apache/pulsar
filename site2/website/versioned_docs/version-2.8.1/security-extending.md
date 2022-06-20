@@ -1,7 +1,7 @@
 ---
-id: version-2.8.1-security-extending
+id: security-extending
 title: Extending Authentication and Authorization in Pulsar
-sidebar_label: Extending
+sidebar_label: "Extending"
 original_id: security-extending
 ---
 
@@ -9,7 +9,7 @@ Pulsar provides a way to use custom authentication and authorization mechanisms.
 
 ## Authentication
 
-Pulsar supports mutual TLS and Athenz authentication plugins. For how to use these authentication plugins, you can refer to the description in [Security](security-overview.md).
+Pulsar supports mutual TLS and Athenz authentication plugins. For how to use these authentication plugins, you can refer to the description in [Security](security-overview).
 
 You can use a custom authentication mechanism by providing the implementation in the form of two plugins. One plugin is for the Client library and the other plugin is for the Pulsar Proxy and/or Pulsar Broker to validate the credentials.
 
@@ -18,10 +18,12 @@ You can use a custom authentication mechanism by providing the implementation in
 For the client library, you need to implement `org.apache.pulsar.client.api.Authentication`. By entering the command below you can pass this class when you create a Pulsar client:
 
 ```java
+
 PulsarClient client = PulsarClient.builder()
     .serviceUrl("pulsar://localhost:6650")
     .authentication(new MyAuthentication())
     .build();
+
 ```
 
 You can use 2 interfaces to implement on the client side:
@@ -44,12 +46,16 @@ On the proxy/broker side, you need to configure the corresponding plugin to vali
 In `conf/broker.conf` you can choose to specify a list of valid providers:
 
 ```properties
+
 # Authentication provider name list, which is comma separated list of class names
 authenticationProviders=
+
 ```
+
 To implement `org.apache.pulsar.broker.authentication.AuthenticationProvider` on one single interface:
 
 ```java
+
 /**
  * Provider of authentication mechanism
  */
@@ -82,6 +88,7 @@ public interface AuthenticationProvider extends Closeable {
     String authenticate(AuthenticationDataSource authData) throws AuthenticationException;
 
 }
+
 ```
 
 The following is the example for Broker authentication plugins:
@@ -100,11 +107,14 @@ the Authorization plugin is designed only for use on the Broker however the Prox
 To provide a custom provider, you need to implement the `org.apache.pulsar.broker.authorization.AuthorizationProvider` interface, put this class in the Pulsar broker classpath and configure the class in `conf/broker.conf`:
 
  ```properties
+ 
  # Authorization provider fully qualified class-name
  authorizationProvider=org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider
+ 
  ```
 
 ```java
+
 /**
  * Provider of authorization mechanism
  */
@@ -169,8 +179,8 @@ public interface AuthorizationProvider extends Closeable {
      * @param authDataJson
      *            additional authdata in json format
      * @return CompletableFuture
-     * @completesWith <br/>
-     *                IllegalArgumentException when namespace not found<br/>
+     * @completesWith <br />
+     *                IllegalArgumentException when namespace not found<br />
      *                IllegalStateException when failed to grant permission
      */
     CompletableFuture<Void> grantPermissionAsync(NamespaceName namespace, Set<AuthAction> actions, String role,
@@ -184,8 +194,8 @@ public interface AuthorizationProvider extends Closeable {
      * @param authDataJson
      *            additional authdata in json format
      * @return CompletableFuture
-     * @completesWith <br/>
-     *                IllegalArgumentException when namespace not found<br/>
+     * @completesWith <br />
+     *                IllegalArgumentException when namespace not found<br />
      *                IllegalStateException when failed to grant permission
      */
     CompletableFuture<Void> grantPermissionAsync(TopicName topicName, Set<AuthAction> actions, String role,
@@ -194,3 +204,4 @@ public interface AuthorizationProvider extends Closeable {
 }
 
 ```
+

@@ -114,7 +114,7 @@ public class LedgerOffloaderMetricsTest  extends BrokerTestBase {
         }
     }
 
-    @Test
+    @Test(priority = 1)
     public void testNamespaceLevelMetrics() throws Exception {
         conf.setExposeTopicLevelMetricsInPrometheus(false);
         super.baseSetup();

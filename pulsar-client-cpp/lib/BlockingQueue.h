@@ -33,14 +33,14 @@ template <typename Container>
 struct QueueNotEmpty {
     const Container& queue_;
     QueueNotEmpty(const Container& queue) : queue_(queue) {}
-    bool operator()() const { return !queue_.isEmptyNoMutex(); }
+    bool operator()() const { return !queue_.isEmptyNoMutex() || queue_.isClosedNoMutex(); }
 };
 
 template <typename Container>
 struct QueueNotFull {
     const Container& queue_;
     QueueNotFull(const Container& queue) : queue_(queue) {}
-    bool operator()() const { return !queue_.isFullNoMutex(); }
+    bool operator()() const { return !queue_.isFullNoMutex() || queue_.isClosedNoMutex(); }
 };
 
 template <typename T>
@@ -50,117 +50,21 @@ class BlockingQueue {
     typedef typename Container::iterator iterator;
     typedef typename Container::const_iterator const_iterator;
 
-    class ReservedSpot {
-       public:
-        ReservedSpot() : queue_(), released_(true) {}
+    BlockingQueue(size_t maxSize) : maxSize_(maxSize), mutex_(), queue_(maxSize) {}
 
-        ReservedSpot(BlockingQueue<T>& queue) : queue_(&queue), released_(false) {}
-
-        ~ReservedSpot() { release(); }
-
-        void release() {
-            if (!released_) {
-                queue_->releaseReservedSpot();
-                released_ = true;
-            }
-        }
-
-       private:
-        BlockingQueue<T>* queue_;
-        bool released_;
-
-        friend class BlockingQueue<T>;
-    };
-
-    BlockingQueue(size_t maxSize) : maxSize_(maxSize), mutex_(), queue_(maxSize), reservedSpots_(0) {}
-
-    bool tryReserve(size_t noOfSpots) {
-        assert(noOfSpots <= maxSize_);
+    bool push(const T& value) {
         Lock lock(mutex_);
-        if (noOfSpots <= maxSize_ - (reservedSpots_ + queue_.size())) {
-            reservedSpots_ += noOfSpots;
-            return true;
-        }
-        return false;
-    }
 
-    void reserve(size_t noOfSpots) {
-        assert(noOfSpots <= maxSize_);
-        Lock lock(mutex_);
-        while (noOfSpots--) {
-            queueFullCondition.wait(lock, QueueNotFull<BlockingQueue<T> >(*this));
-            reservedSpots_++;
-        }
-    }
-
-    void release(size_t noOfSpots) {
-        Lock lock(mutex_);
-        assert(noOfSpots <= reservedSpots_);
-        bool wasFull = isFullNoMutex();
-        reservedSpots_ -= noOfSpots;
-        lock.unlock();
-
-        if (wasFull) {
-            // Notify that one spot is now available
-            queueFullCondition.notify_all();
-        }
-    }
-
-    ReservedSpot reserve() {
-        Lock lock(mutex_);
         // If the queue is full, wait for space to be available
         queueFullCondition.wait(lock, QueueNotFull<BlockingQueue<T> >(*this));
-        reservedSpots_++;
-        return ReservedSpot(*this);
-    }
 
-    void push(const T& value, bool wasReserved = false) {
-        Lock lock(mutex_);
-        if (wasReserved) {
-            reservedSpots_--;
-        }
-        // If the queue is full, wait for space to be available
-        queueFullCondition.wait(lock, QueueNotFull<BlockingQueue<T> >(*this));
-        bool wasEmpty = queue_.empty();
-        queue_.push_back(value);
-        lock.unlock();
-        if (wasEmpty) {
-            // Notify that an element is pushed
-            queueEmptyCondition.notify_all();
-        }
-    }
-
-    void push(const T& value, ReservedSpot& spot) {
-        Lock lock(mutex_);
-
-        // Since the value already had a spot reserved in the queue, we need to
-        // discount it
-        assert(reservedSpots_ > 0);
-        reservedSpots_--;
-        spot.released_ = true;
-
-        bool wasEmpty = queue_.empty();
-        queue_.push_back(value);
-        lock.unlock();
-
-        if (wasEmpty) {
-            // Notify that an element is pushed
-            queueEmptyCondition.notify_all();
-        }
-    }
-
-    bool tryPush(const T& value) {
-        Lock lock(mutex_);
-
-        // Need to consider queue_.size() + reserved spot
-        if (isFullNoMutex()) {
+        if (isClosedNoMutex()) {
             return false;
         }
 
         bool wasEmpty = queue_.empty();
         queue_.push_back(value);
         lock.unlock();
-
         if (wasEmpty) {
             // Notify that an element is pushed
             queueEmptyCondition.notify_all();
@@ -169,41 +73,38 @@ class BlockingQueue {
         return true;
     }
 
-    void pop() {
+    bool pop(T& value) {
         Lock lock(mutex_);
+
         // If the queue is empty, wait until an element is available to be popped
         queueEmptyCondition.wait(lock, QueueNotEmpty<BlockingQueue<T> >(*this));
 
-        bool wasFull = isFullNoMutex();
-        queue_.pop_front();
-        lock.unlock();
-
-        if (wasFull) {
-            // Notify that an element is popped
-            queueFullCondition.notify_all();
+        if (isClosedNoMutex()) {
+            return false;
         }
-    }
 
-    void pop(T& value) {
-        Lock lock(mutex_);
-        // If the queue is empty, wait until an element is available to be popped
-        queueEmptyCondition.wait(lock, QueueNotEmpty<BlockingQueue<T> >(*this));
         value = queue_.front();
-
         bool wasFull = isFullNoMutex();
         queue_.pop_front();
+
         lock.unlock();
 
         if (wasFull) {
             // Notify that an element is popped
             queueFullCondition.notify_all();
         }
+
+        return true;
     }
 
     template <typename Duration>
     bool pop(T& value, const Duration& timeout) {
         Lock lock(mutex_);
         if (!queueEmptyCondition.wait_for(lock, timeout, QueueNotEmpty<BlockingQueue<T> >(*this))) {
+            return false;
+        }
+
+        if (isClosedNoMutex()) {
             return false;
         }
 
@@ -263,34 +164,28 @@ class BlockingQueue {
 
     iterator end() { return queue_.end(); }
 
-    int reservedSpots() const { return reservedSpots_; }
-
-   private:
-    void releaseReservedSpot() {
+    void close() {
         Lock lock(mutex_);
-        bool wasFull = isFullNoMutex();
-        --reservedSpots_;
-        lock.unlock();
-
-        if (wasFull) {
-            // Notify that one spot is now available
-            queueFullCondition.notify_all();
-        }
+        isClosed_ = true;
+        queueEmptyCondition.notify_all();
+        queueFullCondition.notify_all();
     }
 
+   private:
     bool isEmptyNoMutex() const { return queue_.empty(); }
 
-    bool isFullNoMutex() const { return (queue_.size() + reservedSpots_) == maxSize_; }
+    bool isFullNoMutex() const { return queue_.size() == maxSize_; }
+
+    bool isClosedNoMutex() const { return isClosed_; }
 
     const size_t maxSize_;
     mutable std::mutex mutex_;
     std::condition_variable queueFullCondition;
     std::condition_variable queueEmptyCondition;
     Container queue_;
-    int reservedSpots_;
+    bool isClosed_ = false;
 
     typedef std::unique_lock<std::mutex> Lock;
-    friend class QueueReservedSpot;
     friend struct QueueNotEmpty<BlockingQueue<T> >;
     friend struct QueueNotFull<BlockingQueue<T> >;
 };

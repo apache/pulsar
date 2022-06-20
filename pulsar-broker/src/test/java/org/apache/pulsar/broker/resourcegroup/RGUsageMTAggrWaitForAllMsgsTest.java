@@ -551,7 +551,7 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
 
         log.debug("verifyProdConsStats: topicStatsMap has {} entries", topicStatsMap.size());
 
-        // Pulsar runtime adds some additional bytes in the exchanges: a 45-byte per-message
+        // Pulsar runtime adds some additional bytes in the exchanges: a 42-byte per-message
         // metadata of some kind, plus more as the number of messages increases.
         // Hence the ">=" assertion with ExpectedNumBytesSent/Received in the following checks.
         final int ExpectedNumBytesSent = sentNumBytes + PER_MESSAGE_METADATA_OHEAD * sentNumMsgs;
@@ -769,8 +769,8 @@ public class RGUsageMTAggrWaitForAllMsgsTest extends ProducerConsumerBase {
         Assert.assertNotEquals(ninthPercentileValue, 0);
     }
 
-    // Empirically, there appears to be a 45-byte overhead for metadata, imposed by Pulsar runtime.
-    private static final int PER_MESSAGE_METADATA_OHEAD = 45;
+    // Empirically, there appears to be a 42-byte overhead for metadata, imposed by Pulsar runtime.
+    private static final int PER_MESSAGE_METADATA_OHEAD = 42;
 
     private static final int PUBLISH_INTERVAL_SECS = 10;
     private static final int NUM_PRODUCERS = 4;
