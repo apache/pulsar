@@ -176,11 +176,9 @@ var client = PulsarClient.Builder()
 
 ## Enable token authentication 
 
-On how to enable token authentication on a Pulsar cluster, you can refer to the guide below.
-
 JWT supports two different kinds of keys in order to generate and validate the tokens:
 
- * Symmetric :
+ * Symmetric:
     - You can use a single ***Secret*** key to generate and validate tokens.
  * Asymmetric: A pair of keys consists of the Private key and the Public key.
     - You can use ***Private*** key to generate tokens.
@@ -221,7 +219,19 @@ $ bin/pulsar tokens create-key-pair --output-private-key my-private.key --output
  * Store `my-private.key` in a safe location and only administrator can use `my-private.key` to generate new tokens.
  * `my-public.key` is distributed to all Pulsar brokers. You can publicly share this file without any security concern.
 
-### Generate tokens
+
+### Generate an admin role token
+
+Run the following command to create an admin role token, and use the generated token string as the value of `brokerClientAuthenticationParameters` in the `conf/broker.conf` or `conf/standalone.conf` file.
+
+```shell
+
+$ bin/pulsar tokens create --secret-key file:///path/to/my-secret.key \
+            --subject admin
+
+```
+
+### Generate tokens for other user roles
 
 A token is a credential associated with a user. The association is done through the "principal" or "role". In the case of JWT tokens, this field is typically referred as **subject**, though they are exactly the same concept.
 
@@ -255,39 +265,14 @@ $ bin/pulsar tokens create --secret-key file:///path/to/my-secret.key \
 
 ```
 
-:::note
-
-To grant permissions to the user role that generates the token, you need to configure `superUserRoles` in the `conf/broker.conf` or `conf/standalone.conf` file, and the `conf/proxy.conf` file if you want to use proxies to authenticate clients.
-
-```conf
-
-superUserRoles=test-user
-
-```
-
-:::
-
-### Authorization
-
-The token itself does not have any permission associated. The authorization engine determines whether the token should have permissions or not. Once you have created the token, you can grant permission for this token to do certain actions. The following is an example.
-
-```shell
-
-$ bin/pulsar-admin namespaces grant-permission my-tenant/my-namespace \
-            --role test-user \
-            --actions produce,consume
-
-```
-
 ### Enable token authentication on Brokers
 
-To configure brokers to authenticate clients, add the following parameters to `broker.conf`:
+To configure brokers to authenticate clients, add the following parameters to the `conf/broker.conf` or `conf/standalone.conf` file.
 
 ```properties
 
-# Configuration to enable authentication and authorization
+# Configuration to enable authentication
 authenticationEnabled=true
-authorizationEnabled=true
 authenticationProviders=org.apache.pulsar.broker.authentication.AuthenticationProviderToken
 
 # Authentication settings of the broker itself. Used when the broker connects to other brokers, either in same or other clusters
@@ -295,7 +280,7 @@ brokerClientTlsEnabled=true
 brokerClientAuthenticationPlugin=org.apache.pulsar.client.impl.auth.AuthenticationToken
 brokerClientAuthenticationParameters={"token":"eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0ZXN0LXVzZXIifQ.9OHgE9ZUDeBTZs7nSMEFIuGNEX18FLR3qvy8mqxSxXw"}
 # Either configure the token string or specify to read it from a file. The following three available formats are all valid:
-# brokerClientAuthenticationParameters={"token":"your-token-string"}
+# brokerClientAuthenticationParameters={"token":"your-token-string"}    
 # brokerClientAuthenticationParameters=token:your-token-string
 # brokerClientAuthenticationParameters=file:///path/to/token
 brokerClientTrustCertsFilePath=/path/my-ca/certs/ca.cert.pem
@@ -314,17 +299,20 @@ tokenSecretKey=file:///path/to/secret.key
 
 ```
 
+:::note
+
+Use the [admin role token](#generate-an-admin-role-token) as the value of `brokerClientAuthenticationParameters`.
+
+:::
+
 ### Enable token authentication on Proxies
 
-To configure proxies to authenticate clients, add the following parameters to `proxy.conf`:
-
-The proxy uses its own token when connecting to brokers. You need to configure the role token for this key pair in the `proxyRoles` of the brokers. For more details, see the [authorization guide](security-authorization).
+To configure proxies to authenticate clients, add the following parameters to the `conf/proxy.conf` file.
 
 ```properties
 
 # For clients connecting to the proxy
 authenticationEnabled=true
-authorizationEnabled=true
 authenticationProviders=org.apache.pulsar.broker.authentication.AuthenticationProviderToken
 tokenSecretKey=file:///path/to/secret.key
 
@@ -336,9 +324,28 @@ brokerClientAuthenticationParameters={"token":"eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0
 # brokerClientAuthenticationParameters=token:your-token-string
 # brokerClientAuthenticationParameters=file:///path/to/token
 
-# Whether client authorization credentials are forwarded to the broker for re-authorization.
-# Authentication must be enabled via authenticationEnabled=true for this to take effect.
-forwardAuthorizationCredentials=true
+```
+
+The proxy uses its own token when connecting to brokers. You need to configure the role token for this key pair in the `proxyRoles` of the brokers. For more details, see the [authorization guide](security-authorization).
+
+
+## Enable authorization and assign superusers
+
+The token itself does not have any permission associated. The authorization engine determines whether the token can have permissions or not. You can enable the authorization and assign super users in the `conf/broker.conf` or `conf/standalone.conf` file, and the `conf/proxy.conf` file if you use proxies to authenticate clients.
+
+```conf
+
+authorizationEnabled=true
+superUserRoles=admin
 
 ```
 
+Use the `admin` role to grant permissions for this token to do certain actions. The following is an example.
+
+```shell
+
+$ bin/pulsar-admin namespaces grant-permission my-tenant/my-namespace \
+            --role test-user \
+            --actions produce,consume
+
+```
