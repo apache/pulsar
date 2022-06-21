@@ -454,7 +454,7 @@ public abstract class TransactionsBase extends AdminResource {
         checkArgument(position != null, "Message position should not be null.");
         String[] args = position.split(":");
         int length = args.length;
-        checkArgument(length>=2, "Message Position [" + position + "] is invalid");
+        checkArgument(length >= 2, "Message Position [" + position + "] is invalid");
         Integer batchIndex;
         if (length == 3 && !args[2].equals("null")) {
             batchIndex =  Integer.parseInt(args[2]);
