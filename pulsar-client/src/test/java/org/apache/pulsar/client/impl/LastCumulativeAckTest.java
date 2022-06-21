@@ -68,8 +68,10 @@ public class LastCumulativeAckTest {
         final BitSetRecyclable bitSetRecyclable = BitSetRecyclable.create();
         bitSetRecyclable.set(0, 3);
         lastCumulativeAck.update(messageId, bitSetRecyclable);
+        assertTrue(lastCumulativeAck.isFlushRequired());
 
         final LastCumulativeAck lastCumulativeAckToFlush = lastCumulativeAck.flush();
+        assertFalse(lastCumulativeAck.isFlushRequired());
         assertSame(lastCumulativeAckToFlush.getMessageId(), messageId);
         assertNotSame(lastCumulativeAckToFlush.getBitSetRecyclable(), bitSetRecyclable);
         assertEquals(lastCumulativeAckToFlush.getBitSetRecyclable(), bitSetRecyclable);
