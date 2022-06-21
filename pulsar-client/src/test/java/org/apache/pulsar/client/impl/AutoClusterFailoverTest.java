@@ -22,11 +22,18 @@ import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 import java.io.IOException;
+import java.net.ConnectException;
+import java.net.InetSocketAddress;
+import java.net.Socket;
+import java.net.UnknownHostException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Random;
 import java.util.concurrent.TimeUnit;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -37,6 +44,7 @@ import org.mockito.Mockito;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-impl")
+@Slf4j
 public class AutoClusterFailoverTest {
     @Test
     public void testBuildAutoClusterFailoverInstance() throws PulsarClientException {
@@ -282,5 +290,47 @@ public class AutoClusterFailoverTest {
         Mockito.verify(pulsarClient, Mockito.atLeastOnce())
                 .updateTlsTrustStorePathAndPassword(primaryTlsTrustStorePath, primaryTlsTrustStorePassword);
 
+    }
+
+    @Test
+    public void testUrl() throws Exception {
+        Random random = new Random(42);
+        String serviceUrl = "pulsar://localhost:" + random.nextInt(65535);
+
+
+        PulsarServiceNameResolver resolver = new PulsarServiceNameResolver();
+
+        try {
+            resolver.updateServiceUrl(serviceUrl);
+            InetSocketAddress inetSocketAddress = new InetSocketAddress(resolver.resolveHost().getHostName(), resolver.resolveHost().getPort());
+            Socket socket = new Socket();
+            socket.connect(inetSocketAddress, 30);
+            socket.close();
+            fail();
+        } catch (Exception e) {
+            log.warn("Failed to probe available, url: {}", serviceUrl, e);
+            if (e instanceof UnknownHostException) {
+                fail();
+            }
+
+            if (e instanceof ConnectException) {
+                log.info("expected.");
+            }
+        }
+
+        try {
+            resolver.updateServiceUrl(serviceUrl);
+            Socket socket = new Socket();
+            socket.connect(resolver.resolveHost(), 30);
+            socket.close();
+            fail();
+        } catch (Exception e) {
+            log.warn("Failed to probe available, url: {}", serviceUrl, e);
+            if (e instanceof UnknownHostException) {
+                // expected.
+            } else {
+                fail();
+            }
+        }
     }
 }
