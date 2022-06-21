@@ -467,10 +467,9 @@ public class ConsumerBatchReceiveTest extends ProducerConsumerBase {
             Messages<String> batchReceived = consumer.batchReceive();
             Assert.assertEquals(batchReceived.size(), 1);
         }
-        Assert.assertTrue(((ConsumerBase<?>)consumer).hasBatchReceiveTimeout());
         Awaitility.await().untilAsserted(() -> Assert.assertFalse(((ConsumerBase<?>)consumer).hasBatchReceiveTimeout()));
         Assert.assertEquals(consumer.batchReceive().size(), 0);
-        Assert.assertFalse(((ConsumerBase<?>)consumer).hasBatchReceiveTimeout());
+        Awaitility.await().untilAsserted(() -> Assert.assertFalse(((ConsumerBase<?>)consumer).hasBatchReceiveTimeout()));
     }
 
 
