@@ -700,14 +700,6 @@ public class PulsarRecordCursor implements RecordCursor {
     public void close() {
         log.info("Closing cursor record");
 
-        if (currentMessage != null) {
-            currentMessage.release();
-        }
-
-        if (messageQueue != null) {
-            messageQueue.drain(RawMessage::release);
-        }
-
         if (entryQueue != null) {
             entryQueue.drain(Entry::release);
         }
@@ -716,6 +708,12 @@ public class PulsarRecordCursor implements RecordCursor {
             deserializeEntries.close().whenComplete((r, t) -> {
                 if (entryQueue != null) {
                     entryQueue.drain(Entry::release);
+                }
+                if (messageQueue != null) {
+                    messageQueue.drain(RawMessage::release);
+                }
+                if (currentMessage != null) {
+                    currentMessage.release();
                 }
             });
         }
