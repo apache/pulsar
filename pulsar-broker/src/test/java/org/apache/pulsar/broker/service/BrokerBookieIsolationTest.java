@@ -448,6 +448,8 @@ public class BrokerBookieIsolationTest {
         config.setBrokerServicePort(Optional.of(0));
         config.setAdvertisedAddress("localhost");
         config.setStrictBookieAffinityEnabled(true);
+        config.setTopicLevelPoliciesEnabled(false);
+        config.setSystemTopicEnabled(false);
         config.setBookkeeperClientIsolationGroups(brokerBookkeeperClientIsolationGroups);
 
         config.setManagedLedgerDefaultEnsembleSize(2);

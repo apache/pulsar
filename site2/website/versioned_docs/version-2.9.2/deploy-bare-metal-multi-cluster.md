@@ -1,19 +1,19 @@
 ---
-id: version-2.9.2-deploy-bare-metal-multi-cluster
+id: deploy-bare-metal-multi-cluster
 title: Deploying a multi-cluster on bare metal
-sidebar_label: Bare metal multi-cluster
+sidebar_label: "Bare metal multi-cluster"
 original_id: deploy-bare-metal-multi-cluster
 ---
 
->  **Tips** 
->
-> 1. You can use single-cluster Pulsar installation in most use cases, such as experimenting with Pulsar or using Pulsar in a startup or in a single team. If you need to run a multi-cluster Pulsar instance, see the [guide](deploy-bare-metal-multi-cluster.md).
->
-> 2. If you want to use all built-in [Pulsar IO](io-overview.md) connectors, you need to download `apache-pulsar-io-connectors`package and install `apache-pulsar-io-connectors` under `connectors` directory in the pulsar directory on every broker node or on every function-worker node if you have run a separate cluster of function workers for [Pulsar Functions](functions-overview.md).
->
->3. If you want to use [Tiered Storage](concepts-tiered-storage.md) feature in your Pulsar deployment, you need to download `apache-pulsar-offloaders`package and install `apache-pulsar-offloaders` under `offloaders` directory in the Pulsar directory on every broker node. For more details of how to configure this feature, you can refer to the [Tiered storage cookbook](cookbooks-tiered-storage.md).
+:::tip
 
-A Pulsar instance consists of multiple Pulsar clusters working in unison. You can distribute clusters across data centers or geographical regions and replicate the clusters amongst themselves using [geo-replication](administration-geo.md).Deploying a  multi-cluster Pulsar instance consists of the following steps:
+1. You can use single-cluster Pulsar installation in most use cases, such as experimenting with Pulsar or using Pulsar in a startup or in a single team. If you need to run a multi-cluster Pulsar instance, see the [guide](deploy-bare-metal-multi-cluster).
+2. If you want to use all built-in [Pulsar IO](io-overview.md) connectors, you need to download `apache-pulsar-io-connectors`package and install `apache-pulsar-io-connectors` under `connectors` directory in the pulsar directory on every broker node or on every function-worker node if you have run a separate cluster of function workers for [Pulsar Functions](functions-overview).
+3. If you want to use [Tiered Storage](concepts-tiered-storage.md) feature in your Pulsar deployment, you need to download `apache-pulsar-offloaders`package and install `apache-pulsar-offloaders` under `offloaders` directory in the Pulsar directory on every broker node. For more details of how to configure this feature, you can refer to the [Tiered storage cookbook](cookbooks-tiered-storage).
+
+:::
+
+A Pulsar instance consists of multiple Pulsar clusters working in unison. You can distribute clusters across data centers or geographical regions and replicate the clusters amongst themselves using [geo-replication](administration-geo).Deploying a  multi-cluster Pulsar instance consists of the following steps:
 
 1. Deploying two separate ZooKeeper quorums: a local quorum for each cluster in the instance and a configuration store quorum for instance-wide tasks
 2. Initializing cluster metadata for each cluster
@@ -22,15 +22,17 @@ A Pulsar instance consists of multiple Pulsar clusters working in unison. You ca
 
 
 > #### Run Pulsar locally or on Kubernetes?
-> This guide shows you how to deploy Pulsar in production in a non-Kubernetes environment. If you want to run a standalone Pulsar cluster on a single machine for development purposes, see the [Setting up a local cluster](getting-started-standalone.md) guide. If you want to run Pulsar on [Kubernetes](https://kubernetes.io), see the [Pulsar on Kubernetes](deploy-kubernetes.md) guide, which includes sections on running Pulsar on Kubernetes, on Google Kubernetes Engine and on Amazon Web Services.
+> This guide shows you how to deploy Pulsar in production in a non-Kubernetes environment. If you want to run a standalone Pulsar cluster on a single machine for development purposes, see the [Setting up a local cluster](getting-started-standalone.md) guide. If you want to run Pulsar on [Kubernetes](https://kubernetes.io), see the [Pulsar on Kubernetes](deploy-kubernetes) guide, which includes sections on running Pulsar on Kubernetes, on Google Kubernetes Engine and on Amazon Web Services.
 
 ## System requirement
 
 Currently, Pulsar is available for 64-bit **macOS**, **Linux**, and **Windows**. You need to install 64-bit JRE/JDK 8 or later versions.
 
-> **Note**
->
-> Broker is only supported on 64-bit JVM.
+:::note
+
+Broker is only supported on 64-bit JVM.
+
+:::
 
 ## Install Pulsar
 
@@ -38,30 +40,34 @@ To get started running Pulsar, download a binary tarball release in one of the f
 
 * by clicking the link below and downloading the release from an Apache mirror:
 
-  * <a href="pulsar:binary_release_url" download>Pulsar {{pulsar:version}} binary release</a>
+  * <a href="pulsar:binary_release_url" download>Pulsar @pulsar:version@ binary release</a>
 
 * from the Pulsar [downloads page](pulsar:download_page_url)
 * from the Pulsar [releases page](https://github.com/apache/pulsar/releases/latest)
 * using [wget](https://www.gnu.org/software/wget):
 
   ```shell
-  $ wget 'https://www.apache.org/dyn/mirrors/mirrors.cgi?action=download&filename=pulsar/pulsar-{{pulsar:version}}/apache-pulsar-{{pulsar:version}}-bin.tar.gz' -O apache-pulsar-{{pulsar:version}}-bin.tar.gz
+  
+  $ wget 'https://www.apache.org/dyn/mirrors/mirrors.cgi?action=download&filename=pulsar/pulsar-@pulsar:version@/apache-pulsar-@pulsar:version@-bin.tar.gz' -O apache-pulsar-@pulsar:version@-bin.tar.gz
+  
   ```
 
 Once you download the tarball, untar it and `cd` into the resulting directory:
 
 ```bash
-$ tar xvfz apache-pulsar-{{pulsar:version}}-bin.tar.gz
-$ cd apache-pulsar-{{pulsar:version}}
+
+$ tar xvfz apache-pulsar-@pulsar:version@-bin.tar.gz
+$ cd apache-pulsar-@pulsar:version@
+
 ```
 
 The Pulsar binary package initially contains the following directories:
 
 Directory | Contains
 :---------|:--------
-`bin` | [Command-line tools](reference-cli-tools.md) of Pulsar, such as [`pulsar`](reference-cli-tools.md#pulsar) and [`pulsar-admin`](https://pulsar.apache.org/tools/pulsar-admin/)
+`bin` | [Command-line tools](reference-cli-tools) of Pulsar, such as [`pulsar`](reference-cli-tools.md#pulsar) and [`pulsar-admin`](https://pulsar.apache.org/tools/pulsar-admin/)
 `conf` | Configuration files for Pulsar, including for [broker configuration](reference-configuration.md#broker), [ZooKeeper configuration](reference-configuration.md#zookeeper), and more
-`examples` | A Java JAR file containing example [Pulsar Functions](functions-overview.md)
+`examples` | A Java JAR file containing example [Pulsar Functions](functions-overview)
 `lib` | The [JAR](https://en.wikipedia.org/wiki/JAR_(file_format)) files that Pulsar uses 
 `licenses` | License files, in `.txt` form, for various components of the Pulsar codebase
 
@@ -70,7 +76,7 @@ The following directories are created once you begin running Pulsar:
 Directory | Contains
 :---------|:--------
 `data` | The data storage directory that ZooKeeper and BookKeeper use
-`instances` | Artifacts created for [Pulsar Functions](functions-overview.md)
+`instances` | Artifacts created for [Pulsar Functions](functions-overview)
 `logs` | Logs that the installation creates
 
 
@@ -93,22 +99,28 @@ You need to stand up one local ZooKeeper cluster per Pulsar cluster for deployin
 To begin, add all ZooKeeper servers to the quorum configuration specified in the [`conf/zookeeper.conf`](reference-configuration.md#zookeeper) file. Add a `server.N` line for each node in the cluster to the configuration, where `N` is the number of the ZooKeeper node. The following is an example for a three-node cluster:
 
 ```properties
+
 server.1=zk1.us-west.example.com:2888:3888
 server.2=zk2.us-west.example.com:2888:3888
 server.3=zk3.us-west.example.com:2888:3888
+
 ```
 
 On each host, you need to specify the ID of the node in the `myid` file of each node, which is in `data/zookeeper` folder of each server by default (you can change the file location via the [`dataDir`](reference-configuration.md#zookeeper-dataDir) parameter).
 
->**Tip**
->
-> See the [Multi-server setup guide](https://zookeeper.apache.org/doc/r3.4.10/zookeeperAdmin.html#sc_zkMulitServerSetup) in the ZooKeeper documentation for detailed information on `myid` and more.
+:::tip
+
+See the [Multi-server setup guide](https://zookeeper.apache.org/doc/r3.4.10/zookeeperAdmin.html#sc_zkMulitServerSetup) in the ZooKeeper documentation for detailed information on `myid` and more.
+
+:::
 
 On a ZooKeeper server at `zk1.us-west.example.com`, for example, you could set the `myid` value like this:
 
 ```shell
+
 $ mkdir -p data/zookeeper
 $ echo 1 > data/zookeeper/myid
+
 ```
 
 On `zk2.us-west.example.com` the command looks like `echo 2 > data/zookeeper/myid` and so on.
@@ -116,7 +128,9 @@ On `zk2.us-west.example.com` the command looks like `echo 2 > data/zookeeper/myi
 Once you add each server to the `zookeeper.conf` configuration and each server has the appropriate `myid` entry, you can start ZooKeeper on all hosts (in the background, using nohup) with the [`pulsar-daemon`](reference-cli-tools.md#pulsar-daemon) CLI tool:
 
 ```shell
+
 $ bin/pulsar-daemon start zookeeper
+
 ```
 
 ### Deploy the configuration store 
@@ -132,10 +146,12 @@ If your Pulsar instance consists of just one cluster, then you can deploy a conf
 To deploy a ZooKeeper configuration store in a single-cluster instance, add the same ZooKeeper servers that the local quorum. You need to use the configuration file in [`conf/global_zookeeper.conf`](reference-configuration.md#configuration-store) using the same method for [local ZooKeeper](#local-zookeeper), but make sure to use a different port (2181 is the default for ZooKeeper). The following is an example that uses port 2184 for a three-node ZooKeeper cluster:
 
 ```properties
+
 clientPort=2184
 server.1=zk1.us-west.example.com:2185:2186
 server.2=zk2.us-west.example.com:2185:2186
 server.3=zk3.us-west.example.com:2185:2186
+
 ```
 
 As before, create the `myid` files for each server on `data/global-zookeeper/myid`.
@@ -151,7 +167,9 @@ Again, given the very low expected load on the configuration store servers, you 
 For example, assume a Pulsar instance with the following clusters `us-west`, `us-east`, `us-central`, `eu-central`, `ap-south`. Also assume, each cluster has its own local ZK servers named such as the following: 
 
 ```
+
 zk[1-3].${CLUSTER}.example.com
+
 ```
 
 In this scenario if you want to pick the quorum participants from few clusters and let all the others be ZK observers. For example, to form a 7 servers quorum, you can pick 3 servers from `us-west`, 2 from `us-central` and 2 from `us-east`.
@@ -161,6 +179,7 @@ This method guarantees that writes to configuration store is possible even if on
 The ZK configuration in all the servers looks like:
 
 ```properties
+
 clientPort=2184
 server.1=zk1.us-west.example.com:2185:2186
 server.2=zk2.us-west.example.com:2185:2186
@@ -177,12 +196,15 @@ server.12=zk3.eu-central.example.com:2185:2186:observer
 server.13=zk1.ap-south.example.com:2185:2186:observer
 server.14=zk2.ap-south.example.com:2185:2186:observer
 server.15=zk3.ap-south.example.com:2185:2186:observer
+
 ```
 
 Additionally, ZK observers need to have the following parameters:
 
 ```properties
+
 peerType=observer
+
 ```
 
 ##### Start the service
@@ -190,7 +212,9 @@ peerType=observer
 Once your configuration store configuration is in place, you can start up the service using [`pulsar-daemon`](reference-cli-tools.md#pulsar-daemon)
 
 ```shell
+
 $ bin/pulsar-daemon start configuration-store
+
 ```
 
 ## Cluster metadata initialization
@@ -200,6 +224,7 @@ Once you set up the cluster-specific ZooKeeper and configuration store quorums f
 You can initialize this metadata using the [`initialize-cluster-metadata`](reference-cli-tools.md#pulsar-initialize-cluster-metadata) command of the [`pulsar`](reference-cli-tools.md#pulsar) CLI tool. The following is an example:
 
 ```shell
+
 $ bin/pulsar initialize-cluster-metadata \
   --cluster us-west \
   --zookeeper zk1.us-west.example.com:2181 \
@@ -208,6 +233,7 @@ $ bin/pulsar initialize-cluster-metadata \
   --web-service-url-tls https://pulsar.us-west.example.com:8443/ \
   --broker-service-url pulsar://pulsar.us-west.example.com:6650/ \
   --broker-service-url-tls pulsar+ssl://pulsar.us-west.example.com:6651/
+
 ```
 
 As you can see from the example above, you need to specify the following:
@@ -218,7 +244,7 @@ As you can see from the example above, you need to specify the following:
 * The web service URL for the cluster
 * A broker service URL enabling interaction with the [brokers](reference-terminology.md#broker) in the cluster
 
-If you use [TLS](security-tls-transport.md), you also need to specify a TLS web service URL for the cluster as well as a TLS broker service URL for the brokers in the cluster.
+If you use [TLS](security-tls-transport), you also need to specify a TLS web service URL for the cluster as well as a TLS broker service URL for the brokers in the cluster.
 
 Make sure to run `initialize-cluster-metadata` for each cluster in your instance.
 
@@ -239,12 +265,17 @@ You can start a bookie in two ways: in the foreground or as a background daemon.
 To start a bookie in the background, use the [`pulsar-daemon`](reference-cli-tools.md#pulsar-daemon) CLI tool:
 
 ```bash
+
 $ bin/pulsar-daemon start bookie
+
 ```
 
 You can verify that the bookie works properly using the `bookiesanity` command for the [BookKeeper shell](reference-cli-tools.md#bookkeeper-shell):
+
 ```bash
+
 $ bin/bookkeeper shell bookiesanity
+
 ```
 
 This command creates a new ledger on the local bookie, writes a few entries, reads them back and finally deletes the ledger.
@@ -252,7 +283,9 @@ This command creates a new ledger on the local bookie, writes a few entries, rea
 After you have started all bookies, you can use the `simpletest` command for [BookKeeper shell](reference-cli-tools.md#shell) on any bookie node, to verify that all bookies in the cluster are running.
 
 ```bash
+
 $ bin/bookkeeper shell simpletest --ensemble <num-bookies> --writeQuorum <num-bookies> --ackQuorum <num-bookies> --numEntries <num-entries>
+
 ```
 
 Bookie hosts are responsible for storing message data on disk. In order for bookies to provide optimal performance, having a suitable hardware configuration is essential for the bookies. The following are key dimensions for bookie hardware capacity.
@@ -283,6 +316,7 @@ You also need to specify the name of the [cluster](reference-terminology.md#clus
 The following is an example configuration:
 
 ```properties
+
 # Local ZooKeeper servers
 zookeeperServers=zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.example.com:2181
 
@@ -302,6 +336,7 @@ webServicePort=8080
 
 # Port to use to server HTTPS request
 webServicePortTls=8443
+
 ```
 
 ### Broker hardware
@@ -313,32 +348,38 @@ Pulsar brokers do not require any special hardware since they do not use the loc
 You can start a broker in the background by using [nohup](https://en.wikipedia.org/wiki/Nohup) with the [`pulsar-daemon`](reference-cli-tools.md#pulsar-daemon) CLI tool:
 
 ```shell
+
 $ bin/pulsar-daemon start broker
+
 ```
 
 You can also start brokers in the foreground by using [`pulsar broker`](reference-cli-tools.md#broker):
 
 ```shell
+
 $ bin/pulsar broker
+
 ```
 
 ## Service discovery
 
-[Clients](getting-started-clients.md) connecting to Pulsar brokers need to communicate with an entire Pulsar instance using a single URL.
+[Clients](getting-started-clients) connecting to Pulsar brokers need to communicate with an entire Pulsar instance using a single URL.
 
-You can use your own service discovery system. If you use your own system, you only need to satisfy just one requirement: when a client performs an HTTP request to an [endpoint](reference-configuration.md) for a Pulsar cluster, such as `http://pulsar.us-west.example.com:8080`, the client needs to be redirected to some active brokers in the desired cluster, whether via DNS, an HTTP or IP redirect, or some other means.
+You can use your own service discovery system. If you use your own system, you only need to satisfy just one requirement: when a client performs an HTTP request to an [endpoint](reference-configuration) for a Pulsar cluster, such as `http://pulsar.us-west.example.com:8080`, the client needs to be redirected to some active brokers in the desired cluster, whether via DNS, an HTTP or IP redirect, or some other means.
 
 > **Service discovery already provided by many scheduling systems**
 > Many large-scale deployment systems, such as [Kubernetes](deploy-kubernetes), have service discovery systems built in. If you run Pulsar on such a system, you may not need to provide your own service discovery mechanism.
 
 ## Admin client and verification
 
-At this point your Pulsar instance should be ready to use. You can now configure client machines that can serve as [administrative clients](admin-api-overview.md) for each cluster. You can use the [`conf/client.conf`](reference-configuration.md#client) configuration file to configure admin clients.
+At this point your Pulsar instance should be ready to use. You can now configure client machines that can serve as [administrative clients](admin-api-overview) for each cluster. You can use the [`conf/client.conf`](reference-configuration.md#client) configuration file to configure admin clients.
 
 The most important thing is that you point the [`serviceUrl`](reference-configuration.md#client-serviceUrl) parameter to the correct service URL for the cluster:
 
 ```properties
+
 serviceUrl=http://pulsar.us-west.example.com:8080/
+
 ```
 
 ## Provision new tenants
@@ -348,11 +389,12 @@ Pulsar is built as a fundamentally multi-tenant system.
 
 If a new tenant wants to use the system, you need to create a new one. You can create a new tenant by using the [`pulsar-admin`](reference-pulsar-admin.md#tenants) CLI tool:
 
-
 ```shell
+
 $ bin/pulsar-admin tenants create test-tenant \
   --allowed-clusters us-west \
   --admin-roles test-admin-role
+
 ```
 
 In this command, users who identify with `test-admin-role` role can administer the configuration for the `test-tenant` tenant. The `test-tenant` tenant can only use the `us-west` cluster. From now on, this tenant can manage its resources.
@@ -363,7 +405,9 @@ Once you create a tenant, you need to create [namespaces](reference-terminology.
 The first step is to create a namespace. A namespace is an administrative unit that can contain many topics. A common practice is to create a namespace for each different use case from a single tenant.
 
 ```shell
+
 $ bin/pulsar-admin namespaces create test-tenant/ns1
+
 ```
 
 ##### Test producer and consumer
@@ -377,23 +421,32 @@ You can use a topic in the namespace that you have just created. Topics are auto
 The topic name in this case could be:
 
 ```http
+
 persistent://test-tenant/ns1/my-topic
+
 ```
 
 Start a consumer that creates a subscription on the topic and waits for messages:
 
 ```shell
+
 $ bin/pulsar-perf consume persistent://test-tenant/ns1/my-topic
+
 ```
 
 Start a producer that publishes messages at a fixed rate and reports stats every 10 seconds:
 
 ```shell
+
 $ bin/pulsar-perf produce persistent://test-tenant/ns1/my-topic
+
 ```
 
 To report the topic stats:
 
 ```shell
+
 $ bin/pulsar-admin topics stats persistent://test-tenant/ns1/my-topic
+
 ```
+

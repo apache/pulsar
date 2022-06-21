@@ -59,8 +59,6 @@ public class MaxUnackedMessagesTest extends ProducerConsumerBase {
     @BeforeMethod
     @Override
     protected void setup() throws Exception {
-        this.conf.setSystemTopicEnabled(true);
-        this.conf.setTopicLevelPoliciesEnabled(true);
         super.internalSetup();
         super.producerBaseSetup();
     }

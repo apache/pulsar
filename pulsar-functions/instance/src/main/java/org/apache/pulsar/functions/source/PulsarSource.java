@@ -132,18 +132,21 @@ public abstract class PulsarSource<T> implements Source<T> {
                 .message(message)
                 .schema(schema)
                 .topicName(message.getTopicName())
+                .customAckFunction(cumulative -> {
+                    if (cumulative) {
+                        consumer.acknowledgeCumulativeAsync(message)
+                                .whenComplete((unused, throwable) -> message.release());
+                    } else {
+                        consumer.acknowledgeAsync(message).whenComplete((unused, throwable) -> message.release());
+                    }
+                })
                 .ackFunction(() -> {
-                    try {
-                        if (pulsarSourceConfig
-                                .getProcessingGuarantees() == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE) {
-                            consumer.acknowledgeCumulativeAsync(message);
-                        } else {
-                            consumer.acknowledgeAsync(message);
-                        }
-                    } finally {
-                        // don't need to check if message pooling is set
-                        // client will automatically check
-                        message.release();
+                    if (pulsarSourceConfig
+                            .getProcessingGuarantees() == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE) {
+                        consumer.acknowledgeCumulativeAsync(message)
+                                .whenComplete((unused, throwable) -> message.release());
+                    } else {
+                        consumer.acknowledgeAsync(message).whenComplete((unused, throwable) -> message.release());
                     }
                 }).failFunction(() -> {
                     try {

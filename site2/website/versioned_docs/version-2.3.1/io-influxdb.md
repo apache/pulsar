@@ -1,7 +1,7 @@
 ---
-id: version-2.3.1-io-influxdb
+id: io-influxdb
 title: InfluxDB Connector
-sidebar_label: InfluxDB Connector
+sidebar_label: "InfluxDB Connector"
 original_id: io-influxdb
 ---
 

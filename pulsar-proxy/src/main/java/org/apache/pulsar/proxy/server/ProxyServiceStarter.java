@@ -143,12 +143,14 @@ public class ProxyServiceStarter {
             // load config file
             config = PulsarConfigurationLoader.create(configFile, ProxyConfiguration.class);
 
-            if (isBlank(metadataStoreUrl)) {
+            if (!isBlank(metadataStoreUrl)) {
+                // Use metadataStoreUrl from command line
+                config.setMetadataStoreUrl(metadataStoreUrl);
+            } else if (!isBlank(zookeeperServers)){
                 // Use zookeeperServers from command line if metadataStoreUrl is empty;
                 config.setMetadataStoreUrl(zookeeperServers);
             } else {
-                // Use metadataStoreUrl from command line
-                config.setMetadataStoreUrl(metadataStoreUrl);
+                // use "metadataStoreUrl" property in "proxy.conf".
             }
 
             if (!isBlank(globalZookeeperServers)) {
@@ -260,10 +262,8 @@ public class ProxyServiceStarter {
                         Collections.emptyList(), config.isAuthenticateMetricsEndpoint());
             }
         }
-        server.addRestResources("/", VipStatus.class.getPackage().getName(),
-                VipStatus.ATTRIBUTE_STATUS_FILE_PATH, config.getStatusFilePath());
-        server.addRestResources("/proxy-stats", ProxyStats.class.getPackage().getName(),
-                ProxyStats.ATTRIBUTE_PULSAR_PROXY_NAME, service);
+        server.addRestResource("/", VipStatus.ATTRIBUTE_STATUS_FILE_PATH, config.getStatusFilePath(), VipStatus.class);
+        server.addRestResource("/proxy-stats", ProxyStats.ATTRIBUTE_PULSAR_PROXY_NAME, service, ProxyStats.class);
 
         AdminProxyHandler adminProxyHandler = new AdminProxyHandler(config, discoveryProvider);
         ServletHolder servletHolder = new ServletHolder(adminProxyHandler);

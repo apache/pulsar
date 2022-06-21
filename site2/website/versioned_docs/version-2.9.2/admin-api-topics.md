@@ -1,9 +1,15 @@
 ---
-id: version-2.9.2-admin-api-topics
+id: admin-api-topics
 title: Manage topics
-sidebar_label: Topics
+sidebar_label: "Topics"
 original_id: admin-api-topics
 ---
+
+````mdx-code-block
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+````
+
 
 > **Important**
 >
@@ -18,75 +24,118 @@ original_id: admin-api-topics
 Pulsar has persistent and non-persistent topics. Persistent topic is a logical endpoint for publishing and consuming messages. The topic name structure for persistent topics is:
 
 ```shell
+
 persistent://tenant/namespace/topic
+
 ```
 
 Non-persistent topics are used in applications that only consume real-time published messages and do not need persistent guarantee. In this way, it reduces message-publish latency by removing overhead of persisting messages. The topic name structure for non-persistent topics is:
 
 ```shell
+
 non-persistent://tenant/namespace/topic
+
 ```
+
 ## Manage topic resources
 Whether it is persistent or non-persistent topic, you can obtain the topic resources through `pulsar-admin` tool, REST API and Java.
 
-> **Note**    
-> In REST API, `:schema` stands for persistent or non-persistent. `:tenant`, `:namespace`, `:x` are variables, replace them with the real tenant, namespace, and `x` names when using them.     
-> Take {@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace|operation/getList?version=[[pulsar:version_number]]} as an example, to get the list of persistent topics in REST API, use `https://pulsar.apache.org/admin/v2/persistent/my-tenant/my-namespace`. To get the list of non-persistent topics in REST API, use `https://pulsar.apache.org/admin/v2/non-persistent/my-tenant/my-namespace`.
+:::note
+
+In REST API, `:schema` stands for persistent or non-persistent. `:tenant`, `:namespace`, `:x` are variables, replace them with the real tenant, namespace, and `x` names when using them.     
+Take {@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace|operation/getList?version=@pulsar:version_number@} as an example, to get the list of persistent topics in REST API, use `https://pulsar.apache.org/admin/v2/persistent/my-tenant/my-namespace`. To get the list of non-persistent topics in REST API, use `https://pulsar.apache.org/admin/v2/non-persistent/my-tenant/my-namespace`.
+
+:::
 
 ### List of topics
 
 You can get the list of topics under a given namespace in the following ways.
 
-<!--DOCUSAURUS_CODE_TABS-->
-<!--pulsar-admin-->
+````mdx-code-block
+<Tabs 
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
 
 ```shell
+
 $ pulsar-admin topics list \
   my-tenant/my-namespace
+
 ```
 
-<!--REST API-->
-{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace|operation/getList?version=[[pulsar:version_number]]}
+</TabItem>
+<TabItem value="REST API">
 
-<!--Java-->
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace|operation/getList?version=@pulsar:version_number@}
+
+</TabItem>
+<TabItem value="Java">
+
 ```java
+
 String namespace = "my-tenant/my-namespace";
 admin.topics().getList(namespace);
+
 ```
-<!--END_DOCUSAURUS_CODE_TABS-->
+
+</TabItem>
+
+</Tabs>
+````
 
 ### Grant permission
 
 You can grant permissions on a client role to perform specific actions on a given topic in the following ways.
 
-<!--DOCUSAURUS_CODE_TABS-->
-<!--pulsar-admin-->
+````mdx-code-block
+<Tabs 
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
+
 ```shell
+
 $ pulsar-admin topics grant-permission \
   --actions produce,consume --role application1 \
   persistent://test-tenant/ns1/tp1 \
+
 ```
 
-<!--REST API-->
-{@inject: endpoint|POST|/admin/v2/:schema/:tenant/:namespace/:topic/permissions/:role|operation/grantPermissionsOnTopic?version=[[pulsar:version_number]]}
+</TabItem>
+<TabItem value="REST API">
 
-<!--Java-->
+{@inject: endpoint|POST|/admin/v2/:schema/:tenant/:namespace/:topic/permissions/:role|operation/grantPermissionsOnTopic?version=@pulsar:version_number@}
+
+</TabItem>
+<TabItem value="Java">
+
 ```java
+
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 String role = "test-role";
 Set<AuthAction> actions  = Sets.newHashSet(AuthAction.produce, AuthAction.consume);
 admin.topics().grantPermission(topic, role, actions);
+
 ```
 
-<!--END_DOCUSAURUS_CODE_TABS-->
+</TabItem>
+
+</Tabs>
+````
 
 ### Get permission
 
 You can fetch permission in the following ways.
 
-<!--DOCUSAURUS_CODE_TABS-->
-<!--pulsar-admin-->
+````mdx-code-block
+<Tabs 
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
+
 ```shell
+
 $ pulsar-admin topics permissions \
   persistent://test-tenant/ns1/tp1 \
 
@@ -96,25 +145,40 @@ $ pulsar-admin topics permissions \
         "produce"
     ]
 }
+
 ```
 
-<!--REST API-->
-{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/permissions|operation/getPermissionsOnTopic?version=[[pulsar:version_number]]}
+</TabItem>
+<TabItem value="REST API">
 
-<!--Java-->
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/permissions|operation/getPermissionsOnTopic?version=@pulsar:version_number@}
+
+</TabItem>
+<TabItem value="Java">
+
 ```java
+
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 admin.topics().getPermissions(topic);
+
 ```
 
-<!--END_DOCUSAURUS_CODE_TABS-->
+</TabItem>
+
+</Tabs>
+````
 
 ### Revoke permission
 
 You can revoke a permission granted on a client role in the following ways.
-<!--DOCUSAURUS_CODE_TABS-->
-<!--pulsar-admin-->
+````mdx-code-block
+<Tabs 
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
+
 ```shell
+
 $ pulsar-admin topics revoke-permission \
   --role application1 \
   persistent://test-tenant/ns1/tp1 \
@@ -125,62 +189,102 @@ $ pulsar-admin topics revoke-permission \
     "produce"
   ]
 }
+
 ```
 
-<!--REST API-->
-{@inject: endpoint|DELETE|/admin/v2/:schema/:tenant/:namespace/:topic/permissions/:role|operation/revokePermissionsOnTopic?version=[[pulsar:version_number]]}
+</TabItem>
+<TabItem value="REST API">
 
-<!--Java-->
+{@inject: endpoint|DELETE|/admin/v2/:schema/:tenant/:namespace/:topic/permissions/:role|operation/revokePermissionsOnTopic?version=@pulsar:version_number@}
+
+</TabItem>
+<TabItem value="Java">
+
 ```java
+
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 String role = "test-role";
 admin.topics().revokePermissions(topic, role);
+
 ```
 
-<!--END_DOCUSAURUS_CODE_TABS-->
+</TabItem>
+
+</Tabs>
+````
 
 ### Delete topic
 
 You can delete a topic in the following ways. You cannot delete a topic if any active subscription or producers is connected to the topic.
 
-<!--DOCUSAURUS_CODE_TABS-->
-<!--pulsar-admin-->
+````mdx-code-block
+<Tabs 
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
+
 ```shell
+
 $ pulsar-admin topics delete \
   persistent://test-tenant/ns1/tp1 \
+
 ```
 
-<!--REST API-->
-{@inject: endpoint|DELETE|/admin/v2/:schema/:tenant/:namespace/:topic|operation/deleteTopic?version=[[pulsar:version_number]]}
+</TabItem>
+<TabItem value="REST API">
 
-<!--Java-->
+{@inject: endpoint|DELETE|/admin/v2/:schema/:tenant/:namespace/:topic|operation/deleteTopic?version=@pulsar:version_number@}
+
+</TabItem>
+<TabItem value="Java">
+
 ```java
+
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 admin.topics().delete(topic);
+
 ```
 
-<!--END_DOCUSAURUS_CODE_TABS-->
+</TabItem>
+
+</Tabs>
+````
 
 ### Unload topic
 
 You can unload a topic in the following ways.
-<!--DOCUSAURUS_CODE_TABS-->
-<!--pulsar-admin-->
+````mdx-code-block
+<Tabs 
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
+
 ```shell
+
 $ pulsar-admin topics unload \
   persistent://test-tenant/ns1/tp1 \
+
 ```
 
-<!--REST API-->
-{@inject: endpoint|PUT|/admin/v2/:schema/:tenant/:namespace/:topic/unload|operation/unloadTopic?version=[[pulsar:version_number]]}
+</TabItem>
+<TabItem value="REST API">
 
-<!--Java-->
+{@inject: endpoint|PUT|/admin/v2/:schema/:tenant/:namespace/:topic/unload|operation/unloadTopic?version=@pulsar:version_number@}
+
+</TabItem>
+<TabItem value="Java">
+
 ```java
+
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 admin.topics().unload(topic);
+
 ```
 
-<!--END_DOCUSAURUS_CODE_TABS-->
+</TabItem>
+
+</Tabs>
+````
 
 ### Get stats
 
@@ -375,6 +479,7 @@ You can check the following statistics of a given non-partitioned topic.
 The following is an example of a topic status.
 
 ```json
+
 {
   "msgRateIn" : 0.0,
   "msgThroughputIn" : 0.0,
@@ -458,26 +563,43 @@ The following is an example of a topic status.
   "nonContiguousDeletedMessagesRanges" : 0,
   "nonContiguousDeletedMessagesRangesSerializedSize" : 0
 }
+
 ```
+
 To get the status of a topic, you can use the following ways.
 
-<!--DOCUSAURUS_CODE_TABS-->
-<!--pulsar-admin-->
+````mdx-code-block
+<Tabs 
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
+
 ```shell
+
 $ pulsar-admin topics stats \
   persistent://test-tenant/ns1/tp1 \
+
 ```
 
-<!--REST API-->
-{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/stats|operation/getStats?version=[[pulsar:version_number]]}
+</TabItem>
+<TabItem value="REST API">
 
-<!--Java-->
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/stats|operation/getStats?version=@pulsar:version_number@}
+
+</TabItem>
+<TabItem value="Java">
+
 ```java
+
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 admin.topics().getStats(topic);
+
 ```
 
-<!--END_DOCUSAURUS_CODE_TABS-->
+</TabItem>
+
+</Tabs>
+````
 
 ### Get internal stats
 
@@ -564,6 +686,7 @@ You can get the detailed statistics of a topic.
 The following is an example of the detailed statistics of a topic.
 
 ```json
+
 {
     "entriesAddedCounter":0,
     "numberOfEntries":0,
@@ -621,32 +744,54 @@ The following is an example of the detailed statistics of a topic.
         "metadata":null
     }
 }
+
 ```
+
 To get the internal status of a topic, you can use the following ways.
-<!--DOCUSAURUS_CODE_TABS-->
-<!--pulsar-admin-->
+````mdx-code-block
+<Tabs 
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
+
 ```shell
+
 $ pulsar-admin topics stats-internal \
   persistent://test-tenant/ns1/tp1 \
+
 ```
 
-<!--REST API-->
-{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/internalStats|operation/getInternalStats?version=[[pulsar:version_number]]}
+</TabItem>
+<TabItem value="REST API">
 
-<!--Java-->
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/internalStats|operation/getInternalStats?version=@pulsar:version_number@}
+
+</TabItem>
+<TabItem value="Java">
+
 ```java
+
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 admin.topics().getInternalStats(topic);
+
 ```
 
-<!--END_DOCUSAURUS_CODE_TABS-->
+</TabItem>
+
+</Tabs>
+````
 
 ### Peek messages
 
 You can peek a number of messages for a specific subscription of a given topic in the following ways.
-<!--DOCUSAURUS_CODE_TABS-->
-<!--pulsar-admin-->
+````mdx-code-block
+<Tabs 
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
+
 ```shell
+
 $ pulsar-admin topics peek-messages \
   --count 10 --subscription my-subscription \
   persistent://test-tenant/ns1/tp1 \
@@ -654,285 +799,459 @@ $ pulsar-admin topics peek-messages \
 Message ID: 315674752:0
 Properties:  {  "X-Pulsar-publish-time" : "2015-07-13 17:40:28.451"  }
 msg-payload
+
 ```
 
-<!--REST API-->
-{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/subscription/:subName/position/:messagePosition|operation?version=[[pulsar:version_number]]/peekNthMessage}
+</TabItem>
+<TabItem value="REST API">
 
-<!--Java-->
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/subscription/:subName/position/:messagePosition|operation?version=@pulsar:version_number@/peekNthMessage}
+
+</TabItem>
+<TabItem value="Java">
+
 ```java
+
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 String subName = "my-subscription";
 int numMessages = 1;
 admin.topics().peekMessages(topic, subName, numMessages);
+
 ```
 
-<!--END_DOCUSAURUS_CODE_TABS-->
+</TabItem>
+
+</Tabs>
+````
 
 ### Get message by ID
 
 You can fetch the message with the given ledger ID and entry ID in the following ways.
 
-<!--DOCUSAURUS_CODE_TABS-->
-<!--pulsar-admin-->
+````mdx-code-block
+<Tabs 
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
+
 ```shell
+
 $ ./bin/pulsar-admin topics get-message-by-id \
   persistent://public/default/my-topic \
   -l 10 -e 0
+
 ```
 
-<!--REST API-->
-{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/ledger/:ledgerId/entry/:entryId|operation/getMessageById?version=[[pulsar:version_number]]}
+</TabItem>
+<TabItem value="REST API">
 
-<!--Java-->
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/ledger/:ledgerId/entry/:entryId|operation/getMessageById?version=@pulsar:version_number@}
+
+</TabItem>
+<TabItem value="Java">
+
 ```java
+
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 long ledgerId = 10;
 long entryId = 10;
 admin.topics().getMessageById(topic, ledgerId, entryId);
+
 ```
 
-<!--END_DOCUSAURUS_CODE_TABS-->
+</TabItem>
+
+</Tabs>
+````
 
 ### Examine messages
 
 You can examine a specific message on a topic by position relative to the earliest or the latest message.
 
-<!--DOCUSAURUS_CODE_TABS-->
-<!--pulsar-admin-->
+````mdx-code-block
+<Tabs 
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
+
 ```shell
+
 ./bin/pulsar-admin topics examine-messages \
   persistent://public/default/my-topic \
   -i latest -m 1
+
 ```
 
-<!--REST API-->
-{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/examinemessage?initialPosition=:initialPosition&messagePosition=:messagePosition|operation/examineMessage?version=[[pulsar:version_number]]}
+</TabItem>
+<TabItem value="REST API">
 
-<!--Java-->
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/examinemessage?initialPosition=:initialPosition&messagePosition=:messagePosition|operation/examineMessage?version=@pulsar:version_number@}
+
+</TabItem>
+<TabItem value="Java">
+
 ```java
+
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 admin.topics().examineMessage(topic, "latest", 1);
+
 ```
 
+</TabItem>
 
-<!--END_DOCUSAURUS_CODE_TABS-->
+</Tabs>
+````
 
 ### Get message ID 
 
 You can get message ID published at or just after the given datetime.
 
-<!--DOCUSAURUS_CODE_TABS-->
-<!--pulsar-admin-->
+````mdx-code-block
+<Tabs 
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
+
 ```shell
+
 ./bin/pulsar-admin topics get-message-id \
   persistent://public/default/my-topic \
   -d 2021-06-28T19:01:17Z
+
 ```
 
-<!--REST API-->
-{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/messageid/:timestamp|operation/getMessageIdByTimestamp?version=[[pulsar:version_number]]}
+</TabItem>
+<TabItem value="REST API">
 
-<!--Java-->
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/messageid/:timestamp|operation/getMessageIdByTimestamp?version=@pulsar:version_number@}
+
+</TabItem>
+<TabItem value="Java">
+
 ```java
+
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 long timestamp = System.currentTimeMillis()
 admin.topics().getMessageIdByTimestamp(topic, timestamp);
+
 ```
 
-<!--END_DOCUSAURUS_CODE_TABS-->
+</TabItem>
+
+</Tabs>
+````
 
 
 ### Skip messages
 
 You can skip a number of messages for a specific subscription of a given topic in the following ways.
 
-<!--DOCUSAURUS_CODE_TABS-->
-<!--pulsar-admin-->
+````mdx-code-block
+<Tabs 
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
+
 ```shell
+
 $ pulsar-admin topics skip \
   --count 10 --subscription my-subscription \
   persistent://test-tenant/ns1/tp1 \
+
 ```
 
-<!--REST API-->
-{@inject: endpoint|POST|/admin/v2/:schema/:tenant/:namespace/:topic/subscription/:subName/skip/:numMessages|operation/skipMessages?version=[[pulsar:version_number]]}
+</TabItem>
+<TabItem value="REST API">
 
-<!--Java-->
+{@inject: endpoint|POST|/admin/v2/:schema/:tenant/:namespace/:topic/subscription/:subName/skip/:numMessages|operation/skipMessages?version=@pulsar:version_number@}
+
+</TabItem>
+<TabItem value="Java">
+
 ```java
+
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 String subName = "my-subscription";
 int numMessages = 1;
 admin.topics().skipMessages(topic, subName, numMessages);
+
 ```
 
-<!--END_DOCUSAURUS_CODE_TABS-->
+</TabItem>
+
+</Tabs>
+````
 
 ### Skip all messages
 
 You can skip all the old messages for a specific subscription of a given topic.
 
-<!--DOCUSAURUS_CODE_TABS-->
-<!--pulsar-admin-->
+````mdx-code-block
+<Tabs 
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
+
 ```shell
+
 $ pulsar-admin topics skip-all \
   --subscription my-subscription \
   persistent://test-tenant/ns1/tp1 \
+
 ```
 
-<!--REST API-->
-{@inject: endpoint|POST|/admin/v2/:schema/:tenant/:namespace/:topic/subscription/:subName/skip_all|operation/skipAllMessages?version=[[pulsar:version_number]]}
+</TabItem>
+<TabItem value="REST API">
 
-<!--Java-->
+{@inject: endpoint|POST|/admin/v2/:schema/:tenant/:namespace/:topic/subscription/:subName/skip_all|operation/skipAllMessages?version=@pulsar:version_number@}
+
+</TabItem>
+<TabItem value="Java">
+
 ```java
+
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 String subName = "my-subscription";
 admin.topics().skipAllMessages(topic, subName);
+
 ```
 
-<!--END_DOCUSAURUS_CODE_TABS-->
+</TabItem>
+
+</Tabs>
+````
 
 ### Reset cursor
 
 You can reset a subscription cursor position back to the position which is recorded X minutes before. It essentially calculates time and position of cursor at X minutes before and resets it at that position. You can reset the cursor in the following ways.
 
-<!--DOCUSAURUS_CODE_TABS-->
-<!--pulsar-admin-->
+````mdx-code-block
+<Tabs 
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
+
 ```shell
+
 $ pulsar-admin topics reset-cursor \
   --subscription my-subscription --time 10 \
   persistent://test-tenant/ns1/tp1 \
+
 ```
 
-<!--REST API-->
-{@inject: endpoint|POST|/admin/v2/:schema/:tenant/:namespace/:topic/subscription/:subName/resetcursor/:timestamp|operation/resetCursor?version=[[pulsar:version_number]]}
+</TabItem>
+<TabItem value="REST API">
 
-<!--Java-->
+{@inject: endpoint|POST|/admin/v2/:schema/:tenant/:namespace/:topic/subscription/:subName/resetcursor/:timestamp|operation/resetCursor?version=@pulsar:version_number@}
+
+</TabItem>
+<TabItem value="Java">
+
 ```java
+
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 String subName = "my-subscription";
 long timestamp = 2342343L;
 admin.topics().skipAllMessages(topic, subName, timestamp);
+
 ```
 
-<!--END_DOCUSAURUS_CODE_TABS-->
+</TabItem>
+
+</Tabs>
+````
 
 ### Lookup of topic
 
 You can locate the broker URL which is serving the given topic in the following ways.
 
-<!--DOCUSAURUS_CODE_TABS-->
-<!--pulsar-admin-->
+````mdx-code-block
+<Tabs 
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
+
 ```shell
+
 $ pulsar-admin topics lookup \
   persistent://test-tenant/ns1/tp1 \
 
  "pulsar://broker1.org.com:4480"
+
 ```
 
-<!--REST API-->
-{@inject: endpoint|GET|/lookup/v2/topic/:schema/:tenant:namespace/:topic|/?version=[[pulsar:version_number]]}
+</TabItem>
+<TabItem value="REST API">
 
-<!--Java-->
+{@inject: endpoint|GET|/lookup/v2/topic/:schema/:tenant:namespace/:topic|/?version=@pulsar:version_number@}
+
+</TabItem>
+<TabItem value="Java">
+
 ```java
+
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 admin.lookup().lookupDestination(topic);
+
 ```
 
-<!--END_DOCUSAURUS_CODE_TABS-->
+</TabItem>
+
+</Tabs>
+````
 
 ### Get bundle
 
 You can check the range of the bundle which contains given topic in the following ways.
 
-<!--DOCUSAURUS_CODE_TABS-->
-<!--pulsar-admin-->
+````mdx-code-block
+<Tabs 
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
+
 ```shell
+
 $ pulsar-admin topics bundle-range \
   persistent://test-tenant/ns1/tp1 \
 
  "0x00000000_0xffffffff"
+
 ```
 
-<!--REST API-->
-{@inject: endpoint|GET|/lookup/v2/topic/:topic_domain/:tenant/:namespace/:topic/bundle|/?version=[[pulsar:version_number]]}
+</TabItem>
+<TabItem value="REST API">
 
-<!--Java-->
+{@inject: endpoint|GET|/lookup/v2/topic/:topic_domain/:tenant/:namespace/:topic/bundle|/?version=@pulsar:version_number@}
+
+</TabItem>
+<TabItem value="Java">
+
 ```java
+
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 admin.lookup().getBundleRange(topic);
+
 ```
 
-<!--END_DOCUSAURUS_CODE_TABS-->
+</TabItem>
+
+</Tabs>
+````
 
 ### Get subscriptions
 
 You can check all subscription names for a given topic in the following ways.
 
-<!--DOCUSAURUS_CODE_TABS-->
-<!--pulsar-admin-->
+````mdx-code-block
+<Tabs 
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
+
 ```shell
+
 $ pulsar-admin topics subscriptions \
   persistent://test-tenant/ns1/tp1 \
 
  my-subscription
+
 ```
 
-<!--REST API-->
-{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/subscriptions|operation/getSubscriptions?version=[[pulsar:version_number]]}
+</TabItem>
+<TabItem value="REST API">
 
-<!--Java-->
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/subscriptions|operation/getSubscriptions?version=@pulsar:version_number@}
+
+</TabItem>
+<TabItem value="Java">
+
 ```java
+
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 admin.topics().getSubscriptions(topic);
+
 ```
 
-<!--END_DOCUSAURUS_CODE_TABS-->
+</TabItem>
+
+</Tabs>
+````
 
 ### Unsubscribe
 
 When a subscription does not process messages any more, you can unsubscribe it in the following ways. 
 
-<!--DOCUSAURUS_CODE_TABS-->
-<!--pulsar-admin-->
+````mdx-code-block
+<Tabs 
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
+
 ```shell
+
 $ pulsar-admin topics unsubscribe \
   --subscription my-subscription \
   persistent://test-tenant/ns1/tp1 \
+
 ```
 
-<!--REST API-->
-{@inject: endpoint|DELETE|/admin/v2/namespaces/:tenant/:namespace/:topic/subscription/:subscription|operation/deleteSubscription?version=[[pulsar:version_number]]}
+</TabItem>
+<TabItem value="REST API">
 
-<!--Java-->
+{@inject: endpoint|DELETE|/admin/v2/namespaces/:tenant/:namespace/:topic/subscription/:subscription|operation/deleteSubscription?version=@pulsar:version_number@}
+
+</TabItem>
+<TabItem value="Java">
+
 ```java
+
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 String subscriptionName = "my-subscription";
 admin.topics().deleteSubscription(topic, subscriptionName);
+
 ```
 
-<!--END_DOCUSAURUS_CODE_TABS-->
+</TabItem>
+
+</Tabs>
+````
 
 ### Last Message Id
 
 You can get the last committed message ID for a persistent topic. It is available since 2.3.0 release.
 
-<!--DOCUSAURUS_CODE_TABS-->
-<!--pulsar-admin-->
+````mdx-code-block
+<Tabs 
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
+
 ```shell
+
 pulsar-admin topics last-message-id topic-name
+
 ```
 
-<!--REST API-->
-{@inject: endpoint|Get|/admin/v2/:schema/:tenant/:namespace/:topic/lastMessageId?version=[[pulsar:version_number]]}
+</TabItem>
+<TabItem value="REST API">
 
-<!--Java-->
+{@inject: endpoint|Get|/admin/v2/:schema/:tenant/:namespace/:topic/lastMessageId?version=@pulsar:version_number@}
+
+</TabItem>
+<TabItem value="Java">
+
 ```Java
+
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 admin.topics().getLastMessage(topic);
+
 ```
 
-<!--END_DOCUSAURUS_CODE_TABS-->
+</TabItem>
+
+</Tabs>
+````
 
 
 
@@ -942,25 +1261,40 @@ admin.topics().getLastMessage(topic);
 
 To get the topic-level deduplication snapshot interval, use one of the following methods.
 
-<!--DOCUSAURUS_CODE_TABS-->
-<!--Pulsar-admin API-->
+````mdx-code-block
+<Tabs 
+  defaultValue="Pulsar-admin API"
+  values={[{"label":"Pulsar-admin API","value":"Pulsar-admin API"},{"label":"REST API","value":"REST API"},{"label":"Java API","value":"Java API"}]}>
+<TabItem value="Pulsar-admin API">
 
 ```
+
 pulsar-admin topics get-deduplication-snapshot-interval options
-```
-
-<!--REST API-->
 
 ```
-{@inject: endpoint|GET|/admin/v2/topics/:tenant/:namespace/:topic/deduplicationSnapshotInterval?version=[[pulsar:version_number]]}
+
+</TabItem>
+<TabItem value="REST API">
+
 ```
 
-<!--Java API-->
+{@inject: endpoint|GET|/admin/v2/topics/:tenant/:namespace/:topic/deduplicationSnapshotInterval?version=@pulsar:version_number@}
+
+```
+
+</TabItem>
+<TabItem value="Java API">
 
 ```java
+
 admin.topics().getDeduplicationSnapshotInterval(topic)
+
 ```
-<!--END_DOCUSAURUS_CODE_TABS-->
+
+</TabItem>
+
+</Tabs>
+````
 
 #### Set deduplication snapshot interval
 
@@ -968,55 +1302,87 @@ To set the topic-level deduplication snapshot interval, use one of the following
 
 > **Prerequisite** `brokerDeduplicationEnabled` must be set to `true`.
 
-<!--DOCUSAURUS_CODE_TABS-->
-<!--Pulsar-admin API-->
+````mdx-code-block
+<Tabs 
+  defaultValue="Pulsar-admin API"
+  values={[{"label":"Pulsar-admin API","value":"Pulsar-admin API"},{"label":"REST API","value":"REST API"},{"label":"Java API","value":"Java API"}]}>
+<TabItem value="Pulsar-admin API">
 
 ```
-pulsar-admin topics set-deduplication-snapshot-interval options 
-```
 
-<!--REST API-->
+pulsar-admin topics set-deduplication-snapshot-interval options
 
 ```
-{@inject: endpoint|POST|/admin/v2/topics/:tenant/:namespace/:topic/deduplicationSnapshotInterval?version=[[pulsar:version_number]]}
+
+</TabItem>
+<TabItem value="REST API">
+
+```
+
+{@inject: endpoint|POST|/admin/v2/topics/:tenant/:namespace/:topic/deduplicationSnapshotInterval?version=@pulsar:version_number@}
+
 ```
 
 ```json
+
 {
   "interval": 1000
 }
+
 ```
 
-<!--Java API-->
+</TabItem>
+<TabItem value="Java API">
 
 ```java
+
 admin.topics().setDeduplicationSnapshotInterval(topic, 1000)
+
 ```
-<!--END_DOCUSAURUS_CODE_TABS-->
+
+</TabItem>
+
+</Tabs>
+````
 
 #### Remove deduplication snapshot interval
 
 To remove the topic-level deduplication snapshot interval, use one of the following methods.
 
-<!--DOCUSAURUS_CODE_TABS-->
-<!--Pulsar-admin API-->
+````mdx-code-block
+<Tabs 
+  defaultValue="Pulsar-admin API"
+  values={[{"label":"Pulsar-admin API","value":"Pulsar-admin API"},{"label":"REST API","value":"REST API"},{"label":"Java API","value":"Java API"}]}>
+<TabItem value="Pulsar-admin API">
 
 ```
+
 pulsar-admin topics remove-deduplication-snapshot-interval options
-```
-
-<!--REST API-->
 
 ```
-{@inject: endpoint|DELETE|/admin/v2/topics/:tenant/:namespace/:topic/deduplicationSnapshotInterval?version=[[pulsar:version_number]]}
+
+</TabItem>
+<TabItem value="REST API">
+
 ```
 
-<!--Java API-->
+{@inject: endpoint|DELETE|/admin/v2/topics/:tenant/:namespace/:topic/deduplicationSnapshotInterval?version=@pulsar:version_number@}
+
+```
+
+</TabItem>
+<TabItem value="Java API">
 
 ```java
+
 admin.topics().removeDeduplicationSnapshotInterval(topic)
+
 ```
-<!--END_DOCUSAURUS_CODE_TABS-->
+
+</TabItem>
+
+</Tabs>
+````
 
 
 ### Configure inactive topic policies
@@ -1025,73 +1391,118 @@ admin.topics().removeDeduplicationSnapshotInterval(topic)
 
 To get the topic-level inactive topic policies, use one of the following methods.
 
-<!--DOCUSAURUS_CODE_TABS-->
-<!--Pulsar-admin API-->
+````mdx-code-block
+<Tabs 
+  defaultValue="Pulsar-admin API"
+  values={[{"label":"Pulsar-admin API","value":"Pulsar-admin API"},{"label":"REST API","value":"REST API"},{"label":"Java API","value":"Java API"}]}>
+<TabItem value="Pulsar-admin API">
 
 ```
+
 pulsar-admin topics get-inactive-topic-policies options
-```
-
-<!--REST API-->
 
 ```
-{@inject: endpoint|GET|/admin/v2/topics/:tenant/:namespace/:topic/inactiveTopicPolicies?version=[[pulsar:version_number]]}
+
+</TabItem>
+<TabItem value="REST API">
+
 ```
 
-<!--Java API-->
+{@inject: endpoint|GET|/admin/v2/topics/:tenant/:namespace/:topic/inactiveTopicPolicies?version=@pulsar:version_number@}
+
+```
+
+</TabItem>
+<TabItem value="Java API">
 
 ```java
+
 admin.topics().getInactiveTopicPolicies(topic)
+
 ```
-<!--END_DOCUSAURUS_CODE_TABS-->
+
+</TabItem>
+
+</Tabs>
+````
 
 #### Set inactive topic policies
 
 To set the topic-level inactive topic policies, use one of the following methods.
 
-<!--DOCUSAURUS_CODE_TABS-->
-<!--Pulsar-admin API-->
+````mdx-code-block
+<Tabs 
+  defaultValue="Pulsar-admin API"
+  values={[{"label":"Pulsar-admin API","value":"Pulsar-admin API"},{"label":"REST API","value":"REST API"},{"label":"Java API","value":"Java API"}]}>
+<TabItem value="Pulsar-admin API">
 
 ```
-pulsar-admin topics set-inactive-topic-policies options 
-```
 
-<!--REST API-->
+pulsar-admin topics set-inactive-topic-policies options
 
 ```
-{@inject: endpoint|POST|/admin/v2/topics/:tenant/:namespace/:topic/inactiveTopicPolicies?version=[[pulsar:version_number]]}
+
+</TabItem>
+<TabItem value="REST API">
+
 ```
 
-<!--Java API-->
+{@inject: endpoint|POST|/admin/v2/topics/:tenant/:namespace/:topic/inactiveTopicPolicies?version=@pulsar:version_number@}
+
+```
+
+</TabItem>
+<TabItem value="Java API">
 
 ```java
+
 admin.topics().setInactiveTopicPolicies(topic, inactiveTopicPolicies)
+
 ```
-<!--END_DOCUSAURUS_CODE_TABS-->
+
+</TabItem>
+
+</Tabs>
+````
 
 #### Remove inactive topic policies
 
 To remove the topic-level inactive topic policies, use one of the following methods.
 
-<!--DOCUSAURUS_CODE_TABS-->
-<!--Pulsar-admin API-->
+````mdx-code-block
+<Tabs 
+  defaultValue="Pulsar-admin API"
+  values={[{"label":"Pulsar-admin API","value":"Pulsar-admin API"},{"label":"REST API","value":"REST API"},{"label":"Java API","value":"Java API"}]}>
+<TabItem value="Pulsar-admin API">
 
 ```
+
 pulsar-admin topics remove-inactive-topic-policies options
-```
-
-<!--REST API-->
 
 ```
-{@inject: endpoint|DELETE|/admin/v2/topics/:tenant/:namespace/:topic/inactiveTopicPolicies?version=[[pulsar:version_number]]}
+
+</TabItem>
+<TabItem value="REST API">
+
 ```
 
-<!--Java API-->
+{@inject: endpoint|DELETE|/admin/v2/topics/:tenant/:namespace/:topic/inactiveTopicPolicies?version=@pulsar:version_number@}
+
+```
+
+</TabItem>
+<TabItem value="Java API">
 
 ```java
+
 admin.topics().removeInactiveTopicPolicies(topic)
+
 ```
-<!--END_DOCUSAURUS_CODE_TABS-->
+
+</TabItem>
+
+</Tabs>
+````
 
 
 ### Configure offload policies
@@ -1100,76 +1511,121 @@ admin.topics().removeInactiveTopicPolicies(topic)
 
 To get the topic-level offload policies, use one of the following methods.
 
-<!--DOCUSAURUS_CODE_TABS-->
-<!--Pulsar-admin API-->
+````mdx-code-block
+<Tabs 
+  defaultValue="Pulsar-admin API"
+  values={[{"label":"Pulsar-admin API","value":"Pulsar-admin API"},{"label":"REST API","value":"REST API"},{"label":"Java API","value":"Java API"}]}>
+<TabItem value="Pulsar-admin API">
 
 ```
+
 pulsar-admin topics get-offload-policies options
-```
-
-<!--REST API-->
 
 ```
-{@inject: endpoint|GET|/admin/v2/topics/:tenant/:namespace/:topic/offloadPolicies?version=[[pulsar:version_number]]}
+
+</TabItem>
+<TabItem value="REST API">
+
 ```
 
-<!--Java API-->
+{@inject: endpoint|GET|/admin/v2/topics/:tenant/:namespace/:topic/offloadPolicies?version=@pulsar:version_number@}
+
+```
+
+</TabItem>
+<TabItem value="Java API">
 
 ```java
+
 admin.topics().getOffloadPolicies(topic)
+
 ```
-<!--END_DOCUSAURUS_CODE_TABS-->
+
+</TabItem>
+
+</Tabs>
+````
 
 #### Set offload policies
 
 To set the topic-level offload policies, use one of the following methods.
 
-<!--DOCUSAURUS_CODE_TABS-->
-<!--Pulsar-admin API-->
+````mdx-code-block
+<Tabs 
+  defaultValue="Pulsar-admin API"
+  values={[{"label":"Pulsar-admin API","value":"Pulsar-admin API"},{"label":"REST API","value":"REST API"},{"label":"Java API","value":"Java API"}]}>
+<TabItem value="Pulsar-admin API">
 
 ```
-pulsar-admin topics set-offload-policies options 
-```
 
-<!--REST API-->
+pulsar-admin topics set-offload-policies options
 
 ```
-{@inject: endpoint|POST|/admin/v2/topics/:tenant/:namespace/:topic/offloadPolicies?version=[[pulsar:version_number]]}
+
+</TabItem>
+<TabItem value="REST API">
+
 ```
 
-<!--Java API-->
+{@inject: endpoint|POST|/admin/v2/topics/:tenant/:namespace/:topic/offloadPolicies?version=@pulsar:version_number@}
+
+```
+
+</TabItem>
+<TabItem value="Java API">
 
 ```java
+
 admin.topics().setOffloadPolicies(topic, offloadPolicies)
+
 ```
-<!--END_DOCUSAURUS_CODE_TABS-->
+
+</TabItem>
+
+</Tabs>
+````
 
 #### Remove offload policies
 
 To remove the topic-level offload policies, use one of the following methods.
 
-<!--DOCUSAURUS_CODE_TABS-->
-<!--Pulsar-admin API-->
+````mdx-code-block
+<Tabs 
+  defaultValue="Pulsar-admin API"
+  values={[{"label":"Pulsar-admin API","value":"Pulsar-admin API"},{"label":"REST API","value":"REST API"},{"label":"Java API","value":"Java API"}]}>
+<TabItem value="Pulsar-admin API">
 
 ```
+
 pulsar-admin topics remove-offload-policies options
-```
-
-<!--REST API-->
 
 ```
-{@inject: endpoint|DELETE|/admin/v2/topics/:tenant/:namespace/:topic/offloadPolicies?version=[[pulsar:version_number]]}
+
+</TabItem>
+<TabItem value="REST API">
+
 ```
 
-<!--Java API-->
+{@inject: endpoint|DELETE|/admin/v2/topics/:tenant/:namespace/:topic/offloadPolicies?version=@pulsar:version_number@}
+
+```
+
+</TabItem>
+<TabItem value="Java API">
 
 ```java
+
 admin.topics().removeOffloadPolicies(topic)
+
 ```
-<!--END_DOCUSAURUS_CODE_TABS-->
+
+</TabItem>
+
+</Tabs>
+````
 
 ## Manage non-partitioned topics
-You can use Pulsar [admin API](admin-api-overview.md) to create, delete and check status of non-partitioned topics.
+You can use Pulsar [admin API](admin-api-overview) to create, delete and check status of non-partitioned topics.
 
 ### Create
 Non-partitioned topics must be explicitly created. When creating a new non-partitioned topic, you need to provide a name for the topic.
@@ -1179,73 +1635,123 @@ By default, 60 seconds after creation, topics are considered inactive and delete
 For more information about the two parameters, see [here](reference-configuration.md#broker).
 
 You can create non-partitioned topics in the following ways.
-<!--DOCUSAURUS_CODE_TABS-->
-<!--pulsar-admin-->
+````mdx-code-block
+<Tabs 
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
+
 When you create non-partitioned topics with the [`create`](reference-pulsar-admin.md#create-3) command, you need to specify the topic name as an argument.
 
 ```shell
+
 $ bin/pulsar-admin topics create \
   persistent://my-tenant/my-namespace/my-topic
+
 ```
-> **Note**    
-> When you create a non-partitioned topic with the suffix '-partition-' followed by numeric value like 'xyz-topic-partition-x' for the topic name, if a partitioned topic with same suffix 'xyz-topic-partition-y' exists, then the numeric value(x) for the non-partitioned topic must be larger than the number of partitions(y) of the partitioned topic. Otherwise, you cannot create such a non-partitioned topic. 
 
-<!--REST API-->
-{@inject: endpoint|PUT|/admin/v2/:schema/:tenant/:namespace/:topic|operation/createNonPartitionedTopic?version=[[pulsar:version_number]]}
+:::note
 
-<!--Java-->
+When you create a non-partitioned topic with the suffix '-partition-' followed by numeric value like 'xyz-topic-partition-x' for the topic name, if a partitioned topic with same suffix 'xyz-topic-partition-y' exists, then the numeric value(x) for the non-partitioned topic must be larger than the number of partitions(y) of the partitioned topic. Otherwise, you cannot create such a non-partitioned topic.
+
+:::
+
+</TabItem>
+<TabItem value="REST API">
+
+{@inject: endpoint|PUT|/admin/v2/:schema/:tenant/:namespace/:topic|operation/createNonPartitionedTopic?version=@pulsar:version_number@}
+
+</TabItem>
+<TabItem value="Java">
+
 ```java
+
 String topicName = "persistent://my-tenant/my-namespace/my-topic";
 admin.topics().createNonPartitionedTopic(topicName);
+
 ```
 
-<!--END_DOCUSAURUS_CODE_TABS-->
+</TabItem>
+
+</Tabs>
+````
 
 ### Delete
 You can delete non-partitioned topics in the following ways.
-<!--DOCUSAURUS_CODE_TABS-->
-<!--pulsar-admin-->
+````mdx-code-block
+<Tabs 
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
+
 ```shell
+
 $ bin/pulsar-admin topics delete \
   persistent://my-tenant/my-namespace/my-topic
+
 ```
 
-<!--REST API-->
-{@inject: endpoint|DELETE|/admin/v2/:schema/:tenant/:namespace/:topic|operation/deleteTopic?version=[[pulsar:version_number]]}
+</TabItem>
+<TabItem value="REST API">
 
-<!--Java-->
+{@inject: endpoint|DELETE|/admin/v2/:schema/:tenant/:namespace/:topic|operation/deleteTopic?version=@pulsar:version_number@}
+
+</TabItem>
+<TabItem value="Java">
+
 ```java
+
 admin.topics().delete(topic);
+
 ```
 
-<!--END_DOCUSAURUS_CODE_TABS-->
+</TabItem>
+
+</Tabs>
+````
 
 ### List
 
 You can get the list of topics under a given namespace in the following ways.  
-<!--DOCUSAURUS_CODE_TABS-->
-<!--pulsar-admin-->
+````mdx-code-block
+<Tabs 
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
+
 ```shell
+
 $ pulsar-admin topics list tenant/namespace
 persistent://tenant/namespace/topic1
 persistent://tenant/namespace/topic2
+
 ```
 
-<!--REST API-->
-{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace|operation/getList?version=[[pulsar:version_number]]}
+</TabItem>
+<TabItem value="REST API">
 
-<!--Java-->
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace|operation/getList?version=@pulsar:version_number@}
+
+</TabItem>
+<TabItem value="Java">
+
 ```java
+
 admin.topics().getList(namespace);
+
 ```
 
-<!--END_DOCUSAURUS_CODE_TABS-->
+</TabItem>
+
+</Tabs>
+````
 
 ### Stats
 
 You can check the current statistics of a given topic. The following is an example. For description of each stats, refer to [get stats](#get-stats).
 
 ```json
+
 {
   "msgRateIn": 4641.528542257553,
   "msgThroughputIn": 44663039.74947473,
@@ -1276,27 +1782,45 @@ You can check the current statistics of a given topic. The following is an examp
   },
   "replication": {}
 }
+
 ```
+
 You can check the current statistics of a given topic and its connected producers and consumers in the following ways.
-<!--DOCUSAURUS_CODE_TABS-->
-<!--pulsar-admin-->
+````mdx-code-block
+<Tabs 
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
+
 ```shell
+
 $ pulsar-admin topics stats \
   persistent://test-tenant/namespace/topic \
   --get-precise-backlog
+
 ```
 
-<!--REST API-->
-{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/stats|operation/getStats?version=[[pulsar:version_number]]}
+</TabItem>
+<TabItem value="REST API">
 
-<!--Java-->
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/stats|operation/getStats?version=@pulsar:version_number@}
+
+</TabItem>
+<TabItem value="Java">
+
 ```java
+
 admin.topics().getStats(topic, false /* is precise backlog */);
+
 ```
-<!--END_DOCUSAURUS_CODE_TABS-->
+
+</TabItem>
+
+</Tabs>
+````
 
 ## Manage partitioned topics
-You can use Pulsar [admin API](admin-api-overview.md) to create, update, delete and check status of partitioned topics.
+You can use Pulsar [admin API](admin-api-overview) to create, update, delete and check status of partitioned topics.
 
 ### Create
 
@@ -1307,55 +1831,88 @@ By default, 60 seconds after creation, topics are considered inactive and delete
 For more information about the two parameters, see [here](reference-configuration.md#broker).
 
 You can create partitioned topics in the following ways.
-<!--DOCUSAURUS_CODE_TABS-->
-<!--pulsar-admin-->
+````mdx-code-block
+<Tabs 
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
+
 When you create partitioned topics with the [`create-partitioned-topic`](reference-pulsar-admin.md#create-partitioned-topic)
 command, you need to specify the topic name as an argument and the number of partitions using the `-p` or `--partitions` flag.
 
 ```shell
+
 $ bin/pulsar-admin topics create-partitioned-topic \
   persistent://my-tenant/my-namespace/my-topic \
   --partitions 4
+
 ```
 
-> **Note**    
-> If a non-partitioned topic with the suffix '-partition-' followed by a numeric value like 'xyz-topic-partition-10', you can not create a partitioned topic with name 'xyz-topic', because the partitions of the partitioned topic could override the existing non-partitioned topic. To create such partitioned topic, you have to delete that non-partitioned topic first.
+:::note
 
-<!--REST API-->
-{@inject: endpoint|PUT|/admin/v2/:schema/:tenant/:namespace/:topic/partitions|operation/createPartitionedTopic?version=[[pulsar:version_number]]}
+If a non-partitioned topic with the suffix '-partition-' followed by a numeric value like 'xyz-topic-partition-10', you can not create a partitioned topic with name 'xyz-topic', because the partitions of the partitioned topic could override the existing non-partitioned topic. To create such partitioned topic, you have to delete that non-partitioned topic first.
 
-<!--Java-->
+:::
+
+</TabItem>
+<TabItem value="REST API">
+
+{@inject: endpoint|PUT|/admin/v2/:schema/:tenant/:namespace/:topic/partitions|operation/createPartitionedTopic?version=@pulsar:version_number@}
+
+</TabItem>
+<TabItem value="Java">
+
 ```java
+
 String topicName = "persistent://my-tenant/my-namespace/my-topic";
 int numPartitions = 4;
 admin.topics().createPartitionedTopic(topicName, numPartitions);
+
 ```
 
-<!--END_DOCUSAURUS_CODE_TABS-->
+</TabItem>
+
+</Tabs>
+````
 
 ### Create missed partitions
 
 When topic auto-creation is disabled, and you have a partitioned topic without any partitions, you can use the [`create-missed-partitions`](reference-pulsar-admin.md#create-missed-partitions) command to create partitions for the topic.
 
-<!--DOCUSAURUS_CODE_TABS-->
-<!--pulsar-admin-->
+````mdx-code-block
+<Tabs 
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
+
 You can create missed partitions with the [`create-missed-partitions`](reference-pulsar-admin.md#create-missed-partitions) command and specify the topic name as an argument.
 
 ```shell
+
 $ bin/pulsar-admin topics create-missed-partitions \
   persistent://my-tenant/my-namespace/my-topic \
+
 ```
 
-<!--REST API-->
-{@inject: endpoint|POST|/admin/v2/:schema/:tenant/:namespace/:topic|operation/createMissedPartitions?version=[[pulsar:version_number]]}
+</TabItem>
+<TabItem value="REST API">
 
-<!--Java-->
+{@inject: endpoint|POST|/admin/v2/:schema/:tenant/:namespace/:topic|operation/createMissedPartitions?version=@pulsar:version_number@}
+
+</TabItem>
+<TabItem value="Java">
+
 ```java
+
 String topicName = "persistent://my-tenant/my-namespace/my-topic";
 admin.topics().createMissedPartitions(topicName);
+
 ```
 
-<!--END_DOCUSAURUS_CODE_TABS-->
+</TabItem>
+
+</Tabs>
+````
 
 ### Get metadata
 
@@ -1365,28 +1922,43 @@ Field | Description
 :-----|:-------
 `partitions` | The number of partitions into which the topic is divided.
 
-<!--DOCUSAURUS_CODE_TABS-->
-<!--pulsar-admin-->
+````mdx-code-block
+<Tabs 
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
+
 You can check the number of partitions in a partitioned topic with the [`get-partitioned-topic-metadata`](reference-pulsar-admin.md#get-partitioned-topic-metadata) subcommand. 
 
 ```shell
+
 $ pulsar-admin topics get-partitioned-topic-metadata \
   persistent://my-tenant/my-namespace/my-topic
 {
   "partitions": 4
 }
+
 ```
 
-<!--REST API-->
-{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/partitions|operation/getPartitionedMetadata?version=[[pulsar:version_number]]}
+</TabItem>
+<TabItem value="REST API">
 
-<!--Java-->
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/partitions|operation/getPartitionedMetadata?version=@pulsar:version_number@}
+
+</TabItem>
+<TabItem value="Java">
+
 ```java
+
 String topicName = "persistent://my-tenant/my-namespace/my-topic";
 admin.topics().getPartitionedTopicMetadata(topicName);
+
 ```
 
-<!--END_DOCUSAURUS_CODE_TABS-->
+</TabItem>
+
+</Tabs>
+````
 
 ### Update
 
@@ -1394,65 +1966,110 @@ You can update the number of partitions for an existing partitioned topic *if* t
 
 Producers and consumers can find the newly created partitions automatically.
 
-<!--DOCUSAURUS_CODE_TABS-->
-<!--pulsar-admin-->
+````mdx-code-block
+<Tabs 
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
+
 You can update partitioned topics with the [`update-partitioned-topic`](reference-pulsar-admin.md#update-partitioned-topic) command.
 
 ```shell
+
 $ pulsar-admin topics update-partitioned-topic \
   persistent://my-tenant/my-namespace/my-topic \
   --partitions 8
+
 ```
 
-<!--REST API-->
-{@inject: endpoint|POST|/admin/v2/:schema/:tenant/:cluster/:namespace/:destination/partitions|operation/updatePartitionedTopic?version=[[pulsar:version_number]]}
+</TabItem>
+<TabItem value="REST API">
 
-<!--Java-->
+{@inject: endpoint|POST|/admin/v2/:schema/:tenant/:cluster/:namespace/:destination/partitions|operation/updatePartitionedTopic?version=@pulsar:version_number@}
+
+</TabItem>
+<TabItem value="Java">
+
 ```java
+
 admin.topics().updatePartitionedTopic(topic, numPartitions);
+
 ```
 
-<!--END_DOCUSAURUS_CODE_TABS-->
+</TabItem>
+
+</Tabs>
+````
 
 ### Delete
 You can delete partitioned topics with the [`delete-partitioned-topic`](reference-pulsar-admin.md#delete-partitioned-topic) command, REST API and Java. 
 
-<!--DOCUSAURUS_CODE_TABS-->
-<!--pulsar-admin-->
+````mdx-code-block
+<Tabs 
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
+
 ```shell
+
 $ bin/pulsar-admin topics delete-partitioned-topic \
   persistent://my-tenant/my-namespace/my-topic
+
 ```
 
-<!--REST API-->
-{@inject: endpoint|DELETE|/admin/v2/:schema/:topic/:namespace/:destination/partitions|operation/deletePartitionedTopic?version=[[pulsar:version_number]]}
+</TabItem>
+<TabItem value="REST API">
 
-<!--Java-->
+{@inject: endpoint|DELETE|/admin/v2/:schema/:topic/:namespace/:destination/partitions|operation/deletePartitionedTopic?version=@pulsar:version_number@}
+
+</TabItem>
+<TabItem value="Java">
+
 ```java
+
 admin.topics().delete(topic);
+
 ```
 
-<!--END_DOCUSAURUS_CODE_TABS-->
+</TabItem>
+
+</Tabs>
+````
 
 ### List
 You can get the list of topics under a given namespace in the following ways.  
-<!--DOCUSAURUS_CODE_TABS-->
-<!--pulsar-admin-->
+````mdx-code-block
+<Tabs 
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
+
 ```shell
+
 $ pulsar-admin topics list tenant/namespace
 persistent://tenant/namespace/topic1
 persistent://tenant/namespace/topic2
+
 ```
 
-<!--REST API-->
-{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace|operation/getPartitionedTopicList?version=[[pulsar:version_number]]}
+</TabItem>
+<TabItem value="REST API">
 
-<!--Java-->
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace|operation/getPartitionedTopicList?version=@pulsar:version_number@}
+
+</TabItem>
+<TabItem value="Java">
+
 ```java
+
 admin.topics().getList(namespace);
+
 ```
 
-<!--END_DOCUSAURUS_CODE_TABS-->
+</TabItem>
+
+</Tabs>
+````
 
 ### Stats
 
@@ -1461,6 +2078,7 @@ You can check the current statistics of a given partitioned topic. The following
 Note that in the subscription JSON object, `chuckedMessageRate` is deprecated. Please use `chunkedMessageRate`. Both will be sent in the JSON for now.
 
 ```json
+
 {
   "msgRateIn" : 999.992947159793,
   "msgThroughputIn" : 1070918.4635439808,
@@ -1511,33 +2129,50 @@ Note that in the subscription JSON object, `chuckedMessageRate` is deprecated. P
   },
   "partitions" : { }
 }
+
 ```
 
 You can check the current statistics of a given partitioned topic and its connected producers and consumers in the following ways. 
 
-<!--DOCUSAURUS_CODE_TABS-->
-<!--pulsar-admin-->
+````mdx-code-block
+<Tabs 
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
+
 ```shell
+
 $ pulsar-admin topics partitioned-stats \
   persistent://test-tenant/namespace/topic \
   --per-partition
+
 ```
 
-<!--REST API-->
-{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/partitioned-stats|operation/getPartitionedStats?version=[[pulsar:version_number]]}
+</TabItem>
+<TabItem value="REST API">
 
-<!--Java-->
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/partitioned-stats|operation/getPartitionedStats?version=@pulsar:version_number@}
+
+</TabItem>
+<TabItem value="Java">
+
 ```java
+
 admin.topics().getPartitionedStats(topic, true /* per partition */, false /* is precise backlog */);
+
 ```
 
-<!--END_DOCUSAURUS_CODE_TABS-->
+</TabItem>
+
+</Tabs>
+````
 
 ### Internal stats
 
 You can check the detailed statistics of a topic. The following is an example. For description of each stats, refer to [get internal stats](#get-internal-stats).
 
 ```json
+
 {
   "entriesAddedCounter": 20449518,
   "numberOfEntries": 3233,
@@ -1572,50 +2207,81 @@ You can check the detailed statistics of a topic. The following is an example. F
     }
   }
 }
+
 ```
 
 You can get the internal stats for the partitioned topic in the following ways.
 
-<!--DOCUSAURUS_CODE_TABS-->
-<!--pulsar-admin-->
+````mdx-code-block
+<Tabs 
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
+
 ```shell
+
 $ pulsar-admin topics stats-internal \
   persistent://test-tenant/namespace/topic
+
 ```
 
-<!--REST API-->
-{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/internalStats|operation/getInternalStats?version=[[pulsar:version_number]]}
+</TabItem>
+<TabItem value="REST API">
 
-<!--Java-->
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/internalStats|operation/getInternalStats?version=@pulsar:version_number@}
+
+</TabItem>
+<TabItem value="Java">
+
 ```java
+
 admin.topics().getInternalStats(topic);
+
 ```
 
-<!--END_DOCUSAURUS_CODE_TABS-->
+</TabItem>
+
+</Tabs>
+````
 
 ### Get backlog size
 
 You can get backlog size of a single topic partition or a nonpartitioned topic given a message ID (in bytes).
 
-<!--DOCUSAURUS_CODE_TABS-->
-<!--pulsar-admin-->
+````mdx-code-block
+<Tabs 
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
+<TabItem value="pulsar-admin">
+
 ```shell
+
 $ pulsar-admin topics get-backlog-size \
   -m 1:1 \
   persistent://test-tenant/ns1/tp1-partition-0 \
+
 ```
 
-<!--REST API-->
-{@inject: endpoint|PUT|/admin/v2/:schema/:tenant/:namespace/:topic/backlogSize|operation/getBacklogSizeByMessageId?version=[[pulsar:version_number]]}
+</TabItem>
+<TabItem value="REST API">
 
-<!--Java-->
+{@inject: endpoint|PUT|/admin/v2/:schema/:tenant/:namespace/:topic/backlogSize|operation/getBacklogSizeByMessageId?version=@pulsar:version_number@}
+
+</TabItem>
+<TabItem value="Java">
+
 ```java
+
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 MessageId messageId = MessageId.earliest;
 admin.topics().getBacklogSizeByMessageId(topic, messageId);
+
 ```
 
-<!--END_DOCUSAURUS_CODE_TABS-->
+</TabItem>
+
+</Tabs>
+````
 
 ## Publish to partitioned topics
 
@@ -1638,6 +2304,7 @@ Mode     | Description
 The following is an example:
 
 ```java
+
 String pulsarBrokerRootUrl = "pulsar://localhost:6650";
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 
@@ -1647,6 +2314,7 @@ Producer<byte[]> producer = pulsarClient.newProducer()
         .messageRoutingMode(MessageRoutingMode.SinglePartition)
         .create();
 producer.send("Partitioned topic message".getBytes());
+
 ```
 
 ### Custom message router
@@ -1654,24 +2322,29 @@ producer.send("Partitioned topic message".getBytes());
 To use a custom message router, you need to provide an implementation of the {@inject: javadoc:MessageRouter:/client/org/apache/pulsar/client/api/MessageRouter} interface, which has just one `choosePartition` method:
 
 ```java
+
 public interface MessageRouter extends Serializable {
     int choosePartition(Message msg);
 }
+
 ```
 
 The following router routes every message to partition 10:
 
 ```java
+
 public class AlwaysTenRouter implements MessageRouter {
     public int choosePartition(Message msg) {
         return 10;
     }
 }
+
 ```
 
 With that implementation, you can send
 
 ```java
+
 String pulsarBrokerRootUrl = "pulsar://localhost:6650";
 String topic = "persistent://my-tenant/my-cluster-my-namespace/my-topic";
 
@@ -1681,12 +2354,14 @@ Producer<byte[]> producer = pulsarClient.newProducer()
         .messageRouter(new AlwaysTenRouter())
         .create();
 producer.send("Partitioned topic message".getBytes());
+
 ```
 
 ### How to choose partitions when using a key
 If a message has a key, it supersedes the round robin routing policy. The following example illustrates how to choose the partition when using a key.
 
 ```java
+
 // If the message has a key, it supersedes the round robin routing policy
         if (msg.hasKey()) {
             return signSafeMod(hash.makeHash(msg.getKey()), topicMetadata.numPartitions());
@@ -1698,4 +2373,6 @@ If a message has a key, it supersedes the round robin routing policy. The follow
         } else {
             return signSafeMod(PARTITION_INDEX_UPDATER.getAndIncrement(this), topicMetadata.numPartitions());
         }
-```        
+
+```
+

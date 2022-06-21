@@ -1,7 +1,7 @@
 ---
-id: version-2.10.0-txn-why
+id: txn-why
 title: Why transactions?
-sidebar_label: Why transactions?
+sidebar_label: "Why transactions?"
 original_id: txn-why
 ---
 
@@ -16,7 +16,7 @@ produces the result as a message B (B = f(A)), then exactly-once processing
 guarantee means that A can only be marked as consumed if and only if B is
 successfully produced, and vice versa.
 
-![](assets/txn-1.png)
+![](/assets/txn-1.png)
 
 The Pulsar transactions API strengthens the message delivery semantics and the processing guarantees for stream processing. It enables stream processing applications to consume, process, and produce messages in one atomic operation. That means, a batch of messages in a transaction can be received from, produced to and acknowledged by many topic partitions. All the operations involved in a transaction succeed or fail as one single unit.
 
@@ -24,7 +24,7 @@ The Pulsar transactions API strengthens the message delivery semantics and the p
 
 Avoiding data loss or duplication can be achieved by using the Pulsar idempotent producer, but it does not provide guarantees for writes across multiple partitions. 
 
-In Pulsar, the highest level of message delivery guarantee is using an [idempotent producer](https://pulsar.apache.org/docs/en/next/concepts-messaging/#producer-idempotency) with the exactly once semantic at one single partition, that is, each message is persisted exactly once without data loss and duplication. However, there are some limitations in this solution:
+In Pulsar, the highest level of message delivery guarantee is using an [idempotent producer](concepts-messaging.md#producer-idempotency) with the exactly once semantic at one single partition, that is, each message is persisted exactly once without data loss and duplication. However, there are some limitations in this solution:
 
 - Due to the monotonic increasing sequence ID, this solution only works on a single partition and within a single producer session (that is, for producing one message), so there is no atomicity when producing multiple messages to one or multiple partitions. 
   
@@ -36,9 +36,9 @@ In Pulsar, the highest level of message delivery guarantee is using an [idempote
 
 - Similarly, for Pulsar Function, it only guarantees exactly once semantics for an idempotent function on a single event rather than processing multiple events or producing multiple results that can happen exactly. 
 
-    For example, if a function accepts multiple events and produces one result (for example, window function), the function may fail between producing the result and acknowledging the incoming messages, or even between acknowledging individual events, which causes all (or some) incoming messages to be re-delivered and reprocessed, and a new result is generated.
+  For example, if a function accepts multiple events and produces one result (for example, window function), the function may fail between producing the result and acknowledging the incoming messages, or even between acknowledging individual events, which causes all (or some) incoming messages to be re-delivered and reprocessed, and a new result is generated.
 
-    However, many scenarios need atomic guarantees across multiple partitions and sessions.
+  However, many scenarios need atomic guarantees across multiple partitions and sessions.
 
 - Consumers need to rely on more mechanisms to acknowledge (ack) messages once. 
   

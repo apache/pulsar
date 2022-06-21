@@ -31,15 +31,18 @@ class Semaphore {
     explicit Semaphore(uint32_t limit);
 
     bool tryAcquire(int n = 1);
-    void acquire(int n = 1);
+    bool acquire(int n = 1);
     void release(int n = 1);
     uint32_t currentUsage() const;
+
+    void close();
 
    private:
     const uint32_t limit_;
     uint32_t currentUsage_;
     mutable std::mutex mutex_;
     std::condition_variable condition_;
+    bool isClosed_ = false;
 };
 
 }  // namespace pulsar

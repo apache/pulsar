@@ -20,8 +20,11 @@ package org.apache.pulsar.tests.integration.io.sinks;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectReader;
-import java.util.LinkedHashMap;
+import com.google.common.collect.ImmutableMap;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Cleanup;
@@ -54,7 +57,9 @@ import software.amazon.kinesis.retrieval.KinesisClientRecord;
 import java.io.UncheckedIOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static org.testng.Assert.assertEquals;
 
@@ -144,10 +149,20 @@ public class KinesisSinkTester extends SinkTester<LocalStackContainer> {
             for (int i = 0; i < numMessages; i++) {
                 String key = String.valueOf(i);
                 kvs.put(key, key);
-                KeyValue<SimplePojo, SimplePojo> value = new KeyValue<>(new SimplePojo("f1_" + i, "f2_" + i),
-                        new SimplePojo(String.valueOf(i), "v2_" + i));
+                final SimplePojo keyPojo = new SimplePojo(
+                        "f1_" + i,
+                        "f2_" + i,
+                        Arrays.asList(i, i +1),
+                        new HashSet<>(Arrays.asList((long) i)),
+                        ImmutableMap.of("map1_k_" + i, "map1_kv_" + i));
+                final SimplePojo valuePojo = new SimplePojo(
+                        String.valueOf(i),
+                        "v2_" + i,
+                        Arrays.asList(i, i +1),
+                        new HashSet<>(Arrays.asList((long) i)),
+                        ImmutableMap.of("map1_v_" + i, "map1_vv_" + i));
                 producer.newMessage()
-                        .value(value)
+                        .value(new KeyValue<>(keyPojo, valuePojo))
                         .send();
             }
         } else {
@@ -251,5 +266,16 @@ public class KinesisSinkTester extends SinkTester<LocalStackContainer> {
     public static final class SimplePojo {
         private String field1;
         private String field2;
+        private List<Integer> list1;
+        private Set<Long> set1;
+        private Map<String, String> map1;
+    }
+
+    @Override
+    public void close() throws Exception {
+        if (client != null) {
+            client.close();
+            client = null;
+        }
     }
 }

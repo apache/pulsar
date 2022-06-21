@@ -36,6 +36,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.GregorianCalendar;
 import java.util.TimeZone;
@@ -48,6 +49,8 @@ public class JsonConverterTests {
 
     @Test
     public void testAvroToJson() throws IOException {
+        Schema avroArraySchema = SchemaBuilder.array().items(SchemaBuilder.builder().stringType());
+        Schema mapUtf8Schema = SchemaBuilder.map().values(SchemaBuilder.builder().intType());
         Schema schema = SchemaBuilder.record("record").fields()
                 .name("n").type().longType().longDefault(10)
                 .name("l").type().longType().longDefault(10)
@@ -60,7 +63,9 @@ public class JsonConverterTests {
                 .name("fi").type().fixed("fi").size(3).fixedDefault(new byte[]{1,2,3})
                 .name("en").type().enumeration("en").symbols("a","b","c").enumDefault("b")
                 .name("array").type().optional().array().items(SchemaBuilder.builder().stringType())
+                .name("arrayavro").type().optional().array().items(SchemaBuilder.builder().stringType())
                 .name("map").type().optional().map().values(SchemaBuilder.builder().intType())
+                .name("maputf8").type().optional().map().values(SchemaBuilder.builder().intType())
                 .endRecord();
         GenericRecord genericRecord = new GenericData.Record(schema);
         genericRecord.put("n", null);
@@ -74,7 +79,9 @@ public class JsonConverterTests {
         genericRecord.put("fi", GenericData.get().createFixed(null, new byte[]{'a','b','c'}, schema.getField("fi").schema()));
         genericRecord.put("en", GenericData.get().createEnum("b", schema.getField("en").schema()));
         genericRecord.put("array", new String[] {"toto"});
+        genericRecord.put("arrayavro", new GenericData.Array<>(avroArraySchema, Arrays.asList("toto")));
         genericRecord.put("map", ImmutableMap.of("a",10));
+        genericRecord.put("maputf8", ImmutableMap.of(new org.apache.avro.util.Utf8("a"),10));
         JsonNode jsonNode = JsonConverter.toJson(genericRecord);
         assertEquals(jsonNode.get("n"), NullNode.getInstance());
         assertEquals(jsonNode.get("l").asLong(), 1L);
@@ -88,9 +95,14 @@ public class JsonConverterTests {
         assertEquals(jsonNode.get("s").asText(), "toto");
         assertTrue(jsonNode.get("array").isArray());
         assertEquals(jsonNode.get("array").iterator().next().asText(), "toto");
+        assertTrue(jsonNode.get("arrayavro").isArray());
+        assertEquals(jsonNode.get("arrayavro").iterator().next().asText(), "toto");
         assertTrue(jsonNode.get("map").isObject());
         assertEquals(jsonNode.get("map").elements().next().asText(), "10");
         assertEquals(jsonNode.get("map").get("a").numberValue(), 10);
+        assertTrue(jsonNode.get("maputf8").isObject());
+        assertEquals(jsonNode.get("maputf8").elements().next().asText(), "10");
+        assertEquals(jsonNode.get("maputf8").get("a").numberValue(), 10);
     }
 
     @Test

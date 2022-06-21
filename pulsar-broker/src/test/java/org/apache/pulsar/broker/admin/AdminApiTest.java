@@ -167,6 +167,8 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
     @BeforeMethod
     @Override
     public void setup() throws Exception {
+        conf.setSystemTopicEnabled(false);
+        conf.setTopicLevelPoliciesEnabled(false);
         conf.setLoadBalancerEnabled(true);
         conf.setBrokerServicePortTls(Optional.of(0));
         conf.setWebServicePortTls(Optional.of(0));
@@ -467,6 +469,10 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         List<String> list = admin.brokers().getActiveBrokers("test");
         Assert.assertNotNull(list);
         Assert.assertEquals(list.size(), 1);
+
+        List<String> list1 = admin.brokers().getActiveBrokers();
+        Assert.assertNotNull(list1);
+        Assert.assertEquals(list1.size(), 1);
 
         List<String> list2 = otheradmin.brokers().getActiveBrokers("test");
         Assert.assertNotNull(list2);
@@ -3271,8 +3277,6 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
     public void testPartitionedTopicTruncate() throws Exception {
         final String topicName = "persistent://prop-xyz/ns1/testTruncateTopic-" + UUID.randomUUID().toString();
         final String subName = "my-sub";
-        this.conf.setTopicLevelPoliciesEnabled(true);
-        this.conf.setSystemTopicEnabled(true);
         admin.topics().createPartitionedTopic(topicName,6);
         admin.namespaces().setRetention("prop-xyz/ns1", new RetentionPolicies(60, 50));
         List<MessageId> messageIds = publishMessagesOnPersistentTopic(topicName, 10);

@@ -27,17 +27,22 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.time.Clock;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.service.schema.SchemaRegistry.SchemaAndMetadata;
+import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
 import org.apache.pulsar.broker.service.schema.exceptions.InvalidSchemaDataException;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.internal.DefaultImplementation;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
+import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.protocol.schema.DeleteSchemaResponse;
 import org.apache.pulsar.common.protocol.schema.GetAllVersionsSchemaResponse;
 import org.apache.pulsar.common.protocol.schema.GetSchemaResponse;
@@ -49,6 +54,7 @@ import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.LongSchemaVersion;
 import org.apache.pulsar.common.schema.SchemaType;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -66,7 +72,7 @@ public class SchemasResourceBase extends AdminResource {
         this.clock = clock;
     }
 
-    private static long getLongSchemaVersion(SchemaVersion schemaVersion) {
+    protected static long getLongSchemaVersion(SchemaVersion schemaVersion) {
         if (schemaVersion instanceof LongSchemaVersion) {
             return ((LongSchemaVersion) schemaVersion).getVersion();
         } else {
@@ -91,6 +97,12 @@ public class SchemasResourceBase extends AdminResource {
         });
     }
 
+    public CompletableFuture<SchemaAndMetadata> getSchemaAsync(boolean authoritative) {
+        return validateOwnershipAndOperationAsync(authoritative, TopicOperation.GET_METADATA)
+                .thenApply(__ -> getSchemaId())
+                .thenCompose(schemaId -> pulsar().getSchemaRegistryService().getSchema(schemaId));
+    }
+
     public void getSchema(boolean authoritative, String version, AsyncResponse response) {
         validateDestinationAndAdminOperation(authoritative);
         String schemaId = getSchemaId();
@@ -103,6 +115,18 @@ public class SchemasResourceBase extends AdminResource {
         });
     }
 
+    public CompletableFuture<SchemaAndMetadata> getSchemaAsync(boolean authoritative, String version) {
+        return validateOwnershipAndOperationAsync(authoritative, TopicOperation.GET_METADATA)
+                .thenApply(__ -> getSchemaId())
+                .thenCompose(schemaId -> {
+                    ByteBuffer bbVersion = ByteBuffer.allocate(Long.BYTES);
+                    bbVersion.putLong(Long.parseLong(version));
+                    SchemaRegistryService schemaRegistryService = pulsar().getSchemaRegistryService();
+                    SchemaVersion schemaVersion = schemaRegistryService.versionFromBytes(bbVersion.array());
+                    return schemaRegistryService.getSchema(schemaId, schemaVersion);
+                });
+    }
+
     public void getAllSchemas(boolean authoritative, AsyncResponse response) {
         validateDestinationAndAdminOperation(authoritative);
 
@@ -111,6 +135,14 @@ public class SchemasResourceBase extends AdminResource {
             handleGetAllSchemasResponse(response, schema, error);
             return null;
         });
+    }
+
+    public CompletableFuture<List<SchemaAndMetadata>> getAllSchemasAsync(boolean authoritative) {
+        return validateOwnershipAndOperationAsync(authoritative, TopicOperation.GET_METADATA)
+                .thenCompose(__ -> {
+                    String schemaId = getSchemaId();
+                    return pulsar().getSchemaRegistryService().trimDeletedSchemaAndGetList(schemaId);
+                });
     }
 
     public void deleteSchema(boolean authoritative, AsyncResponse response, boolean force) {
@@ -128,6 +160,15 @@ public class SchemasResourceBase extends AdminResource {
                         response.resume(new RestException(error));
                     }
                     return null;
+                });
+    }
+
+    public CompletableFuture<SchemaVersion> deleteSchemaAsync(boolean authoritative, boolean force) {
+        return validateDestinationAndAdminOperationAsync(authoritative)
+                .thenCompose(__ -> {
+                    String schemaId = getSchemaId();
+                    return pulsar().getSchemaRegistryService()
+                            .deleteSchema(schemaId, defaultIfEmpty(clientAppId(), ""), force);
                 });
     }
 
@@ -157,31 +198,60 @@ public class SchemasResourceBase extends AdminResource {
                     .thenAccept(version -> response.resume(
                             Response.accepted().entity(PostSchemaResponse.builder().version(version).build()).build()))
                     .exceptionally(error -> {
-                        if (error.getCause() instanceof IncompatibleSchemaException) {
+                        Throwable throwable = FutureUtil.unwrapCompletionException(error);
+                        if (throwable instanceof IncompatibleSchemaException) {
                             response.resume(Response
-                                    .status(Response.Status.CONFLICT.getStatusCode(), error.getCause().getMessage())
+                                    .status(Response.Status.CONFLICT.getStatusCode(), throwable.getMessage())
                                     .build());
-                        } else if (error instanceof InvalidSchemaDataException) {
+                        } else if (throwable instanceof InvalidSchemaDataException) {
                             response.resume(Response.status(422, /* Unprocessable Entity */
-                                    error.getMessage()).build());
+                                    throwable.getMessage()).build());
                         } else {
-                            log.error("[{}] Failed to post schema for topic {}", clientAppId(), topicName, error);
-                            response.resume(new RestException(error));
+                            log.error("[{}] Failed to post schema for topic {}", clientAppId(), topicName, throwable);
+                            response.resume(new RestException(throwable));
                         }
                         return null;
                     });
         }).exceptionally(error -> {
-            if (error.getCause() instanceof RestException) {
+            Throwable throwable = FutureUtil.unwrapCompletionException(error);
+            if (throwable instanceof RestException) {
                 // Unprocessable Entity
                 response.resume(Response
-                        .status(((RestException) error.getCause()).getResponse().getStatus(), error.getMessage())
+                        .status(((RestException) throwable).getResponse().getStatus(), throwable.getMessage())
                         .build());
             } else {
-                log.error("[{}] Failed to post schema for topic {}", clientAppId(), topicName, error);
-                response.resume(new RestException(error));
+                log.error("[{}] Failed to post schema for topic {}", clientAppId(), topicName, throwable);
+                response.resume(new RestException(throwable));
             }
             return null;
         });
+    }
+
+    public CompletableFuture<SchemaVersion> postSchemaAsync(PostSchemaPayload payload, boolean authoritative) {
+        return validateDestinationAndAdminOperationAsync(authoritative)
+                .thenCompose(__ -> getSchemaCompatibilityStrategyAsync())
+                .thenCompose(schemaCompatibilityStrategy -> {
+                    byte[] data;
+                    if (SchemaType.KEY_VALUE.name().equals(payload.getType())) {
+                        try {
+                            data = DefaultImplementation.getDefaultImplementation()
+                                    .convertKeyValueDataStringToSchemaInfoSchema(payload.getSchema()
+                                            .getBytes(Charsets.UTF_8));
+                        } catch (IOException conversionError) {
+                            throw new RestException(conversionError);
+                        }
+                    } else {
+                        data = payload.getSchema().getBytes(Charsets.UTF_8);
+                    }
+                    return pulsar().getSchemaRegistryService()
+                            .putSchemaIfAbsent(getSchemaId(),
+                                    SchemaData.builder().data(data).isDeleted(false).timestamp(clock.millis())
+                                            .type(SchemaType.valueOf(payload.getType()))
+                                            .user(defaultIfEmpty(clientAppId(), ""))
+                                            .props(payload.getProperties())
+                                            .build(),
+                                    schemaCompatibilityStrategy);
+                });
     }
 
     public void testCompatibility(PostSchemaPayload payload, boolean authoritative, AsyncResponse response) {
@@ -200,14 +270,29 @@ public class SchemasResourceBase extends AdminResource {
                                         .schemaCompatibilityStrategy(schemaCompatibilityStrategy.name()).build())
                                 .build())))
                 .exceptionally(error -> {
-                    response.resume(new RestException(error));
+                    response.resume(new RestException(FutureUtil.unwrapCompletionException(error)));
                     return null;
                 });
     }
 
-    public void getVersionBySchema(
+    public CompletableFuture<Pair<Boolean, SchemaCompatibilityStrategy>> testCompatibilityAsync(
+            PostSchemaPayload payload, boolean authoritative) {
+        return validateDestinationAndAdminOperationAsync(authoritative)
+                .thenCompose(__ -> getSchemaCompatibilityStrategyAsync())
+                .thenCompose(strategy -> {
+                    String schemaId = getSchemaId();
+                    return pulsar().getSchemaRegistryService().isCompatible(schemaId,
+                            SchemaData.builder().data(payload.getSchema().getBytes(Charsets.UTF_8))
+                                    .isDeleted(false)
+                                    .timestamp(clock.millis()).type(SchemaType.valueOf(payload.getType()))
+                                    .user(defaultIfEmpty(clientAppId(), ""))
+                                    .props(payload.getProperties())
+                                    .build(), strategy)
+                            .thenApply(v -> Pair.of(v, strategy));
+                });
+    }
 
-            PostSchemaPayload payload, boolean authoritative, AsyncResponse response) {
+    public void getVersionBySchema(PostSchemaPayload payload, boolean authoritative, AsyncResponse response) {
         validateDestinationAndAdminOperation(authoritative);
 
         String schemaId = getSchemaId();
@@ -220,9 +305,24 @@ public class SchemasResourceBase extends AdminResource {
                 .thenAccept(version -> response.resume(Response.accepted()
                         .entity(LongSchemaVersionResponse.builder().version(version).build()).build()))
                 .exceptionally(error -> {
-                    log.error("[{}] Failed to get version by schema for topic {}", clientAppId(), topicName, error);
-                    response.resume(new RestException(error));
+                    Throwable throwable = FutureUtil.unwrapCompletionException(error);
+                    log.error("[{}] Failed to get version by schema for topic {}", clientAppId(), topicName, throwable);
+                    response.resume(new RestException(throwable));
                     return null;
+                });
+    }
+
+    public CompletableFuture<Long> getVersionBySchemaAsync(PostSchemaPayload payload, boolean authoritative) {
+        return validateOwnershipAndOperationAsync(authoritative, TopicOperation.GET_METADATA)
+                .thenCompose(__ -> {
+                    String schemaId = getSchemaId();
+                    return pulsar().getSchemaRegistryService()
+                            .findSchemaVersion(schemaId,
+                                    SchemaData.builder().data(payload.getSchema().getBytes(Charsets.UTF_8))
+                                            .isDeleted(false).timestamp(clock.millis())
+                                            .type(SchemaType.valueOf(payload.getType()))
+                                            .user(defaultIfEmpty(clientAppId(), ""))
+                                            .props(payload.getProperties()).build());
                 });
     }
 
@@ -249,7 +349,7 @@ public class SchemasResourceBase extends AdminResource {
         }
     }
 
-    private static void handleGetSchemaResponse(AsyncResponse response, SchemaAndMetadata schema, Throwable error) {
+    protected static void handleGetSchemaResponse(AsyncResponse response, SchemaAndMetadata schema, Throwable error) {
         if (isNull(error)) {
             if (isNull(schema)) {
                 response.resume(Response.status(
@@ -266,6 +366,27 @@ public class SchemasResourceBase extends AdminResource {
             response.resume(new RestException(error));
         }
 
+    }
+
+    protected GetSchemaResponse convertToSchemaResponse(SchemaAndMetadata schema) {
+        if (isNull(schema)) {
+            throw new RestException(Response.Status.NOT_FOUND.getStatusCode(), "Schema not found");
+        } else if (schema.schema.isDeleted()) {
+            throw new RestException(Response.Status.NOT_FOUND.getStatusCode(), "Schema is deleted");
+        }
+        return convertSchemaAndMetadataToGetSchemaResponse(schema);
+    }
+
+    protected GetAllVersionsSchemaResponse convertToAllVersionsSchemaResponse(List<SchemaAndMetadata> schemas) {
+        if (isNull(schemas)) {
+            throw new RestException(Response.Status.NOT_FOUND.getStatusCode(), "Schemas not found");
+        } else {
+            return GetAllVersionsSchemaResponse.builder()
+                    .getSchemaResponses(schemas.stream()
+                            .map(SchemasResourceBase::convertSchemaAndMetadataToGetSchemaResponse)
+                            .collect(Collectors.toList()))
+                    .build();
+        }
     }
 
     private static void handleGetAllSchemasResponse(AsyncResponse response, List<SchemaAndMetadata> schemas,
@@ -300,6 +421,17 @@ public class SchemasResourceBase extends AdminResource {
                 throw e;
             }
         }
+    }
+
+    private CompletableFuture<Void> validateDestinationAndAdminOperationAsync(boolean authoritative) {
+        return validateTopicOwnershipAsync(topicName, authoritative)
+                .thenCompose(__ -> validateAdminAccessForTenantAsync(topicName.getTenant()));
+    }
+
+    private CompletableFuture<Void> validateOwnershipAndOperationAsync(boolean authoritative,
+                                                                       TopicOperation operation) {
+        return validateTopicOwnershipAsync(topicName, authoritative)
+                .thenCompose(__ -> validateTopicOperationAsync(topicName, operation));
     }
 
     private static final Logger log = LoggerFactory.getLogger(SchemasResourceBase.class);

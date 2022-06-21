@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.io.elasticsearch;
 
+import lombok.AllArgsConstructor;
+import lombok.Data;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.GenericObject;
@@ -30,6 +32,7 @@ import org.testcontainers.elasticsearch.ElasticsearchContainer;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import java.nio.charset.StandardCharsets;
@@ -41,6 +44,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.testng.Assert.fail;
 
 public abstract class ElasticSearchSinkRawDataTests extends ElasticSearchTestBase {
 
@@ -133,6 +137,48 @@ public abstract class ElasticSearchSinkRawDataTests extends ElasticSearchTestBas
     protected final void send(int numRecords) throws Exception {
         for (int idx = 0; idx < numRecords; idx++) {
             sink.write(mockRecord);
+        }
+    }
+
+    @Data
+    @AllArgsConstructor
+    private static class StripNonPrintableCharactersTestConfig {
+        private boolean stripNonPrintableCharacters;
+        private boolean bulkEnabled;
+
+    }
+    @DataProvider(name = "stripNonPrintableCharacters")
+    public Object[] stripNonPrintableCharacters() {
+        return new Object[]{
+                new StripNonPrintableCharactersTestConfig(true, true),
+                new StripNonPrintableCharactersTestConfig(true, false),
+                new StripNonPrintableCharactersTestConfig(false, true),
+                new StripNonPrintableCharactersTestConfig(false, false),
+        };
+    }
+
+
+    @Test(dataProvider = "stripNonPrintableCharacters")
+    public final void testStripNonPrintableCharacters(StripNonPrintableCharactersTestConfig conf) throws Exception {
+        map.put("indexName", "test-index");
+        map.put("bulkEnabled", conf.isBulkEnabled());
+        map.put("bulkActions", 1);
+        map.put("maxRetries", 1);
+        map.put("stripNonPrintableCharacters", conf.isStripNonPrintableCharacters());
+        sink.open(map, mockSinkContext);
+
+        final String data = "\t" + ((char)0) + "{\"a\":\"b" + ((char)31) + "\"}";
+        when(mockMessage.getData()).thenReturn(data.getBytes(StandardCharsets.UTF_8));
+        try {
+            send(1);
+            if (!conf.isStripNonPrintableCharacters()) {
+                fail("with stripNonPrintableCharacters=false it should have raised an exception");
+            }
+            verify(mockRecord, times(1)).ack();
+        } catch (Throwable t) {
+            if (conf.isStripNonPrintableCharacters()) {
+                throw t;
+            }
         }
     }
 

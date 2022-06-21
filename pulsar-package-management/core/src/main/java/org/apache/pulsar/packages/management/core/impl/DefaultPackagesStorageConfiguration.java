@@ -39,4 +39,9 @@ public class DefaultPackagesStorageConfiguration implements PackagesStorageConfi
     public void setProperty(Properties properties) {
         this.properties = properties;
     }
+
+    @Override
+    public Properties getProperties() {
+        return this.properties;
+    }
 }

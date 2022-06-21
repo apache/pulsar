@@ -46,6 +46,7 @@ The `getInputTopics` method gets the **name list** of all input topics.
 This example demonstrates how to get the name list of all input topics in a Java window function.
 
 ```java
+
 public class GetInputTopicsWindowFunction implements WindowFunction<String, Void> {
     @Override
     public Void process(Collection<Record<String>> inputs, WindowContext context) throws Exception {
@@ -56,6 +57,7 @@ public class GetInputTopicsWindowFunction implements WindowFunction<String, Void
     }
 
 }
+
 ```
 
 ### Get output topic
@@ -65,6 +67,7 @@ The `getOutputTopic` method gets the **name of a topic** to which the message is
 This example demonstrates how to get the name of an output topic in a Java window function.
 
 ```java
+
 public class GetOutputTopicWindowFunction implements WindowFunction<String, Void> {
     @Override
     public Void process(Collection<Record<String>> inputs, WindowContext context) throws Exception {
@@ -74,6 +77,7 @@ public class GetOutputTopicWindowFunction implements WindowFunction<String, Void
         return null;
     }
 }
+
 ```
 
 ### Get tenant
@@ -83,6 +87,7 @@ The `getTenant` method gets the tenant name associated with the window function.
 This example demonstrates how to get the tenant name in a Java window function.
 
 ```java
+
 public class GetTenantWindowFunction implements WindowFunction<String, Void> {
     @Override
     public Void process(Collection<Record<String>> inputs, WindowContext context) throws Exception {
@@ -93,6 +98,7 @@ public class GetTenantWindowFunction implements WindowFunction<String, Void> {
     }
 
 }
+
 ```
 
 ### Get namespace
@@ -102,6 +108,7 @@ The `getNamespace` method gets the namespace associated with the window function
 This example demonstrates how to get the namespace in a Java window function.
 
 ```java
+
 public class GetNamespaceWindowFunction implements WindowFunction<String, Void> {
     @Override
     public Void process(Collection<Record<String>> inputs, WindowContext context) throws Exception {
@@ -112,6 +119,7 @@ public class GetNamespaceWindowFunction implements WindowFunction<String, Void> 
     }
 
 }
+
 ```
 
 ### Get function name
@@ -121,6 +129,7 @@ The `getFunctionName` method gets the window function name.
 This example demonstrates how to get the function name in a Java window function.
 
 ```java
+
 public class GetNameOfWindowFunction implements WindowFunction<String, Void> {
     @Override
     public Void process(Collection<Record<String>> inputs, WindowContext context) throws Exception {
@@ -131,6 +140,7 @@ public class GetNameOfWindowFunction implements WindowFunction<String, Void> {
     }
 
 }
+
 ```
 
 ### Get function ID
@@ -140,6 +150,7 @@ The `getFunctionId` method gets the window function ID.
 This example demonstrates how to get the function ID in a Java window function.
 
 ```java
+
 public class GetFunctionIDWindowFunction implements WindowFunction<String, Void> {
     @Override
     public Void process(Collection<Record<String>> inputs, WindowContext context) throws Exception {
@@ -150,6 +161,7 @@ public class GetFunctionIDWindowFunction implements WindowFunction<String, Void>
     }
 
 }
+
 ```
 
 ### Get function version
@@ -159,6 +171,7 @@ The `getFunctionVersion` method gets the window function version.
 This example demonstrates how to get the function version of a Java window function.
 
 ```java
+
 public class GetVersionOfWindowFunction implements WindowFunction<String, Void> {
     @Override
     public Void process(Collection<Record<String>> inputs, WindowContext context) throws Exception {
@@ -169,6 +182,7 @@ public class GetVersionOfWindowFunction implements WindowFunction<String, Void> 
     }
 
 }
+
 ```
 
 ### Get instance ID
@@ -178,6 +192,7 @@ The `getInstanceId` method gets the instance ID of a window function.
 This example demonstrates how to get the instance ID in a Java window function.
 
 ```java
+
 public class GetInstanceIDWindowFunction implements WindowFunction<String, Void> {
     @Override
     public Void process(Collection<Record<String>> inputs, WindowContext context) throws Exception {
@@ -188,6 +203,7 @@ public class GetInstanceIDWindowFunction implements WindowFunction<String, Void>
     }
 
 }
+
 ```
 
 ### Get num instances
@@ -197,6 +213,7 @@ The `getNumInstances` method gets the number of instances that invoke the window
 This example demonstrates how to get the number of instances in a Java window function.
 
 ```java
+
 public class GetNumInstancesWindowFunction implements WindowFunction<String, Void> {
     @Override
     public Void process(Collection<Record<String>> inputs, WindowContext context) throws Exception {
@@ -207,6 +224,7 @@ public class GetNumInstancesWindowFunction implements WindowFunction<String, Voi
     }
 
 }
+
 ```
 
 ### Get output schema type
@@ -216,6 +234,7 @@ The `getOutputSchemaType` method gets the built-in type or custom class name of 
 This example demonstrates how to get the output schema type of a Java window function.
 
 ```java
+
 public class GetOutputSchemaTypeWindowFunction implements WindowFunction<String, Void> {
 
     @Override
@@ -226,6 +245,7 @@ public class GetOutputSchemaTypeWindowFunction implements WindowFunction<String,
         return null;
     }
 }
+
 ```
 
 ## Logger
@@ -235,6 +255,7 @@ Pulsar window functions using Java SDK has access to an [SLF4j](https://www.slf4
 This example logs either a `WARNING`-level or `INFO`-level log based on whether the incoming string contains the word `danger` or not in a Java function.
 
 ```java
+
 import java.util.Collection;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.api.WindowContext;
@@ -252,16 +273,19 @@ public class LoggingWindowFunction implements WindowFunction<String, Void> {
     }
 
 }
+
 ```
 
 If you need your function to produce logs, specify a log topic when creating or running the function. 
 
 ```bash
+
 bin/pulsar-admin functions create \
   --jar my-functions.jar \
   --classname my.package.LoggingFunction \
   --log-topic persistent://public/default/logging-function-logs \
   # Other function configs
+
 ```
 
 You can access all logs produced by `LoggingFunction` via the `persistent://public/default/logging-function-logs` topic.
@@ -270,15 +294,18 @@ You can access all logs produced by `LoggingFunction` via the `persistent://publ
 
 Pulsar window functions can publish arbitrary metrics to the metrics interface which can be queried. 
 
-> **Note**
->
-> If a Pulsar window function uses the language-native interface for Java, that function is not able to publish metrics and stats to Pulsar.
+:::note
+
+If a Pulsar window function uses the language-native interface for Java, that function is not able to publish metrics and stats to Pulsar.
+
+:::
 
 You can record metrics using the context object on a per-key basis. 
 
 This example sets a metric for the `process-count` key and a different metric for the `elevens-count` key every time the function processes a message in a Java function. 
 
 ```java
+
 import java.util.Collection;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.api.WindowContext;
@@ -302,6 +329,7 @@ public class UserMetricWindowFunction implements WindowFunction<String, Void> {
         return null;
     }
 }
+
 ```
 
 ## User config
@@ -311,10 +339,12 @@ When you run or update Pulsar Functions that are created using SDK, you can pass
 This example passes a user configured key/value to a function.
 
 ```bash
+
 bin/pulsar-admin functions create \
   --name word-filter \
  --user-config '{"forbidden-word":"rosebud"}' \
   # Other function configs
+
 ```
 
 ### API
@@ -323,22 +353,23 @@ You can use the following APIs to get user-defined information for window functi
 
 `getUserConfigMap` API gets a map of all user-defined key/value configurations for the window function.
 
-
 ```java
+
 /**
      * Get a map of all user-defined key/value configs for the function.
      *
      * @return The full map of user-defined config values
      */
     Map<String, Object> getUserConfigMap();
-```
 
+```
 
 #### getUserConfigValue
 
 The `getUserConfigValue` API gets a user-defined key/value.
 
 ```java
+
 /**
      * Get any user-defined key/value.
      *
@@ -346,6 +377,7 @@ The `getUserConfigValue` API gets a user-defined key/value.
      * @return The Optional value specified by the user for that key.
      */
     Optional<Object> getUserConfigValue(String key);
+
 ```
 
 #### getUserConfigValueOrDefault
@@ -353,6 +385,7 @@ The `getUserConfigValue` API gets a user-defined key/value.
 The `getUserConfigValueOrDefault` API gets a user-defined key/value or a default value if none is present.
 
 ```java
+
 /**
      * Get any user-defined key/value or a default value if none is present.
      *
@@ -361,23 +394,28 @@ The `getUserConfigValueOrDefault` API gets a user-defined key/value or a default
      * @return Either the user config value associated with a given key or a supplied default value
      */
     Object getUserConfigValueOrDefault(String key, Object defaultValue);
+
 ```
 
 This example demonstrates how to access key/value pairs provided to Pulsar window functions.
 
 Java SDK context object enables you to access key/value pairs provided to Pulsar window functions via the command line (as JSON). 
 
->**Tip**
->
-> For all key/value pairs passed to Java window functions, both the `key` and the `value` are `String`. To set the value to be a different type, you need to deserialize it from the `String` type.
+:::tip
+
+For all key/value pairs passed to Java window functions, both the `key` and the `value` are `String`. To set the value to be a different type, you need to deserialize it from the `String` type.
+
+:::
 
 This example passes a key/value pair in a Java window function.
 
 ```bash
+
 bin/pulsar-admin functions create \
    --user-config '{"word-of-the-day":"verdure"}' \
   # Other function configs
- ```
+
+```
 
 This example accesses values in a Java window function.
 
@@ -385,6 +423,7 @@ The `UserConfigFunction` function logs the string `"The word of the day is verdu
 multiple ways, such as the command line tool or REST API.
 
 ```java
+
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
 import org.slf4j.Logger;
@@ -403,16 +442,19 @@ public class UserConfigWindowFunction implements WindowFunction<String, String> 
     }
 
 }
+
 ```
 
 If no value is provided, you can access the entire user config map or set a default value.
 
 ```java
+
 // Get the whole config map
 Map<String, String> allConfigs = context.getUserConfigMap();
 
 // Get value or resort to default
 String wotd = context.getUserConfigValueOrDefault("word-of-the-day", "perspicacious");
+
 ```
 
 ## Routing
@@ -422,6 +464,7 @@ You can use the `context.publish()` interface to publish as many results as you 
 This example shows that the `PublishFunction` class uses the built-in function in the context to publish messages to the `publishTopic` in a Java function.
 
 ```java
+
 public class PublishWindowFunction implements WindowFunction<String, Void> {
     @Override
     public Void process(Collection<Record<String>> input, WindowContext context) throws Exception {
@@ -433,6 +476,7 @@ public class PublishWindowFunction implements WindowFunction<String, Void> {
     }
 
 }
+
 ```
 
 ## State storage
@@ -460,12 +504,14 @@ The `incrCounter` API increases a built-in distributed counter referred by key.
 Applications use the `incrCounter` API to change the counter of a given `key` by the given `amount`. If the `key` does not exist, a new key is created.
 
 ```java
+
     /**
      * Increment the builtin distributed counter referred by key
      * @param key The name of the key
      * @param amount The amount to be incremented
      */
     void incrCounter(String key, long amount);
+
 ```
 
 #### getCounter
@@ -475,6 +521,7 @@ The `getCounter` API gets the counter value for the key.
 Applications uses the `getCounter` API to retrieve the counter of a given `key` changed by the `incrCounter` API.
 
 ```java
+
     /**
      * Retrieve the counter value for the key.
      *
@@ -482,6 +529,7 @@ Applications uses the `getCounter` API to retrieve the counter of a given `key` 
      * @return the amount of the counter value for this key
      */
     long getCounter(String key);
+
 ```
 
 Except the `getCounter` API, Pulsar also exposes a general key/value API (`putState`) for functions to store general key/value state.
@@ -491,6 +539,7 @@ Except the `getCounter` API, Pulsar also exposes a general key/value API (`putSt
 The `putState` API updates the state value for the key.
 
 ```java
+
     /**
      * Update the state value for the key.
      *
@@ -498,6 +547,7 @@ The `putState` API updates the state value for the key.
      * @param value state value of the key
      */
     void putState(String key, ByteBuffer value);
+
 ```
 
 This example demonstrates how applications store states in Pulsar window functions.
@@ -509,6 +559,7 @@ The logic of the `WordCountWindowFunction` is simple and straightforward.
 2. For each `word`, the function increments the corresponding `counter` by 1 via `incrCounter(key, amount)`.
 
 ```java
+
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
 
@@ -524,5 +575,6 @@ public class WordCountWindowFunction implements WindowFunction<String, Void> {
 
     }
 }
+
 ```
 

@@ -1,7 +1,7 @@
 ---
-id: version-2.6.4-admin-api-persistent-topics
+id: admin-api-persistent-topics
 title: Managing persistent topics
-sidebar_label: Persistent topics
+sidebar_label: "Persistent topics"
 original_id: admin-api-persistent-topics
 ---
 
@@ -9,9 +9,10 @@ Persistent helps to access topic which is a logical endpoint for publishing and 
 
 In all of the instructions and commands below, the topic name structure is:
 
-
 ```shell
+
 persistent://tenant/namespace/topic
+
 ```
 
 ## Persistent topics resources
@@ -25,8 +26,10 @@ It provides a list of persistent topics exist under a given namespace.
 List of topics can be fetched using [`list`](../../reference/CliTools#list) command.
 
 ```shell
+
 $ pulsar-admin persistent list \
   my-tenant/my-namespace
+
 ```
 
 #### REST API
@@ -36,8 +39,10 @@ $ pulsar-admin persistent list \
 #### Java
 
 ```java
+
 String namespace = "my-tenant/my-namespace";
 admin.persistentTopics().getList(namespace);
+
 ```
 
 ### Grant permission
@@ -49,6 +54,7 @@ It grants permissions on a client role to perform specific actions on a given to
 Permission can be granted using [`grant-permission`](../../reference/CliTools#grant-permission) command.
 
 ```shell
+
 $ pulsar-admin persistent grant-permission \
   --actions produce,consume --role application1 \
   persistent://test-tenant/ns1/tp1 \
@@ -62,10 +68,12 @@ $ pulsar-admin persistent grant-permission \
 #### Java
 
 ```java
+
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 String role = "test-role";
 Set<AuthAction> actions  = Sets.newHashSet(AuthAction.produce, AuthAction.consume);
 admin.persistentTopics().grantPermission(topic, role, actions);
+
 ```
 
 ### Get permission
@@ -75,6 +83,7 @@ Permission can be fetched using [`permissions`](../../reference/CliTools#permiss
 #### pulsar-admin
 
 ```shell
+
 $ pulsar-admin persistent permissions \
   persistent://test-tenant/ns1/tp1 \
 
@@ -84,6 +93,7 @@ $ pulsar-admin persistent permissions \
         "produce"
     ]
 }
+
 ```
 
 #### REST API
@@ -93,8 +103,10 @@ $ pulsar-admin persistent permissions \
 #### Java
 
 ```java
+
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 admin.persistentTopics().getPermissions(topic);
+
 ```
 
 ### Revoke permission
@@ -106,6 +118,7 @@ It revokes a permission which was granted on a client role.
 Permission can be revoked using [`revoke-permission`](../../reference/CliTools#revoke-permission) command.
 
 ```shell
+
 $ pulsar-admin persistent revoke-permission \
   --role application1 \
   persistent://test-tenant/ns1/tp1 \
@@ -116,6 +129,7 @@ $ pulsar-admin persistent revoke-permission \
     "produce"
   ]
 }
+
 ```
 
 #### REST API
@@ -125,9 +139,11 @@ $ pulsar-admin persistent revoke-permission \
 #### Java
 
 ```java
+
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 String role = "test-role";
 admin.persistentTopics().revokePermissions(topic, role);
+
 ```
 
 ### Delete topic
@@ -139,8 +155,10 @@ It deletes a topic. The topic cannot be deleted if there's any active subscripti
 Topic can be deleted using [`delete`](../../reference/CliTools#delete) command.
 
 ```shell
+
 $ pulsar-admin persistent delete \
   persistent://test-tenant/ns1/tp1 \
+
 ```
 
 #### REST API
@@ -150,8 +168,10 @@ $ pulsar-admin persistent delete \
 #### Java
 
 ```java
+
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 admin.persistentTopics().delete(topic);
+
 ```
 
 ### Unload topic
@@ -163,8 +183,10 @@ It unloads a topic.
 Topic can be unloaded using [`unload`](../../reference/CliTools#unload) command.
 
 ```shell
+
 $ pulsar-admin persistent unload \
   persistent://test-tenant/ns1/tp1 \
+
 ```
 
 #### REST API
@@ -174,8 +196,10 @@ $ pulsar-admin persistent unload \
 #### Java
 
 ```java
+
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 admin.persistentTopics().unload(topic);
+
 ```
 
 ### Get stats
@@ -277,6 +301,7 @@ It shows current statistics of a given non-partitioned topic.
       -   **outboundConnectedSince**: Timestamp of establishing outbound connection
 
 ```json
+
 {
   "msgRateIn": 4641.528542257553,
   "msgThroughputIn": 44663039.74947473,
@@ -307,6 +332,7 @@ It shows current statistics of a given non-partitioned topic.
   },
   "replication": {}
 }
+
 ```
 
 #### pulsar-admin
@@ -314,8 +340,10 @@ It shows current statistics of a given non-partitioned topic.
 Topic stats can be fetched using [`stats`](../../reference/CliTools#stats) command.
 
 ```shell
+
 $ pulsar-admin persistent stats \
   persistent://test-tenant/ns1/tp1 \
+
 ```
 
 #### REST API
@@ -325,8 +353,10 @@ $ pulsar-admin persistent stats \
 #### Java
 
 ```java
+
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 admin.persistentTopics().getStats(topic);
+
 ```
 
 ### Get internal stats
@@ -388,6 +418,7 @@ It shows detailed statistics of a topic.
       -   **state**: The state of the cursor ledger: Open means we have a cursor ledger for saving updates of the markDeletePosition.
 
 ```json
+
 {
     "entriesAddedCounter": 20449518,
     "numberOfEntries": 3233,
@@ -422,16 +453,18 @@ It shows detailed statistics of a topic.
         }
     }
 }
-```
 
+```
 
 #### pulsar-admin
 
 Topic internal-stats can be fetched using [`stats-internal`](../../reference/CliTools#stats-internal) command.
 
 ```shell
+
 $ pulsar-admin persistent stats-internal \
   persistent://test-tenant/ns1/tp1 \
+
 ```
 
 #### REST API
@@ -441,8 +474,10 @@ $ pulsar-admin persistent stats-internal \
 #### Java
 
 ```java
+
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 admin.persistentTopics().getInternalStats(topic);
+
 ```
 
 ### Peek messages
@@ -451,8 +486,8 @@ It peeks N messages for a specific subscription of a given topic.
 
 #### pulsar-admin
 
-
 ```shell
+
 $ pulsar-admin persistent peek-messages \
   --count 10 --subscription my-subscription \
   persistent://test-tenant/ns1/tp1 \
@@ -460,6 +495,7 @@ $ pulsar-admin persistent peek-messages \
 Message ID: 315674752:0
 Properties:  {  "X-Pulsar-publish-time" : "2015-07-13 17:40:28.451"  }
 msg-payload
+
 ```
 
 #### REST API
@@ -469,10 +505,12 @@ msg-payload
 #### Java
 
 ```java
+
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 String subName = "my-subscription";
 int numMessages = 1;
 admin.persistentTopics().peekMessages(topic, subName, numMessages);
+
 ```
 
 ### Get message by ID
@@ -482,9 +520,11 @@ It fetches the message with given ledger id and entry id.
 #### pulsar-admin
 
 ```shell
+
 $ ./bin/pulsar-admin topics get-message-by-id \
   persistent://public/default/my-topic \
   -l 10 -e 0
+
 ```
 
 #### REST API
@@ -493,10 +533,12 @@ $ ./bin/pulsar-admin topics get-message-by-id \
 #### Java
 
 ```java
+
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 long ledgerId = 10;
 long entryId = 10;
 admin.persistentTopics().getMessageById(topic, ledgerId, entryId);
+
 ```
 
 ### Skip messages
@@ -505,11 +547,12 @@ It skips N messages for a specific subscription of a given topic.
 
 #### pulsar-admin
 
-
 ```shell
+
 $ pulsar-admin persistent skip \
   --count 10 --subscription my-subscription \
   persistent://test-tenant/ns1/tp1 \
+
 ```
 
 #### REST API
@@ -519,10 +562,12 @@ $ pulsar-admin persistent skip \
 #### Java
 
 ```java
+
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 String subName = "my-subscription";
 int numMessages = 1;
 admin.persistentTopics().skipMessages(topic, subName, numMessages);
+
 ```
 
 ### Skip all messages
@@ -531,11 +576,12 @@ It skips all old messages for a specific subscription of a given topic.
 
 #### pulsar-admin
 
-
 ```shell
+
 $ pulsar-admin persistent skip-all \
   --subscription my-subscription \
   persistent://test-tenant/ns1/tp1 \
+
 ```
 
 #### REST API
@@ -547,9 +593,11 @@ $ pulsar-admin persistent skip-all \
 #### Java
 
 ```java
+
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 String subName = "my-subscription";
 admin.persistentTopics().skipAllMessages(topic, subName);
+
 ```
 
 ### Reset cursor
@@ -558,11 +606,12 @@ It resets a subscription’s cursor position back to the position which was reco
 
 #### pulsar-admin
 
-
 ```shell
+
 $ pulsar-admin persistent reset-cursor \
   --subscription my-subscription --time 10 \
   persistent://test-tenant/ns1/tp1 \
+
 ```
 
 #### REST API
@@ -572,10 +621,12 @@ $ pulsar-admin persistent reset-cursor \
 #### Java
 
 ```java
+
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 String subName = "my-subscription";
 long timestamp = 2342343L;
 admin.persistentTopics().skipAllMessages(topic, subName, timestamp);
+
 ```
 
 ### Lookup of topic
@@ -584,12 +635,13 @@ It locates broker url which is serving the given topic.
 
 #### pulsar-admin
 
-
 ```shell
+
 $ pulsar-admin persistent lookup \
   persistent://test-tenant/ns1/tp1 \
 
  "pulsar://broker1.org.com:4480"
+
 ```
 
 #### REST API
@@ -599,8 +651,10 @@ $ pulsar-admin persistent lookup \
 #### Java
 
 ```java
+
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 admin.lookup().lookupDestination(topic);
+
 ```
 
 ### Get bundle
@@ -609,12 +663,13 @@ It gives range of the bundle which contains given topic
 
 #### pulsar-admin
 
-
 ```shell
+
 $ pulsar-admin persistent bundle-range \
   persistent://test-tenant/ns1/tp1 \
 
  "0x00000000_0xffffffff"
+
 ```
 
 #### REST API
@@ -624,10 +679,11 @@ $ pulsar-admin persistent bundle-range \
 #### Java
 
 ```java
+
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 admin.lookup().getBundleRange(topic);
-```
 
+```
 
 ### Get subscriptions
 
@@ -636,10 +692,12 @@ It shows all subscription names for a given topic.
 #### pulsar-admin
 
 ```shell
+
 $ pulsar-admin persistent subscriptions \
   persistent://test-tenant/ns1/tp1 \
 
  my-subscription
+
 ```
 
 #### REST API
@@ -649,8 +707,10 @@ $ pulsar-admin persistent subscriptions \
 #### Java
 
 ```java
+
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 admin.persistentTopics().getSubscriptions(topic);
+
 ```
 
 ### Unsubscribe
@@ -659,11 +719,12 @@ It can also help to unsubscribe a subscription which is no more processing furth
 
 #### pulsar-admin
 
-
 ```shell
+
 $ pulsar-admin persistent unsubscribe \
   --subscription my-subscription \
   persistent://test-tenant/ns1/tp1 \
+
 ```
 
 #### REST API
@@ -673,9 +734,11 @@ $ pulsar-admin persistent unsubscribe \
 #### Java
 
 ```java
+
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 String subscriptionName = "my-subscription";
 admin.persistentTopics().deleteSubscription(topic, subscriptionName);
+
 ```
 
 ### Last Message Id
@@ -683,7 +746,9 @@ admin.persistentTopics().deleteSubscription(topic, subscriptionName);
 It gives the last committed message ID for a persistent topic, and it will be available in 2.3.0.
 
 ```shell
+
 pulsar-admin topics last-message-id topic-name
+
 ```
 
 #### REST API
@@ -692,6 +757,9 @@ pulsar-admin topics last-message-id topic-name
 #### Java
 
 ```Java
+
 String topic = "persistent://my-tenant/my-namespace/my-topic";
 admin.persistentTopics().getLastMessage(topic);
+
 ```
+

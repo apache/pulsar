@@ -16,10 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
+#pragma once
+
 #include <boost/python.hpp>
 
 #include <pulsar/Client.h>
 #include <pulsar/MessageBatch.h>
+#include <lib/Utils.h>
 
 using namespace pulsar;
 
@@ -33,6 +37,35 @@ struct PulsarException {
 inline void CHECK_RESULT(Result res) {
     if (res != ResultOk) {
         throw PulsarException(res);
+    }
+}
+
+void waitForAsyncResult(std::function<void(ResultCallback)> func);
+
+template <typename T, typename Callback>
+inline void waitForAsyncValue(std::function<void(Callback)> func, T& value) {
+    Result res = ResultOk;
+    Promise<Result, T> promise;
+    Future<Result, T> future = promise.getFuture();
+
+    Py_BEGIN_ALLOW_THREADS func(WaitForCallbackValue<T>(promise));
+    Py_END_ALLOW_THREADS
+
+        bool isComplete;
+    while (true) {
+        // Check periodically for Python signals
+        Py_BEGIN_ALLOW_THREADS isComplete = future.get(res, std::ref(value), std::chrono::milliseconds(100));
+        Py_END_ALLOW_THREADS
+
+            if (isComplete) {
+            CHECK_RESULT(res);
+            return;
+        }
+
+        if (PyErr_CheckSignals() == -1) {
+            PyErr_SetInterrupt();
+            return;
+        }
     }
 }
 

@@ -1,7 +1,7 @@
 ---
-id: version-2.6.4-io-netty-source
+id: io-netty-source
 title: Netty source connector
-sidebar_label: Netty source connector
+sidebar_label: "Netty source connector"
 original_id: io-netty-source
 ---
 
@@ -18,7 +18,7 @@ The configuration of the Netty source connector has the following properties.
 
 | Name | Type|Required | Default | Description 
 |------|----------|----------|---------|-------------|
-| `type` |String| true |tcp | The network protocol over which data is transmitted to netty. <br><br>Below are the available options:<br><li>tcp<li>http<li>udp |
+| `type` |String| true |tcp | The network protocol over which data is transmitted to netty. <br /><br />Below are the available options:<br /><li>tcp</li><li>http</li><li>udp </li>|
 | `host` | String|true | 127.0.0.1 | The host name or address on which the source instance listen. |
 | `port` | int|true | 10999 | The port on which the source instance listen. |
 | `numberOfThreads` |int| true |1 | The number of threads of Netty TCP server to accept incoming connections and handle the traffic of accepted connections. |
@@ -30,25 +30,28 @@ Before using the Netty source connector, you need to create a configuration file
 
 * JSON 
 
-    ```json
-    {
-        "type": "tcp",
-        "host": "127.0.0.1",
-        "port": "10911",
-        "numberOfThreads": "1"
-    }
-    ```
+  ```json
+  
+  {
+      "type": "tcp",
+      "host": "127.0.0.1",
+      "port": "10911",
+      "numberOfThreads": "1"
+  }
+  
+  ```
 
 * YAML
 
-    ```yaml
-    configs:
-        type: "tcp"
-        host: "127.0.0.1"
-        port: 10999
-        numberOfThreads: 1
-    ```
-
+  ```yaml
+  
+  configs:
+      type: "tcp"
+      host: "127.0.0.1"
+      port: 10999
+      numberOfThreads: 1
+  
+  ```
 
 ## Usage 
 
@@ -58,148 +61,181 @@ The following examples show how to use the Netty source connector with TCP and H
 
 1. Start Pulsar standalone.
 
-    ```bash
-    $ docker pull apachepulsar/pulsar:{version}
+   ```bash
+   
+   $ docker pull apachepulsar/pulsar:{version}
 
-    $ docker run -d -it -p 6650:6650 -p 8080:8080 -v $PWD/data:/pulsar/data --name pulsar-netty-standalone apachepulsar/pulsar:{version} bin/pulsar standalone
-    ```
+   $ docker run -d -it -p 6650:6650 -p 8080:8080 -v $PWD/data:/pulsar/data --name pulsar-netty-standalone apachepulsar/pulsar:{version} bin/pulsar standalone
+   
+   ```
 
 2. Create a configuration file _netty-source-config.yaml_.
+
+   ```yaml
    
-    ```yaml
-    configs:
-        type: "tcp"
-        host: "127.0.0.1"
-        port: 10999
-        numberOfThreads: 1
-    ```
+   configs:
+       type: "tcp"
+       host: "127.0.0.1"
+       port: 10999
+       numberOfThreads: 1
+   
+   ```
 
 3. Copy the configuration file _netty-source-config.yaml_ to Pulsar server.
 
-    ```bash
-    $ docker cp netty-source-config.yaml pulsar-netty-standalone:/pulsar/conf/
-    ```
+   ```bash
+   
+   $ docker cp netty-source-config.yaml pulsar-netty-standalone:/pulsar/conf/
+   
+   ```
 
 4. Download the Netty source connector.
 
-    ```bash
-    $ docker exec -it pulsar-netty-standalone /bin/bash
-    curl -O http://mirror-hk.koddos.net/apache/pulsar/pulsar-{version}/connectors/pulsar-io-netty-{version}.nar
-    ```
-    
-5. Start the Netty source connector.
-   
    ```bash
+   
+   $ docker exec -it pulsar-netty-standalone /bin/bash
+   curl -O http://mirror-hk.koddos.net/apache/pulsar/pulsar-{version}/connectors/pulsar-io-netty-{version}.nar
+   
+   ```
+
+5. Start the Netty source connector.
+
+   ```bash
+   
    $ ./bin/pulsar-admin sources localrun \
-   --archive pulsar-io-{{pulsar:version}}.nar \
+   --archive pulsar-io-@pulsar:version@.nar \
    --tenant public \
    --namespace default \
    --name netty \
    --destination-topic-name netty-topic \
    --source-config-file netty-source-config.yaml \
    --parallelism 1
+   
    ```
 
 6. Consume data.
 
-    ```bash
-    $ docker exec -it pulsar-netty-standalone /bin/bash
-    
-    $ ./bin/pulsar-client consume -t Exclusive -s netty-sub netty-topic -n 0
-    ```
+   ```bash
+   
+   $ docker exec -it pulsar-netty-standalone /bin/bash
+   
+   $ ./bin/pulsar-client consume -t Exclusive -s netty-sub netty-topic -n 0
+   
+   ```
 
 7. Open another terminal window to send data to the Netty source.
 
-    ```bash
-    $ docker exec -it pulsar-netty-standalone /bin/bash
-    
-    $ apt-get update
-    
-    $ apt-get -y install telnet
+   ```bash
+   
+   $ docker exec -it pulsar-netty-standalone /bin/bash
+   
+   $ apt-get update
+   
+   $ apt-get -y install telnet
 
-    $ root@1d19327b2c67:/pulsar# telnet 127.0.0.1 10999
-    Trying 127.0.0.1...
-    Connected to 127.0.0.1.
-    Escape character is '^]'.
-    hello
-    world
-    ```
+   $ root@1d19327b2c67:/pulsar# telnet 127.0.0.1 10999
+   Trying 127.0.0.1...
+   Connected to 127.0.0.1.
+   Escape character is '^]'.
+   hello
+   world
+   
+   ```
 
 8. The following information appears on the consumer terminal window.
 
-    ```bash
-    ----- got message -----
-    hello
+   ```bash
+   
+   ----- got message -----
+   hello
 
-    ----- got message -----
-    world
-    ```
+   ----- got message -----
+   world
+   
+   ```
 
 ### HTTP 
 
 1. Start Pulsar standalone.
 
-    ```bash
-    $ docker pull apachepulsar/pulsar:{version}
+   ```bash
+   
+   $ docker pull apachepulsar/pulsar:{version}
 
-    $ docker run -d -it -p 6650:6650 -p 8080:8080 -v $PWD/data:/pulsar/data --name pulsar-netty-standalone apachepulsar/pulsar:{version} bin/pulsar standalone
-    ```
+   $ docker run -d -it -p 6650:6650 -p 8080:8080 -v $PWD/data:/pulsar/data --name pulsar-netty-standalone apachepulsar/pulsar:{version} bin/pulsar standalone
+   
+   ```
 
 2. Create a configuration file _netty-source-config.yaml_.
+
+   ```yaml
    
-    ```yaml
-    configs:
-        type: "http"
-        host: "127.0.0.1"
-        port: 10999
-        numberOfThreads: 1
-    ```
+   configs:
+       type: "http"
+       host: "127.0.0.1"
+       port: 10999
+       numberOfThreads: 1
+   
+   ```
 
 3. Copy the configuration file _netty-source-config.yaml_ to Pulsar server.
+
+   ```bash
    
-    ```bash
-    $ docker cp netty-source-config.yaml pulsar-netty-standalone:/pulsar/conf/
-    ```
+   $ docker cp netty-source-config.yaml pulsar-netty-standalone:/pulsar/conf/
+   
+   ```
 
 4. Download the Netty source connector.
 
-    ```bash
-    $ docker exec -it pulsar-netty-standalone /bin/bash
-    curl -O http://mirror-hk.koddos.net/apache/pulsar/pulsar-{version}/connectors/pulsar-io-netty-{version}.nar
-    ```
-    
-5. Start the Netty source connector.
-   
    ```bash
+   
+   $ docker exec -it pulsar-netty-standalone /bin/bash
+   curl -O http://mirror-hk.koddos.net/apache/pulsar/pulsar-{version}/connectors/pulsar-io-netty-{version}.nar
+   
+   ```
+
+5. Start the Netty source connector.
+
+   ```bash
+   
    $ ./bin/pulsar-admin sources localrun \
-   --archive pulsar-io-{{pulsar:version}}.nar \
+   --archive pulsar-io-@pulsar:version@.nar \
    --tenant public \
    --namespace default \
    --name netty \
    --destination-topic-name netty-topic \
    --source-config-file netty-source-config.yaml \
    --parallelism 1
+   
    ```
 
 6. Consume data.
 
-    ```bash
-    $ docker exec -it pulsar-netty-standalone /bin/bash
-    
-    $ ./bin/pulsar-client consume -t Exclusive -s netty-sub netty-topic -n 0
-    ```
+   ```bash
+   
+   $ docker exec -it pulsar-netty-standalone /bin/bash
+   
+   $ ./bin/pulsar-client consume -t Exclusive -s netty-sub netty-topic -n 0
+   
+   ```
 
 7. Open another terminal window to send data to the Netty source.
 
-    ```bash
-    $ docker exec -it pulsar-netty-standalone /bin/bash
-    
-    $ curl -X POST --data 'hello, world!' http://127.0.0.1:10999/
-    ```
+   ```bash
+   
+   $ docker exec -it pulsar-netty-standalone /bin/bash
+   
+   $ curl -X POST --data 'hello, world!' http://127.0.0.1:10999/
+   
+   ```
 
 8. The following information appears on the consumer terminal window.
 
-    ```bash
-    ----- got message -----
-    hello, world!
-    ```
+   ```bash
+   
+   ----- got message -----
+   hello, world!
+   
+   ```
+

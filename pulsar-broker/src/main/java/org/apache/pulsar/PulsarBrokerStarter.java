@@ -338,6 +338,8 @@ public class PulsarBrokerStarter {
                     starter.shutdown();
                 } catch (Throwable t) {
                     log.error("Error while shutting down Pulsar service", t);
+                } finally {
+                    LogManager.shutdown();
                 }
             }, "pulsar-service-shutdown")
         );

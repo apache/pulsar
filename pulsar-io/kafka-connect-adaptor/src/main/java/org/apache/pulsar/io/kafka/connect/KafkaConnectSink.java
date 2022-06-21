@@ -48,9 +48,13 @@ import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.sink.SinkConnector;
 import org.apache.kafka.connect.sink.SinkRecord;
 import org.apache.kafka.connect.sink.SinkTask;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.client.api.schema.KeyValueSchema;
+import org.apache.pulsar.client.impl.BatchMessageIdImpl;
+import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.client.impl.TopicMessageIdImpl;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.functions.api.Record;
@@ -77,7 +81,8 @@ public class KafkaConnectSink implements Sink<GenericObject> {
             Executors.newSingleThreadScheduledExecutor(new ThreadFactoryBuilder()
                     .setNameFormat("pulsar-io-kafka-adaptor-sink-flush-%d")
                     .build());
-    private final ConcurrentLinkedDeque<Record<GenericObject>> pendingFlushQueue = new ConcurrentLinkedDeque<>();
+    @VisibleForTesting
+    protected final ConcurrentLinkedDeque<Record<GenericObject>> pendingFlushQueue = new ConcurrentLinkedDeque<>();
     private final AtomicBoolean isFlushRunning = new AtomicBoolean(false);
     private volatile boolean isRunning = false;
 
@@ -90,6 +95,9 @@ public class KafkaConnectSink implements Sink<GenericObject> {
     private final Cache<String, String> sanitizedTopicCache =
             CacheBuilder.newBuilder().maximumSize(1000)
                     .expireAfterAccess(30, TimeUnit.MINUTES).build();
+
+    private int maxBatchBitsForOffset = 12;
+    private boolean useIndexAsOffset = true;
 
     @Override
     public void write(Record<GenericObject> sourceRecord) {
@@ -146,6 +154,11 @@ public class KafkaConnectSink implements Sink<GenericObject> {
         topicName = kafkaSinkConfig.getTopic();
         unwrapKeyValueIfAvailable = kafkaSinkConfig.isUnwrapKeyValueIfAvailable();
         sanitizeTopicName = kafkaSinkConfig.isSanitizeTopicName();
+
+        useIndexAsOffset = kafkaSinkConfig.isUseIndexAsOffset();
+        maxBatchBitsForOffset = kafkaSinkConfig.getMaxBatchBitsForOffset();
+        Preconditions.checkArgument(maxBatchBitsForOffset <= 20,
+                "Cannot use more than 20 bits for maxBatchBitsForOffset");
 
         String kafkaConnectorFQClassName = kafkaSinkConfig.getKafkaConnectorSinkClass();
         kafkaSinkConfig.getKafkaConnectorConfigProperties().forEach(props::put);
@@ -211,28 +224,84 @@ public class KafkaConnectSink implements Sink<GenericObject> {
         }
 
         final Record<GenericObject> lastNotFlushed = pendingFlushQueue.getLast();
+        Map<TopicPartition, OffsetAndMetadata> committedOffsets = null;
         try {
             Map<TopicPartition, OffsetAndMetadata> currentOffsets = taskContext.currentOffsets();
-            Map<TopicPartition, OffsetAndMetadata> committedOffsets = task.preCommit(currentOffsets);
-            if (committedOffsets.isEmpty()) {
+            committedOffsets = task.preCommit(currentOffsets);
+            if (committedOffsets == null || committedOffsets.isEmpty()) {
                 log.info("Task returned empty committedOffsets map; skipping flush; task will retry later");
                 return;
             }
-            taskContext.flushOffsets(currentOffsets);
-            ackUntil(lastNotFlushed, Record::ack);
+            if (log.isDebugEnabled() && !areMapsEqual(committedOffsets, currentOffsets)) {
+                log.debug("committedOffsets {} differ from currentOffsets {}", committedOffsets, currentOffsets);
+            }
+            taskContext.flushOffsets(committedOffsets);
+            ackUntil(lastNotFlushed, committedOffsets, Record::ack);
             log.info("Flush succeeded");
         } catch (Throwable t) {
             log.error("error flushing pending records", t);
-            ackUntil(lastNotFlushed, Record::fail);
+            ackUntil(lastNotFlushed, committedOffsets, Record::fail);
         } finally {
             isFlushRunning.compareAndSet(true, false);
         }
     }
 
-    private void ackUntil(Record<GenericObject> lastNotFlushed, java.util.function.Consumer<Record<GenericObject>> cb) {
-        while (!pendingFlushQueue.isEmpty()) {
-            Record<GenericObject> r = pendingFlushQueue.pollFirst();
+    private static boolean areMapsEqual(Map<TopicPartition, OffsetAndMetadata> first,
+                                        Map<TopicPartition, OffsetAndMetadata> second) {
+        if (first.size() != second.size()) {
+            return false;
+        }
+
+        return first.entrySet().stream()
+                .allMatch(e -> e.getValue().equals(second.get(e.getKey())));
+    }
+
+    @VisibleForTesting
+    protected void ackUntil(Record<GenericObject> lastNotFlushed,
+                          Map<TopicPartition, OffsetAndMetadata> committedOffsets,
+                          java.util.function.Consumer<Record<GenericObject>> cb) {
+        // lastNotFlushed is needed in case of default preCommit() implementation
+        // which calls flush() and returns currentOffsets passed to it.
+        // We don't want to ack messages added to pendingFlushQueue after the preCommit/flush call
+
+        // to avoid creation of new TopicPartition for each record in pendingFlushQueue
+        Map<String, Map<Integer, Long>> topicOffsets = new HashMap<>();
+        for (Map.Entry<TopicPartition, OffsetAndMetadata> e: committedOffsets.entrySet()) {
+            TopicPartition tp = e.getKey();
+            if (!topicOffsets.containsKey(tp.topic())) {
+                topicOffsets.put(tp.topic(), new HashMap<>());
+            }
+            Map<Integer, Long> partitionOffset = topicOffsets.get(tp.topic());
+            partitionOffset.put(tp.partition(), e.getValue().offset());
+        }
+
+        for (Record<GenericObject> r : pendingFlushQueue) {
+            final String topic = sanitizeNameIfNeeded(r.getTopicName().orElse(topicName), sanitizeTopicName);
+            final int partition = r.getPartitionIndex().orElse(0);
+
+            Long lastCommittedOffset = null;
+            if (topicOffsets.containsKey(topic)) {
+                lastCommittedOffset = topicOffsets.get(topic).get(partition);
+            }
+
+            if (lastCommittedOffset == null) {
+                if (r == lastNotFlushed) {
+                    break;
+                }
+                continue;
+            }
+
+            long offset = getMessageOffset(r);
+
+            if (offset > lastCommittedOffset) {
+                if (r == lastNotFlushed) {
+                    break;
+                }
+                continue;
+            }
+
             cb.accept(r);
+            pendingFlushQueue.remove(r);
             currentBatchSize.addAndGet(-1 * r.getMessage().get().size());
             if (r == lastNotFlushed) {
                 break;
@@ -240,10 +309,62 @@ public class KafkaConnectSink implements Sink<GenericObject> {
         }
     }
 
+    private long getMessageOffset(Record<GenericObject> sourceRecord) {
+
+        if (sourceRecord.getMessage().isPresent()) {
+            // Use index added by org.apache.pulsar.common.intercept.AppendIndexMetadataInterceptor if present.
+            // Requires exposingBrokerEntryMetadataToClientEnabled=true on brokers.
+            if (useIndexAsOffset && sourceRecord.getMessage().get().hasIndex()) {
+                return sourceRecord.getMessage().get()
+                        .getIndex().orElse(-1L);
+            }
+
+            MessageId messageId = sourceRecord.getMessage().get().getMessageId();
+            MessageIdImpl msgId = (MessageIdImpl) ((messageId instanceof TopicMessageIdImpl)
+                    ? ((TopicMessageIdImpl) messageId).getInnerMessageId()
+                    : messageId);
+
+            // sourceRecord.getRecordSequence() is not unique
+            // for the messages from the same batch.
+            // Special case for FunctionCommon.getSequenceId()
+            if (maxBatchBitsForOffset > 0 && msgId instanceof BatchMessageIdImpl) {
+                BatchMessageIdImpl batchMsgId = (BatchMessageIdImpl) msgId;
+                long ledgerId = batchMsgId.getLedgerId();
+                long entryId = batchMsgId.getEntryId();
+
+                if (entryId > (1 << (28 - maxBatchBitsForOffset))) {
+                    log.error("EntryId of the message {} over max, chance of duplicate offsets", entryId);
+                }
+
+                int batchIdx = batchMsgId.getBatchIndex();
+
+                if (batchIdx < 0) {
+                    // Should not happen unless data corruption
+                    log.error("BatchIdx {} of the message is negative, chance of duplicate offsets", batchIdx);
+                    batchIdx = 0;
+                }
+                if (batchIdx > (1 << maxBatchBitsForOffset)) {
+                    log.error("BatchIdx of the message {} over max, chance of duplicate offsets", batchIdx);
+                }
+                // Combine entry id and batchIdx
+                entryId = (entryId << maxBatchBitsForOffset) | batchIdx;
+
+                // The same as FunctionCommon.getSequenceId():
+                // Combine ledger id and entry id to form offset
+                // Use less than 32 bits to represent entry id since it will get
+                // rolled over way before overflowing the max int range
+                long offset = (ledgerId << 28) | entryId;
+                return offset;
+            }
+        }
+        return sourceRecord.getRecordSequence()
+                .orElse(-1L);
+    }
+
     @SuppressWarnings("rawtypes")
     protected SinkRecord toSinkRecord(Record<GenericObject> sourceRecord) {
         final int partition = sourceRecord.getPartitionIndex().orElse(0);
-        final String topic = sourceRecord.getTopicName().orElse(topicName);
+        final String topic = sanitizeNameIfNeeded(sourceRecord.getTopicName().orElse(topicName), sanitizeTopicName);
         final Object key;
         final Object value;
         final Schema keySchema;
@@ -282,8 +403,7 @@ public class KafkaConnectSink implements Sink<GenericObject> {
             value = KafkaConnectData.getKafkaConnectData(sourceRecord.getValue().getNativeObject(), valueSchema);
         }
 
-        long offset = sourceRecord.getRecordSequence()
-                .orElse(-1L);
+        long offset = getMessageOffset(sourceRecord);
         if (offset < 0) {
             log.error("Message without sequenceId. Key: {} Value: {}", key, value);
             throw new IllegalStateException("Message without sequenceId");
@@ -300,7 +420,7 @@ public class KafkaConnectSink implements Sink<GenericObject> {
             // keep timestampType = TimestampType.NO_TIMESTAMP_TYPE
             timestamp = sourceRecord.getMessage().get().getPublishTime();
         }
-        return new SinkRecord(sanitizeNameIfNeeded(topic, sanitizeTopicName),
+        return new SinkRecord(topic,
                 partition,
                 keySchema,
                 key,
@@ -313,7 +433,7 @@ public class KafkaConnectSink implements Sink<GenericObject> {
 
     @VisibleForTesting
     protected long currentOffset(String topic, int partition) {
-        return taskContext.currentOffset(topic, partition);
+        return taskContext.currentOffset(sanitizeNameIfNeeded(topic, sanitizeTopicName), partition);
     }
 
     // Replace all non-letter, non-digit characters with underscore.

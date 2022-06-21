@@ -101,6 +101,10 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     protected static final AtomicLongFieldUpdater<ConsumerBase> CONSUMER_EPOCH =
             AtomicLongFieldUpdater.newUpdater(ConsumerBase.class, "consumerEpoch");
 
+    private static final String RECONSUME_LATER_ERROR_MSG =
+            "reconsumeLater method not supported because retryEnabled is set to false. "
+          + "You can enable it via ConsumerBuilder.";
+
     @Setter
     @Getter
     protected volatile long consumerEpoch;
@@ -412,7 +416,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     public void reconsumeLater(Message<?> message, Map<String, String> customProperties, long delayTime, TimeUnit unit)
             throws PulsarClientException {
         if (!conf.isRetryEnable()) {
-            throw new PulsarClientException("reconsumeLater method not support!");
+            throw new PulsarClientException(RECONSUME_LATER_ERROR_MSG);
         }
         try {
             reconsumeLaterAsync(message, customProperties, delayTime, unit).get();
@@ -506,7 +510,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     public CompletableFuture<Void> reconsumeLaterAsync(
             Message<?> message, Map<String, String> customProperties, long delayTime, TimeUnit unit) {
         if (!conf.isRetryEnable()) {
-            return FutureUtil.failedFuture(new PulsarClientException("reconsumeLater method not support!"));
+            return FutureUtil.failedFuture(new PulsarClientException(RECONSUME_LATER_ERROR_MSG));
         }
         try {
             validateMessageId(message);
@@ -548,7 +552,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     public CompletableFuture<Void> reconsumeLaterCumulativeAsync(
             Message<?> message, Map<String, String> customProperties, long delayTime, TimeUnit unit) {
         if (!conf.isRetryEnable()) {
-            return FutureUtil.failedFuture(new PulsarClientException("reconsumeLater method not support!"));
+            return FutureUtil.failedFuture(new PulsarClientException(RECONSUME_LATER_ERROR_MSG));
         }
         if (!isCumulativeAcknowledgementAllowed(conf.getSubscriptionType())) {
             return FutureUtil.failedFuture(new PulsarClientException.InvalidConfigurationException(

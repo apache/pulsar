@@ -1,17 +1,19 @@
 ---
-id: version-2.1.0-incubating-admin-api-partitioned-topics
+id: admin-api-partitioned-topics
 title: Managing partitioned topics
-sidebar_label: Partitioned topics
+sidebar_label: "Partitioned topics"
 original_id: admin-api-partitioned-topics
 ---
 
 
-You can use Pulsar's [admin API](admin-api-overview.md) to create and manage partitioned topics.
+You can use Pulsar's [admin API](admin-api-overview) to create and manage partitioned topics.
 
 In all of the instructions and commands below, the topic name structure is:
 
 ```shell
+
 persistent://tenant/namespace/topic
+
 ```
 
 ## Partitioned topics resources
@@ -28,9 +30,11 @@ command and specifying the topic name as an argument and the number of partition
 Here's an example:
 
 ```shell
+
 $ bin/pulsar-admin topics create-partitioned-topic \
   persistent://my-tenant/my-namespace/my-topic \
   --partitions 4
+
 ```
 
 #### REST API
@@ -40,9 +44,11 @@ $ bin/pulsar-admin topics create-partitioned-topic \
 #### Java
 
 ```java
+
 String topicName = "persistent://my-tenant/my-namespace/my-topic";
 int numPartitions = 4;
 admin.persistentTopics().createPartitionedTopic(topicName, numPartitions);
+
 ```
 
 ### Get metadata
@@ -56,16 +62,17 @@ Field | Meaning
 
 #### pulsar-admin
 
-You can see the number of partitions in a partitioned topic using the
-[`get-partitioned-topic-metadata`](reference-pulsar-admin.md#get-partitioned-topic-metadata)
+You can see the number of partitions in a partitioned topic using the [`get-partitioned-topic-metadata`](reference-pulsar-admin.md#get-partitioned-topic-metadata)
 subcommand. Here's an example:
 
 ```shell
+
 $ pulsar-admin topics get-partitioned-topic-metadata \
   persistent://my-tenant/my-namespace/my-topic
 {
   "partitions": 4
 }
+
 ```
 
 #### REST API
@@ -75,8 +82,10 @@ $ pulsar-admin topics get-partitioned-topic-metadata \
 #### Java
 
 ```java
+
 String topicName = "persistent://my-tenant/my-namespace/my-topic";
 admin.persistentTopics().getPartitionedTopicMetadata(topicName);
+
 ```
 
 ### Update
@@ -94,13 +103,14 @@ all producers are restarted at application.
 
 #### pulsar-admin
 
-Partitioned topics can be updated using the
-[`update-partitioned-topic`](reference-pulsar-admin.md#update-partitioned-topic) command.
+Partitioned topics can be updated using the [`update-partitioned-topic`](reference-pulsar-admin.md#update-partitioned-topic) command.
 
 ```shell
+
 $ pulsar-admin topics update-partitioned-topic \
   persistent://my-tenant/my-namespace/my-topic \
   --partitions 8
+
 ```
 
 #### REST API
@@ -110,19 +120,22 @@ $ pulsar-admin topics update-partitioned-topic \
 #### Java
 
 ```java
+
 admin.persistentTopics().updatePartitionedTopic(persistentTopic, numPartitions);
+
 ```
 
 ### Delete
 
 #### pulsar-admin
 
-Partitioned topics can be deleted using the
-[`delete-partitioned-topic`](reference-pulsar-admin.md#delete-partitioned-topic) command, specifying the topic by name:
+Partitioned topics can be deleted using the [`delete-partitioned-topic`](reference-pulsar-admin.md#delete-partitioned-topic) command, specifying the topic by name:
 
 ```shell
+
 $ bin/pulsar-admin topics delete-partitioned-topic \
   persistent://my-tenant/my-namespace/my-topic
+
 ```
 
 #### REST API
@@ -132,7 +145,9 @@ $ bin/pulsar-admin topics delete-partitioned-topic \
 #### Java
 
 ```java
+
 admin.persistentTopics().delete(persistentTopic);
+
 ```
 
 ### List
@@ -142,9 +157,11 @@ It provides a list of persistent topics existing under a given namespace.
 #### pulsar-admin
 
 ```shell
+
 $ pulsar-admin topics list tenant/namespace
 persistent://tenant/namespace/topic1
 persistent://tenant/namespace/topic2
+
 ```
 
 #### REST API
@@ -154,7 +171,9 @@ persistent://tenant/namespace/topic2
 #### Java
 
 ```java
+
 admin.persistentTopics().getList(namespace);
+
 ```
 
 ### Stats
@@ -162,6 +181,7 @@ admin.persistentTopics().getList(namespace);
 It shows current statistics of a given partitioned topic. Here's an example payload:
 
 ```json
+
 {
   "msgRateIn": 4641.528542257553,
   "msgThroughputIn": 44663039.74947473,
@@ -192,6 +212,7 @@ It shows current statistics of a given partitioned topic. Here's an example payl
   },
   "replication": {}
 }
+
 ```
 
 The following stats are available:
@@ -226,13 +247,14 @@ The following stats are available:
 
 #### pulsar-admin
 
-The stats for the partitioned topic and its connected producers and consumers can be fetched by using the
-[`partitioned-stats`](reference-pulsar-admin.md#partitioned-stats) command, specifying the topic by name:
+The stats for the partitioned topic and its connected producers and consumers can be fetched by using the [`partitioned-stats`](reference-pulsar-admin.md#partitioned-stats) command, specifying the topic by name:
 
 ```shell
+
 $ pulsar-admin topics partitioned-stats \
   persistent://test-tenant/namespace/topic \
-  --per-partition        
+  --per-partition
+
 ```
 
 #### REST API
@@ -242,7 +264,9 @@ $ pulsar-admin topics partitioned-stats \
 #### Java
 
 ```java
+
 admin.persistentTopics().getStats(persistentTopic);
+
 ```
 
 ### Internal stats
@@ -274,8 +298,8 @@ It shows detailed statistics of a topic.
 |individuallyDeletedMessages|If Acks are being done out of order, shows the ranges of messages Acked between the markDeletePosition and the read-position|
 |lastLedgerSwitchTimestamp|The last time the cursor ledger was rolled over|
 
-
 ```json
+
 {
   "entriesAddedCounter": 20449518,
   "numberOfEntries": 3233,
@@ -310,16 +334,18 @@ It shows detailed statistics of a topic.
     }
   }
 }
+
 ```
 
 #### pulsar-admin
 
-The internal stats for the partitioned topic can be fetched by using the
-[`stats-internal`](reference-pulsar-admin.md#stats-internal) command, specifying the topic by name:
+The internal stats for the partitioned topic can be fetched by using the [`stats-internal`](reference-pulsar-admin.md#stats-internal) command, specifying the topic by name:
 
 ```shell
+
 $ pulsar-admin topics stats-internal \
   persistent://test-tenant/namespace/topic
+
 ```
 
 #### REST API
@@ -329,5 +355,8 @@ $ pulsar-admin topics stats-internal \
 #### Java
 
 ```java
+
 admin.persistentTopics().getInternalStats(persistentTopic);
+
 ```
+

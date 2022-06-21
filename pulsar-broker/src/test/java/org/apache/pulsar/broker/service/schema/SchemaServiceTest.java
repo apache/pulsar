@@ -45,6 +45,7 @@ import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.schema.SchemaRegistry.SchemaAndMetadata;
 import org.apache.pulsar.broker.stats.PrometheusMetricsTest;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.schema.LongSchemaVersion;
@@ -91,7 +92,7 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
         storage.start();
         Map<SchemaType, SchemaCompatibilityCheck> checkMap = new HashMap<>();
         checkMap.put(SchemaType.AVRO, new AvroSchemaCompatibilityCheck());
-        schemaRegistryService = new SchemaRegistryServiceImpl(storage, checkMap, MockClock);
+        schemaRegistryService = new SchemaRegistryServiceImpl(storage, checkMap, MockClock, null);
     }
 
     @AfterMethod(alwaysRun = true)
@@ -103,14 +104,16 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testSchemaRegistryMetrics() throws Exception {
-        putSchema(schemaId1, schemaData1, version(0));
-        getSchema(schemaId1, version(0));
-        deleteSchema(schemaId1, version(1));
+        String schemaId = "tenant/ns/topic" + UUID.randomUUID();
+        String namespace = TopicName.get(schemaId).getNamespace();
+        putSchema(schemaId, schemaData1, version(0));
+        getSchema(schemaId, version(0));
+        deleteSchema(schemaId, version(1));
 
         ByteArrayOutputStream output = new ByteArrayOutputStream();
         PrometheusMetricsGenerator.generate(pulsar, false, false, false, output);
         output.flush();
-        String metricsStr = new String(output.toByteArray(), StandardCharsets.UTF_8);
+        String metricsStr = output.toString(StandardCharsets.UTF_8);
         Multimap<String, PrometheusMetricsTest.Metric> metrics = PrometheusMetricsTest.parseMetrics(metricsStr);
 
         Collection<PrometheusMetricsTest.Metric> delMetrics = metrics.get("pulsar_schema_del_ops_failed_count");
@@ -122,19 +125,19 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
 
         Collection<PrometheusMetricsTest.Metric> deleteLatency = metrics.get("pulsar_schema_del_ops_latency_count");
         for (PrometheusMetricsTest.Metric metric : deleteLatency) {
-            Assert.assertEquals(metric.tags.get("schema"), schemaId1);
+            Assert.assertEquals(metric.tags.get("namespace"), namespace);
             Assert.assertTrue(metric.value > 0);
         }
 
         Collection<PrometheusMetricsTest.Metric> getLatency = metrics.get("pulsar_schema_get_ops_latency_count");
         for (PrometheusMetricsTest.Metric metric : getLatency) {
-            Assert.assertEquals(metric.tags.get("schema"), schemaId1);
+            Assert.assertEquals(metric.tags.get("namespace"), namespace);
             Assert.assertTrue(metric.value > 0);
         }
 
         Collection<PrometheusMetricsTest.Metric> putLatency = metrics.get("pulsar_schema_put_ops_latency_count");
         for (PrometheusMetricsTest.Metric metric : putLatency) {
-            Assert.assertEquals(metric.tags.get("schema"), schemaId1);
+            Assert.assertEquals(metric.tags.get("namespace"), namespace);
             Assert.assertTrue(metric.value > 0);
         }
     }

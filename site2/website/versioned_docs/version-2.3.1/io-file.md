@@ -1,7 +1,7 @@
 ---
-id: version-2.3.1-io-file
+id: io-file
 title: File Connector
-sidebar_label: File Connector
+sidebar_label: "File Connector"
 original_id: io-file
 ---
 

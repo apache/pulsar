@@ -174,9 +174,9 @@ public class PulsarFunctionTlsTest {
         log.info("--- Shutting down ---");
         try {
             functionAdmin.close();
-            bkEnsemble.stop();
-            workerServer.stop();
             functionsWorkerService.stop();
+            workerServer.stop();
+            bkEnsemble.stop();
         } finally {
             if (tempDirectory != null) {
                 tempDirectory.delete();

@@ -1,7 +1,7 @@
 ---
 author: Xiaolong Ran
 authorURL: https://twitter.com/wolf4j1
-title: Apache Pulsar 2.4.2
+title: "Apache Pulsar 2.4.2"
 ---
 
 We are proud to publish Apache Pulsar 2.4.2. Thank the great efforts from Apache Pulsar community with over 110 commits, covering improvements and bug fixes.
@@ -44,9 +44,11 @@ In Pulsar 2.4.2, the active consumer is selected based on the subscription order
 In Pulsar 2.4.2, failed producer is removed correctly from the connection. Before Pulsar 2.4.2, broker cannot clean up the old failed producer correctly from the connection. When broker tries to clean up `producer-future` in the failed producer, it removes the newly created `producer-future` rather than the old failed producer, and the following error occurs in broker.
 
 ```text
-17:22:00.700 [pulsar-io-21-26] WARN  org.apache.pulsar.broker.service.ServerCnx - [/1.1.1.1:1111][453] Producer with id persistent://prop/cluster/ns/topic is already present on the connection  
-```  
-                        
+
+17:22:00.700 [pulsar-io-21-26] WARN  org.apache.pulsar.broker.service.ServerCnx - [/1.1.1.1:1111][453] Producer with id persistent://prop/cluster/ns/topic is already present on the connection
+
+```
+
 ## Add new APIs for schema
 In Pulsar 2.4.2, we add the following APIs for schema:
 - `getAllVersions`: return the list of schema versions for a given topic.

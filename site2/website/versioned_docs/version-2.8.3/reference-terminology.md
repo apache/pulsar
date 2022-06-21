@@ -1,7 +1,7 @@
 ---
-id: version-2.8.3-reference-terminology
+id: reference-terminology
 title: Pulsar Terminology
-sidebar_label: Terminology
+sidebar_label: "Terminology"
 original_id: reference-terminology
 ---
 
@@ -97,6 +97,14 @@ that have already been [acknowledged](#acknowledgement-ack).
 
 The ability to isolate [namespaces](#namespace), specify quotas, and configure authentication and authorization
 on a per-[tenant](#tenant) basis.
+
+#### Failure Domain
+
+A logical domain under a Pulsar cluster. Each logical domain contains a pre-configured list of brokers. 
+
+#### Anti-affinity Namespaces
+
+A group of namespaces that have anti-affinity to each other.
 
 ### Architecture
 

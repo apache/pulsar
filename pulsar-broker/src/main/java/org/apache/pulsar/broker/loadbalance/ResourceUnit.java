@@ -22,9 +22,14 @@ package org.apache.pulsar.broker.loadbalance;
     ResourceUnit represents any machine/unit which has resources that broker can use to serve its service units
  */
 public interface ResourceUnit extends Comparable<ResourceUnit> {
+
+    String PROPERTY_KEY_BROKER_ZNODE_NAME = "__advertised_addr";
+
     String getResourceId();
 
     ResourceDescription getAvailableResource();
 
     boolean canFit(ResourceDescription resourceDescription);
+
+    Object getProperty(String key);
 }
