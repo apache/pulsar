@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.Map;
 
 public class TransactionBufferStats {
 
@@ -34,7 +34,7 @@ public class TransactionBufferStats {
     /**
      * (Optional) The lowWaterMark details of the transaction buffer.
      */
-    public ConcurrentHashMap<Long, Long> lowWaterMarks;
+    public Map<Long, Long> lowWaterMarks;
     /**
      * The total number of ongoing transactions in this transaction buffer.
      */

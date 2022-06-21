@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.Map;
 
 public class TransactionPendingAckStats {
 
@@ -28,7 +28,7 @@ public class TransactionPendingAckStats {
     /**
      * (Optional) The lowWaterMark details of the transaction pending ack.
      */
-    public ConcurrentHashMap<Long, Long> lowWaterMarks;
+    public Map<Long, Long> lowWaterMarks;
 
     /**
      * The total number of ongoing transactions in this transaction pending ack.
