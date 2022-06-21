@@ -295,7 +295,7 @@ tokenSecretKey=file:///path/to/secret.key
 
 :::note
 
-Use the [admin role token](#generate-an-admin-role-token) as the value of `brokerClientAuthenticationParameters`.
+Equivalent to `brokerClientAuthenticationParameters`, you need to configure `authParams` in the `conf/client.conf` file. 
 
 :::
 
