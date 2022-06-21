@@ -41,7 +41,6 @@ import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
@@ -96,13 +95,11 @@ public class NonPersistentTopics extends PersistentTopics {
     public void getInternalStats(
             @Suspended final AsyncResponse asyncResponse,
             @PathParam("property") String property,
-            @PathParam("cluster") String cluster, @PathParam("namespace")
-                    String namespace,
+            @PathParam("cluster") String cluster,
+            @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic,
-            @QueryParam("authoritative") @DefaultValue("false")
-                    boolean authoritative,
-            @QueryParam("metadata") @DefaultValue("false")
-                    boolean metadata) {
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
+            @QueryParam("metadata") @DefaultValue("false") boolean metadata) {
         validateTopicName(property, cluster, namespace, encodedTopic);
         validateTopicOwnershipAsync(topicName, authoritative)
                 .thenCompose(__ -> validateTopicOperationAsync(topicName, TopicOperation.GET_STATS))
@@ -111,7 +108,7 @@ public class NonPersistentTopics extends PersistentTopics {
                     boolean includeMetadata = metadata && hasSuperUserAccess();
                     return topic.getInternalStats(includeMetadata);
                 })
-                .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
+                .thenAccept(asyncResponse::resume)
                 .exceptionally(ex -> {
                     if (!isRedirectException(ex)) {
                         log.error("[{}] Failed to get internal stats for topic {}", clientAppId(), topicName, ex);

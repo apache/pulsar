@@ -427,7 +427,7 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("metadata") @DefaultValue("false") boolean metadata) {
         validateTopicName(property, cluster, namespace, encodedTopic);
         internalGetInternalStatsAsync(authoritative, metadata)
-                .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
+                .thenAccept(asyncResponse::resume)
                 .exceptionally(ex -> {
                     if (!isRedirectException(ex)) {
                         log.error("[{}] Failed to get internal stats for topic {}", clientAppId(), topicName, ex);
