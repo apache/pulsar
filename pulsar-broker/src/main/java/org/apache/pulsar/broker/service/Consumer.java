@@ -368,7 +368,7 @@ public class Consumer {
     }
 
     public CompletableFuture<Void> messageAcked(CommandAck ack) {
-        CompletableFuture<Void> future;
+        CompletableFuture<Long> future;
 
         this.lastAckedTimestamp = System.currentTimeMillis();
         Map<String, Long> properties = Collections.emptyMap();
@@ -404,11 +404,12 @@ public class Consumer {
             if (ack.hasTxnidMostBits() && ack.hasTxnidLeastBits()) {
                 List<PositionImpl> positionsAcked = Collections.singletonList(position);
                 future = transactionCumulativeAcknowledge(ack.getTxnidMostBits(),
-                        ack.getTxnidLeastBits(), positionsAcked);
+                        ack.getTxnidLeastBits(), positionsAcked)
+                        .thenApply(unused -> 1L);
             } else {
                 List<Position> positionsAcked = Collections.singletonList(position);
                 subscription.acknowledgeMessage(positionsAcked, AckType.Cumulative, properties);
-                future = CompletableFuture.completedFuture(null);
+                future = CompletableFuture.completedFuture(1L);
             }
         } else {
             if (ack.hasTxnidLeastBits() && ack.hasTxnidMostBits()) {
@@ -419,16 +420,16 @@ public class Consumer {
         }
 
         return future
-                .whenComplete((__, t) -> {
-                    if (t == null) {
-                        this.messageAckRate.recordEvent(ack.getMessageIdsCount());
-                    }
+                .thenApply(v -> {
+                    this.messageAckRate.recordEvent(v);
+                    return null;
                 });
     }
 
     //this method is for individual ack not carry the transaction
-    private CompletableFuture<Void> individualAckNormal(CommandAck ack, Map<String, Long> properties) {
+    private CompletableFuture<Long> individualAckNormal(CommandAck ack, Map<String, Long> properties) {
         List<Position> positionsAcked = new ArrayList<>();
+        long totalAckCount = 0;
         for (int i = 0; i < ack.getMessageIdsCount(); i++) {
             MessageIdData msgId = ack.getMessageIdAt(i);
             PositionImpl position;
@@ -461,10 +462,12 @@ public class Consumer {
             checkCanRemovePendingAcksAndHandle(position, msgId);
 
             checkAckValidationError(ack, position);
+
+            totalAckCount += ackedCount;
         }
         subscription.acknowledgeMessage(positionsAcked, AckType.Individual, properties);
-        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
-        completableFuture.complete(null);
+        CompletableFuture<Long> completableFuture = new CompletableFuture<>();
+        completableFuture.complete(totalAckCount);
         if (isTransactionEnabled() && Subscription.isIndividualAckMode(subType)) {
             completableFuture.whenComplete((v, e) -> positionsAcked.forEach(position -> {
                 //check if the position can remove from the consumer pending acks.
@@ -482,7 +485,7 @@ public class Consumer {
 
 
     //this method is for individual ack carry the transaction
-    private CompletableFuture<Void> individualAckWithTransaction(CommandAck ack) {
+    private CompletableFuture<Long> individualAckWithTransaction(CommandAck ack) {
         // Individual ack
         List<MutablePair<PositionImpl, Integer>> positionsAcked = new ArrayList<>();
         if (!isTransactionEnabled()) {
@@ -490,6 +493,7 @@ public class Consumer {
                     new BrokerServiceException.NotAllowedException("Server don't support transaction ack!"));
         }
 
+        LongAdder totalAckCount = new LongAdder();
         for (int i = 0; i < ack.getMessageIdsCount(); i++) {
             MessageIdData msgId = ack.getMessageIdAt(i);
             PositionImpl position;
@@ -518,6 +522,8 @@ public class Consumer {
             checkCanRemovePendingAcksAndHandle(position, msgId);
 
             checkAckValidationError(ack, position);
+
+            totalAckCount.add(ackedCount);
         }
 
         CompletableFuture<Void> completableFuture = transactionIndividualAcknowledge(ack.getTxnidMostBits(),
@@ -533,7 +539,7 @@ public class Consumer {
                         }
                     }));
         }
-        return completableFuture;
+        return completableFuture.thenApply(__ -> totalAckCount.sum());
     }
 
     private long getBatchSize(MessageIdData msgId) {
@@ -756,9 +762,9 @@ public class Consumer {
         messageAckRate.calculateRate();
 
         stats.msgRateOut = msgOut.getRate();
-        stats.messageAckRate = messageAckRate.getRate();
         stats.msgThroughputOut = msgOut.getValueRate();
         stats.msgRateRedeliver = msgRedeliver.getRate();
+        stats.messageAckRate = messageAckRate.getValueRate();
         stats.chunkedMessageRate = chunkedMessageRate.getRate();
     }
 
