@@ -106,6 +106,31 @@
 
     <dependency>
       <groupId>io.prestosql</groupId>
+      <artifactId>presto-server-main</artifactId>
+      <version>${presto.version}</version>
+      <exclusions>
+        <!-- exclude openjdk because of GPL license -->
+        <exclusion>
+          <groupId>org.openjdk.jol</groupId>
+          <artifactId>jol-core</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>com.sun</groupId>
+          <artifactId>tools</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>javax.activation</groupId>
+          <artifactId>activation</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>com.google.inject.extensions</groupId>
+          <artifactId>guice-multibindings</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+
+    <dependency>
+      <groupId>io.prestosql</groupId>
       <artifactId>presto-cli</artifactId>
       <version>${presto.version}</version>
     </dependency>
