@@ -31,5 +31,6 @@ Currently Pulsar supports the following authentication providers:
 - [Athenz](security-athenz)
 - [Kerberos](security-kerberos)
 - [JSON Web Token Authentication](security-jwt)
-
+- [OAuth 2.0 authentication](security-oauth2)
+- [HTTP basic authentication](security-basic-auth)
 

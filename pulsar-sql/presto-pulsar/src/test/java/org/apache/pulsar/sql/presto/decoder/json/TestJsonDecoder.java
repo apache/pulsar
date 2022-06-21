@@ -24,6 +24,7 @@ import io.prestosql.decoder.DecoderColumnHandle;
 import io.prestosql.decoder.FieldValueProvider;
 import io.prestosql.spi.PrestoException;
 import io.prestosql.spi.type.*;
+import java.math.BigDecimal;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
 import org.apache.pulsar.client.impl.schema.generic.GenericJsonRecord;
 import org.apache.pulsar.client.impl.schema.generic.GenericJsonSchema;
@@ -117,6 +118,25 @@ public class TestJsonDecoder extends AbstractDecoderTester {
                 "enumField", VARCHAR, false, false, "enumField", null, null, PulsarColumnHandle.HandleKeyValueType.NONE);
         checkValue(decodedRow, enumFieldColumnHandle, message.enumField.toString());
 
+    }
+
+    @Test
+    public void testDecimal() {
+        DecoderTestMessage message = new DecoderTestMessage();
+        message.decimalField = BigDecimal.valueOf(2233, 2);
+        message.longDecimalField = new BigDecimal("1234567891234567891234567891.23");
+
+        ByteBuf payload = io.netty.buffer.Unpooled
+                .copiedBuffer(schema.encode(message));
+        Map<DecoderColumnHandle, FieldValueProvider> decodedRow = pulsarRowDecoder.decodeRow(payload).get();
+
+        PulsarColumnHandle decimalFieldColumnHandle = new PulsarColumnHandle(getPulsarConnectorId().toString(),
+                "decimalField", DecimalType.createDecimalType(4, 2), false, false, "decimalField", null, null, PulsarColumnHandle.HandleKeyValueType.NONE);
+        checkValue(decodedRow, decimalFieldColumnHandle, message.decimalField);
+
+        PulsarColumnHandle longDecimalFieldColumnHandle = new PulsarColumnHandle(getPulsarConnectorId().toString(),
+                "longDecimalField", DecimalType.createDecimalType(30, 2), false, false, "longDecimalField", null, null, PulsarColumnHandle.HandleKeyValueType.NONE);
+        checkValue(decodedRow, longDecimalFieldColumnHandle, message.longDecimalField);
     }
 
     @Test

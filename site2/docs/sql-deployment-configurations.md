@@ -14,10 +14,13 @@ You can configure Presto Pulsar Connector in the `${project.root}/conf/presto/ca
 # name of the connector to be displayed in the catalog
 connector.name=pulsar
 
-# the url of Pulsar broker service
+# the URL of Pulsar broker service
 pulsar.web-service-url=http://localhost:8080
 
-# URI of Zookeeper cluster
+# the URL of Pulsar broker binary service
+pulsar.broker-binary-service-url=pulsar://localhost:6650
+
+# the URL of Zookeeper cluster
 pulsar.zookeeper-uri=localhost:2181
 
 # minimum number of entries to read at a single time
@@ -29,10 +32,10 @@ pulsar.target-num-splits=4
 # max size of one batch message (default value is 5MB)
 pulsar.max-message-size=5242880
 
-# number of split used when querying data from pulsar
+# number of split used when querying data from Pulsar
 pulsar.target-num-splits=2
 
-# size of queue to buffer entry read from pulsar
+# size of queue to buffer entry read from Pulsar
 pulsar.max-split-entry-queue-size=1000
 
 # size of queue to buffer message extract from entries
@@ -77,6 +80,9 @@ pulsar.tls-hostname-verification-enable=null
 # path for the trusted TLS certificate file of Pulsar broker
 pulsar.tls-trust-cert-file-path=null
 
+## whether to enable Pulsar authorization
+pulsar.authorization-enabled=false
+
 # set the threshold for BookKeeper request throttle, default is disabled
 pulsar.bookkeeper-throttle-value=0
 
@@ -106,16 +112,41 @@ pulsar.nar-extraction-directory=System.getProperty("java.io.tmpdir")
 
 ```
 
-You can connect Presto to a Pulsar cluster with multiple hosts. To configure multiple hosts for brokers, add multiple URLs to `pulsar.web-service-url`. To configure multiple hosts for ZooKeeper, add multiple URIs to `pulsar.zookeeper-uri`. The following is an example.
+### Enable authentication and authorization between Pulsar and Pulsar SQL 
+
+By default, the authentication and authorization between Pulsar and Pulsar SQL is disabled.
+
+To enable it, set the following configurations in the `${project.root}/conf/presto/catalog/pulsar.properties` properties file:
+
+```properties
+
+pulsar.authorization-enabled=true
+pulsar.broker-binary-service-url=pulsar://localhost:6650
 
 ```
+
+### Connect Presto to Pulsar with multiple hosts
+
+You can connect Presto to a Pulsar cluster with multiple hosts. 
+* To configure multiple hosts for brokers, add multiple URLs to `pulsar.web-service-url`. 
+* To configure multiple hosts for ZooKeeper, add multiple URIs to `pulsar.zookeeper-uri`. 
+
+The following is an example.
+
+```properties
 
 pulsar.web-service-url=http://localhost:8080,localhost:8081,localhost:8082
 pulsar.zookeeper-uri=localhost1,localhost2:2181
 
 ```
 
-**Note: by default, Pulsar SQL does not get the last message in a topic**. It is by design and controlled by settings. By default, BookKeeper LAC only advances when subsequent entries are added. If there is no subsequent entry added, the last written entry is not visible to readers until the ledger is closed. This is not a problem for Pulsar which uses managed ledger, but Pulsar SQL directly reads from BookKeeper ledger. 
+### Get the last message in a topic
+
+:::note
+
+By default, Pulsar SQL **does not get the last message in a topic**. It is by design and controlled by settings. By default, BookKeeper LAC only advances when subsequent entries are added. If there is no subsequent entry added, the last written entry is not visible to readers until the ledger is closed. This is not a problem for Pulsar which uses managed ledger, but Pulsar SQL directly reads from BookKeeper ledger. 
+
+:::
 
 If you want to get the last message in a topic, set the following configurations:
 
@@ -266,11 +297,11 @@ presto> SELECT * FROM system.runtime.nodes;
 
 ```
 
-For more information about deployment in Presto, refer to [Presto deployment](https://trino.io/docs/current/installation/deployment.html).
+For more information about the deployment in Presto, refer to [Presto deployment](https://trino.io/docs/current/installation/deployment.html).
 
 :::note
 
-The broker does not advance LAC, so when Pulsar SQL bypass broker to query data, it can only read entries up to the LAC that all the bookies learned. You can enable periodically write LAC on the broker by setting "bookkeeperExplicitLacIntervalInMills" in the broker.conf.
+The broker does not advance LAC, so when Pulsar SQL bypasses broker to query data, it can only read entries up to the LAC that all the bookies learned. You can enable periodically write LAC on the broker by setting "bookkeeperExplicitLacIntervalInMills" in the `broker.conf` file.
 
 :::
 

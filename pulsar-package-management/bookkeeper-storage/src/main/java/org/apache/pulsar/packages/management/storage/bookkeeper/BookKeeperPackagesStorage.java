@@ -37,6 +37,7 @@ import org.apache.distributedlog.exceptions.ZKException;
 import org.apache.distributedlog.impl.metadata.BKDLConfig;
 import org.apache.distributedlog.metadata.DLMetadata;
 import org.apache.distributedlog.namespace.NamespaceDriver;
+import org.apache.pulsar.client.internal.PropertiesUtils;
 import org.apache.pulsar.packages.management.core.PackagesStorage;
 import org.apache.pulsar.packages.management.core.PackagesStorageConfiguration;
 import org.apache.zookeeper.KeeperException;
@@ -74,6 +75,13 @@ public class BookKeeperPackagesStorage implements PackagesStorage {
                     configuration.getBookkeeperClientAuthenticationParameters());
             }
         }
+        // Map arbitrary bookkeeper client configuration into DLog Config. Note that this only configures the
+        // bookie client.
+        PropertiesUtils.filterAndMapProperties(configuration.getProperties(), "bookkeeper_", "bkc.")
+                .forEach((key, value) -> {
+                    log.info("Applying DLog BookKeeper client configuration setting {}={}", key, value);
+                    conf.setProperty(key, value);
+                });
         try {
             this.namespace = NamespaceBuilder.newBuilder()
                 .conf(conf).clientId(NS_CLIENT_ID).uri(initializeDlogNamespace()).build();

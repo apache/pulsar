@@ -65,7 +65,7 @@ The Pulsar binary package initially contains the following directories:
 
 Directory | Contains
 :---------|:--------
-`bin` | [Command-line tools](reference-cli-tools) of Pulsar, such as [`pulsar`](reference-cli-tools.md#pulsar) and [`pulsar-admin`](https://pulsar.apache.org/tools/pulsar-admin/)
+`bin` | [Command-line tools](reference-cli-tools) of Pulsar, such as [`pulsar`](reference-cli-tools.md#pulsar) and [`pulsar-admin`](/tools/pulsar-admin/)
 `conf` | Configuration files for Pulsar, including for [broker configuration](reference-configuration.md#broker), [ZooKeeper configuration](reference-configuration.md#zookeeper), and more
 `examples` | A Java JAR file containing example [Pulsar Functions](functions-overview)
 `lib` | The [JAR](https://en.wikipedia.org/wiki/JAR_(file_format)) files that Pulsar uses 
@@ -387,7 +387,7 @@ serviceUrl=http://pulsar.us-west.example.com:8080/
 Pulsar is built as a fundamentally multi-tenant system.
 
 
-If a new tenant wants to use the system, you need to create a new one. You can create a new tenant by using the [`pulsar-admin`](reference-pulsar-admin.md#tenants) CLI tool:
+If a new tenant wants to use the system, you need to create a new one. You can create a new tenant by using the [`pulsar-admin`](/tools/pulsar-admin/) CLI tool:
 
 ```shell
 

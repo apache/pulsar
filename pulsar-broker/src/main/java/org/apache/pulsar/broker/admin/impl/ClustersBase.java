@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.admin.impl;
 
 import static javax.ws.rs.core.Response.Status.PRECONDITION_FAILED;
-import com.google.common.collect.Maps;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
 import io.swagger.annotations.ApiResponse;
@@ -31,6 +30,7 @@ import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
@@ -41,6 +41,7 @@ import javax.ws.rs.POST;
 import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
+import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
@@ -48,9 +49,9 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import org.apache.bookkeeper.common.util.JsonUtil;
 import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.admin.AdminResource;
-import org.apache.pulsar.broker.resources.ClusterResources.FailureDomainResources;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.naming.Constants;
@@ -686,46 +687,38 @@ public class ClustersBase extends AdminResource {
         @ApiResponse(code = 500, message = "Internal server error.")
     })
     public void deleteNamespaceIsolationPolicy(
-        @ApiParam(
-            value = "The cluster name",
-            required = true
-        )
+        @Suspended AsyncResponse asyncResponse,
+        @ApiParam(value = "The cluster name", required = true)
         @PathParam("cluster") String cluster,
-        @ApiParam(
-            value = "The namespace isolation policy name",
-            required = true
-        )
+        @ApiParam(value = "The namespace isolation policy name", required = true)
         @PathParam("policyName") String policyName
-    ) throws Exception {
-        validateSuperUserAccess();
-        validateClusterExists(cluster);
-        validatePoliciesReadOnlyAccess();
-
-        try {
-
-            NamespaceIsolationPolicies nsIsolationPolicies = namespaceIsolationPolicies()
-                    .getIsolationDataPolicies(cluster).orElseGet(() -> {
-                        try {
-                            namespaceIsolationPolicies().setIsolationDataWithCreate(cluster,
-                                    (p) -> Collections.emptyMap());
-                            return new NamespaceIsolationPolicies();
-                        } catch (Exception e) {
-                            throw new RestException(e);
-                        }
-                    });
-
-            nsIsolationPolicies.deletePolicy(policyName);
-            namespaceIsolationPolicies().setIsolationData(cluster, old -> nsIsolationPolicies.getPolicies());
-        } catch (NotFoundException nne) {
-            log.warn("[{}] Failed to update brokers/{}/namespaceIsolationPolicies: Does not exist", clientAppId(),
-                    cluster);
-            throw new RestException(Status.NOT_FOUND,
-                    "NamespaceIsolationPolicies for cluster " + cluster + " does not exist");
-        } catch (Exception e) {
-            log.error("[{}] Failed to update brokers/{}/namespaceIsolationPolicies/{}", clientAppId(), cluster,
-                    policyName, e);
-            throw new RestException(e);
-        }
+    ) {
+        validateSuperUserAccessAsync()
+                .thenCompose(__ -> validateClusterExistAsync(cluster, PRECONDITION_FAILED))
+                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
+                .thenCompose(__ -> namespaceIsolationPolicies().getIsolationDataPoliciesAsync(cluster))
+                .thenCompose(nsIsolationPoliciesOpt -> nsIsolationPoliciesOpt.map(CompletableFuture::completedFuture)
+                        .orElseGet(() -> namespaceIsolationPolicies()
+                                .setIsolationDataWithCreateAsync(cluster, (p) -> Collections.emptyMap())
+                                .thenApply(__ -> new NamespaceIsolationPolicies())))
+                .thenCompose(policies -> {
+                    policies.deletePolicy(policyName);
+                    return namespaceIsolationPolicies().setIsolationDataAsync(cluster, old -> policies.getPolicies());
+                }).thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
+                .exceptionally(ex -> {
+                    Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+                    if (realCause instanceof NotFoundException) {
+                        log.warn("[{}] Failed to update brokers/{}/namespaceIsolationPolicies: Does not exist",
+                                clientAppId(), cluster);
+                        asyncResponse.resume(new RestException(Status.NOT_FOUND,
+                                "NamespaceIsolationPolicies for cluster " + cluster + " does not exist"));
+                        return null;
+                    }
+                    log.error("[{}] Failed to update brokers/{}/namespaceIsolationPolicies/{}", clientAppId(), cluster,
+                            policyName, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @POST
@@ -742,38 +735,37 @@ public class ClustersBase extends AdminResource {
         @ApiResponse(code = 500, message = "Internal server error.")
     })
     public void setFailureDomain(
-        @ApiParam(
-            value = "The cluster name",
-            required = true
-        )
+        @Suspended AsyncResponse asyncResponse,
+        @ApiParam(value = "The cluster name", required = true)
         @PathParam("cluster") String cluster,
-        @ApiParam(
-            value = "The failure domain name",
-            required = true
-        )
+        @ApiParam(value = "The failure domain name", required = true)
         @PathParam("domainName") String domainName,
-        @ApiParam(
-            value = "The configuration data of a failure domain",
-            required = true
-        )
-                FailureDomainImpl domain
-    ) throws Exception {
-        validateSuperUserAccess();
-        validateClusterExists(cluster);
-        validateBrokerExistsInOtherDomain(cluster, domainName, domain);
-
-        try {
-            clusterResources().getFailureDomainResources()
-                    .setFailureDomainWithCreate(cluster, domainName, old -> domain);
-        } catch (NotFoundException nne) {
-            log.warn("[{}] Failed to update domain {}. clusters {}  Does not exist", clientAppId(), cluster,
-                    domainName);
-            throw new RestException(Status.NOT_FOUND,
-                    "Domain " + domainName + " for cluster " + cluster + " does not exist");
-        } catch (Exception e) {
-            log.error("[{}] Failed to update clusters/{}/domainName/{}", clientAppId(), cluster, domainName, e);
-            throw new RestException(e);
-        }
+        @ApiParam(value = "The configuration data of a failure domain", required = true) FailureDomainImpl domain
+    ) {
+        validateSuperUserAccessAsync()
+                .thenCompose(__ -> validateClusterExistAsync(cluster, PRECONDITION_FAILED))
+                .thenCompose(__ -> validateBrokerExistsInOtherDomain(cluster, domainName, domain))
+                .thenCompose(__ -> clusterResources().getFailureDomainResources()
+                        .setFailureDomainWithCreateAsync(cluster, domainName, old -> domain))
+                .thenAccept(__ -> {
+                    log.info("[{}] Successful set failure domain {} for cluster {}",
+                            clientAppId(), domainName, cluster);
+                    asyncResponse.resume(Response.noContent().build());
+                })
+                .exceptionally(ex -> {
+                    Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+                    if (realCause instanceof NotFoundException) {
+                        log.warn("[{}] Failed to update domain {}. clusters {}  Does not exist", clientAppId(), cluster,
+                                domainName);
+                        asyncResponse.resume(new RestException(Status.NOT_FOUND,
+                                "Domain " + domainName + " for cluster " + cluster + " does not exist"));
+                        return null;
+                    }
+                    log.error("[{}] Failed to update clusters/{}/domainName/{}",
+                            clientAppId(), cluster, domainName, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @GET
@@ -788,34 +780,45 @@ public class ClustersBase extends AdminResource {
         @ApiResponse(code = 403, message = "Don't have admin permission"),
         @ApiResponse(code = 500, message = "Internal server error")
     })
-    public Map<String, FailureDomainImpl> getFailureDomains(
-        @ApiParam(
-            value = "The cluster name",
-            required = true
-        )
+    public void getFailureDomains(
+        @Suspended AsyncResponse asyncResponse,
+        @ApiParam(value = "The cluster name", required = true)
         @PathParam("cluster") String cluster
-    ) throws Exception {
-        validateSuperUserAccess();
-
-        Map<String, FailureDomainImpl> domains = Maps.newHashMap();
-        try {
-            FailureDomainResources fdr = clusterResources().getFailureDomainResources();
-            for (String domainName : fdr.listFailureDomains(cluster)) {
-                try {
-                    Optional<FailureDomainImpl> domain = fdr.getFailureDomain(cluster, domainName);
-                    domain.ifPresent(failureDomain -> domains.put(domainName, failureDomain));
-                } catch (Exception e) {
-                    log.warn("Failed to get domain {}", domainName, e);
-                }
-            }
-        } catch (NotFoundException e) {
-            log.warn("[{}] Failure-domain is not configured for cluster {}", clientAppId(), cluster, e);
-            return Collections.emptyMap();
-        } catch (Exception e) {
-            log.error("[{}] Failed to get failure-domains for cluster {}", clientAppId(), cluster, e);
-            throw new RestException(e);
-        }
-        return domains;
+    ) {
+        validateSuperUserAccessAsync()
+                .thenCompose(__ -> clusterResources().getFailureDomainResources()
+                        .listFailureDomainsAsync(cluster)
+                        .thenCompose(domainNames -> {
+                            List<CompletableFuture<Pair<String, Optional<FailureDomainImpl>>>> futures =
+                                domainNames.stream()
+                                    .map(domainName -> clusterResources().getFailureDomainResources()
+                                            .getFailureDomainAsync(cluster, domainName)
+                                            .thenApply(failureDomainImpl -> Pair.of(domainName, failureDomainImpl))
+                                            .exceptionally(ex -> {
+                                                log.warn("Failed to get domain {}", domainName, ex);
+                                                return null;
+                                            })).collect(Collectors.toList());
+                            return FutureUtil.waitForAll(futures)
+                                    .thenApply(unused -> futures.stream()
+                                            .map(CompletableFuture::join)
+                                            .filter(Objects::nonNull)
+                                            .filter(v -> v.getRight().isPresent())
+                                            .collect(Collectors.toMap(Pair::getLeft, v -> v.getRight().get())));
+                        }).exceptionally(ex -> {
+                            Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+                            if (realCause instanceof NotFoundException) {
+                                log.warn("[{}] Failure-domain is not configured for cluster {}",
+                                        clientAppId(), cluster, ex);
+                                return Collections.emptyMap();
+                            }
+                            throw FutureUtil.wrapToCompletionException(ex);
+                        })
+                ).thenAccept(asyncResponse::resume)
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to get failure-domains for cluster {}", clientAppId(), cluster, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @GET
@@ -831,31 +834,26 @@ public class ClustersBase extends AdminResource {
         @ApiResponse(code = 412, message = "Cluster doesn't exist"),
         @ApiResponse(code = 500, message = "Internal server error")
     })
-    public FailureDomainImpl getDomain(
-        @ApiParam(
-            value = "The cluster name",
-            required = true
-        )
+    public void getDomain(
+        @Suspended AsyncResponse asyncResponse,
+        @ApiParam(value = "The cluster name", required = true)
         @PathParam("cluster") String cluster,
-        @ApiParam(
-            value = "The failure domain name",
-            required = true
-        )
+        @ApiParam(value = "The failure domain name", required = true)
         @PathParam("domainName") String domainName
-    ) throws Exception {
-        validateSuperUserAccess();
-        validateClusterExists(cluster);
-
-        try {
-            return clusterResources().getFailureDomainResources().getFailureDomain(cluster, domainName)
-                    .orElseThrow(() -> new RestException(Status.NOT_FOUND,
+    ) {
+        validateSuperUserAccessAsync()
+                .thenCompose(__ -> validateClusterExistAsync(cluster, PRECONDITION_FAILED))
+                .thenCompose(__ -> clusterResources().getFailureDomainResources()
+                        .getFailureDomainAsync(cluster, domainName))
+                .thenAccept(domain -> {
+                    FailureDomainImpl failureDomain = domain.orElseThrow(() -> new RestException(Status.NOT_FOUND,
                             "Domain " + domainName + " for cluster " + cluster + " does not exist"));
-        } catch (RestException re) {
-            throw re;
-        } catch (Exception e) {
-            log.error("[{}] Failed to get domain {} for cluster {}", clientAppId(), domainName, cluster, e);
-            throw new RestException(e);
-        }
+                    asyncResponse.resume(failureDomain);
+                }).exceptionally(ex -> {
+                    log.error("[{}] Failed to get domain {} for cluster {}", clientAppId(), domainName, cluster, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @DELETE
@@ -871,68 +869,76 @@ public class ClustersBase extends AdminResource {
         @ApiResponse(code = 500, message = "Internal server error")
     })
     public void deleteFailureDomain(
-        @ApiParam(
-            value = "The cluster name",
-            required = true
-        )
+        @Suspended AsyncResponse asyncResponse,
+        @ApiParam(value = "The cluster name", required = true)
         @PathParam("cluster") String cluster,
-        @ApiParam(
-            value = "The failure domain name",
-            required = true
-        )
+        @ApiParam(value = "The failure domain name", required = true)
         @PathParam("domainName") String domainName
-    ) throws Exception {
-        validateSuperUserAccess();
-        validateClusterExists(cluster);
-
-        try {
-            clusterResources().getFailureDomainResources().deleteFailureDomain(cluster, domainName);
-        } catch (NotFoundException nne) {
-            log.warn("[{}] Domain {} does not exist in {}", clientAppId(), domainName, cluster);
-            throw new RestException(Status.NOT_FOUND,
-                    "Domain-name " + domainName + " or cluster " + cluster + " does not exist");
-        } catch (Exception e) {
-            log.error("[{}] Failed to delete domain {} in cluster {}", clientAppId(), domainName, cluster, e);
-            throw new RestException(e);
-        }
+    ) {
+        validateSuperUserAccessAsync()
+                .thenCompose(__ -> validateClusterExistAsync(cluster, PRECONDITION_FAILED))
+                .thenCompose(__ -> clusterResources()
+                        .getFailureDomainResources().deleteFailureDomainAsync(cluster, domainName))
+                .thenAccept(__ -> {
+                    log.info("[{}] Successful delete domain {} in cluster {}", clientAppId(), domainName, cluster);
+                    asyncResponse.resume(Response.ok().build());
+                }).exceptionally(ex -> {
+                    Throwable cause = FutureUtil.unwrapCompletionException(ex);
+                    if (cause instanceof NotFoundException) {
+                        log.warn("[{}] Domain {} does not exist in {}", clientAppId(), domainName, cluster);
+                        asyncResponse.resume(new RestException(Status.NOT_FOUND,
+                                "Domain-name " + domainName + " or cluster " + cluster + " does not exist"));
+                        return null;
+                    }
+                    log.error("[{}] Failed to delete domain {} in cluster {}", clientAppId(), domainName, cluster, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
-    private void validateBrokerExistsInOtherDomain(final String cluster, final String inputDomainName,
-            final FailureDomainImpl inputDomain) {
-        if (inputDomain != null && inputDomain.brokers != null) {
-            try {
-                for (String domainName : clusterResources().getFailureDomainResources()
-                        .listFailureDomains(cluster)) {
-                    if (inputDomainName.equals(domainName)) {
-                        continue;
-                    }
-                    try {
-                        Optional<FailureDomainImpl> domain =
-                                clusterResources().getFailureDomainResources().getFailureDomain(cluster, domainName);
-                        if (domain.isPresent() && domain.get().brokers != null) {
-                            List<String> duplicateBrokers = domain.get().brokers.stream().parallel()
-                                    .filter(inputDomain.brokers::contains).collect(Collectors.toList());
-                            if (!duplicateBrokers.isEmpty()) {
-                                throw new RestException(Status.CONFLICT,
-                                        duplicateBrokers + " already exists in " + domainName);
-                            }
-                        }
-                    } catch (Exception e) {
-                        if (e instanceof RestException) {
-                            throw e;
-                        }
-                        log.warn("Failed to get domain {}", domainName, e);
-                    }
-                }
-            } catch (NotFoundException e) {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] Domain is not configured for cluster", clientAppId(), e);
-                }
-            } catch (Exception e) {
-                log.error("[{}] Failed to get domains for cluster {}", clientAppId(), e);
-                throw new RestException(e);
-            }
+    private CompletableFuture<Void> validateBrokerExistsInOtherDomain(final String cluster,
+                                                                      final String inputDomainName,
+                                                                      final FailureDomainImpl inputDomain) {
+        if (inputDomain == null || inputDomain.brokers == null) {
+            return CompletableFuture.completedFuture(null);
         }
+        return clusterResources().getFailureDomainResources()
+                .listFailureDomainsAsync(cluster)
+                .thenCompose(domainNames -> {
+                    List<CompletableFuture<Void>> futures = domainNames.stream()
+                            .filter(domainName -> !domainName.equals(inputDomainName))
+                            .map(domainName -> clusterResources()
+                                    .getFailureDomainResources().getFailureDomainAsync(cluster, domainName)
+                                    .thenAccept(failureDomainOpt -> {
+                                        if (failureDomainOpt.isPresent()
+                                                && CollectionUtils.isNotEmpty(failureDomainOpt.get().getBrokers())) {
+                                            List<String> duplicateBrokers = failureDomainOpt.get()
+                                                    .getBrokers().stream().parallel()
+                                                    .filter(inputDomain.brokers::contains)
+                                                    .collect(Collectors.toList());
+                                            if (CollectionUtils.isNotEmpty(duplicateBrokers)) {
+                                                throw new RestException(Status.CONFLICT,
+                                                        duplicateBrokers + " already exists in " + domainName);
+                                            }
+                                        }
+                                    }).exceptionally(ex -> {
+                                        Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+                                        if (realCause instanceof WebApplicationException) {
+                                            throw FutureUtil.wrapToCompletionException(ex);
+                                        }
+                                        if (realCause instanceof NotFoundException) {
+                                            if (log.isDebugEnabled()) {
+                                                log.debug("[{}] Domain is not configured for cluster",
+                                                        clientAppId(), ex);
+                                            }
+                                            return null;
+                                        }
+                                        log.warn("Failed to get domain {}", domainName, ex);
+                                        return null;
+                                    })
+                            ).collect(Collectors.toList());
+                    return FutureUtil.waitForAll(futures);
+                });
     }
 
     private static final Logger log = LoggerFactory.getLogger(ClustersBase.class);

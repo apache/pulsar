@@ -18,7 +18,7 @@ The authentication type determines how to obtain an access token through an OAut
 
 :::note
 
-Currently, the Pulsar Java client only supports the `client_credentials` authentication type .
+Currently, the Pulsar Java client only supports the `client_credentials` authentication type.
 
 :::
 
@@ -57,7 +57,7 @@ The following shows a typical original OAuth2 request, which is used to obtain t
 ```bash
 
 curl --request POST \
-  --url https://dev-kt-aa9ne.us.auth0.com \
+  --url https://dev-kt-aa9ne.us.auth0.com/oauth/token \
   --header 'content-type: application/json' \
   --data '{
   "client_id":"Xd23RHsUnvUlP7wchjNYOaIfazgeHd9x",
@@ -82,6 +82,8 @@ You can use the OAuth2 authentication provider with the following Pulsar clients
 You can use the factory method to configure authentication for Pulsar Java client.
 
 ```java
+
+import org.apache.pulsar.client.impl.auth.oauth2.AuthenticationFactoryOAuth2; 
 
 URL issuerUrl = new URL("https://dev-kt-aa9ne.us.auth0.com");
 URL credentialsUrl = new URL("file:///path/to/KeyFile.json");
@@ -175,7 +177,7 @@ client = Client("pulsar://my-cluster:6650", authentication=AuthenticationOauth2(
 To enable OAuth2 authentication in Node.js client, you need to configure OAuth2 authentication.
 This example shows how to configure OAuth2 authentication in Node.js client.
 
-```JavaScript
+```javascript
 
     const Pulsar = require('pulsar-client');
     const issuer_url = process.env.ISSUER_URL;
@@ -213,7 +215,11 @@ This example shows how to configure OAuth2 authentication in Node.js client.
 
 ```
 
-> Note: The support for OAuth2 authentication is only available in Node.js client 1.6.2 and later versions.
+:::note
+
+The support for OAuth2 authentication is only available in Node.js client 1.6.2 and later versions.
+
+:::
 
 ## Broker configuration
 To enable OAuth2 authentication in brokers, add the following parameters to the `broker.conf` or `standalone.conf` file.
@@ -251,7 +257,7 @@ tenants list
 
 ```
 
-Set the `admin-url` parameter to the Web service URL. A Web service URLis a combination of the protocol, hostname and port ID, such as `pulsar://localhost:6650`.
+Set the `admin-url` parameter to the Web service URL. A Web service URL is a combination of the protocol, hostname and port ID, such as `pulsar://localhost:6650`.
 Set the `privateKey`, `issuerUrl`, and `audience` parameters to the values based on the configuration in the key file. For details, see [authentication types](#authentication-types).
 
 ### pulsar-client
@@ -270,7 +276,7 @@ produce test-topic -m "test-message" -n 10
 
 ```
 
-Set the `admin-url` parameter to the Web service URL. A Web service URLis a combination of the protocol, hostname and port ID, such as `pulsar://localhost:6650`.
+Set the `admin-url` parameter to the Web service URL. A Web service URL is a combination of the protocol, hostname and port ID, such as `pulsar://localhost:6650`.
 Set the `privateKey`, `issuerUrl`, and `audience` parameters to the values based on the configuration in the key file. For details, see [authentication types](#authentication-types).
 
 ### pulsar-perf
@@ -288,5 +294,5 @@ bin/pulsar-perf produce --service-url pulsar+ssl://streamnative.cloud:6651 \
 
 ```
 
-Set the `admin-url` parameter to the Web service URL. A Web service URLis a combination of the protocol, hostname and port ID, such as `pulsar://localhost:6650`.
+Set the `admin-url` parameter to the Web service URL. A Web service URL is a combination of the protocol, hostname and port ID, such as `pulsar://localhost:6650`.
 Set the `privateKey`, `issuerUrl`, and `audience` parameters to the values based on the configuration in the key file. For details, see [authentication types](#authentication-types).

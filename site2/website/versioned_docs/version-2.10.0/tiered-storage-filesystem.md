@@ -29,7 +29,7 @@ This example uses Pulsar 2.5.1.
 
    * Download the Pulsar tarball from the [Apache mirror](https://archive.apache.org/dist/pulsar/pulsar-2.5.1/apache-pulsar-2.5.1-bin.tar.gz)
 
-   * Download the Pulsar tarball from the Pulsar [download page](https://pulsar.apache.org/download)
+   * Download the Pulsar tarball from the Pulsar [download page](/download/)
 
    * Use the [wget](https://www.gnu.org/software/wget) command to dowload the Pulsar tarball.
 
@@ -478,7 +478,7 @@ Execute the following commands in the repository where you download Pulsar tarba
    
    ```
 
-2. To ensure the data generated is not deleted immediately, it is recommended to set the [retention policy](https://pulsar.apache.org/docs/en/next/cookbooks-retention-expiry/#retention-policies), which can be either a **size** limit or a **time** limit. The larger value you set for the retention policy, the longer the data can be retained.
+2. To ensure the data generated is not deleted immediately, it is recommended to set the [retention policy](cookbooks-retention-expiry.md#retention-policies), which can be either a **size** limit or a **time** limit. The larger value you set for the retention policy, the longer the data can be retained.
 
    ```
    

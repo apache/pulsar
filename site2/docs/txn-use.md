@@ -6,7 +6,7 @@ sidebar_label: "How to use transactions?"
 
 ## Transaction API
 
-The transaction feature is primarily a server-side and protocol-level feature. You can use the transaction feature via the [transaction API](https://pulsar.apache.org/api/admin/), which is available in **Pulsar 2.8.0 or later**. 
+The transaction feature is primarily a server-side and protocol-level feature. You can use the transaction feature via the [transaction API](/api/admin/), which is available in **Pulsar 2.8.0 or later**. 
 
 To use the transaction API, you do not need any additional settings in the Pulsar client. **By default**, transactions is **disabled**. 
 
@@ -69,12 +69,9 @@ This section provides an example of how to use the transaction API to send and r
    ```
    
    PulsarClient client = PulsarClient.builder()
-
-   .serviceUrl(“pulsar://localhost:6650”)
-
-   .enableTransaction(true)
-
-   .build();
+      .serviceUrl(“pulsar://localhost:6650”)
+      .enableTransaction(true)
+      .build();
    
    ```
 
@@ -96,12 +93,11 @@ Let’s walk through this example step by step.
 
 ```
 
-Consumer<byte[]> sinkConsumer = pulsarClient
+Consumer<byte[]> consumer = pulsarClient
     .newConsumer()
     .topic(transferTopic)
-    .subscriptionName("sink-topic")
-
-.subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+    .subscriptionName("transaction-sub")
+    .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
     .subscriptionType(SubscriptionType.Shared)
     .enableBatchIndexAcknowledgment(true) // enable batch index acknowledgement
     .subscribe();

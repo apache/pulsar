@@ -32,7 +32,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.util.concurrent.RateLimiter;
 import io.netty.util.concurrent.DefaultThreadFactory;
-import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
@@ -103,13 +102,7 @@ public class PerformanceProducer {
     private static IMessageFormatter messageFormatter = null;
 
     @Parameters(commandDescription = "Test pulsar producer performance.")
-    static class Arguments {
-
-        @Parameter(names = { "-h", "--help" }, description = "Help message", help = true)
-        boolean help;
-
-        @Parameter(names = { "-cf", "--conf-file" }, description = "Configuration file")
-        public String confFile;
+    static class Arguments extends PerformanceBaseArguments {
 
         @Parameter(description = "persistent://prop/ns/my-topic", required = true)
         public List<String> topics;
@@ -142,32 +135,16 @@ public class PerformanceProducer {
         @Parameter(names = { "-pn", "--producer-name" }, description = "Producer Name")
         public String producerName = null;
 
-        @Parameter(names = { "-u", "--service-url" }, description = "Pulsar Service URL")
-        public String serviceURL;
-
         @Parameter(names = { "-au", "--admin-url" }, description = "Pulsar Admin URL")
         public String adminURL;
 
         @Parameter(names = { "--auth_plugin" }, description = "Authentication plugin class name", hidden = true)
         public String deprecatedAuthPluginClassName;
 
-        @Parameter(names = { "--auth-plugin" }, description = "Authentication plugin class name")
-        public String authPluginClassName;
-
-        @Parameter(names = { "--listener-name" }, description = "Listener name for the broker.")
-        String listenerName = null;
-
         @Parameter(names = { "-ch",
                 "--chunking" }, description = "Should split the message and publish in chunks if message size is "
                 + "larger than allowed max size")
         private boolean chunkingAllowed = false;
-
-        @Parameter(
-            names = { "--auth-params" },
-            description = "Authentication parameters, whose format is determined by the implementation "
-                    + "of method `configure` in authentication plugin class, for example \"key1:val1,key2:val2\" "
-                    + "or \"{\"key1\":\"val1\",\"key2\":\"val2\"}.")
-        public String authParams;
 
         @Parameter(names = { "-o", "--max-outstanding" }, description = "Max number of outstanding messages")
         public int maxOutstanding = DEFAULT_MAX_PENDING_MESSAGES;
@@ -180,19 +157,10 @@ public class PerformanceProducer {
                 + "of partitions, set 0 to not try to create the topic")
         public Integer partitions = null;
 
-        @Parameter(names = { "-c",
-                "--max-connections" }, description = "Max number of TCP connections to a single broker")
-        public int maxConnections = 1;
-
         @Parameter(names = { "-m",
                 "--num-messages" }, description = "Number of messages to publish in total. If <= 0, it will keep "
                 + "publishing")
         public long numMessages = 0;
-
-        @Parameter(names = { "-i",
-                "--stats-interval-seconds" }, description = "Statistics Interval Seconds. If 0, statistics will be "
-                + "disabled")
-        public long statsIntervalSeconds = 0;
 
         @Parameter(names = { "-z", "--compression" }, description = "Compress messages payload")
         public CompressionType compression = CompressionType.NONE;
@@ -227,14 +195,6 @@ public class PerformanceProducer {
         @Parameter(names = "--warmup-time", description = "Warm-up time in seconds (Default: 1 sec)")
         public double warmupTimeSeconds = 1.0;
 
-        @Parameter(names = {
-                "--trust-cert-file" }, description = "Path for the trusted TLS certificate file")
-        public String tlsTrustCertsFilePath = "";
-
-        @Parameter(names = {
-                "--tls-allow-insecure" }, description = "Allow insecure TLS connection")
-        public Boolean tlsAllowInsecureConnection = null;
-
         @Parameter(names = { "-k", "--encryption-key-name" }, description = "The public key name to encrypt payload")
         public String encKeyName = null;
 
@@ -254,13 +214,6 @@ public class PerformanceProducer {
         @Parameter(names = {"-mk", "--message-key-generation-mode"}, description = "The generation mode of message key"
                 + ", valid options are: [autoIncrement, random]")
         public String messageKeyGenerationMode = null;
-
-        @Parameter(names = {"-ioThreads", "--num-io-threads"}, description = "Set the number of threads to be "
-                + "used for handling connections to brokers. The default value is 1.")
-        public int ioThreads = 1;
-
-        @Parameter(names = {"-bw", "--busy-wait"}, description = "Enable Busy-Wait on the Pulsar client")
-        public boolean enableBusyWait = false;
 
         @Parameter(names = { "-am", "--access-mode" }, description = "Producer access mode")
         public ProducerAccessMode producerAccessMode = ProducerAccessMode.Shared;
@@ -291,6 +244,20 @@ public class PerformanceProducer {
 
         @Parameter(names = { "--histogram-file" }, description = "HdrHistogram output file")
         public String histogramFile = null;
+
+        @Override
+        public void fillArgumentsFromProperties(Properties prop) {
+            if (adminURL == null) {
+                adminURL = prop.getProperty("webServiceUrl");
+            }
+            if (adminURL == null) {
+                adminURL = prop.getProperty("adminURL", "http://localhost:8080/");
+            }
+
+            if (isBlank(messageKeyGenerationMode)) {
+                messageKeyGenerationMode = prop.getProperty("messageKeyGenerationMode", null);
+            }
+        }
     }
 
     public static void main(String[] args) throws Exception {
@@ -332,49 +299,7 @@ public class PerformanceProducer {
             }
         }
 
-        if (arguments.confFile != null) {
-            Properties prop = new Properties(System.getProperties());
-            prop.load(new FileInputStream(arguments.confFile));
-
-            if (arguments.serviceURL == null) {
-                arguments.serviceURL = prop.getProperty("brokerServiceUrl");
-            }
-
-            if (arguments.serviceURL == null) {
-                arguments.serviceURL = prop.getProperty("webServiceUrl");
-            }
-
-            // fallback to previous-version serviceUrl property to maintain backward-compatibility
-            if (arguments.serviceURL == null) {
-                arguments.serviceURL = prop.getProperty("serviceUrl", "http://localhost:8080/");
-            }
-
-            if (arguments.adminURL == null) {
-                arguments.adminURL = prop.getProperty("webServiceUrl");
-            }
-            if (arguments.adminURL == null) {
-                arguments.adminURL = prop.getProperty("adminURL", "http://localhost:8080/");
-            }
-
-            if (arguments.authPluginClassName == null) {
-                arguments.authPluginClassName = prop.getProperty("authPlugin", null);
-            }
-
-            if (arguments.authParams == null) {
-                arguments.authParams = prop.getProperty("authParams", null);
-            }
-
-            if (isBlank(arguments.tlsTrustCertsFilePath)) {
-               arguments.tlsTrustCertsFilePath = prop.getProperty("tlsTrustCertsFilePath", "");
-            }
-            if (isBlank(arguments.messageKeyGenerationMode)) {
-                arguments.messageKeyGenerationMode = prop.getProperty("messageKeyGenerationMode", null);
-            }
-            if (arguments.tlsAllowInsecureConnection == null) {
-                arguments.tlsAllowInsecureConnection = Boolean.parseBoolean(prop
-                        .getProperty("tlsAllowInsecureConnection", ""));
-            }
-        }
+        arguments.fillArgumentsFromProperties();
 
         // Dump config variables
         PerfClientUtils.printJVMInformation(log);
@@ -418,28 +343,19 @@ public class PerformanceProducer {
         }));
 
         if (arguments.partitions  != null) {
-            PulsarAdminBuilder clientBuilder = PulsarAdmin.builder()
-                    .serviceHttpUrl(arguments.adminURL)
-                    .tlsTrustCertsFilePath(arguments.tlsTrustCertsFilePath);
+            final PulsarAdminBuilder adminBuilder = PerfClientUtils
+                    .createAdminBuilderFromArguments(arguments, arguments.adminURL);
 
-            if (isNotBlank(arguments.authPluginClassName)) {
-                clientBuilder.authentication(arguments.authPluginClassName, arguments.authParams);
-            }
-
-            if (arguments.tlsAllowInsecureConnection != null) {
-                clientBuilder.allowTlsInsecureConnection(arguments.tlsAllowInsecureConnection);
-            }
-
-            try (PulsarAdmin client = clientBuilder.build()) {
+            try (PulsarAdmin adminClient = adminBuilder.build()) {
                 for (String topic : arguments.topics) {
                     log.info("Creating partitioned topic {} with {} partitions", topic, arguments.partitions);
                     try {
-                        client.topics().createPartitionedTopic(topic, arguments.partitions);
+                        adminClient.topics().createPartitionedTopic(topic, arguments.partitions);
                     } catch (PulsarAdminException.ConflictException alreadyExists) {
                         if (log.isDebugEnabled()) {
                             log.debug("Topic {} already exists: {}", topic, alreadyExists);
                         }
-                        PartitionedTopicMetadata partitionedTopicMetadata = client.topics()
+                        PartitionedTopicMetadata partitionedTopicMetadata = adminClient.topics()
                                 .getPartitionedTopicMetadata(topic);
                         if (partitionedTopicMetadata.partitions != arguments.partitions) {
                             log.error("Topic {} already exists but it has a wrong number of partitions: {}, "
@@ -571,26 +487,9 @@ public class PerformanceProducer {
             // Now processing command line arguments
             List<Future<Producer<byte[]>>> futures = new ArrayList<>();
 
-            ClientBuilder clientBuilder = PulsarClient.builder() //
-                    .enableTransaction(arguments.isEnableTransaction)//
-                    .serviceUrl(arguments.serviceURL) //
-                    .connectionsPerBroker(arguments.maxConnections) //
-                    .ioThreads(arguments.ioThreads) //
-                    .statsInterval(arguments.statsIntervalSeconds, TimeUnit.SECONDS) //
-                    .enableBusyWait(arguments.enableBusyWait)
-                    .tlsTrustCertsFilePath(arguments.tlsTrustCertsFilePath);
 
-            if (isNotBlank(arguments.authPluginClassName)) {
-                clientBuilder.authentication(arguments.authPluginClassName, arguments.authParams);
-            }
-
-            if (arguments.tlsAllowInsecureConnection != null) {
-                clientBuilder.allowTlsInsecureConnection(arguments.tlsAllowInsecureConnection);
-            }
-
-            if (isNotBlank(arguments.listenerName)) {
-                clientBuilder.listenerName(arguments.listenerName);
-            }
+            ClientBuilder clientBuilder = PerfClientUtils.createClientBuilderFromArguments(arguments)
+                    .enableTransaction(arguments.isEnableTransaction);
 
             client = clientBuilder.build();
             ProducerBuilder<byte[]> producerBuilder = client.newProducer() //

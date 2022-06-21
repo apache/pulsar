@@ -44,12 +44,113 @@
       "label": "Pulsar Functions",
       "items": [
         "functions-overview",
-        "functions-runtime",
-        "functions-worker",
-        "functions-develop",
-        "functions-package",
-        "functions-debug",
-        "functions-deploy",
+        "functions-concepts",
+        "functions-quickstart",
+        {
+          "type": "category",
+          "label": "Set up function workers",
+          "link": {
+            "type": "doc",
+            "id": "functions-worker"
+          },
+          "items": [
+            "functions-worker-corun",
+            "functions-worker-run-separately",
+            "functions-worker-tmp-file-path",
+            "functions-worker-stateful",
+            "functions-worker-for-geo-replication",
+            "functions-worker-troubleshooting"
+          ]
+        },
+        {
+          "type": "category",
+          "label": "Configure function runtime",
+          "link": {
+            "type": "doc",
+            "id": "functions-runtime"
+          },
+          "items": [
+            "functions-runtime-thread",
+            "functions-runtime-process",
+            "functions-runtime-kubernetes",
+            "functions-runtime-java-options"
+          ]
+        },
+        {
+          "type": "category",
+          "label": "How-to: Deploy",
+          "link": {
+            "type": "doc",
+            "id": "functions-deploy"
+          },
+          "items": [
+            "functions-deploy-arguments",
+            "functions-deploy-localrun",
+            {
+              "type": "category",
+              "label": "Deploy a function in cluster mode",
+              "link": {
+                "type": "doc",
+                "id": "functions-deploy-cluster"
+              },
+              "items": [
+                "functions-deploy-cluster-resource",
+                "functions-deploy-cluster-parallelism",
+                "functions-deploy-cluster-encryption",
+                "functions-deploy-cluster-package"
+              ]
+            },
+            "functions-deploy-trigger"
+          ]
+        },
+        {
+          "type": "category",
+          "label": "How-to: Develop",
+          "link": {
+            "type": "doc",
+            "id": "functions-develop"
+          },
+          "items": [
+            "functions-develop-api",
+            "functions-develop-user-defined-configs",
+            "functions-develop-log",
+            "functions-develop-metrics",
+            "functions-develop-security",
+            "functions-develop-state",
+            "functions-develop-admin-api",
+            "functions-develop-schema-registry",
+            "functions-develop-serde",
+            "functions-develop-tutorial"
+          ]
+        },
+        {
+          "type": "category",
+          "label": "How-to: Debug",
+          "link": {
+            "type": "doc",
+            "id": "functions-debug"
+          },
+          "items": [
+            "functions-debug-stderr",
+            "functions-debug-unit-test",
+            "functions-debug-localrun",
+            "functions-debug-log-topic",
+            "functions-debug-cli"
+          ]
+        },
+        {
+          "type": "category",
+          "label": "How-to: Package",
+          "link": {
+            "type": "doc",
+            "id": "functions-package"
+          },
+          "items": [
+            "functions-package-java",
+            "functions-package-python",
+            "functions-package-go"
+          ]
+        },
         "functions-cli",
         "window-functions-context"
       ]
@@ -86,7 +187,8 @@
         "tiered-storage-gcs",
         "tiered-storage-filesystem",
         "tiered-storage-azure",
-        "tiered-storage-aliyun"
+        "tiered-storage-aliyun",
+        "tiered-storage-s3"
       ]
     },
     {
@@ -145,6 +247,7 @@
         "security-athenz",
         "security-kerberos",
         "security-oauth2",
+        "security-basic-auth",
         "security-authorization",
         "security-encryption",
         "security-extending",

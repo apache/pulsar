@@ -14,11 +14,11 @@ import TabItem from '@theme/TabItem';
 >
 > This page only shows **some frequently used operations**.
 >
-> - For the latest and complete information about `Pulsar admin`, including commands, flags, descriptions, and more, see [Pulsar admin doc](https://pulsar.apache.org/tools/pulsar-admin/).
+> - For the latest and complete information about `Pulsar admin`, including commands, flags, descriptions, and more, see [Pulsar admin doc](/tools/pulsar-admin/).
 > 
 > - For the latest and complete information about `REST API`, including parameters, responses, samples, and more, see {@inject: rest:REST:/} API doc.
 > 
-> - For the latest and complete information about `Java admin API`, including classes, methods, descriptions, and more, see [Java admin API doc](https://pulsar.apache.org/api/admin/).
+> - For the latest and complete information about `Java admin API`, including classes, methods, descriptions, and more, see [Java admin API doc](/api/admin/).
 
 Package managers or package-management systems automatically manage packages in a consistent manner. These tools simplify the installation tasks, upgrade process, and deletion operations for users. A package is a minimal unit that a package manager deals with. In Pulsar, packages are organized at the tenant- and namespace-level to manage Pulsar Functions and Pulsar IO connectors (i.e., source and sink).
 
@@ -88,9 +88,9 @@ packagesManagementLedgerRootPath=/ledgers
 You can use the following commands to upload a package.
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
-  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"JAVA","value":"JAVA"}]}>
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
 ```shell
@@ -105,7 +105,7 @@ bin/pulsar-admin packages upload function://public/default/example@v0.1 --path p
 {@inject: endpoint|POST|/admin/v3/packages/:type/:tenant/:namespace/:packageName/:version}
 
 </TabItem>
-<TabItem value="JAVA">
+<TabItem value="Java">
 
 Upload a package to the package management service synchronously.
 
@@ -133,9 +133,9 @@ Upload a package to the package management service asynchronously.
 You can use the following commands to download a package.
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
-  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"JAVA","value":"JAVA"}]}>
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
 ```shell
@@ -150,7 +150,7 @@ bin/pulsar-admin packages download function://public/default/example@v0.1 --path
 {@inject: endpoint|GET|/admin/v3/packages/:type/:tenant/:namespace/:packageName/:version}
 
 </TabItem>
-<TabItem value="JAVA">
+<TabItem value="Java">
 
 Download a package from the package management service synchronously.
 
@@ -178,9 +178,9 @@ Download a package from the package management service asynchronously.
 You can use the following commands to delete a package.
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
-  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"JAVA","value":"JAVA"}]}>
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
 The following command deletes a package of version 0.1.
@@ -197,7 +197,7 @@ bin/pulsar-admin packages delete functions://public/default/example@v0.1
 {@inject: endpoint|DELETE|/admin/v3/packages/:type/:tenant/:namespace/:packageName/:version}
 
 </TabItem>
-<TabItem value="JAVA">
+<TabItem value="Java">
 
 Delete a specified package synchronously.
 
@@ -225,9 +225,9 @@ Delete a specified package asynchronously.
 You can use the following commands to get the metadate of a package.
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
-  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"JAVA","value":"JAVA"}]}>
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
 ```shell
@@ -242,7 +242,7 @@ bin/pulsar-admin packages get-metadata function://public/default/test@v1
 {@inject: endpoint|GET|/admin/v3/packages/:type/:tenant/:namespace/:packageName/:version/metadata}
 
 </TabItem>
-<TabItem value="JAVA">
+<TabItem value="Java">
 
 Get the metadata of a package synchronously.
 
@@ -270,9 +270,9 @@ Get the metadata of a package asynchronously.
 You can use the following commands to update the metadata of a package.
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
-  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"JAVA","value":"JAVA"}]}>
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
 ```shell
@@ -287,7 +287,7 @@ bin/pulsar-admin packages update-metadata function://public/default/example@v0.1
 {@inject: endpoint|PUT|/admin/v3/packages/:type/:tenant/:namespace/:packageName/:version/metadata}
 
 </TabItem>
-<TabItem value="JAVA">
+<TabItem value="Java">
 
 Update the metadata of a package synchronously.
 
@@ -315,9 +315,9 @@ Update the metadata of a package asynchronously.
 You can use the following commands to list all versions of a package.
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
-  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"JAVA","value":"JAVA"}]}>
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
 ```shell
@@ -332,7 +332,7 @@ bin/pulsar-admin packages list-versions type://tenant/namespace/packageName
 {@inject: endpoint|GET|/admin/v3/packages/:type/:tenant/:namespace/:packageName}
 
 </TabItem>
-<TabItem value="JAVA">
+<TabItem value="Java">
 
 List all versions of a package synchronously.
 
@@ -360,9 +360,9 @@ List all versions of a package asynchronously.
 You can use the following commands to list all packages of a specific type under a namespace.
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
-  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"JAVA","value":"JAVA"}]}>
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 
 <TabItem value="pulsar-admin">
 
@@ -378,7 +378,7 @@ bin/pulsar-admin packages list --type function public/default
 {@inject: endpoint|PUT|/admin/v3/packages/:type/:tenant/:namespace}
 
 </TabItem>
-<TabItem value="JAVA">
+<TabItem value="Java">
 
 List all packages of a specific type under a namespace synchronously.
 

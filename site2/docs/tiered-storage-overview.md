@@ -20,6 +20,8 @@ Pulsar's **Tiered Storage** feature allows older backlog data to be moved from B
   
   - For more information about how to use the Aliyun OSS offloader with Pulsar, see [here](tiered-storage-aliyun).
 
+  - For more information about how to use the S3 offloader with Pulsar, see [here](tiered-storage-s3).
+
   :::
 
 * Tiered storage uses [Apache Hadoop](http://hadoop.apache.org/) to support filesystems for long term storage. 

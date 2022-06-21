@@ -33,6 +33,7 @@ import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -72,6 +73,7 @@ import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.util.DateFormatter;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.RelativeTimeUtil;
 
 @Getter
@@ -96,6 +98,8 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("subscriptions", new ListSubscriptions());
         jcommander.addCommand("unsubscribe", new DeleteSubscription());
         jcommander.addCommand("create-subscription", new CreateSubscription());
+        jcommander.addCommand("update-subscription-properties", new UpdateSubscriptionProperties());
+        jcommander.addCommand("get-subscription-properties", new GetSubscriptionProperties());
 
         jcommander.addCommand("stats", new GetStats());
         jcommander.addCommand("stats-internal", new GetInternalStats());
@@ -115,6 +119,7 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("create", new CreateNonPartitionedCmd());
         jcommander.addCommand("update-partitioned-topic", new UpdatePartitionedCmd());
         jcommander.addCommand("get-partitioned-topic-metadata", new GetPartitionedTopicMetadataCmd());
+        jcommander.addCommand("get-properties", new GetPropertiesCmd());
 
         jcommander.addCommand("delete-partitioned-topic", new DeletePartitionedCmd());
         jcommander.addCommand("peek-messages", new PeekMessages());
@@ -603,6 +608,19 @@ public class CmdTopics extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Get the topic properties.")
+    private class GetPropertiesCmd extends CliCommand {
+
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws Exception {
+            String topic = validateTopicName(params);
+            print(getTopics().getProperties(topic));
+        }
+    }
+
     @Parameters(commandDescription = "Delete a partitioned topic. "
             + "It will also delete all the partitions of the topic if it exists."
             + "And the application is not able to connect to the topic(delete then re-create with same name) again "
@@ -955,6 +973,59 @@ public class CmdTopics extends CmdBase {
             getTopics().createSubscription(topic, subscriptionName, messageId, replicated, map);
         }
     }
+
+    @Parameters(commandDescription = "Update the properties of a subscription on a topic")
+    private class UpdateSubscriptionProperties extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "-s",
+                "--subscription" }, description = "Subscription to update", required = true)
+        private String subscriptionName;
+
+        @Parameter(names = {"--property", "-p"}, description = "key value pair properties(-p a=b -p c=d)",
+                required = false)
+        private java.util.List<String> properties;
+
+        @Parameter(names = {"--clear", "-c"}, description = "Remove all properties",
+                required = false)
+        private boolean clear;
+
+        @Override
+        void run() throws Exception {
+            String topic = validateTopicName(params);
+            Map<String, String> map = parseListKeyValueMap(properties);
+            if (map == null) {
+                map = Collections.emptyMap();
+            }
+            if ((map.isEmpty()) && !clear) {
+                throw new ParameterException("If you want to clear the properties you have to use --clear");
+            }
+            if (clear && !map.isEmpty()) {
+                throw new ParameterException("If you set --clear then you should not pass any properties");
+            }
+            getTopics().updateSubscriptionProperties(topic, subscriptionName, map);
+        }
+    }
+
+    @Parameters(commandDescription = "Get the properties of a subscription on a topic")
+    private class GetSubscriptionProperties extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "-s",
+                "--subscription" }, description = "Subscription to describe", required = true)
+        private String subscriptionName;
+
+        @Override
+        void run() throws Exception {
+            String topic = validateTopicName(params);
+            Map<String, String> result = getTopics().getSubscriptionProperties(topic, subscriptionName);
+            // Ensure we are using JSON and not Java toString()
+            System.out.println(ObjectMapperFactory.getThreadLocal().writeValueAsString(result));
+        }
+    }
+
 
     @Parameters(commandDescription = "Reset position for subscription to a position that is closest to "
             + "timestamp or messageId.")
@@ -1653,7 +1724,8 @@ public class CmdTopics extends CmdBase {
             }
 
             if (messageTTLInSecond < 0 || messageTTLInSecond > Integer.MAX_VALUE) {
-                throw new ParameterException(String.format("Invalid retention policy type '%d'. ", messageTTLInSecond));
+                throw new ParameterException(
+                        String.format("Message TTL cannot be negative or greater than %d seconds", Integer.MAX_VALUE));
             }
 
             String persistentTopic = validatePersistentTopic(params);

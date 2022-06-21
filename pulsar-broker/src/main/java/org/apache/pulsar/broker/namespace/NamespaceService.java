@@ -64,9 +64,11 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.SizeUnit;
 import org.apache.pulsar.client.impl.ClientBuilderImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.client.internal.PropertiesUtils;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace.Mode;
 import org.apache.pulsar.common.lookup.GetTopicsResult;
 import org.apache.pulsar.common.lookup.data.LookupData;
@@ -1259,8 +1261,14 @@ public class NamespaceService implements AutoCloseable {
         return namespaceClients.computeIfAbsent(cluster, key -> {
             try {
                 ClientBuilder clientBuilder = PulsarClient.builder()
-                    .enableTcpNoDelay(false)
-                    .statsInterval(0, TimeUnit.SECONDS);
+                        .memoryLimit(0, SizeUnit.BYTES)
+                        .enableTcpNoDelay(false)
+                        .statsInterval(0, TimeUnit.SECONDS);
+
+                // Apply all arbitrary configuration. This must be called before setting any fields annotated as
+                // @Secret on the ClientConfigurationData object because of the way they are serialized.
+                // See https://github.com/apache/pulsar/issues/8509 for more information.
+                clientBuilder.loadConf(PropertiesUtils.filterAndMapProperties(config.getProperties(), "brokerClient_"));
 
                 if (pulsar.getConfiguration().isAuthenticationEnabled()) {
                     clientBuilder.authentication(pulsar.getConfiguration().getBrokerClientAuthenticationPlugin(),

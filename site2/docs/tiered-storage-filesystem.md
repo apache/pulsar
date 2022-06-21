@@ -28,7 +28,7 @@ This example uses Pulsar 2.5.1.
 
    * Download the Pulsar tarball from the [Apache mirror](https://archive.apache.org/dist/pulsar/pulsar-2.5.1/apache-pulsar-2.5.1-bin.tar.gz)
 
-   * Download the Pulsar tarball from the Pulsar [download page](https://pulsar.apache.org/download)
+   * Download the Pulsar tarball from the Pulsar [download page](/download)
 
    * Use the [wget](https://www.gnu.org/software/wget) command to download the Pulsar tarball.
 
@@ -166,7 +166,7 @@ pulsar-admin namespaces set-offload-threshold --size 10M my-tenant/my-namespace
 
 :::tip
 
-For more information about the `pulsar-admin namespaces set-offload-threshold options` command, including flags, descriptions, default values, and shorthands, see [here](https://pulsar.apache.org/tools/pulsar-admin/). 
+For more information about the `pulsar-admin namespaces set-offload-threshold options` command, including flags, descriptions, default values, and shorthands, see [here](/tools/pulsar-admin/). 
 
 :::
 
@@ -200,7 +200,7 @@ To manually trigger the filesystem offloader via CLI tools, you need to specify 
 
   :::tip
 
-  For more information about the `pulsar-admin topics offload options` command, including flags, descriptions, default values, and shorthands, see [here](reference-pulsar-admin.md#offload). 
+  For more information about the `pulsar-admin topics offload options` command, including flags, descriptions, default values, and shorthands, see [here](/tools/pulsar-admin/). 
 
   :::
 
@@ -257,7 +257,7 @@ To manually trigger the filesystem offloader via CLI tools, you need to specify 
 
   :::tip
 
-  For more information about the `pulsar-admin topics offload-status options` command, including flags, descriptions, default values, and shorthands, see [here](https://pulsar.apache.org/tools/pulsar-admin/). 
+  For more information about the `pulsar-admin topics offload-status options` command, including flags, descriptions, default values, and shorthands, see [here](/tools/pulsar-admin/). 
 
   :::
 

@@ -6,7 +6,7 @@ sidebar_label: "Pulsar Admin CLI"
 
 > **Important**
 >
-> This page is deprecated and not updated anymore. For the latest and complete information about `Pulsar admin`, including commands, flags, descriptions, and more, see [Pulsar admin doc](https://pulsar.apache.org/tools/pulsar-admin/)
+> This page is deprecated and not updated anymore. For the latest and complete information about `Pulsar admin`, including commands, flags, descriptions, and more, see [Pulsar admin doc](/tools/pulsar-admin/)
 
 The `pulsar-admin` tool enables you to manage Pulsar installations, including clusters, brokers, namespaces, tenants, and more.
 
@@ -1465,7 +1465,7 @@ Options
 
 |Flag|Description|Default|
 |----|---|---|
-|`-ttl`, `--messageTTL`|Message TTL in seconds. When the value is set to `0`, TTL is disabled. TTL is disabled by default. |0|
+|`-ttl`, `--messageTTL`|Message TTL in seconds (or minutes, hours, days, weeks eg: 100m, 3h, 2d, 5w). When the value is set to `0`, TTL is disabled. TTL is disabled by default. |0|
 
 ### `remove-message-ttl`
 Remove the message TTL for a namespace.

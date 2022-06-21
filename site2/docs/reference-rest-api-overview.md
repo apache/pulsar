@@ -10,9 +10,9 @@ Pulsar provides a variety of REST APIs that enable you to interact with Pulsar t
 
 | REST API category | Description |
 | --- | --- |
-| [Admin](https://pulsar.apache.org/admin-rest-api/?version=master) | REST APIs for administrative operations.|
-| [Functions](https://pulsar.apache.org/functions-rest-api/?version=master) | REST APIs for function-specific operations.|
-| [Sources](https://pulsar.apache.org/source-rest-api/?version=master) | REST APIs for source-specific operations.|
-| [Sinks](https://pulsar.apache.org/sink-rest-api/?version=master) | REST APIs for sink-specific operations.|
-| [Packages](https://pulsar.apache.org/packages-rest-api/?version=master) | REST APIs for package-specific operations. A package can be a group of functions, sources, and sinks.|
+| [Admin](/admin-rest-api/?version=master) | REST APIs for administrative operations.|
+| [Functions](/functions-rest-api/?version=master) | REST APIs for function-specific operations.|
+| [Sources](/source-rest-api/?version=master) | REST APIs for source-specific operations.|
+| [Sinks](/sink-rest-api/?version=master) | REST APIs for sink-specific operations.|
+| [Packages](/packages-rest-api/?version=master) | REST APIs for package-specific operations. A package can be a group of functions, sources, and sinks.|
 

@@ -17,7 +17,7 @@
 # under the License.
 #
 
-name: Auto Labeling
+name: Documentation Bot
 
 on:
   pull_request_target :
@@ -25,25 +25,33 @@ on:
       - opened
       - edited
       - labeled
+      - unlabeled
 
-  
-
-# A GitHub token created for a PR coming from a fork doesn't have
-# 'admin' or 'write' permission (which is required to add labels)
-# To avoid this issue, you can use the `scheduled` event and run
-# this action on a certain interval.And check the label about the
-# document.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  labeling:
+  label:
     if: ${{ github.repository == 'apache/pulsar' }}
     permissions:
       pull-requests: write 
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-
-      - uses: apache/pulsar-test-infra/doc-label-check@master
+      - name: Checkout action
+        uses: actions/checkout@v3
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          label-pattern: '- \[(.*?)\] ?`(.+?)`' # matches '- [x] `label`'
+          repository: apache/pulsar-test-infra
+          ref: master
+
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: 1.18
+
+      - name: Labeling
+        uses: ./docbot
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LABEL_WATCH_LIST: 'doc,doc-required,doc-not-needed,doc-complete'
+          LABEL_MISSING: 'doc-label-missing'

@@ -9,7 +9,7 @@ original_id: io-cli
 
 **Important**
 
-This page is deprecated and not updated anymore. For the latest and complete information about `Pulsar-admin`, including commands, flags, descriptions, and more, see [Pulsar admin docs](https://pulsar.apache.org/tools/pulsar-admin/).
+This page is deprecated and not updated anymore. For the latest and complete information about `Pulsar-admin`, including commands, flags, descriptions, and more, see [Pulsar admin docs](/tools/pulsar-admin/).
 
 :::
 

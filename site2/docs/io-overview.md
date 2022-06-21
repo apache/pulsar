@@ -73,7 +73,7 @@ When creating a connector, you can set the processing guarantee with the followi
 Here takes **Admin CLI** as an example. For more information about **REST API** or **JAVA Admin API**, see [here](io-use.md#create). 
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="io-choice"
   defaultValue="Source"
   values={[{"label":"Source","value":"Source"},{"label":"Sink","value":"Sink"}]}>
 
@@ -120,7 +120,7 @@ After creating a connector, you can update the processing guarantee with the fol
 Here takes **Admin CLI** as an example. For more information about **REST API** or **JAVA Admin API**, see [here](io-use.md#create). 
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="io-choice"
   defaultValue="Source"
   values={[{"label":"Source","value":"Source"},{"label":"Sink","value":"Sink"}]}>
 
@@ -157,7 +157,7 @@ For more information about the options of `pulsar-admin sinks update`, see [here
 
 ## Work with connector
 
-You can manage Pulsar connectors (for example, create, update, start, stop, restart, reload, delete and perform other operations on connectors) via the `Connector Admin CLI` with sources and sinks subcommands. For the latest and complete information, see [Pulsar admin docs](https://pulsar.apache.org/tools/pulsar-admin/).
+You can manage Pulsar connectors (for example, create, update, start, stop, restart, reload, delete and perform other operations on connectors) via the `Connector Admin CLI` with sources and sinks subcommands. For the latest and complete information, see [Pulsar admin docs](/tools/pulsar-admin/).
 
-Connectors (sources and sinks) and Functions are components of instances, and they all run on Functions workers. When managing a source, sink or function via the `Connector Admin CLI` or [Functions Admin CLI](functions-cli), an instance is started on a worker. For more information, see [Functions worker](functions-worker.md#run-functions-worker-separately).
+Connectors (sources and sinks) and Functions are components of instances, and they all run on Functions workers. When managing a source, sink or function via the `Connector Admin CLI` or `Functions Admin CLI`, an instance is started on a worker. For more information, see [Functions worker](functions-worker-run-separately.md).
 

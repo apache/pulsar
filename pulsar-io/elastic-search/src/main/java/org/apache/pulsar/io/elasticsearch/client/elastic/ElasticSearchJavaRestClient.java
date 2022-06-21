@@ -157,19 +157,29 @@ public class ElasticSearchJavaRestClient extends RestClient {
         }
     }
 
-    @VisibleForTesting
     public SearchResponse<Map> search(String indexName) throws IOException {
+        return search(indexName, "*:*");
+    }
+
+    @VisibleForTesting
+    public SearchResponse<Map> search(String indexName, String query) throws IOException {
         final RefreshRequest refreshRequest = new RefreshRequest.Builder().index(indexName).build();
         client.indices().refresh(refreshRequest);
 
+        query = query.replace("/", "\\/");
         return client.search(new SearchRequest.Builder().index(indexName)
-                .q("*:*")
+                .q(query)
                 .build(), Map.class);
     }
 
     @Override
     public long totalHits(String indexName) throws IOException {
-        final SearchResponse<Map> searchResponse = search(indexName);
+        return totalHits(indexName, "*:*");
+    }
+
+    @Override
+    public long totalHits(String indexName, String query) throws IOException {
+        final SearchResponse<Map> searchResponse = search(indexName, query);
         return searchResponse.hits().total().value();
     }
 

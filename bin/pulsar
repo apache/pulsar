@@ -22,6 +22,9 @@ BINDIR=$(dirname "$0")
 export PULSAR_HOME=`cd -P $BINDIR/..;pwd`
 export BK_HOME=`cd -P $BINDIR/..;pwd`
 
+# log directory
+PULSAR_LOG_DIR=${PULSAR_LOG_DIR:-"$PULSAR_HOME/logs"}
+
 DEFAULT_BROKER_CONF=$PULSAR_HOME/conf/broker.conf
 DEFAULT_BOOKKEEPER_CONF=$PULSAR_HOME/conf/bookkeeper.conf
 DEFAULT_ZK_CONF=$PULSAR_HOME/conf/zookeeper.conf
@@ -45,6 +48,68 @@ FUNCTIONS_EXTRA_DEPS_DIR=${PULSAR_FUNCTIONS_EXTRA_DEPS_DIR:-"${DEFAULT_FUNCTIONS
 SQL_HOME=$PULSAR_HOME/pulsar-sql
 PRESTO_HOME=${PULSAR_HOME}/lib/presto
 
+pulsar_help() {
+    cat <<EOF
+Usage: pulsar <command>
+where command is one of:
+
+    broker              Run a broker server
+    bookie              Run a bookie server
+    zookeeper           Run a zookeeper server
+    configuration-store Run a configuration-store server
+    proxy               Run a pulsar proxy
+    websocket           Run a web socket proxy server
+    functions-worker    Run a functions worker server
+    sql-worker          Run a sql worker server
+    sql                 Run sql CLI
+    standalone          Run a broker server with local bookies and local zookeeper
+    autorecovery        Run an autorecovery service
+
+    initialize-cluster-metadata     One-time metadata initialization
+    delete-cluster-metadata         Delete a cluster's metadata
+    initialize-transaction-coordinator-metadata     One-time transaction coordinator metadata initialization
+    initialize-namespace     namespace initialization
+    compact-topic       Run compaction against a topic
+    zookeeper-shell     Open a ZK shell client
+    broker-tool         CLI to operate a specific broker
+    tokens              Utility to create authentication tokens
+    version             Get the current version of pulsar
+
+    help                This help message
+
+or command is the full name of a class with a defined main() method.
+
+Environment variables:
+   FUNCTIONS_LOG_CONF            Function Log4j configuration file (default $DEFAULT_FUNCTIONS_LOG_CONF)
+   PULSAR_LOG_CONF               Log4j configuration file (default $DEFAULT_LOG_CONF)
+   PULSAR_BROKER_CONF            Configuration file for broker (default: $DEFAULT_BROKER_CONF)
+   PULSAR_BOOKKEEPER_CONF        Configuration file for bookie (default: $DEFAULT_BOOKKEEPER_CONF)
+   PULSAR_ZK_CONF                Configuration file for zookeeper (default: $DEFAULT_ZK_CONF)
+   PULSAR_CONFIGURATION_STORE_CONF         Configuration file for global configuration store (default: $DEFAULT_CONFIGURATION_STORE_CONF)
+   PULSAR_WEBSOCKET_CONF         Configuration file for websocket proxy (default: $DEFAULT_WEBSOCKET_CONF)
+   PULSAR_PROXY_CONF             Configuration file for Pulsar proxy (default: $DEFAULT_PROXY_CONF)
+   PULSAR_WORKER_CONF            Configuration file for functions worker (default: $DEFAULT_WORKER_CONF)
+   PULSAR_STANDALONE_CONF        Configuration file for standalone (default: $DEFAULT_STANDALONE_CONF)
+   PULSAR_PRESTO_CONF            Configuration directory for Pulsar Presto (default: $DEFAULT_PULSAR_PRESTO_CONF)
+   PULSAR_EXTRA_OPTS             Extra options to be passed to the jvm
+   PULSAR_EXTRA_CLASSPATH        Add extra paths to the pulsar classpath
+   PULSAR_PID_DIR                Folder where the pulsar server PID file should be stored
+   PULSAR_STOP_TIMEOUT           Wait time before forcefully kill the pulsar server instance, if the stop is not successful
+
+These variable can also be set in conf/pulsar_env.sh
+EOF
+}
+
+# if no args specified, show usage
+if [ $# = 0 ]; then
+    pulsar_help;
+    exit 1;
+fi
+
+# get arguments
+COMMAND=$1
+shift
+
 # Check bookkeeper env and load bkenv.sh
 if [ -f "$PULSAR_HOME/conf/bkenv.sh" ]
 then
@@ -52,7 +117,7 @@ then
 fi
 
 # Check pulsar env and load pulsar_env.sh
-if [[ -f "$PULSAR_HOME/conf/pulsar_env.sh" && $1 != "bookie" ]]
+if [[ -f "$PULSAR_HOME/conf/pulsar_env.sh" && $COMMAND != "bookie" ]]
 then
     . "$PULSAR_HOME/conf/pulsar_env.sh"
 fi
@@ -126,58 +191,6 @@ check_presto_libraries() {
     fi
 }
 
-pulsar_help() {
-    cat <<EOF
-Usage: pulsar <command>
-where command is one of:
-
-    broker              Run a broker server
-    bookie              Run a bookie server
-    zookeeper           Run a zookeeper server
-    configuration-store Run a configuration-store server
-    proxy               Run a pulsar proxy
-    websocket           Run a web socket proxy server
-    functions-worker    Run a functions worker server
-    sql-worker          Run a sql worker server
-    sql                 Run sql CLI
-    standalone          Run a broker server with local bookies and local zookeeper
-    autorecovery        Run an autorecovery service
-
-    initialize-cluster-metadata     One-time metadata initialization
-    delete-cluster-metadata         Delete a cluster's metadata
-    initialize-transaction-coordinator-metadata     One-time transaction coordinator metadata initialization
-    initialize-namespace     namespace initialization
-    compact-topic       Run compaction against a topic
-    zookeeper-shell     Open a ZK shell client
-    broker-tool         CLI to operate a specific broker
-    tokens              Utility to create authentication tokens
-    version             Get the current version of pulsar
-
-    help                This help message
-
-or command is the full name of a class with a defined main() method.
-
-Environment variables:
-   FUNCTIONS_LOG_CONF            Function Log4j configuration file (default $DEFAULT_FUNCTIONS_LOG_CONF)
-   PULSAR_LOG_CONF               Log4j configuration file (default $DEFAULT_LOG_CONF)
-   PULSAR_BROKER_CONF            Configuration file for broker (default: $DEFAULT_BROKER_CONF)
-   PULSAR_BOOKKEEPER_CONF        Configuration file for bookie (default: $DEFAULT_BOOKKEEPER_CONF)
-   PULSAR_ZK_CONF                Configuration file for zookeeper (default: $DEFAULT_ZK_CONF)
-   PULSAR_CONFIGURATION_STORE_CONF         Configuration file for global configuration store (default: $DEFAULT_CONFIGURATION_STORE_CONF)
-   PULSAR_WEBSOCKET_CONF         Configuration file for websocket proxy (default: $DEFAULT_WEBSOCKET_CONF)
-   PULSAR_PROXY_CONF             Configuration file for Pulsar proxy (default: $DEFAULT_PROXY_CONF)
-   PULSAR_WORKER_CONF            Configuration file for functions worker (default: $DEFAULT_WORKER_CONF)
-   PULSAR_STANDALONE_CONF        Configuration file for standalone (default: $DEFAULT_STANDALONE_CONF)
-   PULSAR_PRESTO_CONF            Configuration directory for Pulsar Presto (default: $DEFAULT_PULSAR_PRESTO_CONF)
-   PULSAR_EXTRA_OPTS             Extra options to be passed to the jvm
-   PULSAR_EXTRA_CLASSPATH        Add extra paths to the pulsar classpath
-   PULSAR_PID_DIR                Folder where the pulsar server PID file should be stored
-   PULSAR_STOP_TIMEOUT           Wait time before forcefully kill the pulsar server instance, if the stop is not successful
-
-These variable can also be set in conf/pulsar_env.sh
-EOF
-}
-
 add_maven_deps_to_classpath() {
     MVN="mvn"
     if [ "$MAVEN_HOME" != "" ]; then
@@ -203,16 +216,6 @@ if [ -d "$PULSAR_HOME/lib" ]; then
 else
     add_maven_deps_to_classpath
 fi
-
-# if no args specified, show usage
-if [ $# = 0 ]; then
-    pulsar_help;
-    exit 1;
-fi
-
-# get arguments
-COMMAND=$1
-shift
 
 if [ -z "$PULSAR_WORKER_CONF" ]; then
     PULSAR_WORKER_CONF=$DEFAULT_WORKER_CONF
@@ -270,6 +273,8 @@ OPTS="$OPTS -Dlog4j.configurationFile=`basename $PULSAR_LOG_CONF`"
 # rarely needed when trying to list many z-nodes under a
 # directory)
 OPTS="$OPTS -Djute.maxbuffer=10485760 -Djava.net.preferIPv4Stack=true"
+# Enable TCP keepalive for all Zookeeper client connections
+OPTS="$OPTS -Dzookeeper.clientTcpKeepAlive=true"
 
 # Allow Netty to use reflection access
 OPTS="$OPTS -Dio.netty.tryReflectionSetAccessible=true"
@@ -297,8 +302,6 @@ else
   OPTS="$OPTS $PULSAR_MEM $PULSAR_GC $PULSAR_GC_LOG $PULSAR_EXTRA_OPTS"
 fi
 
-# log directory & file
-PULSAR_LOG_DIR=${PULSAR_LOG_DIR:-"$PULSAR_HOME/logs"}
 PULSAR_LOG_APPENDER=${PULSAR_LOG_APPENDER:-"RoutingAppender"}
 PULSAR_LOG_LEVEL=${PULSAR_LOG_LEVEL:-"info"}
 PULSAR_LOG_ROOT_LEVEL=${PULSAR_LOG_ROOT_LEVEL:-"${PULSAR_LOG_LEVEL}"}
@@ -328,7 +331,7 @@ OPTS="$OPTS -Dpulsar.functions.extra.dependencies.dir=${FUNCTIONS_EXTRA_DEPS_DIR
 OPTS="$OPTS -Dpulsar.functions.instance.classpath=${PULSAR_CLASSPATH}"
 OPTS="$OPTS -Dpulsar.functions.log.conf=${FUNCTIONS_LOG_CONF}"
 
-ZK_OPTS=" -Dzookeeper.4lw.commands.whitelist=* -Dzookeeper.snapshot.trust.empty=true -Dzookeeper.tcpKeepAlive=true -Dzookeeper.clientTcpKeepAlive=true"
+ZK_OPTS=" -Dzookeeper.4lw.commands.whitelist=* -Dzookeeper.snapshot.trust.empty=true -Dzookeeper.tcpKeepAlive=true"
 
 LOG4J2_SHUTDOWN_HOOK_DISABLED="-Dlog4j.shutdownHookEnabled=false"
 

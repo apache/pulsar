@@ -176,6 +176,12 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
     }
 
     @Override
+    protected void doInitConf() throws Exception {
+        super.doInitConf();
+        conf.setMaxTenants(10);
+    }
+
+    @Override
     @AfterMethod(alwaysRun = true)
     public void cleanup() throws Exception {
         super.internalCleanup();
@@ -264,7 +270,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
             assertEquals(e.getResponse().getStatus(), 412);
         }
 
-        clusters.deleteNamespaceIsolationPolicy("use", "policy1");
+        asyncRequests(ctx -> clusters.deleteNamespaceIsolationPolicy(ctx, "use", "policy1"));
         assertTrue(((Map<String, NamespaceIsolationDataImpl>) asyncRequests(ctx ->
                 clusters.getNamespaceIsolationPolicies(ctx, "use"))).isEmpty());
 
@@ -403,8 +409,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), Status.PRECONDITION_FAILED.getStatusCode());
         }
-        verify(clusters, times(23)).validateSuperUserAccessAsync();
-        verify(clusters, times(1)).validateSuperUserAccess();
+        verify(clusters, times(24)).validateSuperUserAccessAsync();
     }
 
     @Test
@@ -615,6 +620,32 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
             fail("should have failed");
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), Status.PRECONDITION_FAILED.getStatusCode());
+        }
+
+        // Check max tenant count
+        int maxTenants = pulsar.getConfiguration().getMaxTenants();
+        List<String> tenants = pulsar.getPulsarResources().getTenantResources().listTenants();
+
+        for(int tenantSize = tenants.size();tenantSize < maxTenants; tenantSize++ ){
+            final int tenantIndex = tenantSize;
+            Response obj = (Response) asyncRequests(ctx ->
+                    properties.createTenant(ctx, "test-tenant-" + tenantIndex, tenantInfo));
+            Assert.assertTrue(obj.getStatus() < 400 && obj.getStatus() >= 200);
+        }
+        try {
+            Response obj = (Response) asyncRequests(ctx ->
+                    properties.createTenant(ctx, "test-tenant-" +  maxTenants, tenantInfo));
+            fail("should have failed");
+        } catch (RestException e) {
+            assertEquals(e.getResponse().getStatus(), Status.PRECONDITION_FAILED.getStatusCode());
+        }
+
+        // Check creating existing property when tenant reach max count.
+        try {
+            response = asyncRequests(ctx -> properties.createTenant(ctx, "test-tenant-" +  (maxTenants-1), tenantInfo));
+            fail("should have failed");
+        } catch (RestException e) {
+            assertEquals(e.getResponse().getStatus(), Status.CONFLICT.getStatusCode());
         }
 
         AsyncResponse response2 = mock(AsyncResponse.class);

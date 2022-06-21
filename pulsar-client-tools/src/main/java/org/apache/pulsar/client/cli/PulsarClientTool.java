@@ -36,6 +36,7 @@ import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.ProxyProtocol;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException.UnsupportedAuthenticationException;
+import org.apache.pulsar.client.api.SizeUnit;
 
 @Parameters(commandDescription = "Produce or consume messages on a specified topic")
 public class PulsarClientTool {
@@ -119,7 +120,8 @@ public class PulsarClientTool {
     }
 
     private void updateConfig() throws UnsupportedAuthenticationException {
-        ClientBuilder clientBuilder = PulsarClient.builder();
+        ClientBuilder clientBuilder = PulsarClient.builder()
+                .memoryLimit(0, SizeUnit.BYTES);
         Authentication authentication = null;
         if (isNotBlank(this.authPluginClassName)) {
             authentication = AuthenticationFactory.create(authPluginClassName, authParams);

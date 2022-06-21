@@ -67,12 +67,12 @@ For more information of the two parameters, refer to the [`broker.conf`](referen
 You can set a retention policy for a namespace by specifying the namespace, a size limit and a time limit in `pulsar-admin`, REST API and Java.
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
   values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
-You can use the [`set-retention`](reference-pulsar-admin.md#namespaces-set-retention) subcommand and specify a namespace, a size limit using the `-s`/`--size` flag, and a time limit using the `-t`/`--time` flag. 
+You can use the [`set-retention`](/tools/pulsar-admin/) subcommand and specify a namespace, a size limit using the `-s`/`--size` flag, and a time limit using the `-t`/`--time` flag. 
 
 In the following example, the size limit is set to 10 GB and the time limit is set to 3 hours for each topic within the `my-tenant/my-ns` namespace. 
 - When the size of messages reaches 10 GB on a topic within 3 hours, the acknowledged messages will not be retained. 
@@ -159,12 +159,12 @@ admin.namespaces().setRetention(namespace, policies);
 You can fetch the retention policy for a namespace by specifying the namespace. The output will be a JSON object with two keys: `retentionTimeInMinutes` and `retentionSizeInMB`.
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
   values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
-Use the [`get-retention`](reference-pulsar-admin.md#namespaces) subcommand and specify the namespace.
+Use the [`get-retention`](/tools/pulsar-admin/) subcommand and specify the namespace.
 
 ##### Example
 
@@ -231,12 +231,12 @@ Backlog quotas are handled at the namespace level. They can be managed via:
 You can set a size and/or time threshold and backlog retention policy for all of the topics in a [namespace](reference-terminology.md#namespace) by specifying the namespace, a size limit and/or a time limit in second, and a policy by name.
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
   values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
-Use the [`set-backlog-quota`](reference-pulsar-admin.md#namespaces) subcommand and specify a namespace, a size limit using the `-l`/`--limit` , `-lt`/`--limitTime` flag to limit backlog, a retention policy using the `-p`/`--policy` flag and a policy type using `-t`/`--type` (default is destination_storage).
+Use the [`set-backlog-quota`](/tools/pulsar-admin/) subcommand and specify a namespace, a size limit using the `-l`/`--limit` , `-lt`/`--limitTime` flag to limit backlog, a retention policy using the `-p`/`--policy` flag and a policy type using `-t`/`--type` (default is destination_storage).
 
 ##### Example
 
@@ -284,12 +284,12 @@ admin.namespaces().setBacklogQuota(namespace, quota);
 You can see which size threshold and backlog retention policy has been applied to a namespace.
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
   values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
-Use the [`get-backlog-quotas`](reference-pulsar-admin.md#pulsar-admin-namespaces-get-backlog-quotas) subcommand and specify a namespace. Here's an example:
+Use the [`get-backlog-quotas`](/tools/pulsar-admin/) subcommand and specify a namespace. Here's an example:
 
 ```shell
 
@@ -326,12 +326,12 @@ Map<BacklogQuota.BacklogQuotaType,BacklogQuota> quotas =
 ### Remove backlog quotas
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
   values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
-Use the [`remove-backlog-quota`](reference-pulsar-admin.md#pulsar-admin-namespaces-remove-backlog-quota) subcommand and specify a namespace, use `t`/`--type` to specify backlog type to remove(default is destination_storage). Here's an example:
+Use the [`remove-backlog-quota`](/tools/pulsar-admin/) subcommand and specify a namespace, use `t`/`--type` to specify backlog type to remove(default is destination_storage). Here's an example:
 
 ```shell
 
@@ -362,7 +362,7 @@ admin.namespaces().removeBacklogQuota(namespace);
 
 #### pulsar-admin
 
-Use the [`clear-backlog`](reference-pulsar-admin.md#pulsar-admin-namespaces-clear-backlog) subcommand.
+Use the [`clear-backlog`](/tools/pulsar-admin/) subcommand.
 
 ##### Example
 
@@ -386,12 +386,12 @@ The diagram below illustrates the concept of TTL.
 ### Set the TTL for a namespace
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
   values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
-Use the [`set-message-ttl`](reference-pulsar-admin.md#pulsar-admin-namespaces-set-message-ttl) subcommand and specify a namespace and a TTL (in seconds) using the `-ttl`/`--messageTTL` flag.
+Use the [`set-message-ttl`](/tools/pulsar-admin/) subcommand and specify a namespace and a TTL (in seconds) using the `-ttl`/`--messageTTL` flag.
 
 ##### Example
 
@@ -424,12 +424,12 @@ admin.namespaces().setNamespaceMessageTTL(namespace, ttlInSeconds);
 ### Get the TTL configuration for a namespace
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
   values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
-Use the [`get-message-ttl`](reference-pulsar-admin.md#pulsar-admin-namespaces-get-message-ttl) subcommand and specify a namespace.
+Use the [`get-message-ttl`](/tools/pulsar-admin/) subcommand and specify a namespace.
 
 ##### Example
 
@@ -462,12 +462,12 @@ admin.namespaces().getNamespaceMessageTTL(namespace)
 ### Remove the TTL configuration for a namespace
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
   values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
-Use the [`remove-message-ttl`](reference-pulsar-admin.md#pulsar-admin-namespaces-remove-message-ttl) subcommand and specify a namespace.
+Use the [`remove-message-ttl`](/tools/pulsar-admin/) subcommand and specify a namespace.
 
 ##### Example
 

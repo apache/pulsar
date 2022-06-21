@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.functions.api.examples;
 
-import java.util.Optional;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
 
@@ -29,12 +28,7 @@ public class UserConfigFunction implements Function<String, String> {
 
     @Override
     public String process(String input, Context context) {
-        Optional<Object> whatToWrite = context.getUserConfigValue("WhatToWrite");
-        if (whatToWrite.get() != null) {
-            return (String) whatToWrite.get();
-        } else {
-            return "Not a nice way";
-        }
+        return (String) context.getUserConfigValue("WhatToWrite").orElse("Not a nice way");
     }
 }
 

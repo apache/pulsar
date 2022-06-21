@@ -18,7 +18,7 @@ There are a few major changes that you should be aware of, as they may significa
 
 ### Properties versus tenants
 
-Previously, Pulsar had a concept of properties. A property is essentially the exact same thing as a tenant, so the "property" terminology has been removed in version 2.0. The [`pulsar-admin properties`](reference-pulsar-admin.md#pulsar-admin) command-line interface, for example, has been replaced with the [`pulsar-admin tenants`](reference-pulsar-admin.md#pulsar-admin-tenants) interface. In some cases the properties terminology is still used but is now considered deprecated and will be removed entirely in a future release.
+Previously, Pulsar had a concept of properties. A property is essentially the exact same thing as a tenant, so the "property" terminology has been removed in version 2.0. The [`pulsar-admin properties`](/tools/pulsar-admin/) command-line interface, for example, has been replaced with the [`pulsar-admin tenants`](/tools/pulsar-admin/) interface. In some cases the properties terminology is still used but is now considered deprecated and will be removed entirely in a future release.
 
 ### Topic names
 

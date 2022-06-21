@@ -55,9 +55,9 @@ public class PulsarSinksTest extends PulsarIOTestBase {
         testSink(new HdfsSinkTester(), false);
     }
 
-    @Test(groups = "sink")
-    public void testJdbcSink() throws Exception {
-        testSink(new JdbcPostgresSinkTester(), true);
+    @Test(groups = "sink", dataProvider = "withSchema")
+    public void testJdbcSink(boolean kvSchema) throws Exception {
+        testSink(new JdbcPostgresSinkTester(kvSchema), true);
     }
 
     @Test(groups = "sink", dataProvider = "withSchema")

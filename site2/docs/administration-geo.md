@@ -49,7 +49,7 @@ This section guides you through the steps to configure geo-replicated clusters.
 
 ### Connect replication clusters
 
-To replicate data among clusters, you need to configure each cluster to connect to the other. You can use the [`pulsar-admin`](https://pulsar.apache.org/tools/pulsar-admin/) tool to create a connection.
+To replicate data among clusters, you need to configure each cluster to connect to the other. You can use the [`pulsar-admin`](/tools/pulsar-admin/) tool to create a connection.
 
 **Example**
 
@@ -70,7 +70,7 @@ $ bin/pulsar-admin clusters create \
 
    :::tip
 
-   - If you want to use a secure connection for a cluster, you can use the flags `--broker-url-secure` and `--url-secure`. For more information, see [pulsar-admin clusters create](https://pulsar.apache.org/tools/pulsar-admin/).
+   - If you want to use a secure connection for a cluster, you can use the flags `--broker-url-secure` and `--url-secure`. For more information, see [pulsar-admin clusters create](/tools/pulsar-admin/).
    - Different clusters may have different authentications. You can use the authentication flag `--auth-plugin` and `--auth-parameters` together to set cluster authentication, which overrides `brokerClientAuthenticationPlugin` and `brokerClientAuthenticationParameters` if `authenticationEnabled` sets to `true` in `broker.conf` and `standalone.conf`. For more information, see [authentication and authorization](concepts-authentication).
 
    :::
@@ -131,7 +131,7 @@ $ bin/pulsar-admin namespaces set-clusters my-tenant/my-namespace \
 
 #### Enable geo-replication at topic level
 
-You can set geo-replication at topic level using the command `pulsar-admin topics set-replication-clusters`. For the latest and complete information about `Pulsar admin`, including commands, flags, descriptions, and more information, see [Pulsar admin doc](https://pulsar.apache.org/tools/pulsar-admin/).
+You can set geo-replication at topic level using the command `pulsar-admin topics set-replication-clusters`. For the latest and complete information about `Pulsar admin`, including commands, flags, descriptions, and more information, see [Pulsar admin doc](/tools/pulsar-admin/).
 
 ```shell
 
@@ -177,12 +177,12 @@ producer.newMessage()
 You can check topic-specific statistics for geo-replication topics using one of the following methods.
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
   values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"}]}>
 <TabItem value="pulsar-admin">
 
-Use the [`pulsar-admin topics stats`](https://pulsar.apache.org/tools/pulsar-admin/) command.
+Use the [`pulsar-admin topics stats`](/tools/pulsar-admin/) command.
 
 ```shell
 

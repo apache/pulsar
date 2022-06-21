@@ -22,22 +22,28 @@ You can interact with the admin interface via:
   
   ```
 
-  > **Important**
-  > 
-  > For the latest and complete information about `Pulsar admin`, including commands, flags, descriptions, and more information, see [Pulsar admin doc](https://pulsar.apache.org/tools/pulsar-admin/).
+  :::tip
+   
+  For the latest and complete information about `Pulsar admin`, including commands, flags, descriptions, and more information, see [Pulsar admin doc](/tools/pulsar-admin/).
+
+  :::
 
 - HTTP calls, which are made against the admin {@inject: rest:REST:/} API provided by Pulsar brokers. For some RESTful APIs, they might be redirected to the owner brokers for serving with [`307 Temporary Redirect`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/307), hence the HTTP callers should handle `307 Temporary Redirect`. If you use `curl` commands, you should specify `-L` to handle redirections.
   
-  > **Important**
-  >
-  > For the latest and complete information about `REST API`, including parameters, responses, samples, and more, see {@inject: rest:REST:/} API doc.
+  :::tip
+  
+  For the latest and complete information about `REST API`, including parameters, responses, samples, and more, see {@inject: rest:REST:/} API doc.
+
+  :::
 
 - A Java client interface.
   
-  > **Important**
-  > 
-  > For the latest and complete information about `Java admin API`, including classes, methods, descriptions, and more, see [Java admin API doc](https://pulsar.apache.org/api/admin/).
+  :::tip
+   
+  For the latest and complete information about `Java admin API`, including classes, methods, descriptions, and more, see [Java admin API doc](/api/admin/).
 
+  :::
+  
 > **The REST API is the admin interface**. Both the `pulsar-admin` CLI tool and the Java client use the REST API. If you implement your own admin interface client, you should use the REST API. 
 
 ## Admin setup
@@ -45,7 +51,7 @@ You can interact with the admin interface via:
 Each of the three admin interfaces (the `pulsar-admin` CLI tool, the {@inject: rest:REST:/} API, and the [Java admin API](/api/admin)) requires some special setup if you have enabled authentication in your Pulsar instance.
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
   values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
@@ -136,8 +142,8 @@ Kubernetes requires a name that can be used as a DNS subdomain name as defined i
   
 :::tip
 
-- If you get an error in translating Pulsar object names into Kubernetes resource labels (for example, you may have a naming collision if your Pulsar object name is too long) or want to customize the translating rules, see [customize Kubernetes runtime](https://pulsar.apache.org/docs/en/next/functions-runtime/#customize-kubernetes-runtime).
-- For how to configure Kubernetes runtime, see [here](https://pulsar.apache.org/docs/en/next/functions-runtime/#configure-kubernetes-runtime).
+- If you get an error in translating Pulsar object names into Kubernetes resource labels (for example, you may have a naming collision if your Pulsar object name is too long) or want to customize the translating rules, see [customize Kubernetes runtime](functions-runtime-kubernetes.md#customize-kubernetes-runtime).
+- For how to configure Kubernetes runtime, see [instructions](functions-runtime-kubernetes.md).
 
 :::
 

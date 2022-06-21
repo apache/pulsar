@@ -8,17 +8,17 @@ Pulsar supports the following client libraries:
 
 |Language|Documentation|Release note|Code repo
 |---|---|---|---
-Java |- [User doc](client-libraries-java) <br /><br />- [API doc](https://pulsar.apache.org/api/client/)|[Here](https://pulsar.apache.org/release-notes/)|[Here](https://github.com/apache/pulsar/tree/master/pulsar-client) 
-C++ | - [User doc](client-libraries-cpp) <br /><br />- [API doc](https://pulsar.apache.org/api/cpp/)|[Here](https://pulsar.apache.org/release-notes/)|[Here](https://github.com/apache/pulsar/tree/master/pulsar-client-cpp) 
-Python | - [User doc](client-libraries-python) <br /><br />- [API doc](https://pulsar.apache.org/api/python/)|[Here](https://pulsar.apache.org/release-notes/)|[Here](https://github.com/apache/pulsar/tree/master/pulsar-client-cpp/python) 
-WebSocket| [User doc](client-libraries-websocket) | [Here](https://pulsar.apache.org/release-notes/)|[Here](https://github.com/apache/pulsar/tree/master/pulsar-websocket) 
+Java |- [User doc](client-libraries-java) <br /><br />- [API doc](/api/client/)|[Here](/release-notes/)|[Here](https://github.com/apache/pulsar/tree/master/pulsar-client) 
+C++ | - [User doc](client-libraries-cpp) <br /><br />- [API doc](/api/cpp/)|[Here](/release-notes/)|[Here](https://github.com/apache/pulsar/tree/master/pulsar-client-cpp) 
+Python | - [User doc](client-libraries-python) <br /><br />- [API doc](/api/python/)|[Here](/release-notes/)|[Here](https://github.com/apache/pulsar/tree/master/pulsar-client-cpp/python) 
+WebSocket| [User doc](client-libraries-websocket) | [Here](/release-notes/)|[Here](https://github.com/apache/pulsar/tree/master/pulsar-websocket) 
 Go client|[User doc](client-libraries-go.md)|[Here](https://github.com/apache/pulsar-client-go/blob/master/CHANGELOG) |[Here](https://github.com/apache/pulsar-client-go) 
 Node.js|[User doc](client-libraries-node)|[Here](https://github.com/apache/pulsar-client-node/releases) |[Here](https://github.com/apache/pulsar-client-node) 
 C# |[User doc](client-libraries-dotnet.md)| [Here](https://github.com/apache/pulsar-dotpulsar/blob/master/CHANGELOG)|[Here](https://github.com/apache/pulsar-dotpulsar) 
 
 :::note
 
-- The code repos of **Java, C++, Python,** and **WebSocket** clients are hosted in the [Pulsar main repo](https://github.com/apache/pulsar) and these clients are released with Pulsar, so their release notes are parts of [Pulsar release note](https://pulsar.apache.org/release-notes/).
+- The code repos of **Java, C++, Python,** and **WebSocket** clients are hosted in the [Pulsar main repo](https://github.com/apache/pulsar) and these clients are released with Pulsar, so their release notes are parts of [Pulsar release note](/release-notes/).
 - The code repos of **Go, Node.js,** and **C#** clients are hosted outside of the [Pulsar main repo](https://github.com/apache/pulsar) and these clients are not released with Pulsar, so they have independent release notes.
 
 :::

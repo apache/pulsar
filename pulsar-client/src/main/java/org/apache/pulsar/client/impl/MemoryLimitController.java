@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
@@ -30,6 +31,7 @@ public class MemoryLimitController {
     private final AtomicLong currentUsage = new AtomicLong();
     private final ReentrantLock mutex = new ReentrantLock(false);
     private final Condition condition = mutex.newCondition();
+    private final AtomicBoolean triggerRunning = new AtomicBoolean(false);
 
     public MemoryLimitController(long memoryLimitBytes) {
         this.memoryLimit = memoryLimitBytes;
@@ -68,7 +70,13 @@ public class MemoryLimitController {
 
     private void checkTrigger(long prevUsage, long newUsage) {
         if (newUsage >= triggerThreshold && prevUsage < triggerThreshold && trigger != null) {
-            trigger.run();
+            if (triggerRunning.compareAndSet(false, true)) {
+                try {
+                    trigger.run();
+                } finally {
+                    triggerRunning.set(false);
+                }
+            }
         }
     }
 

@@ -26,8 +26,8 @@ PulsarClient client = PulsarClient.builder()
 ```
 
 You can implement 2 interfaces on the client side:
- * [`Authentication`](http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/Authentication.html)
- * [`AuthenticationDataProvider`](http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/AuthenticationDataProvider.html)
+ * [`Authentication`](/api/client/org/apache/pulsar/client/api/Authentication.html)
+ * [`AuthenticationDataProvider`](/api/client/org/apache/pulsar/client/api/AuthenticationDataProvider.html)
 
 This in turn requires you to provide the client credentials in the form of `org.apache.pulsar.client.api.AuthenticationDataProvider` and also leaves the chance to return different kinds of authentication token for different types of connection or by passing a certificate chain to use for TLS.
 
@@ -52,7 +52,21 @@ authenticationProviders=
 
 ```
 
-For the implementation of the `org.apache.pulsar.broker.authentication.AuthenticationProvider` interface, refer to [here](https://github.com/apache/pulsar/blob/master/pulsar-broker-common/src/main/java/org/apache/pulsar/broker/authentication/AuthenticationProvider.java).
+:::tip
+
+Pulsar supports an authentication provider chain that contains multiple authentication providers with the same authentication method name. 
+
+For example, your Pulsar cluster uses JSON Web Token (JWT) authentication (with an authentication method named `token`) and you want to upgrade it to use OAuth2.0 authentication with the same authentication name. In this case, you can implement your own authentication provider `AuthenticationProviderOAuth2` and configure `authenticationProviders` as follows.
+
+```properties
+authenticationProviders=org.apache.pulsar.broker.authentication.AuthenticationProviderToken,org.apache.pulsar.broker.authentication.AuthenticationProviderOAuth2
+```
+
+As a result, brokers look up the authentication providers with the `token` authentication method (JWT and OAuth2.0 authentication) when receiving the requests to use the `token` authentication method. If a client cannot be authenticated via JWT authentication, OAuth2.0 authentication is used.
+
+:::
+
+For the implementation of the `org.apache.pulsar.broker.authentication.AuthenticationProvider` interface, refer to [code](https://github.com/apache/pulsar/blob/master/pulsar-broker-common/src/main/java/org/apache/pulsar/broker/authentication/AuthenticationProvider.java).
 
 You can find the following examples for different broker authentication plugins:
 
@@ -79,4 +93,4 @@ To provide a custom authorization provider, you need to implement the `org.apach
  
  ```
 
-For the implementation of the `org.apache.pulsar.broker.authorization.AuthorizationProvider` interface, refer to [here](https://github.com/apache/pulsar/blob/master/pulsar-broker-common/src/main/java/org/apache/pulsar/broker/authorization/AuthorizationProvider.java).
+For the implementation of the `org.apache.pulsar.broker.authorization.AuthorizationProvider` interface, refer to [code](https://github.com/apache/pulsar/blob/master/pulsar-broker-common/src/main/java/org/apache/pulsar/broker/authorization/AuthorizationProvider.java).

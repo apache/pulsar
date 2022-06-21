@@ -437,7 +437,7 @@ public enum JCloudBlobStoreProvider implements Serializable, ConfigValidation, B
         if (StringUtils.isEmpty(accountName.trim())) {
             throw new IllegalArgumentException("Couldn't get the access key id.");
         }
-        String accountKey = System.getenv().getOrDefault("ACCESS_KEY_ID", "");
+        String accountKey = System.getenv().getOrDefault("ACCESS_KEY_SECRET", "");
         if (StringUtils.isEmpty(accountKey.trim())) {
             accountKey = System.getenv().getOrDefault("ALIYUN_OSS_ACCESS_KEY_SECRET", "");
         }

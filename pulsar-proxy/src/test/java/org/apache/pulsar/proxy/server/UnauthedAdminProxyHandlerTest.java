@@ -87,8 +87,8 @@ public class UnauthedAdminProxyHandlerTest extends MockedPulsarServiceBaseTest {
         webServer.addServlet("/admin", servletHolder);
         webServer.addServlet("/lookup", servletHolder);
 
-        webServer.addRestResources("/", VipStatus.class.getPackage().getName(),
-                VipStatus.ATTRIBUTE_STATUS_FILE_PATH, proxyConfig.getStatusFilePath());
+        webServer.addRestResource("/", VipStatus.ATTRIBUTE_STATUS_FILE_PATH, proxyConfig.getStatusFilePath(),
+                VipStatus.class);
 
         // start web-service
         webServer.start();

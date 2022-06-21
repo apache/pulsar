@@ -241,7 +241,7 @@ The Apache Software License, Version 2.0
     - netty-handler-proxy-4.1.77.Final.jar
     - netty-common-4.1.77.Final.jar
     - netty-handler-4.1.77.Final.jar
-    - netty-reactive-streams-2.0.4.jar
+    - netty-reactive-streams-2.0.6.jar
     - netty-resolver-4.1.77.Final.jar
     - netty-resolver-dns-4.1.77.Final.jar
     - netty-tcnative-boringssl-static-2.0.52.Final.jar
