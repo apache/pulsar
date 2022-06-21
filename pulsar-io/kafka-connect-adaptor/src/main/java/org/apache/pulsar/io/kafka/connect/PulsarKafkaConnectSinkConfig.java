@@ -77,7 +77,7 @@ public class PulsarKafkaConnectSinkConfig implements Serializable {
             defaultValue = "true",
             help = "Allows use of message index instead of message sequenceId as offset, if available.\n"
                     + "Requires AppendIndexMetadataInterceptor and "
-                    + "enableExposingBrokerEntryMetadataToClient=true on brokers.")
+                    + "exposingBrokerEntryMetadataToClientEnabled=true on brokers.")
     private boolean useIndexAsOffset = true;
 
     @FieldDoc(
