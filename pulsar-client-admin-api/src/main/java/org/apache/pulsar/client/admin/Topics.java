@@ -718,6 +718,22 @@ public interface Topics {
     CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadataAsync(String topic);
 
     /**
+     * Get properties of a topic.
+     * @param topic
+     *            Topic name
+     * @return Topic properties
+     */
+    Map<String, String> getProperties(String topic) throws PulsarAdminException;
+
+    /**
+     * Get properties of a topic asynchronously.
+     * @param topic
+     *            Topic name
+     * @return a future that can be used to track when the topic properties is returned
+     */
+    CompletableFuture<Map<String, String>> getPropertiesAsync(String topic);
+
+    /**
      * Delete a partitioned topic and its schemas.
      * <p/>
      * It will also delete all the partitions of the topic if it exists.
@@ -1824,6 +1840,15 @@ public interface Topics {
             throws PulsarAdminException;
 
     /**
+     * Get Subscription Properties on a topic subscription.
+     * @param topic
+     * @param subName
+     * @throws PulsarAdminException
+     */
+    Map<String, String> getSubscriptionProperties(String topic, String subName)
+            throws PulsarAdminException;
+
+    /**
      * Reset cursor position on a topic subscription.
      *
      * @param topic
@@ -1856,6 +1881,13 @@ public interface Topics {
      */
     CompletableFuture<Void>  updateSubscriptionPropertiesAsync(String topic, String subName,
                                                                Map<String, String> subscriptionProperties);
+
+    /**
+     * Get Subscription Properties on a topic subscription.
+     * @param topic
+     * @param subName
+     */
+    CompletableFuture<Map<String, String>> getSubscriptionPropertiesAsync(String topic, String subName);
 
     /**
      * Reset cursor position on a topic subscription.

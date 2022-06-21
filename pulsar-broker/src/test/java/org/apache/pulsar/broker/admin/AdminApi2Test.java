@@ -859,6 +859,27 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    public void testCreateAndGetTopicProperties() throws Exception {
+        final String namespace = "prop-xyz/ns2";
+        final String nonPartitionedTopicName = "persistent://" + namespace + "/non-partitioned-TopicProperties";
+        admin.namespaces().createNamespace(namespace, 20);
+        Map<String, String> nonPartitionedTopicProperties = new HashMap<>();
+        nonPartitionedTopicProperties.put("key1", "value1");
+        admin.topics().createNonPartitionedTopic(nonPartitionedTopicName, nonPartitionedTopicProperties);
+        Map<String, String> properties11 = admin.topics().getProperties(nonPartitionedTopicName);
+        Assert.assertNotNull(properties11);
+        Assert.assertEquals(properties11.get("key1"), "value1");
+
+        final String partitionedTopicName = "persistent://" + namespace + "/partitioned-TopicProperties";
+        Map<String, String> partitionedTopicProperties = new HashMap<>();
+        partitionedTopicProperties.put("key2", "value2");
+        admin.topics().createPartitionedTopic(partitionedTopicName, 2, partitionedTopicProperties);
+        Map<String, String> properties22 = admin.topics().getProperties(partitionedTopicName);
+        Assert.assertNotNull(properties22);
+        Assert.assertEquals(properties22.get("key2"), "value2");
+    }
+
+    @Test
     public void testNonPersistentTopics() throws Exception {
         final String namespace = "prop-xyz/ns2";
         final String topicName = "non-persistent://" + namespace + "/topic";

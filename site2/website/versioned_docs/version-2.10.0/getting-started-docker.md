@@ -11,21 +11,31 @@ If you have not installed Docker, download the [Community edition](https://www.d
 
 ## Start Pulsar in Docker
 
-* For MacOS, Linux, and Windows:
+For macOS, Linux, and Windows, run the following command to start Pulsar within a Docker container.
 
-  ```shell
+```shell
   
-  $ docker run -it -p 6650:6650  -p 8080:8080 --mount source=pulsardata,target=/pulsar/data --mount source=pulsarconf,target=/pulsar/conf apachepulsar/pulsar:@pulsar:version@ bin/pulsar standalone
+$ docker run -it -p 6650:6650  -p 8080:8080 --mount source=pulsardata,target=/pulsar/data --mount source=pulsarconf,target=/pulsar/conf apachepulsar/pulsar:@pulsar:version@ bin/pulsar standalone
   
-  ```
+```
 
-A few things to note about this command:
- * The data, metadata, and configuration are persisted on Docker volumes in order to not start "fresh" every 
-time the container is restarted. For details on the volumes you can use `docker volume inspect <sourcename>`
- * For Docker on Windows make sure to configure it to use Linux containers
- * The docker container will run as UID 10000 and GID 0, by default. You'll need to ensure the mounted volumes give write permission to either UID 10000 or GID 0. Note that UID 10000 is arbitrary, so it is recommended to make these mounts writable for the root group (GID 0).
+If you want to change Pulsar configurations and start Pulsar, run the following command by passing environment variables with the `PULSAR_PREFIX_` prefix. See [default configuration file](https://github.com/apache/pulsar/blob/e6b12c64b043903eb5ff2dc5186fe8030f157cfc/conf/standalone.conf) for more details.
 
-If you start Pulsar successfully, you will see `INFO`-level log messages like this:
+```shell
+
+$ docker run -it -e PULSAR_PREFIX_xxx=yyy -p 6650:6650  -p 8080:8080 --mount source=pulsardata,target=/pulsar/data --mount source=pulsarconf,target=/pulsar/conf apachepulsar/pulsar:2.10.0 sh -c "bin/apply-config-from-env.py conf/standalone.conf && bin/pulsar standalone"
+
+```
+
+:::tip
+
+* The docker container runs as UID 10000 and GID 0 by default. You need to ensure the mounted volumes give write permission to either UID 10000 or GID 0. Note that UID 10000 is arbitrary, so it is recommended to make these mounts writable for the root group (GID 0).
+* The data, metadata, and configuration are persisted on Docker volumes in order to not start "fresh" every time the container is restarted. For details on the volumes, you can use `docker volume inspect <sourcename>`.
+* For Docker on Windows, make sure to configure it to use Linux containers.
+
+:::
+
+After starting Pulsar successfully, you can see `INFO`-level log messages like this:
 
 ```
 
@@ -44,15 +54,13 @@ When you start a local standalone cluster, a `public/default` namespace is creat
 
 ## Use Pulsar in Docker
 
-Pulsar offers client libraries for [Java](client-libraries-java.md), [Go](client-libraries-go.md), [Python](client-libraries-python) 
-and [C++](client-libraries-cpp). If you're running a local standalone cluster, you can
-use one of these root URLs to interact with your cluster:
+Pulsar offers a variety of [client libraries](client-libraries.md), such as [Java](client-libraries-java.md), [Go](client-libraries-go.md), [Python](client-libraries-python.md), [C++](client-libraries-cpp.md). 
 
+If you're running a local standalone cluster, you can use one of these root URLs to interact with your cluster:
 * `pulsar://localhost:6650`
 * `http://localhost:8080`
 
-The following example will guide you get started with Pulsar quickly by using the [Python client API](client-libraries-python)
-client API.
+The following example guides you to get started with Pulsar by using the [Python client API](client-libraries-python.md) client API.
 
 Install the Pulsar Python client library directly from [PyPI](https://pypi.org/project/pulsar-client/):
 
@@ -85,7 +93,7 @@ client.close()
 
 ### Produce a message
 
-Now start a producer to send some test messages:
+Start a producer to send some test messages:
 
 ```python
 
@@ -103,8 +111,7 @@ client.close()
 
 ## Get the topic statistics
 
-In Pulsar, you can use REST, Java, or command-line tools to control every aspect of the system.
-For details on APIs, refer to [Admin API Overview](admin-api-overview).
+In Pulsar, you can use REST API, Java, or command-line tools to control every aspect of the system. For details on APIs, refer to [Admin API Overview](admin-api-overview.md).
 
 In the simplest example, you can use curl to probe the stats for a particular topic:
 

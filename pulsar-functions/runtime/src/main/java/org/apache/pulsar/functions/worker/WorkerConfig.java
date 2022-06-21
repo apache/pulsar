@@ -168,7 +168,8 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
             category = CATEGORY_WORKER,
             required = false,
             deprecated = true,
-            doc = "Configuration store connection string (as a comma-separated list)"
+            doc = "Configuration store connection string (as a comma-separated list). Deprecated in favor of "
+                    + "`configurationMetadataStoreUrl`"
     )
     @Deprecated
     private String configurationStoreServers;

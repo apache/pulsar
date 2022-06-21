@@ -53,6 +53,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.NavigableMap;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -292,6 +293,70 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         entries.forEach(Entry::release);
 
         ledger.close();
+    }
+
+    @Test
+    public void testDoCacheEviction() throws Throwable {
+        CompletableFuture<Boolean> result = new CompletableFuture<>();
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setCacheEvictionByMarkDeletedPosition(true);
+        factory.updateCacheEvictionTimeThreshold(TimeUnit.MILLISECONDS
+                .toNanos(30000));
+        factory.asyncOpen("my_test_ledger", config, new OpenLedgerCallback() {
+            @Override
+            public void openLedgerComplete(ManagedLedger ledger, Object ctx) {
+                ledger.asyncOpenCursor("test-cursor", new OpenCursorCallback() {
+                    @Override
+                    public void openCursorComplete(ManagedCursor cursor, Object ctx) {
+                        ManagedLedger ledger = (ManagedLedger) ctx;
+                        String message1 = "test";
+                        ledger.asyncAddEntry(message1.getBytes(Encoding), new AddEntryCallback() {
+                            @Override
+                            public void addComplete(Position position, ByteBuf entryData, Object ctx) {
+                                try {
+                                    @SuppressWarnings("unchecked")
+                                    Pair<ManagedLedger, ManagedCursor> pair = (Pair<ManagedLedger, ManagedCursor>) ctx;
+                                    ManagedLedger ledger = pair.getLeft();
+                                    ManagedCursor cursor = pair.getRight();
+                                    if (((ManagedLedgerImpl) ledger).getCacheSize() != message1.getBytes(Encoding).length) {
+                                        result.complete(false);
+                                        return;
+                                    }
+
+                                    ManagedLedgerImpl ledgerImpl = (ManagedLedgerImpl) ledger;
+                                    ledgerImpl.getActiveCursors().removeCursor(cursor.getName());
+                                    assertNull(ledgerImpl.getEvictionPosition());
+                                    assertTrue(ledgerImpl.getCacheSize() == message1.getBytes(Encoding).length);
+                                    ledgerImpl.doCacheEviction(System.nanoTime());
+                                    assertTrue(ledgerImpl.getCacheSize() <= 0);
+                                    result.complete(true);
+                                } catch (Throwable e) {
+                                    result.completeExceptionally(e);
+                                }
+                            }
+
+                            @Override
+                            public void addFailed(ManagedLedgerException exception, Object ctx) {
+                                result.completeExceptionally(exception);
+                            }
+                        }, Pair.of(ledger, cursor));
+                    }
+
+                    @Override
+                    public void openCursorFailed(ManagedLedgerException exception, Object ctx) {
+                        result.completeExceptionally(exception);
+                    }
+                }, ledger);
+            }
+
+            @Override
+            public void openLedgerFailed(ManagedLedgerException exception, Object ctx) {
+                result.completeExceptionally(exception);
+            }
+        }, null, null);
+        assertTrue(result.get());
+
+        log.info("Test completed");
     }
 
     @Test
@@ -610,6 +675,33 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         ledger.close();
     }
+
+    @Test
+    public void testStartReadOperationOnLedgerWithEmptyLedgers() throws ManagedLedgerException, InterruptedException {
+        ManagedLedger ledger = factory.open("my_test_ledger_1");
+        ManagedLedgerImpl ledgerImpl = (ManagedLedgerImpl) ledger;
+        NavigableMap<Long, LedgerInfo> ledgers = ledgerImpl.getLedgersInfo();
+        LedgerInfo ledgerInfo = ledgers.firstEntry().getValue();
+        ledgers.clear();
+        ManagedCursor c1 = ledger.openCursor("c1");
+        PositionImpl position = new PositionImpl(ledgerInfo.getLedgerId(), 0);
+        PositionImpl maxPosition = new PositionImpl(ledgerInfo.getLedgerId(), 99);
+        OpReadEntry opReadEntry = OpReadEntry.create((ManagedCursorImpl) c1, position, 20,
+                new ReadEntriesCallback() {
+
+                    @Override
+                    public void readEntriesComplete(List<Entry> entries, Object ctx) {
+
+                    }
+
+                    @Override
+                    public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+
+                    }
+                }, null, maxPosition);
+        Assert.assertEquals(opReadEntry.readPosition, position);
+    }
+
 
     @Test(timeOut = 20000)
     public void spanningMultipleLedgersWithSize() throws Exception {

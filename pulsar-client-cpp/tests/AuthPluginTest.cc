@@ -418,6 +418,26 @@ TEST(AuthPluginTest, testOauth2RequestBody) {
     ASSERT_EQ(flow2.generateParamMap(), expectedResult2);
 }
 
+TEST(AuthPluginTest, testInitialize) {
+    std::string issuerUrl = "https://dev-kt-aa9ne.us.auth0.com";
+    std::string expectedTokenEndPoint = issuerUrl + "/oauth/token";
+
+    ParamMap params;
+    params["issuer_url"] = issuerUrl;
+    params["client_id"] = "Xd23RHsUnvUlP7wchjNYOaIfazgeHd9x";
+    params["client_secret"] = "rT7ps7WY8uhdVuBTKWZkttwLdQotmdEliaM5rLfmgNibvqziZ-g07ZH52N_poGAb";
+    params["audience"] = "https://dev-kt-aa9ne.us.auth0.com/api/v2/";
+
+    ClientCredentialFlow flow1(params);
+    flow1.initialize();
+    ASSERT_EQ(flow1.getTokenEndPoint(), expectedTokenEndPoint);
+
+    params["issuer_url"] = issuerUrl + "/";
+    ClientCredentialFlow flow2(params);
+    flow2.initialize();
+    ASSERT_EQ(flow2.getTokenEndPoint(), expectedTokenEndPoint);
+}
+
 TEST(AuthPluginTest, testOauth2Failure) {
     ParamMap params;
     auto addKeyValue = [&](const std::string& key, const std::string& value) {

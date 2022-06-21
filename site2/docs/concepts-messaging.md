@@ -857,6 +857,38 @@ Producer<byte[]> producer = client.newProducer()
 
 ```
 
+## System topic
+
+System topic is a predefined topic for internal use within Pulsar. It can be either persistent or non-persistent topic.
+
+System topics serve to implement certain features and eliminate dependencies on third-party components, such as transactions, heartbeat detections, topic-level policies, and resource group services. System topics empower the implementation of these features to be simplified, dependent, and flexible. Take heartbeat detections for example, you can leverage the system topic for healthcheck to internally enable producer/reader to procude/consume messages under the heartbeat namespace, which can detect whether the current service is still alive.
+
+There are diverse system topics depending on namespaces. The following table outlines the available system topics for each specific namespace.
+
+| Namespace | TopicName | Domain | Count | Usage |
+|-----------|-----------|--------|-------|-------|
+| pulsar/system | `transaction_coordinator_assign_${id}` | Persistent | Default 16 | Transaction coordinator |
+| pulsar/system | `__transaction_log_${tc_id}` | Persistent | Default 16 | Transaction log |
+| pulsar/system | `resource-usage` | Non-persistent | Default 4 | Resource group service |
+| host/port | `heartbeat` | Persistent | 1 | Heartbeat detection |
+| User-defined-ns | [`__change_events`](concepts-multi-tenancy.md#namespace-change-events-and-topic-level-policies) | Persistent | Default 4 | Topic events |
+| User-defined-ns | `__transaction_buffer_snapshot` | Persistent | One per namespace | Transaction buffer snapshots |
+| User-defined-ns | `${topicName}__transaction_pending_ack` | Persistent | One per every topic subscription acknowledged with transactions | Acknowledgements with transactions |
+
+:::note
+
+* You cannot create any system topics. To list system topics, you can add the option `--include-system-topic` when you get the topic list by using [Pulsar admin API](/tools/pulsar-admin).
+
+* Since Pulsar version 2.11.0, system topics are enabled by default.
+  In earlier versions, you need to change the following configurations in the `conf/broker.conf` or `conf/standalone.conf` file to enable system topics.
+
+  ```conf
+  systemTopicEnabled=true
+  topicLevelPoliciesEnabled=true
+  ```
+
+:::
+
 ## Message redelivery
 
 Apache Pulsar supports graceful failure handling and ensures critical data is not lost. Software will always have unexpected conditions and at times messages may not be delivered successfully. Therefore, it is important to have a built-in mechanism that handles failure, particularly in asynchronous messaging as highlighted in the following examples.
@@ -943,8 +975,18 @@ delayedDeliveryEnabled=true
 
 # Control the ticking time for the retry of delayed message delivery,
 # affecting the accuracy of the delivery time compared to the scheduled time.
+# Note that this time is used to configure the HashedWheelTimer's tick time for the
+# InMemoryDelayedDeliveryTrackerFactory (the default DelayedDeliverTrackerFactory).
 # Default is 1 second.
 delayedDeliveryTickTimeMillis=1000
+
+# When using the InMemoryDelayedDeliveryTrackerFactory (the default DelayedDeliverTrackerFactory), whether
+# the deliverAt time is strictly followed. When false (default), messages may be sent to consumers before the deliverAt
+# time by as much as the tickTimeMillis. This can reduce the overhead on the broker of maintaining the delayed index
+# for a potentially very short time period. When true, messages will not be sent to consumer until the deliverAt time
+# has passed, and they may be as late as the deliverAt time plus the tickTimeMillis for the topic plus the
+# delayedDeliveryTickTimeMillis.
+isDelayedDeliveryDeliverAtTimeStrict=false
 
 ```
 

@@ -7,7 +7,7 @@ original_id: txn-use
 
 ## Transaction API
 
-The transaction feature is primarily a server-side and protocol-level feature. You can use the transaction feature via the [transaction API](https://pulsar.apache.org/api/admin/), which is available in **Pulsar 2.8.0 or later**. 
+The transaction feature is primarily a server-side and protocol-level feature. You can use the transaction feature via the [transaction API](/api/admin/), which is available in **Pulsar 2.8.0 or later**. 
 
 To use the transaction API, you do not need any additional settings in the Pulsar client. **By default**, transactions is **disabled**. 
 

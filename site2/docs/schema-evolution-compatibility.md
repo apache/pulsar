@@ -30,19 +30,26 @@ For more information, see [Schema compatibility check strategy](#schema-compatib
 
 ### How does Pulsar support schema evolution?
 
-1. When a producer/consumer/reader connects to a broker, the broker deploys the schema compatibility checker configured by `schemaRegistryCompatibilityCheckers` to enforce schema compatibility check. 
+The process of how Pulsar supports schema evolution is described as follows.
 
-   The schema compatibility checker is one instance per schema type. 
+1. The producer/consumer/reader sends the `SchemaInfo` of its client to brokers. 
    
-   Currently, Avro and JSON have their own compatibility checkers, while all the other schema types share the default compatibility checker which disables schema evolution.
+2. Brokers recognize the schema type and deploy the schema compatibility checker `schemaRegistryCompatibilityCheckers` for that schema type to enforce the schema compatibility check. By default, the value of `schemaRegistryCompatibilityCheckers` in the `conf/broker.conf` or `conf/standalone.conf` file is as follows.
+   
+   ```properties
+   schemaRegistryCompatibilityCheckers=org.apache.pulsar.broker.service.schema.JsonSchemaCompatibilityCheck,org.apache.pulsar.broker.service.schema.AvroSchemaCompatibilityCheck,org.apache.pulsar.broker.service.schema.ProtobufNativeSchemaCompatibilityCheck
+   ```
 
-2. The producer/consumer/reader sends its client `SchemaInfo` to the broker. 
-   
-3. The broker knows the schema type and locates the schema compatibility checker for that type. 
+   :::note
 
-4. The broker uses the checker to check if the `SchemaInfo` is compatible with the latest schema of the topic by applying its compatibility check strategy. 
-   
-   Currently, the compatibility check strategy is configured at the namespace level and applied to all the topics within that namespace.
+   Each schema type corresponds to one instance of schema compatibility checker. Currently, Avro, JSON, and Protobuf have their own compatibility checkers, while all the other schema types share the default compatibility checker which disables the schema evolution. In a word, schema evolution is only available in Avro, JSON, and Protobuf schema.
+
+   :::
+
+3. Brokers use the schema compatibility checker to check if the `SchemaInfo` is compatible with the latest schema of the topic by applying its [compatibility check strategy](#compatibility-check-strategy). Currently, the compatibility check strategy is configured at the namespace level and applied to all the topics within that namespace.
+
+For more details, see [`schemaRegistryCompatibilityCheckers`](https://github.com/apache/pulsar/blob/bf194b557c48e2d3246e44f1fc28876932d8ecb8/pulsar-broker-common/src/main/java/org/apache/pulsar/broker/ServiceConfiguration.java).
+
 
 ## Schema compatibility check strategy
 
@@ -78,7 +85,7 @@ Suppose that you have a topic containing three schemas (V1, V2, and V3), V1 is t
 
   For example, for a user entity, there are `userCreated`, `userAddressChanged` and `userEnquiryReceived` events. The application requires that those events are always read in the same order. 
 
-  Consequently, those events need to go in the same Pulsar partition to maintain order. This application can use `ALWAYS_COMPATIBLE` to allow different kinds of events co-exist in the same topic.
+  Consequently, those events need to go in the same Pulsar partition to maintain order. This application can use `ALWAYS_COMPATIBLE` to allow different kinds of events to co-exist in the same topic.
 
 * Example 2
 
@@ -113,7 +120,7 @@ Suppose that you have a topic containing three schemas (V1, V2, and V3), V1 is t
   
   You want to load all Pulsar data into a Hive data warehouse and run SQL queries against the data. 
 
-  Same SQL queries must continue to work even the data is changed. To support it, you can evolve the schemas using the `BACKWARD` strategy.
+  Same SQL queries must continue to work even if the data is changed. To support it, you can evolve the schemas using the `BACKWARD` strategy.
 
 ### FORWARD and FORWARD_TRANSITIVE 
 
@@ -165,40 +172,41 @@ When a producer or a consumer tries to connect to a topic, a broker performs som
 
 ### Producer
 
-When a producer tries to connect to a topic (suppose ignore the schema auto creation), a broker does the following checks:
+When a producer tries to connect to a topic (suppose ignore the schema auto-creation), a broker does the following checks:
 
 * Check if the schema carried by the producer exists in the schema registry or not.
 
-  * If the schema is already registered, then the producer is connected to a broker and produce messages with that schema.
+  * If the schema is already registered, then the producer is connected to a broker and produces messages with that schema.
   
   * If the schema is not registered, then Pulsar verifies if the schema is allowed to be registered based on the configured compatibility check strategy.
   
 ### Consumer
+
 When a consumer tries to connect to a topic, a broker checks if a carried schema is compatible with a registered schema based on the configured schema compatibility check strategy.
 
-|  Compatibility check strategy  |   Check logic  | 
-| --- | --- |
-|  `ALWAYS_COMPATIBLE`  |   All pass  | 
-|  `ALWAYS_INCOMPATIBLE`  |   No pass  | 
-|  `BACKWARD`  |   Can read the last schema  | 
-|  `BACKWARD_TRANSITIVE`  |   Can read all schemas  | 
-|  `FORWARD`  |   Can read the last schema  | 
-|  `FORWARD_TRANSITIVE`  |   Can read the last schema  | 
-|  `FULL`  |   Can read the last schema  | 
-|  `FULL_TRANSITIVE`  |   Can read all schemas  | 
+| Compatibility check strategy | Check logic              |
+|------------------------------|--------------------------|
+| `ALWAYS_COMPATIBLE`          | All pass                 |
+| `ALWAYS_INCOMPATIBLE`        | No pass                  |
+| `BACKWARD`                   | Can read the last schema |
+| `BACKWARD_TRANSITIVE`        | Can read all schemas     |
+| `FORWARD`                    | Can read the last schema |
+| `FORWARD_TRANSITIVE`         | Can read the last schema |
+| `FULL`                       | Can read the last schema |
+| `FULL_TRANSITIVE`            | Can read all schemas     |
 
 ## Order of upgrading clients
 
 The order of upgrading client applications is determined by the compatibility check strategy.
 
-For example, the producers using schemas to write data to Pulsar and the consumers using schemas to read data from Pulsar. 
+For example, the producers use schemas to write data to Pulsar and the consumers use schemas to read data from Pulsar. 
 
 |  Compatibility check strategy  |   Upgrade first  | Description                                                                                                                                                                                                                                                                                                         | 
 | --- | --- |---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 |  `ALWAYS_COMPATIBLE`  |   Any order  | The compatibility check is disabled. Consequently, you can upgrade the producers and consumers in **any order**.                                                                                                                                                                                                    | 
 |  `ALWAYS_INCOMPATIBLE`  |   None  | The schema evolution is disabled.                                                                                                                                                                                                                                                                                   | 
 |  <li>`BACKWARD` </li><li>`BACKWARD_TRANSITIVE` </li> |   Consumers  | There is no guarantee that consumers using the old schema can read data produced using the new schema. Consequently, **upgrade all consumers first**, and then start producing new data.                                                                                                                            | 
-|  <li>`FORWARD` </li><li>`FORWARD_TRANSITIVE` </li> |   Producers  | There is no guarantee that consumers using the new schema can read data produced using the old schema. Consequently, **upgrade all producers first**<li>to use the new schema and ensure that the data already produced using the old schemas are not available to consumers, and then upgrade the consumers. </li> | 
+|  <li>`FORWARD` </li><li>`FORWARD_TRANSITIVE` </li> |   Producers  | There is no guarantee that consumers using the new schema can read data produced using the old schema. Consequently, **upgrade all producers first**<li>to use the new schema and ensure that the data already produced using the old schemas are not available to consumers, and then upgrades the consumers. </li> | 
 |  <li>`FULL` </li><li>`FULL_TRANSITIVE` </li> |   Any order  | It is guaranteed that consumers using the old schema can read data produced using the new schema and consumers using the new schema can read data produced using the old schema. Consequently, you can upgrade the producers and consumers in **any order**.                                                        | 
 
 

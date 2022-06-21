@@ -178,12 +178,13 @@ public class PulsarFunctionTlsTest {
     void tearDown() throws Exception {
         try {
             for (int i = 0; i < BROKER_COUNT; i++) {
-                if (pulsarServices[i] != null) {
-                    pulsarServices[i].close();
-                }
                 if (pulsarAdmins[i] != null) {
                     pulsarAdmins[i].close();
                 }
+                if (pulsarServices[i] != null) {
+                    pulsarServices[i].close();
+                }
+
             }
             bkEnsemble.stop();
         } finally {

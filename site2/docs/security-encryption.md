@@ -100,7 +100,7 @@ Reader<byte[]> reader = pulsarClient.newReader()
 Client client("pulsar://localhost:6650");
 std::string topic = "persistent://my-tenant/my-ns/my-topic";
 // DefaultCryptoKeyReader is a built-in implementation that reads public key and private key from files
-auto keyReader = std::make_shared<DefaultCryptoKeyReader>("test_ecdsa_pubkey.pem", "test_ecdsa_privkey.pem");
+auto keyReader = std::make_shared<DefaultCryptoKeyReader>("test_rsa_pubkey.pem", "test_rsa_privkey.pem");
 
 Producer producer;
 ProducerConfiguration producerConf;
@@ -130,7 +130,7 @@ from pulsar import Client, CryptoKeyReader
 client = Client('pulsar://localhost:6650')
 topic = 'persistent://my-tenant/my-ns/my-topic'
 # CryptoKeyReader is a built-in implementation that reads public key and private key from files
-key_reader = CryptoKeyReader('test_ecdsa_pubkey.pem', 'test_ecdsa_privkey.pem')
+key_reader = CryptoKeyReader('test_rsa_pubkey.pem', 'test_rsa_privkey.pem')
 
 producer = client.create_producer(
     topic=topic,

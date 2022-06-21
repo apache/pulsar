@@ -525,7 +525,7 @@ consumer = client.subscribe(
 
 ## End-to-end encryption
 
-[End-to-end encryption](https://pulsar.apache.org/docs/en/next/cookbooks-encryption/#docsNav) allows applications to encrypt messages at producers and decrypt messages at consumers.
+[End-to-end encryption](cookbooks-encryption.md#docsNav) allows applications to encrypt messages at producers and decrypt messages at consumers.
 
 ### Configuration
 
