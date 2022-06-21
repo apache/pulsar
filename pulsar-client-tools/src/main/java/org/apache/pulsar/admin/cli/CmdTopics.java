@@ -73,6 +73,7 @@ import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.util.DateFormatter;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.RelativeTimeUtil;
 
 @Getter
@@ -98,6 +99,7 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("unsubscribe", new DeleteSubscription());
         jcommander.addCommand("create-subscription", new CreateSubscription());
         jcommander.addCommand("update-subscription-properties", new UpdateSubscriptionProperties());
+        jcommander.addCommand("get-subscription-properties", new GetSubscriptionProperties());
 
         jcommander.addCommand("stats", new GetStats());
         jcommander.addCommand("stats-internal", new GetInternalStats());
@@ -1003,6 +1005,24 @@ public class CmdTopics extends CmdBase {
                 throw new ParameterException("If you set --clear then you should not pass any properties");
             }
             getTopics().updateSubscriptionProperties(topic, subscriptionName, map);
+        }
+    }
+
+    @Parameters(commandDescription = "Get the properties of a subscription on a topic")
+    private class GetSubscriptionProperties extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "-s",
+                "--subscription" }, description = "Subscription to describe", required = true)
+        private String subscriptionName;
+
+        @Override
+        void run() throws Exception {
+            String topic = validateTopicName(params);
+            Map<String, String> result = getTopics().getSubscriptionProperties(topic, subscriptionName);
+            // Ensure we are using JSON and not Java toString()
+            System.out.println(ObjectMapperFactory.getThreadLocal().writeValueAsString(result));
         }
     }
 
