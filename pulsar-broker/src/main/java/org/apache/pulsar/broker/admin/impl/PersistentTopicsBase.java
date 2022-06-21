@@ -1221,7 +1221,7 @@ public class PersistentTopicsBase extends AdminResource {
                     if (metadata) {
                         return validateTopicOperationAsync(topicName, TopicOperation.GET_METADATA);
                     }
-                    return null;
+                    return CompletableFuture.completedFuture(null);
                 })
                 .thenCompose(__ -> getTopicReferenceAsync(topicName))
                 .thenCompose(topic -> topic.getInternalStats(metadata));
