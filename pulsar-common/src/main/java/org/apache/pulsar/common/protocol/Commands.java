@@ -985,30 +985,7 @@ public class Commands {
                 messageIdData.addAckSet(as[i]);
             }
         }
-
-        if (batchSize >= 0) {
-          messageIdData.setBatchSize(batchSize);
-        }
-
-        if (validationError != null) {
-            ack.setValidationError(validationError);
-        }
-        if (txnIdMostBits >= 0) {
-            ack.setTxnidMostBits(txnIdMostBits);
-        }
-        if (txnIdLeastBits >= 0) {
-            ack.setTxnidLeastBits(txnIdLeastBits);
-        }
-
-        if (requestId >= 0) {
-            ack.setRequestId(requestId);
-        }
-        if (!properties.isEmpty()) {
-            properties.forEach((k, v) -> {
-                ack.addProperty().setKey(k).setValue(v);
-            });
-        }
-        return serializeWithSize(cmd);
+        return newAck(validationError, properties, txnIdLeastBits, txnIdMostBits, requestId, ack, cmd);
     }
 
     public static ByteBuf newAck(long consumerId, List<MessageIdData> messageIds, AckType ackType,
@@ -1020,6 +997,11 @@ public class Commands {
                 .setAckType(ackType);
         ack.addAllMessageIds(messageIds);
 
+        return newAck(validationError, properties, txnIdLeastBits, txnIdMostBits, requestId, ack, cmd);
+    }
+
+    private static ByteBuf newAck(ValidationError validationError, Map<String, Long> properties, long txnIdLeastBits,
+                                  long txnIdMostBits, long requestId, CommandAck ack, BaseCommand cmd) {
         if (validationError != null) {
             ack.setValidationError(validationError);
         }
