@@ -287,6 +287,7 @@ public class RuntimeUtils {
 
         if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.JAVA) {
             args.add("java");
+            args.add("-Dfile.encoding=UTF-8");
             args.add("-cp");
 
             String classpath = instanceFile;
