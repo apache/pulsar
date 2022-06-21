@@ -219,19 +219,7 @@ $ bin/pulsar tokens create-key-pair --output-private-key my-private.key --output
  * Store `my-private.key` in a safe location and only administrator can use `my-private.key` to generate new tokens.
  * `my-public.key` is distributed to all Pulsar brokers. You can publicly share this file without any security concern.
 
-
-### Generate an admin role token
-
-Run the following command to create an admin role token, and use the generated token string as the value of `brokerClientAuthenticationParameters` in the `conf/broker.conf` or `conf/standalone.conf` file.
-
-```shell
-
-$ bin/pulsar tokens create --secret-key file:///path/to/my-secret.key \
-            --subject admin
-
-```
-
-### Generate tokens for other user roles
+### Generate tokens
 
 A token is a credential associated with a user. The association is done through the "principal" or "role". In the case of JWT tokens, this field is typically referred as **subject**, though they are exactly the same concept.
 
@@ -264,6 +252,12 @@ $ bin/pulsar tokens create --secret-key file:///path/to/my-secret.key \
             --expiry-time 1y
 
 ```
+
+:::tip
+
+The token itself does not have any permission associated. The authorization engine determines whether the token can have permissions or not. You need to [enable authorization and assign superusers](security-authorization.md#enable-authorization-and-assign-superusers), and then use the `bin/pulsar-admin namespaces grant-permission` command to grant permissions for tokens.
+
+:::
 
 ### Enable token authentication on Brokers
 
@@ -326,26 +320,4 @@ brokerClientAuthenticationParameters={"token":"eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0
 
 ```
 
-The proxy uses its own token when connecting to brokers. You need to configure the role token for this key pair in the `proxyRoles` of the brokers. For more details, see the [authorization guide](security-authorization).
-
-
-## Enable authorization and assign superusers
-
-The token itself does not have any permission associated. The authorization engine determines whether the token can have permissions or not. You can enable the authorization and assign super users in the `conf/broker.conf` or `conf/standalone.conf` file, and the `conf/proxy.conf` file if you use proxies to authenticate clients.
-
-```conf
-
-authorizationEnabled=true
-superUserRoles=admin
-
-```
-
-Use the `admin` role to grant permissions for this token to do certain actions. The following is an example.
-
-```shell
-
-$ bin/pulsar-admin namespaces grant-permission my-tenant/my-namespace \
-            --role test-user \
-            --actions produce,consume
-
-```
+The proxy uses its own token when connecting to brokers. You need to configure the role token for this key pair in the `proxyRoles` of the brokers. For more details, refer to [authorization](security-authorization).
