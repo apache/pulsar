@@ -927,6 +927,9 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
 
     @Override
     public PositionInPendingAckStats checkPositionInPendingAckState(PositionImpl position, Integer batchIndex) {
+        if (!state.equals(State.Ready)) {
+            return null;
+        }
         if (persistentSubscription.getCursor().getPersistentMarkDeletedPosition() != null && position.compareTo(
                         (PositionImpl) persistentSubscription.getCursor().getPersistentMarkDeletedPosition()) <= 0) {
             return new PositionInPendingAckStats(PositionInPendingAckStats.State.MarkDelete);
@@ -938,12 +941,17 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
             if (batchIndex == null) {
                 return new PositionInPendingAckStats(PositionInPendingAckStats.State.PendingAck);
             } else {
+                if (batchIndex >= positionIntegerMutablePair.right) {
+                    return null;
+                }
                 BitSetRecyclable bitSetRecyclable = BitSetRecyclable
                         .valueOf(positionIntegerMutablePair.left.getAckSet());
                 if (bitSetRecyclable.get(batchIndex)) {
-                    return new PositionInPendingAckStats(PositionInPendingAckStats.State.PendingAck);
-                } else {
+                    bitSetRecyclable.recycle();
                     return new PositionInPendingAckStats(PositionInPendingAckStats.State.NotInPendingAck);
+                } else {
+                    bitSetRecyclable.recycle();
+                    return new PositionInPendingAckStats(PositionInPendingAckStats.State.PendingAck);
                 }
             }
         } else {

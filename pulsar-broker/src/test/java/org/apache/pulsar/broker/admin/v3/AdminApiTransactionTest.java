@@ -671,12 +671,12 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
 
         PositionInPendingAckStats positionStatsInPendingAckStats =
                 admin.transactions().checkPositionInPendingAckState(topic, subscriptionName,
-                new PositionImpl(messageId.getLedgerId(), messageId.getEntryId()).toString(), 2);
+                new PositionImpl(messageId.getLedgerId(), messageId.getEntryId()).toString(), 1);
         assertEquals(positionStatsInPendingAckStats.state, PositionInPendingAckStats.State.PendingAck);
         
         positionStatsInPendingAckStats =
                 admin.transactions().checkPositionInPendingAckState(topic, subscriptionName,
-                        new PositionImpl(messageId.getLedgerId(), messageId.getEntryId()).toString(), 1);
+                        new PositionImpl(messageId.getLedgerId(), messageId.getEntryId()).toString(), 2);
         assertEquals(positionStatsInPendingAckStats.state, PositionInPendingAckStats.State.NotInPendingAck);
     }
 

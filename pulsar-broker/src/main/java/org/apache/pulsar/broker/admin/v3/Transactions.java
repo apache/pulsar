@@ -39,7 +39,6 @@ import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.admin.impl.TransactionsBase;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.web.RestException;
@@ -362,15 +361,19 @@ public class Transactions extends TransactionsBase {
                                                @PathParam("subName") String subName,
                                                @QueryParam("position") String position) {
         try {
-            checkArgument(position != null, "Message position should not be null.");
             checkTransactionCoordinatorEnabled();
             validateTopicName(tenant, namespace, encodedTopic);
-            String[] args = position.split(":");
-            int length = args.length;
-            Integer batchIndex = args[2].equals("null") ? null : Integer.parseInt(args[2]);
-            internalGetPositionStatsPendingAckStats(authoritative, subName,
-                    new PositionImpl(Long.parseLong(args[0]), Long.parseLong(args[1])), batchIndex)
-                    .thenAccept(positionInPendingAckStats -> asyncResponse.resume(positionInPendingAckStats))
+            internalGetPositionStatsPendingAckStats(authoritative, subName, position)
+                    .thenAccept(positionInPendingAckStats -> {
+                        if (positionInPendingAckStats == null) {
+                            resumeAsyncResponseExceptionally(asyncResponse,
+                                    new RestException(Response.Status.BAD_REQUEST,
+                                            "The position [" + position + "] does not exist "
+                                                    + "or the pending ack is not ready"));
+                        } else {
+                            asyncResponse.resume(positionInPendingAckStats);
+                        }
+                    })
                     .exceptionally(ex -> {
                         log.warn("{} Failed to check position [{}] stats for topic [{}], subscription [{}]",
                                 clientAppId(), position, topicName, subName, ex);
@@ -378,7 +381,12 @@ public class Transactions extends TransactionsBase {
                         return null;
                     });
         } catch (Exception ex) {
-            log.warn("Failed to get position stats in pending ack");
+            if (ex instanceof NumberFormatException) {
+                log.warn("Failed to check position [{}] stats due to illegal argument", position, ex);
+                resumeAsyncResponseExceptionally(asyncResponse, new RestException(Response.Status.BAD_REQUEST,
+                        "Failed to check position [" + position + "] stats due to illegal argument"));
+            }
+            log.warn("Failed to get position stats in pending ack", ex);
             resumeAsyncResponseExceptionally(asyncResponse, ex);
         }
     }
