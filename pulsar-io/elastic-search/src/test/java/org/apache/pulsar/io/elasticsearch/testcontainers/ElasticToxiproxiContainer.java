@@ -54,7 +54,7 @@ public class ElasticToxiproxiContainer extends ToxiproxyContainer {
 
     public String getHttpHostAddress() {
         Objects.nonNull(proxy);
-        return proxy.getContainerIpAddress() + ":" + proxy.getProxyPort();
+        return proxy.getHost() + ":" + proxy.getProxyPort();
     }
 
     public ToxiproxyContainer.ContainerProxy getProxy() {
