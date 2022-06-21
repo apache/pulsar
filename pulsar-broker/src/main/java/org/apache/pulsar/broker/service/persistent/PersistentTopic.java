@@ -1867,9 +1867,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         stats.bytesOutCounter = bytesOutFromRemovedSubscriptions.longValue();
         stats.msgOutCounter = msgOutFromRemovedSubscriptions.longValue();
         stats.publishRateLimitedTimes = publishRateLimitedTimes;
-        stats.ongoingTxnCount = getTransactionBuffer().getOngoingTxnCount();
-        stats.abortedTxnCount = getTransactionBuffer().getAbortedTxnCount();
-        stats.committedTxnCount = getTransactionBuffer().getCommittedTxnCount();
+        TransactionBuffer txnBuffer = getTransactionBuffer();
+        stats.ongoingTxnCount = txnBuffer.getOngoingTxnCount();
+        stats.abortedTxnCount = txnBuffer.getAbortedTxnCount();
+        stats.committedTxnCount = txnBuffer.getCommittedTxnCount();
 
         subscriptions.forEach((name, subscription) -> {
             SubscriptionStatsImpl subStats =

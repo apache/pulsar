@@ -27,9 +27,9 @@ public interface TransactionBufferClientStats {
 
     void recordCommitFailed(String topic);
 
-    void recordAbortLatency(String topic, long cost);
+    void recordAbortLatency(String topic, long nanos);
 
-    void recordCommitLatency(String topic, long cost);
+    void recordCommitLatency(String topic, long nanos);
 
     void close();
 
@@ -53,12 +53,12 @@ public interface TransactionBufferClientStats {
         }
 
         @Override
-        public void recordAbortLatency(String topic, long cost) {
+        public void recordAbortLatency(String topic, long nanos) {
 
         }
 
         @Override
-        public void recordCommitLatency(String topic, long cost) {
+        public void recordCommitLatency(String topic, long nanos) {
 
         }
 

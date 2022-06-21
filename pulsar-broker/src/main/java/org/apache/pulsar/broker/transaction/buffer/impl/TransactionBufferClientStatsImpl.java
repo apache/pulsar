@@ -97,13 +97,13 @@ public final class TransactionBufferClientStatsImpl implements TransactionBuffer
     }
 
     @Override
-    public void recordAbortLatency(String topic, long cost) {
-        this.abortLatency.labels(labelValues(topic)).observe(cost);
+    public void recordAbortLatency(String topic, long nanos) {
+        this.abortLatency.labels(labelValues(topic)).observe(nanos);
     }
 
     @Override
-    public void recordCommitLatency(String topic, long cost) {
-        this.commitLatency.labels(labelValues(topic)).observe(cost);
+    public void recordCommitLatency(String topic, long nanos) {
+        this.commitLatency.labels(labelValues(topic)).observe(nanos);
     }
 
     private String[] labelValues(String topic) {
@@ -118,7 +118,7 @@ public final class TransactionBufferClientStatsImpl implements TransactionBuffer
 
     @Override
     public void close() {
-        if (instance == this && this.closed.compareAndSet(false, true)) {
+        if (this.closed.compareAndSet(false, true)) {
             instance = null;
             CollectorRegistry.defaultRegistry.unregister(this.abortFailed);
             CollectorRegistry.defaultRegistry.unregister(this.commitFailed);

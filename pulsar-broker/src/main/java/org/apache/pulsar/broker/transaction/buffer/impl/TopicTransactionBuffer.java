@@ -90,6 +90,8 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
 
     private final LongAdder txnCommittedCounter = new LongAdder();
 
+    private final LongAdder txnAbortedCounter = new LongAdder();
+
     private final Timer timer;
 
     private final int takeSnapshotIntervalNumber;
@@ -255,7 +257,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
 
     @Override
     public long getAbortedTxnCount() {
-        return this.aborts.size();
+        return this.txnAbortedCounter.sum();
     }
 
     @Override
@@ -372,6 +374,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                             clearAbortedTransactions();
                             takeSnapshotByChangeTimes();
                         }
+                        txnAbortedCounter.increment();
                         completableFuture.complete(null);
                         handleLowWaterMark(txnID, lowWaterMark);
                     }
