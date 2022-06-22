@@ -73,17 +73,10 @@ public class ElasticSearchClient implements AutoCloseable {
                 }
                 int index = 0;
                 for (BulkProcessor.BulkOperationResult result: results) {
-                    final Record<?> record = bulkOperationList.get(index++).getPulsarRecord();
+                    final Record record = bulkOperationList.get(index++).getPulsarRecord();
                     if (result.isError()) {
                         record.fail();
-
-                        log.warn("Bulk request id={} failed, message id=[{}] index={} error={}", executionId,
-                                record.getMessage()
-                                        .map(m -> m.getMessageId().toString())
-                                        .orElse(""),
-                                result.getIndex(), result.getError());
-
-                        checkForIrrecoverableError(result);
+                        checkForIrrecoverableError(record, result);
                     } else {
                         record.ack();
                     }
@@ -113,13 +106,15 @@ public class ElasticSearchClient implements AutoCloseable {
         return irrecoverableError.get() != null;
     }
 
-    void checkForIrrecoverableError(BulkProcessor.BulkOperationResult result) {
+    void checkForIrrecoverableError(Record<?> record, BulkProcessor.BulkOperationResult result) {
         if (!result.isError()) {
             return;
         }
         final String errorCause = result.getError();
+        boolean isMalformed = false;
         for (String error : MALFORMED_ERRORS) {
             if (errorCause.contains(error)) {
+                isMalformed = true;
                 switch (config.getMalformedDocAction()) {
                     case IGNORE:
                         break;
@@ -138,6 +133,13 @@ public class ElasticSearchClient implements AutoCloseable {
                         break;
                 }
             }
+        }
+        if (!isMalformed) {
+            log.warn("Bulk request failed, message id=[{}] index={} error={}",
+                    record.getMessage()
+                            .map(m -> m.getMessageId().toString())
+                            .orElse(""),
+                    result.getIndex(), result.getError());
         }
     }
 
