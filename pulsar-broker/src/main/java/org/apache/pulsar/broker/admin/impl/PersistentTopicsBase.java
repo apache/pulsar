@@ -1614,6 +1614,35 @@ public class PersistentTopicsBase extends AdminResource {
                 });
     }
 
+    private void internalGetSubscriptionPropertiesForNonPartitionedTopic(AsyncResponse asyncResponse,
+                                                                            String subName,
+                                                                            boolean authoritative) {
+        validateTopicOwnershipAsync(topicName, authoritative)
+                .thenRun(() -> validateTopicOperation(topicName, TopicOperation.CONSUME))
+                .thenCompose(__ -> getTopicReferenceAsync(topicName))
+                .thenApply((Topic topic) -> {
+                    Subscription sub = topic.getSubscription(subName);
+                    if (sub == null) {
+                        throw new RestException(Status.NOT_FOUND,
+                                getSubNotFoundErrorMessage(topicName.toString(), subName));
+                    }
+                    return sub.getSubscriptionProperties();
+                }).thenAccept((Map<String, String> properties) -> {
+                    if (properties == null) {
+                        properties = Collections.emptyMap();
+                    }
+                    asyncResponse.resume(Response.ok(properties).build());
+                }).exceptionally(ex -> {
+                    Throwable cause = ex.getCause();
+                    // If the exception is not redirect exception we need to log it.
+                    if (!isRedirectException(ex)) {
+                        log.error("[{}] Failed to update subscription {} {}", clientAppId(), topicName, subName, cause);
+                    }
+                    asyncResponse.resume(new RestException(cause));
+                    return null;
+                });
+    }
+
     protected void internalDeleteSubscriptionForcefully(AsyncResponse asyncResponse,
                                                         String subName, boolean authoritative) {
         CompletableFuture<Void> future;
@@ -2403,6 +2432,91 @@ public class PersistentTopicsBase extends AdminResource {
                     } else {
                         internalUpdateSubscriptionPropertiesForNonPartitionedTopic(asyncResponse, subName,
                                 subscriptionProperties, authoritative);
+                    }
+                }, pulsar().getExecutor()).exceptionally(ex -> {
+                    log.error("[{}] Failed to update properties for subscription {} from topic {}",
+                            clientAppId(), subName, topicName, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
+            }
+        }).exceptionally(ex -> {
+            // If the exception is not redirect exception we need to log it.
+            if (!isRedirectException(ex)) {
+                log.error("[{}] Failed to update subscription {} from topic {}",
+                        clientAppId(), subName, topicName, ex);
+            }
+            resumeAsyncResponseExceptionally(asyncResponse, ex);
+            return null;
+        });
+    }
+
+    protected void internalGetSubscriptionProperties(AsyncResponse asyncResponse, String subName,
+                                                        boolean authoritative) {
+        CompletableFuture<Void> future;
+        if (topicName.isGlobal()) {
+            future = validateGlobalNamespaceOwnershipAsync(namespaceName);
+        } else {
+            future = CompletableFuture.completedFuture(null);
+        }
+
+        future.thenCompose(__ -> validateTopicOwnershipAsync(topicName, authoritative)).thenAccept(__ -> {
+            if (topicName.isPartitioned()) {
+                internalGetSubscriptionPropertiesForNonPartitionedTopic(asyncResponse, subName,
+                        authoritative);
+            } else {
+                getPartitionedTopicMetadataAsync(topicName,
+                        authoritative, false).thenAcceptAsync(partitionMetadata -> {
+                    if (partitionMetadata.partitions > 0) {
+                        final List<CompletableFuture<Map<String, String>>> futures = Lists.newArrayList();
+
+                        for (int i = 0; i < partitionMetadata.partitions; i++) {
+                            TopicName topicNamePartition = topicName.getPartition(i);
+                            try {
+                                futures.add(pulsar().getAdminClient().topics()
+                                        .getSubscriptionPropertiesAsync(topicNamePartition.toString(),
+                                                subName));
+                            } catch (Exception e) {
+                                log.error("[{}] Failed to update properties for subscription {} {}",
+                                        clientAppId(), topicNamePartition, subName,
+                                        e);
+                                asyncResponse.resume(new RestException(e));
+                                return;
+                            }
+                        }
+
+                        FutureUtil.waitForAll(futures).handle((result, exception) -> {
+                            if (exception != null) {
+                                Throwable t = exception.getCause();
+                                if (t instanceof NotFoundException) {
+                                    asyncResponse.resume(new RestException(Status.NOT_FOUND,
+                                            getSubNotFoundErrorMessage(topicName.toString(), subName)));
+                                    return null;
+                                } else {
+                                    log.error("[{}] Failed to get properties for subscription {} {}",
+                                            clientAppId(), topicName, subName, t);
+                                    asyncResponse.resume(new RestException(t));
+                                    return null;
+                                }
+                            }
+
+                            Map<String, String> aggregatedResult = new HashMap<>();
+                            futures.forEach(f -> {
+                                // in theory all the partitions have the same properties
+                                try {
+                                    aggregatedResult.putAll(f.get());
+                                } catch (Exception impossible) {
+                                    // we already waited for this Future
+                                    asyncResponse.resume(new RestException(impossible));
+                                }
+                            });
+
+                            asyncResponse.resume(Response.ok(aggregatedResult).build());
+                            return null;
+                        });
+                    } else {
+                        internalGetSubscriptionPropertiesForNonPartitionedTopic(asyncResponse, subName,
+                                authoritative);
                     }
                 }, pulsar().getExecutor()).exceptionally(ex -> {
                     log.error("[{}] Failed to update properties for subscription {} from topic {}",
