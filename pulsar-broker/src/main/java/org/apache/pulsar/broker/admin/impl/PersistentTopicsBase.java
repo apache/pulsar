@@ -5269,12 +5269,6 @@ public class PersistentTopicsBase extends AdminResource {
                         }));
     }
 
-    protected List<String> filterSystemTopic(List<String> topics, boolean includeSystemTopic) {
-        return topics.stream()
-                .filter(topic -> includeSystemTopic ? true : !pulsar().getBrokerService().isSystemTopic(topic))
-                .collect(Collectors.toList());
-    }
-
     protected CompletableFuture<Boolean> internalGetSchemaValidationEnforced(boolean applied) {
         return getTopicPoliciesAsyncWithRetry(topicName)
                 .thenApply(op -> op.map(TopicPolicies::getSchemaValidationEnforced).orElseGet(() -> {

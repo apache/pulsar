@@ -143,6 +143,7 @@ public interface Namespaces {
      * @throws PulsarAdminException
      *             Unexpected error
      */
+    @Deprecated
     List<String> getTopics(String namespace) throws PulsarAdminException;
 
     /**
@@ -160,7 +161,53 @@ public interface Namespaces {
      * @param namespace
      *            Namespace name
      */
+    @Deprecated
     CompletableFuture<List<String>> getTopicsAsync(String namespace);
+
+    /**
+     * Get the list of topics.
+     * <p/>
+     * Get the list of all the topics under a certain namespace.
+     * <p/>
+     * Response Example:
+     *
+     * <pre>
+     * <code>["persistent://my-tenant/use/namespace1/my-topic-1",
+     *  "persistent://my-tenant/use/namespace1/my-topic-2"]</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @param options
+     *            List namespace topics options
+     *
+     * @throws NotAuthorizedException
+     *             You don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    List<String> getTopics(String namespace, ListNamespaceTopicsOptions options) throws PulsarAdminException;
+
+    /**
+     * Get the list of topics asynchronously.
+     * <p/>
+     * Get the list of all the topics under a certain namespace.
+     * <p/>
+     * Response Example:
+     *
+     * <pre>
+     * <code>["persistent://my-tenant/use/namespace1/my-topic-1",
+     *  "persistent://my-tenant/use/namespace1/my-topic-2"]</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @param options
+     *            List namespace topics options
+     */
+    CompletableFuture<List<String>> getTopicsAsync(String namespace, ListNamespaceTopicsOptions options);
 
     /**
      * Get the list of bundles.

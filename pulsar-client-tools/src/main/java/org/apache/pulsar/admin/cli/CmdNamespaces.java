@@ -37,6 +37,8 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.admin.cli.utils.IOUtils;
+import org.apache.pulsar.client.admin.ListNamespaceTopicsOptions;
+import org.apache.pulsar.client.admin.Mode;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.SubscriptionType;
@@ -96,10 +98,22 @@ public class CmdNamespaces extends CmdBase {
         @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
+        @Parameter(names = {"-m", "--mode"},
+                description = "Allowed topic domain mode (persistent, non_persistent, all).")
+        private Mode mode;
+
+        @Parameter(names = { "-ist",
+                "--include-system-topic" }, description = "Include system topic")
+        private boolean includeSystemTopic;
+
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
-            print(getAdmin().namespaces().getTopics(namespace));
+            ListNamespaceTopicsOptions options = ListNamespaceTopicsOptions.builder()
+                    .mode(mode)
+                    .includeSystemTopic(includeSystemTopic)
+                    .build();
+            print(getAdmin().namespaces().getTopics(namespace, options));
         }
     }
 
