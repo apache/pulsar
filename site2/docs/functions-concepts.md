@@ -153,7 +153,7 @@ Currently, window function is only available in Java.
 
 Window function is a function that performs computation across a data window, that is, a finite subset of the event stream. As illustrated below, the stream is split into “buckets” where functions can be applied.
 
-![A window of data within an event stream](/assets/function-data-window.png)
+![A window of data within an event stream](/assets/function-data-window.svg)
 
 The definition of a data window for a function involves two policies:
 * Eviction policy: Controls the amount of data collected in a window. 
@@ -181,11 +181,11 @@ Tumbling window assigns elements to a window of a specified time length or count
 
 In a tumbling window with a count-based trigger policy, as illustrated in the following example, the trigger policy is set to 2. Each function is triggered and executed when two items are in the window, regardless of the time. 
 
-![A tumbling window with a count-based trigger policy](/assets/function-count-based-tumbling-window.png)
+![A tumbling window with a count-based trigger policy](/assets/function-count-based-tumbling-window.svg)
 
 In contrast, as illustrated in the following example, the window length of the tumbling window is 10 seconds, which means the function is triggered when the 10-second time interval has elapsed, regardless of how many events are in the window. 
 
-![A tumbling window with a time-based trigger policy](/assets/function-time-based-tumbling-window.png)
+![A tumbling window with a time-based trigger policy](/assets/function-time-based-tumbling-window.svg)
 
 #### Sliding window
 
@@ -193,4 +193,4 @@ The sliding window method defines a fixed window length by setting the eviction 
 
 As illustrated in the following example, the window length is 2 seconds, which means that any data older than 2 seconds will be evicted and not used in the computation. The sliding interval is configured to be 1 second, which means that function is executed every second to process the data within the entire window length. 
 
-![Sliding window with an overlap](/assets/function-sliding-window.png)
+![Sliding window with an overlap](/assets/function-sliding-window.svg)
