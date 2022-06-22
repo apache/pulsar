@@ -2531,7 +2531,6 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
                 .create();
         List<String> notPersistentTopics = admin.namespaces().getTopics("prop-xyz/ns1",
                 ListNamespaceTopicsOptions.builder().mode(Mode.NON_PERSISTENT).build());
-        System.out.println(notPersistentTopics);
         Assert.assertTrue(notPersistentTopics.contains(nonPersistentTopic));
     }
 }
