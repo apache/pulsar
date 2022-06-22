@@ -148,19 +148,19 @@ You can configure the weights for each resource per broker in the `conf/broker.c
 
 ```conf
 
-# The BandWithIn usage weight when calculating new resource usage.
+# The BandWithIn usage weight when calculating new resource usage. The range is between 0 and 1.0.
 loadBalancerBandwithInResourceWeight=1.0
 
-# The BandWithOut usage weight when calculating new resource usage.
+# The BandWithOut usage weight when calculating new resource usage. The range is between 0 and 1.0.
 loadBalancerBandwithOutResourceWeight=1.0
 
-# The CPU usage weight when calculating new resource usage.
+# The CPU usage weight when calculating new resource usage. The range is between 0 and 1.0.
 loadBalancerCPUResourceWeight=1.0
 
-# The heap memory usage weight when calculating new resource usage.
+# The heap memory usage weight when calculating new resource usage. The range is between 0 and 1.0.
 loadBalancerMemoryResourceWeight=1.0
 
-# The direct memory usage weight when calculating new resource usage.
+# The direct memory usage weight when calculating new resource usage. The range is between 0 and 1.0.
 loadBalancerDirectMemoryResourceWeight=1.0
 
 ```
