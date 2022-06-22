@@ -394,7 +394,7 @@ class PULSAR_PUBLIC Consumer {
      * Asynchronously get an ID of the last available message or a message ID with -1 as an entryId if the
      * topic is empty.
      */
-    void getLastMessageIdAsync(pulsar::GetLastMessageIdCallback callback);
+    void getLastMessageIdAsync(GetLastMessageIdCallback callback);
 
     /**
      * Get an ID of the last available message or a message ID with -1 as an entryId if the topic is empty.
