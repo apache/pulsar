@@ -16,7 +16,7 @@ This tutorial guides you through every step of installing Pulsar locally.
 ### System requirements
 
 Currently, Pulsar is available for 64-bit **macOS**, **Linux**, and **Windows**. To use Pulsar, you need to install 64-bit JRE/JDK.
-For the runtime Java version, please refer to [Pulsar Runtime Java Version Recommendation](https://github.com/apache/pulsar/blob/master/README.md#pulsar-runtime-java-version-recommendation) according to your target Pulsar version.
+For the runtime Java version, see [Pulsar Runtime Java Version Recommendation](https://github.com/apache/pulsar/blob/master/README.md#pulsar-runtime-java-version-recommendation) according to your target Pulsar version.
 
 :::tip
 
@@ -261,7 +261,7 @@ If you have started Pulsar successfully, you will see `INFO`-level log messages 
 * To run the service as a background process, you can use the `bin/pulsar-daemon start standalone` command. For more information, see [pulsar-daemon](/docs/en/reference-cli-tools/#pulsar-daemon).
 * To perform a health check, you can use the `bin/pulsar-admin brokers healthcheck` command. For more information, see [Pulsar-admin docs](/tools/pulsar-admin/).
 * When you start a local standalone cluster, a `public/default` [namespace](concepts-messaging.md#namespaces) is created automatically. The namespace is used for development purposes. All Pulsar topics are managed within namespaces. For more information, see [Topics](concepts-messaging.md#topics).
-* By default, there is no encryption, authentication, or authorization configured. Apache Pulsar can be accessed from a remote server without any authorization. Refer to [Security Overview](security-overview) document to secure your deployment. 
+* By default, there is no encryption, authentication, or authorization configured. Apache Pulsar can be accessed from a remote server without any authorization. See [Security Overview](security-overview) for how to secure your deployment. 
 
 :::
 

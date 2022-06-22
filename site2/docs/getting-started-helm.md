@@ -428,10 +428,10 @@ Then you can proceed with the following steps:
 
 3. In Pulsar Manager UI, you can create an environment. 
 
-   - Click the `New Environment` button in the top-left corner.
-   - Type `pulsar-mini` for the field `Environment Name` in the popup window.
-   - Type `http://pulsar-mini-broker:8080` for the field `Service URL` in the popup window.
-   - Click the `Confirm` button in the popup window.
+   - Click **New Environment** in the upper-left corner.
+   - Type `pulsar-mini` for the field `Environment Name` in the pop-up window.
+   - Type `http://pulsar-mini-broker:8080` for the field `Service URL` in the pop-up window.
+   - Click **Confirm** in the pop-up window.
 
 4. After successfully creating an environment, you are redirected to the `tenants` page of that environment. Then you can create `tenants`, `namespaces`, and `topics` using the Pulsar Manager.
 

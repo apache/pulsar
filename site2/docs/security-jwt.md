@@ -320,4 +320,4 @@ brokerClientAuthenticationParameters={"token":"eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0
 
 ```
 
-The proxy uses its own token when connecting to brokers. You need to configure the role token for this key pair in the `proxyRoles` of the brokers. For more details, refer to [authorization](security-authorization).
+The proxy uses its own token when connecting to brokers. You need to configure the role token for this key pair in the `proxyRoles` of the brokers. For more details, see [authorization](security-authorization).
