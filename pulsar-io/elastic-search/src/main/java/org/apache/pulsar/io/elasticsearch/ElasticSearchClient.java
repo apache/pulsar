@@ -73,9 +73,16 @@ public class ElasticSearchClient implements AutoCloseable {
                 }
                 int index = 0;
                 for (BulkProcessor.BulkOperationResult result: results) {
-                    final Record record = bulkOperationList.get(index++).getPulsarRecord();
+                    final Record<?> record = bulkOperationList.get(index++).getPulsarRecord();
                     if (result.isError()) {
                         record.fail();
+
+                        log.warn("Bulk request id={} failed, message id=[{}] index={} error={}", executionId,
+                                record.getMessage()
+                                        .map(m -> m.getMessageId().toString())
+                                        .orElse(""),
+                                result.getIndex(), result.getError());
+
                         checkForIrrecoverableError(result);
                     } else {
                         record.ack();
