@@ -597,7 +597,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
         BlobStore readBlobstore = blobStores.get(config.getBlobStoreLocation());
 
         CompletableFuture<Void> promise = new CompletableFuture<>();
-        scheduler.chooseThread(ledgerId).execute() -> {
+        scheduler.chooseThread(ledgerId).execute(() -> {
             try {
                 readBlobstore.removeBlobs(readBucket,
                     ImmutableList.of(DataBlockUtils.dataBlockOffloadKey(ledgerId, uid),
