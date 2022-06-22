@@ -168,7 +168,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     }
 
     protected void triggerBatchReceiveTimeoutTask() {
-        if (batchReceivePolicy.getTimeoutMs() > 0) {
+        if (!hasBatchReceiveTimeout() && batchReceivePolicy.getTimeoutMs() > 0) {
             batchReceiveTimeout = client.timer().newTimeout(this::pendingBatchReceiveTask,
                     batchReceivePolicy.getTimeoutMs(), TimeUnit.MILLISECONDS);
         }
