@@ -529,6 +529,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
     @Override
     public void flushAndClean() {
         flush();
+        lastCumulativeAck.reset();
         pendingIndividualAcks.clear();
     }
 
@@ -676,6 +677,15 @@ class LastCumulativeAck {
             // Return null to indicate nothing to be flushed
             return null;
         }
+    }
+
+    public synchronized void reset() {
+        if (bitSetRecyclable != null) {
+            bitSetRecyclable.recycle();
+        }
+        messageId = DEFAULT_MESSAGE_ID;
+        bitSetRecyclable = null;
+        flushRequired = false;
     }
 
     private synchronized void set(final MessageIdImpl messageId, final BitSetRecyclable bitSetRecyclable) {
