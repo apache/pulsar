@@ -51,10 +51,16 @@ public class LastCumulativeAckTest {
 
         final BitSetRecyclable bitSetRecyclable2 = BitSetRecyclable.create();
         bitSetRecyclable2.set(0, 2);
+
+        // `update()` only accepts a newer message ID, so this call here has no side effect
         lastCumulativeAck.update(messageId2, bitSetRecyclable2);
+        assertSame(lastCumulativeAck.getBitSetRecyclable(), bitSetRecyclable1);
+
+        final MessageIdImpl messageId3 = new MessageIdImpl(0L, 3L, 9);
+        lastCumulativeAck.update(messageId3, bitSetRecyclable2);
         // bitSetRecyclable1 is recycled because it's replaced in `update`
         assertEquals(bitSetRecyclable1.toString(), "{}");
-        assertSame(lastCumulativeAck.getMessageId(), messageId2);
+        assertSame(lastCumulativeAck.getMessageId(), messageId3);
         assertSame(lastCumulativeAck.getBitSetRecyclable(), bitSetRecyclable2);
         bitSetRecyclable2.recycle();
     }
