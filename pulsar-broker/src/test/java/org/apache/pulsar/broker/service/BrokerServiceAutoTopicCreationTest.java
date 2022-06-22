@@ -402,7 +402,8 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
 
         pulsarClient.newProducer().topic(topicString).create();
 
-        assertTrue(admin.namespaces().getTopics("prop/ns-abc").contains(topicString));
+        assertTrue(admin.namespaces().getTopics("prop/ns-abc",
+                ListNamespaceTopicsOptions.builder().includeSystemTopic(true).build()).contains(topicString));
         assertFalse(admin.topics().getPartitionedTopicList("prop/ns-abc").contains(topicString));
     }
 
