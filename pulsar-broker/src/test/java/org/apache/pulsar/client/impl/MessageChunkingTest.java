@@ -520,6 +520,15 @@ public class MessageChunkingTest extends ProducerConsumerBase {
             assertEquals(msgIds.get(i), msgAfterSeek.getMessageId());
         }
 
+        Reader<byte[]> reader = pulsarClient.newReader()
+                .topic(topicName)
+                .startMessageIdInclusive()
+                .startMessageId(msgIds.get(1))
+                .create();
+
+        Message<byte[]> readMsg = reader.readNext(5, TimeUnit.SECONDS);
+        assertEquals(msgIds.get(1), readMsg.getMessageId());
+
         consumer1.close();
         consumer2.close();
         producer.close();
@@ -549,5 +558,5 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         }
         return str.toString();
     }
- 
+
 }
