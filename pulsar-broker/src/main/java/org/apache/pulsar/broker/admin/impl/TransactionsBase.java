@@ -139,15 +139,16 @@ public abstract class TransactionsBase extends AdminResource {
                 .thenApply(topic -> topic.getTransactionInBufferStats(new TxnID(mostSigBits, leastSigBits)));
     }
 
-    protected CompletableFuture<TransactionBufferStats> internalGetTransactionBufferStats(boolean authoritative) {
+    protected CompletableFuture<TransactionBufferStats> internalGetTransactionBufferStats(boolean authoritative,
+                                                                                          boolean lowWaterMarks) {
         return getExistingPersistentTopicAsync(authoritative)
-                .thenApply(topic -> topic.getTransactionBufferStats());
+                .thenApply(topic -> topic.getTransactionBufferStats(lowWaterMarks));
     }
 
     protected CompletableFuture<TransactionPendingAckStats> internalGetPendingAckStats(
-            boolean authoritative, String subName) {
+            boolean authoritative, String subName, boolean lowWaterMarks) {
         return getExistingPersistentTopicAsync(authoritative)
-                .thenApply(topic -> topic.getTransactionPendingAckStats(subName));
+                .thenApply(topic -> topic.getTransactionPendingAckStats(subName, lowWaterMarks));
     }
 
     protected void internalGetTransactionMetadata(AsyncResponse asyncResponse,

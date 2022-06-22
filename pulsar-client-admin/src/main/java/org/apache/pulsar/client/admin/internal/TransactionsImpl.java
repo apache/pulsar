@@ -183,9 +183,11 @@ public class TransactionsImpl extends BaseResource implements Transactions {
     }
 
     @Override
-    public CompletableFuture<TransactionBufferStats> getTransactionBufferStatsAsync(String topic) {
+    public CompletableFuture<TransactionBufferStats> getTransactionBufferStatsAsync(String topic,
+                                                                                    boolean lowWaterMarks) {
         WebTarget path = adminV3Transactions.path("transactionBufferStats");
         path = path.path(TopicName.get(topic).getRestPath(false));
+        path = path.queryParam("lowWaterMarks", lowWaterMarks);
         final CompletableFuture<TransactionBufferStats> future = new CompletableFuture<>();
         asyncGetRequest(path,
                 new InvocationCallback<TransactionBufferStats>() {
@@ -203,15 +205,18 @@ public class TransactionsImpl extends BaseResource implements Transactions {
     }
 
     @Override
-    public TransactionBufferStats getTransactionBufferStats(String topic) throws PulsarAdminException {
-        return sync(() -> getTransactionBufferStatsAsync(topic));
+    public TransactionBufferStats getTransactionBufferStats(String topic,
+                                                            boolean lowWaterMarks) throws PulsarAdminException {
+        return sync(() -> getTransactionBufferStatsAsync(topic, lowWaterMarks));
     }
 
     @Override
-    public CompletableFuture<TransactionPendingAckStats> getPendingAckStatsAsync(String topic, String subName) {
+    public CompletableFuture<TransactionPendingAckStats> getPendingAckStatsAsync(String topic, String subName,
+                                                                                 boolean lowWaterMarks) {
         WebTarget path = adminV3Transactions.path("pendingAckStats");
         path = path.path(TopicName.get(topic).getRestPath(false));
         path = path.path(subName);
+        path = path.queryParam("lowWaterMarks", lowWaterMarks);
         final CompletableFuture<TransactionPendingAckStats> future = new CompletableFuture<>();
         asyncGetRequest(path,
                 new InvocationCallback<TransactionPendingAckStats>() {
@@ -229,8 +234,9 @@ public class TransactionsImpl extends BaseResource implements Transactions {
     }
 
     @Override
-    public TransactionPendingAckStats getPendingAckStats(String topic, String subName) throws PulsarAdminException {
-        return sync(() -> getPendingAckStatsAsync(topic, subName));
+    public TransactionPendingAckStats getPendingAckStats(String topic, String subName, boolean lowWaterMarks)
+            throws PulsarAdminException {
+        return sync(() -> getPendingAckStatsAsync(topic, subName, lowWaterMarks));
     }
 
     @Override

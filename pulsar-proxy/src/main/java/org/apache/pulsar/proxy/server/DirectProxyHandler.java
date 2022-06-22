@@ -28,9 +28,13 @@ import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
+import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
+import io.netty.channel.epoll.EpollChannelOption;
+import io.netty.channel.epoll.EpollMode;
+import io.netty.channel.epoll.EpollSocketChannel;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import io.netty.handler.codec.haproxy.HAProxyCommand;
@@ -40,7 +44,6 @@ import io.netty.handler.codec.haproxy.HAProxyProxiedProtocol;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.handler.ssl.SslProvider;
-import io.netty.handler.timeout.ReadTimeoutHandler;
 import io.netty.util.CharsetUtil;
 import java.net.InetSocketAddress;
 import java.util.Arrays;
@@ -72,6 +75,7 @@ public class DirectProxyHandler {
     private final ProxyConnection proxyConnection;
     @Getter
     Channel outboundChannel;
+    boolean isTlsOutboundChannel = false;
     @Getter
     private final Rate inboundChannelRequestsRate;
     private final String originalPrincipal;
@@ -85,7 +89,7 @@ public class DirectProxyHandler {
     private final Runnable onHandshakeCompleteAction;
     private final boolean tlsHostnameVerificationEnabled;
     private final boolean tlsEnabledWithKeyStore;
-    private final boolean tlsEnabledWithBroker;
+    final boolean tlsEnabledWithBroker;
     private final SslContextAutoRefreshBuilder<SslContext> clientSslCtxRefresher;
     private final NettySSLContextAutoRefreshBuilder clientSSLContextAutoRefreshBuilder;
 
@@ -166,6 +170,10 @@ public class DirectProxyHandler {
         b.group(inboundChannel.eventLoop())
                 .channel(inboundChannel.getClass());
 
+        if (service.proxyZeroCopyModeEnabled && EpollSocketChannel.class.isAssignableFrom(inboundChannel.getClass())) {
+            b.option(EpollChannelOption.EPOLL_MODE, EpollMode.LEVEL_TRIGGERED);
+        }
+
         String remoteHost;
         try {
             remoteHost = parseHost(brokerHostAndPort);
@@ -192,12 +200,12 @@ public class DirectProxyHandler {
                 int brokerProxyReadTimeoutMs = service.getConfiguration().getBrokerProxyReadTimeoutMs();
                 if (brokerProxyReadTimeoutMs > 0) {
                     ch.pipeline().addLast("readTimeoutHandler",
-                            new ReadTimeoutHandler(brokerProxyReadTimeoutMs, TimeUnit.MILLISECONDS));
+                            new ProxyReadTimeoutHandler(brokerProxyReadTimeoutMs, TimeUnit.MILLISECONDS));
                 }
                 ch.pipeline().addLast("frameDecoder", new LengthFieldBasedFrameDecoder(
                     Commands.DEFAULT_MAX_MESSAGE_SIZE + Commands.MESSAGE_SIZE_FRAME_PADDING, 0, 4, 0, 4));
                 ch.pipeline().addLast("proxyOutboundHandler",
-                        new ProxyBackendHandler(config, protocolVersion, remoteHost));
+                        (ChannelHandler) new ProxyBackendHandler(config, protocolVersion, remoteHost));
             }
         });
 
@@ -209,7 +217,6 @@ public class DirectProxyHandler {
                 log.warn("[{}] Establishing connection to {} ({}) failed. Closing inbound channel.", inboundChannel,
                         targetBrokerAddress, brokerHostAndPort, future.cause());
                 inboundChannel.close();
-                return;
             }
         });
     }
@@ -315,6 +322,7 @@ public class DirectProxyHandler {
                     null /* target broker */, originalPrincipal, clientAuthData, clientAuthMethod);
             outboundChannel.writeAndFlush(command)
                     .addListener(ChannelFutureListener.FIRE_EXCEPTION_ON_FAILURE);
+            isTlsOutboundChannel = ProxyConnection.isTlsChannel(inboundChannel);
         }
 
         @Override
@@ -346,6 +354,20 @@ public class DirectProxyHandler {
                 }
                 inboundChannel.writeAndFlush(msg)
                         .addListener(ChannelFutureListener.FIRE_EXCEPTION_ON_FAILURE);
+
+                if (service.proxyZeroCopyModeEnabled && service.proxyLogLevel == 0) {
+                    if (!isTlsOutboundChannel && !DirectProxyHandler.this.proxyConnection.isTlsInboundChannel) {
+                        ProxyConnection.spliceNIC2NIC((EpollSocketChannel) ctx.channel(),
+                                        (EpollSocketChannel) inboundChannel, ProxyConnection.SPLICE_BYTES)
+                                .addListener(future -> {
+                                    if (future.isSuccess()) {
+                                        ProxyService.OPS_COUNTER.inc();
+                                        ProxyService.BYTES_COUNTER.inc(ProxyConnection.SPLICE_BYTES);
+                                    }
+                                });
+                    }
+                }
+
                 break;
 
             default:

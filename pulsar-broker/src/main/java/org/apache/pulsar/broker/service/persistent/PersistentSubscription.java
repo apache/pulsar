@@ -966,6 +966,7 @@ public class PersistentSubscription implements Subscription {
                 subStats.bytesOutCounter += consumerStats.bytesOutCounter;
                 subStats.msgOutCounter += consumerStats.msgOutCounter;
                 subStats.msgRateRedeliver += consumerStats.msgRateRedeliver;
+                subStats.messageAckRate += consumerStats.messageAckRate;
                 subStats.chunkedMessageRate += consumerStats.chunkedMessageRate;
                 subStats.unackedMessages += consumerStats.unackedMessages;
                 subStats.lastConsumedTimestamp =
@@ -1164,8 +1165,8 @@ public class PersistentSubscription implements Subscription {
         return this.pendingAckHandle.checkIsCanDeleteConsumerPendingAck(position);
     }
 
-    public TransactionPendingAckStats getTransactionPendingAckStats() {
-        return this.pendingAckHandle.getStats();
+    public TransactionPendingAckStats getTransactionPendingAckStats(boolean lowWaterMarks) {
+        return this.pendingAckHandle.getStats(lowWaterMarks);
     }
 
     public boolean checkAndUnblockIfStuck() {

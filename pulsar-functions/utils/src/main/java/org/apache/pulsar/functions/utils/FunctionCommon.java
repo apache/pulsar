@@ -54,6 +54,7 @@ import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.nar.NarClassLoaderBuilder;
 import org.apache.pulsar.common.util.ClassLoaderUtils;
 import org.apache.pulsar.functions.api.Function;
+import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.api.WindowFunction;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails.Runtime;
 import org.apache.pulsar.functions.utils.io.ConnectorUtils;
@@ -120,8 +121,20 @@ public class FunctionCommon {
         } else {
             if (Function.class.isAssignableFrom(userClass)) {
                 typeArgs = TypeResolver.resolveRawArguments(Function.class, userClass);
+                if (typeArgs[1].equals(Record.class)) {
+                    Type type = TypeResolver.resolveGenericType(Function.class, userClass);
+                    Type recordType = ((ParameterizedType) type).getActualTypeArguments()[1];
+                    Type actualInputType = ((ParameterizedType) recordType).getActualTypeArguments()[0];
+                    typeArgs[1] = (Class<?>) actualInputType;
+                }
             } else {
                 typeArgs = TypeResolver.resolveRawArguments(java.util.function.Function.class, userClass);
+                if (typeArgs[1].equals(Record.class)) {
+                    Type type = TypeResolver.resolveGenericType(java.util.function.Function.class, userClass);
+                    Type recordType = ((ParameterizedType) type).getActualTypeArguments()[1];
+                    Type actualInputType = ((ParameterizedType) recordType).getActualTypeArguments()[0];
+                    typeArgs[1] = (Class<?>) actualInputType;
+                }
             }
         }
 

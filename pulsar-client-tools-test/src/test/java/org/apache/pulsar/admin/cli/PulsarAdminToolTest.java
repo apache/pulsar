@@ -1495,6 +1495,10 @@ public class PulsarAdminToolTest {
         verify(mockTopics).updateSubscriptionProperties("persistent://myprop/clust/ns1/ds1", "sub1", new HashMap<>());
 
         cmdTopics = new CmdTopics(() -> admin);
+        cmdTopics.run(split("get-subscription-properties persistent://myprop/clust/ns1/ds1 -s sub1"));
+        verify(mockTopics).getSubscriptionProperties("persistent://myprop/clust/ns1/ds1", "sub1");
+
+        cmdTopics = new CmdTopics(() -> admin);
         props = new HashMap<>();
         props.put("a", "b");
         props.put("c", "d");
@@ -2152,12 +2156,12 @@ public class PulsarAdminToolTest {
         verify(transactions).getSlowTransactions(3600000, TimeUnit.MILLISECONDS);
 
         cmdTransactions = new CmdTransactions(() -> admin);
-        cmdTransactions.run(split("transaction-buffer-stats -t test"));
-        verify(transactions).getTransactionBufferStats("test");
+        cmdTransactions.run(split("transaction-buffer-stats -t test -l"));
+        verify(transactions).getTransactionBufferStats("test", true);
 
         cmdTransactions = new CmdTransactions(() -> admin);
-        cmdTransactions.run(split("pending-ack-stats -t test -s test"));
-        verify(transactions).getPendingAckStats("test", "test");
+        cmdTransactions.run(split("pending-ack-stats -t test -s test -l"));
+        verify(transactions).getPendingAckStats("test", "test", true);
 
         cmdTransactions = new CmdTransactions(() -> admin);
         cmdTransactions.run(split("pending-ack-internal-stats -t test -s test"));
