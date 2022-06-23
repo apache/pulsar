@@ -2843,21 +2843,19 @@ public class PersistentTopicsBase extends AdminResource {
                     }
                     return entry;
                 }).thenCompose(entry -> {
-                    if (entry != null) {
-                        try {
-                            Response response = generateResponseWithEntry(entry);
-                            return CompletableFuture.completedFuture(response);
-                        } catch (Exception exception) {
-                            log.error("[{}] Failed to peek message at position {} from {} {}", clientAppId(),
-                                    messagePosition, topicName, subName, exception);
-                            throw new RestException(exception);
-                        } finally {
-                            if (entry != null) {
-                                entry.release();
-                            }
+                    try {
+                        Response response = generateResponseWithEntry(entry);
+                        return CompletableFuture.completedFuture(response);
+                    } catch (NullPointerException npe) {
+                        throw new RestException(Status.NOT_FOUND, "Message not found");
+                    } catch (Exception exception) {
+                        log.error("[{}] Failed to peek message at position {} from {} {}", clientAppId(),
+                                messagePosition, topicName, subName, exception);
+                        throw new RestException(exception);
+                    } finally {
+                        if (entry != null) {
+                            entry.release();
                         }
-                    } else {
-                        return CompletableFuture.completedFuture(null);
                     }
                 });
     }
