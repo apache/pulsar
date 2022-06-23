@@ -2096,7 +2096,7 @@ public class BrokerService implements Closeable {
                 bundles.getBundles().forEach(bundle -> {
                     pulsar.getNamespaceService().isNamespaceBundleOwned(bundle).thenAccept(isExist -> {
                         if (isExist) {
-                            this.pulsar().getExecutor().submit(() -> {
+                            this.pulsar().getExecutor().execute(() -> {
                                 try {
                                     pulsar().getAdminClient().namespaces().unloadNamespaceBundle(namespace.toString(),
                                             bundle.getBundleRange());
@@ -2319,7 +2319,7 @@ public class BrokerService implements Closeable {
     }
 
     private void updateMaxPublishRatePerTopicInMessages() {
-        this.pulsar().getExecutor().submit(() ->
+        this.pulsar().getExecutor().execute(() ->
             forEachTopic(topic -> {
                 if (topic instanceof AbstractTopic) {
                     ((AbstractTopic) topic).updateBrokerPublishRate();
@@ -2329,7 +2329,7 @@ public class BrokerService implements Closeable {
     }
 
     private void updateSubscribeRate() {
-        this.pulsar().getExecutor().submit(() ->
+        this.pulsar().getExecutor().execute(() ->
             forEachTopic(topic -> {
                 if (topic instanceof PersistentTopic) {
                     ((PersistentTopic) topic).updateBrokerSubscribeRate();
@@ -2392,7 +2392,7 @@ public class BrokerService implements Closeable {
     }
 
     private void updateSubscriptionMessageDispatchRate() {
-        this.pulsar().getExecutor().submit(() -> {
+        this.pulsar().getExecutor().execute(() -> {
             // update message-rate for each topic subscription
             forEachTopic(topic -> {
                 if (topic instanceof AbstractTopic) {
@@ -2409,7 +2409,7 @@ public class BrokerService implements Closeable {
     }
 
     private void updateReplicatorMessageDispatchRate() {
-        this.pulsar().getExecutor().submit(() -> {
+        this.pulsar().getExecutor().execute(() -> {
             // update message-rate for each topic Replicator in Geo-replication
             forEachTopic(topic -> {
                     if (topic instanceof AbstractTopic) {
