@@ -605,17 +605,17 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
 
          try {
              admin.transactions().checkPositionInPendingAckState(topic, subName,
-                     new PositionImpl(messageId.getLedgerId(), messageId.getEntryId()).toString(), null);
+                     messageId.getLedgerId(), messageId.getEntryId(), null);
          } catch (PulsarAdminException pulsarAdminException) {
              assertTrue(pulsarAdminException.getCause() instanceof BadRequestException);
          }
          consumer.acknowledgeAsync(messageId, transaction).get();
          PositionInPendingAckStats result = admin.transactions().checkPositionInPendingAckState(topic, subName,
-                new PositionImpl(messageId.getLedgerId(), messageId.getEntryId()).toString(), null);
+                messageId.getLedgerId(), messageId.getEntryId(), null);
          assertEquals(result.state, PositionInPendingAckStats.State.PendingAck);
          transaction.commit().get();
          result = admin.transactions().checkPositionInPendingAckState(topic, subName,
-                new PositionImpl(messageId.getLedgerId(), messageId.getEntryId()).toString(), null);
+                 messageId.getLedgerId(), messageId.getEntryId(), null);
          assertEquals(result.state, PositionInPendingAckStats.State.MarkDelete);
     }
 
@@ -674,12 +674,12 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
 
         PositionInPendingAckStats positionStatsInPendingAckStats =
                 admin.transactions().checkPositionInPendingAckState(topic, subscriptionName,
-                new PositionImpl(messageId.getLedgerId(), messageId.getEntryId()).toString(), 1);
+                messageId.getLedgerId(), messageId.getEntryId(), 1);
         assertEquals(positionStatsInPendingAckStats.state, PositionInPendingAckStats.State.PendingAck);
         
         positionStatsInPendingAckStats =
                 admin.transactions().checkPositionInPendingAckState(topic, subscriptionName,
-                        new PositionImpl(messageId.getLedgerId(), messageId.getEntryId()).toString(), 2);
+                        messageId.getLedgerId(), messageId.getEntryId(), 2);
         assertEquals(positionStatsInPendingAckStats.state, PositionInPendingAckStats.State.NotInPendingAck);
     }
 

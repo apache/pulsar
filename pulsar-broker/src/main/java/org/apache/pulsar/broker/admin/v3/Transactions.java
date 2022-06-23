@@ -39,6 +39,7 @@ import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.admin.impl.TransactionsBase;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.web.RestException;
@@ -353,17 +354,22 @@ public class Transactions extends TransactionsBase {
             @ApiResponse(code = 400, message = "Topic is not a persistent topic!"),
             @ApiResponse(code = 409, message = "Concurrent modification")})
     public void getPositionStatsInPendingAck(@Suspended final AsyncResponse asyncResponse,
-                                               @QueryParam("authoritative")
-                                               @DefaultValue("false") boolean authoritative,
-                                               @PathParam("tenant") String tenant,
-                                               @PathParam("namespace") String namespace,
-                                               @PathParam("topic") @Encoded String encodedTopic,
-                                               @PathParam("subName") String subName,
-                                               @QueryParam("position") String position) {
+                                             @QueryParam("authoritative")
+                                             @DefaultValue("false") boolean authoritative,
+                                             @PathParam("tenant") String tenant,
+                                             @PathParam("namespace") String namespace,
+                                             @PathParam("topic") @Encoded String encodedTopic,
+                                             @PathParam("subName") String subName,
+                                             @QueryParam("ledgerId") Long ledgerId,
+                                             @QueryParam("entryId") Long entryId,
+                                             @QueryParam("batchIndex") Integer batchIndex) {
         try {
+            checkArgument(ledgerId != null & entryId != null,
+                    "ledgerId and entryId should not be null.");
             checkTransactionCoordinatorEnabled();
             validateTopicName(tenant, namespace, encodedTopic);
-            internalGetPositionStatsPendingAckStats(authoritative, subName, position)
+            PositionImpl position = new PositionImpl(ledgerId, entryId);
+            internalGetPositionStatsPendingAckStats(authoritative, subName, position, batchIndex)
                     .thenAccept(positionInPendingAckStats -> {
                         if (positionInPendingAckStats == null) {
                             resumeAsyncResponseExceptionally(asyncResponse,
@@ -381,11 +387,6 @@ public class Transactions extends TransactionsBase {
                         return null;
                     });
         } catch (Exception ex) {
-            if (ex instanceof NumberFormatException) {
-                log.warn("Failed to check position [{}] stats due to illegal argument", position, ex);
-                resumeAsyncResponseExceptionally(asyncResponse, new RestException(Response.Status.BAD_REQUEST,
-                        "Failed to check position [" + position + "] stats due to illegal argument"));
-            }
             log.warn("Failed to get position stats in pending ack", ex);
             resumeAsyncResponseExceptionally(asyncResponse, ex);
         }

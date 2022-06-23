@@ -450,24 +450,12 @@ public abstract class TransactionsBase extends AdminResource {
     }
 
     protected CompletableFuture<PositionInPendingAckStats> internalGetPositionStatsPendingAckStats(
-            boolean authoritative, String subName, String position) {
-        checkArgument(position != null, "Message position should not be null.");
-        String[] args = position.split(":");
-        int length = args.length;
-        checkArgument(length >= 2, "Message Position [" + position + "] is invalid");
-        Integer batchIndex;
-        if (length == 3 && !args[2].equals("null")) {
-            batchIndex =  Integer.parseInt(args[2]);
-        } else {
-            batchIndex = null;
-        }
-        PositionImpl messagePosition = new PositionImpl(Long.parseLong(args[0]), Long.parseLong(args[1]));
-
+            boolean authoritative, String subName, PositionImpl position, Integer batchIndex) {
         CompletableFuture<PositionInPendingAckStats> completableFuture = new CompletableFuture<>();
         getExistingPersistentTopicAsync(authoritative)
                 .thenAccept(topic -> {
                     PositionInPendingAckStats result = topic.getSubscription(subName)
-                    .checkPositionInPendingAckState(messagePosition, batchIndex);
+                    .checkPositionInPendingAckState(position, batchIndex);
                     completableFuture.complete(result);
                 }).exceptionally(ex -> {
                     completableFuture.completeExceptionally(ex);

@@ -261,18 +261,22 @@ public interface Transactions {
 
     /**
      * Check whether the position is in pending ack stats.
-     * @param position the position of message.
+     * @param ledgerId the ledgerID of the message position.
+     * @param entryId the enrtyID of the message position.
+     * @param batchIndex the batchIndex of the message position.
      * @return a boolean value identified whether the position is in pending ack stats.
      */
-    PositionInPendingAckStats checkPositionInPendingAckState(String topic, String subName, String position,
+    PositionInPendingAckStats checkPositionInPendingAckState(String topic, String subName, Long ledgerId, Long entryId,
                                                              Integer batchIndex) throws PulsarAdminException;
 
     /**
      * Check whether the position is in pending ack stats.
-     * @param position the position of message.
+     * @param ledgerId the ledgerID of the message position.
+     * @param entryId the enrtyID of the message position.
+     * @param batchIndex the batchIndex of the message position.
      * @return a boolean value identified whether the position is in pending ack stats.
      */
     CompletableFuture<PositionInPendingAckStats> checkPositionInPendingAckStateAsync(String topic, String subName,
-                                                                                     String position,
+                                                                                     Long ledgerId, Long entryId,
                                                                                      Integer batchIndex);
 }

@@ -355,14 +355,16 @@ public class TransactionsImpl extends BaseResource implements Transactions {
     @Override
     public CompletableFuture<PositionInPendingAckStats> checkPositionInPendingAckStateAsync(String topic,
                                                                                             String subName,
-                                                                                            String position,
+                                                                                            Long ledgerId,
+                                                                                            Long entryId,
                                                                                             Integer batchIndex) {
-        position = position + ":" + batchIndex;
         TopicName tn = TopicName.get(topic);
         WebTarget path = adminV3Transactions.path("getPositionStatsInPendingAck");
         path = path.path(tn.getRestPath(false));
         path = path.path(subName);
-        path = path.queryParam("position", position);
+        path = path.queryParam("ledgerId", ledgerId);
+        path = path.queryParam("entryId", entryId);
+        path = path.queryParam("batchIndex", batchIndex);
         final CompletableFuture<PositionInPendingAckStats> future = new CompletableFuture<>();
         asyncGetRequest(path,
                 new InvocationCallback<PositionInPendingAckStats>() {
@@ -381,9 +383,9 @@ public class TransactionsImpl extends BaseResource implements Transactions {
 
 
     @Override
-    public PositionInPendingAckStats checkPositionInPendingAckState(String topic, String subName, String position,
-                                                                    Integer batchIndex)
+    public PositionInPendingAckStats checkPositionInPendingAckState(String topic, String subName, Long ledgerId,
+                                                                    Long entryId, Integer batchIndex)
             throws PulsarAdminException {
-        return sync(() -> checkPositionInPendingAckStateAsync(topic, subName, position, batchIndex));
+        return sync(() -> checkPositionInPendingAckStateAsync(topic, subName, ledgerId, entryId, batchIndex));
     }
 }
