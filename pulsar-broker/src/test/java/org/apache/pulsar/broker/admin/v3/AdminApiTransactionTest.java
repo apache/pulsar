@@ -675,7 +675,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
                 .enableBatching(true)
                 .batchingMaxMessages(3)
                 // set batch max publish delay big enough to make sure entry has 3 messages
-                .batchingMaxPublishDelay(10, TimeUnit.SECONDS)
+                .batchingMaxPublishDelay(3, TimeUnit.SECONDS)
                 .topic(topic).create();
 
         @Cleanup

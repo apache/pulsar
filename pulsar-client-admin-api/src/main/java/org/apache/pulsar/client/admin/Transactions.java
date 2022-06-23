@@ -309,20 +309,26 @@ public interface Transactions {
 
     /**
      * Check whether the position is in pending ack stats.
-     * @param ledgerId the ledgerID of the message position.
-     * @param entryId the enrtyID of the message position.
-     * @param batchIndex the batchIndex of the message position.
-     * @return a boolean value identified whether the position is in pending ack stats.
+     *
+     * @param topic the topic of checking position in pending ack state
+     * @param subName the subscription name of this pending ack
+     * @param ledgerId the ledger id of the message position.
+     * @param entryId the entry id of the message position.
+     * @param batchIndex the batch index of the message position, `null` means not batch message.
+     * @return {@link PositionInPendingAckStats} a state identified whether the position state.
      */
     PositionInPendingAckStats checkPositionInPendingAckState(String topic, String subName, Long ledgerId, Long entryId,
                                                              Integer batchIndex) throws PulsarAdminException;
 
     /**
      * Check whether the position is in pending ack stats.
-     * @param ledgerId the ledgerID of the message position.
-     * @param entryId the enrtyID of the message position.
-     * @param batchIndex the batchIndex of the message position.
-     * @return a boolean value identified whether the position is in pending ack stats.
+     *
+     * @param topic the topic of checking position in pending ack state
+     * @param subName the subscription name of this pending ack
+     * @param ledgerId the ledger id of the message position.
+     * @param entryId the entry id of the message position.
+     * @param batchIndex the batch index of the message position, `null` means not batch message.
+     * @return {@link PositionInPendingAckStats} a state identified whether the position state.
      */
     CompletableFuture<PositionInPendingAckStats> checkPositionInPendingAckStateAsync(String topic, String subName,
                                                                                      Long ledgerId, Long entryId,
