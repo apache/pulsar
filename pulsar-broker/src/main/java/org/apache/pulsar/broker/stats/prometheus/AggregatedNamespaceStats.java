@@ -24,6 +24,8 @@ import org.apache.bookkeeper.mledger.util.StatsBuckets;
 import org.apache.pulsar.compaction.CompactionRecord;
 
 public class AggregatedNamespaceStats {
+    public String name;
+
     public int topicsCount;
     public int subscriptionsCount;
     public int producersCount;
@@ -96,7 +98,7 @@ public class AggregatedNamespaceStats {
 
         stats.replicationStats.forEach((n, as) -> {
             AggregatedReplicationStats replStats =
-                    replicationStats.computeIfAbsent(n,  k -> new AggregatedReplicationStats());
+                    replicationStats.computeIfAbsent(n, k -> new AggregatedReplicationStats());
             replStats.msgRateIn += as.msgRateIn;
             replStats.msgRateOut += as.msgRateOut;
             replStats.msgThroughputIn += as.msgThroughputIn;
