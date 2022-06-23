@@ -178,7 +178,7 @@ public class MultiTopicsConsumerImplTest {
         // given
         MultiTopicsConsumerImpl<byte[]> consumer = createMultiTopicsConsumer();
         CompletableFuture<Messages<byte[]>> future = consumer.batchReceiveAsync();
-        assertTrue(consumer.hasPendingBatchReceive());
+        Awaitility.await().untilAsserted(() -> assertTrue(consumer.hasPendingBatchReceive()));
         // when
         future.cancel(true);
         // then
