@@ -1064,17 +1064,6 @@ public class ClientCnx extends PulsarHandler {
                 RequestType.Command, true);
     }
 
-    public CompletableFuture<CommandWatchTopicListSuccess> newUnwatchTopicList(
-            BaseCommand commandUnwatchTopicList, long requestId) {
-        if (!supportsTopicWatchers) {
-            return FutureUtil.failedFuture(
-                    new PulsarClientException.NotAllowedException(
-                            "Broker does not allow broker side pattern evaluation."));
-        }
-        return sendRequestAndHandleTimeout(Commands.serializeWithSize(commandUnwatchTopicList), requestId,
-                RequestType.Command, true);
-    }
-
     protected void handleCommandWatchTopicListSuccess(CommandWatchTopicListSuccess commandWatchTopicListSuccess) {
         checkArgument(state == State.Ready);
 

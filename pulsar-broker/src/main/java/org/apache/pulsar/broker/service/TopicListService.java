@@ -163,7 +163,8 @@ public class TopicListService {
         }
 
 
-        watcherFuture.thenAccept(watcher -> {
+        CompletableFuture<TopicListWatcher> finalWatcherFuture = watcherFuture;
+        finalWatcherFuture.thenAccept(watcher -> {
                     List<String> topicList = watcher.getMatchingTopics();
                     String hash = TopicList.calculateHash(topicList);
                     if (commandWatchTopicList.hasTopicsHash()
@@ -184,6 +185,7 @@ public class TopicListService {
                     connection.getCommandSender().sendErrorResponse(requestId,
                             BrokerServiceException.getClientErrorCode(
                                     new BrokerServiceException.ServerMetadataException(ex)), ex.getMessage());
+                    watchers.remove(watcherId, finalWatcherFuture);
                     lookupSemaphore.release();
                     return null;
                 });
@@ -230,12 +232,14 @@ public class TopicListService {
             // create operation will complete, the new watcher will be discarded.
             log.info("[{}] Closed watcher before its creation was completed. watcherId={}",
                     connection.getRemoteAddress(), watcherId);
+            watchers.remove(watcherId);
             return;
         }
 
         if (watcherFuture.isCompletedExceptionally()) {
             log.info("[{}] Closed watcher that already failed to be created. watcherId={}",
                     connection.getRemoteAddress(), watcherId);
+            watchers.remove(watcherId);
             return;
         }
 

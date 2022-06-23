@@ -208,6 +208,7 @@ public class ClientCnxTest {
                     cnx.newWatchTopicList(Commands.newWatchTopicList(7, 5, "tenant/ns",
                             ".*", null), 7);
             assertTrue(result.isCompletedExceptionally());
+            assertFalse(cnx.getTopicListWatchers().containsKey(5));
         });
     }
 

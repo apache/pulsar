@@ -91,7 +91,6 @@ public class TopicListWatcher extends HandlerState implements ConnectionHandler.
                 log.info("[{}] Watcher creation failed for {} with non-retriable error {}",
                         topic, name, exception);
                 deregisterFromClientCnx();
-                client.cleanupTopicListWatcher(this);
             }
         } else {
             previousExceptions.add(exception);
@@ -105,7 +104,6 @@ public class TopicListWatcher extends HandlerState implements ConnectionHandler.
         if (getState() == State.Closing || getState() == State.Closed) {
             setState(State.Closed);
             deregisterFromClientCnx();
-            client.cleanupTopicListWatcher(this);
             return;
         }
 
@@ -133,8 +131,6 @@ public class TopicListWatcher extends HandlerState implements ConnectionHandler.
                                 // drops the watcher on its side
                                 setState(State.Closed);
                                 deregisterFromClientCnx();
-                                client.cleanupTopicListWatcher(this);
-
                                 cnx.channel().close();
                                 return;
                             }
@@ -166,8 +162,6 @@ public class TopicListWatcher extends HandlerState implements ConnectionHandler.
                             watcherFuture.completeExceptionally(
                                     PulsarClientException.wrap(e, String.format("Failed to create topic list watcher %s"
                                                     + "when connecting to the broker", getHandlerName())));
-                            client.cleanupTopicListWatcher(this);
-
                         } else {
                             // watcher was subscribed and connected, but we got some error, keep trying
                             reconnectLater(e.getCause());
@@ -203,8 +197,6 @@ public class TopicListWatcher extends HandlerState implements ConnectionHandler.
             log.info("[{}] [{}] Closed watcher (not connected)", topic, getHandlerName());
             setState(State.Closed);
             deregisterFromClientCnx();
-            client.cleanupTopicListWatcher(this);
-
             closeFuture.complete(null);
             return closeFuture;
         }
@@ -266,7 +258,6 @@ public class TopicListWatcher extends HandlerState implements ConnectionHandler.
         log.info("[{}] Closed topic list watcher", getHandlerName());
         setState(State.Closed);
         deregisterFromClientCnx();
-        client.cleanupTopicListWatcher(this);
         if (exception != null) {
             closeFuture.completeExceptionally(exception);
         } else {
