@@ -28,8 +28,10 @@ import com.google.common.base.Splitter;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
 import io.jsonwebtoken.SignatureAlgorithm;
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.lang.reflect.Field;
 import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
@@ -49,6 +51,7 @@ import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.zip.GZIPInputStream;
 import javax.crypto.SecretKey;
 import javax.naming.AuthenticationException;
 import lombok.Cleanup;
@@ -72,6 +75,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.compaction.Compactor;
+import org.apache.pulsar.functions.worker.PulsarFunctionTestUtils;
 import org.awaitility.Awaitility;
 import org.mockito.Mockito;
 import org.testng.Assert;
@@ -1492,6 +1496,34 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         });
         consumer1.close();
         consumer2.close();
+    }
+
+
+    @Test
+    public void testCompressedMetricsData() throws Exception {
+        pulsar.getConfiguration().setEnableMetricsDataCompression(true);
+
+        @Cleanup
+        ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
+        PrometheusMetricsGenerator.generate(pulsar, true, false, false, true,  statsOut);
+        byte[] bytes = statsOut.toByteArray();
+        ByteArrayInputStream input = new ByteArrayInputStream(bytes);
+        GZIPInputStream gzipInput = new GZIPInputStream(input);
+        bytes = gzipInput.readAllBytes();
+        String metricsStr = new String(bytes, StandardCharsets.UTF_8);
+        parseMetrics(metricsStr);
+    }
+
+    @Test
+    public void testScrapCompressedMetricsData() throws IOException {
+        pulsar.getConfiguration().setEnableMetricsDataCompression(true);
+
+       InputStream input =
+               PulsarFunctionTestUtils.getPrometheusMetrics0(pulsar.getConfiguration().getWebServicePort().get());
+       GZIPInputStream gzip = new GZIPInputStream(input);
+       byte[] bytes = gzip.readAllBytes();
+       String metricStr = new String(bytes, StandardCharsets.UTF_8);
+       parseMetrics(metricStr);
     }
 
     private void compareCompactionStateCount(List<Metric> cm, double count) {

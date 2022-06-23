@@ -43,6 +43,12 @@ public class PulsarPrometheusMetricsServlet extends PrometheusMetricsServlet {
         this.splitTopicAndPartitionLabel = splitTopicAndPartitionLabel;
     }
 
+
+    @Override
+    protected boolean enableCompressMetricsData() {
+        return pulsar.getConfiguration().isEnableMetricsDataCompression();
+    }
+
     @Override
     protected void generateMetrics(String cluster, ServletOutputStream outputStream) throws IOException {
         PrometheusMetricsGenerator.generate(pulsar, shouldExportTopicMetrics, shouldExportConsumerMetrics,

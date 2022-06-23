@@ -67,6 +67,10 @@ public class PrometheusMetricsServlet extends HttpServlet {
             try {
                 res.setStatus(HTTP_STATUS_OK_200);
                 res.setContentType("text/plain");
+                if (enableCompressMetricsData()) {
+                    //@see: https://github.com/prometheus/prometheus/blob/main/scrape/scrape.go
+                    res.setHeader("Content-Encoding", "gzip");
+                }
                 generateMetrics(cluster, res.getOutputStream());
             } catch (Exception e) {
                 long end = System.currentTimeMillis();
@@ -97,6 +101,11 @@ public class PrometheusMetricsServlet extends HttpServlet {
 
     protected void generateMetrics(String cluster, ServletOutputStream outputStream) throws IOException {
         PrometheusMetricsGeneratorUtils.generate(cluster, outputStream, metricsProviders);
+    }
+
+
+    protected boolean enableCompressMetricsData() {
+        return false;
     }
 
     @Override

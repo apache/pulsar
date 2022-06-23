@@ -41,6 +41,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.zip.GZIPOutputStream;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.stats.NullStatsProvider;
 import org.apache.bookkeeper.stats.StatsProvider;
@@ -114,6 +115,7 @@ public class PrometheusMetricsGenerator {
                                              List<PrometheusRawMetricsProvider> metricsProviders) throws IOException {
         ByteBuf buffer;
         boolean exposeBufferMetrics = pulsar.getConfiguration().isMetricsBufferResponse();
+        boolean enableCompress = pulsar.getConfiguration().isEnableMetricsDataCompression();
 
         if (!exposeBufferMetrics) {
             buffer = generate0(pulsar, includeTopicMetrics, includeConsumerMetrics, includeProducerMetrics,
@@ -149,29 +151,7 @@ public class PrometheusMetricsGenerator {
             log.debug("Current window start {}, current cached buf size {}", window.start(), buffer.readableBytes());
         }
 
-        try {
-            if (out instanceof HttpOutput) {
-                HttpOutput output = (HttpOutput) out;
-                //no mem_copy and memory allocations here
-                ByteBuffer[] buffers = buffer.nioBuffers();
-                for (ByteBuffer buffer0 : buffers) {
-                    output.write(buffer0);
-                }
-            } else {
-                //read data from buffer and write it to output stream, with no more heap buffer(byte[]) allocation.
-                //not modify buffer readIndex/writeIndex here.
-                int readIndex = buffer.readerIndex();
-                int readableBytes = buffer.readableBytes();
-                for (int i = 0; i < readableBytes; i++) {
-                    out.write(buffer.getByte(readIndex + i));
-                }
-            }
-        } finally {
-            if (!exposeBufferMetrics && buffer.refCnt() > 0) {
-                buffer.release();
-                log.debug("Metrics buffer released.");
-            }
-        }
+        writeOutMetricData(out, buffer, exposeBufferMetrics, enableCompress);
     }
 
     private static ByteBuf generate0(PulsarService pulsar, boolean includeTopicMetrics, boolean includeConsumerMetrics,
@@ -318,4 +298,40 @@ public class PrometheusMetricsGenerator {
             // nop
         }
     }
+
+
+    private static void writeOutMetricData(OutputStream out, ByteBuf buffer, boolean exposeBufferMetrics,
+                                           boolean enableCompress) throws IOException {
+        try {
+            if (enableCompress) {
+                out = new GZIPOutputStream(out);
+            }
+            if (out instanceof HttpOutput) {
+                HttpOutput output = (HttpOutput) out;
+                //no mem_copy and memory allocations here
+                ByteBuffer[] buffers = buffer.nioBuffers();
+                for (ByteBuffer buffer0 : buffers) {
+                    output.write(buffer0);
+                }
+            } else {
+                //read data from buffer and write it to output stream, with no more heap buffer(byte[]) allocation.
+                //not modify buffer readIndex/writeIndex here.
+                int readIndex = buffer.readerIndex();
+                int readableBytes = buffer.readableBytes();
+                for (int i = 0; i < readableBytes; i++) {
+                    out.write(buffer.getByte(readIndex + i));
+                }
+            }
+        } finally {
+            try {
+                out.close();
+            } finally {
+                if (!exposeBufferMetrics && buffer.refCnt() > 0) {
+                    buffer.release();
+                    log.debug("Metrics buffer released.");
+                }
+            }
+        }
+    }
+
 }

@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.functions.worker;
 
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
@@ -52,6 +53,13 @@ public class PulsarFunctionTestUtils {
         }
         rd.close();
         return result.toString();
+    }
+
+    public static InputStream getPrometheusMetrics0(int metricsPort) throws IOException {
+        URL url = new URL(String.format("http://%s:%s/metrics", "localhost", metricsPort));
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestMethod("GET");
+        return conn.getInputStream();
     }
 
     @Test
