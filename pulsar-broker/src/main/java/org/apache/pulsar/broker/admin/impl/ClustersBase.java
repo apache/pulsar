@@ -57,7 +57,6 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.naming.Constants;
 import org.apache.pulsar.common.naming.NamedEntity;
 import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationData;
-import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationDataImpl;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.FailureDomainImpl;
@@ -99,7 +98,7 @@ public class ClustersBase extends AdminResource {
     @Path("/{cluster}")
     @ApiOperation(
         value = "Get the configuration for the specified cluster.",
-        response = ClusterDataImpl.class,
+        response = ClusterData.class,
         notes = "This operation requires Pulsar superuser privileges."
     )
     @ApiResponses(value = {
@@ -481,7 +480,7 @@ public class ClustersBase extends AdminResource {
     @Path("/{cluster}/namespaceIsolationPolicies/brokers")
     @ApiOperation(
         value = "Get list of brokers with namespace-isolation policies attached to them.",
-        response = BrokerNamespaceIsolationDataImpl.class,
+        response = BrokerNamespaceIsolationData.class,
         responseContainer = "set",
         notes = "This operation requires Pulsar superuser privileges."
     )
@@ -536,7 +535,7 @@ public class ClustersBase extends AdminResource {
     @Path("/{cluster}/namespaceIsolationPolicies/brokers/{broker}")
     @ApiOperation(
         value = "Get a broker with namespace-isolation policies attached to it.",
-        response = BrokerNamespaceIsolationDataImpl.class,
+        response = BrokerNamespaceIsolationData.class,
         notes = "This operation requires Pulsar superuser privileges."
     )
     @ApiResponses(value = {
