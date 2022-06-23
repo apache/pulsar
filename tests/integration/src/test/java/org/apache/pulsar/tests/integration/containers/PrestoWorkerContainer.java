@@ -63,6 +63,6 @@ public class PrestoWorkerContainer extends PulsarContainer<PrestoWorkerContainer
     }
 
     public String getUrl() {
-        return String.format("%s:%s",  getContainerIpAddress(), getMappedPort(PrestoWorkerContainer.PRESTO_HTTP_PORT));
+        return String.format("%s:%s",  getHost(), getMappedPort(PrestoWorkerContainer.PRESTO_HTTP_PORT));
     }
 }

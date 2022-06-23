@@ -1165,8 +1165,8 @@ public class PersistentSubscription implements Subscription {
         return this.pendingAckHandle.checkIsCanDeleteConsumerPendingAck(position);
     }
 
-    public TransactionPendingAckStats getTransactionPendingAckStats() {
-        return this.pendingAckHandle.getStats();
+    public TransactionPendingAckStats getTransactionPendingAckStats(boolean lowWaterMarks) {
+        return this.pendingAckHandle.getStats(lowWaterMarks);
     }
 
     public boolean checkAndUnblockIfStuck() {

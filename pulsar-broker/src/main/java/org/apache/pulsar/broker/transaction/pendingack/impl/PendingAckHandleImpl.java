@@ -899,9 +899,17 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
     }
 
     @Override
-    public TransactionPendingAckStats getStats() {
+    public TransactionPendingAckStats getStats(boolean lowWaterMarks) {
         TransactionPendingAckStats transactionPendingAckStats = new TransactionPendingAckStats();
         transactionPendingAckStats.state = this.getState().name();
+        if (lowWaterMarks) {
+            transactionPendingAckStats.lowWaterMarks = this.lowWaterMarks;
+        }
+        if (individualAckOfTransaction != null) {
+            transactionPendingAckStats.ongoingTxnSize = individualAckOfTransaction.size();
+        } else {
+            transactionPendingAckStats.ongoingTxnSize = 0;
+        }
         transactionPendingAckStats.recoverStartTime = recoverTime.getRecoverStartTime();
         transactionPendingAckStats.recoverEndTime = recoverTime.getRecoverEndTime();
         return transactionPendingAckStats;

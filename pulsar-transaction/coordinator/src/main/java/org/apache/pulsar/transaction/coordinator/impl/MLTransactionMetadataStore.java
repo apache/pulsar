@@ -439,6 +439,7 @@ public class MLTransactionMetadataStore
         transactionCoordinatorstats.setLowWaterMark(getLowWaterMark());
         transactionCoordinatorstats.setState(getState().name());
         transactionCoordinatorstats.setLeastSigBits(sequenceIdGenerator.getCurrentSequenceId());
+        transactionCoordinatorstats.ongoingTxnSize = txnMetaMap.size();
         transactionCoordinatorstats.recoverStartTime = recoverTime.getRecoverStartTime();
         transactionCoordinatorstats.recoverEndTime = recoverTime.getRecoverEndTime();
         return transactionCoordinatorstats;

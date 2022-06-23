@@ -87,7 +87,7 @@ public class PendingAckHandleDisabled implements PendingAckHandle {
     }
 
     @Override
-    public TransactionPendingAckStats getStats() {
+    public TransactionPendingAckStats getStats(boolean lowWaterMarks) {
         return null;
     }
 

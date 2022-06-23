@@ -51,6 +51,9 @@ abstract class HandlerState {
 
     // moves the state to ready if it wasn't closed
     protected boolean changeToReadyState() {
+        if (STATE_UPDATER.get(this) == State.Ready) {
+            return true;
+        }
         return (STATE_UPDATER.compareAndSet(this, State.Uninitialized, State.Ready)
                 || STATE_UPDATER.compareAndSet(this, State.Connecting, State.Ready)
                 || STATE_UPDATER.compareAndSet(this, State.RegisteringSchema, State.Ready));
@@ -65,10 +68,12 @@ abstract class HandlerState {
     }
 
     protected boolean changeToConnecting() {
+        if (STATE_UPDATER.get(this) == State.Connecting) {
+            return true;
+        }
         return (STATE_UPDATER.compareAndSet(this, State.Uninitialized, State.Connecting)
                 || STATE_UPDATER.compareAndSet(this, State.Ready, State.Connecting)
-                || STATE_UPDATER.compareAndSet(this, State.RegisteringSchema, State.Connecting)
-                || STATE_UPDATER.compareAndSet(this, State.Connecting, State.Connecting));
+                || STATE_UPDATER.compareAndSet(this, State.RegisteringSchema, State.Connecting));
     }
 
     protected void setState(State s) {
