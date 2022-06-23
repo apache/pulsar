@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.stats.prometheus;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
-
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
