@@ -67,7 +67,7 @@ For more information of the two parameters, refer to the [`broker.conf`](referen
 You can set a retention policy for a namespace by specifying the namespace, a size limit and a time limit in `pulsar-admin`, REST API and Java.
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
   values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
@@ -159,7 +159,7 @@ admin.namespaces().setRetention(namespace, policies);
 You can fetch the retention policy for a namespace by specifying the namespace. The output will be a JSON object with two keys: `retentionTimeInMinutes` and `retentionSizeInMB`.
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
   values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
@@ -231,7 +231,7 @@ Backlog quotas are handled at the namespace level. They can be managed via:
 You can set a size and/or time threshold and backlog retention policy for all of the topics in a [namespace](reference-terminology.md#namespace) by specifying the namespace, a size limit and/or a time limit in second, and a policy by name.
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
   values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
@@ -284,7 +284,7 @@ admin.namespaces().setBacklogQuota(namespace, quota);
 You can see which size threshold and backlog retention policy has been applied to a namespace.
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
   values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
@@ -326,7 +326,7 @@ Map<BacklogQuota.BacklogQuotaType,BacklogQuota> quotas =
 ### Remove backlog quotas
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
   values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
@@ -386,7 +386,7 @@ The diagram below illustrates the concept of TTL.
 ### Set the TTL for a namespace
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
   values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
@@ -424,7 +424,7 @@ admin.namespaces().setNamespaceMessageTTL(namespace, ttlInSeconds);
 ### Get the TTL configuration for a namespace
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
   values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
@@ -462,7 +462,7 @@ admin.namespaces().getNamespaceMessageTTL(namespace)
 ### Remove the TTL configuration for a namespace
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
   values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">

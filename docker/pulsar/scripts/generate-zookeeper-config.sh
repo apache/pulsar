@@ -34,14 +34,22 @@ DOMAIN=`hostname -d`
 IDX=1
 for SERVER in $(echo $ZOOKEEPER_SERVERS | tr "," "\n")
 do
-    echo "server.$IDX=$SERVER.$DOMAIN:2888:3888" >> $CONF_FILE
-
-    if [ "$HOSTNAME" == "$SERVER" ]; then
-        MY_ID=$IDX
-        echo "Current server id $MY_ID"
+    if [[ ! -z "$EXTERNAL_PROVIDED_SERVERS" && $(fgrep -ix $EXTERNAL_PROVIDED_SERVERS <<< "true") ]]; then
+       echo "server.$IDX=$SERVER" >> $CONF_FILE
+       # external zk-server connect string starts with hostname
+       if [[ "$SERVER" == "$HOSTNAME"* ]]; then
+         MY_ID=$IDX
+         echo "Current server id $MY_ID"
+       fi
+    else
+       echo "server.$IDX=$SERVER.$DOMAIN:2888:3888" >> $CONF_FILE
+       if [ "$HOSTNAME" == "$SERVER" ]; then
+         MY_ID=$IDX
+         echo "Current server id $MY_ID"
+       fi
     fi
 
-	((IDX++))
+    ((IDX++))
 done
 
 # For ZooKeeper container we need to initialize the ZK id

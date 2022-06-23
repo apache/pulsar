@@ -202,7 +202,7 @@ If you have started Pulsar successfully, you will see `INFO`-level log messages 
 
 :::
 
-You can also run the service as a background process using the `bin/pulsar-daemon start standalone` command. For more information, see [pulsar-daemon](/docs/en/reference-cli-tools/#pulsar-daemon).
+You can also run the service as a background process using the `bin/pulsar-daemon start standalone` command. For more information, see [pulsar-daemon](reference-cli-tools.md#pulsar-daemon).
 > 
 > * By default, there is no encryption, authentication, or authorization configured. Apache Pulsar can be accessed from remote server without any authorization. Please do check [Security Overview](security-overview) document to secure your deployment.
 >
@@ -261,7 +261,7 @@ Press `Ctrl+C` to stop a local standalone Pulsar.
 :::tip
 
 If the service runs as a background process using the `bin/pulsar-daemon start standalone` command, then use the `bin/pulsar-daemon stop standalone`  command to stop the service.
-For more information, see [pulsar-daemon](/docs/en/reference-cli-tools/#pulsar-daemon).
+For more information, see [pulsar-daemon](reference-cli-tools.md#pulsar-daemon).
 
 :::
 

@@ -28,6 +28,7 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.TopicPolicies;
@@ -1461,10 +1462,18 @@ public class CmdTopicPolicies extends CmdBase {
                 + "If set to true, broker returned global topic policies")
         private boolean isGlobal = false;
 
+        @Parameter(names = {"--subscription", "-s"},
+                description = "Get message-dispatch-rate of a specific subscription")
+        private String subName;
+
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            print(getTopicPolicies(isGlobal).getSubscriptionDispatchRate(persistentTopic, applied));
+            if (StringUtils.isBlank(subName)) {
+                print(getTopicPolicies(isGlobal).getSubscriptionDispatchRate(persistentTopic, applied));
+            } else {
+                print(getTopicPolicies(isGlobal).getSubscriptionDispatchRate(persistentTopic, subName, applied));
+            }
         }
     }
 
@@ -1495,16 +1504,24 @@ public class CmdTopicPolicies extends CmdBase {
                 + "If set to true, the policy will be replicate to other clusters asynchronously")
         private boolean isGlobal = false;
 
+        @Parameter(names = {"--subscription", "-s"},
+                description = "Set message-dispatch-rate for a specific subscription")
+        private String subName;
+
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            getTopicPolicies(isGlobal).setSubscriptionDispatchRate(persistentTopic,
-                    DispatchRate.builder()
-                            .dispatchThrottlingRateInMsg(msgDispatchRate)
-                            .dispatchThrottlingRateInByte(byteDispatchRate)
-                            .ratePeriodInSecond(dispatchRatePeriodSec)
-                            .relativeToPublishRate(relativeToPublishRate)
-                            .build());
+            DispatchRate rate = DispatchRate.builder()
+                    .dispatchThrottlingRateInMsg(msgDispatchRate)
+                    .dispatchThrottlingRateInByte(byteDispatchRate)
+                    .ratePeriodInSecond(dispatchRatePeriodSec)
+                    .relativeToPublishRate(relativeToPublishRate)
+                    .build();
+            if (StringUtils.isBlank(subName)) {
+                getTopicPolicies(isGlobal).setSubscriptionDispatchRate(persistentTopic, rate);
+            } else {
+                getTopicPolicies(isGlobal).setSubscriptionDispatchRate(persistentTopic, subName, rate);
+            }
         }
     }
 
@@ -1517,10 +1534,18 @@ public class CmdTopicPolicies extends CmdBase {
                 + "If set to true, the policy will be replicate to other clusters asynchronously")
         private boolean isGlobal = false;
 
+        @Parameter(names = {"--subscription", "-s"},
+                description = "Remove message-dispatch-rate for a specific subscription")
+        private String subName;
+
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            getTopicPolicies(isGlobal).removeSubscriptionDispatchRate(persistentTopic);
+            if (StringUtils.isBlank(subName)) {
+                getTopicPolicies(isGlobal).removeSubscriptionDispatchRate(persistentTopic);
+            } else {
+                getTopicPolicies(isGlobal).removeSubscriptionDispatchRate(persistentTopic, subName);
+            }
         }
 
     }

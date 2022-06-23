@@ -22,15 +22,14 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static org.apache.pulsar.client.impl.TransactionMetaStoreHandler.getExceptionByServerError;
 import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Queues;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
-import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.unix.Errors.NativeIoException;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
-import io.netty.handler.ssl.SslHandler;
 import io.netty.util.concurrent.Promise;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
@@ -45,7 +44,6 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
-import javax.net.ssl.SSLSession;
 import lombok.Getter;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.commons.lang3.tuple.Pair;
@@ -93,7 +91,6 @@ import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.PulsarHandler;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
-import org.apache.pulsar.common.tls.TlsHostnameVerifier;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.slf4j.Logger;
@@ -114,12 +111,14 @@ public class ClientCnx extends PulsarHandler {
     // LookupRequests that waiting in client side.
     private final Queue<Pair<Long, Pair<ByteBuf, TimedCompletableFuture<LookupDataResult>>>> waitingLookupRequests;
 
-    private final ConcurrentLongHashMap<ProducerImpl<?>> producers =
+    @VisibleForTesting
+    final ConcurrentLongHashMap<ProducerImpl<?>> producers =
             ConcurrentLongHashMap.<ProducerImpl<?>>newBuilder()
                     .expectedItems(16)
                     .concurrencyLevel(1)
                     .build();
-    private final ConcurrentLongHashMap<ConsumerImpl<?>> consumers =
+    @VisibleForTesting
+    final ConcurrentLongHashMap<ConsumerImpl<?>> consumers =
             ConcurrentLongHashMap.<ConsumerImpl<?>>newBuilder()
                     .expectedItems(16)
                     .concurrencyLevel(1)
@@ -152,9 +151,6 @@ public class ClientCnx extends PulsarHandler {
     protected String proxyToTargetBrokerAddress = null;
     // Remote hostName with which client is connected
     protected String remoteHostName = null;
-    private boolean isTlsHostnameVerificationEnable;
-
-    private static final TlsHostnameVerifier HOSTNAME_VERIFIER = new TlsHostnameVerifier();
 
     private ScheduledFuture<?> timeoutTask;
     private SocketAddress localAddress;
@@ -221,7 +217,6 @@ public class ClientCnx extends PulsarHandler {
         this.maxNumberOfRejectedRequestPerConnection = conf.getMaxNumberOfRejectedRequestPerConnection();
         this.operationTimeoutMs = conf.getOperationTimeoutMs();
         this.state = State.None;
-        this.isTlsHostnameVerificationEnable = conf.isTlsHostnameVerificationEnable();
         this.protocolVersion = protocolVersion;
     }
 
@@ -322,14 +317,6 @@ public class ClientCnx extends PulsarHandler {
 
     @Override
     protected void handleConnected(CommandConnected connected) {
-
-        if (isTlsHostnameVerificationEnable && remoteHostName != null && !verifyTlsHostName(remoteHostName, ctx)) {
-            // close the connection if host-verification failed with the broker
-            log.warn("[{}] Failed to verify hostname of {}", ctx.channel(), remoteHostName);
-            ctx.close();
-            return;
-        }
-
         checkArgument(state == State.SentConnectFrame || state == State.Connecting);
         if (connected.hasMaxMessageSize()) {
             if (log.isDebugEnabled()) {
@@ -655,7 +642,7 @@ public class ClientCnx extends PulsarHandler {
             if (firstOneWaiting != null) {
                 maxLookupRequestSemaphore.release();
                 // schedule a new lookup in.
-                eventLoopGroup.submit(() -> {
+                eventLoopGroup.execute(() -> {
                     long newId = firstOneWaiting.getLeft();
                     TimedCompletableFuture<LookupDataResult> newFuture = firstOneWaiting.getRight().getRight();
                     addPendingLookupRequests(newId, newFuture);
@@ -735,7 +722,7 @@ public class ClientCnx extends PulsarHandler {
     protected void handleCloseProducer(CommandCloseProducer closeProducer) {
         log.info("[{}] Broker notification of Closed producer: {}", remoteAddress, closeProducer.getProducerId());
         final long producerId = closeProducer.getProducerId();
-        ProducerImpl<?> producer = producers.get(producerId);
+        ProducerImpl<?> producer = producers.remove(producerId);
         if (producer != null) {
             producer.connectionClosed(this);
         } else {
@@ -747,7 +734,7 @@ public class ClientCnx extends PulsarHandler {
     protected void handleCloseConsumer(CommandCloseConsumer closeConsumer) {
         log.info("[{}] Broker notification of Closed consumer: {}", remoteAddress, closeConsumer.getConsumerId());
         final long consumerId = closeConsumer.getConsumerId();
-        ConsumerImpl<?> consumer = consumers.get(consumerId);
+        ConsumerImpl<?> consumer = consumers.remove(consumerId);
         if (consumer != null) {
             consumer.connectionClosed(this);
         } else {
@@ -1080,39 +1067,6 @@ public class ClientCnx extends PulsarHandler {
                       NUMBER_OF_REJECTED_REQUESTS_UPDATER.get(ClientCnx.this), rejectedRequestResetTimeSec);
             ctx.close();
         }
-    }
-
-    /**
-     * verifies host name provided in x509 Certificate in tls session
-     *
-     * it matches hostname with below scenarios
-     *
-     * <pre>
-     *  1. Supports IPV4 and IPV6 host matching
-     *  2. Supports wild card matching for DNS-name
-     *  eg:
-     *     HostName                     CN           Result
-     * 1.  localhost                    localhost    PASS
-     * 2.  localhost                    local*       PASS
-     * 3.  pulsar1-broker.com           pulsar*.com  PASS
-     * </pre>
-     *
-     * @param ctx
-     * @return true if hostname is verified else return false
-     */
-    private boolean verifyTlsHostName(String hostname, ChannelHandlerContext ctx) {
-        ChannelHandler sslHandler = ctx.channel().pipeline().get("tls");
-
-        SSLSession sslSession = null;
-        if (sslHandler != null) {
-            sslSession = ((SslHandler) sslHandler).engine().getSession();
-            if (log.isDebugEnabled()) {
-                log.debug("Verifying HostName for {}, Cipher {}, Protocols {}", hostname, sslSession.getCipherSuite(),
-                        sslSession.getProtocol());
-            }
-            return HOSTNAME_VERIFIER.verify(hostname, sslSession);
-        }
-        return false;
     }
 
     void registerConsumer(final long consumerId, final ConsumerImpl<?> consumer) {

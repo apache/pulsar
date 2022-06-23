@@ -83,7 +83,7 @@ After you configure the `ssl_server_name.config` and `records.config` files, the
 ATS SNI-routing works only with TLS. You need to enable TLS for the ATS proxy and brokers first, configure the SNI routing protocol, and then connect Pulsar clients to brokers through ATS proxy. Pulsar clients support SNI routing by connecting to the proxy, and sending the target broker URL to the SNI header. This process is processed internally. You only need to configure the following proxy configuration initially when you create a Pulsar client to use the SNI routing protocol.
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="lang-choice"
   defaultValue="Java"
   values={[{"label":"Java","value":"Java"},{"label":"C++","value":"C++"},{"label":"Python","value":"Python"}]}>
 

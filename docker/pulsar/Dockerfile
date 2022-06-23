@@ -59,12 +59,14 @@ RUN sed -i "s|http://archive\.ubuntu\.com/ubuntu/|${UBUNTU_MIRROR:-mirror://mirr
      && apt-get update \
      && apt-get -y dist-upgrade \
      && apt-get -y install --no-install-recommends openjdk-17-jdk-headless netcat dnsutils less procps iputils-ping \
-                 python3 python3-yaml python3-kazoo python3-pip \
+                 python3 python3-kazoo python3-pip \
                  curl ca-certificates \
      && apt-get -y --purge autoremove \
      && apt-get autoclean \
      && apt-get clean \
      && rm -rf /var/lib/apt/lists/*
+
+RUN pip3 install pyyaml==5.4.1
 
 # Pulsar currently writes to the below directories, assuming the default configuration.
 # Note that number 4 is the reason that pulsar components need write access to the /pulsar directory.

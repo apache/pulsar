@@ -19,7 +19,7 @@ Javadoc for the Pulsar client is divided into two domains by package as follows.
 
 Package | Description | Maven Artifact
 :-------|:------------|:--------------
-[`org.apache.pulsar.client.api`](/api/client) | [The producer and consumer API](https://pulsar.apache.org/api/client/) | [org.apache.pulsar:pulsar-client:@pulsar:version@](http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client%7C@pulsar:version@%7Cjar)
+[`org.apache.pulsar.client.api`](/api/client) | [The producer and consumer API](/api/client/) | [org.apache.pulsar:pulsar-client:@pulsar:version@](http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client%7C@pulsar:version@%7Cjar)
 [`org.apache.pulsar.client.admin`](/api/admin) | The Java [admin API](admin-api-overview) | [org.apache.pulsar:pulsar-client-admin:@pulsar:version@](http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client-admin%7C@pulsar:version@%7Cjar)
 `org.apache.pulsar.client.all` |Include both `pulsar-client` and `pulsar-client-admin`<br /> Both `pulsar-client` and `pulsar-client-admin` are shaded packages and they shade dependencies independently. Consequently, the applications using both `pulsar-client` and `pulsar-client-admin` have redundant shaded classes. It would be troublesome if you introduce new dependencies but forget to update shading rules. <br /> In this case, you can use `pulsar-client-all`, which shades dependencies only one time and reduces the size of dependencies.  |[org.apache.pulsar:pulsar-client-all:@pulsar:version@](http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client-all%7C@pulsar:version@%7Cjar)
 
@@ -139,7 +139,7 @@ If you create a client, you can use the `loadConf` configuration. The following 
 `operationTimeoutMs`|long|`operationTimeoutMs`|Operation timeout |30000
 `statsIntervalSeconds`|long|Interval between each stats information<br /><br />Stats is activated with positive `statsInterval`<br /><br />Set `statsIntervalSeconds` to 1 second at least. |60
 `numIoThreads`| int| The number of threads used for handling connections to brokers | 1 
-`numListenerThreads`|int|The number of threads used for handling message listeners. The listener thread pool is shared across all the consumers and readers using the "listener" model to get messages. For a given consumer, the listener is always invoked from the same thread to ensure ordering. If you want multiple threads to process a single topic, you need to create a [`shared`](https://pulsar.apache.org/docs/en/next/concepts-messaging/#shared) subscription and multiple consumers for this subscription. This does not ensure ordering.| 1 
+`numListenerThreads`|int|The number of threads used for handling message listeners. The listener thread pool is shared across all the consumers and readers using the "listener" model to get messages. For a given consumer, the listener is always invoked from the same thread to ensure ordering. If you want multiple threads to process a single topic, you need to create a [`shared`](concepts-messaging.md#shared) subscription and multiple consumers for this subscription. This does not ensure ordering.| 1 
 `useTcpNoDelay`| boolean| Whether to use TCP no-delay flag on the connection to disable Nagle algorithm |true
 `useTls` |boolean |Whether to use TLS encryption on the connection| false
  `tlsTrustCertsFilePath` |string |Path to the trusted TLS certificate file|None
@@ -1115,7 +1115,7 @@ Consumer consumer2 = client.newConsumer()
         .subscriptionName("my-subscription")
         .subscriptionType(SubscriptionType.Shared)
         .subscribe()
-//Both consumer1 and consumer 2 is active consumers.
+//Both consumer1 and consumer2 are active consumers.
 
 ```
 
@@ -1306,7 +1306,7 @@ TableView<String> tv = client.newTableViewBuilder(Schema.STRING)
 
 ```
 
-You can use the available parameters in the `loadConf` configuration or related [API](https://pulsar.apache.org/api/client/2.10.0-SNAPSHOT/org/apache/pulsar/client/api/TableViewBuilder.html) to customize your TableView.
+You can use the available parameters in the `loadConf` configuration or related [API](/api/client/2.10.0-SNAPSHOT/org/apache/pulsar/client/api/TableViewBuilder.html) to customize your TableView.
 
 | Name | Type| Required? |  <div>Description</div> | Default
 |---|---|---|---|---

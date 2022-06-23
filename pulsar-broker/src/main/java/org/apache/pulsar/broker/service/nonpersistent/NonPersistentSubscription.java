@@ -68,7 +68,7 @@ public class NonPersistentSubscription implements Subscription {
 
     private final LongAdder bytesOutFromRemovedConsumers = new LongAdder();
     private final LongAdder msgOutFromRemovedConsumer = new LongAdder();
-    private final Map<String, String> subscriptionProperties;
+    private volatile Map<String, String> subscriptionProperties;
 
     // If isDurable is false(such as a Reader), remove subscription from topic when closing this subscription.
     private final boolean isDurable;
@@ -456,6 +456,7 @@ public class NonPersistentSubscription implements Subscription {
                 ConsumerStatsImpl consumerStats = consumer.getStats();
                 subStats.consumers.add(consumerStats);
                 subStats.msgRateOut += consumerStats.msgRateOut;
+                subStats.messageAckRate += consumerStats.messageAckRate;
                 subStats.msgThroughputOut += consumerStats.msgThroughputOut;
                 subStats.bytesOutCounter += consumerStats.bytesOutCounter;
                 subStats.msgOutCounter += consumerStats.msgOutCounter;
@@ -526,4 +527,15 @@ public class NonPersistentSubscription implements Subscription {
     public Map<String, String> getSubscriptionProperties() {
         return subscriptionProperties;
     }
+
+    @Override
+    public CompletableFuture<Void> updateSubscriptionProperties(Map<String, String> subscriptionProperties) {
+        if (subscriptionProperties == null || subscriptionProperties.isEmpty()) {
+          this.subscriptionProperties = Collections.emptyMap();
+        } else {
+           this.subscriptionProperties = Collections.unmodifiableMap(subscriptionProperties);
+        }
+        return CompletableFuture.completedFuture(null);
+    }
+
 }

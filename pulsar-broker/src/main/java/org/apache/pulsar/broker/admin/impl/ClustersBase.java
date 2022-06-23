@@ -834,31 +834,26 @@ public class ClustersBase extends AdminResource {
         @ApiResponse(code = 412, message = "Cluster doesn't exist"),
         @ApiResponse(code = 500, message = "Internal server error")
     })
-    public FailureDomainImpl getDomain(
-        @ApiParam(
-            value = "The cluster name",
-            required = true
-        )
+    public void getDomain(
+        @Suspended AsyncResponse asyncResponse,
+        @ApiParam(value = "The cluster name", required = true)
         @PathParam("cluster") String cluster,
-        @ApiParam(
-            value = "The failure domain name",
-            required = true
-        )
+        @ApiParam(value = "The failure domain name", required = true)
         @PathParam("domainName") String domainName
-    ) throws Exception {
-        validateSuperUserAccess();
-        validateClusterExists(cluster);
-
-        try {
-            return clusterResources().getFailureDomainResources().getFailureDomain(cluster, domainName)
-                    .orElseThrow(() -> new RestException(Status.NOT_FOUND,
+    ) {
+        validateSuperUserAccessAsync()
+                .thenCompose(__ -> validateClusterExistAsync(cluster, PRECONDITION_FAILED))
+                .thenCompose(__ -> clusterResources().getFailureDomainResources()
+                        .getFailureDomainAsync(cluster, domainName))
+                .thenAccept(domain -> {
+                    FailureDomainImpl failureDomain = domain.orElseThrow(() -> new RestException(Status.NOT_FOUND,
                             "Domain " + domainName + " for cluster " + cluster + " does not exist"));
-        } catch (RestException re) {
-            throw re;
-        } catch (Exception e) {
-            log.error("[{}] Failed to get domain {} for cluster {}", clientAppId(), domainName, cluster, e);
-            throw new RestException(e);
-        }
+                    asyncResponse.resume(failureDomain);
+                }).exceptionally(ex -> {
+                    log.error("[{}] Failed to get domain {} for cluster {}", clientAppId(), domainName, cluster, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @DELETE
@@ -874,30 +869,31 @@ public class ClustersBase extends AdminResource {
         @ApiResponse(code = 500, message = "Internal server error")
     })
     public void deleteFailureDomain(
-        @ApiParam(
-            value = "The cluster name",
-            required = true
-        )
+        @Suspended AsyncResponse asyncResponse,
+        @ApiParam(value = "The cluster name", required = true)
         @PathParam("cluster") String cluster,
-        @ApiParam(
-            value = "The failure domain name",
-            required = true
-        )
+        @ApiParam(value = "The failure domain name", required = true)
         @PathParam("domainName") String domainName
-    ) throws Exception {
-        validateSuperUserAccess();
-        validateClusterExists(cluster);
-
-        try {
-            clusterResources().getFailureDomainResources().deleteFailureDomain(cluster, domainName);
-        } catch (NotFoundException nne) {
-            log.warn("[{}] Domain {} does not exist in {}", clientAppId(), domainName, cluster);
-            throw new RestException(Status.NOT_FOUND,
-                    "Domain-name " + domainName + " or cluster " + cluster + " does not exist");
-        } catch (Exception e) {
-            log.error("[{}] Failed to delete domain {} in cluster {}", clientAppId(), domainName, cluster, e);
-            throw new RestException(e);
-        }
+    ) {
+        validateSuperUserAccessAsync()
+                .thenCompose(__ -> validateClusterExistAsync(cluster, PRECONDITION_FAILED))
+                .thenCompose(__ -> clusterResources()
+                        .getFailureDomainResources().deleteFailureDomainAsync(cluster, domainName))
+                .thenAccept(__ -> {
+                    log.info("[{}] Successful delete domain {} in cluster {}", clientAppId(), domainName, cluster);
+                    asyncResponse.resume(Response.ok().build());
+                }).exceptionally(ex -> {
+                    Throwable cause = FutureUtil.unwrapCompletionException(ex);
+                    if (cause instanceof NotFoundException) {
+                        log.warn("[{}] Domain {} does not exist in {}", clientAppId(), domainName, cluster);
+                        asyncResponse.resume(new RestException(Status.NOT_FOUND,
+                                "Domain-name " + domainName + " or cluster " + cluster + " does not exist"));
+                        return null;
+                    }
+                    log.error("[{}] Failed to delete domain {} in cluster {}", clientAppId(), domainName, cluster, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     private CompletableFuture<Void> validateBrokerExistsInOtherDomain(final String cluster,

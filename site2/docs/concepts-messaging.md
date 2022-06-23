@@ -102,7 +102,7 @@ You can compress messages published by producers during transportation. Pulsar c
 
 When batching is enabled, the producer accumulates and sends a batch of messages in a single request. The batch size is defined by the maximum number of messages and the maximum publish latency. Therefore, the backlog size represents the total number of batches instead of the total number of messages.
 
-In Pulsar, batches are tracked and stored as single units rather than as individual messages. Consumer unbundles a batch into individual messages. However, scheduled messages (configured through the `deliverAt` or the `deliverAfter` parameter) are always sent as individual messages even batching is enabled.
+In Pulsar, batches are tracked and stored as single units rather than as individual messages. Consumers unbundle a batch into individual messages. However, scheduled messages (configured through the `deliverAt` or the `deliverAfter` parameter) are always sent as individual messages even when batching is enabled.
 
 In general, a batch is acknowledged when all of its messages are acknowledged by a consumer. It means that when **not all** batch messages are acknowledged, then unexpected failures, negative acknowledgements, or acknowledgement timeouts can result in a redelivery of all messages in this batch.
 
@@ -254,6 +254,7 @@ Consumer<byte[]> consumer = pulsarClient.newConsumer()
         .negativeAckRedeliveryBackoff(MultiplierRedeliveryBackoff.builder()
             .minDelayMs(1000)
             .maxDelayMs(60 * 1000)
+            .multiplier(2)
             .build())
         .subscribe();
 
@@ -263,14 +264,15 @@ The message redelivery behavior should be as follows.
 
 Redelivery count | Redelivery delay
 :--------------------|:-----------
-1 | 10 + 1 seconds
-2 | 10 + 2 seconds
-3 | 10 + 4 seconds
-4 | 10 + 8 seconds
-5 | 10 + 16 seconds
-6 | 10 + 32 seconds
-7 | 10 + 60 seconds
-8 | 10 + 60 seconds
+1 | 1 seconds
+2 | 2 seconds
+3 | 4 seconds
+4 | 8 seconds
+5 | 16 seconds
+6 | 32 seconds
+7 | 60 seconds
+8 | 60 seconds
+
 :::note
 
 If batching is enabled, all messages in one batch are redelivered to the consumer.
@@ -293,8 +295,9 @@ If you want to use redelivery backoff, you can use the following API.
 consumer.ackTimeout(10, TimeUnit.SECOND)
         .ackTimeoutRedeliveryBackoff(MultiplierRedeliveryBackoff.builder()
         .minDelayMs(1000)
-        .maxDelayMs(60000)
-        .multiplier(2).build())
+        .maxDelayMs(60 * 1000)
+        .multiplier(2)
+        .build())
 
 ```
 
@@ -345,7 +348,7 @@ The retry letter topic allows you to store the messages that failed to be consum
 The diagram below illustrates the concept of the retry letter topic.
 ![](/assets/retry-letter-topic.svg)
 
-The intention of using retry letter topic is different from using [delayed message delivery](#delayed-message-delivery), even though both are aiming to consume a message later. Retry letter topic serves failure handling through message redelivery to ensure critical data is not lost, while delayed message delivery is intended to deliver a message with a specified time of delay.
+The intention of using retry letter topic is different from using [delayed message delivery](#delayed-message-delivery), even though both are aiming to consume a message later. Retry letter topic serves failure handling through message redelivery to ensure critical data is not lost, while delayed message delivery is intended to deliver a message with a specified time delay.
 
 By default, automatic retry is disabled. You can set `enableRetry` to `true` to enable automatic retry on the consumer.
 
@@ -437,7 +440,7 @@ consumer.reconsumeLater(msg, customProperties, 3, TimeUnit.SECONDS);
 
 ### Dead letter topic
 
-Dead letter topic allows you to continue message consumption even some messages are not consumed successfully. The messages that are failed to be consumed are stored in a specific topic, which is called dead letter topic. You can decide how to handle the messages in the dead letter topic.
+Dead letter topic allows you to continue message consumption even when some messages are not consumed successfully. The messages that have failed to be consumed are stored in a specific topic, which is called the dead letter topic. You can decide how to handle the messages in the dead letter topic.
 
 Enable dead letter topic in a Java client using the default dead letter topic.
 
@@ -478,7 +481,7 @@ Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
 
 ```
 
-By default, there is no subscription during a DLQ topic creation. Without a just-in-time subscription to the DLQ topic, you may lose messages. To automatically create an initial subscription for the DLQ, you can specify the `initialSubscriptionName` parameter. If this parameter is set but the broker's `allowAutoSubscriptionCreation` is disabled, the DLQ producer will fail to be created.
+By default, there is no subscription during DLQ topic creation. Without a just-in-time subscription to the DLQ topic, you may lose messages. To automatically create an initial subscription for the DLQ, you can specify the `initialSubscriptionName` parameter. If this parameter is set but the broker's `allowAutoSubscriptionCreation` is disabled, the DLQ producer will fail to be created.
 
 ```java
 
@@ -495,7 +498,7 @@ Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
 
 ```
 
-Dead letter topic serves message redelivery, which is triggered by [acknowledgement timeout](#acknowledgement-timeout) or [negative acknowledgement](#negative-acknowledgement) or [retry letter topic](#retry-letter-topic) . 
+Dead letter topic serves message redelivery, which is triggered by [acknowledgement timeout](#acknowledgement-timeout) or [negative acknowledgement](#negative-acknowledgement) or [retry letter topic](#retry-letter-topic). 
 :::note
 
 * Currently, dead letter topic is enabled in Shared and Key_Shared subscription types.
@@ -516,7 +519,7 @@ Topic name component | Description
 :--------------------|:-----------
 `persistent` / `non-persistent` | This identifies the type of topic. Pulsar supports two kind of topics: [persistent](concepts-architecture-overview.md#persistent-storage) and [non-persistent](#non-persistent-topics). The default is persistent, so if you do not specify a type, the topic is persistent. With persistent topics, all messages are durably persisted on disks (if the broker is not standalone, messages are durably persisted on multiple disks), whereas data for non-persistent topics is not persisted to storage disks.
 `tenant`             | The topic tenant within the instance. Tenants are essential to multi-tenancy in Pulsar, and spread across clusters.
-`namespace`          | The administrative unit of the topic, which acts as a grouping mechanism for related topics. Most topic configuration is performed at the [namespace](#namespaces) level. Each tenant has one or multiple namespaces.
+`namespace`          | The administrative unit of the topic, which acts as a grouping mechanism for related topics. Most topic configuration is performed at the [namespace](#namespaces) level. Each tenant has one or more namespaces.
 `topic`              | The final part of the name. Topic names have no special meaning in a Pulsar instance.
 
 > **No need to explicitly create new topics**  
@@ -525,7 +528,7 @@ Topic name component | Description
 
 ## Namespaces
 
-A namespace is a logical nomenclature within a tenant. A tenant creates multiple namespaces via the [admin API](admin-api-namespaces.md#create). For instance, a tenant with different applications can create a separate namespace for each application. A namespace allows the application to create and manage a hierarchy of topics. The topic `my-tenant/app1` is a namespace for the application `app1` for `my-tenant`. You can create any number of [topics](#topics) under the namespace.
+A namespace is a logical nomenclature within a tenant. A tenant creates namespaces via the [admin API](admin-api-namespaces.md#create). For instance, a tenant with different applications can create a separate namespace for each application. A namespace allows the application to create and manage a hierarchy of topics. The topic `my-tenant/app1` is a namespace for the application `app1` for `my-tenant`. You can create any number of [topics](#topics) under the namespace.
 
 ## Subscriptions
 
@@ -582,7 +585,7 @@ In the diagram below, **Consumer-C-1** and **Consumer-C-2** are able to subscrib
 
 #### Key_Shared
 
-In *Key_Shared* type, multiple consumers can attach to the same subscription. Messages are delivered in a distribution across consumers and message with same key or same ordering key are delivered to only one consumer. No matter how many times the message is re-delivered, it is delivered to the same consumer. When a consumer connected or disconnected will cause served consumer change for some key of message.
+In *Key_Shared* type, multiple consumers can attach to the same subscription. Messages are delivered in a distribution across consumers and messages with the same key or same ordering key are delivered to only one consumer. No matter how many times the message is re-delivered, it is delivered to the same consumer. When a consumer connects or disconnects, it causes the served consumer to change some message keys.
 
 ![Key_Shared subscriptions](/assets/pulsar-key-shared-subscriptions.png)
 
@@ -595,7 +598,7 @@ The key-based batching aims at resolving the above-mentioned issues. This batchi
 Below are examples of enabling the key-based batching under the Key_Shared subscription type, with `client` being the Pulsar client that you created.
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="lang-choice"
   defaultValue="Java"
   values={[{"label":"Java","value":"Java"},{"label":"C++","value":"C++"},{"label":"Python","value":"Python"}]}>
 <TabItem value="Java">
@@ -857,6 +860,38 @@ Producer<byte[]> producer = client.newProducer()
 
 ```
 
+## System topic
+
+System topic is a predefined topic for internal use within Pulsar. It can be either persistent or non-persistent topic.
+
+System topics serve to implement certain features and eliminate dependencies on third-party components, such as transactions, heartbeat detections, topic-level policies, and resource group services. System topics empower the implementation of these features to be simplified, dependent, and flexible. Take heartbeat detections for example, you can leverage the system topic for healthcheck to internally enable producer/reader to procude/consume messages under the heartbeat namespace, which can detect whether the current service is still alive.
+
+There are diverse system topics depending on namespaces. The following table outlines the available system topics for each specific namespace.
+
+| Namespace | TopicName | Domain | Count | Usage |
+|-----------|-----------|--------|-------|-------|
+| pulsar/system | `transaction_coordinator_assign_${id}` | Persistent | Default 16 | Transaction coordinator |
+| pulsar/system | `__transaction_log_${tc_id}` | Persistent | Default 16 | Transaction log |
+| pulsar/system | `resource-usage` | Non-persistent | Default 4 | Resource group service |
+| host/port | `heartbeat` | Persistent | 1 | Heartbeat detection |
+| User-defined-ns | [`__change_events`](concepts-multi-tenancy.md#namespace-change-events-and-topic-level-policies) | Persistent | Default 4 | Topic events |
+| User-defined-ns | `__transaction_buffer_snapshot` | Persistent | One per namespace | Transaction buffer snapshots |
+| User-defined-ns | `${topicName}__transaction_pending_ack` | Persistent | One per every topic subscription acknowledged with transactions | Acknowledgements with transactions |
+
+:::note
+
+* You cannot create any system topics. To list system topics, you can add the option `--include-system-topic` when you get the topic list by using [Pulsar admin API](/tools/pulsar-admin).
+
+* Since Pulsar version 2.11.0, system topics are enabled by default.
+  In earlier versions, you need to change the following configurations in the `conf/broker.conf` or `conf/standalone.conf` file to enable system topics.
+
+  ```conf
+  systemTopicEnabled=true
+  topicLevelPoliciesEnabled=true
+  ```
+
+:::
+
 ## Message redelivery
 
 Apache Pulsar supports graceful failure handling and ensures critical data is not lost. Software will always have unexpected conditions and at times messages may not be delivered successfully. Therefore, it is important to have a built-in mechanism that handles failure, particularly in asynchronous messaging as highlighted in the following examples.
@@ -943,8 +978,18 @@ delayedDeliveryEnabled=true
 
 # Control the ticking time for the retry of delayed message delivery,
 # affecting the accuracy of the delivery time compared to the scheduled time.
+# Note that this time is used to configure the HashedWheelTimer's tick time for the
+# InMemoryDelayedDeliveryTrackerFactory (the default DelayedDeliverTrackerFactory).
 # Default is 1 second.
 delayedDeliveryTickTimeMillis=1000
+
+# When using the InMemoryDelayedDeliveryTrackerFactory (the default DelayedDeliverTrackerFactory), whether
+# the deliverAt time is strictly followed. When false (default), messages may be sent to consumers before the deliverAt
+# time by as much as the tickTimeMillis. This can reduce the overhead on the broker of maintaining the delayed index
+# for a potentially very short time period. When true, messages will not be sent to consumer until the deliverAt time
+# has passed, and they may be as late as the deliverAt time plus the tickTimeMillis for the topic plus the
+# delayedDeliveryTickTimeMillis.
+isDelayedDeliveryDeliverAtTimeStrict=false
 
 ```
 

@@ -363,13 +363,21 @@ public class Namespaces extends NamespacesBase {
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist"),
             @ApiResponse(code = 412, message = "Namespace is not global")})
-    public Set<String> getNamespaceReplicationClusters(@PathParam("property") String property,
-            @PathParam("cluster") String cluster, @PathParam("namespace") String namespace) {
+    public void getNamespaceReplicationClusters(@Suspended AsyncResponse asyncResponse,
+                                                @PathParam("property") String property,
+                                                @PathParam("cluster") String cluster,
+                                                @PathParam("namespace") String namespace) {
         validateNamespaceName(property, cluster, namespace);
-        validateNamespacePolicyOperation(NamespaceName.get(property, namespace),
-                PolicyName.REPLICATION, PolicyOperation.READ);
-
-        return internalGetNamespaceReplicationClusters();
+        validateNamespacePolicyOperationAsync(NamespaceName.get(property, namespace),
+                PolicyName.REPLICATION, PolicyOperation.READ)
+                .thenCompose(__ -> internalGetNamespaceReplicationClustersAsync())
+                .thenAccept(asyncResponse::resume)
+                .exceptionally(e -> {
+                    log.error("[{}] Failed to get namespace replication clusters on namespace {}", clientAppId(),
+                            namespace, e);
+                    resumeAsyncResponseExceptionally(asyncResponse, e);
+                    return null;
+                });
     }
 
     @POST
@@ -379,10 +387,19 @@ public class Namespaces extends NamespacesBase {
             @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist"),
             @ApiResponse(code = 409, message = "Peer-cluster can't be part of replication-cluster"),
             @ApiResponse(code = 412, message = "Namespace is not global or invalid cluster ids") })
-    public void setNamespaceReplicationClusters(@PathParam("property") String property,
-            @PathParam("cluster") String cluster, @PathParam("namespace") String namespace, List<String> clusterIds) {
+    public void setNamespaceReplicationClusters(@Suspended AsyncResponse asyncResponse,
+                                                @PathParam("property") String property,
+                                                @PathParam("cluster") String cluster,
+                                                @PathParam("namespace") String namespace, List<String> clusterIds) {
         validateNamespaceName(property, cluster, namespace);
-        internalSetNamespaceReplicationClusters(clusterIds);
+        internalSetNamespaceReplicationClusters(clusterIds)
+                .thenAccept(asyncResponse::resume)
+                .exceptionally(e -> {
+                    log.error("[{}] Failed to set namespace replication clusters on namespace {}", clientAppId(),
+                            namespace, e);
+                    resumeAsyncResponseExceptionally(asyncResponse, e);
+                    return null;
+                });
     }
 
     @GET
@@ -832,12 +849,20 @@ public class Namespaces extends NamespacesBase {
     @Path("/{property}/{cluster}/{namespace}/subscriptionDispatchRate")
     @ApiOperation(value = "Set Subscription dispatch-rate throttling for all topics of the namespace")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
-    public void setSubscriptionDispatchRate(@PathParam("property") String property,
+    public void setSubscriptionDispatchRate(@Suspended AsyncResponse asyncResponse,
+                                            @PathParam("property") String property,
                                             @PathParam("cluster") String cluster,
                                             @PathParam("namespace") String namespace,
                                             DispatchRateImpl dispatchRate) {
         validateNamespaceName(property, cluster, namespace);
-        internalSetSubscriptionDispatchRate(dispatchRate);
+        internalSetSubscriptionDispatchRateAsync(dispatchRate)
+                .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to set the subscription dispatchRate for cluster on namespace {}",
+                            clientAppId(), namespaceName, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @GET
@@ -847,11 +872,19 @@ public class Namespaces extends NamespacesBase {
             + "in dispatch-rate yet")
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist")})
-    public DispatchRate getSubscriptionDispatchRate(@PathParam("property") String property,
-                                                    @PathParam("cluster") String cluster,
-                                                    @PathParam("namespace") String namespace) {
+    public void getSubscriptionDispatchRate(@Suspended AsyncResponse asyncResponse,
+                                            @PathParam("property") String property,
+                                            @PathParam("cluster") String cluster,
+                                            @PathParam("namespace") String namespace) {
         validateNamespaceName(property, cluster, namespace);
-        return internalGetSubscriptionDispatchRate();
+        internalGetSubscriptionDispatchRateAsync()
+                .thenAccept(asyncResponse::resume)
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to get the subscription dispatchRate for cluster on namespace {}",
+                            clientAppId(), namespaceName, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @DELETE
@@ -860,11 +893,19 @@ public class Namespaces extends NamespacesBase {
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist"),
             @ApiResponse(code = 409, message = "Concurrent modification")})
-    public void deleteSubscriptionDispatchRate(@PathParam("property") String property,
+    public void deleteSubscriptionDispatchRate(@Suspended AsyncResponse asyncResponse,
+                                               @PathParam("property") String property,
                                                @PathParam("cluster") String cluster,
                                                @PathParam("namespace") String namespace) {
         validateNamespaceName(property, cluster, namespace);
-        internalDeleteSubscriptionDispatchRate();
+        internalDeleteSubscriptionDispatchRateAsync()
+                .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to delete the subscription dispatchRate for cluster on namespace {}",
+                            clientAppId(), namespaceName, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @POST

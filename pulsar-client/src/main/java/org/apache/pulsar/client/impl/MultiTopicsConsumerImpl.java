@@ -44,8 +44,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.locks.ReadWriteLock;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -94,8 +92,6 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     private volatile Timeout partitionsAutoUpdateTimeout = null;
     TopicsPartitionChangedListener topicsPartitionChangedListener;
     CompletableFuture<Void> partitionsAutoUpdateFuture = null;
-    private final ReadWriteLock lock = new ReentrantReadWriteLock();
-
     private final ConsumerStatsRecorder stats;
     private UnAckedMessageTracker unAckedMessageTracker;
     private final ConsumerConfigurationData<T> internalConfig;
@@ -423,8 +419,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     protected CompletableFuture<Messages<T>> internalBatchReceiveAsync() {
         CompletableFutureCancellationHandler cancellationHandler = new CompletableFutureCancellationHandler();
         CompletableFuture<Messages<T>> result = cancellationHandler.createFuture();
-        try {
-            lock.writeLock().lock();
+        internalPinnedExecutor.execute(() -> {
             if (hasEnoughMessagesForBatchReceive()) {
                 MessagesImpl<T> messages = getNewMessagesImpl();
                 Message<T> msgPeeked = incomingMessages.peek();
@@ -446,13 +441,11 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 expectMoreIncomingMessages();
                 OpBatchReceive<T> opBatchReceive = OpBatchReceive.of(result);
                 pendingBatchReceives.add(opBatchReceive);
+                triggerBatchReceiveTimeoutTask();
                 cancellationHandler.setCancelAction(() -> pendingBatchReceives.remove(opBatchReceive));
             }
             resumeReceivingFromPausedConsumersIfNeeded();
-        } finally {
-            lock.writeLock().unlock();
-        }
-
+        });
         return result;
     }
 
@@ -695,8 +688,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
     @Override
     public void redeliverUnacknowledgedMessages() {
-        lock.writeLock().lock();
-        try {
+        internalPinnedExecutor.execute(() -> {
             CONSUMER_EPOCH.incrementAndGet(this);
             consumers.values().stream().forEach(consumer -> {
                 consumer.redeliverUnacknowledgedMessages();
@@ -704,9 +696,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             });
             clearIncomingMessages();
             unAckedMessageTracker.clear();
-        } finally {
-            lock.writeLock().unlock();
-        }
+        });
         resumeReceivingFromPausedConsumersIfNeeded();
     }
 
@@ -1134,7 +1124,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                                               Throwable error,
                                               CompletableFuture<Void> subscribeFuture) {
         log.warn("[{}] Failed to subscribe for topic [{}] in topics consumer {}", topic, topicName, error.getMessage());
-        client.externalExecutorProvider().getExecutor().submit(() -> {
+        client.externalExecutorProvider().getExecutor().execute(() -> {
             AtomicInteger toCloseNum = new AtomicInteger(0);
             consumers.values().stream().filter(consumer1 -> {
                 String consumerTopicName = consumer1.getTopic();

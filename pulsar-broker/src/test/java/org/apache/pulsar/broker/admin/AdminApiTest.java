@@ -470,6 +470,10 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         Assert.assertNotNull(list);
         Assert.assertEquals(list.size(), 1);
 
+        List<String> list1 = admin.brokers().getActiveBrokers();
+        Assert.assertNotNull(list1);
+        Assert.assertEquals(list1.size(), 1);
+
         List<String> list2 = otheradmin.brokers().getActiveBrokers("test");
         Assert.assertNotNull(list2);
         Assert.assertEquals(list2.size(), 1);

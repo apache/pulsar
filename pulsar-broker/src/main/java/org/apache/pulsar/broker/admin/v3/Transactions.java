@@ -157,11 +157,13 @@ public class Transactions extends TransactionsBase {
                                           @DefaultValue("false") boolean authoritative,
                                           @PathParam("tenant") String tenant,
                                           @PathParam("namespace") String namespace,
-                                          @PathParam("topic") @Encoded String encodedTopic) {
+                                          @PathParam("topic") @Encoded String encodedTopic,
+                                          @QueryParam("lowWaterMarks") @DefaultValue("false")
+                                                      boolean lowWaterMarks) {
         try {
             checkTransactionCoordinatorEnabled();
             validateTopicName(tenant, namespace, encodedTopic);
-            internalGetTransactionBufferStats(authoritative)
+            internalGetTransactionBufferStats(authoritative, lowWaterMarks)
                     .thenAccept(asyncResponse::resume)
                     .exceptionally(ex -> {
                         if (!isRedirectException(ex)) {
@@ -192,11 +194,12 @@ public class Transactions extends TransactionsBase {
                                    @PathParam("tenant") String tenant,
                                    @PathParam("namespace") String namespace,
                                    @PathParam("topic") @Encoded String encodedTopic,
-                                   @PathParam("subName") String subName) {
+                                   @PathParam("subName") String subName,
+                                   @QueryParam("lowWaterMarks") @DefaultValue("false") boolean lowWaterMarks) {
         try {
             checkTransactionCoordinatorEnabled();
             validateTopicName(tenant, namespace, encodedTopic);
-            internalGetPendingAckStats(authoritative, subName)
+            internalGetPendingAckStats(authoritative, subName, lowWaterMarks)
                     .thenAccept(asyncResponse::resume)
                     .exceptionally(ex -> {
                         if (!isRedirectException(ex)) {

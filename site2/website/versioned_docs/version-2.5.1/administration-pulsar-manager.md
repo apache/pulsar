@@ -145,7 +145,7 @@ The request parameter in curl command:
 
 When using binary packages for direct deployment, you can follow these steps.
 
-- Download and unzip the binary package, which is available on the [Pulsar Download](https://pulsar.apache.org/en/download/) page.
+- Download and unzip the binary package, which is available on the [Pulsar Download](https://pulsar.apache.org/download/) page.
 
   ```bash
   

@@ -20,31 +20,22 @@ package org.apache.pulsar.functions.instance;
 
 import java.util.Map;
 import java.util.Optional;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.extern.slf4j.Slf4j;
+import lombok.EqualsAndHashCode;
+import lombok.ToString;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
-import org.apache.pulsar.client.impl.schema.KeyValueSchemaImpl;
-import org.apache.pulsar.functions.api.KVRecord;
 import org.apache.pulsar.functions.api.Record;
 
-@Slf4j
-@Data
-@AllArgsConstructor
-public class SinkRecord<T> implements Record<T> {
-
+@EqualsAndHashCode(callSuper = true)
+@ToString
+public class SinkRecord<T> extends AbstractSinkRecord<T> {
     private final Record<T> sourceRecord;
     private final T value;
 
-    public Record<T> getSourceRecord() {
-        return sourceRecord;
-    }
-
-    @Override
-    public Optional<String> getTopicName() {
-        return sourceRecord.getTopicName();
+    public SinkRecord(Record<T> sourceRecord, T value) {
+        super(sourceRecord);
+        this.sourceRecord = sourceRecord;
+        this.value = value;
     }
 
     @Override
@@ -72,19 +63,9 @@ public class SinkRecord<T> implements Record<T> {
         return sourceRecord.getRecordSequence();
     }
 
-     @Override
+    @Override
     public Map<String, String> getProperties() {
         return sourceRecord.getProperties();
-    }
-
-    @Override
-    public void ack() {
-        sourceRecord.ack();
-    }
-
-    @Override
-    public void fail() {
-        sourceRecord.fail();
     }
 
     @Override
@@ -94,36 +75,7 @@ public class SinkRecord<T> implements Record<T> {
 
     @Override
     public Schema<T> getSchema() {
-        if (sourceRecord == null) {
-            return null;
-        }
-
-        if (sourceRecord.getSchema() != null) {
-            // unwrap actual schema
-            Schema<T> schema = sourceRecord.getSchema();
-            // AutoConsumeSchema is a special schema, that comes into play
-            // when the Sink is going to handle any Schema
-            // usually you see Sink<GenericObject> or Sink<GenericRecord> in this case
-            if (schema instanceof AutoConsumeSchema) {
-                // extract the Schema from the message, this is the most accurate schema we have
-                // see PIP-85
-                if (sourceRecord.getMessage().isPresent()
-                        && sourceRecord.getMessage().get().getReaderSchema().isPresent()) {
-                    schema = (Schema<T>) sourceRecord.getMessage().get().getReaderSchema().get();
-                } else {
-                    schema = (Schema<T>) ((AutoConsumeSchema) schema).getInternalSchema();
-                }
-            }
-            return schema;
-        }
-
-        if (sourceRecord instanceof KVRecord) {
-            KVRecord kvRecord = (KVRecord) sourceRecord;
-            return KeyValueSchemaImpl.of(kvRecord.getKeySchema(), kvRecord.getValueSchema(),
-                    kvRecord.getKeyValueEncodingType());
-        }
-
-        return null;
+        return getRecordSchema(sourceRecord);
     }
 
     @Override
@@ -134,5 +86,10 @@ public class SinkRecord<T> implements Record<T> {
     @Override
     public Optional<Message<T>> getMessage() {
         return sourceRecord.getMessage();
+    }
+
+    @Override
+    public boolean shouldAlwaysSetMessageProperties() {
+        return false;
     }
 }

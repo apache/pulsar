@@ -62,7 +62,7 @@ public abstract class BatchSink<T, R> implements Sink<R> {
         }
 
         if (currentSize >= batchSize) {
-            flushExecutor.submit(this::flush);
+            flushExecutor.execute(this::flush);
         }
     }
 

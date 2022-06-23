@@ -176,4 +176,11 @@ public abstract class ElasticSearchSinkTester extends SinkTester<ElasticsearchCo
         }
     }
 
+    @Override
+    public void close() throws Exception {
+        if (elasticClient != null) {
+            elasticClient._transport().close();
+            elasticClient = null;
+        }
+    }
 }

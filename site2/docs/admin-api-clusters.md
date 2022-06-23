@@ -38,9 +38,9 @@ New clusters can be provisioned using the admin interface.
 > Please note that this operation requires superuser privileges.
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
-  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"JAVA","value":"JAVA"}]}>
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
 You can provision a new cluster using the [`create`](/tools/pulsar-admin/) subcommand. Here's an example:
@@ -59,7 +59,7 @@ $ pulsar-admin clusters create cluster-1 \
 {@inject: endpoint|PUT|/admin/v2/clusters/:cluster|operation/createCluster?version=@pulsar:version_number@}
 
 </TabItem>
-<TabItem value="JAVA">
+<TabItem value="Java">
 
 ```java
 
@@ -119,9 +119,9 @@ You'll need to use `--*-tls` flags only if you're using [TLS authentication](sec
 You can fetch the [configuration](reference-configuration) for an existing cluster at any time.
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
-  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"JAVA","value":"JAVA"}]}>
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
 Use the [`get`](/tools/pulsar-admin/) subcommand and specify the name of the cluster. Here's an example:
@@ -145,7 +145,7 @@ $ pulsar-admin clusters get cluster-1
 {@inject: endpoint|GET|/admin/v2/clusters/:cluster|operation/getCluster?version=@pulsar:version_number@}
 
 </TabItem>
-<TabItem value="JAVA">
+<TabItem value="Java">
 
 ```java
 
@@ -163,9 +163,9 @@ admin.clusters().getCluster(clusterName);
 You can update the configuration for an existing cluster at any time.
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
-  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"JAVA","value":"JAVA"}]}>
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
 Use the [`update`](/tools/pulsar-admin/) subcommand and specify new configuration values using flags.
@@ -184,7 +184,7 @@ $ pulsar-admin clusters update cluster-1 \
 {@inject: endpoint|POST|/admin/v2/clusters/:cluster|operation/updateCluster?version=@pulsar:version_number@}
 
 </TabItem>
-<TabItem value="JAVA">
+<TabItem value="Java">
 
 ```java
 
@@ -208,9 +208,9 @@ admin.clusters().updateCluster(clusterName, clusterData);
 Clusters can be deleted from a Pulsar [instance](reference-terminology.md#instance).
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
-  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"JAVA","value":"JAVA"}]}>
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
 Use the [`delete`](/tools/pulsar-admin/) subcommand and specify the name of the cluster.
@@ -227,7 +227,7 @@ $ pulsar-admin clusters delete cluster-1
 {@inject: endpoint|DELETE|/admin/v2/clusters/:cluster|operation/deleteCluster?version=@pulsar:version_number@}
 
 </TabItem>
-<TabItem value="JAVA">
+<TabItem value="Java">
 
 ```java
 
@@ -245,9 +245,9 @@ admin.clusters().deleteCluster(clusterName);
 You can fetch a list of all clusters in a Pulsar [instance](reference-terminology.md#instance).
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
-  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"JAVA","value":"JAVA"}]}>
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
 Use the [`list`](/tools/pulsar-admin/) subcommand.
@@ -266,7 +266,7 @@ cluster-2
 {@inject: endpoint|GET|/admin/v2/clusters|operation/getClusters?version=@pulsar:version_number@}
 
 </TabItem>
-<TabItem value="JAVA">
+<TabItem value="Java">
 
 ```java
 
@@ -284,9 +284,9 @@ admin.clusters().getClusters();
 Peer clusters can be configured for a given cluster in a Pulsar [instance](reference-terminology.md#instance).
 
 ````mdx-code-block
-<Tabs 
+<Tabs groupId="api-choice"
   defaultValue="pulsar-admin"
-  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"JAVA","value":"JAVA"}]}>
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"Java","value":"Java"}]}>
 <TabItem value="pulsar-admin">
 
 Use the [`update-peer-clusters`](/tools/pulsar-admin/) subcommand and specify the list of peer-cluster names.
@@ -303,7 +303,7 @@ $ pulsar-admin update-peer-clusters cluster-1 --peer-clusters cluster-2
 {@inject: endpoint|POST|/admin/v2/clusters/:cluster/peers|operation/setPeerClusterNames?version=@pulsar:version_number@}
 
 </TabItem>
-<TabItem value="JAVA">
+<TabItem value="Java">
 
 ```java
 
