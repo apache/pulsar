@@ -23,6 +23,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import javax.ws.rs.BadRequestException;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.http.HttpStatus;
@@ -601,19 +602,21 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
 
          Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
          MessageIdImpl messageId = (MessageIdImpl) message.getMessageId();
-         PositionInPendingAckStats result = admin.transactions().checkPositionInPendingAckState(topic, subName,
-                 new PositionImpl(messageId.getLedgerId(), messageId.getEntryId()).toString(), null);
-         assertEquals(result.state, PositionInPendingAckStats.State.NotInPendingAck);
 
+         try {
+             admin.transactions().checkPositionInPendingAckState(topic, subName,
+                     new PositionImpl(messageId.getLedgerId(), messageId.getEntryId()).toString(), null);
+         } catch (PulsarAdminException pulsarAdminException) {
+             assertTrue(pulsarAdminException.getCause() instanceof BadRequestException);
+         }
          consumer.acknowledgeAsync(messageId, transaction).get();
+         PositionInPendingAckStats result = admin.transactions().checkPositionInPendingAckState(topic, subName,
+                new PositionImpl(messageId.getLedgerId(), messageId.getEntryId()).toString(), null);
+         assertEquals(result.state, PositionInPendingAckStats.State.PendingAck);
+         transaction.commit().get();
          result = admin.transactions().checkPositionInPendingAckState(topic, subName,
                 new PositionImpl(messageId.getLedgerId(), messageId.getEntryId()).toString(), null);
-        assertEquals(result.state, PositionInPendingAckStats.State.PendingAck);
-        transaction.commit().get();
-
-        result = admin.transactions().checkPositionInPendingAckState(topic, subName,
-                new PositionImpl(messageId.getLedgerId(), messageId.getEntryId()).toString(), null);
-        assertEquals(result.state, PositionInPendingAckStats.State.MarkDelete);
+         assertEquals(result.state, PositionInPendingAckStats.State.MarkDelete);
     }
 
     @Test
