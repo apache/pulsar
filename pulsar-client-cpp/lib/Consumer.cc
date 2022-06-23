@@ -250,4 +250,21 @@ Result Consumer::seek(uint64_t timestamp) {
 
 bool Consumer::isConnected() const { return impl_ && impl_->isConnected(); }
 
+void Consumer::getLastMessageIdAsync(GetLastMessageIdCallback callback) {
+    if (!impl_) {
+        callback(ResultConsumerNotInitialized, MessageId());
+        return;
+    }
+    getLastMessageIdAsync([callback](Result result, const GetLastMessageIdResponse& response) {
+        callback(result, response.getLastMessageId());
+    });
+}
+
+Result Consumer::getLastMessageId(MessageId& messageId) {
+    Promise<Result, MessageId> promise;
+
+    getLastMessageIdAsync(WaitForCallbackValue<MessageId>(promise));
+    return promise.getFuture().get(messageId);
+}
+
 }  // namespace pulsar

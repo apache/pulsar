@@ -68,7 +68,7 @@ use one of these root URLs for interacting with your cluster:
 * `pulsar://localhost:6650`
 * `http://localhost:8080`
 
-Here's an example that lets you quickly get started with Pulsar by using the [Python](client-libraries-python)
+Here's an example that lets you quickly get started with Pulsar by using the [Python](client-libraries-python.md)
 client API.
 
 You can install the Pulsar Python client library directly from [PyPI](https://pypi.org/project/pulsar-client/):
