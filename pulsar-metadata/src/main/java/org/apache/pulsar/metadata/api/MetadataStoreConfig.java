@@ -20,12 +20,14 @@ package org.apache.pulsar.metadata.api;
 
 import lombok.Builder;
 import lombok.Getter;
+import lombok.ToString;
 
 /**
  * The configuration builder for a {@link MetadataStore} config.
  */
 @Builder
 @Getter
+@ToString
 public class MetadataStoreConfig {
 
     /**

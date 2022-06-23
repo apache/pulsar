@@ -62,7 +62,7 @@ public class BatchDataGeneratorPushSource extends BatchPushSource<Person> implem
   public void prepare(byte[] instanceSplit) throws Exception {
     log.info("Instance " + sourceContext.getInstanceId() + " got a new discovered task {}",
             new String(instanceSplit, StandardCharsets.UTF_8));
-    executor.submit(this);
+    executor.execute(this);
   }
 
   @Override

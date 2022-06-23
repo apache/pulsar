@@ -114,8 +114,6 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
     @BeforeMethod
     @Override
     protected void setup() throws Exception {
-        this.conf.setSystemTopicEnabled(true);
-        this.conf.setTopicLevelPoliciesEnabled(true);
         this.conf.setDefaultNumberOfNamespaceBundles(1);
         super.internalSetup();
 

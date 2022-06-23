@@ -47,6 +47,11 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
     /** Total rate of messages redelivered on this subscription (msg/s). */
     public double msgRateRedeliver;
 
+    /**
+     * Total rate of message ack(msg/s).
+     */
+    public double messageAckRate;
+
     /** Chunked message dispatch rate. */
     public int chunkedMessageRate;
 

@@ -90,7 +90,7 @@ public class RedisSink implements Sink<byte[]> {
             currentSize = incomingList.size();
         }
         if (currentSize == batchSize) {
-            flushExecutor.submit(this::flush);
+            flushExecutor.execute(this::flush);
         }
     }
 

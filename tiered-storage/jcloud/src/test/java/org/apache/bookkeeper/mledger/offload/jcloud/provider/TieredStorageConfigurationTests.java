@@ -22,6 +22,8 @@ import static org.testng.Assert.assertEquals;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
+
 import org.jclouds.domain.Credentials;
 import org.testng.annotations.Test;
 
@@ -204,5 +206,20 @@ public class TieredStorageConfigurationTests {
         assertEquals(config.getBucket(), "test bucket");
         assertEquals(config.getMaxBlockSizeInBytes(), new Integer(12));
         assertEquals(config.getReadBufferSizeInBytes(), new Integer(500));
+    }
+
+    @Test
+    public void overridePropertiesTest() {
+        Map<String, String> map = new HashMap<>();
+        map.put("s3ManagedLedgerOffloadServiceEndpoint", "http://localhost");
+        map.put("s3ManagedLedgerOffloadRegion", "my-region");
+        System.setProperty("jclouds.SystemPropertyA", "A");
+        System.setProperty("jclouds.region", "jclouds-region");
+        TieredStorageConfiguration config = new TieredStorageConfiguration(map);
+        Properties properties = config.getOverrides();
+        System.out.println(properties.toString());
+        assertEquals(properties.get("jclouds.region"), "jclouds-region");
+        assertEquals(config.getServiceEndpoint(), "http://localhost");
+        assertEquals(properties.get("jclouds.SystemPropertyA"), "A");
     }
 }

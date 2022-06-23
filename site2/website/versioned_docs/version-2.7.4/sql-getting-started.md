@@ -1,7 +1,7 @@
 ---
-id: version-2.7.4-sql-getting-started
+id: sql-getting-started
 title: Query data with Pulsar SQL
-sidebar_label: Query data
+sidebar_label: "Query data"
 original_id: sql-getting-started
 ---
 
@@ -17,24 +17,31 @@ To query data in Pulsar with Pulsar SQL, complete the following steps.
 1. Start a Pulsar standalone cluster.
 
 ```bash
+
 ./bin/pulsar standalone
+
 ```
 
 2. Start a Pulsar SQL worker.
 
 ```bash
+
 ./bin/pulsar sql-worker run
+
 ```
 
 3. After initializing Pulsar standalone cluster and the SQL worker, run SQL CLI.
 
 ```bash
+
 ./bin/pulsar sql
+
 ```
 
 4. Test with SQL commands.
 
 ```bash
+
 presto> show catalogs;
  Catalog 
 ---------
@@ -77,12 +84,15 @@ Since there is no data in Pulsar, no records is returned.
 5. Start the built-in connector _DataGeneratorSource_ and ingest some mock data.
 
 ```bash
+
 ./bin/pulsar-admin sources create --name generator --destinationTopicName generator_test --source-type data-generator
+
 ```
 
 And then you can query a topic in the namespace "public/default".
 
 ```bash
+
 presto> show tables in pulsar."public/default";
      Table      
 ----------------
@@ -92,11 +102,13 @@ presto> show tables in pulsar."public/default";
 Query 20180829_213202_00000_csyeu, FINISHED, 1 node
 Splits: 19 total, 19 done (100.00%)
 0:02 [1 rows, 38B] [0 rows/s, 17B/s]
+
 ```
 
 You can now query the data within the topic "generator_test".
 
 ```bash
+
 presto> select * from pulsar."public/default".generator_test;
 
   firstname  | middlename  |  lastname   |              email               |   username   | password | telephonenumber | age |                 companyemail                  | nationalidentitycardnumber | 
@@ -110,6 +122,7 @@ presto> select * from pulsar."public/default".generator_test;
 .
 .
 .
+
 ```
 
 You can query the mock data.
@@ -118,6 +131,7 @@ You can query the mock data.
 If you want to query your own data, you need to ingest your own data first. You can write a simple producer and write custom defined data to Pulsar. The following is an example. 
 
 ```java
+
 public class TestProducer {
 
     public static class Foo {
@@ -168,4 +182,6 @@ public class TestProducer {
         pulsarClient.close();
     }
 }
+
 ```
+

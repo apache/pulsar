@@ -38,6 +38,7 @@ import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
+import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
@@ -360,4 +361,24 @@ public class PulsarSourceTest {
 
         fail("Unknown config type");
     }
+
+
+    @Test(dataProvider = "sourceImpls")
+    public void testPulsarRecordCustomAck(PulsarSourceConfig pulsarSourceConfig) throws Exception {
+
+        PulsarSource pulsarSource = getPulsarSource(pulsarSourceConfig);
+        Message message = Mockito.mock(Message.class);
+        Consumer consumer = Mockito.mock(Consumer.class);
+        Mockito.when(consumer.acknowledgeAsync(message)).thenReturn(CompletableFuture.completedFuture(null));
+        Mockito.when(consumer.acknowledgeCumulativeAsync(message)).thenReturn(CompletableFuture.completedFuture(null));
+
+        PulsarRecord record = (PulsarRecord) pulsarSource.buildRecord(consumer, message);
+
+        record.cumulativeAck();
+        Mockito.verify(consumer, Mockito.times(1)).acknowledgeCumulativeAsync(message);
+
+        record.individualAck();
+        Mockito.verify(consumer, Mockito.times(1)).acknowledgeAsync(message);
+    }
+
 }

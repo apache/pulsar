@@ -1,7 +1,7 @@
 ---
 author: Matteo Merli
 authorURL: https://twitter.com/merlimat
-title: Apache Pulsar 2.3.0
+title: "Apache Pulsar 2.3.0"
 ---
 
 The Apache Pulsar PMC is happy to announce the release of Pulsar 2.3.0. This
@@ -39,8 +39,7 @@ between different instances and functions.
 A new batch of connectors was added, including MongoDB, Elastic Search,
 HBase and local files source and sink.
 
-We introduce support for doing
-[Change-Data-Capture](https://en.wikipedia.org/wiki/Change_data_capture)
+We introduce support for doing [Change-Data-Capture](https://en.wikipedia.org/wiki/Change_data_capture)
 with [Debezium](https://debezium.io/). This allows to record all
 the update from a database into a Pulsar topic and use it for replication,
 streaming jobs, cache updating, etc..
@@ -65,11 +64,13 @@ form of an opaque string provided by either the system administrator or some aut
 The Java code for a client using token authentication will look like:
 
 ```java
+
 PulsarClient client = PulsarClient.builder()
     .serviceUrl("pulsar://broker.example.com:6650/")
     .authentication(
         AuthenticationFactory.token("eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJKb2UifQ.ipevRNuRP6HflG8cFKnmUPtypruRC4fb1DWtoLL62SY")
     .build();
+
 ```
 
 See [Client Authentication using tokens](/docs/security-token-client) for a complete walk through
@@ -83,6 +84,7 @@ of a producer or consumer and integrates directly with the Pulsar
 schema registry.
 
 ```python
+
 import pulsar
 from pulsar.schema import *
 
@@ -96,6 +98,7 @@ producer = client.create_producer(
                     schema=AvroSchema(Example) )
 
 producer.send(Example(a='Hello', b=1))
+
 ```
 
 The above example will make the producer `Example` schema to be
@@ -114,6 +117,7 @@ From 2.3.0, Python function can access the state in as similar
 way as Java functions, through the context object.
 
 ```python
+
 import pulsar
 
 # The classic ExclamationFunction that appends an
@@ -123,13 +127,15 @@ class WordCountFunction(pulsar.Function):
         for word in input.split():
             context.incr_counter(word, 1)
         return input + "!"
+
 ```
 
 Available methods for state management in the context object are:
 
 ```python
+
 def incr_counter(self, key, amount):
-  """incr the counter of a given key in the managed state"""
+  ""incr the counter of a given key in the managed state""
 
 def get_counter(self, key):
   """get the counter of a given key in the managed state"""
@@ -139,6 +145,7 @@ def put_state(self, key, value):
 
 def get_state(self, key):
   """get the value of a given key in the managed state"""
+
 ```
 
 ## Conclusion

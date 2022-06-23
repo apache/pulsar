@@ -104,6 +104,8 @@ public class BacklogQuotaManagerTest {
             config.setManagedLedgerMaxEntriesPerLedger(MAX_ENTRIES_PER_LEDGER);
             config.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
             config.setAllowAutoTopicCreationType("non-partitioned");
+            config.setSystemTopicEnabled(false);
+            config.setTopicLevelPoliciesEnabled(false);
 
             pulsar = new PulsarService(config);
             pulsar.start();

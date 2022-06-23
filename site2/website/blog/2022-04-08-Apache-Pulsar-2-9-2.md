@@ -1,9 +1,11 @@
 ---
 author: gaoran10, Anonymitaet
-title: What’s New in Apache Pulsar 2.9.2
+title: "What’s New in Apache Pulsar 2.9.2"
 ---
 
 The Apache Pulsar community releases version 2.9.2! 60 contributors provided improvements and bug fixes that delivered 317 commits.
+
+<!--truncate-->
 
 Highlights of this release are as below:
 
@@ -124,8 +126,7 @@ If you are interested in learning more about Pulsar 2.9.2, you can [download](ht
 **Pulsar Summit San Francisco 2022** will take place on August 18th, 2022. [Register now](https://pulsar-summit.org/) and help us make it an even bigger success by spreading the word on social media!
 
 For more information about the Apache Pulsar project and current progress, visit
-the [Pulsar website](https://pulsar.apache.org), follow the project on Twitter
-[@apache_pulsar](https://twitter.com/apache_pulsar), and join [Pulsar Slack](https://apache-pulsar.herokuapp.com/)!
+the [Pulsar website](https://pulsar.apache.org), follow the project on Twitter [@apache_pulsar](https://twitter.com/apache_pulsar), and join [Pulsar Slack](https://apache-pulsar.herokuapp.com/)!
 
 
 

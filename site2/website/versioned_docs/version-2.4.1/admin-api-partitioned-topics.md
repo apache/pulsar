@@ -1,17 +1,19 @@
 ---
-id: version-2.4.1-admin-api-partitioned-topics
+id: admin-api-partitioned-topics
 title: Managing partitioned topics
-sidebar_label: Partitioned topics
+sidebar_label: "Partitioned topics"
 original_id: admin-api-partitioned-topics
 ---
 
 
-You can use Pulsar's [admin API](admin-api-overview.md) to create and manage partitioned topics.
+You can use Pulsar's [admin API](admin-api-overview) to create and manage partitioned topics.
 
 In all of the instructions and commands below, the topic name structure is:
 
 ```shell
+
 persistent://tenant/namespace/topic
+
 ```
 
 ## Partitioned topics resources
@@ -21,15 +23,14 @@ persistent://tenant/namespace/topic
 Partitioned topics in Pulsar must be explicitly created. When creating a new partitioned topic you
 need to provide a name for the topic as well as the desired number of partitions.
 
-> #### Note
->
-> By default, after 60 seconds of creation, topics are considered inactive and deleted automatically to prevent from generating trash data.
->
-> To disable this feature, set `brokerDeleteInactiveTopicsEnabled`  to `false`.
->
-> To change the frequency of checking inactive topics, set `brokerDeleteInactiveTopicsFrequencySeconds` to your desired value.
->
-> For more information about these two parameters, see [here](reference-configuration.md#broker).
+:::note
+
+By default, after 60 seconds of creation, topics are considered inactive and deleted automatically to prevent from generating trash data.
+To disable this feature, set `brokerDeleteInactiveTopicsEnabled`  to `false`.
+To change the frequency of checking inactive topics, set `brokerDeleteInactiveTopicsFrequencySeconds` to your desired value.
+For more information about these two parameters, see [here](reference-configuration.md#broker).
+
+:::
 
 #### pulsar-admin
 
@@ -38,21 +39,25 @@ command and specifying the topic name as an argument and the number of partition
 Here's an example:
 
 ```shell
+
 $ bin/pulsar-admin topics create-partitioned-topic \
   persistent://my-tenant/my-namespace/my-topic \
   --partitions 4
+
 ```
 
 #### REST API
 
-{@inject: endpoint|PUT|/admin/v2/:schema/:tenant/:namespace/:topic/partitions|operation/createPartitionedTopic?version=[[pulsar:version_number]]}
+{@inject: endpoint|PUT|/admin/v2/:schema/:tenant/:namespace/:topic/partitions|operation/createPartitionedTopic?version=@pulsar:version_number@}
 
 #### Java
 
 ```java
+
 String topicName = "persistent://my-tenant/my-namespace/my-topic";
 int numPartitions = 4;
 admin.persistentTopics().createPartitionedTopic(topicName, numPartitions);
+
 ```
 
 ## Nonpartitioned topics resources
@@ -62,15 +67,14 @@ admin.persistentTopics().createPartitionedTopic(topicName, numPartitions);
 Nonpartitioned topics in Pulsar must be explicitly created if allowAutoTopicCreation or createIfMissing is disabled.
 When creating a non-partitioned topic, you need to provide a topic name.
 
-> #### Note
->
-> By default, after 60 seconds of creation, topics are considered inactive and deleted automatically to prevent from generating trash data.
->
-> To disable this feature, set `brokerDeleteInactiveTopicsEnabled` to `false`.
->
-> To change the frequency of checking inactive topics, set `brokerDeleteInactiveTopicsFrequencySeconds` to your desired value.
->
-> For more information about these two parameters, see [here](reference-configuration.md#broker).
+:::note
+
+By default, after 60 seconds of creation, topics are considered inactive and deleted automatically to prevent from generating trash data.
+To disable this feature, set `brokerDeleteInactiveTopicsEnabled` to `false`.
+To change the frequency of checking inactive topics, set `brokerDeleteInactiveTopicsFrequencySeconds` to your desired value.
+For more information about these two parameters, see [here](reference-configuration.md#broker).
+
+:::
 
 #### pulsar-admin
 
@@ -78,18 +82,22 @@ You can create non-partitioned topics using the [`create`](reference-pulsar-admi
 command and specifying the topic name as an argument. This is an example command:
 
 ```shell
+
 $ bin/pulsar-admin topics create persistent://my-tenant/my-namespace/my-topic
-``` 
+
+```
 
 #### REST API
 
-{@inject: endpoint|PUT|admin/v2/:schema/:tenant/:namespace/:topic|operation/createNonPartitionedTopic?version=[[pulsar:version_number]]}
+{@inject: endpoint|PUT|admin/v2/:schema/:tenant/:namespace/:topic|operation/createNonPartitionedTopic?version=@pulsar:version_number@}
 
 #### Java
 
 ```java
+
 String topicName = "persistent://my-tenant/my-namespace/my-topic";
 admin.topics().createNonPartitionedTopic(topicName);
+
 ```
 
 ### Get metadata
@@ -103,27 +111,30 @@ Field | Meaning
 
 #### pulsar-admin
 
-You can see the number of partitions in a partitioned topic using the
-[`get-partitioned-topic-metadata`](reference-pulsar-admin.md#get-partitioned-topic-metadata)
+You can see the number of partitions in a partitioned topic using the [`get-partitioned-topic-metadata`](reference-pulsar-admin.md#get-partitioned-topic-metadata)
 subcommand. Here's an example:
 
 ```shell
+
 $ pulsar-admin topics get-partitioned-topic-metadata \
   persistent://my-tenant/my-namespace/my-topic
 {
   "partitions": 4
 }
+
 ```
 
 #### REST API
 
-{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/partitions|operation/getPartitionedMetadata?version=[[pulsar:version_number]]}
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/partitions|operation/getPartitionedMetadata?version=@pulsar:version_number@}
 
 #### Java
 
 ```java
+
 String topicName = "persistent://my-tenant/my-namespace/my-topic";
 admin.persistentTopics().getPartitionedTopicMetadata(topicName);
+
 ```
 
 ### Update
@@ -138,45 +149,51 @@ Already created partitioned producers and consumers will automatically find the 
 
 #### pulsar-admin
 
-Partitioned topics can be updated using the
-[`update-partitioned-topic`](reference-pulsar-admin.md#update-partitioned-topic) command.
+Partitioned topics can be updated using the [`update-partitioned-topic`](reference-pulsar-admin.md#update-partitioned-topic) command.
 
 ```shell
+
 $ pulsar-admin topics update-partitioned-topic \
   persistent://my-tenant/my-namespace/my-topic \
   --partitions 8
+
 ```
 
 #### REST API
 
-{@inject: endpoint|POST|/admin/v2/:schema/:tenant/:cluster/:namespace/:destination/partitions|operation/updatePartitionedTopic?version=[[pulsar:version_number]]}
+{@inject: endpoint|POST|/admin/v2/:schema/:tenant/:cluster/:namespace/:destination/partitions|operation/updatePartitionedTopic?version=@pulsar:version_number@}
 
 #### Java
 
 ```java
+
 admin.persistentTopics().updatePartitionedTopic(persistentTopic, numPartitions);
+
 ```
 
 ### Delete
 
 #### pulsar-admin
 
-Partitioned topics can be deleted using the
-[`delete-partitioned-topic`](reference-pulsar-admin.md#delete-partitioned-topic) command, specifying the topic by name:
+Partitioned topics can be deleted using the [`delete-partitioned-topic`](reference-pulsar-admin.md#delete-partitioned-topic) command, specifying the topic by name:
 
 ```shell
+
 $ bin/pulsar-admin topics delete-partitioned-topic \
   persistent://my-tenant/my-namespace/my-topic
+
 ```
 
 #### REST API
 
-{@inject: endpoint|DELETE|/admin/v2/:schema/:topic/:namespace/:destination/partitions|operation/deletePartitionedTopic?version=[[pulsar:version_number]]}
+{@inject: endpoint|DELETE|/admin/v2/:schema/:topic/:namespace/:destination/partitions|operation/deletePartitionedTopic?version=@pulsar:version_number@}
 
 #### Java
 
 ```java
+
 admin.persistentTopics().delete(persistentTopic);
+
 ```
 
 ### List
@@ -186,19 +203,23 @@ It provides a list of persistent topics existing under a given namespace.
 #### pulsar-admin
 
 ```shell
+
 $ pulsar-admin topics list tenant/namespace
 persistent://tenant/namespace/topic1
 persistent://tenant/namespace/topic2
+
 ```
 
 #### REST API
 
-{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace|operation/getPartitionedTopicList?version=[[pulsar:version_number]]}
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace|operation/getPartitionedTopicList?version=@pulsar:version_number@}
 
 #### Java
 
 ```java
+
 admin.persistentTopics().getList(namespace);
+
 ```
 
 ### Stats
@@ -206,6 +227,7 @@ admin.persistentTopics().getList(namespace);
 It shows current statistics of a given partitioned topic. Here's an example payload:
 
 ```json
+
 {
   "msgRateIn": 4641.528542257553,
   "msgThroughputIn": 44663039.74947473,
@@ -236,6 +258,7 @@ It shows current statistics of a given partitioned topic. Here's an example payl
   },
   "replication": {}
 }
+
 ```
 
 The following stats are available:
@@ -270,23 +293,26 @@ The following stats are available:
 
 #### pulsar-admin
 
-The stats for the partitioned topic and its connected producers and consumers can be fetched by using the
-[`partitioned-stats`](reference-pulsar-admin.md#partitioned-stats) command, specifying the topic by name:
+The stats for the partitioned topic and its connected producers and consumers can be fetched by using the [`partitioned-stats`](reference-pulsar-admin.md#partitioned-stats) command, specifying the topic by name:
 
 ```shell
+
 $ pulsar-admin topics partitioned-stats \
   persistent://test-tenant/namespace/topic \
-  --per-partition        
+  --per-partition
+
 ```
 
 #### REST API
 
-{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/partitioned-stats|operation/getPartitionedStats?version=[[pulsar:version_number]]}
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/partitioned-stats|operation/getPartitionedStats?version=@pulsar:version_number@}
 
 #### Java
 
 ```java
+
 admin.persistentTopics().getStats(persistentTopic);
+
 ```
 
 ### Internal stats
@@ -318,8 +344,8 @@ It shows detailed statistics of a topic.
 |individuallyDeletedMessages|If Acks are being done out of order, shows the ranges of messages Acked between the markDeletePosition and the read-position|
 |lastLedgerSwitchTimestamp|The last time the cursor ledger was rolled over|
 
-
 ```json
+
 {
   "entriesAddedCounter": 20449518,
   "numberOfEntries": 3233,
@@ -354,24 +380,29 @@ It shows detailed statistics of a topic.
     }
   }
 }
+
 ```
 
 #### pulsar-admin
 
-The internal stats for the partitioned topic can be fetched by using the
-[`stats-internal`](reference-pulsar-admin.md#stats-internal) command, specifying the topic by name:
+The internal stats for the partitioned topic can be fetched by using the [`stats-internal`](reference-pulsar-admin.md#stats-internal) command, specifying the topic by name:
 
 ```shell
+
 $ pulsar-admin topics stats-internal \
   persistent://test-tenant/namespace/topic
+
 ```
 
 #### REST API
 
-{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/internalStats|operation/getInternalStats?version=[[pulsar:version_number]]}
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/internalStats|operation/getInternalStats?version=@pulsar:version_number@}
 
 #### Java
 
 ```java
+
 admin.persistentTopics().getInternalStats(persistentTopic);
+
 ```
+

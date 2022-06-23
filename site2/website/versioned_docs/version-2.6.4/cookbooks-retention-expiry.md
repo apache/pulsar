@@ -1,7 +1,7 @@
 ---
-id: version-2.6.4-cookbooks-retention-expiry
+id: cookbooks-retention-expiry
 title: Message retention and expiry
-sidebar_label: Message retention and expiry
+sidebar_label: "Message retention and expiry"
 original_id: cookbooks-retention-expiry
 ---
 
@@ -16,7 +16,7 @@ In Pulsar, you can modify this behavior, with namespace granularity, in two ways
 * You can persistently store messages that are not within a backlog (because they've been acknowledged by on every existing subscription, or because there are no subscriptions) by setting [retention policies](#retention-policies).
 * Messages that are not acknowledged within a specified timeframe can be automatically acknowledged, by specifying the [time to live](#time-to-live-ttl) (TTL).
 
-Pulsar's [admin interface](admin-api-overview.md) enables you to manage both retention policies and TTL with namespace granularity (and thus within a specific tenant and either on a specific cluster or in the [`global`](concepts-architecture-overview.md#global-cluster) cluster).
+Pulsar's [admin interface](admin-api-overview) enables you to manage both retention policies and TTL with namespace granularity (and thus within a specific tenant and either on a specific cluster or in the [`global`](concepts-architecture-overview.md#global-cluster) cluster).
 
 
 > #### Retention and TTL solve two different problems
@@ -57,40 +57,46 @@ Use the [`set-retention`](reference-pulsar-admin.md#namespaces-set-retention) su
 To set a size limit of 10 gigabytes and a time limit of 3 hours for the `my-tenant/my-ns` namespace:
 
 ```shell
+
 $ pulsar-admin namespaces set-retention my-tenant/my-ns \
   --size 10G \
   --time 3h
+
 ```
 
 To set retention with a size limit but without a time limit:
 
 ```shell
+
 $ pulsar-admin namespaces set-retention my-tenant/my-ns \
   --size 1T \
   --time -1
+
 ```
 
 Retention can be configured to be unlimited both in size and time:
 
 ```shell
+
 $ pulsar-admin namespaces set-retention my-tenant/my-ns \
   --size -1 \
   --time -1
+
 ```
-
-
 
 #### REST API
 
-{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/retention|operation/setRetention?version=[[pulsar:version_number]]}
+{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/retention|operation/setRetention?version=@pulsar:version_number@}
 
 #### Java
 
 ```java
+
 int retentionTime = 10; // 10 minutes
 int retentionSize = 500; // 500 megabytes
 RetentionPolicies policies = new RetentionPolicies(retentionTime, retentionSize);
 admin.namespaces().setRetention(namespace, policies);
+
 ```
 
 ### Get retention policy
@@ -104,21 +110,25 @@ Use the [`get-retention`](reference-pulsar-admin.md#namespaces) subcommand and s
 ##### Example
 
 ```shell
+
 $ pulsar-admin namespaces get-retention my-tenant/my-ns
 {
   "retentionTimeInMinutes": 10,
   "retentionSizeInMB": 0
 }
+
 ```
 
 #### REST API
 
-{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/retention|operation/getRetention?version=[[pulsar:version_number]]}
+{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/retention|operation/getRetention?version=@pulsar:version_number@}
 
 #### Java
 
 ```java
+
 admin.namespaces().getRetention(namespace);
+
 ```
 
 ## Backlog quotas
@@ -158,22 +168,26 @@ Use the [`set-backlog-quota`](reference-pulsar-admin.md#namespaces) subcommand a
 ##### Example
 
 ```shell
+
 $ pulsar-admin namespaces set-backlog-quota my-tenant/my-ns \
   --limit 2G \
   --policy producer_request_hold
+
 ```
 
 #### REST API
 
-{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/backlogQuota|operation/getBacklogQuotaMap?version=[[pulsar:version_number]]}
+{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/backlogQuota|operation/getBacklogQuotaMap?version=@pulsar:version_number@}
 
 #### Java
 
 ```java
+
 long sizeLimit = 2147483648L;
 BacklogQuota.RetentionPolicy policy = BacklogQuota.RetentionPolicy.producer_request_hold;
 BacklogQuota quota = new BacklogQuota(sizeLimit, policy);
 admin.namespaces().setBacklogQuota(namespace, quota);
+
 ```
 
 ### Get backlog threshold and backlog retention policy
@@ -185,6 +199,7 @@ You can see which size threshold and backlog retention policy has been applied t
 Use the [`get-backlog-quotas`](reference-pulsar-admin.md#pulsar-admin-namespaces-get-backlog-quotas) subcommand and specify a namespace. Here's an example:
 
 ```shell
+
 $ pulsar-admin namespaces get-backlog-quotas my-tenant/my-ns
 {
   "destination_storage": {
@@ -192,17 +207,20 @@ $ pulsar-admin namespaces get-backlog-quotas my-tenant/my-ns
     "policy" : "producer_request_hold"
   }
 }
+
 ```
 
 #### REST API
 
-{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/backlogQuotaMap|operation/getBacklogQuotaMap?version=[[pulsar:version_number]]}
+{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/backlogQuotaMap|operation/getBacklogQuotaMap?version=@pulsar:version_number@}
 
 #### Java
 
 ```java
+
 Map<BacklogQuota.BacklogQuotaType,BacklogQuota> quotas =
   admin.namespaces().getBacklogQuotas(namespace);
+
 ```
 
 ### Remove backlog quotas
@@ -212,17 +230,21 @@ Map<BacklogQuota.BacklogQuotaType,BacklogQuota> quotas =
 Use the [`remove-backlog-quota`](reference-pulsar-admin.md#pulsar-admin-namespaces-remove-backlog-quota) subcommand and specify a namespace. Here's an example:
 
 ```shell
+
 $ pulsar-admin namespaces remove-backlog-quota my-tenant/my-ns
+
 ```
 
 #### REST API
 
-{@inject: endpoint|DELETE|/admin/v2/namespaces/:tenant/:namespace/backlogQuota|operation/removeBacklogQuota?version=[[pulsar:version_number]]}
+{@inject: endpoint|DELETE|/admin/v2/namespaces/:tenant/:namespace/backlogQuota|operation/removeBacklogQuota?version=@pulsar:version_number@}
 
 #### Java
 
 ```java
+
 admin.namespaces().removeBacklogQuota(namespace);
+
 ```
 
 ### Clear backlog
@@ -234,7 +256,9 @@ Use the [`clear-backlog`](reference-pulsar-admin.md#pulsar-admin-namespaces-clea
 ##### Example
 
 ```shell
+
 $ pulsar-admin namespaces clear-backlog my-tenant/my-ns
+
 ```
 
 By default, you will be prompted to ensure that you really want to clear the backlog for the namespace. You can override the prompt using the `-f`/`--force` flag.
@@ -252,18 +276,22 @@ Use the [`set-message-ttl`](reference-pulsar-admin.md#pulsar-admin-namespaces-se
 ##### Example
 
 ```shell
+
 $ pulsar-admin namespaces set-message-ttl my-tenant/my-ns \
   --messageTTL 120 # TTL of 2 minutes
+
 ```
 
 #### REST API
 
-{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/messageTTL|operation/setNamespaceMessageTTL?version=[[pulsar:version_number]]}
+{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/messageTTL|operation/setNamespaceMessageTTL?version=@pulsar:version_number@}
 
 #### Java
 
 ```java
+
 admin.namespaces().setNamespaceMessageTTL(namespace, ttlInSeconds);
+
 ```
 
 ### Get the TTL configuration for a namespace
@@ -275,18 +303,22 @@ Use the [`get-message-ttl`](reference-pulsar-admin.md#pulsar-admin-namespaces-ge
 ##### Example
 
 ```shell
+
 $ pulsar-admin namespaces get-message-ttl my-tenant/my-ns
 60
+
 ```
 
 #### REST API
 
-{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/messageTTL|operation/getNamespaceMessageTTL?version=[[pulsar:version_number]]}
+{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/messageTTL|operation/getNamespaceMessageTTL?version=@pulsar:version_number@}
 
 #### Java
 
 ```java
+
 admin.namespaces().getNamespaceMessageTTL(namespace)
+
 ```
 
 ### Remove the TTL configuration for a namespace
@@ -298,17 +330,21 @@ Use the [`remove-message-ttl`](reference-pulsar-admin.md#pulsar-admin-namespaces
 ##### Example
 
 ```shell
+
 $ pulsar-admin namespaces remove-message-ttl my-tenant/my-ns
+
 ```
 
 #### REST API
 
-{@inject: endpoint|DELETE|/admin/v2/namespaces/:tenant/:namespace/messageTTL|operation/removeNamespaceMessageTTL?version=[[pulsar:version_number]]}
+{@inject: endpoint|DELETE|/admin/v2/namespaces/:tenant/:namespace/messageTTL|operation/removeNamespaceMessageTTL?version=@pulsar:version_number@}
 
 #### Java
 
 ```java
+
 admin.namespaces().removeNamespaceMessageTTL(namespace)
+
 ```
 
 ## Delete messages from namespaces

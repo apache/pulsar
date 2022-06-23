@@ -39,7 +39,7 @@ import org.testng.collections.Maps;
  */
 @Getter
 @Slf4j
-public abstract class SourceTester<ServiceContainerT extends GenericContainer> {
+public abstract class SourceTester<ServiceContainerT extends GenericContainer> implements AutoCloseable {
 
     public static final String INSERT = "INSERT";
 

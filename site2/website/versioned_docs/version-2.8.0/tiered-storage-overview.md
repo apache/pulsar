@@ -1,7 +1,7 @@
 ---
-id: version-2.8.0-tiered-storage-overview
+id: tiered-storage-overview
 title: Overview of tiered storage
-sidebar_label: Overview
+sidebar_label: "Overview"
 original_id: tiered-storage-overview
 ---
 
@@ -9,21 +9,25 @@ Pulsar's **Tiered Storage** feature allows older backlog data to be moved from B
 
 * Tiered storage uses [Apache jclouds](https://jclouds.apache.org) to support [Amazon S3](https://aws.amazon.com/s3/) and [GCS (Google Cloud Storage)](https://cloud.google.com/storage/) for long term storage. 
 
-    With jclouds, it is easy to add support for more [cloud storage providers](https://jclouds.apache.org/reference/providers/#blobstore-providers) in the future.
+  With jclouds, it is easy to add support for more [cloud storage providers](https://jclouds.apache.org/reference/providers/#blobstore-providers) in the future.
 
-    > #### Tip
-    > 
-    > For more information about how to use the AWS S3 offloader with Pulsar, see [here](tiered-storage-aws.md).
-    > 
-    > For more information about how to use the GCS offloader with Pulsar, see [here](tiered-storage-gcs.md).
+  :::tip
+
+  - For more information about how to use the AWS S3 offloader with Pulsar, see [here](tiered-storage-aws).
+  
+  - For more information about how to use the GCS offloader with Pulsar, see [here](tiered-storage-gcs).
+
+  :::
 
 * Tiered storage uses [Apache Hadoop](http://hadoop.apache.org/) to support filesystems for long term storage. 
 
-    With Hadoop, it is easy to add support for more filesystems in the future.
+  With Hadoop, it is easy to add support for more filesystems in the future.
 
-    > #### Tip
-    > 
-    > For more information about how to use the filesystem offloader with Pulsar, see [here](tiered-storage-filesystem.md).
+  :::tip
+
+  For more information about how to use the filesystem offloader with Pulsar, see [here](tiered-storage-filesystem).
+
+  :::
 
 ## When to use tiered storage?
 
@@ -35,7 +39,7 @@ For example, if you have a topic containing user actions which you use to train 
 
 A topic in Pulsar is backed by a **log**, known as a **managed ledger**. This log is composed of an ordered list of segments. Pulsar only writes to the final segment of the log. All previous segments are sealed. The data within the segment is immutable. This is known as a **segment oriented architecture**.
 
-![Tiered storage](assets/pulsar-tiered-storage.png "Tiered Storage")
+![Tiered storage](/assets/pulsar-tiered-storage.png "Tiered Storage")
 
 The tiered storage offloading mechanism takes advantage of segment oriented architecture. When offloading is requested, the segments of the log are copied one-by-one to tiered storage. All segments of the log (apart from the current segment) written to tiered storage can be offloaded.
 

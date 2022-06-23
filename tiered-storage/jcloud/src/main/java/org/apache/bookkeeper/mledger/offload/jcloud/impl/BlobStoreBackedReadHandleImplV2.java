@@ -115,7 +115,7 @@ public class BlobStoreBackedReadHandleImplV2 implements ReadHandle {
     @Override
     public CompletableFuture<Void> closeAsync() {
         CompletableFuture<Void> promise = new CompletableFuture<>();
-        executor.submit(() -> {
+        executor.execute(() -> {
             try {
                 for (OffloadIndexBlockV2 indexBlock : indices) {
                     indexBlock.close();
@@ -141,7 +141,7 @@ public class BlobStoreBackedReadHandleImplV2 implements ReadHandle {
             promise.completeExceptionally(new IllegalArgumentException());
             return promise;
         }
-        executor.submit(() -> {
+        executor.execute(() -> {
             List<LedgerEntry> entries = new ArrayList<LedgerEntry>();
             List<GroupedReader> groupedReaders = null;
             try {

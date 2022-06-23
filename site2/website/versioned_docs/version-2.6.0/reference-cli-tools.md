@@ -1,13 +1,13 @@
 ---
-id: version-2.6.0-reference-cli-tools
+id: reference-cli-tools
 title: Pulsar command-line tools
-sidebar_label: Pulsar CLI tools
+sidebar_label: "Pulsar CLI tools"
 original_id: reference-cli-tools
 ---
 
 Pulsar offers several command-line tools that you can use for managing Pulsar installations, performance testing, using command-line producers and consumers, and more.
 
-All Pulsar command-line tools can be run from the `bin` directory of your [installed Pulsar package](getting-started-standalone.md). The following tools are currently documented:
+All Pulsar command-line tools can be run from the `bin` directory of your [installed Pulsar package](getting-started-standalone). The following tools are currently documented:
 
 * [`pulsar`](#pulsar)
 * [`pulsar-client`](#pulsar-client)
@@ -18,9 +18,14 @@ All Pulsar command-line tools can be run from the `bin` directory of your [insta
 
 > ### Getting help
 > You can get help for any CLI tool, command, or subcommand using the `--help` flag, or `-h` for short. Here's an example:
+
 > ```shell
+> 
 > $ bin/pulsar broker --help
+>
+> 
 > ```
+
 
 ## `pulsar`
 
@@ -29,9 +34,13 @@ The pulsar tool is used to start Pulsar components, such as bookies and ZooKeepe
 These processes can also be started in the background, using nohup, using the pulsar-daemon tool, which has the same command interface as pulsar.
 
 Usage:
+
 ```bash
+
 $ pulsar command
+
 ```
+
 Commands:
 * `bookie`
 * `broker`
@@ -46,8 +55,11 @@ Commands:
 * `zookeeper-shell`
 
 Example:
+
 ```bash
+
 $ PULSAR_BROKER_CONF=/path/to/broker.conf pulsar broker
+
 ```
 
 The table below lists the environment variables that you can use to configure the `pulsar` tool.
@@ -74,8 +86,11 @@ The table below lists the environment variables that you can use to configure th
 Starts up a bookie server
 
 Usage:
+
 ```bash
+
 $ pulsar bookie options
+
 ```
 
 Options
@@ -87,10 +102,13 @@ Options
 
 
 Example
+
 ```bash
+
 $ PULSAR_BOOKKEEPER_CONF=/path/to/bookkeeper.conf pulsar bookie \
   -readOnly \
   -withAutoRecovery
+
 ```
 
 ### `broker`
@@ -98,8 +116,11 @@ $ PULSAR_BOOKKEEPER_CONF=/path/to/bookkeeper.conf pulsar bookie \
 Starts up a Pulsar broker
 
 Usage
+
 ```bash
+
 $ pulsar broker options
+
 ```
 
 Options
@@ -111,8 +132,11 @@ Options
 |`-ra` , `--run-bookie-autorecovery`|Run a BookKeeper autorecovery daemon on the same host as the Pulsar broker|false|
 
 Example
+
 ```bash
+
 $ PULSAR_BROKER_CONF=/path/to/broker.conf pulsar broker
+
 ```
 
 ### `compact-topic`
@@ -120,9 +144,13 @@ $ PULSAR_BROKER_CONF=/path/to/broker.conf pulsar broker
 Run compaction against a Pulsar topic (in a new process)
 
 Usage
+
 ```bash
+
 $ pulsar compact-topic options
+
 ```
+
 Options
 
 |Flag|Description|Default|
@@ -130,8 +158,11 @@ Options
 |`-t` , `--topic`|The Pulsar topic that you would like to compact||
 
 Example
+
 ```bash
+
 $ pulsar compact-topic --topic topic-to-compact
+
 ```
 
 ### `discovery`
@@ -139,13 +170,19 @@ $ pulsar compact-topic --topic topic-to-compact
 Run a discovery server
 
 Usage
+
 ```bash
+
 $ pulsar discovery
+
 ```
 
 Example
+
 ```bash
+
 $ PULSAR_DISCOVERY_CONF=/path/to/discovery.conf pulsar discovery
+
 ```
 
 ### `configuration-store`
@@ -153,13 +190,19 @@ $ PULSAR_DISCOVERY_CONF=/path/to/discovery.conf pulsar discovery
 Starts up the Pulsar configuration store
 
 Usage
+
 ```bash
+
 $ pulsar configuration-store
+
 ```
 
 Example
+
 ```bash
+
 $ PULSAR_CONFIGURATION_STORE_CONF=/path/to/configuration_store.conf pulsar configuration-store
+
 ```
 
 ### `initialize-cluster-metadata`
@@ -167,8 +210,11 @@ $ PULSAR_CONFIGURATION_STORE_CONF=/path/to/configuration_store.conf pulsar confi
 One-time cluster metadata initialization
 
 Usage
+
 ```bash
+
 $ pulsar initialize-cluster-metadata options
+
 ```
 
 Options
@@ -189,8 +235,11 @@ Options
 Manages the Pulsar proxy
 
 Usage
+
 ```bash
+
 $ pulsar proxy options
+
 ```
 
 Options
@@ -201,10 +250,13 @@ Options
 |`-zk` , `--zookeeper-servers`|Local ZooKeeper connection string||
 
 Example
+
 ```bash
+
 $ PULSAR_PROXY_CONF=/path/to/proxy.conf pulsar proxy \
   --zookeeper-servers zk-0,zk-1,zk2 \
   --configuration-store zk-0,zk-1,zk-2
+
 ```
 
 ### `standalone`
@@ -212,8 +264,11 @@ $ PULSAR_PROXY_CONF=/path/to/proxy.conf pulsar proxy \
 Run a broker service with local bookies and local ZooKeeper
 
 Usage
+
 ```bash
+
 $ pulsar standalone options
+
 ```
 
 Options
@@ -231,20 +286,29 @@ Options
 |`--zookeeper-port` |Local ZooKeeper’s port|2181|
 
 Example
+
 ```bash
+
 $ PULSAR_STANDALONE_CONF=/path/to/standalone.conf pulsar standalone
+
 ```
 
 ### `websocket`
 
 Usage
+
 ```bash
+
 $ pulsar websocket
+
 ```
 
 Example
+
 ```bash
+
 $ PULSAR_WEBSOCKET_CONF=/path/to/websocket.conf pulsar websocket
+
 ```
 
 ### `zookeeper`
@@ -252,23 +316,31 @@ $ PULSAR_WEBSOCKET_CONF=/path/to/websocket.conf pulsar websocket
 Starts up a ZooKeeper cluster
 
 Usage
+
 ```bash
+
 $ pulsar zookeeper
+
 ```
 
 Example
-```bash
-$ PULSAR_ZK_CONF=/path/to/zookeeper.conf pulsar zookeeper
-```
 
+```bash
+
+$ PULSAR_ZK_CONF=/path/to/zookeeper.conf pulsar zookeeper
+
+```
 
 ### `zookeeper-shell`
 
 Connects to a running ZooKeeper cluster using the ZooKeeper shell
 
 Usage
+
 ```bash
+
 $ pulsar zookeeper-shell options
+
 ```
 
 Options
@@ -285,8 +357,11 @@ Options
 The pulsar-client tool
 
 Usage
+
 ```bash
+
 $ pulsar-client command
+
 ```
 
 Commands
@@ -302,7 +377,7 @@ Options
 |`--auth-plugin`|Authentication plugin class name|org.apache.pulsar.client.impl.auth.AuthenticationSasl|
 |`--proxy-protocol`|Proxy protocol to select type of routing at proxy||
 |`--proxy-url`|Proxy-server URL to which to connect||
-|`--url`|Broker URL to which to connect|pulsar://localhost:6650/ </br> ws://localhost:8080 |
+|`--url`|Broker URL to which to connect|pulsar://localhost:6650/ <br /> ws://localhost:8080 |
 |`-h`, `--help`|Show this help
 
 
@@ -310,8 +385,11 @@ Options
 Send a message or messages to a specific broker and topic
 
 Usage
+
 ```bash
+
 $ pulsar-client produce topic options
+
 ```
 
 Options
@@ -332,8 +410,11 @@ Options
 Consume messages from a specific broker and topic
 
 Usage
+
 ```bash
+
 $ pulsar-client consume topic options
+
 ```
 
 Options
@@ -359,8 +440,11 @@ A wrapper around the pulsar tool that’s used to start and stop processes, such
 pulsar-daemon has a similar interface to the pulsar command but adds start and stop commands for various services. For a listing of those services, run pulsar-daemon to see the help output or see the documentation for the pulsar command.
 
 Usage
+
 ```bash
+
 $ pulsar-daemon command
+
 ```
 
 Commands
@@ -372,16 +456,22 @@ Commands
 Start a service in the background using nohup.
 
 Usage
+
 ```bash
+
 $ pulsar-daemon start service
+
 ```
 
 ### `stop`
 Stop a service that’s already been started using start.
 
 Usage
+
 ```bash
+
 $ pulsar-daemon stop service options
+
 ```
 
 Options
@@ -396,8 +486,11 @@ Options
 A tool for performance testing a Pulsar broker.
 
 Usage
+
 ```bash
+
 $ pulsar-perf command
+
 ```
 
 Commands
@@ -427,8 +520,11 @@ The table below lists the environment variables that you can use to configure th
 Run a consumer
 
 Usage
+
 ```
+
 $ pulsar-perf consume options
+
 ```
 
 Options
@@ -464,8 +560,11 @@ Options
 Run a producer
 
 Usage
+
 ```bash
+
 $ pulsar-perf produce options
+
 ```
 
 Options
@@ -507,8 +606,11 @@ Options
 Run a topic reader
 
 Usage
+
 ```bash
+
 $ pulsar-perf read options
+
 ```
 
 Options
@@ -535,8 +637,11 @@ Options
 Run a websocket producer
 
 Usage
+
 ```bash
+
 $ pulsar-perf websocket-producer options
+
 ```
 
 Options
@@ -560,8 +665,11 @@ Options
 Write directly on managed-ledgers
 
 Usage
+
 ```bash
+
 $ pulsar-perf managed-ledger options
+
 ```
 
 Options
@@ -588,8 +696,11 @@ Options
 Continuously receive broker data and/or load reports
 
 Usage
+
 ```bash
+
 $ pulsar-perf monitor-brokers options
+
 ```
 
 Options
@@ -604,8 +715,11 @@ Options
 Run a simulation server acting as a Pulsar client. Uses the client configuration specified in `conf/client.conf`.
 
 Usage
+
 ```bash
+
 $ pulsar-perf simulation-client options
+
 ```
 
 Options
@@ -620,8 +734,11 @@ Options
 Run a simulation controller to give commands to servers
 
 Usage
+
 ```bash
+
 $ pulsar-perf simulation-controller options
+
 ```
 
 Options
@@ -638,17 +755,22 @@ Options
 This help message
 
 Usage
-```bash
-$ pulsar-perf help
-```
 
+```bash
+
+$ pulsar-perf help
+
+```
 
 ## `bookkeeper`
 A tool for managing BookKeeper.
 
 Usage
+
 ```bash
+
 $ bookkeeper command
+
 ```
 
 Commands
@@ -678,8 +800,11 @@ The table below lists the environment variables that you can use to configure th
 Runs an auto-recovery service
 
 Usage
+
 ```bash
+
 $ bookkeeper autorecovery options
+
 ```
 
 Options
@@ -693,8 +818,11 @@ Options
 Starts up a BookKeeper server (aka bookie)
 
 Usage
+
 ```bash
+
 $ bookkeeper bookie options
+
 ```
 
 Options
@@ -710,16 +838,22 @@ Options
 Runs a test ensemble of N bookies locally
 
 Usage
+
 ```bash
+
 $ bookkeeper localbookie N
+
 ```
 
 ### `upgrade`
 Upgrade the bookie’s filesystem
 
 Usage
+
 ```bash
+
 $ bookkeeper upgrade options
+
 ```
 
 Options
@@ -734,13 +868,19 @@ Options
 Run shell for admin commands. To see a full listing of those commands, run bookkeeper shell without an argument.
 
 Usage
+
 ```bash
+
 $ bookkeeper shell
+
 ```
 
 Example
+
 ```bash
+
 $ bookkeeper shell bookiesanity
+
 ```
 
 ## `broker-tool`
@@ -748,9 +888,13 @@ $ bookkeeper shell bookiesanity
 The `broker- tool` is used for operations on a specific broker.
 
 Usage
+
 ```bash
+
 $ broker-tool command
+
 ```
+
 Commands
 * `load-report`
 * `help`
@@ -759,8 +903,10 @@ Example
 Two ways to get more information about a command as below:
 
 ```bash
+
 $ broker-tool help command
 $ broker-tool command --help
+
 ```
 
 ### `load-report`

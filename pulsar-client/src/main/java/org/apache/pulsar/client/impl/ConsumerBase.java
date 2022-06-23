@@ -101,6 +101,10 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     protected static final AtomicLongFieldUpdater<ConsumerBase> CONSUMER_EPOCH =
             AtomicLongFieldUpdater.newUpdater(ConsumerBase.class, "consumerEpoch");
 
+    private static final String RECONSUME_LATER_ERROR_MSG =
+            "reconsumeLater method not supported because retryEnabled is set to false. "
+          + "You can enable it via ConsumerBuilder.";
+
     @Setter
     @Getter
     protected volatile long consumerEpoch;
@@ -160,12 +164,14 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
             this.batchReceivePolicy = BatchReceivePolicy.DEFAULT_POLICY;
         }
 
-        if (batchReceivePolicy.getTimeoutMs() > 0) {
+        initReceiverQueueSize();
+    }
+
+    protected void triggerBatchReceiveTimeoutTask() {
+        if (!hasBatchReceiveTimeout() && batchReceivePolicy.getTimeoutMs() > 0) {
             batchReceiveTimeout = client.timer().newTimeout(this::pendingBatchReceiveTask,
                     batchReceivePolicy.getTimeoutMs(), TimeUnit.MILLISECONDS);
         }
-
-        initReceiverQueueSize();
     }
 
     public void initReceiverQueueSize() {
@@ -412,7 +418,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     public void reconsumeLater(Message<?> message, Map<String, String> customProperties, long delayTime, TimeUnit unit)
             throws PulsarClientException {
         if (!conf.isRetryEnable()) {
-            throw new PulsarClientException("reconsumeLater method not support!");
+            throw new PulsarClientException(RECONSUME_LATER_ERROR_MSG);
         }
         try {
             reconsumeLaterAsync(message, customProperties, delayTime, unit).get();
@@ -506,7 +512,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     public CompletableFuture<Void> reconsumeLaterAsync(
             Message<?> message, Map<String, String> customProperties, long delayTime, TimeUnit unit) {
         if (!conf.isRetryEnable()) {
-            return FutureUtil.failedFuture(new PulsarClientException("reconsumeLater method not support!"));
+            return FutureUtil.failedFuture(new PulsarClientException(RECONSUME_LATER_ERROR_MSG));
         }
         try {
             validateMessageId(message);
@@ -548,7 +554,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     public CompletableFuture<Void> reconsumeLaterCumulativeAsync(
             Message<?> message, Map<String, String> customProperties, long delayTime, TimeUnit unit) {
         if (!conf.isRetryEnable()) {
-            return FutureUtil.failedFuture(new PulsarClientException("reconsumeLater method not support!"));
+            return FutureUtil.failedFuture(new PulsarClientException(RECONSUME_LATER_ERROR_MSG));
         }
         if (!isCumulativeAcknowledgementAllowed(conf.getSubscriptionType())) {
             return FutureUtil.failedFuture(new PulsarClientException.InvalidConfigurationException(
@@ -952,7 +958,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         }
 
         long timeToWaitMs;
-
+        boolean hasPendingReceives = false;
         synchronized (this) {
             // If it's closing/closed we need to ignore this timeout and not schedule next timeout.
             if (getState() == State.Closing || getState() == State.Closed) {
@@ -989,13 +995,18 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
                 } else {
                     // The diff is greater than zero, set the timeout to the diff value
                     timeToWaitMs = diff;
+                    hasPendingReceives = true;
                     break;
                 }
 
                 opBatchReceive = pendingBatchReceives.peek();
             }
-            batchReceiveTimeout = client.timer().newTimeout(this::pendingBatchReceiveTask,
-                    timeToWaitMs, TimeUnit.MILLISECONDS);
+            if (hasPendingReceives) {
+                batchReceiveTimeout = client.timer().newTimeout(this::pendingBatchReceiveTask,
+                        timeToWaitMs, TimeUnit.MILLISECONDS);
+            } else {
+                batchReceiveTimeout = null;
+            }
         }
     }
 
@@ -1158,6 +1169,10 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
             return false;
         }
         return true;
+    }
+
+    public boolean hasBatchReceiveTimeout() {
+        return batchReceiveTimeout != null;
     }
 
     private static final Logger log = LoggerFactory.getLogger(ConsumerBase.class);

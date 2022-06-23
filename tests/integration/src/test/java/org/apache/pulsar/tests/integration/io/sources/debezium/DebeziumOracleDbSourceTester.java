@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.tests.integration.io.sources.debezium;
 
+import java.util.Map;
 import lombok.Getter;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
@@ -29,14 +30,11 @@ import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.testcontainers.shaded.com.google.common.base.Preconditions;
 import org.testng.util.Strings;
 
-import java.io.Closeable;
-import java.util.Map;
-
 /**
  * A tester for testing Debezium OracleDb source.
  */
 @Slf4j
-public class DebeziumOracleDbSourceTester extends SourceTester<DebeziumOracleDbContainer> implements Closeable {
+public class DebeziumOracleDbSourceTester extends SourceTester<DebeziumOracleDbContainer> {
 
     private static final String NAME = "debezium-oracle";
     private static final long SLEEP_AFTER_COMMAND_MS = 30_000;
@@ -247,7 +245,10 @@ public class DebeziumOracleDbSourceTester extends SourceTester<DebeziumOracleDbC
     @Override
     public void close() {
         if (pulsarCluster != null) {
-            PulsarCluster.stopService(DebeziumOracleDbContainer.NAME, debeziumOracleDbContainer);
+            if (debeziumOracleDbContainer != null) {
+                PulsarCluster.stopService(DebeziumOracleDbContainer.NAME, debeziumOracleDbContainer);
+                debeziumOracleDbContainer = null;
+            }
         }
     }
 

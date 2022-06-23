@@ -72,6 +72,7 @@ import org.apache.pulsar.functions.api.examples.AutoSchemaFunction;
 import org.apache.pulsar.functions.api.examples.AvroSchemaTestFunction;
 import org.apache.pulsar.functions.api.examples.MergeTopicFunction;
 import org.apache.pulsar.functions.api.examples.InitializableFunction;
+import org.apache.pulsar.functions.api.examples.RecordFunction;
 import org.apache.pulsar.functions.api.examples.pojo.AvroTestObject;
 import org.apache.pulsar.functions.api.examples.pojo.Users;
 import org.apache.pulsar.functions.api.examples.serde.CustomObject;
@@ -1502,8 +1503,13 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         // get function stats
         getFunctionStatsEmpty(functionName);
 
-        // publish and consume result
-        publishAndConsumeMessages(inputTopicName, logTopicName, numMessages, "-log");
+        try {
+            // publish and consume result
+            publishAndConsumeMessages(inputTopicName, logTopicName, numMessages, "-log");
+        } finally {
+            // dump function logs so that it's easier to investigate failures
+            pulsarCluster.dumpFunctionLogs(functionName);
+        }
 
         // get function status
         getFunctionStatus(functionName, numMessages, true);
@@ -1701,6 +1707,66 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                     i++;
                 }
             } while (message != null);
+        } finally {
+            pulsarCluster.dumpFunctionLogs(functionName);
+        }
+
+        deleteFunction(functionName);
+
+        getFunctionInfoNotFound(functionName);
+    }
+
+    protected void testRecordFunction() throws Exception {
+        log.info("start RecordFunction function test ...");
+
+        String ns = "public/ns-recordfunction-" + randomName(8);
+        @Cleanup
+        PulsarAdmin pulsarAdmin = getPulsarAdmin();
+        pulsarAdmin.namespaces().createNamespace(ns);
+
+        @Cleanup
+        PulsarClient pulsarClient = getPulsarClient();
+
+        final int numMessages = 10;
+        final String inputTopic = ns + "/test-string-input-" + randomName(8);
+        final String outputTopic = ns + "/test-string-output-" + randomName(8);
+        @Cleanup
+        Consumer<String> consumer = pulsarClient
+                .newConsumer(Schema.STRING)
+                .subscriptionName("test")
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .topic("publishtopic")
+                .subscribe();
+
+        final String functionName = "test-record-fn-" + randomName(8);
+        submitFunction(
+                Runtime.JAVA,
+                inputTopic,
+                outputTopic,
+                functionName,
+                null,
+                RecordFunction.class.getName(),
+                Schema.AUTO_CONSUME());
+        try {
+            @Cleanup
+            Producer<String> producer = pulsarClient
+                    .newProducer(Schema.STRING)
+                    .topic(inputTopic)
+                    .create();
+            for (int i = 0; i < numMessages; i++) {
+                producer.send("message" + i);
+            }
+
+            getFunctionInfoSuccess(functionName);
+
+            getFunctionStatus(functionName, numMessages, true);
+
+            for (int i = 0; i < numMessages; i++) {
+                Message<String> msg = consumer.receive(30, TimeUnit.SECONDS);
+                log.info("Received: {}", msg.getValue());
+                assertEquals(msg.getValue(), "message" + i + "!");
+                assertEquals(msg.getProperty("input_topic"), "persistent://" + inputTopic);
+            }
         } finally {
             pulsarCluster.dumpFunctionLogs(functionName);
         }

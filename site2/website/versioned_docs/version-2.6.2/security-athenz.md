@@ -1,7 +1,7 @@
 ---
-id: version-2.6.2-security-athenz
+id: security-athenz
 title: Authentication using Athenz
-sidebar_label: Authentication using Athenz
+sidebar_label: "Authentication using Athenz"
 original_id: security-athenz
 ---
 
@@ -9,7 +9,7 @@ original_id: security-athenz
 
 ## Athenz authentication settings
 
-A [decentralized Athenz system](https://github.com/AthenZ/athenz/blob/master/docs/decent_authz_flow.md) contains an [authori**Z**ation **M**anagement **S**ystem](https://github.com/AthenZ/athenz/blob/master/docs/setup_zms.md) (ZMS) server and an [authori**Z**ation **T**oken **S**ystem](https://github.com/AthenZ/athenz/blob/master/docs/setup_zts.md) (ZTS) server.
+A [decentralized Athenz system](https://github.com/AthenZ/athenz/blob/master/docs/decent_authz_flow.md) contains an [authori**Z**ation **M**anagement **S**ystem](https://github.com/AthenZ/athenz/blob/master/docs/setup_zms.md) (ZMS) server and an [authori**Z**ation **T**oken **S**ystem](https://github.com/AthenZ/athenz/blob/master/docs/setup_zts) (ZTS) server.
 
 To begin, you need to set up Athenz service access control. You need to create domains for the *provider* (which provides some resources to other services with some authentication/authorization policies) and the *tenant* (which is provisioned to access some resources in a provider). In this case, the provider corresponds to the Pulsar service itself and the tenant corresponds to each application using Pulsar (typically, a [tenant](reference-terminology.md#tenant) in Pulsar).
 
@@ -42,11 +42,12 @@ For more specific steps involving UI, refer to [Example Service Access Control S
 > ### TLS encryption 
 >
 > Note that when you are using Athenz as an authentication provider, you had better use TLS encryption 
-> as it can protect role tokens from being intercepted and reused. (for more details involving TLS encryption see [Architecture - Data Model](https://github.com/AthenZ/athenz/blob/master/docs/data_model.md)).
+> as it can protect role tokens from being intercepted and reused. (for more details involving TLS encryption see [Architecture - Data Model](https://github.com/AthenZ/athenz/blob/master/docs/data_model)).
 
 In the `conf/broker.conf` configuration file in your Pulsar installation, you need to provide the class name of the Athenz authentication provider as well as a comma-separated list of provider domain names.
 
 ```properties
+
 # Add the Athenz auth provider
 authenticationEnabled=true
 authorizationEnabled=true
@@ -61,6 +62,7 @@ tlsKeyFilePath=/path/to/broker-key.pem
 # Authentication settings of the broker itself. Used when the broker connects to other brokers, either in same or other clusters
 brokerClientAuthenticationPlugin=org.apache.pulsar.client.impl.auth.AuthenticationAthenz
 brokerClientAuthenticationParameters={"tenantDomain":"shopping","tenantService":"some_app","providerDomain":"pulsar","privateKey":"file:///path/to/private.pem","keyId":"v1"}
+
 ```
 
 > A full listing of parameters is available in the `conf/broker.conf` file, you can also find the default
@@ -74,11 +76,12 @@ For more information on Pulsar client authentication using Athenz, see the follo
 
 ## Configure CLI tools for Athenz
 
-[Command-line tools](reference-cli-tools.md) like [`pulsar-admin`](reference-pulsar-admin.md), [`pulsar-perf`](reference-cli-tools.md#pulsar-perf), and [`pulsar-client`](reference-cli-tools.md#pulsar-client) use the `conf/client.conf` config file in a Pulsar installation.
+[Command-line tools](reference-cli-tools.md) like [`pulsar-admin`](reference-pulsar-admin), [`pulsar-perf`](reference-cli-tools.md#pulsar-perf), and [`pulsar-client`](reference-cli-tools.md#pulsar-client) use the `conf/client.conf` config file in a Pulsar installation.
 
 You need to add the following authentication parameters to the `conf/client.conf` config file to use Athenz with CLI tools of Pulsar:
 
 ```properties
+
 # URL for the broker
 serviceUrl=https://broker.example.com:8443/
 
@@ -90,4 +93,6 @@ authParams={"tenantDomain":"shopping","tenantService":"some_app","providerDomain
 useTls=true
 tlsAllowInsecureConnection=false
 tlsTrustCertsFilePath=/path/to/cacert.pem
+
 ```
+

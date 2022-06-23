@@ -165,8 +165,8 @@ public class PulsarFunctionsJavaTest extends PulsarFunctionsTest {
 
     @Test(groups = {"java_function", "function"})
     public void testMergeFunctionTest() throws Exception {
-	    testMergeFunction();
-   }
+        testMergeFunction();
+    }
 
     @Test(groups = {"java_function", "function"})
     public void testGenericObjectFunction() throws Exception {
@@ -186,6 +186,11 @@ public class PulsarFunctionsJavaTest extends PulsarFunctionsTest {
     @Test(groups = {"java_function", "function"})
     public void testGenericObjectRemoveFiledFunctionKeyValue() throws Exception {
         testGenericObjectFunction(REMOVE_AVRO_FIELD_FUNCTION_JAVA_CLASS, true, true);
+    }
+
+    @Test(groups = {"java_function", "function"})
+    public void testRecordFunctionTest() throws Exception {
+        testRecordFunction();
     }
 
 }

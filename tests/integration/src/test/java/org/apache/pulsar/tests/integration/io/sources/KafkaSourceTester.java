@@ -142,4 +142,12 @@ public class KafkaSourceTester extends SourceTester<KafkaContainer> {
         log.info("Successfully produced {} messages to kafka topic {}", numMessages, kafkaTopicName);
         return kvs;
     }
+
+    @Override
+    public void close() throws Exception {
+        if (kafkaConsumer != null) {
+            kafkaConsumer.close();
+            kafkaConsumer = null;
+        }
+    }
 }

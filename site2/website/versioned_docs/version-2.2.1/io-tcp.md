@@ -1,7 +1,7 @@
 ---
-id: version-2.2.1-io-tcp
+id: io-tcp
 title: Netty Tcp Connector
-sidebar_label: Netty Tcp Connector
+sidebar_label: "Netty Tcp Connector"
 original_id: io-tcp
 ---
 

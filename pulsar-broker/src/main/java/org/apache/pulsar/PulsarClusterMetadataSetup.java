@@ -232,6 +232,17 @@ public class PulsarClusterMetadataSetup {
             System.exit(1);
         }
 
+        try {
+            initializeCluster(arguments);
+        } catch (Exception e) {
+            System.err.println("Unexpected error occured.");
+            e.printStackTrace(System.err);
+            System.err.println("Terminating JVM...");
+            Runtime.getRuntime().halt(1);
+        }
+    }
+
+    private static void initializeCluster(Arguments arguments) throws Exception {
         log.info("Setting up cluster {} with metadata-store={} configuration-metadata-store={}", arguments.cluster,
                 arguments.metadataStoreUrl, arguments.configurationMetadataStore);
 

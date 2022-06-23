@@ -73,5 +73,12 @@ public class OpenSearchSinkTester extends ElasticSearchSinkTester {
         });
     }
 
-
+    @Override
+    public void close() throws Exception {
+        super.close();
+        if (elasticClient != null) {
+            elasticClient.close();
+            elasticClient = null;
+        }
+    }
 }
