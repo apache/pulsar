@@ -231,7 +231,7 @@ For example:
 
 ## TLS authentication with KeyStore configure
 
-This similar to [TLS authentication with PEM type](security-tls-authentication)
+This similar to [TLS authentication with PEM type](security-tls-authentication.md)
 
 ### broker authentication config
 

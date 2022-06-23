@@ -7,12 +7,12 @@ original_id: client-libraries
 
 Pulsar supports the following client libraries:
 
-- [Java client](client-libraries-java)
-- [Go client](client-libraries-go)
-- [Python client](client-libraries-python)
-- [C++ client](client-libraries-cpp)
-- [Node.js client](client-libraries-node)
-- [WebSocket client](client-libraries-websocket)
+- [Java client](client-libraries-java.md)
+- [Go client](client-libraries-go.md)
+- [Python client](client-libraries-python.md)
+- [C++ client](client-libraries-cpp.md)
+- [Node.js client](client-libraries-node.md)
+- [WebSocket client](client-libraries-websocket.md)
 
 ## Feature matrix
 Pulsar client feature matrix for different languages is listed on [Client Features Matrix](https://github.com/apache/pulsar/wiki/Client-Features-Matrix) page.
