@@ -23,7 +23,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import javax.ws.rs.BadRequestException;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.http.HttpStatus;
@@ -48,7 +47,6 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
-import org.apache.pulsar.common.policies.data.PositionInPendingAckStats;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TransactionBufferStats;
 import org.apache.pulsar.common.policies.data.TransactionCoordinatorInternalStats;
@@ -58,6 +56,7 @@ import org.apache.pulsar.common.policies.data.TransactionPendingAckStats;
 import org.apache.pulsar.common.policies.data.TransactionInBufferStats;
 import org.apache.pulsar.common.policies.data.TransactionInPendingAckStats;
 import org.apache.pulsar.common.policies.data.TransactionMetadata;
+import org.apache.pulsar.common.stats.PositionInPendingAckStats;
 import org.apache.pulsar.packages.management.core.MockedPackagesStorageProvider;
 import org.apache.pulsar.transaction.coordinator.impl.MLTransactionLogImpl;
 import org.awaitility.Awaitility;
@@ -603,14 +602,12 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
          Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
          MessageIdImpl messageId = (MessageIdImpl) message.getMessageId();
 
-         try {
-             admin.transactions().checkPositionInPendingAckState(topic, subName,
-                     messageId.getLedgerId(), messageId.getEntryId(), null);
-         } catch (PulsarAdminException pulsarAdminException) {
-             assertTrue(pulsarAdminException.getCause() instanceof BadRequestException);
-         }
-         consumer.acknowledgeAsync(messageId, transaction).get();
          PositionInPendingAckStats result = admin.transactions().checkPositionInPendingAckState(topic, subName,
+                 messageId.getLedgerId(), messageId.getEntryId(), null);
+        assertEquals(result.state, PositionInPendingAckStats.State.PendingAckNotReady);
+
+         consumer.acknowledgeAsync(messageId, transaction).get();
+         result = admin.transactions().checkPositionInPendingAckState(topic, subName,
                 messageId.getLedgerId(), messageId.getEntryId(), null);
          assertEquals(result.state, PositionInPendingAckStats.State.PendingAck);
          transaction.commit().get();
@@ -681,6 +678,11 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
                 admin.transactions().checkPositionInPendingAckState(topic, subscriptionName,
                         messageId.getLedgerId(), messageId.getEntryId(), 2);
         assertEquals(positionStatsInPendingAckStats.state, PositionInPendingAckStats.State.NotInPendingAck);
+        positionStatsInPendingAckStats =
+                admin.transactions().checkPositionInPendingAckState(topic, subscriptionName,
+                        messageId.getLedgerId(), messageId.getEntryId(), 10);
+        assertEquals(positionStatsInPendingAckStats.state, PositionInPendingAckStats.State.InvalidPosition);
+
     }
 
     private static void verifyCoordinatorStats(String state,

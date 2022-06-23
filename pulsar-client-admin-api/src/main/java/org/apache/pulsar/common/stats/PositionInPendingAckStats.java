@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.policies.data;
+package org.apache.pulsar.common.stats;
 
 import lombok.Data;
 
@@ -27,6 +27,8 @@ public class PositionInPendingAckStats {
         PendingAck,
         MarkDelete,
         NotInPendingAck,
+        PendingAckNotReady,
+        InvalidPosition
     };
 
     public PositionInPendingAckStats() {}

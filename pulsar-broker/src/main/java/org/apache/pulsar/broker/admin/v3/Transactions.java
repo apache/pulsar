@@ -370,16 +370,7 @@ public class Transactions extends TransactionsBase {
             validateTopicName(tenant, namespace, encodedTopic);
             PositionImpl position = new PositionImpl(ledgerId, entryId);
             internalGetPositionStatsPendingAckStats(authoritative, subName, position, batchIndex)
-                    .thenAccept(positionInPendingAckStats -> {
-                        if (positionInPendingAckStats == null) {
-                            resumeAsyncResponseExceptionally(asyncResponse,
-                                    new RestException(Response.Status.BAD_REQUEST,
-                                            "The position [" + position + "] does not exist "
-                                                    + "or the pending ack is not ready"));
-                        } else {
-                            asyncResponse.resume(positionInPendingAckStats);
-                        }
-                    })
+                    .thenAccept(asyncResponse::resume)
                     .exceptionally(ex -> {
                         log.warn("{} Failed to check position [{}] stats for topic [{}], subscription [{}]",
                                 clientAppId(), position, topicName, subName, ex);

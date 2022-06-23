@@ -51,9 +51,9 @@ import org.apache.pulsar.broker.transaction.pendingack.PendingAckStore;
 import org.apache.pulsar.broker.transaction.pendingack.TransactionPendingAckStoreProvider;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
-import org.apache.pulsar.common.policies.data.PositionInPendingAckStats;
 import org.apache.pulsar.common.policies.data.TransactionInPendingAckStats;
 import org.apache.pulsar.common.policies.data.TransactionPendingAckStats;
+import org.apache.pulsar.common.stats.PositionInPendingAckStats;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 import org.apache.pulsar.transaction.common.exception.TransactionConflictException;
@@ -928,7 +928,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
     @Override
     public PositionInPendingAckStats checkPositionInPendingAckState(PositionImpl position, Integer batchIndex) {
         if (!state.equals(State.Ready)) {
-            return null;
+            return new PositionInPendingAckStats(PositionInPendingAckStats.State.PendingAckNotReady);
         }
         if (persistentSubscription.getCursor().getPersistentMarkDeletedPosition() != null && position.compareTo(
                         (PositionImpl) persistentSubscription.getCursor().getPersistentMarkDeletedPosition()) <= 0) {
@@ -942,7 +942,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                 return new PositionInPendingAckStats(PositionInPendingAckStats.State.PendingAck);
             } else {
                 if (batchIndex >= positionIntegerMutablePair.right) {
-                    return null;
+                    return new PositionInPendingAckStats(PositionInPendingAckStats.State.InvalidPosition);
                 }
                 BitSetRecyclable bitSetRecyclable = BitSetRecyclable
                         .valueOf(positionIntegerMutablePair.left.getAckSet());
