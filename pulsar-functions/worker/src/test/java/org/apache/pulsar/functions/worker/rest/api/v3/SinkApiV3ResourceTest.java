@@ -1595,7 +1595,6 @@ public class SinkApiV3ResourceTest {
             ctx.when(() -> FunctionCommon.getSinkType(any())).thenReturn(String.class);
             ctx.when(() -> FunctionCommon.getClassLoaderFromPackage(any(), any(), any(), any())).thenCallRealMethod();
             ctx.when(() -> FunctionCommon.isFunctionCodeBuiltin(any())).thenReturn(true);
-            ctx.when(() -> FunctionCommon.isFunctionCodeBuiltin(any())).thenReturn(true);
             ctx.when(() -> FunctionCommon.extractNarClassLoader(any(), any())).thenReturn(mockedClassLoader);
 
         });
@@ -1649,7 +1648,6 @@ public class SinkApiV3ResourceTest {
         mockStatic(FunctionCommon.class, ctx -> {
             ctx.when(() -> FunctionCommon.getSinkType(any())).thenReturn(String.class);
             ctx.when(() -> FunctionCommon.getClassLoaderFromPackage(any(), any(), any(), any())).thenCallRealMethod();
-            ctx.when(() -> FunctionCommon.isFunctionCodeBuiltin(any())).thenReturn(true);
             ctx.when(() -> FunctionCommon.isFunctionCodeBuiltin(any())).thenReturn(true);
             ctx.when(() -> FunctionCommon.extractNarClassLoader(any(), any())).thenReturn(mockedClassLoader);
         });

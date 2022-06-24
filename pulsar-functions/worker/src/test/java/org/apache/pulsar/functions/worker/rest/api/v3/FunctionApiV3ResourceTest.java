@@ -34,6 +34,7 @@ import static org.testng.Assert.fail;
 import com.google.common.collect.Lists;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -44,6 +45,7 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.TreeMap;
 import java.util.UUID;
 import java.util.function.Consumer;
@@ -61,6 +63,7 @@ import org.apache.pulsar.client.admin.Functions;
 import org.apache.pulsar.client.admin.Namespaces;
 import org.apache.pulsar.client.admin.Tenants;
 import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.RestException;
@@ -76,11 +79,13 @@ import org.apache.pulsar.functions.proto.Function.SourceSpec;
 import org.apache.pulsar.functions.proto.Function.SubscriptionType;
 import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.source.TopicSchema;
+import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 import org.apache.pulsar.functions.utils.functions.FunctionArchive;
 import org.apache.pulsar.functions.utils.functions.FunctionUtils;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
+import org.apache.pulsar.functions.worker.FunctionsManager;
 import org.apache.pulsar.functions.worker.LeaderService;
 import org.apache.pulsar.functions.worker.PulsarWorkerService;
 import org.apache.pulsar.functions.worker.WorkerConfig;
@@ -148,6 +153,16 @@ public class FunctionApiV3ResourceTest {
     private Packages mockedPackages;
     private PulsarFunctionTestTemporaryDirectory tempDirectory;
     private static Map<String, MockedStatic> mockStaticContexts = new HashMap<>();
+
+    private static final String SYSTEM_PROPERTY_NAME_FUNCTIONS_API_EXAMPLES_NAR_FILE_PATH =
+            "pulsar-functions-api-examples.nar.path";
+
+    public static File getPulsarApiExamplesNar() {
+        return new File(Objects.requireNonNull(
+                System.getProperty(SYSTEM_PROPERTY_NAME_FUNCTIONS_API_EXAMPLES_NAR_FILE_PATH)
+                , "pulsar-functions-api-examples.nar file location must be specified with "
+                        + SYSTEM_PROPERTY_NAME_FUNCTIONS_API_EXAMPLES_NAR_FILE_PATH + " system property"));
+    }
 
     @BeforeMethod
     public void setup() throws Exception {
@@ -730,6 +745,122 @@ public class FunctionApiV3ResourceTest {
         } catch (RestException re) {
             assertEquals(re.getResponse().getStatusInfo(), Response.Status.INTERNAL_SERVER_ERROR);
             throw re;
+        }
+    }
+
+    /*
+    Externally managed runtime,
+    uploadBuiltinSinksSources == false
+    Make sure uploadFileToBookkeeper is not called
+    */
+    @Test
+    public void testRegisterFunctionSuccessK8sNoUpload() throws Exception {
+        mockedWorkerService.getWorkerConfig().setUploadBuiltinSinksSources(false);
+
+        mockStatic(WorkerUtils.class, ctx -> {
+            ctx.when(() -> WorkerUtils.uploadFileToBookkeeper(
+                    anyString(),
+                    any(File.class),
+                    any(Namespace.class)))
+                    .thenThrow(new RuntimeException("uploadFileToBookkeeper triggered"));
+
+        });
+
+        NarClassLoader mockedClassLoader = mock(NarClassLoader.class);
+        mockStatic(FunctionCommon.class, ctx -> {
+            ctx.when(() -> FunctionCommon.getFunctionTypes(any(FunctionConfig.class), any(Class.class))).thenReturn(new Class[]{String.class, String.class});
+            ctx.when(() -> FunctionCommon.convertRuntime(any(FunctionConfig.Runtime.class))).thenCallRealMethod();
+            ctx.when(() -> FunctionCommon.isFunctionCodeBuiltin(any())).thenReturn(true);
+
+        });
+
+        doReturn(Function.class).when(mockedClassLoader).loadClass(anyString());
+
+        FunctionsManager mockedFunctionsManager = mock(FunctionsManager.class);
+        FunctionArchive functionArchive = FunctionArchive.builder()
+                .classLoader(mockedClassLoader)
+                .build();
+        when(mockedFunctionsManager.getFunction("exclamation")).thenReturn(functionArchive);
+
+        when(mockedWorkerService.getFunctionsManager()).thenReturn(mockedFunctionsManager);
+
+        when(mockedRuntimeFactory.externallyManaged()).thenReturn(true);
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
+
+        FunctionConfig functionConfig = createDefaultFunctionConfig();
+        functionConfig.setJar("builtin://exclamation");
+
+        try (FileInputStream inputStream = new FileInputStream(getPulsarApiExamplesNar())) {
+            resource.registerFunction(
+                    tenant,
+                    namespace,
+                    function,
+                    inputStream,
+                    mockedFormData,
+                    null,
+                    functionConfig,
+                    null, null);
+        }
+    }
+
+    /*
+    Externally managed runtime,
+    uploadBuiltinSinksSources == true
+    Make sure uploadFileToBookkeeper is called
+    */
+    @Test
+    public void testRegisterFunctionSuccessK8sWithUpload() throws Exception {
+        final String injectedErrMsg = "uploadFileToBookkeeper triggered";
+        mockedWorkerService.getWorkerConfig().setUploadBuiltinSinksSources(true);
+
+        mockStatic(WorkerUtils.class, ctx -> {
+            ctx.when(() -> WorkerUtils.uploadFileToBookkeeper(
+                    anyString(),
+                    any(File.class),
+                    any(Namespace.class)))
+                    .thenThrow(new RuntimeException(injectedErrMsg));
+
+        });
+
+        NarClassLoader mockedClassLoader = mock(NarClassLoader.class);
+        mockStatic(FunctionCommon.class, ctx -> {
+            ctx.when(() -> FunctionCommon.getFunctionTypes(any(FunctionConfig.class), any(Class.class))).thenReturn(new Class[]{String.class, String.class});
+            ctx.when(() -> FunctionCommon.convertRuntime(any(FunctionConfig.Runtime.class))).thenCallRealMethod();
+            ctx.when(() -> FunctionCommon.isFunctionCodeBuiltin(any())).thenReturn(true);
+        });
+
+        doReturn(Function.class).when(mockedClassLoader).loadClass(anyString());
+
+        FunctionsManager mockedFunctionsManager = mock(FunctionsManager.class);
+        FunctionArchive functionArchive = FunctionArchive.builder()
+                .classLoader(mockedClassLoader)
+                .build();
+        when(mockedFunctionsManager.getFunction("exclamation")).thenReturn(functionArchive);
+        when(mockedFunctionsManager.getFunctionArchive(any())).thenReturn(getPulsarApiExamplesNar().toPath());
+
+        when(mockedWorkerService.getFunctionsManager()).thenReturn(mockedFunctionsManager);
+
+        when(mockedRuntimeFactory.externallyManaged()).thenReturn(true);
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
+
+        FunctionConfig functionConfig = createDefaultFunctionConfig();
+        functionConfig.setJar("builtin://exclamation");
+
+        try (FileInputStream inputStream = new FileInputStream(getPulsarApiExamplesNar())) {
+            try {
+                resource.registerFunction(
+                        tenant,
+                        namespace,
+                        function,
+                        inputStream,
+                        mockedFormData,
+                        null,
+                        functionConfig,
+                        null, null);
+                Assert.fail();
+            } catch (RuntimeException e) {
+                Assert.assertEquals(e.getMessage(), injectedErrMsg);
+            }
         }
     }
 
