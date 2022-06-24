@@ -154,15 +154,13 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
                 if (Markers.isTxnMarker(msgMetadata)) {
                     // because consumer can receive message is smaller than maxReadPosition,
                     // so this marker is useless for this subscription
-                    doAcknowledgeMessage(Collections.singletonList(entry.getPosition()), AckType.Individual,
-                            Collections.emptyMap());
+                    individualAcknowledgeMessageIfNeeded(entry.getPosition(), Collections.emptyMap());
                     entries.set(i, null);
                     entry.release();
                     continue;
                 } else if (((PersistentTopic) subscription.getTopic())
                         .isTxnAborted(new TxnID(msgMetadata.getTxnidMostBits(), msgMetadata.getTxnidLeastBits()))) {
-                    doAcknowledgeMessage(Collections.singletonList(entry.getPosition()), AckType.Individual,
-                            Collections.emptyMap());
+                    individualAcknowledgeMessageIfNeeded(entry.getPosition(), Collections.emptyMap());
                     entries.set(i, null);
                     entry.release();
                     continue;
@@ -177,8 +175,7 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
 
                 entries.set(i, null);
                 entry.release();
-                doAcknowledgeMessage(Collections.singletonList(pos), AckType.Individual,
-                        Collections.emptyMap());
+                individualAcknowledgeMessageIfNeeded(pos, Collections.emptyMap());
                 continue;
             } else if (msgMetadata.hasDeliverAtTime()
                     && trackDelayedDelivery(entry.getLedgerId(), entry.getEntryId(), msgMetadata)) {
@@ -236,9 +233,9 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
         return totalEntries;
     }
 
-    private void doAcknowledgeMessage(List<Position> positions, AckType ackType, Map<String, Long> properties) {
+    private void individualAcknowledgeMessageIfNeeded(Position position, Map<String, Long> properties) {
         if (!(subscription instanceof CompactorSubscription)) {
-            subscription.acknowledgeMessage(positions, ackType, properties);
+            subscription.acknowledgeMessage(Collections.singletonList(position), AckType.Individual, properties);
         }
     }
 
