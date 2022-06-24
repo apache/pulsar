@@ -551,7 +551,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     }
                     serializeAndSendMessage(msg, payload, sequenceId, uuid, chunkId, totalChunks,
                             readStartIndex, payloadChunkSize, compressedPayload, compressed,
-                            compressedPayload.readableBytes(), uncompressedSize, callback, chunkedMessageCtx);
+                            compressedPayload.readableBytes(), callback, chunkedMessageCtx);
                     readStartIndex = ((chunkId + 1) * payloadChunkSize);
                 }
             }
@@ -612,7 +612,6 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                                          ByteBuf compressedPayload,
                                          boolean compressed,
                                          int compressedPayloadSize,
-                                         int uncompressedSize,
                                          SendCallback callback,
                                          ChunkedMessageCtx chunkedMessageCtx) throws IOException {
         ByteBuf chunkPayload = compressedPayload;
@@ -2234,8 +2233,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     /**
      *  Check if final message size for non-batch and non-chunked messages is larger than max message size.
      */
-    public boolean isMessageSizeExceeded(OpSendMsg op) {
-        if (op.msg != null && op.totalChunks <= 1) {
+    private boolean isMessageSizeExceeded(OpSendMsg op) {
+        if (op.msg != null && op.totalChunks <= 1 && !conf.isEncryptionEnabled()) {
             int messageSize = op.getMessageHeaderAndPayloadSize();
             if (messageSize > ClientCnx.getMaxMessageSize()) {
                 releaseSemaphoreForSendOp(op);
