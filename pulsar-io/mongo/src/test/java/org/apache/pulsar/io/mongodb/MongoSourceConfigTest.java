@@ -91,7 +91,7 @@ public class MongoSourceConfigTest {
 
     @Test
     public void testLoadYamlConfig() throws IOException {
-        final File yaml = TestHelper.getFile(MongoSourceConfigTest.class, "MongoSourceConfig.yaml");
+        final File yaml = TestHelper.getFile(MongoSourceConfigTest.class, "mongoSourceConfig.yaml");
         final MongoSourceConfig cfg = MongoSourceConfig.load(yaml.getAbsolutePath());
 
         assertEquals(cfg.getMongoUri(), TestHelper.URI);

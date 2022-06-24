@@ -21,7 +21,7 @@
    "mongoUri": "mongodb://localhost",
    "database": "pulsar",
    "collection": "messages",
-   "syncType": "full",
+   "syncType": "full_sync",
    "batchSize": 2,
    "batchTimeMs": 500
 }
