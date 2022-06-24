@@ -1704,6 +1704,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
                 .readCompacted(true)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Latest)
                 .subscribe();
+        @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer()
                 .topic(dest.toString())
                 .enableBatching(false)
