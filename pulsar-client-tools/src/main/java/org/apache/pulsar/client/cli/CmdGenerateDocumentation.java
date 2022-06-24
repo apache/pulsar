@@ -40,7 +40,7 @@ public class CmdGenerateDocumentation {
 
     public int run() throws PulsarClientException {
         PulsarClientTool pulsarClientTool = new PulsarClientTool(new Properties());
-        JCommander commander = pulsarClientTool.commandParser;
+        JCommander commander = pulsarClientTool.jcommander;
         if (commandNames.size() == 0) {
             for (Map.Entry<String, JCommander> cmd : commander.getCommands().entrySet()) {
                 if (cmd.getKey().equals("generate_documentation")) {
