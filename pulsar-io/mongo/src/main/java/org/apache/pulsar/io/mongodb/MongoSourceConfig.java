@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.io.mongodb;
 
-import static com.google.common.base.Preconditions.checkNotNull;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import java.io.File;
@@ -27,6 +26,7 @@ import java.util.Map;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.experimental.Accessors;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.io.core.annotations.FieldDoc;
 
 /**
@@ -74,12 +74,20 @@ public class MongoSourceConfig extends MongoAbstractConfig {
      * @param syncType Sync type string.
      */
     public void setSyncType(String syncType) {
-        this.syncType = SyncType.valueOf(syncType.toUpperCase());
+        if (StringUtils.isEmpty(syncType)) {
+            this.syncType = DEFAULT_SYNC_TYPE;
+            return;
+        }
+
+        try {
+            this.syncType = SyncType.valueOf(syncType.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            this.syncType = DEFAULT_SYNC_TYPE;
+        }
     }
 
     @Override
     public void validate() {
         super.validate();
-        checkNotNull(getSyncType(), "syncType not set.");
     }
 }
