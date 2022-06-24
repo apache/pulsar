@@ -205,7 +205,7 @@ Method | Description | Return type
 
 ```go
 
-client, err := NewClient(pulsar.ClientOptions{
+client, err := pulsar.NewClient(pulsar.ClientOptions{
 	URL: serviceURL,
 })
 
@@ -262,7 +262,7 @@ var (
 
 ```go
 
-client, err := NewClient(pulsar.ClientOptions{
+client, err := pulsar.NewClient(pulsar.ClientOptions{
 	URL: "pulsar://localhost:6650",
 })
 if err != nil {
@@ -296,7 +296,7 @@ producer.Close()
 
 ```go
 
-client, err := NewClient(pulsar.ClientOptions{
+client, err := pulsar.NewClient(pulsar.ClientOptions{
 	URL: "pulsar://localhost:6650",
 })
 if err != nil {
