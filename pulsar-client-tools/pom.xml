@@ -109,6 +109,12 @@
     	<version>${project.version}</version>
     	<scope>test</scope>
     </dependency>
+    <dependency>
+      <groupId>org.jline</groupId>
+      <artifactId>jline</artifactId>
+      <version>3.21.0</version>
+    </dependency>
+
   </dependencies>
 
   <build>
