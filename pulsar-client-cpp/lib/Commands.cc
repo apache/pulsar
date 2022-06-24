@@ -679,7 +679,7 @@ std::string Commands::messageType(BaseCommand_Type type) {
             return "WATCH_TOPIC_UPDATE";
             break;
         case BaseCommand::UNWATCH_TOPIC_LIST:
-            return "UNWATCH_TOPIC_LIST";
+            return "WATCH_TOPIC_LIST_CLOSE";
             break;
     };
     BOOST_THROW_EXCEPTION(std::logic_error("Invalid BaseCommand enumeration value"));
