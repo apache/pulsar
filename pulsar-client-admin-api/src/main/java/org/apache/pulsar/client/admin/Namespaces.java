@@ -143,7 +143,6 @@ public interface Namespaces {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    @Deprecated
     List<String> getTopics(String namespace) throws PulsarAdminException;
 
     /**
@@ -161,7 +160,6 @@ public interface Namespaces {
      * @param namespace
      *            Namespace name
      */
-    @Deprecated
     CompletableFuture<List<String>> getTopicsAsync(String namespace);
 
     /**
