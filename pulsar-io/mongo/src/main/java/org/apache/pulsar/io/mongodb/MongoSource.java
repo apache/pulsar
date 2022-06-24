@@ -111,7 +111,7 @@ public class MongoSource extends PushSource<byte[]> {
         stream.batchSize(mongoSourceConfig.getBatchSize())
                 .fullDocument(FullDocument.UPDATE_LOOKUP);
 
-        if (SyncType.FULL_SYNC.equals(mongoSourceConfig.getSyncType())) {
+        if (mongoSourceConfig.getSyncType() == SyncType.FULL_SYNC) {
             // sync currently existing messages
             // startAtOperationTime is the starting point for the change stream
             // setting startAtOperationTime to 0 means the start point is the earliest

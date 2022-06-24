@@ -74,24 +74,7 @@ public class MongoSourceConfig extends MongoAbstractConfig {
      * @param syncType Sync type string.
      */
     public void setSyncType(String syncType) {
-        if ("full".equalsIgnoreCase(syncType)
-                || "full_sync".equalsIgnoreCase(syncType)
-                || "full-sync".equalsIgnoreCase(syncType)) {
-
-            this.syncType = SyncType.FULL_SYNC;
-            return;
-        }
-
-        if ("incr".equalsIgnoreCase(syncType)
-                || "increment".equalsIgnoreCase(syncType)
-                || "incr_sync".equalsIgnoreCase(syncType)
-                || "incr-sync".equalsIgnoreCase(syncType)) {
-
-            this.syncType = SyncType.INCR_SYNC;
-            return;
-        }
-
-        this.syncType = DEFAULT_SYNC_TYPE;
+        this.syncType = SyncType.valueOf(syncType.toUpperCase());
     }
 
     @Override
