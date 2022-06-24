@@ -134,6 +134,7 @@ public class MessageChunkingSharedTest extends ProducerConsumerBase {
 
         Awaitility.await().atMost(Duration.ofSeconds(3))
                 .until(() -> receivedValues1.size() + receivedValues2.size() >= values.size());
+        assertEquals(receivedValues1.size() + receivedValues2.size(), values.size());
         assertFalse(receivedValues1.isEmpty());
         assertFalse(receivedValues2.isEmpty());
         for (String value : receivedValues1) {

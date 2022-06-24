@@ -139,8 +139,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
                 : RedeliveryTrackerDisabled.REDELIVERY_TRACKER_DISABLED;
         this.readBatchSize = serviceConfig.getDispatcherMaxReadBatchSize();
         this.initializeDispatchRateLimiterIfNeeded();
-        this.assignor = new SharedConsumerAssignor(this::getNextConsumer,
-                entry -> addMessageToReplay(entry.getLedgerId(), entry.getEntryId()));
+        this.assignor = new SharedConsumerAssignor(this::getNextConsumer, this::addMessageToReplay);
     }
 
     @Override
@@ -734,8 +733,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             if (messagesForC < entryAndMetadataList.size()) {
                 for (int i = messagesForC; i < entryAndMetadataList.size(); i++) {
                     final EntryAndMetadata entry = entryAndMetadataList.get(i);
-                    addMessageToReplay(entry.getLedgerId(), entry.getEntryId());
-                    entry.release();
+                    addMessageToReplay(entry);
                     entryAndMetadataList.set(i, null);
                 }
             }
@@ -1051,6 +1049,11 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         if (this.lastIndividualDeletedRangeFromCursorRecovery != null) {
             this.lastIndividualDeletedRangeFromCursorRecovery = null;
         }
+    }
+
+    private void addMessageToReplay(Entry entry) {
+        addMessageToReplay(entry.getLedgerId(), entry.getEntryId());
+        entry.release();
     }
 
     protected boolean addMessageToReplay(long ledgerId, long entryId, long stickyKeyHash) {
