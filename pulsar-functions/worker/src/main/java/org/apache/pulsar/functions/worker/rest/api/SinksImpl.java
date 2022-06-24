@@ -241,6 +241,7 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
                     Function.PackageLocationMetaData.Builder functionPackageLocation =
                             getFunctionPackageLocation(functionMetaDataBuilder.build(),
                                     preprocessFunction, null, functionPackageFile,
+                                    sinkName + "__sink-function",
                                     Function.FunctionDetails.ComponentType.FUNCTION, builtin);
                     functionMetaDataBuilder.setExtraFunctionPackageLocation(functionPackageLocation);
                 } catch (Exception e) {

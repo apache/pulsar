@@ -295,20 +295,21 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
                                                                final File uploadedInputStreamAsFile)
             throws Exception {
         return getFunctionPackageLocation(functionMetaData, functionPkgUrl, fileDetail, uploadedInputStreamAsFile,
-                componentType, getFunctionCodeBuiltin(functionMetaData.getFunctionDetails(), componentType));
+                functionMetaData.getFunctionDetails().getName(), componentType,
+                getFunctionCodeBuiltin(functionMetaData.getFunctionDetails(), componentType));
     }
 
     PackageLocationMetaData.Builder getFunctionPackageLocation(final FunctionMetaData functionMetaData,
                                                                final String functionPkgUrl,
                                                                final FormDataContentDisposition fileDetail,
                                                                final File uploadedInputStreamAsFile,
+                                                               final String componentName,
                                                                final FunctionDetails.ComponentType componentType,
                                                                final String builtin)
             throws Exception {
         FunctionDetails functionDetails = functionMetaData.getFunctionDetails();
         String tenant = functionDetails.getTenant();
         String namespace = functionDetails.getNamespace();
-        String componentName = functionDetails.getName();
         PackageLocationMetaData.Builder packageLocationMetaDataBuilder = PackageLocationMetaData.newBuilder();
         boolean isPkgUrlProvided = isNotBlank(functionPkgUrl);
         boolean isPackageManagementEnabled = worker().getWorkerConfig().isFunctionsWorkerEnablePackageManagement();
