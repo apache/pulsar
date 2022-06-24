@@ -439,17 +439,19 @@ public class LocalRunner implements AutoCloseable {
 
                 ClassLoader builtInSinkClassLoader = userCodeFile != null ? isBuiltInSink(userCodeFile) : null;
                 if (builtInSinkClassLoader != null) {
+                    //TODO: handle preprocess function
                     functionDetails = SinkConfigUtils.convert(
                             sinkConfig, SinkConfigUtils.validateAndExtractDetails(
-                                    sinkConfig, builtInSinkClassLoader, true));
+                                    sinkConfig, builtInSinkClassLoader, null,true));
                     userCodeClassLoader = builtInSinkClassLoader;
                 } else if (Utils.isFunctionPackageUrlSupported(userCodeFile)) {
                     File file = FunctionCommon.extractFileFromPkgURL(userCodeFile);
                     ClassLoader sinkClassLoader = FunctionCommon.getClassLoaderFromPackage(
                             Function.FunctionDetails.ComponentType.SINK,
                             sinkConfig.getClassName(), file, narExtractionDirectory);
+                    //TODO: handle preprocess function
                     functionDetails = SinkConfigUtils.convert(
-                            sinkConfig, SinkConfigUtils.validateAndExtractDetails(sinkConfig, sinkClassLoader, true));
+                            sinkConfig, SinkConfigUtils.validateAndExtractDetails(sinkConfig, sinkClassLoader, null,true));
                     userCodeClassLoader = sinkClassLoader;
                     userCodeClassLoaderCreated = true;
                 } else if (userCodeFile != null) {
@@ -460,17 +462,19 @@ public class LocalRunner implements AutoCloseable {
                     ClassLoader sinkClassLoader = FunctionCommon.getClassLoaderFromPackage(
                             Function.FunctionDetails.ComponentType.SINK,
                             sinkConfig.getClassName(), file, narExtractionDirectory);
+                    //TODO: handle preprocess function
                     functionDetails = SinkConfigUtils.convert(
-                            sinkConfig, SinkConfigUtils.validateAndExtractDetails(sinkConfig, sinkClassLoader, true));
+                            sinkConfig, SinkConfigUtils.validateAndExtractDetails(sinkConfig, sinkClassLoader, null,true));
                     userCodeClassLoader = sinkClassLoader;
                     userCodeClassLoaderCreated = true;
                 } else {
                     if (!(runtimeEnv == null || runtimeEnv == RuntimeEnv.THREAD)) {
                         throw new IllegalStateException("The archive property must be specified in SourceConfig.");
                     }
+                    //TODO: handle preprocess function
                     functionDetails = SinkConfigUtils.convert(
                             sinkConfig, SinkConfigUtils.validateAndExtractDetails(
-                                    sinkConfig, Thread.currentThread().getContextClassLoader(), true));
+                                    sinkConfig, Thread.currentThread().getContextClassLoader(), null,true));
                 }
             } else {
                 throw new IllegalArgumentException("Must specify Function, Source or Sink config");

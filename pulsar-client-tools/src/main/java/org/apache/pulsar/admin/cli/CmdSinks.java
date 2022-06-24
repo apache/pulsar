@@ -398,6 +398,12 @@ public class CmdSinks extends CmdBase {
         @Parameter(names = "--secrets", description = "The map of secretName to an object that encapsulates "
                 + "how the secret is fetched by the underlying secrets provider")
         protected String secretsString;
+        @Parameter(names = "--preprocess-function", description = "Preprocess function applied before the Sink")
+        protected String preprocessFunction;
+        @Parameter(names = "--preprocess-function-config", description = "Configuration of the preprocess function applied before the Sink")
+        protected String preprocessFunctionConfig;
+
+
 
         protected SinkConfig sinkConfig;
 
@@ -576,6 +582,14 @@ public class CmdSinks extends CmdBase {
                     secretsMap = Collections.emptyMap();
                 }
                 sinkConfig.setSecrets(secretsMap);
+            }
+
+            if (preprocessFunction != null) {
+                sinkConfig.setPreprocessFunction(preprocessFunction);
+            }
+
+            if (preprocessFunctionConfig != null) {
+                sinkConfig.setPreprocessFunctionConfig(preprocessFunctionConfig);
             }
 
             // check if configs are valid

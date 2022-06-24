@@ -56,6 +56,7 @@ import org.apache.pulsar.common.util.ClassLoaderUtils;
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.api.WindowFunction;
+import org.apache.pulsar.functions.proto.Function.FunctionDetails.ComponentType;
 import org.apache.pulsar.functions.proto.Function.FunctionDetails.Runtime;
 import org.apache.pulsar.functions.utils.functions.FunctionUtils;
 import org.apache.pulsar.functions.utils.io.ConnectorUtils;
@@ -401,7 +402,7 @@ public class FunctionCommon {
     }
 
     public static ClassLoader getClassLoaderFromPackage(
-            org.apache.pulsar.functions.proto.Function.FunctionDetails.ComponentType componentType,
+            ComponentType componentType,
             String className,
             File packageFile,
             String narExtractionDirectory) {
@@ -437,11 +438,9 @@ public class FunctionCommon {
                             narClassLoaderException);
                 }
                 try {
-                    if (componentType
-                            == org.apache.pulsar.functions.proto.Function.FunctionDetails.ComponentType.FUNCTION) {
-                        connectorClassName = FunctionUtils.getFunctionClass((NarClassLoader) narClassLoader);
-                    } else if (componentType
-                            == org.apache.pulsar.functions.proto.Function.FunctionDetails.ComponentType.SOURCE) {
+                    if (componentType == ComponentType.FUNCTION) {
+                        connectorClassName = FunctionUtils.getFunctionClass(narClassLoader);
+                    } else if (componentType == ComponentType.SOURCE) {
                         connectorClassName = ConnectorUtils.getIOSourceClass((NarClassLoader) narClassLoader);
                     } else {
                         connectorClassName = ConnectorUtils.getIOSinkClass((NarClassLoader) narClassLoader);
@@ -532,26 +531,28 @@ public class FunctionCommon {
     }
 
     public static boolean isFunctionCodeBuiltin(
-            org.apache.pulsar.functions.proto.Function.FunctionDetailsOrBuilder functionDetails) {
-        if (functionDetails.hasSource()) {
+            org.apache.pulsar.functions.proto.Function.FunctionDetailsOrBuilder functionDetail) {
+        return isFunctionCodeBuiltin(functionDetail, functionDetail.getComponentType());
+    }
+
+    public static boolean isFunctionCodeBuiltin(
+            org.apache.pulsar.functions.proto.Function.FunctionDetailsOrBuilder functionDetails,
+            ComponentType componentType) {
+        if (componentType == ComponentType.SOURCE && functionDetails.hasSource()) {
             org.apache.pulsar.functions.proto.Function.SourceSpec sourceSpec = functionDetails.getSource();
             if (!isEmpty(sourceSpec.getBuiltin())) {
                 return true;
             }
         }
 
-        if (functionDetails.hasSink()) {
+        if (componentType == ComponentType.SINK && functionDetails.hasSink()) {
             org.apache.pulsar.functions.proto.Function.SinkSpec sinkSpec = functionDetails.getSink();
             if (!isEmpty(sinkSpec.getBuiltin())) {
                 return true;
             }
         }
 
-        if (!isEmpty(functionDetails.getBuiltin())) {
-            return true;
-        }
-
-        return false;
+        return componentType == ComponentType.FUNCTION && !isEmpty(functionDetails.getBuiltin());
     }
 
     public static SubscriptionInitialPosition convertFromFunctionDetailsSubscriptionPosition(

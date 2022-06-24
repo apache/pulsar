@@ -33,6 +33,9 @@ import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Type;
 import java.net.MalformedURLException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -43,11 +46,13 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.StringUtils;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.ProducerConfig;
 import org.apache.pulsar.common.functions.Resources;
+import org.apache.pulsar.common.functions.Utils;
 import org.apache.pulsar.common.functions.WindowConfig;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -562,7 +567,6 @@ public class FunctionConfigUtils {
         } else if (functionConfig.getGo() != null) {
             functionConfig.setRuntime(FunctionConfig.Runtime.GO);
         }
-
         WindowConfig windowConfig = functionConfig.getWindowConfig();
         if (windowConfig != null) {
             WindowConfigUtils.inferMissingArguments(windowConfig);
@@ -570,7 +574,7 @@ public class FunctionConfigUtils {
         }
     }
 
-    private static ExtractedFunctionDetails doJavaChecks(FunctionConfig functionConfig, ClassLoader clsLoader) {
+    public static ExtractedFunctionDetails doJavaChecks(FunctionConfig functionConfig, ClassLoader clsLoader) {
 
         String functionClassName = functionConfig.getClassName();
         Class functionClass;

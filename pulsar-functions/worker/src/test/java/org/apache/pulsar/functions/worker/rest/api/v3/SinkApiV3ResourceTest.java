@@ -1574,7 +1574,7 @@ public class SinkApiV3ResourceTest {
 
     private FunctionDetails createDefaultFunctionDetails() throws IOException {
         return SinkConfigUtils.convert(createDefaultSinkConfig(),
-                new SinkConfigUtils.ExtractedSinkDetails(null, null));
+                new SinkConfigUtils.ExtractedSinkDetails(null, null, null));
     }
 
     /*
