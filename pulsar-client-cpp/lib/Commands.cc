@@ -678,7 +678,7 @@ std::string Commands::messageType(BaseCommand_Type type) {
         case BaseCommand::WATCH_TOPIC_UPDATE:
             return "WATCH_TOPIC_UPDATE";
             break;
-        case BaseCommand::UNWATCH_TOPIC_LIST:
+        case BaseCommand::WATCH_TOPIC_LIST_CLOSE:
             return "WATCH_TOPIC_LIST_CLOSE";
             break;
     };
