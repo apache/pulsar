@@ -130,7 +130,7 @@ flexible messaging model and an intuitive client API.</description>
     <vertx.version>3.9.8</vertx.version>
     <rocksdb.version>6.29.4.1</rocksdb.version>
     <slf4j.version>1.7.32</slf4j.version>
-    <commons.collections.version>3.2.2</commons.collections.version>
+    <commons.collections4.version>4.4</commons.collections4.version>
     <log4j2.version>2.17.1</log4j2.version>
     <bouncycastle.version>1.69</bouncycastle.version>
     <bouncycastlefips.version>1.0.2</bouncycastlefips.version>
@@ -1060,9 +1060,9 @@ flexible messaging model and an intuitive client API.</description>
       </dependency>
 
       <dependency>
-        <groupId>commons-collections</groupId>
-        <artifactId>commons-collections</artifactId>
-        <version>${commons.collections.version}</version>
+        <groupId>org.apache.commons</groupId>
+        <artifactId>commons-collections4</artifactId>
+        <version>${commons.collections4.version}</version>
       </dependency>
 
       <!-- test dependencies -->
