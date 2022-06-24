@@ -698,6 +698,7 @@ public class FunctionRuntimeManagerTest {
             any(SecretsProviderConfigurator.class),
             any(),
             any(),
+            any(),
             any()
         );
         doNothing().when(kubernetesRuntimeFactory).setupClient();
@@ -948,6 +949,7 @@ public class FunctionRuntimeManagerTest {
                             any(SecretsProviderConfigurator.class),
                             any(),
                             any(),
+                            any(),
                             any()
                     );
                     doNothing().when(mockedKubernetesRuntimeFactory).setupClient();
@@ -1117,6 +1119,7 @@ public class FunctionRuntimeManagerTest {
                             any(WorkerConfig.class),
                             any(AuthenticationConfig.class),
                             any(SecretsProviderConfigurator.class),
+                            any(),
                             any(),
                             any(),
                             any()
