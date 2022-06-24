@@ -649,7 +649,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
 
          PositionInPendingAckStats result = admin.transactions().checkPositionInPendingAckState(topic, subName,
                  messageId.getLedgerId(), messageId.getEntryId(), null);
-        assertEquals(result.state, PositionInPendingAckStats.State.PendingAckNotReady);
+         assertEquals(result.state, PositionInPendingAckStats.State.PendingAckNotReady);
 
          consumer.acknowledgeAsync(messageId, transaction).get();
          result = admin.transactions().checkPositionInPendingAckState(topic, subName,

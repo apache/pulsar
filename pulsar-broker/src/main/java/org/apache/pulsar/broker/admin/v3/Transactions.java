@@ -345,7 +345,7 @@ public class Transactions extends TransactionsBase {
     }
 
     @GET
-    @Path("/getPositionStatsInPendingAck/{tenant}/{namespace}/{topic}/{subName}")
+    @Path("/pendingAckStats/{tenant}/{namespace}/{topic}/{subName}/{ledgerId}/{entryId}")
     @ApiOperation(value = "Get position stats in pending ack.")
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace or topic "
@@ -363,12 +363,10 @@ public class Transactions extends TransactionsBase {
                                              @PathParam("namespace") String namespace,
                                              @PathParam("topic") @Encoded String encodedTopic,
                                              @PathParam("subName") String subName,
-                                             @QueryParam("ledgerId") Long ledgerId,
-                                             @QueryParam("entryId") Long entryId,
+                                             @PathParam("ledgerId") Long ledgerId,
+                                             @PathParam("entryId") Long entryId,
                                              @QueryParam("batchIndex") Integer batchIndex) {
         try {
-            checkArgument(ledgerId != null & entryId != null,
-                    "ledgerId and entryId should not be null.");
             checkTransactionCoordinatorEnabled();
             validateTopicName(tenant, namespace, encodedTopic);
             PositionImpl position = new PositionImpl(ledgerId, entryId);

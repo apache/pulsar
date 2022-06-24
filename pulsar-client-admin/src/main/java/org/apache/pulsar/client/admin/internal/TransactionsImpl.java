@@ -365,11 +365,11 @@ public class TransactionsImpl extends BaseResource implements Transactions {
                                                                                             Long entryId,
                                                                                             Integer batchIndex) {
         TopicName tn = TopicName.get(topic);
-        WebTarget path = adminV3Transactions.path("getPositionStatsInPendingAck");
+        WebTarget path = adminV3Transactions.path("pendingAckStats");
         path = path.path(tn.getRestPath(false));
         path = path.path(subName);
-        path = path.queryParam("ledgerId", ledgerId);
-        path = path.queryParam("entryId", entryId);
+        path = path.path(ledgerId.toString());
+        path = path.path(entryId.toString());
         path = path.queryParam("batchIndex", batchIndex);
         final CompletableFuture<PositionInPendingAckStats> future = new CompletableFuture<>();
         asyncGetRequest(path,
