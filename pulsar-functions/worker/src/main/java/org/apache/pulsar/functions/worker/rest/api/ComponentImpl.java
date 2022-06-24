@@ -1619,6 +1619,10 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
             }
         }
 
+        if (!isEmpty(functionDetails.getBuiltin())) {
+            return functionDetails.getBuiltin();
+        }
+
         return null;
     }
 
