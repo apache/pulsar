@@ -77,8 +77,8 @@ import org.apache.pulsar.common.api.proto.CommandSuccess;
 import org.apache.pulsar.common.api.proto.CommandTcClientConnectRequest;
 import org.apache.pulsar.common.api.proto.CommandTcClientConnectResponse;
 import org.apache.pulsar.common.api.proto.CommandUnsubscribe;
-import org.apache.pulsar.common.api.proto.CommandUnwatchTopicList;
 import org.apache.pulsar.common.api.proto.CommandWatchTopicList;
+import org.apache.pulsar.common.api.proto.CommandWatchTopicListClose;
 import org.apache.pulsar.common.api.proto.CommandWatchTopicListSuccess;
 import org.apache.pulsar.common.api.proto.CommandWatchTopicUpdate;
 import org.apache.pulsar.common.api.proto.ServerError;
@@ -452,9 +452,9 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
                 handleCommandWatchTopicUpdate(cmd.getWatchTopicUpdate());
                 break;
 
-            case UNWATCH_TOPIC_LIST:
-                checkArgument(cmd.hasUnwatchTopicList());
-                handleCommandUnwatchTopicList(cmd.getUnwatchTopicList());
+            case WATCH_TOPIC_LIST_CLOSE:
+                checkArgument(cmd.hasWatchTopicListClose());
+                handleCommandWatchTopicListClose(cmd.getWatchTopicListClose());
                 break;
 
             default:
@@ -710,7 +710,7 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
         throw new UnsupportedOperationException();
     }
 
-    protected void handleCommandUnwatchTopicList(CommandUnwatchTopicList commandUnwatchTopicList) {
+    protected void handleCommandWatchTopicListClose(CommandWatchTopicListClose commandWatchTopicListClose) {
         throw new UnsupportedOperationException();
     }
 

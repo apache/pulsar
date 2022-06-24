@@ -23,8 +23,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.resources.TopicResources;
-import org.apache.pulsar.common.api.proto.CommandUnwatchTopicList;
-import org.apache.pulsar.common.api.proto.CommandWatchTopicList;
+import org.apache.pulsar.common.api.proto.CommandWatchTopicListClose;
 import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.topics.TopicList;
@@ -44,6 +43,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Semaphore;
+import java.util.regex.Pattern;
 
 public class TopicListServiceTest {
 
@@ -77,12 +77,14 @@ public class TopicListServiceTest {
 
     @Test
     public void testCommandWatchSuccessResponse() {
-        CommandWatchTopicList command = new CommandWatchTopicList()
-                .setRequestId(7)
-                .setWatcherId(13)
-                .setNamespace("tenant/ns")
-                .setTopicsPattern("persistent://tenant/ns/topic\\d");
-        topicListService.handleWatchTopicList(command, lookupSemaphore);
+
+        topicListService.handleWatchTopicList(
+                NamespaceName.get("tenant/ns"),
+                13,
+                7,
+                Pattern.compile("persistent://tenant/ns/topic\\d"),
+                null,
+                lookupSemaphore);
         List<String> topics = Collections.singletonList("persistent://tenant/ns/topic1");
         String hash = TopicList.calculateHash(topics);
         topicListFuture.complete(topics);
@@ -94,12 +96,13 @@ public class TopicListServiceTest {
 
     @Test
     public void testCommandWatchErrorResponse() {
-        CommandWatchTopicList command = new CommandWatchTopicList()
-                .setRequestId(7)
-                .setWatcherId(13)
-                .setNamespace("tenant/ns")
-                .setTopicsPattern("persistent://tenant/ns/topic\\d");
-        topicListService.handleWatchTopicList(command, lookupSemaphore);
+        topicListService.handleWatchTopicList(
+                NamespaceName.get("tenant/ns"),
+                13,
+                7,
+                Pattern.compile("persistent://tenant/ns/topic\\d"),
+                null,
+                lookupSemaphore);
         topicListFuture.completeExceptionally(new PulsarServerException("Error"));
         Assert.assertEquals(1, lookupSemaphore.availablePermits());
         verifyNoInteractions(topicResources);
@@ -108,20 +111,21 @@ public class TopicListServiceTest {
     }
 
     @Test
-    public void testCommandUnwatchRemovesListener() {
-        CommandWatchTopicList commandWatch = new CommandWatchTopicList()
-                .setRequestId(7)
-                .setWatcherId(13)
-                .setNamespace("tenant/ns")
-                .setTopicsPattern("persistent://tenant/ns/topic\\d");
-        topicListService.handleWatchTopicList(commandWatch, lookupSemaphore);
+    public void testCommandWatchTopicListCloseRemovesListener() {
+        topicListService.handleWatchTopicList(
+                NamespaceName.get("tenant/ns"),
+                13,
+                7,
+                Pattern.compile("persistent://tenant/ns/topic\\d"),
+                null,
+                lookupSemaphore);
         List<String> topics = Collections.singletonList("persistent://tenant/ns/topic1");
         topicListFuture.complete(topics);
 
-        CommandUnwatchTopicList commandUnwatch = new CommandUnwatchTopicList()
+        CommandWatchTopicListClose watchTopicListClose = new CommandWatchTopicListClose()
                 .setRequestId(8)
                 .setWatcherId(13);
-        topicListService.handleUnwatchTopicList(commandUnwatch);
+        topicListService.handleWatchTopicListClose(watchTopicListClose);
         verify(topicResources).deregisterPersistentTopicListener(any(TopicListService.TopicListWatcher.class));
     }
 

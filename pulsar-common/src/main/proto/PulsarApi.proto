@@ -782,7 +782,7 @@ message CommandWatchTopicUpdate {
     required string topics_hash    = 4;
 }
 
-message CommandUnwatchTopicList {
+message CommandWatchTopicListClose {
     required uint64 request_id     = 1;
     required uint64 watcher_id     = 2;
 }
@@ -1020,7 +1020,7 @@ message BaseCommand {
         WATCH_TOPIC_LIST = 64;
         WATCH_TOPIC_LIST_SUCCESS = 65;
         WATCH_TOPIC_UPDATE = 66;
-        UNWATCH_TOPIC_LIST = 67;
+        WATCH_TOPIC_LIST_CLOSE = 67;
 
     }
 
@@ -1102,5 +1102,5 @@ message BaseCommand {
     optional CommandWatchTopicList watchTopicList = 64;
     optional CommandWatchTopicListSuccess watchTopicListSuccess = 65;
     optional CommandWatchTopicUpdate watchTopicUpdate = 66;
-    optional CommandUnwatchTopicList unwatchTopicList = 67;
+    optional CommandWatchTopicListClose watchTopicListClose = 67;
 }

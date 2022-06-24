@@ -1518,9 +1518,9 @@ public class Commands {
         return cmd;
     }
 
-    public static BaseCommand newUnwatchTopicList(long watcherId, long requestId) {
-        BaseCommand cmd = localCmd(Type.UNWATCH_TOPIC_LIST);
-        cmd.setUnwatchTopicList()
+    public static BaseCommand newWatchTopicListClose(long watcherId, long requestId) {
+        BaseCommand cmd = localCmd(Type.WATCH_TOPIC_LIST_CLOSE);
+        cmd.setWatchTopicListClose()
                 .setRequestId(requestId)
                 .setWatcherId(watcherId);
         return cmd;

@@ -28,8 +28,7 @@ import java.util.regex.Pattern;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.resources.TopicResources;
-import org.apache.pulsar.common.api.proto.CommandUnwatchTopicList;
-import org.apache.pulsar.common.api.proto.CommandWatchTopicList;
+import org.apache.pulsar.common.api.proto.CommandWatchTopicListClose;
 import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.topics.TopicList;
@@ -110,14 +109,9 @@ public class TopicListService {
         }
     }
 
-    public void handleWatchTopicList(CommandWatchTopicList commandWatchTopicList, Semaphore lookupSemaphore) {
-        String namespace = commandWatchTopicList.getNamespace();
-        NamespaceName namespaceName = NamespaceName.get(namespace);
-        long watcherId = commandWatchTopicList.getWatcherId();
-        long requestId = commandWatchTopicList.getRequestId();
+    public void handleWatchTopicList(NamespaceName namespaceName, long watcherId, long requestId, Pattern topicsPattern,
+                                     String topicsHash, Semaphore lookupSemaphore) {
 
-        Pattern topicsPattern = Pattern.compile(commandWatchTopicList.hasTopicsPattern()
-                ? commandWatchTopicList.getTopicsPattern() : TopicList.ALL_TOPICS_PATTERN);
         if (!enableSubscriptionPatternEvaluation || topicsPattern.pattern().length() > maxSubscriptionPatternLength) {
             String msg = "Unable to create topic list watcher: ";
             if (!enableSubscriptionPatternEvaluation) {
@@ -167,21 +161,20 @@ public class TopicListService {
         finalWatcherFuture.thenAccept(watcher -> {
                     List<String> topicList = watcher.getMatchingTopics();
                     String hash = TopicList.calculateHash(topicList);
-                    if (commandWatchTopicList.hasTopicsHash()
-                        && hash.equals(commandWatchTopicList.getTopicsHash())) {
+                    if (hash.equals(topicsHash)) {
                         topicList = Collections.emptyList();
                     }
                     if (log.isDebugEnabled()) {
                         log.debug(
                                 "[{}] Received WatchTopicList for namespace [//{}] by {}",
-                                connection.getRemoteAddress(), namespace, requestId);
+                                connection.getRemoteAddress(), namespaceName, requestId);
                     }
                     connection.getCommandSender().sendWatchTopicListSuccess(requestId, watcherId, hash, topicList);
                     lookupSemaphore.release();
                 })
                 .exceptionally(ex -> {
                     log.warn("[{}] Error WatchTopicList for namespace [//{}] by {}",
-                            connection.getRemoteAddress(), namespace, requestId);
+                            connection.getRemoteAddress(), namespaceName, requestId);
                     connection.getCommandSender().sendErrorResponse(requestId,
                             BrokerServiceException.getClientErrorCode(
                                     new BrokerServiceException.ServerMetadataException(ex)), ex.getMessage());
@@ -210,9 +203,9 @@ public class TopicListService {
     }
 
 
-    public void handleUnwatchTopicList(CommandUnwatchTopicList commandUnwatchTopicList) {
-        long requestId = commandUnwatchTopicList.getRequestId();
-        long watcherId = commandUnwatchTopicList.getWatcherId();
+    public void handleWatchTopicListClose(CommandWatchTopicListClose commandWatchTopicListClose) {
+        long requestId = commandWatchTopicListClose.getRequestId();
+        long watcherId = commandWatchTopicListClose.getWatcherId();
         deleteTopicListWatcher(watcherId);
         connection.getCommandSender().sendWatchTopicListSuccess(requestId, watcherId, null, null);
     }

@@ -210,7 +210,7 @@ public class TopicListWatcher extends HandlerState implements ConnectionHandler.
         if (null == cnx) {
             cleanupAtClose(closeFuture, null);
         } else {
-            BaseCommand cmd = Commands.newUnwatchTopicList(watcherId, requestId);
+            BaseCommand cmd = Commands.newWatchTopicListClose(watcherId, requestId);
             cnx.sendRequestWithId(Commands.serializeWithSize(cmd), requestId).handle((v, exception) -> {
                 final ChannelHandlerContext ctx = cnx.ctx();
                 boolean ignoreException = ctx == null || !ctx.channel().isActive();

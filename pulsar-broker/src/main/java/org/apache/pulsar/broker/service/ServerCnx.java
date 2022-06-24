@@ -50,6 +50,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
@@ -119,8 +120,8 @@ import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.CommandTcClientConnectRequest;
 import org.apache.pulsar.common.api.proto.CommandUnsubscribe;
-import org.apache.pulsar.common.api.proto.CommandUnwatchTopicList;
 import org.apache.pulsar.common.api.proto.CommandWatchTopicList;
+import org.apache.pulsar.common.api.proto.CommandWatchTopicListClose;
 import org.apache.pulsar.common.api.proto.FeatureFlags;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
 import org.apache.pulsar.common.api.proto.KeySharedMode;
@@ -2524,6 +2525,11 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         final long watcherId = commandWatchTopicList.getWatcherId();
         final NamespaceName namespaceName = NamespaceName.get(commandWatchTopicList.getNamespace());
 
+        Pattern topicsPattern = Pattern.compile(commandWatchTopicList.hasTopicsPattern()
+                ? commandWatchTopicList.getTopicsPattern() : TopicList.ALL_TOPICS_PATTERN);
+        String topicsHash = commandWatchTopicList.hasTopicsHash()
+                ? commandWatchTopicList.getTopicsHash() : null;
+
         final Semaphore lookupSemaphore = service.getLookupRequestSemaphore();
         if (lookupSemaphore.tryAcquire()) {
             if (invalidOriginalPrincipal(originalPrincipal)) {
@@ -2536,7 +2542,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             }
             isNamespaceOperationAllowed(namespaceName, NamespaceOperation.GET_TOPICS).thenApply(isAuthorized -> {
                 if (isAuthorized) {
-                    topicListService.handleWatchTopicList(commandWatchTopicList, lookupSemaphore);
+                    topicListService.handleWatchTopicList(namespaceName, watcherId, requestId, topicsPattern,
+                            topicsHash, lookupSemaphore);
                 } else {
                     final String msg = "Proxy Client is not authorized to watchTopicList";
                     log.warn("[{}] {} with role {} on namespace {}", remoteAddress, msg, getPrincipal(), namespaceName);
@@ -2562,8 +2569,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         }
     }
 
-    protected void handleCommandUnwatchTopicList(CommandUnwatchTopicList commandUnwatchTopicList) {
-        topicListService.handleUnwatchTopicList(commandUnwatchTopicList);
+    protected void handleCommandWatchTopicListClose(CommandWatchTopicListClose commandWatchTopicListClose) {
+        topicListService.handleWatchTopicListClose(commandWatchTopicListClose);
     }
 
     @Override
