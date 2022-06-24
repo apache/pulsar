@@ -2594,7 +2594,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_TRANSACTION,
-            doc = "The max active transactions per transaction coordinator."
+            doc = "The max active transactions per transaction coordinator, default value 0 indicates no limit."
     )
     private long maxActiveTransactionsPerCoordinator = 0L;
 
