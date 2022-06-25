@@ -2234,7 +2234,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
      *  Check if final message size for non-batch and non-chunked messages is larger than max message size.
      */
     private boolean isMessageSizeExceeded(OpSendMsg op) {
-        if (op.msg != null && op.totalChunks <= 1 && !conf.isEncryptionEnabled()) {
+        if (op.msg != null && !conf.isChunkingEnabled()) {
             int messageSize = op.getMessageHeaderAndPayloadSize();
             if (messageSize > ClientCnx.getMaxMessageSize()) {
                 releaseSemaphoreForSendOp(op);
