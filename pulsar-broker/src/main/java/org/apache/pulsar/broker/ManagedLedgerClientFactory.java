@@ -83,7 +83,7 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
         StatsLogger statsLogger = statsProvider.getStatsLogger("pulsar_managedLedger_client");
 
         this.defaultBkClient =
-                bookkeeperProvider.create(conf, metadataStore, eventLoopGroup, Optional.empty(), null);
+                bookkeeperProvider.create(conf, metadataStore, eventLoopGroup, Optional.empty(), null, statsLogger);
 
         BookkeeperFactoryForCustomEnsemblePlacementPolicy bkFactory = (
                 EnsemblePlacementPolicyConfig ensemblePlacementPolicyConfig) -> {
