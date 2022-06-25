@@ -1668,12 +1668,13 @@ public class Commands {
             messageMetadata.setReplicatedFrom(builder.getReplicatedFrom());
         }
         if (builder.getReplicateTosCount() > 0) {
-            for (int i = 0; i < builder.getReplicateTosCount(); i++) {
-                messageMetadata.addReplicateTo(builder.getReplicateToAt(i));
-            }
+            messageMetadata.addAllReplicateTos(builder.getReplicateTosList());
         }
         if (builder.hasSchemaVersion()) {
             messageMetadata.setSchemaVersion(builder.getSchemaVersion());
+        }
+        if (builder.getPropertiesCount() > 0) {
+            messageMetadata.addAllProperties(builder.getPropertiesList());
         }
 
         return builder.getSequenceId();
