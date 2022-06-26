@@ -1966,7 +1966,8 @@ public class PersistentTopics extends PersistentTopicsBase {
                               @PathParam("namespace") String namespace,
                               @PathParam("topic") @Encoded String encodedTopic,
                               @QueryParam("applied") @DefaultValue("false") boolean applied,
-                              @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
+                              @ApiParam(value = "Whether leader broker redirected this call to this broker. "
+                                      + "For internal use.")
                               @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
@@ -2892,7 +2893,8 @@ public class PersistentTopics extends PersistentTopicsBase {
                                           @PathParam("namespace") String namespace,
                                           @ApiParam(value = "Specify topic name", required = true)
                                           @PathParam("topic") @Encoded String encodedTopic,
-                                          @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
+                                          @ApiParam(value = "Whether leader broker redirected this call to this broker."
+                                                  + " For internal use.")
                                           @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         internalTerminatePartitionedTopic(asyncResponse, authoritative);
@@ -4050,7 +4052,8 @@ public class PersistentTopics extends PersistentTopicsBase {
                                             @ApiParam(value = "Specify topic name", required = true)
                                             @PathParam("topic") @Encoded String encodedTopic,
                                             @QueryParam("applied") @DefaultValue("false") boolean applied,
-                                            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
+                                            @ApiParam(value = "Whether leader broker redirected this call to this "
+                                                    + "broker. For internal use.")
                                             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         preValidation(authoritative)
@@ -4075,7 +4078,8 @@ public class PersistentTopics extends PersistentTopicsBase {
                                             @PathParam("namespace") String namespace,
                                             @ApiParam(value = "Specify topic name", required = true)
                                             @PathParam("topic") @Encoded String encodedTopic,
-                                            @ApiParam(value = "Whether leader broker redirected this call to this broker. For internal use.")
+                                            @ApiParam(value = "Whether leader broker redirected this call to this "
+                                                    + "broker. For internal use.")
                                             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
                                             @ApiParam(required = true) boolean schemaValidationEnforced) {
         validateTopicName(tenant, namespace, encodedTopic);
