@@ -467,7 +467,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                 return null;
                             });
                 } else {
-                    final String msg = "Proxy Client is not authorized to Lookup";
+                    final String msg = "Client is not authorized to Lookup";
                     log.warn("[{}] {} with role {} on topic {}", remoteAddress, msg, getPrincipal(), topicName);
                     ctx.writeAndFlush(newLookupErrorResponse(ServerError.AuthorizationError, msg, requestId));
                     lookupSemaphore.release();
@@ -540,7 +540,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                 return null;
                             });
                 } else {
-                    final String msg = "Proxy Client is not authorized to Get Partition Metadata";
+                    final String msg = "Client is not authorized to Get Partition Metadata";
                     log.warn("[{}] {} with role {} on topic {}", remoteAddress, msg, getPrincipal(), topicName);
                     ctx.writeAndFlush(
                             Commands.newPartitionMetadataResponse(ServerError.AuthorizationError, msg, requestId));
@@ -2029,7 +2029,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                             return null;
                         });
                 } else {
-                    final String msg = "Proxy Client is not authorized to GetTopicsOfNamespace";
+                    final String msg = "Client is not authorized to GetTopicsOfNamespace";
                     log.warn("[{}] {} with role {} on namespace {}", remoteAddress, msg, getPrincipal(), namespaceName);
                     commandSender.sendErrorResponse(requestId, ServerError.AuthorizationError, msg);
                     lookupSemaphore.release();
