@@ -4861,7 +4861,7 @@
         }, {
           "name" : "authoritative",
           "in" : "query",
-          "description" : "Is authentication required to perform this operation",
+          "description" : "Whether leader broker redirected this call to this broker. For internal use.",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -4924,7 +4924,7 @@
         }, {
           "name" : "authoritative",
           "in" : "query",
-          "description" : "Is authentication required to perform this operation",
+          "description" : "Whether leader broker redirected this call to this broker. For internal use.",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -4994,7 +4994,7 @@
         }, {
           "name" : "authoritative",
           "in" : "query",
-          "description" : "Is authentication required to perform this operation",
+          "description" : "Whether leader broker redirected this call to this broker. For internal use.",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -5055,7 +5055,7 @@
         }, {
           "name" : "authoritative",
           "in" : "query",
-          "description" : "Is authentication required to perform this operation",
+          "description" : "Whether leader broker redirected this call to this broker. For internal use.",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -5243,7 +5243,7 @@
         }, {
           "name" : "authoritative",
           "in" : "query",
-          "description" : "Is authentication required to perform this operation",
+          "description" : "Whether leader broker redirected this call to this broker. For internal use.",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -5308,7 +5308,7 @@
         }, {
           "name" : "authoritative",
           "in" : "query",
-          "description" : "Is authentication required to perform this operation",
+          "description" : "Whether leader broker redirected this call to this broker. For internal use.",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -6010,7 +6010,7 @@
         }, {
           "name" : "authoritative",
           "in" : "query",
-          "description" : "Is authentication required to perform this operation",
+          "description" : "Whether leader broker redirected this call to this broker. For internal use.",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -6165,7 +6165,7 @@
         }, {
           "name" : "authoritative",
           "in" : "query",
-          "description" : "Is authentication required to perform this operation",
+          "description" : "Whether leader broker redirected this call to this broker. For internal use.",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -6226,7 +6226,7 @@
         }, {
           "name" : "authoritative",
           "in" : "query",
-          "description" : "Is authentication required to perform this operation",
+          "description" : "Whether leader broker redirected this call to this broker. For internal use.",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -6293,7 +6293,7 @@
         }, {
           "name" : "authoritative",
           "in" : "query",
-          "description" : "Is authentication required to perform this operation",
+          "description" : "Whether leader broker redirected this call to this broker. For internal use.",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -6368,7 +6368,7 @@
         }, {
           "name" : "authoritative",
           "in" : "query",
-          "description" : "Is authentication required to perform this operation",
+          "description" : "Whether leader broker redirected this call to this broker. For internal use.",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -7139,7 +7139,7 @@
         }, {
           "name" : "authoritative",
           "in" : "query",
-          "description" : "Is authentication required to perform this operation",
+          "description" : "Whether leader broker redirected this call to this broker. For internal use.",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -7204,7 +7204,7 @@
         }, {
           "name" : "authoritative",
           "in" : "query",
-          "description" : "Is authentication required to perform this operation",
+          "description" : "Whether leader broker redirected this call to this broker. For internal use.",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -7381,7 +7381,7 @@
         }, {
           "name" : "authoritative",
           "in" : "query",
-          "description" : "Is authentication required to perform this operation",
+          "description" : "Whether leader broker redirected this call to this broker. For internal use.",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -7446,7 +7446,7 @@
         }, {
           "name" : "authoritative",
           "in" : "query",
-          "description" : "Is authentication required to perform this operation",
+          "description" : "Whether leader broker redirected this call to this broker. For internal use.",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -7521,7 +7521,7 @@
         }, {
           "name" : "authoritative",
           "in" : "query",
-          "description" : "Is authentication required to perform this operation",
+          "description" : "Whether leader broker redirected this call to this broker. For internal use.",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -7662,7 +7662,7 @@
         }, {
           "name" : "authoritative",
           "in" : "query",
-          "description" : "Is authentication required to perform this operation",
+          "description" : "Whether leader broker redirected this call to this broker. For internal use.",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -8274,7 +8274,7 @@
         }, {
           "name" : "authoritative",
           "in" : "query",
-          "description" : "Is authentication required to perform this operation",
+          "description" : "Whether leader broker redirected this call to this broker. For internal use.",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -8476,7 +8476,7 @@
         }, {
           "name" : "authoritative",
           "in" : "query",
-          "description" : "Is authentication required to perform this operation",
+          "description" : "Whether leader broker redirected this call to this broker. For internal use.",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -8548,7 +8548,7 @@
         }, {
           "name" : "authoritative",
           "in" : "query",
-          "description" : "Is authentication required to perform this operation",
+          "description" : "Whether leader broker redirected this call to this broker. For internal use.",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -8620,7 +8620,7 @@
         }, {
           "name" : "authoritative",
           "in" : "query",
-          "description" : "Is authentication required to perform this operation",
+          "description" : "Whether leader broker redirected this call to this broker. For internal use.",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -8687,7 +8687,7 @@
         }, {
           "name" : "authoritative",
           "in" : "query",
-          "description" : "Is authentication required to perform this operation",
+          "description" : "Whether leader broker redirected this call to this broker. For internal use.",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -8769,7 +8769,7 @@
         }, {
           "name" : "authoritative",
           "in" : "query",
-          "description" : "Is authentication required to perform this operation",
+          "description" : "Whether leader broker redirected this call to this broker. For internal use.",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -8844,7 +8844,7 @@
         }, {
           "name" : "authoritative",
           "in" : "query",
-          "description" : "Is authentication required to perform this operation",
+          "description" : "Whether leader broker redirected this call to this broker. For internal use.",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -8908,7 +8908,7 @@
         }, {
           "name" : "authoritative",
           "in" : "query",
-          "description" : "Is authentication required to perform this operation",
+          "description" : "Whether leader broker redirected this call to this broker. For internal use.",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -8975,7 +8975,7 @@
         }, {
           "name" : "authoritative",
           "in" : "query",
-          "description" : "Is authentication required to perform this operation",
+          "description" : "Whether leader broker redirected this call to this broker. For internal use.",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -9171,7 +9171,7 @@
         }, {
           "name" : "authoritative",
           "in" : "query",
-          "description" : "Is authentication required to perform this operation",
+          "description" : "Whether leader broker redirected this call to this broker. For internal use.",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -9229,7 +9229,7 @@
         }, {
           "name" : "authoritative",
           "in" : "query",
-          "description" : "Is authentication required to perform this operation",
+          "description" : "Whether leader broker redirected this call to this broker. For internal use.",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -9383,7 +9383,7 @@
         }, {
           "name" : "authoritative",
           "in" : "query",
-          "description" : "Is authentication required to perform this operation",
+          "description" : "Whether leader broker redirected this call to this broker. For internal use.",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -9446,7 +9446,7 @@
         }, {
           "name" : "authoritative",
           "in" : "query",
-          "description" : "Is authentication required to perform this operation",
+          "description" : "Whether leader broker redirected this call to this broker. For internal use.",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -9516,7 +9516,7 @@
         }, {
           "name" : "authoritative",
           "in" : "query",
-          "description" : "Is authentication required to perform this operation",
+          "description" : "Whether leader broker redirected this call to this broker. For internal use.",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -9577,7 +9577,7 @@
         }, {
           "name" : "authoritative",
           "in" : "query",
-          "description" : "Is authentication required to perform this operation",
+          "description" : "Whether leader broker redirected this call to this broker. For internal use.",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -9765,7 +9765,7 @@
         }, {
           "name" : "authoritative",
           "in" : "query",
-          "description" : "Is authentication required to perform this operation",
+          "description" : "Whether leader broker redirected this call to this broker. For internal use.",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -9830,7 +9830,7 @@
         }, {
           "name" : "authoritative",
           "in" : "query",
-          "description" : "Is authentication required to perform this operation",
+          "description" : "Whether leader broker redirected this call to this broker. For internal use.",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -10532,7 +10532,7 @@
         }, {
           "name" : "authoritative",
           "in" : "query",
-          "description" : "Is authentication required to perform this operation",
+          "description" : "Whether leader broker redirected this call to this broker. For internal use.",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -10687,7 +10687,7 @@
         }, {
           "name" : "authoritative",
           "in" : "query",
-          "description" : "Is authentication required to perform this operation",
+          "description" : "Whether leader broker redirected this call to this broker. For internal use.",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -10748,7 +10748,7 @@
         }, {
           "name" : "authoritative",
           "in" : "query",
-          "description" : "Is authentication required to perform this operation",
+          "description" : "Whether leader broker redirected this call to this broker. For internal use.",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -10818,7 +10818,7 @@
         }, {
           "name" : "authoritative",
           "in" : "query",
-          "description" : "Is authentication required to perform this operation",
+          "description" : "Whether leader broker redirected this call to this broker. For internal use.",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -10893,7 +10893,7 @@
         }, {
           "name" : "authoritative",
           "in" : "query",
-          "description" : "Is authentication required to perform this operation",
+          "description" : "Whether leader broker redirected this call to this broker. For internal use.",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -11664,7 +11664,7 @@
         }, {
           "name" : "authoritative",
           "in" : "query",
-          "description" : "Is authentication required to perform this operation",
+          "description" : "Whether leader broker redirected this call to this broker. For internal use.",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -11729,7 +11729,7 @@
         }, {
           "name" : "authoritative",
           "in" : "query",
-          "description" : "Is authentication required to perform this operation",
+          "description" : "Whether leader broker redirected this call to this broker. For internal use.",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -11906,7 +11906,7 @@
         }, {
           "name" : "authoritative",
           "in" : "query",
-          "description" : "Is authentication required to perform this operation",
+          "description" : "Whether leader broker redirected this call to this broker. For internal use.",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -11971,7 +11971,7 @@
         }, {
           "name" : "authoritative",
           "in" : "query",
-          "description" : "Is authentication required to perform this operation",
+          "description" : "Whether leader broker redirected this call to this broker. For internal use.",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -12046,7 +12046,7 @@
         }, {
           "name" : "authoritative",
           "in" : "query",
-          "description" : "Is authentication required to perform this operation",
+          "description" : "Whether leader broker redirected this call to this broker. For internal use.",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -12187,7 +12187,7 @@
         }, {
           "name" : "authoritative",
           "in" : "query",
-          "description" : "Is authentication required to perform this operation",
+          "description" : "Whether leader broker redirected this call to this broker. For internal use.",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -12799,7 +12799,7 @@
         }, {
           "name" : "authoritative",
           "in" : "query",
-          "description" : "Is authentication required to perform this operation",
+          "description" : "Whether leader broker redirected this call to this broker. For internal use.",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -13004,7 +13004,7 @@
         }, {
           "name" : "authoritative",
           "in" : "query",
-          "description" : "Is authentication required to perform this operation",
+          "description" : "Whether leader broker redirected this call to this broker. For internal use.",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -13076,7 +13076,7 @@
         }, {
           "name" : "authoritative",
           "in" : "query",
-          "description" : "Is authentication required to perform this operation",
+          "description" : "Whether leader broker redirected this call to this broker. For internal use.",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -13148,7 +13148,7 @@
         }, {
           "name" : "authoritative",
           "in" : "query",
-          "description" : "Is authentication required to perform this operation",
+          "description" : "Whether leader broker redirected this call to this broker. For internal use.",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -13215,7 +13215,7 @@
         }, {
           "name" : "authoritative",
           "in" : "query",
-          "description" : "Is authentication required to perform this operation",
+          "description" : "Whether leader broker redirected this call to this broker. For internal use.",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -13297,7 +13297,7 @@
         }, {
           "name" : "authoritative",
           "in" : "query",
-          "description" : "Is authentication required to perform this operation",
+          "description" : "Whether leader broker redirected this call to this broker. For internal use.",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -13372,7 +13372,7 @@
         }, {
           "name" : "authoritative",
           "in" : "query",
-          "description" : "Is authentication required to perform this operation",
+          "description" : "Whether leader broker redirected this call to this broker. For internal use.",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -13436,7 +13436,7 @@
         }, {
           "name" : "authoritative",
           "in" : "query",
-          "description" : "Is authentication required to perform this operation",
+          "description" : "Whether leader broker redirected this call to this broker. For internal use.",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -13503,7 +13503,7 @@
         }, {
           "name" : "authoritative",
           "in" : "query",
-          "description" : "Is authentication required to perform this operation",
+          "description" : "Whether leader broker redirected this call to this broker. For internal use.",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -13699,7 +13699,7 @@
         }, {
           "name" : "authoritative",
           "in" : "query",
-          "description" : "Is authentication required to perform this operation",
+          "description" : "Whether leader broker redirected this call to this broker. For internal use.",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -13757,7 +13757,7 @@
         }, {
           "name" : "authoritative",
           "in" : "query",
-          "description" : "Is authentication required to perform this operation",
+          "description" : "Whether leader broker redirected this call to this broker. For internal use.",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -13824,7 +13824,7 @@
         }, {
           "name" : "authoritative",
           "in" : "query",
-          "description" : "Is authentication required to perform this operation",
+          "description" : "Whether leader broker redirected this call to this broker. For internal use.",
           "required" : false,
           "type" : "boolean",
           "default" : false
@@ -13882,7 +13882,7 @@
         }, {
           "name" : "authoritative",
           "in" : "query",
-          "description" : "Is authentication required to perform this operation",
+          "description" : "Whether leader broker redirected this call to this broker. For internal use.",
           "required" : false,
           "type" : "boolean",
           "default" : false
