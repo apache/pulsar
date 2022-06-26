@@ -29,6 +29,7 @@ import static org.testng.Assert.assertFalse;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -44,11 +45,17 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import io.netty.buffer.ByteBuf;
+import lombok.Cleanup;
 import lombok.SneakyThrows;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.api.OpenBuilder;
+import org.apache.bookkeeper.mledger.AsyncCallbacks;
+import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerInfo;
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.Topic;
@@ -66,13 +73,17 @@ import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.protocol.Markers;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -1677,5 +1688,64 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         assertFalse(((SystemTopic)topicReferenceV2.get()).isCompactionEnabled());
         producer1.close();
         producer2.close();
+    }
+
+    @Test(timeOut = 60000)
+    public void testCompactionWithMarker() throws Exception {
+        String namespace = "my-property/use/my-ns";
+        final TopicName dest = TopicName.get(
+                BrokerTestUtil.newUniqueName("persistent://" + namespace + "/testWriteMarker"));
+        admin.topics().createNonPartitionedTopic(dest.toString());
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(dest.toString())
+                .subscriptionName("test-compaction-sub")
+                .subscriptionType(SubscriptionType.Exclusive)
+                .readCompacted(true)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Latest)
+                .subscribe();
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(dest.toString())
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create();
+        producer.send("msg-1".getBytes(StandardCharsets.UTF_8));
+        Optional<Topic> topic = pulsar.getBrokerService().getTopic(dest.toString(), true).join();
+        Assert.assertTrue(topic.isPresent());
+        PersistentTopic persistentTopic = (PersistentTopic) topic.get();
+        Random random = new Random();
+        for (int i = 0; i < 100; i++) {
+            int rad = random.nextInt(3);
+            ByteBuf marker;
+            if (rad == 0) {
+                marker = Markers.newTxnCommitMarker(-1L, 0, i);
+            } else if (rad == 1) {
+                marker = Markers.newTxnAbortMarker(-1L, 0, i);
+            } else {
+                marker = Markers.newReplicatedSubscriptionsSnapshotRequest(UUID.randomUUID().toString(), "r1");
+            }
+            persistentTopic.getManagedLedger().asyncAddEntry(marker, new AsyncCallbacks.AddEntryCallback() {
+                @Override
+                public void addComplete(Position position, ByteBuf entryData, Object ctx) {
+                    //
+                }
+
+                @Override
+                public void addFailed(ManagedLedgerException exception, Object ctx) {
+                    //
+                }
+            }, null);
+            marker.release();
+        }
+        producer.send("msg-2".getBytes(StandardCharsets.UTF_8));
+        admin.topics().triggerCompaction(dest.toString());
+        Awaitility.await()
+                .atMost(50, TimeUnit.SECONDS)
+                .pollInterval(1, TimeUnit.SECONDS)
+                .untilAsserted(() -> {
+                    long ledgerId = admin.topics().getInternalStats(dest.toString()).compactedLedger.ledgerId;
+                    Assert.assertNotEquals(ledgerId, -1L);
+                });
     }
 }
