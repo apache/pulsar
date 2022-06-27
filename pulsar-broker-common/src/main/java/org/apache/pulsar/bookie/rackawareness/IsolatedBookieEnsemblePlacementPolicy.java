@@ -207,12 +207,12 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
             if (!primaryIsolationGroupString.isEmpty()) {
                 pair.setLeft(new HashSet(Arrays.asList(primaryIsolationGroupString.split(","))));
             } else {
-                pair.setLeft(new HashSet());
+                pair.setLeft(Collections.emptySet());
             }
             if (!secondaryIsolationGroupString.isEmpty()) {
                 pair.setRight(new HashSet(Arrays.asList(secondaryIsolationGroupString.split(","))));
             } else {
-                pair.setRight(new HashSet());
+                pair.setRight(Collections.emptySet());
             }
         }
         return pair;
