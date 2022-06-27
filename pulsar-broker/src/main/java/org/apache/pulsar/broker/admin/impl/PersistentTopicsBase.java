@@ -3613,15 +3613,15 @@ public class PersistentTopicsBase extends AdminResource {
         } else {
             ret = CompletableFuture.completedFuture(null);
         }
-        return ret.thenCompose(__ -> getPartitionedTopicMetadataAsync(topicName, authoritative, false))
+        return ret.thenCompose(__ -> validateTopicOwnershipAsync(topicName, authoritative))
+                .thenCompose(__ -> validateTopicOperationAsync(topicName, TopicOperation.TERMINATE))
+                .thenCompose(__ -> getPartitionedTopicMetadataAsync(topicName, authoritative, false))
                 .thenAccept(partitionMetadata -> {
                     if (partitionMetadata.partitions > 0) {
                         throw new RestException(Status.METHOD_NOT_ALLOWED,
                                 "Termination of a partitioned topic is not allowed");
                     }
                 })
-                .thenCompose(__ -> validateTopicOwnershipAsync(topicName, authoritative))
-                .thenCompose(__ -> validateTopicOperationAsync(topicName, TopicOperation.TERMINATE))
                 .thenCompose(__ -> getTopicReferenceAsync(topicName))
                 .thenCompose(topic -> {
                     if (!(topic instanceof PersistentTopic)) {
