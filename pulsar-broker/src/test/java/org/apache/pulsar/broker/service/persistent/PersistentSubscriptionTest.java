@@ -40,7 +40,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ExecutorService;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedLedger;
@@ -129,7 +129,7 @@ public class PersistentSubscriptionTest {
             public CompletableFuture<PendingAckStore> newPendingAckStore(PersistentSubscription subscription) {
                 return CompletableFuture.completedFuture(new PendingAckStore() {
                     @Override
-                    public void replayAsync(PendingAckHandleImpl pendingAckHandle, ScheduledExecutorService executorService) {
+                    public void replayAsync(PendingAckHandleImpl pendingAckHandle, ExecutorService executorService) {
                         try {
                             Field field = PendingAckHandleState.class.getDeclaredField("state");
                             field.setAccessible(true);
