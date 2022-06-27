@@ -69,6 +69,8 @@ import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.policies.data.impl.BacklogQuotaImpl;
 import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 import org.apache.pulsar.common.util.Codec;
+import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -1842,7 +1844,12 @@ public class PersistentTopics extends PersistentTopicsBase {
         internalGetBacklogAsync(authoritative)
                 .thenAccept(asyncResponse::resume)
                 .exceptionally(ex -> {
-                    if (!isRedirectException(ex)) {
+                    Throwable t = FutureUtil.unwrapCompletionException(ex);
+                    if (t instanceof MetadataStoreException.NotFoundException) {
+                        log.warn("[{}] Failed to get topic backlog {}: Namespace does not exist", clientAppId(),
+                                namespaceName);
+                        ex = new RestException(Response.Status.NOT_FOUND, "Namespace does not exist");
+                    } else if (!isRedirectException(ex)) {
                         log.error("[{}] Failed to get estimated backlog for topic {}", clientAppId(), encodedTopic, ex);
                     }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
