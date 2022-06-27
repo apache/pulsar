@@ -182,23 +182,33 @@ public class PulsarConfigurationLoader {
             final ServiceConfiguration convertedConf = ServiceConfiguration.class
                     .getDeclaredConstructor().newInstance();
             Field[] confFields = conf.getClass().getDeclaredFields();
+            Properties properties = new Properties();
             Arrays.stream(confFields).forEach(confField -> {
                 try {
-                    Field convertedConfField = ServiceConfiguration.class.getDeclaredField(confField.getName());
                     confField.setAccessible(true);
+                    Field convertedConfField = ServiceConfiguration.class.getDeclaredField(confField.getName());
                     if (!Modifier.isStatic(convertedConfField.getModifiers())) {
                         convertedConfField.setAccessible(true);
                         convertedConfField.set(convertedConf, confField.get(conf));
                     }
                 } catch (NoSuchFieldException e) {
                     if (!ignoreNonExistMember) {
-                        throw new IllegalArgumentException("Exception caused while converting configuration: "
-                                + e.getMessage());
+                        throw new IllegalArgumentException(
+                                "Exception caused while converting configuration: " + e.getMessage());
+                    }
+                    // add unknown fields to properties
+                    try {
+                        if (confField.get(conf) != null) {
+                            properties.put(confField.getName(), confField.get(conf));
+                        }
+                    } catch (Exception ignoreException) {
+                        // should not happen
                     }
                 } catch (IllegalAccessException e) {
                     throw new RuntimeException("Exception caused while converting configuration: " + e.getMessage());
                 }
             });
+            convertedConf.getProperties().putAll(properties);
             return convertedConf;
         } catch (InstantiationException | IllegalAccessException
                 | InvocationTargetException | NoSuchMethodException e) {
