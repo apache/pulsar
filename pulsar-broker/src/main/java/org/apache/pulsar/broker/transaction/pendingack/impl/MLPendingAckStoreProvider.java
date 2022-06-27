@@ -74,6 +74,9 @@ public class MLPendingAckStoreProvider implements TransactionPendingAckStoreProv
                                                 InitialPosition.Earliest, new AsyncCallbacks.OpenCursorCallback() {
                                                     @Override
                                                     public void openCursorComplete(ManagedCursor cursor, Object ctx) {
+                                                        // Why "rewind" ?
+                                                        // see: https://github.com/apache/pulsar/pull/16240
+                                                        cursor.rewind();
                                                         pendingAckStoreFuture.complete(new MLPendingAckStore(ledger,
                                                                 cursor,
                                                                 subscription.getCursor(),
