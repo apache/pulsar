@@ -147,7 +147,7 @@ public class Namespaces extends NamespacesBase {
         validateNamespaceOperationAsync(NamespaceName.get(property, namespace), NamespaceOperation.GET_TOPICS)
                 // Validate that namespace exists, throws 404 if it doesn't exist
                 .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
-                .thenCompose(__ -> pulsar().getNamespaceService().getListOfTopics(namespaceName, mode))
+                .thenCompose(policies -> internalGetListOfTopics(policies, mode))
                 .thenApply(topics -> filterSystemTopic(topics, includeSystemTopic))
                 .thenAccept(response::resume)
                 .exceptionally(ex -> {
