@@ -475,7 +475,7 @@ public class CmdTopicPolicies extends CmdBase {
         private String limitStr;
 
         @Parameter(names = { "--global", "-g" }, description = "Whether to set this policy globally. "
-                + "If set to true, the policy will be replicate to other clusters asynchronously, "
+                + "If set to true, the policy is replicated to other clusters asynchronously, "
                 + "If set to false or not set, the topic retention policy is replicated to local clusters.")
         private boolean isGlobal = false;
 
