@@ -509,7 +509,7 @@ public class CmdTopicPolicies extends CmdBase {
         private List<String> params;
 
         @Parameter(names = { "--global", "-g" }, description = "Whether to remove this policy globally. "
-                + "If set to true, the removing operation will be replicate to other clusters asynchronously"
+                + "If set to true, the removing operation is replicated to other clusters asynchronously"
                 + "If set to false or not set, the topic retention policy is replicated to local clusters.")
         private boolean isGlobal = false;
 
