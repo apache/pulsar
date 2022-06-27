@@ -449,8 +449,8 @@ public class CmdTopicPolicies extends CmdBase {
         private boolean applied = false;
 
         @Parameter(names = { "--global", "-g" }, description = "Whether to get this policy globally. "
-                + "If set to true, broker returned global topic policies"
-                + "If set to false or not set,the broker returned local topic policies")
+                + "If set to true, the broker returns global topic policies"
+                + "If set to false or not set, the broker returns local topic policies")
         private boolean isGlobal = false;
 
         @Override
