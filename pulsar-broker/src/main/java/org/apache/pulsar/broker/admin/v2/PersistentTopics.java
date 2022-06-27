@@ -1743,7 +1743,8 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 405, message = "If given partitioned topic"),
             @ApiResponse(code = 412, message = "Topic name is not valid"),
             @ApiResponse(code = 500, message = "Internal server error")})
-    public Response examineMessage(
+    public void examineMessage(
+            @Suspended final AsyncResponse asyncResponse,
             @ApiParam(value = "Specify the tenant", required = true)
             @PathParam("tenant") String tenant,
             @ApiParam(value = "Specify the namespace", required = true)
@@ -1761,7 +1762,16 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Is authentication required to perform this operation")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
-        return internalExamineMessage(initialPosition, messagePosition, authoritative);
+        internalExamineMessageAsync(initialPosition, messagePosition, authoritative)
+                .thenAccept(asyncResponse::resume)
+                .exceptionally(ex -> {
+                    if (!isRedirectException(ex)) {
+                        log.error("[{}] Failed to examine a specific message on the topic {}", clientAppId(), topicName,
+                                ex);
+                    }
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @GET
