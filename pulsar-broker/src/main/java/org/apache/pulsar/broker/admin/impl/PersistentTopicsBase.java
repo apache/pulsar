@@ -2860,6 +2860,7 @@ public class PersistentTopicsBase extends AdminResource {
             ret = CompletableFuture.completedFuture(null);
         }
 
+        ret = ret.thenCompose(__ -> validateTopicOwnershipAsync(topicName, authoritative));
         long messagePositionLocal = messagePosition < 1 ? 1 : messagePosition;
         String initialPositionLocal = initialPosition == null ? "latest" : initialPosition;
         if (!topicName.isPartitioned()) {
@@ -2874,9 +2875,7 @@ public class PersistentTopicsBase extends AdminResource {
                         }
                     });
         }
-
-        return ret.thenCompose(__ -> validateTopicOwnershipAsync(topicName, authoritative))
-                .thenCompose(__ -> getTopicReferenceAsync(topicName))
+        return ret.thenCompose(__ -> getTopicReferenceAsync(topicName))
                 .thenCompose(topic -> {
                     if (!(topic instanceof PersistentTopic)) {
                         log.error("[{}] Not supported operation of non-persistent topic {} ", clientAppId(), topicName);
