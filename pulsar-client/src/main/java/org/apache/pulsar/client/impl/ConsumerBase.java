@@ -34,7 +34,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
@@ -79,8 +78,8 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     protected final MessageListener<T> listener;
     protected final ConsumerEventListener consumerEventListener;
     protected final ExecutorProvider executorProvider;
-    protected final ScheduledExecutorService externalPinnedExecutor;
-    protected final ScheduledExecutorService internalPinnedExecutor;
+    protected final ExecutorService externalPinnedExecutor;
+    protected final ExecutorService internalPinnedExecutor;
     final BlockingQueue<Message<T>> incomingMessages;
     protected ConcurrentOpenHashMap<MessageIdImpl, MessageIdImpl[]> unAckedChunkedMessageIdSequenceMap;
     protected final ConcurrentLinkedQueue<CompletableFuture<Message<T>>> pendingReceives;
@@ -128,8 +127,8 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         this.unAckedChunkedMessageIdSequenceMap =
                 ConcurrentOpenHashMap.<MessageIdImpl, MessageIdImpl[]>newBuilder().build();
         this.executorProvider = executorProvider;
-        this.externalPinnedExecutor = (ScheduledExecutorService) executorProvider.getExecutor();
-        this.internalPinnedExecutor = (ScheduledExecutorService) client.getInternalExecutorService();
+        this.externalPinnedExecutor = executorProvider.getExecutor();
+        this.internalPinnedExecutor = client.getInternalExecutorService();
         this.pendingReceives = Queues.newConcurrentLinkedQueue();
         this.pendingBatchReceives = Queues.newConcurrentLinkedQueue();
         this.schema = schema;
