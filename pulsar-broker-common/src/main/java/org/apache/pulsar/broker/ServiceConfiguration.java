@@ -2602,6 +2602,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_TRANSACTION,
+            doc = "The max active transactions per transaction coordinator, default value 0 indicates no limit."
+    )
+    private long maxActiveTransactionsPerCoordinator = 0L;
+
+    @FieldContext(
+            category = CATEGORY_TRANSACTION,
             doc = "MLPendingAckStore maintain a ConcurrentSkipListMap pendingAckLogIndex`,"
                     + "it store the position in pendingAckStore as value and save a position used to determine"
                     + "whether the previous data can be cleaned up as a key."
