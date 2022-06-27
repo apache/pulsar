@@ -42,4 +42,4 @@ In Pulsar, the highest level of message delivery guarantee is using an [idempote
 
 - Consumers need to rely on more mechanisms to acknowledge (ack) messages once. 
   
-  For example, consumers are required to store the MessgeID along with its acked state. After the topic is unloaded, the subscription can recover the acked state of this MessgeID in memory when the topic is loaded again.
+  For example, consumers are required to store the MessageID along with its acked state. After the topic is unloaded, the subscription can recover the acked state of this MessageID in memory when the topic is loaded again.
