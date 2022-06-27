@@ -378,10 +378,11 @@ public class PersistentTopics extends PersistentTopicsBase {
                 .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
                 .exceptionally(ex -> {
                     Throwable t = FutureUtil.unwrapCompletionException(ex);
-                    if (t instanceof BrokerServiceException.TopicBusyException) {
+                    if (!force && (t instanceof BrokerServiceException.TopicBusyException)) {
                         ex = new RestException(Response.Status.PRECONDITION_FAILED,
                                 "Topic has active producers/subscriptions");
-                    } else if (isManagedLedgerNotFoundException(t)) {
+                    }
+                    if (isManagedLedgerNotFoundException(t)) {
                         ex = new RestException(Response.Status.NOT_FOUND,
                                 getTopicNotFoundErrorMessage(topicName.toString()));
                     } else if (!isRedirectException(ex)) {

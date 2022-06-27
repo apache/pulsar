@@ -316,22 +316,6 @@ public class PersistentTopicsBase extends AdminResource {
                 });
     }
 
-    protected void internalDeleteTopicForcefully(boolean authoritative) {
-        validateTopicOwnership(topicName, authoritative);
-        validateNamespaceOperation(topicName.getNamespaceObject(), NamespaceOperation.DELETE_TOPIC);
-
-        try {
-            pulsar().getBrokerService().deleteTopic(topicName.toString(), true).get();
-        } catch (Exception e) {
-            if (isManagedLedgerNotFoundException(e)) {
-                log.info("[{}] Topic was already not existing {}", clientAppId(), topicName, e);
-            } else {
-                log.error("[{}] Failed to delete topic forcefully {}", clientAppId(), topicName, e);
-                throw new RestException(e);
-            }
-        }
-    }
-
     private CompletableFuture<Void> revokePermissionsAsync(String topicUri, String role) {
         return namespaceResources().getPoliciesAsync(namespaceName).thenCompose(
                 policiesOptional -> {
