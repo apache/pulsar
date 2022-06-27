@@ -1555,6 +1555,7 @@ flexible messaging model and an intuitive client API.</description>
             <pulsar-admin>SCRIPT_STYLE</pulsar-admin>
             <pulsar-perf>SCRIPT_STYLE</pulsar-perf>
             <pulsar-client>SCRIPT_STYLE</pulsar-client>
+            <pulsar-shell>SCRIPT_STYLE</pulsar-shell>
             <bookkeeper>SCRIPT_STYLE</bookkeeper>
             <tfvars>SCRIPT_STYLE</tfvars>
           </mapping>
