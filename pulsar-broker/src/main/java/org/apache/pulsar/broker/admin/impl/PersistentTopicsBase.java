@@ -2911,9 +2911,9 @@ public class PersistentTopicsBase extends AdminResource {
                         throw new RestException(exception);
                     }
 
-                }).thenCompose(entry -> {
+                }).thenApply(entry -> {
                     try {
-                        return CompletableFuture.completedFuture(generateResponseWithEntry(entry));
+                        return generateResponseWithEntry(entry);
                     } catch (IOException exception) {
                         throw new RestException(exception);
                     } finally {
