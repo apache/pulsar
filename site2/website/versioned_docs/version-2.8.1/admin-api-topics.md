@@ -340,7 +340,7 @@ You can check the following statistics of a given non-partitioned topic.
 
                 -   **availablePermits**: The number of messages that the consumer has space for in the client library's listen queue. `0` means the client library's queue is full and `receive()` isn't being called. A non-zero value means this consumer is ready for dispatched messages.
 
-                -   **unackedMessages**: The number of unacknowledged messages for the consumer.
+                -   **unackedMessages**: The number of unacknowledged messages for the consumer, where an unacknowledged message is one that has been sent to the consumer but not yet acknowledged. This field is only meaningful when using a subscription that tracks individual message acknowledgement.
 
                 -   **blockedConsumerOnUnackedMsgs**: The flag used to verify if the consumer is blocked due to reaching threshold of the unacknowledged messages.
                 
