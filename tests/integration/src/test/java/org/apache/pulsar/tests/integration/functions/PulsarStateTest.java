@@ -21,6 +21,8 @@ package org.apache.pulsar.tests.integration.functions;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.pulsar.tests.integration.functions.utils.CommandGenerator.JAVAJAR;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
@@ -46,7 +48,6 @@ import org.apache.pulsar.tests.integration.functions.utils.CommandGenerator.Runt
 import org.apache.pulsar.tests.integration.suites.PulsarStandaloneTestSuite;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.awaitility.Awaitility;
-import org.testng.Assert;
 import org.testng.annotations.Test;
 
 /**
@@ -194,8 +195,8 @@ public class PulsarStateTest extends PulsarStandaloneTestSuite {
     @Test(groups = {"java_state", "state", "function", "java_function"})
     public void testBytes2StringNotUTF8() {
         byte[] valueBytes = Base64.getDecoder().decode(VALUE_BASE64);
-        Assert.assertFalse(Utf8.isWellFormed(valueBytes));
-        Assert.assertNotEquals(valueBytes, new String(valueBytes, UTF_8).getBytes(UTF_8));
+        assertFalse(Utf8.isWellFormed(valueBytes));
+        assertNotEquals(valueBytes, new String(valueBytes, UTF_8).getBytes(UTF_8));
     }
 
     @Test(groups = {"java_state", "state", "function", "java_function"})
