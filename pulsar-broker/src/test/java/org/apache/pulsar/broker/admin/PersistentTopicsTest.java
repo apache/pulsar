@@ -691,16 +691,30 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
         verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
         Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
 
-        List<String> persistentPartitionedTopics = persistentTopics.getPartitionedTopicList(testTenant, testNamespace, false);
-
+        response = mock(AsyncResponse.class);
+        responseCaptor = ArgumentCaptor.forClass(Response.class);
+        persistentTopics.getPartitionedTopicList(response, testTenant, testNamespace, false);
+        verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
+        List<String> persistentPartitionedTopics = (List<String>) responseCaptor.getValue();
         Assert.assertEquals(persistentPartitionedTopics.size(), 1);
-        Assert.assertEquals(TopicName.get(persistentPartitionedTopics.get(0)).getDomain().value(), TopicDomain.persistent.value());
-        persistentPartitionedTopics = persistentTopics.getPartitionedTopicList(testTenant, testNamespace, true);
+        Assert.assertEquals(TopicName.get(persistentPartitionedTopics.get(0)).getDomain().value(),
+                TopicDomain.persistent.value());
+
+        response = mock(AsyncResponse.class);
+        responseCaptor = ArgumentCaptor.forClass(Response.class);
+        persistentTopics.getPartitionedTopicList(response, testTenant, testNamespace, true);
+        verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
+        persistentPartitionedTopics = (List<String>) responseCaptor.getValue();
         Assert.assertEquals(persistentPartitionedTopics.size(), 2);
 
-        List<String> nonPersistentPartitionedTopics = nonPersistentTopic.getPartitionedTopicList(testTenant, testNamespace, false);
+        response = mock(AsyncResponse.class);
+        responseCaptor = ArgumentCaptor.forClass(Response.class);
+        nonPersistentTopic.getPartitionedTopicList(response, testTenant, testNamespace, false);
+        verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
+        List<String> nonPersistentPartitionedTopics = (List<String>) responseCaptor.getValue();
         Assert.assertEquals(nonPersistentPartitionedTopics.size(), 1);
-        Assert.assertEquals(TopicName.get(nonPersistentPartitionedTopics.get(0)).getDomain().value(), TopicDomain.non_persistent.value());
+        Assert.assertEquals(TopicName.get(nonPersistentPartitionedTopics.get(0)).getDomain().value(),
+                TopicDomain.non_persistent.value());
     }
 
     @Test

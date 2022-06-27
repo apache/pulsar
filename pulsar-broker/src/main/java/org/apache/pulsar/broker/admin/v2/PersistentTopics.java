@@ -120,7 +120,8 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 404, message = "tenant/namespace/topic doesn't exit"),
             @ApiResponse(code = 412, message = "Namespace name is not valid"),
             @ApiResponse(code = 500, message = "Internal server error")})
-    public List<String> getPartitionedTopicList(
+    public void getPartitionedTopicList(
+            @Suspended AsyncResponse asyncResponse,
             @ApiParam(value = "Specify the tenant", required = true)
             @PathParam("tenant") String tenant,
             @ApiParam(value = "Specify the namespace", required = true)
@@ -128,7 +129,16 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiParam(value = "Include system topic")
             @QueryParam("includeSystemTopic") boolean includeSystemTopic) {
         validateNamespaceName(tenant, namespace);
-        return filterSystemTopic(internalGetPartitionedTopicList(), includeSystemTopic);
+        internalGetPartitionedTopicListAsync()
+                .thenAccept(partitionedTopicList -> asyncResponse.resume(
+                        filterSystemTopic(partitionedTopicList, includeSystemTopic)))
+                .exceptionally(ex -> {
+                    if (!isRedirectException(ex)) {
+                        log.error("[{}] Failed to get partitioned topic list {}", clientAppId(), namespaceName, ex);
+                    }
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @GET
