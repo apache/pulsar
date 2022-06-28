@@ -78,7 +78,7 @@ public class MultiTopicsConsumerTest extends ProducerConsumerBase {
         PulsarClientImpl client = new PulsarClientImpl(conf) {
             {
                 ScheduledExecutorService internalExecutorService =
-                        (ScheduledExecutorService) super.getInternalExecutorService();
+                        (ScheduledExecutorService) super.getScheduledExecutorProvider().getExecutor();
                 internalExecutorServiceDelegate = mock(ScheduledExecutorService.class,
                         // a spy isn't used since that doesn't work for private classes, instead
                         // the mock delegatesTo an existing instance. A delegate is sufficient for verifying
