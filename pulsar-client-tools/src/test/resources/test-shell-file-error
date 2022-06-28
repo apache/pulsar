@@ -1,0 +1,3 @@
+admin topics create my-topic --metadata a=b
+admin notexist-command
+client produce -m msg my-topic
