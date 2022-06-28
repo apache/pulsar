@@ -1337,15 +1337,15 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         SendCallback callback;
         Runnable rePopulate;
         ChunkedMessageCtx chunkedMessageCtx;
-        long uncompressedSize;
-        long sequenceId;
-        long createdAt;
-        long firstSentAt;
-        long lastSentAt;
-        int retryCount;
+        long uncompressedSize = 0;
+        long sequenceId = -1L;
+        long createdAt = -1L;
+        long firstSentAt = -1L;
+        long lastSentAt = -1L;
+        int retryCount = 0;
         long batchSizeByte = 0;
         int numMessagesInBatch = 1;
-        long highestSequenceId;
+        long highestSequenceId = -1L;
         int totalChunks = 0;
         int chunkId = -1;
 
