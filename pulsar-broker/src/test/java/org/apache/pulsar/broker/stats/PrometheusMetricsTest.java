@@ -1448,7 +1448,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
                 if (!metricName.equals(currentMetric.get())) {
                     System.out.println(metricsStr);
-                    fail("Metric not grouped under it's type definition: " + line);
+                    fail("Metric not grouped under its type definition: " + line);
                 }
 
             }
