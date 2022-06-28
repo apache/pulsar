@@ -1971,7 +1971,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         stats.state = ml.getState().toString();
 
         stats.ledgers = Lists.newArrayList();
-        Set<CompletableFuture<String>> futures = Sets.newConcurrentHashSet();
+        Set<CompletableFuture<?>> futures = Sets.newConcurrentHashSet();
         CompletableFuture<Set<String>> availableBookiesFuture =
                 brokerService.pulsar().getPulsarResources().getBookieResources().listAvailableBookiesAsync();
         futures.add(
@@ -2007,7 +2007,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                         });
                     }
                 })
-                .handle((strings, throwable) -> null));
+        );
 
         // Add ledger info for compacted topic ledger if exist.
         LedgerInfo info = new LedgerInfo();
