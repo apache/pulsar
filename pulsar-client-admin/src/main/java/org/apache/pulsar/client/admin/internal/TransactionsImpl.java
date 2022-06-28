@@ -23,7 +23,6 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import javax.ws.rs.client.Entity;
-import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -52,20 +51,7 @@ public class TransactionsImpl extends BaseResource implements Transactions {
     public CompletableFuture<TransactionCoordinatorStats> getCoordinatorStatsByIdAsync(int coordinatorId) {
         WebTarget path = adminV3Transactions.path("coordinatorStats");
         path = path.queryParam("coordinatorId", coordinatorId);
-        final CompletableFuture<TransactionCoordinatorStats> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<TransactionCoordinatorStats>() {
-                    @Override
-                    public void completed(TransactionCoordinatorStats stats) {
-                        future.complete(stats);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<TransactionCoordinatorStats>(){});
     }
 
     @Override
@@ -76,20 +62,7 @@ public class TransactionsImpl extends BaseResource implements Transactions {
     @Override
     public CompletableFuture<Map<Integer, TransactionCoordinatorStats>> getCoordinatorStatsAsync() {
         WebTarget path = adminV3Transactions.path("coordinatorStats");
-        final CompletableFuture<Map<Integer, TransactionCoordinatorStats>> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<Map<Integer, TransactionCoordinatorStats>>() {
-                    @Override
-                    public void completed(Map<Integer, TransactionCoordinatorStats> stats) {
-                        future.complete(stats);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<Map<Integer, TransactionCoordinatorStats>>(){});
     }
 
     @Override
@@ -104,20 +77,7 @@ public class TransactionsImpl extends BaseResource implements Transactions {
         path = path.path(topicName.getRestPath(false));
         path = path.path(txnID.getMostSigBits() + "");
         path = path.path(txnID.getLeastSigBits() + "");
-        final CompletableFuture<TransactionInBufferStats> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<TransactionInBufferStats>() {
-                    @Override
-                    public void completed(TransactionInBufferStats stats) {
-                        future.complete(stats);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<TransactionInBufferStats>(){});
     }
 
     @Override
@@ -134,20 +94,7 @@ public class TransactionsImpl extends BaseResource implements Transactions {
         path = path.path(subName);
         path = path.path(txnID.getMostSigBits() + "");
         path = path.path(txnID.getLeastSigBits() + "");
-        final CompletableFuture<TransactionInPendingAckStats> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<TransactionInPendingAckStats>() {
-                    @Override
-                    public void completed(TransactionInPendingAckStats stats) {
-                        future.complete(stats);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<TransactionInPendingAckStats>(){});
     }
 
     @Override
@@ -161,20 +108,7 @@ public class TransactionsImpl extends BaseResource implements Transactions {
         WebTarget path = adminV3Transactions.path("transactionMetadata");
         path = path.path(txnID.getMostSigBits() + "");
         path = path.path(txnID.getLeastSigBits() + "");
-        final CompletableFuture<TransactionMetadata> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<TransactionMetadata>() {
-                    @Override
-                    public void completed(TransactionMetadata metadata) {
-                        future.complete(metadata);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<TransactionMetadata>(){});
     }
 
     @Override
@@ -188,20 +122,7 @@ public class TransactionsImpl extends BaseResource implements Transactions {
         WebTarget path = adminV3Transactions.path("transactionBufferStats");
         path = path.path(TopicName.get(topic).getRestPath(false));
         path = path.queryParam("lowWaterMarks", lowWaterMarks);
-        final CompletableFuture<TransactionBufferStats> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<TransactionBufferStats>() {
-                    @Override
-                    public void completed(TransactionBufferStats stats) {
-                        future.complete(stats);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<TransactionBufferStats>(){});
     }
 
     @Override
@@ -217,20 +138,7 @@ public class TransactionsImpl extends BaseResource implements Transactions {
         path = path.path(TopicName.get(topic).getRestPath(false));
         path = path.path(subName);
         path = path.queryParam("lowWaterMarks", lowWaterMarks);
-        final CompletableFuture<TransactionPendingAckStats> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<TransactionPendingAckStats>() {
-                    @Override
-                    public void completed(TransactionPendingAckStats stats) {
-                        future.complete(stats);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<TransactionPendingAckStats>(){});
     }
 
     @Override
@@ -247,20 +155,7 @@ public class TransactionsImpl extends BaseResource implements Transactions {
         if (coordinatorId != null) {
             path = path.queryParam("coordinatorId", coordinatorId);
         }
-        final CompletableFuture<Map<String, TransactionMetadata>> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<Map<String, TransactionMetadata>>() {
-                    @Override
-                    public void completed(Map<String, TransactionMetadata> metadataMap) {
-                        future.complete(metadataMap);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<Map<String, TransactionMetadata>>(){});
     }
 
     @Override
@@ -289,20 +184,7 @@ public class TransactionsImpl extends BaseResource implements Transactions {
         WebTarget path = adminV3Transactions.path("coordinatorInternalStats");
         path = path.path(coordinatorId + "");
         path = path.queryParam("metadata", metadata);
-        final CompletableFuture<TransactionCoordinatorInternalStats> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<TransactionCoordinatorInternalStats>() {
-                    @Override
-                    public void completed(TransactionCoordinatorInternalStats stats) {
-                        future.complete(stats);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<TransactionCoordinatorInternalStats>(){});
     }
 
     @Override
@@ -321,20 +203,7 @@ public class TransactionsImpl extends BaseResource implements Transactions {
         path = path.path(tn.getRestPath(false));
         path = path.path(subName);
         path = path.queryParam("metadata", metadata);
-        final CompletableFuture<TransactionPendingAckInternalStats> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<TransactionPendingAckInternalStats>() {
-                    @Override
-                    public void completed(TransactionPendingAckInternalStats stats) {
-                        future.complete(stats);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<TransactionPendingAckInternalStats>(){});
     }
 
     @Override

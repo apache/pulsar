@@ -60,20 +60,7 @@ public class SchemasImpl extends BaseResource implements Schemas {
     @Override
     public CompletableFuture<SchemaInfo> getSchemaInfoAsync(String topic) {
         TopicName tn = TopicName.get(topic);
-        final CompletableFuture<SchemaInfo> future = new CompletableFuture<>();
-        asyncGetRequest(schemaPath(tn),
-                new InvocationCallback<GetSchemaResponse>() {
-                    @Override
-                    public void completed(GetSchemaResponse response) {
-                        future.complete(convertGetSchemaResponseToSchemaInfo(tn, response));
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(schemaPath(tn), new FutureCallback<SchemaInfo>(){});
     }
 
     @Override
@@ -84,20 +71,7 @@ public class SchemasImpl extends BaseResource implements Schemas {
     @Override
     public CompletableFuture<SchemaInfoWithVersion> getSchemaInfoWithVersionAsync(String topic) {
         TopicName tn = TopicName.get(topic);
-        final CompletableFuture<SchemaInfoWithVersion> future = new CompletableFuture<>();
-        asyncGetRequest(schemaPath(tn),
-                new InvocationCallback<GetSchemaResponse>() {
-                    @Override
-                    public void completed(GetSchemaResponse response) {
-                        future.complete(convertGetSchemaResponseToSchemaInfoWithVersion(tn, response));
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(schemaPath(tn), new FutureCallback<SchemaInfoWithVersion>(){});
     }
 
     @Override
@@ -109,20 +83,7 @@ public class SchemasImpl extends BaseResource implements Schemas {
     public CompletableFuture<SchemaInfo> getSchemaInfoAsync(String topic, long version) {
         TopicName tn = TopicName.get(topic);
         WebTarget path = schemaPath(tn).path(Long.toString(version));
-        final CompletableFuture<SchemaInfo> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<GetSchemaResponse>() {
-                    @Override
-                    public void completed(GetSchemaResponse response) {
-                        future.complete(convertGetSchemaResponseToSchemaInfo(tn, response));
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<SchemaInfo>(){});
     }
 
     @Override
