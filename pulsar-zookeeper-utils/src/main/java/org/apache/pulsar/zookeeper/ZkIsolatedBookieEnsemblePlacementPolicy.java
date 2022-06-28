@@ -205,9 +205,13 @@ public class ZkIsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePl
             String secondaryIsolationGroupString = castToString(properties.getOrDefault(SECONDARY_ISOLATION_BOOKIE_GROUPS, ""));
             if (!primaryIsolationGroupString.isEmpty()) {
                 pair.setLeft(new HashSet(Arrays.asList(primaryIsolationGroupString.split(","))));
+            } else {
+                pair.setLeft(Collections.emptySet());
             }
             if (!secondaryIsolationGroupString.isEmpty()) {
                 pair.setRight(new HashSet(Arrays.asList(secondaryIsolationGroupString.split(","))));
+            } else {
+                pair.setRight(Collections.emptySet());
             }
         }
         return pair;
