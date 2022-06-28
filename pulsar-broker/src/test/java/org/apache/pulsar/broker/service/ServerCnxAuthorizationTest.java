@@ -274,7 +274,6 @@ public class ServerCnxAuthorizationTest {
         serverCnx.channelActive(channelHandlerContext);
 
         // connect
-        AuthenticationToken clientAuthenticationToken = new AuthenticationToken(CLIENT_TOKEN);
         AuthenticationToken proxyAuthenticationToken = new AuthenticationToken(PROXY_TOKEN);
         CommandConnect connect = new CommandConnect();
         connect.setAuthMethodName(proxyAuthenticationToken.getAuthMethodName());
