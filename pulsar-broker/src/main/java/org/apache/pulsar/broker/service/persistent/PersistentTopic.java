@@ -3083,6 +3083,7 @@ public class PersistentTopic extends AbstractTopic
                             throwable = throwable.getCause();
                             if (throwable instanceof NotAllowedException) {
                               publishContext.completed((NotAllowedException) throwable, -1, -1);
+                              decrementPendingWriteOpsAndCheck();
                               return null;
                             } else if (!(throwable instanceof ManagedLedgerException)) {
                                 throwable = new ManagedLedgerException(throwable);
