@@ -20,14 +20,20 @@ package org.apache.pulsar.shell;
 
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
+import java.io.BufferedReader;
 import java.io.FileInputStream;
+import java.io.InputStreamReader;
+import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.function.Function;
+import java.util.stream.Collectors;
+import lombok.AllArgsConstructor;
 import org.jline.reader.Completer;
 import org.jline.reader.LineReader;
 import org.jline.reader.LineReaderBuilder;
@@ -37,6 +43,7 @@ import org.jline.terminal.Terminal;
 import org.jline.terminal.TerminalBuilder;
 import org.jline.utils.AttributedStringBuilder;
 import org.jline.utils.AttributedStyle;
+import org.jline.utils.InfoCmp;
 
 /**
  * Main Pulsar shell class invokable from the pulsar-shell script.
@@ -46,10 +53,34 @@ public class PulsarShell {
     private static final String EXIT_MESSAGE = "Goodbye!";
     private static final String PROPERTY_PERSIST_HISTORY_ENABLED = "shellHistoryPersistEnabled";
     private static final String PROPERTY_PERSIST_HISTORY_PATH = "shellHistoryPersistPath";
+    private static final String CHECKMARK = new String(Character.toChars(0x2714));
+    private static final String XMARK = new String(Character.toChars(0x2716));
+    private static final AttributedStyle LOG_STYLE = AttributedStyle.DEFAULT
+            .foreground(25, 143, 255)
+            .background(230, 241, 255);
 
-    static final class MainOptions {
+    static final class ShellOptions {
+
         @Parameter(names = {"-h", "--help"}, help = true, description = "Show this help.")
         boolean help;
+    }
+
+    static final class MainOptions {
+
+        @Parameter(names = {"-f", "--filename"}, description = "Input filename with a list of commands to be executed."
+                + " Each command must be separated by a newline.")
+        String filename;
+
+        @Parameter(names = {"-e", "--exit-on-error"}, description = "If true, the shell will be interrupted "
+                + "if a command throws an exception.")
+        boolean exitOnError;
+
+        @Parameter(names = {"-"}, description = "Read commands from the standard input.")
+        boolean readFromStdin;
+
+        @Parameter(names = {"-np", "--no-progress"}, description = "Display raw output of the commands without the "
+                + "fancy progress visualization.")
+        boolean noProgress;
     }
 
     public static void main(String[] args) throws Exception {
@@ -64,12 +95,12 @@ public class PulsarShell {
         try (FileInputStream fis = new FileInputStream(configFile)) {
             properties.load(fis);
         }
-        new PulsarShell().run(properties);
+        new PulsarShell().run(Arrays.copyOfRange(args, 1, args.length), properties);
     }
 
-    public void run(Properties properties) throws Exception {
+    public void run(String[] args, Properties properties) throws Exception {
         final Terminal terminal = TerminalBuilder.builder().build();
-        run(properties, (providersMap) -> {
+        run(args, properties, (providersMap) -> {
             List<Completer> completers = new ArrayList<>();
             String serviceUrl = "";
             String adminUrl = "";
@@ -124,54 +155,193 @@ public class PulsarShell {
         }
     }
 
-    public void run(Properties properties,
+    private interface CommandReader {
+        String readCommand() throws InterruptShellException;
+    }
+
+    private static class InterruptShellException extends RuntimeException {
+    }
+
+    private static class CommandsInfo {
+
+        @AllArgsConstructor
+        static class ExecutedCommandInfo {
+            String command;
+            boolean ok;
+        }
+        int totalCommands;
+        List<ExecutedCommandInfo> executedCommands = new ArrayList<>();
+        String executingCommand;
+    }
+
+    public void run(String[] args,
+                    Properties properties,
                     Function<Map<String, ShellCommandsProvider>, LineReader> readerBuilder,
                     Function<Map<String, ShellCommandsProvider>, Terminal> terminalBuilder) throws Exception {
         System.setProperty("org.jline.terminal.dumb", "true");
 
+        /**
+         * Options read from System.args
+         */
         final JCommander mainCommander = new JCommander();
         final MainOptions mainOptions = new MainOptions();
         mainCommander.addObject(mainOptions);
+        try {
+            mainCommander.parse(args);
+        } catch (Exception e) {
+            System.err.println(e.getMessage());
+            System.err.println();
+            mainCommander.usage();
+            exit(1);
+            return;
+        }
+        /**
+         * Options read from the shell session
+         */
+        final JCommander shellCommander = new JCommander();
+        final ShellOptions shellOptions = new ShellOptions();
+        shellCommander.addObject(shellOptions);
 
-        final Map<String, ShellCommandsProvider> providersMap = registerProviders(mainCommander, properties);
+        final Map<String, ShellCommandsProvider> providersMap = registerProviders(shellCommander, properties);
 
         final LineReader reader = readerBuilder.apply(providersMap);
         final Terminal terminal = terminalBuilder.apply(providersMap);
-        final String prompt = createPrompt();
+
+        CommandReader commandReader;
+        CommandsInfo commandsInfo = null;
+
+        if (mainOptions.readFromStdin && mainOptions.filename != null) {
+            throw new IllegalArgumentException("Cannot use stdin and -f/--filename option at same time");
+        }
+        boolean isNonInteractiveMode = mainOptions.filename != null || mainOptions.readFromStdin;
+
+        if (isNonInteractiveMode) {
+            final List<String> lines;
+            if (mainOptions.filename != null) {
+                lines = Files.readAllLines(Paths.get(mainOptions.filename))
+                        .stream()
+                        .filter(s -> !s.isBlank())
+                        .collect(Collectors.toList());
+            } else {
+                try (BufferedReader stdinReader = new BufferedReader(new InputStreamReader(System.in))) {
+                    lines = stdinReader.lines().filter(s -> !s.isBlank()).collect(Collectors.toList());
+                }
+            }
+            if (!mainOptions.noProgress) {
+                commandsInfo = new CommandsInfo();
+                commandsInfo.totalCommands = lines.size();
+            }
+
+            final CommandsInfo finalCommandsInfo = commandsInfo;
+            commandReader = new CommandReader() {
+                private int index = 0;
+
+                @Override
+                public String readCommand() {
+                    if (index == lines.size()) {
+                        throw new InterruptShellException();
+                    }
+                    final String command = lines.get(index++).trim();
+                    if (finalCommandsInfo != null) {
+                        finalCommandsInfo.executingCommand = command;
+                    } else {
+                        output(String.format("[%d/%d] Executing %s", new Object[]{index,
+                                lines.size(), command}), terminal);
+                    }
+                    return command;
+                }
+            };
+        } else {
+            final String prompt = createPrompt();
+
+            commandReader = () -> {
+                try {
+                    return reader.readLine(prompt).trim();
+                } catch (org.jline.reader.UserInterruptException userInterruptException) {
+                    throw new InterruptShellException();
+                }
+            };
+
+        }
+
         Runtime.getRuntime().addShutdownHook(new Thread(() -> quit(terminal)));
         while (true) {
             String line;
             try {
-                line = reader.readLine(prompt).trim();
-            } catch (org.jline.reader.UserInterruptException userInterruptException) {
-                break;
+                line = commandReader.readCommand();
+            } catch (InterruptShellException interruptShellException) {
+                exit(0);
+                return;
             }
             if (line.isBlank()) {
                 continue;
             }
             if (isQuitCommand(line)) {
-                break;
+                exit(0);
+                return;
             }
             final List<String> words = parseLine(reader, line);
 
-            if (mainOptions.help) {
-                mainCommander.usage();
+            if (shellOptions.help) {
+                shellCommander.usage();
                 continue;
             }
 
-            final ShellCommandsProvider pulsarShellCommandsProvider = getProviderFromArgs(mainCommander, words);
+            final ShellCommandsProvider pulsarShellCommandsProvider = getProviderFromArgs(shellCommander, words);
             if (pulsarShellCommandsProvider == null) {
-                mainCommander.usage();
+                shellCommander.usage();
                 continue;
             }
             String[] argv = extractAndConvertArgs(words);
+            boolean commandOk = false;
             try {
-                pulsarShellCommandsProvider.runCommand(argv);
+                printExecutingCommands(terminal, commandsInfo, false);
+                commandOk = pulsarShellCommandsProvider.runCommand(argv);
             } catch (Throwable t) {
                 t.printStackTrace(terminal.writer());
             } finally {
+                if (commandsInfo != null) {
+                    commandsInfo.executingCommand = null;
+                    commandsInfo.executedCommands.add(new CommandsInfo.ExecutedCommandInfo(line, commandOk));
+                    printExecutingCommands(terminal, commandsInfo, true);
+                }
                 pulsarShellCommandsProvider.cleanupState(properties);
+
             }
+            if (mainOptions.exitOnError && !commandOk) {
+                exit(1);
+                return;
+            }
+        }
+    }
+
+    private void printExecutingCommands(Terminal terminal, CommandsInfo commandsInfo, boolean printExecuted) {
+        if (commandsInfo == null) {
+            return;
+        }
+        terminal.puts(InfoCmp.Capability.clear_screen);
+        terminal.flush();
+        int index = 1;
+        if (printExecuted) {
+            for (CommandsInfo.ExecutedCommandInfo executedCommand : commandsInfo.executedCommands) {
+                String icon = executedCommand.ok ? CHECKMARK : XMARK;
+                final String ansiLog = new AttributedStringBuilder()
+                        .style(LOG_STYLE)
+                        .append(String.format("[%d/%d] %s %s", new Object[]{index++, commandsInfo.totalCommands,
+                                icon, executedCommand.command}))
+                        .toAnsi();
+                output(ansiLog, terminal);
+            }
+        } else {
+            index = commandsInfo.executedCommands.size() + 1;
+        }
+        if (commandsInfo.executingCommand != null) {
+            final String ansiLog = new AttributedStringBuilder()
+                    .style(LOG_STYLE)
+                    .append(String.format("[%d/%d] Executing %s", new Object[]{index,
+                            commandsInfo.totalCommands, commandsInfo.executingCommand}))
+                    .toAnsi();
+            output(ansiLog, terminal);
         }
     }
 
@@ -186,7 +356,7 @@ public class PulsarShell {
 
     private static String createPrompt() {
         return new AttributedStringBuilder()
-                .style(AttributedStyle.DEFAULT.foreground(25, 143, 255).background(230, 241, 255))
+                .style(LOG_STYLE)
                 .append("pulsar>")
                 .style(AttributedStyle.DEFAULT)
                 .append(" ")
@@ -251,6 +421,10 @@ public class PulsarShell {
         final String name = provider.getName();
         commander.addCommand(name, provider);
         providerMap.put(name, provider);
+    }
+
+    protected void exit(int exitCode) {
+        System.exit(exitCode);
     }
 
 }

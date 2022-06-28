@@ -50,6 +50,7 @@ public class ClientShell extends PulsarClientTool implements ShellCommandsProvid
 
     @Override
     public void setupState(Properties properties) {
+        getJCommander().setProgramName(getName());
     }
 
     @Override
@@ -65,7 +66,8 @@ public class ClientShell extends PulsarClientTool implements ShellCommandsProvid
     }
 
     @Override
-    public void runCommand(String[] args) throws Exception {
-        run(args);
+    public boolean runCommand(String[] args) throws Exception {
+        final int returnCode = run(args);
+        return returnCode == 0;
     }
 }
