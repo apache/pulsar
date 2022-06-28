@@ -4063,12 +4063,11 @@ public class PersistentTopicsBase extends AdminResource {
         );
     }
 
-    protected LongRunningProcessStatus internalCompactionStatus(boolean authoritative) {
-        validateTopicOwnership(topicName, authoritative);
-        validateTopicOperation(topicName, TopicOperation.COMPACT);
-
-        PersistentTopic topic = (PersistentTopic) getTopicReference(topicName);
-        return topic.compactionStatus();
+    protected CompletableFuture<LongRunningProcessStatus> internalCompactionStatusAsync(boolean authoritative) {
+        return validateTopicOwnershipAsync(topicName, authoritative)
+                .thenCompose(__ -> validateTopicOperationAsync(topicName, TopicOperation.COMPACT))
+                .thenCompose(__ -> getTopicReferenceAsync(topicName))
+                .thenApply(topic -> ((PersistentTopic) topic).compactionStatus());
     }
 
     protected void internalTriggerOffload(AsyncResponse asyncResponse,
