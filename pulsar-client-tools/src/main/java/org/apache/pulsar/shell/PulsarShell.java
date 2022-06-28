@@ -168,8 +168,6 @@ public class PulsarShell {
             try {
                 pulsarShellCommandsProvider.runCommand(argv);
             } catch (Throwable t) {
-                System.out.println("got:" + t);
-                System.out.println(t);
                 t.printStackTrace(terminal.writer());
             } finally {
                 pulsarShellCommandsProvider.cleanupState(properties);
