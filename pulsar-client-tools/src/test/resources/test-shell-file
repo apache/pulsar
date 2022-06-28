@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -18,38 +17,6 @@
 # under the License.
 #
 
-# need this for relative symlinks
-PRG="$0"
-while [ -h "$PRG" ] ; do
-  ls=`ls -ld "$PRG"`
-  link=`expr "$ls" : '.*-> \(.*\)$'`
-  if expr "$link" : '/.*' > /dev/null; then
-    PRG="$link"
-  else
-    PRG="`dirname "$PRG"`/$link"
-  fi
-done
+admin topics create my-topic --metadata a=b
 
-BINDIR=$(dirname "$PRG")
-export PULSAR_HOME=`cd -P $BINDIR/..;pwd`
-. "$PULSAR_HOME/bin/pulsar-admin-common.sh"
-OPTS="-Dorg.jline.terminal.jansi=false $OPTS"
-
-#Change to PULSAR_HOME to support relative paths
-cd "$PULSAR_HOME"
-SHELL_ARGS="--config $PULSAR_CLIENT_CONF"
-while [[ $# -gt 0 ]]
-do
-  key="$1"
-  if [[ "$key" != "-"* ]]; then
-      break
-  fi
-  if [[ "$key" == "-c" || "$key" == "--config" ]]; then
-    SHELL_ARGS=""
-    break
-  fi
-  shift
-
-done
-
-exec $JAVA $OPTS org.apache.pulsar.shell.PulsarShell $SHELL_ARGS "$@"
+client produce -m msg my-topic

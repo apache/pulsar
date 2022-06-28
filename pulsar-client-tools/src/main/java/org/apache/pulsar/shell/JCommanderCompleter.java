@@ -22,6 +22,7 @@ import com.beust.jcommander.JCommander;
 import com.beust.jcommander.ParameterDescription;
 import com.beust.jcommander.WrappedParameter;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -46,7 +47,7 @@ public class JCommanderCompleter {
         command.setProgramName(program);
         return createCompletersForCommand(Collections.emptyList(),
                 command,
-                List.of(NullCompleter.INSTANCE));
+                Arrays.asList(NullCompleter.INSTANCE));
     }
 
     private static List<Completer> createCompletersForCommand(List<Completer> preCompleters,
