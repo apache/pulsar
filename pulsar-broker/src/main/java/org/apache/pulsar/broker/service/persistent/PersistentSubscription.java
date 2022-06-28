@@ -204,13 +204,18 @@ public class PersistentSubscription implements Subscription {
     @Override
     public CompletableFuture<Void> addConsumer(Consumer consumer) {
         return pendingAckHandle.pendingAckHandleFuture().thenCompose(future -> {
-            synchronized (PersistentSubscription.this) {
+            synchronized (this) {
                 cursor.updateLastActive();
                 if (IS_FENCED_UPDATER.get(this) == TRUE) {
                     log.warn("Attempting to add consumer {} on a fenced subscription", consumer);
                     return FutureUtil.failedFuture(new SubscriptionFencedException("Subscription is fenced"));
                 }
-
+                if (getTopic().getSubscription(getName()) != this){
+                    log.warn("Attempting to add consumer {} on a deprecated subscription", consumer);
+                    return FutureUtil.failedFuture(
+                            new SubscriptionFencedException("Current subscription " + getName() + " has already instead"
+                                    + " by a new one."));
+                }
                 if (dispatcher == null || !dispatcher.isConsumerConnected()) {
                     Dispatcher previousDispatcher = null;
                     boolean useStreamingDispatcher = topic.getBrokerService().getPulsar()
