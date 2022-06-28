@@ -2001,15 +2001,20 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                 acknowledgeAsync(finalMessageId).whenComplete((v, ex) -> {
                                     if (ex != null) {
                                         log.warn("[{}] [{}] [{}] Failed to acknowledge the message {} of the original"
-                                                        + " topic but send to the DLQ successfully {}.",
-                                                topicName, subscription, consumerName, finalMessageId, ex.getMessage());
+                                                        + " topic but send to the DLQ successfully.",
+                                                topicName, subscription, consumerName, finalMessageId, ex);
                                     } else {
                                         result.complete(true);
                                     }
                                 });
                             }).exceptionally(ex -> {
-                                log.warn("[{}] [{}] [{}] Failed to send DLQ message to {} for message id {} : {}.",
-                                        topicName, subscription, consumerName, finalMessageId, ex.getMessage());
+                                if (ex instanceof PulsarClientException.ProducerQueueIsFullError) {
+                                    log.warn("[{}] [{}] [{}] Failed to send DLQ message to {} for message id {}: {}",
+                                            topicName, subscription, consumerName, finalMessageId, ex.getMessage());
+                                } else {
+                                    log.warn("[{}] [{}] [{}] Failed to send DLQ message to {} for message id {}",
+                                            topicName, subscription, consumerName, finalMessageId, ex);
+                                }
                                 result.complete(false);
                                 return null;
                     });
