@@ -87,6 +87,13 @@
     <cve>CVE-2022-27385</cve>
     <cve>CVE-2022-27386</cve>
     <cve>CVE-2022-27387</cve>
+    <cve>CVE-2022-27444</cve>
+    <cve>CVE-2022-27446</cve>
+    <cve>CVE-2022-27449</cve>
+    <cve>CVE-2022-27451</cve>
+    <cve>CVE-2022-27452</cve>
+    <cve>CVE-2022-27455</cve>
+    <cve>CVE-2022-27457</cve>
   </suppress>
 
   <!-- google-http-client-gson getting confused with gson-->
