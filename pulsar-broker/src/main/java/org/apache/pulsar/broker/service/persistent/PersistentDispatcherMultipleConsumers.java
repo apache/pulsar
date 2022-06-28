@@ -29,6 +29,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
@@ -104,6 +105,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
             AtomicIntegerFieldUpdater.newUpdater(PersistentDispatcherMultipleConsumers.class,
                     "blockedDispatcherOnUnackedMsgs");
     protected Optional<DispatchRateLimiter> dispatchRateLimiter = Optional.empty();
+
+    private AtomicBoolean isRescheduleReadInProgress = new AtomicBoolean(false);
 
     protected enum ReadType {
         Normal, Replay
@@ -290,8 +293,17 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
 
     @Override
     protected void reScheduleRead() {
-        topic.getBrokerService().executor().schedule(() -> readMoreEntries(), MESSAGE_RATE_BACKOFF_MS,
-                TimeUnit.MILLISECONDS);
+        if (isRescheduleReadInProgress.compareAndSet(false, true)) {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] [{}] Reschedule message read in {} ms", topic.getName(), name, MESSAGE_RATE_BACKOFF_MS);
+            }
+            topic.getBrokerService().executor().schedule(
+                    () -> {
+                        isRescheduleReadInProgress.set(false);
+                        readMoreEntries();
+                        },
+                    MESSAGE_RATE_BACKOFF_MS, TimeUnit.MILLISECONDS);
+        }
     }
 
     // left pair is messagesToRead, right pair is bytesToRead
