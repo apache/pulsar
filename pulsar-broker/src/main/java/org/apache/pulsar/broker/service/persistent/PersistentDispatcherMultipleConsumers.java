@@ -156,7 +156,10 @@ public class PersistentDispatcherMultipleConsumers extends AbstractDispatcherMul
         }
 
         consumerList.add(consumer);
-        consumerList.sort(Comparator.comparingInt(Consumer::getPriorityLevel));
+        if (consumerList.size() > 1
+                && consumer.getPriorityLevel() < consumerList.get(consumerList.size() - 2).getPriorityLevel()) {
+            consumerList.sort(Comparator.comparingInt(Consumer::getPriorityLevel));
+        }
         consumerSet.add(consumer);
     }
 
