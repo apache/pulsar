@@ -343,12 +343,11 @@ The Apache Software License, Version 2.0
  * Apache Commons
     - commons-cli-commons-cli-1.5.0.jar
     - commons-codec-commons-codec-1.15.jar
-    - commons-collections-commons-collections-3.2.2.jar
     - commons-configuration-commons-configuration-1.10.jar
     - commons-io-commons-io-2.8.0.jar
     - commons-lang-commons-lang-2.6.jar
     - commons-logging-commons-logging-1.1.1.jar
-    - org.apache.commons-commons-collections4-4.1.jar
+    - org.apache.commons-commons-collections4-4.4.jar
     - org.apache.commons-commons-compress-1.21.jar
     - org.apache.commons-commons-lang3-3.11.jar
  * Netty

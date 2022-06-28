@@ -20,7 +20,7 @@ package org.apache.pulsar.io.hdfs2.sink;
 
 import java.io.IOException;
 import java.util.concurrent.BlockingQueue;
-import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.hadoop.fs.Syncable;
 import org.apache.pulsar.functions.api.Record;
 
