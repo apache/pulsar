@@ -15,10 +15,8 @@ import org.powermock.reflect.Whitebox;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-import java.lang.reflect.Field;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 public class TopicTransactionBufferTest extends TransactionTestBase {
 
@@ -67,11 +65,7 @@ public class TopicTransactionBufferTest extends TransactionTestBase {
         producer.newMessage(txn).value("test".getBytes()).send();
         PersistentTopic persistentTopic = (PersistentTopic) getPulsarServiceList().get(0)
                 .getBrokerService().getTopic(TopicName.get(topic).toString(), false).get().get();
-        Field field = Whitebox.getField(ManagedLedgerImpl.class, "STATE_UPDATER");
-        field.setAccessible(true);
-        AtomicReferenceFieldUpdater<ManagedLedgerImpl, ManagedLedgerImpl.State> state =
-                (AtomicReferenceFieldUpdater<ManagedLedgerImpl, ManagedLedgerImpl.State>) field.get(persistentTopic.getManagedLedger());
-        state.set((ManagedLedgerImpl) persistentTopic.getManagedLedger(), ManagedLedgerImpl.State.WriteFailed);
+        Whitebox.setInternalState(persistentTopic.getManagedLedger(), "state", ManagedLedgerImpl.State.WriteFailed);
         txn.commit().get();
     }
 }
