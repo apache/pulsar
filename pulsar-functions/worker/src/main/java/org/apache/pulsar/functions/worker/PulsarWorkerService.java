@@ -26,6 +26,7 @@ import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Supplier;
@@ -51,6 +52,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.conf.InternalConfigurationData;
 import org.apache.pulsar.common.naming.NamedEntity;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.policies.data.Policies;
@@ -310,9 +312,11 @@ public class PulsarWorkerService implements WorkerService {
         // create tenant for function worker service
         try {
             NamedEntity.checkName(tenant);
-            pulsarResources.getTenantResources().createTenant(tenant,
-                    new TenantInfoImpl(Sets.newHashSet(workerConfig.getSuperUserRoles()), Sets.newHashSet(cluster)));
-            LOG.info("Created tenant {} for function worker", tenant);
+            if (!pulsarResources.getTenantResources().tenantExists(tenant)) {
+                pulsarResources.getTenantResources().createTenant(tenant, new TenantInfoImpl(
+                        Sets.newHashSet(workerConfig.getSuperUserRoles()), Sets.newHashSet(cluster)));
+                LOG.info("Created tenant {} for function worker", tenant);
+            }
         } catch (AlreadyExistsException e) {
             LOG.debug("Failed to create already existing property {} for function worker service", cluster, e);
         } catch (IllegalArgumentException e) {
@@ -326,12 +330,14 @@ public class PulsarWorkerService implements WorkerService {
         // create cluster for function worker service
         try {
             NamedEntity.checkName(cluster);
-            ClusterDataImpl clusterData = ClusterDataImpl.builder()
-                    .serviceUrl(workerConfig.getPulsarWebServiceUrl())
-                    .brokerServiceUrl(workerConfig.getPulsarServiceUrl())
-                    .build();
-            pulsarResources.getClusterResources().createCluster(cluster, clusterData);
-            LOG.info("Created cluster {} for function worker", cluster);
+            if (!pulsarResources.getClusterResources().clusterExists(cluster)) {
+                ClusterDataImpl clusterData = ClusterDataImpl.builder()
+                        .serviceUrl(workerConfig.getPulsarWebServiceUrl())
+                        .brokerServiceUrl(workerConfig.getPulsarServiceUrl())
+                        .build();
+                pulsarResources.getClusterResources().createCluster(cluster, clusterData);
+                LOG.info("Created cluster {} for function worker", cluster);
+            }
         } catch (AlreadyExistsException e) {
             LOG.debug("Failed to create already existing cluster {} for function worker service", cluster, e);
         } catch (IllegalArgumentException e) {
@@ -346,8 +352,10 @@ public class PulsarWorkerService implements WorkerService {
         try {
             Policies policies = createFunctionsNamespacePolicies(workerConfig.getPulsarFunctionsCluster());
             policies.bundles = getBundles(brokerConfig.getDefaultNumberOfNamespaceBundles());
-            pulsarResources.getNamespaceResources().createPolicies(NamespaceName.get(namespace), policies);
-            LOG.info("Created namespace {} for function worker service", namespace);
+            if (pulsarResources.getNamespaceResources().getPolicies(NamespaceName.get(namespace)).isEmpty()) {
+                pulsarResources.getNamespaceResources().createPolicies(NamespaceName.get(namespace), policies);
+                LOG.info("Created namespace {} for function worker service", namespace);
+            }
         } catch (AlreadyExistsException e) {
             LOG.debug("Failed to create already existing namespace {} for function worker service", namespace);
         } catch (Exception e) {
@@ -389,7 +397,11 @@ public class PulsarWorkerService implements WorkerService {
 
     private void tryCreateNonPartitionedTopic(final String topic) throws PulsarAdminException {
         try {
-            getBrokerAdmin().topics().createNonPartitionedTopic(topic);
+            TopicName topicName = TopicName.get(topic);
+            List<String> topics = getBrokerAdmin().topics().getList(topicName.getNamespace());
+            if (topics.stream().noneMatch(n -> TopicName.get(n).equals(topicName))) {
+                getBrokerAdmin().topics().createNonPartitionedTopic(topic);
+            }
         } catch (PulsarAdminException e) {
             if (e instanceof PulsarAdminException.ConflictException) {
                 log.warn("Failed to create topic '{}': {}", topic, e.getMessage());
