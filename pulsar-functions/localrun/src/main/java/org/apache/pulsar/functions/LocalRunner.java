@@ -576,9 +576,12 @@ public class LocalRunner implements AutoCloseable {
                 }
             }
 
+            // TODO: support preprocessing function in LocalRunner
             RuntimeSpawner runtimeSpawner = new RuntimeSpawner(
                     instanceConfig,
                     userCodeFile,
+                    null,
+                    null,
                     null,
                     runtimeFactory,
                     instanceLivenessCheck);
@@ -680,9 +683,12 @@ public class LocalRunner implements AutoCloseable {
                 }
             }
 
+            // TODO: support preprocessing Function in LocalRunner
             RuntimeSpawner runtimeSpawner = new RuntimeSpawner(
                     instanceConfig,
                     userCodeFile,
+                    null,
+                    null,
                     null,
                     runtimeFactory,
                     instanceLivenessCheck);

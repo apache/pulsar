@@ -289,10 +289,9 @@ public class ProcessRuntimeTest {
         List<String> args;
         try (MockedStatic<SystemUtils> systemUtils = Mockito.mockStatic(SystemUtils.class, Mockito.CALLS_REAL_METHODS)) {
             systemUtils.when(() -> SystemUtils.isJavaVersionAtLeast(JavaVersion.JAVA_9)).thenReturn(true);
-            ProcessRuntime container = factory.createContainer(config, userJarFile, userJarFile, 30L);
+            ProcessRuntime container = factory.createContainer(config, userJarFile, userJarFile, null, null,30L);
             args = container.getProcessArgs();
         }
-
 
         String classpath = javaInstanceJarFile;
         String extraDepsEnv;
@@ -368,7 +367,7 @@ public class ProcessRuntimeTest {
     }
 
     private void verifyPythonInstance(InstanceConfig config, String extraDepsDir) throws Exception {
-        ProcessRuntime container = factory.createContainer(config, userJarFile, null, 30l);
+        ProcessRuntime container = factory.createContainer(config, userJarFile, null, null, null,30l);
         List<String> args = container.getProcessArgs();
 
         int totalArgs = 36;

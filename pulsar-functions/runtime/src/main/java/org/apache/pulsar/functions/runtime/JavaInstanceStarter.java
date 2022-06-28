@@ -61,6 +61,12 @@ public class JavaInstanceStarter implements AutoCloseable {
             listConverter = StringConverter.class)
     public String jarFile;
 
+    @Parameter(
+            names = "--extra-function-jar",
+            description = "Path to Extra Function Jar\n",
+            listConverter = StringConverter.class)
+    public String extraFunctionJarFile;
+
     @Parameter(names = "--instance_id", description = "Instance Id\n", required = true)
     public int instanceId;
 
@@ -219,6 +225,8 @@ public class JavaInstanceStarter implements AutoCloseable {
         runtimeSpawner = new RuntimeSpawner(
                 instanceConfig,
                 jarFile,
+                null, // we really dont use this in thread container
+                extraFunctionJarFile,
                 null, // we really dont use this in thread container
                 containerFactory,
                 expectedHealthCheckInterval * 1000);

@@ -269,6 +269,8 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
     @Override
     public KubernetesRuntime createContainer(InstanceConfig instanceConfig, String codePkgUrl,
                                              String originalCodeFileName,
+                                             String extraFunctionPkgUrl,
+                                             String originalExtraFunctionFileName,
                                              Long expectedHealthCheckInterval) throws Exception {
         String instanceFile = null;
         switch (instanceConfig.getFunctionDetails().getRuntime()) {

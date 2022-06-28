@@ -57,6 +57,8 @@ public class RuntimeSpawner implements AutoCloseable {
     public RuntimeSpawner(InstanceConfig instanceConfig,
                           String codeFile,
                           String originalCodeFileName,
+                          String extraFunctionFile,
+                          String originalExtraFunctionFileName,
                           RuntimeFactory containerFactory, long instanceLivenessCheckFreqMs) {
         this.instanceConfig = instanceConfig;
         this.runtimeFactory = containerFactory;
@@ -65,6 +67,7 @@ public class RuntimeSpawner implements AutoCloseable {
         this.instanceLivenessCheckFreqMs = instanceLivenessCheckFreqMs;
         try {
             this.runtime = runtimeFactory.createContainer(this.instanceConfig, codeFile, originalCodeFileName,
+                    extraFunctionFile, originalExtraFunctionFileName,
                     instanceLivenessCheckFreqMs / 1000);
         } catch (Exception e) {
             throw new RuntimeException(e);

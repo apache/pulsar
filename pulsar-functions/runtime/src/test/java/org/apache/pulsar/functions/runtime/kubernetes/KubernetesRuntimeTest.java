@@ -304,7 +304,7 @@ public class KubernetesRuntimeTest {
         factory = createKubernetesRuntimeFactory(null, percentMemoryPadding, 1.0, 1.0);
         InstanceConfig config = createJavaInstanceConfig(FunctionDetails.Runtime.JAVA, true);
 
-        KubernetesRuntime container = factory.createContainer(config, userJarFile, userJarFile, 30l);
+        KubernetesRuntime container = factory.createContainer(config, userJarFile, userJarFile, null, null, 30l);
 
         Function.Resources resources = Function.Resources.newBuilder().setRam(ram).build();
 
@@ -364,7 +364,7 @@ public class KubernetesRuntimeTest {
 
         InstanceConfig config = createJavaInstanceConfig(FunctionDetails.Runtime.JAVA, false);
         factory = createKubernetesRuntimeFactory(null, 10, cpuOverCommitRatio, memoryOverCommitRatio);
-        KubernetesRuntime container = factory.createContainer(config, userJarFile, userJarFile, 30l);
+        KubernetesRuntime container = factory.createContainer(config, userJarFile, userJarFile, null, null, 30l);
         List<String> args = container.getProcessArgs();
 
         // check padding and xmx
@@ -387,7 +387,7 @@ public class KubernetesRuntimeTest {
         List<String> args;
         try (MockedStatic<SystemUtils> systemUtils = Mockito.mockStatic(SystemUtils.class, Mockito.CALLS_REAL_METHODS)) {
             systemUtils.when(() -> SystemUtils.isJavaVersionAtLeast(JavaVersion.JAVA_9)).thenReturn(true);
-            container = factory.createContainer(config, userJarFile, userJarFile, 30L);
+            container = factory.createContainer(config, userJarFile, userJarFile, null, null,30L);
             args = container.getProcessArgs();
         }
 
@@ -491,7 +491,7 @@ public class KubernetesRuntimeTest {
     }
 
     private void verifyPythonInstance(InstanceConfig config, String extraDepsDir, boolean secretsAttached) throws Exception {
-        KubernetesRuntime container = factory.createContainer(config, userJarFile, userJarFile, 30l);
+        KubernetesRuntime container = factory.createContainer(config, userJarFile, userJarFile, null, null, 30l);
         List<String> args = container.getProcessArgs();
 
         int totalArgs;
@@ -582,7 +582,7 @@ public class KubernetesRuntimeTest {
 
         InstanceConfig config = createJavaInstanceConfig(FunctionDetails.Runtime.JAVA, false);
         config.setFunctionDetails(functionDetails);
-        KubernetesRuntime container = factory.createContainer(config, userJarFile, userJarFile, 30l);
+        KubernetesRuntime container = factory.createContainer(config, userJarFile, userJarFile, null, null, 30l);
         V1StatefulSet spec = container.createStatefulSet();
 
         assertEquals(spec.getMetadata().getLabels().get("tenant"), "tenant");
@@ -741,7 +741,7 @@ public class KubernetesRuntimeTest {
         factory = createKubernetesRuntimeFactory(null, 10, 1.0, 1.0);
 
         verifyJavaInstance(config, pulsarRootDir + "/instances/deps", false);
-        KubernetesRuntime container = factory.createContainer(config, userJarFile, userJarFile, 30l);
+        KubernetesRuntime container = factory.createContainer(config, userJarFile, userJarFile, null, null, 30l);
 
         V1Service serviceSpec = container.createService();
         assertEquals(serviceSpec.getMetadata().getNamespace(), "default");
@@ -760,7 +760,7 @@ public class KubernetesRuntimeTest {
         factory = createKubernetesRuntimeFactory(null, 10, 1.0, 1.0, Optional.of(new BasicKubernetesManifestCustomizer()));
 
         verifyJavaInstance(config, pulsarRootDir + "/instances/deps", false);
-        KubernetesRuntime container = factory.createContainer(config, userJarFile, userJarFile, 30l);
+        KubernetesRuntime container = factory.createContainer(config, userJarFile, userJarFile, null, null, 30l);
         V1StatefulSet spec = container.createStatefulSet();
         assertEquals(spec.getMetadata().getAnnotations().get("annotation"), "test");
         assertEquals(spec.getMetadata().getLabels().get("label"), "test");
@@ -801,7 +801,7 @@ public class KubernetesRuntimeTest {
         factory = createKubernetesRuntimeFactory(null, 10, 1.0, 1.0, Optional.of(new TestKubernetesCustomManifestCustomizer()));
 
         verifyJavaInstance(config, pulsarRootDir + "/instances/deps", false);
-        KubernetesRuntime container = factory.createContainer(config, userJarFile, userJarFile, 30l);
+        KubernetesRuntime container = factory.createContainer(config, userJarFile, userJarFile, null, null, 30l);
         V1StatefulSet spec = container.createStatefulSet();
         assertEquals(spec.getSpec().getTemplate().getSpec().getServiceAccountName(), "my-service-account");
     }
@@ -830,7 +830,7 @@ public class KubernetesRuntimeTest {
     }
 
     private void verifyGolangInstance(InstanceConfig config) throws Exception {
-        KubernetesRuntime container = factory.createContainer(config, userJarFile, userJarFile, 30l);
+        KubernetesRuntime container = factory.createContainer(config, userJarFile, userJarFile, null, null, 30l);
         List<String> args = container.getProcessArgs();
 
         int totalArgs = 8;
@@ -1007,7 +1007,7 @@ public class KubernetesRuntimeTest {
                 "org.apache.pulsar.functions.runtime.kubernetes.BasicKubernetesManifestCustomizer", configs);
 
         verifyJavaInstance(config, pulsarRootDir + "/instances/deps", false);
-        KubernetesRuntime container = factory.createContainer(config, userJarFile, userJarFile, 30l);
+        KubernetesRuntime container = factory.createContainer(config, userJarFile, userJarFile, null, null, 30l);
         V1StatefulSet spec = container.createStatefulSet();
         assertEquals(spec.getMetadata().getAnnotations().get("annotation"), "test");
         assertEquals(spec.getMetadata().getLabels().get("label"), "test");
@@ -1055,7 +1055,7 @@ public class KubernetesRuntimeTest {
                 "org.apache.pulsar.functions.runtime.kubernetes.BasicKubernetesManifestCustomizer", configs);
 
         verifyJavaInstance(config, pulsarRootDir + "/instances/deps", false);
-        KubernetesRuntime container = factory.createContainer(config, userJarFile, userJarFile, 30l);
+        KubernetesRuntime container = factory.createContainer(config, userJarFile, userJarFile, null, null, 30l);
         V1StatefulSet spec = container.createStatefulSet();
         assertEquals(spec.getMetadata().getAnnotations().get("annotation"), "test");
         assertEquals(spec.getMetadata().getLabels().get("label"), "test");
@@ -1141,7 +1141,7 @@ public class KubernetesRuntimeTest {
                 new DefaultSecretsProviderConfigurator(), Mockito.mock(ConnectorsManager.class),
                 Mockito.mock(FunctionsManager.class), Optional.empty(), Optional.empty());
         InstanceConfig config = createJavaInstanceConfig(FunctionDetails.Runtime.JAVA, true);
-        KubernetesRuntime container = kubernetesRuntimeFactory.createContainer(config, userJarFile, userJarFile, 30l);
+        KubernetesRuntime container = kubernetesRuntimeFactory.createContainer(config, userJarFile, userJarFile, null, null, 30l);
         V1PodTemplateSpec template = container.createStatefulSet().getSpec().getTemplate();
         Map<String, String> annotations =
                 template.getMetadata().getAnnotations();

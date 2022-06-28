@@ -64,6 +64,7 @@ public class ThreadRuntime implements Runtime {
     private final ThreadGroup threadGroup;
     private final FunctionCacheManager fnCache;
     private final String jarFile;
+    private final String extraFunctionFile;
     private final ClientBuilder clientBuilder;
     private final PulsarClient pulsarClient;
     private final PulsarAdmin pulsarAdmin;
@@ -79,6 +80,7 @@ public class ThreadRuntime implements Runtime {
                   FunctionCacheManager fnCache,
                   ThreadGroup threadGroup,
                   String jarFile,
+                  String extraFunctionFile,
                   PulsarClient client,
                   ClientBuilder clientBuilder,
                   PulsarAdmin pulsarAdmin,
@@ -97,6 +99,7 @@ public class ThreadRuntime implements Runtime {
         this.threadGroup = threadGroup;
         this.fnCache = fnCache;
         this.jarFile = jarFile;
+        this.extraFunctionFile = extraFunctionFile;
         this.clientBuilder = clientBuilder;
         this.pulsarClient = client;
         this.pulsarAdmin = pulsarAdmin;

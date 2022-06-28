@@ -716,7 +716,7 @@ public class FunctionRuntimeManagerTest {
         doReturn(true).when(kubernetesRuntimeFactory).externallyManaged();
 
         KubernetesRuntime kubernetesRuntime = mock(KubernetesRuntime.class);
-        doReturn(kubernetesRuntime).when(kubernetesRuntimeFactory).createContainer(any(), any(), any(), any());
+        doReturn(kubernetesRuntime).when(kubernetesRuntimeFactory).createContainer(any(), any(), any(), any(), any(), any());
 
         FunctionActioner functionActioner = spy(new FunctionActioner(
                 workerConfig,
@@ -771,7 +771,8 @@ public class FunctionRuntimeManagerTest {
             FunctionRuntimeInfo functionRuntimeInfo = new FunctionRuntimeInfo()
                     .setFunctionInstance(instance)
                     .setRuntimeSpawner(functionActioner
-                            .getRuntimeSpawner(instance, function1.getPackageLocation().getPackagePath()));
+                            .getRuntimeSpawner(instance, function1.getPackageLocation().getPackagePath(),
+                                    function1.getExtraFunctionPackageLocation().getPackagePath()));
             functionRuntimeManager.functionRuntimeInfos.put(
                     "test-tenant/test-namespace/func-1:0", functionRuntimeInfo);
 

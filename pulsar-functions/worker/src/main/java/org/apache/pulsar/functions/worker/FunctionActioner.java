@@ -33,6 +33,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
@@ -106,37 +107,25 @@ public class FunctionActioner {
                     functionDetails.getName(), instanceId);
 
             String packageFile;
+            String extraFunctionPackageFile;
 
             String pkgLocation = functionMetaData.getPackageLocation().getPackagePath();
-            boolean isPkgUrlProvided = isFunctionPackageUrlSupported(pkgLocation);
+            String extraFunctionPkgLocation = functionMetaData.getExtraFunctionPackageLocation().getPackagePath();
 
             if (runtimeFactory.externallyManaged()) {
                 packageFile = pkgLocation;
+                extraFunctionPackageFile = extraFunctionPkgLocation;
             } else {
-                if (isPkgUrlProvided && pkgLocation.startsWith(FILE)) {
-                    URL url = new URL(pkgLocation);
-                    File pkgFile = new File(url.toURI());
-                    packageFile = pkgFile.getAbsolutePath();
-                } else if (FunctionCommon.isFunctionCodeBuiltin(functionDetails)) {
-                    File pkgFile = getBuiltinArchive(FunctionDetails.newBuilder(functionMetaData.getFunctionDetails()));
-                    packageFile = pkgFile.getAbsolutePath();
-                } else {
-                    File pkgDir = new File(workerConfig.getDownloadDirectory(),
-                            getDownloadPackagePath(functionMetaData, instanceId));
-                    pkgDir.mkdirs();
-                    File pkgFile = new File(
-                            pkgDir,
-                            new File(getDownloadFileName(functionMetaData.getFunctionDetails(),
-                                    functionMetaData.getPackageLocation())).getName());
-                    downloadFile(pkgFile, isPkgUrlProvided, functionMetaData, instanceId);
-                    packageFile = pkgFile.getAbsolutePath();
-                }
+                packageFile = getPackageFile(functionMetaData, functionDetails, instanceId, pkgLocation);
+                extraFunctionPackageFile =
+                        getPackageFile(functionMetaData, functionDetails, instanceId, extraFunctionPkgLocation);
             }
 
             // Setup for batch sources if necessary
             setupBatchSource(functionDetails);
 
-            RuntimeSpawner runtimeSpawner = getRuntimeSpawner(functionRuntimeInfo.getFunctionInstance(), packageFile);
+            RuntimeSpawner runtimeSpawner = getRuntimeSpawner(functionRuntimeInfo.getFunctionInstance(),
+                    packageFile, extraFunctionPackageFile);
             functionRuntimeInfo.setRuntimeSpawner(runtimeSpawner);
 
             runtimeSpawner.start();
@@ -149,7 +138,33 @@ public class FunctionActioner {
         }
     }
 
-    RuntimeSpawner getRuntimeSpawner(Function.Instance instance, String packageFile) {
+    private String getPackageFile(FunctionMetaData functionMetaData, FunctionDetails functionDetails, int instanceId,
+                             String pkgLocation)
+            throws URISyntaxException, IOException, ClassNotFoundException, PulsarAdminException {
+        boolean isPkgUrlProvided = isFunctionPackageUrlSupported(pkgLocation);
+        String packageFile;
+        if (isPkgUrlProvided && pkgLocation.startsWith(FILE)) {
+            URL url = new URL(pkgLocation);
+            File pkgFile = new File(url.toURI());
+            packageFile = pkgFile.getAbsolutePath();
+        } else if (FunctionCommon.isFunctionCodeBuiltin(functionDetails)) {
+            File pkgFile = getBuiltinArchive(FunctionDetails.newBuilder(functionMetaData.getFunctionDetails()));
+            packageFile = pkgFile.getAbsolutePath();
+        } else {
+            File pkgDir = new File(workerConfig.getDownloadDirectory(),
+                    getDownloadPackagePath(functionMetaData, instanceId));
+            pkgDir.mkdirs();
+            File pkgFile = new File(
+                    pkgDir,
+                    new File(getDownloadFileName(functionMetaData.getFunctionDetails(),
+                            functionMetaData.getPackageLocation())).getName());
+            downloadFile(pkgFile, isPkgUrlProvided, functionMetaData, instanceId);
+            packageFile = pkgFile.getAbsolutePath();
+        }
+        return packageFile;
+    }
+
+    RuntimeSpawner getRuntimeSpawner(Function.Instance instance, String packageFile, String extraFunctionPackageFile) {
         FunctionMetaData functionMetaData = instance.getFunctionMetaData();
         int instanceId = instance.getInstanceId();
 
@@ -170,6 +185,8 @@ public class FunctionActioner {
 
         RuntimeSpawner runtimeSpawner = new RuntimeSpawner(instanceConfig, packageFile,
                 functionMetaData.getPackageLocation().getOriginalFileName(),
+                extraFunctionPackageFile,
+                functionMetaData.getExtraFunctionPackageLocation().getOriginalFileName(),
                 runtimeFactory, workerConfig.getInstanceLivenessCheckFreqMs());
 
         return runtimeSpawner;
