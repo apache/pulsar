@@ -4263,12 +4263,17 @@ public class PersistentTopicsBase extends AdminResource {
                                 == null ? "has no metadata" : "has zero partitions";
                         throw new RestException(Status.NOT_FOUND, String.format(
                                 "Partitioned Topic not found: %s %s", topicName.toString(), topicErrorType));
-                    } else if (!internalGetListAsync(Optional.empty()).join().contains(topicName.toString())) {
+                    }
+                    return null;
+                })
+                .thenCompose(__ -> internalGetListAsync(Optional.empty()))
+                .thenApply(topics -> {
+                    if (!topics.contains(topicName.toString())) {
                         throw new RestException(Status.NOT_FOUND, "Topic partitions were not yet created");
                     }
                     throw new RestException(Status.NOT_FOUND,
-                            getPartitionedTopicNotFoundErrorMessage(topicName.toString()));
-                });
+                        getPartitionedTopicNotFoundErrorMessage(topicName.toString()));
+            });
     }
 
     /**
