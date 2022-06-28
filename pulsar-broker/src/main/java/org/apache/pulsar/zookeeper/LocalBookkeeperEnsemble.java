@@ -165,12 +165,12 @@ public class LocalBookkeeperEnsemble {
 
     // BookKeeper variables
     String bkDataDirName;
-    LifecycleComponentStack[] bookieComponents;
-    ServerConfiguration[] bsConfs;
+    BookieServer bs[];
+    ServerConfiguration bsConfs[];
 
     // Stream/Table Storage
     StreamStorageLifecycleComponent streamStorage;
-    int streamStoragePort;
+    Integer streamStoragePort = 4181;
 
     // directories created by this instance
     // it is safe to drop them on stop
@@ -228,7 +228,7 @@ public class LocalBookkeeperEnsemble {
         ServerCnxn serverCnxn = getZookeeperServerConnection(zooKeeper);
         try {
             LOG.info("disconnect ZK server side connection {}", serverCnxn);
-            Class<?> disconnectReasonClass = Class.forName("org.apache.zookeeper.server.ServerCnxn$DisconnectReason");
+            Class disconnectReasonClass = Class.forName("org.apache.zookeeper.server.ServerCnxn$DisconnectReason");
             Method method = serverCnxn.getClass().getMethod("close", disconnectReasonClass);
             method.invoke(serverCnxn, Stream.of(disconnectReasonClass.getEnumConstants()).filter(s ->
                     s.toString().equals("CONNECTION_CLOSE_FORCED")).findFirst().get());
@@ -286,7 +286,7 @@ public class LocalBookkeeperEnsemble {
 
             File bkDataDir = isNotBlank(bkDataDirName)
                     ? Files.createDirectories(Paths.get(bkDataDirName + i)).toFile()
-                    : createTempDirectory("bk" + i + "test");
+                    : createTempDirectory("bk" + Integer.toString(i) + "test");
 
             if (this.clearOldData) {
                 cleanDirectory(bkDataDir);
