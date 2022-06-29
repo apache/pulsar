@@ -91,7 +91,7 @@ TEST(AuthPluginBasic, testNoAuth) {
 
     Producer producer;
     Result result = client.createProducer(topicName, producer);
-    ASSERT_EQ(ResultConnectError, result);
+    ASSERT_EQ(ResultAuthorizationError, result);
 }
 
 TEST(AuthPluginBasic, testNoAuthWithHttp) {
