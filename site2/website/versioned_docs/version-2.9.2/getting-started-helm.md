@@ -88,6 +88,12 @@ We use [Minikube](https://minikube.sigs.k8s.io/docs/start/) in this quick start 
 
 3. Run the script `prepare_helm_release.sh` to create secrets required for installing the Apache Pulsar Helm chart. The username `pulsar` and password `pulsar` are used for logging into the Grafana dashboard and Pulsar Manager.
 
+   :::note
+
+   When running the script, you can use `-n` to specify the Kubernetes namespace where the Pulsar Helm chart is installed, `-k` to define the Pulsar Helm release name, and `-c` to create the Kubernetes namespace. For more information about the script, run `./scripts/pulsar/prepare_helm_release.sh --help`.
+
+   :::
+
    ```bash
    
    ./scripts/pulsar/prepare_helm_release.sh \
@@ -314,7 +320,7 @@ brokerServiceUrl=pulsar://127.0.0.1:61854/
 
 Then you can proceed with the following steps:
 
-1. Download the Apache Pulsar tarball from the [downloads page](https://pulsar.apache.org/en/download/).
+1. Download the Apache Pulsar tarball from the [downloads page](https://pulsar.apache.org/download/).
 
 2. Decompress the tarball based on your download file.
 
@@ -422,7 +428,7 @@ Then you can proceed with the following steps:
    - Type `http://pulsar-mini-broker:8080` for the field `Service URL` in the popup window.
    - Click `Confirm` button in the popup window.
 
-4. After successfully created an environment, you are redirected to the `tenants` page of that environment. Then you can create `tenants`, `namespaces` and `topics` using the Pulsar Manager.
+4. After successfully creating an environment, you are redirected to the `tenants` page of that environment. Then you can create `tenants`, `namespaces` and `topics` using the Pulsar Manager.
 
 ## Step 5: Use Prometheus and Grafana to monitor cluster
 

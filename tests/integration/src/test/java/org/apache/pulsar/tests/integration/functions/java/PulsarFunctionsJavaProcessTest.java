@@ -22,8 +22,8 @@ import org.apache.pulsar.tests.integration.topologies.FunctionRuntimeType;
 
 public class PulsarFunctionsJavaProcessTest extends PulsarFunctionsJavaTest {
 
-	public PulsarFunctionsJavaProcessTest() {
-		super(FunctionRuntimeType.PROCESS);
-	}
+    public PulsarFunctionsJavaProcessTest() {
+        super(FunctionRuntimeType.PROCESS);
+    }
 
 }

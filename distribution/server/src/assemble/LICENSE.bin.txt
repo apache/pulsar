@@ -332,7 +332,7 @@ The Apache Software License, Version 2.0
     - com.google.guava-failureaccess-1.0.1.jar
     - com.google.guava-listenablefuture-9999.0-empty-to-avoid-conflict-with-guava.jar
  * J2ObjC Annotations -- com.google.j2objc-j2objc-annotations-1.3.jar
- * Netty Reactive Streams -- com.typesafe.netty-netty-reactive-streams-2.0.4.jar
+ * Netty Reactive Streams -- com.typesafe.netty-netty-reactive-streams-2.0.6.jar
  * Swagger
     - io.swagger-swagger-annotations-1.6.2.jar
     - io.swagger-swagger-core-1.6.2.jar
@@ -343,12 +343,11 @@ The Apache Software License, Version 2.0
  * Apache Commons
     - commons-cli-commons-cli-1.5.0.jar
     - commons-codec-commons-codec-1.15.jar
-    - commons-collections-commons-collections-3.2.2.jar
     - commons-configuration-commons-configuration-1.10.jar
     - commons-io-commons-io-2.8.0.jar
     - commons-lang-commons-lang-2.6.jar
     - commons-logging-commons-logging-1.1.1.jar
-    - org.apache.commons-commons-collections4-4.1.jar
+    - org.apache.commons-commons-collections4-4.4.jar
     - org.apache.commons-commons-compress-1.21.jar
     - org.apache.commons-commons-lang3-3.11.jar
  * Netty
@@ -394,7 +393,6 @@ The Apache Software License, Version 2.0
     - org.apache.logging.log4j-log4j-core-2.17.1.jar
     - org.apache.logging.log4j-log4j-slf4j-impl-2.17.1.jar
     - org.apache.logging.log4j-log4j-web-2.17.1.jar
-    - org.apache.logging.log4j-log4j-1.2-api-2.17.1.jar
  * Java Native Access JNA -- net.java.dev.jna-jna-4.2.0.jar
  * BookKeeper
     - org.apache.bookkeeper-bookkeeper-common-4.15.0.jar

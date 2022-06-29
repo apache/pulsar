@@ -241,7 +241,7 @@ The Apache Software License, Version 2.0
     - netty-handler-proxy-4.1.77.Final.jar
     - netty-common-4.1.77.Final.jar
     - netty-handler-4.1.77.Final.jar
-    - netty-reactive-streams-2.0.4.jar
+    - netty-reactive-streams-2.0.6.jar
     - netty-resolver-4.1.77.Final.jar
     - netty-resolver-dns-4.1.77.Final.jar
     - netty-tcnative-boringssl-static-2.0.52.Final.jar
@@ -394,17 +394,18 @@ The Apache Software License, Version 2.0
   * Okio
     - okio-1.17.2.jar
   * Presto
-    - presto-array-332.jar
-    - presto-cli-332.jar
-    - presto-client-332.jar
-    - presto-geospatial-toolkit-332.jar
-    - presto-main-332.jar
-    - presto-matching-332.jar
-    - presto-memory-context-332.jar
-    - presto-parser-332.jar
-    - presto-plugin-toolkit-332.jar
-    - presto-spi-332.jar
-    - presto-record-decoder-332.jar
+    - presto-array-334.jar
+    - presto-cli-334.jar
+    - presto-client-334.jar
+    - presto-geospatial-toolkit-334.jar
+    - presto-main-334.jar
+    - presto-matching-334.jar
+    - presto-memory-context-334.jar
+    - presto-parser-334.jar
+    - presto-plugin-toolkit-334.jar
+    - presto-server-main-334.jar
+    - presto-spi-334.jar
+    - presto-record-decoder-334.jar
   * RocksDB JNI
     - rocksdbjni-6.10.2.jar
   * SnakeYAML

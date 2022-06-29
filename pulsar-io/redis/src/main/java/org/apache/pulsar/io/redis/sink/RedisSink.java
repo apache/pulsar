@@ -28,7 +28,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.SinkContext;
@@ -90,7 +90,7 @@ public class RedisSink implements Sink<byte[]> {
             currentSize = incomingList.size();
         }
         if (currentSize == batchSize) {
-            flushExecutor.submit(this::flush);
+            flushExecutor.execute(this::flush);
         }
     }
 

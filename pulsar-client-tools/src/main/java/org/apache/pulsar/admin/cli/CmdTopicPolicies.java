@@ -449,7 +449,8 @@ public class CmdTopicPolicies extends CmdBase {
         private boolean applied = false;
 
         @Parameter(names = { "--global", "-g" }, description = "Whether to get this policy globally. "
-                + "If set to true, broker returned global topic policies")
+                + "If set to true, the broker returns global topic policies"
+                + "If set to false or not set, the broker returns local topic policies")
         private boolean isGlobal = false;
 
         @Override
@@ -474,7 +475,8 @@ public class CmdTopicPolicies extends CmdBase {
         private String limitStr;
 
         @Parameter(names = { "--global", "-g" }, description = "Whether to set this policy globally. "
-                + "If set to true, the policy will be replicate to other clusters asynchronously")
+                + "If set to true, the policy is replicated to other clusters asynchronously, "
+                + "If set to false or not set, the topic retention policy is replicated to local clusters.")
         private boolean isGlobal = false;
 
         @Override
@@ -507,7 +509,8 @@ public class CmdTopicPolicies extends CmdBase {
         private List<String> params;
 
         @Parameter(names = { "--global", "-g" }, description = "Whether to remove this policy globally. "
-                + "If set to true, the removing operation will be replicate to other clusters asynchronously")
+                + "If set to true, the removing operation is replicated to other clusters asynchronously"
+                + "If set to false or not set, the topic retention policy is replicated to local clusters.")
         private boolean isGlobal = false;
 
         @Override

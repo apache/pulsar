@@ -23,6 +23,7 @@ import static org.apache.bookkeeper.mledger.util.PositionAckSetUtil.compareToWit
 import static org.apache.bookkeeper.mledger.util.PositionAckSetUtil.isAckSetOverlap;
 import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -33,7 +34,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingDeque;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.Semaphore;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -55,6 +55,7 @@ import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.policies.data.TransactionInPendingAckStats;
 import org.apache.pulsar.common.policies.data.TransactionPendingAckStats;
+import org.apache.pulsar.common.stats.PositionInPendingAckStats;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 import org.apache.pulsar.transaction.common.exception.TransactionConflictException;
@@ -156,8 +157,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                 this.pendingAckStoreFuture =
                         pendingAckStoreProvider.newPendingAckStore(persistentSubscription);
                 this.pendingAckStoreFuture.thenAccept(pendingAckStore -> {
-                    pendingAckStore.replayAsync(this,
-                            (ScheduledExecutorService) internalPinnedExecutor);
+                    pendingAckStore.replayAsync(this, internalPinnedExecutor);
                 }).exceptionally(e -> {
                     acceptQueue.clear();
                     changeToErrorState();
@@ -769,6 +769,19 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                 }
 
                 if (!individualAckPositions.containsKey(position)) {
+                    /**
+                     *  if the position does not exist in individualAckPositions {@link individualAckPositions},
+                     *  should new the same position and put the new position into
+                     *  the individualAckPositions {@link individualAckPositions}
+                     *  because when another ack the same batch message will change the ackSet with the new transaction
+                     *  when the tc commits the first txn will ack all of the ackSet which has in pending ack status
+                     *  individualAckPositions{@link individualAckPositions} can't include the same position
+                     *  object on individualAckOfTransaction {@link individualAckOfTransaction}
+                     */
+                    MutablePair<PositionImpl, Integer> positionPair = positions.get(i);
+                    positionPair.left = PositionImpl.get(positionPair.getLeft().getLedgerId(),
+                            positionPair.getLeft().getEntryId(),
+                            Arrays.copyOf(positionPair.left.getAckSet(), positionPair.left.getAckSet().length));
                     this.individualAckPositions.put(position, positions.get(i));
                 } else {
                     MutablePair<PositionImpl, Integer> positionPair =
@@ -881,9 +894,17 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
     }
 
     @Override
-    public TransactionPendingAckStats getStats() {
+    public TransactionPendingAckStats getStats(boolean lowWaterMarks) {
         TransactionPendingAckStats transactionPendingAckStats = new TransactionPendingAckStats();
         transactionPendingAckStats.state = this.getState().name();
+        if (lowWaterMarks) {
+            transactionPendingAckStats.lowWaterMarks = this.lowWaterMarks;
+        }
+        if (individualAckOfTransaction != null) {
+            transactionPendingAckStats.ongoingTxnSize = individualAckOfTransaction.size();
+        } else {
+            transactionPendingAckStats.ongoingTxnSize = 0;
+        }
         return transactionPendingAckStats;
     }
 
@@ -944,6 +965,40 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
             });
         } else {
             return FutureUtil.failedFuture(new ServiceUnitNotReadyException("Pending ack have not init success!"));
+        }
+    }
+
+    @Override
+    public PositionInPendingAckStats checkPositionInPendingAckState(PositionImpl position, Integer batchIndex) {
+        if (!state.equals(State.Ready)) {
+            return new PositionInPendingAckStats(PositionInPendingAckStats.State.PendingAckNotReady);
+        }
+        if (persistentSubscription.getCursor().getPersistentMarkDeletedPosition() != null && position.compareTo(
+                        (PositionImpl) persistentSubscription.getCursor().getPersistentMarkDeletedPosition()) <= 0) {
+            return new PositionInPendingAckStats(PositionInPendingAckStats.State.MarkDelete);
+        } else if (individualAckPositions == null) {
+            return new PositionInPendingAckStats(PositionInPendingAckStats.State.NotInPendingAck);
+        }
+        MutablePair<PositionImpl, Integer> positionIntegerMutablePair = individualAckPositions.get(position);
+        if (positionIntegerMutablePair != null) {
+            if (batchIndex == null) {
+                return new PositionInPendingAckStats(PositionInPendingAckStats.State.PendingAck);
+            } else {
+                if (batchIndex >= positionIntegerMutablePair.right) {
+                    return new PositionInPendingAckStats(PositionInPendingAckStats.State.InvalidPosition);
+                }
+                BitSetRecyclable bitSetRecyclable = BitSetRecyclable
+                        .valueOf(positionIntegerMutablePair.left.getAckSet());
+                if (bitSetRecyclable.get(batchIndex)) {
+                    bitSetRecyclable.recycle();
+                    return new PositionInPendingAckStats(PositionInPendingAckStats.State.NotInPendingAck);
+                } else {
+                    bitSetRecyclable.recycle();
+                    return new PositionInPendingAckStats(PositionInPendingAckStats.State.PendingAck);
+                }
+            }
+        } else {
+            return new PositionInPendingAckStats(PositionInPendingAckStats.State.NotInPendingAck);
         }
     }
 

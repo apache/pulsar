@@ -76,8 +76,8 @@ The Apache Pulsar Helm chart contains all required dependencies.
 If you are just looking to deploy a Proof of Concept for testing,
 we strongly suggest you follow our [Quick Start Guide](getting-started-helm) for your first iteration.
 
-1. [Preparation](helm-prepare)
-2. [Deployment](helm-deploy)
+1. [Preparation](helm-prepare.md)
+2. [Deployment](helm-deploy.md)
 
 ## Upgrading
 

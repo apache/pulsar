@@ -22,6 +22,7 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.common.naming.TopicName.DEFAULT_NAMESPACE;
 import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
 import java.util.Arrays;
+import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.common.io.SinkConfig;
 import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.packages.management.core.common.PackageType;
@@ -46,11 +47,13 @@ public class Utils {
     }
 
     public static void inferMissingFunctionName(FunctionConfig functionConfig) {
-        String[] domains = functionConfig.getClassName().split("\\.");
-        if (domains.length == 0) {
-            functionConfig.setName(functionConfig.getClassName());
-        } else {
-            functionConfig.setName(domains[domains.length - 1]);
+        if (!StringUtils.isEmpty(functionConfig.getClassName())) {
+            String[] domains = functionConfig.getClassName().split("\\.");
+            if (domains.length == 0) {
+                functionConfig.setName(functionConfig.getClassName());
+            } else {
+                functionConfig.setName(domains[domains.length - 1]);
+            }
         }
     }
 

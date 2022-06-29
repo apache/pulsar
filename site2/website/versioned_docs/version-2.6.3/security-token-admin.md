@@ -29,7 +29,7 @@ will need one.
 > #### Always use TLS transport encryption
 > Sending a token is equivalent to sending a password over the wire. It is strongly recommended to
 > always use TLS encryption when talking to the Pulsar service. See
-> [Transport Encryption using TLS](security-tls-transport)
+> [Transport Encryption using TLS](security-tls-transport.md)
 
 ## Secret vs Public/Private keys
 

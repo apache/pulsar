@@ -181,7 +181,7 @@ tiered-storage-jcloud-@pulsar:version@.nar
 
 ```
 
-For more details of how to configure tiered storage feature, you can refer to the [Tiered storage cookbook](cookbooks-tiered-storage)
+For more details of how to configure tiered storage feature, you can refer to the [Tiered storage cookbook](cookbooks-tiered-storage.md)
 
 
 ## Deploy a ZooKeeper cluster
