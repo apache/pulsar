@@ -576,7 +576,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
         category = CATEGORY_POLICIES,
         doc = "Max duration of topic inactivity in seconds, default is not present\n"
-        + "If not present, 'brokerDeleteInactiveTopicsFrequencySeconds' will be used\n"
+        + "If present, 'brokerDeleteInactiveTopicsFrequencySeconds' will be used\n"
         + "Topics that are inactive for longer than this value will be deleted"
     )
     private Integer brokerDeleteInactiveTopicsMaxInactiveDurationSeconds = null;

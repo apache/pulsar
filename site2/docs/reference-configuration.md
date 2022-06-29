@@ -11,12 +11,19 @@ You can manage Pulsar configuration by configuration files in the [`conf`](https
 
 - [BookKeeper](#bookkeeper)
 - [Broker](#broker)
+    - [Configuration Override For Clients Internal to Broker](#configuration-override-for-clients-internal-to-broker)
+    - [Deprecated parameters of Broker](#deprecated-parameters-of-broker)
 - [Client](#client)
 - [Log4j](#log4j)
 - [Log4j shell](#log4j-shell)
 - [Standalone](#standalone)
+    - [Deprecated parameters of standalone Pulsar](#deprecated-parameters-of-standalone-pulsar)
 - [WebSocket](#websocket)
+    - [Configuration Override For Clients Internal to WebSocket](#configuration-override-for-clients-internal-to-websocket)
+    - [Deprecated parameters of WebSocket](#deprecated-parameters-of-websocket)
 - [Pulsar proxy](#pulsar-proxy)
+    - [Configuration Override For Clients Internal to Proxy](#configuration-override-for-clients-internal-to-proxy)
+    - [Deprecated parameters of Pulsar proxy](#deprecated-parameters-of-pulsar-proxy)
 - [ZooKeeper](#zookeeper)
 
 ## BookKeeper
@@ -192,7 +199,7 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 |brokerDeleteInactiveTopicsEnabled| Enable the deletion of inactive topics. If topics are not consumed for some while, these inactive topics might be cleaned up. Deleting inactive topics is enabled by default. The default period is 1 minute.  |true|
 |brokerDeleteInactiveTopicsFrequencySeconds|  How often to check for inactive topics  |60|
 | brokerDeleteInactiveTopicsMode | Set the mode to delete inactive topics. <li> `delete_when_no_subscriptions`: delete the topic which has no subscriptions or active producers. </li><li> `delete_when_subscriptions_caught_up`: delete the topic whose subscriptions have no backlogs and which has no active producers or consumers. </li>| `delete_when_no_subscriptions` |
-| brokerDeleteInactiveTopicsMaxInactiveDurationSeconds | Set the maximum duration for inactive topics. If it is not specified, the `brokerDeleteInactiveTopicsFrequencySeconds` parameter is adopted. | N/A |
+| brokerDeleteInactiveTopicsMaxInactiveDurationSeconds | Set the maximum duration for inactive topics. If it is specified, the `brokerDeleteInactiveTopicsFrequencySeconds` parameter is adopted. | N/A |
 |forceDeleteTenantAllowed| Enable you to delete a tenant forcefully. |false|
 |forceDeleteNamespaceAllowed| Enable you to delete a namespace forcefully. |false|
 |messageExpiryCheckIntervalInMinutes| The frequency of proactively checking and purging expired messages. |5|
