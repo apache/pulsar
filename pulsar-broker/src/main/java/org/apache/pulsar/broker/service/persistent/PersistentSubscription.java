@@ -77,6 +77,7 @@ import org.apache.pulsar.common.policies.data.TransactionInPendingAckStats;
 import org.apache.pulsar.common.policies.data.TransactionPendingAckStats;
 import org.apache.pulsar.common.policies.data.stats.ConsumerStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.SubscriptionStatsImpl;
+import org.apache.pulsar.common.stats.PositionInPendingAckStats;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -1187,6 +1188,10 @@ public class PersistentSubscription implements Subscription {
 
     public boolean checkIfPendingAckStoreInit() {
         return this.pendingAckHandle.checkIfPendingAckStoreInit();
+    }
+
+    public PositionInPendingAckStats checkPositionInPendingAckState(PositionImpl position, Integer batchIndex) {
+        return pendingAckHandle.checkPositionInPendingAckState(position, batchIndex);
     }
 
     private static final Logger log = LoggerFactory.getLogger(PersistentSubscription.class);
