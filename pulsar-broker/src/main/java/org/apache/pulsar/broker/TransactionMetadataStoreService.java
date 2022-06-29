@@ -208,7 +208,8 @@ public class TransactionMetadataStoreService {
                                     timeoutTracker, tcId.getId());
                             return transactionMetadataStoreProvider
                                     .openStore(tcId, pulsarService.getManagedLedgerFactory(), v,
-                                            timeoutTracker, recoverTracker);
+                                            timeoutTracker, recoverTracker,
+                                            pulsarService.getConfig().getMaxActiveTransactionsPerCoordinator());
                 });
     }
 

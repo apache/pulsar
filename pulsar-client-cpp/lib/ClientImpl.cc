@@ -493,6 +493,8 @@ void ClientImpl::closeAsync(CloseCallback callback) {
     state_ = Closing;
     lock.unlock();
 
+    memoryLimitController_.close();
+
     SharedInt numberOfOpenHandlers = std::make_shared<int>(producers.size() + consumers.size());
     LOG_INFO("Closing Pulsar client with " << producers.size() << " producers and " << consumers.size()
                                            << " consumers");
@@ -536,8 +538,13 @@ void ClientImpl::handleClose(Result result, SharedInt numberOfOpenHandlers, Resu
     }
     if (*numberOfOpenHandlers == 0) {
         Lock lock(mutex_);
-        state_ = Closed;
-        lock.unlock();
+        if (state_ == Closed) {
+            LOG_DEBUG("Client is already shutting down, possible race condition in handleClose");
+            return;
+        } else {
+            state_ = Closed;
+            lock.unlock();
+        }
 
         LOG_DEBUG("Shutting down producers and consumers for client");
         // handleClose() is called in ExecutorService's event loop, while shutdown() tried to wait the event

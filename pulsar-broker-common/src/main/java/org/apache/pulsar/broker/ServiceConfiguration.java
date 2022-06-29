@@ -49,6 +49,8 @@ import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.sasl.SaslConstants;
+import org.apache.pulsar.common.util.DirectMemoryUtils;
+import org.apache.pulsar.metadata.api.MetadataStoreFactory;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 
 /**
@@ -142,7 +144,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_SERVER,
         required = false,
         deprecated = true,
-        doc = "Configuration store connection string (as a comma-separated list)"
+        doc = "Configuration store connection string (as a comma-separated list). Deprecated in favor of "
+                + "`configurationMetadataStoreUrl`"
     )
     @Getter(AccessLevel.NONE)
     @Deprecated
@@ -329,8 +332,19 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + ".InMemoryDelayedDeliveryTrackerFactory";
 
     @FieldContext(category = CATEGORY_SERVER, doc = "Control the tick time for when retrying on delayed delivery, "
-            + " affecting the accuracy of the delivery time compared to the scheduled time. Default is 1 second.")
+            + "affecting the accuracy of the delivery time compared to the scheduled time. Default is 1 second. "
+            + "Note that this time is used to configure the HashedWheelTimer's tick time for the "
+            + "InMemoryDelayedDeliveryTrackerFactory.")
     private long delayedDeliveryTickTimeMillis = 1000;
+
+    @FieldContext(category = CATEGORY_SERVER, doc = "When using the InMemoryDelayedDeliveryTrackerFactory (the default "
+            + "DelayedDeliverTrackerFactory), whether the deliverAt time is strictly followed. When false (default), "
+            + "messages may be sent to consumers before the deliverAt time by as much as the tickTimeMillis. This can "
+            + "reduce the overhead on the broker of maintaining the delayed index for a potentially very short time "
+            + "period. When true, messages will not be sent to consumer until the deliverAt time has passed, and they "
+            + "may be as late as the deliverAt time plus the tickTimeMillis for the topic plus the "
+            + "delayedDeliveryTickTimeMillis.")
+    private boolean isDelayedDeliveryDeliverAtTimeStrict = false;
 
     @FieldContext(category = CATEGORY_SERVER, doc = "Whether to enable the acknowledge of batch local index")
     private boolean acknowledgmentAtBatchIndexLevelEnabled = false;
@@ -780,6 +794,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private double maxUnackedMessagesPerSubscriptionOnBrokerBlocked = 0.16;
     @FieldContext(
             category = CATEGORY_POLICIES,
+            doc = "Maximum size of Consumer metadata")
+    private int maxConsumerMetadataSize = 1024;
+    @FieldContext(
+            category = CATEGORY_POLICIES,
             dynamic = true,
             doc = "Broker periodically checks if subscription is stuck and unblock if flag is enabled. "
                     + "(Default is disabled)"
@@ -1166,7 +1184,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + " It's shared across all the topics running in the same broker.\n\n"
             + " Use -1 to disable the memory limitation. Default is 1/2 of direct memory.\n\n")
     private int maxMessagePublishBufferSizeInMB = Math.max(64,
-        (int) (io.netty.util.internal.PlatformDependent.maxDirectMemory() / 2 / (1024 * 1024)));
+        (int) (DirectMemoryUtils.jvmMaxDirectMemory() / 2 / (1024 * 1024)));
 
     @FieldContext(
         category = CATEGORY_SERVER,
@@ -1255,7 +1273,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             category = CATEGORY_SERVER,
             doc = "Enable or disable system topic.")
-    private boolean systemTopicEnabled = false;
+    private boolean systemTopicEnabled = true;
 
     @FieldContext(
             category = CATEGORY_SCHEMA,
@@ -1268,7 +1286,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_SERVER,
         doc = "Enable or disable topic level policies, topic level policies depends on the system topic, "
                 + "please enable the system topic first.")
-    private boolean topicLevelPoliciesEnabled = false;
+    private boolean topicLevelPoliciesEnabled = true;
 
     @FieldContext(
             category = CATEGORY_SERVER,
@@ -1461,6 +1479,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "Service Principal, for login context name. Default value is \"PulsarBroker\"."
     )
     private String saslJaasServerSectionName = SaslConstants.JAAS_DEFAULT_BROKER_SECTION_NAME;
+
+    @FieldContext(
+            category = CATEGORY_SASL_AUTH,
+            doc = "Path to file containing the secret to be used to SaslRoleTokenSigner\n"
+                    + "The secret can be specified like:\n"
+                    + "saslJaasServerRoleTokenSignerSecretPath=file:///my/saslRoleTokenSignerSecret.key."
+    )
+    private String saslJaasServerRoleTokenSignerSecretPath;
 
     @FieldContext(
         category = CATEGORY_SASL_AUTH,
@@ -1724,7 +1750,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + " memory is allocated from JVM direct memory and it's shared across all the topics"
             + " running in the same broker. By default, uses 1/5th of available direct memory")
     private int managedLedgerCacheSizeMB = Math.max(64,
-            (int) (io.netty.util.internal.PlatformDependent.maxDirectMemory() / 5 / (1024 * 1024)));
+            (int) (DirectMemoryUtils.jvmMaxDirectMemory() / 5 / (1024 * 1024)));
 
     @FieldContext(category = CATEGORY_STORAGE_ML, doc = "Whether we should make a copy of the entry payloads when "
             + "inserting in cache")
@@ -1838,6 +1864,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + " will only be tracked in memory and messages will be redelivered in case of"
             + " crashes.")
     private int managedLedgerMaxUnackedRangesToPersist = 10000;
+    @FieldContext(
+        category = CATEGORY_STORAGE_ML,
+        doc = "If enabled, the maximum \"acknowledgment holes\" will not be limited and \"acknowledgment holes\" "
+                + "are stored in multiple entries.")
+    private boolean persistentUnackedRangesWithMultipleEntriesEnabled = false;
     @Deprecated
     @FieldContext(
         category = CATEGORY_STORAGE_ML,
@@ -1971,6 +2002,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + " should be offload from some over-loaded broker to other under-loaded brokers"
     )
     private int loadBalancerSheddingIntervalMinutes = 1;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "enable/disable distribute bundles evenly"
+    )
+    private boolean loadBalancerDistributeBundlesEvenlyEnabled = true;
+
     @FieldContext(
         category = CATEGORY_LOAD_BALANCER,
         dynamic = true,
@@ -2342,6 +2381,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private boolean exposeTopicLevelMetricsInPrometheus = true;
     @FieldContext(
+            category = CATEGORY_METRICS,
+            doc = "If true, export buffered metrics"
+    )
+    private boolean metricsBufferResponse = false;
+    @FieldContext(
         category = CATEGORY_METRICS,
         doc = "If true, export consumer level metrics otherwise namespace level"
     )
@@ -2418,6 +2462,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
         doc = "The nar package for the function worker service"
     )
     private String functionsWorkerServiceNarPackage = "";
+
+    @FieldContext(
+            category = CATEGORY_FUNCTIONS,
+            doc = "Flag indicates enabling or disabling function worker using unified PackageManagement service."
+    )
+    private boolean functionsWorkerEnablePackageManagement = false;
 
     /**** --- Broker Web Stats. --- ****/
     @FieldContext(
@@ -2549,6 +2599,21 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "The transaction buffer client's operation timeout in milliseconds."
     )
     private long transactionBufferClientOperationTimeoutInMills = 3000L;
+
+    @FieldContext(
+            category = CATEGORY_TRANSACTION,
+            doc = "The max active transactions per transaction coordinator, default value 0 indicates no limit."
+    )
+    private long maxActiveTransactionsPerCoordinator = 0L;
+
+    @FieldContext(
+            category = CATEGORY_TRANSACTION,
+            doc = "MLPendingAckStore maintain a ConcurrentSkipListMap pendingAckLogIndex`,"
+                    + "it store the position in pendingAckStore as value and save a position used to determine"
+                    + "whether the previous data can be cleaned up as a key."
+                    + "transactionPendingAckLogIndexMinLag is used to configure the minimum lag between indexes"
+    )
+    private long transactionPendingAckLogIndexMinLag = 500L;
 
     /**** --- KeyStore TLS config variables. --- ****/
     @FieldContext(
@@ -2700,6 +2765,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
             // Fallback to old setting
             return zookeeperServers;
         }
+    }
+
+    /**
+     * Tells whether the selected metadata store implementation is based on ZooKeeper.
+     */
+    public boolean isMetadataStoreBackedByZookeeper() {
+        return MetadataStoreFactory.isBasedOnZookeeper(getMetadataStoreUrl());
     }
 
     public String getConfigurationMetadataStoreUrl() {

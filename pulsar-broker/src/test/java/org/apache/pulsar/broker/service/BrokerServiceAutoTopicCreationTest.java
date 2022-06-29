@@ -22,8 +22,11 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
+import lombok.Cleanup;
+import org.apache.pulsar.client.admin.ListNamespaceTopicsOptions;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
@@ -142,6 +145,7 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
             assertFalse(admin.namespaces().getTopics("prop/ns-abc").contains(topicString + "-partition-" + i));
         }
         assertTrue(admin.namespaces().getTopics("prop/ns-abc").contains(topicString));
+        admin.topics().delete(topicString, true);
     }
 
     /**
@@ -393,26 +397,27 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
     @Test
     public void testAutoCreationOfSystemTopicTransactionBufferSnapshot() throws Exception {
         pulsar.getConfiguration().setAllowAutoTopicCreation(false);
-        pulsar.getConfiguration().setSystemTopicEnabled(true);
 
         final String topicString = "persistent://prop/ns-abc/" + SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT;
 
         pulsarClient.newProducer().topic(topicString).create();
 
-        assertTrue(admin.namespaces().getTopics("prop/ns-abc").contains(topicString));
+        assertTrue(admin.namespaces().getTopics("prop/ns-abc",
+                ListNamespaceTopicsOptions.builder().includeSystemTopic(true).build()).contains(topicString));
         assertFalse(admin.topics().getPartitionedTopicList("prop/ns-abc").contains(topicString));
     }
 
     @Test
     public void testAutoCreationOfSystemTopicNamespaceEvents() throws Exception {
         pulsar.getConfiguration().setAllowAutoTopicCreation(false);
-        pulsar.getConfiguration().setSystemTopicEnabled(true);
 
         final String topicString = "persistent://prop/ns-abc/" + SystemTopicNames.NAMESPACE_EVENTS_LOCAL_NAME;
 
-        pulsarClient.newProducer().topic(topicString).create();
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicString).create();
 
-        assertTrue(admin.namespaces().getTopics("prop/ns-abc").contains(topicString));
+        assertTrue(admin.namespaces().getTopics("prop/ns-abc",
+                ListNamespaceTopicsOptions.builder().includeSystemTopic(true).build()).contains(topicString));
         assertFalse(admin.topics().getPartitionedTopicList("prop/ns-abc").contains(topicString));
     }
 }

@@ -25,6 +25,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
+import org.apache.pulsar.common.io.SinkConfig;
 import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.core.SourceContext;
 import org.apache.pulsar.io.core.annotations.FieldDoc;
@@ -281,6 +282,11 @@ public class IOConfigUtilsTest {
 
         @Override
         public Collection<String> getInputTopics() {
+            return null;
+        }
+
+        @Override
+        public SinkConfig getSinkConfig() {
             return null;
         }
 

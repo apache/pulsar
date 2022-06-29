@@ -46,13 +46,12 @@ import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import lombok.Getter;
-import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.client.admin.ListTopicsOptions;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.OffloadProcessStatus;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.Topics;
-import org.apache.pulsar.client.admin.Topics.QueryParam;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.SubscriptionType;
@@ -74,6 +73,7 @@ import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.util.DateFormatter;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.RelativeTimeUtil;
 
 @Getter
@@ -98,6 +98,8 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("subscriptions", new ListSubscriptions());
         jcommander.addCommand("unsubscribe", new DeleteSubscription());
         jcommander.addCommand("create-subscription", new CreateSubscription());
+        jcommander.addCommand("update-subscription-properties", new UpdateSubscriptionProperties());
+        jcommander.addCommand("get-subscription-properties", new GetSubscriptionProperties());
 
         jcommander.addCommand("stats", new GetStats());
         jcommander.addCommand("stats-internal", new GetInternalStats());
@@ -117,6 +119,7 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("create", new CreateNonPartitionedCmd());
         jcommander.addCommand("update-partitioned-topic", new UpdatePartitionedCmd());
         jcommander.addCommand("get-partitioned-topic-metadata", new GetPartitionedTopicMetadataCmd());
+        jcommander.addCommand("get-properties", new GetPropertiesCmd());
 
         jcommander.addCommand("delete-partitioned-topic", new DeletePartitionedCmd());
         jcommander.addCommand("peek-messages", new PeekMessages());
@@ -243,6 +246,9 @@ public class CmdTopics extends CmdBase {
         jcommander.addCommand("get-replication-clusters", new GetReplicationClusters());
         jcommander.addCommand("set-replication-clusters", new SetReplicationClusters());
         jcommander.addCommand("remove-replication-clusters", new RemoveReplicationClusters());
+
+        jcommander.addCommand("get-schema-validation-enforce", new GetSchemaValidationEnforced());
+        jcommander.addCommand("set-schema-validation-enforce", new SetSchemaValidationEnforced());
 
         initDeprecatedCommands();
     }
@@ -374,11 +380,18 @@ public class CmdTopics extends CmdBase {
                 "--bundle" }, description = "Namespace bundle to get list of topics")
         private String bundle;
 
+        @Parameter(names = { "-ist",
+                "--include-system-topic" }, description = "Include system topic")
+        private boolean includeSystemTopic;
+
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
-            print(getTopics().getList(namespace, topicDomain,
-                    StringUtils.isNotBlank(bundle) ? Collections.singletonMap(QueryParam.Bundle, bundle) : null));
+            ListTopicsOptions options = ListTopicsOptions.builder()
+                    .bundle(bundle)
+                    .includeSystemTopic(includeSystemTopic)
+                    .build();
+            print(getTopics().getList(namespace, topicDomain, options));
         }
     }
 
@@ -387,10 +400,15 @@ public class CmdTopics extends CmdBase {
         @Parameter(description = "tenant/namespace", required = true)
         private java.util.List<String> params;
 
+        @Parameter(names = { "-ist",
+                "--include-system-topic" }, description = "Include system topic")
+        private boolean includeSystemTopic;
+
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
-            print(getTopics().getPartitionedTopicList(namespace));
+            ListTopicsOptions options = ListTopicsOptions.builder().includeSystemTopic(includeSystemTopic).build();
+            print(getTopics().getPartitionedTopicList(namespace, options));
         }
     }
 
@@ -517,23 +535,7 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws Exception {
             String topic = validateTopicName(params);
-            Map<String, String> map = null;
-            if (metadata != null && !metadata.isEmpty()) {
-                map = new HashMap<>();
-                for (String property : metadata) {
-                    if (!property.contains("=")) {
-                        throw new ParameterException(String.format("Invalid key value pair '%s', "
-                                + "valid format like 'a=a,b=b,c=c'.", property));
-                    } else {
-                        String[] keyValue = property.split("=");
-                        if (keyValue.length != 2) {
-                            throw new ParameterException(String.format("Invalid key value pair '%s', "
-                                    + "valid format like 'a=a,b=b,c=c'.", property));
-                        }
-                        map.put(keyValue[0], keyValue[1]);
-                    }
-                }
-            }
+            Map<String, String> map = parseListKeyValueMap(metadata);
             getTopics().createPartitionedTopic(topic, numPartitions, map);
         }
     }
@@ -565,22 +567,7 @@ public class CmdTopics extends CmdBase {
         @Override
         void run() throws Exception {
             String topic = validateTopicName(params);
-            Map<String, String> map = new HashMap<>();
-            if (metadata != null) {
-                for (String property : metadata) {
-                    if (!property.contains("=")) {
-                        throw new ParameterException(String.format("Invalid key value pair '%s', "
-                                + "valid format like 'a=a,b=b,c=c'.", property));
-                    } else {
-                        String[] keyValue = property.split("=");
-                        if (keyValue.length != 2) {
-                            throw new ParameterException(String.format("Invalid key value pair '%s', "
-                                    + "valid format like 'a=a,b=b,c=c'.", property));
-                        }
-                        map.put(keyValue[0], keyValue[1]);
-                    }
-                }
-            }
+            Map<String, String> map = parseListKeyValueMap(metadata);
             getTopics().createNonPartitionedTopic(topic, map);
         }
     }
@@ -618,6 +605,19 @@ public class CmdTopics extends CmdBase {
         void run() throws Exception {
             String topic = validateTopicName(params);
             print(getTopics().getPartitionedTopicMetadata(topic));
+        }
+    }
+
+    @Parameters(commandDescription = "Get the topic properties.")
+    private class GetPropertiesCmd extends CliCommand {
+
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws Exception {
+            String topic = validateTopicName(params);
+            print(getTopics().getProperties(topic));
         }
     }
 
@@ -873,8 +873,9 @@ public class CmdTopics extends CmdBase {
                 "--subscription" }, description = "Subscription to be skip messages on", required = true)
         private String subName;
 
-        @Parameter(names = { "-t", "--expireTime" }, description = "Expire messages older than time in seconds")
-        private long expireTimeInSeconds = -1;
+        @Parameter(names = { "-t", "--expireTime" }, description = "Expire messages older than time in seconds "
+                + "(or minutes, hours, days, weeks eg: 100m, 3h, 2d, 5w)")
+        private String expireTimeStr = null;
 
         @Parameter(names = { "--position",
                 "-p" }, description = "message position to reset back to (ledgerId:entryId)", required = false)
@@ -886,6 +887,15 @@ public class CmdTopics extends CmdBase {
 
         @Override
         void run() throws PulsarAdminException {
+            long expireTimeInSeconds = -1;
+            if (expireTimeStr != null) {
+                try {
+                    expireTimeInSeconds = RelativeTimeUtil.parseRelativeTimeInSeconds(expireTimeStr);
+                } catch (IllegalArgumentException e) {
+                    throw new ParameterException(e.getMessage());
+                }
+            }
+
             if (expireTimeInSeconds >= 0 && isNotBlank(messagePosition)) {
                 throw new ParameterException(String.format("Can't expire message by time and "
                         + "by message position at the same time."));
@@ -911,12 +921,18 @@ public class CmdTopics extends CmdBase {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = { "-t",
-                "--expireTime" }, description = "Expire messages older than time in seconds", required = true)
-        private long expireTimeInSeconds;
+        @Parameter(names = { "-t", "--expireTime" }, description = "Expire messages older than time in seconds "
+                + "(or minutes, hours, days, weeks eg: 100m, 3h, 2d, 5w)", required = true)
+        private String expireTimeStr;
 
         @Override
         void run() throws PulsarAdminException {
+            long expireTimeInSeconds;
+            try {
+                expireTimeInSeconds = RelativeTimeUtil.parseRelativeTimeInSeconds(expireTimeStr);
+            } catch (IllegalArgumentException e) {
+                throw new ParameterException(e.getMessage());
+            }
             String topic = validateTopicName(params);
             getTopics().expireMessagesForAllSubscriptions(topic, expireTimeInSeconds);
         }
@@ -938,6 +954,10 @@ public class CmdTopics extends CmdBase {
         @Parameter(names = { "-r", "--replicated" }, description = "replicated subscriptions", required = false)
         private boolean replicated = false;
 
+        @Parameter(names = {"--property", "-p"}, description = "key value pair properties(-p a=b -p c=d)",
+                required = false)
+        private java.util.List<String> properties;
+
         @Override
         void run() throws PulsarAdminException {
             String topic = validateTopicName(params);
@@ -949,10 +969,63 @@ public class CmdTopics extends CmdBase {
             } else {
                 messageId = validateMessageIdString(messageIdStr);
             }
-
-            getTopics().createSubscription(topic, subscriptionName, messageId, replicated);
+            Map<String, String> map = parseListKeyValueMap(properties);
+            getTopics().createSubscription(topic, subscriptionName, messageId, replicated, map);
         }
     }
+
+    @Parameters(commandDescription = "Update the properties of a subscription on a topic")
+    private class UpdateSubscriptionProperties extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "-s",
+                "--subscription" }, description = "Subscription to update", required = true)
+        private String subscriptionName;
+
+        @Parameter(names = {"--property", "-p"}, description = "key value pair properties(-p a=b -p c=d)",
+                required = false)
+        private java.util.List<String> properties;
+
+        @Parameter(names = {"--clear", "-c"}, description = "Remove all properties",
+                required = false)
+        private boolean clear;
+
+        @Override
+        void run() throws Exception {
+            String topic = validateTopicName(params);
+            Map<String, String> map = parseListKeyValueMap(properties);
+            if (map == null) {
+                map = Collections.emptyMap();
+            }
+            if ((map.isEmpty()) && !clear) {
+                throw new ParameterException("If you want to clear the properties you have to use --clear");
+            }
+            if (clear && !map.isEmpty()) {
+                throw new ParameterException("If you set --clear then you should not pass any properties");
+            }
+            getTopics().updateSubscriptionProperties(topic, subscriptionName, map);
+        }
+    }
+
+    @Parameters(commandDescription = "Get the properties of a subscription on a topic")
+    private class GetSubscriptionProperties extends CliCommand {
+        @Parameter(description = "persistent://tenant/namespace/topic", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "-s",
+                "--subscription" }, description = "Subscription to describe", required = true)
+        private String subscriptionName;
+
+        @Override
+        void run() throws Exception {
+            String topic = validateTopicName(params);
+            Map<String, String> result = getTopics().getSubscriptionProperties(topic, subscriptionName);
+            // Ensure we are using JSON and not Java toString()
+            System.out.println(ObjectMapperFactory.getThreadLocal().writeValueAsString(result));
+        }
+    }
+
 
     @Parameters(commandDescription = "Reset position for subscription to a position that is closest to "
             + "timestamp or messageId.")
@@ -1430,8 +1503,9 @@ public class CmdTopics extends CmdBase {
         private String limitStr = "-1";
 
         @Parameter(names = { "-lt", "--limitTime" },
-                description = "Time limit in second, non-positive number for disabling time limit.")
-        private int limitTime = -1;
+                description = "Time limit in second (or minutes, hours, days, weeks eg: 100m, 3h, 2d, 5w), "
+                        + "non-positive number for disabling time limit.")
+        private String limitTimeStr = null;
 
         @Parameter(names = { "-p", "--policy" },
                 description = "Retention policy to enforce when the limit is reached. Valid options are: "
@@ -1467,10 +1541,23 @@ public class CmdTopics extends CmdBase {
                         backlogQuotaTypeStr, Arrays.toString(BacklogQuota.BacklogQuotaType.values())));
             }
 
+            long limitTimeInSec = -1;
+            if (limitTimeStr != null) {
+                try {
+                    limitTimeInSec = RelativeTimeUtil.parseRelativeTimeInSeconds(limitTimeStr);
+                } catch (IllegalArgumentException e) {
+                    throw new ParameterException(e.getMessage());
+                }
+            }
+            if (limitTimeInSec > Integer.MAX_VALUE) {
+                throw new ParameterException(
+                        String.format("Time limit cannot be greater than %d seconds", Integer.MAX_VALUE));
+            }
+
             String persistentTopic = validatePersistentTopic(params);
             getTopics().setBacklogQuota(persistentTopic,
                     BacklogQuota.builder().limitSize(limit)
-                            .limitTime(limitTime)
+                            .limitTime((int) limitTimeInSec)
                             .retentionPolicy(policy)
                             .build(),
                     backlogQuotaType);
@@ -1622,18 +1709,27 @@ public class CmdTopics extends CmdBase {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = { "-t", "--ttl" }, description = "Message TTL for topic in second, "
-                + "allowed range from 1 to Integer.MAX_VALUE", required = true)
-        private int messageTTLInSecond;
+        @Parameter(names = { "-t", "--ttl" }, description = "Message TTL for topic in second "
+                + "(or minutes, hours, days, weeks eg: 100m, 3h, 2d, 5w), "
+                        + "allowed range from 1 to Integer.MAX_VALUE", required = true)
+        private String messageTTLStr;
 
         @Override
         void run() throws PulsarAdminException {
-            if (messageTTLInSecond < 0) {
-                throw new ParameterException(String.format("Invalid retention policy type '%d'. ", messageTTLInSecond));
+            long messageTTLInSecond;
+            try {
+                messageTTLInSecond = RelativeTimeUtil.parseRelativeTimeInSeconds(messageTTLStr);
+            } catch (IllegalArgumentException e) {
+                throw new ParameterException(e.getMessage());
+            }
+
+            if (messageTTLInSecond < 0 || messageTTLInSecond > Integer.MAX_VALUE) {
+                throw new ParameterException(
+                        String.format("Message TTL cannot be negative or greater than %d seconds", Integer.MAX_VALUE));
             }
 
             String persistentTopic = validatePersistentTopic(params);
-            getTopics().setMessageTTL(persistentTopic, messageTTLInSecond);
+            getTopics().setMessageTTL(persistentTopic, (int) messageTTLInSecond);
         }
     }
 
@@ -2817,6 +2913,36 @@ public class CmdTopics extends CmdBase {
             }
             print(getTopics().getBacklogSizeByMessageId(persistentTopic, messageId));
 
+        }
+    }
+
+    @Parameters(commandDescription = "Get the schema validation enforced")
+    private class GetSchemaValidationEnforced extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "-ap", "--applied" }, description = "Get the applied policy of the topic")
+        private boolean applied = false;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String topic = validateTopicName(params);
+            System.out.println(getAdmin().topics().getSchemaValidationEnforced(topic, applied));
+        }
+    }
+
+    @Parameters(commandDescription = "Set the schema whether open schema validation enforced")
+    private class SetSchemaValidationEnforced extends CliCommand {
+        @Parameter(description = "tenant/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "--enable", "-e" }, description = "Enable schema validation enforced")
+        private boolean enable = false;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String topic = validateTopicName(params);
+            getAdmin().topics().setSchemaValidationEnforced(topic, enable);
         }
     }
 }

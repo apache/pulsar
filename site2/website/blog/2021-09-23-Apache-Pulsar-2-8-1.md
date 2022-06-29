@@ -1,11 +1,13 @@
 ---
 author: Hang Chen, Anonymitaet
-title: Apache Pulsar 2.8.1
+title: "Apache Pulsar 2.8.1"
 ---
 
 # What’s New in Apache Pulsar 2.8.1
 
 The Apache Pulsar community releases version 2.8.1! 49 contributors provided improvements and bug fixes that delivered 213 commits.
+
+<!--truncate-->
 
 Highlights of this release are as below:
 
@@ -139,10 +141,9 @@ This blog walks through the most noteworthy changes grouped by component. For th
 
 # What is Next?
 
-If you are interested in learning more about Pulsar 2.8.1, you can [download](https://pulsar.apache.org/en/download/) and try it out now! 
+If you are interested in learning more about Pulsar 2.8.1, you can [download](https://pulsar.apache.org/download/) and try it out now! 
 
 The first-ever Pulsar Virtual Summit Europe 2021 will take place in October. [Register now](https://hopin.com/events/pulsar-summit-europe-2021) and help us make it an even bigger success by spreading the word on social media!
 
 For more information about the Apache Pulsar project and the progress, visit
-the [Pulsar website](https://pulsar.apache.org), follow the project on Twitter
-[@apache_pulsar](https://twitter.com/apache_pulsar), and join [Pulsar Slack](https://apache-pulsar.herokuapp.com/)!
+the [Pulsar website](https://pulsar.apache.org), follow the project on Twitter [@apache_pulsar](https://twitter.com/apache_pulsar), and join [Pulsar Slack](https://apache-pulsar.herokuapp.com/)!

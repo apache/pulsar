@@ -104,13 +104,11 @@ public class ReaderHandler extends AbstractWebSocketHandler {
             }
 
             this.reader = builder.create();
-            if (reader instanceof MultiTopicsReaderImpl) {
-                this.subscription = ((MultiTopicsReaderImpl<?>) reader).getMultiTopicsConsumer().getSubscription();
-            } else if (reader instanceof ReaderImpl) {
-                this.subscription = ((ReaderImpl<?>) reader).getConsumer().getSubscription();
-            } else {
+            Consumer<?> consumer = getConsumer();
+            if (consumer == null) {
                 throw new IllegalArgumentException(String.format("Illegal Reader Type %s", reader.getClass()));
             }
+            this.subscription = consumer.getSubscription();
             if (!this.service.addReader(this)) {
                 log.warn("[{}:{}] Failed to add reader handler for topic {}", request.getRemoteAddr(),
                         request.getRemotePort(), topic);
@@ -272,7 +270,13 @@ public class ReaderHandler extends AbstractWebSocketHandler {
     }
 
     public Consumer<?> getConsumer() {
-        return reader != null ? ((ReaderImpl<?>) reader).getConsumer() : null;
+        if (reader instanceof MultiTopicsReaderImpl) {
+            return ((MultiTopicsReaderImpl<?>) reader).getMultiTopicsConsumer();
+        } else if (reader instanceof ReaderImpl) {
+            return ((ReaderImpl<?>) reader).getConsumer();
+        } else {
+            return null;
+        }
     }
 
     public String getSubscription() {

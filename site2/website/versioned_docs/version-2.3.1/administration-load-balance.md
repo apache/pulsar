@@ -1,7 +1,7 @@
 ---
-id: version-2.3.1-administration-load-balance
+id: administration-load-balance
 title: Pulsar load balance
-sidebar_label: Load balance
+sidebar_label: "Load balance"
 original_id: administration-load-balance
 ---
 
@@ -60,15 +60,19 @@ When creating a new namespace, it will set to use the default number of bundles.
 `conf/broker.conf`:
 
 ```properties
+
 # When a namespace is created without specifying the number of bundle, this
 # value will be used as the default
 defaultNumberOfNamespaceBundles=4
+
 ```
 
 One can either change the system default, or override it when creating a new namespace:
 
 ```shell
+
 $ bin/pulsar-admin namespaces create my-tenant/my-namespace --clusters us-west --bundles 16
+
 ```
 
 With this command, we're creating a namespace with 16 initial bundles. Therefore the topics for
@@ -99,13 +103,17 @@ Unloading a topic has no effect on the assignment, but it will just close and re
 particular topic:
 
 ```shell
+
 pulsar-admin topics unload persistent://tenant/namespace/topic
+
 ```
 
 To unload all topics for a namespace and trigger reassignments:
 
 ```shell
+
 pulsar-admin namespaces unload tenant/namespace
+
 ```
 
 ### Namespace bundles splitting
@@ -119,6 +127,7 @@ of the threshold is a candidate to be split. By default the newly split bundles 
 immediately offloaded to other brokers, to facilitate the traffic distribution.
 
 ```properties
+
 # enable/disable namespace bundle auto split
 loadBalancerAutoBundleSplitEnabled=true
 
@@ -139,8 +148,8 @@ loadBalancerNamespaceBundleMaxBandwidthMbytes=100
 
 # maximum number of bundles in a namespace (for auto-split)
 loadBalancerNamespaceMaximumBundles=128
-```
 
+```
 
 ### Automatic load shedding
 
@@ -160,19 +169,23 @@ and memory), broker will unload bundles for at least 15% of traffic.
 The automatic load shedding is enabled by default and can be disabled with this setting:
 
 ```properties
+
 # Enable/disable automatic bundle unloading for load-shedding
 loadBalancerSheddingEnabled=true
+
 ```
 
 There are additional settings that apply to shedding:
 
 ```properties
+
 # Load shedding interval. Broker periodically checks whether some traffic should be offload from
 # some over-loaded broker to other under-loaded brokers
 loadBalancerSheddingIntervalMinutes=1
 
 # Prevent the same topics to be shed and moved to other brokers more that once within this timeframe
 loadBalancerSheddingGracePeriodMinutes=30
+
 ```
 
 #### Broker overload thresholds
@@ -184,8 +197,10 @@ memory usage. Whenever either of those metrics reaches the threshold, it will tr
 By default, overload threshold is set at 85%:
 
 ```properties
+
 # Usage threshold to determine a broker as over-loaded
 loadBalancerBrokerOverloadedThresholdPercentage=85
+
 ```
 
 The usage stats are gathered by Pulsar from the system metrics.
@@ -201,6 +216,7 @@ being slowed down.
 There is a setting to correct the max NIC speed:
 
 ```properties
+
 # Override the auto-detection of the network interfaces max speed.
 # This option is useful in some environments (eg: EC2 VMs) where the max speed
 # reported by Linux is not reflecting the real bandwidth available to the broker.
@@ -209,6 +225,7 @@ There is a setting to correct the max NIC speed:
 # with the right value here. The configured value can be a double (eg: 0.8) and that
 # can be used to trigger load-shedding even before hitting on NIC limits.
 loadBalancerOverrideBrokerNicSpeedGbps=
+
 ```
 
 When the value is empty, Pulsar will use the value reported by the OS.

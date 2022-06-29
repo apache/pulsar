@@ -28,7 +28,7 @@ import org.apache.pulsar.client.impl.schema.ProtobufNativeSchema;
 import org.apache.pulsar.client.impl.schema.ProtobufSchema;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.functions.proto.Request;
-import org.junit.Test;
+import org.testng.annotations.Test;
 
 @Slf4j
 public class TopicSchemaTest {

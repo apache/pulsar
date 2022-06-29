@@ -18,15 +18,14 @@
  */
 package org.apache.pulsar.io.flume.node;
 
+import static org.testng.Assert.assertEquals;
 import java.io.File;
 import java.util.HashMap;
 import java.util.Map;
-
 import lombok.SneakyThrows;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
 import org.powermock.reflect.Whitebox;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
 
 public final class TestEnvVarResolverProperties {
     private static final File TESTFILE = new File(
@@ -35,7 +34,7 @@ public final class TestEnvVarResolverProperties {
 
     private PropertiesFileConfigurationProvider provider;
 
-    @Before
+    @BeforeMethod(alwaysRun = true)
     public void setUp() {
         provider = new PropertiesFileConfigurationProvider("a1", TESTFILE);
     }
@@ -44,7 +43,7 @@ public final class TestEnvVarResolverProperties {
     public void resolveEnvVar() {
         injectEnvironmentVariable("VARNAME", "varvalue");
         String resolved = EnvVarResolverProperties.resolveEnvVars("padding ${VARNAME} padding");
-        Assert.assertEquals("padding varvalue padding", resolved);
+        assertEquals(resolved, "padding varvalue padding");
     }
 
     @Test
@@ -53,7 +52,7 @@ public final class TestEnvVarResolverProperties {
         injectEnvironmentVariable("VARNAME2", "varvalue2");
         String resolved = EnvVarResolverProperties
                 .resolveEnvVars("padding ${VARNAME1} ${VARNAME2} padding");
-        Assert.assertEquals("padding varvalue1 varvalue2 padding", resolved);
+        assertEquals(resolved, "padding varvalue1 varvalue2 padding");
     }
 
     @Test
@@ -63,9 +62,9 @@ public final class TestEnvVarResolverProperties {
         System.setProperty("propertiesImplementation",
                 "org.apache.pulsar.io.flume.node.EnvVarResolverProperties");
 
-        Assert.assertEquals(NC_PORT, provider.getFlumeConfiguration()
+        assertEquals(provider.getFlumeConfiguration()
                 .getConfigurationFor("a1")
-                .getSourceContext().get("r1").getParameters().get("port"));
+                .getSourceContext().get("r1").getParameters().get("port"), NC_PORT);
     }
 
     @SneakyThrows

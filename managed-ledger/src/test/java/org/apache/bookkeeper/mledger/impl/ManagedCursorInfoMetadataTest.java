@@ -18,7 +18,7 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
-import static org.junit.Assert.assertEquals;
+import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.expectThrows;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -26,7 +26,6 @@ import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.pulsar.common.api.proto.CompressionType;
-import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -73,8 +72,9 @@ public class ManagedCursorInfoMetadataTest {
             IllegalArgumentException compressionTypeEx = expectThrows(IllegalArgumentException.class, () -> {
                 new MetaStoreImpl(null, null, null, compressionType);
             });
-            assertEquals("No enum constant org.apache.bookkeeper.mledger.proto.MLDataFormats.CompressionType."
-                    + compressionType, compressionTypeEx.getMessage());
+            assertEquals(compressionTypeEx.getMessage(),
+                    "No enum constant org.apache.bookkeeper.mledger.proto.MLDataFormats.CompressionType."
+                            + compressionType);
             return;
         } else {
             metaStore = new MetaStoreImpl(null, null, null, compressionType);
@@ -85,12 +85,12 @@ public class ManagedCursorInfoMetadataTest {
         log.info("[{}] Uncompressed data size: {}, compressed data size: {}",
                 compressionType, managedCursorInfo.getSerializedSize(), compressionBytes.length);
         if (compressionType == null || compressionType.equals(CompressionType.NONE.name())) {
-            Assert.assertEquals(compressionBytes.length, managedCursorInfo.getSerializedSize());
+            assertEquals(compressionBytes.length, managedCursorInfo.getSerializedSize());
         }
 
         // parse compression data and unCompression data, check their results.
         MLDataFormats.ManagedCursorInfo info1 = metaStore.parseManagedCursorInfo(compressionBytes);
         MLDataFormats.ManagedCursorInfo info2 = metaStore.parseManagedCursorInfo(managedCursorInfo.toByteArray());
-        Assert.assertEquals(info1, info2);
+        assertEquals(info1, info2);
     }
 }

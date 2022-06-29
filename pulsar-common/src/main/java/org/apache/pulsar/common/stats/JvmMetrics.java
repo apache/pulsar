@@ -37,6 +37,7 @@ import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.common.util.DirectMemoryUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -103,7 +104,7 @@ public class JvmMetrics {
         m.put("jvm_total_memory", r.totalMemory());
 
         m.put("jvm_direct_memory_used", getJvmDirectMemoryUsed());
-        m.put("jvm_max_direct_memory", io.netty.util.internal.PlatformDependent.maxDirectMemory());
+        m.put("jvm_max_direct_memory", DirectMemoryUtils.jvmMaxDirectMemory());
         m.put("jvm_thread_cnt", getThreadCount());
 
         this.gcLogger.logMetrics(m);

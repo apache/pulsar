@@ -417,8 +417,7 @@ void PartitionedConsumerImpl::messageReceived(Consumer consumer, const Message& 
         if (messages_.full()) {
             lock.unlock();
         }
-        messages_.push(msg);
-        if (messageListener_) {
+        if (messages_.push(msg) && messageListener_) {
             unAckedMessageTrackerPtr_->add(msg.getMessageId());
             listenerExecutor_->postWork(
                 std::bind(&PartitionedConsumerImpl::internalListener, shared_from_this(), consumer));

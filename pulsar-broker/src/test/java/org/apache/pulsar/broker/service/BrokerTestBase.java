@@ -38,11 +38,17 @@ public abstract class BrokerTestBase extends MockedPulsarServiceBaseTest {
     public void baseSetup() throws Exception {
         super.internalSetup();
         baseSetupCommon();
+        afterSetup();
     }
 
     public void baseSetup(ServiceConfiguration serviceConfiguration) throws Exception {
         super.internalSetup(serviceConfiguration);
         baseSetupCommon();
+        afterSetup();
+    }
+
+    protected void afterSetup() throws Exception {
+        // NOP
     }
 
     private void baseSetupCommon() throws Exception {

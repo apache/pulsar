@@ -340,7 +340,7 @@ public class RuntimeUtils {
             args.add("--jar");
             args.add(originalCodeFileName);
         } else if (instanceConfig.getFunctionDetails().getRuntime() == Function.FunctionDetails.Runtime.PYTHON) {
-            args.add("python");
+            args.add("python3");
             if (!isEmpty(instanceConfig.getFunctionDetails().getRuntimeFlags())) {
                 for (String runtimeFlagArg : splitRuntimeArgs(instanceConfig.getFunctionDetails().getRuntimeFlags())) {
                     args.add(runtimeFlagArg);

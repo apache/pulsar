@@ -28,7 +28,7 @@ PYTHON_VERSIONS=(
   '3.10 3.10.2 x86_64;arm64'
 )
 
-export MACOSX_DEPLOYMENT_TARGET=11.0
+export MACOSX_DEPLOYMENT_TARGET=10.15
 
 ZLIB_VERSION=1.2.12
 OPENSSL_VERSION=1_1_1n
@@ -245,23 +245,20 @@ EOF
     find . -name CMakeCache.txt | xargs -r rm
     find . -name CMakeFiles | xargs -r rm -rf
     cmake . \
-        -DCMAKE_OSX_ARCHITECTURES=${ARCHS} \
-        -DCMAKE_OSX_DEPLOYMENT_TARGET=${MACOSX_DEPLOYMENT_TARGET} \
-        -DCMAKE_OSX_SYSROOT=$SDKROOT \
-        -DCMAKE_INSTALL_PREFIX=$PREFIX \
-        -DCMAKE_INSTALL_LIBDIR=$PREFIX/lib \
-        -DCMAKE_BUILD_TYPE=Release \
-        -DCMAKE_PREFIX_PATH=$PREFIX \
-        -DCMAKE_CXX_FLAGS=-I$PREFIX/include \
-        -DCMAKE_FIND_FRAMEWORK=$PREFIX \
-        -DBoost_INCLUDE_DIR=$CACHE_DIR/boost-py-$PYTHON_VERSION/include \
-        -DBoost_LIBRARY_DIRS=$CACHE_DIR/boost-py-$PYTHON_VERSION/lib \
-        -DPYTHON_INCLUDE_DIR=$PY_INCLUDE_DIR \
-        -DPYTHON_LIBRARY=$PY_PREFIX/lib/libpython${PYTHON_VERSION}.dylib \
-        -DLINK_STATIC=ON \
-        -DBUILD_TESTS=OFF \
-        -DBUILD_WIRESHARK=OFF \
-        -DPROTOC_PATH=$PREFIX/bin/protoc
+            -DCMAKE_OSX_ARCHITECTURES=${ARCHS} \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET=${MACOSX_DEPLOYMENT_TARGET} \
+            -DCMAKE_INSTALL_PREFIX=$PREFIX \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_PREFIX_PATH=$PREFIX \
+            -DCMAKE_CXX_FLAGS=-I$PREFIX/include \
+            -DBoost_INCLUDE_DIR=$CACHE_DIR/boost-py-$PYTHON_VERSION/include \
+            -DBoost_LIBRARY_DIR=$CACHE_DIR/boost-py-$PYTHON_VERSION/lib \
+            -DPYTHON_INCLUDE_DIR=$PY_INCLUDE_DIR \
+            -DPYTHON_LIBRARY=$PY_PREFIX/lib/libpython${PYTHON_VERSION}.dylib \
+            -DLINK_STATIC=ON \
+            -DBUILD_TESTS=OFF \
+            -DBUILD_WIRESHARK=OFF \
+            -DPROTOC_PATH=$PREFIX/bin/protoc
 
     make clean
     make _pulsar

@@ -18,8 +18,16 @@
  */
 package org.apache.pulsar.client.impl;
 
-import static org.apache.pulsar.common.util.SecurityUtility.getProvider;
-import java.security.Provider;
+import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.BROKER_KEYSTORE_FILE_PATH;
+import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.BROKER_KEYSTORE_PW;
+import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.BROKER_TRUSTSTORE_FILE_PATH;
+import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.BROKER_TRUSTSTORE_NO_PASSWORD_FILE_PATH;
+import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.CLIENT_KEYSTORE_FILE_PATH;
+import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.CLIENT_KEYSTORE_PW;
+import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.CLIENT_TRUSTSTORE_FILE_PATH;
+import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.CLIENT_TRUSTSTORE_NO_PASSWORD_FILE_PATH;
+import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.CLIENT_TRUSTSTORE_PW;
+import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.KEYSTORE_TYPE;
 import java.util.Collections;
 import org.apache.pulsar.common.util.keystoretls.KeyStoreSSLContext;
 import org.apache.pulsar.common.util.keystoretls.SSLContextValidatorEngine;
@@ -27,29 +35,6 @@ import org.testng.annotations.Test;
 
 @Test(groups = "broker-impl")
 public class KeyStoreTlsTest {
-
-    protected final String BROKER_KEYSTORE_FILE_PATH =
-            "./src/test/resources/authentication/keystoretls/broker.keystore.jks";
-    protected final String BROKER_TRUSTSTORE_FILE_PATH =
-            "./src/test/resources/authentication/keystoretls/broker.truststore.jks";
-    protected final String BROKER_KEYSTORE_PW = "111111";
-    protected final String BROKER_TRUSTSTORE_PW = "111111";
-
-    protected final String CLIENT_KEYSTORE_FILE_PATH =
-            "./src/test/resources/authentication/keystoretls/client.keystore.jks";
-    protected final String CLIENT_TRUSTSTORE_FILE_PATH =
-            "./src/test/resources/authentication/keystoretls/client.truststore.jks";
-    protected final String CLIENT_KEYSTORE_PW = "111111";
-    protected final String CLIENT_TRUSTSTORE_PW = "111111";
-    protected final String KEYSTORE_TYPE = "JKS";
-
-    protected final String BROKER_TRUSTSTORE_FILE_NPD_PATH =
-            "./src/test/resources/authentication/keystoretls/pulsar_server_trust_npd.jks";
-
-    protected final String CLIENT_TRUSTSTORE_FILE_NPD_PATH =
-            "./src/test/resources/authentication/keystoretls/pulsar_client_trust_npd.jks";
-
-    public static final Provider BC_PROVIDER = getProvider();
 
     @Test(timeOut = 300000)
     public void testValidate() throws Exception {
@@ -60,8 +45,8 @@ public class KeyStoreTlsTest {
                 BROKER_KEYSTORE_PW,
                 false,
                 KEYSTORE_TYPE,
-                BROKER_TRUSTSTORE_FILE_PATH,
-                BROKER_TRUSTSTORE_PW,
+                CLIENT_TRUSTSTORE_FILE_PATH,
+                CLIENT_TRUSTSTORE_PW,
                 true,
                 null,
                 null);
@@ -74,8 +59,8 @@ public class KeyStoreTlsTest {
                 CLIENT_KEYSTORE_PW,
                 false,
                 KEYSTORE_TYPE,
-                CLIENT_TRUSTSTORE_FILE_PATH,
-                CLIENT_TRUSTSTORE_PW,
+                BROKER_TRUSTSTORE_FILE_PATH,
+                BROKER_KEYSTORE_PW,
                 false,
                 null,
                 // set client's protocol to TLSv1.2 since SSLContextValidatorEngine.validate doesn't handle TLSv1.3
@@ -94,7 +79,7 @@ public class KeyStoreTlsTest {
                 BROKER_KEYSTORE_PW,
                 false,
                 KEYSTORE_TYPE,
-                BROKER_TRUSTSTORE_FILE_NPD_PATH,
+                CLIENT_TRUSTSTORE_NO_PASSWORD_FILE_PATH,
                 null,
                 true,
                 null,
@@ -108,7 +93,7 @@ public class KeyStoreTlsTest {
                 CLIENT_KEYSTORE_PW,
                 false,
                 KEYSTORE_TYPE,
-                CLIENT_TRUSTSTORE_FILE_NPD_PATH,
+                BROKER_TRUSTSTORE_NO_PASSWORD_FILE_PATH,
                 null,
                 false,
                 null,

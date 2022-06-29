@@ -203,7 +203,8 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
             EntryBatchSizes batchSizes = EntryBatchSizes.get(entries.size());
             SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
             EntryBatchIndexesAcks batchIndexesAcks = EntryBatchIndexesAcks.get(entries.size());
-            filterEntriesForConsumer(entries, batchSizes, sendMessageInfo, batchIndexesAcks, cursor, false);
+            filterEntriesForConsumer(entries, batchSizes, sendMessageInfo, batchIndexesAcks, cursor, false,
+                    currentConsumer);
             dispatchEntriesToConsumer(currentConsumer, entries, batchSizes, batchIndexesAcks, sendMessageInfo, epoch);
         }
     }
@@ -558,9 +559,10 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
 
     @Override
     public boolean initializeDispatchRateLimiterIfNeeded() {
-        if (!dispatchRateLimiter.isPresent()
-            && DispatchRateLimiter.isDispatchRateEnabled(topic.getSubscriptionDispatchRate())) {
-            this.dispatchRateLimiter = Optional.of(new DispatchRateLimiter(topic, Type.SUBSCRIPTION));
+        if (!dispatchRateLimiter.isPresent() && DispatchRateLimiter.isDispatchRateEnabled(
+                topic.getSubscriptionDispatchRate(getSubscriptionName()))) {
+            this.dispatchRateLimiter =
+                    Optional.of(new DispatchRateLimiter(topic, getSubscriptionName(), Type.SUBSCRIPTION));
             return true;
         }
         return false;

@@ -394,6 +394,9 @@ public class MockZooKeeper extends ZooKeeper {
                                             KeeperState.SyncConnected,
                                             parent)));
                 }
+            } catch (Exception ex) {
+                log.error("create path : {} error", path, ex);
+                cb.processResult(KeeperException.Code.SYSTEMERROR.intValue(), path, ctx, null);
             } finally {
                 unlockIfLocked();
             }
@@ -962,6 +965,9 @@ public class MockZooKeeper extends ZooKeeper {
                                     parent)));
                     triggerPersistentWatches(path, parent, EventType.NodeDeleted);
                 }
+            } catch (Exception ex) {
+                log.error("delete path : {} error", path, ex);
+                cb.processResult(KeeperException.Code.SYSTEMERROR.intValue(), path, ctx);
             } finally {
                 unlockIfLocked();
             }

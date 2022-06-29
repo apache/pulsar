@@ -1,7 +1,7 @@
 ---
-id: version-2.7.2-sql-rest-api
+id: sql-rest-api
 title: Pulsar SQL REST APIs
-sidebar_label: REST APIs
+sidebar_label: "REST APIs"
 original_id: sql-rest-api
 ---
 
@@ -16,7 +16,9 @@ To request services, use explicit URL `http://presto.service:8081/v1`. You need 
 `POST` requests require the `X-Presto-User` header. If you use authentication, you must use the same `username` that is specified in the authentication configuration. If you do not use authentication, you can specify anything for `username`.
 
 ```properties
+
 X-Presto-User: username
+
 ```
 
 For more information about headers, refer to [PrestoHeaders](https://github.com/trinodb/trino).
@@ -28,6 +30,7 @@ You can use statement in the HTTP body. All data is received as JSON document th
 The following is an example of `show catalogs`. The query continues until the received JSON document does not contain a `nextUri` link. Since no `error` is displayed in `stats`, it means that the query completes successfully.
 
 ```powershell
+
 ➜  ~ curl --header "X-Presto-User: test-user" --request POST --data 'show catalogs' http://localhost:8081/v1/statement
 {
    "infoUri" : "http://localhost:8081/ui/query.html?20191113_033653_00006_dg6hb",
@@ -177,10 +180,13 @@ The following is an example of `show catalogs`. The query continues until the re
       "completedSplits" : 19
    }
 }
+
 ```
 
-> Note
-> 
-> Since the response data is not in sync with the query state from the perspective of clients, you cannot rely on the response data to determine whether the query completes.
+:::note
+
+Since the response data is not in sync with the query state from the perspective of clients, you cannot rely on the response data to determine whether the query completes.
+
+:::
 
 For more information about Presto REST API, refer to [Presto HTTP Protocol](https://github.com/prestosql/presto/wiki/HTTP-Protocol).

@@ -1,7 +1,7 @@
 ---
-id: version-2.4.2-concepts-schema-registry
+id: concepts-schema-registry
 title: Schema Registry
-sidebar_label: Schema Registry
+sidebar_label: "Schema Registry"
 original_id: concepts-schema-registry
 ---
 
@@ -17,7 +17,7 @@ Both approaches are available in Pulsar, and you're free to adopt one or the oth
 
 #### Note
 >
-> Currently, the Pulsar schema registry is only available for the [Java client](client-libraries-java.md), [CGo client](client-libraries-go.md), [Python client](client-libraries-python.md), and [C++ client](client-libraries-cpp.md).
+> Currently, the Pulsar schema registry is only available for the [Java client](client-libraries-java.md), [CGo client](client-libraries-go.md), [Python client](client-libraries-python.md), and [C++ client](client-libraries-cpp).
 
 ## Basic architecture
 
@@ -47,9 +47,10 @@ Schemas are versioned in succession.The schema is stored in a broker that handle
 
 Once a version is assigned/fetched to/for a schema, all subsequent messages produced by that producer are tagged with the appropriate version.
 
-In order to illustrate how schema versioning works, let's walk through an example. Imagine that the Pulsar [Java client](client-libraries-java.md) created using the code below attempts to connect to Pulsar and begin sending messages:
+In order to illustrate how schema versioning works, let's walk through an example. Imagine that the Pulsar [Java client](client-libraries-java) created using the code below attempts to connect to Pulsar and begin sending messages:
 
 ```java
+
 PulsarClient client = PulsarClient.builder()
         .serviceUrl("pulsar://localhost:6650")
         .build();
@@ -58,6 +59,7 @@ Producer<SensorReading> producer = client.newProducer(JSONSchema.of(SensorReadin
         .topic("sensor-data")
         .sendTimeout(3, TimeUnit.SECONDS)
         .create();
+
 ```
 
 The table below lists the possible scenarios when this connection attempt occurs and what will happen in light of each scenario:
@@ -97,21 +99,25 @@ The following example shows how to define an Avro schema using the `GenericSchem
 
 1. Use the `RecordSchemaBuilder` to build a schema.
 
-    ```java
-    RecordSchemaBuilder recordSchemaBuilder = SchemaBuilder.record("schemaName");
-    recordSchemaBuilder.field("intField").type(SchemaType.INT32);
-    SchemaInfo schemaInfo = recordSchemaBuilder.build(SchemaType.AVRO);
+   ```java
+   
+   RecordSchemaBuilder recordSchemaBuilder = SchemaBuilder.record("schemaName");
+   recordSchemaBuilder.field("intField").type(SchemaType.INT32);
+   SchemaInfo schemaInfo = recordSchemaBuilder.build(SchemaType.AVRO);
 
-    Producer<GenericRecord> producer = client.newProducer(Schema.generic(schemaInfo)).create();
-    ```
+   Producer<GenericRecord> producer = client.newProducer(Schema.generic(schemaInfo)).create();
+   
+   ```
 
 2. Use `RecordBuilder` to build the generic records.
 
-    ```java
-    producer.newMessage().value(schema.newRecordBuilder()
-                .set("intField", 32)
-                .build()).send();
-    ```
+   ```java
+   
+   producer.newMessage().value(schema.newRecordBuilder()
+               .set("intField", 32)
+               .build()).send();
+   
+   ```
 
 ## Managing Schemas
 

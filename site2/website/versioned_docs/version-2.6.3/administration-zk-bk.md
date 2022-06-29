@@ -1,7 +1,7 @@
 ---
-id: version-2.6.3-administration-zk-bk
+id: administration-zk-bk
 title: ZooKeeper and BookKeeper administration
-sidebar_label: ZooKeeper and BookKeeper
+sidebar_label: "ZooKeeper and BookKeeper"
 original_id: administration-zk-bk
 ---
 
@@ -31,9 +31,11 @@ To deploy a Pulsar instance, you need to stand up one local ZooKeeper cluster *p
 To begin, add all ZooKeeper servers to the quorum configuration specified in the [`conf/zookeeper.conf`](reference-configuration.md#zookeeper) file. Add a `server.N` line for each node in the cluster to the configuration, where `N` is the number of the ZooKeeper node. The following is an example for a three-node cluster:
 
 ```properties
+
 server.1=zk1.us-west.example.com:2888:3888
 server.2=zk2.us-west.example.com:2888:3888
 server.3=zk3.us-west.example.com:2888:3888
+
 ```
 
 On each host, you need to specify the node ID in `myid` file of each node, which is in `data/zookeeper` folder of each server by default (you can change the file location via the [`dataDir`](reference-configuration.md#zookeeper-dataDir) parameter).
@@ -44,8 +46,10 @@ On each host, you need to specify the node ID in `myid` file of each node, which
 On a ZooKeeper server at `zk1.us-west.example.com`, for example, you can set the `myid` value like this:
 
 ```shell
+
 $ mkdir -p data/zookeeper
 $ echo 1 > data/zookeeper/myid
+
 ```
 
 On `zk2.us-west.example.com` the command is `echo 2 > data/zookeeper/myid` and so on.
@@ -53,7 +57,9 @@ On `zk2.us-west.example.com` the command is `echo 2 > data/zookeeper/myid` and s
 Once you add each server to the `zookeeper.conf` configuration and each server has the appropriate `myid` entry, you can start ZooKeeper on all hosts (in the background, using nohup) with the [`pulsar-daemon`](reference-cli-tools.md#pulsar-daemon) CLI tool:
 
 ```shell
+
 $ bin/pulsar-daemon start zookeeper
+
 ```
 
 ### Deploy configuration store
@@ -69,10 +75,12 @@ If your Pulsar instance consists of just one cluster, then you can deploy a conf
 To deploy a ZooKeeper configuration store in a single-cluster instance, add the same ZooKeeper servers that the local quorum uses to the configuration file in [`conf/global_zookeeper.conf`](reference-configuration.md#configuration-store) using the same method for [local ZooKeeper](#local-zookeeper), but make sure to use a different port (2181 is the default for ZooKeeper). The following is an example that uses port 2184 for a three-node ZooKeeper cluster:
 
 ```properties
+
 clientPort=2184
 server.1=zk1.us-west.example.com:2185:2186
 server.2=zk2.us-west.example.com:2185:2186
 server.3=zk3.us-west.example.com:2185:2186
+
 ```
 
 As before, create the `myid` files for each server on `data/global-zookeeper/myid`.
@@ -167,7 +175,7 @@ The [`conf/global-zookeeper.conf`](reference-configuration.md#configuration-stor
 
 BookKeeper stores all durable message in Pulsar. BookKeeper is a distributed [write-ahead log](https://en.wikipedia.org/wiki/Write-ahead_logging) WAL system that guarantees read consistency of independent message logs calls ledgers. Individual BookKeeper servers are also called *bookies*.
 
-> To manage message persistence, retention, and expiry in Pulsar, refer to [cookbook](cookbooks-retention-expiry.md).
+> To manage message persistence, retention, and expiry in Pulsar, refer to [cookbook](cookbooks-retention-expiry).
 
 ### Hardware requirements
 
@@ -187,8 +195,11 @@ You can configure BookKeeper bookies using the [`conf/bookkeeper.conf`](referenc
 
 The minimum configuration changes required in `conf/bookkeeper.conf` are as follows:
 
-> **Note**
-> Set `journalDirectory` and `ledgerDirectories` carefully. It is difficilt to change them later.
+:::note
+
+Set `journalDirectory` and `ledgerDirectories` carefully. It is difficilt to change them later.
+
+:::
 
 ```properties
 
@@ -203,6 +214,7 @@ zkServers=zk1.example.com:2181,zk2.example.com:2181,zk3.example.com:2181
 
 #It is recommended to set this parameter. Otherwise, BookKeeper can't start normally in certain environments (for example, Huawei Cloud).
 advertisedAddress=
+
 ```
 
 To change the ZooKeeper root path that BookKeeper uses, use `zkLedgersRootPath=/MY-PREFIX/ledgers` instead of `zkServers=localhost:2181/MY-PREFIX`.
@@ -315,7 +327,7 @@ $ pulsar-admin namespaces set-persistence my-tenant/my-ns \
 
 #### REST API
 
-{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/persistence|operation/setPersistence?version=[[pulsar:version_number]]}
+{@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/persistence|operation/setPersistence?version=@pulsar:version_number@}
 
 #### Java
 
@@ -355,7 +367,7 @@ $ pulsar-admin namespaces get-persistence my-tenant/my-ns
 
 #### REST API
 
-{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/persistence|operation/getPersistence?version=[[pulsar:version_number]]}
+{@inject: endpoint|GET|/admin/v2/namespaces/:tenant/:namespace/persistence|operation/getPersistence?version=@pulsar:version_number@}
 
 #### Java
 
@@ -369,6 +381,6 @@ PersistencePolicies policies = admin.namespaces().getPersistence(namespace);
 
 This diagram illustrates the role of ZooKeeper and BookKeeper in a Pulsar cluster:
 
-![ZooKeeper and BookKeeper](assets/pulsar-system-architecture.png)
+![ZooKeeper and BookKeeper](/assets/pulsar-system-architecture.png)
 
 Each Pulsar cluster consists of one or more message brokers. Each broker relies on an ensemble of bookies.

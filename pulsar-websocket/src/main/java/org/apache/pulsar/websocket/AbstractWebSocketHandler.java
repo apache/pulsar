@@ -243,7 +243,7 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
         final NamespaceName namespace = isV2Format ? NamespaceName.get(parts.get(5), parts.get(6)) :
                 NamespaceName.get(parts.get(4), parts.get(5), parts.get(6));
 
-        // The topic name which contains slashes is also split，so it needs to be jointed
+        // The topic name which contains slashes is also split, so it needs to be jointed
         int startPosition = 7;
         boolean isConsumer = "consumer".equals(parts.get(2)) || "consumer".equals(parts.get(3));
         int endPosition = isConsumer ? parts.size() - 1 : parts.size();

@@ -1,11 +1,17 @@
 ---
-id: version-2.7.4-admin-api-tenants
+id: admin-api-tenants
 title: Managing Tenants
-sidebar_label: Tenants
+sidebar_label: "Tenants"
 original_id: admin-api-tenants
 ---
 
-Tenants, like namespaces, can be managed using the [admin API](admin-api-overview.md). There are currently two configurable aspects of tenants:
+````mdx-code-block
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+````
+
+
+Tenants, like namespaces, can be managed using the [admin API](admin-api-overview). There are currently two configurable aspects of tenants:
 
 * Admin roles
 * Allowed clusters
@@ -16,72 +22,104 @@ Tenants, like namespaces, can be managed using the [admin API](admin-api-overvie
 
 You can list all of the tenants associated with an [instance](reference-terminology.md#instance).
 
-<!--DOCUSAURUS_CODE_TABS-->
-<!--pulsar-admin-->
+````mdx-code-block
+<Tabs 
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"JAVA","value":"JAVA"}]}>
+<TabItem value="pulsar-admin">
 
 Use the [`list`](reference-pulsar-admin.md#tenants-list) subcommand.
 
 ```shell
+
 $ pulsar-admin tenants list
 my-tenant-1
 my-tenant-2
+
 ```
 
-<!--REST API-->
+</TabItem>
+<TabItem value="REST API">
 
-{@inject: endpoint|GET|/admin/v2/tenants|operation/getTenants?version=[[pulsar:version_number]]}
+{@inject: endpoint|GET|/admin/v2/tenants|operation/getTenants?version=@pulsar:version_number@}
 
-<!--JAVA-->
+</TabItem>
+<TabItem value="JAVA">
 
 ```java
+
 admin.tenants().getTenants();
+
 ```
-<!--END_DOCUSAURUS_CODE_TABS-->
+
+</TabItem>
+
+</Tabs>
+````
 
 ### Create
 
 You can create a new tenant.
 
-<!--DOCUSAURUS_CODE_TABS-->
-<!--pulsar-admin-->
+````mdx-code-block
+<Tabs 
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"JAVA","value":"JAVA"}]}>
+<TabItem value="pulsar-admin">
 
 Use the [`create`](reference-pulsar-admin.md#tenants-create) subcommand:
 
 ```shell
+
 $ pulsar-admin tenants create my-tenant
+
 ```
 
 When creating a tenant, you can assign admin roles using the `-r`/`--admin-roles` flag. You can specify multiple roles as a comma-separated list. Here are some examples:
 
 ```shell
+
 $ pulsar-admin tenants create my-tenant \
   --admin-roles role1,role2,role3
 
 $ pulsar-admin tenants create my-tenant \
   -r role1
+
 ```
-<!--REST API-->
 
-{@inject: endpoint|POST|/admin/v2/tenants/:tenant|operation/createTenant?version=[[pulsar:version_number]]}
+</TabItem>
+<TabItem value="REST API">
 
-<!--JAVA-->
+{@inject: endpoint|POST|/admin/v2/tenants/:tenant|operation/createTenant?version=@pulsar:version_number@}
+
+</TabItem>
+<TabItem value="JAVA">
 
 ```java
+
 admin.tenants().createTenant(tenantName, tenantInfo);
+
 ```
 
-<!--END_DOCUSAURUS_CODE_TABS-->
+</TabItem>
+
+</Tabs>
+````
 
 ### Get configuration
 
-You can fetch the [configuration](reference-configuration.md) for an existing tenant at any time.
+You can fetch the [configuration](reference-configuration) for an existing tenant at any time.
 
-<!--DOCUSAURUS_CODE_TABS-->
-<!--pulsar-admin-->
+````mdx-code-block
+<Tabs 
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"JAVA","value":"JAVA"}]}>
+<TabItem value="pulsar-admin">
 
 Use the [`get`](reference-pulsar-admin.md#tenants-get) subcommand and specify the name of the tenant. Here's an example:
 
 ```shell
+
 $ pulsar-admin tenants get my-tenant
 {
   "adminRoles": [
@@ -93,65 +131,98 @@ $ pulsar-admin tenants get my-tenant
     "cl2"
   ]
 }
+
 ```
-<!--REST API-->
 
-{@inject: endpoint|GET|/admin/v2/tenants/:cluster|operation/getTenant?version=[[pulsar:version_number]]}
+</TabItem>
+<TabItem value="REST API">
 
-<!--JAVA-->
+{@inject: endpoint|GET|/admin/v2/tenants/:cluster|operation/getTenant?version=@pulsar:version_number@}
+
+</TabItem>
+<TabItem value="JAVA">
 
 ```java
+
 admin.tenants().getTenantInfo(tenantName);
+
 ```
 
-<!--END_DOCUSAURUS_CODE_TABS-->
+</TabItem>
+
+</Tabs>
+````
 
 ### Delete
 
 Tenants can be deleted from a Pulsar [instance](reference-terminology.md#instance).
 
-<!--DOCUSAURUS_CODE_TABS-->
-<!--pulsar-admin-->
+````mdx-code-block
+<Tabs 
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"JAVA","value":"JAVA"}]}>
+<TabItem value="pulsar-admin">
 
 Use the [`delete`](reference-pulsar-admin.md#tenants-delete) subcommand and specify the name of the tenant.
 
 ```shell
+
 $ pulsar-admin tenants delete my-tenant
+
 ```
 
-<!--REST API-->
+</TabItem>
+<TabItem value="REST API">
 
-{@inject: endpoint|DELETE|/admin/v2/tenants/:cluster|operation/deleteTenant?version=[[pulsar:version_number]]}
+{@inject: endpoint|DELETE|/admin/v2/tenants/:cluster|operation/deleteTenant?version=@pulsar:version_number@}
 
-<!--JAVA-->
+</TabItem>
+<TabItem value="JAVA">
 
 ```java
+
 admin.Tenants().deleteTenant(tenantName);
+
 ```
-<!--END_DOCUSAURUS_CODE_TABS-->
+
+</TabItem>
+
+</Tabs>
+````
 
 ### Update
 
 You can update a tenant's configuration.
 
-<!--DOCUSAURUS_CODE_TABS-->
-<!--pulsar-admin-->
+````mdx-code-block
+<Tabs 
+  defaultValue="pulsar-admin"
+  values={[{"label":"pulsar-admin","value":"pulsar-admin"},{"label":"REST API","value":"REST API"},{"label":"JAVA","value":"JAVA"}]}>
+<TabItem value="pulsar-admin">
 
 Use the [`update`](reference-pulsar-admin.md#tenants-update) subcommand.
 
 ```shell
+
 $ pulsar-admin tenants update my-tenant
+
 ```
 
-<!--REST API-->
+</TabItem>
+<TabItem value="REST API">
 
-{@inject: endpoint|DELETE|/admin/v2/tenants/:cluster|operation/updateTenant?version=[[pulsar:version_number]]}
+{@inject: endpoint|DELETE|/admin/v2/tenants/:cluster|operation/updateTenant?version=@pulsar:version_number@}
 
-<!--JAVA-->
+</TabItem>
+<TabItem value="JAVA">
 
 ```java
 
 admin.tenants().updateTenant(tenantName, tenantInfo);
+
 ```
 
-<!--END_DOCUSAURUS_CODE_TABS-->
+</TabItem>
+
+</Tabs>
+````

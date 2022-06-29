@@ -56,7 +56,7 @@ public abstract class AbstractMetadataDriver implements Closeable {
         this.ledgersRootPath = resolveLedgersRootPath();
         createMetadataStore();
         this.registrationClient = new PulsarRegistrationClient(store, ledgersRootPath);
-        this.registrationManager = new PulsarRegistrationManager(store, ledgersRootPath, conf);
+        createRegistrationManager();
         this.layoutManager = new PulsarLayoutManager(store, ledgersRootPath);
         this.ledgerManagerFactory = new PulsarLedgerManagerFactory();
 
@@ -65,6 +65,13 @@ public abstract class AbstractMetadataDriver implements Closeable {
         } catch (IOException e) {
             throw new MetadataException(Code.METADATA_SERVICE_ERROR, e);
         }
+    }
+
+    public RegistrationManager createRegistrationManager() {
+        if (registrationManager == null) {
+            registrationManager = new PulsarRegistrationManager(store, ledgersRootPath, conf);
+        }
+        return registrationManager;
     }
 
     @SneakyThrows

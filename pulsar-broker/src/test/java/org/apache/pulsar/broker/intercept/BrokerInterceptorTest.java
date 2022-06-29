@@ -64,6 +64,8 @@ public class BrokerInterceptorTest extends ProducerConsumerBase {
 
     @BeforeMethod
     public void setup() throws Exception {
+        conf.setSystemTopicEnabled(false);
+        conf.setTopicLevelPoliciesEnabled(false);
         this.conf.setDisableBrokerInterceptors(false);
 
         this.listener1 = mock(BrokerInterceptor.class);

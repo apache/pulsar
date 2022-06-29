@@ -20,6 +20,8 @@ package org.apache.pulsar.broker.stats;
 
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -38,7 +40,6 @@ import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
-import org.junit.Assert;
 import org.mockito.Mockito;
 import org.mockito.stubbing.Answer;
 import org.testng.annotations.AfterMethod;
@@ -82,7 +83,7 @@ public class LedgerOffloaderMetricsTest  extends BrokerTestBase {
             admin.topics().createNonPartitionedTopic(topicName);
 
             doReturn(topicFuture).when(brokerService).getTopicIfExists(topicName);
-            Assert.assertTrue(topic instanceof PersistentTopic);
+            assertTrue(topic instanceof PersistentTopic);
 
             ManagedLedger ledgerM = Mockito.mock(ManagedLedger.class);
             doReturn(ledgerM).when(((PersistentTopic) topic)).getManagedLedger();
@@ -103,17 +104,17 @@ public class LedgerOffloaderMetricsTest  extends BrokerTestBase {
         }
 
         for (String topicName : topics) {
-            Assert.assertEquals(offloaderStats.getOffloadError(topicName), 2);
-            Assert.assertEquals(offloaderStats.getOffloadBytes(topicName) , 100);
-            Assert.assertEquals((long) offloaderStats.getReadLedgerLatency(topicName).sum, 1);
-            Assert.assertEquals(offloaderStats.getReadOffloadError(topicName), 2);
-            Assert.assertEquals((long) offloaderStats.getReadOffloadIndexLatency(topicName).sum ,1000);
-            Assert.assertEquals(offloaderStats.getReadOffloadBytes(topicName), 100000);
-            Assert.assertEquals(offloaderStats.getWriteStorageError(topicName), 2);
+            assertEquals(offloaderStats.getOffloadError(topicName), 2);
+            assertEquals(offloaderStats.getOffloadBytes(topicName) , 100);
+            assertEquals((long) offloaderStats.getReadLedgerLatency(topicName).sum, 1);
+            assertEquals(offloaderStats.getReadOffloadError(topicName), 2);
+            assertEquals((long) offloaderStats.getReadOffloadIndexLatency(topicName).sum ,1000);
+            assertEquals(offloaderStats.getReadOffloadBytes(topicName), 100000);
+            assertEquals(offloaderStats.getWriteStorageError(topicName), 2);
         }
     }
 
-    @Test
+    @Test(priority = 1)
     public void testNamespaceLevelMetrics() throws Exception {
         conf.setExposeTopicLevelMetricsInPrometheus(false);
         super.baseSetup();
@@ -149,7 +150,7 @@ public class LedgerOffloaderMetricsTest  extends BrokerTestBase {
                 queue.add(topicName);
                 admin.topics().createNonPartitionedTopic(topicName);
                 doReturn(topicFuture).when(brokerService).getTopicIfExists(topicName);
-                Assert.assertTrue(topic instanceof PersistentTopic);
+                assertTrue(topic instanceof PersistentTopic);
 
 
                 ManagedLedger ledgerM = Mockito.mock(ManagedLedger.class);
@@ -174,13 +175,13 @@ public class LedgerOffloaderMetricsTest  extends BrokerTestBase {
             List<String> topics = entry.getValue();
             String topicName = topics.get(0);
 
-            Assert.assertTrue(offloaderStats.getOffloadError(topicName) >= 1);
-            Assert.assertTrue(offloaderStats.getOffloadBytes(topicName) >= 100);
-            Assert.assertTrue((long) offloaderStats.getReadLedgerLatency(topicName).sum >= 1);
-            Assert.assertTrue(offloaderStats.getReadOffloadError(topicName) >= 1);
-            Assert.assertTrue((long) offloaderStats.getReadOffloadIndexLatency(topicName).sum >= 1000);
-            Assert.assertTrue(offloaderStats.getReadOffloadBytes(topicName) >= 100000);
-            Assert.assertTrue(offloaderStats.getWriteStorageError(topicName) >= 1);
+            assertTrue(offloaderStats.getOffloadError(topicName) >= 1);
+            assertTrue(offloaderStats.getOffloadBytes(topicName) >= 100);
+            assertTrue((long) offloaderStats.getReadLedgerLatency(topicName).sum >= 1);
+            assertTrue(offloaderStats.getReadOffloadError(topicName) >= 1);
+            assertTrue((long) offloaderStats.getReadOffloadIndexLatency(topicName).sum >= 1000);
+            assertTrue(offloaderStats.getReadOffloadBytes(topicName) >= 100000);
+            assertTrue(offloaderStats.getWriteStorageError(topicName) >= 1);
         }
     }
 

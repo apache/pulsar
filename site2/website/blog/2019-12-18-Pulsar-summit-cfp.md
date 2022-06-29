@@ -1,11 +1,13 @@
 ---
 author: Jennifer Huang  
 authorURL: https://twitter.com/Jennife06125739  
-title: Pulsar Summit San Francisco 2020 CFP is now open
+title: "Pulsar Summit San Francisco 2020 CFP is now open"
 
 ---
 
 Pulsar Summit is an annual conference dedicated to Apache Pulsar community, bringing together an international audience of CTOs/CIOs, developers, data architects, data scientists, Apache Pulsar committers/contributors, and the messaging and streaming community, to share experiences, exchange ideas and knowledge about Pulsar and its growing community, and receive hands-on training sessions led by Pulsar experts.
+
+<!--truncate-->
 
 We are excited to announce that the first Pulsar Summit will be held in San Francisco in April, 2020. Talk submissions, pre-registration, and sponsorship opportunities are now open for the conference!
 

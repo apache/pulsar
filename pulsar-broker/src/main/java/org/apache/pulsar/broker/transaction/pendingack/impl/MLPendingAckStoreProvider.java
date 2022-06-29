@@ -74,9 +74,14 @@ public class MLPendingAckStoreProvider implements TransactionPendingAckStoreProv
                                                 InitialPosition.Earliest, new AsyncCallbacks.OpenCursorCallback() {
                                                     @Override
                                                     public void openCursorComplete(ManagedCursor cursor, Object ctx) {
-                                                        pendingAckStoreFuture
-                                                                .complete(new MLPendingAckStore(ledger, cursor,
-                                                                        subscription.getCursor()));
+                                                        pendingAckStoreFuture.complete(new MLPendingAckStore(ledger,
+                                                                cursor,
+                                                                subscription.getCursor(),
+                                                                originPersistentTopic
+                                                                        .getBrokerService()
+                                                                        .getPulsar()
+                                                                        .getConfiguration()
+                                                                        .getTransactionPendingAckLogIndexMinLag()));
                                                         if (log.isDebugEnabled()) {
                                                             log.debug("{},{} open MLPendingAckStore cursor success",
                                                                     originPersistentTopic.getName(),

@@ -19,10 +19,13 @@
 package org.apache.pulsar.client.impl;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.util.ReferenceCountUtil;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import lombok.Getter;
+import lombok.Setter;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.ProducerImpl.OpSendMsg;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
@@ -46,13 +49,25 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
 
     private MessageMetadata messageMetadata = new MessageMetadata();
     // sequence id for this batch which will be persisted as a single entry by broker
+    @Getter
+    @Setter
     private long lowestSequenceId = -1L;
+    @Getter
+    @Setter
     private long highestSequenceId = -1L;
     private ByteBuf batchedMessageMetadataAndPayload;
     private List<MessageImpl<?>> messages = new ArrayList<>();
     protected SendCallback previousCallback = null;
     // keep track of callbacks for individual messages being published in a batch
     protected SendCallback firstCallback;
+
+    public BatchMessageContainerImpl() {
+    }
+
+    public BatchMessageContainerImpl(ProducerImpl<?> producer) {
+        this();
+        setProducer(producer);
+    }
 
     @Override
     public boolean add(MessageImpl<?> msg, SendCallback callback) {
@@ -79,10 +94,6 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
                 }
             } catch (Throwable e) {
                 log.error("construct first message failed, exception is ", e);
-                if (batchedMessageMetadataAndPayload != null) {
-                    // if payload has been allocated release it
-                    batchedMessageMetadataAndPayload.release();
-                }
                 discard(new PulsarClientException(e));
                 return false;
             }
@@ -101,7 +112,6 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
         }
         highestSequenceId = msg.getSequenceId();
         ProducerImpl.LAST_SEQ_ID_PUSHED_UPDATER.getAndUpdate(producer, prev -> Math.max(prev, msg.getSequenceId()));
-
         return isBatchFull();
     }
 
@@ -169,6 +179,10 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
             if (firstCallback != null) {
                 firstCallback.sendComplete(ex);
             }
+            if (batchedMessageMetadataAndPayload != null) {
+                ReferenceCountUtil.safeRelease(batchedMessageMetadataAndPayload);
+                batchedMessageMetadataAndPayload = null;
+            }
         } catch (Throwable t) {
             log.warn("[{}] [{}] Got exception while completing the callback for msg {}:", topicName, producerName,
                     lowestSequenceId, t);
@@ -190,6 +204,7 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
             return null;
         }
         messageMetadata.setNumMessagesInBatch(numMessagesInBatch);
+        messageMetadata.setSequenceId(lowestSequenceId);
         messageMetadata.setHighestSequenceId(highestSequenceId);
         if (currentTxnidMostBits != -1) {
             messageMetadata.setTxnidMostBits(currentTxnidMostBits);

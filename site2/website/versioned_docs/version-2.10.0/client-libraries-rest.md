@@ -1,7 +1,7 @@
 ---
-id: version-2.10.0-client-libraries-rest
+id: client-libraries-rest
 title: Pulsar REST
-sidebar_label: REST
+sidebar_label: "REST"
 original_id: client-libraries-rest
 ---
 
@@ -13,15 +13,19 @@ To connect to Pulsar, you need to specify a URL.
 
 - Produce messages to non-partitioned or partitioned topics
 
-    ```
-    brokerUrl:{8080/8081}/topics/{persistent/non-persistent}/{my-tenant}/{my-namespace}/{my-topic}
-    ```
+  ```
+  
+  brokerUrl:{8080/8081}/topics/{persistent/non-persistent}/{my-tenant}/{my-namespace}/{my-topic}
+  
+  ```
 
 - Produce messages to specific partitions of partitioned topics
 
-    ```
-    brokerUrl:{8080/8081}/topics/{persistent/non-persistent}/{my-tenant}/{my-namespace}/{my-topic}/partitions/{partition-number}
-    ```
+  ```
+  
+  brokerUrl:{8080/8081}/topics/{persistent/non-persistent}/{my-tenant}/{my-namespace}/{my-topic}/partitions/{partition-number}
+  
+  ```
 
 ## Producer
 
@@ -31,9 +35,11 @@ Currently, you can produce messages to the following destinations with tools lik
 
 - Specific partitions of partitioned topics
 
-> **Note**
->
-> You can only produce messages to **topics that already exist** in Pulsar via REST.
+:::note
+
+You can only produce messages to **topics that already exist** in Pulsar via REST.
+
+:::
 
 Consuming and reading messages via REST will be supported in the future.
 
@@ -41,26 +47,26 @@ Consuming and reading messages via REST will be supported in the future.
 
 - Below is the structure of a request payload.
 
-    Parameter|Required?|Description
-    |---|---|---
-    `schemaVersion`|No| Schema version of existing schema used for this message </br></br>You need provide one of the following: <br/><br/> - `schemaVersion` <br/> - `keySchema`/`valueSchema`<br/><br/>If both of them are provided, then `schemaVersion` is used
-    `keySchema/valueSchema`|No|Key schema / Value schema used for this message
-    `producerName`|No|Producer name
-    `Messages[] SingleMessage`|Yes|Messages to be sent
+  Parameter|Required?|Description
+  |---|---|---
+  `schemaVersion`|No| Schema version of existing schema used for this message <br /><br />You need provide one of the following: <br /><br /> - `schemaVersion` <br /> - `keySchema`/`valueSchema`<br /><br />If both of them are provided, then `schemaVersion` is used
+  `keySchema/valueSchema`|No|Key schema / Value schema used for this message
+  `producerName`|No|Producer name
+  `Messages[] SingleMessage`|Yes|Messages to be sent
 
 - Below is the structure of a message. 
 
-    Parameter|Required?|Type|Description
-    |---|---|---|---
-    `payload`|Yes|`String`|Actual message payload </br></br>Messages are sent in strings and encoded with given schemas on the server side
-    `properties`|No|`Map<String, String>`|Custom properties
-    `key`|No|`String`|Partition key 
-    `replicationClusters`|No|`List<String>`|Clusters to which messages replicate
-    `eventTime`|No|`String`|Message event time
-    `sequenceId`|No|`long`|Message sequence ID
-    `disableReplication`|No|`boolean`|Whether to disable replication of messages
-    `deliverAt`|No|`long`|Deliver messages only at or after specified absolute timestamp
-    `deliverAfterMs`|No|`long`|Deliver messages only after specified relative delay (in milliseconds)
+  Parameter|Required?|Type|Description
+  |---|---|---|---
+  `payload`|Yes|`String`|Actual message payload <br /><br />Messages are sent in strings and encoded with given schemas on the server side
+  `properties`|No|`Map<String, String>`|Custom properties
+  `key`|No|`String`|Partition key 
+  `replicationClusters`|No|`List<String>`|Clusters to which messages replicate
+  `eventTime`|No|`String`|Message event time
+  `sequenceId`|No|`long`|Message sequence ID
+  `disableReplication`|No|`boolean`|Whether to disable replication of messages
+  `deliverAt`|No|`long`|Deliver messages only at or after specified absolute timestamp
+  `deliverAfterMs`|No|`long`|Deliver messages only after specified relative delay (in milliseconds)
 
 ### Schema
 
@@ -77,6 +83,7 @@ Below is an example of sending messages to topics using JSON schema via REST.
 Assume that you send messages representing the following class.
 
 ```java
+
    class Seller {
         public String state;
         public String street;
@@ -90,11 +97,13 @@ Assume that you send messages representing the following class.
         public GPU gpu;
         public Seller seller;
     }
+
 ```
 
 Send messages to topics with JSON schema using the command below.
 
 ```shell
+
 curl --location --request POST 'brokerUrl:{8080/8081}/topics/{persistent/non-persistent}/{my-tenant}/{my-namespace}/{my-topic}' \
 --header 'Content-Type: application/json' \
 --data-raw '{
@@ -120,4 +129,6 @@ curl --location --request POST 'brokerUrl:{8080/8081}/topics/{persistent/non-per
 }
 `  
 // Sample message
+
 ```
+

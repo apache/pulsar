@@ -48,6 +48,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -249,7 +250,14 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 interceptors);
         this.consumerId = client.newConsumerId();
         this.subscriptionMode = conf.getSubscriptionMode();
-        this.startMessageId = startMessageId != null ? new BatchMessageIdImpl((MessageIdImpl) startMessageId) : null;
+        if (startMessageId != null) {
+            if (startMessageId instanceof ChunkMessageIdImpl) {
+                this.startMessageId = new BatchMessageIdImpl(
+                        ((ChunkMessageIdImpl) startMessageId).getFirstChunkMessageId());
+            } else {
+                this.startMessageId = new BatchMessageIdImpl((MessageIdImpl) startMessageId);
+            }
+        }
         this.initialStartMessageId = this.startMessageId;
         this.startMessageRollbackDurationInSec = startMessageRollbackDurationInSec;
         AVAILABLE_PERMITS_UPDATER.set(this, 0);
@@ -417,18 +425,13 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
 
     @Override
-    public void initReceiverQueueSize() {
-        if (conf.isAutoScaledReceiverQueueSizeEnabled()) {
-            // turn on autoScaledReceiverQueueSize
-            int size = Math.min(INITIAL_RECEIVER_QUEUE_SIZE, maxReceiverQueueSize);
-            if (batchReceivePolicy.getMaxNumMessages() > 0) {
-                // consumerImpl may store (half-1) permits locally.
-                size = Math.max(size, 2 * batchReceivePolicy.getMaxNumMessages() - 2);
-            }
-            CURRENT_RECEIVER_QUEUE_SIZE_UPDATER.set(this, size);
-        } else {
-            CURRENT_RECEIVER_QUEUE_SIZE_UPDATER.set(this, maxReceiverQueueSize);
+    public int minReceiverQueueSize() {
+        int size = Math.min(INITIAL_RECEIVER_QUEUE_SIZE, maxReceiverQueueSize);
+        if (batchReceivePolicy.getMaxNumMessages() > 0) {
+            // consumerImpl may store (half-1) permits locally.
+            size = Math.max(size, 2 * batchReceivePolicy.getMaxNumMessages() - 2);
         }
+        return size;
     }
 
     @Override
@@ -553,6 +556,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 expectMoreIncomingMessages();
                 OpBatchReceive<T> opBatchReceive = OpBatchReceive.of(result);
                 pendingBatchReceives.add(opBatchReceive);
+                triggerBatchReceiveTimeoutTask();
                 cancellationHandler.setCancelAction(() -> pendingBatchReceives.remove(opBatchReceive));
             }
         });
@@ -1375,10 +1379,12 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
         // Lazy task scheduling to expire incomplete chunk message
         if (!expireChunkMessageTaskScheduled && expireTimeOfIncompleteChunkedMessageMillis > 0) {
-            internalPinnedExecutor
-                    .scheduleAtFixedRate(catchingAndLoggingThrowables(this::removeExpireIncompleteChunkedMessages),
-                            expireTimeOfIncompleteChunkedMessageMillis, expireTimeOfIncompleteChunkedMessageMillis,
-                            TimeUnit.MILLISECONDS);
+            ((ScheduledExecutorService) client.getScheduledExecutorProvider().getExecutor()).scheduleAtFixedRate(
+                    () -> internalPinnedExecutor
+                            .execute(catchingAndLoggingThrowables(this::removeExpireIncompleteChunkedMessages)),
+                    expireTimeOfIncompleteChunkedMessageMillis, expireTimeOfIncompleteChunkedMessageMillis,
+                    TimeUnit.MILLISECONDS
+            );
             expireChunkMessageTaskScheduled = true;
         }
 
@@ -1886,7 +1892,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     public int clearIncomingMessagesAndGetMessageNumber() {
         int messagesNumber = incomingMessages.size();
-        incomingMessages.forEach(Message::release);
         clearIncomingMessages();
         unAckedMessageTracker.clear();
         return messagesNumber;
@@ -1940,7 +1945,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     @Override
     protected void updateAutoScaleReceiverQueueHint() {
-        scaleReceiverQueueHint.set(getAvailablePermits() + incomingMessages.size() >= getCurrentReceiverQueueSize());
+        boolean prev = scaleReceiverQueueHint.getAndSet(
+                getAvailablePermits() + incomingMessages.size() >= getCurrentReceiverQueueSize());
+        if (log.isDebugEnabled() && prev != scaleReceiverQueueHint.get()) {
+            log.debug("updateAutoScaleReceiverQueueHint {} -> {}", prev, scaleReceiverQueueHint.get());
+        }
     }
 
     @Override
@@ -2381,7 +2390,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 return;
             }
 
-            internalPinnedExecutor.schedule(() -> {
+            ((ScheduledExecutorService) client.getScheduledExecutorProvider().getExecutor()).schedule(() -> {
                 log.warn("[{}] [{}] Could not get connection while getLastMessageId -- Will try again in {} ms",
                         topic, getHandlerName(), nextDelay);
                 remainingTime.addAndGet(-nextDelay);
@@ -2680,7 +2689,14 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         } else {
             unAckedMessageTracker.remove(messageId);
         }
-        return cnx().newAckForReceipt(cmd, requestId);
+        ClientCnx cnx = cnx();
+        if (cnx == null) {
+            return FutureUtil.failedFuture(new PulsarClientException
+                    .ConnectException("Failed to ack message [" + messageId + "] "
+                    + "for transaction [" + txnID + "] due to consumer connect fail, consumer state: " + getState()));
+        } else {
+            return cnx.newAckForReceipt(cmd, requestId);
+        }
     }
 
     public Map<MessageIdImpl, List<MessageImpl<T>>> getPossibleSendToDeadLetterTopicMessages() {

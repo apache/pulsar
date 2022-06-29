@@ -5,11 +5,13 @@ title: "Announcing: The Apache Pulsar 2020 User Survey Report"
 ---
 
 For the first time ever, the Apache Pulsar PMC team is publishing a user survey report.
+
+<!--truncate-->
 **The 2020 Apache Pulsar User Survey Report** reveals Pulsar’s accelerating rate of global
 adoption, details how organizations are leveraging Pulsar to build real-time streaming
 applications, and highlights key features on Pulsar’s product roadmap.
 
-![](../img/pulsar-user-ban.jpg)
+![](/img/pulsar-user-ban.jpg)
 
 Pulsar adoption has largely been driven by the market’s increased demand for real-time,
 data-enabled technologies. While companies have tried to leverage monolithic messaging
@@ -27,7 +29,7 @@ Narvar, Overstock, Nutanix, Yahoo! JAPAN, Tencent, OVHCloud, and Clever Cloud, w
 its ability to deliver on performance, scalability, and resiliency. As the Pulsar project
 and community garner increasing attention, we’re excited to share the **2020 Apache Pulsar User Survey Report**.
 
-![](../img/pulsar-adoption.png)
+![](/img/pulsar-adoption.png)
 
 In the 2020 Apache Pulsar User Survey Report, we hear from 165 users and learn how their
 companies are leveraging Pulsar’s cloud-native, multi-layer design architecture, built-in
@@ -36,8 +38,7 @@ report details insights and use cases on how organizations are deploying Pulsar 
 
 The report also reveals Pulsar’s top-used features, its most popular applications, and how
 it is delivering scalable, reliable, real-time streaming solutions for organizations. In
-this quotation from Qiang Fei, Tech Lead for Tencent, we see how
-[one organization is leveraging Pulsar to improve their offering](https://streamnative.io/whitepaper/case-studay-apache-pulsar-tencent-billing/):
+this quotation from Qiang Fei, Tech Lead for Tencent, we see how [one organization is leveraging Pulsar to improve their offering](https://streamnative.io/whitepaper/case-studay-apache-pulsar-tencent-billing/):
 
 > Pulsar provides us with a highly consistent and highly reliable distributed message queue that
 > fits well in our financial use cases. Multi-tenant and storage separation architecture design

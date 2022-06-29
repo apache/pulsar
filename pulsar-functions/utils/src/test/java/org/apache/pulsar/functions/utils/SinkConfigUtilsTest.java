@@ -482,4 +482,19 @@ public class SinkConfigUtilsTest {
         convertedConfig = SinkConfigUtils.convertFromDetails(functionDetails);
         assertTrue(convertedConfig.getInputSpecs().get("test-input").isPoolMessages());
     }
+
+    @Test
+    public void testAllowDisableSinkTimeout() {
+        SinkConfig sinkConfig = createSinkConfig();
+        sinkConfig.setInputSpecs(null);
+        sinkConfig.setTopicsPattern("my-topic-*");
+        SinkConfigUtils.validateAndExtractDetails(sinkConfig, this.getClass().getClassLoader(),
+                true);
+        sinkConfig.setTimeoutMs(null);
+        SinkConfigUtils.validateAndExtractDetails(sinkConfig, this.getClass().getClassLoader(),
+                true);
+        sinkConfig.setTimeoutMs(0L);
+        SinkConfigUtils.validateAndExtractDetails(sinkConfig, this.getClass().getClassLoader(),
+                true);
+    }
 }

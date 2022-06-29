@@ -27,6 +27,8 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
+import io.netty.channel.epoll.EpollServerSocketChannel;
+import io.netty.channel.socket.ServerSocketChannel;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.resolver.dns.DnsAddressResolverGroup;
 import io.netty.resolver.dns.DnsNameResolverBuilder;
@@ -110,6 +112,9 @@ public class ProxyService implements Closeable {
     @Getter
     @Setter
     protected int proxyLogLevel;
+
+    @Getter
+    protected boolean proxyZeroCopyModeEnabled;
 
     private final ScheduledExecutorService statsExecutor;
 
@@ -215,14 +220,22 @@ public class ProxyService implements Closeable {
         }
 
         ServerBootstrap bootstrap = new ServerBootstrap();
+        bootstrap.option(ChannelOption.SO_REUSEADDR, true);
         bootstrap.childOption(ChannelOption.ALLOCATOR, PulsarByteBufAllocator.DEFAULT);
         bootstrap.group(acceptorGroup, workerGroup);
         bootstrap.childOption(ChannelOption.TCP_NODELAY, true);
         bootstrap.childOption(ChannelOption.RCVBUF_ALLOCATOR,
                 new AdaptiveRecvByteBufAllocator(1024, 16 * 1024, 1 * 1024 * 1024));
 
-        bootstrap.channel(EventLoopUtil.getServerSocketChannelClass(workerGroup));
+        Class<? extends ServerSocketChannel> serverSocketChannelClass =
+                EventLoopUtil.getServerSocketChannelClass(workerGroup);
+        bootstrap.channel(serverSocketChannelClass);
         EventLoopUtil.enableTriggeredMode(bootstrap);
+
+        if (proxyConfig.isProxyZeroCopyModeEnabled()
+                && EpollServerSocketChannel.class.isAssignableFrom(serverSocketChannelClass)) {
+            proxyZeroCopyModeEnabled = true;
+        }
 
         bootstrap.childHandler(new ServiceChannelInitializer(this, proxyConfig, false));
         // Bind and start to accept incoming connections.
@@ -302,6 +315,7 @@ public class ProxyService implements Closeable {
         boolean useSeparateThreadPool = proxyConfig.isUseSeparateThreadPoolForProxyExtensions();
         if (useSeparateThreadPool) {
             bootstrap = new ServerBootstrap();
+            bootstrap.option(ChannelOption.SO_REUSEADDR, true);
             bootstrap.childOption(ChannelOption.ALLOCATOR, PulsarByteBufAllocator.DEFAULT);
             bootstrap.childOption(ChannelOption.TCP_NODELAY, true);
             bootstrap.childOption(ChannelOption.RCVBUF_ALLOCATOR,

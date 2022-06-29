@@ -19,6 +19,8 @@
 package org.apache.pulsar.broker.loadbalance;
 
 import static org.mockito.Mockito.spy;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 import java.util.Optional;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
@@ -27,7 +29,6 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
-import org.junit.Assert;
 import org.testng.annotations.Test;
 
 @Slf4j
@@ -88,9 +89,9 @@ public class SimpleBrokerStartTest {
             PulsarService pulsarService = new PulsarService(config);
             try {
                 pulsarService.start();
-                Assert.fail("unexpected behaviour");
+                fail("unexpected behaviour");
             } catch (PulsarServerException ex) {
-                Assert.assertTrue(ex.getCause() instanceof IllegalStateException);
+                assertTrue(ex.getCause() instanceof IllegalStateException);
             }
         }
     }

@@ -34,7 +34,7 @@ function reissue_certificate() {
   keyfile=$1
   certfile=$2
   openssl x509 -x509toreq -in $certfile -signkey $keyfile -out ${certfile}.csr
-  openssl x509 -req -CA ca-cert.pem -CAkey ca-key -in ${certfile}.csr -text -outform pem -out $certfile -days 3650 -CAcreateserial
+  openssl x509 -req -CA ca-cert.pem -CAkey ca-key -in ${certfile}.csr -text -outform pem -out $certfile -days 3650 -CAcreateserial -extfile <(printf "subjectAltName = DNS:localhost, IP:127.0.0.1")
 }
 
 generate_ca
@@ -43,6 +43,16 @@ reissue_certificate $ROOT_DIR/pulsar-proxy/src/test/resources/authentication/tls
   $ROOT_DIR/pulsar-proxy/src/test/resources/authentication/tls/client-cert.pem
 reissue_certificate $ROOT_DIR/pulsar-proxy/src/test/resources/authentication/tls/server-key.pem \
   $ROOT_DIR/pulsar-proxy/src/test/resources/authentication/tls/server-cert.pem
+
+# use same CA key and cert for ProxyWithAuthorizationTest/client-cacert.pem
+cp ca-cert.pem $ROOT_DIR/pulsar-proxy/src/test/resources/authentication/tls/ProxyWithAuthorizationTest/client-cacert.pem
+reissue_certificate $ROOT_DIR/pulsar-proxy/src/test/resources/authentication/tls/ProxyWithAuthorizationTest/client-key.pem \
+  $ROOT_DIR/pulsar-proxy/src/test/resources/authentication/tls/ProxyWithAuthorizationTest/client-cert.pem
+
+# use same CA key and cert for ProxyWithAuthorizationTest/proxy-cacert.pem
+cp ca-cert.pem $ROOT_DIR/pulsar-proxy/src/test/resources/authentication/tls/ProxyWithAuthorizationTest/proxy-cacert.pem
+reissue_certificate $ROOT_DIR/pulsar-proxy/src/test/resources/authentication/tls/ProxyWithAuthorizationTest/proxy-key.pem \
+  $ROOT_DIR/pulsar-proxy/src/test/resources/authentication/tls/ProxyWithAuthorizationTest/proxy-cert.pem
 
 generate_ca
 cp ca-cert.pem $ROOT_DIR/bouncy-castle/bcfips-include-test/src/test/resources/authentication/tls/cacert.pem
@@ -55,19 +65,6 @@ generate_ca
 cp ca-cert.pem $ROOT_DIR/pulsar-proxy/src/test/resources/authentication/tls/ProxyWithAuthorizationTest/broker-cacert.pem
 reissue_certificate $ROOT_DIR/pulsar-proxy/src/test/resources/authentication/tls/ProxyWithAuthorizationTest/broker-key.pem \
   $ROOT_DIR/pulsar-proxy/src/test/resources/authentication/tls/ProxyWithAuthorizationTest/broker-cert.pem
-
-generate_ca
-cp ca-cert.pem $ROOT_DIR/pulsar-proxy/src/test/resources/authentication/tls/ProxyWithAuthorizationTest/client-cacert.pem
-reissue_certificate $ROOT_DIR/pulsar-proxy/src/test/resources/authentication/tls/ProxyWithAuthorizationTest/client-key.pem \
-  $ROOT_DIR/pulsar-proxy/src/test/resources/authentication/tls/ProxyWithAuthorizationTest/client-cert.pem
-
-generate_ca
-cp ca-cert.pem $ROOT_DIR/pulsar-proxy/src/test/resources/authentication/tls/ProxyWithAuthorizationTest/proxy-cacert.pem
-reissue_certificate $ROOT_DIR/pulsar-proxy/src/test/resources/authentication/tls/ProxyWithAuthorizationTest/proxy-key.pem \
-  $ROOT_DIR/pulsar-proxy/src/test/resources/authentication/tls/ProxyWithAuthorizationTest/proxy-cert.pem
-
-
-
 
 cd $ROOT_DIR
 rm -rf /tmp/keygendir$$

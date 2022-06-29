@@ -24,7 +24,9 @@ import static org.apache.bookkeeper.util.BookKeeperConstants.COOKIE_NODE;
 import static org.apache.bookkeeper.util.BookKeeperConstants.INSTANCEID;
 import static org.apache.bookkeeper.util.BookKeeperConstants.READONLY;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -69,6 +71,7 @@ public class PulsarRegistrationManager implements RegistrationManager {
 
     private final Map<BookieId, ResourceLock<BookieServiceInfo>> bookieRegistration = new ConcurrentHashMap<>();
     private final Map<BookieId, ResourceLock<BookieServiceInfo>> bookieRegistrationReadOnly = new ConcurrentHashMap<>();
+    private final List<RegistrationListener> listeners = new ArrayList<>();
 
     PulsarRegistrationManager(MetadataStoreExtended store, String ledgersRootPath, AbstractConfiguration<?> conf) {
         this.store = store;
@@ -354,5 +357,10 @@ public class PulsarRegistrationManager implements RegistrationManager {
         LedgerManagerFactory ledgerManagerFactory = new PulsarLedgerManagerFactory();
         ledgerManagerFactory.initialize(conf, layoutManager, LegacyHierarchicalLedgerManagerFactory.CUR_VERSION);
         return ledgerManagerFactory.validateAndNukeExistingCluster(conf, layoutManager);
+    }
+
+    @Override
+    public void addRegistrationListener(RegistrationListener listener) {
+        // Not implemented. Does not seem to map into MetadataStoreExtended.
     }
 }

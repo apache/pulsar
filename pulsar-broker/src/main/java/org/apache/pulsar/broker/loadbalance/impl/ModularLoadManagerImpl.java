@@ -265,7 +265,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         defaultStats.msgRateIn = DEFAULT_MESSAGE_RATE;
         defaultStats.msgRateOut = DEFAULT_MESSAGE_RATE;
 
-        placementStrategy = ModularLoadManagerStrategy.create(conf);
+        placementStrategy = ModularLoadManagerStrategy.create();
         policies = new SimpleResourceAllocationPolicies(pulsar);
         filterPipeline.add(new BrokerVersionFilter());
 
@@ -287,7 +287,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                     });
 
             try {
-                scheduler.submit(ModularLoadManagerImpl.this::updateAll);
+                scheduler.execute(ModularLoadManagerImpl.this::updateAll);
             } catch (RejectedExecutionException e) {
                 // Executor is shutting down
             }
@@ -534,6 +534,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
     // load management decisions may be made.
     private void updateBundleData() {
         final Map<String, BundleData> bundleData = loadData.getBundleData();
+        final Set<String> activeBundles = new HashSet<>();
         // Iterate over the broker data.
         for (Map.Entry<String, BrokerData> brokerEntry : loadData.getBrokerData().entrySet()) {
             final String broker = brokerEntry.getKey();
@@ -545,6 +546,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
             for (Map.Entry<String, NamespaceBundleStats> entry : statsMap.entrySet()) {
                 final String bundle = entry.getKey();
                 final NamespaceBundleStats stats = entry.getValue();
+                activeBundles.add(bundle);
                 if (bundleData.containsKey(bundle)) {
                     // If we recognize the bundle, add these stats as a new sample.
                     bundleData.get(bundle).update(stats);
@@ -554,6 +556,16 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                     BundleData currentBundleData = getBundleDataOrDefault(bundle);
                     currentBundleData.update(stats);
                     bundleData.put(bundle, currentBundleData);
+                }
+            }
+
+            //Remove not active bundle from loadData
+            for (String bundle : bundleData.keySet()) {
+                if (!activeBundles.contains(bundle)){
+                    bundleData.remove(bundle);
+                    if (pulsar.getLeaderElectionService().isLeader()){
+                        deleteBundleDataFromMetadataStore(bundle);
+                    }
                 }
             }
 
@@ -816,10 +828,17 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                 LoadManagerShared.filterAntiAffinityGroupOwnedBrokers(pulsar, serviceUnit.toString(),
                         brokerCandidateCache,
                         brokerToNamespaceToBundleRange, brokerToFailureDomainMap);
-                // distribute bundles evenly to candidate-brokers
 
-                LoadManagerShared.removeMostServicingBrokersForNamespace(serviceUnit.toString(), brokerCandidateCache,
-                        brokerToNamespaceToBundleRange);
+                // distribute bundles evenly to candidate-brokers if enable
+                if (conf.isLoadBalancerDistributeBundlesEvenlyEnabled()) {
+                    LoadManagerShared.removeMostServicingBrokersForNamespace(serviceUnit.toString(),
+                            brokerCandidateCache,
+                            brokerToNamespaceToBundleRange);
+                    if (log.isDebugEnabled()) {
+                        log.debug("enable distribute bundles evenly to candidate-brokers, broker candidate count={}",
+                                brokerCandidateCache.size());
+                    }
+                }
                 log.info("{} brokers being considered for assignment of {}", brokerCandidateCache.size(), bundle);
 
                 // Use the filter pipeline to finalize broker candidates.

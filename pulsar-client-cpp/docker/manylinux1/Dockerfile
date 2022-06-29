@@ -1,3 +1,4 @@
+
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -70,12 +71,12 @@ RUN curl -O -L https://boostorg.jfrog.io/artifactory/main/release/1.68.0/source/
     rm -rf /boost_1_68_0.tar.gz /boost_1_68_0
 
 # Download and copile protoubf
-RUN curl -O -L  https://github.com/google/protobuf/releases/download/v3.3.0/protobuf-cpp-3.3.0.tar.gz && \
-    tar xvfz protobuf-cpp-3.3.0.tar.gz && \
-    cd protobuf-3.3.0/ && \
+RUN curl -O -L  https://github.com/google/protobuf/releases/download/v3.20.0/protobuf-cpp-3.20.0.tar.gz && \
+    tar xvfz protobuf-cpp-3.20.0.tar.gz && \
+    cd protobuf-3.20.0/ && \
     CXXFLAGS=-fPIC ./configure && \
     make && make install && ldconfig && \
-    rm -rf /protobuf-cpp-3.3.0.tar.gz /protobuf-3.3.0
+    rm -rf /protobuf-cpp-3.20.0.tar.gz /protobuf-3.20.0
 
 # Compile APR
 RUN curl -O -L  http://archive.apache.org/dist/apr/apr-1.5.2.tar.gz && \
@@ -152,8 +153,6 @@ RUN curl -O -L  https://github.com/curl/curl/releases/download/curl-7_61_0/curl-
 
 RUN pip install twine
 RUN pip install fastavro
-RUN pip install six
-RUN pip install enum34
 
 
 ENV PYTHON_INCLUDE_DIR /opt/python/${PYTHON_SPEC}/include

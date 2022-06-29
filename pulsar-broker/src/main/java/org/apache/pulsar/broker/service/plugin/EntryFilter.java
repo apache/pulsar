@@ -48,6 +48,10 @@ public interface EntryFilter {
          * skip the message.
          */
         REJECT,
+        /**
+         * postpone message, it should not go to this conmumer.
+         */
+        RESCHEDULE
     }
 
 }

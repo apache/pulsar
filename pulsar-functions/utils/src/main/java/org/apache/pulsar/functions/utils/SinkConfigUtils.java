@@ -404,7 +404,7 @@ public class SinkConfigUtils {
             ResourceConfigUtils.validate(sinkConfig.getResources());
         }
 
-        if (sinkConfig.getTimeoutMs() != null && sinkConfig.getTimeoutMs() <= 0) {
+        if (sinkConfig.getTimeoutMs() != null && sinkConfig.getTimeoutMs() < 0) {
             throw new IllegalArgumentException("Sink timeout must be a positive number");
         }
 

@@ -105,9 +105,12 @@ public class TransactionMetaStoreHandler extends HandlerState
                 .create(),
             this);
         this.connectFuture = connectFuture;
-        this.connectionHandler.grabCnx();
+        this.internalPinnedExecutor = pulsarClient.getInternalExecutorService();
         this.timer = pulsarClient.timer();
-        internalPinnedExecutor = pulsarClient.getInternalExecutorService();
+    }
+
+    public void start() {
+        this.connectionHandler.grabCnx();
     }
 
     @Override
@@ -131,9 +134,6 @@ public class TransactionMetaStoreHandler extends HandlerState
                 return;
             }
 
-            connectionHandler.setClientCnx(cnx);
-            cnx.registerTransactionMetaStoreHandler(transactionCoordinatorId, this);
-
             // if broker protocol version < 19, don't send TcClientConnectRequest to broker.
             if (cnx.getRemoteEndpointProtocolVersion() > ProtocolVersion.v18.getValue()) {
                 long requestId = client.newRequestId();
@@ -147,6 +147,8 @@ public class TransactionMetaStoreHandler extends HandlerState
                             cnx.channel().close();
                         }
 
+                        connectionHandler.setClientCnx(cnx);
+                        cnx.registerTransactionMetaStoreHandler(transactionCoordinatorId, this);
                         if (!this.connectFuture.isDone()) {
                             this.connectFuture.complete(null);
                         }
@@ -170,6 +172,9 @@ public class TransactionMetaStoreHandler extends HandlerState
             } else {
                 if (!changeToReadyState()) {
                     cnx.channel().close();
+                } else {
+                    connectionHandler.setClientCnx(cnx);
+                    cnx.registerTransactionMetaStoreHandler(transactionCoordinatorId, this);
                 }
                 this.connectFuture.complete(null);
             }

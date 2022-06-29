@@ -21,7 +21,6 @@ import copy
 from abc import abstractmethod
 from collections import OrderedDict
 from enum import Enum, EnumMeta
-from six import with_metaclass
 
 
 def _check_record_or_field(x):
@@ -54,7 +53,7 @@ class RecordMeta(type):
         return fields
 
 
-class Record(with_metaclass(RecordMeta, object)):
+class Record(metaclass=RecordMeta):
 
     # This field is used to set namespace for Avro Record schema.
     _avro_namespace = None
@@ -445,8 +444,8 @@ class Array(Field):
 
         for x in val:
             if type(x) != self.array_type.python_type():
-                raise TypeError('Array field ' + name + ' items should all be of type '
-                                + self.array_type.python_type())
+                raise TypeError('Array field ' + name + ' items should all be of type ' +
+                                self.array_type.type())
         return val
 
     def schema(self):

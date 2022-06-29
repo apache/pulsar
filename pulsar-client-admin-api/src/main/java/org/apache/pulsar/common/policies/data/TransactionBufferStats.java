@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.common.policies.data;
 
+import java.util.Map;
+
 public class TransactionBufferStats {
 
     /** The state of this transaction buffer. */
@@ -28,4 +30,13 @@ public class TransactionBufferStats {
 
     /** The last snapshot timestamps of this transaction buffer. */
     public long lastSnapshotTimestamps;
+
+    /**
+     * (Optional) The lowWaterMark details of the transaction buffer.
+     */
+    public Map<Long, Long> lowWaterMarks;
+    /**
+     * The total number of ongoing transactions in this transaction buffer.
+     */
+    public long ongoingTxnSize;
 }

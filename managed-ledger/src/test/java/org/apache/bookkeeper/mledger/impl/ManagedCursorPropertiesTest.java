@@ -23,6 +23,8 @@ import static org.testng.Assert.assertEquals;
 import java.util.Collections;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.concurrent.TimeUnit;
+
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
@@ -75,9 +77,15 @@ public class ManagedCursorPropertiesTest extends MockedBookKeeperTestCase {
     @Test(timeOut = 20000)
     void testPropertiesRecoveryAfterCrash() throws Exception {
         ManagedLedger ledger = factory.open("my_test_ledger", new ManagedLedgerConfig());
-        ManagedCursor c1 = ledger.openCursor("c1");
+
+        Map<String, String> cursorProperties = new TreeMap<>();
+        cursorProperties.put("custom1", "one");
+        cursorProperties.put("custom2", "two");
+
+        ManagedCursor c1 = ledger.openCursor("c1", InitialPosition.Latest, Collections.emptyMap(), cursorProperties);
 
         assertEquals(c1.getProperties(), Collections.emptyMap());
+        assertEquals(c1.getCursorProperties(), cursorProperties);
 
         ledger.addEntry("entry-1".getBytes());
         ledger.addEntry("entry-2".getBytes());
@@ -99,6 +107,7 @@ public class ManagedCursorPropertiesTest extends MockedBookKeeperTestCase {
 
         assertEquals(c1.getMarkDeletedPosition(), p3);
         assertEquals(c1.getProperties(), properties);
+        assertEquals(c1.getCursorProperties(), cursorProperties);
 
         factory2.shutdown();
     }
@@ -148,8 +157,13 @@ public class ManagedCursorPropertiesTest extends MockedBookKeeperTestCase {
         properties.put("b", 2L);
         properties.put("c", 3L);
 
-        ManagedCursor c1 = ledger.openCursor("c1", InitialPosition.Latest, properties);
+        Map<String, String> cursorProperties = new TreeMap<>();
+        cursorProperties.put("custom1", "one");
+        cursorProperties.put("custom2", "two");
+
+        ManagedCursor c1 = ledger.openCursor("c1", InitialPosition.Latest, properties, cursorProperties);
         assertEquals(c1.getProperties(), properties);
+        assertEquals(c1.getCursorProperties(), cursorProperties);
 
         ledger.addEntry("entry-1".getBytes());
 
@@ -160,6 +174,50 @@ public class ManagedCursorPropertiesTest extends MockedBookKeeperTestCase {
         c1 = ledger.openCursor("c1");
 
         assertEquals(c1.getProperties(), properties);
+        assertEquals(c1.getCursorProperties(), cursorProperties);
     }
 
+    @Test
+    void testUpdateCursorProperties() throws Exception {
+        ManagedLedger ledger = factory.open("testUpdateCursorProperties", new ManagedLedgerConfig());
+
+        Map<String, Long> properties = new TreeMap<>();
+        properties.put("a", 1L);
+
+        Map<String, String> cursorProperties = new TreeMap<>();
+        cursorProperties.put("custom1", "one");
+        cursorProperties.put("custom2", "two");
+
+        ManagedCursor c1 = ledger.openCursor("c1", InitialPosition.Latest, properties, cursorProperties);
+        assertEquals(c1.getProperties(), properties);
+        assertEquals(c1.getCursorProperties(), cursorProperties);
+
+        ledger.addEntry("entry-1".getBytes());
+
+        Map<String, String> cursorPropertiesUpdated = new TreeMap<>();
+        cursorPropertiesUpdated.put("custom1", "three");
+        cursorPropertiesUpdated.put("custom2", "four");
+
+        c1.setCursorProperties(cursorPropertiesUpdated).get(10, TimeUnit.SECONDS);
+
+        ledger.close();
+
+        // Reopen the managed ledger
+        ledger = factory.open("testUpdateCursorProperties", new ManagedLedgerConfig());
+        c1 = ledger.openCursor("c1");
+
+        assertEquals(c1.getProperties(), properties);
+        assertEquals(c1.getCursorProperties(), cursorPropertiesUpdated);
+
+        // Create a new factory to force a managed ledger close and recovery
+        ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(metadataStore, bkc);
+        // Reopen the managed ledger
+        ledger = factory2.open("testUpdateCursorProperties", new ManagedLedgerConfig());
+        c1 = ledger.openCursor("c1");
+
+        assertEquals(c1.getProperties(), properties);
+        assertEquals(c1.getCursorProperties(), cursorPropertiesUpdated);
+
+        factory2.shutdown();
+    }
 }

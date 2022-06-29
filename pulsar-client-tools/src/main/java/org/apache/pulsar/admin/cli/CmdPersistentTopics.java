@@ -28,6 +28,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
@@ -454,12 +455,18 @@ public class CmdPersistentTopics extends CmdBase {
                 "--subscription" }, description = "Subscription to be skip messages on", required = true)
         private String subName;
 
-        @Parameter(names = { "-t", "--expireTime" },
-                description = "Expire messages older than time in seconds", required = true)
-        private long expireTimeInSeconds;
+        @Parameter(names = { "-t", "--expireTime" }, description = "Expire messages older than time in seconds "
+                + "(or minutes, hours, days, weeks eg: 100m, 3h, 2d, 5w)", required = true)
+        private String expireTimeStr;
 
         @Override
         void run() throws PulsarAdminException {
+            long expireTimeInSeconds;
+            try {
+                expireTimeInSeconds = RelativeTimeUtil.parseRelativeTimeInSeconds(expireTimeStr);
+            } catch (IllegalArgumentException e) {
+                throw new ParameterException(e.getMessage());
+            }
             String persistentTopic = validatePersistentTopic(params);
             getPersistentTopics().expireMessages(persistentTopic, subName, expireTimeInSeconds);
         }
@@ -471,12 +478,18 @@ public class CmdPersistentTopics extends CmdBase {
         @Parameter(description = "persistent://tenant/namespace/topic", required = true)
         private java.util.List<String> params;
 
-        @Parameter(names = { "-t", "--expireTime" },
-                description = "Expire messages older than time in seconds", required = true)
-        private long expireTimeInSeconds;
+        @Parameter(names = { "-t", "--expireTime" }, description = "Expire messages older than time in seconds "
+                + "(or minutes, hours, days, weeks eg: 100m, 3h, 2d, 5w)", required = true)
+        private String expireTimeStr;
 
         @Override
         void run() throws PulsarAdminException {
+            long expireTimeInSeconds;
+            try {
+                expireTimeInSeconds = RelativeTimeUtil.parseRelativeTimeInSeconds(expireTimeStr);
+            } catch (IllegalArgumentException e) {
+                throw new ParameterException(e.getMessage());
+            }
             String persistentTopic = validatePersistentTopic(params);
             getPersistentTopics().expireMessagesForAllSubscriptions(persistentTopic, expireTimeInSeconds);
         }
@@ -496,6 +509,10 @@ public class CmdPersistentTopics extends CmdBase {
                 + "It can be either 'latest', 'earliest' or (ledgerId:entryId)", required = false)
         private String messageIdStr = "latest";
 
+        @Parameter(names = {"--property", "-p"}, description = "key value pair properties(-p a=b -p c=d)",
+                required = false)
+        private java.util.List<String> properties;
+
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
@@ -507,8 +524,8 @@ public class CmdPersistentTopics extends CmdBase {
             } else {
                 messageId = validateMessageIdString(messageIdStr);
             }
-
-            getPersistentTopics().createSubscription(persistentTopic, subscriptionName, messageId);
+            Map<String, String> map = parseListKeyValueMap(properties);
+            getPersistentTopics().createSubscription(persistentTopic, subscriptionName, messageId, false, map);
         }
     }
 

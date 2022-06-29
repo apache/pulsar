@@ -23,8 +23,9 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.gson.Gson;
 import java.io.File;
+import java.lang.reflect.Field;
 import java.nio.file.Files;
-import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -34,10 +35,11 @@ import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.BookKeeper.DigestType;
 import org.apache.bookkeeper.client.LedgerHandle;
+import org.apache.bookkeeper.client.RackawareEnsemblePlacementPolicy;
 import org.apache.bookkeeper.conf.ServerConfiguration;
 import org.apache.bookkeeper.net.BookieId;
-import org.apache.bookkeeper.proto.BookieServer;
-import org.apache.bookkeeper.stats.NullStatsLogger;
+import org.apache.bookkeeper.net.NetworkTopologyImpl;
+import org.apache.bookkeeper.test.ServerTester;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.policies.data.BookieInfo;
 import org.apache.pulsar.bookie.rackawareness.BookieRackAffinityMapping;
@@ -53,7 +55,7 @@ import org.testng.annotations.Test;
 public class RackAwareTest extends BkEnsemblesTestBase {
 
     private static final int NUM_BOOKIES = 6;
-    private final List<BookieServer> bookies = new ArrayList<>();
+    private final List<ServerTester> servers = new LinkedList<>();
 
     public RackAwareTest() {
         // Start bookies manually
@@ -84,10 +86,10 @@ public class RackAwareTest extends BkEnsemblesTestBase {
             String addr = String.format("10.0.0.%d", i + 1);
             conf.setAdvertisedAddress(addr);
 
-            BookieServer bs = new BookieServer(conf, NullStatsLogger.INSTANCE, null);
+            ServerTester tester = new ServerTester(conf);
 
-            bs.start();
-            bookies.add(bs);
+            tester.getServer().start();
+            servers.add(tester);
         }
 
     }
@@ -97,18 +99,17 @@ public class RackAwareTest extends BkEnsemblesTestBase {
     protected void cleanup() throws Exception {
         super.cleanup();
 
-        for (BookieServer bs : bookies) {
-            bs.shutdown();
+        for (ServerTester t : servers) {
+            t.shutdown();
         }
-
-        bookies.clear();
+        servers.clear();
     }
 
     @Test
     public void testPlacement() throws Exception {
         final String group = "default";
         for (int i = 0; i < NUM_BOOKIES; i++) {
-            String bookie = bookies.get(i).getLocalAddress().toString();
+            String bookie = servers.get(i).getServer().getLocalAddress().toString();
 
             // Place bookie-1 in "rack-1" and the rest in "rack-2"
             int rackId = i == 0 ? 1 : 2;
@@ -137,7 +138,7 @@ public class RackAwareTest extends BkEnsemblesTestBase {
         BookKeeper bkc = this.pulsar.getBookKeeperClient();
 
         // Create few ledgers and verify all of them should have a copy in the first bookie
-        BookieId firstBookie = bookies.get(0).getBookieId();
+        BookieId firstBookie = servers.get(0).getServer().getBookieId();
         for (int i = 0; i < 100; i++) {
             LedgerHandle lh = bkc.createLedger(2, 2, DigestType.DUMMY, new byte[0]);
             log.info("Ledger: {} -- Ensemble: {}", i, lh.getLedgerMetadata().getEnsembleAt(0));
@@ -156,7 +157,7 @@ public class RackAwareTest extends BkEnsemblesTestBase {
         setup();
         final String group = "default";
         for (int i = 0; i < NUM_BOOKIES; i++) {
-            String bookie = bookies.get(i).getLocalAddress().toString();
+            String bookie = servers.get(i).getServer().getLocalAddress().toString();
             // All bookie in one same rack "rack-1"
             int rackId = i == 0 ? 1 : 2;
             BookieInfo bi = BookieInfo.builder()
@@ -216,7 +217,7 @@ public class RackAwareTest extends BkEnsemblesTestBase {
 
         final String group = "default";
         for (int i = 0; i < NUM_BOOKIES / 2; i++) {
-            String bookie = bookies.get(i).getLocalAddress().toString();
+            String bookie = servers.get(i).getServer().getLocalAddress().toString();
             BookieInfo bi = BookieInfo.builder()
                     .rack("rack-0")
                     .hostname("bookie-" + (i + 1))
@@ -241,6 +242,13 @@ public class RackAwareTest extends BkEnsemblesTestBase {
         });
 
         BookKeeper bkc = this.pulsar.getBookKeeperClient();
+        Field field = bkc.getClass().getDeclaredField("placementPolicy");
+        field.setAccessible(true);
+        RackawareEnsemblePlacementPolicy ensemblePlacementPolicy = (RackawareEnsemblePlacementPolicy) field.get(bkc);
+        Field topoField =
+                ensemblePlacementPolicy.getClass().getSuperclass().getSuperclass().getDeclaredField("topology");
+        topoField.setAccessible(true);
+        NetworkTopologyImpl networkTopology = (NetworkTopologyImpl) topoField.get(ensemblePlacementPolicy);
 
         // 3. test create ledger
         try {
@@ -255,7 +263,7 @@ public class RackAwareTest extends BkEnsemblesTestBase {
         //   rack-1     bookie-5
         //   rack-1     bookie-6
         for (int i = NUM_BOOKIES / 2; i < NUM_BOOKIES; i++) {
-            String bookie = bookies.get(i).getLocalAddress().toString();
+            String bookie = servers.get(i).getServer().getLocalAddress().toString();
             BookieInfo bi = BookieInfo.builder()
                     .rack("rack-1")
                     .hostname("bookie-" + (i + 1))
@@ -279,6 +287,10 @@ public class RackAwareTest extends BkEnsemblesTestBase {
             assertTrue(racks.containsAll(Lists.newArrayList("rack-0", "rack-1")));
         });
 
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(networkTopology.getNumOfRacks(), 2);
+        });
+
         // 5. create ledger required for 2 racks
         for (int i = 0; i < 2; i++) {
             LedgerHandle lh = bkc.createLedger(2, 2, DigestType.DUMMY, new byte[0]);
@@ -288,7 +300,7 @@ public class RackAwareTest extends BkEnsemblesTestBase {
 
         // 6. remove rack-0
         for (int i = 0; i < NUM_BOOKIES / 2; i++) {
-            String bookie = bookies.get(i).getLocalAddress().toString();
+            String bookie = servers.get(i).getServer().getLocalAddress().toString();
             admin.bookies().deleteBookieRackInfo(bookie);
         }
 
