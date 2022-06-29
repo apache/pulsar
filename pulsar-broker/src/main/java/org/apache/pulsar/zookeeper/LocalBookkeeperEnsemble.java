@@ -369,21 +369,16 @@ public class LocalBookkeeperEnsemble {
                  .build())
             .buildAdmin()) {
 
+            LOG.info("Creating default namespace");
             try {
-                NamespaceProperties ns = FutureUtils.result(admin.getNamespace("default"));
-                LOG.info("'default' namespace for table service : {}", ns);
-            } catch (NamespaceNotFoundException nnfe) {
-                LOG.info("Creating default namespace");
-                try {
-                    NamespaceProperties ns =
+                NamespaceProperties ns =
                         FutureUtils.result(admin.createNamespace("default", NamespaceConfiguration.newBuilder()
-                            .setDefaultStreamConf(DEFAULT_STREAM_CONF)
-                            .build()));
-                    LOG.info("Successfully created 'default' namespace :\n{}", ns);
-                } catch (NamespaceExistsException nee) {
-                    // namespace already exists
-                    LOG.warn("Namespace 'default' already existed.");
-                }
+                                .setDefaultStreamConf(DEFAULT_STREAM_CONF)
+                                .build()));
+                LOG.info("Successfully created 'default' namespace :\n{}", ns);
+            } catch (NamespaceExistsException nee) {
+                // namespace already exists
+                LOG.warn("Namespace 'default' already existed.");
             }
         }
     }
