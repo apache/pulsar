@@ -788,6 +788,8 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
                 functionConfig, worker().getWorkerConfig().isForwardSourceMessageProperty());
 
         String archive = functionConfig.getJar();
+        ClassLoader classLoader = null;
+        // check if function is builtin and extract classloader
         if (!StringUtils.isEmpty(archive)) {
             if (archive.startsWith(org.apache.pulsar.common.functions.Utils.BUILTIN)) {
                 archive = archive.replaceFirst("^builtin://", "");
@@ -799,17 +801,36 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
                 if (function == null) {
                     throw new IllegalArgumentException(String.format("No Function %s found", archive));
                 }
-                return FunctionConfigUtils.convert(
-                        functionConfig,
-                        FunctionConfigUtils.validateJavaFunction(functionConfig, function.getClassLoader()));
+                classLoader = function.getClassLoader();
             }
         }
-        ClassLoader clsLoader = null;
+        boolean shouldCloseClassLoader = false;
         try {
-            clsLoader = FunctionConfigUtils.validate(functionConfig, componentPackageFile);
-            return FunctionConfigUtils.convert(functionConfig, clsLoader);
+
+            if (functionConfig.getRuntime() == FunctionConfig.Runtime.JAVA) {
+                // if function is not builtin, attempt to extract classloader from package file if it exists
+                if (classLoader == null && componentPackageFile != null) {
+                    classLoader = getClassLoaderFromPackage(functionConfig.getClassName(),
+                            componentPackageFile, worker().getWorkerConfig().getNarExtractionDirectory());
+                    shouldCloseClassLoader = true;
+                }
+
+                if (classLoader == null) {
+                    throw new IllegalArgumentException("Function package is not provided");
+                }
+
+                FunctionConfigUtils.ExtractedFunctionDetails functionDetails = FunctionConfigUtils.validateJavaFunction(
+                        functionConfig, classLoader);
+                return FunctionConfigUtils.convert(functionConfig, functionDetails);
+            } else {
+                classLoader = FunctionConfigUtils.validate(functionConfig, componentPackageFile);
+                shouldCloseClassLoader = true;
+                return FunctionConfigUtils.convert(functionConfig, classLoader);
+            }
         } finally {
-            ClassLoaderUtils.closeClassLoader(clsLoader);
+            if (shouldCloseClassLoader) {
+                ClassLoaderUtils.closeClassLoader(classLoader);
+            }
         }
     }
 

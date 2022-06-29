@@ -140,12 +140,15 @@ public class Namespaces extends NamespacesBase {
                           @PathParam("property") String property,
                           @PathParam("cluster") String cluster,
                           @PathParam("namespace") String namespace,
-                          @QueryParam("mode") @DefaultValue("PERSISTENT") Mode mode) {
+                          @QueryParam("mode") @DefaultValue("PERSISTENT") Mode mode,
+                          @ApiParam(value = "Include system topic")
+                          @QueryParam("includeSystemTopic") boolean includeSystemTopic) {
         validateNamespaceName(property, cluster, namespace);
         validateNamespaceOperationAsync(NamespaceName.get(property, namespace), NamespaceOperation.GET_TOPICS)
                 // Validate that namespace exists, throws 404 if it doesn't exist
                 .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
-                .thenCompose(__ -> pulsar().getNamespaceService().getListOfTopics(namespaceName, mode))
+                .thenCompose(policies -> internalGetListOfTopics(policies, mode))
+                .thenApply(topics -> filterSystemTopic(topics, includeSystemTopic))
                 .thenAccept(response::resume)
                 .exceptionally(ex -> {
                     log.error("Failed to get topics list for namespace {}", namespaceName, ex);

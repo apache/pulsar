@@ -55,7 +55,7 @@ public abstract class PerformanceBaseArguments {
     public Boolean tlsAllowInsecureConnection = null;
 
     @Parameter(names = {
-            "--tls-hostname-verification" }, description = "Enable TLS hostname verification")
+            "--tls-enable-hostname-verification" }, description = "Enable TLS hostname verification")
     public Boolean tlsHostnameVerificationEnable = null;
 
     @Parameter(names = { "-c",

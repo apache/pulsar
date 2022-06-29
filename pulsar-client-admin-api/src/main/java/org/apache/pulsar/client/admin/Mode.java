@@ -16,7 +16,29 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-/**
- * Implementation of the connector to the Presto engine.
- */
-package org.apache.pulsar.sql.agent;
+package org.apache.pulsar.client.admin;
+
+public enum Mode {
+
+    PERSISTENT(0), NON_PERSISTENT(1), ALL(2),;
+    private final int value;
+    private Mode(int value) {
+        this.value = value;
+    }
+    public int getValue() {
+        return value;
+    }
+    public static Mode valueOf(int n) {
+        switch (n) {
+            case 0 :
+                return PERSISTENT;
+            case 1 :
+                return NON_PERSISTENT;
+            case 2 :
+                return ALL;
+            default :
+                return null;
+
+        }
+    }
+}

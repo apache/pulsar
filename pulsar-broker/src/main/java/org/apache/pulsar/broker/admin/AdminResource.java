@@ -792,8 +792,7 @@ public abstract class AdminResource extends PulsarWebResource {
         }
     }
 
-    protected boolean isManagedLedgerNotFoundException(Exception e) {
-        Throwable cause = e.getCause();
+    protected boolean isManagedLedgerNotFoundException(Throwable cause) {
         return cause instanceof ManagedLedgerException.MetadataNotFoundException
                 || cause instanceof MetadataStoreException.NotFoundException;
     }
@@ -845,5 +844,11 @@ public abstract class AdminResource extends PulsarWebResource {
 
     protected static String getSubNotFoundErrorMessage(String topic, String subscription) {
         return String.format("Subscription %s not found for topic %s", subscription, topic);
+    }
+
+    protected List<String> filterSystemTopic(List<String> topics, boolean includeSystemTopic) {
+        return topics.stream()
+                .filter(topic -> includeSystemTopic ? true : !pulsar().getBrokerService().isSystemTopic(topic))
+                .collect(Collectors.toList());
     }
 }
