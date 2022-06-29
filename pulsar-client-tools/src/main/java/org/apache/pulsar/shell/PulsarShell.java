@@ -34,6 +34,7 @@ import java.util.Properties;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.AllArgsConstructor;
+import org.apache.commons.text.StringSubstitutor;
 import org.jline.reader.Completer;
 import org.jline.reader.LineReader;
 import org.jline.reader.LineReaderBuilder;
@@ -58,6 +59,28 @@ public class PulsarShell {
     private static final AttributedStyle LOG_STYLE = AttributedStyle.DEFAULT
             .foreground(25, 143, 255)
             .background(230, 241, 255);
+
+    private static final Substitutor[] SUBSTITUTORS = {
+            (str, vars) -> new StringSubstitutor(vars, "${", "}", '\\').replace(str),
+            (str, vars) -> {
+                // unfortunately StringSubstitutor doesn't handle empty suffix regex
+                if (str.startsWith("\\$")) {
+                    return str.substring(1);
+                }
+                if (str.startsWith("$")) {
+                    final String key = str.substring(1);
+                    if (!vars.containsKey(key)) {
+                        return str;
+                    }
+                    return vars.get(key);
+                }
+                return str;
+            }
+    };
+
+    interface Substitutor {
+        String replace(String str, Map<String, String> vars);
+    }
 
     static final class ShellOptions {
 
@@ -264,6 +287,7 @@ public class PulsarShell {
 
         }
 
+        final Map<String, String> variables = System.getenv();
         Runtime.getRuntime().addShutdownHook(new Thread(() -> quit(terminal)));
         while (true) {
             String line;
@@ -280,7 +304,7 @@ public class PulsarShell {
                 exit(0);
                 return;
             }
-            final List<String> words = parseLine(reader, line);
+            final List<String> words = parseLine(reader, line, variables);
 
             if (shellOptions.help) {
                 shellCommander.usage();
@@ -363,10 +387,22 @@ public class PulsarShell {
                 .toAnsi();
     }
 
-    private static List<String> parseLine(LineReader reader, String line) {
+    private static List<String> parseLine(LineReader reader, String line, Map<String, String> vars) {
         final ParsedLine pl = reader.getParser().parse(line, 0);
         final List<String> words = pl.words();
-        return words;
+        final List<String> replaced = substituteVariables(words, vars);
+        return replaced;
+    }
+
+    static List<String> substituteVariables(List<String> line, Map<String, String> vars) {
+        return line.stream().map(s -> PulsarShell.substituteVariables(s, vars)).collect(Collectors.toList());
+    }
+
+    private static String substituteVariables(String string, Map<String, String> vars) {
+        for (Substitutor stringSubstitutor : SUBSTITUTORS) {
+            string = stringSubstitutor.replace(string, vars);
+        }
+        return string;
     }
 
     private static void quit(Terminal terminal) {

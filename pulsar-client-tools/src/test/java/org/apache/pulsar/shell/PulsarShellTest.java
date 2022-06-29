@@ -27,6 +27,8 @@ import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.fail;
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.BlockingQueue;
@@ -172,7 +174,7 @@ public class PulsarShellTest {
     }
 
     @Test
-    public void testFileModeExitOnError() throws Exception{
+    public void testFileModeExitOnError() throws Exception {
         Terminal terminal = TerminalBuilder.builder().build();
         final MockLineReader linereader = new MockLineReader(terminal);
         final Properties props = new Properties();
@@ -193,4 +195,30 @@ public class PulsarShellTest {
         verify(testPulsarShell.cmdProduceHolder.get(), times(0)).run();
     }
 
+    @Test
+    public void testSubstituteVariables() throws Exception {
+        Map<String, String> vars = new HashMap<>();
+        vars.put("mytopic", "the-topic");
+        assertEquals(
+                PulsarShell.substituteVariables(Arrays.asList("admin", "topics", "create", "${mytopic}"), vars),
+                Arrays.asList("admin", "topics", "create", "the-topic")
+        );
+        assertEquals(
+                PulsarShell.substituteVariables(Arrays.asList("admin", "topics", "create", "\\${mytopic}"), vars),
+                Arrays.asList("admin", "topics", "create", "${mytopic}")
+        );
+        assertEquals(
+                PulsarShell.substituteVariables(Arrays.asList("admin", "topics", "create", "${MYTOPIC}"), vars),
+                Arrays.asList("admin", "topics", "create", "${MYTOPIC}")
+        );
+        assertEquals(
+                PulsarShell.substituteVariables(Arrays.asList("admin", "topics", "create", "$mytopic"), vars),
+                Arrays.asList("admin", "topics", "create", "the-topic")
+        );
+        assertEquals(
+                PulsarShell.substituteVariables(Arrays.asList("admin", "topics", "create", "\\$mytopic"), vars),
+                Arrays.asList("admin", "topics", "create", "$mytopic")
+        );
+
+    }
 }
