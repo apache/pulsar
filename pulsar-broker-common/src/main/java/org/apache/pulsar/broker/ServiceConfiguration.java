@@ -1972,6 +1972,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private String loadBalancerLoadSheddingStrategy = "org.apache.pulsar.broker.loadbalance.impl.ThresholdShedder";
 
     @FieldContext(
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "load balance placement strategy"
+    )
+    private String loadBalancerLoadPlacementStrategy =
+            "org.apache.pulsar.broker.loadbalance.impl.LeastLongTermMessageRate";
+
+    @FieldContext(
         dynamic = true,
         category = CATEGORY_LOAD_BALANCER,
         doc = "Percentage of change to trigger load report update"

@@ -49,12 +49,18 @@ public interface ModularLoadManagerStrategy {
     /**
      * Create a placement strategy using the configuration.
      *
+     * @param conf ServiceConfiguration to use.
      * @return A placement strategy from the given configurations.
      */
-    static ModularLoadManagerStrategy create() {
+    static ModularLoadManagerStrategy create(final ServiceConfiguration conf) {
         try {
-            // Only one strategy at the moment.
-            return new LeastLongTermMessageRate();
+            Class<?> loadAssignmentClass = Class.forName(conf.getLoadBalancerLoadPlacementStrategy());
+            Object loadAssignmentInstance = loadAssignmentClass.getDeclaredConstructor().newInstance();
+            if (loadAssignmentInstance instanceof ModularLoadManagerStrategy) {
+                return (ModularLoadManagerStrategy) loadAssignmentInstance;
+            } else {
+                return new LeastLongTermMessageRate();
+            }
         } catch (Exception e) {
             // Ignore
         }
