@@ -21,13 +21,13 @@
 
 ![logo](site2/website/static/img/pulsar.svg)
 
-![unit test](https://img.shields.io/github/workflow/status/apache/pulsar/CI%20-%20Unit?label=unit%20test)
-![docker build](https://img.shields.io/github/workflow/status/apache/pulsar/CI%20-%20Docker%20Build?label=docker%20build)
-![contributors](https://img.shields.io/github/contributors-anon/apache/pulsar)
-![last commit](https://img.shields.io/github/last-commit/apache/pulsar)
-![release](https://img.shields.io/github/v/release/apache/pulsar)
-![release date](https://img.shields.io/github/release-date/apache/pulsar)
-![downloads](https://img.shields.io/github/downloads/apache/pulsar/total)
+[![unit test](https://img.shields.io/github/workflow/status/apache/pulsar/CI%20-%20Unit?label=unit%20test)](https://github.com/apache/pulsar/actions/workflows/ci-unit.yaml)
+[![docker build](https://img.shields.io/github/workflow/status/apache/pulsar/CI%20-%20Docker%20Build?label=docker%20build)](https://hub.docker.com/r/apachepulsar/pulsar)
+[![contributors](https://img.shields.io/github/contributors-anon/apache/pulsar)](https://github.com/apache/pulsar/graphs/contributors)
+[![last commit](https://img.shields.io/github/last-commit/apache/pulsar)](https://github.com/apache/pulsar/commits/master)
+[![release](https://img.shields.io/github/v/release/apache/pulsar)](https://github.com/apache/pulsar/releases)
+[![release date](https://img.shields.io/github/release-date/apache/pulsar)](https://github.com/apache/pulsar/releases)
+[![downloads](https://img.shields.io/github/downloads/apache/pulsar/total)](https://pulsar.apache.org/download/)
 
 Pulsar is a distributed pub-sub messaging platform with a very
 flexible messaging model and an intuitive client API.
