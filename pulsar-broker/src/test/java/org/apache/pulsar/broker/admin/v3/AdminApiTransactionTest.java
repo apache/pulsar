@@ -167,7 +167,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test(timeOut = 20000)
-    public void testGetTransactionPendingAckStats() throws Exception {
+    public void testGetTransactionInPendingAckStats() throws Exception {
         initTransaction(2);
         final String topic = "persistent://public/default/testGetTransactionInBufferStats";
         final String subName = "test";
@@ -341,6 +341,9 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
                 PositionImpl.get(((MessageIdImpl) messageId).getLedgerId(),
                         ((MessageIdImpl) messageId).getEntryId() + 1).toString());
         assertTrue(transactionBufferStats.lastSnapshotTimestamps > currentTime);
+        assertNull(transactionBufferStats.lowWaterMarks);
+        transactionBufferStats = admin.transactions().getTransactionBufferStats(topic, true);
+        assertNotNull(transactionBufferStats.lowWaterMarks);
     }
 
     @DataProvider(name = "ackType")
@@ -387,16 +390,59 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
 
         TransactionImpl transaction  = (TransactionImpl) getTransaction();
         if (ackType.equals("individual")) {
-            consumer.acknowledgeAsync(consumer.receive().getMessageId(), transaction);
+            consumer.acknowledgeAsync(consumer.receive().getMessageId(), transaction).get();
         } else {
-            consumer.acknowledgeCumulativeAsync(consumer.receive().getMessageId(), transaction);
+            consumer.acknowledgeCumulativeAsync(consumer.receive().getMessageId(), transaction).get();
         }
-        transaction.commit().get();
 
         transactionPendingAckStats = admin.transactions().
                 getPendingAckStatsAsync(topic, subName).get();
-
+        assertNull(transactionPendingAckStats.lowWaterMarks);
         assertEquals(transactionPendingAckStats.state, "Ready");
+    }
+
+    @Test
+    public void testTransactionGetStats() throws Exception {
+        initTransaction(1);
+        final String topic = "persistent://public/default/testGetPendingAckStats";
+        final String subName = "test1";
+
+        Producer<byte[]> producer = pulsarClient.newProducer(Schema.BYTES)
+                .sendTimeout(0, TimeUnit.SECONDS).topic(topic).create();
+
+        Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES).topic(topic)
+                .subscriptionName(subName).subscribe();
+
+        Transaction transaction1 = pulsarClient.newTransaction()
+                .withTransactionTimeout(5, TimeUnit.SECONDS)
+                .build()
+                .get();
+        Transaction transaction2 = pulsarClient.newTransaction()
+                .withTransactionTimeout(5, TimeUnit.SECONDS)
+                .build()
+                .get();
+        producer.newMessage().send();
+        Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
+        consumer.acknowledgeAsync(message.getMessageId(), transaction1).get();
+        for (int i = 0; i < 5; i++) {
+            producer.newMessage(transaction1).send();
+        }
+        transaction1.commit().get();
+        message = consumer.receive(5, TimeUnit.SECONDS);
+        consumer.acknowledgeAsync(message.getMessageId(), transaction2).get();
+        producer.newMessage(transaction2).send();
+
+        TransactionBufferStats transactionBufferStats =
+                admin.transactions().getTransactionBufferStats(topic, true);
+        assertEquals(transactionBufferStats.ongoingTxnSize, 1);
+        assertNotNull(transactionBufferStats.lowWaterMarks);
+
+        TransactionPendingAckStats transactionPendingAckStats =
+                admin.transactions().getPendingAckStats(topic, subName, true);
+
+        assertEquals(transactionPendingAckStats.ongoingTxnSize, 1);
+        assertNotNull(transactionPendingAckStats.lowWaterMarks);
+        assertEquals(admin.transactions().getCoordinatorStatsById(0).ongoingTxnSize, 1);
     }
 
     @Test(timeOut = 20000)

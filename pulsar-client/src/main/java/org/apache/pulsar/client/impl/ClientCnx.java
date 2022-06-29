@@ -642,7 +642,7 @@ public class ClientCnx extends PulsarHandler {
             if (firstOneWaiting != null) {
                 maxLookupRequestSemaphore.release();
                 // schedule a new lookup in.
-                eventLoopGroup.submit(() -> {
+                eventLoopGroup.execute(() -> {
                     long newId = firstOneWaiting.getLeft();
                     TimedCompletableFuture<LookupDataResult> newFuture = firstOneWaiting.getRight().getRight();
                     addPendingLookupRequests(newId, newFuture);

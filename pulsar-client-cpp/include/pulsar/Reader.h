@@ -29,7 +29,6 @@ class PulsarFriend;
 class ReaderImpl;
 
 typedef std::function<void(Result result, bool hasMessageAvailable)> HasMessageAvailableCallback;
-typedef std::function<void(Result result, MessageId messageId)> GetLastMessageIdCallback;
 
 /**
  * A Reader can be used to scan through all the messages currently available in a topic.

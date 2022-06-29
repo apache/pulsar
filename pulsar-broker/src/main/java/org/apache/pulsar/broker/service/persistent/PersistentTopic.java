@@ -2955,6 +2955,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                             throwable = throwable.getCause();
                             if (throwable instanceof NotAllowedException) {
                               publishContext.completed((NotAllowedException) throwable, -1, -1);
+                              decrementPendingWriteOpsAndCheck();
                               return null;
                             } else if (!(throwable instanceof ManagedLedgerException)) {
                                 throwable = new ManagedLedgerException(throwable);
@@ -3099,12 +3100,12 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         return subTypesEnabled != null && subTypesEnabled.contains(subType);
     }
 
-    public TransactionBufferStats getTransactionBufferStats() {
-        return this.transactionBuffer.getStats();
+    public TransactionBufferStats getTransactionBufferStats(boolean lowWaterMarks) {
+        return this.transactionBuffer.getStats(lowWaterMarks);
     }
 
-    public TransactionPendingAckStats getTransactionPendingAckStats(String subName) {
-        return this.subscriptions.get(subName).getTransactionPendingAckStats();
+    public TransactionPendingAckStats getTransactionPendingAckStats(String subName, boolean lowWaterMarks) {
+        return this.subscriptions.get(subName).getTransactionPendingAckStats(lowWaterMarks);
     }
 
     public PositionImpl getMaxReadPosition() {

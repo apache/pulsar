@@ -8,7 +8,7 @@ original_id: reference-configuration
 
 
 
-Pulsar configuration can be managed either via a series of configuration files contained in the [`conf`](https://github.com/apache/incubator-pulsar/tree/master/conf) directory of a Pulsar [installation](getting-started-standalone)
+Pulsar configuration can be managed either via a series of configuration files contained in the [`conf`](https://github.com/apache/incubator-pulsar/tree/master/conf) directory of a Pulsar [installation](getting-started-standalone.md)
 
 * [BookKeeper](#bookkeeper)
 * [Broker](#broker)

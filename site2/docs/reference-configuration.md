@@ -334,6 +334,7 @@ brokerServiceCompactionThresholdInBytes|If the estimated backlog size is greater
 |replicatorPrefix|  Replicator prefix used for replicator producer name and cursor name pulsar.repl||
 |transactionBufferClientOperationTimeoutInMills|The transaction buffer client's operation timeout in milliseconds.|3000|
 |transactionCoordinatorEnabled|Whether to enable transaction coordinator in broker.|true|
+|maxActiveTransactionsPerCoordinator| Max number of active transactions per transaction coordinator.|0|
 |transactionMetadataStoreProviderClassName|The class name of transactionMetadataStoreProvider.|org.apache.pulsar.transaction.coordinator.impl.MLTransactionMetadataStoreProvider|
 |transactionBufferSnapshotMaxTransactionCount|Transaction buffer takes a snapshot after the number of transaction operations reaches this value.|1000|
 |transactionBufferSnapshotMinTimeInMillis| The interval between two snapshots that the transaction buffer takes (in milliseconds).|5000|

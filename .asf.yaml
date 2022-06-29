@@ -49,6 +49,7 @@ github:
         # Contexts are the names of checks that must pass.
         # See ./github/workflows/README.md for more documentation on this list.
         contexts:
+          - label
           - build
           - cpp-tests
           - Changed files check
@@ -77,8 +78,7 @@ github:
           - CI - System - Schema
           - CI - System - Tiered FileSystem
           - CI - System - Tiered JCloud
-# Sql integration tests are disabled until https://github.com/apache/pulsar/issues/14951 has been resolved
-#          - CI - System - Sql
+          - CI - System - Sql
 
       required_pull_request_reviews:
         dismiss_stale_reviews: false

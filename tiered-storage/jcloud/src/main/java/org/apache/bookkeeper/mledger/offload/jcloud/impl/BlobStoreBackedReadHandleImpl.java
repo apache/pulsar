@@ -86,7 +86,7 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
     @Override
     public CompletableFuture<Void> closeAsync() {
         CompletableFuture<Void> promise = new CompletableFuture<>();
-        executor.submit(() -> {
+        executor.execute(() -> {
                 try {
                     index.close();
                     inputStream.close();
@@ -103,7 +103,7 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
     public CompletableFuture<LedgerEntries> readAsync(long firstEntry, long lastEntry) {
         log.debug("Ledger {}: reading {} - {}", getId(), firstEntry, lastEntry);
         CompletableFuture<LedgerEntries> promise = new CompletableFuture<>();
-        executor.submit(() -> {
+        executor.execute(() -> {
             List<LedgerEntry> entries = new ArrayList<LedgerEntry>();
             boolean seeked = false;
             try {

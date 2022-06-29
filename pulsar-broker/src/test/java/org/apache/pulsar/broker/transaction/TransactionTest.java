@@ -568,7 +568,7 @@ public class TransactionTest extends TransactionTestBase {
 
         TransactionBuffer buffer2 = new TopicTransactionBuffer(persistentTopic);
         Awaitility.await().atMost(30, TimeUnit.SECONDS).untilAsserted(() ->
-                assertEquals(buffer2.getStats().state, "Ready"));
+                assertEquals(buffer2.getStats(false).state, "Ready"));
         managedCursors.removeCursor("transaction-buffer-sub");
 
         doAnswer(invocation -> {
@@ -580,7 +580,7 @@ public class TransactionTest extends TransactionTestBase {
         managedCursors.add(managedCursor);
         TransactionBuffer buffer3 = new TopicTransactionBuffer(persistentTopic);
         Awaitility.await().atMost(30, TimeUnit.SECONDS).untilAsserted(() ->
-                assertEquals(buffer3.getStats().state, "Ready"));
+                assertEquals(buffer3.getStats(false).state, "Ready"));
         persistentTopic.getInternalStats(false).thenAccept(internalStats -> {
             assertTrue(internalStats.cursors.isEmpty());
         });
@@ -631,7 +631,7 @@ public class TransactionTest extends TransactionTestBase {
 
         PendingAckHandleImpl pendingAckHandle1 = new PendingAckHandleImpl(persistentSubscription);
         Awaitility.await().untilAsserted(() ->
-                assertEquals(pendingAckHandle1.getStats().state, "Ready"));
+                assertEquals(pendingAckHandle1.getStats(false).state, "Ready"));
 
         doAnswer(invocation -> {
             AsyncCallbacks.ReadEntriesCallback callback = invocation.getArgument(1);
@@ -641,7 +641,7 @@ public class TransactionTest extends TransactionTestBase {
 
         PendingAckHandleImpl pendingAckHandle2 = new PendingAckHandleImpl(persistentSubscription);
         Awaitility.await().untilAsserted(() ->
-                assertEquals(pendingAckHandle2.getStats().state, "Ready"));
+                assertEquals(pendingAckHandle2.getStats(false).state, "Ready"));
 
         doAnswer(invocation -> {
             AsyncCallbacks.ReadEntriesCallback callback = invocation.getArgument(1);
@@ -652,7 +652,7 @@ public class TransactionTest extends TransactionTestBase {
         PendingAckHandleImpl pendingAckHandle3 = new PendingAckHandleImpl(persistentSubscription);
 
         Awaitility.await().untilAsserted(() ->
-                assertEquals(pendingAckHandle3.getStats().state, "Ready"));
+                assertEquals(pendingAckHandle3.getStats(false).state, "Ready"));
     }
 
     @Test
@@ -695,7 +695,7 @@ public class TransactionTest extends TransactionTestBase {
         doNothing().when(timeoutTracker).start();
         MLTransactionMetadataStore metadataStore1 =
                 new MLTransactionMetadataStore(new TransactionCoordinatorID(1),
-                        mlTransactionLog, timeoutTracker, mlTransactionSequenceIdGenerator);
+                        mlTransactionLog, timeoutTracker, mlTransactionSequenceIdGenerator, 0L);
         metadataStore1.init(transactionRecoverTracker).get();
         Awaitility.await().untilAsserted(() ->
                 assertEquals(metadataStore1.getCoordinatorStats().state, "Ready"));
@@ -708,7 +708,8 @@ public class TransactionTest extends TransactionTestBase {
 
         MLTransactionMetadataStore metadataStore2 =
                 new MLTransactionMetadataStore(new TransactionCoordinatorID(1),
-                        mlTransactionLog, timeoutTracker, mlTransactionSequenceIdGenerator);
+
+                        mlTransactionLog, timeoutTracker, mlTransactionSequenceIdGenerator, 0L);
         metadataStore2.init(transactionRecoverTracker).get();
         Awaitility.await().untilAsserted(() ->
                 assertEquals(metadataStore2.getCoordinatorStats().state, "Ready"));
@@ -721,7 +722,7 @@ public class TransactionTest extends TransactionTestBase {
 
         MLTransactionMetadataStore metadataStore3 =
                 new MLTransactionMetadataStore(new TransactionCoordinatorID(1),
-                        mlTransactionLog, timeoutTracker, mlTransactionSequenceIdGenerator);
+                        mlTransactionLog, timeoutTracker, mlTransactionSequenceIdGenerator, 0L);
         metadataStore3.init(transactionRecoverTracker).get();
         Awaitility.await().untilAsserted(() ->
                 assertEquals(metadataStore3.getCoordinatorStats().state, "Ready"));

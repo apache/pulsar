@@ -441,7 +441,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         MessageImpl<?> msg = (MessageImpl<?>) message;
         MessageMetadata msgMetadata = msg.getMessageBuilder();
         ByteBuf payload = msg.getDataBuffer();
-        int uncompressedSize = payload.readableBytes();
+        final int uncompressedSize = payload.readableBytes();
 
         if (!canEnqueueRequest(callback, message.getSequenceId(), uncompressedSize)) {
             return;
@@ -488,6 +488,10 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             return;
         }
 
+        // Update the message metadata before computing the payload chunk size to avoid a large message cannot be split
+        // into chunks.
+        final long sequenceId = updateMessageMetadata(msgMetadata, uncompressedSize);
+
         // send in chunks
         int totalChunks;
         int payloadChunkSize;
@@ -526,13 +530,6 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         try {
             synchronized (this) {
                 int readStartIndex = 0;
-                long sequenceId;
-                if (!msgMetadata.hasSequenceId()) {
-                    sequenceId = msgIdGeneratorUpdater.getAndIncrement(this);
-                    msgMetadata.setSequenceId(sequenceId);
-                } else {
-                    sequenceId = msgMetadata.getSequenceId();
-                }
                 String uuid = totalChunks > 1 ? String.format("%s-%d", producerName, sequenceId) : null;
                 ChunkedMessageCtx chunkedMessageCtx = totalChunks > 1 ? ChunkedMessageCtx.get(totalChunks) : null;
                 byte[] schemaVersion = totalChunks > 1 && msg.getMessageBuilder().hasSchemaVersion()
@@ -554,7 +551,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     }
                     serializeAndSendMessage(msg, payload, sequenceId, uuid, chunkId, totalChunks,
                             readStartIndex, payloadChunkSize, compressedPayload, compressed,
-                            compressedPayload.readableBytes(), uncompressedSize, callback, chunkedMessageCtx);
+                            compressedPayload.readableBytes(), callback, chunkedMessageCtx);
                     readStartIndex = ((chunkId + 1) * payloadChunkSize);
                 }
             }
@@ -565,6 +562,38 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             completeCallbackAndReleaseSemaphore(uncompressedSize, callback,
                     new PulsarClientException(t, msg.getSequenceId()));
         }
+    }
+
+    /**
+     * Update the message metadata except those fields that will be updated for chunks later.
+     *
+     * @param msgMetadata
+     * @param uncompressedSize
+     * @return the sequence id
+     */
+    private long updateMessageMetadata(final MessageMetadata msgMetadata, final int uncompressedSize) {
+        final long sequenceId;
+        if (!msgMetadata.hasSequenceId()) {
+            sequenceId = msgIdGeneratorUpdater.getAndIncrement(this);
+            msgMetadata.setSequenceId(sequenceId);
+        } else {
+            sequenceId = msgMetadata.getSequenceId();
+        }
+
+        if (!msgMetadata.hasPublishTime()) {
+            msgMetadata.setPublishTime(client.getClientClock().millis());
+
+            checkArgument(!msgMetadata.hasProducerName());
+
+            msgMetadata.setProducerName(producerName);
+
+            if (conf.getCompressionType() != CompressionType.NONE) {
+                msgMetadata
+                        .setCompression(CompressionCodecProvider.convertToWireProtocol(conf.getCompressionType()));
+            }
+            msgMetadata.setUncompressedSize(uncompressedSize);
+        }
+        return sequenceId;
     }
 
     @Override
@@ -583,7 +612,6 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                                          ByteBuf compressedPayload,
                                          boolean compressed,
                                          int compressedPayloadSize,
-                                         int uncompressedSize,
                                          SendCallback callback,
                                          ChunkedMessageCtx chunkedMessageCtx) throws IOException {
         ByteBuf chunkPayload = compressedPayload;
@@ -602,19 +630,6 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             msgMetadata.setChunkId(chunkId)
                 .setNumChunksFromMsg(totalChunks)
                 .setTotalChunkMsgSize(compressedPayloadSize);
-        }
-        if (!msgMetadata.hasPublishTime()) {
-            msgMetadata.setPublishTime(client.getClientClock().millis());
-
-            checkArgument(!msgMetadata.hasProducerName());
-
-            msgMetadata.setProducerName(producerName);
-
-            if (conf.getCompressionType() != CompressionType.NONE) {
-                msgMetadata
-                        .setCompression(CompressionCodecProvider.convertToWireProtocol(conf.getCompressionType()));
-            }
-            msgMetadata.setUncompressedSize(uncompressedSize);
         }
 
         if (canAddToBatch(msg) && totalChunks <= 1) {
@@ -1483,7 +1498,11 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             cmdHeader.markReaderIndex();
             int totalSize = cmdHeader.readInt();
             int cmdSize = cmdHeader.readInt();
-            int msgHeadersAndPayloadSize = totalSize - cmdSize - 4;
+            // The totalSize includes:
+            // | cmdLength | cmdSize | magic and checksum | msgMetadataLength | msgMetadata |
+            // | --------- | ------- | ------------------ | ----------------- | ----------- |
+            // | 4         |         | 6                  | 4                 |             |
+            int msgHeadersAndPayloadSize = totalSize - 4 - cmdSize - 6 - 4;
             cmdHeader.resetReaderIndex();
             return msgHeadersAndPayloadSize;
         }
@@ -2214,8 +2233,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     /**
      *  Check if final message size for non-batch and non-chunked messages is larger than max message size.
      */
-    public boolean isMessageSizeExceeded(OpSendMsg op) {
-        if (op.msg != null && op.totalChunks <= 1) {
+    private boolean isMessageSizeExceeded(OpSendMsg op) {
+        if (op.msg != null && !conf.isChunkingEnabled()) {
             int messageSize = op.getMessageHeaderAndPayloadSize();
             if (messageSize > ClientCnx.getMaxMessageSize()) {
                 releaseSemaphoreForSendOp(op);
