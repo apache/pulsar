@@ -762,6 +762,7 @@ class PulsarTest(TestCase):
         msg_id = producer.send(b"hello")
 
         msg = consumer.receive(TM)
+        msg_id = consumer.get_last_message_id()
         self.assertEqual(msg.message_id(), msg_id)
         client.close()
 
