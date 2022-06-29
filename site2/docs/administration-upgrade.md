@@ -204,7 +204,7 @@ $ pulsar-admin brokers healthcheck
 </TabItem>
 <TabItem value="REST API">
 
-Send a `GET` request to this endpoint: {@inject: endpoint|GET|/admin/v2/brokers/health|operation/healthcheck?version=@pulsar:version_number@}
+Send a `GET` request to this endpoint: {@inject: endpoint|GET|/admin/v2/brokers/health|operation/healthCheck?version=@pulsar:version_number@}
 
 </TabItem>
 
