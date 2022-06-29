@@ -212,15 +212,25 @@ You can create a configuration file through one of the following methods.
 
   ```json
   
-  {
-      "roots": "localhost:9042",
-      "keyspace": "pulsar_test_keyspace",
-      "columnFamily": "pulsar_test_table",
-      "keyname": "key",
-      "columnName": "col"
+  {   
+      "configs": 
+      {
+          "roots": "localhost:9042",
+          "keyspace": "pulsar_test_keyspace",
+          "columnFamily": "pulsar_test_table",
+          "keyname": "key",
+          "columnName": "col"
+      }
   }
   
   ```
+
+You can also create the above configuration JSON file using the following commands:
+```
+touch config.json
+json='{"configs":{"roots":"localhost:9042","keyspace":"pulsar_test_keyspace","columnFamily":"pulsar_test_table","keyname":"key","columnName":"col"}}'
+echo $json > config.json
+```
 
 * YAML
 
