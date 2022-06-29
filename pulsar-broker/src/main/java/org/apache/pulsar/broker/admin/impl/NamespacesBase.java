@@ -25,8 +25,10 @@ import static org.apache.pulsar.common.policies.data.PoliciesUtil.getBundles;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import java.lang.reflect.Field;
+import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -552,153 +554,103 @@ public abstract class NamespacesBase extends AdminResource {
         });
     }
 
-    protected void internalDeleteNamespaceBundle(String bundleRange, boolean authoritative, boolean force) {
-        if (force) {
-            internalDeleteNamespaceBundleForcefully(bundleRange, authoritative);
-        } else {
-            internalDeleteNamespaceBundle(bundleRange, authoritative);
-        }
-    }
-
     @SuppressWarnings("deprecation")
-    protected void internalDeleteNamespaceBundle(String bundleRange, boolean authoritative) {
-        validateNamespaceOperation(namespaceName, NamespaceOperation.DELETE_BUNDLE);
-        validatePoliciesReadOnlyAccess();
-
-        // ensure that non-global namespace is directed to the correct cluster
-        if (!namespaceName.isGlobal()) {
-            validateClusterOwnership(namespaceName.getCluster());
-        }
-
-        Policies policies = getNamespacePolicies(namespaceName);
-        // ensure the local cluster is the only cluster for the global namespace configuration
-        try {
-            if (namespaceName.isGlobal()) {
-                if (policies.replication_clusters.size() > 1) {
-                    // There are still more than one clusters configured for the global namespace
-                    throw new RestException(Status.PRECONDITION_FAILED, "Cannot delete the global namespace "
-                            + namespaceName + ". There are still more than one replication clusters configured.");
-                }
-                if (policies.replication_clusters.size() == 1
-                        && !policies.replication_clusters.contains(config().getClusterName())) {
-                    // the only replication cluster is other cluster, redirect
-                    String replCluster = Lists.newArrayList(policies.replication_clusters).get(0);
-                    ClusterData replClusterData =
-                            clusterResources().getCluster(replCluster)
-                            .orElseThrow(() -> new RestException(Status.NOT_FOUND,
-                                    "Cluster " + replCluster + " does not exist"));
-                    URL replClusterUrl;
-                    if (!config().isTlsEnabled() || !isRequestHttps()) {
-                        replClusterUrl = new URL(replClusterData.getServiceUrl());
-                    } else if (StringUtils.isNotBlank(replClusterData.getServiceUrlTls())) {
-                        replClusterUrl = new URL(replClusterData.getServiceUrlTls());
-                    } else {
-                        throw new RestException(Status.PRECONDITION_FAILED,
-                                "The replication cluster does not provide TLS encrypted service");
+    protected CompletableFuture<Void> internalDeleteNamespaceBundleAsync(String bundleRange, boolean authoritative,
+                                                                         boolean force) {
+        return validateNamespaceOperationAsync(namespaceName, NamespaceOperation.DELETE_BUNDLE)
+                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
+                .thenCompose(__ -> {
+                    if (!namespaceName.isGlobal()) {
+                        return validateClusterOwnershipAsync(namespaceName.getCluster());
                     }
-                    URI redirect = UriBuilder.fromUri(uri.getRequestUri()).host(replClusterUrl.getHost())
-                            .port(replClusterUrl.getPort()).replaceQueryParam("authoritative", false).build();
-                    if (log.isDebugEnabled()) {
-                        log.debug("[{}] Redirecting the rest call to {}: cluster={}",
-                                clientAppId(), redirect, replCluster);
+                    return CompletableFuture.completedFuture(null);
+                })
+                .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
+                .thenCompose(policies -> {
+                    CompletableFuture<Void> future = CompletableFuture.completedFuture(null);
+                    if (namespaceName.isGlobal()) {
+
+                        if (policies.replication_clusters.size() > 1) {
+                            // There are still more than one clusters configured for the global namespace
+                            throw new RestException(Status.PRECONDITION_FAILED, "Cannot delete the global namespace "
+                                    + namespaceName
+                                    + ". There are still more than one replication clusters configured.");
+                        }
+                        if (policies.replication_clusters.size() == 1
+                                && !policies.replication_clusters.contains(config().getClusterName())) {
+                            // the only replication cluster is other cluster, redirect
+                            String replCluster = Lists.newArrayList(policies.replication_clusters).get(0);
+                            future = clusterResources().getClusterAsync(replCluster)
+                                    .thenCompose(clusterData -> {
+                                        if (clusterData.isEmpty()) {
+                                            throw new RestException(Status.NOT_FOUND,
+                                                    "Cluster " + replCluster + " does not exist");
+                                        }
+                                        ClusterData replClusterData = clusterData.get();
+                                        URL replClusterUrl;
+                                        try {
+                                            if (!config().isTlsEnabled() || !isRequestHttps()) {
+                                                replClusterUrl = new URL(replClusterData.getServiceUrl());
+                                            } else if (StringUtils.isNotBlank(replClusterData.getServiceUrlTls())) {
+                                                replClusterUrl = new URL(replClusterData.getServiceUrlTls());
+                                            } else {
+                                                throw new RestException(Status.PRECONDITION_FAILED,
+                                                        "The replication cluster does not provide TLS encrypted "
+                                                                + "service");
+                                            }
+                                        } catch (MalformedURLException malformedURLException) {
+                                            throw new RestException(malformedURLException);
+                                        }
+
+                                        URI redirect =
+                                                UriBuilder.fromUri(uri.getRequestUri()).host(replClusterUrl.getHost())
+                                                        .port(replClusterUrl.getPort())
+                                                        .replaceQueryParam("authoritative", false).build();
+                                        if (log.isDebugEnabled()) {
+                                            log.debug("[{}] Redirecting the rest call to {}: cluster={}",
+                                                    clientAppId(), redirect, replCluster);
+                                        }
+                                        throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
+                                    });
+                        }
                     }
-                    throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
-                }
-            }
-        } catch (WebApplicationException wae) {
-            throw wae;
-        } catch (Exception e) {
-            throw new RestException(e);
-        }
+                    return future.thenCompose(__ -> {
+                        NamespaceBundle bundle =
+                                validateNamespaceBundleOwnership(namespaceName, policies.bundles, bundleRange,
+                                        authoritative, true);
+                        return pulsar().getNamespaceService().getListOfPersistentTopics(namespaceName)
+                                .thenCompose(topics -> {
+                                    CompletableFuture<Void> deleteTopicsFuture =
+                                            CompletableFuture.completedFuture(null);
+                                    if (force) {
+                                        List<CompletableFuture<NamespaceBundle>> futures = new ArrayList<>();
+                                        for (String topic : topics) {
+                                            futures.add(pulsar().getNamespaceService()
+                                                    .getBundleAsync(TopicName.get(topic))
+                                                    .thenCompose(topicBundle -> {
+                                                        if (bundle.equals(topicBundle)) {
+                                                            throw new RestException(Status.CONFLICT,
+                                                                    "Cannot delete non empty bundle");
+                                                        }
+                                                        return CompletableFuture.completedFuture(null);
+                                                    }));
 
-        try {
-            NamespaceBundle bundle = validateNamespaceBundleOwnership(namespaceName, policies.bundles, bundleRange,
-                authoritative, true);
-            List<String> topics = pulsar().getNamespaceService().getListOfPersistentTopics(namespaceName)
-                    .get(config().getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS);
-            for (String topic : topics) {
-                NamespaceBundle topicBundle = pulsar().getNamespaceService()
-                        .getBundle(TopicName.get(topic));
-                if (bundle.equals(topicBundle)) {
-                    throw new RestException(Status.CONFLICT, "Cannot delete non empty bundle");
-                }
-            }
-
-            // remove from owned namespace map and ephemeral node from ZK
-            pulsar().getNamespaceService().removeOwnedServiceUnit(bundle);
-        } catch (WebApplicationException wae) {
-            throw wae;
-        } catch (Exception e) {
-            log.error("[{}] Failed to remove namespace bundle {}/{}", clientAppId(), namespaceName.toString(),
-                    bundleRange, e);
-            throw new RestException(e);
-        }
-    }
-
-    @SuppressWarnings("deprecation")
-    protected void internalDeleteNamespaceBundleForcefully(String bundleRange, boolean authoritative) {
-        validateNamespaceOperation(namespaceName, NamespaceOperation.DELETE_BUNDLE);
-        validatePoliciesReadOnlyAccess();
-
-        // ensure that non-global namespace is directed to the correct cluster
-        if (!namespaceName.isGlobal()) {
-            validateClusterOwnership(namespaceName.getCluster());
-        }
-
-        Policies policies = getNamespacePolicies(namespaceName);
-        // ensure the local cluster is the only cluster for the global namespace configuration
-        try {
-            if (namespaceName.isGlobal()) {
-                if (policies.replication_clusters.size() > 1) {
-                    // There are still more than one clusters configured for the global namespace
-                    throw new RestException(Status.PRECONDITION_FAILED, "Cannot delete the global namespace "
-                            + namespaceName + ". There are still more than one replication clusters configured.");
-                }
-                if (policies.replication_clusters.size() == 1
-                        && !policies.replication_clusters.contains(config().getClusterName())) {
-                    // the only replication cluster is other cluster, redirect
-                    String replCluster = Lists.newArrayList(policies.replication_clusters).get(0);
-                    ClusterData replClusterData =
-                            clusterResources().getCluster(replCluster)
-                            .orElseThrow(() -> new RestException(Status.NOT_FOUND,
-                                    "Cluster " + replCluster + " does not exist"));
-                    URL replClusterUrl;
-                    if (!config().isTlsEnabled() || !isRequestHttps()) {
-                        replClusterUrl = new URL(replClusterData.getServiceUrl());
-                    } else if (StringUtils.isNotBlank(replClusterData.getServiceUrlTls())) {
-                        replClusterUrl = new URL(replClusterData.getServiceUrlTls());
-                    } else {
-                        throw new RestException(Status.PRECONDITION_FAILED,
-                                "The replication cluster does not provide TLS encrypted service");
-                    }
-                    URI redirect = UriBuilder.fromUri(uri.getRequestUri()).host(replClusterUrl.getHost())
-                            .port(replClusterUrl.getPort())
-                            .replaceQueryParam("authoritative", false).build();
-                    if (log.isDebugEnabled()) {
-                        log.debug("[{}] Redirecting the rest call to {}: cluster={}",
-                                clientAppId(), redirect, replCluster);
-                    }
-                    throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
-                }
-            }
-        } catch (WebApplicationException wae) {
-            throw wae;
-        } catch (Exception e) {
-            throw new RestException(e);
-        }
-
-        try {
-            NamespaceBundle bundle = validateNamespaceBundleOwnership(namespaceName, policies.bundles, bundleRange,
-                authoritative, true);
-            // directly remove from owned namespace map and ephemeral node from ZK
-            pulsar().getNamespaceService().removeOwnedServiceUnit(bundle);
-        } catch (WebApplicationException wae) {
-            throw wae;
-        } catch (Exception e) {
-            log.error("[{}] Failed to remove namespace bundle {}/{}", clientAppId(), namespaceName.toString(),
-                    bundleRange, e);
-            throw new RestException(e);
-        }
+                                        }
+                                        deleteTopicsFuture = FutureUtil.waitForAll(futures);
+                                    }
+                                    return deleteTopicsFuture.thenRun(() -> {
+                                        try {
+                                            pulsar().getNamespaceService().removeOwnedServiceUnit(bundle);
+                                        } catch (Exception e) {
+                                            log.error("[{}] Failed to remove namespace bundle {}/{}",
+                                                    clientAppId(), namespaceName.toString(),
+                                                    bundleRange, e);
+                                            throw new RestException(e);
+                                        }
+                                    });
+                                });
+                    });
+                });
     }
 
     protected void internalGrantPermissionOnNamespace(String role, Set<AuthAction> actions) {
