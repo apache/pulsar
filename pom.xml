@@ -188,7 +188,7 @@ flexible messaging model and an intuitive client API.</description>
     <asynchttpclient.version>2.12.1</asynchttpclient.version>
     <jcommander.version>1.78</jcommander.version>
     <commons-lang3.version>3.11</commons-lang3.version>
-    <commons-configuration.version>1.10</commons-configuration.version>
+    <commons-configuration.version>2.7</commons-configuration.version>
     <commons-io.version>2.8.0</commons-io.version>
     <commons-codec.version>1.15</commons-codec.version>
     <javax.ws.rs-api.version>2.1</javax.ws.rs-api.version>
@@ -665,8 +665,8 @@ flexible messaging model and an intuitive client API.</description>
       </dependency>
 
       <dependency>
-        <groupId>commons-configuration</groupId>
-        <artifactId>commons-configuration</artifactId>
+        <groupId>org.apache.commons</groupId>
+        <artifactId>commons-configuration2</artifactId>
         <version>${commons-configuration.version}</version>
       </dependency>
 
