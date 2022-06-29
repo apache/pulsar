@@ -34,6 +34,7 @@ import java.util.Properties;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.AllArgsConstructor;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.text.StringSubstitutor;
 import org.jline.reader.Completer;
 import org.jline.reader.LineReader;
@@ -243,11 +244,11 @@ public class PulsarShell {
             if (mainOptions.filename != null) {
                 lines = Files.readAllLines(Paths.get(mainOptions.filename))
                         .stream()
-                        .filter(s -> !s.isBlank())
+                        .filter(s -> !StringUtils.isBlank(s))
                         .collect(Collectors.toList());
             } else {
                 try (BufferedReader stdinReader = new BufferedReader(new InputStreamReader(System.in))) {
-                    lines = stdinReader.lines().filter(s -> !s.isBlank()).collect(Collectors.toList());
+                    lines = stdinReader.lines().filter(s -> !StringUtils.isBlank(s)).collect(Collectors.toList());
                 }
             }
             if (!mainOptions.noProgress) {
@@ -297,7 +298,7 @@ public class PulsarShell {
                 exit(0);
                 return;
             }
-            if (line.isBlank()) {
+            if (StringUtils.isBlank(line)) {
                 continue;
             }
             if (isQuitCommand(line)) {
