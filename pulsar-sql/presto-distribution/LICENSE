@@ -232,31 +232,31 @@ The Apache Software License, Version 2.0
     - commons-lang3-3.11.jar
  * Netty
     - netty-3.10.6.Final.jar
-    - netty-buffer-4.1.76.Final.jar
-    - netty-codec-4.1.76.Final.jar
-    - netty-codec-dns-4.1.76.Final.jar
-    - netty-codec-http-4.1.76.Final.jar
-    - netty-codec-haproxy-4.1.76.Final.jar
-    - netty-codec-socks-4.1.76.Final.jar
-    - netty-handler-proxy-4.1.76.Final.jar
-    - netty-common-4.1.76.Final.jar
-    - netty-handler-4.1.76.Final.jar
-    - netty-reactive-streams-2.0.4.jar
-    - netty-resolver-4.1.76.Final.jar
-    - netty-resolver-dns-4.1.76.Final.jar
-    - netty-tcnative-boringssl-static-2.0.51.Final.jar
-    - netty-tcnative-boringssl-static-2.0.51.Final-linux-aarch_64.jar
-    - netty-tcnative-boringssl-static-2.0.51.Final-linux-x86_64.jar
-    - netty-tcnative-boringssl-static-2.0.51.Final-osx-aarch_64.jar
-    - netty-tcnative-boringssl-static-2.0.51.Final-osx-x86_64.jar
-    - netty-tcnative-boringssl-static-2.0.51.Final-windows-x86_64.jar
-    - netty-tcnative-classes-2.0.51.Final.jar
-    - netty-transport-4.1.76.Final.jar
-    - netty-transport-classes-epoll-4.1.76.Final.jar
-    - netty-transport-native-epoll-4.1.76.Final-linux-x86_64.jar
-    - netty-transport-native-unix-common-4.1.76.Final.jar
-    - netty-transport-native-unix-common-4.1.76.Final-linux-x86_64.jar
-    - netty-codec-http2-4.1.76.Final.jar
+    - netty-buffer-4.1.77.Final.jar
+    - netty-codec-4.1.77.Final.jar
+    - netty-codec-dns-4.1.77.Final.jar
+    - netty-codec-http-4.1.77.Final.jar
+    - netty-codec-haproxy-4.1.77.Final.jar
+    - netty-codec-socks-4.1.77.Final.jar
+    - netty-handler-proxy-4.1.77.Final.jar
+    - netty-common-4.1.77.Final.jar
+    - netty-handler-4.1.77.Final.jar
+    - netty-reactive-streams-2.0.6.jar
+    - netty-resolver-4.1.77.Final.jar
+    - netty-resolver-dns-4.1.77.Final.jar
+    - netty-tcnative-boringssl-static-2.0.52.Final.jar
+    - netty-tcnative-boringssl-static-2.0.52.Final-linux-aarch_64.jar
+    - netty-tcnative-boringssl-static-2.0.52.Final-linux-x86_64.jar
+    - netty-tcnative-boringssl-static-2.0.52.Final-osx-aarch_64.jar
+    - netty-tcnative-boringssl-static-2.0.52.Final-osx-x86_64.jar
+    - netty-tcnative-boringssl-static-2.0.52.Final-windows-x86_64.jar
+    - netty-tcnative-classes-2.0.52.Final.jar
+    - netty-transport-4.1.77.Final.jar
+    - netty-transport-classes-epoll-4.1.77.Final.jar
+    - netty-transport-native-epoll-4.1.77.Final-linux-x86_64.jar
+    - netty-transport-native-unix-common-4.1.77.Final.jar
+    - netty-transport-native-unix-common-4.1.77.Final-linux-x86_64.jar
+    - netty-codec-http2-4.1.77.Final.jar
  * GRPC
     - grpc-api-1.45.1.jar
     - grpc-context-1.45.1.jar
@@ -394,17 +394,18 @@ The Apache Software License, Version 2.0
   * Okio
     - okio-1.17.2.jar
   * Presto
-    - presto-array-332.jar
-    - presto-cli-332.jar
-    - presto-client-332.jar
-    - presto-geospatial-toolkit-332.jar
-    - presto-main-332.jar
-    - presto-matching-332.jar
-    - presto-memory-context-332.jar
-    - presto-parser-332.jar
-    - presto-plugin-toolkit-332.jar
-    - presto-spi-332.jar
-    - presto-record-decoder-332.jar
+    - presto-array-334.jar
+    - presto-cli-334.jar
+    - presto-client-334.jar
+    - presto-geospatial-toolkit-334.jar
+    - presto-main-334.jar
+    - presto-matching-334.jar
+    - presto-memory-context-334.jar
+    - presto-parser-334.jar
+    - presto-plugin-toolkit-334.jar
+    - presto-server-main-334.jar
+    - presto-spi-334.jar
+    - presto-record-decoder-334.jar
   * RocksDB JNI
     - rocksdbjni-6.10.2.jar
   * SnakeYAML
@@ -452,7 +453,7 @@ The Apache Software License, Version 2.0
   * GSON
     - gson-2.8.9.jar
   * Snappy
-    - snappy-java-1.1.7.jar
+    - snappy-java-1.1.8.4.jar
   * Jackson
     - jackson-module-parameter-names-2.13.2.jar
   * Java Assist

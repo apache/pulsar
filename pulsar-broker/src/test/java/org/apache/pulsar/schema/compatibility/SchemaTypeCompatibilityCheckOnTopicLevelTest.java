@@ -52,9 +52,6 @@ public class SchemaTypeCompatibilityCheckOnTopicLevelTest extends MockedPulsarSe
     @BeforeMethod
     @Override
     public void setup() throws Exception {
-        conf.setTopicLevelPoliciesEnabled(true);
-        conf.setSystemTopicEnabled(true);
-
         super.internalSetup();
 
         // Setup namespaces

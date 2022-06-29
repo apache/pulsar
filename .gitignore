@@ -43,6 +43,7 @@ nb-configuration.xml
 # Maven
 log/
 target/
+.mvn/wrapper/maven-wrapper.jar
 
 # Python
 *.pyc

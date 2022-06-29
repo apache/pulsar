@@ -1,7 +1,7 @@
 ---
 author: Penghui Li
 authorURL: https://twitter.com/lipenghui6
-title: Apache Pulsar 2.6.0
+title: "Apache Pulsar 2.6.0"
 ---
 We are very glad to see the Apache Pulsar community has successfully released the wonderful 2.6.0 version after accumulated hard work. It is a great milestone for this fast-growing project and the whole Pulsar community. This is the result of a huge effort from the community, with over 450 commits and a long list of new features, improvements, and bug fixes.
 
@@ -18,13 +18,15 @@ This PIP adds support for producing and consuming large size messages by splitti
 Currently, this feature only works for the non-shared subscription and it has client-side changes. You need to upgrade the Pulsar client version to 2.6.0. You can enable the message trunk at the producer side as below.
 
 ```java
+
 client.newProducer()
 	.topic("my-topic")
 	.enableChunking(true)
 	.create();
+
 ```
 
-For more information about PIP-37, see [here](https://github.com/apache/pulsar/wiki/PIP-37:-Large-message-size-handling-in-Pulsar). <br> For more information about implementation details, see [PR-4440](https://github.com/apache/pulsar/pull/4400).
+For more information about PIP-37, see [here](https://github.com/apache/pulsar/wiki/PIP-37:-Large-message-size-handling-in-Pulsar). <br /> For more information about implementation details, see [PR-4440](https://github.com/apache/pulsar/pull/4400).
 
 ### [PIP-39] Namespace change events (system topic)
 
@@ -32,13 +34,13 @@ This PIP introduces the system topic to store namespace change events. Previousl
 
 The original intention of the system topic is to be able to store topic policy in a topic rather than ZooKeeper. So this is the first step to achieve topic level policy. And we can easily add support for the topic level policy with this feature.
 
-For more information about PIP-39, see [here](https://github.com/apache/pulsar/wiki/PIP-39%3A-Namespace-Change-Events).<br> For more information about implementation details, see  [PR-4955](https://github.com/apache/pulsar/pull/4955).
+For more information about PIP-39, see [here](https://github.com/apache/pulsar/wiki/PIP-39%3A-Namespace-Change-Events).<br /> For more information about implementation details, see  [PR-4955](https://github.com/apache/pulsar/pull/4955).
 
 ### [PIP-45] Pluggable metadata interface
 
 We have been advancing to enable Pulsar to use other metastore services rather than ZooKeeper. This PIP converts `ManagedLedger` to use the `MetadataStore` interface. This facilitates the metadata server plug-in process. Through the `MetadataStore` interface, it is easy to add other metadata servers into Pulsar such as [etcd](https://github.com/etcd-io/etcd).
 
-For more information about PIP-45, see [here](https://github.com/apache/pulsar/wiki/PIP-45%3A-Pluggable-metadata-interface). <br> For more information about implementation details, see [PR-5358](https://github.com/apache/pulsar/pull/5358).
+For more information about PIP-45, see [here](https://github.com/apache/pulsar/wiki/PIP-45%3A-Pluggable-metadata-interface). <br /> For more information about implementation details, see [PR-5358](https://github.com/apache/pulsar/pull/5358).
 
 ### [PIP-54] Support acknowledgment at the batch index level
 
@@ -47,16 +49,19 @@ Previously, the broker only tracked the acknowledged state in the batch message 
 This PIP adds support for acknowledging the local batch index of a batch. This feature is not enabled by default. You can enable it in the `broker.conf` as below.
 
 ```
+
 acknowledgmentAtBatchIndexLevelEnabled=true
+
 ```
 
-For more information about PIP-54, see [here](https://github.com/apache/pulsar/wiki/PIP-54:-Support-acknowledgment-at-batch-index-level). <br> For more information about implementation details, see [PR-6052](https://github.com/apache/pulsar/pull/6052).
+For more information about PIP-54, see [here](https://github.com/apache/pulsar/wiki/PIP-54:-Support-acknowledgment-at-batch-index-level). <br /> For more information about implementation details, see [PR-6052](https://github.com/apache/pulsar/pull/6052).
 
 ### [PIP-58] Support consumers setting custom message retry delay
 
 For many online business systems, various exceptions usually occur in business logic processing, so the message needs to be re-consumed, but users hope that this delay time can be controlled flexibly. Previously, processing methods were usually to send messages to special retry topics, because production can specify any delay, so consumers subscribe to the business topic and retry topic at the same time. Now you can set a retry delay for each message as below.
 
 ```java
+
 Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
     .enableRetry(true)
     .receiverQueueSize(100)
@@ -67,52 +72,60 @@ Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
     .subscribe();
 
 consumer.reconsumeLater(message, 10, TimeUnit.SECONDS);
+
 ```
 
-For more information about PIP-58, see [here](https://github.com/apache/pulsar/wiki/PIP-58-%3A-Support-Consumers--Set-Custom-Retry-Delay). <br> For more information about implementation details, see [PR-6449](https://github.com/apache/pulsar/pull/6449).
+For more information about PIP-58, see [here](https://github.com/apache/pulsar/wiki/PIP-58-%3A-Support-Consumers--Set-Custom-Retry-Delay). <br /> For more information about implementation details, see [PR-6449](https://github.com/apache/pulsar/pull/6449).
 
 ### [PIP-60] Support SNI routing to support various proxy servers
 
 Previously, Pulsar did not provide support to use other proxies, such as Apache Traffic Server (ATS), HAProxy, Nginx, and Envoy, which are more scalable and secured. Most of these proxy servers support SNI routing which can route traffic to a destination without having to terminate the SSL connection. This PIP adds SNI routing and makes changes to the Pulsar client.
 
-For more information about PIP-60, see [here](https://github.com/apache/pulsar/wiki/PIP-60:-Support-Proxy-server-with-SNI-routing). <br> For more information about implementation details, see  [PR-6566](https://github.com/apache/pulsar/pull/6566).
+For more information about PIP-60, see [here](https://github.com/apache/pulsar/wiki/PIP-60:-Support-Proxy-server-with-SNI-routing). <br /> For more information about implementation details, see  [PR-6566](https://github.com/apache/pulsar/pull/6566).
 
 ### [PIP-61] Advertise multiple addresses
 
 This PIP allows the broker to expose multiple advertised listeners and to support the separation of internal and external network traffic. You can specify multiple advertised listeners in `broker.conf` as below.
 
 ```
+
 advertisedListeners=internal:pulsar://192.168.1.11:6660,external:pulsar://110.95.234.50:6650
+
 ```
 
 From the client side, you can specify the listener name for the client as below.
 
 ```java
+
 PulsarClient.builder()
     .serviceUrl(url)
     .listenerName("internal")
     .build();
+
 ```
 
-For more information about PIP-61, see [here](https://github.com/apache/pulsar/wiki/PIP-61%3A-Advertised-multiple-addresses). <br> For more information about implementation details, see [PR-6903](https://github.com/apache/pulsar/pull/6903).
+For more information about PIP-61, see [here](https://github.com/apache/pulsar/wiki/PIP-61%3A-Advertised-multiple-addresses). <br /> For more information about implementation details, see [PR-6903](https://github.com/apache/pulsar/pull/6903).
 
 ### [PIP-65] Adapt Pulsar IO sources to support `BatchSources`  
 
 This PIP introduces `BatchSource` as a new interface for writing batch-based connectors. It also introduces `BatchSourceTriggerer` as an interface to trigger the data collection of a `BatchSource`. It then provides system implementation in `BatchSourceExecutor`.
 
-For more information about PIP-65, see [here](https://github.com/apache/pulsar/wiki/PIP-65%3A-Adapting-Pulsar-IO-Sources-to-support-Batch-Sources). <br> For more information about implementation details, see [PR-7090](https://github.com/apache/pulsar/pull/7090).
+For more information about PIP-65, see [here](https://github.com/apache/pulsar/wiki/PIP-65%3A-Adapting-Pulsar-IO-Sources-to-support-Batch-Sources). <br /> For more information about implementation details, see [PR-7090](https://github.com/apache/pulsar/pull/7090).
 
 ### [Load balancer] Add `ThresholdShedder` strategy for the load balancer
 
 The `ThresholdShedder` strategy is more flexible than `LoadSheddingStrategy` for Pulsar. The `ThresholdShedder` calculates the average resource usage of the brokers, and individual broker resource usage compares with the average value. If it is greater than the average value plus threshold, the overload shedder is triggered. You can enable it in `broker.conf` as below.
 
 ```
+
 loadBalancerLoadSheddingStrategy=org.apache.pulsar.broker.loadbalance.impl.ThresholdShedder
+
 ```
 
 You can customize more parameters for the `ThresholdShedder` if needed as below.
 
 ```
+
 # The broker resource usage threshold.
 # When the broker resource usage is greater than the pulsar cluster average resource usage,
 # the threshold shedder will be triggered to offload bundles from the broker.
@@ -146,6 +159,7 @@ loadBalancerDirectMemoryResourceWeight=1.0
 # Bundle unload minimum throughput threshold (MB), avoiding bundle unload frequently.
 # It only takes effect in ThresholdShedder strategy.
 loadBalancerBundleUnloadMinThroughputThreshold=10
+
 ```
 
 For more information about implementation details, see [PR-6772](https://github.com/apache/pulsar/pull/6772).
@@ -155,6 +169,7 @@ For more information about implementation details, see [PR-6772](https://github.
 Previously, the implementation of the Key_Shared subscription used a mechanism to divide their hash space across the available consumers. This was based on dividing the currently assigned hash ranges when a new consumer joined or left. Pulsar 2.6.0 introduces a new consistent hash distribution for the Key_Shared subscription. You can enable the consistent hash distribution in `broker.conf` and the auto split approach is still selected by default.
 
 ```
+
 # On KeyShared subscriptions, with default AUTO_SPLIT mode, use splitting ranges or
 # consistent hashing to reassign keys to new consumers
 subscriptionKeySharedUseConsistentHashing=false
@@ -162,6 +177,7 @@ subscriptionKeySharedUseConsistentHashing=false
 # On KeyShared subscriptions, number of points in the consistent-hashing ring.
 # The higher the number, the more equal the assignment of keys to consumers
 subscriptionKeySharedConsistentHashingReplicaPoints=100
+
 ```
 
 We plan to use consistent hash distribution by default in the subsequent versions.
@@ -174,9 +190,11 @@ This is a great fix for the Key_Shared subscription. Previously, ordering was br
 If you still want the relaxed ordering, you can set up at the consumer side as below.
 
 ```java
+
 pulsarClient.newConsumer()
 	.keySharedPolicy(KeySharedPolicy.autoSplitHashRange().setAllowOutOfOrderDelivery(true))
 	.subscribe();
+
 ```
 
 For more information about implementation details, see [PR-7106](https://github.com/apache/pulsar/pull/7106) and [PR-7108](https://github.com/apache/pulsar/pull/7108).
@@ -186,11 +204,13 @@ For more information about implementation details, see [PR-7106](https://github.
 This PR supports sticky key hash range reader. A broker only dispatches messages whose hash of the message key contains by a specified key hash range. Besides, multiple key hash ranges can be specified on a reader.
 
 ```java
+
 pulsarClient.newReader()
     .topic(topic)
     .startMessageId(MessageId.earliest)
     .keyHashRange(Range.of(0, 10000), Range.of(20001, 30000))
     .create();
+
 ```
 
 For more information about implementation details, see  [PR-5928](https://github.com/apache/pulsar/pull/5928).
@@ -206,6 +226,7 @@ For more information about implementation details, see  [PR-5390](https://github
 This PR allows multiple pulsar clusters to use the specified BookKeeper cluster by pointing BookKeeper client to the ZooKeeper connection string of BookKeeper cluster. This PR adds a configuration (`bookkeeperMetadataServiceUri`) to discover BookKeeper cluster metadata store and uses metadata service URI to initialize BookKeeper clients.
 
 ```
+
 # Metadata service uri that bookkeeper is used for loading corresponding metadata driver
 # and resolving its metadata service location.
 # This value can be fetched using `bookkeeper shell whatisinstanceid` command in BookKeeper cluster.
@@ -213,6 +234,7 @@ This PR allows multiple pulsar clusters to use the specified BookKeeper cluster 
 # The metadata service uri list can also be semicolon separated values like below:
 # zk+hierarchical://zk1:2181;zk2:2181;zk3:2181/ledgers
 bookkeeperMetadataServiceUri=
+
 ```
 
 For more information about implementation details, see [PR-5985](https://github.com/apache/pulsar/pull/5985).
@@ -222,11 +244,13 @@ For more information about implementation details, see [PR-5985](https://github.
 Previously, Pulsar supported deleting inactive topics which do not have active producers and subscriptions. This PR supports deleting inactive topics when all subscriptions of the topic are caught up and when there are no active producers or consumers. This PR exposes inactive topic delete mode in `broker.conf`. In the future, we can support a namespace level configuration for the inactive topic delete mode.
 
 ```
+
 # Set the inactive topic delete mode. Default is delete_when_no_subscriptions
 # 'delete_when_no_subscriptions' mode only delete the topic which has no subscriptions and no active producers
 # 'delete_when_subscriptions_caught_up' mode only delete the topic that all subscriptions has no backlogs(caught up)
 # and no active producers/consumers
 brokerDeleteInactiveTopicsMode=delete_when_no_subscriptions
+
 ```
 
 For more information about implementation details, see [PR-6077](https://github.com/apache/pulsar/pull/6077).
@@ -242,8 +266,10 @@ For more information about implementation details, see [PR-6634](https://github.
 Previously, ZooKeeper cache expiry time was hardcoded and it needed to be configurable to refresh the value based on various requirements, for example, refreshing the value quickly in case of zk-watch miss, avoiding frequent cache refresh to avoid zk-read or avoiding issue due to zk read timeout, and so on. Now you can configure ZooKeeper cache expiry time in `broker.conf` as below.
 
 ```
+
 # ZooKeeper cache expiry time in seconds
 zooKeeperCacheExpirySeconds=300
+
 ```
 
 For more information about implementation details, see [PR-6668](https://github.com/apache/pulsar/pull/6668).
@@ -255,8 +281,10 @@ When a consumer sends a fetch request to a broker server, it contains a fetch me
 You can enable `preciseDispatcherFlowControl` in ` broker.conf` as below.
 
 ```
+
 # Precise dispatcher flow control according to history message number of each entry
 preciseDispatcherFlowControl=false
+
 ```
 
 For more information about implementation details, see  [PR-6719](https://github.com/apache/pulsar/pull/6719)
@@ -266,7 +294,9 @@ For more information about implementation details, see  [PR-6719](https://github
 Previously, Pulsar supported the publish rate limiting but it is not a precise control. Now, for some use cases that need precise control, you can enable it in `broker.conf` as below.
 
 ```
+
 preciseTopicPublishRateLimiterEnable=true
+
 ```
 
 For more information about implementation details, see  [PR-7078](https://github.com/apache/pulsar/pull/7078).
@@ -276,7 +306,9 @@ For more information about implementation details, see  [PR-7078](https://github
 Previously, the check delay of new entries was 10 ms and could not be changed by users. Currently, for consumption latency sensitive scenarios, you can set the value of check delay of new entries to a smaller value or 0 in `broker.conf` as below. Using a smaller value may degrade consumption throughput. 
 
 ```
+
 managedLedgerNewEntriesCheckDelayInMillis=10
+
 ```
 
 For more information about implementation details, see  [PR-7154](https://github.com/apache/pulsar/pull/7154).

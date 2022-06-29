@@ -1,9 +1,15 @@
 ---
-id: version-2.8.0-functions-develop
+id: functions-develop
 title: Develop Pulsar Functions
-sidebar_label: How-to: Develop
+sidebar_label: "How-to: Develop"
 original_id: functions-develop
 ---
+
+````mdx-code-block
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+````
+
 
 You learn how to develop Pulsar Functions with different APIs for Java, Python and Go.
 
@@ -17,9 +23,14 @@ Pulsar Function SDK for Java/Python/Go | Pulsar-specific libraries that provide 
 
 The language-native function, which adds an exclamation point to all incoming strings and publishes the resulting string to a topic, has no external dependencies. The following example is language-native function.
 
-<!--DOCUSAURUS_CODE_TABS-->
-<!--Java-->
+````mdx-code-block
+<Tabs 
+  defaultValue="Java"
+  values={[{"label":"Java","value":"Java"},{"label":"Python","value":"Python"}]}>
+<TabItem value="Java">
+
 ```Java
+
 import java.util.function.Function;
 
 public class JavaNativeExclamationFunction implements Function<String, String> {
@@ -28,33 +39,52 @@ public class JavaNativeExclamationFunction implements Function<String, String> {
         return String.format("%s!", input);
     }
 }
+
 ```
+
 For complete code, see [here](https://github.com/apache/pulsar/blob/master/pulsar-functions/java-examples/src/main/java/org/apache/pulsar/functions/api/examples/JavaNativeExclamationFunction.java).
 
-<!--Python-->
+</TabItem>
+<TabItem value="Python">
+
 ```python
+
 def process(input):
     return "{}!".format(input)
+
 ```
+
 For complete code, see [here](https://github.com/apache/pulsar/blob/master/pulsar-functions/python-examples/native_exclamation_function.py).
 
-> Note
-> You can write Pulsar Functions in python2 or python3. However, Pulsar only looks for `python` as the interpreter.
-> 
-> If you're running Pulsar Functions on an Ubuntu system that only supports python3, you might fail to
-> start the functions. In this case, you can create a symlink. Your system will fail if
-> you subsequently install any other package that depends on Python 2.x. A solution is under development in [Issue 5518](https://github.com/apache/pulsar/issues/5518).
-> 
-> ```bash
-> sudo update-alternatives --install /usr/bin/python python /usr/bin/python3 10
-> ```
+:::note
 
-<!--END_DOCUSAURUS_CODE_TABS-->
+You can write Pulsar Functions in python2 or python3. However, Pulsar only looks for `python` as the interpreter.
+If you're running Pulsar Functions on an Ubuntu system that only supports python3, you might fail to
+start the functions. In this case, you can create a symlink. Your system will fail if
+you subsequently install any other package that depends on Python 2.x. A solution is under development in [Issue 5518](https://github.com/apache/pulsar/issues/5518).
+
+```bash
+
+sudo update-alternatives --install /usr/bin/python python /usr/bin/python3 10
+
+```
+
+:::
+
+</TabItem>
+
+</Tabs>
+````
 
 The following example uses Pulsar Functions SDK.
-<!--DOCUSAURUS_CODE_TABS-->
-<!--Java-->
+````mdx-code-block
+<Tabs 
+  defaultValue="Java"
+  values={[{"label":"Java","value":"Java"},{"label":"Python","value":"Python"},{"label":"Go","value":"Go"}]}>
+<TabItem value="Java">
+
 ```Java
+
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
 
@@ -64,11 +94,16 @@ public class ExclamationFunction implements Function<String, String> {
         return String.format("%s!", input);
     }
 }
+
 ```
+
 For complete code, see [here](https://github.com/apache/pulsar/blob/master/pulsar-functions/java-examples/src/main/java/org/apache/pulsar/functions/api/examples/ExclamationFunction.java).
 
-<!--Python-->
+</TabItem>
+<TabItem value="Python">
+
 ```python
+
 from pulsar import Function
 
 class ExclamationFunction(Function):
@@ -77,11 +112,16 @@ class ExclamationFunction(Function):
 
   def process(self, input, context):
     return input + '!'
+
 ```
+
 For complete code, see [here](https://github.com/apache/pulsar/blob/master/pulsar-functions/python-examples/exclamation_function.py).
 
-<!--Go-->
+</TabItem>
+<TabItem value="Go">
+
 ```Go
+
 package main
 
 import (
@@ -99,10 +139,15 @@ func HandleRequest(ctx context.Context, in []byte) error{
 func main() {
 	pf.Start(HandleRequest)
 }
+
 ```
+
 For complete code, see [here](https://github.com/apache/pulsar/blob/77cf09eafa4f1626a53a1fe2e65dd25f377c1127/pulsar-function-go/examples/inputFunc/inputFunc.go#L20-L36).
 
-<!--END_DOCUSAURUS_CODE_TABS-->
+</TabItem>
+
+</Tabs>
+````
 
 ## Schema registry
 Pulsar has a built-in schema registry and is bundled with popular schema types, such as Avro, JSON and Protobuf. Pulsar Functions can leverage the existing schema information from input topics and derive the input type. The schema registry applies for output topic as well.
@@ -110,31 +155,41 @@ Pulsar has a built-in schema registry and is bundled with popular schema types, 
 ## SerDe
 SerDe stands for **Ser**ialization and **De**serialization. Pulsar Functions uses SerDe when publishing data to and consuming data from Pulsar topics. How SerDe works by default depends on the language you use for a particular function.
 
-<!--DOCUSAURUS_CODE_TABS-->
-<!--Java-->
+````mdx-code-block
+<Tabs 
+  defaultValue="Java"
+  values={[{"label":"Java","value":"Java"},{"label":"Python","value":"Python"},{"label":"Go","value":"Go"}]}>
+<TabItem value="Java">
+
 When you write Pulsar Functions in Java, the following basic Java types are built in and supported by default: `String`, `Double`, `Integer`, `Float`, `Long`, `Short`, and `Byte`.
 
 To customize Java types, you need to implement the following interface.
 
 ```java
+
 public interface SerDe<T> {
     T deserialize(byte[] input);
     byte[] serialize(T input);
 }
+
 ```
+
 SerDe works in the following ways in Java Functions.
 - If the input and output topics have schema, Pulsar Functions use schema for SerDe.
 - If the input or output topics do not exist, Pulsar Functions adopt the following rules to determine SerDe:
   - If the schema type is specified, Pulsar Functions use the specified schema type.
   - If SerDe is specified, Pulsar Functions use the specified SerDe, and the schema type for input and output topics is `Byte`.
-  - If neither the schema type nor SerDe is specified, Pulsar Functions use the built-in SerDe. For non-primitive schema type, the built-in SerDe serializes and deserializes objects in the `JSON` format. 
+  - If neither the schema type nor SerDe is specified, Pulsar Functions use the built-in SerDe. For non-primitive schema type, the built-in SerDe serializes and deserializes objects in the `JSON` format.
 
-<!--Python-->
+</TabItem>
+<TabItem value="Python">
+
 In Python, the default SerDe is identity, meaning that the type is serialized as whatever type the producer function returns.
 
 You can specify the SerDe when [creating](functions-deploy.md#cluster-mode) or [running](functions-deploy.md#local-run-mode) functions. 
 
 ```bash
+
 $ bin/pulsar-admin functions create \
   --tenant public \
   --namespace default \
@@ -144,6 +199,7 @@ $ bin/pulsar-admin functions create \
   --custom-serde-inputs '{"input-topic-1":"Serde1","input-topic-2":"Serde2"}' \
   --output-serde-classname Serde3 \
   --output output-topic-1
+
 ```
 
 This case contains two input topics: `input-topic-1` and `input-topic-2`, each of which is mapped to a different SerDe class (the map must be specified as a JSON string). The output topic, `output-topic-1`, uses the `Serde3` class for SerDe. At the moment, all Pulsar Functions logic, include processing function and SerDe classes, must be contained within a single Python file.
@@ -162,18 +218,27 @@ SerDe option | When to use
 `PickleSerDe` | When you work with complex, application-specific types and are comfortable with the "best effort" approach of `pickle`.
 Custom SerDe | When you require explicit control over SerDe, potentially for performance or data compatibility purposes.
 
-<!--Go-->
+</TabItem>
+<TabItem value="Go">
+
 Currently, the feature is not available in Go.
 
-<!--END_DOCUSAURUS_CODE_TABS-->
+</TabItem>
+
+</Tabs>
+````
 
 ### Example
 Imagine that you're writing Pulsar Functions that are processing tweet objects, you can refer to the following example of `Tweet` class.
 
-<!--DOCUSAURUS_CODE_TABS-->
-<!--Java-->
+````mdx-code-block
+<Tabs 
+  defaultValue="Java"
+  values={[{"label":"Java","value":"Java"},{"label":"Python","value":"Python"}]}>
+<TabItem value="Java">
 
 ```java
+
 public class Tweet {
     private String username;
     private String tweetContent;
@@ -185,11 +250,13 @@ public class Tweet {
 
     // Standard setters and getters
 }
+
 ```
 
 To pass `Tweet` objects directly between Pulsar Functions, you need to provide a custom SerDe class. In the example below, `Tweet` objects are basically strings in which the username and tweet content are separated by a `|`.
 
 ```java
+
 package com.example.serde;
 
 import org.apache.pulsar.functions.api.SerDe;
@@ -207,6 +274,7 @@ public class TweetSerde implements SerDe<Tweet> {
         return "%s|%s".format(input.getUsername(), input.getTweetContent()).getBytes();
     }
 }
+
 ```
 
 To apply this customized SerDe to a particular Pulsar Function, you need to:
@@ -217,22 +285,27 @@ To apply this customized SerDe to a particular Pulsar Function, you need to:
 The following is an example of [`create`](reference-pulsar-admin.md#create-1) operation.
 
 ```bash
+
 $ bin/pulsar-admin functions create \
   --jar /path/to/your.jar \
   --output-serde-classname com.example.serde.TweetSerde \
   # Other function attributes
+
 ```
 
 > #### Custom SerDe classes must be packaged with your function JARs
 > Pulsar does not store your custom SerDe classes separately from your Pulsar Functions. So you need to include your SerDe classes in your function JARs. If not, Pulsar returns an error.
 
-<!--Python-->
+</TabItem>
+<TabItem value="Python">
 
 ```python
+
 class Tweet(object):
     def __init__(self, username, tweet_content):
         self.username = username
         self.tweet_content = tweet_content
+
 ```
 
 In order to use this class in Pulsar Functions, you have two options:
@@ -241,20 +314,26 @@ In order to use this class in Pulsar Functions, you have two options:
 2. You can create your own SerDe class. The following is an example.
 
   ```python
-from pulsar import SerDe
-
-class TweetSerDe(SerDe):
-
-    def serialize(self, input):
-        return bytes("{0}|{1}".format(input.username, input.tweet_content))
-
-    def deserialize(self, input_bytes):
-        tweet_components = str(input_bytes).split('|')
-        return Tweet(tweet_components[0], tweet_componentsp[1])
+  
+  from pulsar import SerDe
+  
+  class TweetSerDe(SerDe):
+  
+      def serialize(self, input):
+          return bytes("{0}|{1}".format(input.username, input.tweet_content))
+  
+      def deserialize(self, input_bytes):
+          tweet_components = str(input_bytes).split('|')
+          return Tweet(tweet_components[0], tweet_componentsp[1])
+  
   ```
+
 For complete code, see [here](https://github.com/apache/pulsar/blob/master/pulsar-functions/python-examples/custom_object_function.py).
 
-<!--END_DOCUSAURUS_CODE_TABS-->
+</TabItem>
+
+</Tabs>
+````
 
 In both languages, however, you can write custom SerDe logic for more complex, application-specific types.
 
@@ -278,11 +357,16 @@ Java, Python and Go SDKs provide access to a **context object** that can be used
 * A function to ack the message being processed (if auto-ack is disabled).
 * (Java) get Pulsar admin client.
 
-<!--DOCUSAURUS_CODE_TABS-->
-<!--Java-->
+````mdx-code-block
+<Tabs 
+  defaultValue="Java"
+  values={[{"label":"Java","value":"Java"},{"label":"Python","value":"Python"},{"label":"Go","value":"Go"}]}>
+<TabItem value="Java">
+
 The [Context](https://github.com/apache/pulsar/blob/master/pulsar-functions/api-java/src/main/java/org/apache/pulsar/functions/api/Context.java) interface provides a number of methods that you can use to access the function [context](#context). The various method signatures for the `Context` interface are listed as follows.
 
 ```java
+
 public interface Context {
     Record<?> getCurrentRecord();
     Collection<String> getInputTopics();
@@ -315,11 +399,13 @@ public interface Context {
     PulsarAdmin getPulsarAdmin();
     PulsarAdmin getPulsarAdmin(String clusterName);
 }
+
 ```
 
 The following example uses several methods available via the `Context` object.
 
 ```java
+
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
 import org.slf4j.Logger;
@@ -344,10 +430,14 @@ public class ContextFunction implements Function<String, Void> {
         return null;
     }
 }
+
 ```
 
-<!--Python-->
+</TabItem>
+<TabItem value="Python">
+
 ```
+
 class ContextImpl(pulsar.Context):
   def get_message_id(self):
     ...
@@ -408,10 +498,14 @@ class ContextImpl(pulsar.Context):
     ...
   def get_state(self, key):
     ...
+
 ```
 
-<!--Go-->
+</TabItem>
+<TabItem value="Go">
+
 ```
+
 func (c *FunctionContext) GetInstanceID() int {
 	return c.instanceConf.instanceID
 }
@@ -463,11 +557,13 @@ func (c *FunctionContext) GetCurrentRecord() pulsar.Message {
 func (c *FunctionContext) NewOutputMessage(topic string) pulsar.Producer {
 	return c.outputMessage(topic)
 }
+
 ```
 
 The following example uses several methods available via the `Context` object.
 
 ```
+
 import (
     "context"
     "fmt"
@@ -481,35 +577,48 @@ func contextFunc(ctx context.Context) {
         fmt.Printf("function version is:%s\n", fc.GetFuncVersion())
     }
 }
+
 ```
 
 For complete code, see [here](https://github.com/apache/pulsar/blob/77cf09eafa4f1626a53a1fe2e65dd25f377c1127/pulsar-function-go/examples/contextFunc/contextFunc.go#L29-L34).
 
-<!--END_DOCUSAURUS_CODE_TABS-->
+</TabItem>
+
+</Tabs>
+````
 
 ### User config
 When you run or update Pulsar Functions created using SDK, you can pass arbitrary key/values to them with the command line with the `--user-config` flag. Key/values must be specified as JSON. The following function creation command passes a user configured key/value to a function.
 
 ```bash
+
 $ bin/pulsar-admin functions create \
   --name word-filter \
   # Other function configs
   --user-config '{"forbidden-word":"rosebud"}'
+
 ```
 
-<!--DOCUSAURUS_CODE_TABS-->
-<!--Java--> 
+````mdx-code-block
+<Tabs 
+  defaultValue="Java"
+  values={[{"label":"Java","value":"Java"},{"label":"Python","value":"Python"},{"label":"Go","value":"Go"}]}>
+<TabItem value="Java"> 
+
 The Java SDK [`Context`](#context) object enables you to access key/value pairs provided to Pulsar Functions via the command line (as JSON). The following example passes a key/value pair.
 
 ```bash
+
 $ bin/pulsar-admin functions create \
   # Other function configs
   --user-config '{"word-of-the-day":"verdure"}'
+
 ```
 
 To access that value in a Java function:
 
 ```java
+
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
 import org.slf4j.Logger;
@@ -529,6 +638,7 @@ public class UserConfigFunction implements Function<String, Void> {
         return null;
     }
 }
+
 ```
 
 The `UserConfigFunction` function will log the string `"The word of the day is verdure"` every time the function is invoked (which means every time a message arrives). The `word-of-the-day` user config will be changed only when the function is updated with a new config value via the command line.
@@ -536,19 +646,24 @@ The `UserConfigFunction` function will log the string `"The word of the day is v
 You can also access the entire user config map or set a default value in case no value is present:
 
 ```java
+
 // Get the whole config map
 Map<String, String> allConfigs = context.getUserConfigMap();
 
 // Get value or resort to default
 String wotd = context.getUserConfigValueOrDefault("word-of-the-day", "perspicacious");
+
 ```
 
 > For all key/value pairs passed to Java functions, both the key *and* the value are `String`. To set the value to be a different type, you need to deserialize from the `String` type.
 
-<!--Python-->
+</TabItem>
+<TabItem value="Python">
+
 In Python function, you can access the configuration value like this.
 
 ```python
+
 from pulsar import Function
 
 class WordFilter(Function):
@@ -562,19 +677,23 @@ class WordFilter(Function):
         # Otherwise publish the message
         else:
             return input
+
 ```
 
 The Python SDK [`Context`](#context) object enables you to access key/value pairs provided to Pulsar Functions via the command line (as JSON). The following example passes a key/value pair.
 
 ```bash
+
 $ bin/pulsar-admin functions create \
   # Other function configs \
   --user-config '{"word-of-the-day":"verdure"}'
+
 ```
 
 To access that value in a Python function:
 
 ```python
+
 from pulsar import Function
 
 class UserConfigFunction(Function):
@@ -585,20 +704,26 @@ class UserConfigFunction(Function):
             logger.warn('No word of the day provided')
         else:
             logger.info("The word of the day is {0}".format(wotd))
+
 ```
-<!--Go-->
+
+</TabItem>
+<TabItem value="Go">
 
 The Go SDK [`Context`](#context) object enables you to access key/value pairs provided to Pulsar Functions via the command line (as JSON). The following example passes a key/value pair.
 
 ```bash
+
 $ bin/pulsar-admin functions create \
   --go path/to/go/binary
   --user-config '{"word-of-the-day":"lackadaisical"}'
+
 ```
 
 To access that value in a Go function:
 
 ```go
+
 func contextFunc(ctx context.Context) {
   fc, ok := pf.FromContext(ctx)
   if !ok {
@@ -613,17 +738,26 @@ func contextFunc(ctx context.Context) {
     logutil.Infof("The word of the day is %s", wotd.(string))
   }
 }
+
 ```
 
-<!--END_DOCUSAURUS_CODE_TABS-->
+</TabItem>
+
+</Tabs>
+````
 
 ### Logger
 
-<!--DOCUSAURUS_CODE_TABS-->
-<!--Java-->
+````mdx-code-block
+<Tabs 
+  defaultValue="Java"
+  values={[{"label":"Java","value":"Java"},{"label":"Python","value":"Python"},{"label":"Go","value":"Go"}]}>
+<TabItem value="Java">
+
 Pulsar Functions that use the Java SDK have access to an [SLF4j](https://www.slf4j.org/) [`Logger`](https://www.slf4j.org/api/org/apache/log4j/Logger.html) object that can be used to produce logs at the chosen log level. The following example logs either a `WARNING`- or `INFO`-level log based on whether the incoming string contains the word `danger`.
 
 ```java
+
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
 import org.slf4j.Logger;
@@ -643,16 +777,19 @@ public class LoggingFunction implements Function<String, Void> {
         return null;
     }
 }
+
 ```
 
 If you want your function to produce logs, you need to specify a log topic when creating or running the function. The following is an example.
 
 ```bash
+
 $ bin/pulsar-admin functions create \
   --jar my-functions.jar \
   --classname my.package.LoggingFunction \
   --log-topic persistent://public/default/logging-function-logs \
   # Other function configs
+
 ```
 
 All logs produced by `LoggingFunction` above can be accessed via the `persistent://public/default/logging-function-logs` topic.
@@ -662,6 +799,7 @@ Additionally, you can use the XML file, `functions_log4j2.xml`, to customize the
 To customize the function log level, create or update `functions_log4j2.xml` in your Pulsar conf directory (for example, `/etc/pulsar/` on bare-metal, or `/pulsar/conf` on Kubernetes) to contain contents such as:
 
 ```xml
+
 <Configuration>
     <name>pulsar-functions-instance</name>
     <monitorInterval>30</monitorInterval>
@@ -772,17 +910,24 @@ To customize the function log level, create or update `functions_log4j2.xml` in 
         </Root>
     </Loggers>
 </Configuration>
+
 ```
 
 The properties set like:
+
 ```xml
+
         <Property>
             <name>pulsar.log.level</name>
             <value>debug</value>
         </Property>
+
 ```
+
 propagate to places where they are referenced, such as:
+
 ```xml
+
         <Root>
             <level>${sys:pulsar.log.level}</level>
             <AppenderRef>
@@ -790,11 +935,14 @@ propagate to places where they are referenced, such as:
                 <level>${sys:pulsar.log.level}</level>
             </AppenderRef>
         </Root>
+
 ```
+
 In the above example, debug level logging would be applied to ALL function logs. 
 This may be more verbose than you desire. To be more selective, you can apply different log levels to different classes or modules. For example:
 
 ```xml
+
         <Logger>
             <name>com.example.module</name>
             <level>info</level>
@@ -803,9 +951,13 @@ This may be more verbose than you desire. To be more selective, you can apply di
                 <ref>${sys:pulsar.log.appender}</ref>
             </AppenderRef>
         </Logger>
+
 ```
+
 You can be more specific as well, such as applying a more verbose log level to a class in the module, such as:
+
 ```xml
+
         <Logger>
             <name>com.example.module.className</name>
             <level>debug</level>
@@ -814,19 +966,26 @@ You can be more specific as well, such as applying a more verbose log level to a
                 <ref>Console</ref>
             </AppenderRef>
         </Logger>
+
 ```
 
 Each `<AppenderRef>` entry allows you to output the log to a target specified in the definition of the Appender.
 
 Additivity pertains to whether log messages will be duplicated if multiple Logger entries overlap.
 To disable additivity, specify
+
 ```xml 
+
 <additivity>false</additivity>
+
 ```
+
 as shown in examples above. Disabling additivity prevents duplication of log messages when one or more `<Logger>` entries contain classes or modules that overlap.
 
 The `<AppenderRef>` is defined in the `<Appenders>` section, such as:
+
 ```xml
+
 <Console>
   <name>Console</name>
   <target>SYSTEM_OUT</target>
@@ -834,12 +993,16 @@ The `<AppenderRef>` is defined in the `<Appenders>` section, such as:
     <Pattern>%d{ISO8601_OFFSET_DATE_TIME_HHMM} [%t] %-5level %logger{36} - %msg%n</Pattern>
   </PatternLayout>
 </Console>
+
 ```
 
-<!--Python-->
+</TabItem>
+<TabItem value="Python">
+
 Pulsar Functions that use the Python SDK have access to a logging object that can be used to produce logs at the chosen log level. The following example function that logs either a `WARNING`- or `INFO`-level log based on whether the incoming string contains the word `danger`.
 
 ```python
+
 from pulsar import Function
 
 class LoggingFunction(Function):
@@ -850,25 +1013,31 @@ class LoggingFunction(Function):
             logger.warn("A warning was received in message {0}".format(context.get_message_id()))
         else:
             logger.info("Message {0} received\nContent: {1}".format(msg_id, input))
+
 ```
 
 If you want your function to produce logs on a Pulsar topic, you need to specify a **log topic** when creating or running the function. The following is an example.
 
 ```bash
+
 $ bin/pulsar-admin functions create \
   --py logging_function.py \
   --classname logging_function.LoggingFunction \
   --log-topic logging-function-logs \
   # Other function configs
+
 ```
 
 All logs produced by `LoggingFunction` above can be accessed via the `logging-function-logs` topic.
 Additionally, you can specify the function log level through the broker XML file as described in [Customize Function log level](#customize-function-log-level).
 
-<!--Go-->
+</TabItem>
+<TabItem value="Go">
+
 The following Go Function example shows different log levels based on the function input.
 
 ```
+
 import (
     "context"
 
@@ -888,24 +1057,32 @@ func loggerFunc(ctx context.Context, input []byte) {
 func main() {
 	pf.Start(loggerFunc)
 }
+
 ```
 
 When you use `logTopic` related functionalities in Go Function, import `github.com/apache/pulsar/pulsar-function-go/logutil`, and you do not have to use the `getLogger()` context object.
 
 Additionally, you can specify the function log level through the broker XML file, as described here: [Customize Function log level](#customize-function-log-level)
 
-<!--END_DOCUSAURUS_CODE_TABS-->
+</TabItem>
+
+</Tabs>
+````
 
 ### Pulsar admin
 
 Pulsar Functions using the Java SDK has access to the Pulsar admin client, which allows the Pulsar admin client to manage API calls to current Pulsar clusters or external clusters (if `external-pulsars` is provided).
 
-<!--DOCUSAURUS_CODE_TABS-->
-<!--Java-->
+````mdx-code-block
+<Tabs 
+  defaultValue="Java"
+  values={[{"label":"Java","value":"Java"}]}>
+<TabItem value="Java">
 
 Below is an example of how to use the Pulsar admin client exposed from the Function `context`.
 
 ```
+
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
@@ -933,33 +1110,41 @@ public class CursorManagementFunction implements Function<String, String> {
         return null;
     }
 }
+
 ```
 
 If you want your function to get access to the Pulsar admin client, you need to enable this feature by setting `exposeAdminClientEnabled=true` in the `functions_worker.yml` file. You can test whether this feature is enabled or not using the command `pulsar-admin functions localrun` with the flag `--web-service-url`.
 
 ```
+
 $ bin/pulsar-admin functions localrun \
  --jar my-functions.jar \
  --classname my.package.CursorManagementFunction \
  --web-service-url http://pulsar-web-service:8080 \
  # Other function configs
+
 ```
 
-<!--END_DOCUSAURUS_CODE_TABS-->
+</TabItem>
+
+</Tabs>
+````
 
 ## Metrics
 
 Pulsar Functions allows you to deploy and manage processing functions that consume messages from and publish messages to Pulsar topics easily. It is important to ensure that the running functions are healthy at any time. Pulsar Functions can publish arbitrary metrics to the metrics interface which can be queried. 
 
-> **Note**
-> 
-> If a Pulsar Function uses the language-native interface for Java or Python, that function is not able to publish metrics and stats to Pulsar.
+:::note
+
+If a Pulsar Function uses the language-native interface for Java or Python, that function is not able to publish metrics and stats to Pulsar.
+
+:::
 
 You can monitor Pulsar Functions that have been deployed with the following methods:
 
 - Check the metrics provided by Pulsar.
 
-  Pulsar Functions expose the metrics that can be collected and used for monitoring the health of **Java, Python, and Go** functions. You can check the metrics by following the [monitoring](deploy-monitoring.md) guide.
+  Pulsar Functions expose the metrics that can be collected and used for monitoring the health of **Java, Python, and Go** functions. You can check the metrics by following the [monitoring](deploy-monitoring) guide.
 
   For the complete list of the function metrics, see [here](reference-metrics.md#pulsar-functions).
 
@@ -969,11 +1154,16 @@ You can monitor Pulsar Functions that have been deployed with the following meth
 
 Here are examples of how to customize metrics for Java and Python functions.
 
-<!--DOCUSAURUS_CODE_TABS-->
-<!--Java-->
+````mdx-code-block
+<Tabs 
+  defaultValue="Java"
+  values={[{"label":"Java","value":"Java"},{"label":"Python","value":"Python"},{"label":"Go","value":"Go"}]}>
+<TabItem value="Java">
+
 You can record metrics using the [`Context`](#context) object on a per-key basis. For example, you can set a metric for the `process-count` key and a different metric for the `elevens-count` key every time the function processes a message. 
 
 ```java
+
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
 
@@ -991,12 +1181,16 @@ public class MetricRecorderFunction implements Function<Integer, Void> {
         return null;
     }
 }
+
 ```
 
-<!--Python-->
+</TabItem>
+<TabItem value="Python">
+
 You can record metrics using the [`Context`](#context) object on a per-key basis. For example, you can set a metric for the `process-count` key and a different metric for the `elevens-count` key every time the function processes a message. The following is an example.
 
 ```python
+
 from pulsar import Function
 
 class MetricRecorderFunction(Function):
@@ -1005,15 +1199,22 @@ class MetricRecorderFunction(Function):
 
         if input == 11:
             context.record_metric('elevens-count', 1)
+
 ```
-<!--Go-->
+
+</TabItem>
+<TabItem value="Go">
+
 Currently, the feature is not available in Go.
 
-<!--END_DOCUSAURUS_CODE_TABS-->
+</TabItem>
+
+</Tabs>
+````
 
 ## Security
 
-If you want to enable security on Pulsar Functions, first you should enable security on [Functions Workers](functions-worker.md). For more details, refer to [Security settings](functions-worker.md#security-settings).
+If you want to enable security on Pulsar Functions, first you should enable security on [Functions Workers](functions-worker). For more details, refer to [Security settings](functions-worker.md#security-settings).
 
 Pulsar Functions can support the following providers:
 
@@ -1024,11 +1225,16 @@ Pulsar Functions can support the following providers:
 
 At the same time, Pulsar Functions provides two interfaces, **SecretsProvider** and **SecretsProviderConfigurator**, allowing users to customize secret provider.
 
-<!--DOCUSAURUS_CODE_TABS-->
-<!--Java-->
+````mdx-code-block
+<Tabs 
+  defaultValue="Java"
+  values={[{"label":"Java","value":"Java"},{"label":"Python","value":"Python"},{"label":"Go","value":"Go"}]}>
+<TabItem value="Java">
+
 You can get secret provider using the [`Context`](#context) object. The following is an example:
 
 ```java
+
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
 import org.slf4j.Logger;
@@ -1049,12 +1255,16 @@ public class GetSecretProviderFunction implements Function<String, Void> {
         return null;
     }
 }
+
 ```
 
-<!--Python-->
+</TabItem>
+<TabItem value="Python">
+
 You can get secret provider using the [`Context`](#context) object. The following is an example:
 
 ```python
+
 from pulsar import Function
 
 class GetSecretProviderFunction(Function):
@@ -1065,13 +1275,18 @@ class GetSecretProviderFunction(Function):
             logger.warn('No secret provider')
         else:
             logger.info("The secret provider is {0}".format(secret_provider))
+
 ```
 
+</TabItem>
+<TabItem value="Go">
 
-<!--Go-->
 Currently, the feature is not available in Go.
 
-<!--END_DOCUSAURUS_CODE_TABS-->
+</TabItem>
+
+</Tabs>
+````
 
 ## State storage
 Pulsar Functions use [Apache BookKeeper](https://bookkeeper.apache.org) as a state storage interface. Pulsar installation, including the local standalone installation, includes deployment of BookKeeper bookies.
@@ -1082,24 +1297,33 @@ States are key-value pairs, where the key is a string and the value is arbitrary
 
 You can access states within Pulsar Java Functions using the `putState`, `putStateAsync`, `getState`, `getStateAsync`, `incrCounter`, `incrCounterAsync`,  `getCounter`, `getCounterAsync` and `deleteState` calls on the context object. You can access states within Pulsar Python Functions using the `putState`, `getState`, `incrCounter`, `getCounter` and `deleteState` calls on the context object. You can also manage states using the [querystate](#query-state) and [putstate](#putstate) options to `pulsar-admin functions`.
 
-> Note  
-> State storage is not available in Go.
+:::note
+
+State storage is not available in Go.
+
+:::
 
 ### API
 
-<!--DOCUSAURUS_CODE_TABS-->
-<!--Java-->
+````mdx-code-block
+<Tabs 
+  defaultValue="Java"
+  values={[{"label":"Java","value":"Java"},{"label":"Python","value":"Python"}]}>
+<TabItem value="Java">
+
 Currently Pulsar Functions expose the following APIs for mutating and accessing State. These APIs are available in the [Context](functions-develop.md#context) object when you are using Java SDK functions.
 
 #### incrCounter
 
 ```java
+
     /**
      * Increment the builtin distributed counter referred by key
      * @param key The name of the key
      * @param amount The amount to be incremented
      */
     void incrCounter(String key, long amount);
+
 ```
 
 The application can use `incrCounter` to change the counter of a given `key` by the given `amount`.
@@ -1107,6 +1331,7 @@ The application can use `incrCounter` to change the counter of a given `key` by 
 #### incrCounterAsync
 
 ```java
+
      /**
      * Increment the builtin distributed counter referred by key
      * but dont wait for the completion of the increment operation
@@ -1115,6 +1340,7 @@ The application can use `incrCounter` to change the counter of a given `key` by 
      * @param amount The amount to be incremented
      */
     CompletableFuture<Void> incrCounterAsync(String key, long amount);
+
 ```
 
 The application can use `incrCounterAsync` to asynchronously change the counter of a given `key` by the given `amount`.
@@ -1122,6 +1348,7 @@ The application can use `incrCounterAsync` to asynchronously change the counter 
 #### getCounter
 
 ```java
+
     /**
      * Retrieve the counter value for the key.
      *
@@ -1129,6 +1356,7 @@ The application can use `incrCounterAsync` to asynchronously change the counter 
      * @return the amount of the counter value for this key
      */
     long getCounter(String key);
+
 ```
 
 The application can use `getCounter` to retrieve the counter of a given `key` mutated by `incrCounter`.
@@ -1139,6 +1367,7 @@ general key/value state.
 #### getCounterAsync
 
 ```java
+
      /**
      * Retrieve the counter value for the key, but don't wait
      * for the operation to be completed
@@ -1147,6 +1376,7 @@ general key/value state.
      * @return the amount of the counter value for this key
      */
     CompletableFuture<Long> getCounterAsync(String key);
+
 ```
 
 The application can use `getCounterAsync` to asynchronously retrieve the counter of a given `key` mutated by `incrCounterAsync`.
@@ -1154,6 +1384,7 @@ The application can use `getCounterAsync` to asynchronously retrieve the counter
 #### putState
 
 ```java
+
     /**
      * Update the state value for the key.
      *
@@ -1161,11 +1392,13 @@ The application can use `getCounterAsync` to asynchronously retrieve the counter
      * @param value state value of the key
      */
     void putState(String key, ByteBuffer value);
+
 ```
 
 #### putStateAsync
 
 ```java
+
     /**
      * Update the state value for the key, but don't wait for the operation to be completed
      *
@@ -1173,6 +1406,7 @@ The application can use `getCounterAsync` to asynchronously retrieve the counter
      * @param value state value of the key
      */
     CompletableFuture<Void> putStateAsync(String key, ByteBuffer value);
+
 ```
 
 The application can use `putStateAsync` to asynchronously update the state of a given `key`.
@@ -1180,6 +1414,7 @@ The application can use `putStateAsync` to asynchronously update the state of a 
 #### getState
 
 ```java
+
     /**
      * Retrieve the state value for the key.
      *
@@ -1187,11 +1422,13 @@ The application can use `putStateAsync` to asynchronously update the state of a 
      * @return the state value for the key.
      */
     ByteBuffer getState(String key);
+
 ```
 
 #### getStateAsync
 
 ```java
+
     /**
      * Retrieve the state value for the key, but don't wait for the operation to be completed
      *
@@ -1199,6 +1436,7 @@ The application can use `putStateAsync` to asynchronously update the state of a 
      * @return the state value for the key.
      */
     CompletableFuture<ByteBuffer> getStateAsync(String key);
+
 ```
 
 The application can use `getStateAsync` to asynchronously retrieve the state of a given `key`.
@@ -1206,23 +1444,29 @@ The application can use `getStateAsync` to asynchronously retrieve the state of 
 #### deleteState
 
 ```java
+
     /**
      * Delete the state value for the key.
      *
      * @param key   name of the key
      */
+
 ```
 
 Counters and binary values share the same keyspace, so this deletes either type.
 
-<!--Python-->
+</TabItem>
+<TabItem value="Python">
+
 Currently Pulsar Functions expose the following APIs for mutating and accessing State. These APIs are available in the [Context](#context) object when you are using Python SDK functions.
 
 #### incr_counter
 
 ```python
+
   def incr_counter(self, key, amount):
-    """incr the counter of a given key in the managed state"""
+    ""incr the counter of a given key in the managed state""
+
 ```
 
 Application can use `incr_counter` to change the counter of a given `key` by the given `amount`.
@@ -1231,8 +1475,10 @@ If the `key` does not exist, a new key is created.
 #### get_counter
 
 ```python
+
   def get_counter(self, key):
     """get the counter of a given key in the managed state"""
+
 ```
 
 Application can use `get_counter` to retrieve the counter of a given `key` mutated by `incrCounter`.
@@ -1243,8 +1489,10 @@ general key/value state.
 #### put_state
 
 ```python
+
   def put_state(self, key, value):
     """update the value of a given key in the managed state"""
+
 ```
 
 The key is a string, and the value is arbitrary binary data.
@@ -1252,20 +1500,27 @@ The key is a string, and the value is arbitrary binary data.
 #### get_state
 
 ```python
+
   def get_state(self, key):
     """get the value of a given key in the managed state"""
+
 ```
 
 #### del_counter
 
 ```python
+
   def del_counter(self, key):
     """delete the counter of a given key in the managed state"""
+
 ```
 
 Counters and binary values share the same keyspace, so this deletes either type.
 
-<!--END_DOCUSAURUS_CODE_TABS-->
+</TabItem>
+
+</Tabs>
+````
 
 ### Query State
 
@@ -1274,6 +1529,7 @@ and retrieving state back from Pulsar's state storage. Additionally Pulsar also 
 CLI commands for querying its state.
 
 ```shell
+
 $ bin/pulsar-admin functions querystate \
     --tenant <tenant> \
     --namespace <namespace> \
@@ -1281,19 +1537,24 @@ $ bin/pulsar-admin functions querystate \
     --state-storage-url <bookkeeper-service-url> \
     --key <state-key> \
     [---watch]
+
 ```
 
 If `--watch` is specified, the CLI will watch the value of the provided `state-key`.
 
 ### Example
 
-<!--DOCUSAURUS_CODE_TABS-->
-<!--Java-->
+````mdx-code-block
+<Tabs 
+  defaultValue="Java"
+  values={[{"label":"Java","value":"Java"},{"label":"Python","value":"Python"}]}>
+<TabItem value="Java">
 
-{@inject: github:`WordCountFunction`:/pulsar-functions/java-examples/src/main/java/org/apache/pulsar/functions/api/examples/WordCountFunction.java} is a very good example
+{@inject: github:WordCountFunction:/pulsar-functions/java-examples/src/main/java/org/apache/pulsar/functions/api/examples/WordCountFunction.java} is a very good example
 demonstrating on how Application can easily store `state` in Pulsar Functions.
 
 ```java
+
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
 
@@ -1306,6 +1567,7 @@ public class WordCountFunction implements Function<String, Void> {
         return null;
     }
 }
+
 ```
 
 The logic of this `WordCount` function is pretty simple and straightforward:
@@ -1313,15 +1575,18 @@ The logic of this `WordCount` function is pretty simple and straightforward:
 1. The function first splits the received `String` into multiple words using regex `\\.`.
 2. For each `word`, the function increments the corresponding `counter` by 1 (via `incrCounter(key, amount)`).
 
-<!--Python-->
+</TabItem>
+<TabItem value="Python">
 
 ```python
+
 from pulsar import Function
 
 class WordCount(Function):
     def process(self, item, context):
         for word in item.split():
             context.incr_counter(word, 1)
+
 ```
 
 The logic of this `WordCount` function is pretty simple and straightforward:
@@ -1329,4 +1594,7 @@ The logic of this `WordCount` function is pretty simple and straightforward:
 1. The function first splits the received string into multiple words on space.
 2. For each `word`, the function increments the corresponding `counter` by 1 (via `incr_counter(key, amount)`).
 
-<!--END_DOCUSAURUS_CODE_TABS-->
+</TabItem>
+
+</Tabs>
+````

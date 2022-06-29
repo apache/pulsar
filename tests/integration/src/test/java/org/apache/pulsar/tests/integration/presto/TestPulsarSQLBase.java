@@ -28,8 +28,12 @@ import java.sql.Timestamp;
 import java.time.Duration;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.naming.TopicName;
@@ -39,9 +43,6 @@ import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.suites.PulsarSQLTestSuite;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.awaitility.Awaitility;
-import org.testcontainers.shaded.okhttp3.OkHttpClient;
-import org.testcontainers.shaded.okhttp3.Request;
-import org.testcontainers.shaded.okhttp3.Response;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 
@@ -267,16 +268,33 @@ public class TestPulsarSQLBase extends PulsarSQLTestSuite {
     }
 
     public ContainerExecResult execQuery(final String query) throws Exception {
+        return execQuery(query, null);
+    }
+
+    public ContainerExecResult execQuery(final String query, Map<String, String> extraCredentials) throws Exception {
         ContainerExecResult containerExecResult;
 
+        StringBuilder extraCredentialsString = new StringBuilder(" ");
+
+        if (extraCredentials != null) {
+            for (Map.Entry<String, String> entry : extraCredentials.entrySet()) {
+                extraCredentialsString.append(
+                        String.format("--extra-credential %s=%s ", entry.getKey(), entry.getValue()));
+            }
+        }
+
         containerExecResult = pulsarCluster.getPrestoWorkerContainer()
-                .execCmd("/bin/bash", "-c", PulsarCluster.PULSAR_COMMAND_SCRIPT + " sql --execute " + "'" + query + "'");
+                .execCmd("/bin/bash", "-c",
+                        PulsarCluster.PULSAR_COMMAND_SCRIPT + " sql" + extraCredentialsString + "--execute " + "'"
+                                + query + "'");
 
         Stopwatch sw = Stopwatch.createStarted();
         while (containerExecResult.getExitCode() != 0 && sw.elapsed(TimeUnit.SECONDS) < 120) {
             TimeUnit.MILLISECONDS.sleep(500);
             containerExecResult = pulsarCluster.getPrestoWorkerContainer()
-                    .execCmd("/bin/bash", "-c", PulsarCluster.PULSAR_COMMAND_SCRIPT + " sql --execute " + "'" + query + "'");
+                    .execCmd("/bin/bash", "-c",
+                            PulsarCluster.PULSAR_COMMAND_SCRIPT + " sql" + extraCredentialsString + "--execute " + "'"
+                                    + query + "'");
         }
 
         return containerExecResult;

@@ -89,8 +89,6 @@ public class TestAvroDecoder extends AbstractDecoderTester {
         message.longField = 222L;
         message.timestampField = System.currentTimeMillis();
         message.enumField = DecoderTestMessage.TestEnum.TEST_ENUM_1;
-        message.decimalField = BigDecimal.valueOf(2233, 2);
-        message.longDecimalField = new BigDecimal("1234567891234567891234567891.23");
 
         LocalTime now = LocalTime.now(ZoneId.systemDefault());
         message.timeField = now.toSecondOfDay() * 1000;
@@ -130,6 +128,17 @@ public class TestAvroDecoder extends AbstractDecoderTester {
         PulsarColumnHandle enumFieldColumnHandle = new PulsarColumnHandle(getPulsarConnectorId().toString(),
                 "enumField", VARCHAR, false, false, "enumField", null, null, PulsarColumnHandle.HandleKeyValueType.NONE);
         checkValue(decodedRow, enumFieldColumnHandle, message.enumField.toString());
+    }
+
+    @Test
+    public void testDecimal() {
+        DecoderTestMessage message = new DecoderTestMessage();
+        message.decimalField = BigDecimal.valueOf(2233, 2);
+        message.longDecimalField = new BigDecimal("1234567891234567891234567891.23");
+
+        ByteBuf payload = io.netty.buffer.Unpooled
+                .copiedBuffer(schema.encode(message));
+        Map<DecoderColumnHandle, FieldValueProvider> decodedRow = pulsarRowDecoder.decodeRow(payload).get();
 
         PulsarColumnHandle decimalFieldColumnHandle = new PulsarColumnHandle(getPulsarConnectorId().toString(),
                 "decimalField", DecimalType.createDecimalType(4, 2), false, false, "decimalField", null, null, PulsarColumnHandle.HandleKeyValueType.NONE);

@@ -37,7 +37,25 @@
         <vulnerabilityName regex="true">.*</vulnerabilityName>
     </suppress>
 
-    <!-- see https://github.com/apache/pulsar/pull/14629-->
+    <!-- see https://github.com/apache/pulsar/pull/16110 -->
+    <suppress>
+        <notes><![CDATA[
+    file name: elasticsearch-java-8.1.0.jar
+    CVE-2022-23712 is only related to Elastic server.
+    ]]></notes>
+        <sha1>edf5be04cbc2eafc51540ba33f9536e788b9d60b</sha1>
+        <cve>CVE-2022-23712</cve>
+    </suppress>
+    <suppress>
+        <notes><![CDATA[
+    file name: elasticsearch-rest-client-8.1.0.jar
+    CVE-2022-23712 is only related to Elastic server.
+    ]]></notes>
+        <sha1>10e7aa09f10955a074c0a574cb699344d2745df1</sha1>
+        <cve>CVE-2022-23712</cve>
+    </suppress>
+
+    <!-- see https://github.com/apache/pulsar/pull/14629 -->
     <suppress>
         <notes><![CDATA[
    file name: kotlin-stdlib-common-1.4.32.jar
@@ -169,32 +187,9 @@
         <cpe>cpe:/a:apache:rocketmq</cpe>
     </suppress>
     <suppress>
-        <notes><![CDATA[
-     file name: spring-core-3.2.18.RELEASE.jar
-     ]]></notes>
-        <sha1>0e2bd9c162280cd79c2ea0f67f174ee5d7b84ddd</sha1>
-        <cpe>cpe:/a:pivotal_software:spring_framework</cpe>
-    </suppress>
-    <suppress>
-        <notes><![CDATA[
-     file name: spring-core-3.2.18.RELEASE.jar
-     ]]></notes>
-        <sha1>0e2bd9c162280cd79c2ea0f67f174ee5d7b84ddd</sha1>
-        <cpe>cpe:/a:springsource:spring_framework</cpe>
-    </suppress>
-    <suppress>
-        <notes><![CDATA[
-     file name: spring-core-3.2.18.RELEASE.jar
-     ]]></notes>
-        <sha1>0e2bd9c162280cd79c2ea0f67f174ee5d7b84ddd</sha1>
-        <cpe>cpe:/a:vmware:spring_framework</cpe>
-    </suppress>
-    <suppress>
-        <notes><![CDATA[
-     file name: spring-core-3.2.18.RELEASE.jar
-     ]]></notes>
-        <sha1>0e2bd9c162280cd79c2ea0f67f174ee5d7b84ddd</sha1>
-        <cpe>cpe:/a:vmware:springsource_spring_framework</cpe>
+        <notes><![CDATA[Ignored since we are not vulnerable]]></notes>
+        <packageUrl regex="true">^pkg:maven/org\.springframework/spring.*$</packageUrl>
+        <cve>CVE-2016-1000027</cve>
     </suppress>
     <suppress>
         <notes><![CDATA[
@@ -296,66 +291,58 @@
     <!-- jclouds/openswift misdetections -->
     <suppress>
         <notes><![CDATA[
-       file name: openstack-swift-2.4.0.jar
+       file name: openstack-swift-2.5.0.jar
        ]]></notes>
-        <sha1>3f8f54bbcb73608ac8b66f186a824b75065eb413</sha1>
+        <sha1>d99d0eab2e01d69d8a326fc152427fbd759af88a</sha1>
         <cve>CVE-2016-0738</cve>
     </suppress>
     <suppress>
         <notes><![CDATA[
-       file name: openstack-swift-2.4.0.jar
+       file name: openstack-swift-2.5.0.jar
        ]]></notes>
-        <sha1>3f8f54bbcb73608ac8b66f186a824b75065eb413</sha1>
+        <sha1>d99d0eab2e01d69d8a326fc152427fbd759af88a</sha1>
         <cve>CVE-2017-16613</cve>
     </suppress>
     <suppress>
         <notes><![CDATA[
-       file name: openstack-swift-2.4.0.jar
+       file name: openstack-keystone-2.5.0.jar
        ]]></notes>
-        <sha1>3f8f54bbcb73608ac8b66f186a824b75065eb413</sha1>
-        <cve>CVE-2017-8761</cve>
-    </suppress>
-    
-    <suppress>
-        <notes><![CDATA[
-       file name: openstack-keystone-2.4.0.jar
-       ]]></notes>
-        <sha1>4f47a6b485371d357827b6a517ba54d073dc7b8b</sha1>
+        <sha1>a7e89bd278fa8be9fa604dda66d1606de5530797</sha1>
         <cve>CVE-2018-14432</cve>
     </suppress>
     <suppress>
         <notes><![CDATA[
-       file name: openstack-keystone-2.4.0.jar
+       file name: openstack-keystone-2.5.0.jar
        ]]></notes>
-        <sha1>4f47a6b485371d357827b6a517ba54d073dc7b8b</sha1>
+        <sha1>a7e89bd278fa8be9fa604dda66d1606de5530797</sha1>
         <cve>CVE-2018-20170</cve>
     </suppress>
     <suppress>
         <notes><![CDATA[
-       file name: openstack-keystone-2.4.0.jar
+       file name: openstack-keystone-2.5.0.jar
        ]]></notes>
-        <sha1>4f47a6b485371d357827b6a517ba54d073dc7b8b</sha1>
+        <sha1>a7e89bd278fa8be9fa604dda66d1606de5530797</sha1>
         <cve>CVE-2020-12689</cve>
     </suppress>
     <suppress>
         <notes><![CDATA[
-       file name: openstack-keystone-2.4.0.jar
+       file name: openstack-keystone-2.5.0.jar
        ]]></notes>
-        <sha1>4f47a6b485371d357827b6a517ba54d073dc7b8b</sha1>
+        <sha1>a7e89bd278fa8be9fa604dda66d1606de5530797</sha1>
         <cve>CVE-2020-12690</cve>
     </suppress>
     <suppress>
         <notes><![CDATA[
-       file name: openstack-keystone-2.4.0.jar
+       file name: openstack-keystone-2.5.0.jar
        ]]></notes>
-        <sha1>4f47a6b485371d357827b6a517ba54d073dc7b8b</sha1>
+        <sha1>a7e89bd278fa8be9fa604dda66d1606de5530797</sha1>
         <cve>CVE-2020-12691</cve>
     </suppress>
     <suppress>
         <notes><![CDATA[
-       file name: openstack-keystone-2.4.0.jar
+       file name: openstack-keystone-2.5.0.jar
        ]]></notes>
-        <sha1>4f47a6b485371d357827b6a517ba54d073dc7b8b</sha1>
+        <sha1>a7e89bd278fa8be9fa604dda66d1606de5530797</sha1>
         <cve>CVE-2020-12692</cve>
     </suppress>
 
@@ -478,6 +465,15 @@
         <cve>CVE-2021-46669</cve>
         <cve>CVE-2021-46666</cve>
         <cve>CVE-2021-46667</cve>
+    </suppress>
+    <!-- only affects the server -->
+    <suppress>
+        <notes><![CDATA[
+       file name: cassandra-driver-core-3.11.2.jar
+       ]]></notes>
+        <sha1>e0aad9f8611e710b9a0ce49747f7465ce07d8404</sha1>
+        <cve>CVE-2020-17516</cve>
+        <cve>CVE-2021-44521</cve>
     </suppress>
 
 </suppressions>

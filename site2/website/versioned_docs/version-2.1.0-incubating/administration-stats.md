@@ -1,7 +1,7 @@
 ---
-id: version-2.1.0-incubating-administration-stats
+id: administration-stats
 title: Pulsar stats
-sidebar_label: Pulsar statistics
+sidebar_label: "Pulsar statistics"
 original_id: administration-stats
 ---
 

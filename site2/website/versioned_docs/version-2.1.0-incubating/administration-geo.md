@@ -1,7 +1,7 @@
 ---
-id: version-2.1.0-incubating-administration-geo
+id: administration-geo
 title: Pulsar geo-replication
-sidebar_label: Geo-replication
+sidebar_label: "Geo-replication"
 original_id: administration-geo
 ---
 
@@ -11,7 +11,7 @@ original_id: administration-geo
 
 The diagram below illustrates the process of geo-replication across Pulsar clusters:
 
-![Replication Diagram](assets/geo-replication.png)
+![Replication Diagram](/assets/geo-replication.png)
 
 In this diagram, whenever producers **P1**, **P2**, and **P3** publish messages to the topic **T1** on clusters **Cluster-A**, **Cluster-B**, and **Cluster-C**, respectively, those messages are instantly replicated across clusters. Once replicated, consumers **C1** and **C2** can consume those messages from their respective clusters.
 
@@ -54,9 +54,11 @@ To establish replication to a cluster, the tenant needs permission to use that c
 At creation time, specify all the intended clusters:
 
 ```shell
+
 $ bin/pulsar-admin properties create my-tenant \
   --admin-roles my-admin-role \
   --allowed-clusters us-west,us-east,us-cent
+
 ```
 
 To update permissions of an existing tenant, use `update` instead of `create`.
@@ -68,14 +70,18 @@ Replication must be used with *global* topics, meaning topics that belong to a g
 Global namespaces need to be created in the `global` virtual cluster. For example:
 
 ```shell
+
 $ bin/pulsar-admin namespaces create my-tenant/my-namespace
+
 ```
 
 Initially, the namespace is not assigned to any cluster. You can assign the namespace to clusters using the `set-clusters` subcommand:
 
 ```shell
+
 $ bin/pulsar-admin namespaces set-clusters my-tenant/my-namespace \
   --clusters us-west,us-east,us-cent
+
 ```
 
 The replication clusters for a namespace can be changed at any time, with no disruption to ongoing traffic. Replication channels will be immediately set up or stopped in all the clusters as soon as the configuration changes.
@@ -88,9 +94,10 @@ Once you've created a global namespace, any topics that producers or consumers c
 
 By default, messages are replicated to all clusters configured for the namespace. You can restrict replication selectively by specifying a replication list for a message. That message will then be replicated only to the subset in the replication list.
 
-Below is an example for the [Java API](client-libraries-java.md). Note the use of the `setReplicationClusters` method when constructing the {@inject: javadoc:Message:/client/org/apache/pulsar/client/api/Message} object:
+Below is an example for the [Java API](client-libraries-java). Note the use of the `setReplicationClusters` method when constructing the {@inject: javadoc:Message:/client/org/apache/pulsar/client/api/Message} object:
 
 ```java
+
 List<String> restrictReplicationTo = Arrays.asList(
         "us-west",
         "us-east"
@@ -104,14 +111,17 @@ producer.newMessage()
         .value("my-payload".getBytes())
         .setReplicationClusters(restrictReplicationTo)
         .send();
+
 ```
 
 #### Topic stats
 
-Topic-specific statistics for global topics are available via the [`pulsar-admin`](reference-pulsar-admin.md) tool and {@inject: rest:REST:/} API:
+Topic-specific statistics for global topics are available via the [`pulsar-admin`](reference-pulsar-admin) tool and {@inject: rest:REST:/} API:
 
 ```shell
+
 $ bin/pulsar-admin persistent stats persistent://my-tenant/my-namespace/my-topic
+
 ```
 
 Each cluster reports its own local stats, including incoming and outgoing replication rates and backlogs.

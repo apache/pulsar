@@ -1,7 +1,7 @@
 ---
-id: version-2.3.2-concepts-schema-registry
+id: concepts-schema-registry
 title: Schema Registry
-sidebar_label: Schema Registry
+sidebar_label: "Schema Registry"
 original_id: concepts-schema-registry
 ---
 
@@ -17,7 +17,7 @@ Both approaches are available in Pulsar, and you're free to adopt one or the oth
 
 #### Note
 >
-> Currently, the Pulsar schema registry is only available for the [Java client](client-libraries-java.md), [CGo client](client-libraries-go.md), [Python client](client-libraries-python.md), and [C++ client](client-libraries-cpp.md).
+> Currently, the Pulsar schema registry is only available for the [Java client](client-libraries-java.md), [CGo client](client-libraries-go.md), [Python client](client-libraries-python.md), and [C++ client](client-libraries-cpp).
 
 ## Basic architecture
 
@@ -39,9 +39,10 @@ Pulsar schemas are fairly simple data structures that consist of:
 
 ## Schema versions
 
-In order to illustrate how schema versioning works, let's walk through an example. Imagine that the Pulsar [Java client](client-libraries-java.md) created using the code below attempts to connect to Pulsar and begin sending messages:
+In order to illustrate how schema versioning works, let's walk through an example. Imagine that the Pulsar [Java client](client-libraries-java) created using the code below attempts to connect to Pulsar and begin sending messages:
 
 ```java
+
 PulsarClient client = PulsarClient.builder()
         .serviceUrl("pulsar://localhost:6650")
         .build();
@@ -50,6 +51,7 @@ Producer<SensorReading> producer = client.newProducer(JSONSchema.of(SensorReadin
         .topic("sensor-data")
         .sendTimeout(3, TimeUnit.SECONDS)
         .create();
+
 ```
 
 The table below lists the possible scenarios when this connection attempt occurs and what will happen in light of each scenario:

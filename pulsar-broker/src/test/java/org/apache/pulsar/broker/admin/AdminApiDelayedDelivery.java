@@ -138,8 +138,6 @@ public class AdminApiDelayedDelivery extends MockedPulsarServiceBaseTest {
     @Test(timeOut = 30000)
     public void testDelayedDeliveryApplied() throws Exception {
         cleanup();
-        conf.setSystemTopicEnabled(true);
-        conf.setTopicLevelPoliciesEnabled(true);
         setup();
         final String namespace = "delayed-delivery-messages/my-ns";
         final String topic = "persistent://" + namespace + "/test" + UUID.randomUUID();

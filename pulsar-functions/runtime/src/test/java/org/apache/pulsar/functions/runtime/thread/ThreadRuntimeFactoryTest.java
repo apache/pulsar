@@ -28,6 +28,7 @@ import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator;
 import org.apache.pulsar.functions.worker.ConnectorsManager;
+import org.apache.pulsar.functions.worker.FunctionsManager;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
@@ -36,6 +37,8 @@ import org.testng.annotations.Test;
 import java.util.Map;
 import java.util.Optional;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mockStatic;
@@ -79,7 +82,7 @@ public class ThreadRuntimeFactoryTest {
 
         ClientBuilder clientBuilder = testMemoryLimit(null, null);
 
-        Mockito.verify(clientBuilder, Mockito.times(0)).memoryLimit(Mockito.anyLong(), Mockito.any());
+        Mockito.verify(clientBuilder, Mockito.times(1)).memoryLimit(Mockito.eq(0L), Mockito.eq(SizeUnit.BYTES));
     }
 
     @Test
@@ -110,6 +113,7 @@ public class ThreadRuntimeFactoryTest {
             ClientBuilder clientBuilder = Mockito.mock(ClientBuilder.class);
             mockedPulsarClient.when(() -> PulsarClient.builder()).thenAnswer(i -> clientBuilder);
             doReturn(clientBuilder).when(clientBuilder).serviceUrl(anyString());
+            doReturn(clientBuilder).when(clientBuilder).memoryLimit(anyLong(), any());
 
             ThreadRuntimeFactoryConfig threadRuntimeFactoryConfig = new ThreadRuntimeFactoryConfig();
             threadRuntimeFactoryConfig.setThreadGroupName("foo");
@@ -135,6 +139,7 @@ public class ThreadRuntimeFactoryTest {
                     Mockito.mock(AuthenticationConfig.class),
                     Mockito.mock(SecretsProviderConfigurator.class),
                     Mockito.mock(ConnectorsManager.class),
+                    Mockito.mock(FunctionsManager.class),
                     Optional.empty(), Optional.empty());
 
             return clientBuilder;

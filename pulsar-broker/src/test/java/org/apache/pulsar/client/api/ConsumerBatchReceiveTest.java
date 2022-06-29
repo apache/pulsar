@@ -19,6 +19,8 @@
 package org.apache.pulsar.client.api;
 
 import lombok.Cleanup;
+import org.apache.pulsar.client.impl.ConsumerBase;
+import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -46,6 +48,14 @@ public class ConsumerBatchReceiveTest extends ProducerConsumerBase {
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
+    }
+
+    @DataProvider(name = "partitioned")
+    public Object[][] partitionedTopicProvider() {
+        return new Object[][] {
+            { true },
+            { false }
+        };
     }
 
     @DataProvider(name = "batchReceivePolicy")
@@ -423,6 +433,43 @@ public class ConsumerBatchReceiveTest extends ProducerConsumerBase {
         CountDownLatch latch = new CountDownLatch(messagesToSend+1);
         receiveAsync(consumer, messagesToSend, latch);
         latch.await();
+    }
+
+    @Test(dataProvider = "partitioned")
+    public void testBatchReceiveTimeoutTask(boolean partitioned) throws Exception {
+        final String topic = "persistent://my-property/my-ns/batch-receive-" + UUID.randomUUID();
+
+        if (partitioned) {
+            admin.topics().createPartitionedTopic(topic, 3);
+        }
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("sub")
+                .receiverQueueSize(1)
+                .batchReceivePolicy(BatchReceivePolicy.builder()
+                        .maxNumBytes(1024 * 1024)
+                        .maxNumMessages(1)
+                        .timeout(5, TimeUnit.SECONDS)
+                        .build())
+                .subscribe();
+        Assert.assertFalse(((ConsumerBase<?>)consumer).hasBatchReceiveTimeout());
+        final int messagesToSend = 500;
+        sendMessagesAsyncAndWait(producer, messagesToSend);
+        for (int i = 0; i < 100; i++) {
+            Assert.assertNotNull(consumer.receive());
+        }
+        Assert.assertFalse(((ConsumerBase<?>)consumer).hasBatchReceiveTimeout());
+        for (int i = 0; i < 400; i++) {
+            Messages<String> batchReceived = consumer.batchReceive();
+            Assert.assertEquals(batchReceived.size(), 1);
+        }
+        Awaitility.await().untilAsserted(() -> Assert.assertFalse(((ConsumerBase<?>)consumer).hasBatchReceiveTimeout()));
+        Assert.assertEquals(consumer.batchReceive().size(), 0);
+        Awaitility.await().untilAsserted(() -> Assert.assertFalse(((ConsumerBase<?>)consumer).hasBatchReceiveTimeout()));
     }
 
 

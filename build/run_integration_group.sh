@@ -173,7 +173,7 @@ test_group_pulsar_connectors_process() {
   # run integration source
   mvn_run_integration_test --retry --skip-build-deps "$@" -DintegrationTestSuiteFile=pulsar-process.xml -DintegrationTests -Dgroups=source
 
-  # run integraion sink
+  # run integration sink
   mvn_run_integration_test --retry --skip-build-deps "$@" -DintegrationTestSuiteFile=pulsar-process.xml -DintegrationTests -Dgroups=sink
 }
 

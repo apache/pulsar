@@ -60,6 +60,8 @@ public class LookupRetryTest extends MockedPulsarServiceBaseTest {
     @BeforeMethod
     @Override
     protected void setup() throws Exception {
+        conf.setTopicLevelPoliciesEnabled(false);
+        conf.setSystemTopicEnabled(false);
         super.internalSetup();
 
         admin.clusters().createCluster("test",

@@ -1,7 +1,7 @@
 ---
-id: version-2.1.0-incubating-io-kinesis
+id: io-kinesis
 title: AWS Kinesis Connector
-sidebar_label: AWS Kinesis Connector
+sidebar_label: "AWS Kinesis Connector"
 original_id: io-kinesis
 ---
 
@@ -17,7 +17,7 @@ AWS Kinesis.
 | awsEndpoint | `true` | null | kinesis end-point url can be found at : https://docs.aws.amazon.com/general/latest/gr/rande.html |
 | awsRegion | `true` | null | appropriate aws region eg: us-west-1, us-west-2 |
 | awsKinesisStreamName | `true` | null | kinesis stream name |
-| awsCredentialPluginName | `false` | null | Fully-Qualified class name of implementation of {@inject: github:`AwsCredentialProviderPlugin`:/pulsar-io/kinesis/src/main/java/org/apache/pulsar/io/kinesis/AwsCredentialProviderPlugin.java}. It is a factory class which creates an AWSCredentialsProvider that will be used by Kinesis Sink. If it is empty then KinesisSink will create a default AWSCredentialsProvider which accepts json-map of credentials in `awsCredentialPluginParam` |
+| awsCredentialPluginName | `false` | null | Fully-Qualified class name of implementation of {@inject: github:AwsCredentialProviderPlugin:/pulsar-io/kinesis/src/main/java/org/apache/pulsar/io/kinesis/AwsCredentialProviderPlugin.java}. It is a factory class which creates an AWSCredentialsProvider that will be used by Kinesis Sink. If it is empty then KinesisSink will create a default AWSCredentialsProvider which accepts json-map of credentials in `awsCredentialPluginParam` |
 | awsCredentialPluginParam | `false` | null | json-parameters to initialize `AwsCredentialsProviderPlugin` |
 | messageFormat | `true` | `ONLY_RAW_PAYLOAD` | Message format in which kinesis sink converts pulsar messages and publishes to kinesis streams |
 

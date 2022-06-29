@@ -1,7 +1,7 @@
 ---
-id: version-2.1.0-incubating-adaptors-spark
+id: adaptors-spark
 title: Pulsar adaptor for Apache Spark
-sidebar_label: Apache Spark
+sidebar_label: "Apache Spark"
 original_id: adaptors-spark
 ---
 
@@ -18,8 +18,9 @@ To use the receiver, include a dependency for the `pulsar-spark` library in your
 If you're using Maven, add this to your `pom.xml`:
 
 ```xml
+
 <!-- in your <properties> block -->
-<pulsar.version>{{pulsar:version}}</pulsar.version>
+<pulsar.version>@pulsar:version@</pulsar.version>
 
 <!-- in your <dependencies> block -->
 <dependency>
@@ -27,6 +28,7 @@ If you're using Maven, add this to your `pom.xml`:
   <artifactId>pulsar-spark</artifactId>
   <version>${pulsar.version}</version>
 </dependency>
+
 ```
 
 ### Gradle
@@ -34,11 +36,13 @@ If you're using Maven, add this to your `pom.xml`:
 If you're using Gradle, add this to your `build.gradle` file:
 
 ```groovy
-def pulsarVersion = "{{pulsar:version}}"
+
+def pulsarVersion = "@pulsar:version@"
 
 dependencies {
     compile group: 'org.apache.pulsar', name: 'pulsar-spark', version: pulsarVersion
 }
+
 ```
 
 ## Usage
@@ -46,6 +50,7 @@ dependencies {
 Pass an instance of `SparkStreamingPulsarReceiver` to the `receiverStream` method in `JavaStreamingContext`:
 
 ```java
+
 SparkConf conf = new SparkConf().setMaster("local[*]").setAppName("pulsar-spark");
 JavaStreamingContext jssc = new JavaStreamingContext(conf, Durations.seconds(5));
 
@@ -57,8 +62,8 @@ String subs = "sub1";
 
 JavaReceiverInputDStream<byte[]> msgs = jssc
         .receiverStream(new SparkStreamingPulsarReceiver(clientConf, consConf, url, topic, subs));
-```
 
+```
 
 ## Example
 

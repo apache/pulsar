@@ -1,7 +1,7 @@
 ---
-id: version-2.9.2-txn-use
+id: txn-use
 title: How to use transactions?
-sidebar_label: How to use transactions?
+sidebar_label: "How to use transactions?"
 original_id: txn-use
 ---
 
@@ -21,97 +21,76 @@ This section provides an example of how to use the transaction API to send and r
 
 2. Enable transaction. 
 
-    Change the configuration in the `broker.conf` file.
+   Change the configuration in the `broker.conf` file.
 
-    ```
-    transactionCoordinatorEnabled=true
-    ```
+   ```
+   
+   transactionCoordinatorEnabled=true
+   
+   ```
 
-    If you want to enable batch messages in transactions, follow the steps below.
+   If you want to enable batch messages in transactions, follow the steps below.
 
-    Set `acknowledgmentAtBatchIndexLevelEnabled` to `true` in the `broker.conf` or `standalone.conf` file.
+   Set `acknowledgmentAtBatchIndexLevelEnabled` to `true` in the `broker.conf` or `standalone.conf` file.
 
-      ```
-      acknowledgmentAtBatchIndexLevelEnabled=true
-      ```
+     ```
+     
+     acknowledgmentAtBatchIndexLevelEnabled=true
+     
+     ```
 
 3. Initialize transaction coordinator metadata.
 
-    The transaction coordinator can leverage the advantages of partitioned topics (such as load balance).
+   The transaction coordinator can leverage the advantages of partitioned topics (such as load balance).
 
-    **Input**
+   **Input**
 
-    ```
-    bin/pulsar initialize-transaction-coordinator-metadata -cs 127.0.0.1:2181 -c standalone
-    ```
+   ```
+   
+   bin/pulsar initialize-transaction-coordinator-metadata -cs 127.0.0.1:2181 -c standalone
+   
+   ```
 
-    **Output**
+   **Output**
 
-    ```
-    Transaction coordinator metadata setup success
-    ```
+   ```
+   
+   Transaction coordinator metadata setup success
+   
+   ```
 
 4. Initialize a Pulsar client.
 
-    ```
-    PulsarClient client = PulsarClient.builder()
+   ```
+   
+   PulsarClient client = PulsarClient.builder()
 
-    .serviceUrl(“pulsar://localhost:6650”)
+   .serviceUrl(“pulsar://localhost:6650”)
 
-    .enableTransaction(true)
+   .enableTransaction(true)
 
-    .build();
-    ```
+   .build();
+   
+   ```
 
 Now you can start using the transaction API to send and receive messages. Below is an example of a `consume-process-produce` application written in Java.
 
-![](assets/txn-9.png)
+![](/assets/txn-9.png)
 
 Let’s walk through this example step by step.
 
-<table>
-  <tr>
-   <td>Step
-   </td>
-   <td>Description
-   </td>
-  </tr>
-  <tr>
-   <td>1. Start a transaction.
-   </td>
-   <td>The application opens a new transaction by calling PulsarClient.newTransaction. It specifics the transaction timeout as 1 minute. If the transaction is not committed within 1 minute, the transaction is automatically aborted.
-   </td>
-  </tr>
-  <tr>
-   <td>2. Receive messages from topics.
-   </td>
-   <td>The application creates two normal consumers to receive messages from topic input-topic-1 and input-topic-2 respectively.<br><br>If you want to enable batch messages ack in transactions, call the enableBatchIndexAcknowledgment(true) method in the consumer builder. For the example, see [1] below this table.
-   </td>
-  </tr>
-  <tr>
-   <td>3. Publish messages to topics with the transaction.
-   </td>
-   <td>The application creates two producers to produce the resulting messages to the output topic _output-topic-1_ and output-topic-2 respectively. The application applies the processing logic and generates two output messages. The application sends those two output messages as part of the transaction opened in the first step via Producer.newMessage(Transaction).
-   </td>
-  </tr>
-  <tr>
-   <td>4. Acknowledge the messages with the transaction.
-   </td>
-   <td>In the same transaction, the application acknowledges the two input messages.
-   </td>
-  </tr>
-  <tr>
-   <td>5. Commit the transaction.
-   </td>
-   <td>The application commits the transaction by calling Transaction.commit() on the open transaction. The commit operation ensures the two input messages are marked as acknowledged and the two output messages are written successfully to the output topics. 
-   <br><br>Tip: You can also call Transaction.abort() to abort the open transaction.
-   </td>
-  </tr>
-</table>
+| Step  |  Description  | 
+| --- | --- |
+| 1. Start a transaction.  |  The application opens a new transaction by calling PulsarClient.newTransaction. It specifics the transaction timeout as 1 minute. If the transaction is not committed within 1 minute, the transaction is automatically aborted.  | 
+| 2. Receive messages from topics.  |  The application creates two normal consumers to receive messages from topic input-topic-1 and input-topic-2 respectively. | 
+| 3. Publish messages to topics with the transaction.  |  The application creates two producers to produce the resulting messages to the output topic _output-topic-1_ and output-topic-2 respectively. The application applies the processing logic and generates two output messages. The application sends those two output messages as part of the transaction opened in the first step via Producer.newMessage(Transaction).  | 
+| 4. Acknowledge the messages with the transaction.  |  In the same transaction, the application acknowledges the two input messages.  | 
+| 5. Commit the transaction.  |  The application commits the transaction by calling Transaction.commit() on the open transaction. The commit operation ensures the two input messages are marked as acknowledged and the two output messages are written successfully to the output topics.  | 
 
 [1] Example of enabling batch messages ack in transactions in the consumer builder.
 
 ```
+
 Consumer<byte[]> sinkConsumer = pulsarClient
     .newConsumer()
     .topic(transferTopic)
@@ -121,5 +100,6 @@ Consumer<byte[]> sinkConsumer = pulsarClient
     .subscriptionType(SubscriptionType.Shared)
     .enableBatchIndexAcknowledgment(true) // enable batch index acknowledgement
     .subscribe();
+
 ```
 

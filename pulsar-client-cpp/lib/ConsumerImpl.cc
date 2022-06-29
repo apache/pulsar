@@ -722,7 +722,10 @@ Result ConsumerImpl::fetchSingleMessageFromBroker(Message& msg) {
     sendFlowPermitsToBroker(currentCnx, 1);
 
     while (true) {
-        incomingMessages_.pop(msg);
+        if (!incomingMessages_.pop(msg)) {
+            return ResultInterrupted;
+        }
+
         {
             // Lock needed to prevent race between connectionOpened and the check "msg.impl_->cnx_ ==
             // currentCnx.get())"
@@ -787,7 +790,10 @@ Result ConsumerImpl::receiveHelper(Message& msg) {
         return fetchSingleMessageFromBroker(msg);
     }
 
-    incomingMessages_.pop(msg);
+    if (!incomingMessages_.pop(msg)) {
+        return ResultInterrupted;
+    }
+
     messageProcessed(msg);
     return ResultOk;
 }
@@ -998,6 +1004,7 @@ void ConsumerImpl::closeAsync(ResultCallback callback) {
 
     LOG_INFO(getName() << "Closing consumer for topic " << topic_);
     state_ = Closing;
+    incomingMessages_.close();
 
     // Flush pending grouped ACK requests.
     if (ackGroupingTrackerPtr_) {

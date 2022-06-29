@@ -90,7 +90,6 @@ public class Oauth2PerformanceTransactionTest extends ProducerConsumerBase {
         ObjectMapper jsonMapper = ObjectMapperFactory.create();
         authenticationParameters = jsonMapper.writeValueAsString(params);
 
-        conf.setSystemTopicEnabled(true);
         conf.setTransactionCoordinatorEnabled(true);
         conf.setAuthenticationEnabled(true);
         conf.setAuthorizationEnabled(true);

@@ -1,7 +1,7 @@
 ---
-id: version-2.2.1-io-connectors
+id: io-connectors
 title: Builtin Connectors
-sidebar_label: Builtin Connectors
+sidebar_label: "Builtin Connectors"
 original_id: io-connectors
 ---
 

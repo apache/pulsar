@@ -212,6 +212,21 @@ public class NamespaceResources extends BaseResources<Policies> {
             set(joinPath(BASE_CLUSTERS_PATH, cluster, NAMESPACE_ISOLATION_POLICIES), modifyFunction);
         }
 
+        public CompletableFuture<Void> setIsolationDataAsync(String cluster,
+                                                             Function<Map<String, NamespaceIsolationDataImpl>,
+                                                             Map<String, NamespaceIsolationDataImpl>> modifyFunction) {
+            return setAsync(joinPath(BASE_CLUSTERS_PATH, cluster, NAMESPACE_ISOLATION_POLICIES), modifyFunction);
+        }
+
+        public CompletableFuture<Void> setIsolationDataWithCreateAsync(String cluster,
+                                                                       Function<Optional<Map<String,
+                                                                       NamespaceIsolationDataImpl>>,
+                                                                       Map<String, NamespaceIsolationDataImpl>>
+                                                                               createFunction) {
+            return setWithCreateAsync(joinPath(BASE_CLUSTERS_PATH, cluster, NAMESPACE_ISOLATION_POLICIES),
+                    createFunction);
+        }
+
         public void setIsolationDataWithCreate(String cluster,
                                      Function<Optional<Map<String, NamespaceIsolationDataImpl>>, Map<String,
                                              NamespaceIsolationDataImpl>> createFunction)

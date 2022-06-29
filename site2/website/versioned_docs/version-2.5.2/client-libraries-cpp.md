@@ -1,7 +1,7 @@
 ---
-id: version-2.5.2-client-libraries-cpp
+id: client-libraries-cpp
 title: Pulsar C++ client
-sidebar_label: C++
+sidebar_label: "C++"
 original_id: client-libraries-cpp
 ---
 
@@ -26,27 +26,40 @@ These libraries rely on some other libraries, if you want to get detailed versio
 
 1. `libpulsar.so` is the Shared library, it contains statically linked `boost` and `openssl`, and will also dynamically link all other needed libraries.
 The command the when use this pulsar library is like this:
+
 ```bash
+
  g++ --std=c++11  PulsarTest.cpp -o test /usr/lib/libpulsar.so -I/usr/local/ssl/include
+
 ```
 
 2. `libpulsarnossl.so` is the Shared library that similar to `libpulsar.so` except that the library `openssl` and `crypto` are dynamically linked.
 The command the when use this pulsar library is like this:
+
 ```bash
+
  g++ --std=c++11  PulsarTest.cpp -o test /usr/lib/libpulsarnossl.so -lssl -lcrypto -I/usr/local/ssl/include -L/usr/local/ssl/lib
+
 ```
 
 3. `libpulsar.a` is the Static library, it need to load some dependencies library when using it. 
 The command the when use this pulsar library is like this:
+
 ```bash
+
  g++ --std=c++11  PulsarTest.cpp -o test /usr/lib/libpulsar.a -lssl -lcrypto -ldl -lpthread  -I/usr/local/ssl/include -L/usr/local/ssl/lib -lboost_system -lboost_regex -lcurl -lprotobuf -lzstd -lz
+
 ```
 
 4. `libpulsarwithdeps.a` is the Static library, base on `libpulsar.a`, and archived in the dependencies libraries of `libboost_regex`,  `libboost_system`, `libcurl`, `libprotobuf`, `libzstd` and `libz`, 
 The command the when use this pulsar library is like this:
+
 ```bash
+
  g++ --std=c++11  PulsarTest.cpp -o test /usr/lib/libpulsarwithdeps.a -lssl -lcrypto -ldl -lpthread  -I/usr/local/ssl/include -L/usr/local/ssl/lib
+
 ```
+
 `libpulsarwithdeps.a` does not include library openssl related libraries: `libssl` and `libcrypto`, because these 2 library is related to security, 
 by using user local system provided version is more reasonable, and more easy for user to handling security issue and library upgrade.
 
@@ -56,14 +69,16 @@ by using user local system provided version is more reasonable, and more easy fo
 
 | Link | Crypto files |
 |------|--------------|
-| [client]({{pulsar:dist_rpm:client}}) | [asc]({{pulsar:dist_rpm:client}}.asc), [sha512]({{pulsar:dist_rpm:client}}.sha512) |
-| [client-debuginfo]({{pulsar:dist_rpm:client-debuginfo}}) | [asc]({{pulsar:dist_rpm:client-debuginfo}}.asc),  [sha512]({{pulsar:dist_rpm:client-debuginfo}}.sha512) |
-| [client-devel]({{pulsar:dist_rpm:client-devel}}) | [asc]({{pulsar:dist_rpm:client-devel}}.asc),  [sha512]({{pulsar:dist_rpm:client-devel}}.sha512) |
+| [client](@pulsar:dist_rpm:client@) | [asc](@pulsar:dist_rpm:client@.asc), [sha512](@pulsar:dist_rpm:client@.sha512) |
+| [client-debuginfo](@pulsar:dist_rpm:client-debuginfo@) | [asc](@pulsar:dist_rpm:client-debuginfo@.asc),  [sha512](@pulsar:dist_rpm:client-debuginfo@.sha512) |
+| [client-devel](@pulsar:dist_rpm:client-devel@) | [asc](@pulsar:dist_rpm:client-devel@.asc),  [sha512](@pulsar:dist_rpm:client-devel@.sha512) |
 
 2. Install the package using the following command.
 
 ```bash
+
 $ rpm -ivh apache-pulsar-client*.rpm
+
 ```
 
 After install, Pulsar libraries will be placed under `/usr/lib`.
@@ -74,13 +89,15 @@ After install, Pulsar libraries will be placed under `/usr/lib`.
 
 | Link | Crypto files |
 |------|--------------|
-| [client]({{pulsar:deb:client}}) | [asc]({{pulsar:dist_deb:client}}.asc), [sha512]({{pulsar:dist_deb:client}}.sha512) |
-| [client-devel]({{pulsar:deb:client-devel}}) | [asc]({{pulsar:dist_deb:client-devel}}.asc),  [sha512]({{pulsar:dist_deb:client-devel}}.sha512) |
+| [client](@pulsar:deb:client@) | [asc](@pulsar:dist_deb:client@.asc), [sha512](@pulsar:dist_deb:client@.sha512) |
+| [client-devel](@pulsar:deb:client-devel@) | [asc](@pulsar:dist_deb:client-devel@.asc),  [sha512](@pulsar:dist_deb:client-devel@.sha512) |
 
 2. Install the package using the following command:
 
 ```bash
+
 $ apt install ./apache-pulsar-client*.deb
+
 ```
 
 After install, Pulsar libraries will be placed under `/usr/lib`.
@@ -96,13 +113,17 @@ dependencies.
 To build the C++ library packages, build the Java packages first.
 
 ```shell
+
 mvn install -DskipTests
+
 ```
 
 #### RPM
 
 ```shell
+
 pulsar-client-cpp/pkg/rpm/docker-build-rpm.sh
+
 ```
 
 This builds the RPM inside a Docker container and it leaves the RPMs in `pulsar-client-cpp/pkg/rpm/RPMS/x86_64/`.
@@ -118,7 +139,9 @@ This builds the RPM inside a Docker container and it leaves the RPMs in `pulsar-
 To build Debian packages, enter the following command.
 
 ```shell
+
 pulsar-client-cpp/pkg/deb/docker-build-deb.sh
+
 ```
 
 Debian packages are created at `pulsar-client-cpp/pkg/deb/BUILD/DEB/`.
@@ -133,7 +156,9 @@ Debian packages are created at `pulsar-client-cpp/pkg/deb/BUILD/DEB/`.
 Pulsar releases are available in the [Homebrew](https://brew.sh/) core repository. You can install the C++ client library with the following command. The package is installed with the library and headers.
 
 ```shell
+
 brew install libpulsar
+
 ```
 
 ## Connection URLs
@@ -143,23 +168,32 @@ To connect to Pulsar using client libraries, you need to specify a Pulsar protoc
 Pulsar protocol URLs are assigned to specific clusters, you can use the Pulsar URI scheme. The default port is `6650`. The following is an example for localhost.
 
 ```http
+
 pulsar://localhost:6650
+
 ```
 
 In a Pulsar cluster in production, the URL looks as follows: 
+
 ```http
+
 pulsar://pulsar.us-west.example.com:6650
+
 ```
 
 If you use TLS authentication, you need to add `ssl`, and the default port is `6651`. The following is an example.
+
 ```http
+
 pulsar+ssl://pulsar.us-west.example.com:6651
+
 ```
 
 ## Create a consumer
 To connect to Pulsar as a consumer, you need to create a consumer on the C++ client. The following is an example. 
 
 ```c++
+
 Client client("pulsar://localhost:6650");
 
 Consumer consumer;
@@ -180,12 +214,14 @@ while (true) {
 }
 
 client.close();
+
 ```
 
 ## Create a producer
 To connect to Pulsar as a producer, you need to create a producer on the C++ client. The following is an example. 
 
 ```c++
+
 Client client("pulsar://localhost:6650");
 
 Producer producer;
@@ -202,12 +238,14 @@ for (int i = 0; i < 10; i++){
     LOG_INFO("Message sent: " << res);
 }
 client.close();
+
 ```
 
 ## Enable authentication in connection URLs
 If you use TLS authentication when connecting to Pulsar, you need to add `ssl` in the connection URLs, and the default port is `6651`. The following is an example.
 
 ```cpp
+
 ClientConfiguration config = ClientConfiguration();
 config.setUseTls(true);
 config.setTlsTrustCertsFilePath("/path/to/cacert.pem");
@@ -216,19 +254,21 @@ config.setAuth(pulsar::AuthTls::create(
             "/path/to/client-cert.pem", "/path/to/client-key.pem"););
 
 Client client("pulsar+ssl://my-broker.com:6651", config);
+
 ```
 
 For complete examples, refer to [C++ client examples](https://github.com/apache/pulsar/tree/master/pulsar-client-cpp/examples).
 
 ## Schema
 
-This section describes some examples about schema. For more information about schema, see [Pulsar schema](schema-get-started.md).
+This section describes some examples about schema. For more information about schema, see [Pulsar schema](schema-get-started).
 
 ### Create producer with Avro schema
 
 The following example shows how to create a producer with an Avro schema.
 
 ```cpp
+
 static const std::string exampleSchema =
     "{\"type\":\"record\",\"name\":\"Example\",\"namespace\":\"test\","
     "\"fields\":[{\"name\":\"a\",\"type\":\"int\"},{\"name\":\"b\",\"type\":\"int\"}]}";
@@ -236,6 +276,7 @@ Producer producer;
 ProducerConfiguration producerConf;
 producerConf.setSchema(SchemaInfo(AVRO, "Avro", exampleSchema));
 client.createProducer("topic-avro", producerConf, producer);
+
 ```
 
 ### Create consumer with Avro schema
@@ -243,6 +284,7 @@ client.createProducer("topic-avro", producerConf, producer);
 The following example shows how to create a consumer with an Avro schema.
 
 ```cpp
+
 static const std::string exampleSchema =
     "{\"type\":\"record\",\"name\":\"Example\",\"namespace\":\"test\","
     "\"fields\":[{\"name\":\"a\",\"type\":\"int\"},{\"name\":\"b\",\"type\":\"int\"}]}";
@@ -250,4 +292,6 @@ ConsumerConfiguration consumerConf;
 Consumer consumer;
 consumerConf.setSchema(SchemaInfo(AVRO, "Avro", exampleSchema));
 client.subscribe("topic-avro", "sub-2", consumerConf, consumer)
+
 ```
+

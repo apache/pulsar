@@ -29,6 +29,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
+import org.apache.pulsar.functions.api.utils.FunctionRecord;
 
 /**
  * Context provides contextual information to the executing function.
@@ -56,7 +57,7 @@ public interface Context extends BaseContext {
     /**
      * Access the record associated with the current input value.
      *
-     * @return
+     * @return the current record
      */
     Record<?> getCurrentRecord();
 
@@ -106,8 +107,8 @@ public interface Context extends BaseContext {
     /**
      * Get any user-defined key/value or a default value if none is present.
      *
-     * @param key
-     * @param defaultValue
+     * @param key the config key to retrieve
+     * @param defaultValue value returned if the key is not found
      * @return Either the user config value associated with a given key or a supplied default value
      */
     Object getUserConfigValueOrDefault(String key, Object defaultValue);
@@ -146,9 +147,9 @@ public interface Context extends BaseContext {
      *
      * @param topicName The name of the topic for output message
      * @param schema provide a way to convert between serialized data and domain objects
-     * @param <X>
+     * @param <X> the type of message
      * @return the message builder instance
-     * @throws PulsarClientException
+     * @throws PulsarClientException if an error occurs
      */
     <X> TypedMessageBuilder<X> newOutputMessage(String topicName, Schema<X> schema) throws PulsarClientException;
 
@@ -156,9 +157,18 @@ public interface Context extends BaseContext {
      * Create a ConsumerBuilder with the schema.
      *
      * @param schema provide a way to convert between serialized data and domain objects
-     * @param <X>
+     * @param <X> the message type of the consumer
      * @return the consumer builder instance
-     * @throws PulsarClientException
+     * @throws PulsarClientException if an error occurs
      */
     <X> ConsumerBuilder<X> newConsumerBuilder(Schema<X> schema) throws PulsarClientException;
+
+    /**
+     * Creates a FunctionRecordBuilder initialized with values from this Context.
+     * It can be used in Functions to prepare a Record to return with default values taken from the Context and the
+     * input Record.
+     *
+     * @return the record builder instance
+     */
+    <X> FunctionRecord.FunctionRecordBuilder<X> newOutputRecordBuilder();
 }

@@ -30,7 +30,9 @@ ADD_LIBRARY(_pulsar SHARED src/pulsar.cc
                            src/reader.cc
                            src/schema.cc
                            src/cryptoKeyReader.cc
-                           src/exceptions.cc)
+                           src/exceptions.cc
+                           src/utils.cc
+        )
 
 SET(CMAKE_SHARED_LIBRARY_PREFIX )
 SET(CMAKE_SHARED_LIBRARY_SUFFIX .so)

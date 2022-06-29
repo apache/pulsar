@@ -293,7 +293,7 @@ public class FunctionApiV2ResourceTest {
         }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function Package is not provided")
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function package is not provided")
     public void testRegisterFunctionMissingPackage() {
         try {
             testRegisterFunctionMissingArguments(
@@ -356,7 +356,9 @@ public class FunctionApiV2ResourceTest {
         }
     }
 
-    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function classname cannot be null")
+    @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function package does not have"
+            + " the correct format. Pulsar cannot determine if the package is a NAR package or JAR package. Function "
+            + "classname is not provided and attempts to load it as a NAR package produced the following error.*")
     public void testRegisterFunctionMissingClassName() {
         try {
             testRegisterFunctionMissingArguments(
@@ -539,7 +541,7 @@ public class FunctionApiV2ResourceTest {
                     inputStream,
                     details,
                     functionPkgUrl,
-                    JsonFormat.printer().print(FunctionConfigUtils.convert(functionConfig, null)),
+                    JsonFormat.printer().print(FunctionConfigUtils.convert(functionConfig, (ClassLoader) null)),
                     null);
         } catch (InvalidProtocolBufferException e) {
             throw new RuntimeException(e);
@@ -557,7 +559,7 @@ public class FunctionApiV2ResourceTest {
                     mockedInputStream,
                     mockedFormData,
                     null,
-                    JsonFormat.printer().print(FunctionConfigUtils.convert(functionConfig, null)),
+                    JsonFormat.printer().print(FunctionConfigUtils.convert(functionConfig, (ClassLoader) null)),
                     null);
         } catch (InvalidProtocolBufferException e) {
             throw new RuntimeException(e);
@@ -940,7 +942,7 @@ public class FunctionApiV2ResourceTest {
                     inputStream,
                     details,
                     null,
-                    JsonFormat.printer().print(FunctionConfigUtils.convert(functionConfig, null)),
+                    JsonFormat.printer().print(FunctionConfigUtils.convert(functionConfig, (ClassLoader) null)),
                     null);
         } catch (InvalidProtocolBufferException e) {
             throw new RuntimeException(e);
@@ -968,7 +970,7 @@ public class FunctionApiV2ResourceTest {
                     mockedInputStream,
                     mockedFormData,
                     null,
-                    JsonFormat.printer().print(FunctionConfigUtils.convert(functionConfig, null)),
+                    JsonFormat.printer().print(FunctionConfigUtils.convert(functionConfig, (ClassLoader) null)),
                     null);
         } catch (InvalidProtocolBufferException e) {
             throw new RuntimeException(e);
@@ -1045,7 +1047,7 @@ public class FunctionApiV2ResourceTest {
                     null,
                     null,
                     filePackageUrl,
-                    JsonFormat.printer().print(FunctionConfigUtils.convert(functionConfig, null)),
+                    JsonFormat.printer().print(FunctionConfigUtils.convert(functionConfig, (ClassLoader) null)),
                     null);
         } catch (InvalidProtocolBufferException e) {
             throw new RuntimeException(e);
@@ -1437,7 +1439,7 @@ public class FunctionApiV2ResourceTest {
         functionConfig.setOutputSerdeClassName(outputSerdeClassName);
         try {
             resource.registerFunction(tenant, namespace, function, null, null, filePackageUrl,
-                    JsonFormat.printer().print(FunctionConfigUtils.convert(functionConfig, null)), null);
+                    JsonFormat.printer().print(FunctionConfigUtils.convert(functionConfig, (ClassLoader) null)), null);
         } catch (InvalidProtocolBufferException e) {
            throw new RuntimeException(e);
         }
@@ -1471,7 +1473,7 @@ public class FunctionApiV2ResourceTest {
         functionConfig.setOutputSerdeClassName(outputSerdeClassName);
         try {
             resource.registerFunction(actualTenant, actualNamespace, actualName, null, null, filePackageUrl,
-                    JsonFormat.printer().print(FunctionConfigUtils.convert(functionConfig, null)), null);
+                    JsonFormat.printer().print(FunctionConfigUtils.convert(functionConfig, (ClassLoader) null)), null);
         } catch (InvalidProtocolBufferException e) {
             throw new RuntimeException(e);
         }
@@ -1493,6 +1495,6 @@ public class FunctionApiV2ResourceTest {
 
     public static FunctionDetails createDefaultFunctionDetails() {
         FunctionConfig functionConfig = createDefaultFunctionConfig();
-        return FunctionConfigUtils.convert(functionConfig, null);
+        return FunctionConfigUtils.convert(functionConfig, (ClassLoader) null);
     }
 }

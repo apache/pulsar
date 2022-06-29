@@ -1,7 +1,7 @@
 ---
-id: version-2.3.1-io-mongo
+id: io-mongo
 title: MongoDB Connector
-sidebar_label: MongoDB Connector
+sidebar_label: "MongoDB Connector"
 original_id: io-mongo
 ---
 

@@ -27,7 +27,6 @@ import com.beust.jcommander.Parameters;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.util.concurrent.RateLimiter;
-import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.PrintStream;
 import java.nio.ByteBuffer;
@@ -86,13 +85,7 @@ public class PerformanceConsumer {
     private static final Recorder cumulativeRecorder = new Recorder(TimeUnit.DAYS.toMillis(10), 5);
 
     @Parameters(commandDescription = "Test pulsar consumer performance.")
-    static class Arguments {
-
-        @Parameter(names = { "-h", "--help" }, description = "Help message", help = true)
-        boolean help;
-
-        @Parameter(names = { "-cf", "--conf-file" }, description = "Configuration file")
-        public String confFile;
+    static class Arguments extends PerformanceBaseArguments {
 
         @Parameter(description = "persistent://prop/ns/my-topic", required = true)
         public List<String> topic;
@@ -148,26 +141,8 @@ public class PerformanceConsumer {
                 description = "Number of messages to consume in total. If <= 0, it will keep consuming")
         public long numMessages = 0;
 
-        @Parameter(names = { "-c",
-                "--max-connections" }, description = "Max number of TCP connections to a single broker")
-        public int maxConnections = 1;
-
-        @Parameter(names = { "-i",
-                "--stats-interval-seconds" },
-                description = "Statistics Interval Seconds. If 0, statistics will be disabled")
-        public long statsIntervalSeconds = 0;
-
-        @Parameter(names = { "-u", "--service-url" }, description = "Pulsar Service URL")
-        public String serviceURL;
-
         @Parameter(names = { "--auth_plugin" }, description = "Authentication plugin class name", hidden = true)
         public String deprecatedAuthPluginClassName;
-
-        @Parameter(names = { "--auth-plugin" }, description = "Authentication plugin class name")
-        public String authPluginClassName;
-
-        @Parameter(names = { "--listener-name" }, description = "Listener name for the broker.")
-        String listenerName = null;
 
         @Parameter(names = { "-mc", "--max_chunked_msg" }, description = "Max pending chunk messages")
         private int maxPendingChunkedMessage = 0;
@@ -181,21 +156,6 @@ public class PerformanceConsumer {
                 description = "Expire time in ms for incomplete chunk messages")
         private long expireTimeOfIncompleteChunkedMessageMs = 0;
 
-        @Parameter(
-            names = { "--auth-params" },
-            description = "Authentication parameters, whose format is determined by the implementation "
-                    + "of method `configure` in authentication plugin class, for example \"key1:val1,key2:val2\" "
-                    + "or \"{\"key1\":\"val1\",\"key2\":\"val2\"}.")
-        public String authParams;
-
-        @Parameter(names = {
-                "--trust-cert-file" }, description = "Path for the trusted TLS certificate file")
-        public String tlsTrustCertsFilePath = "";
-
-        @Parameter(names = {
-                "--tls-allow-insecure" }, description = "Allow insecure TLS connection")
-        public Boolean tlsAllowInsecureConnection = null;
-
         @Parameter(names = { "-v",
                 "--encryption-key-value-file" },
                 description = "The file which contains the private key to decrypt payload")
@@ -205,22 +165,11 @@ public class PerformanceConsumer {
                 "--test-duration" }, description = "Test duration in secs. If <= 0, it will keep consuming")
         public long testTime = 0;
 
-        @Parameter(names = {"-ioThreads", "--num-io-threads"}, description = "Set the number of threads to be "
-                + "used for handling connections to brokers. The default value is 1.")
-        public int ioThreads = 1;
-
-        @Parameter(names = {"-lt", "--num-listener-threads"}, description = "Set the number of threads"
-                + " to be used for message listeners")
-        public int listenerThreads = 1;
-
         @Parameter(names = {"--batch-index-ack" }, description = "Enable or disable the batch index acknowledgment")
         public boolean batchIndexAck = false;
 
         @Parameter(names = { "-pm", "--pool-messages" }, description = "Use the pooled message", arity = 1)
         private boolean poolMessages = true;
-
-        @Parameter(names = {"-bw", "--busy-wait"}, description = "Enable Busy-Wait on the Pulsar client")
-        public boolean enableBusyWait = false;
 
         @Parameter(names = {"-tto", "--txn-timeout"},  description = "Set the time value of transaction timeout,"
                 + " and the time unit is second. (After --txn-enable setting to true, --txn-timeout takes effect)")
@@ -244,6 +193,10 @@ public class PerformanceConsumer {
 
         @Parameter(names = { "--histogram-file" }, description = "HdrHistogram output file")
         public String histogramFile = null;
+
+        @Override
+        public void fillArgumentsFromProperties(Properties prop) {
+        }
     }
 
     public static void main(String[] args) throws Exception {
@@ -307,41 +260,7 @@ public class PerformanceConsumer {
                 PerfClientUtils.exit(-1);
             }
         }
-
-        if (arguments.confFile != null) {
-            Properties prop = new Properties(System.getProperties());
-            prop.load(new FileInputStream(arguments.confFile));
-
-            if (arguments.serviceURL == null) {
-                arguments.serviceURL = prop.getProperty("brokerServiceUrl");
-            }
-
-            if (arguments.serviceURL == null) {
-                arguments.serviceURL = prop.getProperty("webServiceUrl");
-            }
-
-            // fallback to previous-version serviceUrl property to maintain backward-compatibility
-            if (arguments.serviceURL == null) {
-                arguments.serviceURL = prop.getProperty("serviceUrl", "http://localhost:8080/");
-            }
-
-            if (arguments.authPluginClassName == null) {
-                arguments.authPluginClassName = prop.getProperty("authPlugin", null);
-            }
-
-            if (arguments.authParams == null) {
-                arguments.authParams = prop.getProperty("authParams", null);
-            }
-
-            if (isBlank(arguments.tlsTrustCertsFilePath)) {
-                arguments.tlsTrustCertsFilePath = prop.getProperty("tlsTrustCertsFilePath", "");
-            }
-
-            if (arguments.tlsAllowInsecureConnection == null) {
-                arguments.tlsAllowInsecureConnection = Boolean.parseBoolean(prop
-                        .getProperty("tlsAllowInsecureConnection", ""));
-            }
-        }
+        arguments.fillArgumentsFromProperties();
 
         // Dump config variables
         PerfClientUtils.printJVMInformation(log);
@@ -355,26 +274,9 @@ public class PerformanceConsumer {
         long startTime = System.nanoTime();
         long testEndTime = startTime + (long) (arguments.testTime * 1e9);
 
-        ClientBuilder clientBuilder = PulsarClient.builder() //
-                .enableTransaction(arguments.isEnableTransaction)
-                .serviceUrl(arguments.serviceURL) //
-                .connectionsPerBroker(arguments.maxConnections) //
-                .statsInterval(arguments.statsIntervalSeconds, TimeUnit.SECONDS) //
-                .ioThreads(arguments.ioThreads) //
-                .listenerThreads(arguments.listenerThreads)
-                .enableBusyWait(arguments.enableBusyWait)
-                .tlsTrustCertsFilePath(arguments.tlsTrustCertsFilePath);
-        if (isNotBlank(arguments.authPluginClassName)) {
-            clientBuilder.authentication(arguments.authPluginClassName, arguments.authParams);
-        }
+        ClientBuilder clientBuilder = PerfClientUtils.createClientBuilderFromArguments(arguments)
+                .enableTransaction(arguments.isEnableTransaction);
 
-        if (arguments.tlsAllowInsecureConnection != null) {
-            clientBuilder.allowTlsInsecureConnection(arguments.tlsAllowInsecureConnection);
-        }
-
-        if (isNotBlank(arguments.listenerName)) {
-            clientBuilder.listenerName(arguments.listenerName);
-        }
         PulsarClient pulsarClient = clientBuilder.build();
 
         AtomicReference<Transaction> atomicReference;
