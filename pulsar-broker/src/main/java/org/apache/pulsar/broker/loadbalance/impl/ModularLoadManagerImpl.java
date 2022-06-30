@@ -265,7 +265,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         defaultStats.msgRateIn = DEFAULT_MESSAGE_RATE;
         defaultStats.msgRateOut = DEFAULT_MESSAGE_RATE;
 
-        placementStrategy = ModularLoadManagerStrategy.create(conf);
+        placementStrategy = ModularLoadManagerStrategy.create();
         policies = new SimpleResourceAllocationPolicies(pulsar);
         filterPipeline.add(new BrokerVersionFilter());
 
@@ -287,7 +287,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                     });
 
             try {
-                scheduler.submit(ModularLoadManagerImpl.this::updateAll);
+                scheduler.execute(ModularLoadManagerImpl.this::updateAll);
             } catch (RejectedExecutionException e) {
                 // Executor is shutting down
             }
@@ -828,10 +828,17 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                 LoadManagerShared.filterAntiAffinityGroupOwnedBrokers(pulsar, serviceUnit.toString(),
                         brokerCandidateCache,
                         brokerToNamespaceToBundleRange, brokerToFailureDomainMap);
-                // distribute bundles evenly to candidate-brokers
 
-                LoadManagerShared.removeMostServicingBrokersForNamespace(serviceUnit.toString(), brokerCandidateCache,
-                        brokerToNamespaceToBundleRange);
+                // distribute bundles evenly to candidate-brokers if enable
+                if (conf.isLoadBalancerDistributeBundlesEvenlyEnabled()) {
+                    LoadManagerShared.removeMostServicingBrokersForNamespace(serviceUnit.toString(),
+                            brokerCandidateCache,
+                            brokerToNamespaceToBundleRange);
+                    if (log.isDebugEnabled()) {
+                        log.debug("enable distribute bundles evenly to candidate-brokers, broker candidate count={}",
+                                brokerCandidateCache.size());
+                    }
+                }
                 log.info("{} brokers being considered for assignment of {}", brokerCandidateCache.size(), bundle);
 
                 // Use the filter pipeline to finalize broker candidates.

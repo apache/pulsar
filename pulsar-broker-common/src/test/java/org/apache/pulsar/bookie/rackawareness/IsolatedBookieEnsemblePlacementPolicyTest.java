@@ -298,6 +298,39 @@ public class IsolatedBookieEnsemblePlacementPolicyTest {
         isolationPolicy.onClusterChanged(writableBookies, readOnlyBookies);
 
         isolationPolicy.newEnsemble(4, 4, 4, Collections.emptyMap(), new HashSet<>());
+
+        BookieId bookie1Id = new BookieSocketAddress(BOOKIE1).toBookieId();
+        BookieId bookie2Id = new BookieSocketAddress(BOOKIE2).toBookieId();
+        BookieId bookie3Id = new BookieSocketAddress(BOOKIE3).toBookieId();
+        BookieId bookie4Id = new BookieSocketAddress(BOOKIE4).toBookieId();
+        // when we set strictBookieAffinityEnabled=true and some namespace not set ISOLATION_BOOKIE_GROUPS there will set "" by default.
+        Map<String, Object> placementPolicyProperties1 = new HashMap<>();
+        placementPolicyProperties1.put(
+                IsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS, "");
+        placementPolicyProperties1.put(
+                IsolatedBookieEnsemblePlacementPolicy.SECONDARY_ISOLATION_BOOKIE_GROUPS, "");
+        EnsemblePlacementPolicyConfig policyConfig = new EnsemblePlacementPolicyConfig(
+                IsolatedBookieEnsemblePlacementPolicy.class,
+                placementPolicyProperties1
+        );
+        Map<String, byte[]> customMetadata1 = new HashMap<>();
+        customMetadata1.put(EnsemblePlacementPolicyConfig.ENSEMBLE_PLACEMENT_POLICY_CONFIG, policyConfig.encode());
+
+        BookieId replaceBookie1 = isolationPolicy.replaceBookie(3, 3, 3, customMetadata1,
+                Arrays.asList(bookie1Id,bookie2Id,bookie3Id), bookie3Id, null).getResult();
+        assertEquals(replaceBookie1, bookie4Id);
+
+        // when ISOLATION_BOOKIE_GROUPS miss.
+        Map<String, Object> placementPolicyProperties2 = new HashMap<>();
+        EnsemblePlacementPolicyConfig policyConfig2 = new EnsemblePlacementPolicyConfig(
+                IsolatedBookieEnsemblePlacementPolicy.class,
+                placementPolicyProperties2
+        );
+        Map<String, byte[]> customMetadata2 = new HashMap<>();
+        customMetadata2.put(EnsemblePlacementPolicyConfig.ENSEMBLE_PLACEMENT_POLICY_CONFIG, policyConfig.encode());
+        BookieId replaceBookie2 = isolationPolicy.replaceBookie(3, 3, 3, customMetadata2,
+                Arrays.asList(bookie1Id,bookie2Id,bookie3Id), bookie3Id, null).getResult();
+        assertEquals(replaceBookie2, bookie4Id);
     }
 
     /**

@@ -34,7 +34,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingDeque;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.Semaphore;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -56,6 +55,7 @@ import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.policies.data.TransactionInPendingAckStats;
 import org.apache.pulsar.common.policies.data.TransactionPendingAckStats;
+import org.apache.pulsar.common.stats.PositionInPendingAckStats;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 import org.apache.pulsar.transaction.common.exception.TransactionConflictException;
@@ -157,8 +157,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                 this.pendingAckStoreFuture =
                         pendingAckStoreProvider.newPendingAckStore(persistentSubscription);
                 this.pendingAckStoreFuture.thenAccept(pendingAckStore -> {
-                    pendingAckStore.replayAsync(this,
-                            (ScheduledExecutorService) internalPinnedExecutor);
+                    pendingAckStore.replayAsync(this, internalPinnedExecutor);
                 }).exceptionally(e -> {
                     acceptQueue.clear();
                     changeToErrorState();
@@ -966,6 +965,40 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
             });
         } else {
             return FutureUtil.failedFuture(new ServiceUnitNotReadyException("Pending ack have not init success!"));
+        }
+    }
+
+    @Override
+    public PositionInPendingAckStats checkPositionInPendingAckState(PositionImpl position, Integer batchIndex) {
+        if (!state.equals(State.Ready)) {
+            return new PositionInPendingAckStats(PositionInPendingAckStats.State.PendingAckNotReady);
+        }
+        if (persistentSubscription.getCursor().getPersistentMarkDeletedPosition() != null && position.compareTo(
+                        (PositionImpl) persistentSubscription.getCursor().getPersistentMarkDeletedPosition()) <= 0) {
+            return new PositionInPendingAckStats(PositionInPendingAckStats.State.MarkDelete);
+        } else if (individualAckPositions == null) {
+            return new PositionInPendingAckStats(PositionInPendingAckStats.State.NotInPendingAck);
+        }
+        MutablePair<PositionImpl, Integer> positionIntegerMutablePair = individualAckPositions.get(position);
+        if (positionIntegerMutablePair != null) {
+            if (batchIndex == null) {
+                return new PositionInPendingAckStats(PositionInPendingAckStats.State.PendingAck);
+            } else {
+                if (batchIndex >= positionIntegerMutablePair.right) {
+                    return new PositionInPendingAckStats(PositionInPendingAckStats.State.InvalidPosition);
+                }
+                BitSetRecyclable bitSetRecyclable = BitSetRecyclable
+                        .valueOf(positionIntegerMutablePair.left.getAckSet());
+                if (bitSetRecyclable.get(batchIndex)) {
+                    bitSetRecyclable.recycle();
+                    return new PositionInPendingAckStats(PositionInPendingAckStats.State.NotInPendingAck);
+                } else {
+                    bitSetRecyclable.recycle();
+                    return new PositionInPendingAckStats(PositionInPendingAckStats.State.PendingAck);
+                }
+            }
+        } else {
+            return new PositionInPendingAckStats(PositionInPendingAckStats.State.NotInPendingAck);
         }
     }
 

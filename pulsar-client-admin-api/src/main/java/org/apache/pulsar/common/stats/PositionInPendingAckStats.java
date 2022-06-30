@@ -16,7 +16,26 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-/**
- * Implementation of the connector to the Presto engine.
- */
-package org.apache.pulsar.sql.agent;
+package org.apache.pulsar.common.stats;
+
+import lombok.Data;
+
+@Data
+public class PositionInPendingAckStats {
+
+    public enum State {
+        PendingAck,
+        MarkDelete,
+        NotInPendingAck,
+        PendingAckNotReady,
+        InvalidPosition
+    };
+
+    public PositionInPendingAckStats() {}
+
+    public PositionInPendingAckStats(State state) {
+        this.state = state;
+    }
+
+    public State state;
+}

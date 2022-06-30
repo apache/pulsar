@@ -159,7 +159,7 @@ functionRuntimeFactoryConfigs:
 #### Kubernetes Runtime ####
 # Pulsar function are deployed to Kubernetes
 
-# Upload the builtin sources/sinks to BookKeeper.
+# Upload the builtin sources/sinks/functions to BookKeeper.
 # True by default.
 # uploadBuiltinSinksSources: true
 #functionRuntimeFactoryClassName: org.apache.pulsar.functions.runtime.kubernetes.KubernetesRuntimeFactory

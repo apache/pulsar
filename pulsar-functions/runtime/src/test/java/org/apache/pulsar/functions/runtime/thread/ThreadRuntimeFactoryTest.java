@@ -28,6 +28,7 @@ import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator;
 import org.apache.pulsar.functions.worker.ConnectorsManager;
+import org.apache.pulsar.functions.worker.FunctionsManager;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
@@ -138,6 +139,7 @@ public class ThreadRuntimeFactoryTest {
                     Mockito.mock(AuthenticationConfig.class),
                     Mockito.mock(SecretsProviderConfigurator.class),
                     Mockito.mock(ConnectorsManager.class),
+                    Mockito.mock(FunctionsManager.class),
                     Optional.empty(), Optional.empty());
 
             return clientBuilder;

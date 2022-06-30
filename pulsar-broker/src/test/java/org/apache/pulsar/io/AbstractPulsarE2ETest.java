@@ -219,6 +219,7 @@ public abstract class AbstractPulsarE2ETest {
         fileServer.serveFile("/pulsar-io-data-generator.nar", getPulsarIODataGeneratorNar());
         fileServer.serveFile("/pulsar-io-batch-data-generator.nar", getPulsarIOBatchDataGeneratorNar());
         fileServer.serveFile("/pulsar-functions-api-examples.jar", getPulsarApiExamplesJar());
+        fileServer.serveFile("/pulsar-functions-api-examples.nar", getPulsarApiExamplesNar());
         fileServer.start();
 
         Awaitility.await().until(() -> functionsWorkerService.getLeaderService().isLeader());

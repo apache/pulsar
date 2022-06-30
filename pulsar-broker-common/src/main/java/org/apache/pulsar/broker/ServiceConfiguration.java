@@ -2012,6 +2012,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + " should be offload from some over-loaded broker to other under-loaded brokers"
     )
     private int loadBalancerSheddingIntervalMinutes = 1;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "enable/disable distribute bundles evenly"
+    )
+    private boolean loadBalancerDistributeBundlesEvenlyEnabled = true;
+
     @FieldContext(
         category = CATEGORY_LOAD_BALANCER,
         dynamic = true,
@@ -2601,6 +2609,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "The transaction buffer client's operation timeout in milliseconds."
     )
     private long transactionBufferClientOperationTimeoutInMills = 3000L;
+
+    @FieldContext(
+            category = CATEGORY_TRANSACTION,
+            doc = "The max active transactions per transaction coordinator, default value 0 indicates no limit."
+    )
+    private long maxActiveTransactionsPerCoordinator = 0L;
 
     @FieldContext(
             category = CATEGORY_TRANSACTION,

@@ -124,7 +124,7 @@ public class BrokerStatsBase extends AdminResource {
 
     @GET
     @Path("/bookieops")
-    @ApiOperation(value = "Get pending bookie client op stats by namesapce",
+    @ApiOperation(value = "Get pending bookie client op stats by namespace",
             response = PendingBookieOpsStats.class,
             // https://github.com/swagger-api/swagger-core/issues/449
             // nested containers are not supported
@@ -136,7 +136,7 @@ public class BrokerStatsBase extends AdminResource {
         try {
             return BookieClientStatsGenerator.generate(pulsar());
         } catch (Exception e) {
-            log.error("[{}] Failed to generate pending bookie ops stats for topicss", clientAppId(), e);
+            log.error("[{}] Failed to generate pending bookie ops stats for topics", clientAppId(), e);
             throw new RestException(e);
         }
     }
