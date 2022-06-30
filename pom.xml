@@ -228,11 +228,11 @@ flexible messaging model and an intuitive client API.</description>
     <netty-reactive-streams.version>2.0.6</netty-reactive-streams.version>
 
     <!-- test dependencies -->
-    <testcontainers.version>1.15.3</testcontainers.version>
+    <testcontainers.version>1.17.2</testcontainers.version>
     <hamcrest.version>2.2</hamcrest.version>
 
     <!-- Set docker-java.version to the version of docker-java used in Testcontainers -->
-    <docker-java.version>3.2.8</docker-java.version>
+    <docker-java.version>3.2.13</docker-java.version>
     <kerby.version>1.1.1</kerby.version>
     <testng.version>7.3.0</testng.version>
     <mockito.version>3.12.4</mockito.version>

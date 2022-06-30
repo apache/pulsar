@@ -120,7 +120,7 @@ public abstract class HbaseAbstractSink<T> implements Sink<T> {
         }
 
         if (number == batchSize) {
-            flushExecutor.submit(() -> flush());
+            flushExecutor.execute(() -> flush());
         }
     }
 

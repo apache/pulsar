@@ -551,7 +551,7 @@ Commands `consume`, `produce`, `read` and `transaction` share the following clie
 |`--listener-name`|Listener name for the broker||
 |`-lt`, `--num-listener-threads`|Set the number of threads to be used for message listeners|1|
 |`--tls-allow-insecure`|Allow insecure TLS connection||
-|`--tls-hostname-verification`|Enable TLS hostname verification||
+|`--tls-enable-hostname-verification`|Enable TLS hostname verification||
 |`--trust-cert-file`|Path for the trusted TLS certificate file||
 |`-u`, `--service-url`|Pulsar service URL||
 

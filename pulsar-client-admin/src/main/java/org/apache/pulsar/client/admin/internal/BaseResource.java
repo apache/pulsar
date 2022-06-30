@@ -296,7 +296,7 @@ public abstract class BaseResource {
         } catch (TimeoutException e) {
           throw new PulsarAdminException.TimeoutException(e);
         } catch (ExecutionException e) {
-            // we want to have a stacktrace that points to this point, in order to return a meaninful
+            // we want to have a stacktrace that points to this point, in order to return a meaningful
             // stacktrace to the user, otherwise we will have a stacktrace
             // related to another thread, because all Admin API calls are async
             throw PulsarAdminException.wrap(getApiException(e.getCause()));
