@@ -90,7 +90,7 @@ public abstract class BaseGenerateDocumentation {
         sb.append("|---|---|---|---|---|\n");
         for (Field field : fields) {
             FieldContext fieldContext = field.getAnnotation(FieldContext.class);
-            if (fieldContext == null || fieldContext.deprecated()) {
+            if (fieldContext == null) {
                 continue;
             }
             field.setAccessible(true);
