@@ -405,8 +405,6 @@ public class CmdSinks extends CmdBase {
         @Parameter(names = "--preprocess-function-config", description = "Configuration of the preprocess function applied before the Sink")
         protected String preprocessFunctionConfig;
 
-
-
         protected SinkConfig sinkConfig;
 
         private void mergeArgs() {

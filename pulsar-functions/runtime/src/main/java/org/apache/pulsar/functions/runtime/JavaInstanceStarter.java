@@ -62,7 +62,7 @@ public class JavaInstanceStarter implements AutoCloseable {
     public String jarFile;
 
     @Parameter(
-            names = "--extra-function-jar",
+            names = "--extra_function_jar",
             description = "Path to Extra Function Jar\n",
             listConverter = StringConverter.class)
     public String extraFunctionJarFile;
@@ -73,7 +73,7 @@ public class JavaInstanceStarter implements AutoCloseable {
     @Parameter(names = "--function_id", description = "Function Id\n", required = true)
     public String functionId;
 
-    @Parameter(names = "--extra-function_id", description = "Extra Function Id\n", required = true)
+    @Parameter(names = "--extra_function_id", description = "Extra Function Id\n", required = true)
     public String extraFunctionId;
 
     @Parameter(names = "--function_version", description = "Function Version\n", required = true)

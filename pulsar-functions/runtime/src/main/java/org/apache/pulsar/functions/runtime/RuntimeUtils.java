@@ -383,7 +383,7 @@ public class RuntimeUtils {
         args.add("--function_id");
         args.add(instanceConfig.getFunctionId());
         if (instanceConfig.getExtraFunctionId() != null) {
-            args.add("--extra-function_id");
+            args.add("--extra_function_id");
             args.add(instanceConfig.getExtraFunctionId());
         }
         args.add("--function_version");
