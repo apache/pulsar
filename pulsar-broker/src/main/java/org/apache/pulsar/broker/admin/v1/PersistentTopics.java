@@ -71,14 +71,16 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
             @ApiParam(value = "Specify the bundle name", required = false)
             @QueryParam("bundle") String bundle) {
-        try {
-            validateNamespaceName(property, cluster, namespace);
-            asyncResponse.resume(internalGetList(Optional.ofNullable(bundle)));
-        } catch (WebApplicationException wae) {
-            asyncResponse.resume(wae);
-        } catch (Exception e) {
-            asyncResponse.resume(new RestException(e));
-        }
+        validateNamespaceName(property, cluster, namespace);
+        internalGetListAsync(Optional.ofNullable(bundle))
+            .thenAccept(asyncResponse::resume)
+            .exceptionally(ex -> {
+                if (!isRedirectException(ex)) {
+                    log.error("[{}] Failed to get topic list {}", clientAppId(), namespaceName, ex);
+                }
+                resumeAsyncResponseExceptionally(asyncResponse, ex);
+                return null;
+            });
     }
 
     @GET
