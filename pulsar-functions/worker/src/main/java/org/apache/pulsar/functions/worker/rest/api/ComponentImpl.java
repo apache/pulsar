@@ -1626,7 +1626,7 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
             }
         }
 
-        if (componentType == FunctionDetails.ComponentType.SOURCE && functionDetails.hasSink()) {
+        if (componentType == FunctionDetails.ComponentType.SINK && functionDetails.hasSink()) {
             SinkSpec sinkSpec = functionDetails.getSink();
             if (!isEmpty(sinkSpec.getBuiltin())) {
                 return sinkSpec.getBuiltin();

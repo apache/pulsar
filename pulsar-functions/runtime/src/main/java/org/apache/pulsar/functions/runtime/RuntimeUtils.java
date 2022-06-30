@@ -382,6 +382,10 @@ public class RuntimeUtils {
         args.add(shardId);
         args.add("--function_id");
         args.add(instanceConfig.getFunctionId());
+        if (instanceConfig.getExtraFunctionId() != null) {
+            args.add("--extra-function_id");
+            args.add(instanceConfig.getExtraFunctionId());
+        }
         args.add("--function_version");
         args.add(instanceConfig.getFunctionVersion());
         args.add("--function_details");

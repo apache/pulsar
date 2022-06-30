@@ -237,6 +237,7 @@ public class SinksImpl extends ComponentImpl implements Sinks<PulsarWorkerServic
                         functionPackageFile = getPackageFile(preprocessFunction);
                     } else {
                         builtin = preprocessFunction.replaceFirst("^builtin://", "");
+                        functionMetaDataBuilder.setFunctionDetails(functionDetails.toBuilder().setBuiltin(builtin));
                     }
                     Function.PackageLocationMetaData.Builder functionPackageLocation =
                             getFunctionPackageLocation(functionMetaDataBuilder.build(),

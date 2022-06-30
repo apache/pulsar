@@ -126,6 +126,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     private final Map<String, String> properties;
 
     private final ClassLoader instanceClassLoader;
+    private final ClassLoader componentClassLoader;
     private final ClassLoader functionClassLoader;
 
     // a flog to determine if member variables have been initialized as part of setup().
@@ -143,7 +144,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                                 String stateStorageServiceUrl,
                                 SecretsProvider secretsProvider,
                                 FunctionCollectorRegistry collectorRegistry,
-                                ClassLoader functionClassLoader) throws PulsarClientException {
+                                ClassLoader componentClassLoader,
+                                ClassLoader extraFunctionClassLoader) throws PulsarClientException {
         this.instanceConfig = instanceConfig;
         this.clientBuilder = clientBuilder;
         this.client = (PulsarClientImpl) pulsarClient;
@@ -151,7 +153,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         this.stateStorageImplClass = stateStorageImplClass;
         this.stateStorageServiceUrl = stateStorageServiceUrl;
         this.secretsProvider = secretsProvider;
-        this.functionClassLoader = functionClassLoader;
+        this.componentClassLoader = componentClassLoader;
+        this.functionClassLoader = extraFunctionClassLoader != null ? extraFunctionClassLoader : componentClassLoader;
         this.metricsLabels = new String[]{
                 instanceConfig.getFunctionDetails().getTenant(),
                 String.format("%s/%s", instanceConfig.getFunctionDetails().getTenant(),
@@ -260,8 +263,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
             Thread currentThread = Thread.currentThread();
             Consumer<Throwable> asyncErrorHandler = throwable -> currentThread.interrupt();
-            AsyncResultConsumer asyncResultConsumer =
-                    (record, javaExecutionResult) -> handleResult(record, javaExecutionResult);
+            AsyncResultConsumer asyncResultConsumer = this::handleResult;
 
             while (true) {
                 currentRecord = readInput();
@@ -383,7 +385,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
     private void sendOutputMessage(Record srcRecord, Object output) throws Exception {
         if (componentType == org.apache.pulsar.functions.proto.Function.FunctionDetails.ComponentType.SINK) {
-            Thread.currentThread().setContextClassLoader(functionClassLoader);
+            Thread.currentThread().setContextClassLoader(componentClassLoader);
         }
         AbstractSinkRecord<?> sinkRecord;
         if (output instanceof Record) {
@@ -407,7 +409,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     private Record readInput() throws Exception {
         Record record;
         if (componentType == org.apache.pulsar.functions.proto.Function.FunctionDetails.ComponentType.SOURCE) {
-            Thread.currentThread().setContextClassLoader(functionClassLoader);
+            Thread.currentThread().setContextClassLoader(componentClassLoader);
         }
         try {
             record = this.source.read();
@@ -446,7 +448,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
         if (source != null) {
             if (componentType == org.apache.pulsar.functions.proto.Function.FunctionDetails.ComponentType.SOURCE) {
-                Thread.currentThread().setContextClassLoader(functionClassLoader);
+                Thread.currentThread().setContextClassLoader(componentClassLoader);
             }
             try {
                 source.close();
@@ -461,7 +463,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
         if (sink != null) {
             if (componentType == org.apache.pulsar.functions.proto.Function.FunctionDetails.ComponentType.SINK) {
-                Thread.currentThread().setContextClassLoader(functionClassLoader);
+                Thread.currentThread().setContextClassLoader(componentClassLoader);
             }
             try {
                 sink.close();
@@ -753,11 +755,11 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             if (pulsarSourceConfig instanceof SingleConsumerPulsarSourceConfig) {
                 object = new SingleConsumerPulsarSource(this.client,
                         (SingleConsumerPulsarSourceConfig) pulsarSourceConfig, this.properties,
-                        this.functionClassLoader);
+                        this.componentClassLoader);
             } else {
                 object =
                         new MultiConsumerPulsarSource(this.client, (MultiConsumerPulsarSourceConfig) pulsarSourceConfig,
-                                this.properties, this.functionClassLoader);
+                                this.properties, this.componentClassLoader);
             }
         } else {
 
@@ -769,7 +771,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             } else {
                 object = Reflections.createInstance(
                   sourceSpec.getClassName(),
-                  this.functionClassLoader);
+                  this.componentClassLoader);
             }
         }
 
@@ -783,7 +785,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         this.source = (Source<?>) object;
 
         if (componentType == org.apache.pulsar.functions.proto.Function.FunctionDetails.ComponentType.SOURCE) {
-            Thread.currentThread().setContextClassLoader(this.functionClassLoader);
+            Thread.currentThread().setContextClassLoader(this.componentClassLoader);
         }
         try {
             if (sourceSpec.getConfigs().isEmpty()) {
@@ -842,12 +844,12 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 }
 
                 object = new PulsarSink(this.client, pulsarSinkConfig, this.properties, this.stats,
-                        this.functionClassLoader);
+                        this.componentClassLoader);
             }
         } else {
             object = Reflections.createInstance(
                     sinkSpec.getClassName(),
-                    this.functionClassLoader);
+                    this.componentClassLoader);
         }
 
         if (object instanceof Sink) {
@@ -857,7 +859,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         }
 
         if (componentType == org.apache.pulsar.functions.proto.Function.FunctionDetails.ComponentType.SINK) {
-            Thread.currentThread().setContextClassLoader(this.functionClassLoader);
+            Thread.currentThread().setContextClassLoader(this.componentClassLoader);
         }
         try {
             if (sinkSpec.getConfigs().isEmpty()) {

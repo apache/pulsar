@@ -400,6 +400,8 @@ public class CmdSinks extends CmdBase {
         protected String secretsString;
         @Parameter(names = "--preprocess-function", description = "Preprocess function applied before the Sink")
         protected String preprocessFunction;
+        @Parameter(names = "--preprocess-function-classname", description = "The preprocess function class name")
+        protected String preprocessFunctionClassName;
         @Parameter(names = "--preprocess-function-config", description = "Configuration of the preprocess function applied before the Sink")
         protected String preprocessFunctionConfig;
 
@@ -586,6 +588,10 @@ public class CmdSinks extends CmdBase {
 
             if (preprocessFunction != null) {
                 sinkConfig.setPreprocessFunction(preprocessFunction);
+            }
+
+            if (preprocessFunctionClassName != null) {
+                sinkConfig.setPreprocessFunctionClassName(preprocessFunctionClassName);
             }
 
             if (preprocessFunctionConfig != null) {

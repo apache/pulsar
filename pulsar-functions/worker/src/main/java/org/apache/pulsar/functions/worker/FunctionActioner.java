@@ -19,6 +19,7 @@
 package org.apache.pulsar.functions.worker;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
+import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.pulsar.common.functions.Utils.FILE;
 import static org.apache.pulsar.common.functions.Utils.HTTP;
 import static org.apache.pulsar.common.functions.Utils.hasPackageTypePrefix;
@@ -30,7 +31,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.io.MoreFiles;
 import com.google.common.io.RecursiveDeleteOption;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.URISyntaxException;
@@ -107,18 +107,23 @@ public class FunctionActioner {
                     functionDetails.getName(), instanceId);
 
             String packageFile;
-            String extraFunctionPackageFile;
+            String extraFunctionPackageFile = null;
 
-            String pkgLocation = functionMetaData.getPackageLocation().getPackagePath();
-            String extraFunctionPkgLocation = functionMetaData.getExtraFunctionPackageLocation().getPackagePath();
+            Function.PackageLocationMetaData pkgLocation = functionMetaData.getPackageLocation();
+            Function.PackageLocationMetaData extraFunctionPkgLocation =
+                    functionMetaData.getExtraFunctionPackageLocation();
 
             if (runtimeFactory.externallyManaged()) {
-                packageFile = pkgLocation;
-                extraFunctionPackageFile = extraFunctionPkgLocation;
+                packageFile = pkgLocation.getPackagePath();
+                extraFunctionPackageFile = extraFunctionPkgLocation.getPackagePath();
             } else {
-                packageFile = getPackageFile(functionMetaData, functionDetails, instanceId, pkgLocation);
-                extraFunctionPackageFile =
-                        getPackageFile(functionMetaData, functionDetails, instanceId, extraFunctionPkgLocation);
+                packageFile = getPackageFile(functionMetaData, functionDetails, instanceId, pkgLocation,
+                        functionDetails.getComponentType());
+                if (!isEmpty(extraFunctionPkgLocation.getPackagePath())) {
+                    extraFunctionPackageFile =
+                            getPackageFile(functionMetaData, functionDetails, instanceId, extraFunctionPkgLocation,
+                                    FunctionDetails.ComponentType.FUNCTION);
+                }
             }
 
             // Setup for batch sources if necessary
@@ -139,16 +144,20 @@ public class FunctionActioner {
     }
 
     private String getPackageFile(FunctionMetaData functionMetaData, FunctionDetails functionDetails, int instanceId,
-                             String pkgLocation)
+                                  Function.PackageLocationMetaData pkgLocation,
+                                  FunctionDetails.ComponentType componentType)
             throws URISyntaxException, IOException, ClassNotFoundException, PulsarAdminException {
-        boolean isPkgUrlProvided = isFunctionPackageUrlSupported(pkgLocation);
+        String packagePath = pkgLocation.getPackagePath();
+        boolean isPkgUrlProvided = isFunctionPackageUrlSupported(packagePath);
         String packageFile;
-        if (isPkgUrlProvided && pkgLocation.startsWith(FILE)) {
-            URL url = new URL(pkgLocation);
+        if (isPkgUrlProvided && packagePath.startsWith(FILE)) {
+            URL url = new URL(packagePath);
             File pkgFile = new File(url.toURI());
             packageFile = pkgFile.getAbsolutePath();
-        } else if (FunctionCommon.isFunctionCodeBuiltin(functionDetails)) {
-            File pkgFile = getBuiltinArchive(FunctionDetails.newBuilder(functionMetaData.getFunctionDetails()));
+        } else if (FunctionCommon.isFunctionCodeBuiltin(functionDetails, componentType)) {
+            File pkgFile = getBuiltinArchive(
+                    componentType,
+                    FunctionDetails.newBuilder(functionMetaData.getFunctionDetails()));
             packageFile = pkgFile.getAbsolutePath();
         } else {
             File pkgDir = new File(workerConfig.getDownloadDirectory(),
@@ -157,8 +166,8 @@ public class FunctionActioner {
             File pkgFile = new File(
                     pkgDir,
                     new File(getDownloadFileName(functionMetaData.getFunctionDetails(),
-                            functionMetaData.getPackageLocation())).getName());
-            downloadFile(pkgFile, isPkgUrlProvided, functionMetaData, instanceId);
+                            pkgLocation)).getName());
+            downloadFile(pkgFile, isPkgUrlProvided, functionMetaData, instanceId, pkgLocation);
             packageFile = pkgFile.getAbsolutePath();
         }
         return packageFile;
@@ -198,6 +207,7 @@ public class FunctionActioner {
         instanceConfig.setFunctionDetails(functionDetails);
         // TODO: set correct function id and version when features implemented
         instanceConfig.setFunctionId(UUID.randomUUID().toString());
+        instanceConfig.setExtraFunctionId(UUID.randomUUID().toString());
         instanceConfig.setFunctionVersion(UUID.randomUUID().toString());
         instanceConfig.setInstanceId(instanceId);
         instanceConfig.setMaxBufferedTuples(1024);
@@ -214,7 +224,8 @@ public class FunctionActioner {
     }
 
     private void downloadFile(File pkgFile, boolean isPkgUrlProvided, FunctionMetaData functionMetaData,
-                              int instanceId) throws FileNotFoundException, IOException, PulsarAdminException {
+                              int instanceId, Function.PackageLocationMetaData pkgLocation)
+            throws IOException, PulsarAdminException {
 
         FunctionDetails details = functionMetaData.getFunctionDetails();
         File pkgDir = pkgFile.getParentFile();
@@ -230,12 +241,12 @@ public class FunctionActioner {
                     pkgDir,
                     pkgFile.getName() + "." + instanceId + "." + UUID.randomUUID());
         } while (tempPkgFile.exists() || !tempPkgFile.createNewFile());
-        String pkgLocationPath = functionMetaData.getPackageLocation().getPackagePath();
+        String pkgLocationPath = pkgLocation.getPackagePath();
         boolean downloadFromHttp = isPkgUrlProvided && pkgLocationPath.startsWith(HTTP);
         boolean downloadFromPackageManagementService = isPkgUrlProvided && hasPackageTypePrefix(pkgLocationPath);
         log.info("{}/{}/{} Function package file {} will be downloaded from {}", tempPkgFile, details.getTenant(),
                 details.getNamespace(), details.getName(),
-                downloadFromHttp ? pkgLocationPath : functionMetaData.getPackageLocation());
+                downloadFromHttp ? pkgLocationPath : pkgLocation);
 
         if (downloadFromHttp) {
             FunctionCommon.downloadFromHttpUrl(pkgLocationPath, tempPkgFile);
@@ -264,7 +275,7 @@ public class FunctionActioner {
             } catch (FileAlreadyExistsException faee) {
                 // file already exists
                 log.warn("Function package has been downloaded from {} and saved at {}",
-                        functionMetaData.getPackageLocation(), pkgFile);
+                        pkgLocation, pkgFile);
             }
         } finally {
             tempPkgFile.delete();
@@ -502,8 +513,9 @@ public class FunctionActioner {
                 File.separatorChar);
     }
 
-    private File getBuiltinArchive(FunctionDetails.Builder functionDetails) throws IOException, ClassNotFoundException {
-        if (functionDetails.hasSource()) {
+    private File getBuiltinArchive(FunctionDetails.ComponentType componentType, FunctionDetails.Builder functionDetails)
+            throws IOException, ClassNotFoundException {
+        if (componentType == FunctionDetails.ComponentType.SOURCE && functionDetails.hasSource()) {
             SourceSpec sourceSpec = functionDetails.getSource();
             if (!StringUtils.isEmpty(sourceSpec.getBuiltin())) {
                 Connector connector = connectorsManager.getConnector(sourceSpec.getBuiltin());
@@ -518,7 +530,7 @@ public class FunctionActioner {
             }
         }
 
-        if (functionDetails.hasSink()) {
+        if (componentType == FunctionDetails.ComponentType.SINK && functionDetails.hasSink()) {
             SinkSpec sinkSpec = functionDetails.getSink();
             if (!StringUtils.isEmpty(sinkSpec.getBuiltin())) {
                 Connector connector = connectorsManager.getConnector(sinkSpec.getBuiltin());
@@ -534,7 +546,8 @@ public class FunctionActioner {
             }
         }
 
-        if (!StringUtils.isEmpty(functionDetails.getBuiltin())) {
+        if (componentType == FunctionDetails.ComponentType.FUNCTION
+                && !StringUtils.isEmpty(functionDetails.getBuiltin())) {
             return functionsManager.getFunctionArchive(functionDetails.getBuiltin()).toFile();
         }
 

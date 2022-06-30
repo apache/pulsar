@@ -73,6 +73,9 @@ public class JavaInstanceStarter implements AutoCloseable {
     @Parameter(names = "--function_id", description = "Function Id\n", required = true)
     public String functionId;
 
+    @Parameter(names = "--extra-function_id", description = "Extra Function Id\n", required = true)
+    public String extraFunctionId;
+
     @Parameter(names = "--function_version", description = "Function Version\n", required = true)
     public String functionVersion;
 
@@ -163,6 +166,7 @@ public class JavaInstanceStarter implements AutoCloseable {
 
         InstanceConfig instanceConfig = new InstanceConfig();
         instanceConfig.setFunctionId(functionId);
+        instanceConfig.setExtraFunctionId(extraFunctionId);
         instanceConfig.setFunctionVersion(functionVersion);
         instanceConfig.setInstanceId(instanceId);
         instanceConfig.setMaxBufferedTuples(maxBufferedTuples);
