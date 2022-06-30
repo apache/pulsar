@@ -18,15 +18,13 @@
  */
 package org.apache.pulsar.io.file;
 
-import static org.junit.Assert.assertFalse;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
-
 import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
-
 import org.testng.annotations.Test;
 
 public class FileSourceConfigTests {
