@@ -44,6 +44,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import lombok.AccessLevel;
 import lombok.Getter;
 import org.apache.commons.lang3.exception.ExceptionUtils;
@@ -172,6 +173,16 @@ public class ClientCnx extends PulsarHandler {
     private TransactionBufferHandler transactionBufferHandler;
     private boolean supportsTopicWatchers;
 
+    /** Create time. **/
+    private final long createTime;
+    /** The time when marks the connection is idle. **/
+    private long idleMarkTime;
+    /** Stat. **/
+    private volatile IdleState idleState;
+
+    private static final AtomicReferenceFieldUpdater<ClientCnx, IdleState> STATE_UPDATER =
+            AtomicReferenceFieldUpdater.newUpdater(ClientCnx.class, IdleState.class, "idleState");
+
     enum State {
         None, SentConnectFrame, Ready, Failed, Connecting
     }
@@ -229,6 +240,8 @@ public class ClientCnx extends PulsarHandler {
         this.operationTimeoutMs = conf.getOperationTimeoutMs();
         this.state = State.None;
         this.protocolVersion = protocolVersion;
+        this.createTime = System.currentTimeMillis();
+        this.idleState = IdleState.USING;
     }
 
     @Override
@@ -1265,4 +1278,165 @@ public class ClientCnx extends PulsarHandler {
     }
 
     private static final Logger log = LoggerFactory.getLogger(ClientCnx.class);
+
+    /**
+     * Check client connection is now free. This method may change the state to idle.
+     * This method will not change the state to idle.
+     * @return true if the connection is eligible.
+     */
+    public boolean idleCheck(){
+        if (pendingRequests != null && !pendingRequests.isEmpty()){
+            return false;
+        }
+        if (waitingLookupRequests != null  && !waitingLookupRequests.isEmpty()){
+            return false;
+        }
+        if (!consumers.isEmpty()){
+            return false;
+        }
+        if (!producers.isEmpty()){
+            return false;
+        }
+        if (!transactionMetaStoreHandlers.isEmpty()){
+            return false;
+        }
+        return true;
+    }
+    /**
+     * Get idle-stat.
+     * @return connection idle-stat
+     */
+    public IdleState getIdleStat(){
+        return STATE_UPDATER.get(this);
+    }
+    /**
+     * Compare and switch idle-stat.
+     * @return Whether the update is successful.Because there may be other threads competing, possible return false.
+     */
+    public boolean compareAndSetIdleStat(IdleState originalStat, IdleState newStat){
+        return STATE_UPDATER.compareAndSet(this, originalStat, newStat);
+    }
+
+    /**
+     * Indicates the usage status of the connection and whether it has been released.
+     */
+    public enum IdleState {
+        /** The connection is in use. **/
+        USING,
+        /** The connection is in idle. **/
+        IDLE_MARKED,
+        /** The connection is in idle and will be released soon. **/
+        BEFORE_RELEASE,
+        /** The connection has already been released. **/
+        RELEASED;
+    }
+
+    /**
+     * @return Whether this connection is in use.
+     */
+    public boolean isUsing(){
+        return getIdleStat() == IdleState.USING;
+    }
+
+    /**
+     * @return Whether this connection is in idle.
+     */
+    public boolean isIdle(){
+        return getIdleStat() == IdleState.IDLE_MARKED;
+    }
+
+    /**
+     * @return Whether this connection is in idle and will be released soon.
+     */
+    public boolean isWillBeRelease(){
+        return getIdleStat() == IdleState.BEFORE_RELEASE;
+    }
+
+    /**
+     * @return Whether this connection has already been released.
+     */
+    public boolean alreadyRelease(){
+        return getIdleStat() == IdleState.RELEASED;
+    }
+
+    /**
+     * Try to transform the state of the connection to #{@link IdleState#IDLE_MARKED}, state should only be transformed
+     * to #{@link IdleState#IDLE_MARKED} from state  #{@link IdleState#USING}. if the state is successfully transformed,
+     * "idleMarkTime" will be  assigned to current time.
+     */
+    public void tryMarkIdle(){
+        if (compareAndSetIdleStat(IdleState.USING, IdleState.IDLE_MARKED)){
+            this.idleMarkTime = System.currentTimeMillis();
+        }
+    }
+
+    /**
+     * Changes the idle-state of the connection to #{@link IdleState#USING} as much as possible, This method is used
+     * when connection borrow.
+     * @return Whether change idle-stat to #{@link IdleState#USING} success. False is returned only if the connection
+     * has already been released.
+     */
+    public boolean tryMarkReuse(){
+        while (true){
+            // Ensure not released
+            if (alreadyRelease()){
+                return false;
+            }
+            // Try mark release
+            if (compareAndSetIdleStat(IdleState.IDLE_MARKED, IdleState.USING)){
+                this.idleMarkTime = 0;
+                return true;
+            }
+            if (compareAndSetIdleStat(IdleState.BEFORE_RELEASE, IdleState.USING)){
+                this.idleMarkTime = 0;
+                return true;
+            }
+            if (isUsing()){
+                return true;
+            }
+        }
+    }
+
+    /**
+     * Changes the idle-state of the connection to #{@link IdleState#BEFORE_RELEASE}, This method only changes this
+     * connection from the #{@link IdleState#IDLE_MARKED} state to the #{@link IdleState#BEFORE_RELEASE} state.
+     * @return Whether change idle-stat to #{@link IdleState#BEFORE_RELEASE} success.
+     */
+    public boolean tryMarkWillBeRelease(){
+        return compareAndSetIdleStat(IdleState.IDLE_MARKED, IdleState.BEFORE_RELEASE);
+    }
+
+    /**
+     * Changes the idle-state of the connection to #{@link IdleState#RELEASED}, This method only changes this
+     * connection from the #{@link IdleState#BEFORE_RELEASE} state to the #{@link IdleState#RELEASED} state.
+     * @return Whether change idle-stat to #{@link IdleState#RELEASED} success.
+     */
+    public boolean tryRelease(){
+        if (!compareAndSetIdleStat(IdleState.BEFORE_RELEASE, IdleState.RELEASED)){
+            return false;
+        }
+        this.close();
+        return true;
+    }
+
+
+    /**
+     * Check whether the connection is idle, and if so, set the idle-state to #{@link IdleState#IDLE_MARKED}.
+     * If the state is already idle and the {@param maxIdleSeconds} is reached, set the state to
+     * #{@link IdleState#BEFORE_RELEASE}.
+     */
+    public void doIdleDetect(long maxIdleSeconds){
+        if (isWillBeRelease()){
+            return;
+        }
+        if (isIdle()){
+            if (maxIdleSeconds * 1000 + idleMarkTime < System.currentTimeMillis()){
+                tryMarkWillBeRelease();
+            }
+            return;
+        }
+        if (idleCheck()){
+            tryMarkIdle();
+        }
+    }
 }

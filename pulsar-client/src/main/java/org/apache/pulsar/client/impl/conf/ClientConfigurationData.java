@@ -125,6 +125,19 @@ public class ClientConfigurationData implements Serializable, Cloneable {
     private int connectionsPerBroker = 1;
 
     @ApiModelProperty(
+            name = "connectionMaxIdleSeconds",
+            value = "Release the connection if it is not used for more than [connectionMaxIdleSeconds] seconds. "
+                    + "If  [connectionMaxIdleSeconds] < 0, disabled the feature that auto release the idle connections"
+    )
+    private int connectionMaxIdleSeconds = 180;
+
+    @ApiModelProperty(
+            name = "connectionIdleDetectionIntervalSeconds",
+            value = "How often check idle connections"
+    )
+    private int connectionIdleDetectionIntervalSeconds = 60;
+
+    @ApiModelProperty(
             name = "useTcpNoDelay",
             value = "Whether to use TCP NoDelay option."
     )
@@ -418,5 +431,12 @@ public class ClientConfigurationData implements Serializable, Cloneable {
 
     public String getSocks5ProxyPassword() {
         return Objects.nonNull(socks5ProxyPassword) ? socks5ProxyPassword : System.getProperty("socks5Proxy.password");
+    }
+
+    /**
+     * Disable The "auto release useless connections" feature.
+     */
+    public void disabledAutoReleaseUselessConnections(){
+        this.connectionMaxIdleSeconds = -1;
     }
 }

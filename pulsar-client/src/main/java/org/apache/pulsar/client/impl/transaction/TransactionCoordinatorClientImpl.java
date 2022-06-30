@@ -67,6 +67,13 @@ public class TransactionCoordinatorClientImpl implements TransactionCoordinatorC
         this.pulsarClient = (PulsarClientImpl) pulsarClient;
     }
 
+    public TransactionMetaStoreHandler[] getHandlers() {
+        // To solve problem "may expose internal representation by returning this.handlers", clone one.
+        TransactionMetaStoreHandler[] clone = new TransactionMetaStoreHandler[this.handlers.length];
+        System.arraycopy(handlers, 0, clone, 0, this.handlers.length);
+        return clone;
+    }
+
     @Override
     public void start() throws TransactionCoordinatorClientException {
         try {
