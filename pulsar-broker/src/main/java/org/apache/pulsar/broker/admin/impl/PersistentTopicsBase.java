@@ -183,6 +183,32 @@ public class PersistentTopicsBase extends AdminResource {
         }
     }
 
+    protected CompletableFuture<List<String>> internalGetListAsync(Optional<String> bundle) {
+        return validateNamespaceOperationAsync(namespaceName, NamespaceOperation.GET_TOPICS)
+            .thenCompose(__ -> namespaceResources().namespaceExistsAsync(namespaceName))
+            .thenAccept(exists -> {
+                if (!exists) {
+                    throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
+                }
+            })
+            .thenCompose(__ -> topicResources().listPersistentTopicsAsync(namespaceName))
+            .thenApply(topics ->
+                topics.stream()
+                    .filter(topic -> {
+                        if (isTransactionInternalName(TopicName.get(topic))) {
+                            return false;
+                        }
+                        if (bundle.isPresent()) {
+                            NamespaceBundle b = pulsar().getNamespaceService().getNamespaceBundleFactory()
+                                .getBundle(TopicName.get(topic));
+                            return b != null && bundle.get().equals(b.getBundleRange());
+                        }
+                        return true;
+                    })
+                    .collect(Collectors.toList())
+            );
+    }
+
     protected CompletableFuture<List<String>> internalGetListAsync() {
         return validateNamespaceOperationAsync(namespaceName, NamespaceOperation.GET_TOPICS)
                 .thenCompose(__ -> namespaceResources().namespaceExistsAsync(namespaceName))
@@ -4249,18 +4275,22 @@ public class PersistentTopicsBase extends AdminResource {
 
         return getPartitionedTopicMetadataAsync(
                 TopicName.get(topicName.getPartitionedTopicName()), false, false)
-                .thenApply(partitionedTopicMetadata -> {
+                .thenAccept(partitionedTopicMetadata -> {
                     if (partitionedTopicMetadata == null || partitionedTopicMetadata.partitions == 0) {
                         final String topicErrorType = partitionedTopicMetadata
                                 == null ? "has no metadata" : "has zero partitions";
                         throw new RestException(Status.NOT_FOUND, String.format(
                                 "Partitioned Topic not found: %s %s", topicName.toString(), topicErrorType));
-                    } else if (!internalGetList(Optional.empty()).contains(topicName.toString())) {
+                    }
+                })
+                .thenCompose(__ -> internalGetListAsync(Optional.empty()))
+                .thenApply(topics -> {
+                    if (!topics.contains(topicName.toString())) {
                         throw new RestException(Status.NOT_FOUND, "Topic partitions were not yet created");
                     }
                     throw new RestException(Status.NOT_FOUND,
-                            getPartitionedTopicNotFoundErrorMessage(topicName.toString()));
-                });
+                        getPartitionedTopicNotFoundErrorMessage(topicName.toString()));
+            });
     }
 
     /**
