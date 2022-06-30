@@ -26,6 +26,7 @@ import java.util.Optional;
 
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.impl.LeastLongTermMessageRate;
+import org.apache.pulsar.broker.loadbalance.impl.LeastResourceUsageWithWeight;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 import org.apache.pulsar.policies.data.loadbalancer.ResourceUsage;
 import org.apache.pulsar.policies.data.loadbalancer.BrokerData;
@@ -57,6 +58,42 @@ public class ModularLoadManagerStrategyTest {
         assertEquals(strategy.selectBroker(brokerDataMap.keySet(), bundleData, loadData, conf), Optional.of("2"));
         brokerData2.getLocalData().setCpu(new ResourceUsage(90, 100));
         assertEquals(strategy.selectBroker(brokerDataMap.keySet(), bundleData, loadData, conf), Optional.of("3"));
+    }
+
+    // Test that least resource usage with weight works correctly.
+    public void testLeastResourceUsageWithWeight() {
+        BundleData bundleData = new BundleData();
+        BrokerData brokerData1 = initBrokerData(10, 100);
+        BrokerData brokerData2 = initBrokerData(20, 100);
+        BrokerData brokerData4 = initBrokerData(40, 100);
+        LoadData loadData = new LoadData();
+        Map<String, BrokerData> brokerDataMap = loadData.getBrokerData();
+        brokerDataMap.put("1", brokerData1);
+        brokerDataMap.put("2", brokerData2);
+        brokerDataMap.put("4", brokerData4);
+        ServiceConfiguration conf = new ServiceConfiguration();
+        conf.setLoadBalancerBrokerThresholdShedderPercentage(10);
+        conf.setLoadBalancerCPUResourceWeight(1.0);
+        conf.setLoadBalancerMemoryResourceWeight(0.1);
+        conf.setLoadBalancerDirectMemoryResourceWeight(0.1);
+        conf.setLoadBalancerBandwithInResourceWeight(1.0);
+        conf.setLoadBalancerBandwithOutResourceWeight(1.0);
+
+        ModularLoadManagerStrategy strategy = new LeastResourceUsageWithWeight();
+        assertEquals(strategy.selectBroker(brokerDataMap.keySet(), bundleData, loadData, conf), Optional.of("1"));
+    }
+
+    private BrokerData initBrokerData(double usage, double limit) {
+        LocalBrokerData localBrokerData = new LocalBrokerData();
+        localBrokerData.setCpu(new ResourceUsage(usage, limit));
+        localBrokerData.setMemory(new ResourceUsage(usage, limit));
+        localBrokerData.setDirectMemory(new ResourceUsage(usage, limit));
+        localBrokerData.setBandwidthIn(new ResourceUsage(usage, limit));
+        localBrokerData.setBandwidthOut(new ResourceUsage(usage, limit));
+        BrokerData brokerData = new BrokerData(localBrokerData);
+        TimeAverageBrokerData timeAverageBrokerData = new TimeAverageBrokerData();
+        brokerData.setTimeAverageData(timeAverageBrokerData);
+        return brokerData;
     }
 
     private BrokerData initBrokerData() {
