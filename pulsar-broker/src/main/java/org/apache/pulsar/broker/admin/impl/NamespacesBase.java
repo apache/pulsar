@@ -622,7 +622,7 @@ public abstract class NamespacesBase extends AdminResource {
                                 .thenCompose(topics -> {
                                     CompletableFuture<Void> deleteTopicsFuture =
                                             CompletableFuture.completedFuture(null);
-                                    if (force) {
+                                    if (!force) {
                                         List<CompletableFuture<NamespaceBundle>> futures = new ArrayList<>();
                                         for (String topic : topics) {
                                             futures.add(pulsar().getNamespaceService()
