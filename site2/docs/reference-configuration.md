@@ -348,7 +348,7 @@ brokerServiceCompactionThresholdInBytes|If the estimated backlog size is greater
 |keepAliveIntervalSeconds|  How often to check whether the connections are still alive  |30|
 |bootstrapNamespaces| The bootstrap name. | N/A |
 |loadManagerClassName|  Name of load manager to use |org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl|
-|supportedNamespaceBundleSplitAlgorithms| Supported algorithms name for namespace bundle split |[range_equally_divide,topic_count_equally_divide]|
+|supportedNamespaceBundleSplitAlgorithms| Supported algorithms name for namespace bundle split |[range_equally_divide,topic_count_equally_divide,specified_positions_divide]|
 |defaultNamespaceBundleSplitAlgorithm| Default algorithm name for namespace bundle split |range_equally_divide|
 |managedLedgerOffloadDriver| The directory for all the offloader implementations `offloadersDirectory=./offloaders`. Driver to use to offload old data to long term storage (Possible values: S3, aws-s3, google-cloud-storage). When using google-cloud-storage, Make sure both Google Cloud Storage and Google Cloud Storage JSON API are enabled for the project (check from Developers Console -> Api&auth -> APIs). ||
 |managedLedgerOffloadMaxThreads|  Maximum number of thread pool threads for ledger offloading |2|
