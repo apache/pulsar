@@ -196,6 +196,29 @@ public class CmdTransactions extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Check whether the position is in pending ack stats")
+    private class CheckPositionInPendingAckState extends CliCommand {
+        @Parameter(names = {"-t", "--topic"}, description = "the topic name", required = true)
+        private String topic;
+
+        @Parameter(names = {"-s", "--sub-name"}, description = "the subscription name", required = true)
+        private String subName;
+
+        @Parameter(names = {"-l", "--ledgerId"}, description = "the ledger ID of the position", required = true)
+        private Long ledgerId;
+
+        @Parameter(names = {"-e", "--entryId"}, description = "the entry ID of the position", required = true)
+        private Long entryId;
+
+        @Parameter(names = {"-b", "--bacthIndex"}, description = "the bacthIndex of the position")
+        private Integer batchIndex;
+
+        @Override
+        void run() throws Exception {
+            getAdmin().transactions().checkPositionInPendingAckState(topic, subName, ledgerId, entryId, batchIndex);
+        }
+    }
+
 
     public CmdTransactions(Supplier<PulsarAdmin> admin) {
         super("transactions", admin);
@@ -209,5 +232,6 @@ public class CmdTransactions extends CmdBase {
         jcommander.addCommand("transaction-metadata", new GetTransactionMetadata());
         jcommander.addCommand("slow-transactions", new GetSlowTransactions());
         jcommander.addCommand("scale-transactionCoordinators", new ScaleTransactionCoordinators());
+        jcommander.addCommand("check-position-in-pending-ack-state", new CheckPositionInPendingAckState());
     }
 }
