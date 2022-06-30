@@ -638,16 +638,8 @@ public abstract class NamespacesBase extends AdminResource {
                                         }
                                         deleteTopicsFuture = FutureUtil.waitForAll(futures);
                                     }
-                                    return deleteTopicsFuture.thenRun(() -> {
-                                        try {
-                                            pulsar().getNamespaceService().removeOwnedServiceUnit(bundle);
-                                        } catch (Exception e) {
-                                            log.error("[{}] Failed to remove namespace bundle {}/{}",
-                                                    clientAppId(), namespaceName.toString(),
-                                                    bundleRange, e);
-                                            throw new RestException(e);
-                                        }
-                                    });
+                                    return deleteTopicsFuture.thenCompose(
+                                            ___ -> pulsar().getNamespaceService().removeOwnedServiceUnitAsync(bundle));
                                 });
                     });
                 });
