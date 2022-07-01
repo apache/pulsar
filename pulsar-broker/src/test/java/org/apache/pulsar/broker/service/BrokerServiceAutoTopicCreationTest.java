@@ -23,10 +23,11 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
-import lombok.Cleanup;
-import org.apache.pulsar.client.admin.ListNamespaceTopicsOptions;
+
 import java.util.List;
 import java.util.UUID;
+import lombok.Cleanup;
+import org.apache.pulsar.client.admin.ListNamespaceTopicsOptions;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
@@ -433,14 +434,8 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
         final String namespaceName = "prop/ns-abc";
         final String topic = "persistent://" + namespaceName + "/test-dynamicConfiguration-topic-auto-creation-"
                 + UUID.randomUUID();
-        try {
-            pulsarClient.newProducer()
-                    .topic(topic)
-                    .create();
-           fail();
-        } catch (Exception e) {
-            assertTrue(e instanceof PulsarClientException.NotFoundException);
-        }
+        Assert.assertThrows(PulsarClientException.NotFoundException.class,
+                ()-> pulsarClient.newProducer().topic(topic).create());
     }
 
     @Test

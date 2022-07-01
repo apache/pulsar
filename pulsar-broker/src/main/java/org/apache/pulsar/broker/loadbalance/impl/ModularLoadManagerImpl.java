@@ -265,7 +265,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         defaultStats.msgRateIn = DEFAULT_MESSAGE_RATE;
         defaultStats.msgRateOut = DEFAULT_MESSAGE_RATE;
 
-        placementStrategy = ModularLoadManagerStrategy.create(conf);
+        placementStrategy = ModularLoadManagerStrategy.create();
         policies = new SimpleResourceAllocationPolicies(pulsar);
         filterPipeline.add(new BrokerVersionFilter());
 

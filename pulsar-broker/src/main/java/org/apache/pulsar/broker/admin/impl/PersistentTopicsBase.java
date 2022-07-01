@@ -72,7 +72,6 @@ import org.apache.pulsar.broker.service.BrokerServiceException.AlreadyRunningExc
 import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionInvalidCursorPosition;
-import org.apache.pulsar.broker.service.BrokerServiceException.TopicBusyException;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
@@ -182,6 +181,32 @@ public class PersistentTopicsBase extends AdminResource {
             log.error("[{}] Failed to get topics list for namespace {}", clientAppId(), namespaceName, e);
             throw new RestException(e);
         }
+    }
+
+    protected CompletableFuture<List<String>> internalGetListAsync(Optional<String> bundle) {
+        return validateNamespaceOperationAsync(namespaceName, NamespaceOperation.GET_TOPICS)
+            .thenCompose(__ -> namespaceResources().namespaceExistsAsync(namespaceName))
+            .thenAccept(exists -> {
+                if (!exists) {
+                    throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
+                }
+            })
+            .thenCompose(__ -> topicResources().listPersistentTopicsAsync(namespaceName))
+            .thenApply(topics ->
+                topics.stream()
+                    .filter(topic -> {
+                        if (isTransactionInternalName(TopicName.get(topic))) {
+                            return false;
+                        }
+                        if (bundle.isPresent()) {
+                            NamespaceBundle b = pulsar().getNamespaceService().getNamespaceBundleFactory()
+                                .getBundle(TopicName.get(topic));
+                            return b != null && bundle.get().equals(b.getBundleRange());
+                        }
+                        return true;
+                    })
+                    .collect(Collectors.toList())
+            );
     }
 
     protected CompletableFuture<List<String>> internalGetListAsync() {
@@ -315,22 +340,6 @@ public class PersistentTopicsBase extends AdminResource {
                     resumeAsyncResponseExceptionally(asyncResponse, realCause);
                     return null;
                 });
-    }
-
-    protected void internalDeleteTopicForcefully(boolean authoritative) {
-        validateTopicOwnership(topicName, authoritative);
-        validateNamespaceOperation(topicName.getNamespaceObject(), NamespaceOperation.DELETE_TOPIC);
-
-        try {
-            pulsar().getBrokerService().deleteTopic(topicName.toString(), true).get();
-        } catch (Exception e) {
-            if (isManagedLedgerNotFoundException(e)) {
-                log.info("[{}] Topic was already not existing {}", clientAppId(), topicName, e);
-            } else {
-                log.error("[{}] Failed to delete topic forcefully {}", clientAppId(), topicName, e);
-                throw new RestException(e);
-            }
-        }
     }
 
     private CompletableFuture<Void> revokePermissionsAsync(String topicUri, String role) {
@@ -1026,32 +1035,10 @@ public class PersistentTopicsBase extends AdminResource {
                 });
     }
 
-    protected void internalDeleteTopic(boolean authoritative, boolean force) {
-        if (force) {
-            internalDeleteTopicForcefully(authoritative);
-        } else {
-            internalDeleteTopic(authoritative);
-        }
-    }
-
-    protected void internalDeleteTopic(boolean authoritative) {
-        validateNamespaceOperation(topicName.getNamespaceObject(), NamespaceOperation.DELETE_TOPIC);
-        validateTopicOwnership(topicName, authoritative);
-
-        try {
-            pulsar().getBrokerService().deleteTopic(topicName.toString(), false).get();
-            log.info("[{}] Successfully removed topic {}", clientAppId(), topicName);
-        } catch (Exception e) {
-            Throwable t = e.getCause();
-            log.error("[{}] Failed to delete topic {}", clientAppId(), topicName, t);
-            if (t instanceof TopicBusyException) {
-                throw new RestException(Status.PRECONDITION_FAILED, "Topic has active producers/subscriptions");
-            } else if (isManagedLedgerNotFoundException(e)) {
-                throw new RestException(Status.NOT_FOUND, getTopicNotFoundErrorMessage(topicName.toString()));
-            } else {
-                throw new RestException(t);
-            }
-        }
+    protected CompletableFuture<Void> internalDeleteTopicAsync(boolean authoritative, boolean force) {
+        return validateNamespaceOperationAsync(topicName.getNamespaceObject(), NamespaceOperation.DELETE_TOPIC)
+                .thenCompose(__ -> validateTopicOwnershipAsync(topicName, authoritative))
+                .thenCompose(__ -> pulsar().getBrokerService().deleteTopic(topicName.toString(), force));
     }
 
     protected void internalGetSubscriptions(AsyncResponse asyncResponse, boolean authoritative) {
@@ -4102,12 +4089,11 @@ public class PersistentTopicsBase extends AdminResource {
         );
     }
 
-    protected LongRunningProcessStatus internalCompactionStatus(boolean authoritative) {
-        validateTopicOwnership(topicName, authoritative);
-        validateTopicOperation(topicName, TopicOperation.COMPACT);
-
-        PersistentTopic topic = (PersistentTopic) getTopicReference(topicName);
-        return topic.compactionStatus();
+    protected CompletableFuture<LongRunningProcessStatus> internalCompactionStatusAsync(boolean authoritative) {
+        return validateTopicOwnershipAsync(topicName, authoritative)
+                .thenCompose(__ -> validateTopicOperationAsync(topicName, TopicOperation.COMPACT))
+                .thenCompose(__ -> getTopicReferenceAsync(topicName))
+                .thenApply(topic -> ((PersistentTopic) topic).compactionStatus());
     }
 
     protected void internalTriggerOffload(AsyncResponse asyncResponse,
@@ -4289,18 +4275,22 @@ public class PersistentTopicsBase extends AdminResource {
 
         return getPartitionedTopicMetadataAsync(
                 TopicName.get(topicName.getPartitionedTopicName()), false, false)
-                .thenApply(partitionedTopicMetadata -> {
+                .thenAccept(partitionedTopicMetadata -> {
                     if (partitionedTopicMetadata == null || partitionedTopicMetadata.partitions == 0) {
                         final String topicErrorType = partitionedTopicMetadata
                                 == null ? "has no metadata" : "has zero partitions";
                         throw new RestException(Status.NOT_FOUND, String.format(
                                 "Partitioned Topic not found: %s %s", topicName.toString(), topicErrorType));
-                    } else if (!internalGetList(Optional.empty()).contains(topicName.toString())) {
+                    }
+                })
+                .thenCompose(__ -> internalGetListAsync(Optional.empty()))
+                .thenApply(topics -> {
+                    if (!topics.contains(topicName.toString())) {
                         throw new RestException(Status.NOT_FOUND, "Topic partitions were not yet created");
                     }
                     throw new RestException(Status.NOT_FOUND,
-                            getPartitionedTopicNotFoundErrorMessage(topicName.toString()));
-                });
+                        getPartitionedTopicNotFoundErrorMessage(topicName.toString()));
+            });
     }
 
     /**

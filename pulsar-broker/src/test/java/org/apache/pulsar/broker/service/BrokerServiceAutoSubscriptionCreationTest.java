@@ -163,12 +163,8 @@ public class BrokerServiceAutoSubscriptionCreationTest extends BrokerTestBase {
         String topicString = "persistent://prop/ns-abc/non-partitioned-topic" + UUID.randomUUID();
         String subscriptionName = "non-partitioned-topic-sub";
         admin.topics().createNonPartitionedTopic(topicString);
-        try {
-            pulsarClient.newConsumer().topic(topicString).subscriptionName(subscriptionName).subscribe();
-            fail("Subscribe operation should have failed");
-        } catch (Exception e) {
-            assertTrue(e instanceof PulsarClientException);
-        }
+        Assert.assertThrows(PulsarClientException.class,
+                ()-> pulsarClient.newConsumer().topic(topicString).subscriptionName(subscriptionName).subscribe());
         admin.brokers().updateDynamicConfiguration("allowAutoSubscriptionCreation", "true");
         pulsarClient.newConsumer().topic(topicString).subscriptionName(subscriptionName).subscribe();
         assertTrue(admin.topics().getSubscriptions(topicString).contains(subscriptionName));

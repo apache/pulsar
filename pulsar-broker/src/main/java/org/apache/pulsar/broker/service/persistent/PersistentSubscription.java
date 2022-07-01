@@ -30,7 +30,6 @@ import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
-import java.util.concurrent.atomic.LongAdder;
 import java.util.stream.Collectors;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ClearBacklogCallback;
@@ -52,6 +51,7 @@ import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
+import org.apache.pulsar.broker.service.AbstractSubscription;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
@@ -77,11 +77,12 @@ import org.apache.pulsar.common.policies.data.TransactionInPendingAckStats;
 import org.apache.pulsar.common.policies.data.TransactionPendingAckStats;
 import org.apache.pulsar.common.policies.data.stats.ConsumerStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.SubscriptionStatsImpl;
+import org.apache.pulsar.common.stats.PositionInPendingAckStats;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class PersistentSubscription implements Subscription {
+public class PersistentSubscription extends AbstractSubscription implements Subscription {
     protected final PersistentTopic topic;
     protected final ManagedCursor cursor;
     protected volatile Dispatcher dispatcher;
@@ -114,9 +115,6 @@ public class PersistentSubscription implements Subscription {
     private volatile ReplicatedSubscriptionSnapshotCache replicatedSubscriptionSnapshotCache;
     private final PendingAckHandle pendingAckHandle;
     private volatile Map<String, String> subscriptionProperties;
-
-    private final LongAdder bytesOutFromRemovedConsumers = new LongAdder();
-    private final LongAdder msgOutFromRemovedConsumer = new LongAdder();
 
     static {
         REPLICATED_SUBSCRIPTION_CURSOR_PROPERTIES.put(REPLICATED_SUBSCRIPTION_PROPERTY, 1L);
@@ -1187,6 +1185,10 @@ public class PersistentSubscription implements Subscription {
 
     public boolean checkIfPendingAckStoreInit() {
         return this.pendingAckHandle.checkIfPendingAckStoreInit();
+    }
+
+    public PositionInPendingAckStats checkPositionInPendingAckState(PositionImpl position, Integer batchIndex) {
+        return pendingAckHandle.checkPositionInPendingAckState(position, batchIndex);
     }
 
     private static final Logger log = LoggerFactory.getLogger(PersistentSubscription.class);
