@@ -1004,6 +1004,37 @@ public abstract class NamespacesBase extends AdminResource {
         });
     }
 
+    protected CompletableFuture<Void> internalUnloadNamespaceAsync() {
+        return validateSuperUserAccessAsync()
+                .thenCompose(__ -> {
+                    log.info("[{}] Unloading namespace {}", clientAppId(), namespaceName);
+                    if (namespaceName.isGlobal()) {
+                        // check cluster ownership for a given global namespace: redirect if peer-cluster owns it
+                        return validateGlobalNamespaceOwnershipAsync(namespaceName);
+                    } else {
+                        return validateClusterOwnershipAsync(namespaceName.getCluster())
+                                .thenCompose(ignore -> validateClusterForTenantAsync(namespaceName.getTenant(),
+                                        namespaceName.getCluster()));
+                    }
+                })
+                .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
+                .thenCompose(policies -> {
+                    final List<CompletableFuture<Void>> futures = Lists.newArrayList();
+                    List<String> boundaries = policies.bundles.getBoundaries();
+                    for (int i = 0; i < boundaries.size() - 1; i++) {
+                        String bundle = String.format("%s_%s", boundaries.get(i), boundaries.get(i + 1));
+                        try {
+                            futures.add(pulsar().getAdminClient().namespaces().unloadNamespaceBundleAsync(
+                                    namespaceName.toString(), bundle));
+                        } catch (PulsarServerException e) {
+                            log.error("[{}] Failed to unload namespace {}", clientAppId(), namespaceName, e);
+                            throw new RestException(e);
+                        }
+                    }
+                    return FutureUtil.waitForAll(futures);
+                });
+    }
+
 
     protected void internalSetBookieAffinityGroup(BookieAffinityGroupData bookieAffinityGroup) {
         validateSuperUserAccess();
@@ -1086,20 +1117,18 @@ public abstract class NamespacesBase extends AdminResource {
                 )
                 .thenCompose(bundle -> pulsar().getNamespaceService().isNamespaceBundleOwned(bundle))
                 .thenCompose(isOwnedByLocalCluster -> {
-                    CompletableFuture<Void> ret;
                     if (!isOwnedByLocalCluster) {
                         if (namespaceName.isGlobal()) {
                             // check cluster ownership for a given global namespace: redirect if peer-cluster owns it
-                            ret = validateGlobalNamespaceOwnershipAsync(namespaceName);
+                            return validateGlobalNamespaceOwnershipAsync(namespaceName);
                         } else {
-                            ret = validateClusterOwnershipAsync(namespaceName.getCluster())
+                            return validateClusterOwnershipAsync(namespaceName.getCluster())
                                     .thenCompose(__ -> validateClusterForTenantAsync(namespaceName.getTenant(),
                                             namespaceName.getCluster()));
                         }
                     } else {
-                        ret = CompletableFuture.completedFuture(null);
+                        return CompletableFuture.completedFuture(null);
                     }
-                    return ret;
                 })
                 .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
                 .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
