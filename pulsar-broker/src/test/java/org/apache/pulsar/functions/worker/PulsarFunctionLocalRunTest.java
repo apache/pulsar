@@ -147,6 +147,16 @@ public class PulsarFunctionLocalRunTest {
                         + SYSTEM_PROPERTY_NAME_FUNCTIONS_API_EXAMPLES_JAR_FILE_PATH + " system property"));
     }
 
+    private static final String SYSTEM_PROPERTY_NAME_FUNCTIONS_API_EXAMPLES_NAR_FILE_PATH =
+            "pulsar-functions-api-examples.nar.path";
+
+    public static File getPulsarApiExamplesNar() {
+        return new File(Objects.requireNonNull(
+                System.getProperty(SYSTEM_PROPERTY_NAME_FUNCTIONS_API_EXAMPLES_NAR_FILE_PATH)
+                , "pulsar-functions-api-examples.nar file location must be specified with "
+                        + SYSTEM_PROPERTY_NAME_FUNCTIONS_API_EXAMPLES_NAR_FILE_PATH + " system property"));
+    }
+
     private static final String SYSTEM_PROPERTY_NAME_BATCH_NAR_FILE_PATH = "pulsar-io-batch-data-generator.nar.path";
 
     public static File getPulsarIOBatchDataGeneratorNar() {
@@ -235,6 +245,11 @@ public class PulsarFunctionLocalRunTest {
 
             File file = getPulsarIODataGeneratorNar();
             Files.copy(file.toPath(), new File(connectorsDir, file.getName()).toPath());
+
+            File functionsDir = new File(workerConfig.getFunctionsDirectory());
+
+            file = getPulsarApiExamplesNar();
+            Files.copy(file.toPath(), new File(functionsDir, file.getName()).toPath());
         }
 
         Optional<WorkerService> functionWorkerService = Optional.empty();
@@ -286,6 +301,7 @@ public class PulsarFunctionLocalRunTest {
         fileServer = new FileServer();
         fileServer.serveFile("/pulsar-io-data-generator.nar", getPulsarIODataGeneratorNar());
         fileServer.serveFile("/pulsar-functions-api-examples.jar", getPulsarApiExamplesJar());
+        fileServer.serveFile("/pulsar-functions-api-examples.nar", getPulsarApiExamplesNar());
         fileServer.start();
     }
 
@@ -350,6 +366,7 @@ public class PulsarFunctionLocalRunTest {
     protected static FunctionConfig createFunctionConfig(String tenant,
                                                          String namespace,
                                                          String functionName,
+                                                         boolean isBuiltin,
                                                          String sourceTopic,
                                                          String sinkTopic,
                                                          String subscriptionName) {
@@ -363,7 +380,9 @@ public class PulsarFunctionLocalRunTest {
         functionConfig.setSubName(subscriptionName);
         functionConfig.setInputs(Collections.singleton(sourceTopic));
         functionConfig.setAutoAck(true);
-        functionConfig.setClassName("org.apache.pulsar.functions.api.examples.ExclamationFunction");
+        if (!isBuiltin) {
+            functionConfig.setClassName("org.apache.pulsar.functions.api.examples.ExclamationFunction");
+        }
         functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
         functionConfig.setOutput(sinkTopic);
         functionConfig.setCleanupSubscription(true);
@@ -425,7 +444,7 @@ public class PulsarFunctionLocalRunTest {
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(sinkTopic).subscriptionName("sub").subscribe();
 
         FunctionConfig functionConfig = createFunctionConfig(tenant, namespacePortion, functionName,
-                sourceTopic, sinkTopic, subscriptionName);
+                jarFilePathUrl != null && (jarFilePathUrl.startsWith(Utils.BUILTIN) || jarFilePathUrl.endsWith(".nar")), sourceTopic, sinkTopic, subscriptionName);
         functionConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
 
         functionConfig.setJar(jarFilePathUrl);
@@ -441,6 +460,7 @@ public class PulsarFunctionLocalRunTest {
                 .tlsAllowInsecureConnection(true)
                 .tlsHostNameVerificationEnabled(false)
                 .metricsPortStart(metricsPort)
+                .functionsDirectory(workerConfig.getFunctionsDirectory())
                 .brokerServiceUrl(pulsar.getBrokerServiceUrlTls()).build();
         localRunner.start(false);
 
@@ -594,7 +614,7 @@ public class PulsarFunctionLocalRunTest {
         Consumer<GenericRecord> consumer = pulsarClient.newConsumer(Schema.AUTO_CONSUME()).topic(sinkTopic).subscriptionName("sub").subscribe();
 
         FunctionConfig functionConfig = createFunctionConfig(tenant, namespacePortion, functionName,
-                sourceTopic, sinkTopic, subscriptionName);
+                jarFilePathUrl != null && jarFilePathUrl.startsWith(Utils.BUILTIN), sourceTopic, sinkTopic, subscriptionName);
         //set jsr310ConversionEnabled、alwaysAllowNull
         Map<String,String> schemaInput = new HashMap<>();
         schemaInput.put(sourceTopic, "{\"schemaType\":\"AVRO\",\"schemaProperties\":{\"__jsr310ConversionEnabled\":\"true\",\"__alwaysAllowNull\":\"true\"}}");
@@ -703,9 +723,26 @@ public class PulsarFunctionLocalRunTest {
         testE2EPulsarFunctionLocalRun(jarFilePathUrl);
     }
 
+    @Test(timeOut = 20000)
+    public void testE2EPulsarFunctionLocalRunWithNar() throws Exception {
+        String jarFilePathUrl = getPulsarApiExamplesNar().toURI().toString();
+        testE2EPulsarFunctionLocalRun(jarFilePathUrl);
+    }
+
     @Test(timeOut = 40000)
     public void testE2EPulsarFunctionLocalRunURL() throws Exception {
         testE2EPulsarFunctionLocalRun(fileServer.getUrl("/pulsar-functions-api-examples.jar"));
+    }
+
+    @Test(timeOut = 40000)
+    public void testE2EPulsarFunctionLocalRunNarURL() throws Exception {
+        testE2EPulsarFunctionLocalRun(fileServer.getUrl("/pulsar-functions-api-examples.nar"));
+    }
+
+    @Test(timeOut = 20000, groups = "builtin")
+    public void testE2EPulsarFunctionLocalRunBuiltin() throws Exception {
+        String jarFilePathUrl = String.format("%s://exclamation", Utils.BUILTIN);
+        testE2EPulsarFunctionLocalRun(jarFilePathUrl);
     }
 
     @Test(timeOut = 40000)

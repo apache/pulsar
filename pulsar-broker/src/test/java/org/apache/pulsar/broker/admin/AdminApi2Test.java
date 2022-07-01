@@ -61,6 +61,8 @@ import org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.client.admin.ListNamespaceTopicsOptions;
+import org.apache.pulsar.client.admin.Mode;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
@@ -856,6 +858,27 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         assertEquals(topicsInNs.size(), topics.size());
         topicsInNs.removeAll(topics);
         assertEquals(topicsInNs.size(), 0);
+    }
+
+    @Test
+    public void testCreateAndGetTopicProperties() throws Exception {
+        final String namespace = "prop-xyz/ns2";
+        final String nonPartitionedTopicName = "persistent://" + namespace + "/non-partitioned-TopicProperties";
+        admin.namespaces().createNamespace(namespace, 20);
+        Map<String, String> nonPartitionedTopicProperties = new HashMap<>();
+        nonPartitionedTopicProperties.put("key1", "value1");
+        admin.topics().createNonPartitionedTopic(nonPartitionedTopicName, nonPartitionedTopicProperties);
+        Map<String, String> properties11 = admin.topics().getProperties(nonPartitionedTopicName);
+        Assert.assertNotNull(properties11);
+        Assert.assertEquals(properties11.get("key1"), "value1");
+
+        final String partitionedTopicName = "persistent://" + namespace + "/partitioned-TopicProperties";
+        Map<String, String> partitionedTopicProperties = new HashMap<>();
+        partitionedTopicProperties.put("key2", "value2");
+        admin.topics().createPartitionedTopic(partitionedTopicName, 2, partitionedTopicProperties);
+        Map<String, String> properties22 = admin.topics().getProperties(partitionedTopicName);
+        Assert.assertNotNull(properties22);
+        Assert.assertEquals(properties22.get("key2"), "value2");
     }
 
     @Test
@@ -2487,5 +2510,27 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         Awaitility.await().untilAsserted(() ->
             assertEquals(admin.topics().getSchemaValidationEnforced(topic, false), true)
         );
+    }
+
+    @Test
+    public void testGetNamespaceTopicList() throws Exception {
+        final String persistentTopic = "persistent://prop-xyz/ns1/testGetNamespaceTopicList";
+        final String nonPersistentTopic = "non-persistent://prop-xyz/ns1/non-testGetNamespaceTopicList";
+        final String eventTopic = "persistent://prop-xyz/ns1/__change_events";
+        admin.topics().createNonPartitionedTopic(persistentTopic);
+        Awaitility.await().untilAsserted(() ->
+                admin.namespaces().getTopics("prop-xyz/ns1",
+                ListNamespaceTopicsOptions.builder().mode(Mode.PERSISTENT).includeSystemTopic(true).build())
+                        .contains(eventTopic));
+        List<String> notIncludeSystemTopics = admin.namespaces().getTopics("prop-xyz/ns1",
+                ListNamespaceTopicsOptions.builder().includeSystemTopic(false).build());
+        Assert.assertFalse(notIncludeSystemTopics.contains(eventTopic));
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(nonPersistentTopic)
+                .create();
+        List<String> notPersistentTopics = admin.namespaces().getTopics("prop-xyz/ns1",
+                ListNamespaceTopicsOptions.builder().mode(Mode.NON_PERSISTENT).build());
+        Assert.assertTrue(notPersistentTopics.contains(nonPersistentTopic));
     }
 }

@@ -23,6 +23,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.avro.util.Utf8;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.GenericObject;
@@ -425,6 +426,7 @@ public class SqliteJdbcSinkTest {
 
         RecordSchemaBuilder valueSchemaBuilder = org.apache.pulsar.client.api.schema.SchemaBuilder.record("value");
         valueSchemaBuilder.field("string").type(SchemaType.STRING).optional().defaultValue(null);
+        valueSchemaBuilder.field("stringutf8").type(SchemaType.STRING).optional().defaultValue(null);
         valueSchemaBuilder.field("int").type(SchemaType.INT32).optional().defaultValue(null);
         valueSchemaBuilder.field("bool").type(SchemaType.BOOLEAN).optional().defaultValue(null);
         valueSchemaBuilder.field("double").type(SchemaType.DOUBLE).optional().defaultValue(null);
@@ -434,6 +436,7 @@ public class SqliteJdbcSinkTest {
 
         GenericRecord valueGenericRecord = valueSchema.newRecordBuilder()
                 .set("string", "thestring")
+                .set("stringutf8", schemaType == SchemaType.AVRO ? new Utf8("thestringutf8"): "thestringutf8")
                 .set("int", Integer.MAX_VALUE)
                 .set("bool", true)
                 .set("double", Double.MAX_VALUE)
@@ -475,6 +478,8 @@ public class SqliteJdbcSinkTest {
                 "CREATE TABLE kvtable (" +
                         "    key  TEXT," +
                         "    int  INTEGER," +
+                        "    string TEXT," +
+                        "    stringutf8 TEXT," +
                         "    nulltext  TEXT," +
                         "    bool  NUMERIC," +
                         "    double NUMERIC," +
@@ -488,7 +493,7 @@ public class SqliteJdbcSinkTest {
         conf.put("jdbcUrl", jdbcUrl);
         conf.put("tableName", "kvtable");
         conf.put("key", "key");
-        conf.put("nonKey", "long,int,double,float,bool,nulltext");
+        conf.put("nonKey", "long,int,double,float,bool,nulltext,string,stringutf8");
         // change batchSize to 1, to flush on each write.
         conf.put("batchSize", 1);
         try (SqliteJdbcAutoSchemaSink kvSchemaJdbcSink = new SqliteJdbcAutoSchemaSink();) {
@@ -496,9 +501,12 @@ public class SqliteJdbcSinkTest {
             kvSchemaJdbcSink.write(genericObjectRecord);
 
             Awaitility.await().untilAsserted(() -> {
-                final int count = sqliteUtils.select("select int,bool,double,float,long,nulltext from kvtable where key='mykey'", (resultSet) -> {
+                final int count = sqliteUtils.select("select int,string,stringutf8,bool,double,float," +
+                        "long,nulltext from kvtable where key='mykey'", (resultSet) -> {
                     int index = 1;
                     Assert.assertEquals(resultSet.getInt(index++), Integer.MAX_VALUE);
+                    Assert.assertEquals(resultSet.getString(index++), "thestring");
+                    Assert.assertEquals(resultSet.getString(index++), "thestringutf8");
                     Assert.assertEquals(resultSet.getBoolean(index++), true);
                     Assert.assertEquals(resultSet.getDouble(index++), Double.MAX_VALUE);
                     Assert.assertEquals(resultSet.getFloat(index++), Float.MAX_VALUE);

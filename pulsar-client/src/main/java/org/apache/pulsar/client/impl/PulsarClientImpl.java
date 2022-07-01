@@ -77,6 +77,7 @@ import org.apache.pulsar.client.impl.schema.generic.MultiVersionSchemaInfoProvid
 import org.apache.pulsar.client.impl.transaction.TransactionBuilderImpl;
 import org.apache.pulsar.client.impl.transaction.TransactionCoordinatorClientImpl;
 import org.apache.pulsar.client.util.ExecutorProvider;
+import org.apache.pulsar.client.util.ScheduledExecutorProvider;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace.Mode;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
@@ -108,6 +109,8 @@ public class PulsarClientImpl implements PulsarClient {
     private boolean needStopTimer;
     private final ExecutorProvider externalExecutorProvider;
     private final ExecutorProvider internalExecutorProvider;
+
+    private final ScheduledExecutorProvider scheduledExecutorProvider;
     private final boolean createdEventLoopGroup;
     private final boolean createdCnxPool;
 
@@ -193,6 +196,8 @@ public class PulsarClientImpl implements PulsarClient {
                     new ExecutorProvider(conf.getNumListenerThreads(), "pulsar-external-listener");
             this.internalExecutorProvider = internalExecutorProvider != null ? internalExecutorProvider :
                     new ExecutorProvider(conf.getNumIoThreads(), "pulsar-client-internal");
+            this.scheduledExecutorProvider = new ScheduledExecutorProvider(conf.getNumIoThreads(),
+                    "pulsar-client-scheduled");
             if (conf.getServiceUrl().startsWith("http")) {
                 lookup = new HttpLookupService(conf, this.eventLoopGroup);
             } else {
@@ -750,24 +755,23 @@ public class PulsarClientImpl implements PulsarClient {
         FutureUtil.addTimeoutHandling(combinedFuture, Duration.ofSeconds(CLOSE_TIMEOUT_SECONDS),
                 shutdownExecutor, () -> FutureUtil.createTimeoutException("Closing producers and consumers timed out.",
                         PulsarClientImpl.class, "closeAsync"));
-        combinedFuture.whenComplete((__, t) -> new Thread(() -> {
+        combinedFuture.handle((__, t) -> {
             if (t != null) {
                 log.error("Closing producers and consumers failed. Continuing with shutdown.", t);
             }
-            shutdownExecutor.shutdownNow();
-            // All producers & consumers are now closed, we can stop the client safely
-            try {
-                shutdown();
-                closeFuture.complete(null);
+            new Thread(() -> {
+                shutdownExecutor.shutdownNow();
+                // All producers & consumers are now closed, we can stop the client safely
+                try {
+                    shutdown();
+                } catch (PulsarClientException e) {
+                    log.error("Shutdown failed. Ignoring the exception.", e);
+                }
                 state.set(State.Closed);
-            } catch (PulsarClientException e) {
-                closeFuture.completeExceptionally(e);
-            }
-        }, "pulsar-client-shutdown-thread").start()).exceptionally(exception -> {
-            closeFuture.completeExceptionally(exception);
+                closeFuture.complete(null);
+            }, "pulsar-client-shutdown-thread").start();
             return null;
         });
-
         return closeFuture;
     }
 
@@ -1021,7 +1025,7 @@ public class PulsarClientImpl implements PulsarClient {
             }
             previousExceptions.add(e);
 
-            ((ScheduledExecutorService) externalExecutorProvider.getExecutor()).schedule(() -> {
+            ((ScheduledExecutorService) scheduledExecutorProvider.getExecutor()).schedule(() -> {
                 log.warn("[topic: {}] Could not get connection while getPartitionedTopicMetadata -- "
                         + "Will try again in {} ms", topicName, nextDelay);
                 remainingTime.addAndGet(-nextDelay);
@@ -1143,6 +1147,11 @@ public class PulsarClientImpl implements PulsarClient {
     public ExecutorService getInternalExecutorService() {
         return internalExecutorProvider.getExecutor();
     }
+
+    public ScheduledExecutorProvider getScheduledExecutorProvider() {
+        return scheduledExecutorProvider;
+    }
+
     //
     // Transaction related API
     //

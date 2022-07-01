@@ -40,8 +40,8 @@
     </dependency>
 
     <dependency>
-      <groupId>commons-collections</groupId>
-      <artifactId>commons-collections</artifactId>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-collections4</artifactId>
     </dependency>
 
     <dependency>
@@ -89,6 +89,38 @@
     </dependency>
 
     <dependency>
+      <groupId>org.apache.curator</groupId>
+      <artifactId>curator-recipes</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.bookkeeper</groupId>
+      <artifactId>stream-storage-server</artifactId>
+      <exclusions>
+        <exclusion>
+          <groupId>io.grpc</groupId>
+          <artifactId>grpc-all</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.apache.curator</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.apache.bookkeeper.tests</groupId>
+          <artifactId>stream-storage-tests-common</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.apache.zookeeper</groupId>
+          <artifactId>zookeeper</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.inferred</groupId>
+          <artifactId>freebuilder</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+
+    <dependency>
       <groupId>org.apache.bookkeeper</groupId>
       <artifactId>bookkeeper-tools-framework</artifactId>
     </dependency>
@@ -117,12 +149,6 @@
       <artifactId>testmocks</artifactId>
       <version>${project.version}</version>
       <scope>test</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>pulsar-zookeeper-utils</artifactId>
-      <version>${project.version}</version>
     </dependency>
 
     <!-- zookeeper server -->
@@ -282,6 +308,11 @@
     </dependency>
 
     <dependency>
+      <groupId>io.prometheus</groupId>
+      <artifactId>simpleclient_caffeine</artifactId>
+    </dependency>
+
+    <dependency>
       <groupId>io.swagger</groupId>
       <artifactId>swagger-core</artifactId>
     </dependency>
@@ -315,6 +346,14 @@
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-functions-api-examples</artifactId>
+      <version>${project.version}</version>
+      <type>pom</type>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-functions-api-examples-builtin</artifactId>
       <version>${project.version}</version>
       <type>pom</type>
       <scope>test</scope>
@@ -460,6 +499,15 @@
                   <outputDirectory>${project.build.directory}</outputDirectory>
                   <destFileName>pulsar-functions-api-examples.jar</destFileName>
                 </artifactItem>
+                <artifactItem>
+                  <groupId>${project.groupId}</groupId>
+                  <artifactId>pulsar-functions-api-examples-builtin</artifactId>
+                  <version>${project.version}</version>
+                  <type>jar</type>
+                  <overWrite>true</overWrite>
+                  <outputDirectory>${project.build.directory}</outputDirectory>
+                  <destFileName>pulsar-functions-api-examples.nar</destFileName>
+                </artifactItem>
               </artifactItems>
             </configuration>
           </execution>
@@ -473,6 +521,7 @@
           <systemPropertyVariables>
             <pulsar-io-data-generator.nar.path>${project.build.directory}/pulsar-io-data-generator.nar</pulsar-io-data-generator.nar.path>
             <pulsar-functions-api-examples.jar.path>${project.build.directory}/pulsar-functions-api-examples.jar</pulsar-functions-api-examples.jar.path>
+            <pulsar-functions-api-examples.nar.path>${project.build.directory}/pulsar-functions-api-examples.nar</pulsar-functions-api-examples.nar.path>
             <pulsar-io-batch-data-generator.nar.path>${project.build.directory}/pulsar-io-batch-data-generator.nar</pulsar-io-batch-data-generator.nar.path>
             <!-- workaround issue #13750 which gets triggered if org.apache.bookkeeper.meta.MetadataDrivers class gets loaded before org.apache.pulsar.metadata.bookkeeper.BKCluster constructor is called -->
             <bookkeeper.metadata.bookie.drivers>org.apache.pulsar.metadata.bookkeeper.PulsarMetadataBookieDriver</bookkeeper.metadata.bookie.drivers>
@@ -593,14 +642,6 @@
         <dependency>
           <groupId>${project.groupId}</groupId>
           <artifactId>managed-ledger</artifactId>
-          <version>${project.version}</version>
-          <type>test-jar</type>
-          <scope>test</scope>
-        </dependency>
-
-        <dependency>
-          <groupId>${project.groupId}</groupId>
-          <artifactId>pulsar-zookeeper-utils</artifactId>
           <version>${project.version}</version>
           <type>test-jar</type>
           <scope>test</scope>
@@ -773,7 +814,7 @@
       </build>
     </profile>
     <profile>
-      <id>brokerSkipTest</id>
+      <id>skipTestsForUnitGroupOther</id>
       <build>
         <plugins>
           <plugin>

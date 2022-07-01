@@ -31,13 +31,6 @@
     <artifactId>pulsar-sql</artifactId>
     <name>Pulsar SQL :: Parent</name>
 
-    <modules>
-        <module>presto-pulsar</module>
-        <module>presto-pulsar-plugin</module>
-        <module>java-version-trim-agent</module>
-        <module>presto-distribution</module>
-    </modules>
-
     <properties>
         <!-- keep using okhttp3 3.x for Presto -->
         <okhttp3.version>3.14.9</okhttp3.version>
@@ -178,6 +171,29 @@
     </build>
 
     <profiles>
+        <profile>
+            <id>main</id>
+            <activation>
+                <property>
+                    <name>disableSqlMainProfile</name>
+                    <!-- always active unless true is passed as a value -->
+                    <value>!true</value>
+                </property>
+            </activation>
+            <modules>
+                <module>presto-pulsar</module>
+                <module>presto-pulsar-plugin</module>
+                <module>presto-distribution</module>
+            </modules>
+        </profile>
+        <profile>
+            <id>pulsar-sql-tests</id>
+            <modules>
+                <module>presto-pulsar</module>
+                <module>presto-pulsar-plugin</module>
+                <module>presto-distribution</module>
+            </modules>
+        </profile>
         <!--
         The only working way for OWASP dependency checker plugin
         to exclude module when failBuildOnCVSS is used

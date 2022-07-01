@@ -1605,7 +1605,7 @@ public class ServerCnxTest {
             channel.close().get();
         }
         serverCnx = new ServerCnx(pulsar);
-        serverCnx.authRole = "";
+        serverCnx.setAuthRole("");
         channel = new EmbeddedChannel(new LengthFieldBasedFrameDecoder(
                 MaxMessageSize,
                 0,
@@ -1686,20 +1686,20 @@ public class ServerCnxTest {
 
         doAnswer((Answer<Object>) invocationOnMock -> {
             Thread.sleep(300);
-            ((OpenCursorCallback) invocationOnMock.getArguments()[2]).openCursorComplete(cursorMock, null);
+            ((OpenCursorCallback) invocationOnMock.getArguments()[3]).openCursorComplete(cursorMock, null);
             return null;
         }).when(ledgerMock).asyncOpenCursor(matches(".*success.*"), any(InitialPosition.class), any(OpenCursorCallback.class), any());
 
         doAnswer((Answer<Object>) invocationOnMock -> {
             Thread.sleep(300);
-            ((OpenCursorCallback) invocationOnMock.getArguments()[3]).openCursorComplete(cursorMock, null);
+            ((OpenCursorCallback) invocationOnMock.getArguments()[4]).openCursorComplete(cursorMock, null);
             return null;
-        }).when(ledgerMock).asyncOpenCursor(matches(".*success.*"), any(InitialPosition.class), any(Map.class),
+        }).when(ledgerMock).asyncOpenCursor(matches(".*success.*"), any(InitialPosition.class), any(Map.class), any(Map.class),
                 any(OpenCursorCallback.class), any());
 
         doAnswer((Answer<Object>) invocationOnMock -> {
             Thread.sleep(300);
-            ((OpenCursorCallback) invocationOnMock.getArguments()[2])
+            ((OpenCursorCallback) invocationOnMock.getArguments()[3])
                     .openCursorFailed(new ManagedLedgerException("Managed ledger failure"), null);
             return null;
         }).when(ledgerMock).asyncOpenCursor(matches(".*fail.*"), any(InitialPosition.class), any(OpenCursorCallback.class), any());
@@ -1709,7 +1709,7 @@ public class ServerCnxTest {
             ((OpenCursorCallback) invocationOnMock.getArguments()[3])
                     .openCursorFailed(new ManagedLedgerException("Managed ledger failure"), null);
             return null;
-        }).when(ledgerMock).asyncOpenCursor(matches(".*fail.*"), any(InitialPosition.class), any(Map.class),
+        }).when(ledgerMock).asyncOpenCursor(matches(".*fail.*"), any(InitialPosition.class), any(Map.class), any(Map.class),
                 any(OpenCursorCallback.class), any());
 
         doAnswer((Answer<Object>) invocationOnMock -> {

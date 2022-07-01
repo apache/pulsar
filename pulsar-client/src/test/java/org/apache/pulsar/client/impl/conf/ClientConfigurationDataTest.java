@@ -48,7 +48,6 @@ public class ClientConfigurationDataTest {
         clientConfigurationData.setSocks5ProxyPassword("yyyy");
         clientConfigurationData.setAuthentication(new AuthenticationToken("zzzz"));
         String s = w.writeValueAsString(clientConfigurationData);
-        Assert.assertFalse(s.contains("Password"));
         Assert.assertFalse(s.contains("xxxx"));
         Assert.assertFalse(s.contains("yyyy"));
         Assert.assertFalse(s.contains("zzzz"));

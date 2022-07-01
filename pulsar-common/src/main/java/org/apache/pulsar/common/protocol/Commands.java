@@ -1791,6 +1791,24 @@ public class Commands {
         }
     }
 
+    /**
+     * Peek the message metadata from the buffer and return a deep copy of the metadata.
+     *
+     * If you want to hold multiple {@link MessageMetadata} instances from multiple buffers, you must call this method
+     * rather than {@link Commands#peekMessageMetadata(ByteBuf, String, long)}, which returns a thread local reference,
+     * see {@link Commands#LOCAL_MESSAGE_METADATA}.
+     */
+    public static MessageMetadata peekAndCopyMessageMetadata(
+            ByteBuf metadataAndPayload, String subscription, long consumerId) {
+        final MessageMetadata localMetadata = peekMessageMetadata(metadataAndPayload, subscription, consumerId);
+        if (localMetadata == null) {
+            return null;
+        }
+        final MessageMetadata metadata = new MessageMetadata();
+        metadata.copyFrom(localMetadata);
+        return metadata;
+    }
+
     private static final byte[] NONE_KEY = "NONE_KEY".getBytes(StandardCharsets.UTF_8);
     public static byte[] peekStickyKey(ByteBuf metadataAndPayload, String topic, String subscription) {
         try {

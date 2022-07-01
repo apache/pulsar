@@ -24,7 +24,7 @@ The Pulsar transactions API strengthens the message delivery semantics and the p
 
 Avoiding data loss or duplication can be achieved by using the Pulsar idempotent producer, but it does not provide guarantees for writes across multiple partitions. 
 
-In Pulsar, the highest level of message delivery guarantee is using an [idempotent producer](https://pulsar.apache.org/docs/en/next/concepts-messaging/#producer-idempotency) with the exactly once semantic at one single partition, that is, each message is persisted exactly once without data loss and duplication. However, there are some limitations in this solution:
+In Pulsar, the highest level of message delivery guarantee is using an [idempotent producer](concepts-messaging.md#producer-idempotency) with the exactly once semantic at one single partition, that is, each message is persisted exactly once without data loss and duplication. However, there are some limitations in this solution:
 
 - Due to the monotonic increasing sequence ID, this solution only works on a single partition and within a single producer session (that is, for producing one message), so there is no atomicity when producing multiple messages to one or multiple partitions. 
   
@@ -42,4 +42,4 @@ In Pulsar, the highest level of message delivery guarantee is using an [idempote
 
 - Consumers need to rely on more mechanisms to acknowledge (ack) messages once. 
   
-  For example, consumers are required to store the MessgeID along with its acked state. After the topic is unloaded, the subscription can recover the acked state of this MessgeID in memory when the topic is loaded again.
+  For example, consumers are required to store the MessageID along with its acked state. After the topic is unloaded, the subscription can recover the acked state of this MessageID in memory when the topic is loaded again.

@@ -88,7 +88,7 @@ This section describes how to create a producer.
   using DotPulsar;
   using DotPulsar.Extensions;
 
-  var producer = client.NewProducer())
+  var producer = client.NewProducer()
                        .Topic("persistent://public/default/mytopic")
                        .Create();
   

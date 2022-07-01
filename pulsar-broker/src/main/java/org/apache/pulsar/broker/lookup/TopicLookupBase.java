@@ -29,7 +29,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import javax.ws.rs.Encoded;
 import javax.ws.rs.WebApplicationException;
-import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.core.Response;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarService;
@@ -127,8 +126,12 @@ public class TopicLookupBase extends PulsarWebResource {
                                 log.debug("Lookup succeeded for topic {} -- broker: {}", topicName,
                                         result.getLookupData());
                             }
+                            pulsar().getBrokerService().getLookupRequestSemaphore().release();
                             return result.getLookupData();
                         }
+                    }).exceptionally(ex->{
+                        pulsar().getBrokerService().getLookupRequestSemaphore().release();
+                        throw FutureUtil.wrapToCompletionException(ex);
                     });
                 });
     }
@@ -220,24 +223,14 @@ public class TopicLookupBase extends PulsarWebResource {
                             cluster);
                 }
                 validationFuture.complete(newLookupResponse(differentClusterData.getBrokerServiceUrl(),
-                        differentClusterData.getBrokerServiceUrlTls(), true, LookupType.Redirect, requestId, false));
+                        differentClusterData.getBrokerServiceUrlTls(), true, LookupType.Redirect,
+                        requestId, false));
             } else {
                 // (2) authorize client
-                try {
-                    checkAuthorization(pulsarService, topicName, clientAppId, authenticationData);
-                } catch (RestException authException) {
-                    log.warn("Failed to authorized {} on cluster {}", clientAppId, topicName.toString());
-                    validationFuture.complete(newLookupErrorResponse(ServerError.AuthorizationError,
-                            authException.getMessage(), requestId));
-                    return;
-                } catch (Exception e) {
-                    log.warn("Unknown error while authorizing {} on cluster {}", clientAppId, topicName.toString());
-                    validationFuture.completeExceptionally(e);
-                    return;
-                }
-                // (3) validate global namespace
-                checkLocalOrGetPeerReplicationCluster(pulsarService, topicName.getNamespaceObject())
-                        .thenAccept(peerClusterData -> {
+                checkAuthorizationAsync(pulsarService, topicName, clientAppId, authenticationData).thenRun(() -> {
+                        // (3) validate global namespace
+                        checkLocalOrGetPeerReplicationCluster(pulsarService,
+                                topicName.getNamespaceObject()).thenAccept(peerClusterData -> {
                             if (peerClusterData == null) {
                                 // (4) all validation passed: initiate lookup
                                 validationFuture.complete(null);
@@ -248,21 +241,36 @@ public class TopicLookupBase extends PulsarWebResource {
                             if (StringUtils.isBlank(peerClusterData.getBrokerServiceUrl())
                                     && StringUtils.isBlank(peerClusterData.getBrokerServiceUrlTls())) {
                                 validationFuture.complete(newLookupErrorResponse(ServerError.MetadataError,
-                                        "Redirected cluster's brokerService url is not configured", requestId));
+                                        "Redirected cluster's brokerService url is not configured",
+                                        requestId));
                                 return;
                             }
                             validationFuture.complete(newLookupResponse(peerClusterData.getBrokerServiceUrl(),
-                                    peerClusterData.getBrokerServiceUrlTls(), true, LookupType.Redirect, requestId,
+                                    peerClusterData.getBrokerServiceUrlTls(), true, LookupType.Redirect,
+                                    requestId,
                                     false));
-
                         }).exceptionally(ex -> {
-                    validationFuture.complete(
-                            newLookupErrorResponse(ServerError.MetadataError, ex.getMessage(), requestId));
-                    return null;
-                });
+                            validationFuture.complete(
+                                    newLookupErrorResponse(ServerError.MetadataError,
+                                            FutureUtil.unwrapCompletionException(ex).getMessage(), requestId));
+                            return null;
+                        });
+                    })
+                    .exceptionally(e -> {
+                        Throwable throwable = FutureUtil.unwrapCompletionException(e);
+                        if (throwable instanceof RestException) {
+                            log.warn("Failed to authorized {} on cluster {}", clientAppId, topicName);
+                            validationFuture.complete(newLookupErrorResponse(ServerError.AuthorizationError,
+                                    throwable.getMessage(), requestId));
+                        } else {
+                            log.warn("Unknown error while authorizing {} on cluster {}", clientAppId, topicName);
+                            validationFuture.completeExceptionally(throwable);
+                        }
+                        return null;
+                    });
             }
         }).exceptionally(ex -> {
-            validationFuture.completeExceptionally(ex);
+            validationFuture.completeExceptionally(FutureUtil.unwrapCompletionException(ex));
             return null;
         });
 
@@ -329,12 +337,6 @@ public class TopicLookupBase extends PulsarWebResource {
         });
 
         return lookupfuture;
-    }
-
-    protected void completeLookupResponseExceptionally(AsyncResponse asyncResponse, Throwable t) {
-        pulsar().getBrokerService().getLookupRequestSemaphore().release();
-        Throwable cause = FutureUtil.unwrapCompletionException(t);
-        asyncResponse.resume(cause);
     }
 
     protected TopicName getTopicName(String topicDomain, String tenant, String cluster, String namespace,

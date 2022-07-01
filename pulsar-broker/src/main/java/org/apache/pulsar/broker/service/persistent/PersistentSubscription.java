@@ -22,7 +22,6 @@ import static org.apache.pulsar.common.naming.SystemTopicNames.isEventSystemTopi
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -78,6 +77,7 @@ import org.apache.pulsar.common.policies.data.TransactionInPendingAckStats;
 import org.apache.pulsar.common.policies.data.TransactionPendingAckStats;
 import org.apache.pulsar.common.policies.data.stats.ConsumerStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.SubscriptionStatsImpl;
+import org.apache.pulsar.common.stats.PositionInPendingAckStats;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -114,7 +114,7 @@ public class PersistentSubscription implements Subscription {
 
     private volatile ReplicatedSubscriptionSnapshotCache replicatedSubscriptionSnapshotCache;
     private final PendingAckHandle pendingAckHandle;
-    private Map<String, String> subscriptionProperties;
+    private volatile Map<String, String> subscriptionProperties;
 
     private final LongAdder bytesOutFromRemovedConsumers = new LongAdder();
     private final LongAdder msgOutFromRemovedConsumer = new LongAdder();
@@ -137,7 +137,7 @@ public class PersistentSubscription implements Subscription {
     }
 
     public PersistentSubscription(PersistentTopic topic, String subscriptionName, ManagedCursor cursor,
-            boolean replicated, Map<String, String> subscriptionProperties) {
+                                  boolean replicated, Map<String, String> subscriptionProperties) {
         this.topic = topic;
         this.cursor = cursor;
         this.topicName = topic.getName();
@@ -146,7 +146,7 @@ public class PersistentSubscription implements Subscription {
         this.expiryMonitor = new PersistentMessageExpiryMonitor(topicName, subscriptionName, cursor, this);
         this.setReplicated(replicated);
         this.subscriptionProperties = MapUtils.isEmpty(subscriptionProperties)
-                ? new HashMap<>() : Collections.unmodifiableMap(subscriptionProperties);
+                ? Collections.emptyMap() : Collections.unmodifiableMap(subscriptionProperties);
         if (topic.getBrokerService().getPulsar().getConfig().isTransactionCoordinatorEnabled()
                 && !isEventSystemTopic(TopicName.get(topicName))) {
             this.pendingAckHandle = new PendingAckHandleImpl(this);
@@ -330,7 +330,7 @@ public class PersistentSubscription implements Subscription {
 
                 // when topic closes: it iterates through concurrent-subscription map to close each subscription. so,
                 // topic.remove again try to access same map which creates deadlock. so, execute it in different thread.
-                topic.getBrokerService().pulsar().getExecutor().submit(() ->{
+                topic.getBrokerService().pulsar().getExecutor().execute(() ->{
                     topic.removeSubscription(subName);
                     // Also need remove the cursor here, otherwise the data deletion will not work well.
                     // Because data deletion depends on the mark delete position of all cursors.
@@ -967,6 +967,7 @@ public class PersistentSubscription implements Subscription {
                 subStats.bytesOutCounter += consumerStats.bytesOutCounter;
                 subStats.msgOutCounter += consumerStats.msgOutCounter;
                 subStats.msgRateRedeliver += consumerStats.msgRateRedeliver;
+                subStats.messageAckRate += consumerStats.messageAckRate;
                 subStats.chunkedMessageRate += consumerStats.chunkedMessageRate;
                 subStats.unackedMessages += consumerStats.unackedMessages;
                 subStats.lastConsumedTimestamp =
@@ -1100,6 +1101,20 @@ public class PersistentSubscription implements Subscription {
         return subscriptionProperties;
     }
 
+    @Override
+    public CompletableFuture<Void> updateSubscriptionProperties(Map<String, String> subscriptionProperties) {
+        Map<String, String> newSubscriptionProperties;
+        if (subscriptionProperties == null || subscriptionProperties.isEmpty()) {
+            newSubscriptionProperties = Collections.emptyMap();
+        } else {
+            newSubscriptionProperties = Collections.unmodifiableMap(subscriptionProperties);
+        }
+        return cursor.setCursorProperties(newSubscriptionProperties)
+                .thenRun(() -> {
+                    this.subscriptionProperties = newSubscriptionProperties;
+                });
+    }
+
     /**
      * Return a merged map that contains the cursor properties specified by used
      * (eg. when using compaction subscription) and the subscription properties.
@@ -1157,8 +1172,8 @@ public class PersistentSubscription implements Subscription {
         return this.pendingAckHandle.checkIsCanDeleteConsumerPendingAck(position);
     }
 
-    public TransactionPendingAckStats getTransactionPendingAckStats() {
-        return this.pendingAckHandle.getStats();
+    public TransactionPendingAckStats getTransactionPendingAckStats(boolean lowWaterMarks) {
+        return this.pendingAckHandle.getStats(lowWaterMarks);
     }
 
     public boolean checkAndUnblockIfStuck() {
@@ -1179,6 +1194,10 @@ public class PersistentSubscription implements Subscription {
 
     public boolean checkIfPendingAckStoreInit() {
         return this.pendingAckHandle.checkIfPendingAckStoreInit();
+    }
+
+    public PositionInPendingAckStats checkPositionInPendingAckState(PositionImpl position, Integer batchIndex) {
+        return pendingAckHandle.checkPositionInPendingAckState(position, batchIndex);
     }
 
     private static final Logger log = LoggerFactory.getLogger(PersistentSubscription.class);

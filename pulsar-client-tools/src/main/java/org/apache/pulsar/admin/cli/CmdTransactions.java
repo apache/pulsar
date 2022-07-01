@@ -50,9 +50,13 @@ public class CmdTransactions extends CmdBase {
         @Parameter(names = {"-t", "--topic"}, description = "the topic", required = true)
         private String topic;
 
+        @Parameter(names = {"-l", "--low-water-mark"},
+                description = "Whether to get information about lowWaterMarks stored in transaction buffer.")
+        private boolean lowWaterMark;
+
         @Override
         void run() throws Exception {
-            print(getAdmin().transactions().getTransactionBufferStats(topic));
+            print(getAdmin().transactions().getTransactionBufferStats(topic, lowWaterMark));
         }
     }
 
@@ -64,9 +68,13 @@ public class CmdTransactions extends CmdBase {
         @Parameter(names = {"-s", "--sub-name"}, description = "the subscription name", required = true)
         private String subName;
 
+        @Parameter(names = {"-l", "--low-water-mark"},
+                description = "Whether to get information about lowWaterMarks stored in transaction pending ack.")
+        private boolean lowWaterMarks;
+
         @Override
         void run() throws Exception {
-            print(getAdmin().transactions().getPendingAckStats(topic, subName));
+            print(getAdmin().transactions().getPendingAckStats(topic, subName, lowWaterMarks));
         }
     }
 

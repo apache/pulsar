@@ -212,7 +212,7 @@ public class AdminApiSchemaTest extends MockedPulsarServiceBaseTest {
             admin.schemas().createSchema(topicName, fooSchemaInfo);
             fail("Should have failed");
         } catch (PulsarAdminException.NotFoundException e) {
-            assertTrue(e.getMessage().contains("HTTP 404"));
+            assertTrue(e.getMessage().contains("Namespace does not exist"));
         }
     }
 

@@ -119,4 +119,16 @@ public abstract class CoordinatorException extends Exception {
 
         }
     }
+
+    /**
+     * Exception is thrown when a operation of new transaction reach the number of max active transactions.
+     */
+    public static class ReachMaxActiveTxnException extends CoordinatorException {
+
+        private static final long serialVersionUID = 0L;
+
+        public ReachMaxActiveTxnException(String message) {
+            super(message);
+        }
+    }
 }

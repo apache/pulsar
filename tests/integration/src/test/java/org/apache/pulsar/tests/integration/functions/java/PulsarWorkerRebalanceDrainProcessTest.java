@@ -22,7 +22,7 @@ import org.apache.pulsar.tests.integration.topologies.FunctionRuntimeType;
 
 public class PulsarWorkerRebalanceDrainProcessTest extends PulsarWorkerRebalanceDrainTest {
 
-	public PulsarWorkerRebalanceDrainProcessTest() {
-		super(FunctionRuntimeType.PROCESS);
-	}
+    public PulsarWorkerRebalanceDrainProcessTest() {
+        super(FunctionRuntimeType.PROCESS);
+    }
 }

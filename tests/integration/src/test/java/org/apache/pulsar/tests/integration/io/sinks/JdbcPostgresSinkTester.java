@@ -191,4 +191,12 @@ public class JdbcPostgresSinkTester extends SinkTester<PostgreSQLContainer> {
     public boolean isKeyValueSchema() {
         return keyValueSchema;
     }
+
+    @Override
+    public void close() throws Exception {
+        if (connection != null) {
+            connection.close();
+            connection = null;
+        }
+    }
 }

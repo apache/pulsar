@@ -123,13 +123,13 @@ The extracted directory contains the following subdirectories:
 
 Directory | Contains
 :---------|:--------
-`bin` |[command-line tools](reference-cli-tools) of Pulsar, such as [`pulsar`](reference-cli-tools.md#pulsar) and [`pulsar-admin`](https://pulsar.apache.org/tools/pulsar-admin/)
+`bin` |[command-line tools](reference-cli-tools) of Pulsar, such as [`pulsar`](reference-cli-tools.md#pulsar) and [`pulsar-admin`](/tools/pulsar-admin/)
 `conf` | Configuration files for Pulsar, including for [broker configuration](reference-configuration.md#broker), [ZooKeeper configuration](reference-configuration.md#zookeeper), and more
 `data` | The data storage directory that ZooKeeper and BookKeeper use
 `lib` | The [JAR](https://en.wikipedia.org/wiki/JAR_(file_format)) files that Pulsar uses
 `logs` | Logs that the installation creates
 
-## [Install Builtin Connectors (optional)]( https://pulsar.apache.org/docs/en/next/standalone/#install-builtin-connectors-optional)
+## [Install Builtin Connectors (optional)](standalone.md#install-builtin-connectors-optional)
 
 > Since Pulsar release `2.1.0-incubating`, Pulsar provides a separate binary distribution, containing all the `builtin` connectors.
 > To enable the `builtin` connectors (optional), you can follow the instructions below.
@@ -164,7 +164,7 @@ pulsar-io-aerospike-@pulsar:version@.nar
 
 ```
 
-## [Install Tiered Storage Offloaders (optional)](https://pulsar.apache.org/docs/en/next/standalone/#install-tiered-storage-offloaders-optional)
+## [Install Tiered Storage Offloaders (optional)](standalone.md#install-tiered-storage-offloaders-optional)
 
 > Since Pulsar release `2.2.0`, Pulsar releases a separate binary distribution, containing the tiered storage offloaders.
 > If you want to enable tiered storage feature, you can follow the instructions as below; otherwise you can
@@ -202,7 +202,7 @@ tiered-storage-jcloud-@pulsar:version@.nar
 
 ```
 
-For more details of how to configure tiered storage feature, you can refer to the [Tiered storage cookbook](cookbooks-tiered-storage)
+For more details of how to configure tiered storage feature, you can refer to the [Tiered storage cookbook](cookbooks-tiered-storage.md)
 
 
 ## Deploy a ZooKeeper cluster
