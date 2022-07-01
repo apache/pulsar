@@ -290,6 +290,10 @@ flexible messaging model and an intuitive client API.</description>
             <groupId>io.netty</groupId>
             <artifactId>*</artifactId>
           </exclusion>
+          <exclusion>
+            <groupId>com.typesafe.netty</groupId>
+            <artifactId>netty-reactive-streams</artifactId>
+          </exclusion>
         </exclusions>
       </dependency>
 
