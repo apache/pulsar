@@ -263,7 +263,7 @@ flexible messaging model and an intuitive client API.</description>
     <maven-checkstyle-plugin.version>3.1.2</maven-checkstyle-plugin.version>
     <git-commit-id-plugin.version>4.0.2</git-commit-id-plugin.version>
     <wagon-ssh-external.version>3.4.3</wagon-ssh-external.version>
-    <os-maven-plugin.version>1.4.1.Final</os-maven-plugin.version>
+    <os-maven-plugin.version>1.7.0</os-maven-plugin.version>
     <jacoco-maven-plugin.version>0.8.7</jacoco-maven-plugin.version>
     <spotbugs-maven-plugin.version>4.2.2</spotbugs-maven-plugin.version>
     <spotbugs.version>4.2.2</spotbugs.version>
