@@ -40,6 +40,7 @@ import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.meta.MetadataDrivers;
 import org.apache.bookkeeper.stats.NullStatsLogger;
 import org.apache.bookkeeper.stats.StatsLogger;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.bookie.rackawareness.BookieRackAffinityMapping;
 import org.apache.pulsar.bookie.rackawareness.IsolatedBookieEnsemblePlacementPolicy;
 import org.apache.pulsar.client.internal.PropertiesUtils;
@@ -71,9 +72,7 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
         MetadataDrivers.registerClientDriver("metadata-store", PulsarMetadataClientDriver.class);
 
         ClientConfiguration bkConf = createBkClientConfiguration(store, conf);
-        if (properties != null) {
-            properties.forEach((key, value) -> bkConf.setProperty(key, value));
-        }
+
         if (ensemblePlacementPolicyClass.isPresent()) {
             setEnsemblePlacementPolicy(bkConf, conf, store, ensemblePlacementPolicyClass.get());
         } else {
@@ -212,7 +211,7 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
                     ""));
         }
 
-        if (conf.getBookkeeperClientIsolationGroups() != null && !conf.getBookkeeperClientIsolationGroups().isEmpty()) {
+        if (StringUtils.isNotBlank(conf.getBookkeeperClientIsolationGroups())) {
             bkConf.setEnsemblePlacementPolicy(IsolatedBookieEnsemblePlacementPolicy.class);
             bkConf.setProperty(IsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS,
                     conf.getBookkeeperClientIsolationGroups());
@@ -233,6 +232,13 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
                 conf.getProperties().getProperty(
                     NET_TOPOLOGY_SCRIPT_FILE_NAME_KEY,
                     ""));
+        }
+
+        if (StringUtils.isNotBlank(conf.getBookkeeperClientIsolationGroups())) {
+            bkConf.setProperty(IsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS,
+                    conf.getBookkeeperClientIsolationGroups());
+            bkConf.setProperty(IsolatedBookieEnsemblePlacementPolicy.SECONDARY_ISOLATION_BOOKIE_GROUPS,
+                    conf.getBookkeeperClientSecondaryIsolationGroups());
         }
     }
 
