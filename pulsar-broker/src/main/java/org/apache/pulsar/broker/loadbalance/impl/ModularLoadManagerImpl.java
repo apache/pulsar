@@ -872,7 +872,12 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                 }
 
                 final double overloadThreshold = conf.getLoadBalancerBrokerOverloadedThresholdPercentage() / 100.0;
-                final double maxUsage = loadData.getBrokerData().get(broker.get()).getLocalData().getMaxResourceUsage();
+                final double maxUsage = loadData.getBrokerData().get(broker.get()).getLocalData()
+                        .getMaxResourceUsageWithWeight(
+                        conf.getLoadBalancerCPUResourceWeight(),
+                        conf.getLoadBalancerMemoryResourceWeight(), conf.getLoadBalancerDirectMemoryResourceWeight(),
+                        conf.getLoadBalancerBandwithInResourceWeight(),
+                        conf.getLoadBalancerBandwithOutResourceWeight());
                 if (maxUsage > overloadThreshold) {
                     // All brokers that were in the filtered list were overloaded, so check if there is a better broker
                     LoadManagerShared.applyNamespacePolicies(serviceUnit, policies, brokerCandidateCache,
