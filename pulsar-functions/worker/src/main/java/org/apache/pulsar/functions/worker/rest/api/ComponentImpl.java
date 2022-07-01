@@ -28,7 +28,7 @@ import static org.apache.pulsar.functions.utils.FunctionCommon.getStateNamespace
 import static org.apache.pulsar.functions.utils.FunctionCommon.getUniquePackageName;
 import static org.apache.pulsar.functions.utils.FunctionCommon.isFunctionCodeBuiltin;
 import static org.apache.pulsar.functions.worker.rest.RestUtils.throwUnavailableException;
-
+import com.google.common.base.Utf8;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
@@ -1109,10 +1109,13 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
                     if (kv.isNumber()) {
                         value = new FunctionState(key, null, null, kv.numberValue(), kv.version());
                     } else {
-                        try {
-                            value = new FunctionState(key, new String(ByteBufUtil.getBytes(kv.value(), kv.value().readerIndex(), kv.value().readableBytes()), UTF_8), null, null, kv.version());
-                        } catch (Exception e) {
-                            value = new FunctionState(key, null, ByteBufUtil.getBytes(kv.value()), null, kv.version());
+                        byte[] bytes = ByteBufUtil.getBytes(kv.value());
+                        if (Utf8.isWellFormed(bytes)) {
+                            value = new FunctionState(key, new String(bytes, UTF_8),
+                                    null, null, kv.version());
+                        } else {
+                            value = new FunctionState(
+                                    key, null, bytes, null, kv.version());
                         }
                     }
                 }
