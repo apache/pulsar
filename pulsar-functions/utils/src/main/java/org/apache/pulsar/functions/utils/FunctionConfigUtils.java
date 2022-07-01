@@ -311,7 +311,7 @@ public class FunctionConfigUtils {
             // Windows Function not support EFFECTIVELY_ONCE
             if (functionConfig.getProcessingGuarantees() == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE) {
                 throw new IllegalArgumentException(
-                        "Windows Function not support EFFECTIVELY_ONCE Guarantees.");
+                        "Windows Function not support EFFECTIVELY_ONCE delivery semantics.");
             } else {
                 // Override functionConfig.getProcessingGuarantees to MANUAL, and set windowsFunction is guarantees
                 windowConfig.setProcessingGuarantees(WindowConfig.ProcessingGuarantees
