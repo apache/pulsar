@@ -1051,11 +1051,8 @@ public class PulsarService implements AutoCloseable {
         if (this.client == null) {
             try {
                 ClientBuilder builder = PulsarClient.builder()
-                    .serviceUrl(this.getConfiguration().isTlsEnabled()
-                                ? this.brokerServiceUrlTls : this.brokerServiceUrl)
-                    .enableTls(this.getConfiguration().isTlsEnabled())
-                    .allowTlsInsecureConnection(this.getConfiguration().isTlsAllowInsecureConnection())
-                    .tlsTrustCertsFilePath(this.getConfiguration().getTlsCertificateFilePath());
+                    .serviceUrl(this.getConfiguration().isBrokerClientTlsEnabled()
+                                ? this.brokerServiceUrlTls : this.brokerServiceUrl);
                 // Apply all arbitrary configuration. This must be called before setting any fields annotated as
                 // @Secret on the ClientConfigurationData object because of the way they are serialized.
                 // See https://github.com/apache/pulsar/issues/8509 for more information.
@@ -1064,6 +1061,7 @@ public class PulsarService implements AutoCloseable {
                 builder.loadConf(overrides);
 
                 if (this.getConfiguration().isBrokerClientTlsEnabled()) {
+                    builder.allowTlsInsecureConnection(this.getConfiguration().isTlsAllowInsecureConnection());
                     if (this.getConfiguration().isBrokerClientTlsEnabledWithKeyStore()) {
                         builder.useKeyStoreTls(true)
                                 .tlsTrustStoreType(this.getConfiguration().getBrokerClientTlsTrustStoreType())
