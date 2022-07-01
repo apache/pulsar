@@ -603,7 +603,7 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
         conf.setBrokerDeleteInactiveTopicsEnabled(true);
         super.baseSetup();
         admin.brokers().updateDynamicConfiguration("brokerDeleteInactiveTopicsEnabled", "false");
-        Awaitility.await().untilAsserted(()->{
+        Awaitility.await().atMost(2, TimeUnit.SECONDS).untilAsserted(()->{
             assertFalse(conf.isBrokerDeleteInactiveTopicsEnabled());
         });
     }
@@ -614,7 +614,7 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
         super.baseSetup();
         admin.brokers()
                 .updateDynamicConfiguration("brokerDeleteInactiveTopicsFrequencySeconds", "60");
-        Awaitility.await().untilAsserted(()->{
+        Awaitility.await().atMost(2, TimeUnit.SECONDS).untilAsserted(()->{
             assertEquals(conf.getBrokerDeleteInactiveTopicsFrequencySeconds(), 60);
         });
     }
@@ -625,7 +625,7 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
         super.baseSetup();
         admin.brokers()
                 .updateDynamicConfiguration("brokerDeleteInactiveTopicsMaxInactiveDurationSeconds", "60");
-        Awaitility.await().untilAsserted(()->{
+        Awaitility.await().atMost(2, TimeUnit.SECONDS).untilAsserted(()->{
             assertEquals(conf.getBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds(), 60);
         });
     }
@@ -638,7 +638,7 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
         admin.brokers()
                 .updateDynamicConfiguration("brokerDeleteInactiveTopicsMode",
                         expect);
-        Awaitility.await().untilAsserted(()->{
+        Awaitility.await().atMost(2, TimeUnit.SECONDS).untilAsserted(()->{
             assertEquals(conf.getBrokerDeleteInactiveTopicsMode().toString(), expect);
         });
     }
