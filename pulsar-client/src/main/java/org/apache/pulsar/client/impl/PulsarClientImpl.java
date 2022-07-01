@@ -102,6 +102,8 @@ public class PulsarClientImpl implements PulsarClient {
 
     protected final ClientConfigurationData conf;
     private final boolean createdExecutorProviders;
+
+    private final boolean createdScheduledProviders;
     private LookupService lookup;
     private final ConnectionPool cnxPool;
     @Getter
@@ -181,6 +183,7 @@ public class PulsarClientImpl implements PulsarClient {
                         "Both externalExecutorProvider and internalExecutorProvider must be specified or unspecified.");
             }
             this.createdExecutorProviders = externalExecutorProvider == null;
+            this.createdScheduledProviders = scheduledExecutorProvider == null;
             eventLoopGroupReference = eventLoopGroup != null ? eventLoopGroup : getEventLoopGroup(conf);
             this.eventLoopGroup = eventLoopGroupReference;
             if (conf == null || isBlank(conf.getServiceUrl())) {
@@ -868,8 +871,8 @@ public class PulsarClientImpl implements PulsarClient {
     }
 
     private void shutdownExecutors() throws PulsarClientException {
+        PulsarClientException pulsarClientException = null;
         if (createdExecutorProviders) {
-            PulsarClientException pulsarClientException = null;
 
             if (externalExecutorProvider != null && !externalExecutorProvider.isShutdown()) {
                 try {
@@ -887,10 +890,17 @@ public class PulsarClientImpl implements PulsarClient {
                     pulsarClientException = PulsarClientException.unwrap(t);
                 }
             }
-
-            if (pulsarClientException != null) {
-                throw pulsarClientException;
+        }
+        if (createdScheduledProviders && scheduledExecutorProvider != null && !scheduledExecutorProvider.isShutdown()) {
+            try {
+                externalExecutorProvider.shutdownNow();
+            } catch (Throwable t) {
+                log.warn("Failed to shutdown scheduledExecutorProvider", t);
+                pulsarClientException = PulsarClientException.unwrap(t);
             }
+        }
+        if (pulsarClientException != null) {
+            throw pulsarClientException;
         }
     }
 
