@@ -46,12 +46,28 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
 /**
  * Unit test of {@link Reflections}.
  */
 @Slf4j
 public class FunctionConfigUtilsTest {
+
+    @Test
+    public void testAutoAckConvertFailed() {
+
+        FunctionConfig functionConfig = new FunctionConfig();
+        functionConfig.setAutoAck(false);
+        functionConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATMOST_ONCE);
+
+        try {
+            FunctionConfigUtils.convert(functionConfig, (ClassLoader) null);
+            fail("Should is failed");
+        } catch (IllegalArgumentException e) {
+
+        }
+    }
 
     @Test
     public void testConvertBackFidelity() {
@@ -127,6 +143,10 @@ public class FunctionConfigUtilsTest {
         functionConfig.setProducerConfig(producerConfig);
         Function.FunctionDetails functionDetails = FunctionConfigUtils.convert(functionConfig, (ClassLoader) null);
         FunctionConfig convertedConfig = FunctionConfigUtils.convertFromDetails(functionDetails);
+
+        // WindowsFunction guarantees convert to FunctionGuarantees.
+        assertEquals(convertedConfig.getWindowConfig().getProcessingGuarantees(),
+                WindowConfig.ProcessingGuarantees.valueOf(functionConfig.getProcessingGuarantees().name()));
 
         // add default resources
         functionConfig.setResources(Resources.getDefaultResources());

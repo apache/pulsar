@@ -308,11 +308,20 @@ public class FunctionConfigUtils {
         // windowing related
         WindowConfig windowConfig = functionConfig.getWindowConfig();
         if (windowConfig != null) {
+            // Windows Function not support EFFECTIVELY_ONCE
+            if (functionConfig.getProcessingGuarantees() == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE) {
+                throw new IllegalArgumentException(
+                        "Windows Function not support EFFECTIVELY_ONCE Guarantees.");
+            } else {
+                // Override functionConfig.getProcessingGuarantees to MANUAL, and set windowsFunction is guarantees
+                windowConfig.setProcessingGuarantees(WindowConfig.ProcessingGuarantees
+                        .valueOf(functionDetailsBuilder.getProcessingGuarantees().name()));
+                functionDetailsBuilder.setProcessingGuarantees(Function.ProcessingGuarantees.MANUAL);
+            }
             windowConfig.setActualWindowFunctionClassName(extractedDetails.getFunctionClassName());
             configs.put(WindowConfig.WINDOW_CONFIG_KEY, windowConfig);
             // set class name to window function executor
             functionDetailsBuilder.setClassName("org.apache.pulsar.functions.windowing.WindowFunctionExecutor");
-
         } else {
             if (extractedDetails.getFunctionClassName() != null) {
                 functionDetailsBuilder.setClassName(extractedDetails.getFunctionClassName());
@@ -321,6 +330,7 @@ public class FunctionConfigUtils {
         if (!configs.isEmpty()) {
             functionDetailsBuilder.setUserConfig(new Gson().toJson(configs));
         }
+
 
         if (functionConfig.getSecrets() != null && !functionConfig.getSecrets().isEmpty()) {
             functionDetailsBuilder.setSecretsMap(new Gson().toJson(functionConfig.getSecrets()));
@@ -361,10 +371,26 @@ public class FunctionConfigUtils {
             functionDetailsBuilder.setBuiltin(builtin);
         }
 
-        return functionDetailsBuilder.build();
+        return validateFunctionDetails(functionDetailsBuilder.build());
+    }
+
+    public static FunctionDetails validateFunctionDetails(FunctionDetails functionDetails)
+            throws IllegalArgumentException {
+        if (!functionDetails.getAutoAck() && functionDetails.getProcessingGuarantees()
+                == Function.ProcessingGuarantees.ATMOST_ONCE) {
+            throw new IllegalArgumentException("When Guarantees == ATMOST_ONCE, autoAck must be equal to true,"
+                    + "This is a contradictory configuration, autoAck will be removed later,"
+                    + "Please refer to PIP: https://github.com/apache/pulsar/issues/15560");
+        }
+        if (!functionDetails.getAutoAck()) {
+            log.warn("The autoAck configuration will be deprecated in the future."
+                    + " If you want not to automatically ack, please configure the processing guarantees as MANUAL.");
+        }
+        return functionDetails;
     }
 
     public static FunctionConfig convertFromDetails(FunctionDetails functionDetails) {
+        functionDetails = validateFunctionDetails(functionDetails);
         FunctionConfig functionConfig = new FunctionConfig();
         functionConfig.setTenant(functionDetails.getTenant());
         functionConfig.setNamespace(functionDetails.getNamespace());
@@ -463,6 +489,22 @@ public class FunctionConfigUtils {
                     (new Gson().toJson(userConfig.get(WindowConfig.WINDOW_CONFIG_KEY))),
                     WindowConfig.class);
             userConfig.remove(WindowConfig.WINDOW_CONFIG_KEY);
+            // Windows Function not support EFFECTIVELY_ONCE
+            if (functionDetails.getProcessingGuarantees() == Function.ProcessingGuarantees.EFFECTIVELY_ONCE) {
+                throw new IllegalArgumentException(
+                        "Windows Function not support EFFECTIVELY_ONCE Guarantees.");
+            }
+            // If it is a query requirement, The configuration of the restore function.
+            if (windowConfig.getProcessingGuarantees() != null) {
+                functionConfig.setProcessingGuarantees(
+                        FunctionConfig.ProcessingGuarantees.valueOf(windowConfig.getProcessingGuarantees().name()));
+            } else {
+                // If it is an update requirement.
+                // Override functionConfig.getProcessingGuarantees to MANUAL, and set windowsFunction is guarantees
+                windowConfig.setProcessingGuarantees(WindowConfig.ProcessingGuarantees
+                        .valueOf(functionDetails.getProcessingGuarantees().name()));
+                functionConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.MANUAL);
+            }
             functionConfig.setClassName(windowConfig.getActualWindowFunctionClassName());
             functionConfig.setWindowConfig(windowConfig);
         } else {

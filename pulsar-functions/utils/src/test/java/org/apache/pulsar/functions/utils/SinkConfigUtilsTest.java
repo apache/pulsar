@@ -46,6 +46,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.expectThrows;
+import static org.testng.Assert.fail;
 
 /**
  * Unit test of {@link SinkConfigUtilsTest}.
@@ -58,6 +59,21 @@ public class SinkConfigUtilsTest {
     public static class TestSinkConfig {
         @ConfigValidationAnnotations.NotNull
         private String configParameter;
+    }
+
+    @Test
+    public void testAutoAckConvertFailed() throws IOException {
+
+        SinkConfig sinkConfig = new SinkConfig();
+        sinkConfig.setAutoAck(false);
+        sinkConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATMOST_ONCE);
+
+        try {
+            SinkConfigUtils.convert(sinkConfig,
+                    new SinkConfigUtils.ExtractedSinkDetails(null, null));
+            fail("Should is failed");
+        } catch (IllegalArgumentException e) {
+        }
     }
 
     @Test
