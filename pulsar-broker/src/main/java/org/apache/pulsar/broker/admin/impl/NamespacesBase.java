@@ -49,6 +49,7 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.UriBuilder;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
+import org.apache.commons.collections4.ListUtils;
 import org.apache.commons.lang.mutable.MutableObject;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
@@ -62,6 +63,7 @@ import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
 import org.apache.pulsar.common.naming.NamedEntity;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
@@ -160,6 +162,48 @@ public abstract class NamespacesBase extends AdminResource {
         } else {
             internalDeleteNamespace(asyncResponse, authoritative);
         }
+    }
+
+    protected CompletableFuture<List<String>> internalGetListOfTopics(Policies policies,
+                                                                      CommandGetTopicsOfNamespace.Mode mode) {
+        switch (mode) {
+            case ALL:
+                return pulsar().getNamespaceService().getListOfPersistentTopics(namespaceName)
+                        .thenCombine(internalGetNonPersistentTopics(policies),
+                                (persistentTopics, nonPersistentTopics) ->
+                                        ListUtils.union(persistentTopics, nonPersistentTopics));
+            case NON_PERSISTENT:
+                return internalGetNonPersistentTopics(policies);
+            case PERSISTENT:
+            default:
+                return pulsar().getNamespaceService().getListOfPersistentTopics(namespaceName);
+        }
+    }
+
+    protected CompletableFuture<List<String>> internalGetNonPersistentTopics(Policies policies) {
+        final List<CompletableFuture<List<String>>> futures = Lists.newArrayList();
+        final List<String> boundaries = policies.bundles.getBoundaries();
+        for (int i = 0; i < boundaries.size() - 1; i++) {
+            final String bundle = String.format("%s_%s", boundaries.get(i), boundaries.get(i + 1));
+            try {
+                futures.add(pulsar().getAdminClient().topics()
+                        .getListInBundleAsync(namespaceName.toString(), bundle));
+            } catch (PulsarServerException e) {
+                throw new RestException(e);
+            }
+        }
+        return FutureUtil.waitForAll(futures)
+                .thenApply(__ -> {
+                    final List<String> topics = Lists.newArrayList();
+                    for (int i = 0; i < futures.size(); i++) {
+                        List<String> topicList = futures.get(i).join();
+                        if (topicList != null) {
+                            topics.addAll(topicList);
+                        }
+                    }
+                    return topics.stream().filter(name -> !TopicName.get(name).isPersistent())
+                            .collect(Collectors.toList());
+                });
     }
 
     @SuppressWarnings("deprecation")
@@ -1385,46 +1429,31 @@ public abstract class NamespacesBase extends AdminResource {
                 .thenApply(policies -> policies.topicDispatchRate.get(pulsar().getConfiguration().getClusterName()));
     }
 
-    protected void internalSetSubscriptionDispatchRate(DispatchRateImpl dispatchRate) {
-        validateSuperUserAccess();
-        log.info("[{}] Set namespace subscription dispatch-rate {}/{}", clientAppId(), namespaceName, dispatchRate);
-
-        try {
-            updatePolicies(namespaceName, (policies) -> {
-                policies.subscriptionDispatchRate.put(pulsar().getConfiguration().getClusterName(), dispatchRate);
-                return policies;
-            });
-            log.info("[{}] Successfully updated the subscriptionDispatchRate for cluster on namespace {}",
-                    clientAppId(), namespaceName);
-        } catch (Exception e) {
-            log.error("[{}] Failed to update the subscriptionDispatchRate for cluster on namespace {}", clientAppId(),
-                    namespaceName, e);
-            throw new RestException(e);
-        }
+    protected CompletableFuture<Void> internalSetSubscriptionDispatchRateAsync(DispatchRateImpl dispatchRate) {
+        return validateSuperUserAccessAsync()
+                .thenCompose(__ -> updatePoliciesAsync(namespaceName, policies -> {
+                    policies.subscriptionDispatchRate.put(pulsar().getConfiguration().getClusterName(), dispatchRate);
+                    log.info("[{}] Successfully updated the subscriptionDispatchRate for cluster on namespace {}",
+                            clientAppId(), namespaceName);
+                    return policies;
+                }));
     }
 
-    protected void internalDeleteSubscriptionDispatchRate() {
-        validateSuperUserAccess();
-
-        try {
-            updatePolicies(namespaceName, policies -> {
-                policies.subscriptionDispatchRate.remove(pulsar().getConfiguration().getClusterName());
-                return policies;
-            });
-            log.info("[{}] Successfully delete the subscriptionDispatchRate for cluster on namespace {}",
-                    clientAppId(), namespaceName);
-        } catch (Exception e) {
-            log.error("[{}] Failed to delete the subscriptionDispatchRate for cluster on namespace {}", clientAppId(),
-                    namespaceName, e);
-            throw new RestException(e);
-        }
+    protected CompletableFuture<Void> internalDeleteSubscriptionDispatchRateAsync() {
+        return validateSuperUserAccessAsync()
+                .thenCompose(__ -> updatePoliciesAsync(namespaceName, policies -> {
+                    policies.subscriptionDispatchRate.remove(pulsar().getConfiguration().getClusterName());
+                    log.info("[{}] Successfully delete the subscriptionDispatchRate for cluster on namespace {}",
+                            clientAppId(), namespaceName);
+                    return policies;
+                }));
     }
 
-    protected DispatchRate internalGetSubscriptionDispatchRate() {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.RATE, PolicyOperation.READ);
-
-        Policies policies = getNamespacePolicies(namespaceName);
-        return policies.subscriptionDispatchRate.get(pulsar().getConfiguration().getClusterName());
+    protected CompletableFuture<DispatchRate> internalGetSubscriptionDispatchRateAsync() {
+        return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.RATE, PolicyOperation.READ)
+                .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
+                .thenApply(policies ->
+                        policies.subscriptionDispatchRate.get(pulsar().getConfiguration().getClusterName()));
     }
 
     protected CompletableFuture<Void> internalSetSubscribeRateAsync(SubscribeRate subscribeRate) {
@@ -2694,7 +2723,8 @@ public abstract class NamespacesBase extends AdminResource {
 
     protected int internalGetMaxTopicsPerNamespace() {
         validateNamespacePolicyOperation(namespaceName, PolicyName.MAX_TOPICS, PolicyOperation.READ);
-        return getNamespacePolicies(namespaceName).max_topics_per_namespace;
+        return getNamespacePolicies(namespaceName).max_topics_per_namespace != null
+                ? getNamespacePolicies(namespaceName).max_topics_per_namespace : 0;
     }
 
    protected void internalRemoveMaxTopicsPerNamespace() {

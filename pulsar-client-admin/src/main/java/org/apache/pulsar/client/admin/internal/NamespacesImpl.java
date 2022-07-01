@@ -29,6 +29,7 @@ import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.client.admin.ListNamespaceTopicsOptions;
 import org.apache.pulsar.client.admin.Namespaces;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Authentication;
@@ -153,6 +154,36 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         NamespaceName ns = NamespaceName.get(namespace);
         String action = ns.isV2() ? "topics" : "destinations";
         WebTarget path = namespacePath(ns, action);
+        final CompletableFuture<List<String>> future = new CompletableFuture<>();
+        asyncGetRequest(path,
+                new InvocationCallback<List<String>>() {
+                    @Override
+                    public void completed(List<String> topics) {
+                        future.complete(topics);
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+        return future;
+    }
+
+    @Override
+    public List<String> getTopics(String namespace, ListNamespaceTopicsOptions options)
+            throws PulsarAdminException{
+        return sync(() -> getTopicsAsync(namespace, options));
+    }
+
+    @Override
+    public CompletableFuture<List<String>> getTopicsAsync(String namespace, ListNamespaceTopicsOptions options) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        String action = ns.isV2() ? "topics" : "destinations";
+        WebTarget path = namespacePath(ns, action);
+        path = path
+                .queryParam("mode", options.getMode())
+                .queryParam("includeSystemTopic", options.isIncludeSystemTopic());
         final CompletableFuture<List<String>> future = new CompletableFuture<>();
         asyncGetRequest(path,
                 new InvocationCallback<List<String>>() {

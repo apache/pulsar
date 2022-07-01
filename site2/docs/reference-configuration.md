@@ -334,6 +334,7 @@ brokerServiceCompactionThresholdInBytes|If the estimated backlog size is greater
 |replicatorPrefix|  Replicator prefix used for replicator producer name and cursor name pulsar.repl||
 |transactionBufferClientOperationTimeoutInMills|The transaction buffer client's operation timeout in milliseconds.|3000|
 |transactionCoordinatorEnabled|Whether to enable transaction coordinator in broker.|true|
+|maxActiveTransactionsPerCoordinator| Max number of active transactions per transaction coordinator.|0|
 |transactionMetadataStoreProviderClassName|The class name of transactionMetadataStoreProvider.|org.apache.pulsar.transaction.coordinator.impl.MLTransactionMetadataStoreProvider|
 |transactionBufferSnapshotMaxTransactionCount|Transaction buffer takes a snapshot after the number of transaction operations reaches this value.|1000|
 |transactionBufferSnapshotMinTimeInMillis| The interval between two snapshots that the transaction buffer takes (in milliseconds).|5000|
@@ -388,7 +389,8 @@ brokerServiceCompactionThresholdInBytes|If the estimated backlog size is greater
 | enableExposingBrokerEntryMetadataToClient|Whether to expose broker entry metadata to client or not.<br /><br />Available values:<li>true</li><li>false</li><br />Example<br />enableExposingBrokerEntryMetadataToClient=true  | false |
 | metricsBufferResponse | The configuration is for those broker which there are more than one metrics system access the `/metrics` endpoint. For the purpose of reduce `CPU` and `Memory` usage, metrics data will be generated once in the interval(`managedLedgerStatsPeriodSeconds`) and it will be cached, all `/metrics` requests in the `interval` will return same metrics | false |
 | strictBookieAffinityEnabled | Enable or disable the strict bookie isolation strategy. If enabled, <br /> - `bookie-ensemble` first tries to choose bookies that belong to a namespace's affinity group. If the number of bookies is not enough, then the rest bookies are chosen. <br /> - If namespace has no affinity group, `bookie-ensemble` only chooses bookies that belong to no region. If the number of bookies is not enough, `BKNotEnoughBookiesException` is thrown.| false |
-|managedCursorInfoCompressionType | The compression type of managed cursor information. <br />Available options are `NONE`, `LZ4`, `ZLIB`, `ZSTD`, and `SNAPPY`). <br />If this value is `NONE`, managed cursor information is not compressed. | NONE
+|managedCursorInfoCompressionType | The compression type of managed cursor information. <br />Available options are `NONE`, `LZ4`, `ZLIB`, `ZSTD`, and `SNAPPY`). <br />If this value is `NONE`, managed cursor information is not compressed. | NONE |
+|narExtractionDirectory | The extraction directory of the nar package. <br />Available for Protocol Handler, Additional Servlets, Entry Filter, Offloaders, Broker Interceptor. | System.getProperty("java.io.tmpdir") |
 
 #### Configuration Override For Clients Internal to Broker
 
@@ -849,6 +851,7 @@ The [Pulsar proxy](concepts-architecture-overview.md#pulsar-proxy) can be config
 |tokenAudienceClaim| The token audience "claim" name, e.g. "aud". It is used to get the audience from token. If it is not set, the audience is not verified. ||
 | tokenAudience | The token audience stands for this broker. The field `tokenAudienceClaim` of a valid token need contains this parameter.| |
 |haProxyProtocolEnabled | Enable or disable the [HAProxy](http://www.haproxy.org/) protocol. |false|
+|proxyZeroCopyModeEnabled |Enables zero-copy transport of data across network interfaces using the [splice](https://man7.org/linux/man-pages/man2/splice.2.html) system call. Zero copy mode cannot be used when TLS is enabled or when `proxyLogLevel is > 0`. | true |
 | numIOThreads | Number of threads used for Netty IO. | 2 * Runtime.getRuntime().availableProcessors() |
 | numAcceptorThreads | Number of threads used for Netty Acceptor. | 1 |
 |webServiceTlsProvider | The TLS provider for the web service. Available values: `SunJSSE`, `Conscrypt`, and so on. | Conscrypt |

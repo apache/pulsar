@@ -29,7 +29,7 @@ import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -53,6 +53,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 @Slf4j
@@ -249,56 +250,94 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
 
     private void testMessageAckRateMetric(String topicName, boolean exposeTopicLevelMetrics)
             throws Exception {
-        final int messages = 100;
+        final int messages = 1000;
         String subName = "test_sub";
+        CountDownLatch latch = new CountDownLatch(messages);
 
         @Cleanup
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topicName).create();
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topicName)
+                .enableBatching(true).batchingMaxMessages(10).create();
+
+        MessageListener<String> listener = (consumer, msg) -> {
+            try {
+                consumer.acknowledge(msg);
+                latch.countDown();
+            } catch (PulsarClientException e) {
+                //ignore
+            }
+        };
         @Cleanup
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(topicName)
-                .subscriptionName(subName).isAckReceiptEnabled(true).subscribe();
+        Consumer<String> c1 = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topicName)
+                .subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Shared)
+                .messageListener(listener)
+                .subscribe();
+        @Cleanup
+        Consumer<String> c2 = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topicName)
+                .subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Shared)
+                .messageListener(listener)
+                .subscribe();
 
         String namespace = TopicName.get(topicName).getNamespace();
 
         for (int i = 0; i < messages; i++) {
-            producer.send(UUID.randomUUID().toString());
+            producer.sendAsync(UUID.randomUUID().toString());
         }
+        producer.flush();
 
-        for (int i = 0; i < messages; i++) {
-            Message<String> message = consumer.receive(20, TimeUnit.SECONDS);
-            if (message == null) {
-                break;
-            }
-
-            consumer.acknowledge(message);
-        }
+        latch.await(20, TimeUnit.SECONDS);
+        TimeUnit.SECONDS.sleep(1);
 
         Topic topic = pulsar.getBrokerService().getTopic(topicName, false).get().get();
         Subscription subscription = topic.getSubscription(subName);
         List<org.apache.pulsar.broker.service.Consumer> consumers = subscription.getConsumers();
-        Assert.assertEquals(consumers.size(), 1);
+        Assert.assertEquals(consumers.size(), 2);
         org.apache.pulsar.broker.service.Consumer consumer1 = consumers.get(0);
+        org.apache.pulsar.broker.service.Consumer consumer2 = consumers.get(1);
         consumer1.updateRates();
+        consumer2.updateRates();
 
         ByteArrayOutputStream output = new ByteArrayOutputStream();
         PrometheusMetricsGenerator.generate(pulsar, exposeTopicLevelMetrics, true, true, output);
         String metricStr = output.toString(StandardCharsets.UTF_8);
 
         Multimap<String, PrometheusMetricsTest.Metric> metricsMap = PrometheusMetricsTest.parseMetrics(metricStr);
-        Collection<PrometheusMetricsTest.Metric> metrics = metricsMap.get("pulsar_consumer_msg_ack_rate");
-        Assert.assertTrue(metrics.size() > 0);
+        Collection<PrometheusMetricsTest.Metric> ackRateMetric = metricsMap.get("pulsar_consumer_msg_ack_rate");
 
-        int num = 0;
-        for (PrometheusMetricsTest.Metric metric : metrics) {
-            if (exposeTopicLevelMetrics && metric.tags.get("subscription").equals(subName)) {
-                num++;
-                Assert.assertTrue(metric.value > 0);
-            } else if (!exposeTopicLevelMetrics && metric.tags.get("namespace").equals(namespace)) {
-                num++;
-                Assert.assertTrue(metric.value > 0);
-            }
+        String rateOutMetricName = exposeTopicLevelMetrics ? "pulsar_consumer_msg_rate_out" : "pulsar_rate_out";
+        Collection<PrometheusMetricsTest.Metric> rateOutMetric = metricsMap.get(rateOutMetricName);
+        Assert.assertTrue(ackRateMetric.size() > 0);
+        Assert.assertTrue(rateOutMetric.size() > 0);
+
+        if (exposeTopicLevelMetrics) {
+            String consumer1Name = consumer1.consumerName();
+            String consumer2Name = consumer2.consumerName();
+            double totalAckRate = ackRateMetric.stream()
+                    .filter(metric -> metric.tags.get("consumer_name").equals(consumer1Name)
+                            || metric.tags.get("consumer_name").equals(consumer2Name))
+                    .mapToDouble(metric -> metric.value).sum();
+            double totalRateOut = rateOutMetric.stream()
+                    .filter(metric -> metric.tags.get("consumer_name").equals(consumer1Name)
+                            || metric.tags.get("consumer_name").equals(consumer2Name))
+                    .mapToDouble(metric -> metric.value).sum();
+
+            Assert.assertTrue(totalAckRate > 0D);
+            Assert.assertTrue(totalRateOut > 0D);
+            Assert.assertEquals(totalAckRate, totalRateOut, totalRateOut * 0.1D);
+        } else {
+            double totalAckRate = ackRateMetric.stream()
+                    .filter(metric -> namespace.equals(metric.tags.get("namespace")))
+                    .mapToDouble(metric -> metric.value).sum();
+            double totalRateOut = rateOutMetric.stream()
+                    .filter(metric -> namespace.equals(metric.tags.get("namespace")))
+                    .mapToDouble(metric -> metric.value).sum();
+
+            Assert.assertTrue(totalAckRate > 0D);
+            Assert.assertTrue(totalRateOut > 0D);
+            Assert.assertEquals(totalAckRate, totalRateOut, totalRateOut * 0.1D);
         }
-
-        Assert.assertTrue(num > 0);
     }
 }

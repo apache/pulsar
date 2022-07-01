@@ -59,8 +59,8 @@ import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.functions.api.Record;
+import org.apache.pulsar.functions.instance.AbstractSinkRecord;
 import org.apache.pulsar.functions.instance.FunctionResultRouter;
-import org.apache.pulsar.functions.instance.SinkRecord;
 import org.apache.pulsar.functions.instance.stats.ComponentStatsManager;
 import org.apache.pulsar.functions.source.PulsarRecord;
 import org.apache.pulsar.functions.source.TopicSchema;
@@ -85,9 +85,9 @@ public class PulsarSink<T> implements Sink<T> {
 
     private interface PulsarSinkProcessor<T> {
 
-        TypedMessageBuilder<T> newMessage(SinkRecord<T> record);
+        TypedMessageBuilder<T> newMessage(AbstractSinkRecord<T> record);
 
-        void sendOutputMessage(TypedMessageBuilder<T> msg, SinkRecord<T> record);
+        void sendOutputMessage(TypedMessageBuilder<T> msg, AbstractSinkRecord<T> record);
 
         void close() throws Exception;
     }
@@ -183,17 +183,17 @@ public class PulsarSink<T> implements Sink<T> {
             }
         }
 
-        public Function<Throwable, Void> getPublishErrorHandler(SinkRecord<T> record, boolean failSource) {
+        public Function<Throwable, Void> getPublishErrorHandler(AbstractSinkRecord<T> record, boolean failSource) {
 
             return throwable -> {
-                Record<T> srcRecord = record.getSourceRecord();
+                Record<?> srcRecord = record.getSourceRecord();
                 if (failSource) {
                     srcRecord.fail();
                 }
 
                 String topic = record.getDestinationTopic().orElse(pulsarSinkConfig.getTopic());
 
-                String errorMsg = null;
+                String errorMsg;
                 if (srcRecord instanceof PulsarRecord) {
                     errorMsg = String.format("Failed to publish to topic [%s] with error [%s] with src message id [%s]",
                             topic, throwable.getMessage(), ((PulsarRecord) srcRecord).getMessageId());
@@ -234,7 +234,7 @@ public class PulsarSink<T> implements Sink<T> {
         }
 
         @Override
-        public TypedMessageBuilder<T> newMessage(SinkRecord<T> record) {
+        public TypedMessageBuilder<T> newMessage(AbstractSinkRecord<T> record) {
             Schema<T> schemaToWrite = record.getSchema();
             if (record.getSourceRecord() instanceof PulsarRecord) {
                 // we are receiving data directly from another Pulsar topic
@@ -256,7 +256,7 @@ public class PulsarSink<T> implements Sink<T> {
         }
 
         @Override
-        public void sendOutputMessage(TypedMessageBuilder<T> msg, SinkRecord<T> record) {
+        public void sendOutputMessage(TypedMessageBuilder<T> msg, AbstractSinkRecord<T> record) {
             msg.sendAsync().thenAccept(messageId -> {
                 //no op
             }).exceptionally(getPublishErrorHandler(record, false));
@@ -270,7 +270,7 @@ public class PulsarSink<T> implements Sink<T> {
         }
 
         @Override
-        public void sendOutputMessage(TypedMessageBuilder<T> msg, SinkRecord<T> record) {
+        public void sendOutputMessage(TypedMessageBuilder<T> msg, AbstractSinkRecord<T> record) {
             msg.sendAsync()
                     .thenAccept(messageId -> record.ack())
                     .exceptionally(getPublishErrorHandler(record, true));
@@ -285,7 +285,7 @@ public class PulsarSink<T> implements Sink<T> {
         }
 
         @Override
-        public TypedMessageBuilder<T> newMessage(SinkRecord<T> record) {
+        public TypedMessageBuilder<T> newMessage(AbstractSinkRecord<T> record) {
             if (!record.getPartitionId().isPresent()) {
                 throw new RuntimeException(
                         "PartitionId needs to be specified for every record while in Effectively-once mode");
@@ -311,7 +311,7 @@ public class PulsarSink<T> implements Sink<T> {
         }
 
         @Override
-        public void sendOutputMessage(TypedMessageBuilder<T> msg, SinkRecord<T> record) {
+        public void sendOutputMessage(TypedMessageBuilder<T> msg, AbstractSinkRecord<T> record) {
 
             if (!record.getRecordSequence().isPresent()) {
                 throw new RuntimeException(
@@ -367,7 +367,7 @@ public class PulsarSink<T> implements Sink<T> {
 
     @Override
     public void write(Record<T> record) {
-        SinkRecord<T> sinkRecord = (SinkRecord<T>) record;
+        AbstractSinkRecord<T> sinkRecord = (AbstractSinkRecord<T>) record;
         TypedMessageBuilder<T> msg = pulsarSinkProcessor.newMessage(sinkRecord);
 
         if (record.getKey().isPresent() && !(record.getSchema() instanceof KeyValueSchema
@@ -377,7 +377,8 @@ public class PulsarSink<T> implements Sink<T> {
 
         msg.value(record.getValue());
 
-        if (!record.getProperties().isEmpty() && pulsarSinkConfig.isForwardSourceMessageProperty()) {
+        if (!record.getProperties().isEmpty()
+            && (sinkRecord.shouldAlwaysSetMessageProperties() || pulsarSinkConfig.isForwardSourceMessageProperty())) {
             msg.properties(record.getProperties());
         }
 

@@ -21,6 +21,14 @@
 
 ![logo](site2/website/static/img/pulsar.svg)
 
+[![unit test](https://img.shields.io/github/workflow/status/apache/pulsar/CI%20-%20Unit?label=unit%20test)](https://github.com/apache/pulsar/actions/workflows/ci-unit.yaml)
+[![docker build](https://img.shields.io/github/workflow/status/apache/pulsar/CI%20-%20Docker%20Build?label=docker%20build)](https://hub.docker.com/r/apachepulsar/pulsar)
+[![contributors](https://img.shields.io/github/contributors-anon/apache/pulsar)](https://github.com/apache/pulsar/graphs/contributors)
+[![last commit](https://img.shields.io/github/last-commit/apache/pulsar)](https://github.com/apache/pulsar/commits/master)
+[![release](https://img.shields.io/github/v/release/apache/pulsar)](https://github.com/apache/pulsar/releases)
+[![release date](https://img.shields.io/github/release-date/apache/pulsar)](https://github.com/apache/pulsar/releases)
+[![downloads](https://img.shields.io/github/downloads/apache/pulsar/total)](https://pulsar.apache.org/download/)
+
 Pulsar is a distributed pub-sub messaging platform with a very
 flexible messaging model and an intuitive client API.
 
@@ -28,24 +36,24 @@ Learn more about Pulsar at https://pulsar.apache.org
 
 ## Main features
 
-* Horizontally scalable (Millions of independent topics and millions
+- Horizontally scalable (Millions of independent topics and millions
   of messages published per second)
-* Strong ordering and consistency guarantees
-* Low latency durable storage
-* Topic and queue semantics
-* Load balancer
-* Designed for being deployed as a hosted service:
-  * Multi-tenant
-  * Authentication
-  * Authorization
-  * Quotas
-  * Support mixing very different workloads
-  * Optional hardware isolation
-* Keeps track of consumer cursor position
-* REST API for provisioning, admin and stats
-* Geo replication
-* Transparent handling of partitioned topics
-* Transparent batching of messages
+- Strong ordering and consistency guarantees
+- Low latency durable storage
+- Topic and queue semantics
+- Load balancer
+- Designed for being deployed as a hosted service:
+  - Multi-tenant
+  - Authentication
+  - Authorization
+  - Quotas
+  - Support mixing very different workloads
+  - Optional hardware isolation
+- Keeps track of consumer cursor position
+- REST API for provisioning, admin and stats
+- Geo replication
+- Transparent handling of partitioned topics
+- Transparent batching of messages
 
 ## Repositories
 
@@ -88,34 +96,34 @@ components in the Pulsar ecosystem, including connectors, adapters, and other la
 - pulsar master branch
 
 | Pulsar Components | Java Version  |
-| ----------------- |:-------------:|
-| Broker            | 17            |
-| Functions / IO    | 17            |
-| CLI               | 17            |
+| ----------------- | :-----------: |
+| Broker            |      17       |
+| Functions / IO    |      17       |
+| CLI               |      17       |
 | Java Client       | 8 or 11 or 17 |
 
 - 2.8 <= pulsar ver <= 2.10
 
-| Pulsar Components | Java Version  |
-| ----------------- |:-------------:|
-| Broker            | 11            |
-| Functions / IO    | 11            |
-| CLI               | 8 or 11       |
-| Java Client       | 8 or 11       |
+| Pulsar Components | Java Version |
+| ----------------- | :----------: |
+| Broker            |      11      |
+| Functions / IO    |      11      |
+| CLI               |   8 or 11    |
+| Java Client       |   8 or 11    |
 
 - pulsar ver 2.8 <
 
-| Pulsar Components | Java Version  |
-| ----------------- |:-------------:|
-| All               | 8 or 11       |
-
+| Pulsar Components | Java Version |
+| ----------------- | :----------: |
+| All               |   8 or 11    |
 
 ## Build Pulsar
 
 Requirements:
- * Java [JDK 17](https://adoptium.net/?variant=openjdk17)
- * Maven 3.6.1+
- * zip
+
+- Java [JDK 17](https://adoptium.net/?variant=openjdk17)
+- Maven 3.6.1+
+- zip
 
 > Note: this project includes a [Maven Wrapper](https://maven.apache.org/wrapper/) that can be used instead of a system installed Maven.
 > Use it by replacing `mvn` by `./mvnw` on Linux and `mvnw.cmd` on Windows in the commands below.
@@ -127,11 +135,13 @@ $ mvn install -DskipTests
 ```
 
 Compile and install individual module
+
 ```bash
 $ mvn -pl module-name (e.g: pulsar-broker) install -DskipTests
 ```
 
 ## Minimal build (This skips most of external connectors and tiered storage handlers)
+
 ```
 mvn install -Pcore-modules,-main -DskipTests
 ```
@@ -176,8 +186,8 @@ mvn clean install -DskipTests
 mvn package -Pdocker,-main -am -pl docker/pulsar-all -DskipTests
 ```
 
-After the images are built, they can be tagged and pushed to your custom repository. 
-Here's an example of a bash script that tags the docker images with the current version and git revision and 
+After the images are built, they can be tagged and pushed to your custom repository.
+Here's an example of a bash script that tags the docker images with the current version and git revision and
 pushes them to `localhost:32000/apachepulsar`.
 
 ```bash
@@ -201,24 +211,23 @@ required plugins.
 
 #### Configure Project JDK to Java 17 JDK
 
-1. Open **Project Settings**. 
+1. Open **Project Settings**.
 
-    Click **File** -> **Project Structure** -> **Project Settings** -> **Project**.
-   
+   Click **File** -> **Project Structure** -> **Project Settings** -> **Project**.
+
 2. Select the JDK version.
-    
-    From the JDK version drop-down list, select **Download JDK...** or choose an existing recent Java 17 JDK version.
+
+   From the JDK version drop-down list, select **Download JDK...** or choose an existing recent Java 17 JDK version.
 
 3. In the download dialog, select version **17**. You can pick a version from many vendors. Unless you have a specific preference, choose **Eclipse Temurin (AdoptOpenJDK (Hotspot))**.
- 
 
 #### Configure Java version for Maven in IntelliJ
 
-1. Open Maven Importing Settings dialog by going to 
+1. Open Maven Importing Settings dialog by going to
    **Settings** -> **Build, Execution, Deployment** -> **Build Tools** -> **Maven** -> **Importing**.
 
-2. Choose **Use Project JDK** for **JDK for Importer** setting. This uses the Java 11 JDK for running Maven 
-   when importing the project to IntelliJ. Some of the configuration in the Maven build is conditional based on 
+2. Choose **Use Project JDK** for **JDK for Importer** setting. This uses the Java 17 JDK for running Maven
+   when importing the project to IntelliJ. Some of the configuration in the Maven build is conditional based on
    the JDK version. Incorrect configuration gets chosen when the "JDK for Importer" isn't the same as the "Project JDK".
 
 3. Validate that the JRE setting in **Maven** -> **Runner** dialog is set to **Use Project JDK**.
@@ -229,11 +238,13 @@ required plugins.
    **Settings** -> **Build, Execution, Deployment** -> **Compiler** -> **Annotation Processors**.
 
 2. Select the following buttons:
+
    1. **Enable annotation processing**
    2. **Obtain processors from project classpath**
    3. Store generated sources relative to: **Module content root**
 
 3. Set the generated source directories to be equal to the Maven directories:
+
    1. Set "Production sources directory:" to "target/generated-sources/annotations".
    2. Set "Test sources directory:" to "target/generated-test-sources/test-annotations".
 
@@ -264,6 +275,7 @@ required plugins.
 4. Set **Scan scope** to **Only Java sources (including tests)**.
 
 5. Click **+** button in the **Configuration** section to open a dialog to choose the checkfile file.
+
    1. Enter a **Description**. For example, Pulsar.
    2. Select **Use a local checkstyle file**.
    3. Set **File** to **buildtools/src/main/resources/pulsar/checkstyle.xml**.
@@ -274,33 +286,32 @@ required plugins.
 
 7. Click **OK**.
 
-#### Further configuration in IntelliJ 
+#### Further configuration in IntelliJ
 
-* When working on the Pulsar core modules in IntelliJ, reduce the number of active projects in IntelliJ to speed up IDE actions and reduce unrelated IDE warnings.
-  * In IntelliJ's Maven UI's tree view under "Profiles"
-    * Activate "core-modules" Maven profile
-    * De-activate "main" Maven profile
-    * Run the "Reload All Maven Projects" action from the Maven UI toolbar. You can also find the action by the name in the IntelliJ "Search Everywhere" window that gets activated by pressing the **Shift** key twice.
+- When working on the Pulsar core modules in IntelliJ, reduce the number of active projects in IntelliJ to speed up IDE actions and reduce unrelated IDE warnings.
 
-* Run the "Generate Sources and Update Folders For All Projects" action from the Maven UI toolbar. You can also find the action by the name in the IntelliJ "Search Everywhere" window that gets activated by pressing the **Shift** key twice. Running the action takes about 10 minutes for all projects. This is faster when the "core-modules" profile is the only active profile.
+  - In IntelliJ's Maven UI's tree view under "Profiles"
+    - Activate "core-modules" Maven profile
+    - De-activate "main" Maven profile
+    - Run the "Reload All Maven Projects" action from the Maven UI toolbar. You can also find the action by the name in the IntelliJ "Search Everywhere" window that gets activated by pressing the **Shift** key twice.
 
+- Run the "Generate Sources and Update Folders For All Projects" action from the Maven UI toolbar. You can also find the action by the name in the IntelliJ "Search Everywhere" window that gets activated by pressing the **Shift** key twice. Running the action takes about 10 minutes for all projects. This is faster when the "core-modules" profile is the only active profile.
 
 #### IntelliJ usage tips
 
-* In the case of compilation errors with missing Protobuf classes, ensure to run the "Generate Sources and Update Folders For All Projects" action.
+- In the case of compilation errors with missing Protobuf classes, ensure to run the "Generate Sources and Update Folders For All Projects" action.
 
-* All of the Pulsar source code doesn't compile properly in IntelliJ and there are compilation errors.
-  * Use the "core-modules" profile if working on the Pulsar core modules since the source code for those modules can be compiled in IntelliJ.
-  * Sometimes it might help to mark a specific project ignored in IntelliJ Maven UI by right-clicking the project name and select **Ignore Projects** from the menu.
-  * Currently, it is not always possible to run unit tests directly from the IDE because of the compilation issues. As a workaround, individual test classes can be run by using the `mvn test -Dtest=TestClassName` command.
-    
-* The above steps have all been performed, but a test still won't run.
-  * In this case, try the following steps:
+- All of the Pulsar source code doesn't compile properly in IntelliJ and there are compilation errors.
+  - Use the "core-modules" profile if working on the Pulsar core modules since the source code for those modules can be compiled in IntelliJ.
+  - Sometimes it might help to mark a specific project ignored in IntelliJ Maven UI by right-clicking the project name and select **Ignore Projects** from the menu.
+  - Currently, it is not always possible to run unit tests directly from the IDE because of the compilation issues. As a workaround, individual test classes can be run by using the `mvn test -Dtest=TestClassName` command.
+- The above steps have all been performed, but a test still won't run.
+  - In this case, try the following steps:
     1. Close IntelliJ.
     2. Run `mvn clean install -DskipTests` on the command line.
     3. Reopen IntelliJ.
-  * If that still doesn't work:
-    1. Verify Maven is using a supported version. Currently, the supported version of Maven is specified in the 
+  - If that still doesn't work:
+    1. Verify Maven is using a supported version. Currently, the supported version of Maven is specified in the
        <requireMavenVersion> section of the main pom.xml file.
     2. Try "restart and clear caches" in IntelliJ and repeat the above steps to reload projects and generate sources.
 
@@ -309,16 +320,18 @@ required plugins.
 Follow the instructions [here](https://howtodoinjava.com/automation/lombok-eclipse-installation-examples/)
 to configure your Eclipse setup.
 
-## Build Pulsar docs
+## Documentation
 
-Refer to the docs [README](site2/README.md).
+> **Tip**
+>
+> For how to make contributions to Pulsar documentation, see [Pulsar Documentation Contribution Guide](https://docs.google.com/document/d/11DTnNPpvcPrebLkMAFcDEIFlD8ARD-k6F-LXoIwdD9Y/edit#).
 
 ## Contact
 
 ##### Mailing lists
 
-| Name                                                                          | Scope                           |                                                                 |                                                                     |                                                                              |
-|:------------------------------------------------------------------------------|:--------------------------------|:----------------------------------------------------------------|:--------------------------------------------------------------------|:-----------------------------------------------------------------------------|
+| Name                                                      | Scope                           |                                                       |                                                           |                                                                    |
+| :-------------------------------------------------------- | :------------------------------ | :---------------------------------------------------- | :-------------------------------------------------------- | :----------------------------------------------------------------- |
 | [users@pulsar.apache.org](mailto:users@pulsar.apache.org) | User-related discussions        | [Subscribe](mailto:users-subscribe@pulsar.apache.org) | [Unsubscribe](mailto:users-unsubscribe@pulsar.apache.org) | [Archives](http://mail-archives.apache.org/mod_mbox/pulsar-users/) |
 | [dev@pulsar.apache.org](mailto:dev@pulsar.apache.org)     | Development-related discussions | [Subscribe](mailto:dev-subscribe@pulsar.apache.org)   | [Unsubscribe](mailto:dev-unsubscribe@pulsar.apache.org)   | [Archives](http://mail-archives.apache.org/mod_mbox/pulsar-dev/)   |
 
