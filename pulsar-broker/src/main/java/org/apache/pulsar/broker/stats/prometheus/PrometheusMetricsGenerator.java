@@ -55,6 +55,8 @@ import org.apache.pulsar.common.util.SimpleTextOutputStream;
  * Format specification can be found at {@link https://prometheus.io/docs/instrumenting/exposition_formats/}
  */
 public class PrometheusMetricsGenerator {
+    private static volatile TimeWindow<ByteBuf> timeWindow;
+    protected static final int MAX_COMPONENTS = 64;
 
     static {
         DefaultExports.initialize();
