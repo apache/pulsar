@@ -329,6 +329,7 @@ public class KubernetesRuntimeFactory implements RuntimeFactory {
             configAdminCLI,
             codePkgUrl,
             originalCodeFileName,
+            originalExtraFunctionFileName,
             pulsarServiceUrl,
             pulsarAdminUrl,
             stateStorageServiceUri,

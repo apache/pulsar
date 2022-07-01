@@ -22,6 +22,7 @@ package org.apache.pulsar.functions.runtime.kubernetes;
 import static java.net.HttpURLConnection.HTTP_CONFLICT;
 import static java.net.HttpURLConnection.HTTP_NOT_FOUND;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.apache.commons.lang3.StringUtils.isNotEmpty;
 import static org.apache.commons.lang3.StringUtils.left;
 import static org.apache.pulsar.functions.auth.FunctionAuthUtils.getFunctionAuthData;
 import static org.apache.pulsar.functions.utils.FunctionCommon.roundDecimal;
@@ -139,6 +140,7 @@ public class KubernetesRuntime implements Runtime {
     private final String configAdminCLI;
     private final String userCodePkgUrl;
     private final String originalCodeFileName;
+    private final String originalExtraFunctionFileName;
     private final String pulsarAdminUrl;
     private final SecretsProviderConfigurator secretsProviderConfigurator;
     private int percentMemoryPadding;
@@ -173,6 +175,7 @@ public class KubernetesRuntime implements Runtime {
                       String configAdminCLI,
                       String userCodePkgUrl,
                       String originalCodeFileName,
+                      String originalExtraFunctionFileName,
                       String pulsarServiceUrl,
                       String pulsarAdminUrl,
                       String stateStorageServiceUrl,
@@ -205,6 +208,7 @@ public class KubernetesRuntime implements Runtime {
         this.downloadDirectory =
                 StringUtils.isNotEmpty(downloadDirectory) ? downloadDirectory : this.pulsarRootDir; // for backward comp
         this.originalCodeFileName = this.downloadDirectory + "/" + originalCodeFileName;
+        this.originalExtraFunctionFileName = this.downloadDirectory + "/" + originalExtraFunctionFileName;
         this.pulsarAdminUrl = pulsarAdminUrl;
         this.secretsProviderConfigurator = secretsProviderConfigurator;
         this.percentMemoryPadding = percentMemoryPadding;
@@ -263,6 +267,7 @@ public class KubernetesRuntime implements Runtime {
                         extraDependenciesDir,
                         logDirectory,
                         this.originalCodeFileName,
+                        this.originalExtraFunctionFileName,
                         pulsarServiceUrl,
                         stateStorageServiceUrl,
                         authConfig,
@@ -844,13 +849,22 @@ public class KubernetesRuntime implements Runtime {
     }
 
     protected List<String> getExecutorCommand() {
-        return Arrays.asList(
+        List<String> cmds = Arrays.asList(
                 "sh",
                 "-c",
-                String.join(" ", getDownloadCommand(instanceConfig.getFunctionDetails(), originalCodeFileName))
-                        + " && " + setShardIdEnvironmentVariableCommand()
-                        + " && " + String.join(" ", processArgs)
-        );
+                String.join(" ", getDownloadCommand(instanceConfig.getFunctionDetails(), originalCodeFileName)));
+        if (isNotEmpty(originalExtraFunctionFileName)) {
+            cmds.add("&&");
+            cmds.add("sh");
+            cmds.add("-c");
+            cmds.add(String.join(" ",
+                    getDownloadCommand(instanceConfig.getFunctionDetails(), originalExtraFunctionFileName)));
+        }
+        cmds.add("&&");
+        cmds.add(setShardIdEnvironmentVariableCommand());
+        cmds.add("&&");
+        cmds.add(String.join(" ", processArgs));
+        return cmds;
     }
 
     private List<String> getDownloadCommand(Function.FunctionDetails functionDetails, String userCodeFilePath) {

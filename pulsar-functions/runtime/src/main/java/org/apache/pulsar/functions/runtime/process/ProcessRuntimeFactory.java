@@ -225,6 +225,7 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
             narExtractionDirectory,
             logDirectory,
             codeFile,
+            extraFunctionFile,
             pulsarServiceUrl,
             stateStorageServiceUrl,
             authConfig,

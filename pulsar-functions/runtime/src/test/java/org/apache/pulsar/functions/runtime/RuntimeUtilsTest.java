@@ -191,6 +191,7 @@ public class RuntimeUtilsTest {
                 "extraDependenciesDir", /* extra dependencies for running instances */
                 "logDirectory",
                 "originalCodeFileName",
+                "originalExtraFileName",
                 "pulsarServiceUrl",
                 "stateStorageServiceUrl",
                 AuthenticationConfig.builder().build(),
