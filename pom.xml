@@ -254,7 +254,7 @@ flexible messaging model and an intuitive client API.</description>
     <surefire.version>3.0.0-M3</surefire.version>
     <maven-assembly-plugin.version>3.3.0</maven-assembly-plugin.version>
     <maven-compiler-plugin.version>3.10.1</maven-compiler-plugin.version>
-    <maven-dependency-plugin.version>3.3.0</maven-dependency-plugin.version>
+    <maven-dependency-plugin.version>3.1.2</maven-dependency-plugin.version>
     <maven-modernizer-plugin.version>2.3.0</maven-modernizer-plugin.version>
     <maven-shade-plugin>3.3.0</maven-shade-plugin>
     <maven-antrun-plugin.version>3.0.0</maven-antrun-plugin.version>
