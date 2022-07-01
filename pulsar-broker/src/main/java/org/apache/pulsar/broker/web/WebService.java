@@ -42,6 +42,7 @@ import org.eclipse.jetty.server.handler.HandlerCollection;
 import org.eclipse.jetty.server.handler.RequestLogHandler;
 import org.eclipse.jetty.server.handler.ResourceHandler;
 import org.eclipse.jetty.server.handler.StatisticsHandler;
+import org.eclipse.jetty.server.handler.gzip.GzipHandler;
 import org.eclipse.jetty.servlet.FilterHolder;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
@@ -245,7 +246,11 @@ public class WebService implements AutoCloseable {
             });
         }
         filterInitializer.addFilters(context, requiresAuthentication);
-        handlers.add(context);
+        // add GzipHandler
+        GzipHandler gzipHandler = new GzipHandler();
+        gzipHandler.setHandler(context);
+
+        handlers.add(gzipHandler);
     }
 
     public void addStaticResources(String basePath, String resourcePath) {
