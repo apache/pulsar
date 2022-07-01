@@ -78,7 +78,7 @@ public class CmdGenerateDocumentation {
         sb.append("|Flag|Description|Default|\n");
         sb.append("|---|---|---|\n");
         List<ParameterDescription> options = cmd.getParameters();
-        options.forEach((option) ->
+        options.stream().filter(ele -> !ele.getParameterAnnotation().hidden()).forEach((option) ->
                 sb.append("| `").append(option.getNames())
                         .append("` | ").append(option.getDescription().replace("\n", " "))
                         .append("|").append(option.getDefault()).append("|\n")
