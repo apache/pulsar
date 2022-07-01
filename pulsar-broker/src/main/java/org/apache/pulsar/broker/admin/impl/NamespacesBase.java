@@ -1074,76 +1074,52 @@ public abstract class NamespacesBase extends AdminResource {
         }
     }
 
-    @SuppressWarnings("deprecation")
-    public void internalUnloadNamespaceBundle(AsyncResponse asyncResponse, String bundleRange, boolean authoritative) {
-        validateSuperUserAccess();
-        checkNotNull(bundleRange, "BundleRange should not be null");
-        log.info("[{}] Unloading namespace bundle {}/{}", clientAppId(), namespaceName, bundleRange);
-
-        Policies policies = getNamespacePolicies(namespaceName);
-
-        NamespaceBundle bundle =
-                pulsar().getNamespaceService().getNamespaceBundleFactory()
-                        .getBundle(namespaceName.toString(), bundleRange);
-        boolean isOwnedByLocalCluster = false;
-        try {
-            isOwnedByLocalCluster = pulsar().getNamespaceService().isNamespaceBundleOwned(bundle).get();
-        } catch (Exception e) {
-            if (log.isDebugEnabled()) {
-                log.debug("Failed to validate cluster ownership for {}-{}, {}",
-                        namespaceName.toString(), bundleRange, e.getMessage(), e);
-            }
-        }
-
-        // validate namespace ownership only if namespace is not owned by local-cluster (it happens when broker doesn't
-        // receive replication-cluster change watch and still owning bundle
-        if (!isOwnedByLocalCluster) {
-            if (namespaceName.isGlobal()) {
-                // check cluster ownership for a given global namespace: redirect if peer-cluster owns it
-                validateGlobalNamespaceOwnership(namespaceName);
-            } else {
-                validateClusterOwnership(namespaceName.getCluster());
-                validateClusterForTenant(namespaceName.getTenant(), namespaceName.getCluster());
-            }
-        }
-
-        validatePoliciesReadOnlyAccess();
-
-        isBundleOwnedByAnyBroker(namespaceName, policies.bundles, bundleRange).thenAccept(flag -> {
-            if (!flag) {
-                log.info("[{}] Namespace bundle is not owned by any broker {}/{}", clientAppId(), namespaceName,
-                        bundleRange);
-                asyncResponse.resume(Response.noContent().build());
-                return;
-            }
-            NamespaceBundle nsBundle;
-
-            try {
-                nsBundle = validateNamespaceBundleOwnership(namespaceName, policies.bundles, bundleRange,
-                    authoritative, true);
-            } catch (WebApplicationException wae) {
-                asyncResponse.resume(wae);
-                return;
-            }
-
-            pulsar().getNamespaceService().unloadNamespaceBundle(nsBundle)
-                    .thenRun(() -> {
-                        log.info("[{}] Successfully unloaded namespace bundle {}", clientAppId(), nsBundle.toString());
-                        asyncResponse.resume(Response.noContent().build());
-                    }).exceptionally(ex -> {
-                log.error("[{}] Failed to unload namespace bundle {}/{}", clientAppId(), namespaceName, bundleRange,
-                        ex);
-                asyncResponse.resume(new RestException(ex));
-                return null;
-            });
-        }).exceptionally((ex) -> {
-            if (ex.getCause() instanceof WebApplicationException) {
-                asyncResponse.resume(ex.getCause());
-            } else {
-                asyncResponse.resume(new RestException(ex.getCause()));
-            }
-            return null;
-        });
+    public CompletableFuture<Void> internalUnloadNamespaceBundleAsync(String bundleRange, boolean authoritative) {
+        return validateSuperUserAccessAsync()
+                .thenAccept(__ -> {
+                    checkNotNull(bundleRange, "BundleRange should not be null");
+                    log.info("[{}] Unloading namespace bundle {}/{}", clientAppId(), namespaceName, bundleRange);
+                })
+                .thenApply(__ ->
+                    pulsar().getNamespaceService().getNamespaceBundleFactory()
+                                    .getBundle(namespaceName.toString(), bundleRange)
+                )
+                .thenCompose(bundle -> pulsar().getNamespaceService().isNamespaceBundleOwned(bundle))
+                .thenCompose(isOwnedByLocalCluster -> {
+                    CompletableFuture<Void> ret;
+                    if (!isOwnedByLocalCluster) {
+                        if (namespaceName.isGlobal()) {
+                            // check cluster ownership for a given global namespace: redirect if peer-cluster owns it
+                            ret = validateGlobalNamespaceOwnershipAsync(namespaceName);
+                        } else {
+                            ret = validateClusterOwnershipAsync(namespaceName.getCluster())
+                                    .thenCompose(__ -> validateClusterForTenantAsync(namespaceName.getTenant(),
+                                            namespaceName.getCluster()));
+                        }
+                    } else {
+                        ret = CompletableFuture.completedFuture(null);
+                    }
+                    return ret;
+                })
+                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
+                .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
+                .thenCompose(policies ->
+                        isBundleOwnedByAnyBroker(namespaceName, policies.bundles, bundleRange)
+                        .thenCompose(flag -> {
+                            if (!flag) {
+                                log.info("[{}] Namespace bundle is not owned by any broker {}/{}", clientAppId(),
+                                        namespaceName, bundleRange);
+                                return CompletableFuture.completedFuture(null);
+                            }
+                            return validateNamespaceBundleOwnershipAsync(namespaceName, policies.bundles,
+                                    bundleRange, authoritative, true)
+                                    .thenCompose(nsBundle ->
+                                            pulsar().getNamespaceService().unloadNamespaceBundle(nsBundle)
+                                                    .thenRun(() ->
+                                                            log.info("[{}] Successfully unloaded namespace bundle {}",
+                                                                    clientAppId(), nsBundle.toString())
+                                                    ));
+                        }));
     }
 
     @SuppressWarnings("deprecation")
