@@ -25,18 +25,25 @@ import static org.apache.bookkeeper.client.RegionAwareEnsemblePlacementPolicy.RE
 import static org.apache.bookkeeper.client.RegionAwareEnsemblePlacementPolicy.REPP_REGIONS_TO_WRITE;
 import static org.apache.bookkeeper.conf.AbstractConfiguration.ENFORCE_MIN_NUM_RACKS_PER_WRITE_QUORUM;
 import static org.apache.bookkeeper.conf.AbstractConfiguration.MIN_NUM_RACKS_PER_WRITE_QUORUM;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import io.netty.channel.EventLoopGroup;
+import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.net.CachedDNSToSwitchMapping;
+import org.apache.bookkeeper.stats.StatsLogger;
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.pulsar.bookie.rackawareness.BookieRackAffinityMapping;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import org.powermock.reflect.Whitebox;
 import org.testng.annotations.Test;
 
 /**
@@ -274,6 +281,25 @@ public class BookKeeperClientFactoryImplTest {
         assertFalse(factory.createBkClientConfiguration(mock(MetadataStoreExtended.class), conf)
                 .getOpportunisticStriping());
 
+    }
+
+    @Test
+    public void testBookKeeperIoThreadsConfiguration() {
+        BookKeeperClientFactoryImpl factory = new BookKeeperClientFactoryImpl();
+        ServiceConfiguration conf = new ServiceConfiguration();
+        assertEquals(factory.createBkClientConfiguration(mock(MetadataStoreExtended.class), conf)
+                .getNumIOThreads(), Runtime.getRuntime().availableProcessors() * 2);
+        conf.setBookkeeperClientNumIoThreads(1);
+        assertEquals(factory.createBkClientConfiguration(mock(MetadataStoreExtended.class), conf)
+                .getNumIOThreads(), 1);
+        EventLoopGroup eventLoopGroup = mock(EventLoopGroup.class);
+        BookKeeper.Builder builder = factory.getBookKeeperBuilder(conf, eventLoopGroup,
+                mock(StatsLogger.class), mock(ClientConfiguration.class));
+        assertEquals(Whitebox.getInternalState(builder, "eventLoopGroup"), eventLoopGroup);
+        conf.setBookkeeperClientSeparatedIoThreadsEnabled(true);
+        builder = factory.getBookKeeperBuilder(conf, eventLoopGroup,
+                mock(StatsLogger.class), mock(ClientConfiguration.class));
+        assertNull(Whitebox.getInternalState(builder, "eventLoopGroup"));
     }
 
 }

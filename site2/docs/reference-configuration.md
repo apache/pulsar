@@ -268,6 +268,8 @@ brokerServiceCompactionThresholdInBytes|If the estimated backlog size is greater
 |bookkeeperClientAuthenticationParametersName|  BookKeeper auth plugin implementation specifics parameters name and values  ||
 |bookkeeperClientAuthenticationParameters|||
 |bookkeeperClientNumWorkerThreads|  Number of BookKeeper client worker threads. Default is Runtime.getRuntime().availableProcessors()  ||
+|bookkeeperClientNumIoThreads|  Number of BookKeeper client IO threads. Default is Runtime.getRuntime().availableProcessors() * 2  ||
+|bookkeeperClientSeparatedIoThreadsEnabled|  Use separated IO threads for BookKeeper client. Default is false, which will use Pulsar IO threads  ||
 |bookkeeperClientTimeoutInSeconds|  Timeout for BK add / read operations  |30|
 |bookkeeperClientSpeculativeReadTimeoutInMillis|  Speculative reads are initiated if a read request doesn’t complete within a certain time Using a value of 0, is disabling the speculative reads |0|
 |bookkeeperNumberOfChannelsPerBookie|  Number of channels per bookie  |16|
