@@ -496,6 +496,7 @@ public class Namespaces extends NamespacesBase {
             @PathParam("cluster") String cluster, @PathParam("namespace") String namespace, int expirationTime) {
         validateNamespaceName(property, cluster, namespace);
         internalSetSubscriptionExpirationTimeAsync(expirationTime)
+                .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
                 .exceptionally(ex -> {
                     log.error("[{}] Failed to set subscription expiration time for namespace {}: {} ", clientAppId(),
                             namespaceName, ex.getCause().getMessage(), ex);
@@ -514,6 +515,7 @@ public class Namespaces extends NamespacesBase {
             @PathParam("cluster") String cluster, @PathParam("namespace") String namespace) {
         validateNamespaceName(property, cluster, namespace);
         internalSetSubscriptionExpirationTimeAsync(null)
+                .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
                 .exceptionally(ex -> {
                     log.error("[{}] Failed to remove subscription expiration time for namespace {}: {} ", clientAppId(),
                             namespaceName, ex.getCause().getMessage(), ex);

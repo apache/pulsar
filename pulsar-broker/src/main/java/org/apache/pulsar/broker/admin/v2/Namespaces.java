@@ -439,6 +439,7 @@ public class Namespaces extends NamespacesBase {
                                                       required = true) int expirationTime) {
         validateNamespaceName(tenant, namespace);
         internalSetSubscriptionExpirationTimeAsync(expirationTime)
+                .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
                 .exceptionally(ex -> {
                     log.error("[{}] Failed to set subscription expiration time for namespace {}: {} ", clientAppId(),
                             namespaceName, ex.getCause().getMessage(), ex);
@@ -457,6 +458,7 @@ public class Namespaces extends NamespacesBase {
                                                  @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
         internalSetSubscriptionExpirationTimeAsync(null)
+                .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
                 .exceptionally(ex -> {
                     log.error("[{}] Failed to remove subscription expiration time for namespace {}: {} ", clientAppId(),
                             namespaceName, ex.getCause().getMessage(), ex);
