@@ -321,6 +321,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                     @Override
                     public void addFailed(ManagedLedgerException exception, Object ctx) {
                         log.error("Failed to commit for txn {}", txnID, exception);
+                        checkAppendMarkerException(exception);
                         completableFuture.completeExceptionally(new PersistenceException(exception));
                     }
                 }, null);
@@ -367,6 +368,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                     @Override
                     public void addFailed(ManagedLedgerException exception, Object ctx) {
                         log.error("Failed to abort for txn {}", txnID, exception);
+                        checkAppendMarkerException(exception);
                         completableFuture.completeExceptionally(new PersistenceException(exception));
                     }
                 }, null);
@@ -379,6 +381,12 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
             return null;
         });
         return completableFuture;
+    }
+
+    private void checkAppendMarkerException(ManagedLedgerException exception) {
+        if (exception instanceof ManagedLedgerException.ManagedLedgerAlreadyClosedException) {
+            topic.getManagedLedger().readyToCreateNewLedger();
+        }
     }
 
     private void handleLowWaterMark(TxnID txnID, long lowWaterMark) {
