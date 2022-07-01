@@ -125,6 +125,7 @@ public class PulsarClientImpl implements PulsarClient {
 
     private final AtomicLong producerIdGenerator = new AtomicLong();
     private final AtomicLong consumerIdGenerator = new AtomicLong();
+    private final AtomicLong topicListWatcherIdGenerator = new AtomicLong();
     private final AtomicLong requestIdGenerator =
             new AtomicLong(ThreadLocalRandom.current().nextLong(0, Long.MAX_VALUE / 2));
 
@@ -934,6 +935,11 @@ public class PulsarClientImpl implements PulsarClient {
                 .thenCompose(pair -> getConnection(pair.getLeft(), pair.getRight()));
     }
 
+    public CompletableFuture<ClientCnx> getConnectionToServiceUrl() {
+        InetSocketAddress address = lookup.resolveHost();
+        return getConnection(address, address);
+    }
+
     public CompletableFuture<ClientCnx> getConnection(final InetSocketAddress logicalAddress,
                                                       final InetSocketAddress physicalAddress) {
         return cnxPool.getConnection(logicalAddress, physicalAddress);
@@ -954,6 +960,10 @@ public class PulsarClientImpl implements PulsarClient {
 
     long newConsumerId() {
         return consumerIdGenerator.getAndIncrement();
+    }
+
+    long newTopicListWatcherId() {
+        return topicListWatcherIdGenerator.getAndIncrement();
     }
 
     public long newRequestId() {
