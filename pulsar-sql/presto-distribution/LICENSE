@@ -505,6 +505,7 @@ MIT License
    - pcollections-2.1.2.jar
  * SLF4J
    - slf4j-api-1.7.32.jar
+   - slf4j-jdk14-1.7.32.jar
  * JCL 1.2 Implemented Over SLF4J
    - jcl-over-slf4j-1.7.32.jar
  * Checker Qual
