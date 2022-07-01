@@ -650,7 +650,7 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
         admin.brokers()
                 .updateDynamicConfiguration("brokerDeleteInactivePartitionedTopicMetadataEnabled",
                         "true");
-        Awaitility.await().untilAsserted(()->{
+        Awaitility.await().atMost(2,TimeUnit.SECONDS).untilAsserted(()->{
             assertTrue(conf.isBrokerDeleteInactivePartitionedTopicMetadataEnabled());
         });
     }
