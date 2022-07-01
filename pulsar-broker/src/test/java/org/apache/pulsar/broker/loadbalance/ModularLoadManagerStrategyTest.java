@@ -64,23 +64,64 @@ public class ModularLoadManagerStrategyTest {
     public void testLeastResourceUsageWithWeight() {
         BundleData bundleData = new BundleData();
         BrokerData brokerData1 = initBrokerData(10, 100);
-        BrokerData brokerData2 = initBrokerData(20, 100);
-        BrokerData brokerData4 = initBrokerData(40, 100);
+        BrokerData brokerData2 = initBrokerData(30, 100);
+        BrokerData brokerData3 = initBrokerData(60, 100);
         LoadData loadData = new LoadData();
         Map<String, BrokerData> brokerDataMap = loadData.getBrokerData();
         brokerDataMap.put("1", brokerData1);
         brokerDataMap.put("2", brokerData2);
-        brokerDataMap.put("4", brokerData4);
+        brokerDataMap.put("3", brokerData3);
         ServiceConfiguration conf = new ServiceConfiguration();
-        conf.setLoadBalancerBrokerThresholdShedderPercentage(10);
+        conf.setLoadBalancerBrokerThresholdShedderPercentage(5);
         conf.setLoadBalancerCPUResourceWeight(1.0);
         conf.setLoadBalancerMemoryResourceWeight(0.1);
         conf.setLoadBalancerDirectMemoryResourceWeight(0.1);
         conf.setLoadBalancerBandwithInResourceWeight(1.0);
         conf.setLoadBalancerBandwithOutResourceWeight(1.0);
+        conf.setLoadBalancerHistoryResourcePercentage(0.5);
 
         ModularLoadManagerStrategy strategy = new LeastResourceUsageWithWeight();
         assertEquals(strategy.selectBroker(brokerDataMap.keySet(), bundleData, loadData, conf), Optional.of("1"));
+
+        brokerData1 = initBrokerData(20,100);
+        brokerData2 = initBrokerData(30,100);
+        brokerData3 = initBrokerData(50,100);
+        brokerDataMap.put("1", brokerData1);
+        brokerDataMap.put("2", brokerData2);
+        brokerDataMap.put("3", brokerData3);
+        assertEquals(strategy.selectBroker(brokerDataMap.keySet(), bundleData, loadData, conf), Optional.of("1"));
+
+        brokerData1 = initBrokerData(30,100);
+        brokerData2 = initBrokerData(30,100);
+        brokerData3 = initBrokerData(40,100);
+        brokerDataMap.put("1", brokerData1);
+        brokerDataMap.put("2", brokerData2);
+        brokerDataMap.put("3", brokerData3);
+        assertEquals(strategy.selectBroker(brokerDataMap.keySet(), bundleData, loadData, conf), Optional.of("1"));
+
+        brokerData1 = initBrokerData(30,100);
+        brokerData2 = initBrokerData(30,100);
+        brokerData3 = initBrokerData(40,100);
+        brokerDataMap.put("1", brokerData1);
+        brokerDataMap.put("2", brokerData2);
+        brokerDataMap.put("3", brokerData3);
+        assertEquals(strategy.selectBroker(brokerDataMap.keySet(), bundleData, loadData, conf), Optional.of("1"));
+
+        brokerData1 = initBrokerData(32,100);
+        brokerData2 = initBrokerData(30,100);
+        brokerData3 = initBrokerData(38,100);
+        brokerDataMap.put("1", brokerData1);
+        brokerDataMap.put("2", brokerData2);
+        brokerDataMap.put("3", brokerData3);
+        assertEquals(strategy.selectBroker(brokerDataMap.keySet(), bundleData, loadData, conf), Optional.of("1"));
+
+        brokerData1 = initBrokerData(40,100);
+        brokerData2 = initBrokerData(30,100);
+        brokerData3 = initBrokerData(30,100);
+        brokerDataMap.put("1", brokerData1);
+        brokerDataMap.put("2", brokerData2);
+        brokerDataMap.put("3", brokerData3);
+        assertEquals(strategy.selectBroker(brokerDataMap.keySet(), bundleData, loadData, conf), Optional.of("2"));
     }
 
     private BrokerData initBrokerData(double usage, double limit) {

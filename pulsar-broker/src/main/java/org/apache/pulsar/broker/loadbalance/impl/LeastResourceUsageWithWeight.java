@@ -106,6 +106,7 @@ public class LeastResourceUsageWithWeight implements ModularLoadManagerStrategy 
 
     /**
      * Find a suitable broker to assign the given bundle to.
+     * This method is not thread safety.
      *
      * @param candidates     The candidates for which the bundle may be assigned.
      * @param bundleToAssign The data for the bundle to assign.
@@ -147,12 +148,19 @@ public class LeastResourceUsageWithWeight implements ModularLoadManagerStrategy 
         }
         if (bestBrokers.isEmpty()) {
             // Assign randomly if all brokers are overloaded.
+            log.warn("Assign randomly if all {} brokers are overloaded.", candidates.size());
             bestBrokers.addAll(candidates);
         }
 
         if (bestBrokers.isEmpty()) {
             // If still, it means there are no available brokers at this point.
+            log.error("There are no available brokers as candidates at this point for bundle: {}", bundleToAssign);
             return Optional.empty();
+        }
+
+        if (log.isDebugEnabled()) {
+            log.debug("Selected {} best brokers: {} from candidate brokers: {}", bestBrokers.size(), bestBrokers,
+                    candidates);
         }
         return Optional.of(bestBrokers.get(ThreadLocalRandom.current().nextInt(bestBrokers.size())));
     }
