@@ -64,7 +64,7 @@ import org.eclipse.jetty.server.HttpOutput;
 @Slf4j
 public class PrometheusMetricsGenerator {
     private static volatile TimeWindow<ByteBuf> timeWindow;
-    private static final int MAX_COMPONENTS = 64;
+    protected static final int MAX_COMPONENTS = 64;
 
     static {
         DefaultExports.initialize();

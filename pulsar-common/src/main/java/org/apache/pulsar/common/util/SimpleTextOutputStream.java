@@ -131,4 +131,9 @@ public class SimpleTextOutputStream {
         write(r);
         return this;
     }
+
+    public void write(ByteBuf byteBuf) {
+        buffer.writeBytes(byteBuf);
+        byteBuf.release();
+    }
 }
