@@ -79,6 +79,7 @@ public class ModularLoadManagerStrategyTest {
         conf.setLoadBalancerBandwithInResourceWeight(1.0);
         conf.setLoadBalancerBandwithOutResourceWeight(1.0);
         conf.setLoadBalancerHistoryResourcePercentage(0.5);
+        conf.setLoadBalancerAverageResourceUsageDifferenceThresholdShedderPercentage(5);
 
         ModularLoadManagerStrategy strategy = new LeastResourceUsageWithWeight();
         assertEquals(strategy.selectBroker(brokerDataMap.keySet(), bundleData, loadData, conf), Optional.of("1"));
@@ -107,17 +108,9 @@ public class ModularLoadManagerStrategyTest {
         brokerDataMap.put("3", brokerData3);
         assertEquals(strategy.selectBroker(brokerDataMap.keySet(), bundleData, loadData, conf), Optional.of("1"));
 
-        brokerData1 = initBrokerData(32,100);
-        brokerData2 = initBrokerData(30,100);
-        brokerData3 = initBrokerData(38,100);
-        brokerDataMap.put("1", brokerData1);
-        brokerDataMap.put("2", brokerData2);
-        brokerDataMap.put("3", brokerData3);
-        assertEquals(strategy.selectBroker(brokerDataMap.keySet(), bundleData, loadData, conf), Optional.of("1"));
-
-        brokerData1 = initBrokerData(40,100);
-        brokerData2 = initBrokerData(30,100);
-        brokerData3 = initBrokerData(30,100);
+        brokerData1 = initBrokerData(35,100);
+        brokerData2 = initBrokerData(20,100);
+        brokerData3 = initBrokerData(45,100);
         brokerDataMap.put("1", brokerData1);
         brokerDataMap.put("2", brokerData2);
         brokerDataMap.put("3", brokerData3);

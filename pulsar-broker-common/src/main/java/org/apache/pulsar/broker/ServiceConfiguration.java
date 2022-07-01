@@ -2053,6 +2053,16 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int loadBalancerBrokerThresholdShedderPercentage = 10;
 
     @FieldContext(
+            dynamic = true,
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "Average resource usage difference threshold to determine a broker whether to be a best candidate in "
+                    + "LeastResourceUsageWithWeight.(eg: broker1 with 10% resource usage with weight "
+                    + "and broker2 with 30% and broker3 with 80% will have 40% average resource usage. "
+                    + "The placement strategy can select broker1 and broker2 as best candidates.)"
+    )
+    private int loadBalancerAverageResourceUsageDifferenceThresholdShedderPercentage = 10;
+
+    @FieldContext(
         dynamic = true,
         category = CATEGORY_LOAD_BALANCER,
         doc = "Message-rate percentage threshold between highest and least loaded brokers for "

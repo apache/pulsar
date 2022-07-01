@@ -50,24 +50,34 @@ public class LeastResourceUsageWithWeight implements ModularLoadManagerStrategy 
         this.brokerAvgResourceUsageWithWeight = new HashMap<>();
     }
 
-    // Form a score for a broker using its historical load and short-term load data with weight.
-    // Any broker at (or above) the overload threshold will have a score of POSITIVE_INFINITY.
-    private double getScore(final String broker, final BrokerData brokerData, final ServiceConfiguration conf) {
-        final double overloadThresholdPercentage = conf.getLoadBalancerBrokerOverloadedThresholdPercentage();
-        final double maxUsageWithWeightPercentage =
-                updateAndGetMaxResourceUsageWithWeight(broker, brokerData, conf) * 100;
+    // A broker's max resource usage with weight using its historical load and short-term load data with weight.
+    private double getMaxResourceUsageWithWeight(final String broker, final BrokerData brokerData,
+                                         final ServiceConfiguration conf) {
+        final double overloadThreshold = conf.getLoadBalancerBrokerOverloadedThresholdPercentage() / 100.0;
+        final double maxUsageWithWeight =
+                updateAndGetMaxResourceUsageWithWeight(broker, brokerData, conf);
 
-        if (maxUsageWithWeightPercentage > overloadThresholdPercentage) {
-            log.warn("Broker {} is overloaded: max resource usage with weight percentage: {}%",
-                    brokerData.getLocalData().getWebServiceUrl(), maxUsageWithWeightPercentage);
-            return Double.POSITIVE_INFINITY;
+        if (maxUsageWithWeight > overloadThreshold) {
+            final LocalBrokerData localData = brokerData.getLocalData();
+            log.warn(
+                    "Broker {} is overloaded, max resource usage with weight percentage: {}%, "
+                            + "CPU: {}%, MEMORY: {}%, DIRECT MEMORY: {}%, BANDWIDTH IN: {}%, "
+                            + "BANDWIDTH OUT: {}%, CPU weight: {}, MEMORY weight: {}, DIRECT MEMORY weight: {}, "
+                            + "BANDWIDTH IN weight: {}, BANDWIDTH OUT weight: {}",
+                    broker, maxUsageWithWeight * 100,
+                    localData.getCpu().percentUsage(), localData.getMemory().percentUsage(),
+                    localData.getDirectMemory().percentUsage(), localData.getBandwidthIn().percentUsage(),
+                    localData.getBandwidthOut().percentUsage(), conf.getLoadBalancerCPUResourceWeight(),
+                    conf.getLoadBalancerMemoryResourceWeight(), conf.getLoadBalancerDirectMemoryResourceWeight(),
+                    conf.getLoadBalancerBandwithInResourceWeight(),
+                    conf.getLoadBalancerBandwithOutResourceWeight());
         }
 
         if (log.isDebugEnabled()) {
             log.debug("Broker {} has max resource usage with weight percentage: {}%",
-                    brokerData.getLocalData().getWebServiceUrl(), maxUsageWithWeightPercentage);
+                    brokerData.getLocalData().getWebServiceUrl(), maxUsageWithWeight * 100);
         }
-        return maxUsageWithWeightPercentage;
+        return maxUsageWithWeight;
     }
 
     /**
@@ -118,34 +128,24 @@ public class LeastResourceUsageWithWeight implements ModularLoadManagerStrategy 
     public Optional<String> selectBroker(Set<String> candidates, BundleData bundleToAssign, LoadData loadData,
                                          ServiceConfiguration conf) {
         bestBrokers.clear();
-        double minScore = Double.POSITIVE_INFINITY;
         // Maintain of list of all the best scoring brokers and then randomly
         // select one of them at the end.
-
+        double totalUsage = 0.0d;
         for (String broker : candidates) {
-            final BrokerData brokerData = loadData.getBrokerData().get(broker);
-            final double score = getScore(broker, brokerData, conf);
-            if (score == Double.POSITIVE_INFINITY) {
-                final LocalBrokerData localData = brokerData.getLocalData();
-                log.warn(
-                        "Broker {} is overloaded: CPU: {}%, MEMORY: {}%, DIRECT MEMORY: {}%, BANDWIDTH IN: {}%, "
-                                + "BANDWIDTH OUT: {}%, CPU weight: {}, MEMORY weight: {}, DIRECT MEMORY weight: {}, "
-                                + "BANDWIDTH IN weight: {}, BANDWIDTH OUT weight: {}",
-                        broker, localData.getCpu().percentUsage(), localData.getMemory().percentUsage(),
-                        localData.getDirectMemory().percentUsage(), localData.getBandwidthIn().percentUsage(),
-                        localData.getBandwidthOut().percentUsage(), conf.getLoadBalancerCPUResourceWeight(),
-                        conf.getLoadBalancerMemoryResourceWeight(), conf.getLoadBalancerDirectMemoryResourceWeight(),
-                        conf.getLoadBalancerBandwithInResourceWeight(),
-                        conf.getLoadBalancerBandwithOutResourceWeight());
-            }
-            if (score < minScore) {
-                bestBrokers.clear();
-                bestBrokers.add(broker);
-                minScore = score;
-            } else if (score == minScore) {
-                bestBrokers.add(broker);
-            }
+            BrokerData brokerData = loadData.getBrokerData().get(broker);
+            double usageWithWeight = getMaxResourceUsageWithWeight(broker, brokerData, conf);
+            totalUsage += usageWithWeight;
         }
+
+        final double avgUsage = totalUsage / candidates.size();
+        final double diffThreshold =
+                conf.getLoadBalancerAverageResourceUsageDifferenceThresholdShedderPercentage() / 100.0;
+        brokerAvgResourceUsageWithWeight.forEach((broker, avgResUsage) -> {
+            if (avgResUsage + diffThreshold <= avgUsage) {
+                bestBrokers.add(broker);
+            }
+        });
+
         if (bestBrokers.isEmpty()) {
             // Assign randomly if all brokers are overloaded.
             log.warn("Assign randomly if all {} brokers are overloaded.", candidates.size());
