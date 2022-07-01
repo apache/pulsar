@@ -831,6 +831,9 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     protected abstract void updateAutoScaleReceiverQueueHint();
 
     protected boolean hasEnoughMessagesForBatchReceive() {
+        if (batchReceivePolicy.getTimeoutMs() <= 0) {
+            return true;
+        }
         if (batchReceivePolicy.getMaxNumMessages() <= 0 && batchReceivePolicy.getMaxNumBytes() <= 0) {
             return false;
         }

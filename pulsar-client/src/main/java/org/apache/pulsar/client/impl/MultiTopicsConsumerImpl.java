@@ -49,6 +49,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.client.api.BatchReceivePolicy;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerStats;
 import org.apache.pulsar.client.api.Message;
@@ -244,13 +245,13 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     }
 
     private void receiveMessageFromConsumer(ConsumerImpl<T> consumer) {
-        consumer.receiveAsync().thenAcceptAsync(message -> {
+        consumer.batchReceiveAsync().thenAcceptAsync(message -> {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] [{}] Receive message from sub consumer:{}",
                     topic, subscription, consumer.getTopic());
             }
             // Process the message, add to the queue and trigger listener or async callback
-            messageReceived(consumer, message);
+            message.forEach(msg -> messageReceived(consumer, msg));
 
             int size = incomingMessages.size();
             int maxReceiverQueueSize = getCurrentReceiverQueueSize();
@@ -266,9 +267,17 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 // from getting stalled.
                 resumeReceivingFromPausedConsumersIfNeeded();
             } else {
-                // Call receiveAsync() if the incoming queue is not full. Because this block is run with
-                // thenAcceptAsync, there is no chance for recursion that would lead to stack overflow.
-                receiveMessageFromConsumer(consumer);
+
+                if (message.size() == 0 && consumer.numMessagesInQueue() == 0) {
+                    // No more messages in the receiver queue, so schedule the next reading with 5ms delay to avoid
+                    // busy loop.
+                    ((ScheduledExecutorService) client.getScheduledExecutorProvider().getExecutor())
+                            .schedule(() -> receiveMessageFromConsumer(consumer), 5, TimeUnit.MILLISECONDS);
+                } else {
+                    // Call receiveAsync() if the incoming queue is not full. Because this block is run with
+                    // thenAcceptAsync, there is no chance for recursion that would lead to stack overflow.
+                    receiveMessageFromConsumer(consumer);
+                }
             }
         }, internalPinnedExecutor).exceptionally(ex -> {
             if (ex instanceof PulsarClientException.AlreadyClosedException
@@ -277,7 +286,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 return null;
             }
             log.error("Receive operation failed on consumer {} - Retrying later", consumer, ex);
-            ((ScheduledExecutorService) client.getScheduledExecutorProvider())
+            ((ScheduledExecutorService) client.getScheduledExecutorProvider().getExecutor())
                     .schedule(() -> receiveMessageFromConsumer(consumer), 10, TimeUnit.SECONDS);
             return null;
         });
@@ -1045,6 +1054,12 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                         String partitionName = TopicName.get(topicName).getPartition(partitionIndex).toString();
                         CompletableFuture<Consumer<T>> subFuture = new CompletableFuture<>();
                         configurationData.setStartPaused(paused);
+                        BatchReceivePolicy internalBatchReceivePolicy = BatchReceivePolicy.builder()
+                                .maxNumMessages(Math.max(receiverQueueSize / 2, 1))
+                                .maxNumBytes(-1)
+                                .timeout(0, TimeUnit.MILLISECONDS)
+                                .build();
+                        configurationData.setBatchReceivePolicy(internalBatchReceivePolicy);
                         ConsumerImpl<T> newConsumer = ConsumerImpl.newConsumerImpl(client, partitionName,
                                     configurationData, client.externalExecutorProvider(),
                                     partitionIndex, true, listener != null, subFuture,
