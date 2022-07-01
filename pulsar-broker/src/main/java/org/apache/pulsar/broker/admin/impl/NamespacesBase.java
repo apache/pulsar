@@ -922,44 +922,35 @@ public abstract class NamespacesBase extends AdminResource {
                 }));
     }
 
-    protected void internalSetAutoSubscriptionCreation(
-            AsyncResponse asyncResponse, AutoSubscriptionCreationOverride autoSubscriptionCreationOverride) {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.AUTO_SUBSCRIPTION_CREATION, PolicyOperation.WRITE);
-        validatePoliciesReadOnlyAccess();
-
+    protected CompletableFuture<Void> internalSetAutoSubscriptionCreationAsync(AutoSubscriptionCreationOverride
+                                                               autoSubscriptionCreationOverride) {
         // Force to read the data s.t. the watch to the cache content is setup.
-        namespaceResources().setPoliciesAsync(namespaceName, policies -> {
-            policies.autoSubscriptionCreationOverride = autoSubscriptionCreationOverride;
-            return policies;
-        }).thenApply(r -> {
-            if (autoSubscriptionCreationOverride != null) {
-                String autoOverride = autoSubscriptionCreationOverride.isAllowAutoSubscriptionCreation() ? "enabled"
-                        : "disabled";
-                log.info("[{}] Successfully {} autoSubscriptionCreation on namespace {}", clientAppId(),
-                        autoOverride != null ? autoOverride : "removed", namespaceName);
-            }
-            asyncResponse.resume(Response.noContent().build());
-            return null;
-        }).exceptionally(e -> {
-            log.error("[{}] Failed to modify autoSubscriptionCreation status on namespace {}", clientAppId(),
-                    namespaceName, e.getCause());
-            if (e.getCause() instanceof NotFoundException) {
-                asyncResponse.resume(new RestException(Status.NOT_FOUND, "Namespace does not exist"));
-                return null;
-            }
-            asyncResponse.resume(new RestException(e.getCause()));
-            return null;
-        });
+        return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.AUTO_SUBSCRIPTION_CREATION,
+                PolicyOperation.WRITE)
+                .thenCompose(__ ->  validatePoliciesReadOnlyAccessAsync())
+                        .thenCompose(unused -> namespaceResources().setPoliciesAsync(namespaceName, policies -> {
+                            policies.autoSubscriptionCreationOverride = autoSubscriptionCreationOverride;
+                            return policies;
+                        }))
+                .thenAccept(r -> {
+                    if (autoSubscriptionCreationOverride != null) {
+                        String autoOverride = autoSubscriptionCreationOverride.isAllowAutoSubscriptionCreation()
+                                ? "enabled" : "disabled";
+                        log.info("[{}] Successfully {} autoSubscriptionCreation on namespace {}", clientAppId(),
+                                autoOverride, namespaceName);
+                    } else {
+                        log.info("[{}] Successfully remove autoSubscriptionCreation on namespace {}",
+                                clientAppId(), namespaceName);
+                    }
+                });
     }
 
-    protected AutoSubscriptionCreationOverride internalGetAutoSubscriptionCreation() {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.AUTO_SUBSCRIPTION_CREATION, PolicyOperation.READ);
-        Policies policies = getNamespacePolicies(namespaceName);
-        return policies.autoSubscriptionCreationOverride;
-    }
+    protected CompletableFuture<AutoSubscriptionCreationOverride> internalGetAutoSubscriptionCreationAsync() {
 
-    protected void internalRemoveAutoSubscriptionCreation(AsyncResponse asyncResponse) {
-        internalSetAutoSubscriptionCreation(asyncResponse, null);
+        return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.AUTO_SUBSCRIPTION_CREATION,
+                PolicyOperation.READ)
+                .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
+                .thenApply(policies -> policies.autoSubscriptionCreationOverride);
     }
 
     protected CompletableFuture<Void> internalModifyDeduplicationAsync(Boolean enableDeduplication) {

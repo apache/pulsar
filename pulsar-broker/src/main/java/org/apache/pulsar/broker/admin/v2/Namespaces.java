@@ -656,14 +656,24 @@ public class Namespaces extends NamespacesBase {
             @PathParam("tenant") String tenant, @PathParam("namespace") String namespace,
             @ApiParam(value = "Settings for automatic subscription creation")
                     AutoSubscriptionCreationOverride autoSubscriptionCreationOverride) {
-        try {
-            validateNamespaceName(tenant, namespace);
-            internalSetAutoSubscriptionCreation(asyncResponse, autoSubscriptionCreationOverride);
-        } catch (RestException e) {
-            asyncResponse.resume(e);
-        } catch (Exception e) {
-            asyncResponse.resume(new RestException(e));
-        }
+        validateNamespaceName(tenant, namespace);
+        internalSetAutoSubscriptionCreationAsync(autoSubscriptionCreationOverride)
+                .thenAccept(__ -> {
+                    log.info("[{}] Successfully set autoSubscriptionCreation on namespace {}",
+                            clientAppId(), namespaceName);
+                    asyncResponse.resume(Response.noContent().build());
+                })
+                .exceptionally(e -> {
+                    Throwable ex = FutureUtil.unwrapCompletionException(e);
+                    log.error("[{}] Failed to set autoSubscriptionCreation on namespace {}", clientAppId(),
+                            namespaceName, ex);
+                    if (ex instanceof MetadataStoreException.NotFoundException) {
+                        asyncResponse.resume(new RestException(Response.Status.NOT_FOUND, "Namespace does not exist"));
+                    } else {
+                        resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    }
+                    return null;
+                });
     }
 
     @GET
@@ -671,10 +681,17 @@ public class Namespaces extends NamespacesBase {
     @ApiOperation(value = "Get autoSubscriptionCreation info in a namespace")
     @ApiResponses(value = {@ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or namespace doesn't exist")})
-    public AutoSubscriptionCreationOverride getAutoSubscriptionCreation(@PathParam("tenant") String tenant,
+    public void getAutoSubscriptionCreation(@Suspended final AsyncResponse asyncResponse,
+                                                                        @PathParam("tenant") String tenant,
                                                                         @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
-        return internalGetAutoSubscriptionCreation();
+        internalGetAutoSubscriptionCreationAsync()
+                .thenAccept(asyncResponse::resume)
+                .exceptionally(ex -> {
+                    log.error("Failed to get autoSubscriptionCreation for namespace {}", namespaceName, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @DELETE
@@ -684,14 +701,24 @@ public class Namespaces extends NamespacesBase {
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist") })
     public void removeAutoSubscriptionCreation(@Suspended final AsyncResponse asyncResponse,
                                         @PathParam("tenant") String tenant, @PathParam("namespace") String namespace) {
-        try {
-            validateNamespaceName(tenant, namespace);
-            internalRemoveAutoSubscriptionCreation(asyncResponse);
-        } catch (RestException e) {
-            asyncResponse.resume(e);
-        } catch (Exception e) {
-            asyncResponse.resume(new RestException(e));
-        }
+        validateNamespaceName(tenant, namespace);
+        internalSetAutoSubscriptionCreationAsync(null)
+                .thenAccept(__ -> {
+                    log.info("[{}] Successfully set autoSubscriptionCreation on namespace {}",
+                            clientAppId(), namespaceName);
+                    asyncResponse.resume(Response.noContent().build());
+                })
+                .exceptionally(e -> {
+                    Throwable ex = FutureUtil.unwrapCompletionException(e);
+                    log.error("[{}] Failed to set autoSubscriptionCreation on namespace {}", clientAppId(),
+                            namespaceName, ex);
+                    if (ex instanceof MetadataStoreException.NotFoundException) {
+                        asyncResponse.resume(new RestException(Response.Status.NOT_FOUND, "Namespace does not exist"));
+                    } else {
+                        resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    }
+                    return null;
+                });
     }
 
     @GET
