@@ -44,6 +44,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+import lombok.AccessLevel;
 import lombok.Getter;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.commons.lang3.tuple.Pair;
@@ -59,6 +60,7 @@ import org.apache.pulsar.client.impl.schema.SchemaInfoUtil;
 import org.apache.pulsar.client.impl.transaction.TransactionBufferHandler;
 import org.apache.pulsar.client.util.TimedCompletableFuture;
 import org.apache.pulsar.common.api.AuthData;
+import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.CommandAckResponse;
 import org.apache.pulsar.common.api.proto.CommandActiveConsumerChange;
 import org.apache.pulsar.common.api.proto.CommandAddPartitionToTxnResponse;
@@ -85,6 +87,8 @@ import org.apache.pulsar.common.api.proto.CommandSendError;
 import org.apache.pulsar.common.api.proto.CommandSendReceipt;
 import org.apache.pulsar.common.api.proto.CommandSuccess;
 import org.apache.pulsar.common.api.proto.CommandTcClientConnectResponse;
+import org.apache.pulsar.common.api.proto.CommandWatchTopicListSuccess;
+import org.apache.pulsar.common.api.proto.CommandWatchTopicUpdate;
 import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.lookup.GetTopicsResult;
 import org.apache.pulsar.common.protocol.Commands;
@@ -128,6 +132,12 @@ public class ClientCnx extends PulsarHandler {
                     .expectedItems(16)
                     .concurrencyLevel(1)
                     .build();
+    @Getter(AccessLevel.PACKAGE)
+    private final ConcurrentLongHashMap<TopicListWatcher> topicListWatchers =
+            ConcurrentLongHashMap.<TopicListWatcher>newBuilder()
+                    .expectedItems(16)
+                    .concurrencyLevel(1)
+                    .build();
 
     private final CompletableFuture<Void> connectionFuture = new CompletableFuture<Void>();
     private final ConcurrentLinkedQueue<RequestTime> requestTimeoutQueue = new ConcurrentLinkedQueue<>();
@@ -160,6 +170,7 @@ public class ClientCnx extends PulsarHandler {
     @Getter
     protected AuthenticationDataProvider authenticationDataProvider;
     private TransactionBufferHandler transactionBufferHandler;
+    private boolean supportsTopicWatchers;
 
     enum State {
         None, SentConnectFrame, Ready, Failed, Connecting
@@ -281,12 +292,14 @@ public class ClientCnx extends PulsarHandler {
         producers.forEach((id, producer) -> producer.connectionClosed(this));
         consumers.forEach((id, consumer) -> consumer.connectionClosed(this));
         transactionMetaStoreHandlers.forEach((id, handler) -> handler.connectionClosed(this));
+        topicListWatchers.forEach((__, watcher) -> watcher.connectionClosed(this));
 
         pendingRequests.clear();
         waitingLookupRequests.clear();
 
         producers.clear();
         consumers.clear();
+        topicListWatchers.clear();
 
         timeoutTask.cancel(true);
     }
@@ -330,6 +343,10 @@ public class ClientCnx extends PulsarHandler {
         if (log.isDebugEnabled()) {
             log.debug("{} Connection is ready", ctx.channel());
         }
+
+        supportsTopicWatchers =
+            connected.hasFeatureFlags() && connected.getFeatureFlags().isSupportsTopicWatchers();
+
         // set remote protocol version to the correct version before we complete the connection future
         setRemoteEndpointProtocolVersion(connected.getProtocolVersion());
         connectionFuture.complete(null);
@@ -1036,6 +1053,51 @@ public class ClientCnx extends PulsarHandler {
         return transactionBufferHandler;
     }
 
+    public CompletableFuture<CommandWatchTopicListSuccess> newWatchTopicList(
+            BaseCommand commandWatchTopicList, long requestId) {
+        if (!supportsTopicWatchers) {
+            return FutureUtil.failedFuture(
+                    new PulsarClientException.NotAllowedException(
+                            "Broker does not allow broker side pattern evaluation."));
+        }
+        return sendRequestAndHandleTimeout(Commands.serializeWithSize(commandWatchTopicList), requestId,
+                RequestType.Command, true);
+    }
+
+    protected void handleCommandWatchTopicListSuccess(CommandWatchTopicListSuccess commandWatchTopicListSuccess) {
+        checkArgument(state == State.Ready);
+
+        if (log.isDebugEnabled()) {
+            log.debug("{} Received watchTopicListSuccess response from server: {}",
+                    ctx.channel(), commandWatchTopicListSuccess.getRequestId());
+        }
+        long requestId = commandWatchTopicListSuccess.getRequestId();
+        CompletableFuture<CommandWatchTopicListSuccess> requestFuture =
+                (CompletableFuture<CommandWatchTopicListSuccess>) pendingRequests.remove(requestId);
+        if (requestFuture != null) {
+            requestFuture.complete(commandWatchTopicListSuccess);
+        } else {
+            log.warn("{} Received unknown request id from server: {}",
+                    ctx.channel(), commandWatchTopicListSuccess.getRequestId());
+        }
+    }
+
+    protected void handleCommandWatchTopicUpdate(CommandWatchTopicUpdate commandWatchTopicUpdate) {
+        checkArgument(state == State.Ready);
+
+        if (log.isDebugEnabled()) {
+            log.debug("{} Received watchTopicUpdate command from server: {}",
+                    ctx.channel(), commandWatchTopicUpdate.getWatcherId());
+        }
+        long watcherId = commandWatchTopicUpdate.getWatcherId();
+        TopicListWatcher watcher = topicListWatchers.get(watcherId);
+        if (watcher != null) {
+            watcher.handleCommandWatchTopicUpdate(commandWatchTopicUpdate);
+        } else {
+            log.warn("{} Received topic list update for unknown watcher from server: {}", ctx.channel(), watcherId);
+        }
+    }
+
     /**
      * check serverError and take appropriate action.
      * <ul>
@@ -1082,6 +1144,11 @@ public class ClientCnx extends PulsarHandler {
         transactionMetaStoreHandlers.put(transactionMetaStoreId, handler);
     }
 
+    void registerTopicListWatcher(final long watcherId, final TopicListWatcher watcher) {
+        topicListWatchers.put(watcherId, watcher);
+
+    }
+
     public void registerTransactionBufferHandler(final TransactionBufferHandler handler) {
         transactionBufferHandler = handler;
     }
@@ -1092,6 +1159,10 @@ public class ClientCnx extends PulsarHandler {
 
     void removeConsumer(final long consumerId) {
         consumers.remove(consumerId);
+    }
+
+    void removeTopicListWatcher(final long watcherId) {
+        topicListWatchers.remove(watcherId);
     }
 
     void setTargetBroker(InetSocketAddress targetBrokerAddress) {
