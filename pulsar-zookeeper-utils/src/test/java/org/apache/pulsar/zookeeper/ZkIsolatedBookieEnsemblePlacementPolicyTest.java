@@ -314,11 +314,11 @@ public class ZkIsolatedBookieEnsemblePlacementPolicyTest {
         // when we set strictBookieAffinityEnabled=true and some namespace not set ISOLATION_BOOKIE_GROUPS there will set "" by default.
         Map<String, Object> placementPolicyProperties1 = new HashMap<>();
         placementPolicyProperties1.put(
-                IsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS, "");
+                ZkIsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS, "");
         placementPolicyProperties1.put(
-                IsolatedBookieEnsemblePlacementPolicy.SECONDARY_ISOLATION_BOOKIE_GROUPS, "");
+                ZkIsolatedBookieEnsemblePlacementPolicy.SECONDARY_ISOLATION_BOOKIE_GROUPS, "");
         EnsemblePlacementPolicyConfig policyConfig = new EnsemblePlacementPolicyConfig(
-                IsolatedBookieEnsemblePlacementPolicy.class,
+                ZkIsolatedBookieEnsemblePlacementPolicy.class,
                 placementPolicyProperties1
         );
         Map<String, byte[]> customMetadata1 = new HashMap<>();
@@ -331,7 +331,7 @@ public class ZkIsolatedBookieEnsemblePlacementPolicyTest {
         // when ISOLATION_BOOKIE_GROUPS miss.
         Map<String, Object> placementPolicyProperties2 = new HashMap<>();
         EnsemblePlacementPolicyConfig policyConfig2 = new EnsemblePlacementPolicyConfig(
-                IsolatedBookieEnsemblePlacementPolicy.class,
+                ZkIsolatedBookieEnsemblePlacementPolicy.class,
                 placementPolicyProperties2
         );
         Map<String, byte[]> customMetadata2 = new HashMap<>();
