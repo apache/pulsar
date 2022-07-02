@@ -29,7 +29,6 @@ import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
-import org.apache.pulsar.broker.service.AbstractSubscription;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
@@ -49,7 +48,7 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class NonPersistentSubscription extends AbstractSubscription implements Subscription {
+public class NonPersistentSubscription implements Subscription {
     private final NonPersistentTopic topic;
     private volatile NonPersistentDispatcher dispatcher;
     private final String topicName;
@@ -66,6 +65,9 @@ public class NonPersistentSubscription extends AbstractSubscription implements S
 
     // Timestamp of when this subscription was last seen active
     private volatile long lastActive;
+
+    private final LongAdder bytesOutFromRemovedConsumers = new LongAdder();
+    private final LongAdder msgOutFromRemovedConsumer = new LongAdder();
 
     // If isDurable is false(such as a Reader), remove subscription from topic when closing this subscription.
     private final boolean isDurable;
