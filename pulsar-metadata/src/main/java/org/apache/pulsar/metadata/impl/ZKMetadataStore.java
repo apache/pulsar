@@ -49,6 +49,7 @@ import org.apache.pulsar.metadata.api.extended.SessionEvent;
 import org.apache.pulsar.metadata.impl.batching.AbstractBatchedMetadataStore;
 import org.apache.pulsar.metadata.impl.batching.MetadataOp;
 import org.apache.pulsar.metadata.impl.batching.OpDelete;
+import org.apache.pulsar.metadata.impl.batching.OpExists;
 import org.apache.pulsar.metadata.impl.batching.OpGet;
 import org.apache.pulsar.metadata.impl.batching.OpGetChildren;
 import org.apache.pulsar.metadata.impl.batching.OpPut;
@@ -186,6 +187,10 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
                             handleGetChildrenResult(op.asGetChildren(), opr);
                             break;
 
+                        case EXISTS:
+                            handleExistsResult(op.asExists(), opr);
+                            break;
+
                         default:
                             op.getFuture().completeExceptionally(new MetadataStoreException(
                                     "Operation type not supported in multi: " + op.getType()));
@@ -256,6 +261,27 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
         }
     }
 
+    private void handleExistsResult(OpExists op, OpResult opr) {
+        if (opr instanceof OpResult.ErrorResult) {
+            OpResult.ErrorResult er = (OpResult.ErrorResult) opr;
+            Code code = Code.get(er.getErr());
+            if (code == Code.OK) {
+                op.getFuture().complete(true);
+            } else if (code == Code.NONODE) {
+                // The key is not there
+                op.getFuture().complete(false);
+            } else if (code == Code.RUNTIMEINCONSISTENCY) {
+                // This error will happen when other items in the batch did already fail. In this case, we're
+                // retrying the operation individually
+                internalExistsFromStore(op);
+            } else {
+                op.getFuture().completeExceptionally(getException(code, op.getPath()));
+            }
+        } else {
+            op.getFuture().complete(true);
+        }
+    }
+
     private void handleDeleteResult(OpDelete op, OpResult opr) {
         if (opr instanceof OpResult.ErrorResult) {
             OpResult.ErrorResult er = (OpResult.ErrorResult) opr;
@@ -296,17 +322,20 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
                 return Op.getChildren(op.asGetChildren().getPath());
             }
 
+            case EXISTS: {
+                return Op.check(op.asExists().getPath(), -1);
+            }
+
             default:
                 return null;
         }
     }
 
-    @Override
-    public CompletableFuture<Boolean> existsFromStore(String path) {
+    private CompletableFuture<Boolean> internalExistsFromStore(OpExists op) {
         CompletableFuture<Boolean> future = new CompletableFuture<>();
 
         try {
-            zkc.exists(path, null, (rc, path1, ctx, stat) -> {
+            zkc.exists(op.getPath(), null, (rc, path1, ctx, stat) -> {
                 execute(() -> {
                     Code code = Code.get(rc);
                     if (code == Code.OK) {
@@ -314,7 +343,7 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
                     } else if (code == Code.NONODE) {
                         future.complete(false);
                     } else {
-                        future.completeExceptionally(getException(code, path));
+                        future.completeExceptionally(getException(code, op.getPath()));
                     }
                 }, future);
             }, future);

@@ -82,6 +82,7 @@ import org.apache.pulsar.metadata.api.extended.SessionEvent;
 import org.apache.pulsar.metadata.impl.batching.AbstractBatchedMetadataStore;
 import org.apache.pulsar.metadata.impl.batching.MetadataOp;
 import org.apache.pulsar.metadata.impl.batching.OpDelete;
+import org.apache.pulsar.metadata.impl.batching.OpExists;
 import org.apache.pulsar.metadata.impl.batching.OpGet;
 import org.apache.pulsar.metadata.impl.batching.OpGetChildren;
 import org.apache.pulsar.metadata.impl.batching.OpPut;
@@ -180,12 +181,6 @@ public class EtcdMetadataStore extends AbstractBatchedMetadataStore {
     private static final GetOption SINGLE_GET_OPTION = GetOption.newBuilder().withLimit(1).build();
 
     @Override
-    protected CompletableFuture<Boolean> existsFromStore(String path) {
-        return kv.get(ByteSequence.from(path, StandardCharsets.UTF_8), EXISTS_GET_OPTION)
-                .thenApplyAsync(gr -> gr.getCount() == 1, executor);
-    }
-
-    @Override
     protected CompletableFuture<Stat> storePut(String path, byte[] data, Optional<Long> optExpectedVersion,
                                                EnumSet<CreateOption> options) {
         if (!options.contains(CreateOption.Sequential)) {
@@ -281,6 +276,11 @@ public class EtcdMetadataStore extends AbstractBatchedMetadataStore {
                                 .withSortOrder(GetOption.SortOrder.ASCEND)
                                 .withPrefix(prefix)
                                 .build()));
+                        break;
+                    }
+                    case EXISTS: {
+                        String path = op.asExists().getPath();
+                        txn.Then(Op.get(ByteSequence.from(path, StandardCharsets.UTF_8), EXISTS_GET_OPTION));
                         break;
                     }
                 }
@@ -394,6 +394,13 @@ public class EtcdMetadataStore extends AbstractBatchedMetadataStore {
                                 .collect(Collectors.toCollection(TreeSet::new));
 
                         getChildren.getFuture().complete(new ArrayList<>(children));
+                        break;
+                    }
+                    case EXISTS: {
+                        OpExists exists = op.asExists();
+                        GetResponse gr = txnResponse.getGetResponses().get(getIdx++);
+                        exists.getFuture().complete(gr.getCount() == 1);
+                        break;
                     }
                 }
             }

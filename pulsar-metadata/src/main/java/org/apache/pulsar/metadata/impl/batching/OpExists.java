@@ -19,39 +19,23 @@
 package org.apache.pulsar.metadata.impl.batching;
 
 import java.util.concurrent.CompletableFuture;
+import lombok.AllArgsConstructor;
+import lombok.Data;
 
-public interface MetadataOp {
-    enum Type {
-        GET,
-        GET_CHILDREN,
-        PUT,
-        DELETE,
-        EXISTS,
+@Data
+@AllArgsConstructor
+public class OpExists implements MetadataOp {
+
+    private final String path;
+    private final CompletableFuture<Boolean> future = new CompletableFuture<>();
+
+    @Override
+    public Type getType() {
+        return Type.EXISTS;
     }
 
-    Type getType();
-
-    CompletableFuture<?> getFuture();
-
-    int size();
-
-    default OpGet asGet() {
-        return (OpGet) this;
-    }
-
-    default OpDelete asDelete() {
-        return (OpDelete) this;
-    }
-
-    default OpGetChildren asGetChildren() {
-        return (OpGetChildren) this;
-    }
-
-    default OpExists asExists() {
-        return (OpExists) this;
-    }
-
-    default OpPut asPut() {
-        return (OpPut) this;
+    @Override
+    public int size() {
+        return path.length();
     }
 }

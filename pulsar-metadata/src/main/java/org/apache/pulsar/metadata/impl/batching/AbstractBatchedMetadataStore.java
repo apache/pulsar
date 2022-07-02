@@ -43,6 +43,8 @@ public abstract class AbstractBatchedMetadataStore extends AbstractMetadataStore
     private final MessagePassingQueue<MetadataOp> readOps;
     private final MessagePassingQueue<MetadataOp> writeOps;
 
+    private final MessagePassingQueue<MetadataOp> existsOps;
+
     private final AtomicBoolean flushInProgress = new AtomicBoolean(false);
 
     private final boolean enabled;
@@ -61,12 +63,14 @@ public abstract class AbstractBatchedMetadataStore extends AbstractMetadataStore
         if (enabled) {
             readOps = new MpscUnboundedArrayQueue<>(10_000);
             writeOps = new MpscUnboundedArrayQueue<>(10_000);
+            existsOps = new MpscUnboundedArrayQueue<>(10_000);
             scheduledTask =
                     executor.scheduleAtFixedRate(this::flush, maxDelayMillis, maxDelayMillis, TimeUnit.MILLISECONDS);
         } else {
             scheduledTask = null;
             readOps = null;
             writeOps = null;
+            existsOps = null;
         }
     }
 
@@ -77,6 +81,7 @@ public abstract class AbstractBatchedMetadataStore extends AbstractMetadataStore
             Exception ex = new IllegalStateException("Metadata store is getting closed");
             readOps.drain(op -> op.getFuture().completeExceptionally(ex));
             writeOps.drain(op -> op.getFuture().completeExceptionally(ex));
+            existsOps.drain(op -> op.getFuture().completeExceptionally(ex));
 
             scheduledTask.cancel(true);
         }
@@ -87,6 +92,12 @@ public abstract class AbstractBatchedMetadataStore extends AbstractMetadataStore
         while (!readOps.isEmpty()) {
             List<MetadataOp> ops = new ArrayList<>();
             readOps.drain(ops::add, maxOperations);
+            batchOperation(ops);
+        }
+
+        while (!existsOps.isEmpty()) {
+            List<MetadataOp> ops = new ArrayList<>();
+            existsOps.drain(ops::add, maxOperations);
             batchOperation(ops);
         }
 
@@ -118,6 +129,13 @@ public abstract class AbstractBatchedMetadataStore extends AbstractMetadataStore
     public final CompletableFuture<Optional<GetResult>> storeGet(String path) {
         OpGet op = new OpGet(path);
         enqueue(readOps, op);
+        return op.getFuture();
+    }
+
+    @Override
+    public final CompletableFuture<Boolean> existsFromStore(String path) {
+        OpExists op = new OpExists(path);
+        enqueue(existsOps, op);
         return op.getFuture();
     }
 

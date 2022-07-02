@@ -81,12 +81,17 @@ public class MetadataStoreBatchingTest extends BaseMetadataStoreTest {
 
         CompletableFuture<Optional<GetResult>> f1 = store.get(key1);
         CompletableFuture<Optional<GetResult>> f2 = store.get(key2);
+        CompletableFuture<Boolean> f3 = store.exists(key1);
+        CompletableFuture<Boolean> f4 = store.exists(key2);
 
         Optional<GetResult> r1 = f1.join();
         Optional<GetResult> r2 = f2.join();
 
         assertTrue(r1.isPresent());
         assertFalse(r2.isPresent());
+
+        assertTrue(f3.join());
+        assertFalse(f4.join());
     }
 
     @Test(dataProvider = "impl")
