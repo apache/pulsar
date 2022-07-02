@@ -79,7 +79,6 @@
 - [improve][broker] Make revokePermissionsOnTopic method async [14149](https://github.com/apache/pulsar/pull/14149)
 - [fix][broker] Fix when nextValidLedger is null caused NPE [13975](https://github.com/apache/pulsar/pull/13975)
 
-
 ### Transaction
 
 - [fix][txn] Fix transasction ack batch message [15875](https://github.com/apache/pulsar/pull/15875)
@@ -113,8 +112,6 @@
 - [fix][txn] Fix pending ack is recovering throw CursorAlreadyClosedxception [14781](https://github.com/apache/pulsar/pull/14781)
 - [fix][txn] Fix cursor readPosition is bigger than maxPosition in OpReadEntry [14667](https://github.com/apache/pulsar/pull/14667)
 
-
-
 ### Clients
 
 - [fix][Java] Fixes NPE when TableView handles null value message [15951](https://github.com/apache/pulsar/pull/15951)
@@ -145,7 +142,6 @@
 - [improve][Java] Avoid timer task run before previous subscribe complete. [14818](https://github.com/apache/pulsar/pull/14818)
 - [fix][C++] Fix producer is never destructed until client is closed [14797](https://github.com/apache/pulsar/pull/14797)
 
-
 ### Pulsar IO and Pulsar Functions
 
 - [fix][connector] KCA sinks: fix offset mapping when sanitizeTopicName=true [15950](https://github.com/apache/pulsar/pull/15950)
@@ -159,7 +155,6 @@
 - [improve][connector] Handle kafka sinks that return immutable maps as configs [14780](https://github.com/apache/pulsar/pull/14780)
 - [improve][connector] Support event-time-based index name in ES Sink [14383](https://github.com/apache/pulsar/pull/14383)
 
-
 ### Tiered Storage
 
 - [feature][tiered-storage] Add pure S3 provider for the offloader [15710](https://github.com/apache/pulsar/pull/15710
@@ -168,13 +163,11 @@
 - [fix][tiered-storage] Fix potential NPE in MockManagedLedger [15006](https://github.com/apache/pulsar/pull/15006)
 - [improve][tiered-storage] Add debug information [14907](https://github.com/apache/pulsar/pull/14907)
 
-
 ### Pulsar SQL
 
 - [fix][sql] Fix the decimal type error convert in json schema [15687](https://github.com/apache/pulsar/pull/15687)
 - [fix][sql] Add Java version trim agent for presto 332 [15236](https://github.com/apache/pulsar/pull/15236)
 - [improve][sql] Pulsar SQL support for Decimal data type [15153](https://github.com/apache/pulsar/pull/15153)
-
 
 ### Pulsar Proxy
 
@@ -185,14 +178,11 @@
 - [improve][proxy] Log warning when opening connection to broker fails [14710](https://github.com/apache/pulsar/pull/14710)
 - [improve][proxy] Add support of PrometheusRawMetricsProvider for the Pulsar-Proxy [14681](https://github.com/apache/pulsar/pull/14681)
 
-
 ### Observability
 
 - [improve][metrics] Add message ack rate metric for consumer [15674](https://github.com/apache/pulsar/pull/15674)
 - [improve][metrics] Add metrics for pulsar web service thread pool [14742](https://github.com/apache/pulsar/pull/14742)
 - [improve][metrics] Add non-persistent topic subscription metrics [13827](https://github.com/apache/pulsar/pull/13827)
-
-
 
 ### CLI
 
@@ -204,7 +194,6 @@
 - [fix][admin] Fix NPE in PulsarAdminBuilder when the service is not set [14769](https://github.com/apache/pulsar/pull/14769)
 - [fix][admin] Remove the trust certs check [14764](https://github.com/apache/pulsar/pull/14764)
 - [fix][admin] Provide an accurate error message when set `autoTopicCreation` [14684](https://github.com/apache/pulsar/pull/14684)
-
 
 ### Security
 
@@ -225,7 +214,6 @@
 - [fix][authz] Role with namespace produce authz can also get topics [13773](https://github.com/apache/pulsar/pull/13773)
 - [improve][authn] Full-support set ssl provider, ciphers and protocols for broker-web&websocket/proxy/function-worker [13740](https://github.com/apache/pulsar/pull/13740)
 
-
 ### Others
 
 - [improve] Enable TCP/IP keepalive for all ZK client connections in all components started with bin/pulsar [15908](https://github.com/apache/pulsar/pull/15908)
@@ -245,7 +233,6 @@
 - [improve][tool] Improve transaction perf logs [14816](https://github.com/apache/pulsar/pull/14816)
 - [fix][deploy] Fix the pid occupied check when use pulsar-daemon start or stop process [14701](https://github.com/apache/pulsar/pull/14701)
 - [fix][webSocket] Fix `ClassCastException` when user create `MultiTopicReader` [14316](https://github.com/apache/pulsar/pull/14316)
-
 
 ### Library updates
 
