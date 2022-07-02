@@ -22,7 +22,7 @@ import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleStat
 
 public interface PendingAckHandleStats {
 
-    void recordCommitTxn(boolean success);
+    void recordCommitTxn(boolean success, long nanos);
 
     void recordAbortTxn(boolean success);
 

@@ -250,6 +250,16 @@ public class PendingAckPersistentTest extends TransactionTestBase {
 
         Collection<PrometheusMetricsTest.Metric> abortedCount = metricsMap.get("pulsar_txn_tp_aborted_count");
         Collection<PrometheusMetricsTest.Metric> committedCount = metricsMap.get("pulsar_txn_tp_committed_count");
+        Collection<PrometheusMetricsTest.Metric> commitLatency = metricsMap.get("pulsar_txn_tp_commit_latency");
+        Assert.assertTrue(commitLatency.size() > 0);
+
+        int count = 0;
+        for (PrometheusMetricsTest.Metric metric : commitLatency) {
+            if (metric.tags.get("topic").endsWith(PENDING_ACK_REPLAY_TOPIC) && metric.value > 0) {
+                count++;
+            }
+        }
+        Assert.assertTrue(count > 0);
 
         for (PrometheusMetricsTest.Metric metric : abortedCount) {
             if (metric.tags.get("subscription").equals(subName) && metric.tags.get("status").equals("succeed")) {
