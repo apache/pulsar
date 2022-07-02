@@ -245,13 +245,19 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     }
 
     private void receiveMessageFromConsumer(ConsumerImpl<T> consumer) {
-        consumer.batchReceiveAsync().thenAcceptAsync(message -> {
+        CompletableFuture<List<Message<T>>> messagesFuture;
+        if (consumer.numMessagesInQueue() >= 10) {
+            messagesFuture = consumer.batchReceiveAsync().thenApply(msgs -> ((MessagesImpl<T>) msgs).getMessageList());
+        } else {
+            messagesFuture = consumer.receiveAsync().thenApply(Collections::singletonList);
+        }
+        messagesFuture.thenAcceptAsync(messages -> {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] [{}] Receive message from sub consumer:{}",
                     topic, subscription, consumer.getTopic());
             }
             // Process the message, add to the queue and trigger listener or async callback
-            message.forEach(msg -> messageReceived(consumer, msg));
+            messages.forEach(msg -> messageReceived(consumer, msg));
 
             int size = incomingMessages.size();
             int maxReceiverQueueSize = getCurrentReceiverQueueSize();
@@ -267,17 +273,9 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 // from getting stalled.
                 resumeReceivingFromPausedConsumersIfNeeded();
             } else {
-
-                if (message.size() == 0 && consumer.numMessagesInQueue() == 0) {
-                    // No more messages in the receiver queue, so schedule the next reading with 5ms delay to avoid
-                    // busy loop.
-                    ((ScheduledExecutorService) client.getScheduledExecutorProvider().getExecutor())
-                            .schedule(() -> receiveMessageFromConsumer(consumer), 5, TimeUnit.MILLISECONDS);
-                } else {
-                    // Call receiveAsync() if the incoming queue is not full. Because this block is run with
-                    // thenAcceptAsync, there is no chance for recursion that would lead to stack overflow.
-                    receiveMessageFromConsumer(consumer);
-                }
+                // Call receiveAsync() if the incoming queue is not full. Because this block is run with
+                // thenAcceptAsync, there is no chance for recursion that would lead to stack overflow.
+                receiveMessageFromConsumer(consumer);
             }
         }, internalPinnedExecutor).exceptionally(ex -> {
             if (ex instanceof PulsarClientException.AlreadyClosedException
