@@ -58,7 +58,6 @@ import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
 import org.apache.pulsar.common.policies.data.BookieAffinityGroupData;
-import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
@@ -637,15 +636,14 @@ public class Namespaces extends NamespacesBase {
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Tenant or cluster or namespace doesn't exist"),
             @ApiResponse(code = 412, message = "Namespace is not setup to split in bundles") })
-    public BundlesData getBundlesData(@PathParam("tenant") String tenant,
-            @PathParam("namespace") String namespace) {
-        validatePoliciesReadOnlyAccess();
+    public void getBundlesData(@Suspended final AsyncResponse asyncResponse, @PathParam("tenant") String tenant,
+                               @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);
-        validateNamespaceOperation(NamespaceName.get(tenant, namespace), NamespaceOperation.GET_BUNDLE);
-
-        Policies policies = getNamespacePolicies(namespaceName);
-
-        return policies.bundles;
+        internalGetBundlesData().thenAccept(asyncResponse::resume).exceptionally(ex -> {
+            log.error("[{}] Failed to get bundles data for cluster on namespace {}", clientAppId(), namespaceName, ex);
+            resumeAsyncResponseExceptionally(asyncResponse, ex);
+            return null;
+        });
     }
 
     @PUT
@@ -665,14 +663,15 @@ public class Namespaces extends NamespacesBase {
             @ApiResponse(code = 412, message = "Namespace is already unloaded or Namespace has bundles activated")})
     public void unloadNamespace(@Suspended final AsyncResponse asyncResponse, @PathParam("tenant") String tenant,
             @PathParam("namespace") String namespace) {
-        try {
-            validateNamespaceName(tenant, namespace);
-            internalUnloadNamespace(asyncResponse);
-        } catch (WebApplicationException wae) {
-            asyncResponse.resume(wae);
-        } catch (Exception e) {
-            asyncResponse.resume(new RestException(e));
-        }
+        validateNamespaceName(tenant, namespace);
+        internalUnloadNamespaceAsync().thenAccept(__ -> {
+            log.info("[{}] Successfully unloaded all the bundles in namespace {}", clientAppId(), namespaceName);
+            asyncResponse.resume(Response.noContent());
+        }).exceptionally(ex -> {
+            log.error("[{}] Failed to unload namespace {}", clientAppId(), namespaceName, ex);
+            resumeAsyncResponseExceptionally(asyncResponse, ex);
+            return null;
+        });
     }
 
     @PUT
@@ -686,7 +685,14 @@ public class Namespaces extends NamespacesBase {
             @PathParam("bundle") String bundleRange,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateNamespaceName(tenant, namespace);
-        internalUnloadNamespaceBundle(asyncResponse, bundleRange, authoritative);
+        internalUnloadNamespaceBundle(bundleRange, authoritative)
+                .thenAccept(__ -> asyncResponse.resume(Response.noContent()))
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to unload namespace bundle {}/{}", clientAppId(),
+                            namespaceName, bundleRange, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @PUT

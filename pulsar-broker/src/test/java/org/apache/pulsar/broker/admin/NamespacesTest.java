@@ -640,9 +640,8 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
                 .numBundles(boundaries.size() - 1)
                 .build();
         createBundledTestNamespaces(this.testTenant, this.testLocalCluster, "test-bundled-namespace-1", bundle);
-        BundlesData responseData = namespaces.getBundlesData(testTenant, this.testLocalCluster,
-                "test-bundled-namespace-1");
-
+        BundlesData responseData = (BundlesData) asyncRequests(rsp -> namespaces.getBundlesData(rsp, testTenant,
+                                  this.testLocalCluster, "test-bundled-namespace-1"));
         assertEquals(responseData, bundle);
     }
 
@@ -673,8 +672,8 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         doReturn(uri).when(uriInfo).getRequestUri();
 
         try {
-            namespaces.unloadNamespaceBundle(response, this.testTenant, this.testOtherCluster,
-                    this.testLocalNamespaces.get(2).getLocalName(), "0x00000000_0xffffffff", false);
+            asyncRequests(rsp -> namespaces.unloadNamespaceBundle(rsp, this.testTenant, this.testOtherCluster,
+                    this.testLocalNamespaces.get(2).getLocalName(), "0x00000000_0xffffffff", false));
             fail("Should have raised exception to redirect request");
         } catch (WebApplicationException wae) {
             // OK
@@ -920,7 +919,8 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
             ArgumentCaptor<Response> captor = ArgumentCaptor.forClass(Response.class);
             verify(response, timeout(5000).times(1)).resume(captor.capture());
             // verify split bundles
-            BundlesData bundlesData = namespaces.getBundlesData(testTenant, testLocalCluster, bundledNsLocal);
+            BundlesData bundlesData = (BundlesData) asyncRequests(rsp -> namespaces.getBundlesData(rsp, testTenant,
+                    this.testLocalCluster, bundledNsLocal));
             assertNotNull(bundlesData);
             assertEquals(bundlesData.getBoundaries().size(), 3);
             assertEquals(bundlesData.getBoundaries().get(0), "0x00000000");
@@ -984,12 +984,12 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         doReturn(true).when(nsSvc).isServiceUnitOwned(testBundle);
         doReturn(CompletableFuture.completedFuture(null)).when(nsSvc).unloadNamespaceBundle(testBundle);
         AsyncResponse response = mock(AsyncResponse.class);
-        namespaces.unloadNamespaceBundle(response, testTenant, testLocalCluster, bundledNsLocal, "0x00000000_0x80000000",
-                false);
+        asyncRequests(rsp -> namespaces.unloadNamespaceBundle(rsp, testTenant, testLocalCluster, bundledNsLocal, "0x00000000_0x80000000",
+                false));
         verify(nsSvc, times(1)).unloadNamespaceBundle(testBundle);
         try {
-            namespaces.unloadNamespaceBundle(response, testTenant, testLocalCluster, bundledNsLocal, "0x00000000_0x88000000",
-                    false);
+            asyncRequests(rsp -> namespaces.unloadNamespaceBundle(rsp, testTenant, testLocalCluster, bundledNsLocal, "0x00000000_0x88000000",
+                    false));
             fail("should have failed");
         } catch (RestException re) {
             // ok

@@ -41,6 +41,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import javax.ws.rs.WebApplicationException;
@@ -959,49 +960,36 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     @SuppressWarnings("deprecation")
-    protected void internalUnloadNamespace(AsyncResponse asyncResponse) {
-        validateSuperUserAccess();
-        log.info("[{}] Unloading namespace {}", clientAppId(), namespaceName);
-
-        if (namespaceName.isGlobal()) {
-            // check cluster ownership for a given global namespace: redirect if peer-cluster owns it
-            validateGlobalNamespaceOwnership(namespaceName);
-        } else {
-            validateClusterOwnership(namespaceName.getCluster());
-            validateClusterForTenant(namespaceName.getTenant(), namespaceName.getCluster());
-        }
-
-        Policies policies = getNamespacePolicies(namespaceName);
-
-        final List<CompletableFuture<Void>> futures = Lists.newArrayList();
-        List<String> boundaries = policies.bundles.getBoundaries();
-        for (int i = 0; i < boundaries.size() - 1; i++) {
-            String bundle = String.format("%s_%s", boundaries.get(i), boundaries.get(i + 1));
-            try {
-                futures.add(pulsar().getAdminClient().namespaces().unloadNamespaceBundleAsync(namespaceName.toString(),
-                        bundle));
-            } catch (PulsarServerException e) {
-                log.error("[{}] Failed to unload namespace {}", clientAppId(), namespaceName, e);
-                asyncResponse.resume(new RestException(e));
-                return;
-            }
-        }
-
-        FutureUtil.waitForAll(futures).handle((result, exception) -> {
-            if (exception != null) {
-                log.error("[{}] Failed to unload namespace {}", clientAppId(), namespaceName, exception);
-                if (exception.getCause() instanceof PulsarAdminException) {
-                    asyncResponse.resume(new RestException((PulsarAdminException) exception.getCause()));
-                    return null;
-                } else {
-                    asyncResponse.resume(new RestException(exception.getCause()));
-                    return null;
-                }
-            }
-            log.info("[{}] Successfully unloaded all the bundles in namespace {}", clientAppId(), namespaceName);
-            asyncResponse.resume(Response.noContent().build());
-            return null;
-        });
+    protected CompletableFuture<Void> internalUnloadNamespaceAsync() {
+        return validateSuperUserAccessAsync()
+                 .thenCompose(__ -> {
+                     log.info("[{}] Unloading namespace {}", clientAppId(), namespaceName);
+                     if (namespaceName.isGlobal()) {
+                         // check cluster ownership for a given global namespace: redirect if peer-cluster owns it
+                         return validateGlobalNamespaceOwnershipAsync(namespaceName);
+                     } else {
+                         return validateClusterOwnershipAsync(namespaceName.getCluster())
+                                 .thenCompose(v ->
+                                         validateClusterForTenantAsync(namespaceName.getTenant(),
+                                                 namespaceName.getCluster()));
+                     }
+                 })
+                 .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
+                 .thenCompose(policies -> {
+                     final List<CompletableFuture<Void>> futures = Lists.newArrayList();
+                     List<String> boundaries = policies.bundles.getBoundaries();
+                     for (int i = 0; i < boundaries.size() - 1; i++) {
+                         String bundle = String.format("%s_%s", boundaries.get(i), boundaries.get(i + 1));
+                         try {
+                             futures.add(pulsar().getAdminClient().namespaces()
+                                     .unloadNamespaceBundleAsync(namespaceName.toString(),
+                                             bundle));
+                         } catch (PulsarServerException e) {
+                             throw new RestException(e);
+                         }
+                     }
+                     return FutureUtil.waitForAll(futures);
+                 });
     }
 
 
@@ -1075,75 +1063,61 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     @SuppressWarnings("deprecation")
-    public void internalUnloadNamespaceBundle(AsyncResponse asyncResponse, String bundleRange, boolean authoritative) {
-        validateSuperUserAccess();
+    public CompletableFuture<Void> internalUnloadNamespaceBundle(String bundleRange, boolean authoritative) {
         checkNotNull(bundleRange, "BundleRange should not be null");
         log.info("[{}] Unloading namespace bundle {}/{}", clientAppId(), namespaceName, bundleRange);
-
-        Policies policies = getNamespacePolicies(namespaceName);
-
-        NamespaceBundle bundle =
-                pulsar().getNamespaceService().getNamespaceBundleFactory()
-                        .getBundle(namespaceName.toString(), bundleRange);
-        boolean isOwnedByLocalCluster = false;
-        try {
-            isOwnedByLocalCluster = pulsar().getNamespaceService().isNamespaceBundleOwned(bundle).get();
-        } catch (Exception e) {
-            if (log.isDebugEnabled()) {
-                log.debug("Failed to validate cluster ownership for {}-{}, {}",
-                        namespaceName.toString(), bundleRange, e.getMessage(), e);
-            }
-        }
-
-        // validate namespace ownership only if namespace is not owned by local-cluster (it happens when broker doesn't
-        // receive replication-cluster change watch and still owning bundle
-        if (!isOwnedByLocalCluster) {
-            if (namespaceName.isGlobal()) {
-                // check cluster ownership for a given global namespace: redirect if peer-cluster owns it
-                validateGlobalNamespaceOwnership(namespaceName);
-            } else {
-                validateClusterOwnership(namespaceName.getCluster());
-                validateClusterForTenant(namespaceName.getTenant(), namespaceName.getCluster());
-            }
-        }
-
-        validatePoliciesReadOnlyAccess();
-
-        isBundleOwnedByAnyBroker(namespaceName, policies.bundles, bundleRange).thenAccept(flag -> {
-            if (!flag) {
-                log.info("[{}] Namespace bundle is not owned by any broker {}/{}", clientAppId(), namespaceName,
-                        bundleRange);
-                asyncResponse.resume(Response.noContent().build());
-                return;
-            }
-            NamespaceBundle nsBundle;
-
-            try {
-                nsBundle = validateNamespaceBundleOwnership(namespaceName, policies.bundles, bundleRange,
-                    authoritative, true);
-            } catch (WebApplicationException wae) {
-                asyncResponse.resume(wae);
-                return;
-            }
-
-            pulsar().getNamespaceService().unloadNamespaceBundle(nsBundle)
-                    .thenRun(() -> {
-                        log.info("[{}] Successfully unloaded namespace bundle {}", clientAppId(), nsBundle.toString());
-                        asyncResponse.resume(Response.noContent().build());
-                    }).exceptionally(ex -> {
-                log.error("[{}] Failed to unload namespace bundle {}/{}", clientAppId(), namespaceName, bundleRange,
-                        ex);
-                asyncResponse.resume(new RestException(ex));
-                return null;
-            });
-        }).exceptionally((ex) -> {
-            if (ex.getCause() instanceof WebApplicationException) {
-                asyncResponse.resume(ex.getCause());
-            } else {
-                asyncResponse.resume(new RestException(ex.getCause()));
-            }
-            return null;
-        });
+        return validateSuperUserAccessAsync()
+                .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
+                .thenCompose(policies -> {
+                    NamespaceBundle bundle =
+                            pulsar().getNamespaceService().getNamespaceBundleFactory()
+                                    .getBundle(namespaceName.toString(), bundleRange);
+                    return pulsar().getNamespaceService().isNamespaceBundleOwned(bundle).thenCompose(isOwned -> {
+                        // validate namespace ownership only if namespace is not owned by local-cluster (it happens
+                        // when broker doesn't
+                        // receive replication-cluster change watch and still owning bundle
+                        if (!isOwned) {
+                            if (namespaceName.isGlobal()) {
+                                // check cluster ownership for a given global namespace: redirect if peer-cluster
+                                // owns it
+                                return validateGlobalNamespaceOwnershipAsync(namespaceName);
+                            } else {
+                                return validateClusterOwnershipAsync(namespaceName.getCluster())
+                                        .thenCompose(v ->
+                                                validateClusterForTenantAsync(namespaceName.getTenant(),
+                                                        namespaceName.getCluster()));
+                            }
+                        }
+                        return CompletableFuture.completedFuture(null);
+                    }).handle((__, e) -> {
+                        if (e != null) {
+                            if (log.isDebugEnabled()) {
+                                log.debug("Failed to validate cluster ownership for {}-{}, {}",
+                                        namespaceName.toString(), bundleRange, e.getMessage(), e);
+                            }
+                        }
+                        return policies;
+                    });
+                })
+                .thenCompose(policies -> validateSuperUserAccessAsync().thenApply(__ -> policies))
+                .thenCompose(policies -> isBundleOwnedByAnyBroker(namespaceName, policies.bundles, bundleRange)
+                   .thenCompose(flag -> {
+                       if (!flag) {
+                           log.info("[{}] Namespace bundle is not owned by any broker {}/{}", clientAppId(),
+                                   namespaceName, bundleRange);
+                           return CompletableFuture.completedFuture(null);
+                       } else {
+                           NamespaceBundle nsBundle =
+                                   validateNamespaceBundleOwnership(namespaceName, policies.bundles, bundleRange,
+                                       authoritative, true);
+                           return pulsar().getNamespaceService().unloadNamespaceBundle(nsBundle)
+                                   .thenAccept(__ ->
+                                          log.info("[{}] Successfully unloaded namespace bundle {}",
+                                                                                 clientAppId(), nsBundle.toString())
+                                   );
+                       }
+                   })
+                );
     }
 
     @SuppressWarnings("deprecation")
@@ -1520,6 +1494,13 @@ public abstract class NamespacesBase extends AdminResource {
 
         Policies policies = getNamespacePolicies(namespaceName);
         return policies.replicatorDispatchRate.get(pulsar().getConfiguration().getClusterName());
+    }
+
+    protected CompletableFuture<BundlesData> internalGetBundlesData() {
+        return validatePoliciesReadOnlyAccessAsync()
+                .thenAccept(__ -> validateNamespaceOperationAsync(namespaceName, NamespaceOperation.GET_BUNDLE))
+                .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
+                .thenApply(policies -> policies.bundles);
     }
 
     protected void internalSetBacklogQuota(BacklogQuotaType backlogQuotaType, BacklogQuota backlogQuota) {

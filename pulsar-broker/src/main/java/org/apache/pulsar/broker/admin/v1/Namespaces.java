@@ -708,15 +708,15 @@ public class Namespaces extends NamespacesBase {
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist"),
             @ApiResponse(code = 412, message = "Namespace is not setup to split in bundles") })
-    public BundlesData getBundlesData(@PathParam("property") String property, @PathParam("cluster") String cluster,
+    public void getBundlesData(@Suspended final AsyncResponse asyncResponse,
+                                      @PathParam("property") String property, @PathParam("cluster") String cluster,
             @PathParam("namespace") String namespace) {
-        validatePoliciesReadOnlyAccess();
         validateNamespaceName(property, cluster, namespace);
-        validateNamespaceOperation(NamespaceName.get(property, namespace), NamespaceOperation.GET_BUNDLE);
-
-        Policies policies = getNamespacePolicies(namespaceName);
-
-        return policies.bundles;
+        internalGetBundlesData().thenAccept(asyncResponse::resume).exceptionally(ex -> {
+            log.error("[{}] Failed to get bundles data for cluster on namespace {}", clientAppId(), namespaceName, ex);
+            resumeAsyncResponseExceptionally(asyncResponse, ex);
+            return null;
+        });
     }
 
     @PUT
@@ -736,14 +736,15 @@ public class Namespaces extends NamespacesBase {
             @ApiResponse(code = 412, message = "Namespace is already unloaded or Namespace has bundles activated")})
     public void unloadNamespace(@Suspended final AsyncResponse asyncResponse, @PathParam("property") String property,
             @PathParam("cluster") String cluster, @PathParam("namespace") String namespace) {
-        try {
-            validateNamespaceName(property, cluster, namespace);
-            internalUnloadNamespace(asyncResponse);
-        } catch (WebApplicationException wae) {
-            asyncResponse.resume(wae);
-        } catch (Exception e) {
-            asyncResponse.resume(new RestException(e));
-        }
+       validateNamespaceName(property, cluster, namespace);
+       internalUnloadNamespaceAsync().thenAccept(__ -> {
+           log.info("[{}] Successfully unloaded all the bundles in namespace {}", clientAppId(), namespaceName);
+           asyncResponse.resume(Response.noContent());
+       }).exceptionally(ex -> {
+          log.error("[{}] Failed to unload namespace {}", clientAppId(), namespaceName, ex);
+          resumeAsyncResponseExceptionally(asyncResponse, ex);
+          return null;
+       });
     }
 
     @PUT
@@ -757,7 +758,14 @@ public class Namespaces extends NamespacesBase {
             @PathParam("namespace") String namespace, @PathParam("bundle") String bundleRange,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateNamespaceName(property, cluster, namespace);
-        internalUnloadNamespaceBundle(asyncResponse, bundleRange, authoritative);
+        internalUnloadNamespaceBundle(bundleRange, authoritative)
+                .thenAccept(__ -> asyncResponse.resume(Response.noContent()))
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to unload namespace bundle {}/{}", clientAppId(),
+                                                                              namespaceName, bundleRange, ex);
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
     }
 
     @PUT
