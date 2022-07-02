@@ -1166,9 +1166,8 @@ public class TransactionTest extends TransactionTestBase {
         // Create subscription.
         String subscriptionName = "sub-a";
         boolean replicated = false;
-        Map<String, String> subscriptionProperties = Collections.emptyMap();
         PersistentSubscription persistentSubscription = new PersistentSubscription(topic, subscriptionName,
-                cursor_subscription, replicated, subscriptionProperties);
+                cursor_subscription, replicated);
         org.apache.pulsar.broker.service.Consumer consumer = mock(org.apache.pulsar.broker.service.Consumer.class);
         try {
             CompletableFuture<Void> addConsumerFuture = persistentSubscription.addConsumer(consumer);
@@ -1251,7 +1250,7 @@ public class TransactionTest extends TransactionTestBase {
         ManagedLedgerImpl managedLedger = mock(ManagedLedgerImpl.class);
         ManagedCursorContainer managedCursors = new ManagedCursorContainer();
         when(managedLedger.getCursors()).thenReturn(managedCursors);
-        PositionImpl position = PositionImpl.EARLIEST;
+        PositionImpl position = PositionImpl.earliest;
         when(managedLedger.getLastConfirmedEntry()).thenReturn(position);
         // Create topic.
         persistentTopic.set(new PersistentTopic("topic-a", managedLedger, brokerService));
