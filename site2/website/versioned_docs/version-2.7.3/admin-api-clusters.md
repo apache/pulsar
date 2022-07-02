@@ -18,7 +18,7 @@ Clusters can be managed via:
 
 * The [`clusters`](reference-pulsar-admin.md#clusters) command of the [`pulsar-admin`](reference-pulsar-admin) tool
 * The `/admin/v2/clusters` endpoint of the admin {@inject: rest:REST:/} API
-* The `clusters` method of the {@inject: javadoc:PulsarAdmin:/admin/org/apache/pulsar/client/admin/PulsarAdmin} object in the [Java API](client-libraries-java)
+* The `clusters` method of the {@inject: javadoc:PulsarAdmin:/admin/org/apache/pulsar/client/admin/PulsarAdmin} object in the [Java API](client-libraries-java.md)
 
 ## Clusters resources
 

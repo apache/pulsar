@@ -82,7 +82,7 @@ public interface BrokerInterceptor extends AutoCloseable {
      *
      * @param cnx client Connection
      * @param consumer Consumer object
-     * @param metadata A map of metdata
+     * @param metadata A map of metadata
      */
     default void consumerCreated(ServerCnx cnx,
                                  Consumer consumer,

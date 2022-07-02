@@ -129,19 +129,21 @@ public class TieredStorageConfigurationTests {
         // set the aws properties with fake creds so the defaultProviderChain works
         System.setProperty("aws.accessKeyId", "fakeid1");
         System.setProperty("aws.secretKey", "fakekey1");
-        Credentials creds1 = config.getProviderCredentials().get();
-        assertEquals(creds1.identity, "fakeid1");
-        assertEquals(creds1.credential, "fakekey1");
+        try {
+            Credentials creds1 = config.getProviderCredentials().get();
+            assertEquals(creds1.identity, "fakeid1");
+            assertEquals(creds1.credential, "fakekey1");
 
-        // reset the properties and ensure we get different values by re-evaluating the chain
-        System.setProperty("aws.accessKeyId", "fakeid2");
-        System.setProperty("aws.secretKey", "fakekey2");
-        Credentials creds2 = config.getProviderCredentials().get();
-        assertEquals(creds2.identity, "fakeid2");
-        assertEquals(creds2.credential, "fakekey2");
-
-        System.clearProperty("aws.accessKeyId");
-        System.clearProperty("aws.secretKey");
+            // reset the properties and ensure we get different values by re-evaluating the chain
+            System.setProperty("aws.accessKeyId", "fakeid2");
+            System.setProperty("aws.secretKey", "fakekey2");
+            Credentials creds2 = config.getProviderCredentials().get();
+            assertEquals(creds2.identity, "fakeid2");
+            assertEquals(creds2.credential, "fakekey2");
+        } finally {
+            System.clearProperty("aws.accessKeyId");
+            System.clearProperty("aws.secretKey");
+        }
     }
 
     /**
@@ -215,11 +217,15 @@ public class TieredStorageConfigurationTests {
         map.put("s3ManagedLedgerOffloadRegion", "my-region");
         System.setProperty("jclouds.SystemPropertyA", "A");
         System.setProperty("jclouds.region", "jclouds-region");
-        TieredStorageConfiguration config = new TieredStorageConfiguration(map);
-        Properties properties = config.getOverrides();
-        System.out.println(properties.toString());
-        assertEquals(properties.get("jclouds.region"), "jclouds-region");
-        assertEquals(config.getServiceEndpoint(), "http://localhost");
-        assertEquals(properties.get("jclouds.SystemPropertyA"), "A");
+        try {
+            TieredStorageConfiguration config = new TieredStorageConfiguration(map);
+            Properties properties = config.getOverrides();
+            assertEquals(properties.get("jclouds.region"), "jclouds-region");
+            assertEquals(config.getServiceEndpoint(), "http://localhost");
+            assertEquals(properties.get("jclouds.SystemPropertyA"), "A");
+        } finally {
+            System.clearProperty("jclouds.SystemPropertyA");
+            System.clearProperty("jclouds.region");
+        }
     }
 }

@@ -405,7 +405,7 @@ public class ProxyConnection extends PulsarHandler {
     public void brokerConnected(DirectProxyHandler directProxyHandler, CommandConnected connected) {
         try {
             final CommandConnected finalConnected = new CommandConnected().copyFrom(connected);
-            ctx.executor().submit(() -> handleBrokerConnected(directProxyHandler, finalConnected));
+            ctx.executor().execute(() -> handleBrokerConnected(directProxyHandler, finalConnected));
         } catch (RejectedExecutionException e) {
             LOG.error("Event loop was already closed. Closing broker connection.", e);
             directProxyHandler.close();

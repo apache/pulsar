@@ -31,7 +31,7 @@ import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -212,7 +212,7 @@ public final class FieldParser {
             if (field.getType().equals(List.class)) {
                 field.set(obj, new ArrayList<>());
             } else if (field.getType().equals(Set.class)) {
-                field.set(obj, new HashSet<>());
+                field.set(obj, new LinkedHashSet<>());
             } else if (field.getType().equals(Optional.class)) {
                 field.set(obj, Optional.empty());
             } else {
@@ -333,7 +333,7 @@ public final class FieldParser {
         String[] tokens = trim(val).split(",");
         return Arrays.stream(tokens).map(t -> {
             return convert(trim(t), type);
-        }).collect(Collectors.toSet());
+        }).collect(Collectors.toCollection(LinkedHashSet::new));
     }
 
     private static <K, V> Map<K, V> stringToMap(String strValue, Class<K> keyType, Class<V> valueType) {

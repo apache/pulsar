@@ -21,12 +21,12 @@ Key features of Pulsar are listed below:
 
 ## Contents
 
-- [Messaging Concepts](concepts-messaging)
-- [Architecture Overview](concepts-architecture-overview)
-- [Pulsar Clients](concepts-clients)
-- [Geo Replication](concepts-replication)
-- [Multi Tenancy](concepts-multi-tenancy)
-- [Authentication and Authorization](concepts-authentication)
-- [Topic Compaction](concepts-topic-compaction)
-- [Tiered Storage](concepts-tiered-storage)
-- [Schema Registry](concepts-schema-registry)
+- [Messaging Concepts](concepts-messaging.md)
+- [Architecture Overview](concepts-architecture-overview.md)
+- [Pulsar Clients](concepts-clients.md)
+- [Geo Replication](concepts-replication.md)
+- [Multi Tenancy](concepts-multi-tenancy.md)
+- [Authentication and Authorization](concepts-authentication.md)
+- [Topic Compaction](concepts-topic-compaction.md)
+- [Tiered Storage](concepts-tiered-storage.md)
+- [Schema Registry](concepts-schema-registry.md)

@@ -33,11 +33,11 @@ public class ProxyContainer extends PulsarContainer<ProxyContainer> {
     }
 
     public String getPlainTextServiceUrl() {
-        return "pulsar://" + getContainerIpAddress() + ":" + getMappedPort(BROKER_PORT);
+        return "pulsar://" + getHost() + ":" + getMappedPort(BROKER_PORT);
     }
 
     public String getHttpServiceUrl() {
-        return "http://" + getContainerIpAddress() + ":" + getMappedPort(BROKER_HTTP_PORT);
+        return "http://" + getHost() + ":" + getMappedPort(BROKER_HTTP_PORT);
     }
 
     @Override

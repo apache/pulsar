@@ -26,8 +26,10 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
@@ -37,6 +39,7 @@ import io.netty.util.Timeout;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.List;
@@ -46,9 +49,13 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import lombok.Cleanup;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.common.util.Bytes;
@@ -62,18 +69,27 @@ import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.intercept.CounterBrokerInterceptor;
+import org.apache.pulsar.broker.service.BacklogQuotaManager;
+import org.apache.pulsar.broker.service.BrokerService;
+import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.service.TransactionBufferSnapshotService;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.systopic.NamespaceEventsSystemTopicFactory;
+import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBuffer;
+import org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBufferProvider;
+import org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBufferRecoverCallBack;
 import org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBufferState;
 import org.apache.pulsar.broker.transaction.pendingack.PendingAckStore;
 import org.apache.pulsar.broker.transaction.buffer.matadata.TransactionBufferSnapshot;
 import org.apache.pulsar.broker.transaction.pendingack.TransactionPendingAckStoreProvider;
+import org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckReplyCallBack;
 import org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStore;
 import org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStoreProvider;
 import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleImpl;
@@ -92,6 +108,7 @@ import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.common.events.EventType;
@@ -114,6 +131,8 @@ import org.apache.pulsar.transaction.coordinator.impl.MLTransactionLogImpl;
 import org.apache.pulsar.transaction.coordinator.impl.MLTransactionSequenceIdGenerator;
 import org.apache.pulsar.transaction.coordinator.impl.MLTransactionMetadataStore;
 import org.awaitility.Awaitility;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 import org.powermock.reflect.Whitebox;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -609,7 +628,7 @@ public class TransactionTest extends TransactionTestBase {
 
         TransactionBuffer buffer2 = new TopicTransactionBuffer(persistentTopic);
         Awaitility.await().atMost(30, TimeUnit.SECONDS).untilAsserted(() ->
-                assertEquals(buffer2.getStats().state, "Ready"));
+                assertEquals(buffer2.getStats(false).state, "Ready"));
         managedCursors.removeCursor("transaction-buffer-sub");
 
         doAnswer(invocation -> {
@@ -621,7 +640,7 @@ public class TransactionTest extends TransactionTestBase {
         managedCursors.add(managedCursor);
         TransactionBuffer buffer3 = new TopicTransactionBuffer(persistentTopic);
         Awaitility.await().atMost(30, TimeUnit.SECONDS).untilAsserted(() ->
-                assertEquals(buffer3.getStats().state, "Ready"));
+                assertEquals(buffer3.getStats(false).state, "Ready"));
         persistentTopic.getInternalStats(false).thenAccept(internalStats -> {
             assertTrue(internalStats.cursors.isEmpty());
         });
@@ -672,7 +691,7 @@ public class TransactionTest extends TransactionTestBase {
 
         PendingAckHandleImpl pendingAckHandle1 = new PendingAckHandleImpl(persistentSubscription);
         Awaitility.await().untilAsserted(() ->
-                assertEquals(pendingAckHandle1.getStats().state, "Ready"));
+                assertEquals(pendingAckHandle1.getStats(false).state, "Ready"));
 
         doAnswer(invocation -> {
             AsyncCallbacks.ReadEntriesCallback callback = invocation.getArgument(1);
@@ -682,7 +701,7 @@ public class TransactionTest extends TransactionTestBase {
 
         PendingAckHandleImpl pendingAckHandle2 = new PendingAckHandleImpl(persistentSubscription);
         Awaitility.await().untilAsserted(() ->
-                assertEquals(pendingAckHandle2.getStats().state, "Ready"));
+                assertEquals(pendingAckHandle2.getStats(false).state, "Ready"));
 
         doAnswer(invocation -> {
             AsyncCallbacks.ReadEntriesCallback callback = invocation.getArgument(1);
@@ -693,7 +712,7 @@ public class TransactionTest extends TransactionTestBase {
         PendingAckHandleImpl pendingAckHandle3 = new PendingAckHandleImpl(persistentSubscription);
 
         Awaitility.await().untilAsserted(() ->
-                assertEquals(pendingAckHandle3.getStats().state, "Ready"));
+                assertEquals(pendingAckHandle3.getStats(false).state, "Ready"));
     }
 
     @Test
@@ -736,7 +755,7 @@ public class TransactionTest extends TransactionTestBase {
         doNothing().when(timeoutTracker).start();
         MLTransactionMetadataStore metadataStore1 =
                 new MLTransactionMetadataStore(new TransactionCoordinatorID(1),
-                        mlTransactionLog, timeoutTracker, mlTransactionSequenceIdGenerator);
+                        mlTransactionLog, timeoutTracker, mlTransactionSequenceIdGenerator, 0L);
         metadataStore1.init(transactionRecoverTracker).get();
         Awaitility.await().untilAsserted(() ->
                 assertEquals(metadataStore1.getCoordinatorStats().state, "Ready"));
@@ -749,7 +768,8 @@ public class TransactionTest extends TransactionTestBase {
 
         MLTransactionMetadataStore metadataStore2 =
                 new MLTransactionMetadataStore(new TransactionCoordinatorID(1),
-                        mlTransactionLog, timeoutTracker, mlTransactionSequenceIdGenerator);
+
+                        mlTransactionLog, timeoutTracker, mlTransactionSequenceIdGenerator, 0L);
         metadataStore2.init(transactionRecoverTracker).get();
         Awaitility.await().untilAsserted(() ->
                 assertEquals(metadataStore2.getCoordinatorStats().state, "Ready"));
@@ -762,7 +782,7 @@ public class TransactionTest extends TransactionTestBase {
 
         MLTransactionMetadataStore metadataStore3 =
                 new MLTransactionMetadataStore(new TransactionCoordinatorID(1),
-                        mlTransactionLog, timeoutTracker, mlTransactionSequenceIdGenerator);
+                        mlTransactionLog, timeoutTracker, mlTransactionSequenceIdGenerator, 0L);
         metadataStore3.init(transactionRecoverTracker).get();
         Awaitility.await().untilAsserted(() ->
                 assertEquals(metadataStore3.getCoordinatorStats().state, "Ready"));
@@ -1130,5 +1150,159 @@ public class TransactionTest extends TransactionTestBase {
                 .withTransactionTimeout(10, TimeUnit.MINUTES).build().get();
         // repeat ack the second message, can ack successful
         consumer.acknowledgeAsync(messageId, txn3).get();
+    }
+
+    /**
+     * When change pending ack handle state failure, exceptionally complete cmd-subscribe.
+     * see: https://github.com/apache/pulsar/pull/16248.
+     */
+    @Test
+    public void testPendingAckReplayChangeStateError() throws InterruptedException, TimeoutException {
+        AtomicInteger atomicInteger = new AtomicInteger(1);
+        // Create Executor
+        ScheduledExecutorService executorService = Executors.newSingleThreadScheduledExecutor();
+        // Mock serviceConfiguration.
+        ServiceConfiguration serviceConfiguration = mock(ServiceConfiguration.class);
+        when(serviceConfiguration.isTransactionCoordinatorEnabled()).thenReturn(true);
+        // Mock executorProvider.
+        ExecutorProvider executorProvider = mock(ExecutorProvider.class);
+        when(executorProvider.getExecutor()).thenReturn(executorService);
+        when(executorProvider.getExecutor(any(Object.class))).thenReturn(executorService);
+        // Mock pendingAckStore.
+        PendingAckStore pendingAckStore = mock(PendingAckStore.class);
+        doAnswer(new Answer() {
+            @Override
+            public Object answer(InvocationOnMock invocation) throws Throwable {
+                executorService.execute(()->{
+                    PendingAckHandleImpl pendingAckHandle = (PendingAckHandleImpl) invocation.getArguments()[0];
+                    pendingAckHandle.close();
+                    MLPendingAckReplyCallBack mlPendingAckReplyCallBack
+                            = new MLPendingAckReplyCallBack(pendingAckHandle);
+                    mlPendingAckReplyCallBack.replayComplete();
+                });
+                return null;
+            }
+        }).when(pendingAckStore).replayAsync(any(), any());
+        // Mock executorProvider.
+        TransactionPendingAckStoreProvider pendingAckStoreProvider = mock(TransactionPendingAckStoreProvider.class);
+        when(pendingAckStoreProvider.checkInitializedBefore(any()))
+                .thenReturn(CompletableFuture.completedFuture(true));
+        when(pendingAckStoreProvider.newPendingAckStore(any()))
+                .thenReturn(CompletableFuture.completedFuture(pendingAckStore));
+        // Mock pulsar.
+        PulsarService pulsar = mock(PulsarService.class);
+        when(pulsar.getConfig()).thenReturn(serviceConfiguration);
+        when(pulsar.getTransactionExecutorProvider()).thenReturn(executorProvider);
+        when(pulsar.getTransactionPendingAckStoreProvider()).thenReturn(pendingAckStoreProvider);
+        // Mock brokerService.
+        BrokerService brokerService = mock(BrokerService.class);
+        when(brokerService.getPulsar()).thenReturn(pulsar);
+        // Mock topic.
+        PersistentTopic topic = mock(PersistentTopic.class);
+        when(topic.getBrokerService()).thenReturn(brokerService);
+        when(topic.getName()).thenReturn("topic-a");
+        // Mock cursor for subscription.
+        ManagedCursor cursor_subscription = mock(ManagedCursor.class);
+        doThrow(new RuntimeException("1")).when(cursor_subscription).updateLastActive();
+        // Create subscription.
+        String subscriptionName = "sub-a";
+        boolean replicated = false;
+        Map<String, String> subscriptionProperties = Collections.emptyMap();
+        PersistentSubscription persistentSubscription = new PersistentSubscription(topic, subscriptionName,
+                cursor_subscription, replicated, subscriptionProperties);
+        org.apache.pulsar.broker.service.Consumer consumer = mock(org.apache.pulsar.broker.service.Consumer.class);
+        try {
+            CompletableFuture<Void> addConsumerFuture = persistentSubscription.addConsumer(consumer);
+            addConsumerFuture.get(5, TimeUnit.SECONDS);
+            fail("Expect failure by PendingAckHandle closed, but success");
+        } catch (ExecutionException executionException){
+            Throwable t = executionException.getCause();
+            Assert.assertTrue(t instanceof BrokerServiceException.ServiceUnitNotReadyException);
+        }
+    }
+
+    /**
+     * When change TB state failure, exceptionally complete cmd-producer.
+     * see: https://github.com/apache/pulsar/pull/16248.
+     */
+    @Test
+    public void testTBRecoverChangeStateError() throws InterruptedException, TimeoutException {
+        final AtomicReference<PersistentTopic> persistentTopic = new AtomicReference<PersistentTopic>();
+        AtomicInteger atomicInteger = new AtomicInteger(1);
+        // Create Executor
+        ScheduledExecutorService executorService_recover = mock(ScheduledExecutorService.class);
+        // Mock serviceConfiguration.
+        ServiceConfiguration serviceConfiguration = mock(ServiceConfiguration.class);
+        when(serviceConfiguration.isEnableReplicatedSubscriptions()).thenReturn(false);
+        when(serviceConfiguration.isTransactionCoordinatorEnabled()).thenReturn(true);
+        // Mock executorProvider.
+        ExecutorProvider executorProvider = mock(ExecutorProvider.class);
+        when(executorProvider.getExecutor(any(Object.class))).thenReturn(executorService_recover);
+        // Mock pendingAckStore.
+        PendingAckStore pendingAckStore = mock(PendingAckStore.class);
+        doAnswer(new Answer() {
+            @Override
+            public Object answer(InvocationOnMock invocation) throws Throwable {
+                new Thread(() -> {
+                    TopicTransactionBuffer.TopicTransactionBufferRecover recover
+                            = (TopicTransactionBuffer.TopicTransactionBufferRecover)invocation.getArguments()[0];
+                    TopicTransactionBufferRecoverCallBack callBack
+                            = Whitebox.getInternalState(recover, "callBack");;
+                    try {
+                        persistentTopic.get().getTransactionBuffer().closeAsync().get();
+                    } catch (InterruptedException e) {
+                        throw new RuntimeException(e);
+                    } catch (ExecutionException e) {
+                        throw new RuntimeException(e);
+                    }
+                    callBack.recoverComplete();
+                }).start();
+                return null;
+            }
+        }).when(executorService_recover).execute(any());
+        // Mock executorProvider.
+        TransactionPendingAckStoreProvider pendingAckStoreProvider = mock(TransactionPendingAckStoreProvider.class);
+        when(pendingAckStoreProvider.checkInitializedBefore(any()))
+                .thenReturn(CompletableFuture.completedFuture(true));
+        when(pendingAckStoreProvider.newPendingAckStore(any()))
+                .thenReturn(CompletableFuture.completedFuture(pendingAckStore));
+        // Mock TransactionBufferSnapshotService
+        TransactionBufferSnapshotService transactionBufferSnapshotService
+                = mock(TransactionBufferSnapshotService.class);
+        SystemTopicClient.Writer writer = mock(SystemTopicClient.Writer.class);
+        when(writer.closeAsync()).thenReturn(CompletableFuture.completedFuture(null));
+        when(transactionBufferSnapshotService.createWriter(any()))
+                .thenReturn(CompletableFuture.completedFuture(writer));
+        // Mock pulsar.
+        PulsarService pulsar = mock(PulsarService.class);
+        when(pulsar.getConfiguration()).thenReturn(serviceConfiguration);
+        when(pulsar.getConfig()).thenReturn(serviceConfiguration);
+        when(pulsar.getTransactionExecutorProvider()).thenReturn(executorProvider);
+        when(pulsar.getTransactionBufferSnapshotService()).thenReturn(transactionBufferSnapshotService);
+        TopicTransactionBufferProvider topicTransactionBufferProvider = new TopicTransactionBufferProvider();
+        when(pulsar.getTransactionBufferProvider()).thenReturn(topicTransactionBufferProvider);
+        // Mock BacklogQuotaManager
+        BacklogQuotaManager backlogQuotaManager = mock(BacklogQuotaManager.class);
+        // Mock brokerService.
+        BrokerService brokerService = mock(BrokerService.class);
+        when(brokerService.getPulsar()).thenReturn(pulsar);
+        when(brokerService.pulsar()).thenReturn(pulsar);
+        when(brokerService.getBacklogQuotaManager()).thenReturn(backlogQuotaManager);
+        // Mock managedLedger.
+        ManagedLedgerImpl managedLedger = mock(ManagedLedgerImpl.class);
+        ManagedCursorContainer managedCursors = new ManagedCursorContainer();
+        when(managedLedger.getCursors()).thenReturn(managedCursors);
+        PositionImpl position = PositionImpl.EARLIEST;
+        when(managedLedger.getLastConfirmedEntry()).thenReturn(position);
+        // Create topic.
+        persistentTopic.set(new PersistentTopic("topic-a", managedLedger, brokerService));
+        try {
+            // Do check.
+            persistentTopic.get().checkIfTransactionBufferRecoverCompletely(true).get(5, TimeUnit.SECONDS);
+            fail("Expect failure by TB closed, but it is finished.");
+        } catch (ExecutionException executionException){
+            Throwable t = executionException.getCause();
+            Assert.assertTrue(t instanceof BrokerServiceException.ServiceUnitNotReadyException);
+        }
     }
 }

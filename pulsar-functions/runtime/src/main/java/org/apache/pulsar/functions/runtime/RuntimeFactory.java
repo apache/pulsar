@@ -26,6 +26,7 @@ import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator;
 import org.apache.pulsar.functions.worker.ConnectorsManager;
+import org.apache.pulsar.functions.worker.FunctionsManager;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 
 /**
@@ -37,6 +38,7 @@ public interface RuntimeFactory extends AutoCloseable {
                     AuthenticationConfig authenticationConfig,
                     SecretsProviderConfigurator secretsProviderConfigurator,
                     ConnectorsManager connectorsManager,
+                    FunctionsManager functionsManager,
                     Optional<FunctionAuthProvider> authProvider,
                     Optional<RuntimeCustomizer> runtimeCustomizer) throws Exception;
 

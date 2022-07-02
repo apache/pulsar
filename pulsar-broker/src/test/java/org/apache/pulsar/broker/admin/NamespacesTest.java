@@ -1546,6 +1546,8 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         admin.tenants().createTenant("testTenant", tenantInfo);
         admin.namespaces().createNamespace(namespace, Sets.newHashSet("use"));
 
+        assertEquals(0, admin.namespaces().getMaxTopicsPerNamespace(namespace));
+
         admin.namespaces().setMaxTopicsPerNamespace(namespace, 10);
         assertEquals(10, admin.namespaces().getMaxTopicsPerNamespace(namespace));
 

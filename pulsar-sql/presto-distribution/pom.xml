@@ -81,7 +81,7 @@
 
     <dependency>
       <groupId>io.prestosql</groupId>
-      <artifactId>presto-main</artifactId>
+      <artifactId>presto-server-main</artifactId>
       <version>${presto.version}</version>
       <exclusions>
         <!-- exclude openjdk because of GPL license -->
@@ -192,13 +192,6 @@
       <groupId>com.fasterxml.jackson.dataformat</groupId>
       <artifactId>jackson-dataformat-smile</artifactId>
       <version>${jackson.version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>java-version-trim-agent</artifactId>
-      <version>${project.version}</version>
-      <scope>provided</scope>
     </dependency>
 
   </dependencies>

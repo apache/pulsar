@@ -701,10 +701,6 @@ public class FunctionConfigUtils {
         }
     }
 
-    private static boolean isBuiltin(FunctionConfig functionConfig) {
-        return functionConfig.getJar() != null && functionConfig.getJar().startsWith("builtin://");
-    }
-
     private static void doCommonChecks(FunctionConfig functionConfig) {
         if (isEmpty(functionConfig.getTenant())) {
             throw new IllegalArgumentException("Function tenant cannot be null");
@@ -715,9 +711,8 @@ public class FunctionConfigUtils {
         if (isEmpty(functionConfig.getName())) {
             throw new IllegalArgumentException("Function name cannot be null");
         }
-        // go doesn't need className
-        if (functionConfig.getRuntime() == FunctionConfig.Runtime.PYTHON
-                || (functionConfig.getRuntime() == FunctionConfig.Runtime.JAVA && !isBuiltin(functionConfig))) {
+        // go doesn't need className. Java className is done in doJavaChecks.
+        if (functionConfig.getRuntime() == FunctionConfig.Runtime.PYTHON) {
             if (isEmpty(functionConfig.getClassName())) {
                 throw new IllegalArgumentException("Function classname cannot be null");
             }

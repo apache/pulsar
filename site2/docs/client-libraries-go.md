@@ -144,7 +144,7 @@ func main() {
 
 The following configurable parameters are available for Pulsar clients:
 
- Name | Description | Default
+| Name | Description | Default|
 | :-------- | :---------- |:---------- |
 | URL | Configure the service URL for the Pulsar service.<br /><br />If you have multiple brokers, you can set multiple Pulsar cluster addresses for a client. <br /><br />This parameter is **required**. |None |
 | ConnectionTimeout | Timeout for the establishment of a TCP connection | 30s |
