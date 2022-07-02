@@ -45,6 +45,11 @@ public class ConsumerStatsImpl implements ConsumerStats {
     /** Total rate of messages redelivered by this consumer (msg/s). */
     public double msgRateRedeliver;
 
+    /**
+     * Total rate of message ack(msg/s).
+     */
+    public double messageAckRate;
+
     /** Total chunked messages dispatched. */
     public double chunkedMessageRate;
 
@@ -109,6 +114,7 @@ public class ConsumerStatsImpl implements ConsumerStats {
         this.msgRateRedeliver += stats.msgRateRedeliver;
         this.availablePermits += stats.availablePermits;
         this.unackedMessages += stats.unackedMessages;
+        this.messageAckRate += stats.messageAckRate;
         this.blockedConsumerOnUnackedMsgs = stats.blockedConsumerOnUnackedMsgs;
         this.readPositionWhenJoining = stats.readPositionWhenJoining;
         return this;

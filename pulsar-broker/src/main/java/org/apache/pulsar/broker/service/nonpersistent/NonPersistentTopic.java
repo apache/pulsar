@@ -704,6 +704,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
             double subMsgRateOut = 0;
             double subMsgThroughputOut = 0;
             double subMsgRateRedeliver = 0;
+            double subMsgAckRate = 0;
 
             // Start subscription name & consumers
             try {
@@ -720,6 +721,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
                     subMsgRateOut += consumerStats.msgRateOut;
                     subMsgThroughputOut += consumerStats.msgThroughputOut;
                     subMsgRateRedeliver += consumerStats.msgRateRedeliver;
+                    subMsgAckRate += consumerStats.messageAckRate;
 
                     // Populate consumer specific stats here
                     StreamingStats.writeConsumerStats(topicStatsStream, subscription.getType(), consumerStats);
@@ -732,6 +734,7 @@ public class NonPersistentTopic extends AbstractTopic implements Topic {
                 topicStatsStream.writePair("msgBacklog", subscription.getNumberOfEntriesInBacklog(false));
                 topicStatsStream.writePair("msgRateExpired", subscription.getExpiredMessageRate());
                 topicStatsStream.writePair("msgRateOut", subMsgRateOut);
+                topicStatsStream.writePair("messageAckRate", subMsgAckRate);
                 topicStatsStream.writePair("msgThroughputOut", subMsgThroughputOut);
                 topicStatsStream.writePair("msgRateRedeliver", subMsgRateRedeliver);
                 topicStatsStream.writePair("type", subscription.getTypeString());
