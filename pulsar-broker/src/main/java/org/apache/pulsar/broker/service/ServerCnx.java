@@ -1266,8 +1266,10 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 }
             }
 
-            log.info("[{}][{}] Creating producer. producerId={}, schema is {}", remoteAddress, topicName, producerId,
-                    schema == null ? "absent" : "present");
+            if (log.isDebugEnabled()) {
+                log.debug("[{}][{}] Creating producer. producerId={}, schema is {}", remoteAddress, topicName,
+                        producerId, schema == null ? "absent" : "present");
+            }
 
             service.getOrCreateTopic(topicName.toString()).thenCompose((Topic topic) -> {
                 // Before creating producer, check if backlog quota exceeded
@@ -2481,8 +2483,9 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             return topic.addSchema(schema);
         } else {
             return topic.hasSchema().thenCompose((hasSchema) -> {
-                log.info("[{}] {} configured with schema {}",
-                         remoteAddress, topic.getName(), hasSchema);
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] {} configured with schema {}", remoteAddress, topic.getName(), hasSchema);
+                }
                 CompletableFuture<SchemaVersion> result = new CompletableFuture<>();
                 if (hasSchema && (schemaValidationEnforced || topic.getSchemaValidationEnforced())) {
                     result.completeExceptionally(new IncompatibleSchemaException(
