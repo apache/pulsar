@@ -1054,17 +1054,8 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                         String partitionName = TopicName.get(topicName).getPartition(partitionIndex).toString();
                         CompletableFuture<Consumer<T>> subFuture = new CompletableFuture<>();
                         configurationData.setStartPaused(paused);
-                        BatchReceivePolicy internalBatchReceivePolicy = BatchReceivePolicy.builder()
-                                .maxNumMessages(Math.max(receiverQueueSize / 2, 1))
-                                .maxNumBytes(-1)
-                                .timeout(0, TimeUnit.MILLISECONDS)
-                                .build();
-                        configurationData.setBatchReceivePolicy(internalBatchReceivePolicy);
-                        ConsumerImpl<T> newConsumer = ConsumerImpl.newConsumerImpl(client, partitionName,
-                                    configurationData, client.externalExecutorProvider(),
-                                    partitionIndex, true, listener != null, subFuture,
-                                    startMessageId, schema, interceptors,
-                                    createIfDoesNotExist, startMessageRollbackDurationInSec);
+                        ConsumerImpl<T> newConsumer = createInternalConsumer(configurationData, partitionName,
+                                partitionIndex, subFuture, createIfDoesNotExist, schema);
                         synchronized (pauseMutex) {
                             if (paused) {
                                 newConsumer.pause();
@@ -1090,10 +1081,8 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                     return existingValue;
                 } else {
                     internalConfig.setStartPaused(paused);
-                    ConsumerImpl<T> newConsumer = ConsumerImpl.newConsumerImpl(client, topicName, internalConfig,
-                            client.externalExecutorProvider(), -1,
-                            true, listener != null, subFuture, startMessageId, schema, interceptors,
-                            createIfDoesNotExist, startMessageRollbackDurationInSec);
+                    ConsumerImpl<T> newConsumer = createInternalConsumer(internalConfig, topicName,
+                            -1, subFuture, createIfDoesNotExist, schema);
 
                     synchronized (pauseMutex) {
                         if (paused) {
@@ -1134,6 +1123,22 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 handleSubscribeOneTopicError(topicName, ex, subscribeResult);
                 return null;
             });
+    }
+
+    private ConsumerImpl<T> createInternalConsumer(ConsumerConfigurationData<T> configurationData, String partitionName,
+                                                   int partitionIndex, CompletableFuture<Consumer<T>> subFuture,
+                                                   boolean createIfDoesNotExist, Schema<T> schema) {
+        BatchReceivePolicy internalBatchReceivePolicy = BatchReceivePolicy.builder()
+                .maxNumMessages(Math.max(configurationData.getReceiverQueueSize() / 2, 1))
+                .maxNumBytes(-1)
+                .timeout(0, TimeUnit.MILLISECONDS)
+                .build();
+        configurationData.setBatchReceivePolicy(internalBatchReceivePolicy);
+        return ConsumerImpl.newConsumerImpl(client, partitionName,
+                configurationData, client.externalExecutorProvider(),
+                partitionIndex, true, listener != null, subFuture,
+                startMessageId, schema, interceptors,
+                createIfDoesNotExist, startMessageRollbackDurationInSec);
     }
 
     // handling failure during subscribe new topic, unsubscribe success created partitions
@@ -1393,11 +1398,8 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                         CompletableFuture<Consumer<T>> subFuture = new CompletableFuture<>();
                         ConsumerConfigurationData<T> configurationData = getInternalConsumerConfig();
                         configurationData.setStartPaused(paused);
-                        ConsumerImpl<T> newConsumer = ConsumerImpl.newConsumerImpl(
-                                client, partitionName, configurationData,
-                                client.externalExecutorProvider(),
-                                partitionIndex, true, listener != null, subFuture, startMessageId, schema, interceptors,
-                                true /* createTopicIfDoesNotExist */, startMessageRollbackDurationInSec);
+                        ConsumerImpl<T> newConsumer = createInternalConsumer(configurationData, partitionName,
+                                partitionIndex, subFuture, true, schema);
                         synchronized (pauseMutex) {
                             if (paused) {
                                 newConsumer.pause();
