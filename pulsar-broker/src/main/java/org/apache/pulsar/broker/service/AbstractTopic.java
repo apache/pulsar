@@ -33,6 +33,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.function.ToLongFunction;
 import lombok.Getter;
 import org.apache.bookkeeper.mledger.util.StatsBuckets;
 import org.apache.commons.lang3.tuple.Pair;
@@ -135,6 +136,9 @@ public abstract class AbstractTopic implements Topic {
     private volatile int topicMaxMessageSize = 0;
     private volatile long lastTopicMaxMessageSizeCheckTimeStamp = 0;
     private final long topicMaxMessageSizeCheckIntervalMs;
+
+    protected final LongAdder msgOutFromRemovedSubscriptions = new LongAdder();
+    protected final LongAdder bytesOutFromRemovedSubscriptions = new LongAdder();
 
     public AbstractTopic(String topic, BrokerService brokerService) {
         this.topic = topic;
@@ -875,11 +879,20 @@ public abstract class AbstractTopic implements Topic {
     }
 
     public long getMsgOutCounter() {
-        return getStats(false, false).msgOutCounter;
+        return msgOutFromRemovedSubscriptions.longValue()
+                + sumSubscriptions(AbstractSubscription::getMsgOutCounter);
     }
 
     public long getBytesOutCounter() {
-        return getStats(false, false).bytesOutCounter;
+        return bytesOutFromRemovedSubscriptions.longValue()
+                + sumSubscriptions(AbstractSubscription::getBytesOutCounter);
+    }
+
+    private long sumSubscriptions(ToLongFunction<AbstractSubscription> toCounter) {
+        return getSubscriptions().values().stream()
+                .map(AbstractSubscription.class::cast)
+                .mapToLong(toCounter)
+                .sum();
     }
 
     public boolean isDeleteWhileInactive() {
