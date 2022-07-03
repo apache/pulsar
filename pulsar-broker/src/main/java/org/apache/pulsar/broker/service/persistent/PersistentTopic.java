@@ -801,7 +801,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                 new BrokerServiceException("Connection was closed while the opening the cursor "));
                     } else {
                         checkReplicatedSubscriptionControllerState();
-                        log.info("[{}][{}] Created new subscription for {}", topic, subscriptionName, consumerId);
+                        if (log.isDebugEnabled()) {
+                            log.debug("[{}][{}] Created new subscription for {}", topic, subscriptionName, consumerId);
+                        }
                         return CompletableFuture.completedFuture(consumer);
                     }
                 });
@@ -2813,7 +2815,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         });
 
         if (!shouldBeEnabled.get()) {
-            log.info("[{}] There are no replicated subscriptions on the topic", topic);
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] There are no replicated subscriptions on the topic", topic);
+            }
         }
 
         checkReplicatedSubscriptionControllerState(shouldBeEnabled.get());
