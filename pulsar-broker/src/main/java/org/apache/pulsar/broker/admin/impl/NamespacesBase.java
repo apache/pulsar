@@ -1115,7 +1115,16 @@ public abstract class NamespacesBase extends AdminResource {
                     pulsar().getNamespaceService().getNamespaceBundleFactory()
                                     .getBundle(namespaceName.toString(), bundleRange)
                 )
-                .thenCompose(bundle -> pulsar().getNamespaceService().isNamespaceBundleOwned(bundle))
+                .thenCompose(bundle ->
+                    pulsar().getNamespaceService().isNamespaceBundleOwned(bundle)
+                          .exceptionally(ex -> {
+                            if (log.isDebugEnabled()) {
+                                log.debug("Failed to validate cluster ownership for {}-{}, {}",
+                                        namespaceName.toString(), bundleRange, ex.getMessage(), ex);
+                            }
+                            return false;
+                          })
+                )
                 .thenCompose(isOwnedByLocalCluster -> {
                     if (!isOwnedByLocalCluster) {
                         if (namespaceName.isGlobal()) {
