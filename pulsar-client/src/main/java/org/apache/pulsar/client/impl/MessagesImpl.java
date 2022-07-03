@@ -80,7 +80,7 @@ public class MessagesImpl<T> implements Messages<T> {
         this.messageList.clear();
     }
 
-    public List<Message<T>> getMessageList() {
+    List<Message<T>> getMessageList() {
         return messageList;
     }
 
