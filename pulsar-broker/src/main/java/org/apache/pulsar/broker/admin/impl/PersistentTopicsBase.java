@@ -2137,11 +2137,7 @@ public class PersistentTopicsBase extends AdminResource {
                 return getTopicReferenceAsync(topicName);
             })
             .thenCompose(topic -> {
-                if (topic == null) {
-                    throw new RestException(Status.NOT_FOUND, getTopicNotFoundErrorMessage(topicName.toString()));
-                }
-                PersistentTopic persistentTopic = ((PersistentTopic) topic);
-                PersistentSubscription sub = persistentTopic.getSubscription(subName);
+                Subscription sub = topic.getSubscription(subName);
                 if (sub == null) {
                     throw new RestException(Status.NOT_FOUND,
                         getSubNotFoundErrorMessage(topicName.toString(), subName));
