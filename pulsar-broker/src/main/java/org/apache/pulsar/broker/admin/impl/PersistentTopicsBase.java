@@ -33,6 +33,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -850,6 +851,29 @@ public class PersistentTopicsBase extends AdminResource {
         return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
             .thenCompose(op -> {
                 TopicPolicies topicPolicies = op.orElseGet(TopicPolicies::new);
+                OffloadPoliciesImpl currentOffloadPolicies = topicPolicies.getOffloadPolicies();
+                if (currentOffloadPolicies != null && offloadPolicies != null){
+                    if (Objects.equals(offloadPolicies.getManagedLedgerOffloadDeletionLagInMillis(),
+                            OffloadPoliciesImpl.DEFAULT_OFFLOAD_DELETION_LAG_IN_MILLIS)) {
+                        offloadPolicies.setManagedLedgerOffloadDeletionLagInMillis(
+                                currentOffloadPolicies.getManagedLedgerOffloadDeletionLagInMillis());
+                    }
+                    if (Objects.equals(offloadPolicies.getManagedLedgerOffloadThresholdInBytes(),
+                            OffloadPoliciesImpl.DEFAULT_OFFLOAD_THRESHOLD_IN_BYTES)) {
+                        offloadPolicies.setManagedLedgerOffloadThresholdInBytes(
+                                currentOffloadPolicies.getManagedLedgerOffloadThresholdInBytes());
+                    }
+                    if (Objects.equals(offloadPolicies.getManagedLedgerOffloadMaxBlockSizeInBytes(),
+                            OffloadPoliciesImpl.DEFAULT_MAX_BLOCK_SIZE_IN_BYTES)) {
+                        offloadPolicies.setManagedLedgerOffloadMaxBlockSizeInBytes(
+                                currentOffloadPolicies.getManagedLedgerOffloadMaxBlockSizeInBytes());
+                    }
+                    if (Objects.equals(offloadPolicies.getManagedLedgerOffloadReadBufferSizeInBytes(),
+                            OffloadPoliciesImpl.DEFAULT_READ_BUFFER_SIZE_IN_BYTES)) {
+                        offloadPolicies.setManagedLedgerOffloadReadBufferSizeInBytes(
+                                currentOffloadPolicies.getManagedLedgerOffloadReadBufferSizeInBytes());
+                    }
+                }
                 topicPolicies.setOffloadPolicies(offloadPolicies);
                 topicPolicies.setIsGlobal(isGlobal);
                 return pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, topicPolicies);

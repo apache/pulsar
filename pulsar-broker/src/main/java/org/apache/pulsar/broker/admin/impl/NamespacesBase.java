@@ -2453,6 +2453,18 @@ public abstract class NamespacesBase extends AdminResource {
                 } else {
                     policies.offload_threshold = offloadPolicies.getManagedLedgerOffloadThresholdInBytes();
                 }
+                if (Objects.equals(offloadPolicies.getManagedLedgerOffloadMaxBlockSizeInBytes(),
+                        OffloadPoliciesImpl.DEFAULT_MAX_BLOCK_SIZE_IN_BYTES)) {
+                    offloadPolicies.setManagedLedgerOffloadMaxBlockSizeInBytes(
+                            policies.offload_policies.getManagedLedgerOffloadMaxBlockSizeInBytes());
+                }
+
+                if (Objects.equals(offloadPolicies.getManagedLedgerOffloadReadBufferSizeInBytes(),
+                        OffloadPoliciesImpl.DEFAULT_READ_BUFFER_SIZE_IN_BYTES)) {
+                    offloadPolicies.setManagedLedgerOffloadReadBufferSizeInBytes(
+                            policies.offload_policies.getManagedLedgerOffloadReadBufferSizeInBytes());
+                }
+
                 policies.offload_policies = offloadPolicies;
                 return policies;
             }).thenApply(r -> {

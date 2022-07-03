@@ -2470,6 +2470,35 @@ Options
 |`-w`, `--wait-complete`|Wait for compaction to complete|false|
 
 
+### `set-offload-policies`
+Set the offload policy for a topic.
+
+Usage
+
+```bash
+
+$ pulsar-admin topic set-offload-policies tenant/namespace/topic options
+
+```
+
+Options
+
+|Flag|Description|Default|
+|----|---|---|
+|`-d`, `--driver`|Driver to use to offload old data to long term storage,(Possible values: S3, aws-s3, google-cloud-storage)||
+|`-r`, `--region`|The long term storage region||
+|`-b`, `--bucket`|Bucket to place offloaded ledger into||
+|`-e`, `--endpoint`|Alternative endpoint to connect to||
+|`-i`, `--aws-id`|AWS Credential Id to use when using driver S3 or aws-s3||
+|`-s`, `--aws-secret`|AWS Credential Secret to use when using driver S3 or aws-s3||
+|`-ro`, `--s3-role`|S3 Role used for STSAssumeRoleSessionCredentialsProvider using driver S3 or aws-s3||
+|`-rsn`, `--s3-role-session-name`|S3 role session name used for STSAssumeRoleSessionCredentialsProvider using driver S3 or aws-s3||
+|`-m`, `--maxBlockSizeInBytes`|Max block size|64MB|
+|`-rb`, `--readBufferSizeInBytes`|Read buffer size|1MB|
+|`-t`, `--offloadThresholdInBytes`|Offload after threshold size (eg: 1M, 5M)||
+|`-dl`, `--offloadDeletionLagInMillis`|Offload after elapsed in millis (or minutes, hours,days,weeks eg: 100m, 3h, 2d, 5w).||
+
+
 ### `create-partitioned-topic`
 Create a partitioned topic. A partitioned topic must be created before producers can publish to it.
 

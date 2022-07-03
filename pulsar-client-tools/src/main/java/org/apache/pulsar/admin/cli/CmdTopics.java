@@ -47,6 +47,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import lombok.Getter;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.ListTopicsOptions;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.OffloadProcessStatus;
@@ -2018,20 +2019,20 @@ public class CmdTopics extends CmdBase {
         @Parameter(names = {"-m", "--maxBlockSizeInBytes"},
                 description = "ManagedLedger offload max block Size in bytes,"
                 + "s3 and google-cloud-storage requires this parameter")
-        private int maxBlockSizeInBytes;
+        private String maxBlockSizeInBytesStr;
 
         @Parameter(names = {"-rb", "--readBufferSizeInBytes"},
                 description = "ManagedLedger offload read buffer size in bytes,"
                 + "s3 and google-cloud-storage requires this parameter")
-        private int readBufferSizeInBytes;
+        private String readBufferSizeInBytesStr;
 
         @Parameter(names = {"-t", "--offloadThresholdInBytes"}
                 , description = "ManagedLedger offload threshold in bytes", required = true)
-        private long offloadThresholdInBytes;
+        private String offloadThresholdInBytesStr;
 
         @Parameter(names = {"-dl", "--offloadDeletionLagInMillis"}
                 , description = "ManagedLedger offload deletion lag in bytes")
-        private Long offloadDeletionLagInMillis;
+        private String offloadDeletionLagInMillisStr;
 
         @Parameter(names = {"--offloadedReadPriority", "-orp"},
                 description = "Read priority for offloaded messages. "
@@ -2043,13 +2044,27 @@ public class CmdTopics extends CmdBase {
         )
         private String offloadReadPriorityStr;
 
+        public boolean positiveCheck(String paramName, long value) {
+            if (value <= 0) {
+                throw new ParameterException(paramName + " is not be negative or 0!");
+            }
+            return true;
+        }
+
+        public boolean maxValueCheck(String paramName, long value, long maxValue) {
+            if (value > maxValue) {
+                throw new ParameterException(paramName + " is not bigger than " + maxValue + "!");
+            }
+            return true;
+        }
+
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
 
             OffloadedReadPriority offloadedReadPriority = OffloadPoliciesImpl.DEFAULT_OFFLOADED_READ_PRIORITY;
 
-            if (this.offloadReadPriorityStr != null) {
+            if (StringUtils.isNotBlank(offloadReadPriorityStr)) {
                 try {
                     offloadedReadPriority = OffloadedReadPriority.fromString(this.offloadReadPriorityStr);
                 } catch (Exception e) {
@@ -2058,6 +2073,48 @@ public class CmdTopics extends CmdBase {
                                     .map(OffloadedReadPriority::toString)
                                     .collect(Collectors.joining(","))
                             + " but got: " + this.offloadReadPriorityStr, e);
+                }
+            }
+
+            int maxBlockSizeInBytes = OffloadPoliciesImpl.DEFAULT_MAX_BLOCK_SIZE_IN_BYTES;
+            if (StringUtils.isNotBlank(maxBlockSizeInBytesStr)) {
+                long maxBlockSize = validateSizeString(maxBlockSizeInBytesStr);
+                if (positiveCheck("MaxBlockSizeInBytes", maxBlockSize)
+                        && maxValueCheck("MaxBlockSizeInBytes", maxBlockSize, Integer.MAX_VALUE)) {
+                    maxBlockSizeInBytes = Long.valueOf(maxBlockSize).intValue();
+                }
+            }
+
+            int readBufferSizeInBytes = OffloadPoliciesImpl.DEFAULT_READ_BUFFER_SIZE_IN_BYTES;
+            if (StringUtils.isNotBlank(readBufferSizeInBytesStr)) {
+                long readBufferSize = validateSizeString(readBufferSizeInBytesStr);
+                if (positiveCheck("readBufferSizeInBytes", readBufferSize)
+                        && maxValueCheck("readBufferSizeInBytes", readBufferSize, Integer.MAX_VALUE)) {
+                    readBufferSizeInBytes = Long.valueOf(readBufferSize).intValue();
+                }
+            }
+
+            Long offloadThresholdInBytes = OffloadPoliciesImpl.DEFAULT_OFFLOAD_THRESHOLD_IN_BYTES;
+            if (StringUtils.isNotBlank(offloadThresholdInBytesStr)) {
+                long offloadThreshold = validateSizeString(offloadThresholdInBytesStr);
+                if (positiveCheck("offloadThresholdInBytes", offloadThreshold)
+                        && maxValueCheck("offloadThresholdInBytes", offloadThreshold, Long.MAX_VALUE)) {
+                    offloadThresholdInBytes = offloadThreshold;
+                }
+            }
+
+            Long offloadDeletionLagInMillis = OffloadPoliciesImpl.DEFAULT_OFFLOAD_DELETION_LAG_IN_MILLIS;
+            if (StringUtils.isNotBlank(offloadDeletionLagInMillisStr)) {
+                Long offloadThreshold;
+                try {
+                    offloadThreshold = TimeUnit.SECONDS.toMillis(
+                            RelativeTimeUtil.parseRelativeTimeInSeconds(offloadDeletionLagInMillisStr));
+                } catch (IllegalArgumentException exception) {
+                    throw new ParameterException(exception.getMessage());
+                }
+                if (positiveCheck("offloadDeletionLagInMillis", offloadThreshold)
+                        && maxValueCheck("offloadDeletionLagInMillis", offloadThreshold, Long.MAX_VALUE)) {
+                    offloadDeletionLagInMillis = offloadThreshold;
                 }
             }
 

@@ -1340,6 +1340,17 @@ public class PulsarAdminToolTest {
                 .setOffloadPolicies("persistent://myprop/clust/ns1/ds1",
                         OffloadPoliciesImpl.create("s3", "region", "bucket" , "endpoint", null, null, null, null,
                                 8, 9, 10L, null, OffloadedReadPriority.TIERED_STORAGE_FIRST));
+
+        // test the set offload policies don't cover old value
+        cmdTopics = new CmdTopicPolicies(() -> admin);
+        cmdTopics.run(split("set-offload-policies persistent://myprop/clust/ns1/ds1 -d s3 -r" +
+                " region -b bucket -t 10 -e endpoint -orp tiered-storage-first -g"));
+        verify(mockGlobalTopicsPolicies)
+                .setOffloadPolicies("persistent://myprop/clust/ns1/ds1",
+                        OffloadPoliciesImpl.create("s3", "region", "bucket" , "endpoint", null, null, null, null,
+                                OffloadPoliciesImpl.DEFAULT_MAX_BLOCK_SIZE_IN_BYTES, OffloadPoliciesImpl.DEFAULT_READ_BUFFER_SIZE_IN_BYTES, 10L,
+                                OffloadPoliciesImpl.DEFAULT_OFFLOAD_DELETION_LAG_IN_MILLIS, OffloadedReadPriority.TIERED_STORAGE_FIRST));
+
     }
 
     @Test
