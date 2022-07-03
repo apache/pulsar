@@ -1541,8 +1541,8 @@ public class PersistentTopicsBase extends AdminResource {
                                                                   String subName, boolean authoritative) {
         validateTopicOwnershipAsync(topicName, authoritative)
             .thenRun(() -> validateTopicOperation(topicName, TopicOperation.UNSUBSCRIBE))
-            .thenCompose(__ -> {
-                Topic topic = getTopicReference(topicName);
+            .thenCompose(__ -> getTopicReferenceAsync(topicName))
+            .thenCompose(topic -> {
                 Subscription sub = topic.getSubscription(subName);
                 if (sub == null) {
                     throw new RestException(Status.NOT_FOUND,
@@ -1575,8 +1575,8 @@ public class PersistentTopicsBase extends AdminResource {
                                       boolean authoritative) {
         validateTopicOwnershipAsync(topicName, authoritative)
                 .thenRun(() -> validateTopicOperation(topicName, TopicOperation.CONSUME))
-                .thenCompose(__ -> {
-                    Topic topic = getTopicReference(topicName);
+                .thenCompose(__ -> getTopicReferenceAsync(topicName))
+                .thenCompose(topic -> {
                     Subscription sub = topic.getSubscription(subName);
                     if (sub == null) {
                         throw new RestException(Status.NOT_FOUND,
@@ -1705,8 +1705,8 @@ public class PersistentTopicsBase extends AdminResource {
                                                                             String subName, boolean authoritative) {
         validateTopicOwnershipAsync(topicName, authoritative)
                 .thenRun(() -> validateTopicOperation(topicName, TopicOperation.UNSUBSCRIBE))
-                .thenCompose(__ -> {
-                    Topic topic = getTopicReference(topicName);
+                .thenCompose(__ -> getTopicReferenceAsync(topicName))
+                .thenCompose(topic -> {
                     Subscription sub = topic.getSubscription(subName);
                     if (sub == null) {
                         throw new RestException(Status.NOT_FOUND,
