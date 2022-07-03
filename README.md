@@ -207,7 +207,7 @@ docker push ${image_repo_and_project}/pulsar:$tag
 Apache Pulsar is using [lombok](https://projectlombok.org/) so you have to ensure your IDE setup with
 required plugins.
 
-### IntellJ
+### IntelliJ
 
 #### Configure Project JDK to Java 17 JDK
 
