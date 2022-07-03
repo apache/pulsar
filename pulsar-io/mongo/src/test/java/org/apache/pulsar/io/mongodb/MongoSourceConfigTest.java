@@ -20,6 +20,7 @@
 package org.apache.pulsar.io.mongodb;
 
 import static org.testng.Assert.assertEquals;
+import com.fasterxml.jackson.databind.JsonMappingException;
 import java.io.File;
 import java.io.IOException;
 import java.util.Map;
@@ -54,17 +55,16 @@ public class MongoSourceConfigTest {
     }
 
     /**
-     * Test if the default sync type is incr when the sync type is not set.
+     * Test whether an exception is thrown when the syncType field has an incorrect value.
      */
-    @Test
+    @Test(expectedExceptions = {IllegalArgumentException.class, JsonMappingException.class})
     public void testBadSyncType() throws IOException {
         final Map<String, Object> configMap = TestHelper.createCommonConfigMap();
-        TestHelper.putSyncType(configMap, null);
+        TestHelper.putSyncType(configMap, "wrong_sync_type_str");
 
         final MongoSourceConfig cfg = MongoSourceConfig.load(configMap);
 
         cfg.validate();
-        assertEquals(cfg.getSyncType(), MongoSourceConfig.DEFAULT_SYNC_TYPE);
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class,

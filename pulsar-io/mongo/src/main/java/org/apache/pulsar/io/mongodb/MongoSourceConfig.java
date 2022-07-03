@@ -41,7 +41,7 @@ public class MongoSourceConfig extends MongoAbstractConfig {
 
     public static final SyncType DEFAULT_SYNC_TYPE = SyncType.INCR_SYNC;
 
-    public static final String DEFAULT_SYNC_TYPE_STR = "incr";
+    public static final String DEFAULT_SYNC_TYPE_STR = "INCR_SYNC";
 
     @FieldDoc(
             defaultValue = DEFAULT_SYNC_TYPE_STR,
@@ -74,15 +74,17 @@ public class MongoSourceConfig extends MongoAbstractConfig {
      * @param syncType Sync type string.
      */
     public void setSyncType(String syncType) {
+        // if syncType is not set, the default sync type is used
         if (StringUtils.isEmpty(syncType)) {
             this.syncType = DEFAULT_SYNC_TYPE;
             return;
         }
 
+        // if syncType is set but not correct, an exception will be thrown
         try {
             this.syncType = SyncType.valueOf(syncType.toUpperCase());
         } catch (IllegalArgumentException e) {
-            this.syncType = DEFAULT_SYNC_TYPE;
+            throw new IllegalArgumentException("The value of the syncType field is incorrect.");
         }
     }
 
