@@ -22,6 +22,7 @@ import io.netty.channel.EventLoopGroup;
 import java.io.IOException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
+import org.apache.bookkeeper.mledger.rubbish.RubbishCleanService;
 import org.apache.bookkeeper.stats.StatsProvider;
 import org.apache.pulsar.broker.BookKeeperClientFactory;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -46,7 +47,8 @@ public interface ManagedLedgerStorage extends AutoCloseable {
     void initialize(ServiceConfiguration conf,
                     MetadataStoreExtended metadataStore,
                     BookKeeperClientFactory bookkeeperProvider,
-                    EventLoopGroup eventLoopGroup) throws Exception;
+                    EventLoopGroup eventLoopGroup,
+                    RubbishCleanService rubbishCleanService) throws Exception;
 
     /**
      * Return the factory to create {@link ManagedLedgerFactory}.
@@ -86,10 +88,11 @@ public interface ManagedLedgerStorage extends AutoCloseable {
     static ManagedLedgerStorage create(ServiceConfiguration conf,
                                        MetadataStoreExtended metadataStore,
                                        BookKeeperClientFactory bkProvider,
-                                       EventLoopGroup eventLoopGroup) throws Exception {
+                                       EventLoopGroup eventLoopGroup,
+                                       RubbishCleanService rubbishCleanService) throws Exception {
         final Class<?> storageClass = Class.forName(conf.getManagedLedgerStorageClassName());
         final ManagedLedgerStorage storage = (ManagedLedgerStorage) storageClass.getDeclaredConstructor().newInstance();
-        storage.initialize(conf, metadataStore, bkProvider, eventLoopGroup);
+        storage.initialize(conf, metadataStore, bkProvider, eventLoopGroup, rubbishCleanService);
         return storage;
     }
 

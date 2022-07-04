@@ -125,6 +125,11 @@ public class PulsarClusterMetadataSetup {
         private int numTransactionCoordinators = 16;
 
         @Parameter(names = {
+                "--initial-num-rubbish-workers"
+        }, description = "Num rubbish workers will assigned in cluster")
+        private int numRubbishWorkers = 16;
+
+        @Parameter(names = {
                 "--existing-bk-metadata-service-uri"},
                 description = "The metadata service URI of the existing BookKeeper cluster that you want to use")
         private String existingBkMetadataServiceUri;
@@ -232,6 +237,11 @@ public class PulsarClusterMetadataSetup {
             System.exit(1);
         }
 
+        if (arguments.numRubbishWorkers <= 0) {
+            System.err.println("Number of rubbish workers must greater than 0");
+            System.exit(1);
+        }
+
         log.info("Setting up cluster {} with metadata-store={} configuration-metadata-store={}", arguments.cluster,
                 arguments.metadataStoreUrl, arguments.configurationMetadataStore);
 
@@ -314,6 +324,10 @@ public class PulsarClusterMetadataSetup {
         // Create transaction coordinator assign partitioned topic
         createPartitionedTopic(configStore, SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN,
                 arguments.numTransactionCoordinators);
+
+        // Create transaction coordinator assign partitioned topic
+        createPartitionedTopic(configStore, SystemTopicNames.RUBBISH_CLEANER_TOPIC,
+                arguments.numRubbishWorkers);
 
         localStore.close();
         configStore.close();

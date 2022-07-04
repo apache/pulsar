@@ -32,6 +32,10 @@ public class SystemTopicNames {
      */
     public static final String NAMESPACE_EVENTS_LOCAL_NAME = "__change_events";
 
+    public static final String RUBBISH_CLEANER = "__rubbish_cleaner";
+
+    public static final String RUBBISH_CLEANER_ARCHIVE = "__rubbish_cleaner_archive";
+
     /**
      * Local topic name for the transaction buffer snapshot.
      */
@@ -46,7 +50,9 @@ public class SystemTopicNames {
      * The set of all local topic names declared above.
      */
     public static final Set<String> EVENTS_TOPIC_NAMES =
-            Collections.unmodifiableSet(Sets.newHashSet(NAMESPACE_EVENTS_LOCAL_NAME, TRANSACTION_BUFFER_SNAPSHOT));
+            Collections.unmodifiableSet(
+                    Sets.newHashSet(NAMESPACE_EVENTS_LOCAL_NAME, TRANSACTION_BUFFER_SNAPSHOT, RUBBISH_CLEANER,
+                            RUBBISH_CLEANER_ARCHIVE));
 
 
     public static final TopicName TRANSACTION_COORDINATOR_ASSIGN = TopicName.get(TopicDomain.persistent.value(),
@@ -57,6 +63,12 @@ public class SystemTopicNames {
 
     public static final TopicName RESOURCE_USAGE_TOPIC = TopicName.get(TopicDomain.non_persistent.value(),
             NamespaceName.SYSTEM_NAMESPACE, "resource-usage");
+
+    public static final TopicName RUBBISH_CLEANER_TOPIC = TopicName.get(TopicDomain.persistent.value(),
+            NamespaceName.SYSTEM_NAMESPACE, RUBBISH_CLEANER);
+
+    public static final TopicName RUBBISH_CLEANER_ARCHIVE_TOPIC = TopicName.get(TopicDomain.persistent.value(),
+            NamespaceName.SYSTEM_NAMESPACE, RUBBISH_CLEANER_ARCHIVE);
 
     public static boolean isEventSystemTopic(TopicName topicName) {
         return EVENTS_TOPIC_NAMES.contains(TopicName.get(topicName.getPartitionedTopicName()).getLocalName());

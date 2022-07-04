@@ -31,5 +31,10 @@ public enum EventType {
     /**
      * Transaction buffer snapshot events.
      */
-    TRANSACTION_BUFFER_SNAPSHOT
+    TRANSACTION_BUFFER_SNAPSHOT,
+
+
+    RUBBISH_CLEANER
+
+
 }

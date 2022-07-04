@@ -133,7 +133,7 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
                 log.debug("[{}] Get all schemas - locator: {}", key, locator);
             }
 
-            if (!locator.isPresent()) {
+            if (locator.isEmpty()) {
                 result.complete(Collections.emptyList());
                 return;
             }

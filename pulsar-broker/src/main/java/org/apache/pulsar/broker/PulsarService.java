@@ -78,6 +78,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.impl.NullLedgerOffloader;
 import org.apache.bookkeeper.mledger.offload.Offloaders;
 import org.apache.bookkeeper.mledger.offload.OffloadersCache;
+import org.apache.bookkeeper.mledger.rubbish.RubbishCleanService;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
@@ -103,6 +104,7 @@ import org.apache.pulsar.broker.rest.Topics;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.GracefulExecutorServicesShutdown;
 import org.apache.pulsar.broker.service.SystemTopicBaseTxnBufferSnapshotService;
+import org.apache.pulsar.broker.service.SystemTopicBasedRubbishCleanService;
 import org.apache.pulsar.broker.service.SystemTopicBasedTopicPoliciesService;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.TopicPoliciesService;
@@ -231,6 +233,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private final WorkerConfig workerConfig;
     private final Optional<WorkerService> functionWorkerService;
     private ProtocolHandlers protocolHandlers = null;
+
+    private RubbishCleanService rubbishCleanService;
 
     private final Consumer<Integer> processTerminator;
     protected final EventLoopGroup ioEventLoopGroup;
@@ -712,10 +716,15 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             // Now we are ready to start services
             this.bkClientFactory = newBookKeeperClientFactory();
 
-            managedLedgerClientFactory = ManagedLedgerStorage.create(
-                config, localMetadataStore,
-                    bkClientFactory, ioEventLoopGroup
-            );
+            if (config.isSupportTwoPhaseDeletion()) {
+                rubbishCleanService = new SystemTopicBasedRubbishCleanService(getClient(), getAdminClient(), getBookKeeperClient());
+            } else {
+                rubbishCleanService = new RubbishCleanService.RubbishCleanServiceDisable();
+            }
+
+            managedLedgerClientFactory =
+                    ManagedLedgerStorage.create(config, localMetadataStore, bkClientFactory, ioEventLoopGroup,
+                            rubbishCleanService);
 
             this.brokerService = newBrokerService(this);
 

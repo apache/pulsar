@@ -81,10 +81,6 @@ public class ManagedLedgerConfig {
     @Getter
     @Setter
     private boolean cacheEvictionByMarkDeletedPosition = false;
-    private boolean supportTwoPhaseDeletion = false;
-    private int archiveDataLimitSize = 500;
-    private int retryDeleteIntervalSeconds = 60;
-    private int maxDeleteCount = 5;
 
     public boolean isCreateIfMissing() {
         return createIfMissing;
@@ -685,37 +681,5 @@ public class ManagedLedgerConfig {
      */
     public void setInactiveLedgerRollOverTime(int inactiveLedgerRollOverTimeMs, TimeUnit unit) {
         this.inactiveLedgerRollOverTimeMs = (int) unit.toMillis(inactiveLedgerRollOverTimeMs);
-    }
-
-    public boolean isSupportTwoPhaseDeletion() {
-        return supportTwoPhaseDeletion;
-    }
-
-    public void setSupportTwoPhaseDeletion(boolean supportTwoPhaseDeletion) {
-        this.supportTwoPhaseDeletion = supportTwoPhaseDeletion;
-    }
-
-    public int getArchiveDataLimitSize() {
-        return archiveDataLimitSize;
-    }
-
-    public void setArchiveDataLimitSize(int archiveDataLimitSize) {
-        this.archiveDataLimitSize = archiveDataLimitSize;
-    }
-
-    public int getRetryDeleteIntervalSeconds() {
-        return retryDeleteIntervalSeconds;
-    }
-
-    public void setRetryDeleteIntervalSeconds(int retryDeleteIntervalSeconds) {
-        this.retryDeleteIntervalSeconds = retryDeleteIntervalSeconds;
-    }
-
-    public void setMaxDeleteCount(int maxDeleteCount) {
-        this.maxDeleteCount = maxDeleteCount;
-    }
-
-    public int getMaxDeleteCount() {
-        return maxDeleteCount;
     }
 }

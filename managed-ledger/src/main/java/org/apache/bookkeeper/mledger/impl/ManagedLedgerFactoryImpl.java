@@ -74,6 +74,7 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedCursorInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.MessageRange;
+import org.apache.bookkeeper.mledger.rubbish.RubbishCleanService;
 import org.apache.bookkeeper.mledger.util.Futures;
 import org.apache.bookkeeper.stats.NullStatsLogger;
 import org.apache.bookkeeper.stats.StatsLogger;
@@ -96,6 +97,8 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     protected final OrderedScheduler scheduledExecutor;
 
     private final ExecutorService cacheEvictionExecutor;
+
+    private final RubbishCleanService rubbishCleanService;
 
     @Getter
     protected final ManagedLedgerFactoryMBeanImpl mbean;
@@ -135,7 +138,14 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
 
     public ManagedLedgerFactoryImpl(MetadataStoreExtended metadataStore, ClientConfiguration bkClientConfiguration)
             throws Exception {
-        this(metadataStore, bkClientConfiguration, new ManagedLedgerFactoryConfig());
+        this(metadataStore, bkClientConfiguration, new ManagedLedgerFactoryConfig(),
+                new RubbishCleanService.RubbishCleanServiceDisable());
+    }
+
+    public ManagedLedgerFactoryImpl(MetadataStoreExtended metadataStore, ClientConfiguration bkClientConfiguration,
+                                    RubbishCleanService rubbishCleanService)
+            throws Exception {
+        this(metadataStore, bkClientConfiguration, new ManagedLedgerFactoryConfig(), rubbishCleanService);
     }
 
     @SuppressWarnings("deprecation")
@@ -143,40 +153,68 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                                     ManagedLedgerFactoryConfig config)
             throws Exception {
         this(metadataStore, new DefaultBkFactory(bkClientConfiguration),
-                true /* isBookkeeperManaged */, config, NullStatsLogger.INSTANCE);
+                true /* isBookkeeperManaged */, config, NullStatsLogger.INSTANCE,
+                new RubbishCleanService.RubbishCleanServiceDisable());
+    }
+
+
+    @SuppressWarnings("deprecation")
+    public ManagedLedgerFactoryImpl(MetadataStoreExtended metadataStore, ClientConfiguration bkClientConfiguration,
+                                    ManagedLedgerFactoryConfig config, RubbishCleanService rubbishCleanService)
+            throws Exception {
+        this(metadataStore, new DefaultBkFactory(bkClientConfiguration),
+                true /* isBookkeeperManaged */, config, NullStatsLogger.INSTANCE, rubbishCleanService);
     }
 
     public ManagedLedgerFactoryImpl(MetadataStoreExtended metadataStore, BookKeeper bookKeeper)
             throws Exception {
-        this(metadataStore, bookKeeper, new ManagedLedgerFactoryConfig());
+        this(metadataStore, bookKeeper, new ManagedLedgerFactoryConfig(),
+                new RubbishCleanService.RubbishCleanServiceDisable());
+    }
+
+
+    public ManagedLedgerFactoryImpl(MetadataStoreExtended metadataStore, BookKeeper bookKeeper,
+                                    RubbishCleanService rubbishCleanService)
+            throws Exception {
+        this(metadataStore, bookKeeper, new ManagedLedgerFactoryConfig(), rubbishCleanService);
     }
 
     public ManagedLedgerFactoryImpl(MetadataStoreExtended metadataStore, BookKeeper bookKeeper,
                                     ManagedLedgerFactoryConfig config)
             throws Exception {
-        this(metadataStore, (policyConfig) -> bookKeeper, config);
+        this(metadataStore, (policyConfig) -> bookKeeper, config,
+                new RubbishCleanService.RubbishCleanServiceDisable());
+    }
+
+    public ManagedLedgerFactoryImpl(MetadataStoreExtended metadataStore, BookKeeper bookKeeper,
+                                    ManagedLedgerFactoryConfig config, RubbishCleanService rubbishCleanService)
+            throws Exception {
+        this(metadataStore, (policyConfig) -> bookKeeper, config, rubbishCleanService);
     }
 
     public ManagedLedgerFactoryImpl(MetadataStoreExtended metadataStore,
                                     BookkeeperFactoryForCustomEnsemblePlacementPolicy bookKeeperGroupFactory,
-                                    ManagedLedgerFactoryConfig config)
+                                    ManagedLedgerFactoryConfig config,
+                                    RubbishCleanService rubbishCleanService)
             throws Exception {
         this(metadataStore, bookKeeperGroupFactory, false /* isBookkeeperManaged */,
-                config, NullStatsLogger.INSTANCE);
+                config, NullStatsLogger.INSTANCE, rubbishCleanService);
     }
 
     public ManagedLedgerFactoryImpl(MetadataStoreExtended metadataStore,
                                     BookkeeperFactoryForCustomEnsemblePlacementPolicy bookKeeperGroupFactory,
-                                    ManagedLedgerFactoryConfig config, StatsLogger statsLogger)
+                                    ManagedLedgerFactoryConfig config, StatsLogger statsLogger,
+                                    RubbishCleanService rubbishCleanService)
             throws Exception {
         this(metadataStore, bookKeeperGroupFactory, false /* isBookkeeperManaged */,
-                config, statsLogger);
+                config, statsLogger, rubbishCleanService);
     }
 
     private ManagedLedgerFactoryImpl(MetadataStoreExtended metadataStore,
                                      BookkeeperFactoryForCustomEnsemblePlacementPolicy bookKeeperGroupFactory,
                                      boolean isBookkeeperManaged,
-                                     ManagedLedgerFactoryConfig config, StatsLogger statsLogger) throws Exception {
+                                     ManagedLedgerFactoryConfig config, StatsLogger statsLogger,
+                                     RubbishCleanService rubbishCleanService) throws Exception {
         scheduledExecutor = OrderedScheduler.newSchedulerBuilder()
                 .numThreads(config.getNumManagedLedgerSchedulerThreads())
                 .statsLogger(statsLogger)
@@ -208,6 +246,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         closed = false;
 
         metadataStore.registerSessionListener(this::handleMetadataStoreNotification);
+        this.rubbishCleanService = rubbishCleanService;
     }
 
     static class DefaultBkFactory implements BookkeeperFactoryForCustomEnsemblePlacementPolicy {
@@ -387,7 +426,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                     bookkeeperFactory.get(
                             new EnsemblePlacementPolicyConfig(config.getBookKeeperEnsemblePlacementPolicyClassName(),
                                     config.getBookKeeperEnsemblePlacementPolicyProperties())),
-                    store, metadataStore, config, scheduledExecutor, name, mlOwnershipChecker);
+                    store, config, scheduledExecutor, name, mlOwnershipChecker, rubbishCleanService);
             PendingInitializeManagedLedger pendingLedger = new PendingInitializeManagedLedger(newledger);
             pendingInitializeLedgers.put(name, pendingLedger);
             newledger.initialize(new ManagedLedgerInitializeLedgerCallback() {
@@ -480,7 +519,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                 bookkeeperFactory
                         .get(new EnsemblePlacementPolicyConfig(config.getBookKeeperEnsemblePlacementPolicyClassName(),
                                 config.getBookKeeperEnsemblePlacementPolicyProperties())),
-                store, metadataStore, config, scheduledExecutor, managedLedgerName);
+                store, config, scheduledExecutor, managedLedgerName, rubbishCleanService);
 
         roManagedLedger.initializeAndCreateCursor((PositionImpl) startPosition)
                 .thenAccept(roCursor -> callback.openReadOnlyCursorComplete(roCursor, ctx))

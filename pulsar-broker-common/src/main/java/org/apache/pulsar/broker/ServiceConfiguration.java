@@ -2520,29 +2520,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             doc = "Using two phase deletion when delete ledger. if true, "
                     + "managedTrash will take over ledger deletion. (Default false)"
     )
-    private boolean managedLedgerSupportTwoPhaseDeletion;
-
-    @FieldContext(
-            dynamic = true,
-            category = CATEGORY_STORAGE_ML,
-            doc = "To control managedTrash archive data size. If reach, persist archive data. (Default 500)"
-    )
-    private int managedTrashArchiveDataLimitSize = 500;
-
-    @FieldContext(
-            dynamic = true,
-            category = CATEGORY_STORAGE_ML,
-            doc = "The interval of retry delete same ledger again. (Default 60 seconds)"
-    )
-    private int managedTrashRetryDeleteInternalSeconds = 60;
-
-    @FieldContext(
-            dynamic = true,
-            category = CATEGORY_STORAGE_ML,
-            doc = "The max delete count of delete same ledger or offload ledger in managedTrash. "
-                    + "If a ledger delete count reach it, the ledger will be archived. (Default is 5)"
-    )
-    private int managedLedgerMaxDeleteCount = 5;
+    private boolean supportTwoPhaseDeletion;
 
     @FieldContext(
             category = CATEGORY_STORAGE_ML,
