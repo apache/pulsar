@@ -29,6 +29,7 @@ import static org.testng.Assert.fail;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.BlockingQueue;
@@ -59,7 +60,7 @@ public class PulsarShellTest {
 
     private Topics topics;
 
-    static class MockLineReader extends LineReaderImpl {
+    static class MockLineReader extends LineReaderImpl implements PulsarShell.InteractiveLineReader {
 
         private BlockingQueue<String> commandsQueue = new LinkedBlockingQueue<>();
 
@@ -73,11 +74,15 @@ public class PulsarShellTest {
 
         @Override
         @SneakyThrows
-        public String readLine(String prompt) throws UserInterruptException, EndOfFileException {
+        public String readLine() throws UserInterruptException, EndOfFileException {
             final String cmd = commandsQueue.take();
             log.info("writing command: {}", cmd);
             return cmd;
+        }
 
+        @Override
+        public List<String> parseLine(String line) {
+            return getParser().parse(line, 0).words();
         }
     }
 

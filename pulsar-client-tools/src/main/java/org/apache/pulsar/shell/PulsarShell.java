@@ -24,6 +24,7 @@ import java.io.BufferedReader;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -182,11 +183,25 @@ public class PulsarShell {
             LineReader reader = readerBuilder.build();
 
             final String welcomeMessage =
-                    String.format("Welcome to Pulsar shell!\n  Service URL: %s\n  Admin URL: %s\n\n "
+                    String.format("Welcome to Pulsar shell!\n  %s: %s\n  %s: %s\n\n "
                                     + "Type 'help' to get started or try the autocompletion (TAB button).\n",
-                            serviceUrl, adminUrl);
+                            new AttributedStringBuilder().style(AttributedStyle.BOLD).append("Service URL").toAnsi(),
+                            serviceUrl,
+                            new AttributedStringBuilder().style(AttributedStyle.BOLD).append("Admin URL").toAnsi(),
+                            adminUrl);
             output(welcomeMessage, terminal);
-            return reader;
+            final String prompt = createPrompt(getHostFromUrl(serviceUrl));
+            return new InteractiveLineReader() {
+                @Override
+                public String readLine() {
+                    return reader.readLine(prompt);
+                }
+
+                @Override
+                public List<String> parseLine(String line) {
+                    return reader.getParser().parse(line, 0).words();
+                }
+            };
         }, (providerMap) -> terminal);
     }
 
@@ -221,7 +236,14 @@ public class PulsarShell {
         String executingCommand;
     }
 
-    public void run(Function<Map<String, ShellCommandsProvider>, LineReader> readerBuilder,
+    interface InteractiveLineReader {
+
+        String readLine();
+
+        List<String> parseLine(String line);
+    }
+
+    public void run(Function<Map<String, ShellCommandsProvider>, InteractiveLineReader> readerBuilder,
                     Function<Map<String, ShellCommandsProvider>, Terminal> terminalBuilder) throws Exception {
         System.setProperty("org.jline.terminal.dumb", "true");
 
@@ -234,7 +256,7 @@ public class PulsarShell {
 
         final Map<String, ShellCommandsProvider> providersMap = registerProviders(shellCommander, properties);
 
-        final LineReader reader = readerBuilder.apply(providersMap);
+        final InteractiveLineReader reader = readerBuilder.apply(providersMap);
         final Terminal terminal = terminalBuilder.apply(providersMap);
 
         CommandReader commandReader;
@@ -282,16 +304,13 @@ public class PulsarShell {
                 }
             };
         } else {
-            final String prompt = createPrompt();
-
             commandReader = () -> {
                 try {
-                    return reader.readLine(prompt).trim();
+                    return reader.readLine().trim();
                 } catch (org.jline.reader.UserInterruptException userInterruptException) {
                     throw new InterruptShellException();
                 }
             };
-
         }
 
         final Map<String, String> variables = System.getenv();
@@ -311,7 +330,7 @@ public class PulsarShell {
                 exit(0);
                 return;
             }
-            final List<String> words = parseLine(reader, line, variables);
+            final List<String> words = substituteVariables(reader.parseLine(line), variables);
 
             if (shellOptions.help) {
                 shellCommander.usage();
@@ -385,20 +404,14 @@ public class PulsarShell {
         return (ShellCommandsProvider) commander.getObjects().get(0);
     }
 
-    private static String createPrompt() {
+    private static String createPrompt(String hostname) {
+        final String string = (hostname == null ? "pulsar" : hostname) + ">";
         return new AttributedStringBuilder()
                 .style(LOG_STYLE)
-                .append("pulsar>")
+                .append(string)
                 .style(AttributedStyle.DEFAULT)
                 .append(" ")
                 .toAnsi();
-    }
-
-    private static List<String> parseLine(LineReader reader, String line, Map<String, String> vars) {
-        final ParsedLine pl = reader.getParser().parse(line, 0);
-        final List<String> words = pl.words();
-        final List<String> replaced = substituteVariables(words, vars);
-        return replaced;
     }
 
     static List<String> substituteVariables(List<String> line, Map<String, String> vars) {
@@ -472,6 +485,17 @@ public class PulsarShell {
 
     private static boolean filterLine(String line) {
         return !StringUtils.isBlank(line) && !line.startsWith("#");
+    }
+
+    private String getHostFromUrl(String url) {
+        if (url == null) {
+            return null;
+        }
+        try {
+            return URI.create(url).getHost();
+        } catch (IllegalArgumentException iea) {
+            return null;
+        }
     }
 
 }
