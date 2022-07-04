@@ -24,7 +24,6 @@ import org.apache.bookkeeper.mledger.util.StatsBuckets;
 import org.apache.pulsar.compaction.CompactionRecord;
 
 public class AggregatedNamespaceStats {
-
     public int topicsCount;
     public int subscriptionsCount;
     public int producersCount;
