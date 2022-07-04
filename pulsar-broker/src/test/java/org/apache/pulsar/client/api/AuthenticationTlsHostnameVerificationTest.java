@@ -141,7 +141,7 @@ public class AuthenticationTlsHostnameVerificationTest extends ProducerConsumerB
      *
      * @throws Exception
      */
-    @Test(dataProvider = "hostnameVerification")
+//    @Test(dataProvider = "hostnameVerification")
     public void testTlsSyncProducerAndConsumerWithInvalidBrokerHost(boolean hostnameVerificationEnabled)
         throws Exception {
         log.info("-- Starting {} test --", methodName);
