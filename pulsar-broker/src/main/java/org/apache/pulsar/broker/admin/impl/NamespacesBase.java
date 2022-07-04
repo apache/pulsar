@@ -857,17 +857,19 @@ public abstract class NamespacesBase extends AdminResource {
                 }));
     }
 
-    protected void internalSetSubscriptionExpirationTime(Integer expirationTime) {
-        validateNamespacePolicyOperation(namespaceName, PolicyName.SUBSCRIPTION_EXPIRATION_TIME, PolicyOperation.WRITE);
-        validatePoliciesReadOnlyAccess();
-
-        if (expirationTime != null && expirationTime < 0) {
-            throw new RestException(Status.PRECONDITION_FAILED, "Invalid value for subscription expiration time");
-        }
-        updatePolicies(namespaceName, policies -> {
-            policies.subscription_expiration_time_minutes = expirationTime;
-            return policies;
-        });
+    protected CompletableFuture<Void> internalSetSubscriptionExpirationTimeAsync(Integer expirationTime) {
+        return validateNamespacePolicyOperationAsync(namespaceName, PolicyName.SUBSCRIPTION_EXPIRATION_TIME,
+                PolicyOperation.WRITE)
+                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
+                .thenAccept(__ -> {
+                    if (expirationTime != null && expirationTime < 0) {
+                        throw new RestException(Status.PRECONDITION_FAILED,
+                                "Invalid value for subscription expiration time");
+                    }
+                }).thenCompose(__ -> updatePoliciesAsync(namespaceName, policies -> {
+                    policies.subscription_expiration_time_minutes = expirationTime;
+                    return policies;
+                }));
     }
 
     protected CompletableFuture<AutoTopicCreationOverride> internalGetAutoTopicCreationAsync() {
