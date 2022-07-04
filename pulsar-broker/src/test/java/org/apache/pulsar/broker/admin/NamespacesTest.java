@@ -983,14 +983,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         AsyncResponse response = mock(AsyncResponse.class);
         namespaces.unloadNamespaceBundle(response, testTenant, testLocalCluster, bundledNsLocal, "0x00000000_0x80000000",
                 false);
-        verify(nsSvc, times(1)).unloadNamespaceBundle(testBundle);
-        try {
-            namespaces.unloadNamespaceBundle(response, testTenant, testLocalCluster, bundledNsLocal, "0x00000000_0x88000000",
-                    false);
-            fail("should have failed");
-        } catch (RestException re) {
-            // ok
-        }
+        verify(response, timeout(5000).times(1)).resume(any(RestException.class));
     }
 
     private void createBundledTestNamespaces(String property, String cluster, String namespace, BundlesData bundle)
