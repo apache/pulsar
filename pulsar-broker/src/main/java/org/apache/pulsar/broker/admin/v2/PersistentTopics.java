@@ -1592,6 +1592,10 @@ public class PersistentTopics extends PersistentTopicsBase {
         internalResetCursorAsync(decode(encodedSubName), timestamp, authoritative)
             .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
             .exceptionally(ex -> {
+                if (!isRedirectException(ex)) {
+                    log.error("[{}][{}] Failed to reset cursor on subscription {} to time {}",
+                        clientAppId(), topicName, encodedSubName, timestamp, ex);
+                }
                 resumeAsyncResponseExceptionally(asyncResponse, ex);
                 return null;
             });
