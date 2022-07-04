@@ -246,11 +246,14 @@ public class WebService implements AutoCloseable {
             });
         }
         filterInitializer.addFilters(context, requiresAuthentication);
-        // add GzipHandler
-        GzipHandler gzipHandler = new GzipHandler();
-        gzipHandler.setHandler(context);
-
-        handlers.add(gzipHandler);
+        // enable compress
+        if (pulsar.getConfiguration().isEnableCompress()) {
+            GzipHandler gzipHandler = new GzipHandler();
+            gzipHandler.setHandler(context);
+            handlers.add(gzipHandler);
+        } else {
+            handlers.add(context);
+        }
     }
 
     public void addStaticResources(String basePath, String resourcePath) {
