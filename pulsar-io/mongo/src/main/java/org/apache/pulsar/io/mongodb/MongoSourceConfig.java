@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.io.mongodb;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import java.io.File;
@@ -53,6 +55,19 @@ public class MongoSourceConfig extends MongoAbstractConfig {
     )
     private SyncType syncType = DEFAULT_SYNC_TYPE;
 
+    @JsonCreator
+    public MongoSourceConfig(
+            @JsonProperty("mongoUri") String mongoUri,
+            @JsonProperty("database") String database,
+            @JsonProperty("collection") String collection,
+            @JsonProperty("batchSize") int batchSize,
+            @JsonProperty("batchTimeMs") long batchTimeMs,
+            @JsonProperty("syncType") String syncType
+    ) {
+        super(mongoUri, database, collection, batchSize, batchTimeMs);
+        setSyncType(syncType);
+    }
+
     public static MongoSourceConfig load(String yamlFile) throws IOException {
         final ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
         final MongoSourceConfig cfg = mapper.readValue(new File(yamlFile), MongoSourceConfig.class);
@@ -69,20 +84,18 @@ public class MongoSourceConfig extends MongoAbstractConfig {
     }
 
     /**
-     * Override syncType setter method.
-     *
-     * @param syncType Sync type string.
+     * @param syncTypeStr Sync type string.
      */
-    public void setSyncType(String syncType) {
+    private void setSyncType(String syncTypeStr) {
         // if syncType is not set, the default sync type is used
-        if (StringUtils.isEmpty(syncType)) {
+        if (StringUtils.isEmpty(syncTypeStr)) {
             this.syncType = DEFAULT_SYNC_TYPE;
             return;
         }
 
         // if syncType is set but not correct, an exception will be thrown
         try {
-            this.syncType = SyncType.valueOf(syncType.toUpperCase());
+            this.syncType = SyncType.valueOf(syncTypeStr.toUpperCase());
         } catch (IllegalArgumentException e) {
             throw new IllegalArgumentException("The value of the syncType field is incorrect.");
         }

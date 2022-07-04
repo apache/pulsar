@@ -30,7 +30,7 @@ import static org.testng.Assert.assertEquals;
 public class MongoSinkConfigTest {
 
     @Test
-    public void testLoadconfigMap() throws IOException {
+    public void testLoadMapConfig() throws IOException {
         final Map<String, Object> commonConfigMap = TestHelper.createCommonConfigMap();
         commonConfigMap.put("batchSize", TestHelper.BATCH_SIZE);
         commonConfigMap.put("batchTimeMs", TestHelper.BATCH_TIME);

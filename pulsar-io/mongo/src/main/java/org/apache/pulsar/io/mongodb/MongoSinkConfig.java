@@ -19,6 +19,8 @@
 package org.apache.pulsar.io.mongodb;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import java.io.File;
@@ -38,6 +40,17 @@ import org.apache.commons.lang3.StringUtils;
 public class MongoSinkConfig extends MongoAbstractConfig {
 
     private static final long serialVersionUID = 8805978990904614084L;
+
+    @JsonCreator
+    public MongoSinkConfig(
+            @JsonProperty("mongoUri") String mongoUri,
+            @JsonProperty("database") String database,
+            @JsonProperty("collection") String collection,
+            @JsonProperty("batchSize") int batchSize,
+            @JsonProperty("batchTimeMs") long batchTimeMs
+    ) {
+        super(mongoUri, database, collection, batchSize, batchTimeMs);
+    }
 
     public static MongoSinkConfig load(String yamlFile) throws IOException {
         final ObjectMapper mapper = new ObjectMapper(new YAMLFactory());

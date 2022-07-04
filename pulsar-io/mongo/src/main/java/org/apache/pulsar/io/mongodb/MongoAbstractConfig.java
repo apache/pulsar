@@ -19,6 +19,8 @@
 package org.apache.pulsar.io.mongodb;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.io.Serializable;
 import lombok.Data;
 import lombok.experimental.Accessors;
@@ -30,7 +32,7 @@ import org.apache.pulsar.io.core.annotations.FieldDoc;
  */
 @Data
 @Accessors(chain = true)
-public class MongoAbstractConfig implements Serializable {
+public abstract class MongoAbstractConfig implements Serializable {
 
     private static final long serialVersionUID = -3830568531897300005L;
 
@@ -44,7 +46,7 @@ public class MongoAbstractConfig implements Serializable {
             help = "The URI of MongoDB that the connector connects to "
                     + "(see: https://docs.mongodb.com/manual/reference/connection-string/)"
     )
-    private String mongoUri;
+    private final String mongoUri;
 
     @FieldDoc(
             defaultValue = "",
@@ -52,7 +54,7 @@ public class MongoAbstractConfig implements Serializable {
                     + "and which must be watched for the source connector "
                     + "(required for the sink connector)"
     )
-    private String database;
+    private final String database;
 
     @FieldDoc(
             defaultValue = "",
@@ -60,18 +62,37 @@ public class MongoAbstractConfig implements Serializable {
                     + "or which is watched for the source connector "
                     + "(required for the sink connector)"
     )
-    private String collection;
+    private final String collection;
 
     @FieldDoc(
             defaultValue = "" + DEFAULT_BATCH_SIZE,
             help = "The batch size of write to or read from the database"
     )
-    private int batchSize = DEFAULT_BATCH_SIZE;
+    private final int batchSize;
 
     @FieldDoc(
             defaultValue = "" + DEFAULT_BATCH_TIME_MS,
             help = "The batch operation interval in milliseconds")
-    private long batchTimeMs = DEFAULT_BATCH_TIME_MS;
+    private final long batchTimeMs;
+
+    public MongoAbstractConfig() {
+        this(null, null, null, DEFAULT_BATCH_SIZE, DEFAULT_BATCH_TIME_MS);
+    }
+
+    @JsonCreator
+    public MongoAbstractConfig(
+            @JsonProperty("mongoUri") String mongoUri,
+            @JsonProperty("database") String database,
+            @JsonProperty("collection") String collection,
+            @JsonProperty("batchSize") int batchSize,
+            @JsonProperty("batchTimeMs") long batchTimeMs
+    ) {
+        this.mongoUri = mongoUri;
+        this.database = database;
+        this.collection = collection;
+        this.batchSize = batchSize;
+        this.batchTimeMs = batchTimeMs;
+    }
 
     public void validate() {
         checkArgument(!StringUtils.isEmpty(getMongoUri()), "Required MongoDB URI is not set.");
