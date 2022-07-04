@@ -130,6 +130,7 @@ import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConfigurationDataUtils;
 import org.apache.pulsar.client.internal.PropertiesUtils;
 import org.apache.pulsar.client.util.ExecutorProvider;
+import org.apache.pulsar.client.util.ScheduledExecutorProvider;
 import org.apache.pulsar.common.conf.InternalConfigurationData;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.configuration.VipStatus;
@@ -233,6 +234,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     protected final EventLoopGroup ioEventLoopGroup;
     private final ExecutorProvider brokerClientSharedInternalExecutorProvider;
     private final ExecutorProvider brokerClientSharedExternalExecutorProvider;
+    private final ScheduledExecutorProvider brokerClientSharedScheduledExecutorProvider;
     private final Timer brokerClientSharedTimer;
 
     private MetricsGenerator metricsGenerator;
@@ -336,6 +338,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         // since an instance is required, a single threaded shared instance is used for all broker client instances
         this.brokerClientSharedExternalExecutorProvider =
                 new ExecutorProvider(1, "broker-client-shared-external-executor");
+        this.brokerClientSharedScheduledExecutorProvider =
+                new ScheduledExecutorProvider(1, "broker-client-shared-scheduled-executor");
         this.brokerClientSharedTimer =
                 new HashedWheelTimer(new DefaultThreadFactory("broker-client-shared-timer"), 1, TimeUnit.MILLISECONDS);
     }
@@ -535,6 +539,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
             brokerClientSharedExternalExecutorProvider.shutdownNow();
             brokerClientSharedInternalExecutorProvider.shutdownNow();
+            brokerClientSharedScheduledExecutorProvider.shutdownNow();
             brokerClientSharedTimer.stop();
             ioEventLoopGroup.shutdownGracefully();
 
@@ -1361,6 +1366,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 .timer(brokerClientSharedTimer)
                 .internalExecutorProvider(brokerClientSharedInternalExecutorProvider)
                 .externalExecutorProvider(brokerClientSharedExternalExecutorProvider)
+                .scheduledExecutorProvider(brokerClientSharedScheduledExecutorProvider)
                 .build();
     }
 
