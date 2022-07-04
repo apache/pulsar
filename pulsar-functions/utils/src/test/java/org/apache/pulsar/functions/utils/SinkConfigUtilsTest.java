@@ -44,9 +44,9 @@ import static org.apache.pulsar.common.functions.FunctionConfig.ProcessingGuaran
 import static org.apache.pulsar.common.functions.FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.expectThrows;
-import static org.testng.Assert.fail;
 
 /**
  * Unit test of {@link SinkConfigUtilsTest}.

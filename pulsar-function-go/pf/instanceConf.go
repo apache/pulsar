@@ -108,7 +108,7 @@ func newInstanceConf() *instanceConf {
 		panic("Go instance current not support EFFECTIVELY_ONCE processing guarantees.")
 	}
 
-	if instanceConf.funcDetails.AutoAck == false &&
+	if !instanceConf.funcDetails.AutoAck &&
 		(instanceConf.funcDetails.ProcessingGuarantees == pb.ProcessingGuarantees_ATMOST_ONCE ||
 			instanceConf.funcDetails.ProcessingGuarantees == pb.ProcessingGuarantees_ATLEAST_ONCE) {
 		panic("When Guarantees == " + instanceConf.funcDetails.ProcessingGuarantees.String() +
