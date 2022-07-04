@@ -24,6 +24,7 @@ import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.verify;
+import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotSame;
 import static org.testng.Assert.assertSame;
@@ -55,6 +56,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.util.ExecutorProvider;
+import org.apache.pulsar.client.util.ScheduledExecutorProvider;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
 import org.apache.pulsar.common.lookup.GetTopicsResult;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -119,7 +121,7 @@ public class PulsarClientImplTest {
                         new GetTopicsResult(Collections.emptyList(), null, false, true)));
         when(lookup.getPartitionedTopicMetadata(any(TopicName.class)))
                 .thenReturn(CompletableFuture.completedFuture(new PartitionedTopicMetadata()));
-        when(lookup.getBroker(any(TopicName.class)))
+        when(lookup.getBroker(any()))
                 .thenReturn(CompletableFuture.completedFuture(
                         Pair.of(mock(InetSocketAddress.class), mock(InetSocketAddress.class))));
         ConnectionPool pool = mock(ConnectionPool.class);
@@ -230,16 +232,24 @@ public class PulsarClientImplTest {
         ClientConfigurationData conf = clientImpl.conf;
         @Cleanup("shutdownNow")
         ExecutorProvider executorProvider = new ExecutorProvider(2, "shared-executor");
+        @Cleanup("shutdownNow")
+        ScheduledExecutorProvider scheduledExecutorProvider =
+                new ScheduledExecutorProvider(2, "scheduled-executor");
         @Cleanup
         PulsarClientImpl client2 = PulsarClientImpl.builder().conf(conf)
                 .internalExecutorProvider(executorProvider)
                 .externalExecutorProvider(executorProvider)
+                .scheduledExecutorProvider(scheduledExecutorProvider)
                 .build();
         @Cleanup
         PulsarClientImpl client3 = PulsarClientImpl.builder().conf(conf)
                 .internalExecutorProvider(executorProvider)
                 .externalExecutorProvider(executorProvider)
+                .scheduledExecutorProvider(scheduledExecutorProvider)
                 .build();
+
+        assertEquals(client2.getScheduledExecutorProvider(), scheduledExecutorProvider);
+        assertEquals(client3.getScheduledExecutorProvider(), scheduledExecutorProvider);
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class,
