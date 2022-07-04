@@ -47,8 +47,7 @@ public interface ManagedLedgerStorage extends AutoCloseable {
     void initialize(ServiceConfiguration conf,
                     MetadataStoreExtended metadataStore,
                     BookKeeperClientFactory bookkeeperProvider,
-                    EventLoopGroup eventLoopGroup,
-                    RubbishCleanService rubbishCleanService) throws Exception;
+                    EventLoopGroup eventLoopGroup) throws Exception;
 
     /**
      * Return the factory to create {@link ManagedLedgerFactory}.
@@ -88,12 +87,12 @@ public interface ManagedLedgerStorage extends AutoCloseable {
     static ManagedLedgerStorage create(ServiceConfiguration conf,
                                        MetadataStoreExtended metadataStore,
                                        BookKeeperClientFactory bkProvider,
-                                       EventLoopGroup eventLoopGroup,
-                                       RubbishCleanService rubbishCleanService) throws Exception {
+                                       EventLoopGroup eventLoopGroup) throws Exception {
         final Class<?> storageClass = Class.forName(conf.getManagedLedgerStorageClassName());
         final ManagedLedgerStorage storage = (ManagedLedgerStorage) storageClass.getDeclaredConstructor().newInstance();
-        storage.initialize(conf, metadataStore, bkProvider, eventLoopGroup, rubbishCleanService);
+        storage.initialize(conf, metadataStore, bkProvider, eventLoopGroup);
         return storage;
     }
 
+    void setUpRubbishCleanService(RubbishCleanService rubbishCleanService);
 }

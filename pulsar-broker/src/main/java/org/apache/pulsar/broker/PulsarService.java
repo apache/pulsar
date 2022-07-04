@@ -716,15 +716,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             // Now we are ready to start services
             this.bkClientFactory = newBookKeeperClientFactory();
 
-            if (config.isSupportTwoPhaseDeletion()) {
-                rubbishCleanService = new SystemTopicBasedRubbishCleanService(getClient(), getAdminClient(), getBookKeeperClient());
-            } else {
-                rubbishCleanService = new RubbishCleanService.RubbishCleanServiceDisable();
-            }
-
             managedLedgerClientFactory =
-                    ManagedLedgerStorage.create(config, localMetadataStore, bkClientFactory, ioEventLoopGroup,
-                            rubbishCleanService);
+                    ManagedLedgerStorage.create(config, localMetadataStore, bkClientFactory, ioEventLoopGroup);
 
             this.brokerService = newBrokerService(this);
 
@@ -783,8 +776,16 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             if (config.isTopicLevelPoliciesEnabled() && config.isSystemTopicEnabled()) {
                 this.topicPoliciesService = new SystemTopicBasedTopicPoliciesService(this);
             }
-
             this.topicPoliciesService.start();
+
+            if (config.isSupportTwoPhaseDeletion()) {
+                this.rubbishCleanService = new SystemTopicBasedRubbishCleanService(getClient(), getAdminClient(), getBookKeeperClient());
+            } else {
+                this.rubbishCleanService = new RubbishCleanService.RubbishCleanServiceDisable();
+            }
+            this.managedLedgerClientFactory.setUpRubbishCleanService(this.rubbishCleanService);
+            this.rubbishCleanService.start();
+
 
             // Start the leader election service
             startLeaderElectionService();

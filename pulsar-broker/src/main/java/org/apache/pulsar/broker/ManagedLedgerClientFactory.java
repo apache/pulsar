@@ -55,8 +55,7 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
 
     public void initialize(ServiceConfiguration conf, MetadataStoreExtended metadataStore,
                            BookKeeperClientFactory bookkeeperProvider,
-                           EventLoopGroup eventLoopGroup,
-                           RubbishCleanService rubbishCleanService) throws Exception {
+                           EventLoopGroup eventLoopGroup) throws Exception {
         ManagedLedgerFactoryConfig managedLedgerFactoryConfig = new ManagedLedgerFactoryConfig();
         managedLedgerFactoryConfig.setMaxCacheSize(conf.getManagedLedgerCacheSizeMB() * 1024L * 1024L);
         managedLedgerFactoryConfig.setCacheEvictionWatermark(conf.getManagedLedgerCacheEvictionWatermark());
@@ -108,10 +107,8 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
             return bkClient != null ? bkClient : defaultBkClient;
         };
 
-
         this.managedLedgerFactory =
-                new ManagedLedgerFactoryImpl(metadataStore, bkFactory, managedLedgerFactoryConfig, statsLogger,
-                        rubbishCleanService);
+                new ManagedLedgerFactoryImpl(metadataStore, bkFactory, managedLedgerFactoryConfig, statsLogger);
     }
 
     public ManagedLedgerFactory getManagedLedgerFactory() {
@@ -172,5 +169,10 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
             log.warn(e.getMessage(), e);
             throw new IOException(e);
         }
+    }
+
+    @Override
+    public void setUpRubbishCleanService(RubbishCleanService rubbishCleanService) {
+        this.managedLedgerFactory.setUpRubbishCleanService(rubbishCleanService);
     }
 }
