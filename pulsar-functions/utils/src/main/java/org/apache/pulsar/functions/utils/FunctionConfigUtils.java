@@ -378,9 +378,9 @@ public class FunctionConfigUtils {
             throws IllegalArgumentException {
         if (!functionDetails.getAutoAck() && functionDetails.getProcessingGuarantees()
                 == Function.ProcessingGuarantees.ATMOST_ONCE) {
-            throw new IllegalArgumentException("When Guarantees == ATMOST_ONCE, autoAck must be equal to true,"
-                    + "This is a contradictory configuration, autoAck will be removed later,"
-                    + "Please refer to PIP: https://github.com/apache/pulsar/issues/15560");
+            throw new IllegalArgumentException("When Guarantees == ATMOST_ONCE, autoAck must be equal to true."
+                    + " This is a contradictory configuration, autoAck will be removed later."
+                    + " Please refer to PIP: https://github.com/apache/pulsar/issues/15560");
         }
         if (!functionDetails.getAutoAck()) {
             log.warn("The autoAck configuration will be deprecated in the future."
