@@ -49,8 +49,9 @@ type Conf struct {
 	ProcessingGuarantees int32  `json:"processingGuarantees" yaml:"processingGuarantees"`
 	SecretsMap           string `json:"secretsMap" yaml:"secretsMap"`
 	Runtime              int32  `json:"runtime" yaml:"runtime"`
-	AutoACK              bool   `json:"autoAck" yaml:"autoAck"`
-	Parallelism          int32  `json:"parallelism" yaml:"parallelism"`
+	//Deprecated
+	AutoACK     bool  `json:"autoAck" yaml:"autoAck"`
+	Parallelism int32 `json:"parallelism" yaml:"parallelism"`
 	//source config
 	SubscriptionType     int32  `json:"subscriptionType" yaml:"subscriptionType"`
 	TimeoutMs            uint64 `json:"timeoutMs" yaml:"timeoutMs"`

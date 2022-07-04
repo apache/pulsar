@@ -349,7 +349,6 @@ func (gi *goInstance) handlerMsg(input pulsar.Message) (output []byte, err error
 
 func (gi *goInstance) processResult(msgInput pulsar.Message, output []byte) {
 	atLeastOnce := gi.context.instanceConf.funcDetails.ProcessingGuarantees == pb.ProcessingGuarantees_ATLEAST_ONCE
-	atMostOnce := gi.context.instanceConf.funcDetails.ProcessingGuarantees == pb.ProcessingGuarantees_ATMOST_ONCE
 	autoAck := gi.context.instanceConf.funcDetails.AutoAck
 
 	// If the function had an output and the user has specified an output topic, the output needs to be sent to the
@@ -372,9 +371,9 @@ func (gi *goInstance) processResult(msgInput pulsar.Message, output []byte) {
 					gi.stats.incrTotalSysExceptions(err)
 					log.Fatal(err)
 				}
-				// Otherwise the message succeeded. If the SDK is entrusted with responding and we are not using
-				// at-most-once delivery semantics, ack the message.
-				if autoAck && !atMostOnce {
+				// Otherwise the message succeeded. If the SDK is entrusted with responding and we are using
+				// atLeastOnce delivery semantics, ack the message.
+				if autoAck && atLeastOnce {
 					gi.ackInputMessage(msgInput)
 				}
 				gi.stats.incrTotalProcessedSuccessfully()
