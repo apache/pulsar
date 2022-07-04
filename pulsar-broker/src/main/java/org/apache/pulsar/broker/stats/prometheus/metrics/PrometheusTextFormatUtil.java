@@ -18,13 +18,9 @@
  */
 package org.apache.pulsar.broker.stats.prometheus.metrics;
 
-import io.prometheus.client.Collector;
-import io.prometheus.client.Collector.MetricFamilySamples;
 import java.io.IOException;
 import java.io.Writer;
-import java.util.Collection;
 import org.apache.bookkeeper.stats.Counter;
-import org.apache.pulsar.common.util.SimpleTextOutputStream;
 
 /**
  * Logic to write metrics in Prometheus text format.
@@ -138,35 +134,5 @@ public class PrometheusTextFormatUtil {
         w.append(name).append("_sum{cluster=\"").append(cluster).append("\", success=\"")
                 .append(success.toString()).append("\"} ")
                 .append(Double.toString(opStat.getSum(success))).append('\n');
-    }
-
-    public static void writeMetrics(SimpleTextOutputStream stream, Collection<MetricFamilySamples> familySamples) {
-        for (MetricFamilySamples familySample : familySamples) {
-            stream.write("# TYPE ");
-            stream.write(familySample.name);
-            stream.write(' ');
-            stream.write(familySample.type.name().toLowerCase());
-            stream.write('\n');
-            for (Collector.MetricFamilySamples.Sample sample : familySample.samples) {
-                stream.write(sample.name);
-                if (sample.labelNames.size() > 0) {
-                    stream.write('{');
-                    for (int i = 0; i < sample.labelNames.size(); ++i) {
-                        stream.write(sample.labelNames.get(i));
-                        stream.write("=\"");
-                        stream.write(sample.labelValues.get(i));
-                        stream.write("\",");
-                    }
-                    stream.write('}');
-                }
-                stream.write(' ');
-                stream.write(Collector.doubleToGoString(sample.value));
-                if (sample.timestampMs != null) {
-                    stream.write(' ');
-                    stream.write(sample.timestampMs.toString());
-                }
-                stream.write('\n');
-            }
-        }
     }
 }

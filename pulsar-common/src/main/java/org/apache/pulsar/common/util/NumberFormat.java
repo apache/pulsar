@@ -25,7 +25,7 @@ import io.netty.buffer.ByteBuf;
  */
 public class NumberFormat {
 
-    public static void format(ByteBuf out, long num) {
+    static void format(ByteBuf out, long num) {
         if (num == 0) {
             out.writeByte('0');
             return;

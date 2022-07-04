@@ -18,18 +18,13 @@
  */
 package org.apache.pulsar.broker.stats.prometheus;
 
-import static org.apache.pulsar.broker.stats.prometheus.NamespaceStatsAggregator.writeGaugeType;
-import static org.apache.pulsar.broker.stats.prometheus.NamespaceStatsAggregator.writeGaugeTypeWithBrokerDefault;
-import static org.apache.pulsar.broker.stats.prometheus.NamespaceStatsAggregator.writeSample;
 import static org.apache.pulsar.common.naming.TopicName.PARTITIONED_TOPIC_SUFFIX;
-import io.netty.buffer.ByteBuf;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.function.Function;
 import org.apache.bookkeeper.mledger.util.StatsBuckets;
+import org.apache.commons.lang3.ArrayUtils;
+import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.compaction.CompactionRecord;
 import org.apache.pulsar.compaction.CompactorMXBean;
 
@@ -105,397 +100,336 @@ class TopicStats {
         compactionLatencyBuckets.reset();
     }
 
-    public static void printTopicStats(Map<String, ByteBuf> allMetrics, TopicStats stats,
+    public static void printTopicStats(PrometheusMetricStreams stream, TopicStats stats,
                                        Optional<CompactorMXBean> compactorMXBean, String cluster, String namespace,
-                                       String name, boolean splitTopicAndPartitionIndexLabel) {
-        writeMetricWithBrokerDefault(allMetrics, "pulsar_subscriptions_count", stats.subscriptionsCount,
-                cluster, namespace, name, splitTopicAndPartitionIndexLabel);
-        writeMetricWithBrokerDefault(allMetrics, "pulsar_producers_count", stats.producersCount,
-                cluster, namespace, name, splitTopicAndPartitionIndexLabel);
-        writeMetricWithBrokerDefault(allMetrics, "pulsar_consumers_count", stats.consumersCount,
-                cluster, namespace, name, splitTopicAndPartitionIndexLabel);
+                                       String topic, boolean splitTopicAndPartitionIndexLabel) {
+        writeMetric(stream, "pulsar_subscriptions_count", stats.subscriptionsCount,
+                cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
+        writeMetric(stream, "pulsar_producers_count", stats.producersCount,
+                cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
+        writeMetric(stream, "pulsar_consumers_count", stats.consumersCount,
+                cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
 
-        writeMetricWithBrokerDefault(allMetrics, "pulsar_rate_in", stats.rateIn,
-                cluster, namespace, name, splitTopicAndPartitionIndexLabel);
-        writeMetricWithBrokerDefault(allMetrics, "pulsar_rate_out", stats.rateOut,
-                cluster, namespace, name, splitTopicAndPartitionIndexLabel);
-        writeMetricWithBrokerDefault(allMetrics, "pulsar_throughput_in", stats.throughputIn,
-                cluster, namespace, name, splitTopicAndPartitionIndexLabel);
-        writeMetricWithBrokerDefault(allMetrics, "pulsar_throughput_out", stats.throughputOut,
-                cluster, namespace, name, splitTopicAndPartitionIndexLabel);
-        writeMetric(allMetrics, "pulsar_average_msg_size", stats.averageMsgSize,
-                cluster, namespace, name, splitTopicAndPartitionIndexLabel);
+        writeMetric(stream, "pulsar_rate_in", stats.rateIn,
+                cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
+        writeMetric(stream, "pulsar_rate_out", stats.rateOut,
+                cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
+        writeMetric(stream, "pulsar_throughput_in", stats.throughputIn,
+                cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
+        writeMetric(stream, "pulsar_throughput_out", stats.throughputOut,
+                cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
+        writeMetric(stream, "pulsar_average_msg_size", stats.averageMsgSize,
+                cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
 
-        writeMetricWithBrokerDefault(allMetrics, "pulsar_storage_size", stats.managedLedgerStats.storageSize,
-                cluster, namespace, name, splitTopicAndPartitionIndexLabel);
-        writeMetricWithBrokerDefault(allMetrics, "pulsar_storage_logical_size",
-                stats.managedLedgerStats.storageLogicalSize, cluster, namespace, name,
+        writeMetric(stream, "pulsar_storage_size", stats.managedLedgerStats.storageSize,
+                cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
+        writeMetric(stream, "pulsar_storage_logical_size",
+                stats.managedLedgerStats.storageLogicalSize, cluster, namespace, topic,
                 splitTopicAndPartitionIndexLabel);
-        writeMetricWithBrokerDefault(allMetrics, "pulsar_msg_backlog", stats.msgBacklog,
-                cluster, namespace, name, splitTopicAndPartitionIndexLabel);
-        writeMetric(allMetrics, "pulsar_storage_backlog_size", stats.managedLedgerStats.backlogSize,
-                cluster, namespace, name, splitTopicAndPartitionIndexLabel);
-        writeMetric(allMetrics, "pulsar_publish_rate_limit_times", stats.publishRateLimitedTimes,
-                cluster, namespace, name, splitTopicAndPartitionIndexLabel);
-        writeMetric(allMetrics, "pulsar_storage_offloaded_size", stats.managedLedgerStats
-                .offloadedStorageUsed, cluster, namespace, name, splitTopicAndPartitionIndexLabel);
-        writeMetric(allMetrics, "pulsar_storage_backlog_quota_limit", stats.backlogQuotaLimit,
-                cluster, namespace, name, splitTopicAndPartitionIndexLabel);
-        writeMetric(allMetrics, "pulsar_storage_backlog_quota_limit_time", stats.backlogQuotaLimitTime,
-                cluster, namespace, name, splitTopicAndPartitionIndexLabel);
+        writeMetric(stream, "pulsar_msg_backlog", stats.msgBacklog,
+                cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
+        writeMetric(stream, "pulsar_storage_backlog_size", stats.managedLedgerStats.backlogSize,
+                cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
+        writeMetric(stream, "pulsar_publish_rate_limit_times", stats.publishRateLimitedTimes,
+                cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
+        writeMetric(stream, "pulsar_storage_offloaded_size", stats.managedLedgerStats
+                .offloadedStorageUsed, cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
+        writeMetric(stream, "pulsar_storage_backlog_quota_limit", stats.backlogQuotaLimit,
+                cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
+        writeMetric(stream, "pulsar_storage_backlog_quota_limit_time", stats.backlogQuotaLimitTime,
+                cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
 
-        writeMetric(allMetrics, "pulsar_storage_write_latency_le_0_5",
-                stats.managedLedgerStats.storageWriteLatencyBuckets.getBuckets()[0],
-                cluster, namespace, name, splitTopicAndPartitionIndexLabel);
-        writeMetric(allMetrics, "pulsar_storage_write_latency_le_1",
-                stats.managedLedgerStats.storageWriteLatencyBuckets.getBuckets()[1],
-                cluster, namespace, name, splitTopicAndPartitionIndexLabel);
-        writeMetric(allMetrics, "pulsar_storage_write_latency_le_5",
-                stats.managedLedgerStats.storageWriteLatencyBuckets.getBuckets()[2],
-                cluster, namespace, name, splitTopicAndPartitionIndexLabel);
-        writeMetric(allMetrics, "pulsar_storage_write_latency_le_10",
-                stats.managedLedgerStats.storageWriteLatencyBuckets.getBuckets()[3],
-                cluster, namespace, name, splitTopicAndPartitionIndexLabel);
-        writeMetric(allMetrics, "pulsar_storage_write_latency_le_20",
-                stats.managedLedgerStats.storageWriteLatencyBuckets.getBuckets()[4],
-                cluster, namespace, name, splitTopicAndPartitionIndexLabel);
-        writeMetric(allMetrics, "pulsar_storage_write_latency_le_50",
-                stats.managedLedgerStats.storageWriteLatencyBuckets.getBuckets()[5],
-                cluster, namespace, name, splitTopicAndPartitionIndexLabel);
-        writeMetric(allMetrics, "pulsar_storage_write_latency_le_100",
-                stats.managedLedgerStats.storageWriteLatencyBuckets.getBuckets()[6],
-                cluster, namespace, name, splitTopicAndPartitionIndexLabel);
-        writeMetric(allMetrics, "pulsar_storage_write_latency_le_200",
-                stats.managedLedgerStats.storageWriteLatencyBuckets.getBuckets()[7],
-                cluster, namespace, name, splitTopicAndPartitionIndexLabel);
-        writeMetric(allMetrics, "pulsar_storage_write_latency_le_1000",
-                stats.managedLedgerStats.storageWriteLatencyBuckets.getBuckets()[8],
-                cluster, namespace, name, splitTopicAndPartitionIndexLabel);
-        writeMetric(allMetrics, "pulsar_storage_write_latency_overflow",
-                stats.managedLedgerStats.storageWriteLatencyBuckets.getBuckets()[9],
-                cluster, namespace, name, splitTopicAndPartitionIndexLabel);
-        writeMetric(allMetrics, "pulsar_storage_write_latency_count",
+        long[] latencyBuckets = stats.managedLedgerStats.storageWriteLatencyBuckets.getBuckets();
+        writeMetric(stream, "pulsar_storage_write_latency_le_0_5",
+                latencyBuckets[0], cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
+        writeMetric(stream, "pulsar_storage_write_latency_le_1",
+                latencyBuckets[1], cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
+        writeMetric(stream, "pulsar_storage_write_latency_le_5",
+                latencyBuckets[2], cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
+        writeMetric(stream, "pulsar_storage_write_latency_le_10",
+                latencyBuckets[3], cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
+        writeMetric(stream, "pulsar_storage_write_latency_le_20",
+                latencyBuckets[4], cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
+        writeMetric(stream, "pulsar_storage_write_latency_le_50",
+                latencyBuckets[5], cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
+        writeMetric(stream, "pulsar_storage_write_latency_le_100",
+                latencyBuckets[6], cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
+        writeMetric(stream, "pulsar_storage_write_latency_le_200",
+                latencyBuckets[7], cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
+        writeMetric(stream, "pulsar_storage_write_latency_le_1000",
+                latencyBuckets[8], cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
+        writeMetric(stream, "pulsar_storage_write_latency_overflow",
+                latencyBuckets[9], cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
+        writeMetric(stream, "pulsar_storage_write_latency_count",
                 stats.managedLedgerStats.storageWriteLatencyBuckets.getCount(),
-                cluster, namespace, name, splitTopicAndPartitionIndexLabel);
-        writeMetric(allMetrics, "pulsar_storage_write_latency_sum",
-                stats.managedLedgerStats.storageWriteLatencyBuckets.getSum(), cluster, namespace, name,
+                cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
+        writeMetric(stream, "pulsar_storage_write_latency_sum",
+                stats.managedLedgerStats.storageWriteLatencyBuckets.getSum(), cluster, namespace, topic,
                 splitTopicAndPartitionIndexLabel);
 
-        writeMetric(allMetrics, "pulsar_storage_ledger_write_latency_le_0_5",
-                stats.managedLedgerStats.storageLedgerWriteLatencyBuckets.getBuckets()[0],
-                cluster, namespace, name, splitTopicAndPartitionIndexLabel);
-        writeMetric(allMetrics, "pulsar_storage_ledger_write_latency_le_1",
-                stats.managedLedgerStats.storageLedgerWriteLatencyBuckets.getBuckets()[1],
-                cluster, namespace, name, splitTopicAndPartitionIndexLabel);
-        writeMetric(allMetrics, "pulsar_storage_ledger_write_latency_le_5",
-                stats.managedLedgerStats.storageLedgerWriteLatencyBuckets.getBuckets()[2],
-                cluster, namespace, name, splitTopicAndPartitionIndexLabel);
-        writeMetric(allMetrics, "pulsar_storage_ledger_write_latency_le_10",
-                stats.managedLedgerStats.storageLedgerWriteLatencyBuckets.getBuckets()[3],
-                cluster, namespace, name, splitTopicAndPartitionIndexLabel);
-        writeMetric(allMetrics, "pulsar_storage_ledger_write_latency_le_20",
-                stats.managedLedgerStats.storageLedgerWriteLatencyBuckets.getBuckets()[4],
-                cluster, namespace, name, splitTopicAndPartitionIndexLabel);
-        writeMetric(allMetrics, "pulsar_storage_ledger_write_latency_le_50",
-                stats.managedLedgerStats.storageLedgerWriteLatencyBuckets.getBuckets()[5],
-                cluster, namespace, name, splitTopicAndPartitionIndexLabel);
-        writeMetric(allMetrics, "pulsar_storage_ledger_write_latency_le_100",
-                stats.managedLedgerStats.storageLedgerWriteLatencyBuckets.getBuckets()[6],
-                cluster, namespace, name, splitTopicAndPartitionIndexLabel);
-        writeMetric(allMetrics, "pulsar_storage_ledger_write_latency_le_200",
-                stats.managedLedgerStats.storageLedgerWriteLatencyBuckets.getBuckets()[7],
-                cluster, namespace, name, splitTopicAndPartitionIndexLabel);
-        writeMetric(allMetrics, "pulsar_storage_ledger_write_latency_le_1000",
-                stats.managedLedgerStats.storageLedgerWriteLatencyBuckets.getBuckets()[8],
-                cluster, namespace, name, splitTopicAndPartitionIndexLabel);
-        writeMetric(allMetrics, "pulsar_storage_ledger_write_latency_overflow",
-                stats.managedLedgerStats.storageLedgerWriteLatencyBuckets.getBuckets()[9],
-                cluster, namespace, name, splitTopicAndPartitionIndexLabel);
-        writeMetric(allMetrics, "pulsar_storage_ledger_write_latency_count",
+        long[] ledgerWriteLatencyBuckets = stats.managedLedgerStats.storageLedgerWriteLatencyBuckets.getBuckets();
+        writeMetric(stream, "pulsar_storage_ledger_write_latency_le_0_5",
+                ledgerWriteLatencyBuckets[0], cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
+        writeMetric(stream, "pulsar_storage_ledger_write_latency_le_1",
+                ledgerWriteLatencyBuckets[1], cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
+        writeMetric(stream, "pulsar_storage_ledger_write_latency_le_5",
+                ledgerWriteLatencyBuckets[2], cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
+        writeMetric(stream, "pulsar_storage_ledger_write_latency_le_10",
+                ledgerWriteLatencyBuckets[3], cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
+        writeMetric(stream, "pulsar_storage_ledger_write_latency_le_20",
+                ledgerWriteLatencyBuckets[4], cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
+        writeMetric(stream, "pulsar_storage_ledger_write_latency_le_50",
+                ledgerWriteLatencyBuckets[5], cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
+        writeMetric(stream, "pulsar_storage_ledger_write_latency_le_100",
+                ledgerWriteLatencyBuckets[6], cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
+        writeMetric(stream, "pulsar_storage_ledger_write_latency_le_200",
+                ledgerWriteLatencyBuckets[7], cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
+        writeMetric(stream, "pulsar_storage_ledger_write_latency_le_1000",
+                ledgerWriteLatencyBuckets[8], cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
+        writeMetric(stream, "pulsar_storage_ledger_write_latency_overflow",
+                ledgerWriteLatencyBuckets[9], cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
+        writeMetric(stream, "pulsar_storage_ledger_write_latency_count",
                 stats.managedLedgerStats.storageLedgerWriteLatencyBuckets.getCount(),
-                cluster, namespace, name, splitTopicAndPartitionIndexLabel);
-        writeMetric(allMetrics, "pulsar_storage_ledger_write_latency_sum",
+                cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
+        writeMetric(stream, "pulsar_storage_ledger_write_latency_sum",
                 stats.managedLedgerStats.storageLedgerWriteLatencyBuckets.getSum(),
-                cluster, namespace, name, splitTopicAndPartitionIndexLabel);
+                cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
 
-        writeMetric(allMetrics, "pulsar_entry_size_le_128",
-                stats.managedLedgerStats.entrySizeBuckets.getBuckets()[0],
-                cluster, namespace, name, splitTopicAndPartitionIndexLabel);
-        writeMetric(allMetrics, "pulsar_entry_size_le_512",
-                stats.managedLedgerStats.entrySizeBuckets.getBuckets()[1],
-                cluster, namespace, name, splitTopicAndPartitionIndexLabel);
-        writeMetric(allMetrics, "pulsar_entry_size_le_1_kb",
-                stats.managedLedgerStats.entrySizeBuckets.getBuckets()[2],
-                cluster, namespace, name, splitTopicAndPartitionIndexLabel);
-        writeMetric(allMetrics, "pulsar_entry_size_le_2_kb",
-                stats.managedLedgerStats.entrySizeBuckets.getBuckets()[3],
-                cluster, namespace, name, splitTopicAndPartitionIndexLabel);
-        writeMetric(allMetrics, "pulsar_entry_size_le_4_kb",
-                stats.managedLedgerStats.entrySizeBuckets.getBuckets()[4],
-                cluster, namespace, name, splitTopicAndPartitionIndexLabel);
-        writeMetric(allMetrics, "pulsar_entry_size_le_16_kb",
-                stats.managedLedgerStats.entrySizeBuckets.getBuckets()[5],
-                cluster, namespace, name, splitTopicAndPartitionIndexLabel);
-        writeMetric(allMetrics, "pulsar_entry_size_le_100_kb",
-                stats.managedLedgerStats.entrySizeBuckets.getBuckets()[6],
-                cluster, namespace, name, splitTopicAndPartitionIndexLabel);
-        writeMetric(allMetrics, "pulsar_entry_size_le_1_mb",
-                stats.managedLedgerStats.entrySizeBuckets.getBuckets()[7],
-                cluster, namespace, name, splitTopicAndPartitionIndexLabel);
-        writeMetric(allMetrics, "pulsar_entry_size_le_overflow",
-                stats.managedLedgerStats.entrySizeBuckets.getBuckets()[8],
-                cluster, namespace, name, splitTopicAndPartitionIndexLabel);
-        writeMetric(allMetrics, "pulsar_entry_size_count", stats.managedLedgerStats.entrySizeBuckets.getCount(),
-                cluster, namespace, name, splitTopicAndPartitionIndexLabel);
-        writeMetric(allMetrics, "pulsar_entry_size_sum", stats.managedLedgerStats.entrySizeBuckets.getSum(),
-                cluster, namespace, name, splitTopicAndPartitionIndexLabel);
-
-        writeProducerStat(allMetrics, "pulsar_producer_msg_rate_in", stats,
-                p -> p.msgRateIn, cluster, namespace, name, splitTopicAndPartitionIndexLabel);
-        writeProducerStat(allMetrics, "pulsar_producer_msg_throughput_in", stats,
-                p -> p.msgThroughputIn, cluster, namespace, name, splitTopicAndPartitionIndexLabel);
-        writeProducerStat(allMetrics, "pulsar_producer_msg_average_Size", stats,
-                p -> p.averageMsgSize, cluster, namespace, name, splitTopicAndPartitionIndexLabel);
-
-
-        writeSubscriptionStat(allMetrics, "pulsar_subscription_back_log", stats, s -> s.msgBacklog,
-                cluster, namespace, name, splitTopicAndPartitionIndexLabel);
-        writeSubscriptionStat(allMetrics, "pulsar_subscription_back_log_no_delayed",
-                stats, s -> s.msgBacklogNoDelayed, cluster, namespace, name, splitTopicAndPartitionIndexLabel);
-        writeSubscriptionStat(allMetrics, "pulsar_subscription_delayed",
-                stats, s -> s.msgDelayed, cluster, namespace, name, splitTopicAndPartitionIndexLabel);
-        writeSubscriptionStat(allMetrics, "pulsar_subscription_msg_rate_redeliver",
-                stats, s -> s.msgRateRedeliver, cluster, namespace, name, splitTopicAndPartitionIndexLabel);
-        writeSubscriptionStat(allMetrics, "pulsar_subscription_unacked_messages",
-                stats, s -> s.unackedMessages, cluster, namespace, name, splitTopicAndPartitionIndexLabel);
-        writeSubscriptionStat(allMetrics, "pulsar_subscription_blocked_on_unacked_messages",
-                stats, s -> s.blockedSubscriptionOnUnackedMsgs ? 1 : 0, cluster, namespace, name,
+        long[] entrySizeBuckets = stats.managedLedgerStats.entrySizeBuckets.getBuckets();
+        writeMetric(stream, "pulsar_entry_size_le_128", entrySizeBuckets[0], cluster, namespace, topic,
                 splitTopicAndPartitionIndexLabel);
-        writeSubscriptionStat(allMetrics, "pulsar_subscription_msg_rate_out",
-                stats, s -> s.msgRateOut, cluster, namespace, name, splitTopicAndPartitionIndexLabel);
-        writeSubscriptionStat(allMetrics, "pulsar_subscription_msg_ack_rate",
-                stats, s -> s.messageAckRate, cluster, namespace, name, splitTopicAndPartitionIndexLabel);
-        writeSubscriptionStat(allMetrics, "pulsar_subscription_msg_throughput_out",
-                stats, s -> s.msgThroughputOut, cluster, namespace, name, splitTopicAndPartitionIndexLabel);
-        writeSubscriptionStat(allMetrics, "pulsar_out_bytes_total",
-                stats, s -> s.bytesOutCounter, cluster, namespace, name, splitTopicAndPartitionIndexLabel);
-        writeSubscriptionStat(allMetrics, "pulsar_out_messages_total",
-                stats, s -> s.msgOutCounter, cluster, namespace, name, splitTopicAndPartitionIndexLabel);
-        writeSubscriptionStat(allMetrics, "pulsar_subscription_last_expire_timestamp",
-                stats, s -> s.lastExpireTimestamp, cluster, namespace, name, splitTopicAndPartitionIndexLabel);
-        writeSubscriptionStat(allMetrics, "pulsar_subscription_last_acked_timestamp",
-                stats, s -> s.lastAckedTimestamp, cluster, namespace, name, splitTopicAndPartitionIndexLabel);
-        writeSubscriptionStat(allMetrics, "pulsar_subscription_last_consumed_flow_timestamp",
-                stats, s -> s.lastConsumedFlowTimestamp, cluster, namespace, name, splitTopicAndPartitionIndexLabel);
-        writeSubscriptionStat(allMetrics, "pulsar_subscription_last_consumed_timestamp",
-                stats, s -> s.lastConsumedTimestamp, cluster, namespace, name, splitTopicAndPartitionIndexLabel);
-        writeSubscriptionStat(allMetrics, "pulsar_subscription_last_mark_delete_advanced_timestamp",
-                stats, s -> s.lastMarkDeleteAdvancedTimestamp, cluster, namespace, name,
+        writeMetric(stream, "pulsar_entry_size_le_512", entrySizeBuckets[1], cluster, namespace, topic,
                 splitTopicAndPartitionIndexLabel);
-        writeSubscriptionStat(allMetrics, "pulsar_subscription_msg_rate_expired",
-                stats, s -> s.msgRateExpired, cluster, namespace, name, splitTopicAndPartitionIndexLabel);
-        writeSubscriptionStat(allMetrics, "pulsar_subscription_total_msg_expired",
-                stats, s -> s.totalMsgExpired, cluster, namespace, name, splitTopicAndPartitionIndexLabel);
-
-        writeConsumerStat(allMetrics, "pulsar_consumer_msg_rate_redeliver", stats, c -> c.msgRateRedeliver,
-                cluster, namespace, name, splitTopicAndPartitionIndexLabel);
-        writeConsumerStat(allMetrics, "pulsar_consumer_unacked_messages", stats, c -> c.unackedMessages,
-                cluster, namespace, name, splitTopicAndPartitionIndexLabel);
-        writeConsumerStat(allMetrics, "pulsar_consumer_blocked_on_unacked_messages",
-                stats, c -> c.blockedSubscriptionOnUnackedMsgs ? 1 : 0,
-                cluster, namespace, name, splitTopicAndPartitionIndexLabel);
-        writeConsumerStat(allMetrics, "pulsar_consumer_msg_rate_out", stats, c -> c.msgRateOut,
-                cluster, namespace, name, splitTopicAndPartitionIndexLabel);
-
-        writeConsumerStat(allMetrics, "pulsar_consumer_msg_ack_rate", stats, c -> c.msgAckRate,
-                cluster, namespace, name, splitTopicAndPartitionIndexLabel);
-
-        writeConsumerStat(allMetrics, "pulsar_consumer_msg_throughput_out", stats, c -> c.msgThroughputOut,
-                cluster, namespace, name, splitTopicAndPartitionIndexLabel);
-        writeConsumerStat(allMetrics, "pulsar_consumer_available_permits", stats, c -> c.availablePermits,
-                cluster, namespace, name, splitTopicAndPartitionIndexLabel);
-        writeConsumerStat(allMetrics, "pulsar_out_bytes_total", stats, c -> c.bytesOutCounter,
-                cluster, namespace, name, splitTopicAndPartitionIndexLabel);
-        writeConsumerStat(allMetrics, "pulsar_out_messages_total", stats, c -> c.msgOutCounter,
-                cluster, namespace, name, splitTopicAndPartitionIndexLabel);
-
-        writeReplicationStat(allMetrics, "pulsar_replication_rate_in", stats, r -> r.msgRateIn,
-                cluster, namespace, name, splitTopicAndPartitionIndexLabel);
-        writeReplicationStat(allMetrics, "pulsar_replication_rate_out", stats, r -> r.msgRateOut,
-                cluster, namespace, name, splitTopicAndPartitionIndexLabel);
-        writeReplicationStat(allMetrics, "pulsar_replication_throughput_in", stats, r -> r.msgThroughputIn,
-                cluster, namespace, name, splitTopicAndPartitionIndexLabel);
-        writeReplicationStat(allMetrics, "pulsar_replication_throughput_out", stats, r -> r.msgThroughputOut,
-                cluster, namespace, name, splitTopicAndPartitionIndexLabel);
-        writeReplicationStat(allMetrics, "pulsar_replication_backlog", stats, r -> r.replicationBacklog,
-                cluster, namespace, name, splitTopicAndPartitionIndexLabel);
-        writeReplicationStat(allMetrics, "pulsar_replication_connected_count", stats, r -> r.connectedCount,
-                cluster, namespace, name, splitTopicAndPartitionIndexLabel);
-        writeReplicationStat(allMetrics, "pulsar_replication_rate_expired", stats, r -> r.msgRateExpired,
-                cluster, namespace, name, splitTopicAndPartitionIndexLabel);
-        writeReplicationStat(allMetrics, "pulsar_replication_delay_in_seconds", stats,
-                r -> r.replicationDelayInSeconds, cluster, namespace, name, splitTopicAndPartitionIndexLabel);
-
-        writeMetric(allMetrics, "pulsar_in_bytes_total", stats.bytesInCounter, cluster, namespace, name,
+        writeMetric(stream, "pulsar_entry_size_le_1_kb", entrySizeBuckets[2], cluster, namespace, topic,
                 splitTopicAndPartitionIndexLabel);
-        writeMetric(allMetrics, "pulsar_in_messages_total", stats.msgInCounter, cluster, namespace, name,
+        writeMetric(stream, "pulsar_entry_size_le_2_kb", entrySizeBuckets[3], cluster, namespace, topic,
+                splitTopicAndPartitionIndexLabel);
+        writeMetric(stream, "pulsar_entry_size_le_4_kb", entrySizeBuckets[4], cluster, namespace, topic,
+                splitTopicAndPartitionIndexLabel);
+        writeMetric(stream, "pulsar_entry_size_le_16_kb", entrySizeBuckets[5], cluster, namespace, topic,
+                splitTopicAndPartitionIndexLabel);
+        writeMetric(stream, "pulsar_entry_size_le_100_kb", entrySizeBuckets[6], cluster, namespace, topic,
+                splitTopicAndPartitionIndexLabel);
+        writeMetric(stream, "pulsar_entry_size_le_1_mb", entrySizeBuckets[7], cluster, namespace, topic,
+                splitTopicAndPartitionIndexLabel);
+        writeMetric(stream, "pulsar_entry_size_le_overflow", entrySizeBuckets[8], cluster, namespace, topic,
+                splitTopicAndPartitionIndexLabel);
+        writeMetric(stream, "pulsar_entry_size_count", stats.managedLedgerStats.entrySizeBuckets.getCount(),
+                cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
+        writeMetric(stream, "pulsar_entry_size_sum", stats.managedLedgerStats.entrySizeBuckets.getSum(),
+                cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
+
+        stats.producerStats.forEach((p, producerStats) -> {
+            writeProducerMetric(stream, "pulsar_producer_msg_rate_in", producerStats.msgRateIn,
+                    cluster, namespace, topic, p, producerStats.producerId, splitTopicAndPartitionIndexLabel);
+            writeProducerMetric(stream, "pulsar_producer_msg_throughput_in", producerStats.msgThroughputIn,
+                    cluster, namespace, topic, p, producerStats.producerId, splitTopicAndPartitionIndexLabel);
+            writeProducerMetric(stream, "pulsar_producer_msg_average_Size", producerStats.averageMsgSize,
+                    cluster, namespace, topic, p, producerStats.producerId, splitTopicAndPartitionIndexLabel);
+        });
+
+        stats.subscriptionStats.forEach((sub, subsStats) -> {
+            writeSubscriptionMetric(stream, "pulsar_subscription_back_log", subsStats.msgBacklog,
+                    cluster, namespace, topic, sub, splitTopicAndPartitionIndexLabel);
+            writeSubscriptionMetric(stream, "pulsar_subscription_back_log_no_delayed",
+                    subsStats.msgBacklogNoDelayed, cluster, namespace, topic, sub, splitTopicAndPartitionIndexLabel);
+            writeSubscriptionMetric(stream, "pulsar_subscription_delayed",
+                    subsStats.msgDelayed, cluster, namespace, topic, sub, splitTopicAndPartitionIndexLabel);
+            writeSubscriptionMetric(stream, "pulsar_subscription_msg_rate_redeliver",
+                    subsStats.msgRateRedeliver, cluster, namespace, topic, sub, splitTopicAndPartitionIndexLabel);
+            writeSubscriptionMetric(stream, "pulsar_subscription_unacked_messages",
+                    subsStats.unackedMessages, cluster, namespace, topic, sub, splitTopicAndPartitionIndexLabel);
+            writeSubscriptionMetric(stream, "pulsar_subscription_blocked_on_unacked_messages",
+                    subsStats.blockedSubscriptionOnUnackedMsgs ? 1 : 0, cluster, namespace, topic, sub,
+                    splitTopicAndPartitionIndexLabel);
+            writeSubscriptionMetric(stream, "pulsar_subscription_msg_rate_out",
+                    subsStats.msgRateOut, cluster, namespace, topic, sub, splitTopicAndPartitionIndexLabel);
+            writeSubscriptionMetric(stream, "pulsar_subscription_msg_ack_rate",
+                    subsStats.messageAckRate, cluster, namespace, topic, sub, splitTopicAndPartitionIndexLabel);
+            writeSubscriptionMetric(stream, "pulsar_subscription_msg_throughput_out",
+                    subsStats.msgThroughputOut, cluster, namespace, topic, sub, splitTopicAndPartitionIndexLabel);
+            writeSubscriptionMetric(stream, "pulsar_out_bytes_total",
+                    subsStats.bytesOutCounter, cluster, namespace, topic, sub, splitTopicAndPartitionIndexLabel);
+            writeSubscriptionMetric(stream, "pulsar_out_messages_total",
+                    subsStats.msgOutCounter, cluster, namespace, topic, sub, splitTopicAndPartitionIndexLabel);
+            writeSubscriptionMetric(stream, "pulsar_subscription_last_expire_timestamp",
+                    subsStats.lastExpireTimestamp, cluster, namespace, topic, sub, splitTopicAndPartitionIndexLabel);
+            writeSubscriptionMetric(stream, "pulsar_subscription_last_acked_timestamp",
+                    subsStats.lastAckedTimestamp, cluster, namespace, topic, sub, splitTopicAndPartitionIndexLabel);
+            writeSubscriptionMetric(stream, "pulsar_subscription_last_consumed_flow_timestamp",
+                    subsStats.lastConsumedFlowTimestamp, cluster, namespace, topic, sub,
+                    splitTopicAndPartitionIndexLabel);
+            writeSubscriptionMetric(stream, "pulsar_subscription_last_consumed_timestamp",
+                    subsStats.lastConsumedTimestamp, cluster, namespace, topic, sub, splitTopicAndPartitionIndexLabel);
+            writeSubscriptionMetric(stream, "pulsar_subscription_last_mark_delete_advanced_timestamp",
+                    subsStats.lastMarkDeleteAdvancedTimestamp, cluster, namespace, topic, sub,
+                    splitTopicAndPartitionIndexLabel);
+            writeSubscriptionMetric(stream, "pulsar_subscription_msg_rate_expired",
+                    subsStats.msgRateExpired, cluster, namespace, topic, sub, splitTopicAndPartitionIndexLabel);
+            writeSubscriptionMetric(stream, "pulsar_subscription_total_msg_expired",
+                    subsStats.totalMsgExpired, cluster, namespace, topic, sub, splitTopicAndPartitionIndexLabel);
+
+            subsStats.consumerStat.forEach((c, consumerStats) -> {
+                writeConsumerMetric(stream, "pulsar_consumer_msg_rate_redeliver", consumerStats.msgRateRedeliver,
+                        cluster, namespace, topic, sub, c, splitTopicAndPartitionIndexLabel);
+                writeConsumerMetric(stream, "pulsar_consumer_unacked_messages", consumerStats.unackedMessages,
+                        cluster, namespace, topic, sub, c, splitTopicAndPartitionIndexLabel);
+                writeConsumerMetric(stream, "pulsar_consumer_blocked_on_unacked_messages",
+                        consumerStats.blockedSubscriptionOnUnackedMsgs ? 1 : 0,
+                        cluster, namespace, topic, sub, c, splitTopicAndPartitionIndexLabel);
+                writeConsumerMetric(stream, "pulsar_consumer_msg_rate_out", consumerStats.msgRateOut,
+                        cluster, namespace, topic, sub, c, splitTopicAndPartitionIndexLabel);
+
+                writeConsumerMetric(stream, "pulsar_consumer_msg_ack_rate", consumerStats.msgAckRate,
+                        cluster, namespace, topic, sub, c, splitTopicAndPartitionIndexLabel);
+
+                writeConsumerMetric(stream, "pulsar_consumer_msg_throughput_out", consumerStats.msgThroughputOut,
+                        cluster, namespace, topic, sub, c, splitTopicAndPartitionIndexLabel);
+                writeConsumerMetric(stream, "pulsar_consumer_available_permits", consumerStats.availablePermits,
+                        cluster, namespace, topic, sub, c, splitTopicAndPartitionIndexLabel);
+                writeConsumerMetric(stream, "pulsar_out_bytes_total", consumerStats.bytesOutCounter,
+                        cluster, namespace, topic, sub, c, splitTopicAndPartitionIndexLabel);
+                writeConsumerMetric(stream, "pulsar_out_messages_total", consumerStats.msgOutCounter,
+                        cluster, namespace, topic, sub, c, splitTopicAndPartitionIndexLabel);
+            });
+        });
+
+        if (!stats.replicationStats.isEmpty()) {
+            stats.replicationStats.forEach((remoteCluster, replStats) -> {
+                writeMetric(stream, "pulsar_replication_rate_in", replStats.msgRateIn,
+                        cluster, namespace, topic, remoteCluster, splitTopicAndPartitionIndexLabel);
+                writeMetric(stream, "pulsar_replication_rate_out", replStats.msgRateOut,
+                        cluster, namespace, topic, remoteCluster, splitTopicAndPartitionIndexLabel);
+                writeMetric(stream, "pulsar_replication_throughput_in", replStats.msgThroughputIn,
+                        cluster, namespace, topic, remoteCluster, splitTopicAndPartitionIndexLabel);
+                writeMetric(stream, "pulsar_replication_throughput_out", replStats.msgThroughputOut,
+                        cluster, namespace, topic, remoteCluster, splitTopicAndPartitionIndexLabel);
+                writeMetric(stream, "pulsar_replication_backlog", replStats.replicationBacklog,
+                        cluster, namespace, topic, remoteCluster, splitTopicAndPartitionIndexLabel);
+                writeMetric(stream, "pulsar_replication_connected_count", replStats.connectedCount,
+                        cluster, namespace, topic, remoteCluster, splitTopicAndPartitionIndexLabel);
+                writeMetric(stream, "pulsar_replication_rate_expired", replStats.msgRateExpired,
+                        cluster, namespace, topic, remoteCluster, splitTopicAndPartitionIndexLabel);
+                writeMetric(stream, "pulsar_replication_delay_in_seconds", replStats.replicationDelayInSeconds,
+                        cluster, namespace, topic, remoteCluster, splitTopicAndPartitionIndexLabel);
+            });
+        }
+
+        writeMetric(stream, "pulsar_in_bytes_total", stats.bytesInCounter, cluster, namespace, topic,
+                splitTopicAndPartitionIndexLabel);
+        writeMetric(stream, "pulsar_in_messages_total", stats.msgInCounter, cluster, namespace, topic,
                 splitTopicAndPartitionIndexLabel);
 
         // Compaction
-
-        writeCompactionStat(allMetrics, "pulsar_compaction_removed_event_count", stats.compactionRemovedEventCount,
-                compactorMXBean, cluster, namespace, name, splitTopicAndPartitionIndexLabel);
-        writeCompactionStat(allMetrics, "pulsar_compaction_succeed_count", stats.compactionSucceedCount,
-                compactorMXBean, cluster, namespace, name, splitTopicAndPartitionIndexLabel);
-        writeCompactionStat(allMetrics, "pulsar_compaction_failed_count", stats.compactionFailedCount, compactorMXBean,
-                cluster, namespace, name, splitTopicAndPartitionIndexLabel);
-        writeCompactionStat(allMetrics, "pulsar_compaction_duration_time_in_mills", stats.compactionDurationTimeInMills,
-                compactorMXBean, cluster, namespace, name, splitTopicAndPartitionIndexLabel);
-        writeCompactionStat(allMetrics, "pulsar_compaction_read_throughput", stats.compactionReadThroughput,
-                compactorMXBean, cluster, namespace, name, splitTopicAndPartitionIndexLabel);
-        writeCompactionStat(allMetrics, "pulsar_compaction_write_throughput", stats.compactionWriteThroughput,
-                compactorMXBean, cluster, namespace, name, splitTopicAndPartitionIndexLabel);
-        writeCompactionStat(allMetrics, "pulsar_compaction_compacted_entries_count",
-                stats.compactionCompactedEntriesCount, compactorMXBean, cluster, namespace, name,
-                splitTopicAndPartitionIndexLabel);
-        writeCompactionStat(allMetrics, "pulsar_compaction_compacted_entries_size",
-                stats.compactionCompactedEntriesSize, compactorMXBean, cluster, namespace, name,
-                splitTopicAndPartitionIndexLabel);
-        writeCompactionStat(allMetrics, "pulsar_compaction_latency_le_0_5",
-                stats.compactionLatencyBuckets.getBuckets()[0], compactorMXBean, cluster, namespace, name,
-                splitTopicAndPartitionIndexLabel);
-        writeCompactionStat(allMetrics, "pulsar_compaction_latency_le_1",
-                stats.compactionLatencyBuckets.getBuckets()[1], compactorMXBean, cluster, namespace, name,
-                splitTopicAndPartitionIndexLabel);
-        writeCompactionStat(allMetrics, "pulsar_compaction_latency_le_5",
-                stats.compactionLatencyBuckets.getBuckets()[2], compactorMXBean, cluster, namespace, name,
-                splitTopicAndPartitionIndexLabel);
-        writeCompactionStat(allMetrics, "pulsar_compaction_latency_le_10",
-                stats.compactionLatencyBuckets.getBuckets()[3], compactorMXBean, cluster, namespace, name,
-                splitTopicAndPartitionIndexLabel);
-        writeCompactionStat(allMetrics, "pulsar_compaction_latency_le_20",
-                stats.compactionLatencyBuckets.getBuckets()[4], compactorMXBean, cluster, namespace, name,
-                splitTopicAndPartitionIndexLabel);
-        writeCompactionStat(allMetrics, "pulsar_compaction_latency_le_50",
-                stats.compactionLatencyBuckets.getBuckets()[5], compactorMXBean, cluster, namespace, name,
-                splitTopicAndPartitionIndexLabel);
-        writeCompactionStat(allMetrics, "pulsar_compaction_latency_le_100",
-                stats.compactionLatencyBuckets.getBuckets()[6], compactorMXBean, cluster, namespace, name,
-                splitTopicAndPartitionIndexLabel);
-        writeCompactionStat(allMetrics, "pulsar_compaction_latency_le_200",
-                stats.compactionLatencyBuckets.getBuckets()[7], compactorMXBean, cluster, namespace, name,
-                splitTopicAndPartitionIndexLabel);
-        writeCompactionStat(allMetrics, "pulsar_compaction_latency_le_1000",
-                stats.compactionLatencyBuckets.getBuckets()[8], compactorMXBean, cluster, namespace, name,
-                splitTopicAndPartitionIndexLabel);
-        writeCompactionStat(allMetrics, "pulsar_compaction_latency_overflow",
-                stats.compactionLatencyBuckets.getBuckets()[9], compactorMXBean, cluster, namespace, name,
-                splitTopicAndPartitionIndexLabel);
-        writeCompactionStat(allMetrics, "pulsar_compaction_latency_sum", stats.compactionLatencyBuckets.getSum(),
-                compactorMXBean, cluster, namespace, name, splitTopicAndPartitionIndexLabel);
-        writeCompactionStat(allMetrics, "pulsar_compaction_latency_count", stats.compactionLatencyBuckets.getCount(),
-                compactorMXBean, cluster, namespace, name, splitTopicAndPartitionIndexLabel);
-    }
-
-    private static void writeMetric(Map<String, ByteBuf> allMetrics, String metricName, Number value, String cluster,
-                                    String namespace, String topic, boolean splitTopicAndPartitionIndexLabel) {
-        ByteBuf buffer = writeGaugeType(allMetrics, metricName);
-        writeTopicSample(buffer, metricName, value, cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
-    }
-
-    private static void writeProducerStat(Map<String, ByteBuf> allMetrics, String metricName, TopicStats topicStats,
-                                          Function<AggregatedProducerStats, Number> valueFunction,
-                                          String cluster, String namespace, String topic,
-                                          boolean splitTopicAndPartitionIndexLabel) {
-        ByteBuf buffer = writeGaugeType(allMetrics, metricName);
-        topicStats.producerStats.forEach((p, producerStats) ->
-                writeTopicSample(buffer, metricName, valueFunction.apply(producerStats), cluster, namespace, topic,
-                        splitTopicAndPartitionIndexLabel, "producer_name", p, "producer_id",
-                        String.valueOf(producerStats.producerId)));
-    }
-
-    private static void writeSubscriptionStat(Map<String, ByteBuf> allMetrics, String metricName, TopicStats topicStats,
-                                              Function<AggregatedSubscriptionStats, Number> valueFunction,
-                                              String cluster, String namespace, String topic,
-                                              boolean splitTopicAndPartitionIndexLabel) {
-        ByteBuf buffer = writeGaugeType(allMetrics, metricName);
-        topicStats.subscriptionStats.forEach((s, subStats) ->
-                writeTopicSample(buffer, metricName, valueFunction.apply(subStats), cluster, namespace, topic,
-                        splitTopicAndPartitionIndexLabel, "subscription", s));
-    }
-
-    private static void writeConsumerStat(Map<String, ByteBuf> allMetrics, String metricName, TopicStats topicStats,
-                                          Function<AggregatedConsumerStats, Number> valueFunction,
-                                          String cluster, String namespace, String topic,
-                                          boolean splitTopicAndPartitionIndexLabel) {
-        ByteBuf buffer = writeGaugeType(allMetrics, metricName);
-        topicStats.subscriptionStats.forEach((s, subStats) ->
-                subStats.consumerStat.forEach((c, conStats) ->
-                        writeTopicSample(buffer, metricName, valueFunction.apply(conStats), cluster, namespace, topic,
-                                splitTopicAndPartitionIndexLabel, "subscription", s, "consumer_name", c.consumerName(),
-                                "consumer_id", String.valueOf(c.consumerId()))
-                ));
-    }
-
-
-    private static void writeReplicationStat(Map<String, ByteBuf> allMetrics, String metricName, TopicStats topicStats,
-                                             Function<AggregatedReplicationStats, Number> valueFunction,
-                                             String cluster, String namespace, String topic,
-                                             boolean splitTopicAndPartitionIndexLabel) {
-        if (!topicStats.replicationStats.isEmpty()) {
-            ByteBuf buffer = writeGaugeType(allMetrics, metricName);
-            topicStats.replicationStats.forEach((remoteCluster, replStats) ->
-                    writeTopicSample(buffer, metricName, valueFunction.apply(replStats), cluster, namespace, topic,
-                            splitTopicAndPartitionIndexLabel, "remote_cluster", remoteCluster)
-            );
-        }
-    }
-
-    private static void writeCompactionStat(Map<String, ByteBuf> allMetrics, String metricName,
-                                            Number value, Optional<CompactorMXBean> compactorMXBean,
-                                            String cluster, String namespace, String topic,
-                                            boolean splitTopicAndPartitionIndexLabel) {
         boolean hasCompaction = compactorMXBean.flatMap(mxBean -> mxBean.getCompactionRecordForTopic(topic))
                 .isPresent();
         if (hasCompaction) {
-            ByteBuf buffer = writeGaugeType(allMetrics, metricName);
-            writeTopicSample(buffer, metricName, value, cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
+            writeMetric(stream, "pulsar_compaction_removed_event_count",
+                    stats.compactionRemovedEventCount, cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
+            writeMetric(stream, "pulsar_compaction_succeed_count",
+                    stats.compactionSucceedCount, cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
+            writeMetric(stream, "pulsar_compaction_failed_count",
+                    stats.compactionFailedCount, cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
+            writeMetric(stream, "pulsar_compaction_duration_time_in_mills",
+                    stats.compactionDurationTimeInMills, cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
+            writeMetric(stream, "pulsar_compaction_read_throughput",
+                    stats.compactionReadThroughput, cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
+            writeMetric(stream, "pulsar_compaction_write_throughput",
+                    stats.compactionWriteThroughput, cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
+            writeMetric(stream, "pulsar_compaction_compacted_entries_count",
+                    stats.compactionCompactedEntriesCount, cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
+            writeMetric(stream, "pulsar_compaction_compacted_entries_size",
+                    stats.compactionCompactedEntriesSize, cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
+
+            long[] compactionBuckets = stats.compactionLatencyBuckets.getBuckets();
+            writeMetric(stream, "pulsar_compaction_latency_le_0_5",
+                    compactionBuckets[0], cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
+            writeMetric(stream, "pulsar_compaction_latency_le_1",
+                    compactionBuckets[1], cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
+            writeMetric(stream, "pulsar_compaction_latency_le_5",
+                    compactionBuckets[2], cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
+            writeMetric(stream, "pulsar_compaction_latency_le_10",
+                    compactionBuckets[3], cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
+            writeMetric(stream, "pulsar_compaction_latency_le_20",
+                    compactionBuckets[4], cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
+            writeMetric(stream, "pulsar_compaction_latency_le_50",
+                    compactionBuckets[5], cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
+            writeMetric(stream, "pulsar_compaction_latency_le_100",
+                    compactionBuckets[6], cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
+            writeMetric(stream, "pulsar_compaction_latency_le_200",
+                    compactionBuckets[7], cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
+            writeMetric(stream, "pulsar_compaction_latency_le_1000",
+                    compactionBuckets[8], cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
+            writeMetric(stream, "pulsar_compaction_latency_overflow",
+                    compactionBuckets[9], cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
+            writeMetric(stream, "pulsar_compaction_latency_sum",
+                    stats.compactionLatencyBuckets.getSum(), cluster, namespace, topic,
+                    splitTopicAndPartitionIndexLabel);
+            writeMetric(stream, "pulsar_compaction_latency_count",
+                    stats.compactionLatencyBuckets.getCount(), cluster, namespace, topic,
+                    splitTopicAndPartitionIndexLabel);
         }
     }
 
-    static void writeMetricWithBrokerDefault(Map<String, ByteBuf> allMetrics, String metricName, Number value,
-                                             String cluster, String namespace, String topic,
-                                             boolean splitTopicAndPartitionIndexLabel) {
-        ByteBuf buffer = writeGaugeTypeWithBrokerDefault(allMetrics, metricName, cluster);
-        writeTopicSample(buffer, metricName, value, cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
+    private static void writeMetric(PrometheusMetricStreams stream, String metricName, Number value, String cluster,
+                                    String namespace, String topic, boolean splitTopicAndPartitionIndexLabel) {
+        writeTopicMetric(stream, metricName, value, cluster, namespace, topic, splitTopicAndPartitionIndexLabel);
     }
 
-    static void writeTopicSample(ByteBuf buffer, String metricName, Number value, String cluster,
+    private static void writeMetric(PrometheusMetricStreams stream, String metricName, Number value, String cluster,
+                                    String namespace, String topic, String remoteCluster,
+                                    boolean splitTopicAndPartitionIndexLabel) {
+        writeTopicMetric(stream, metricName, value, cluster, namespace, topic, splitTopicAndPartitionIndexLabel,
+                "remote_cluster", remoteCluster);
+    }
+
+    private static void writeProducerMetric(PrometheusMetricStreams stream, String metricName, Number value,
+                                            String cluster, String namespace, String topic, String producer,
+                                            long producerId, boolean splitTopicAndPartitionIndexLabel) {
+        writeTopicMetric(stream, metricName, value, cluster, namespace, topic, splitTopicAndPartitionIndexLabel,
+                "producer_name", producer, "producer_id", String.valueOf(producerId));
+    }
+
+
+    private static void writeSubscriptionMetric(PrometheusMetricStreams stream, String metricName, Number value,
+                                                String cluster, String namespace, String topic, String subscription,
+                                                boolean splitTopicAndPartitionIndexLabel) {
+        writeTopicMetric(stream, metricName, value, cluster, namespace, topic, splitTopicAndPartitionIndexLabel,
+                "subscription", subscription);
+    }
+
+    private static void writeConsumerMetric(PrometheusMetricStreams stream, String metricName, Number value,
+                                            String cluster, String namespace, String topic, String subscription,
+                                            Consumer consumer, boolean splitTopicAndPartitionIndexLabel) {
+        writeTopicMetric(stream, metricName, value, cluster, namespace, topic, splitTopicAndPartitionIndexLabel,
+                "subscription", subscription, "consumer_name", consumer.consumerName(),
+                "consumer_id", String.valueOf(consumer.consumerId()));
+    }
+
+    static void writeTopicMetric(PrometheusMetricStreams stream, String metricName, Number value, String cluster,
                                  String namespace, String topic, boolean splitTopicAndPartitionIndexLabel,
                                  String... extraLabelsAndValues) {
-        List<String> labelsAndValues = new ArrayList<>();
-        labelsAndValues.add("cluster");
-        labelsAndValues.add(cluster);
-        labelsAndValues.add("namespace");
-        labelsAndValues.add(namespace);
-        labelsAndValues.add("topic");
+        String[] labelsAndValues = new String[splitTopicAndPartitionIndexLabel ? 8 : 6];
+        labelsAndValues[0] = "cluster";
+        labelsAndValues[1] = cluster;
+        labelsAndValues[2] = "namespace";
+        labelsAndValues[3] = namespace;
+        labelsAndValues[4] = "topic";
         if (splitTopicAndPartitionIndexLabel) {
             int index = topic.indexOf(PARTITIONED_TOPIC_SUFFIX);
             if (index > 0) {
-                labelsAndValues.add(topic.substring(0, index));
-                labelsAndValues.add("partition");
-                labelsAndValues.add(topic.substring(index + PARTITIONED_TOPIC_SUFFIX.length()));
+                labelsAndValues[5] = topic.substring(0, index);
+                labelsAndValues[6] = "partition";
+                labelsAndValues[7] = topic.substring(index + PARTITIONED_TOPIC_SUFFIX.length());
             } else {
-                labelsAndValues.add(topic);
-                labelsAndValues.add("partition");
-                labelsAndValues.add("-1");
+                labelsAndValues[5] = topic;
+                labelsAndValues[6] = "partition";
+                labelsAndValues[7] = "-1";
             }
         } else {
-            labelsAndValues.add(topic);
+            labelsAndValues[5] = topic;
         }
-        if (extraLabelsAndValues != null) {
-            labelsAndValues.addAll(List.of(extraLabelsAndValues));
-        }
-        writeSample(buffer, metricName, value, labelsAndValues.toArray(new String[0]));
+        String[] labels = ArrayUtils.addAll(labelsAndValues, extraLabelsAndValues);
+        stream.writeSample(metricName, value, labels);
     }
 }

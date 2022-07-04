@@ -18,15 +18,13 @@
  */
 package org.apache.pulsar.broker.stats.prometheus;
 
+import io.netty.buffer.ByteBufAllocator;
 import java.util.HashMap;
 import java.util.Map;
-import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.util.SimpleTextOutputStream;
 
 /**
  * Helper class to ensure that metrics of the same name are grouped together under the same TYPE header when written.
- * Those are the requirements of the
- * <a href="https://github.com/prometheus/docs/blob/master/content/docs/instrumenting/exposition_formats.md#grouping-and-sorting">Prometheus Exposition Format</a>.
  */
 public class PrometheusMetricStreams {
     private final Map<String, SimpleTextOutputStream> metricStreamMap = new HashMap<>();
@@ -46,7 +44,7 @@ public class PrometheusMetricStreams {
                 stream.write(',');
             }
         }
-        stream.write("} ").write(value).write(' ').write(System.currentTimeMillis()).write('\n');
+        stream.write("\"} ").write(value).write(' ').write(System.currentTimeMillis()).write('\n');
     }
 
     /**
@@ -55,6 +53,7 @@ public class PrometheusMetricStreams {
      */
     void flushAllToStream(SimpleTextOutputStream stream) {
         metricStreamMap.values().forEach(s -> stream.write(s.getBuffer()));
+        releaseAll();
     }
 
     /**
@@ -67,7 +66,7 @@ public class PrometheusMetricStreams {
 
     private SimpleTextOutputStream initGaugeType(String metricName) {
         return metricStreamMap.computeIfAbsent(metricName, s -> {
-            SimpleTextOutputStream stream = new SimpleTextOutputStream(PulsarByteBufAllocator.DEFAULT.directBuffer());
+            SimpleTextOutputStream stream = new SimpleTextOutputStream(ByteBufAllocator.DEFAULT.directBuffer());
             stream.write("# TYPE ").write(metricName).write(" gauge\n");
             return stream;
         });
