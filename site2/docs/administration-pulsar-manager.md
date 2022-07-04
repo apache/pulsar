@@ -86,7 +86,7 @@ jwt.broker.secret.key=file:///path/broker-secret.key
 •	`jwt.broker.public.key`: configure this option if you use the PUBLIC mode.  
 •	`jwt.broker.private.key`: configure this option if you use the PRIVATE mode.  
 •	`jwt.broker.secret.key`: configure this option if you use the SECRET mode.  
-For more information, see [Token Authentication Admin of Pulsar](security-token-admin).
+For more information, see [Token Authentication Admin of Pulsar](security-token-admin.md).
 
 Docker command to add profile and key files mount.
 

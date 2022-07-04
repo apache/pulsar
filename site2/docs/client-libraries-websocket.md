@@ -11,7 +11,7 @@ Pulsar [WebSocket](https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_A
 
 ## Running the WebSocket service
 
-The standalone variant of Pulsar that we recommend using for [local development](getting-started-standalone) already has the WebSocket service enabled.
+The standalone variant of Pulsar that we recommend using for [local development](getting-started-standalone.md) already has the WebSocket service enabled.
 
 In non-standalone mode, there are two ways to deploy the WebSocket service:
 
