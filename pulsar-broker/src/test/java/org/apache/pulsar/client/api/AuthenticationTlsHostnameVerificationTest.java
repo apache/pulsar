@@ -38,7 +38,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker-api")
+//@Test(groups = "broker-api")
 public class AuthenticationTlsHostnameVerificationTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(AuthenticationTlsHostnameVerificationTest.class);
 
@@ -142,7 +142,7 @@ public class AuthenticationTlsHostnameVerificationTest extends ProducerConsumerB
      * @throws Exception
      */
 //    @Test(dataProvider = "hostnameVerification")
-    public void testTlsSyncProducerAndConsumerWithInvalidBrokerHost(boolean hostnameVerificationEnabled)
+    public void testTlsSyncProducerAndConsumerWithInvalidBrokerHost()
         throws Exception {
         log.info("-- Starting {} test --", methodName);
 
