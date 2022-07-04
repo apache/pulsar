@@ -22,11 +22,11 @@ import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import java.io.BufferedReader;
 import java.io.FileInputStream;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -91,6 +91,9 @@ public class PulsarShell {
 
     static final class MainOptions {
 
+        @Parameter(names = {"-c", "--config"}, description = "Client configuration file.")
+        String configFile;
+
         @Parameter(names = {"-f", "--filename"}, description = "Input filename with a list of commands to be executed."
                 + " Each command must be separated by a newline.")
         String filename;
@@ -107,24 +110,44 @@ public class PulsarShell {
         boolean noProgress;
     }
 
-    public static void main(String[] args) throws Exception {
-        if (args.length == 0) {
-            System.out.println("Usage: pulsar-shell CONF_FILE_PATH");
-            System.exit(0);
-            return;
-        }
+    private final Properties properties;
+    private final JCommander mainCommander;
+    private final MainOptions mainOptions;
+    private final String[] args;
 
-        String configFile = args[0];
-        Properties properties = new Properties();
-        try (FileInputStream fis = new FileInputStream(configFile)) {
-            properties.load(fis);
+    public PulsarShell(String args[]) throws IOException {
+        this(args, new Properties());
+    }
+    public PulsarShell(String args[], Properties props) throws IOException {
+        properties = props;
+        mainCommander = new JCommander();
+        mainOptions = new MainOptions();
+        mainCommander.addObject(mainOptions);
+        try {
+            mainCommander.parse(args);
+        } catch (Exception e) {
+            System.err.println(e.getMessage());
+            System.err.println();
+            mainCommander.usage();
+            exit(1);
+            throw new IllegalArgumentException(e);
         }
-        new PulsarShell().run(Arrays.copyOfRange(args, 1, args.length), properties);
+        if (mainOptions.configFile != null) {
+            String configFile = mainOptions.configFile;
+            try (FileInputStream fis = new FileInputStream(configFile)) {
+                properties.load(fis);
+            }
+        }
+        this.args = args;
     }
 
-    public void run(String[] args, Properties properties) throws Exception {
+    public static void main(String[] args) throws Exception {
+        new PulsarShell(args).run();
+    }
+
+    public void run() throws Exception {
         final Terminal terminal = TerminalBuilder.builder().build();
-        run(args, properties, (providersMap) -> {
+        run((providersMap) -> {
             List<Completer> completers = new ArrayList<>();
             String serviceUrl = "";
             String adminUrl = "";
@@ -198,27 +221,10 @@ public class PulsarShell {
         String executingCommand;
     }
 
-    public void run(String[] args,
-                    Properties properties,
-                    Function<Map<String, ShellCommandsProvider>, LineReader> readerBuilder,
+    public void run(Function<Map<String, ShellCommandsProvider>, LineReader> readerBuilder,
                     Function<Map<String, ShellCommandsProvider>, Terminal> terminalBuilder) throws Exception {
         System.setProperty("org.jline.terminal.dumb", "true");
 
-        /**
-         * Options read from System.args
-         */
-        final JCommander mainCommander = new JCommander();
-        final MainOptions mainOptions = new MainOptions();
-        mainCommander.addObject(mainOptions);
-        try {
-            mainCommander.parse(args);
-        } catch (Exception e) {
-            System.err.println(e.getMessage());
-            System.err.println();
-            mainCommander.usage();
-            exit(1);
-            return;
-        }
         /**
          * Options read from the shell session
          */

@@ -50,8 +50,6 @@ import org.slf4j.LoggerFactory;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-
-
 public class PulsarShellTest {
 
     private static final Logger log = LoggerFactory.getLogger(PulsarShellTest.class);
@@ -89,7 +87,8 @@ public class PulsarShellTest {
         AtomicReference<CmdProduce> cmdProduceHolder = new AtomicReference<>();
         Integer exitCode;
 
-        public TestPulsarShell(PulsarAdminBuilder pulsarAdminBuilder) {
+        public TestPulsarShell(String[] args, Properties props, PulsarAdminBuilder pulsarAdminBuilder) throws IOException {
+            super(args, props);
             this.pulsarAdminBuilder = pulsarAdminBuilder;
         }
 
@@ -149,8 +148,8 @@ public class PulsarShellTest {
         linereader.addCmd("admin topics create my-topic --metadata a=b ");
         linereader.addCmd("client produce -m msg my-topic");
         linereader.addCmd("quit");
-        final TestPulsarShell testPulsarShell = new TestPulsarShell(pulsarAdminBuilder);
-        testPulsarShell.run(new String[]{}, props, (a) -> linereader, (a) -> terminal);
+        final TestPulsarShell testPulsarShell = new TestPulsarShell(new String[]{}, props, pulsarAdminBuilder);
+        testPulsarShell.run((a) -> linereader, (a) -> terminal);
         verify(topics).createNonPartitionedTopic(eq("persistent://public/default/my-topic"), any(Map.class));
         verify(testPulsarShell.cmdProduceHolder.get()).run();
         assertEquals((int) testPulsarShell.exitCode, 0);
@@ -167,8 +166,9 @@ public class PulsarShellTest {
         final String shellFile = Thread.currentThread()
                 .getContextClassLoader().getResource("test-shell-file").getFile();
 
-        final TestPulsarShell testPulsarShell = new TestPulsarShell(pulsarAdminBuilder);
-        testPulsarShell.run(new String[]{"-f", shellFile}, props, (a) -> linereader, (a) -> terminal);
+        final TestPulsarShell testPulsarShell = new TestPulsarShell(new String[]{"-f", shellFile},
+                props, pulsarAdminBuilder);
+        testPulsarShell.run((a) -> linereader, (a) -> terminal);
         verify(topics).createNonPartitionedTopic(eq("persistent://public/default/my-topic"), any(Map.class));
         verify(testPulsarShell.cmdProduceHolder.get()).run();
     }
@@ -183,9 +183,10 @@ public class PulsarShellTest {
         final String shellFile = Thread.currentThread()
                 .getContextClassLoader().getResource("test-shell-file-error").getFile();
 
-        final TestPulsarShell testPulsarShell = new TestPulsarShell(pulsarAdminBuilder);
+        final TestPulsarShell testPulsarShell = new TestPulsarShell(new String[]{"-f", shellFile, "-e"},
+                props, pulsarAdminBuilder);
         try {
-            testPulsarShell.run(new String[]{"-f", shellFile, "-e"}, props, (a) -> linereader, (a) -> terminal);
+            testPulsarShell.run((a) -> linereader, (a) -> terminal);
             fail();
         }  catch (SystemExitCalledException ex) {
             assertEquals(ex.code, 1);
