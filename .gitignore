@@ -25,7 +25,7 @@ pulsar-functions/worker/src/test/resources/
 .recommenders/
 .factorypath
 
-# Intellij
+# IntelliJ
 .idea/
 *.iml
 *.iws
