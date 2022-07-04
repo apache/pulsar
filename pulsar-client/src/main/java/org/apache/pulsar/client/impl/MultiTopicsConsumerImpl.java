@@ -239,14 +239,14 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             newConsumers.forEach(consumer -> {
                 consumer.increaseAvailablePermits(consumer.getConnectionHandler().cnx(),
                         consumer.getCurrentReceiverQueueSize());
-                internalPinnedExecutor.execute(() -> receiveMessageFromConsumer(consumer));
+                internalPinnedExecutor.execute(() -> receiveMessageFromConsumer(consumer, true));
             });
         }
     }
 
-    private void receiveMessageFromConsumer(ConsumerImpl<T> consumer) {
+    private void receiveMessageFromConsumer(ConsumerImpl<T> consumer, boolean batchReceive) {
         CompletableFuture<List<Message<T>>> messagesFuture;
-        if (consumer.numMessagesInQueue() >= 10) {
+        if (batchReceive) {
             messagesFuture = consumer.batchReceiveAsync().thenApply(msgs -> ((MessagesImpl<T>) msgs).getMessageList());
         } else {
             messagesFuture = consumer.receiveAsync().thenApply(Collections::singletonList);
@@ -275,7 +275,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             } else {
                 // Call receiveAsync() if the incoming queue is not full. Because this block is run with
                 // thenAcceptAsync, there is no chance for recursion that would lead to stack overflow.
-                receiveMessageFromConsumer(consumer);
+                receiveMessageFromConsumer(consumer, messages.size() > 0);
             }
         }, internalPinnedExecutor).exceptionally(ex -> {
             if (ex instanceof PulsarClientException.AlreadyClosedException
@@ -285,7 +285,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             }
             log.error("Receive operation failed on consumer {} - Retrying later", consumer, ex);
             ((ScheduledExecutorService) client.getScheduledExecutorProvider().getExecutor())
-                    .schedule(() -> receiveMessageFromConsumer(consumer), 10, TimeUnit.SECONDS);
+                    .schedule(() -> receiveMessageFromConsumer(consumer, true), 10, TimeUnit.SECONDS);
             return null;
         });
     }
@@ -328,7 +328,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 }
 
                 internalPinnedExecutor.execute(() -> {
-                    receiveMessageFromConsumer(consumer);
+                    receiveMessageFromConsumer(consumer, true);
                 });
             }
         }
