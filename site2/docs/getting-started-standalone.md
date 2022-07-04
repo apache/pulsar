@@ -122,7 +122,7 @@ The Pulsar binary package initially contains the following directories:
 Directory | Contains
 :---------|:--------
 `bin` | Pulsar's command-line tools, such as [`pulsar`](reference-cli-tools.md#pulsar) and [`pulsar-admin`](/tools/pulsar-admin/).
-`conf` | Configuration files for Pulsar, including [broker configuration](reference-configuration.md#broker) and more.<br />**Note:** Pulsar standalone uses RocksDB as the local metadata store and its configuration file path [`metadataStoreConfigPath`](reference-configuration) is configurable in the `standalone.conf` file. For more information about the configurations of RocksDB, see [here](https://github.com/facebook/rocksdb/blob/main/examples/rocksdb_option_file_example.ini) and related [documentation](https://github.com/facebook/rocksdb/wiki/RocksDB-Tuning-Guide).
+`conf` | Configuration files for Pulsar, including [broker configuration](reference-configuration.md#broker) and more.<br />**Note:** Pulsar standalone uses RocksDB as the local metadata store and its configuration file path [`metadataStoreConfigPath`](reference-configuration.md) is configurable in the `standalone.conf` file. For more information about the configurations of RocksDB, see [here](https://github.com/facebook/rocksdb/blob/main/examples/rocksdb_option_file_example.ini) and related [documentation](https://github.com/facebook/rocksdb/wiki/RocksDB-Tuning-Guide).
 `examples` | A Java JAR file containing [Pulsar Functions](functions-overview.md) example.
 `instances` | Artifacts created for [Pulsar Functions](functions-overview.md).
 `lib` | The [JAR](https://en.wikipedia.org/wiki/JAR_(file_format)) files used by Pulsar.

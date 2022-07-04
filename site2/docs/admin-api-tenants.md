@@ -121,7 +121,7 @@ admin.tenants().createTenant(tenantName, tenantInfo);
 
 ### Get configuration
 
-You can fetch the [configuration](reference-configuration) for an existing tenant at any time.
+You can fetch the [configuration](reference-configuration.md) for an existing tenant at any time.
 
 ````mdx-code-block
 <Tabs groupId="api-choice"

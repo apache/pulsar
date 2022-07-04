@@ -116,7 +116,7 @@ You'll need to use `--*-tls` flags only if you're using [TLS authentication](sec
 
 ### Get configuration
 
-You can fetch the [configuration](reference-configuration) for an existing cluster at any time.
+You can fetch the [configuration](reference-configuration.md) for an existing cluster at any time.
 
 ````mdx-code-block
 <Tabs groupId="api-choice"
