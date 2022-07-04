@@ -672,16 +672,13 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
                 + this.testLocalNamespaces.get(2).toString() + "/unload");
         doReturn(uri).when(uriInfo).getRequestUri();
 
-        try {
-            namespaces.unloadNamespaceBundle(response, this.testTenant, this.testOtherCluster,
-                    this.testLocalNamespaces.get(2).getLocalName(), "0x00000000_0xffffffff", false);
-            fail("Should have raised exception to redirect request");
-        } catch (WebApplicationException wae) {
-            // OK
-            assertEquals(wae.getResponse().getStatus(), Status.TEMPORARY_REDIRECT.getStatusCode());
-            assertEquals(wae.getResponse().getLocation().toString(),
-                    UriBuilder.fromUri(uri).host("broker-usc.com").port(8080).toString());
-        }
+        namespaces.unloadNamespaceBundle(response, this.testTenant, this.testOtherCluster,
+                this.testLocalNamespaces.get(2).getLocalName(), "0x00000000_0xffffffff", false);
+        captor = ArgumentCaptor.forClass(WebApplicationException.class);
+        verify(response, timeout(5000).atLeast(1)).resume(captor.capture());
+        assertEquals(captor.getValue().getResponse().getStatus(), Status.TEMPORARY_REDIRECT.getStatusCode());
+        assertEquals(captor.getValue().getResponse().getLocation().toString(),
+                UriBuilder.fromUri(uri).host("broker-usc.com").port(8080).toString());
 
         uri = URI.create(pulsar.getWebServiceAddress() + "/admin/namespace/"
                 + this.testGlobalNamespaces.get(0).toString() + "/configversion");
