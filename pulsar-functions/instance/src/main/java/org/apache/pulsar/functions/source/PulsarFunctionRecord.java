@@ -32,12 +32,12 @@ import org.apache.pulsar.functions.proto.Function;
 @Slf4j
 public class PulsarFunctionRecord<T> implements Record<T> {
 
-    private final Function.FunctionDetails functionConfig;
     private final Record<T> record;
+    private final Function.FunctionDetails functionConfig;
 
     public PulsarFunctionRecord(Record<T> record, Function.FunctionDetails functionConfig) {
-        this.functionConfig = functionConfig;
         this.record = record;
+        this.functionConfig = functionConfig;
     }
 
     @Override
