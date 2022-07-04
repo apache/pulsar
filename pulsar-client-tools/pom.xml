@@ -91,7 +91,7 @@
     </dependency>
 
     <dependency>
-      <groupId>org.apache.pulsar</groupId>
+      <groupId>com.datastax.oss</groupId>
       <artifactId>pulsar-io-batch-discovery-triggerers</artifactId>
       <version>${project.version}</version>
       <scope>test</scope>
