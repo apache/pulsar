@@ -50,8 +50,8 @@ type Conf struct {
 	SecretsMap           string `json:"secretsMap" yaml:"secretsMap"`
 	Runtime              int32  `json:"runtime" yaml:"runtime"`
 	//Deprecated
-	AutoACK     bool  `json:"autoAck" yaml:"autoAck"`
-	Parallelism int32 `json:"parallelism" yaml:"parallelism"`
+	AutoACK              bool   `json:"autoAck" yaml:"autoAck"`
+	Parallelism          int32  `json:"parallelism" yaml:"parallelism"`
 	//source config
 	SubscriptionType     int32  `json:"subscriptionType" yaml:"subscriptionType"`
 	TimeoutMs            uint64 `json:"timeoutMs" yaml:"timeoutMs"`
