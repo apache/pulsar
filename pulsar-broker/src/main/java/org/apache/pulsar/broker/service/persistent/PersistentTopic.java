@@ -2358,6 +2358,12 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     @Override
+    public void updateDispatchRateLimiter() {
+        initializeDispatchRateLimiterIfNeeded();
+        dispatchRateLimiter.ifPresent(DispatchRateLimiter::updateDispatchRate);
+    }
+
+    @Override
     public CompletableFuture<Void> onPoliciesUpdate(Policies data) {
         if (log.isDebugEnabled()) {
             log.debug("[{}] isEncryptionRequired changes: {} -> {}", topic, isEncryptionRequired,
@@ -2374,7 +2380,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
         isAllowAutoUpdateSchema = data.is_allow_auto_update_schema;
 
-        initializeDispatchRateLimiterIfNeeded();
+        updateDispatchRateLimiter();
 
         updateSubscribeRateLimiter();
 
@@ -2393,8 +2399,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 CompletableFuture<Void> replicationFuture = checkReplicationAndRetryOnFailure();
                 CompletableFuture<Void> dedupFuture = checkDeduplicationStatus();
                 CompletableFuture<Void> persistentPoliciesFuture = checkPersistencePolicies();
-                // update rate-limiter if policies updated
-                dispatchRateLimiter.ifPresent(DispatchRateLimiter::updateDispatchRate);
                 return CompletableFuture.allOf(replicationFuture, dedupFuture, persistentPoliciesFuture,
                         preCreateSubscriptionForCompactionIfNeeded());
             });
@@ -3013,10 +3017,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
         updateTopicPolicy(policies);
 
-        initializeTopicDispatchRateLimiterIfNeeded(policies);
-
-        dispatchRateLimiter.ifPresent(DispatchRateLimiter::updateDispatchRate);
-
+        updateDispatchRateLimiter();
         updateSubscriptionsDispatcherRateLimiter().thenRun(() -> {
             updatePublishDispatcher();
             updateSubscribeRateLimiter();
@@ -3052,14 +3053,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             }));
         });
         return FutureUtil.waitForAll(subscriptionCheckFutures);
-    }
-
-    private void initializeTopicDispatchRateLimiterIfNeeded(TopicPolicies policies) {
-        synchronized (dispatchRateLimiterLock) {
-            if (!dispatchRateLimiter.isPresent() && policies.getDispatchRate() != null) {
-                this.dispatchRateLimiter = Optional.of(new DispatchRateLimiter(this, Type.TOPIC));
-            }
-        }
     }
 
     protected CompletableFuture<Void> initTopicPolicy() {
