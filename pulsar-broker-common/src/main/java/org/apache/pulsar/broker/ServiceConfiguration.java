@@ -544,12 +544,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_POLICIES,
+        dynamic = true,
         doc = "Enable the deletion of inactive topics.\n"
         + "If only enable this option, will not clean the metadata of partitioned topic."
     )
     private boolean brokerDeleteInactiveTopicsEnabled = true;
     @FieldContext(
             category = CATEGORY_POLICIES,
+            dynamic = true,
             doc = "Metadata of inactive partitioned topic will not be automatically cleaned up by default.\n"
             + "Note: If `allowAutoTopicCreation` and this option are enabled at the same time,\n"
             + "it may appear that a partitioned topic has just been deleted but is automatically created as a "
@@ -558,12 +560,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean brokerDeleteInactivePartitionedTopicMetadataEnabled = false;
     @FieldContext(
         category = CATEGORY_POLICIES,
+        dynamic = true,
         doc = "How often to check for inactive topics"
     )
     private int brokerDeleteInactiveTopicsFrequencySeconds = 60;
 
     @FieldContext(
         category = CATEGORY_POLICIES,
+        dynamic = true,
         doc = "Set the inactive topic delete mode. Default is delete_when_no_subscriptions\n"
         + "'delete_when_no_subscriptions' mode only delete the topic which has no subscriptions and no active "
         + "producers\n"
@@ -575,6 +579,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_POLICIES,
+        dynamic = true,
         doc = "Max duration of topic inactivity in seconds, default is not present\n"
         + "If not present, 'brokerDeleteInactiveTopicsFrequencySeconds' will be used\n"
         + "Topics that are inactive for longer than this value will be deleted"
@@ -1207,6 +1212,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_SERVER,
+            dynamic = true,
             doc = "The number of partitions per partitioned topic.\n"
                 + "If try to create or update partitioned topics by exceeded number of partitions, then fail."
     )
@@ -1677,6 +1683,17 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private int bookkeeperClientNumWorkerThreads = Runtime.getRuntime().availableProcessors();
 
+    @FieldContext(
+            category = CATEGORY_STORAGE_BK,
+            doc = "Number of BookKeeper client IO threads. Default is Runtime.getRuntime().availableProcessors() * 2"
+    )
+    private int bookkeeperClientNumIoThreads = Runtime.getRuntime().availableProcessors() * 2;
+
+    @FieldContext(
+            category = CATEGORY_STORAGE_BK,
+            doc = "Use separated IO threads for BookKeeper client. Default is false, which will use Pulsar IO threads"
+    )
+    private boolean bookkeeperClientSeparatedIoThreadsEnabled = false;
 
     /**** --- Managed Ledger. --- ****/
     @FieldContext(
@@ -1779,21 +1796,25 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private double managedLedgerDefaultMarkDeleteRateLimit = 1.0;
     @FieldContext(
         category = CATEGORY_STORAGE_ML,
+        dynamic = true,
         doc = "Allow automated creation of topics if set to true (default value)."
     )
     private boolean allowAutoTopicCreation = true;
     @FieldContext(
             category = CATEGORY_STORAGE_ML,
+            dynamic = true,
             doc = "The type of topic that is allowed to be automatically created.(partitioned/non-partitioned)"
     )
     private String allowAutoTopicCreationType = "non-partitioned";
     @FieldContext(
         category = CATEGORY_STORAGE_ML,
+        dynamic = true,
         doc = "Allow automated creation of subscriptions if set to true (default value)."
     )
     private boolean allowAutoSubscriptionCreation = true;
     @FieldContext(
             category = CATEGORY_STORAGE_ML,
+            dynamic = true,
             doc = "The number of partitioned topics that is allowed to be automatically created"
                     + "if allowAutoTopicCreationType is partitioned."
     )

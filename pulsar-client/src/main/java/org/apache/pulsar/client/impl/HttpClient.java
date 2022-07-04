@@ -155,6 +155,10 @@ public class HttpClient implements Closeable {
         return this.serviceNameResolver.getServiceUrl();
     }
 
+    public InetSocketAddress resolveHost() {
+        return serviceNameResolver.resolveHost();
+    }
+
     void setServiceUrl(String serviceUrl) throws PulsarClientException {
         this.serviceNameResolver.updateServiceUrl(serviceUrl);
     }

@@ -183,7 +183,6 @@
             <modules>
                 <module>presto-pulsar</module>
                 <module>presto-pulsar-plugin</module>
-                <module>java-version-trim-agent</module>
                 <module>presto-distribution</module>
             </modules>
         </profile>
@@ -192,7 +191,6 @@
             <modules>
                 <module>presto-pulsar</module>
                 <module>presto-pulsar-plugin</module>
-                <module>java-version-trim-agent</module>
                 <module>presto-distribution</module>
             </modules>
         </profile>

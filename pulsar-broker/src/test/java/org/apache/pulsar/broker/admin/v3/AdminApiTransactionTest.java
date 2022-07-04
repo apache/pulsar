@@ -19,7 +19,11 @@
 package org.apache.pulsar.broker.admin.v3;
 
 import com.google.common.collect.Sets;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.http.HttpStatus;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -30,6 +34,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
@@ -51,6 +56,7 @@ import org.apache.pulsar.common.policies.data.TransactionPendingAckStats;
 import org.apache.pulsar.common.policies.data.TransactionInBufferStats;
 import org.apache.pulsar.common.policies.data.TransactionInPendingAckStats;
 import org.apache.pulsar.common.policies.data.TransactionMetadata;
+import org.apache.pulsar.common.stats.PositionInPendingAckStats;
 import org.apache.pulsar.packages.management.core.MockedPackagesStorageProvider;
 import org.apache.pulsar.transaction.coordinator.impl.MLTransactionLogImpl;
 import org.awaitility.Awaitility;
@@ -611,6 +617,117 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
             fail();
         } catch (PulsarAdminException.NotAuthorizedException ignored) {
         }
+    }
+
+
+    @Test
+    public void testCheckPositionInPendingAckState() throws Exception {
+         String topic = "persistent://public/default/test";
+         String subName = "sub";
+         initTransaction(1);
+         Transaction transaction = pulsarClient.newTransaction()
+                 .withTransactionTimeout(5, TimeUnit.SECONDS)
+                 .build()
+                 .get();
+
+         @Cleanup
+         Producer<byte[]> producer = pulsarClient.newProducer()
+                 .sendTimeout(5, TimeUnit.SECONDS)
+                 .enableBatching(false)
+                 .topic(topic)
+                 .create();
+         @Cleanup
+         Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                 .topic(topic)
+                 .subscriptionName(subName)
+                 .subscribe();
+
+         producer.newMessage().send();
+
+         Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
+         MessageIdImpl messageId = (MessageIdImpl) message.getMessageId();
+
+         PositionInPendingAckStats result = admin.transactions().checkPositionInPendingAckState(topic, subName,
+                 messageId.getLedgerId(), messageId.getEntryId(), null);
+         assertEquals(result.state, PositionInPendingAckStats.State.PendingAckNotReady);
+
+         consumer.acknowledgeAsync(messageId, transaction).get();
+         result = admin.transactions().checkPositionInPendingAckState(topic, subName,
+                messageId.getLedgerId(), messageId.getEntryId(), null);
+         assertEquals(result.state, PositionInPendingAckStats.State.PendingAck);
+         transaction.commit().get();
+         result = admin.transactions().checkPositionInPendingAckState(topic, subName,
+                 messageId.getLedgerId(), messageId.getEntryId(), null);
+         assertEquals(result.state, PositionInPendingAckStats.State.MarkDelete);
+    }
+
+    @Test
+    public void testGetPositionStatsInPendingAckStatsFroBatch() throws Exception {
+        String topic = "persistent://public/default/test";
+        String subscriptionName = "my-subscription-batch";
+        initTransaction(1);
+        pulsar.getBrokerService()
+                .getManagedLedgerConfig(TopicName.get(topic)).get()
+                .setDeletionAtBatchIndexLevelEnabled(true);
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .enableBatching(true)
+                .batchingMaxMessages(3)
+                // set batch max publish delay big enough to make sure entry has 3 messages
+                .batchingMaxPublishDelay(3, TimeUnit.SECONDS)
+                .topic(topic).create();
+
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .subscriptionName(subscriptionName)
+                .enableBatchIndexAcknowledgment(true)
+                .subscriptionType(SubscriptionType.Shared)
+                .isAckReceiptEnabled(true)
+                .topic(topic)
+                .subscribe();
+
+        List<MessageId> messageIds = new ArrayList<>();
+        List<CompletableFuture<MessageId>> futureMessageIds = new ArrayList<>();
+
+        List<String> messages = new ArrayList<>();
+        for (int i = 0; i < 3; i++) {
+            String message = "my-message-" + i;
+            messages.add(message);
+            CompletableFuture<MessageId> messageIdCompletableFuture = producer.sendAsync(message);
+            futureMessageIds.add(messageIdCompletableFuture);
+        }
+
+        for (CompletableFuture<MessageId> futureMessageId : futureMessageIds) {
+            MessageId messageId = futureMessageId.get();
+            messageIds.add(messageId);
+        }
+
+        Transaction transaction = pulsarClient.newTransaction()
+                .withTransactionTimeout(5, TimeUnit.DAYS)
+                .build()
+                .get();
+
+        Message<String> message1 = consumer.receive();
+        Message<String> message2 = consumer.receive();
+
+        BatchMessageIdImpl messageId = (BatchMessageIdImpl) message2.getMessageId();
+        consumer.acknowledgeAsync(messageId, transaction).get();
+
+        PositionInPendingAckStats positionStatsInPendingAckStats =
+                admin.transactions().checkPositionInPendingAckState(topic, subscriptionName,
+                messageId.getLedgerId(), messageId.getEntryId(), 1);
+        assertEquals(positionStatsInPendingAckStats.state, PositionInPendingAckStats.State.PendingAck);
+        
+        positionStatsInPendingAckStats =
+                admin.transactions().checkPositionInPendingAckState(topic, subscriptionName,
+                        messageId.getLedgerId(), messageId.getEntryId(), 2);
+        assertEquals(positionStatsInPendingAckStats.state, PositionInPendingAckStats.State.NotInPendingAck);
+        positionStatsInPendingAckStats =
+                admin.transactions().checkPositionInPendingAckState(topic, subscriptionName,
+                        messageId.getLedgerId(), messageId.getEntryId(), 10);
+        assertEquals(positionStatsInPendingAckStats.state, PositionInPendingAckStats.State.InvalidPosition);
+
     }
 
     private static void verifyCoordinatorStats(String state,

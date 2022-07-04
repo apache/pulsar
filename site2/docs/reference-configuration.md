@@ -185,14 +185,15 @@ Pulsar brokers are responsible for handling incoming messages from producers, di
 |backlogQuotaCheckIntervalInSeconds|  How often to check for topics that have reached the quota |60|
 |backlogQuotaDefaultLimitBytes| The default per-topic backlog quota limit. Being less than 0 means no limitation. By default, it is -1. | -1 |
 |backlogQuotaDefaultRetentionPolicy|The defaulted backlog quota retention policy. By Default, it is `producer_request_hold`. <li>'producer_request_hold' Policy which holds producer's send request until the resource becomes available (or holding times out)</li> <li>'producer_exception' Policy which throws `javax.jms.ResourceAllocationException` to the producer </li><li>'consumer_backlog_eviction' Policy which evicts the oldest message from the slowest consumer's backlog</li>|producer_request_hold|
-|allowAutoTopicCreation| Enable topic auto creation if a new producer or consumer connected |true|
-|allowAutoTopicCreationType| The type of topic that is allowed to be automatically created.(partitioned/non-partitioned) |non-partitioned|
-|allowAutoSubscriptionCreation| Enable subscription auto creation if a new consumer connected |true|
-|defaultNumPartitions| The number of partitioned topics that is allowed to be automatically created if `allowAutoTopicCreationType` is partitioned |1|
-|brokerDeleteInactiveTopicsEnabled| Enable the deletion of inactive topics. If topics are not consumed for some while, these inactive topics might be cleaned up. Deleting inactive topics is enabled by default. The default period is 1 minute.  |true|
-|brokerDeleteInactiveTopicsFrequencySeconds|  How often to check for inactive topics  |60|
-| brokerDeleteInactiveTopicsMode | Set the mode to delete inactive topics. <li> `delete_when_no_subscriptions`: delete the topic which has no subscriptions or active producers. </li><li> `delete_when_subscriptions_caught_up`: delete the topic whose subscriptions have no backlogs and which has no active producers or consumers. </li>| `delete_when_no_subscriptions` |
-| brokerDeleteInactiveTopicsMaxInactiveDurationSeconds | Set the maximum duration for inactive topics. If it is not specified, the `brokerDeleteInactiveTopicsFrequencySeconds` parameter is adopted. | N/A |
+|allowAutoTopicCreation| (Dynamic configuration) Enable topic auto creation if a new producer or consumer connected. |true|
+|allowAutoTopicCreationType| (Dynamic configuration) The type of topic that is allowed to be automatically created.(partitioned/non-partitioned) |non-partitioned|
+|allowAutoSubscriptionCreation| (Dynamic configuration) Enable subscription auto creation if a new consumer connected |true|
+|defaultNumPartitions| (Dynamic configuration) The number of partitioned topics that is allowed to be automatically created if `allowAutoTopicCreationType` is partitioned |1|
+|brokerDeleteInactiveTopicsEnabled| (Dynamic configuration) Enable the deletion of inactive topics. If topics are not consumed for some while, these inactive topics might be cleaned up. Deleting inactive topics is enabled by default. The default period is 1 minute.  |true|
+|brokerDeleteInactiveTopicsFrequencySeconds|(Dynamic configuration)  How often to check for inactive topics  |60|
+| brokerDeleteInactiveTopicsMode | (Dynamic configuration) Set the mode to delete inactive topics. <li> `delete_when_no_subscriptions`: delete the topic which has no subscriptions or active producers. </li><li> `delete_when_subscriptions_caught_up`: delete the topic whose subscriptions have no backlogs and which has no active producers or consumers. </li>| `delete_when_no_subscriptions` |
+| brokerDeleteInactiveTopicsMaxInactiveDurationSeconds | (Dynamic configuration) Set the maximum duration for inactive topics. If it is not specified, the `brokerDeleteInactiveTopicsFrequencySeconds` parameter is adopted. | N/A |
+| brokerDeleteInactivePartitionedTopicMetadataEnabled | (Dynamic configuration)  Metadata of inactive partitioned topic will not be automatically cleaned up by default. Note: If `allowAutoTopicCreation` and this option are enabled at the same time,it may appear that a partitioned topic has just been deleted but is automatically created as a non-partitioned topic. | false |
 |forceDeleteTenantAllowed| Enable you to delete a tenant forcefully. |false|
 |forceDeleteNamespaceAllowed| Enable you to delete a namespace forcefully. |false|
 |messageExpiryCheckIntervalInMinutes| The frequency of proactively checking and purging expired messages. |5|
@@ -205,7 +206,7 @@ brokerServiceCompactionThresholdInBytes|If the estimated backlog size is greater
 |clientLibraryVersionCheckAllowUnversioned| Allow client libraries with no version information  |true|
 |statusFilePath|  Path for the file used to determine the rotation status for the broker when responding to service discovery health checks ||
 |preferLaterVersions| If true, (and ModularLoadManagerImpl is being used), the load manager will attempt to use only brokers running the latest software version (to minimize impact to bundles)  |false|
-|maxNumPartitionsPerPartitionedTopic|Max number of partitions per partitioned topic. Use 0 or negative number to disable the check|0|
+|maxNumPartitionsPerPartitionedTopic| (Dynamic configuration) Max number of partitions per partitioned topic. Use 0 or negative number to disable the check|0|
 | maxSubscriptionsPerTopic | Maximum number of subscriptions allowed to subscribe to a topic. Once this limit reaches, the broker rejects new subscriptions until the number of subscriptions decreases. When the value is set to 0, the limit check is disabled. | 0 |
 | maxProducersPerTopic | Maximum number of producers allowed to connect to a topic. Once this limit reaches, the broker rejects new producers until the number of connected producers decreases. When the value is set to 0, the limit check is disabled. | 0 |
 | maxConsumersPerTopic | Maximum number of consumers allowed to connect to a topic. Once this limit reaches, the broker rejects new consumers until the number of connected consumers decreases. When the value is set to 0, the limit check is disabled. | 0 |
@@ -268,6 +269,8 @@ brokerServiceCompactionThresholdInBytes|If the estimated backlog size is greater
 |bookkeeperClientAuthenticationParametersName|  BookKeeper auth plugin implementation specifics parameters name and values  ||
 |bookkeeperClientAuthenticationParameters|||
 |bookkeeperClientNumWorkerThreads|  Number of BookKeeper client worker threads. Default is Runtime.getRuntime().availableProcessors()  ||
+|bookkeeperClientNumIoThreads|  Number of BookKeeper client IO threads. Default is Runtime.getRuntime().availableProcessors() * 2  ||
+|bookkeeperClientSeparatedIoThreadsEnabled|  Use separated IO threads for BookKeeper client. Default is false, which will use Pulsar IO threads  ||
 |bookkeeperClientTimeoutInSeconds|  Timeout for BK add / read operations  |30|
 |bookkeeperClientSpeculativeReadTimeoutInMillis|  Speculative reads are initiated if a read request doesn’t complete within a certain time Using a value of 0, is disabling the speculative reads |0|
 |bookkeeperNumberOfChannelsPerBookie|  Number of channels per bookie  |16|

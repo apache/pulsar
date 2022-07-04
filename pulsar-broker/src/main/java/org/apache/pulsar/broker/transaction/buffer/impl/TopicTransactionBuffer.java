@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.transaction.buffer.impl;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.Timeout;
 import io.netty.util.Timer;
@@ -131,7 +132,12 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                                 maxReadPosition = (PositionImpl) topic.getManagedLedger().getLastConfirmedEntry();
                             }
                             if (!changeToReadyState()) {
-                                log.error("[{}]Transaction buffer recover fail", topic.getName());
+                                log.error("[{}]Transaction buffer recover fail, current state: {}",
+                                        topic.getName(), getState());
+                                transactionBufferFuture.completeExceptionally
+                                        (new BrokerServiceException.ServiceUnitNotReadyException(
+                                                "Transaction buffer recover failed to change the status to Ready,"
+                                                        + "current state is: " + getState()));
                             } else {
                                 timer.newTimeout(TopicTransactionBuffer.this,
                                         takeSnapshotIntervalTime, TimeUnit.MILLISECONDS);
@@ -315,6 +321,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                     @Override
                     public void addFailed(ManagedLedgerException exception, Object ctx) {
                         log.error("Failed to commit for txn {}", txnID, exception);
+                        checkAppendMarkerException(exception);
                         completableFuture.completeExceptionally(new PersistenceException(exception));
                     }
                 }, null);
@@ -361,6 +368,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                     @Override
                     public void addFailed(ManagedLedgerException exception, Object ctx) {
                         log.error("Failed to abort for txn {}", txnID, exception);
+                        checkAppendMarkerException(exception);
                         completableFuture.completeExceptionally(new PersistenceException(exception));
                     }
                 }, null);
@@ -373,6 +381,12 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
             return null;
         });
         return completableFuture;
+    }
+
+    private void checkAppendMarkerException(ManagedLedgerException exception) {
+        if (exception instanceof ManagedLedgerException.ManagedLedgerAlreadyClosedException) {
+            topic.getManagedLedger().readyToCreateNewLedger();
+        }
     }
 
     private void handleLowWaterMark(TxnID txnID, long lowWaterMark) {
@@ -563,7 +577,8 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
 
     // we store the maxReadPosition from snapshot then open the non-durable cursor by this topic's manageLedger.
     // the non-durable cursor will read to lastConfirmedEntry.
-    static class TopicTransactionBufferRecover implements Runnable {
+    @VisibleForTesting
+    public static class TopicTransactionBufferRecover implements Runnable {
 
         private final PersistentTopic topic;
 
