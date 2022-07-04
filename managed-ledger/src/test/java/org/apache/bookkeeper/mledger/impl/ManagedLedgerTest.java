@@ -37,7 +37,6 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-import com.google.common.base.Charsets;
 import com.google.common.collect.Sets;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
@@ -45,11 +44,13 @@ import io.netty.util.concurrent.DefaultThreadFactory;
 import java.lang.reflect.Field;
 import java.nio.ReadOnlyBufferException;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -135,7 +136,7 @@ import org.testng.annotations.Test;
 
 @Slf4j
 public class ManagedLedgerTest extends MockedBookKeeperTestCase {
-    private static final Charset Encoding = Charsets.UTF_8;
+    private static final Charset Encoding = StandardCharsets.UTF_8;
 
     @DataProvider(name = "checkOwnershipFlag")
     public Object[][] checkOwnershipFlagProvider() {
@@ -1488,7 +1489,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         c2.close();
         ledger.deleteCursor("c2");
-        assertEquals(Sets.newHashSet(ledger.getCursors()), Sets.newHashSet());
+        assertEquals(Sets.newHashSet(ledger.getCursors()), new HashSet());
     }
 
     @Test
@@ -1615,7 +1616,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
     public void ledgersList() throws Exception {
         MetaStore store = factory.getMetaStore();
 
-        assertEquals(Sets.newHashSet(store.getManagedLedgers()), Sets.newHashSet());
+        assertEquals(Sets.newHashSet(store.getManagedLedgers()), new HashSet());
         ManagedLedger ledger1 = factory.open("ledger1");
         assertEquals(Sets.newHashSet(store.getManagedLedgers()), Sets.newHashSet("ledger1"));
         ManagedLedger ledger2 = factory.open("ledger2");
@@ -1623,7 +1624,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         ledger1.delete();
         assertEquals(Sets.newHashSet(store.getManagedLedgers()), Sets.newHashSet("ledger2"));
         ledger2.delete();
-        assertEquals(Sets.newHashSet(store.getManagedLedgers()), Sets.newHashSet());
+        assertEquals(Sets.newHashSet(store.getManagedLedgers()), new HashSet());
     }
 
     @Test
@@ -2677,7 +2678,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         // Open Cursor also adds cursor into activeCursor-container
         ManagedCursor cursor1 = ledger.openCursor("c1");
         ManagedCursor cursor2 = ledger.openCursor("c2");
-        Set<ManagedCursor> activeCursors = Sets.newHashSet();
+        Set<ManagedCursor> activeCursors = new HashSet();
         activeCursors.add(cursor1);
         activeCursors.add(cursor2);
         EntryCache entryCache = Whitebox.getInternalState(ledger, "entryCache");
