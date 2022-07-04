@@ -371,7 +371,7 @@ public class ProxyConnection extends PulsarHandler {
             // partitions metadata lookups
             state = State.ProxyLookupRequests;
             lookupProxyHandler = new LookupProxyHandler(service, this);
-            ctx.writeAndFlush(Commands.newConnected(protocolVersionToAdvertise))
+            ctx.writeAndFlush(Commands.newConnected(protocolVersionToAdvertise, false))
                     .addListener(ChannelFutureListener.FIRE_EXCEPTION_ON_FAILURE);
         }
     }
@@ -383,7 +383,8 @@ public class ProxyConnection extends PulsarHandler {
             state = State.ProxyConnectionToBroker;
             int maxMessageSize =
                     connected.hasMaxMessageSize() ? connected.getMaxMessageSize() : Commands.INVALID_MAX_MESSAGE_SIZE;
-            ctx.writeAndFlush(Commands.newConnected(connected.getProtocolVersion(), maxMessageSize))
+            ctx.writeAndFlush(Commands.newConnected(connected.getProtocolVersion(), maxMessageSize,
+                            connected.hasFeatureFlags() && connected.getFeatureFlags().isSupportsTopicWatchers()))
                     .addListener(ChannelFutureListener.FIRE_EXCEPTION_ON_FAILURE);
         } else {
             LOG.warn("[{}] Channel is {}. ProxyConnection is in {}. "

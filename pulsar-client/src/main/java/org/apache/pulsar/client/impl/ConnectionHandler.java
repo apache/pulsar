@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
@@ -69,8 +70,13 @@ public class ConnectionHandler {
         }
 
         try {
-            state.client.getConnection(state.topic) //
-                    .thenAccept(cnx -> connection.connectionOpened(cnx)) //
+            CompletableFuture<ClientCnx> cnxFuture;
+            if (state.topic == null) {
+                cnxFuture = state.client.getConnectionToServiceUrl();
+            } else {
+                cnxFuture = state.client.getConnection(state.topic); //
+            }
+            cnxFuture.thenAccept(cnx -> connection.connectionOpened(cnx)) //
                     .exceptionally(this::handleConnectionError);
         } catch (Throwable t) {
             log.warn("[{}] [{}] Exception thrown while getting connection: ", state.topic, state.getHandlerName(), t);

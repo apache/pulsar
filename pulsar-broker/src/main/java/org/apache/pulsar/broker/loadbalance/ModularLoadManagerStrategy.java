@@ -49,17 +49,15 @@ public interface ModularLoadManagerStrategy {
     /**
      * Create a placement strategy using the configuration.
      *
-     * @param conf
-     *            ServiceConfiguration to use.
      * @return A placement strategy from the given configurations.
      */
-    static ModularLoadManagerStrategy create(final ServiceConfiguration conf) {
+    static ModularLoadManagerStrategy create() {
         try {
             // Only one strategy at the moment.
-            return new LeastLongTermMessageRate(conf);
+            return new LeastLongTermMessageRate();
         } catch (Exception e) {
             // Ignore
         }
-        return new LeastLongTermMessageRate(conf);
+        return new LeastLongTermMessageRate();
     }
 }

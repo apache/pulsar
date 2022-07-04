@@ -162,8 +162,9 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
     }
 
     @Override
-    public void sendConnectedResponse(int clientProtocolVersion, int maxMessageSize) {
-        BaseCommand command = Commands.newConnectedCommand(clientProtocolVersion, maxMessageSize);
+    public void sendConnectedResponse(int clientProtocolVersion, int maxMessageSize, boolean supportsTopicWatchers) {
+        BaseCommand command = Commands.newConnectedCommand(
+                clientProtocolVersion, maxMessageSize, supportsTopicWatchers);
         safeIntercept(command, cnx);
         ByteBuf outBuf = Commands.serializeWithSize(command);
         cnx.ctx().writeAndFlush(outBuf, cnx.ctx().voidPromise());
@@ -344,6 +345,25 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
         if (this.interceptor != null) {
             this.interceptor.txnEnded(txnID.toString(), TxnAction.ABORT_VALUE);
         }
+    }
+
+    @Override
+    public void sendWatchTopicListSuccess(long requestId, long watcherId, String topicsHash, List<String> topics) {
+        BaseCommand command = Commands.newWatchTopicListSuccess(requestId, watcherId, topicsHash, topics);
+        interceptAndWriteCommand(command);
+    }
+
+    @Override
+    public void sendWatchTopicListUpdate(long watcherId,
+                                         List<String> newTopics, List<String> deletedTopics, String topicsHash) {
+        BaseCommand command = Commands.newWatchTopicUpdate(watcherId, newTopics, deletedTopics, topicsHash);
+        interceptAndWriteCommand(command);
+    }
+
+    private void interceptAndWriteCommand(BaseCommand command) {
+        safeIntercept(command, cnx);
+        ByteBuf outBuf = Commands.serializeWithSize(command);
+        cnx.ctx().writeAndFlush(outBuf);
     }
 
     private void safeIntercept(BaseCommand command, ServerCnx cnx) {

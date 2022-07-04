@@ -257,6 +257,11 @@ public class BinaryProtoLookupService implements LookupService {
     }
 
     @Override
+    public InetSocketAddress resolveHost() {
+        return serviceNameResolver.resolveHost();
+    }
+
+    @Override
     public CompletableFuture<GetTopicsResult> getTopicsUnderNamespace(NamespaceName namespace,
                                                                                   Mode mode,
                                                                                   String topicsPattern,
