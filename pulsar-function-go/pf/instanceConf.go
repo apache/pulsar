@@ -112,10 +112,10 @@ func newInstanceConf() *instanceConf {
 		(instanceConf.funcDetails.ProcessingGuarantees == pb.ProcessingGuarantees_ATMOST_ONCE ||
 			instanceConf.funcDetails.ProcessingGuarantees == pb.ProcessingGuarantees_ATLEAST_ONCE) {
 		panic("When Guarantees == " + instanceConf.funcDetails.ProcessingGuarantees.String() +
-			", autoAck must be equal to true, If you want not to automatically ack, " +
+			", autoAck must be equal to true. If you want not to automatically ack, " +
 			"please configure the processing guarantees as MANUAL." +
-			"This is a contradictory configuration, autoAck will be removed later," +
-			"Please refer to PIP: https://github.com/apache/pulsar/issues/15560")
+			" This is a contradictory configuration, autoAck will be removed later." +
+			" Please refer to PIP: https://github.com/apache/pulsar/issues/15560")
 	}
 
 	return instanceConf
