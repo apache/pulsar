@@ -1129,7 +1129,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         BatchReceivePolicy internalBatchReceivePolicy = BatchReceivePolicy.builder()
                 .maxNumMessages(Math.max(configurationData.getReceiverQueueSize() / 2, 1))
                 .maxNumBytes(-1)
-                .timeout(0, TimeUnit.MILLISECONDS)
+                .timeout(1, TimeUnit.MILLISECONDS)
                 .build();
         configurationData.setBatchReceivePolicy(internalBatchReceivePolicy);
         return ConsumerImpl.newConsumerImpl(client, partitionName,
