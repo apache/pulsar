@@ -1142,21 +1142,17 @@ public abstract class NamespacesBase extends AdminResource {
                 .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
                 .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
                 .thenCompose(policies ->
-                        isBundleOwnedByAnyBroker(namespaceName, policies.bundles, bundleRange)
+                     isBundleOwnedByAnyBroker(namespaceName, policies.bundles, bundleRange)
                         .thenCompose(flag -> {
                             if (!flag) {
                                 log.info("[{}] Namespace bundle is not owned by any broker {}/{}", clientAppId(),
                                         namespaceName, bundleRange);
                                 return CompletableFuture.completedFuture(null);
                             }
-                            return validateNamespaceBundleOwnershipAsync(namespaceName, policies.bundles,
-                                    bundleRange, authoritative, true)
+                            return validateNamespaceBundleOwnershipAsync(namespaceName, policies.bundles, bundleRange,
+                                    authoritative, true)
                                     .thenCompose(nsBundle ->
-                                            pulsar().getNamespaceService().unloadNamespaceBundle(nsBundle)
-                                                    .thenRun(() ->
-                                                            log.info("[{}] Successfully unloaded namespace bundle {}",
-                                                                    clientAppId(), nsBundle.toString())
-                                                    ));
+                                            pulsar().getNamespaceService().unloadNamespaceBundle(nsBundle));
                         }));
     }
 
