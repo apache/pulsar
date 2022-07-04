@@ -240,20 +240,7 @@ public class TransactionsImpl extends BaseResource implements Transactions {
         path = path.path(ledgerId.toString());
         path = path.path(entryId.toString());
         path = path.queryParam("batchIndex", batchIndex);
-        final CompletableFuture<PositionInPendingAckStats> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<PositionInPendingAckStats>() {
-                    @Override
-                    public void completed(PositionInPendingAckStats stats) {
-                        future.complete(stats);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<PositionInPendingAckStats>() {});
     }
 
 
