@@ -301,7 +301,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     @Override
     public CompletableFuture<Void> initialize() {
         List<CompletableFuture<Void>> futures = new ArrayList<>();
-        futures.add(initTopicPolicy());
         for (ManagedCursor cursor : ledger.getCursors()) {
             if (cursor.getName().startsWith(replicatorPrefix)) {
                 String localCluster = brokerService.pulsar().getConfiguration().getClusterName();
@@ -337,7 +336,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     this.isEncryptionRequired = policies.encryption_required;
 
                     isAllowAutoUpdateSchema = policies.is_allow_auto_update_schema;
-                }).exceptionally(ex -> {
+                })
+                .thenCompose(ignore -> initTopicPolicy())
+                .exceptionally(ex -> {
                     log.warn("[{}] Error getting policies {} and isEncryptionRequired will be set to false",
                             topic, ex.getMessage());
                     isEncryptionRequired = false;
@@ -3023,9 +3024,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             updateSubscribeRateLimiter();
             replicators.forEach((name, replicator) -> replicator.updateRateLimiter());
             checkMessageExpiry();
-            if (policies.getReplicationClusters() != null) {
-                checkReplicationAndRetryOnFailure();
-            }
+            checkReplicationAndRetryOnFailure();
 
             checkDeduplicationStatus();
 
