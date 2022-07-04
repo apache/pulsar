@@ -278,7 +278,7 @@ public class WindowFunctionExecutor<T, X> implements Function<T, X> {
             initialize(context);
         }
 
-        // record must is PulsarFunctionRecord.
+        // record must be PulsarFunctionRecord.
         Record<T> record = (Record<T>) context.getCurrentRecord();
 
         // windows function processing semantics requires separate processing
