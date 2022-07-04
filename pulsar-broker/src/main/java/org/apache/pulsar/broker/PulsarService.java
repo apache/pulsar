@@ -47,6 +47,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.TreeSet;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -83,6 +84,7 @@ import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
+import org.apache.pulsar.broker.intercept.BrokerInterceptorDelegator;
 import org.apache.pulsar.broker.intercept.BrokerInterceptors;
 import org.apache.pulsar.broker.loadbalance.LeaderElectionService;
 import org.apache.pulsar.broker.loadbalance.LinuxInfoUtils;
@@ -731,7 +733,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
             this.defaultOffloader = createManagedLedgerOffloader(
                     OffloadPoliciesImpl.create(this.getConfiguration().getProperties()));
-            this.brokerInterceptor = BrokerInterceptors.load(config);
+            this.brokerInterceptor = BrokerInterceptorDelegator.create(BrokerInterceptors.load(config));
             brokerService.setInterceptor(getBrokerInterceptor());
             this.brokerInterceptor.initialize(this);
             brokerService.start();
@@ -1749,6 +1751,32 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         }
 
         processTerminator.accept(-1);
+    }
+
+    /**
+     * Reload broker interceptors.
+     *
+     * @param object broker-interceptors' names.
+     */
+    public void updateBrokerInterceptor(Object object) {
+        if (!(object instanceof TreeSet) || !(this.brokerInterceptor instanceof BrokerInterceptorDelegator)) {
+            return;
+        }
+
+        @SuppressWarnings("unchecked")
+        TreeSet<String> interceptors = (TreeSet<String>) object;
+        this.getConfig().setBrokerInterceptors(interceptors);
+
+        BrokerInterceptorDelegator delegator = (BrokerInterceptorDelegator) this.brokerInterceptor;
+        try {
+            BrokerInterceptor newInterceptor = BrokerInterceptors.load(this.getConfig());
+            BrokerInterceptor oldInterceptor = delegator.getBrokerInterceptor();
+            newInterceptor.initialize(this);
+            delegator.updateBrokerInterceptor(newInterceptor);
+            oldInterceptor.close();
+        } catch (Exception ioe) {
+            LOG.error("Failed to load or initialize broker interceptors", ioe);
+        }
     }
 
     @VisibleForTesting

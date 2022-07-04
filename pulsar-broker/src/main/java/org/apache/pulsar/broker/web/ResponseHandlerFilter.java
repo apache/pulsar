@@ -33,6 +33,7 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response.Status;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,12 +47,12 @@ public class ResponseHandlerFilter implements Filter {
 
     private final String brokerAddress;
     private final BrokerInterceptor interceptor;
-    private final boolean interceptorEnabled;
+    private final ServiceConfiguration configuration;
 
     public ResponseHandlerFilter(PulsarService pulsar) {
         this.brokerAddress = pulsar.getAdvertisedAddress();
         this.interceptor = pulsar.getBrokerInterceptor();
-        this.interceptorEnabled = !pulsar.getConfig().getBrokerInterceptors().isEmpty();
+        this.configuration = pulsar.getConfiguration();
     }
 
     @Override
@@ -104,6 +105,7 @@ public class ResponseHandlerFilter implements Filter {
     }
 
     private void handleInterceptor(ServletRequest request, ServletResponse response) {
+        boolean interceptorEnabled = !this.configuration.getBrokerInterceptors().isEmpty();
         if (interceptorEnabled
                 && !StringUtils.containsIgnoreCase(request.getContentType(), MediaType.MULTIPART_FORM_DATA)
                 && !StringUtils.containsIgnoreCase(request.getContentType(), MediaType.APPLICATION_OCTET_STREAM)) {
