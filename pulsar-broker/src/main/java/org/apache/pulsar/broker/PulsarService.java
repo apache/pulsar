@@ -778,8 +778,9 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             }
             this.topicPoliciesService.start();
 
-            if (config.isSupportTwoPhaseDeletion()) {
-                this.rubbishCleanService = new SystemTopicBasedRubbishCleanService(getClient(), getAdminClient(), getBookKeeperClient());
+            if (config.isTwoPhaseDeletionEnabled() && config.isTopicLevelPoliciesEnabled()) {
+                this.rubbishCleanService = new SystemTopicBasedRubbishCleanService(getClient(), getAdminClient(),
+                        getBookKeeperClient(), config.getRubbishCleanWorkers());
             } else {
                 this.rubbishCleanService = new RubbishCleanService.RubbishCleanServiceDisable();
             }

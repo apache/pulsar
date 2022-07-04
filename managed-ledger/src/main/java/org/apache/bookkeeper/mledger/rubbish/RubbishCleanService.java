@@ -21,6 +21,7 @@ package org.apache.bookkeeper.mledger.rubbish;
 import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.PulsarClientException;
 
 public interface RubbishCleanService {
@@ -28,7 +29,7 @@ public interface RubbishCleanService {
     /**
      *
      */
-    void start() throws PulsarClientException;
+    void start() throws PulsarClientException, PulsarAdminException;
 
 
     CompletableFuture<?> appendRubbishLedger(String topicName, long ledgerId, LedgerInfo context, RubbishSource source,

@@ -30,12 +30,11 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
-import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.SystemTopicNames;
-import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
@@ -44,9 +43,9 @@ import org.slf4j.LoggerFactory;
 /**
  * System topic for rubbish cleaner.
  */
-public class RubbishCleanerSystemTopicClient extends SystemTopicClientBase<RubbishInfo> {
+public class RubbishCleanSystemTopicClient extends SystemTopicClientBase<RubbishInfo> {
 
-    public RubbishCleanerSystemTopicClient(PulsarClient client, TopicName topicName) {
+    public RubbishCleanSystemTopicClient(PulsarClient client, TopicName topicName) {
         super(client, topicName);
     }
 
@@ -60,7 +59,7 @@ public class RubbishCleanerSystemTopicClient extends SystemTopicClientBase<Rubbi
                         log.debug("[{}] A new writer is created", topicName);
                     }
                     return CompletableFuture.completedFuture(new RubbishInfoWriter(producer,
-                            RubbishCleanerSystemTopicClient.this));
+                            RubbishCleanSystemTopicClient.this));
                 });
     }
 
@@ -68,6 +67,8 @@ public class RubbishCleanerSystemTopicClient extends SystemTopicClientBase<Rubbi
     protected CompletableFuture<Reader<RubbishInfo>> newReaderAsyncInternal() {
         return client.newConsumer(Schema.AVRO(RubbishInfo.class))
                 .topic(topicName.toString())
+                .subscriptionName("rubbish-cleaner-worker")
+                .subscriptionType(SubscriptionType.Failover)
                 .deadLetterPolicy(DeadLetterPolicy.builder()
                         .deadLetterTopic(SystemTopicNames.RUBBISH_CLEANER_ARCHIVE_TOPIC.getPartitionedTopicName())
                         .maxRedeliverCount(10).build())
@@ -77,7 +78,7 @@ public class RubbishCleanerSystemTopicClient extends SystemTopicClientBase<Rubbi
                         log.debug("[{}] A new reader is created", topicName);
                     }
                     return CompletableFuture.completedFuture(new RubbishInfoReader(consumer,
-                            RubbishCleanerSystemTopicClient.this));
+                            RubbishCleanSystemTopicClient.this));
                 });
     }
 
@@ -129,11 +130,11 @@ public class RubbishCleanerSystemTopicClient extends SystemTopicClientBase<Rubbi
     public static class RubbishInfoReader implements Reader<RubbishInfo> {
 
         private final Consumer<RubbishInfo> consumer;
-        private final RubbishCleanerSystemTopicClient systemTopic;
+        private final RubbishCleanSystemTopicClient systemTopic;
         private Message<RubbishInfo> lastMessage;
 
         private RubbishInfoReader(Consumer<RubbishInfo> consumer,
-                                  RubbishCleanerSystemTopicClient systemTopic) {
+                                  RubbishCleanSystemTopicClient systemTopic) {
             this.consumer = consumer;
             this.systemTopic = systemTopic;
         }
@@ -212,5 +213,5 @@ public class RubbishCleanerSystemTopicClient extends SystemTopicClientBase<Rubbi
         }
     }
 
-    private static final Logger log = LoggerFactory.getLogger(RubbishCleanerSystemTopicClient.class);
+    private static final Logger log = LoggerFactory.getLogger(RubbishCleanSystemTopicClient.class);
 }

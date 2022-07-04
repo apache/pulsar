@@ -2516,11 +2516,17 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             dynamic = true,
-            category = CATEGORY_STORAGE_ML,
+            category = CATEGORY_SERVER,
             doc = "Using two phase deletion when delete ledger. if true, "
-                    + "managedTrash will take over ledger deletion. (Default false)"
+                    + "rubbish clean service will take over ledger deletion. (Default false)"
     )
-    private boolean supportTwoPhaseDeletion;
+    private boolean twoPhaseDeletionEnabled;
+
+    @FieldContext(
+            category = CATEGORY_SERVER,
+            doc = "Rubbish clean workers."
+    )
+    private int rubbishCleanWorkers = 16;
 
     @FieldContext(
             category = CATEGORY_STORAGE_ML,

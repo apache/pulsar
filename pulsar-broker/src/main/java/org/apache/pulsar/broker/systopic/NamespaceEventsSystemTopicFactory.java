@@ -51,11 +51,11 @@ public class NamespaceEventsSystemTopicFactory {
         return new TransactionBufferSystemTopicClient(client, topicName, transactionBufferSnapshotService);
     }
 
-    public RubbishCleanerSystemTopicClient createRubbishCleanerSystemTopicClient(NamespaceName namespaceName) {
+    public RubbishCleanSystemTopicClient createRubbishCleanSystemTopicClient(NamespaceName namespaceName) {
         TopicName topicName =
                 TopicName.get(TopicDomain.persistent.value(), namespaceName, SystemTopicNames.RUBBISH_CLEANER);
         log.info("Create rubbish cleaner client, topicName: {}", topicName.toString());
-        return new RubbishCleanerSystemTopicClient(client, topicName);
+        return new RubbishCleanSystemTopicClient(client, topicName);
     }
 
     public static TopicName getSystemTopicName(NamespaceName namespaceName, EventType eventType) {
