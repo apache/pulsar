@@ -244,11 +244,11 @@ public class PulsarShell {
             if (mainOptions.filename != null) {
                 lines = Files.readAllLines(Paths.get(mainOptions.filename))
                         .stream()
-                        .filter(s -> !StringUtils.isBlank(s))
+                        .filter(PulsarShell::filterLine)
                         .collect(Collectors.toList());
             } else {
                 try (BufferedReader stdinReader = new BufferedReader(new InputStreamReader(System.in))) {
-                    lines = stdinReader.lines().filter(s -> !StringUtils.isBlank(s)).collect(Collectors.toList());
+                    lines = stdinReader.lines().filter(PulsarShell::filterLine).collect(Collectors.toList());
                 }
             }
             if (!mainOptions.noProgress) {
@@ -462,6 +462,10 @@ public class PulsarShell {
 
     protected void exit(int exitCode) {
         System.exit(exitCode);
+    }
+
+    private static boolean filterLine(String line) {
+        return !StringUtils.isBlank(line) && !line.startsWith("#");
     }
 
 }
