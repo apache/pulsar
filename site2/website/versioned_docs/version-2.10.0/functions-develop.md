@@ -1205,7 +1205,7 @@ You can monitor Pulsar Functions that have been deployed with the following meth
 
 - Check the metrics provided by Pulsar.
 
-  Pulsar Functions expose the metrics that can be collected and used for monitoring the health of **Java, Python, and Go** functions. You can check the metrics by following the [monitoring](deploy-monitoring) guide.
+  Pulsar Functions expose the metrics that can be collected and used for monitoring the health of **Java, Python, and Go** functions. You can check the metrics by following the [monitoring](deploy-monitoring.md) guide.
 
   For the complete list of the function metrics, see [here](reference-metrics.md#pulsar-functions).
 
