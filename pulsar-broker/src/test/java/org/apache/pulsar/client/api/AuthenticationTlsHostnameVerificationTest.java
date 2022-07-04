@@ -185,7 +185,7 @@ public class AuthenticationTlsHostnameVerificationTest extends ProducerConsumerB
      *
      * @throws Exception
      */
-    @Test
+//    @Test
     public void testTlsSyncProducerAndConsumerCorrectBrokerHost() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -229,7 +229,7 @@ public class AuthenticationTlsHostnameVerificationTest extends ProducerConsumerB
      *
      * @throws Exception
      */
-    @Test
+//    @Test
     public void testDefaultHostVerifier() throws Exception {
         log.info("-- Starting {} test --", methodName);
         Method matchIdentityStrict = TlsHostnameVerifier.class.getDeclaredMethod("matchIdentityStrict",
