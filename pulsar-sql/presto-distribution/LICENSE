@@ -243,7 +243,7 @@ The Apache Software License, Version 2.0
     - netty-reactive-streams-2.0.4.jar
     - netty-resolver-4.1.68.Final.jar
     - netty-resolver-dns-4.1.68.Final.jar
-    - netty-tcnative-boringssl-static-2.0.42.Final.jar
+    - netty-tcnative-boringssl-static-2.0.48.Final.jar
     - netty-transport-4.1.68.Final.jar
     - netty-transport-native-epoll-4.1.68.Final-linux-x86_64.jar
     - netty-transport-native-unix-common-4.1.68.Final.jar

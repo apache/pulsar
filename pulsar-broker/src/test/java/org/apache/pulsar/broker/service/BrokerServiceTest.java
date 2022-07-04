@@ -61,7 +61,6 @@ import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpGet;
-import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -829,6 +828,9 @@ public class BrokerServiceTest extends BrokerTestBase {
 
     @Test
     public void testTopicLoadingOnDisableNamespaceBundle() throws Exception {
+        conf.setWebServicePort(Optional.of(0));
+        restartBroker();
+
         final String namespace = "prop/disableBundle";
         admin.namespaces().createNamespace(namespace);
         admin.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("test"));

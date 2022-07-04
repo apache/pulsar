@@ -101,7 +101,7 @@ flexible messaging model and an intuitive client API.</description>
     <bookkeeper.version>4.12.0</bookkeeper.version>
     <zookeeper.version>3.5.9</zookeeper.version>
     <netty.version>4.1.68.Final</netty.version>
-    <netty-tc-native.version>2.0.42.Final</netty-tc-native.version>
+    <netty-tc-native.version>2.0.48.Final</netty-tc-native.version>
     <jetty.version>9.4.43.v20210629</jetty.version>
     <jersey.version>2.31</jersey.version>
     <athenz.version>1.10.9</athenz.version>
