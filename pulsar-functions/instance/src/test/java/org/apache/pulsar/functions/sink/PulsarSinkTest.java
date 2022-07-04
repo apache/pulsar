@@ -400,8 +400,6 @@ public class PulsarSinkTest {
                     return getTopicOptional(topic);
                 }
             }, "out1");
-
-
             pulsarSink.write(record);
 
             Assert.assertTrue(pulsarSink.pulsarSinkProcessor instanceof PulsarSink.PulsarSinkAtLeastOnceProcessor);

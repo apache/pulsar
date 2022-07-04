@@ -171,8 +171,6 @@ public class WindowFunctionExecutorTest {
             verify(tuple.get(), times(1)).ack();
         }
     }
-
-
     @Test(expectedExceptions = RuntimeException.class)
     public void testExecuteWithWrongWrongTimestampExtractorType() throws Exception {
         WindowConfig windowConfig = new WindowConfig();

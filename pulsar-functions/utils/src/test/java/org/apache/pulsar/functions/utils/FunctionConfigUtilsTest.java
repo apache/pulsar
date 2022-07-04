@@ -61,12 +61,9 @@ public class FunctionConfigUtilsTest {
         functionConfig.setAutoAck(false);
         functionConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATMOST_ONCE);
 
-        try {
-            FunctionConfigUtils.convert(functionConfig, (ClassLoader) null);
-            fail("Should is failed");
-        } catch (IllegalArgumentException e) {
-
-        }
+        assertThrows(IllegalArgumentException.class, () -> {
+            FunctionConfigUtils.convert(functionConfig, (ClassLoader) null);            
+        });
     }
 
     @Test

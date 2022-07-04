@@ -109,8 +109,6 @@ def main():
           "This is a contradictory configuration, autoAck will be removed later," 
           "Please refer to PIP: https://github.com/apache/pulsar/issues/15560")
     sys.exit(1)
-
-
   if os.path.splitext(str(args.py))[1] == '.whl':
     if args.install_usercode_dependencies:
       cmd = "pip install -t %s" % os.path.dirname(str(args.py))

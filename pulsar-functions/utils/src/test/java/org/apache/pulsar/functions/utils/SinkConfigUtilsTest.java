@@ -68,12 +68,10 @@ public class SinkConfigUtilsTest {
         sinkConfig.setAutoAck(false);
         sinkConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATMOST_ONCE);
 
-        try {
+        assertThrows(IllegalArgumentException.class, () -> {
             SinkConfigUtils.convert(sinkConfig,
                     new SinkConfigUtils.ExtractedSinkDetails(null, null));
-            fail("Should is failed");
-        } catch (IllegalArgumentException e) {
-        }
+        });
     }
 
     @Test
