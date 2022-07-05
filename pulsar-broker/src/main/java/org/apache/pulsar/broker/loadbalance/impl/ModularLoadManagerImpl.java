@@ -645,6 +645,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
             log.info("Only 1 broker available: no load shedding will be performed");
             return;
         }
+
         // Remove bundles who have been unloaded for longer than the grace period from the recently unloaded map.
         final long timeout = System.currentTimeMillis()
                 - TimeUnit.MINUTES.toMillis(conf.getLoadBalancerSheddingGracePeriodMinutes());
