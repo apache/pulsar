@@ -246,8 +246,8 @@ public class WebService implements AutoCloseable {
             });
         }
         filterInitializer.addFilters(context, requiresAuthentication);
-        // enable compress
-        if (pulsar.getConfiguration().isEnableCompress()) {
+        // Enable compress on /metrics endpoint
+        if (path.equals("/metrics") && pulsar.getConfiguration().isEnableCompress()) {
             GzipHandler gzipHandler = new GzipHandler();
             gzipHandler.setHandler(context);
             handlers.add(gzipHandler);
