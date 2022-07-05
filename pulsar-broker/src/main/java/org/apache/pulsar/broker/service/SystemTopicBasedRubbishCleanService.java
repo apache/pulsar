@@ -21,7 +21,6 @@ package org.apache.pulsar.broker.service;
 import static org.apache.bookkeeper.mledger.util.Errors.isNoSuchLedgerExistsException;
 import com.google.common.collect.Maps;
 import java.security.InvalidParameterException;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -190,7 +189,7 @@ public class SystemTopicBasedRubbishCleanService implements RubbishCleanService 
 
         if (ledgerIds.contains(rubbishInfo.getLedgerInfo().getLedgerId())) {
             try {
-                updateRubbishExistsCache(rubbishInfo);
+                updateRubbishExistsCache(rubbishInfo.getTopicName());
             } catch (Exception e) {
                 return false;
             }
@@ -208,48 +207,40 @@ public class SystemTopicBasedRubbishCleanService implements RubbishCleanService 
         if (RubbishSource.MANAGED_LEDGER == rubbishInfo.getRubbishSource()) {
             Set<Long> ledgerIds = managedLedgerExistsCache.get(rubbishInfo.getTopicName());
             if (ledgerIds == null) {
-                Tuple<Set<Long>, Set<Long>> tuple = fetchLedgerAndCursorLedgerIds(rubbishInfo.getTopicName());
-                managedLedgerExistsCache.put(rubbishInfo.getTopicName(), tuple.ledgerIds);
-                managedCursorExistsCache.put(rubbishInfo.getTopicName(), tuple.cursorIds);
-                return tuple.ledgerIds;
+                updateRubbishExistsCache(rubbishInfo.getTopicName());
             }
-            return ledgerIds;
+            return managedLedgerExistsCache.get(rubbishInfo.getTopicName());
         } else if (RubbishSource.MANAGED_CURSOR == rubbishInfo.getRubbishSource()) {
             Set<Long> ledgerIds = managedCursorExistsCache.get(rubbishInfo.getTopicName());
             if (ledgerIds == null) {
-                Tuple<Set<Long>, Set<Long>> tuple = fetchLedgerAndCursorLedgerIds(rubbishInfo.getTopicName());
-                managedLedgerExistsCache.put(rubbishInfo.getTopicName(), tuple.ledgerIds);
-                managedCursorExistsCache.put(rubbishInfo.getTopicName(), tuple.cursorIds);
-                return tuple.cursorIds;
+                updateRubbishExistsCache(rubbishInfo.getTopicName());
             }
-            return ledgerIds;
+            return managedCursorExistsCache.get(rubbishInfo.getTopicName());
         } else if (RubbishSource.SCHEMA_STORAGE == rubbishInfo.getRubbishSource()) {
             Set<Long> ledgerIds = schemaStorageExistsCache.get(rubbishInfo.getTopicName());
             if (ledgerIds == null) {
-                Set<Long> schemaLedgerIds = fetchSchemaStorageLedgerIds(rubbishInfo.getTopicName());
-                schemaStorageExistsCache.put(rubbishInfo.getTopicName(), schemaLedgerIds);
-                return schemaLedgerIds;
+                updateRubbishExistsCache(rubbishInfo.getTopicName());
             }
-            return ledgerIds;
+            return schemaStorageExistsCache.get(rubbishInfo.getTopicName());
         }
         throw new IllegalArgumentException("Unknown rubbish source: " + rubbishInfo.getRubbishSource());
     }
 
 
-    private void updateRubbishExistsCache(RubbishInfo rubbishInfo) throws PulsarAdminException {
-        switch (rubbishInfo.getRubbishSource()) {
-            case MANAGED_LEDGER:
-            case MANAGED_CURSOR:
-                updateLedgerOrCursorExistsCache(rubbishInfo.getTopicName());
-                break;
-            case SCHEMA_STORAGE:
-                updateSchemaStorageExistsCache(rubbishInfo.getTopicName());
-                break;
-        }
+    private void updateRubbishExistsCache(String topicName) throws PulsarAdminException {
+        PersistentTopicInternalStats internalStats = pulsarAdmin.topics().getInternalStats(topicName);
+        Set<Long> ledgerIds = internalStats.ledgers.stream().map(ele1 -> ele1.ledgerId).collect(Collectors.toSet());
+
+        Set<Long> cursorIds = internalStats.cursors.values().stream().map(ele -> ele.cursorLedger).collect(Collectors.toSet());
+        Set<Long> schemaIds = internalStats.schemaLedgers.stream().map(ele -> ele.ledgerId).collect(Collectors.toSet());
+
+        managedLedgerExistsCache.put(topicName, ledgerIds);
+        managedCursorExistsCache.put(topicName, cursorIds);
+        schemaStorageExistsCache.put(topicName, schemaIds);
     }
 
     private void updateLedgerOrCursorExistsCache(String topicName) throws PulsarAdminException {
-        Tuple<Set<Long>, Set<Long>> tuple = fetchLedgerAndCursorLedgerIds(topicName);
+        Tuple<Set<Long>, Set<Long>> tuple = fetchNewestLedgerInfosData(topicName);
         managedLedgerExistsCache.put(topicName, tuple.ledgerIds);
         managedCursorExistsCache.put(topicName, tuple.cursorIds);
     }
@@ -259,7 +250,7 @@ public class SystemTopicBasedRubbishCleanService implements RubbishCleanService 
         schemaStorageExistsCache.put(topicName, schemaLedgerIds);
     }
 
-    private Tuple<Set<Long>, Set<Long>> fetchLedgerAndCursorLedgerIds(String topicName) throws PulsarAdminException {
+    private Tuple<Set<Long>, Set<Long>> fetchNewestLedgerInfosData(String topicName) throws PulsarAdminException {
         Tuple<Set<Long>, Set<Long>> tuple = new Tuple<>();
 
         PersistentTopicInternalStats internalStats = pulsarAdmin.topics().getInternalStats(topicName);
@@ -267,7 +258,7 @@ public class SystemTopicBasedRubbishCleanService implements RubbishCleanService 
 
         tuple.cursorIds =
                 internalStats.cursors.values().stream().map(ele -> ele.cursorLedger).collect(Collectors.toSet());
-
+        Set<Long> schemaLedgerIds = internalStats.schemaLedgers.stream().map(ele -> ele.ledgerId).collect(Collectors.toSet());
         return tuple;
     }
 

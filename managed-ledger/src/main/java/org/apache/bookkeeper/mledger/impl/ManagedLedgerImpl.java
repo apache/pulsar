@@ -3104,12 +3104,19 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                         log.error("[{}] Failed to offload data for the ledgerId {}",
                                                 name, ledgerId, exception);
                                         //not delete offload ledger, it will delete at next offload.
-                                        if (rubbishCleanService instanceof RubbishCleanService.RubbishCleanServiceDisable) {
+                                        if (rubbishCleanService instanceof
+                                                RubbishCleanService.RubbishCleanServiceDisable) {
                                             cleanupOffloaded(ledgerId, uuid, driverName, driverMetadata,
                                                     "Metastore failure");
                                         } else {
-                                            rubbishCleanService.appendRubbishLedger(name, ledgerId, ledgers.get(ledgerId),
-                                                    RubbishSource.MANAGED_LEDGER, RubbishType.OFFLOAD_LEDGER, false);
+                                            rubbishCleanService.appendRubbishLedger(name, ledgerId,
+                                                            ledgers.get(ledgerId), RubbishSource.MANAGED_LEDGER,
+                                                            RubbishType.OFFLOAD_LEDGER, false)
+                                                    .exceptionally(e -> {
+                                                        log.warn("[{}]-{} Failed to append rubbish ledger.",
+                                                                this.name, ledgerId);
+                                                        return null;
+                                                    });
                                         }
                                     }
                                 });
@@ -3239,7 +3246,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                     "Previous failed offload");
                         } else {
                             rubbishCleanService.appendRubbishLedger(name, ledgerId, oldInfo,
-                                    RubbishSource.MANAGED_LEDGER, RubbishType.OFFLOAD_LEDGER, false);
+                                    RubbishSource.MANAGED_LEDGER, RubbishType.OFFLOAD_LEDGER, false)
+                                    .exceptionally(e -> {
+                                        log.warn("[{}]-{} Failed to append rubbish ledger.", this.name, ledgerId);
+                                        return null;
+                                    });
                         }
                     }
                     LedgerInfo.Builder builder = oldInfo.toBuilder();
