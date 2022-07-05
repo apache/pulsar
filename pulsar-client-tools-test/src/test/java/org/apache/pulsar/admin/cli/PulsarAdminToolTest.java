@@ -2174,7 +2174,7 @@ public class PulsarAdminToolTest {
 
         cmdTransactions = new CmdTransactions(() -> admin);
         cmdTransactions.run(split("check-position-in-pending-ack-state -t test -s test -l 1 -e 1 -b 1"));
-        verify(transactions).checkPositionInPendingAckState("test", "test", 1L, 1L, 1);
+        verify(transactions).getPositionStatsInPendingAck("test", "test", 1L, 1L, 1);
     }
 
     @Test

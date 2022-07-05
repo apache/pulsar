@@ -197,7 +197,7 @@ public class CmdTransactions extends CmdBase {
     }
 
     @Parameters(commandDescription = "Check whether the position is in pending ack stats")
-    private class CheckPositionInPendingAckState extends CliCommand {
+    private class getPositionStatsInPendingAck extends CliCommand {
         @Parameter(names = {"-t", "--topic"}, description = "the topic name", required = true)
         private String topic;
 
@@ -215,7 +215,7 @@ public class CmdTransactions extends CmdBase {
 
         @Override
         void run() throws Exception {
-            getAdmin().transactions().checkPositionInPendingAckState(topic, subName, ledgerId, entryId, batchIndex);
+            getAdmin().transactions().getPositionStatsInPendingAck(topic, subName, ledgerId, entryId, batchIndex);
         }
     }
 
@@ -232,6 +232,7 @@ public class CmdTransactions extends CmdBase {
         jcommander.addCommand("transaction-metadata", new GetTransactionMetadata());
         jcommander.addCommand("slow-transactions", new GetSlowTransactions());
         jcommander.addCommand("scale-transactionCoordinators", new ScaleTransactionCoordinators());
-        jcommander.addCommand("check-position-in-pending-ack-state", new CheckPositionInPendingAckState());
+        jcommander.addCommand("position-stats-in-pending-ack", new getPositionStatsInPendingAck());
+
     }
 }
