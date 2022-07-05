@@ -27,6 +27,9 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+
+import org.apache.bookkeeper.mledger.ManagedCursor;
+import org.apache.bookkeeper.mledger.impl.NonDurableCursorImpl;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
@@ -47,7 +50,7 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
     protected boolean isKeyHashRangeFiltered = false;
     protected CompletableFuture<Void> closeFuture = null;
     protected final int partitionIndex;
-
+    protected final ManagedCursor cursor;
     // This dispatcher supports both the Exclusive and Failover subscription types
     protected final SubType subscriptionType;
 
@@ -59,12 +62,13 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
     protected boolean isFirstRead = true;
 
     public AbstractDispatcherSingleActiveConsumer(SubType subscriptionType, int partitionIndex,
-            String topicName, Subscription subscription, ServiceConfiguration serviceConfig) {
+            String topicName, Subscription subscription, ServiceConfiguration serviceConfig, ManagedCursor cursor) {
         super(subscription, serviceConfig);
         this.topicName = topicName;
         this.consumers = new CopyOnWriteArrayList<>();
         this.partitionIndex = partitionIndex;
         this.subscriptionType = subscriptionType;
+        this.cursor = cursor;
         ACTIVE_CONSUMER_UPDATER.set(this, null);
     }
 
@@ -180,7 +184,9 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
                 consumer.notifyActiveConsumerChange(currentActiveConsumer);
             }
         }
-
+        if (cursor != null && !cursor.isDurable() && cursor instanceof NonDurableCursorImpl) {
+            ((NonDurableCursorImpl) cursor).setReadCompacted(ACTIVE_CONSUMER_UPDATER.get(this).readCompacted());
+        }
     }
 
     public synchronized void removeConsumer(Consumer consumer) throws BrokerServiceException {
