@@ -30,7 +30,7 @@ import java.util.List;
 @NotThreadSafe
 public class MessagesImpl<T> implements Messages<T> {
 
-    private List<Message<T>> messageList;
+    private final List<Message<T>> messageList;
 
     private final int maxNumberOfMessages;
     private final long maxSizeOfMessages;
@@ -79,6 +79,10 @@ public class MessagesImpl<T> implements Messages<T> {
         this.currentNumberOfMessages = 0;
         this.currentSizeOfMessages = 0;
         this.messageList.clear();
+    }
+
+    List<Message<T>> getMessageList() {
+        return messageList;
     }
 
     @Override
