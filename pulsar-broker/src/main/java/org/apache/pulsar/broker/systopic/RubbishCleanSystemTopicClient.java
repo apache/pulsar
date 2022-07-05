@@ -144,23 +144,9 @@ public class RubbishCleanSystemTopicClient extends SystemTopicClientBase<Rubbish
             return consumer.receive();
         }
 
-        private void updateLastMessage(Message<RubbishInfo> message) {
-            if (lastMessage == null) {
-                lastMessage = message;
-                return;
-            }
-            if (message.getMessageId().compareTo(lastMessage.getMessageId()) > 0) {
-                lastMessage = message;
-            }
-        }
-
         @Override
         public CompletableFuture<Message<RubbishInfo>> readNextAsync() {
-            return consumer.receiveAsync().whenComplete((res, e) -> {
-                if (e == null) {
-                    updateLastMessage(res);
-                }
-            });
+            return consumer.receiveAsync();
         }
 
         @Override

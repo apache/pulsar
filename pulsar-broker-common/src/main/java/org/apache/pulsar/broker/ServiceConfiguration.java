@@ -2526,7 +2526,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             category = CATEGORY_SERVER,
             doc = "Rubbish clean workers."
     )
-    private int rubbishCleanWorkers = 16;
+    private int rubbishCleanWorkers = 4;
 
     @FieldContext(
             category = CATEGORY_STORAGE_ML,
