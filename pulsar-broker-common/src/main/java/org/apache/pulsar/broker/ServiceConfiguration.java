@@ -2135,6 +2135,27 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int loadBalancerAverageResourceUsageDifferenceThresholdPercentage = 10;
 
     @FieldContext(
+            dynamic = true,
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "In the UniformLoadShedder strategy, the minimum message that triggers unload."
+    )
+    private int minUnloadMessage = 1000;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "In the UniformLoadShedder strategy, the minimum throughput that triggers unload."
+    )
+    private int minUnloadMessageThroughput = 1 * 1024 * 1024;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_LOAD_BALANCER,
+            doc = "In the UniformLoadShedder strategy, the maximum unload ratio."
+    )
+    private double maxUnloadPercentage = 0.2;
+
+    @FieldContext(
         dynamic = true,
         category = CATEGORY_LOAD_BALANCER,
         doc = "Message-rate percentage threshold between highest and least loaded brokers for "
