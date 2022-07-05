@@ -60,7 +60,7 @@ public class SchemaInfoImpl implements SchemaInfo {
     private SchemaType type;
 
     /**
-     * The created time of schema
+     * The created time of schema.
      */
     private long timestamp;
 
