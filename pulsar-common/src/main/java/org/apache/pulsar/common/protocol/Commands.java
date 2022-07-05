@@ -988,6 +988,11 @@ public class Commands {
                 messageIdData.addAckSet(as[i]);
             }
         }
+
+        if (batchSize >= 0) {
+            messageIdData.setBatchSize(batchSize);
+        }
+
         return newAck(validationError, properties, txnIdLeastBits, txnIdMostBits, requestId, ack, cmd);
     }
 
