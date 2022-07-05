@@ -2156,6 +2156,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             dynamic = true,
             category = CATEGORY_LOAD_BALANCER,
+            doc = "For each uniform balanced unload, the maximum number of bundles that can be unloaded."
+                    + " The default value is -1, which means no limit"
+    )
+    private int maxUnloadBundleNumPerShedding = -1;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_LOAD_BALANCER,
             doc = "Resource history Usage Percentage When adding new resource usage info"
     )
     private double loadBalancerHistoryResourcePercentage = 0.9;
