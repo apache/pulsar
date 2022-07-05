@@ -3751,27 +3751,22 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     }
 
     @Test
-    public void testLazyCursorLedgerCreationEnabled() throws ManagedLedgerException, InterruptedException {
+    public void testLazyCursorLedgerCreation() throws ManagedLedgerException, InterruptedException {
         ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
-        managedLedgerConfig.setLazyCursorLedgerCreationEnabled(false);
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory
-                .open("testLazyCursorLedgerCreationEnabled", managedLedgerConfig);
+                .open("testLazyCursorLedgerCreation", managedLedgerConfig);
         ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("test");
-        assertEquals(cursor.getState(), "Open");
-        cursor.close();
-        managedLedgerConfig.setLazyCursorLedgerCreationEnabled(true);
-        ManagedCursorImpl cursor1 = (ManagedCursorImpl) ledger.openCursor("test1");
-        assertEquals(cursor1.getState(), "NoLedger");
+        assertEquals(cursor.getState(), "NoLedger");
         Position lastPosition = null;
         for (int i = 0; i < 10; i++) {
              lastPosition = ledger.addEntry("test".getBytes(Encoding));
         }
-        cursor1.markDelete(lastPosition);
+        cursor.markDelete(lastPosition);
         Awaitility.await().untilAsserted(() -> {
-            assertEquals(cursor1.getState(), "Open");
-            assertEquals(cursor1.getMarkDeletedPosition(), ledger.getLastPosition());
+            assertEquals(cursor.getState(), "Open");
+            assertEquals(cursor.getMarkDeletedPosition(), ledger.getLastPosition());
         });
-        cursor1.close();
+        cursor.close();
         ledger.close();
     }
 

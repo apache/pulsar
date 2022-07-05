@@ -253,17 +253,4 @@ public class ServiceConfigurationTest {
             assertEquals(conf.getBookkeeperClientNumIoThreads(), 1);
         }
     }
-
-    @Test
-    public void testManagedLedgerLazyCursorLedgerCreation() throws Exception {
-        try (FileInputStream stream = new FileInputStream("../conf/broker.conf")) {
-            final ServiceConfiguration fileConfig = PulsarConfigurationLoader.create(stream, ServiceConfiguration.class);
-            assertFalse(fileConfig.isManagedLedgerLazyCursorLedgerCreationEnabled());
-        }
-        String confFile = "managedLedgerLazyCursorLedgerCreationEnabled=true";
-        try (InputStream stream = new ByteArrayInputStream(confFile.getBytes())) {
-            final ServiceConfiguration conf = PulsarConfigurationLoader.create(stream, ServiceConfiguration.class);
-            assertTrue(conf.isManagedLedgerLazyCursorLedgerCreationEnabled());
-        }
-    }
 }

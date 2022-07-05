@@ -1056,8 +1056,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
     }
 
     @Test
-    public void testManagedLedgerLazyCursorLedgerCreationEnabled() throws Exception {
-        conf.setManagedLedgerLazyCursorLedgerCreationEnabled(true);
+    public void testManagedLedgerLazyCursorLedgerCreation() throws Exception {
         String topic = "persistent://my-property/my-ns/testManagedLedgerLazyCursorLedgerCreationEnabled";
         String sub = "my-subscriber-name";
 

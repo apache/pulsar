@@ -1204,14 +1204,6 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + "delete position can be recovered or not.")
     private boolean lazyCursorRecovery = false;
 
-    @FieldContext(category = CATEGORY_SERVER, doc = "Whether to create the cursor ledger lazily when recovering a "
-            + "managed cursor backing a durable subscription.\n It can reduce the subscription creation time-consuming."
-            + "In the case of millions of topics, consumers can complete subscriptions more quickly.\n"
-            + "After enabling this option, the cursor ledger will create will be created during the message"
-            + "acknowledgment.\n If there are no message acknowledgments happened on a subscription, "
-            + "the cursor ledger will not be created.\n")
-    private boolean managedLedgerLazyCursorLedgerCreationEnabled = false;
-
     @FieldContext(
         category = CATEGORY_SERVER,
         doc = "Check between intervals to see if consumed ledgers need to be trimmed"

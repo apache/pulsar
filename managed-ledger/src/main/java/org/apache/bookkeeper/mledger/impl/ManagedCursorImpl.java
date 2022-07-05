@@ -647,22 +647,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                     ledger.getName(), name, messagesConsumedCounter, markDeletePosition, readPosition);
         }
 
-        if (config.isLazyCursorLedgerCreationEnabled()) {
-            callback.operationComplete();
-        } else {
-            createNewMetadataLedger(new VoidCallback() {
-                @Override
-                public void operationComplete() {
-                    STATE_UPDATER.set(ManagedCursorImpl.this, State.Open);
-                    callback.operationComplete();
-                }
-
-                @Override
-                public void operationFailed(ManagedLedgerException exception) {
-                    callback.operationFailed(exception);
-                }
-            });
-        }
+        callback.operationComplete();
     }
 
     @Override

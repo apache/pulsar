@@ -131,7 +131,7 @@ BookKeeper is a replicated log storage system that Pulsar uses for durable stora
 Pulsar brokers are responsible for handling incoming messages from producers, dispatching messages to consumers, replicating data between clusters, and more.
 
 |Name|Description|Default|
-|---|---|--|
+|---|---|---|
 |advertisedListeners|Specify multiple advertised listeners for the broker.<br /><br />The format is `<listener_name>:pulsar://<host>:<port>`.<br /><br />If there are multiple listeners, separate them with commas.<br /><br />**Note**: do not use this configuration with `advertisedAddress` and `brokerServicePort`. If the value of this configuration is empty, the broker uses `advertisedAddress` and `brokerServicePort`|/|
 |internalListenerName|Specify the internal listener name for the broker.<br /><br />**Note**: the listener name must be contained in `advertisedListeners`.<br /><br /> If the value of this configuration is empty, the broker uses the first listener as the internal listener.|/|
 |authenticateOriginalAuthData|  If this flag is set to `true`, the broker authenticates the original Auth data; else it just accepts the originalPrincipal and authorizes it (if required). |false|
@@ -311,7 +311,6 @@ brokerServiceCompactionThresholdInBytes|If the estimated backlog size is greater
 | managedLedgerReadEntryTimeoutSeconds | Read entries timeout when the broker tries to read messages from BookKeeper. | 0 |
 | managedLedgerAddEntryTimeoutSeconds | Add entry timeout when the broker tries to publish messages to BookKeeper. | 0 |
 | managedLedgerNewEntriesCheckDelayInMillis | New entries check delay for the cursor under the managed ledger. If no new messages in the topic, the cursor tries to check again after the delay time. For consumption latency sensitive scenarios, you can set the value to a smaller value or 0. A smaller value may degrade consumption throughput.|10|
-| managedLedgerLazyCursorLedgerCreationEnabled | Whether to create the cursor ledger lazily when recovering a managed cursor backing a durable subscription. | false |
 |autoSkipNonRecoverableData|  Skip reading non-recoverable/unreadable data-ledger under managed-ledger’s list.It helps when data-ledgers gets corrupted at bookkeeper and managed-cursor is stuck at that ledger. |false|
 |loadBalancerEnabled| Enable load balancer  |true|
 |loadBalancerPlacementStrategy| Strategy to assign a new bundle weightedRandomSelection ||
