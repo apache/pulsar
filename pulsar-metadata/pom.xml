@@ -133,6 +133,7 @@
         <version>${spotbugs-maven-plugin.version}</version>
         <configuration>
           <excludeFilterFile>${basedir}/src/test/resources/findbugsExclude.xml</excludeFilterFile>
+          <excludeFilterFile>${basedir}/src/main/resources/findbugsExclude.xml</excludeFilterFile>
         </configuration>
         <executions>
           <execution>
