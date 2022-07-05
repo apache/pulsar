@@ -485,6 +485,11 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
 
     @Override
     public CompletableFuture<Void> acknowledgeAsync(Messages<?> messages) {
+        return acknowledgeAsync(messages, null);
+    }
+
+    @Override
+    public CompletableFuture<Void> acknowledgeAsync(Messages<?> messages, Transaction txn) {
         List<MessageId> messageIds = new ArrayList<>(messages.size());
         for (Message<?> message: messages) {
             try {
@@ -494,12 +499,21 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
             }
             messageIds.add(message.getMessageId());
         }
-        return acknowledgeAsync(messageIds);
+        if (txn != null) {
+            return acknowledgeAsync(messageIds, txn);
+        } else {
+            return acknowledgeAsync(messageIds);
+        }
     }
 
     @Override
     public CompletableFuture<Void> acknowledgeAsync(List<MessageId> messageIdList) {
         return doAcknowledgeWithTxn(messageIdList, AckType.Individual, Collections.emptyMap(), null);
+    }
+
+    @Override
+    public CompletableFuture<Void> acknowledgeAsync(List<MessageId> messageIdList, Transaction txn) {
+        return doAcknowledgeWithTxn(messageIdList, AckType.Individual, Collections.emptyMap(), (TransactionImpl) txn);
     }
 
     @Override
@@ -611,12 +625,21 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
                                                            Map<String, Long> properties,
                                                            TransactionImpl txn) {
         CompletableFuture<Void> ackFuture;
-        if (txn != null) {
+        if (txn != null && this instanceof ConsumerImpl) {
+
+            // it is okay that we register acked topic after sending the acknowledgements. because
+            // the transactional ack will not be visiable for consumers until the transaction is
+            // committed
+            if (ackType == AckType.Cumulative) {
+                txn.registerCumulativeAckConsumer((ConsumerImpl<?>) this);
+            }
+
             ackFuture = txn.registerAckedTopic(getTopic(), subscription)
                     .thenCompose(ignored -> doAcknowledge(messageIdList, ackType, properties, txn));
+            // register the ackFuture as part of the transaction
             txn.registerAckOp(ackFuture);
         } else {
-            ackFuture = doAcknowledge(messageIdList, ackType, properties, null);
+            ackFuture = doAcknowledge(messageIdList, ackType, properties, txn);
         }
         return ackFuture;
     }
@@ -787,11 +810,24 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         }
     }
 
+    protected void onAcknowledge(List<MessageId> messageIds, Throwable exception) {
+        if (interceptors != null) {
+            messageIds.forEach(messageId -> interceptors.onAcknowledge(this, messageId, exception));
+        }
+    }
+
     protected void onAcknowledgeCumulative(MessageId messageId, Throwable exception) {
         if (interceptors != null) {
             interceptors.onAcknowledgeCumulative(this, messageId, exception);
         }
     }
+
+    protected void onAcknowledgeCumulative(List<MessageId> messageIds, Throwable exception) {
+        if (interceptors != null) {
+            messageIds.forEach(messageId -> interceptors.onAcknowledgeCumulative(this, messageId, exception));
+        }
+    }
+
 
     protected void onNegativeAcksSend(Set<MessageId> messageIds) {
         if (interceptors != null) {
