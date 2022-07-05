@@ -21,8 +21,6 @@ package org.apache.pulsar.broker.service;
 import static org.apache.bookkeeper.mledger.util.Errors.isNoSuchLedgerExistsException;
 import com.google.common.collect.Maps;
 import java.security.InvalidParameterException;
-import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -37,7 +35,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerInfo;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
 import org.apache.bookkeeper.mledger.rubbish.RubbishCleanService;
-import org.apache.bookkeeper.mledger.rubbish.RubbishInfo;
+import org.apache.bookkeeper.mledger.rubbish.RubbishLedger;
 import org.apache.bookkeeper.mledger.rubbish.RubbishSource;
 import org.apache.bookkeeper.mledger.rubbish.RubbishType;
 import org.apache.pulsar.broker.systopic.NamespaceEventsSystemTopicFactory;
@@ -54,7 +52,6 @@ import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
-import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -79,9 +76,9 @@ public class SystemTopicBasedRubbishCleanService implements RubbishCleanService 
 
     private final BookKeeper bookKeeper;
 
-    private SystemTopicClient<RubbishInfo> rubbishCleanTopicClient;
+    private SystemTopicClient<RubbishLedger> rubbishCleanTopicClient;
 
-    private CompletableFuture<SystemTopicClient.Reader<RubbishInfo>> readerFuture;
+    private CompletableFuture<SystemTopicClient.Reader<RubbishLedger>> readerFuture;
 
     public SystemTopicBasedRubbishCleanService(PulsarClient client, PulsarAdmin pulsarAdmin,
                                                BookKeeper bookKeeper, int workers) {
@@ -91,7 +88,7 @@ public class SystemTopicBasedRubbishCleanService implements RubbishCleanService 
         this.workers = Math.max(1, workers);
     }
 
-    private SystemTopicClient<RubbishInfo> getRubbishCleanTopicClient() throws PulsarClientException {
+    private SystemTopicClient<RubbishLedger> getRubbishCleanTopicClient() throws PulsarClientException {
         TopicName systemTopicName =
                 NamespaceEventsSystemTopicFactory.getSystemTopicName(NamespaceName.SYSTEM_NAMESPACE,
                         EventType.RUBBISH_CLEANER);
@@ -114,11 +111,11 @@ public class SystemTopicBasedRubbishCleanService implements RubbishCleanService 
         initReaderFuture();
     }
 
-    private void readMoreRubbishInfo(RubbishCleanSystemTopicClient.RubbishInfoReader reader) {
+    private void readMoreRubbishLedger(RubbishCleanSystemTopicClient.RubbishLedgerReader reader) {
         reader.readNextAsync().whenComplete((msg, ex) -> {
             if (ex == null) {
                 deleteRubbishLedger(reader, msg);
-                readMoreRubbishInfo(reader);
+                readMoreRubbishLedger(reader);
             } else {
                 Throwable cause = FutureUtil.unwrapCompletionException(ex);
                 if (cause instanceof PulsarClientException.AlreadyClosedException) {
@@ -127,7 +124,7 @@ public class SystemTopicBasedRubbishCleanService implements RubbishCleanService 
                     initReaderFuture();
                 } else {
                     log.warn("Read more topic polices exception, read again.", ex);
-                    readMoreRubbishInfo(reader);
+                    readMoreRubbishLedger(reader);
                 }
             }
         });
@@ -139,7 +136,7 @@ public class SystemTopicBasedRubbishCleanService implements RubbishCleanService 
                 log.error("Failed to create reader on rubbish system topic", ex);
                 initReaderFuture();
             } else {
-                readMoreRubbishInfo((RubbishCleanSystemTopicClient.RubbishInfoReader) reader);
+                readMoreRubbishLedger((RubbishCleanSystemTopicClient.RubbishLedgerReader) reader);
             }
         });
     }
@@ -156,10 +153,10 @@ public class SystemTopicBasedRubbishCleanService implements RubbishCleanService 
                                                     RubbishSource source, RubbishType type,
                                                     boolean checkLedgerStillInUse) {
         topicName = tuneTopicName(topicName);
-        RubbishInfo rubbishInfo = null;
+        RubbishLedger rubbishLedger = null;
         if (RubbishType.LEDGER == type) {
             ManagedLedgerInfo.LedgerInfo ledgerInfo = ManagedLedgerInfo.LedgerInfo.buildLedger(ledgerId);
-            rubbishInfo = new RubbishInfo(topicName, source, type, ledgerInfo, checkLedgerStillInUse);
+            rubbishLedger = new RubbishLedger(topicName, source, type, ledgerInfo, checkLedgerStillInUse);
         } else if (RubbishType.OFFLOAD_LEDGER == type) {
             if (!context.getOffloadContext().hasUidMsb()) {
                 CompletableFuture<?> future = new CompletableFuture<>();
@@ -170,9 +167,9 @@ public class SystemTopicBasedRubbishCleanService implements RubbishCleanService 
             UUID uuid = new UUID(context.getOffloadContext().getUidMsb(), context.getOffloadContext().getUidLsb());
             ManagedLedgerInfo.LedgerInfo ledgerInfo =
                     ManagedLedgerInfo.LedgerInfo.buildOffloadLedger(ledgerId, uuid.toString());
-            rubbishInfo = new RubbishInfo(topicName, source, type, ledgerInfo, checkLedgerStillInUse);
+            rubbishLedger = new RubbishLedger(topicName, source, type, ledgerInfo, checkLedgerStillInUse);
         }
-        return sendRubbishMsg(rubbishInfo);
+        return sendRubbishMsg(rubbishLedger);
     }
 
     @Override
@@ -193,56 +190,89 @@ public class SystemTopicBasedRubbishCleanService implements RubbishCleanService 
         this.config = managedLedgerConfig;
     }
 
-    private boolean isToDeleteLedger(RubbishInfo rubbishInfo) {
-        if (!rubbishInfo.isCheckLedgerStillInUse()) {
+    private CompletableFuture<?> deleteRubbishLedger(RubbishCleanSystemTopicClient.RubbishLedgerReader reader,
+                                                     Message<RubbishLedger> message) {
+        RubbishLedger rubbishLedger = message.getValue();
+        if (isToDeleteLedger(rubbishLedger)) {
+            if (RubbishType.LEDGER == rubbishLedger.getRubbishType()) {
+                return asyncDeleteLedger(rubbishLedger.getTopicName(),
+                        rubbishLedger.getLedgerInfo().getLedgerId()).whenComplete((res, e) -> {
+                    if (e == null) {
+                        reader.ackMessageAsync(message);
+                        return;
+                    }
+                    reader.reconsumeLaterAsync(message);
+                });
+            } else if (RubbishType.OFFLOAD_LEDGER == rubbishLedger.getRubbishType()) {
+                return asyncDeleteOffloadedLedger(rubbishLedger.getTopicName(),
+                        rubbishLedger.getLedgerInfo()).whenComplete((res, e) -> {
+                    if (e == null) {
+                        reader.ackMessageAsync(message);
+                        return;
+                    }
+                    reader.reconsumeLaterAsync(message);
+                });
+            }
+            reader.ackMessageAsync(message);
+            return FutureUtil.failedFuture(
+                    new InvalidParameterException("Received rubbishLedger message with invalid rubbish type."));
+        }
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] ledger {} still in use, delete it later.", rubbishLedger.getTopicName(),
+                    rubbishLedger.getLedgerInfo().getLedgerId());
+        }
+        return reader.reconsumeLaterAsync(message);
+    }
+
+    private boolean isToDeleteLedger(RubbishLedger rubbishLedger) {
+        if (!rubbishLedger.isCheckLedgerStillInUse()) {
             return true;
         }
         Set<Long> ledgerIds;
         try {
-            ledgerIds = getLedgerIds(rubbishInfo);
+            ledgerIds = getLedgerIds(rubbishLedger);
         } catch (Exception e) {
             return false;
         }
 
-        if (ledgerIds.contains(rubbishInfo.getLedgerInfo().getLedgerId())) {
+        if (ledgerIds.contains(rubbishLedger.getLedgerInfo().getLedgerId())) {
             try {
-                updateRubbishExistsCache(rubbishInfo.getTopicName());
+                updateRubbishExistsCache(rubbishLedger.getTopicName());
             } catch (Exception e) {
                 return false;
             }
             try {
-                ledgerIds = getLedgerIds(rubbishInfo);
+                ledgerIds = getLedgerIds(rubbishLedger);
             } catch (Exception e) {
                 return false;
             }
-            return !ledgerIds.contains(rubbishInfo.getLedgerInfo().getLedgerId());
+            return !ledgerIds.contains(rubbishLedger.getLedgerInfo().getLedgerId());
         }
         return true;
     }
 
-    private Set<Long> getLedgerIds(RubbishInfo rubbishInfo) throws PulsarAdminException {
-        if (RubbishSource.MANAGED_LEDGER == rubbishInfo.getRubbishSource()) {
-            Set<Long> ledgerIds = managedLedgerExistsCache.get(rubbishInfo.getTopicName());
+    private Set<Long> getLedgerIds(RubbishLedger rubbishLedger) throws PulsarAdminException {
+        if (RubbishSource.MANAGED_LEDGER == rubbishLedger.getRubbishSource()) {
+            Set<Long> ledgerIds = managedLedgerExistsCache.get(rubbishLedger.getTopicName());
             if (ledgerIds == null) {
-                updateRubbishExistsCache(rubbishInfo.getTopicName());
+                updateRubbishExistsCache(rubbishLedger.getTopicName());
             }
-            return managedLedgerExistsCache.get(rubbishInfo.getTopicName());
-        } else if (RubbishSource.MANAGED_CURSOR == rubbishInfo.getRubbishSource()) {
-            Set<Long> ledgerIds = managedCursorExistsCache.get(rubbishInfo.getTopicName());
+            return managedLedgerExistsCache.get(rubbishLedger.getTopicName());
+        } else if (RubbishSource.MANAGED_CURSOR == rubbishLedger.getRubbishSource()) {
+            Set<Long> ledgerIds = managedCursorExistsCache.get(rubbishLedger.getTopicName());
             if (ledgerIds == null) {
-                updateRubbishExistsCache(rubbishInfo.getTopicName());
+                updateRubbishExistsCache(rubbishLedger.getTopicName());
             }
-            return managedCursorExistsCache.get(rubbishInfo.getTopicName());
-        } else if (RubbishSource.SCHEMA_STORAGE == rubbishInfo.getRubbishSource()) {
-            Set<Long> ledgerIds = schemaStorageExistsCache.get(rubbishInfo.getTopicName());
+            return managedCursorExistsCache.get(rubbishLedger.getTopicName());
+        } else if (RubbishSource.SCHEMA_STORAGE == rubbishLedger.getRubbishSource()) {
+            Set<Long> ledgerIds = schemaStorageExistsCache.get(rubbishLedger.getTopicName());
             if (ledgerIds == null) {
-                updateRubbishExistsCache(rubbishInfo.getTopicName());
+                updateRubbishExistsCache(rubbishLedger.getTopicName());
             }
-            return schemaStorageExistsCache.get(rubbishInfo.getTopicName());
+            return schemaStorageExistsCache.get(rubbishLedger.getTopicName());
         }
-        throw new IllegalArgumentException("Unknown rubbish source: " + rubbishInfo.getRubbishSource());
+        throw new IllegalArgumentException("Unknown rubbish source: " + rubbishLedger.getRubbishSource());
     }
-
 
     private void updateRubbishExistsCache(String topicName) throws PulsarAdminException {
 
@@ -258,81 +288,16 @@ public class SystemTopicBasedRubbishCleanService implements RubbishCleanService 
         schemaStorageExistsCache.put(topicName, schemaIds);
     }
 
-    private void updateLedgerOrCursorExistsCache(String topicName) throws PulsarAdminException {
-        Tuple<Set<Long>, Set<Long>> tuple = fetchNewestLedgerInfosData(topicName);
-        managedLedgerExistsCache.put(topicName, tuple.ledgerIds);
-        managedCursorExistsCache.put(topicName, tuple.cursorIds);
-    }
-
-    private void updateSchemaStorageExistsCache(String topicName) throws PulsarAdminException {
-        Set<Long> schemaLedgerIds = fetchSchemaStorageLedgerIds(topicName);
-        schemaStorageExistsCache.put(topicName, schemaLedgerIds);
-    }
-
-    private Tuple<Set<Long>, Set<Long>> fetchNewestLedgerInfosData(String topicName) throws PulsarAdminException {
-        Tuple<Set<Long>, Set<Long>> tuple = new Tuple<>();
-
-        PersistentTopicInternalStats internalStats = pulsarAdmin.topics().getInternalStats(topicName);
-        tuple.ledgerIds = internalStats.ledgers.stream().map(ele1 -> ele1.ledgerId).collect(Collectors.toSet());
-
-        tuple.cursorIds =
-                internalStats.cursors.values().stream().map(ele -> ele.cursorLedger).collect(Collectors.toSet());
-        Set<Long> schemaLedgerIds =
-                internalStats.schemaLedgers.stream().map(ele -> ele.ledgerId).collect(Collectors.toSet());
-        return tuple;
-    }
-
-    private Set<Long> fetchSchemaStorageLedgerIds(String topicName) throws PulsarAdminException {
-        Set<Long> schemaLedgerIds = new HashSet<>();
-        List<SchemaInfo> allSchemas = pulsarAdmin.schemas().getAllSchemas(topicName);
-        allSchemas.forEach(schema -> schema.getSchemaDefinition());
-        return schemaLedgerIds;
-    }
-
-    private CompletableFuture<?> deleteRubbishLedger(RubbishCleanSystemTopicClient.RubbishInfoReader reader,
-                                                     Message<RubbishInfo> message) {
-        RubbishInfo rubbishInfo = message.getValue();
-        if (isToDeleteLedger(rubbishInfo)) {
-            if (RubbishType.LEDGER == rubbishInfo.getRubbishType()) {
-                return asyncDeleteLedger(rubbishInfo.getTopicName(),
-                        rubbishInfo.getLedgerInfo().getLedgerId()).whenComplete((res, e) -> {
-                    if (e == null) {
-                        reader.ackMessageAsync(message);
-                        return;
-                    }
-                    reader.reconsumeLaterAsync(message);
-                });
-            } else if (RubbishType.OFFLOAD_LEDGER == rubbishInfo.getRubbishType()) {
-                return asyncDeleteOffloadedLedger(rubbishInfo.getTopicName(),
-                        rubbishInfo.getLedgerInfo()).whenComplete((res, e) -> {
-                    if (e == null) {
-                        reader.ackMessageAsync(message);
-                        return;
-                    }
-                    reader.reconsumeLaterAsync(message);
-                });
-            }
-            reader.ackMessageAsync(message);
-            return FutureUtil.failedFuture(
-                    new InvalidParameterException("Received rubbishInfo message with invalid rubbish type."));
-        }
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] ledger {} still in use, delete it later.", rubbishInfo.getTopicName(),
-                    rubbishInfo.getLedgerInfo().getLedgerId());
-        }
-        return reader.reconsumeLaterAsync(message);
-    }
-
-    private CompletableFuture<?> sendRubbishMsg(RubbishInfo rubbishInfo) {
+    private CompletableFuture<?> sendRubbishMsg(RubbishLedger rubbishLedger) {
         CompletableFuture<Void> result = new CompletableFuture<>();
 
-        CompletableFuture<SystemTopicClient.Writer<RubbishInfo>> writerFuture =
+        CompletableFuture<SystemTopicClient.Writer<RubbishLedger>> writerFuture =
                 rubbishCleanTopicClient.newWriterAsync();
         writerFuture.whenComplete((writer, ex) -> {
             if (ex != null) {
                 result.completeExceptionally(ex);
             } else {
-                writer.writeAsync(rubbishInfo).whenComplete(((messageId, e) -> {
+                writer.writeAsync(rubbishLedger).whenComplete(((messageId, e) -> {
                             if (e != null) {
                                 result.completeExceptionally(e);
                             } else {
