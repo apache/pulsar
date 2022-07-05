@@ -321,7 +321,7 @@ public class PersistentDispatcherFailoverConsumerTest {
         verify(channelCtx, times(1)).writeAndFlush(any(), any());
     }
 
-    @Test(invocationCount = 1000)
+    @Test
     public void testAddRemoveConsumer() throws Exception {
         log.info("--- Starting PersistentDispatcherFailoverConsumerTest::testAddConsumer ---");
 
