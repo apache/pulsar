@@ -32,9 +32,9 @@ public class SystemTopicNames {
      */
     public static final String NAMESPACE_EVENTS_LOCAL_NAME = "__change_events";
 
-    public static final String RUBBISH_CLEANER = "__rubbish_cleaner";
+    public static final String RUBBISH_CLEANER = "__rubbish_clean";
 
-    public static final String RUBBISH_CLEANER_ARCHIVE = "__rubbish_cleaner_archive";
+    public static final String RUBBISH_CLEANER_ARCHIVE = "__rubbish_clean_archive";
 
     /**
      * Local topic name for the transaction buffer snapshot.
