@@ -3751,22 +3751,47 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     }
 
     @Test
-    public void testLazyCursorLedgerCreation() throws ManagedLedgerException, InterruptedException {
+    public void testLazyCursorLedgerCreation() throws Exception {
         ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory
                 .open("testLazyCursorLedgerCreation", managedLedgerConfig);
         ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("test");
         assertEquals(cursor.getState(), "NoLedger");
+        assertEquals(cursor.getMarkDeletedPosition(), ledger.getLastPosition());
         Position lastPosition = null;
         for (int i = 0; i < 10; i++) {
              lastPosition = ledger.addEntry("test".getBytes(Encoding));
         }
         cursor.markDelete(lastPosition);
+        Position finalLastPosition = lastPosition;
         Awaitility.await().untilAsserted(() -> {
             assertEquals(cursor.getState(), "Open");
-            assertEquals(cursor.getMarkDeletedPosition(), ledger.getLastPosition());
+            assertEquals(cursor.getMarkDeletedPosition(), finalLastPosition);
+            assertEquals(cursor.getPersistentMarkDeletedPosition(), finalLastPosition);
         });
+
+        // Make sure the recovered mark delete position is correct.
         cursor.close();
+        ledger.close();
+        ledger = (ManagedLedgerImpl) factory
+                .open("testLazyCursorLedgerCreation", managedLedgerConfig);
+        ManagedCursorImpl cursor1 = (ManagedCursorImpl) ledger.openCursor("test");
+        assertEquals(cursor1.getState(), "NoLedger");
+        assertEquals(cursor1.getMarkDeletedPosition(), finalLastPosition);
+
+        // Verify the recovered cursor can work with new mark delete.
+        lastPosition = null;
+        for (int i = 0; i < 10; i++) {
+            lastPosition = ledger.addEntry("test".getBytes(Encoding));
+        }
+        cursor1.markDelete(lastPosition);
+        Position finalLastPosition2 = lastPosition;
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(cursor1.getState(), "Open");
+            assertEquals(cursor1.getMarkDeletedPosition(), finalLastPosition2);
+            assertEquals(cursor1.getPersistentMarkDeletedPosition(), finalLastPosition2);
+        });
+        cursor1.close();
         ledger.close();
     }
 
