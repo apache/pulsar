@@ -53,7 +53,7 @@ Tenant | Derived from the input topics' names. If the input topics are under the
 Namespace | Derived from the input topics' names. If the input topics are under the `asia` namespace under the `marketing` tenant---i.e. the topic names have the form `persistent://marketing/asia/{topicName}`, then the namespace will be `asia`.
 Output topic | `{input topic}-{function name}-output`. A function with an input topic name of `incoming` and a function name of `exclamation`, for example, would have an output topic of `incoming-exclamation-output`.
 Subscription type | For at-least-once and at-most-once [processing guarantees](functions-guarantees), the [`SHARED`](concepts-messaging.md#shared) is applied by default; for effectively-once guarantees, [`FAILOVER`](concepts-messaging.md#failover) is applied
-Processing guarantees | [`ATLEAST_ONCE`](functions-guarantees)
+Processing guarantees | [`ATLEAST_ONCE`](functions-guarantees.md)
 Pulsar service URL | `pulsar://localhost:6650`
 
 #### Example use of defaults

@@ -237,4 +237,20 @@ public class ServiceConfigurationTest {
         }
 
     }
+
+    @Test
+    public void testBookKeeperClientIoThreads() throws Exception {
+        try (FileInputStream stream = new FileInputStream("../conf/broker.conf")) {
+            final ServiceConfiguration fileConfig = PulsarConfigurationLoader.create(stream, ServiceConfiguration.class);
+            assertFalse(fileConfig.isBookkeeperClientSeparatedIoThreadsEnabled());
+            assertEquals(fileConfig.getBookkeeperClientNumIoThreads(), Runtime.getRuntime().availableProcessors() * 2);
+        }
+        String confFile = "bookkeeperClientNumIoThreads=1\n" +
+                "bookkeeperClientSeparatedIoThreadsEnabled=true\n";
+        try (InputStream stream = new ByteArrayInputStream(confFile.getBytes())) {
+            final ServiceConfiguration conf = PulsarConfigurationLoader.create(stream, ServiceConfiguration.class);
+            assertTrue(conf.isBookkeeperClientSeparatedIoThreadsEnabled());
+            assertEquals(conf.getBookkeeperClientNumIoThreads(), 1);
+        }
+    }
 }

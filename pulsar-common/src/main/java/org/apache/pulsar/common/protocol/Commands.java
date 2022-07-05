@@ -263,11 +263,12 @@ public class Commands {
         return serializeWithSize(cmd);
     }
 
-    public static ByteBuf newConnected(int clientProtocoVersion) {
-        return newConnected(clientProtocoVersion, INVALID_MAX_MESSAGE_SIZE);
+    public static ByteBuf newConnected(int clientProtocoVersion,  boolean supportsTopicWatchers) {
+        return newConnected(clientProtocoVersion, INVALID_MAX_MESSAGE_SIZE, supportsTopicWatchers);
     }
 
-    public static BaseCommand newConnectedCommand(int clientProtocolVersion, int maxMessageSize) {
+    public static BaseCommand newConnectedCommand(int clientProtocolVersion, int maxMessageSize,
+                                                  boolean supportsTopicWatchers) {
         BaseCommand cmd = localCmd(Type.CONNECTED);
         CommandConnected connected = cmd.setConnected()
                 .setServerVersion("Pulsar Server" + PulsarVersion.getVersion());
@@ -282,11 +283,13 @@ public class Commands {
         int versionToAdvertise = Math.min(currentProtocolVersion, clientProtocolVersion);
 
         connected.setProtocolVersion(versionToAdvertise);
+
+        connected.setFeatureFlags().setSupportsTopicWatchers(supportsTopicWatchers);
         return cmd;
     }
 
-    public static ByteBuf newConnected(int clientProtocolVersion, int maxMessageSize) {
-        return serializeWithSize(newConnectedCommand(clientProtocolVersion, maxMessageSize));
+    public static ByteBuf newConnected(int clientProtocolVersion, int maxMessageSize,  boolean supportsTopicWatchers) {
+        return serializeWithSize(newConnectedCommand(clientProtocolVersion, maxMessageSize, supportsTopicWatchers));
     }
 
     public static ByteBuf newAuthChallenge(String authMethod, AuthData brokerData, int clientProtocolVersion) {
@@ -987,9 +990,26 @@ public class Commands {
         }
 
         if (batchSize >= 0) {
-          messageIdData.setBatchSize(batchSize);
+            messageIdData.setBatchSize(batchSize);
         }
 
+        return newAck(validationError, properties, txnIdLeastBits, txnIdMostBits, requestId, ack, cmd);
+    }
+
+    public static ByteBuf newAck(long consumerId, List<MessageIdData> messageIds, AckType ackType,
+                                 ValidationError validationError, Map<String, Long> properties, long txnIdLeastBits,
+                                 long txnIdMostBits, long requestId) {
+        BaseCommand cmd = localCmd(Type.ACK);
+        CommandAck ack = cmd.setAck()
+                .setConsumerId(consumerId)
+                .setAckType(ackType);
+        ack.addAllMessageIds(messageIds);
+
+        return newAck(validationError, properties, txnIdLeastBits, txnIdMostBits, requestId, ack, cmd);
+    }
+
+    private static ByteBuf newAck(ValidationError validationError, Map<String, Long> properties, long txnIdLeastBits,
+                                  long txnIdMostBits, long requestId, CommandAck ack, BaseCommand cmd) {
         if (validationError != null) {
             ack.setValidationError(validationError);
         }
@@ -1010,6 +1030,7 @@ public class Commands {
         }
         return serializeWithSize(cmd);
     }
+
 
     public static ByteBuf newAck(long consumerId, long ledgerId, long entryId, BitSetRecyclable ackSet, AckType ackType,
                                  ValidationError validationError, Map<String, Long> properties, long txnIdLeastBits,
@@ -1472,6 +1493,55 @@ public class Commands {
             response.setMessage(errorMsg);
         }
         return serializeWithSize(cmd);
+    }
+
+    public static BaseCommand newWatchTopicList(
+            long requestId, long watcherId, String namespace, String topicsPattern, String topicsHash) {
+        BaseCommand cmd = localCmd(Type.WATCH_TOPIC_LIST);
+        cmd.setWatchTopicList()
+                .setRequestId(requestId)
+                .setNamespace(namespace)
+                .setTopicsPattern(topicsPattern)
+                .setWatcherId(watcherId);
+        if (topicsHash != null) {
+            cmd.getWatchTopicList()
+                    .setTopicsHash(topicsHash);
+        }
+        return cmd;
+    }
+
+    public static BaseCommand newWatchTopicListSuccess(long requestId, long watcherId, String topicsHash,
+                                                       List<String> topics) {
+        BaseCommand cmd = localCmd(Type.WATCH_TOPIC_LIST_SUCCESS);
+        cmd.setWatchTopicListSuccess()
+                .setRequestId(requestId)
+                .setWatcherId(watcherId);
+        if (topicsHash != null) {
+                cmd.getWatchTopicListSuccess().setTopicsHash(topicsHash);
+        }
+        if (topics != null && !topics.isEmpty()) {
+                cmd.getWatchTopicListSuccess().addAllTopics(topics);
+        }
+        return cmd;
+    }
+
+    public static BaseCommand newWatchTopicUpdate(long watcherId,
+                                              List<String> newTopics, List<String> deletedTopics, String topicsHash) {
+        BaseCommand cmd = localCmd(Type.WATCH_TOPIC_UPDATE);
+        cmd.setWatchTopicUpdate()
+                .setWatcherId(watcherId)
+                .setTopicsHash(topicsHash)
+                .addAllNewTopics(newTopics)
+                .addAllDeletedTopics(deletedTopics);
+        return cmd;
+    }
+
+    public static BaseCommand newWatchTopicListClose(long watcherId, long requestId) {
+        BaseCommand cmd = localCmd(Type.WATCH_TOPIC_LIST_CLOSE);
+        cmd.setWatchTopicListClose()
+                .setRequestId(requestId)
+                .setWatcherId(watcherId);
+        return cmd;
     }
 
     public static ByteBuf serializeWithSize(BaseCommand cmd) {
