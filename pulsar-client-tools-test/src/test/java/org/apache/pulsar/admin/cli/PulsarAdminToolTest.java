@@ -1440,7 +1440,8 @@ public class PulsarAdminToolTest {
         verify(mockTopics).getInternalInfo("persistent://myprop/clust/ns1/ds1");
 
         cmdTopics.run(split("partitioned-stats persistent://myprop/clust/ns1/ds1 --per-partition"));
-        verify(mockTopics).getPartitionedStats("persistent://myprop/clust/ns1/ds1", true, false, false);
+        verify(mockTopics).getPartitionedStats("persistent://myprop/clust/ns1/ds1",
+                true, false, false, false);
 
         cmdTopics.run(split("partitioned-stats-internal persistent://myprop/clust/ns1/ds1"));
         verify(mockTopics).getPartitionedInternalStats("persistent://myprop/clust/ns1/ds1");
