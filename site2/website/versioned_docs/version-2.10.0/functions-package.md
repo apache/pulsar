@@ -15,7 +15,7 @@ Currently, the window function is not available in Python and Go.
 
 ## Prerequisite
 
-Before running a Pulsar function, you need to start Pulsar. You can [run a standalone Pulsar in Docker](getting-started-docker.md), or [run Pulsar in Kubernetes](getting-started-helm).
+Before running a Pulsar function, you need to start Pulsar. You can [run a standalone Pulsar in Docker](getting-started-docker.md), or [run Pulsar in Kubernetes](getting-started-helm.md).
 
 To check whether the Docker image starts, you can use the `docker ps` command.
 

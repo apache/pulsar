@@ -20,7 +20,7 @@ import TabItem from '@theme/TabItem';
 > 
 > - For the latest and complete information about `Java admin API`, including classes, methods, descriptions, and more, see [Java admin API doc](/api/admin/).
 
-Tenants, like namespaces, can be managed using the [admin API](admin-api-overview). There are currently two configurable aspects of tenants:
+Tenants, like namespaces, can be managed using the [admin API](admin-api-overview.md). There are currently two configurable aspects of tenants:
 
 * Admin roles
 * Allowed clusters
@@ -121,7 +121,7 @@ admin.tenants().createTenant(tenantName, tenantInfo);
 
 ### Get configuration
 
-You can fetch the [configuration](reference-configuration) for an existing tenant at any time.
+You can fetch the [configuration](reference-configuration.md) for an existing tenant at any time.
 
 ````mdx-code-block
 <Tabs groupId="api-choice"
