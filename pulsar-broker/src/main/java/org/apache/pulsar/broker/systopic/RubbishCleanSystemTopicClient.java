@@ -131,7 +131,6 @@ public class RubbishCleanSystemTopicClient extends SystemTopicClientBase<Rubbish
 
         private final Consumer<RubbishInfo> consumer;
         private final RubbishCleanSystemTopicClient systemTopic;
-        private Message<RubbishInfo> lastMessage;
 
         private RubbishInfoReader(Consumer<RubbishInfo> consumer,
                                   RubbishCleanSystemTopicClient systemTopic) {

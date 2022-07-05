@@ -105,8 +105,11 @@ public class SystemTopicBasedRubbishCleanService implements RubbishCleanService 
     @Override
     public void start() throws PulsarClientException, PulsarAdminException {
         this.rubbishCleanTopicClient = getRubbishCleanTopicClient();
-        this.pulsarAdmin.topics()
-                .createPartitionedTopic(SystemTopicNames.RUBBISH_CLEANER_TOPIC.getPartitionedTopicName(), workers);
+        try {
+            this.pulsarAdmin.topics()
+                    .createPartitionedTopic(SystemTopicNames.RUBBISH_CLEANER_TOPIC.getPartitionedTopicName(), workers);
+        } catch (PulsarAdminException.ConflictException ignore) {
+        }
         initReaderFuture();
     }
 
@@ -231,7 +234,8 @@ public class SystemTopicBasedRubbishCleanService implements RubbishCleanService 
         PersistentTopicInternalStats internalStats = pulsarAdmin.topics().getInternalStats(topicName);
         Set<Long> ledgerIds = internalStats.ledgers.stream().map(ele1 -> ele1.ledgerId).collect(Collectors.toSet());
 
-        Set<Long> cursorIds = internalStats.cursors.values().stream().map(ele -> ele.cursorLedger).collect(Collectors.toSet());
+        Set<Long> cursorIds =
+                internalStats.cursors.values().stream().map(ele -> ele.cursorLedger).collect(Collectors.toSet());
         Set<Long> schemaIds = internalStats.schemaLedgers.stream().map(ele -> ele.ledgerId).collect(Collectors.toSet());
 
         managedLedgerExistsCache.put(topicName, ledgerIds);
@@ -258,7 +262,8 @@ public class SystemTopicBasedRubbishCleanService implements RubbishCleanService 
 
         tuple.cursorIds =
                 internalStats.cursors.values().stream().map(ele -> ele.cursorLedger).collect(Collectors.toSet());
-        Set<Long> schemaLedgerIds = internalStats.schemaLedgers.stream().map(ele -> ele.ledgerId).collect(Collectors.toSet());
+        Set<Long> schemaLedgerIds =
+                internalStats.schemaLedgers.stream().map(ele -> ele.ledgerId).collect(Collectors.toSet());
         return tuple;
     }
 
