@@ -23,8 +23,8 @@ PULSAR_STANDALONE_USE_ZOOKEEPER=1 ./bin/pulsar standalone
 
 :::note
 
-Starting the Pulsar standalone cluster from scratch doesn't enable zookeeper by default. 
-However, the Pulsar SQL depends on the zookeeper. Therefore, we need to set `PULSAR_STANDALONE_USE_ZOOKEEPER=1` to enable the zookeeper.
+Starting the Pulsar standalone cluster from scratch doesn't enable ZooKeeper by default. 
+However, the Pulsar SQL depends on ZooKeeper. Therefore, you need to set `PULSAR_STANDALONE_USE_ZOOKEEPER=1` to enable ZooKeeper.
 
 :::
 
