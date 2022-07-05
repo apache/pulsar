@@ -20,6 +20,7 @@ package org.apache.pulsar.compaction;
 
 import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
+import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.service.Consumer;
@@ -31,4 +32,5 @@ public interface CompactedTopic {
                                 boolean isFirstRead,
                                 ReadEntriesCallback callback,
                                 Consumer consumer);
+    CompletableFuture<Entry> readLastEntryOfCompactedLedger();
 }

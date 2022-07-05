@@ -1552,18 +1552,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
         // If it's not pointing to a valid entry, respond messageId of the current position.
         if (position.getEntryId() == -1) {
-            MessageIdData messageId = MessageIdData.newBuilder()
-                    .setLedgerId(position.getLedgerId())
-                    .setEntryId(position.getEntryId())
-                    .setPartition(partitionIndex).build();
-
-            MessageIdData markDeleteMessageId = null;
-            if (null != markDeletePosition) {
-                markDeleteMessageId = MessageIdData.newBuilder()
-                    .setLedgerId(markDeletePosition.getLedgerId())
-                    .setEntryId(markDeletePosition.getEntryId()).build();
-            }
-            ctx.writeAndFlush(Commands.newGetLastMessageIdResponse(requestId, messageId, markDeleteMessageId));
+            handleLastMessageIdFromCompactedLedger(persistentTopic, requestId, partitionIndex,
+                    markDeletePosition);
             return;
         }
 
@@ -1591,14 +1581,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         batchSizeFuture.whenComplete((batchSize, e) -> {
             if (e != null) {
                 if (e.getCause() instanceof ManagedLedgerException.NonRecoverableLedgerException) {
-                    // in this case, the ledgers been removed except the current ledger
-                    // and current ledger without any data
-                    ctx.writeAndFlush(Commands.newGetLastMessageIdResponse(requestId,
-                            MessageIdData.newBuilder().setLedgerId(-1).setEntryId(-1).build(),
-                            MessageIdData.newBuilder()
-                                    .setLedgerId(markDeletePosition != null ? markDeletePosition.getLedgerId() : -1)
-                                    .setEntryId(markDeletePosition != null ? markDeletePosition.getEntryId() : -1)
-                                    .build()));
+                    handleLastMessageIdFromCompactedLedger(persistentTopic, requestId, partitionIndex,
+                            markDeletePosition);
                 } else {
                     ctx.writeAndFlush(Commands.newError(
                             requestId, ServerError.MetadataError,
@@ -1625,6 +1609,50 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 }
                 ctx.writeAndFlush(Commands.newGetLastMessageIdResponse(requestId, messageId, markDeleteMessageId));
             }
+        });
+    }
+
+    private void handleLastMessageIdFromCompactedLedger(PersistentTopic persistentTopic, long requestId,
+                                                        int partitionIndex, PositionImpl markDeletePosition) {
+        persistentTopic.getCompactedTopic().readLastEntryOfCompactedLedger().thenAccept(entry -> {
+            if (entry != null) {
+                // in this case, all the data has been compacted, so return the last position
+                // in the compacted ledger to the client
+                MessageMetadata metadata = Commands.parseMessageMetadata(entry.getDataBuffer());
+                int bs = metadata.getNumMessagesInBatch();
+                int largestBatchIndex = bs > 0 ? bs - 1 : -1;
+                ctx.writeAndFlush(Commands.newGetLastMessageIdResponse(requestId,
+                        MessageIdData.newBuilder()
+                                .setLedgerId(entry.getLedgerId())
+                                .setEntryId(entry.getEntryId())
+                                .setPartition(partitionIndex)
+                                .setBatchIndex(largestBatchIndex)
+                                .build(),
+                        MessageIdData.newBuilder()
+                                .setLedgerId(markDeletePosition != null
+                                        ? markDeletePosition.getLedgerId() : -1)
+                                .setEntryId(markDeletePosition != null
+                                        ? markDeletePosition.getEntryId() : -1)
+                                .build()));
+                entry.release();
+            } else {
+                // in this case, the ledgers been removed except the current ledger
+                // and current ledger without any data
+                ctx.writeAndFlush(Commands.newGetLastMessageIdResponse(requestId,
+                        MessageIdData.newBuilder().setLedgerId(-1).setEntryId(-1).build(),
+                        MessageIdData.newBuilder()
+                                .setLedgerId(markDeletePosition != null
+                                        ? markDeletePosition.getLedgerId() : -1)
+                                .setEntryId(markDeletePosition != null
+                                        ? markDeletePosition.getEntryId() : -1)
+                                .build()));
+            }
+        }).exceptionally(ex -> {
+            ctx.writeAndFlush(Commands.newError(
+                    requestId, ServerError.MetadataError,
+                    "Failed to read last entry of the compacted Ledger "
+                            + ex.getCause().getMessage()));
+            return null;
         });
     }
 

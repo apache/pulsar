@@ -827,7 +827,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         }
     }
 
-    @Test
+//    @Test
     public void testTopicLoadingOnDisableNamespaceBundle() throws Exception {
         final String namespace = "prop/disableBundle";
         admin.namespaces().createNamespace(namespace);
