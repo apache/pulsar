@@ -164,14 +164,16 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                                     BookkeeperFactoryForCustomEnsemblePlacementPolicy bookKeeperGroupFactory,
                                     ManagedLedgerFactoryConfig config)
             throws Exception {
-        this(metadataStore, bookKeeperGroupFactory, false /* isBookkeeperManaged */, config, NullStatsLogger.INSTANCE);
+        this(metadataStore, bookKeeperGroupFactory, false /* isBookkeeperManaged */,
+                config, NullStatsLogger.INSTANCE);
     }
 
     public ManagedLedgerFactoryImpl(MetadataStoreExtended metadataStore,
                                     BookkeeperFactoryForCustomEnsemblePlacementPolicy bookKeeperGroupFactory,
                                     ManagedLedgerFactoryConfig config, StatsLogger statsLogger)
             throws Exception {
-        this(metadataStore, bookKeeperGroupFactory, false /* isBookkeeperManaged */, config, statsLogger);
+        this(metadataStore, bookKeeperGroupFactory, false /* isBookkeeperManaged */,
+                config, statsLogger);
     }
 
     private ManagedLedgerFactoryImpl(MetadataStoreExtended metadataStore,

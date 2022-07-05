@@ -75,7 +75,7 @@ public class PulsarMockBookKeeper extends BookKeeper {
         return super.getConf();
     }
 
-    protected final Map<Long, PulsarMockLedgerHandle> ledgers = new ConcurrentHashMap<>();
+    final Map<Long, PulsarMockLedgerHandle> ledgers = new ConcurrentHashMap<>();
     final AtomicLong sequence = new AtomicLong(3);
 
     CompletableFuture<Void> defaultResponse = CompletableFuture.completedFuture(null);
@@ -317,7 +317,7 @@ public class PulsarMockBookKeeper extends BookKeeper {
         return shouldFailNow;
     }
 
-    protected synchronized CompletableFuture<Void> getProgrammedFailure() {
+    synchronized CompletableFuture<Void> getProgrammedFailure() {
         return failures.isEmpty() ? defaultResponse : failures.remove(0);
     }
 
@@ -351,7 +351,7 @@ public class PulsarMockBookKeeper extends BookKeeper {
         addEntryDelaysMillis.add(unit.toMillis(delay));
     }
 
-    protected static int getExceptionCode(Throwable t) {
+    static int getExceptionCode(Throwable t) {
         if (t instanceof BKException) {
             return ((BKException) t).getCode();
         } else if (t.getCause() != null) {
