@@ -86,6 +86,7 @@ public class RubbishCleanSystemTopicClient extends SystemTopicClientBase<Rubbish
 
         private final Producer<RubbishLedger> producer;
         private final SystemTopicClient<RubbishLedger> systemTopicClient;
+        private final int sendDelayMinutes = 1;
 
         private RubbishLedgerWriter(Producer<RubbishLedger> producer, SystemTopicClient<RubbishLedger> systemTopicClient) {
             this.producer = producer;
@@ -95,7 +96,7 @@ public class RubbishCleanSystemTopicClient extends SystemTopicClientBase<Rubbish
         @Override
         public MessageId write(RubbishLedger rubbishLedger) throws PulsarClientException {
             TypedMessageBuilder<RubbishLedger> builder =
-                    producer.newMessage().value(rubbishLedger).deliverAfter(1, TimeUnit.MINUTES);
+                    producer.newMessage().value(rubbishLedger).deliverAfter(sendDelayMinutes, TimeUnit.MINUTES);
             return builder.send();
         }
 
@@ -131,6 +132,7 @@ public class RubbishCleanSystemTopicClient extends SystemTopicClientBase<Rubbish
 
         private final Consumer<RubbishLedger> consumer;
         private final RubbishCleanSystemTopicClient systemTopic;
+        private final int reconsumeLaterMin = 10;
 
         private RubbishLedgerReader(Consumer<RubbishLedger> consumer,
                                     RubbishCleanSystemTopicClient systemTopic) {
@@ -189,7 +191,7 @@ public class RubbishCleanSystemTopicClient extends SystemTopicClientBase<Rubbish
         }
 
         public CompletableFuture<Void> reconsumeLaterAsync(Message<RubbishLedger> message) {
-            return this.consumer.reconsumeLaterAsync(message, 5, TimeUnit.MINUTES);
+            return this.consumer.reconsumeLaterAsync(message, reconsumeLaterMin, TimeUnit.MINUTES);
         }
 
         @Override
