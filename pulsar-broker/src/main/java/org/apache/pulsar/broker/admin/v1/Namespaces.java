@@ -736,7 +736,12 @@ public class Namespaces extends NamespacesBase {
             @ApiResponse(code = 412, message = "Namespace is already unloaded or Namespace has bundles activated")})
     public void unloadNamespace(@Suspended final AsyncResponse asyncResponse, @PathParam("property") String property,
             @PathParam("cluster") String cluster, @PathParam("namespace") String namespace) {
-        validateNamespaceName(property, cluster, namespace);
+        try {
+            validateNamespaceName(property, cluster, namespace);
+        } catch (WebApplicationException wae) {
+            asyncResponse.resume(wae);
+            return;
+        }
         internalUnloadNamespaceAsync()
                 .thenAccept(__ -> {
                     log.info("[{}] Successfully unloaded all the bundles in namespace {}", clientAppId(),

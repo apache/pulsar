@@ -666,7 +666,12 @@ public class Namespaces extends NamespacesBase {
     public void unloadNamespace(@Suspended final AsyncResponse asyncResponse,
                                 @PathParam("tenant") String tenant,
                                 @PathParam("namespace") String namespace) {
-        validateNamespaceName(tenant, namespace);
+        try {
+            validateNamespaceName(tenant, namespace);
+        } catch (WebApplicationException wae) {
+            asyncResponse.resume(wae);
+            return;
+        }
         internalUnloadNamespaceAsync()
                 .thenAccept(__ -> {
                     log.info("[{}] Successfully unloaded all the bundles in namespace {}", clientAppId(),
