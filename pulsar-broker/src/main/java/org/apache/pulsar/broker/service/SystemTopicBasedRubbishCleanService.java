@@ -51,6 +51,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.events.EventType;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.SystemTopicNames;
+import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.schema.SchemaInfo;
@@ -143,10 +144,18 @@ public class SystemTopicBasedRubbishCleanService implements RubbishCleanService 
         });
     }
 
+    private String tuneTopicName(String topicName) {
+        if (topicName.contains("/" + TopicDomain.persistent.value())) {
+            return topicName.replaceFirst("/" + TopicDomain.persistent.value(), "");
+        }
+        return topicName;
+    }
+
     @Override
     public CompletableFuture<?> appendRubbishLedger(String topicName, long ledgerId, LedgerInfo context,
                                                     RubbishSource source, RubbishType type,
                                                     boolean checkLedgerStillInUse) {
+        topicName = tuneTopicName(topicName);
         RubbishInfo rubbishInfo = null;
         if (RubbishType.LEDGER == type) {
             ManagedLedgerInfo.LedgerInfo ledgerInfo = ManagedLedgerInfo.LedgerInfo.buildLedger(ledgerId);
@@ -231,6 +240,7 @@ public class SystemTopicBasedRubbishCleanService implements RubbishCleanService 
 
 
     private void updateRubbishExistsCache(String topicName) throws PulsarAdminException {
+
         PersistentTopicInternalStats internalStats = pulsarAdmin.topics().getInternalStats(topicName);
         Set<Long> ledgerIds = internalStats.ledgers.stream().map(ele1 -> ele1.ledgerId).collect(Collectors.toSet());
 
