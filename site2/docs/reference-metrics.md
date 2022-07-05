@@ -172,6 +172,7 @@ All the namespace metrics are labelled with the following labels:
 | pulsar_rate_out | Gauge | The total message rate of the namespace going out from this broker (message per second). |
 | pulsar_throughput_in | Gauge | The total throughput of the namespace coming into this broker (byte per second). |
 | pulsar_throughput_out | Gauge | The total throughput of the namespace going out from this broker (byte per second). |
+| pulsar_consumer_msg_ack_rate | Gauge | The total message acknowledgment rate of the namespace owned by this broker (message per second). |
 | pulsar_storage_size | Gauge | The total storage size of the topics in this namespace owned by this broker (bytes). |
 | pulsar_storage_logical_size | Gauge | The storage size of topics in the namespace owned by the broker without replicas (in bytes). |
 | pulsar_storage_backlog_size | Gauge | The total backlog size of the topics of this namespace owned by this broker (in bytes). |
@@ -220,6 +221,7 @@ All the topic metrics are labelled with the following labels:
 | pulsar_publish_rate_limit_times | Gauge | The number of times the publish rate limit is triggered. |
 | pulsar_throughput_in | Gauge | The total throughput of the topic coming into this broker (byte per second). |
 | pulsar_throughput_out | Gauge | The total throughput of the topic going out from this broker (byte per second). |
+| pulsar_consumer_msg_ack_rate | Gauge | The total message acknowledgment rate of the topic connected to this broker (message per second). |
 | pulsar_storage_size | Gauge | The total storage size of the topics in this topic owned by this broker (bytes). |
 | pulsar_storage_logical_size | Gauge | The storage size of topics in the namespace owned by the broker without replicas (in bytes). |
 | pulsar_storage_backlog_size | Gauge | The total backlog size of the topics of this topic owned by this broker (in bytes). |
@@ -393,6 +395,7 @@ All the subscription metrics are labelled with the following labels:
 | pulsar_subscription_blocked_on_unacked_messages | Gauge | Indicate whether a subscription is blocked on unacknowledged messages or not. <br /> <ul><li>1 means the subscription is blocked on waiting unacknowledged messages to be acked.</li><li>0 means the subscription is not blocked on waiting unacknowledged messages to be acked.</li></ul> |
 | pulsar_subscription_msg_rate_out | Gauge | The total message dispatch rate for a subscription (message per second). |
 | pulsar_subscription_msg_throughput_out | Gauge | The total message dispatch throughput for a subscription (byte per second). |
+| pulsar_subscription_msg_ack_rate | Gauge | The total message acknowledgment rate for a subscription (message per second). |
 
 ### Consumer metrics
 

@@ -7,4 +7,4 @@ original_id: txn-monitor
 
 You can monitor the status of the transactions in Prometheus and Grafana using the [transaction metrics](reference-metrics.md#pulsar-transaction). 
 
-For how to configure Prometheus and Grafana, see [here](deploy-monitoring).
+For how to configure Prometheus and Grafana, see [here](deploy-monitoring.md).

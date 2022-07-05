@@ -31,7 +31,7 @@ Application specifies the token when you create the client instance. An alternat
 
 > #### Always use TLS transport encryption
 > Sending a token is equivalent to sending a password over the wire. You had better use TLS encryption all the time when you connect to the Pulsar service. See
-> [Transport Encryption using TLS](security-tls-transport) for more details.
+> [Transport Encryption using TLS](security-tls-transport.md) for more details.
 
 ### CLI Tools
 
@@ -302,7 +302,7 @@ tokenSecretKey=file:///path/to/secret.key
 
 To configure proxies to authenticate clients, add the following parameters to `proxy.conf`:
 
-The proxy uses its own token when connecting to brokers. You need to configure the role token for this key pair in the `proxyRoles` of the brokers. For more details, see the [authorization guide](security-authorization).
+The proxy uses its own token when connecting to brokers. You need to configure the role token for this key pair in the `proxyRoles` of the brokers. For more details, see the [authorization guide](security-authorization.md).
 
 ```properties
 
