@@ -64,6 +64,9 @@
       <outputDirectory>lib</outputDirectory>
       <unpack>false</unpack>
       <scope>compile</scope>
+      <excludes>
+        <exclude>org.projectlombok:lombok</exclude>
+      </excludes>
     </dependencySet>
   </dependencySets>
 </assembly>
