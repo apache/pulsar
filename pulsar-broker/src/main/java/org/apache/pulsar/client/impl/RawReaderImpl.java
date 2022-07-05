@@ -213,7 +213,7 @@ public class RawReaderImpl implements RawReader {
             }
             incomingRawMessages.add(
                     new RawMessageAndCnx(new RawMessageImpl(messageId, headersAndPayload), cnx));
-            tryCompletePending();
+            internalPinnedExecutor.execute(this::tryCompletePending);
         }
     }
 
