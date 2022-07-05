@@ -127,7 +127,7 @@ public abstract class AbstractBaseDispatcher implements Dispatcher {
         List<PositionImpl> entriesToRedeliver = CollectionUtils.isNotEmpty(entryFilters) ? new ArrayList<>() : null;
         for (int i = 0, entriesSize = entries.size(); i < entriesSize; i++) {
             Entry entry = entries.get(i);
-            if (entry == null) {
+            if (entry == null || entry.getDataBuffer() == null) {
                 continue;
             }
             ByteBuf metadataAndPayload = entry.getDataBuffer();
