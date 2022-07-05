@@ -40,7 +40,7 @@ type goInstance struct {
 	producer          pulsar.Producer
 	consumers         map[string]pulsar.Consumer
 	client            pulsar.Client
-	lastHealthCheckTs int64
+	lastHealthCheckTS int64
 	properties        map[string]string
 	stats             StatWithLabelValues
 }
@@ -75,7 +75,7 @@ func newGoInstance() *goInstance {
 		return producer
 	}
 
-	goInstance.lastHealthCheckTs = now.UnixNano()
+	goInstance.lastHealthCheckTS = now.UnixNano()
 	goInstance.properties = make(map[string]string)
 	goInstance.stats = NewStatWithLabelValues(goInstance.getMetricsLabels()...)
 	return goInstance
@@ -85,7 +85,7 @@ func (gi *goInstance) processSpawnerHealthCheckTimer(tkr *time.Ticker) {
 	log.Info("Starting processSpawnerHealthCheckTimer")
 	now := time.Now()
 	maxIdleTime := gi.context.GetMaxIdleTime()
-	timeSinceLastCheck := now.UnixNano() - gi.lastHealthCheckTs
+	timeSinceLastCheck := now.UnixNano() - gi.lastHealthCheckTS
 	if (timeSinceLastCheck) > (maxIdleTime) {
 		log.Error("Haven't received health check from spawner in a while. Stopping instance...")
 		gi.close()
@@ -112,7 +112,7 @@ func (gi *goInstance) startFunction(function function) error {
 
 	// start process spawner health check timer
 	now := time.Now()
-	gi.lastHealthCheckTs = now.UnixNano()
+	gi.lastHealthCheckTS = now.UnixNano()
 
 	gi.startScheduler()
 
@@ -462,7 +462,7 @@ func (gi *goInstance) close() {
 
 func (gi *goInstance) healthCheck() *pb.HealthCheckResult {
 	now := time.Now()
-	gi.lastHealthCheckTs = now.UnixNano()
+	gi.lastHealthCheckTS = now.UnixNano()
 	healthCheckResult := pb.HealthCheckResult{Success: true}
 	return &healthCheckResult
 }
