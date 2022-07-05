@@ -196,7 +196,7 @@ public class CmdTransactions extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Check whether the position is in pending ack stats")
+    @Parameters(commandDescription = "Get the position stats in transaction pending ack")
     private class GetPositionStatsInPendingAck extends CliCommand {
         @Parameter(names = {"-t", "--topic"}, description = "the topic name", required = true)
         private String topic;

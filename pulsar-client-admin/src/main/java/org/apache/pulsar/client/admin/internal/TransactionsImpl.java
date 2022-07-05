@@ -365,7 +365,7 @@ public class TransactionsImpl extends BaseResource implements Transactions {
                                                                                           Long entryId,
                                                                                           Integer batchIndex) {
         TopicName tn = TopicName.get(topic);
-        WebTarget path = adminV3Transactions.path("pendingAckStats");
+        WebTarget path = adminV3Transactions.path("positionStatsInPendingAck");
         path = path.path(tn.getRestPath(false));
         path = path.path(subName);
         path = path.path(ledgerId.toString());

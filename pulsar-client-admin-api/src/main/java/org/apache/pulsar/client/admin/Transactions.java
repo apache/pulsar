@@ -308,8 +308,7 @@ public interface Transactions {
     CompletableFuture<Void> scaleTransactionCoordinatorsAsync(int replicas);
 
     /**
-     * Check whether the position is in pending ack stats.
-     *
+     * Get the position stats in transaction pending ack.
      * @param topic the topic of checking position in pending ack state
      * @param subName the subscription name of this pending ack
      * @param ledgerId the ledger id of the message position.
@@ -321,7 +320,7 @@ public interface Transactions {
                                                            Integer batchIndex) throws PulsarAdminException;
 
     /**
-     * Check whether the position is in pending ack stats.
+     * Get the position stats in transaction pending ack.
      *
      * @param topic the topic of checking position in pending ack state
      * @param subName the subscription name of this pending ack
