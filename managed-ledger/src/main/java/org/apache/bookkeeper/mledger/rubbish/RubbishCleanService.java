@@ -35,6 +35,7 @@ public interface RubbishCleanService {
     CompletableFuture<?> appendRubbishLedger(String topicName, long ledgerId, LedgerInfo context, RubbishSource source,
                                              RubbishType type, boolean checkLedgerStillInUse);
 
+    void close() throws Exception;
 
     /**
      * Async close managedTrash, it will persist trash data to meta store.
@@ -61,6 +62,10 @@ public interface RubbishCleanService {
             return COMPLETABLE_FUTURE;
         }
 
+        @Override
+        public void close() throws Exception {
+            //No op
+        }
 
         @Override
         public CompletableFuture<?> asyncClose() {

@@ -176,6 +176,11 @@ public class SystemTopicBasedRubbishCleanService implements RubbishCleanService 
     }
 
     @Override
+    public void close() throws Exception {
+        asyncClose().get();
+    }
+
+    @Override
     public CompletableFuture<?> asyncClose() {
         if (readerFuture != null && !readerFuture.isCompletedExceptionally()) {
             return readerFuture.thenCompose(SystemTopicClient.Reader::closeAsync);

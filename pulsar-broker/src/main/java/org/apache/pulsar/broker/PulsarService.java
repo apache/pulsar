@@ -483,6 +483,11 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             // shutdown loadmanager before shutting down the broker
             executorServicesShutdown.shutdown(loadManagerExecutor);
 
+            if (rubbishCleanService != null)  {
+                rubbishCleanService.close();
+                rubbishCleanService = null;
+            }
+
             if (adminClient != null) {
                 adminClient.close();
                 adminClient = null;
