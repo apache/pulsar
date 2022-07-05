@@ -59,6 +59,7 @@ import org.apache.pulsar.common.policies.data.TransactionInBufferStats;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Markers;
 import org.apache.pulsar.common.util.Codec;
+import org.apache.pulsar.common.util.RecoverTimeRecord;
 import org.jctools.queues.MessagePassingQueue;
 import org.jctools.queues.SpscArrayQueue;
 
@@ -103,6 +104,8 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
      */
     private final ConcurrentHashMap<Long, Long> lowWaterMarks = new ConcurrentHashMap<>();
 
+    public final RecoverTimeRecord recoverTime = new RecoverTimeRecord();
+
     private final Semaphore handleLowWaterMark = new Semaphore(1);
 
     public TopicTransactionBuffer(PersistentTopic topic) {
@@ -120,6 +123,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
     }
 
     private void recover() {
+        recoverTime.setRecoverStartTime(System.currentTimeMillis());
         this.topic.getBrokerService().getPulsar().getTransactionExecutorProvider().getExecutor(this)
                 .execute(new TopicTransactionBufferRecover(new TopicTransactionBufferRecoverCallBack() {
                     @Override
@@ -142,6 +146,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                                 timer.newTimeout(TopicTransactionBuffer.this,
                                         takeSnapshotIntervalTime, TimeUnit.MILLISECONDS);
                                 transactionBufferFuture.complete(null);
+                                recoverTime.setRecoverEndTime(System.currentTimeMillis());
                             }
                         }
                     }
@@ -157,6 +162,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                                 log.error("[{}]Transaction buffer recover fail", topic.getName());
                             } else {
                                 transactionBufferFuture.complete(null);
+                                recoverTime.setRecoverEndTime(System.currentTimeMillis());
                             }
                         }
                     }
@@ -210,6 +216,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                         } else {
                             transactionBufferFuture.completeExceptionally(e);
                         }
+                        recoverTime.setRecoverEndTime(System.currentTimeMillis());
                         topic.close(true);
                     }
                 }, this.topic, this, takeSnapshotWriter));
@@ -565,6 +572,8 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         }
         transactionBufferStats.ongoingTxnSize = ongoingTxns.size();
 
+        transactionBufferStats.recoverStartTime = recoverTime.getRecoverStartTime();
+        transactionBufferStats.recoverEndTime = recoverTime.getRecoverEndTime();
         return transactionBufferStats;
     }
 

@@ -34,4 +34,8 @@ public class TransactionPendingAckStats {
      * The total number of ongoing transactions in this transaction pending ack.
      */
     public long ongoingTxnSize;
+    //Start timestamp of  transaction pendingAck recovery. 0L means no startup.
+    public long recoverStartTime;
+    //End timestamp of transaction pendingAck recovery. 0L means no startup.
+    public long recoverEndTime;
 }
