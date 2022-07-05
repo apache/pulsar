@@ -491,12 +491,49 @@ public interface Consumer<T> extends Closeable {
      */
     CompletableFuture<Void> acknowledgeAsync(Messages<?> messages);
 
+
+    /**
+     * Asynchronously acknowledge the consumption of {@link Messages}, it will store in pending ack.
+     * After the transaction commit, the message will actually ack.
+     * After the transaction abort, the message will be redelivered.
+     * @param messages
+     *            The {@link Messages} to be acknowledged
+     * @param txn {@link Transaction} The transaction to ack messages.
+     * @throws PulsarClientException.AlreadyClosedException
+     *             if the consumer was already closed
+     * @throws org.apache.pulsar.client.api.PulsarClientException.TransactionConflictException
+     *             if the ack with messageId is less than the messageId in pending ack state or ack with transaction is
+     *             different from the transaction in pending ack.
+     * @throws org.apache.pulsar.client.api.PulsarClientException.NotAllowedException
+     *             broker don't support transaction
+     * @return {@link CompletableFuture} the future of the ack result
+     * */
+    CompletableFuture<Void> acknowledgeAsync(Messages<?> messages, Transaction txn);
+
+
     /**
      * Asynchronously acknowledge the consumption of a list of message.
      * @param messageIdList
      * @return
      */
     CompletableFuture<Void> acknowledgeAsync(List<MessageId> messageIdList);
+
+
+    /**
+     * Acknowledge the consumption of a list of message, it will store in pending ack.
+     * After the transaction commit, the message will actually ack.
+     * After the transaction abort, the message will be redelivered.
+     * @param messageIdList A list of message Id.
+     * @param txn {@link Transaction} The transaction to ack messages.
+     * @throws PulsarClientException.AlreadyClosedException
+     *             if the consumer was already closed
+     * @throws org.apache.pulsar.client.api.PulsarClientException.TransactionConflictException
+     *             if the ack with messageId is less than the messageId in pending ack state or ack with transaction is
+     *             different from the transaction in pending ack.
+     * @throws org.apache.pulsar.client.api.PulsarClientException.NotAllowedException
+     *             broker don't support transaction
+     * @return {@link CompletableFuture} the future of the ack result     */
+    CompletableFuture<Void> acknowledgeAsync(List<MessageId> messageIdList, Transaction txn);
 
     /**
      * Asynchronously reconsumeLater the consumption of a single message.
