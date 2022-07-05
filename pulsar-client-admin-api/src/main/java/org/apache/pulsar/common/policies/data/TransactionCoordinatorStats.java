@@ -39,4 +39,8 @@ public class TransactionCoordinatorStats {
      *  The total number of ongoing transactions in this transaction coordinator.
      */
     public long ongoingTxnSize;
+    //Start timestamp of  transaction coordinator recovery. 0L means no startup.
+    public long recoverStartTime;
+    //End timestamp of transaction coordinator recovery. 0L means no startup.
+    public long recoverEndTime;
 }

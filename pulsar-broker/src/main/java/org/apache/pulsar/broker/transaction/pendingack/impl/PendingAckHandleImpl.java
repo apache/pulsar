@@ -57,6 +57,7 @@ import org.apache.pulsar.common.policies.data.TransactionInPendingAckStats;
 import org.apache.pulsar.common.policies.data.TransactionPendingAckStats;
 import org.apache.pulsar.common.stats.PositionInPendingAckStats;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.RecoverTimeRecord;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 import org.apache.pulsar.transaction.common.exception.TransactionConflictException;
 
@@ -127,6 +128,8 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
     @Getter
     private final ExecutorService internalPinnedExecutor;
 
+    public final RecoverTimeRecord recoverTime = new RecoverTimeRecord();
+
 
     public PendingAckHandleImpl(PersistentSubscription persistentSubscription) {
         super(State.None);
@@ -157,6 +160,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                 this.pendingAckStoreFuture =
                         pendingAckStoreProvider.newPendingAckStore(persistentSubscription);
                 this.pendingAckStoreFuture.thenAccept(pendingAckStore -> {
+                    recoverTime.setRecoverStartTime(System.currentTimeMillis());
                     pendingAckStore.replayAsync(this, internalPinnedExecutor);
                 }).exceptionally(e -> {
                     acceptQueue.clear();
@@ -905,6 +909,8 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
         } else {
             transactionPendingAckStats.ongoingTxnSize = 0;
         }
+        transactionPendingAckStats.recoverStartTime = recoverTime.getRecoverStartTime();
+        transactionPendingAckStats.recoverEndTime = recoverTime.getRecoverEndTime();
         return transactionPendingAckStats;
     }
 
@@ -912,11 +918,17 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
         if (!this.pendingAckHandleCompletableFuture.isDone()) {
             this.pendingAckHandleCompletableFuture.complete(PendingAckHandleImpl.this);
         }
+        if (recoverTime.getRecoverStartTime() == 0L) {
+            return;
+        } else {
+            recoverTime.setRecoverEndTime(System.currentTimeMillis());
+        }
     }
 
     public synchronized void exceptionHandleFuture(Throwable t) {
         if (!this.pendingAckHandleCompletableFuture.isDone()) {
             this.pendingAckHandleCompletableFuture.completeExceptionally(t);
+            recoverTime.setRecoverEndTime(System.currentTimeMillis());
         }
     }
 

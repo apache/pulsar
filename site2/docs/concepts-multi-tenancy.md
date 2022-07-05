@@ -20,7 +20,7 @@ As you can see, the tenant is the most basic unit of categorization for topics (
 
 To each tenant in a Pulsar instance you can assign:
 
-* An [authorization](security-authorization) scheme
+* An [authorization](security-authorization.md) scheme
 * The set of [clusters](reference-terminology.md#cluster) to which the tenant's configuration applies
 
 ## Namespaces
