@@ -3379,7 +3379,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         @Cleanup
         Consumer<byte[]> subscribe = pulsarClient.newConsumer()
                 .subscriptionName("sub-1")
-                .topic(subName)
+                .topic(topicName)
                 .subscribe();
         long value2 = partitionedStats.getEarliestMsgPublishTimeInBacklogs();
         Assert.assertNotEquals(value2, 0);
