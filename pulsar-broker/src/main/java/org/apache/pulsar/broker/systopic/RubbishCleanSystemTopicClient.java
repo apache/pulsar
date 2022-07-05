@@ -68,7 +68,7 @@ public class RubbishCleanSystemTopicClient extends SystemTopicClientBase<Rubbish
         return client.newConsumer(Schema.AVRO(RubbishInfo.class))
                 .topic(topicName.toString())
                 .subscriptionName("rubbish-cleaner-worker")
-                .subscriptionType(SubscriptionType.Failover)
+                .subscriptionType(SubscriptionType.Shared)
                 .deadLetterPolicy(DeadLetterPolicy.builder()
                         .deadLetterTopic(SystemTopicNames.RUBBISH_CLEANER_ARCHIVE_TOPIC.getPartitionedTopicName())
                         .maxRedeliverCount(10).build())
@@ -95,14 +95,14 @@ public class RubbishCleanSystemTopicClient extends SystemTopicClientBase<Rubbish
         @Override
         public MessageId write(RubbishInfo rubbishInfo) throws PulsarClientException {
             TypedMessageBuilder<RubbishInfo> builder =
-                    producer.newMessage().value(rubbishInfo).deliverAfter(5, TimeUnit.MINUTES);
+                    producer.newMessage().value(rubbishInfo).deliverAfter(1, TimeUnit.MINUTES);
             return builder.send();
         }
 
         @Override
         public CompletableFuture<MessageId> writeAsync(RubbishInfo rubbishInfo) {
             TypedMessageBuilder<RubbishInfo> builder =
-                    producer.newMessage().value(rubbishInfo).deliverAfter(5, TimeUnit.MINUTES);
+                    producer.newMessage().value(rubbishInfo).deliverAfter(1, TimeUnit.MINUTES);
             return builder.sendAsync();
         }
 
@@ -189,7 +189,7 @@ public class RubbishCleanSystemTopicClient extends SystemTopicClientBase<Rubbish
         }
 
         public CompletableFuture<Void> reconsumeLaterAsync(Message<RubbishInfo> message) {
-            return this.consumer.reconsumeLaterAsync(message, 10, TimeUnit.MINUTES);
+            return this.consumer.reconsumeLaterAsync(message, 5, TimeUnit.MINUTES);
         }
 
         @Override
