@@ -3378,7 +3378,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         producer.send("Test".getBytes(StandardCharsets.UTF_8));
         @Cleanup
         Consumer<byte[]> subscribe = pulsarClient.newConsumer()
-                .subscriptionName("sub-1")
+                .subscriptionName(subName)
                 .topic(topicName)
                 .subscribe();
         long value2 = partitionedStats.getEarliestMsgPublishTimeInBacklogs();
