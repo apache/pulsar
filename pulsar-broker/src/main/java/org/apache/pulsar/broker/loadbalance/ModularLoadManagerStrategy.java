@@ -22,6 +22,7 @@ import java.util.Optional;
 import java.util.Set;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.impl.LeastLongTermMessageRate;
+import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.policies.data.loadbalancer.BundleData;
 
 /**
@@ -54,13 +55,8 @@ public interface ModularLoadManagerStrategy {
      */
     static ModularLoadManagerStrategy create(final ServiceConfiguration conf) {
         try {
-            Class<?> loadAssignmentClass = Class.forName(conf.getLoadBalancerLoadPlacementStrategy());
-            Object loadAssignmentInstance = loadAssignmentClass.getDeclaredConstructor().newInstance();
-            if (loadAssignmentInstance instanceof ModularLoadManagerStrategy) {
-                return (ModularLoadManagerStrategy) loadAssignmentInstance;
-            } else {
-                return new LeastLongTermMessageRate();
-            }
+            return Reflections.createInstance(conf.getLoadBalancerLoadPlacementStrategy(),
+                    ModularLoadManagerStrategy.class, Thread.currentThread().getContextClassLoader());
         } catch (Exception e) {
             // Ignore
         }

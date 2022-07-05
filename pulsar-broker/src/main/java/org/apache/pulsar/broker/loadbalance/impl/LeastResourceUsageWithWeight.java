@@ -24,23 +24,21 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.LoadData;
 import org.apache.pulsar.broker.loadbalance.ModularLoadManagerStrategy;
 import org.apache.pulsar.policies.data.loadbalancer.BrokerData;
 import org.apache.pulsar.policies.data.loadbalancer.BundleData;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Placement strategy which selects a broker based on which one has the least resource usage with weight.
  * This strategy takes into account the historical load percentage and short-term load percentage, and thus will not
  * cause cluster fluctuations due to short-term load jitter.
  */
+@Slf4j
 public class LeastResourceUsageWithWeight implements ModularLoadManagerStrategy {
-    private static Logger log = LoggerFactory.getLogger(LeastResourceUsageWithWeight.class);
-
     // Maintain this list to reduce object creation.
     private final ArrayList<String> bestBrokers;
     private final Map<String, Double> brokerAvgResourceUsageWithWeight;
@@ -147,8 +145,8 @@ public class LeastResourceUsageWithWeight implements ModularLoadManagerStrategy 
         });
 
         if (bestBrokers.isEmpty()) {
-            // Assign randomly if all brokers are overloaded.
-            log.warn("Assign randomly if all {} brokers are overloaded.", candidates.size());
+            // Assign randomly as all brokers are overloaded.
+            log.warn("Assign randomly as all {} brokers are overloaded.", candidates.size());
             bestBrokers.addAll(candidates);
         }
 

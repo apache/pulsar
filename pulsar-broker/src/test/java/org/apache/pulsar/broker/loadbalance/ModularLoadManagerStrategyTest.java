@@ -72,7 +72,6 @@ public class ModularLoadManagerStrategyTest {
         brokerDataMap.put("2", brokerData2);
         brokerDataMap.put("3", brokerData3);
         ServiceConfiguration conf = new ServiceConfiguration();
-        conf.setLoadBalancerBrokerThresholdShedderPercentage(5);
         conf.setLoadBalancerCPUResourceWeight(1.0);
         conf.setLoadBalancerMemoryResourceWeight(0.1);
         conf.setLoadBalancerDirectMemoryResourceWeight(0.1);
