@@ -44,7 +44,7 @@ public class PackagesApiNotEnabledTest extends MockedPulsarServiceBaseTest {
         super.internalCleanup();
     }
 
-    @Test(timeOut = 60000, invocationCount = 1000)
+    @Test(timeOut = 60000)
     public void testPackagesOperationsWithoutPackagesServiceEnabled() {
         // download package api should return 503 Service Unavailable exception
         String unknownPackageName = "function://public/default/unknown@v1";
