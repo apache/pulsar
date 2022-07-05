@@ -37,6 +37,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.apache.pulsar.common.policies.data.TopicType;
+import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
@@ -510,6 +511,10 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
 
         // set maxNumPartitionsPerPartitionedTopic, make maxNumPartitionsPerPartitionedTopic < defaultNumPartitions
         admin.brokers().updateDynamicConfiguration("maxNumPartitionsPerPartitionedTopic", "1");
+        // Make sure the dynamic cache is updated to prevent the flaky test.
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(admin.brokers().getAllDynamicConfigurations()
+                        .get("maxNumPartitionsPerPartitionedTopic"), "1"));
         topic = "persistent://" + namespaceName + "/test-dynamicConfiguration-topic-auto-creation-"
                 + UUID.randomUUID();
         producer = pulsarClient.newProducer().topic(topic).create();
