@@ -20,6 +20,7 @@
 package pf
 
 import (
+	"github.com/apache/pulsar/pulsar-function-go/conf"
 	"testing"
 
 	pb "github.com/apache/pulsar/pulsar-function-go/pb"
@@ -95,4 +96,19 @@ func TestInstanceConf_GetInstanceName(t *testing.T) {
 	instanceName := instanceConf.getInstanceName()
 
 	assert.Equal(t, "101", instanceName)
+}
+
+func TestInstanceConf_Fail(t *testing.T) {
+	assert.Panics(t, func() {
+		newInstanceConfWithConf(&conf.Conf{ProcessingGuarantees: 0, AutoACK: false})
+	}, "Should have a panic")
+	assert.Panics(t, func() {
+		newInstanceConfWithConf(&conf.Conf{ProcessingGuarantees: 1, AutoACK: false})
+	}, "Should have a panic")
+	assert.Panics(t, func() {
+		newInstanceConfWithConf(&conf.Conf{ProcessingGuarantees: 2})
+	}, "Should have a panic")
+	assert.NotPanicsf(t, func() {
+		newInstanceConfWithConf(&conf.Conf{ProcessingGuarantees: 3})
+	}, "Should have a panic")
 }

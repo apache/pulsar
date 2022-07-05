@@ -43,13 +43,7 @@ type instanceConf struct {
 	metricsPort                 int
 }
 
-func newInstanceConf() *instanceConf {
-	config := &conf.Conf{}
-	cfg := config.GetConf()
-	if cfg == nil {
-		panic("config file is nil.")
-	}
-
+func newInstanceConfWithConf(cfg *conf.Conf) *instanceConf {
 	instanceConf := &instanceConf{
 		instanceID:                  cfg.InstanceID,
 		funcID:                      cfg.FuncID,
@@ -119,6 +113,15 @@ func newInstanceConf() *instanceConf {
 	}
 
 	return instanceConf
+}
+
+func newInstanceConf() *instanceConf {
+	config := &conf.Conf{}
+	cfg := config.GetConf()
+	if cfg == nil {
+		panic("config file is nil.")
+	}
+	return newInstanceConfWithConf(cfg)
 }
 
 func (ic *instanceConf) getInstanceName() string {
