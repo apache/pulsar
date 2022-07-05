@@ -82,6 +82,10 @@ public class ManagedLedgerConfig {
     @Setter
     private boolean cacheEvictionByMarkDeletedPosition = false;
 
+    @Getter
+    @Setter
+    private boolean lazyCursorLedgerCreationEnabled = false;
+
     public boolean isCreateIfMissing() {
         return createIfMissing;
     }

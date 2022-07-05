@@ -3750,5 +3750,30 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         Awaitility.await().untilAsserted(() -> assertTrue(flag.get()));
     }
 
+    @Test
+    public void testLazyCursorLedgerCreationEnabled() throws ManagedLedgerException, InterruptedException {
+        ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
+        managedLedgerConfig.setLazyCursorLedgerCreationEnabled(false);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory
+                .open("testLazyCursorLedgerCreationEnabled", managedLedgerConfig);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("test");
+        assertEquals(cursor.getState(), "Open");
+        cursor.close();
+        managedLedgerConfig.setLazyCursorLedgerCreationEnabled(true);
+        ManagedCursorImpl cursor1 = (ManagedCursorImpl) ledger.openCursor("test1");
+        assertEquals(cursor1.getState(), "NoLedger");
+        Position lastPosition = null;
+        for (int i = 0; i < 10; i++) {
+             lastPosition = ledger.addEntry("test".getBytes(Encoding));
+        }
+        cursor1.markDelete(lastPosition);
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(cursor1.getState(), "Open");
+            assertEquals(cursor1.getMarkDeletedPosition(), ledger.getLastPosition());
+        });
+        cursor1.close();
+        ledger.close();
+    }
+
     private static final Logger log = LoggerFactory.getLogger(ManagedCursorTest.class);
 }
