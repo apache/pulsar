@@ -19,10 +19,12 @@
 package org.apache.bookkeeper.mledger.impl;
 
 import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
@@ -33,6 +35,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 class OpReadEntry implements ReadEntriesCallback {
+
+    private static volatile AtomicInteger createCount = null;
+    private static volatile AtomicInteger recycleCount = null;
 
     ManagedCursorImpl cursor;
     PositionImpl readPosition;
@@ -48,6 +53,9 @@ class OpReadEntry implements ReadEntriesCallback {
     public static OpReadEntry create(ManagedCursorImpl cursor, PositionImpl readPositionRef, int count,
             ReadEntriesCallback callback, Object ctx, PositionImpl maxPosition) {
         OpReadEntry op = RECYCLER.get();
+        if (createCount != null) {
+            createCount.getAndIncrement();
+        }
         op.readPosition = cursor.ledger.startReadOperationOnLedger(readPositionRef);
         op.cursor = cursor;
         op.count = count;
@@ -186,7 +194,33 @@ class OpReadEntry implements ReadEntriesCallback {
         entries = null;
         nextReadPosition = null;
         maxPosition = null;
+        if (recycleCount != null) {
+            recycleCount.getAndIncrement();
+        }
         recyclerHandle.recycle(this);
+    }
+
+
+    @VisibleForTesting
+    static void enableTesting() {
+        createCount = new AtomicInteger(0);
+        recycleCount = new AtomicInteger(0);
+    }
+
+    @VisibleForTesting
+    static void disableTesting() {
+        createCount = null;
+        recycleCount = null;
+    }
+
+    @VisibleForTesting
+    static int getCreateCount() {
+        return createCount.get();
+    }
+
+    @VisibleForTesting
+    static int getRecycleCount() {
+        return recycleCount.get();
     }
 
     private static final Logger log = LoggerFactory.getLogger(OpReadEntry.class);

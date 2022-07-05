@@ -3750,5 +3750,46 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         Awaitility.await().untilAsserted(() -> assertTrue(flag.get()));
     }
 
+    @Test
+    public void testOpReadEntryRecycle() throws Exception {
+        final ManagedLedgerConfig ledgerConfig = new ManagedLedgerConfig();
+        ledgerConfig.setNewEntriesCheckDelayInMillis(10);
+        final ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("my_test_ledger", ledgerConfig);
+        final ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("my_cursor");
+        final int numReadRequests = 3;
+        final List<ManagedLedgerException> exceptions = new ArrayList<>();
+        final AtomicBoolean readEntriesSuccess = new AtomicBoolean(false);
+        final ReadEntriesCallback callback = new ReadEntriesCallback() {
+            @Override
+            public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                readEntriesSuccess.set(true);
+            }
+
+            @Override
+            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                exceptions.add(exception);
+            }
+        };
+
+        OpReadEntry.enableTesting();
+        for (int i = 0; i < numReadRequests; i++) {
+            cursor.asyncReadEntriesOrWait(1, callback, null, new PositionImpl(0, 0));
+        }
+        Awaitility.await().atMost(Duration.ofSeconds(1))
+                .untilAsserted(() -> assertEquals(ledger.waitingCursors.size(), 1));
+        assertTrue(cursor.cancelPendingReadRequest());
+
+        ledger.addEntry(new byte[1]);
+        Awaitility.await().atMost(Duration.ofSeconds(1))
+                .untilAsserted(() -> assertTrue(ledger.waitingCursors.isEmpty()));
+        assertFalse(readEntriesSuccess.get());
+
+        assertEquals(exceptions.size(), numReadRequests - 1);
+        exceptions.forEach(e -> assertEquals(e.getMessage(), "We can only have a single waiting callback"));
+        assertEquals(OpReadEntry.getCreateCount(), numReadRequests);
+        assertEquals(OpReadEntry.getRecycleCount(), numReadRequests);
+        OpReadEntry.disableTesting();
+    }
+
     private static final Logger log = LoggerFactory.getLogger(ManagedCursorTest.class);
 }
