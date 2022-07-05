@@ -1431,49 +1431,38 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
         LedgerHandle lh = currentLedger;
 
-        List<CompletableFuture<?>> futures = new ArrayList<>();
-        futures.add(rubbishCleanService.asyncClose());
-
-        CompletableFuture<?> closeCursorFuture = new CompletableFuture<>();
-        futures.add(closeCursorFuture);
-
         if (lh == null) {
             // No ledger to close, proceed with next step
-            closeAllCursors(closeCursorFuture);
-        } else {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Closing current writing ledger {}", name, lh.getId());
-            }
-
-            mbean.startDataLedgerCloseOp();
-            lh.asyncClose((rc, lh1, ctx1) -> {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] Close complete for ledger {}: rc = {}", name, lh.getId(), rc);
-                }
-                mbean.endDataLedgerCloseOp();
-                if (rc != BKException.Code.OK) {
-                    closeCursorFuture.completeExceptionally(createManagedLedgerException(rc));
-                    return;
-                }
-
-                ledgerCache.forEach((ledgerId, readHandle) -> {
-                    invalidateReadHandle(ledgerId);
-                });
-
-                closeAllCursors(closeCursorFuture);
-            }, null);
+            closeAllCursors(callback, ctx);
+            return;
         }
 
-        FutureUtil.waitForAll(futures).thenAccept(ignore -> {
-            callback.closeComplete(ctx);
-        }).exceptionally(e -> {
-            callback.closeFailed(ManagedLedgerException.getManagedLedgerException(e), ctx);
-            return null;
-        });
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] Closing current writing ledger {}", name, lh.getId());
+        }
+
+        mbean.startDataLedgerCloseOp();
+        lh.asyncClose((rc, lh1, ctx1) -> {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Close complete for ledger {}: rc = {}", name, lh.getId(), rc);
+            }
+            mbean.endDataLedgerCloseOp();
+            if (rc != BKException.Code.OK) {
+                callback.closeFailed(createManagedLedgerException(rc), ctx);
+                return;
+            }
+
+            ledgerCache.forEach((ledgerId, readHandle) -> {
+                invalidateReadHandle(ledgerId);
+            });
+
+            closeAllCursors(callback, ctx);
+        }, null);
+
 
     }
 
-    private void closeAllCursors(CompletableFuture<?> future) {
+    private void closeAllCursors(CloseCallback callback, final Object ctx) {
         // Close all cursors in parallel
         List<CompletableFuture<Void>> futures = Lists.newArrayList();
         for (ManagedCursor cursor : cursors) {
@@ -1483,12 +1472,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
 
         Futures.waitForAll(futures)
-                .thenRun(() -> future.complete(null))
+                .thenRun(() -> callback.closeComplete(ctx))
                 .exceptionally(exception -> {
-                    future.completeExceptionally(
-                            ManagedLedgerException.getManagedLedgerException(exception.getCause()));
-                    return null;
-                });
+            callback.closeFailed(ManagedLedgerException.getManagedLedgerException(exception.getCause()), ctx);
+            return null;
+        });
     }
 
     // //////////////////////////////////////////////////////////////////////

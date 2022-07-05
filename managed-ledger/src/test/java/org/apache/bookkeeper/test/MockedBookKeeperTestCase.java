@@ -78,7 +78,7 @@ public abstract class MockedBookKeeperTestCase {
             throw e;
         }
 
-        factory = new ManagedLedgerFactoryImpl(metadataStore, bkc, new RubbishCleanService.RubbishCleanServiceDisable());
+        factory = new ManagedLedgerFactoryImpl(metadataStore, bkc);
 
         setUpTestCase();
     }

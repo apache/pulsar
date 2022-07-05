@@ -3,13 +3,13 @@ package org.apache.bookkeeper.mledger.rubbish;
 
 import java.util.HashMap;
 import java.util.Map;
-import lombok.Builder;
-import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 import org.apache.bookkeeper.mledger.ManagedLedgerInfo;
 
 
-@Data
-@Builder
+@Getter
+@Setter
 public class RubbishLedger {
     /**
      * Partitioned topic name without domain. Likes public/default/test-topic-partition-1 or
