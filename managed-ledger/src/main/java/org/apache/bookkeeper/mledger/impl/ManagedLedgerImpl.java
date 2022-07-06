@@ -1203,6 +1203,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 } catch (IOException e) {
                     log.error("Error deserializing message for message position {}", nextPos, e);
                     future.completeExceptionally(e);
+                } finally {
+                    entry.release();
                 }
             }
 
