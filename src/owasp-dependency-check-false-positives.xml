@@ -132,7 +132,7 @@
   <!-- CVE-2022-33915 is about Amazon AWS hotpatch -->
   <suppress>
     <notes><![CDATA[
-   file name: log4j-core-1.27.1.jar
+   file name: log4j-core-2.27.1.jar
    ]]></notes>
     <sha1>779f60f3844dadc3ef597976fcb1e5127b1f343d</sha1>
     <cve>CVE-2022-33915</cve>
