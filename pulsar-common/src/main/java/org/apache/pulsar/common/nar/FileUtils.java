@@ -28,11 +28,13 @@ package org.apache.pulsar.common.nar;
 import java.io.File;
 import java.io.FilenameFilter;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
 
 /**
@@ -228,12 +230,13 @@ public class FileUtils {
 
     public static boolean mayBeANarArchive(File jarFile) {
         try (ZipFile zipFile = new ZipFile(jarFile);) {
-            ZipEntry entry = zipFile.getEntry("META-INF/bundled-dependencies");
-            if (entry == null || !entry.isDirectory()) {
-                log.info("Jar file {} does not contain META-INF/bundled-dependencies, it is not a NAR file", jarFile);
+            ZipEntry entry = zipFile.getEntry("META-INF/MANIFEST.MF");
+            if (entry == null || !IOUtils.toString(zipFile.getInputStream(entry),
+                    StandardCharsets.UTF_8).contains("Nar-Id")) {
+                log.info("Jar file {} META-INF/MANIFEST.MF does not contain Nar-Id, it is not a NAR file", jarFile);
                 return false;
             } else {
-                log.info("Jar file {} contains META-INF/bundled-dependencies, it may be a NAR file", jarFile);
+                log.info("Jar file {} META-INF/MANIFEST.MF contains Nar-Id, it may be a NAR file", jarFile);
                 return true;
             }
         } catch (IOException err) {
