@@ -1177,6 +1177,26 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
                 Collections.singletonList(localCluster));
     }
 
+    @Test
+    public void testScanOffloadedLedgers() throws Exception {
+        try {
+            // V1 is not supported
+            admin.namespaces().scanOffloadedLedgers("prop-xyz/test/v1-ns1");
+            fail("Should fail here");
+        } catch (PulsarAdminException ex) {
+            Assert.assertTrue(ex.getCause() instanceof UnsupportedOperationException);
+        }
+        String namespace = "prop-xyz/testScanOffloadedLedgers";
+        admin.namespaces().createNamespace(namespace);
+        try {
+            // Default Offloader will throw UnsupportedOperationException, so here we only test the request is ok.
+            admin.namespaces().scanOffloadedLedgers(namespace);
+            fail("Should fail here");
+        } catch (PulsarAdminException ex) {
+            Assert.assertTrue(ex instanceof PulsarAdminException.ServerSideErrorException);;
+        }
+    }
+
     @Test(timeOut = 30000)
     public void testConsumerStatsLastTimestamp() throws PulsarClientException, PulsarAdminException, InterruptedException {
         long timestamp = System.currentTimeMillis();
