@@ -14,15 +14,15 @@ import TabItem from '@theme/TabItem';
 This guide describes how to develop Pulsar connectors to move data
 between Pulsar and other systems. 
 
-Pulsar connectors are special [Pulsar Functions](functions-overview), so creating
+Pulsar connectors are special [Pulsar Functions](functions-overview.md), so creating
 a Pulsar connector is similar to creating a Pulsar function. 
 
 Pulsar connectors come in two types: 
 
 | Type | Description | Example
 |---|---|---
-{@inject: github:Source:/pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Source.java}|Import data from another system to Pulsar.|[RabbitMQ source connector](io-rabbitmq) imports the messages of a RabbitMQ queue to a Pulsar topic.
-{@inject: github:Sink:/pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Sink.java}|Export data from Pulsar to another system.|[Kinesis sink connector](io-kinesis) exports the messages of a Pulsar topic to a Kinesis stream.
+{@inject: github:Source:/pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Source.java}|Import data from another system to Pulsar.|[RabbitMQ source connector](io-rabbitmq.md) imports the messages of a RabbitMQ queue to a Pulsar topic.
+{@inject: github:Sink:/pulsar-io/core/src/main/java/org/apache/pulsar/io/core/Sink.java}|Export data from Pulsar to another system.|[Kinesis sink connector](io-kinesis.md) exports the messages of a Pulsar topic to a Kinesis stream.
 
 ## Develop
 
@@ -275,7 +275,7 @@ For more information about **how to create integration tests for Pulsar connecto
 ## Package
 
 Once you've developed and tested your connector, you need to package it so that it can be submitted
-to a [Pulsar Functions](functions-overview) cluster. 
+to a [Pulsar Functions](functions-overview.md) cluster. 
 
 There are two methods to
 work with Pulsar Functions' runtime, that is, [NAR](#nar) and [uber JAR](#uber-jar).
@@ -379,7 +379,7 @@ Pulsar connectors enable you to move data in and out of Pulsar easily. It is imp
 
 - Check the metrics provided by Pulsar.
 
-  Pulsar connectors expose the metrics that can be collected and used for monitoring the health of **Java** connectors. You can check the metrics by following the [monitoring](deploy-monitoring) guide.
+  Pulsar connectors expose the metrics that can be collected and used for monitoring the health of **Java** connectors. You can check the metrics by following the [monitoring](deploy-monitoring.md) guide.
 
 - Set and check your customized metrics.
 

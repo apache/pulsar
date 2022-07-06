@@ -32,6 +32,8 @@ import org.apache.pulsar.common.naming.TopicName;
 @UtilityClass
 public class TopicList {
 
+    public static final String ALL_TOPICS_PATTERN = ".*";
+
     private static final String SCHEME_SEPARATOR = "://";
 
     private static final Pattern SCHEME_SEPARATOR_PATTERN = Pattern.compile(Pattern.quote(SCHEME_SEPARATOR));

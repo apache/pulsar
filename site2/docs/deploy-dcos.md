@@ -6,7 +6,7 @@ sidebar_label: "DC/OS"
 
 :::tip
 
-To enable all built-in [Pulsar IO](io-overview) connectors in your Pulsar deploymente, we recommend you use `apachepulsar/pulsar-all` image instead of `apachepulsar/pulsar` image; the former has already bundled [all built-in connectors](io-overview.md#working-with-connectors).
+To enable all built-in [Pulsar IO](io-overview.md) connectors in your Pulsar deploymente, we recommend you use `apachepulsar/pulsar-all` image instead of `apachepulsar/pulsar` image; the former has already bundled [all built-in connectors](io-overview.md#working-with-connectors).
 
 :::
 

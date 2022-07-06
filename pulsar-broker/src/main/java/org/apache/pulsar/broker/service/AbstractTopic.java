@@ -894,6 +894,9 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
         }
     }
 
+    public void updateDispatchRateLimiter() {
+    }
+
     @Override
     public void resetBrokerPublishCountAndEnableReadIfRequired(boolean doneBrokerReset) {
         // topic rate not exceeded, and completed broker limiter reset.
@@ -1227,7 +1230,9 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener<TopicP
                     this.topicPublishRateLimiter.update(publishRate);
                 }
             } else {
-                log.info("Disabling publish throttling for {}", this.topic);
+                if (log.isDebugEnabled()) {
+                    log.debug("Disabling publish throttling for {}", this.topic);
+                }
                 if (topicPublishRateLimiter != null) {
                     topicPublishRateLimiter.close();
                 }
