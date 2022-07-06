@@ -378,6 +378,16 @@ brokerServiceCompactionThresholdInBytes|If the estimated backlog size is greater
 | strictBookieAffinityEnabled | Enable or disable the strict bookie isolation strategy. If enabled, <br /> - `bookie-ensemble` first tries to choose bookies that belong to a namespace's affinity group. If the number of bookies is not enough, then the rest bookies are chosen. <br /> - If namespace has no affinity group, `bookie-ensemble` only chooses bookies that belong to no region. If the number of bookies is not enough, `BKNotEnoughBookiesException` is thrown.| false |
 |narExtractionDirectory | The extraction directory of the nar package. <br />Available for Protocol Handler, Additional Servlets, Entry Filter, Offloaders, Broker Interceptor. | System.getProperty("java.io.tmpdir") |
 
+#### Configuration Override For Clients Internal to Broker
+
+It's possible to configure some clients by using the appropriate prefix.
+
+|Prefix|Description|
+|---|---|
+|brokerClient_| Configure **all** the broker's Pulsar Clients and Pulsar Admin Clients. These configurations are applied after hard coded configuration and before the above brokerClient configurations named above.|
+|bookkeeper_| Configure the broker's bookkeeper clients used by managed ledgers and the BookkeeperPackagesStorage bookkeeper client. Takes precedence over most other configuration values.|
+
+Note: when running the function worker within the broker, these prefixed configurations do not apply to any of those clients. You must instead configure those clients using the `functions_worker.yml`.
 
 #### Deprecated parameters of Broker
 The following parameters have been deprecated in the `conf/broker.conf` file.
@@ -747,6 +757,14 @@ The following parameters have been deprecated in the `conf/standalone.conf` file
 |tlsKeyFilePath |||
 |tlsTrustCertsFilePath|||
 
+#### Configuration Override For Clients Internal to WebSocket
+
+It's possible to configure some clients by using the appropriate prefix.
+
+|Prefix|Description|
+|---|---|
+|brokerClient_| Configure **all** the broker's Pulsar Clients. These configurations are applied after hard coded configuration and before the above brokerClient configurations named above.|
+
 #### Deprecated parameters of WebSocket
 The following parameters have been deprecated in the `conf/websocket.conf` file.
 
@@ -810,6 +828,14 @@ The [Pulsar proxy](concepts-architecture-overview.md#pulsar-proxy) can be config
 |tokenAudienceClaim| The token audience "claim" name, e.g. "aud". It is used to get the audience from token. If it is not set, the audience is not verified. ||
 | tokenAudience | The token audience stands for this broker. The field `tokenAudienceClaim` of a valid token need contains this parameter.| |
 |haProxyProtocolEnabled | Enable or disable the [HAProxy](http://www.haproxy.org/) protocol. |false|
+
+#### Configuration Override For Clients Internal to Proxy
+
+It's possible to configure some clients by using the appropriate prefix.
+
+|Prefix|Description|
+|---|---|
+|brokerClient_| Configure **all** the proxy's Pulsar Clients. These configurations are applied after hard coded configuration and before the above brokerClient configurations named above.|
 
 #### Deprecated parameters of Pulsar proxy
 The following parameters have been deprecated in the `conf/proxy.conf` file.
