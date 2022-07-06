@@ -302,11 +302,16 @@ public class CompactedTopicImpl implements CompactedTopic {
         if (compactionHorizon == null) {
             return CompletableFuture.completedFuture(null);
         }
-        return compactedTopicContext.thenCompose(context ->
-                readEntries(context.ledger, context.ledger.getLastAddConfirmed(), context.ledger.getLastAddConfirmed())
-                        .thenCompose(entries -> entries.size() > 0
-                                ? CompletableFuture.completedFuture(entries.get(0))
-                                : CompletableFuture.completedFuture(null)));
+        return compactedTopicContext.thenCompose(context -> {
+                    if (context.ledger.getLastAddConfirmed() == -1) {
+                        return CompletableFuture.completedFuture(null);
+                    }
+                    return readEntries(context.ledger, context.ledger.getLastAddConfirmed(),
+                            context.ledger.getLastAddConfirmed())
+                            .thenCompose(entries -> entries.size() > 0
+                                    ? CompletableFuture.completedFuture(entries.get(0))
+                                    : CompletableFuture.completedFuture(null));
+                });
     }
 
     private static int comparePositionAndMessageId(PositionImpl p, MessageIdData m) {
