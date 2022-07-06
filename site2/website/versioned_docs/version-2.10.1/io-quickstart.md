@@ -7,17 +7,17 @@ original_id: io-quickstart
 
 This tutorial provides a hands-on look at how you can move data out of Pulsar without writing a single line of code.  
 
-It is helpful to review the [concepts](io-overview) for Pulsar I/O with running the steps in this guide to gain a deeper understanding.   
+It is helpful to review the [concepts](io-overview.md) for Pulsar I/O with running the steps in this guide to gain a deeper understanding.   
 
 At the end of this tutorial, you are able to:
 
-- [Connect Pulsar to Cassandra](#Connect-Pulsar-to-Cassandra)
+- [Connect Pulsar to Cassandra](#connect-pulsar-to-cassandra)
   
-- [Connect Pulsar to PostgreSQL](#Connect-Pulsar-to-PostgreSQL)
+- [Connect Pulsar to PostgreSQL](#connect-pulsar-to-postgreSQL)
 
 :::tip
 
-* These instructions assume you are running Pulsar in [standalone mode](getting-started-standalone). However, all
+* These instructions assume you are running Pulsar in [standalone mode](getting-started-standalone.md). However, all
 the commands used in this tutorial can be used in a multi-node Pulsar cluster without any changes.
 * All the instructions are assumed to run at the root directory of a Pulsar binary distribution.
 
@@ -109,7 +109,7 @@ This section demonstrates how to connect Pulsar to Cassandra.
 :::tip
 
 * Make sure you have Docker installed. If you do not have one, see [install Docker](https://docs.docker.com/docker-for-mac/install/).
-* The Cassandra sink connector reads messages from Pulsar topics and writes the messages into Cassandra tables. For more information, see [Cassandra sink connector](io-cassandra-sink).
+* The Cassandra sink connector reads messages from Pulsar topics and writes the messages into Cassandra tables. For more information, see [Cassandra sink connector](io-cassandra-sink.md).
 
 :::
 
@@ -236,7 +236,7 @@ You can create a configuration file through one of the following methods.
   
   ```
 
-For more information, see [Cassandra sink connector](io-cassandra-sink).
+For more information, see [Cassandra sink connector](io-cassandra-sink.md).
 
 ### Create a Cassandra sink
 
@@ -455,7 +455,7 @@ This section demonstrates how to connect Pulsar to PostgreSQL.
 :::
 
 and persists the messages to ClickHouse, MariaDB, PostgreSQL, or SQlite. 
->For more information, see [JDBC sink connector](io-jdbc-sink).
+>For more information, see [JDBC sink connector](io-jdbc-sink.md).
 
 
 ### Setup a PostgreSQL cluster
