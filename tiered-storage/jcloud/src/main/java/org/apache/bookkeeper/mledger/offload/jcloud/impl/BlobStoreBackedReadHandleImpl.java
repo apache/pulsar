@@ -24,6 +24,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
@@ -55,6 +57,8 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
     private final BackedInputStream inputStream;
     private final DataInputStream dataStream;
     private final ExecutorService executor;
+    // this Map is accessed only by one thread
+    private final Map<Long, Long> entryOffsets = new TreeMap<>();
 
     enum State {
         Opened,
@@ -90,6 +94,7 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
                 try {
                     index.close();
                     inputStream.close();
+                    entryOffsets.clear();
                     state = State.Closed;
                     promise.complete(null);
                 } catch (IOException t) {
@@ -101,7 +106,10 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
 
     @Override
     public CompletableFuture<LedgerEntries> readAsync(long firstEntry, long lastEntry) {
-        log.debug("Ledger {}: reading {} - {}", getId(), firstEntry, lastEntry);
+        if (log.isDebugEnabled()) {
+            log.debug("Ledger {}: reading {} - {} ({} entries}",
+                    getId(), firstEntry, lastEntry, (1 + lastEntry - firstEntry));
+        }
         CompletableFuture<LedgerEntries> promise = new CompletableFuture<>();
         executor.execute(() -> {
             List<LedgerEntry> entries = new ArrayList<LedgerEntry>();
@@ -130,6 +138,7 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
                                 ledgerId, firstEntry, lastEntry);
                         throw new BKException.BKUnexpectedConditionException();
                     }
+                    long currentPosition = inputStream.getCurrentPosition();
                     int length = dataStream.readInt();
                     if (length < 0) { // hit padding or new block
                         inputStream.seek(index.getIndexEntryForEntry(nextExpectedId).getDataOffset());
@@ -138,6 +147,7 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
                     long entryId = dataStream.readLong();
 
                     if (entryId == nextExpectedId) {
+                        entryOffsets.put(entryId, currentPosition);
                         ByteBuf buf = PulsarByteBufAllocator.DEFAULT.buffer(length, length);
                         entries.add(LedgerEntryImpl.create(ledgerId, entryId, length, buf));
                         int toWrite = length;
@@ -160,7 +170,14 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
                         // the read method, we should allow to seek to the right position and the entry id should
                         // never over to the last entry again.
                         if (!seeked) {
-                            inputStream.seek(index.getIndexEntryForEntry(nextExpectedId).getDataOffset());
+                            Long knownOffset = entryOffsets.get(nextExpectedId);
+                            if (knownOffset != null) {
+                                inputStream.seek(knownOffset);
+                            } else {
+                                long dataOffset = index.getIndexEntryForEntry(nextExpectedId).getDataOffset();
+                                inputStream.seek(dataOffset);
+                            }
+
                             seeked = true;
                             continue;
                         }

@@ -18,6 +18,7 @@
  */
 package org.apache.bookkeeper.mledger.offload.jcloud;
 
+import static junit.framework.TestCase.assertEquals;
 import static org.mockito.AdditionalAnswers.delegatesTo;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -61,26 +62,39 @@ public class BlobStoreBackedInputStreamTest extends BlobStoreTestBase {
         }
     }
 
-    private void assertStreamsMatch(InputStream a, InputStream b) throws Exception {
+    private void assertStreamsMatch(BackedInputStream a, InputStream b, long initialPosition) throws Exception {
+        assertEquals(initialPosition, a.getCurrentPosition());
         int ret = 0;
+        long expectedPosition = initialPosition;
         while (ret >= 0) {
             ret = a.read();
             Assert.assertEquals(ret, b.read());
+            if (ret != -1) {
+                // reached end of the stream, so read() did not advance the position
+                expectedPosition++;
+            }
+            assertEquals(a.getCurrentPosition(), expectedPosition);
         }
         Assert.assertEquals(-1, a.read());
         Assert.assertEquals(-1, b.read());
     }
 
-    private void assertStreamsMatchByBytes(InputStream a, InputStream b) throws Exception {
+    private void assertStreamsMatchByBytes(BackedInputStream a, InputStream b) throws Exception {
         byte[] bytesA = new byte[100];
         byte[] bytesB = new byte[100];
 
         int retA = 0;
+        long expectedPosition = 0;
         while (retA >= 0) {
             retA = a.read(bytesA, 0, 100);
             int retB = b.read(bytesB, 0, 100);
             Assert.assertEquals(retA, retB);
             Assert.assertEquals(bytesA, bytesB);
+            if (retA != -1) {
+                // reached end of the stream, so read() did not advance the position
+                expectedPosition += retA;
+            }
+            assertEquals(a.getCurrentPosition(), expectedPosition);
         }
     }
 
@@ -103,7 +117,7 @@ public class BlobStoreBackedInputStreamTest extends BlobStoreTestBase {
         BackedInputStream toTest = new BlobStoreBackedInputStreamImpl(blobStore, BUCKET, objectKey,
                                                                  (key, md) -> {},
                                                                  objectSize, 1000);
-        assertStreamsMatch(toTest, toCompare);
+        assertStreamsMatch(toTest, toCompare, 0);
     }
 
     @Test
@@ -166,7 +180,7 @@ public class BlobStoreBackedInputStreamTest extends BlobStoreTestBase {
                                                                  objectSize, 1000);
         for (Map.Entry<Integer, InputStream> e : seeks.entrySet()) {
             toTest.seek(e.getKey());
-            assertStreamsMatch(toTest, e.getValue());
+            assertStreamsMatch(toTest, e.getValue(), e.getKey().longValue());
         }
     }
 
@@ -256,7 +270,7 @@ public class BlobStoreBackedInputStreamTest extends BlobStoreTestBase {
         toCompare.skip(after);
 
         toTest.seekForward(after);
-        assertStreamsMatch(toTest, toCompare);
+        assertStreamsMatch(toTest, toCompare, after);
     }
 
     @Test
