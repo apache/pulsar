@@ -1483,7 +1483,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         } else {
             log.info("[{}] Created new ledger {}", name, lh.getId());
             ledgers.put(lh.getId(), LedgerInfo.newBuilder().setLedgerId(lh.getId()).setTimestamp(0).build());
-            currentLedger = lh;
             currentLedgerEntries = 0;
             currentLedgerSize = 0;
 
@@ -1494,6 +1493,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                         log.debug("[{}] Updating of ledgers list after create complete. version={}", name, stat);
                     }
                     ledgersStat = stat;
+                    currentLedger = lh;
                     metadataMutex.unlock();
                     updateLedgersIdsComplete(stat);
                     synchronized (ManagedLedgerImpl.this) {
