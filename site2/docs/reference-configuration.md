@@ -400,6 +400,7 @@ brokerServiceCompactionThresholdInBytes|If the estimated backlog size is greater
 It's possible to configure some clients by using the appropriate prefix.
 
 |Prefix|Description|
+|---|---|
 |brokerClient_| Configure **all** the broker's Pulsar Clients and Pulsar Admin Clients. These configurations are applied after hard coded configuration and before the above brokerClient configurations named above.|
 |bookkeeper_| Configure the broker's bookkeeper clients used by managed ledgers and the BookkeeperPackagesStorage bookkeeper client. Takes precedence over most other configuration values.|
 
@@ -788,6 +789,7 @@ The following parameters have been deprecated in the `conf/standalone.conf` file
 It's possible to configure some clients by using the appropriate prefix.
 
 |Prefix|Description|
+|---|---|
 |brokerClient_| Configure **all** the broker's Pulsar Clients. These configurations are applied after hard coded configuration and before the above brokerClient configurations named above.|
 
 #### Deprecated parameters of WebSocket
@@ -864,6 +866,7 @@ The [Pulsar proxy](concepts-architecture-overview.md#pulsar-proxy) can be config
 It's possible to configure some clients by using the appropriate prefix.
 
 |Prefix|Description|
+|---|---|
 |brokerClient_| Configure **all** the proxy's Pulsar Clients. These configurations are applied after hard coded configuration and before the above brokerClient configurations named above.|
 
 #### Deprecated parameters of Pulsar proxy
