@@ -18,6 +18,7 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.eq;
@@ -42,10 +43,12 @@ import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
@@ -57,6 +60,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
@@ -93,6 +97,8 @@ import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.common.api.proto.IntRange;
 import org.awaitility.Awaitility;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.slf4j.Logger;
@@ -3752,11 +3758,23 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test
     public void testOpReadEntryRecycle() throws Exception {
+        final Map<OpReadEntry, AtomicInteger> opReadEntryToRecycleCount = new ConcurrentHashMap<>();
+        final Supplier<OpReadEntry> createOpReadEntry = () -> {
+            final OpReadEntry mockedOpReadEntry = mock(OpReadEntry.class);
+            doAnswer(__ -> opReadEntryToRecycleCount.computeIfAbsent(mockedOpReadEntry,
+                    ignored -> new AtomicInteger(0)).getAndIncrement()
+            ).when(mockedOpReadEntry).recycle();
+            return mockedOpReadEntry;
+        };
+
+        @Cleanup final MockedStatic<OpReadEntry> mockedStaticOpReadEntry = Mockito.mockStatic(OpReadEntry.class);
+        mockedStaticOpReadEntry.when(() -> OpReadEntry.create(any(), any(), anyInt(), any(), any(), any()))
+                .thenAnswer(__ -> createOpReadEntry.get());
+
         final ManagedLedgerConfig ledgerConfig = new ManagedLedgerConfig();
         ledgerConfig.setNewEntriesCheckDelayInMillis(10);
         final ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("my_test_ledger", ledgerConfig);
         final ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("my_cursor");
-        final int numReadRequests = 3;
         final List<ManagedLedgerException> exceptions = new ArrayList<>();
         final AtomicBoolean readEntriesSuccess = new AtomicBoolean(false);
         final ReadEntriesCallback callback = new ReadEntriesCallback() {
@@ -3771,7 +3789,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
             }
         };
 
-        OpReadEntry.enableTesting();
+        final int numReadRequests = 3;
         for (int i = 0; i < numReadRequests; i++) {
             cursor.asyncReadEntriesOrWait(1, callback, null, new PositionImpl(0, 0));
         }
@@ -3786,9 +3804,12 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         assertEquals(exceptions.size(), numReadRequests - 1);
         exceptions.forEach(e -> assertEquals(e.getMessage(), "We can only have a single waiting callback"));
-        assertEquals(OpReadEntry.getCreateCount(), numReadRequests);
-        assertEquals(OpReadEntry.getRecycleCount(), numReadRequests);
-        OpReadEntry.disableTesting();
+        assertEquals(opReadEntryToRecycleCount.size(), 3);
+        assertEquals(opReadEntryToRecycleCount.entrySet().stream()
+                        .map(Map.Entry::getValue)
+                        .map(AtomicInteger::get)
+                        .collect(Collectors.toList()),
+                Arrays.asList(1, 1, 1));
     }
 
     private static final Logger log = LoggerFactory.getLogger(ManagedCursorTest.class);
