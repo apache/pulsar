@@ -1171,6 +1171,10 @@ public class CmdFunctions extends CmdBase {
                 description = "Path or functionPkgUrl to store the content",
                 listConverter = StringConverter.class, required = false, hidden = true)
         protected String path;
+        @Parameter(
+                names = "--extra-function",
+                description = "Download the extra Function of the connector")
+        protected Boolean extraFunction = false;
 
         private void mergeArgs() {
             if (isBlank(destinationFile) && !isBlank(deprecatedDestinationFile)) {
@@ -1195,7 +1199,8 @@ public class CmdFunctions extends CmdBase {
             if (path != null) {
                 getAdmin().functions().downloadFunction(destinationFile, path);
             } else {
-                getAdmin().functions().downloadFunction(destinationFile, tenant, namespace, functionName);
+                getAdmin().functions()
+                        .downloadFunction(destinationFile, tenant, namespace, functionName, extraFunction);
             }
             print("Downloaded successfully");
         }

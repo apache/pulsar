@@ -21,6 +21,7 @@ package org.apache.pulsar.functions.runtime.kubernetes;
 
 import static java.net.HttpURLConnection.HTTP_CONFLICT;
 import static java.net.HttpURLConnection.HTTP_NOT_FOUND;
+import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.commons.lang3.StringUtils.isNotEmpty;
 import static org.apache.commons.lang3.StringUtils.left;
@@ -206,9 +207,11 @@ public class KubernetesRuntime implements Runtime {
         this.configAdminCLI = configAdminCLI;
         this.userCodePkgUrl = userCodePkgUrl;
         this.downloadDirectory =
-                StringUtils.isNotEmpty(downloadDirectory) ? downloadDirectory : this.pulsarRootDir; // for backward comp
+                isNotEmpty(downloadDirectory) ? downloadDirectory : this.pulsarRootDir; // for backward comp
         this.originalCodeFileName = this.downloadDirectory + "/" + originalCodeFileName;
-        this.originalExtraFunctionFileName = this.downloadDirectory + "/" + originalExtraFunctionFileName;
+        this.originalExtraFunctionFileName = isNotEmpty(originalExtraFunctionFileName)
+                ? this.downloadDirectory + "/" + originalExtraFunctionFileName
+                : originalExtraFunctionFileName;
         this.pulsarAdminUrl = pulsarAdminUrl;
         this.secretsProviderConfigurator = secretsProviderConfigurator;
         this.percentMemoryPadding = percentMemoryPadding;
@@ -849,58 +852,28 @@ public class KubernetesRuntime implements Runtime {
     }
 
     protected List<String> getExecutorCommand() {
-        List<String> cmds = Arrays.asList(
-                "sh",
-                "-c",
-                String.join(" ", getDownloadCommand(instanceConfig.getFunctionDetails(), originalCodeFileName)));
+        List<String> cmds =
+                new ArrayList<>(getDownloadCommand(instanceConfig.getFunctionDetails(), originalCodeFileName, false));
         if (isNotEmpty(originalExtraFunctionFileName)) {
             cmds.add("&&");
-            cmds.add("sh");
-            cmds.add("-c");
-            cmds.add(String.join(" ",
-                    getDownloadCommand(instanceConfig.getFunctionDetails(), originalExtraFunctionFileName)));
+            cmds.addAll(getDownloadCommand(instanceConfig.getFunctionDetails(), originalExtraFunctionFileName, true));
         }
         cmds.add("&&");
         cmds.add(setShardIdEnvironmentVariableCommand());
         cmds.add("&&");
-        cmds.add(String.join(" ", processArgs));
-        return cmds;
+        cmds.addAll(processArgs);
+        return Arrays.asList("sh", "-c", String.join(" ", cmds));
     }
 
-    private List<String> getDownloadCommand(Function.FunctionDetails functionDetails, String userCodeFilePath) {
+    private List<String> getDownloadCommand(Function.FunctionDetails functionDetails, String userCodeFilePath,
+                                            boolean extraFunction) {
         return getDownloadCommand(functionDetails.getTenant(), functionDetails.getNamespace(),
-                functionDetails.getName(), userCodeFilePath);
+                functionDetails.getName(), userCodeFilePath, extraFunction);
     }
 
-    private List<String> getDownloadCommand(String tenant, String namespace, String name, String userCodeFilePath) {
-
-        // add auth plugin and parameters if necessary
-        if (authenticationEnabled && authConfig != null) {
-            if (isNotBlank(authConfig.getClientAuthenticationPlugin())
-                    && isNotBlank(authConfig.getClientAuthenticationParameters())
-                    && instanceConfig.getFunctionAuthenticationSpec() != null) {
-                return Arrays.asList(
-                        pulsarRootDir + configAdminCLI,
-                        "--auth-plugin",
-                        authConfig.getClientAuthenticationPlugin(),
-                        "--auth-params",
-                        authConfig.getClientAuthenticationParameters(),
-                        "--admin-url",
-                        pulsarAdminUrl,
-                        "functions",
-                        "download",
-                        "--tenant",
-                        tenant,
-                        "--namespace",
-                        namespace,
-                        "--name",
-                        name,
-                        "--destination-file",
-                        userCodeFilePath);
-            }
-        }
-
-        return Arrays.asList(
+    private List<String> getDownloadCommand(String tenant, String namespace, String name, String userCodeFilePath,
+                                            boolean extraFunction) {
+        ArrayList<String> cmd = new ArrayList<>(Arrays.asList(
                 pulsarRootDir + configAdminCLI,
                 "--admin-url",
                 pulsarAdminUrl,
@@ -913,7 +886,26 @@ public class KubernetesRuntime implements Runtime {
                 "--name",
                 name,
                 "--destination-file",
-                userCodeFilePath);
+                userCodeFilePath));
+
+        // add auth plugin and parameters if necessary
+        if (authenticationEnabled && authConfig != null) {
+            if (isNotBlank(authConfig.getClientAuthenticationPlugin())
+                    && isNotBlank(authConfig.getClientAuthenticationParameters())
+                    && instanceConfig.getFunctionAuthenticationSpec() != null) {
+                cmd.addAll(Arrays.asList(
+                        "--auth-plugin",
+                        authConfig.getClientAuthenticationPlugin(),
+                        "--auth-params",
+                        authConfig.getClientAuthenticationParameters()));
+            }
+        }
+
+        if (extraFunction) {
+            cmd.add("--extra-function");
+        }
+
+        return cmd;
     }
 
     private static String setShardIdEnvironmentVariableCommand() {

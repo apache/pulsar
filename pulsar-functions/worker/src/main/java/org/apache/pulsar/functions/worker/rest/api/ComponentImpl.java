@@ -1433,7 +1433,8 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
 
     @Override
     public StreamingOutput downloadFunction(String tenant, String namespace, String componentName,
-                                            String clientRole, AuthenticationDataSource clientAuthenticationDataHttps) {
+                                            String clientRole, AuthenticationDataSource clientAuthenticationDataHttps,
+                                            boolean extraFunction) {
         if (!isWorkerServiceAvailable()) {
             throwUnavailableException();
         }
@@ -1458,8 +1459,11 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
                     String.format("%s %s doesn't exist", ComponentTypeUtils.toString(componentType), componentName));
         }
 
-        String pkgPath = functionMetaDataManager.getFunctionMetaData(tenant, namespace, componentName)
-                .getPackageLocation().getPackagePath();
+        FunctionMetaData functionMetaData =
+                functionMetaDataManager.getFunctionMetaData(tenant, namespace, componentName);
+        String pkgPath = extraFunction
+                ? functionMetaData.getExtraFunctionPackageLocation().getPackagePath()
+                : functionMetaData.getPackageLocation().getPackagePath();
 
         return getStreamingOutput(pkgPath);
     }
