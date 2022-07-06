@@ -2102,14 +2102,6 @@ public class PersistentTopicsBase extends AdminResource {
                     }
 
                     return future.whenComplete((r, ex) -> {
-                        if (ex != null) {
-                            if (ex instanceof PulsarAdminException) {
-                                throw new RestException((PulsarAdminException) ex);
-                            } else {
-                                throw new RestException(ex);
-                            }
-                        }
-
                         // report an error to user if unable to reset for all partitions
                         if (failureCount.get() == numPartitions) {
                             log.warn("[{}] [{}] Failed to reset cursor on subscription {} to time {}",
