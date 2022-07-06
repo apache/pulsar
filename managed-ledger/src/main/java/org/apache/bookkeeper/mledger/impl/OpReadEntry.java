@@ -36,8 +36,8 @@ import org.slf4j.LoggerFactory;
 
 class OpReadEntry implements ReadEntriesCallback {
 
-    private static volatile AtomicInteger createCount = null;
-    private static volatile AtomicInteger recycleCount = null;
+    private static AtomicInteger createCount = null;
+    private static AtomicInteger recycleCount = null;
 
     ManagedCursorImpl cursor;
     PositionImpl readPosition;
