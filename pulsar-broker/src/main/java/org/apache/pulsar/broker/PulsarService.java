@@ -703,7 +703,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             schemaRegistryService = SchemaRegistryService.create(
                     schemaStorage, config.getSchemaRegistryCompatibilityCheckers());
 
-            OffloadPoliciesImpl defaultOffloadPolicies = OffloadPoliciesImpl.create(this.getConfiguration().getProperties());
+            OffloadPoliciesImpl defaultOffloadPolicies =
+                    OffloadPoliciesImpl.create(this.getConfiguration().getProperties());
             this.defaultOffloader = createManagedLedgerOffloader(defaultOffloadPolicies);
 
             OrderedScheduler offloaderScheduler = getOffloaderScheduler(defaultOffloadPolicies);
