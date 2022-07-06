@@ -99,17 +99,20 @@ public final class LedgerOffloaderStatsImpl implements LedgerOffloaderStats, Run
                 .labelNames(labels).quantile(0.50, 0.01)
                 .quantile(0.95, 0.01)
                 .quantile(0.99, 0.01)
+                .quantile(1, 0.01)
                 .create().register();
         this.readOffloadDataLatency = Summary.build("brk_ledgeroffloader_read_offload_data_latency", "-")
                 .labelNames(labels)
                 .quantile(0.50, 0.01)
                 .quantile(0.95, 0.01)
                 .quantile(0.99, 0.01)
+                .quantile(1, 0.01)
                 .create().register();
         this.readLedgerLatency = Summary.build("brk_ledgeroffloader_read_ledger_latency", "-")
                 .labelNames(labels).quantile(0.50, 0.01)
                 .quantile(0.95, 0.01)
                 .quantile(0.99, 0.01)
+                .quantile(1, 0.01)
                 .create().register();
 
         String[] deleteOpsLabels = exposeTopicLevelMetrics
