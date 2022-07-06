@@ -22,7 +22,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 
 import org.apache.bookkeeper.mledger.AsyncCallbacks.MarkDeleteCallback;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -36,7 +35,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class CompactorSubscription extends PersistentSubscription {
-    private CompactedTopic compactedTopic;
+    private final CompactedTopic compactedTopic;
 
     public CompactorSubscription(PersistentTopic topic, CompactedTopic compactedTopic,
                                  String subscriptionName, ManagedCursor cursor) {
@@ -67,15 +66,17 @@ public class CompactorSubscription extends PersistentSubscription {
         if (log.isDebugEnabled()) {
             log.debug("[{}][{}] Cumulative ack on compactor subscription {}", topicName, subName, position);
         }
-        CompletableFuture<Void> future = new CompletableFuture<>();
-        cursor.asyncMarkDelete(position, properties, new MarkDeleteCallback() {
+        compactedTopic.newCompactedLedger(position, compactedLedgerId).thenAccept(previousContext -> {
+            cursor.asyncMarkDelete(position, properties, new MarkDeleteCallback() {
                 @Override
                 public void markDeleteComplete(Object ctx) {
                     if (log.isDebugEnabled()) {
                         log.debug("[{}][{}] Mark deleted messages until position on compactor subscription {}",
-                                  topicName, subName, position);
+                                topicName, subName, position);
                     }
-                    future.complete(null);
+                    if (previousContext != null) {
+                        compactedTopic.deleteCompactedLedger(previousContext.getLedger().getId());
+                    }
                 }
 
                 @Override
@@ -83,19 +84,16 @@ public class CompactorSubscription extends PersistentSubscription {
                     // TODO: cut consumer connection on markDeleteFailed
                     if (log.isDebugEnabled()) {
                         log.debug("[{}][{}] Failed to mark delete for position on compactor subscription {}",
-                                  topicName, subName, ctx, exception);
+                                topicName, subName, ctx, exception);
                     }
                 }
             }, null);
+        });
 
         if (topic.getManagedLedger().isTerminated() && cursor.getNumberOfEntriesInBacklog(false) == 0) {
             // Notify all consumer that the end of topic was reached
             dispatcher.getConsumers().forEach(Consumer::reachedEndOfTopic);
         }
-
-        // Once properties have been persisted, we can notify the compacted topic to use
-        // the new ledger
-        future.thenAccept((v) -> compactedTopic.newCompactedLedger(position, compactedLedgerId));
     }
 
     private static final Logger log = LoggerFactory.getLogger(CompactorSubscription.class);
