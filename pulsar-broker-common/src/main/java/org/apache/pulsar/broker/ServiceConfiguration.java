@@ -2060,7 +2060,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "and broker2 with 30% and broker3 with 80% will have 40% average resource usage. "
                     + "The placement strategy can select broker1 and broker2 as best candidates.)"
     )
-    private int loadBalancerAverageResourceUsageDifferenceThresholdShedderPercentage = 10;
+    private int loadBalancerAverageResourceUsageDifferenceThresholdPercentage = 10;
 
     @FieldContext(
         dynamic = true,

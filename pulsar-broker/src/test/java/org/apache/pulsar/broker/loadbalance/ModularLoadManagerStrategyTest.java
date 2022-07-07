@@ -78,7 +78,7 @@ public class ModularLoadManagerStrategyTest {
         conf.setLoadBalancerBandwithInResourceWeight(1.0);
         conf.setLoadBalancerBandwithOutResourceWeight(1.0);
         conf.setLoadBalancerHistoryResourcePercentage(0.5);
-        conf.setLoadBalancerAverageResourceUsageDifferenceThresholdShedderPercentage(5);
+        conf.setLoadBalancerAverageResourceUsageDifferenceThresholdPercentage(5);
 
         ModularLoadManagerStrategy strategy = new LeastResourceUsageWithWeight();
         assertEquals(strategy.selectBroker(brokerDataMap.keySet(), bundleData, loadData, conf), Optional.of("1"));
