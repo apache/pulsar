@@ -23,6 +23,7 @@ import io.netty.buffer.Unpooled;
 import io.netty.util.Recycler;
 import java.io.Closeable;
 import java.util.ArrayList;
+import java.util.Objects;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -389,6 +390,21 @@ public class TxLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback, 
             super(position.getLedgerId(), position.getEntryId());
             this.batchIndex = batchIndex;
             this.batchSize = batchSize;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (o instanceof TxBatchedPositionImpl) {
+                TxBatchedPositionImpl other = (TxBatchedPositionImpl) o;
+                return super.equals(o) && batchSize == other.batchSize && batchIndex == other.batchIndex;
+            }
+            return false;
+
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(super.hashCode(), batchSize, batchIndex);
         }
     }
 
