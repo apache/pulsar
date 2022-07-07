@@ -2033,7 +2033,7 @@ public class BrokerService implements Closeable {
 
     private void handlePoliciesUpdates(NamespaceName namespace) {
         pulsar.getPulsarResources().getNamespaceResources().getPoliciesAsync(namespace)
-                .thenAccept(optPolicies -> {
+                .thenAcceptAsync(optPolicies -> {
                     if (!optPolicies.isPresent()) {
                         return;
                     }
@@ -2045,20 +2045,20 @@ public class BrokerService implements Closeable {
                         if (namespace.includes(TopicName.get(name))) {
                             // If the topic is already created, immediately apply the updated policies, otherwise
                             // once the topic is created it'll apply the policies update
-                            topicFuture.thenAccept(topic -> {
+                            topicFuture.thenAcceptAsync(topic -> {
                                 if (log.isDebugEnabled()) {
                                     log.debug("Notifying topic that policies have changed: {}", name);
                                 }
 
                                 topic.ifPresent(t -> t.onPoliciesUpdate(policies));
-                            });
+                            }, pulsar.getExecutor());
                         }
                     });
 
                     // sometimes, some brokers don't receive policies-update watch and miss to remove
                     // replication-cluster and still own the bundle. That can cause data-loss for TODO: git-issue
                     unloadDeletedReplNamespace(policies, namespace);
-                });
+                }, pulsar.getExecutor());
     }
 
     private void handleDynamicConfigurationUpdates() {
