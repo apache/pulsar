@@ -18,14 +18,14 @@
  */
 package org.apache.bookkeeper.mledger.offload.jcloud.impl;
 
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import io.netty.buffer.ByteBuf;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
@@ -57,8 +57,11 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
     private final BackedInputStream inputStream;
     private final DataInputStream dataStream;
     private final ExecutorService executor;
-    // this Map is accessed only by one thread
-    private final Map<Long, Long> entryOffsets = new TreeMap<>();
+    // this Cache is accessed only by one thread
+    private final Cache<Long, Long> entryOffsets = CacheBuilder
+            .newBuilder()
+            .expireAfterAccess(10, TimeUnit.MINUTES)
+            .build();
 
     enum State {
         Opened,
@@ -94,7 +97,7 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
                 try {
                     index.close();
                     inputStream.close();
-                    entryOffsets.clear();
+                    entryOffsets.invalidateAll();
                     state = State.Closed;
                     promise.complete(null);
                 } catch (IOException t) {
@@ -129,7 +132,7 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
                 if (dataStream.available() < 12) {
                     log.warn("There hasn't enough data to read, current available data has {} bytes,"
                         + " seek to the first entry {} to avoid EOF exception", inputStream.available(), firstEntry);
-                    inputStream.seek(index.getIndexEntryForEntry(firstEntry).getDataOffset());
+                    seekToEntry(firstEntry);
                 }
 
                 while (entriesToRead > 0) {
@@ -141,7 +144,7 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
                     long currentPosition = inputStream.getCurrentPosition();
                     int length = dataStream.readInt();
                     if (length < 0) { // hit padding or new block
-                        inputStream.seek(index.getIndexEntryForEntry(nextExpectedId).getDataOffset());
+                        seekToEntry(nextExpectedId);
                         continue;
                     }
                     long entryId = dataStream.readLong();
@@ -159,25 +162,18 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
                     } else if (entryId > nextExpectedId && entryId < lastEntry) {
                         log.warn("The read entry {} is not the expected entry {} but in the range of {} - {},"
                             + " seeking to the right position", entryId, nextExpectedId, nextExpectedId, lastEntry);
-                        inputStream.seek(index.getIndexEntryForEntry(nextExpectedId).getDataOffset());
+                        seekToEntry(nextExpectedId);
                     } else if (entryId < nextExpectedId
                         && !index.getIndexEntryForEntry(nextExpectedId).equals(index.getIndexEntryForEntry(entryId))) {
                         log.warn("Read an unexpected entry id {} which is smaller than the next expected entry id {}"
                         + ", seeking to the right position", entryId, nextExpectedId);
-                        inputStream.seek(index.getIndexEntryForEntry(nextExpectedId).getDataOffset());
+                        seekToEntry(nextExpectedId);
                     } else if (entryId > lastEntry) {
                         // in the normal case, the entry id should increment in order. But if there has random access in
                         // the read method, we should allow to seek to the right position and the entry id should
                         // never over to the last entry again.
                         if (!seeked) {
-                            Long knownOffset = entryOffsets.get(nextExpectedId);
-                            if (knownOffset != null) {
-                                inputStream.seek(knownOffset);
-                            } else {
-                                long dataOffset = index.getIndexEntryForEntry(nextExpectedId).getDataOffset();
-                                inputStream.seek(dataOffset);
-                            }
-
+                            seekToEntry(nextExpectedId);
                             seeked = true;
                             continue;
                         }
@@ -196,6 +192,18 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
             }
         });
         return promise;
+    }
+
+    private void seekToEntry(long nextExpectedId) throws IOException {
+        Long knownOffset = entryOffsets.get(nextExpectedId);
+        if (knownOffset != null) {
+            inputStream.seek(knownOffset);
+        } else {
+            // we don't know the exact position
+            // we seek to somewhere before the entry
+            long dataOffset = index.getIndexEntryForEntry(nextExpectedId).getDataOffset();
+            inputStream.seek(dataOffset);
+        }
     }
 
     @Override
