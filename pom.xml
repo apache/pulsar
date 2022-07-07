@@ -122,7 +122,7 @@ flexible messaging model and an intuitive client API.</description>
     <curator.version>5.1.0</curator.version>
     <netty.version>4.1.77.Final</netty.version>
     <netty-tc-native.version>2.0.52.Final</netty-tc-native.version>
-    <jetty.version>9.4.44.v20210927</jetty.version>
+    <jetty.version>10.0.10</jetty.version>
     <conscrypt.version>2.5.2</conscrypt.version>
     <jersey.version>2.34</jersey.version>
     <athenz.version>1.10.50</athenz.version>
