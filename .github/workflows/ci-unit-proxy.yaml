@@ -59,12 +59,13 @@ jobs:
           key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
           restore-keys: |
             ${{ runner.os }}-maven-
-      - name: Set up JDK 11
-        uses: actions/setup-java@v2
-        if: ${{ steps.check_changes.outputs.docs_only != 'true' }}
+
+      - name: Set up JDK 8
+        uses: actions/setup-java@v3
+        if: steps.docs.outputs.changed_only == 'no'
         with:
-          distribution: 'adopt'
-          java-version: 11
+          distribution: 'temurin'
+          java-version: 8
 
       - name: build modules pulsar-proxy
         if: steps.docs.outputs.changed_only == 'no'
