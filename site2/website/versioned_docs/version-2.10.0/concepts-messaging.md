@@ -23,7 +23,7 @@ Messages are the basic "unit" of Pulsar. The following table lists the component
 
 Component | Description
 :---------|:-------
-Value / data payload | The data carried by the message. All Pulsar messages contain raw bytes, although message data can also conform to data [schemas](schema-get-started).
+Value / data payload | The data carried by the message. All Pulsar messages contain raw bytes, although message data can also conform to data [schemas](schema-get-started.md).
 Key | Messages are optionally tagged with keys, which is useful for things like [topic compaction](concepts-topic-compaction.md).
 Properties | An optional key/value map of user-defined properties.
 Producer name | The name of the producer who produces the message. If you do not specify a producer name, the default name is used. 
