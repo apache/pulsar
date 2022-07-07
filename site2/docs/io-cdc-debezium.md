@@ -13,16 +13,16 @@ The configuration of Debezium source connector has the following properties.
 
 | Name | Required | Default | Description |
 |------|----------|---------|-------------|
-| `task.class` | true | null | A source task class that implemented in Debezium. |
+| `task.class` | true | null | A source task class that is implemented in Debezium. |
 | `database.hostname` | true | null | The address of a database server. |
 | `database.port` | true | null | The port number of a database server.|
 | `database.user` | true | null | The name of a database user that has the required privileges. |
 | `database.password` | true | null | The password for a database user that has the required privileges. |
 | `database.server.id` | true | null | The connector’s identifier that must be unique within a database cluster and similar to the database’s server-id configuration property. |
-| `database.server.name` | true | null | The logical name of a database server/cluster, which forms a namespace and it is used in all the names of Kafka topics to which the connector writes, the Kafka Connect schema names, and the namespaces of the corresponding Avro schema when the Avro Connector is used. |
-| `database.whitelist` | false | null | A list of all databases hosted by this server which is monitored by the  connector.<br /><br /> This is optional, and there are other properties for listing databases and tables to include or exclude from monitoring. |
-| `key.converter` | true | null | The converter provided by Kafka Connect to convert record key. |
-| `value.converter` | true | null | The converter provided by Kafka Connect to convert record value.  |
+| `database.server.name` | true | null | The logical name of a database server/cluster, which forms a namespace and is used in all the names of Kafka topics to which the connector writes, the Kafka Connect schema names, and the namespaces of the corresponding Avro schema when the Avro Connector is used. |
+| `database.whitelist` | false | null | A list of all databases hosted by this server that is monitored by the connector.<br /><br /> This is optional, and there are other properties for listing databases and tables to include or exclude from monitoring. |
+| `key.converter` | true | null | The converter provided by Kafka Connect to convert the record key. |
+| `value.converter` | true | null | The converter provided by Kafka Connect to convert the record value.  |
 | `database.history` | true | null | The name of the database history class. |
 | `database.history.pulsar.topic` | true | null | The name of the database history topic where the connector writes and recovers DDL statements. <br /><br />**Note: this topic is for internal use only and should not be used by consumers.** |
 | `database.history.pulsar.service.url` | true | null | Pulsar cluster service URL for history topic. |
@@ -159,7 +159,7 @@ This example shows how to change the data of a MySQL table using the Pulsar Debe
        
        ```
 
-4. Subscribe the topic _sub-products_ for the table _inventory.products_.
+4. Subscribe to the topic _sub-products_ for the table _inventory.products_.
 
    ```bash
    
@@ -291,6 +291,19 @@ This example shows how to change the data of a PostgreSQL table using the Pulsar
        
        ```
 
+      :::note
+      
+      Currently, the destination topic (specified by the `destination-topic-name` option ) is a required configuration but it is not used for the Debezuim connector to save data. The Debezium connector saves data in the following 4 types of topics:
+      
+      - One topic named with the database server name ( `database.server.name`) for storing the database metadata messages, such as `public/default/database.server.name`.
+      - One topic (`database.history.pulsar.topic`) for storing the database history information. The connector writes and recovers DDL statements on this topic.
+      - One topic (`offset.storage.topic`) for storing the offset metadata messages. The connector saves the last successfully-committed offsets on this topic.
+      - One per-table topic. The connector writes change events for all operations that occur in a table to a single Pulsar topic that is specific to that table.
+      
+      If the automatic topic creation is disabled on your broker, you need to manually create the above topics.
+
+      :::
+
    * Use the **YAML** configuration file as shown previously.
 
        ```bash
@@ -300,7 +313,7 @@ This example shows how to change the data of a PostgreSQL table using the Pulsar
        
        ```
 
-4. Subscribe the topic _sub-products_ for the _inventory.products_ table.
+4. Subscribe to the topic _sub-products_ for the _inventory.products_ table.
 
    ```
    
@@ -465,7 +478,7 @@ This example shows how to change the data of a MongoDB table using the Pulsar De
        
        ```
 
-4. Subscribe the topic _sub-products_ for the _inventory.products_ table.
+4. Subscribe to the topic _sub-products_ for the _inventory.products_ table.
 
    ```
    
