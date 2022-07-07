@@ -261,7 +261,7 @@ If you have started Pulsar successfully, you will see `INFO`-level log messages 
 * To run the service as a background process, you can use the `bin/pulsar-daemon start standalone` command. For more information, see [pulsar-daemon](/docs/en/reference-cli-tools/#pulsar-daemon).
 * To perform a health check, you can use the `bin/pulsar-admin brokers healthcheck` command. For more information, see [Pulsar-admin docs](/tools/pulsar-admin/).
 * When you start a local standalone cluster, a `public/default` [namespace](concepts-messaging.md#namespaces) is created automatically. The namespace is used for development purposes. All Pulsar topics are managed within namespaces. For more information, see [Topics](concepts-messaging.md#topics).
-* By default, there is no encryption, authentication, or authorization configured. Apache Pulsar can be accessed from a remote server without any authorization. See [Security Overview](security-overview) for how to secure your deployment. 
+* By default, there is no encryption, authentication, or authorization configured. Apache Pulsar can be accessed from a remote server without any authorization. See [Security Overview](security-overview.md) for how to secure your deployment. 
 
 :::
 
