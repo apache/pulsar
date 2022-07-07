@@ -1,0 +1,233 @@
+package org.apache.pulsar.transaction.coordinator.impl;
+
+import io.netty.buffer.ByteBuf;
+import io.netty.channel.PreferHeapByteBufAllocator;
+import io.netty.util.concurrent.DefaultThreadFactory;
+import java.nio.charset.Charset;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.common.util.OrderedExecutor;
+import org.apache.bookkeeper.mledger.AsyncCallbacks;
+import org.apache.bookkeeper.mledger.Entry;
+import org.apache.bookkeeper.mledger.ManagedCursor;
+import org.apache.bookkeeper.mledger.ManagedLedger;
+import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.commons.lang3.tuple.Triple;
+import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
+import org.apache.pulsar.transaction.coordinator.test.MockedBookKeeperTestCase;
+import org.awaitility.Awaitility;
+import org.testng.Assert;
+import org.testng.annotations.Test;
+
+@Slf4j
+public class TxLogBufferedWriterTest extends MockedBookKeeperTestCase {
+
+    /**
+     * Tests all operations from write to callback, including
+     * {@link TxLogBufferedWriter#asyncAddData(Object, AsyncCallbacks.AddEntryCallback, Object)}
+     * {@link TxLogBufferedWriter#trigFlush()}
+     * and so on.
+     */
+    @Test
+    public void testMainProcess() throws Exception {
+        // Create components.
+        ManagedLedger managedLedger = factory.open("tx_test_ledger");
+        ManagedCursor managedCursor = managedLedger.openCursor("tx_test_cursor");
+        OrderedExecutor orderedExecutor =  OrderedExecutor.newBuilder()
+                .numThreads(5).name("tx-brokers-topic-workers").build();
+        ScheduledExecutorService scheduledExecutorService =
+                Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory("pulsar-stats-updater"));
+        // Create TxLogBufferedWriter.
+        ArrayList<String> stringBatchedEntryDataList = new ArrayList<>();
+        // Holds variable byteBufBatchedEntryDataList just for release.
+        ArrayList<ByteBuf> byteBufBatchedEntryDataList = new ArrayList<>();
+        TxLogBufferedWriter txLogBufferedWriter =
+                new TxLogBufferedWriter<ByteBuf>(managedLedger, orderedExecutor, scheduledExecutorService,
+                        new TxLogBufferedWriter.DataSerializer<ByteBuf>(){
+
+                            @Override
+                            public int getSerializedSize(ByteBuf byteBuf) {
+                                return byteBuf.readableBytes();
+                            }
+
+                            @Override
+                            public ByteBuf serialize(ByteBuf byteBuf) {
+                                return byteBuf;
+                            }
+
+                            @Override
+                            public ByteBuf serialize(ArrayList<ByteBuf> dataArray) {
+                                StringBuilder stringBuilder = new StringBuilder();
+                                for (int i = 0; i < dataArray.size(); i++){
+                                    ByteBuf byteBuf = dataArray.get(i);
+                                    byteBuf.markReaderIndex();
+                                    stringBuilder.append(byteBuf.readInt());
+                                    if (i != dataArray.size() - 1){
+                                        stringBuilder.append(",");
+                                    }
+                                }
+                                String contentStr = stringBuilder.toString();
+                                stringBatchedEntryDataList.add(contentStr);
+                                byte[] bs = contentStr.getBytes(Charset.defaultCharset());
+                                ByteBuf content = PreferHeapByteBufAllocator.DEFAULT.buffer(bs.length);
+                                content.writeBytes(bs);
+                                byteBufBatchedEntryDataList.add(content);
+                                return content;
+                            }
+                        }, true);
+        // Create callback.
+        ArrayList<Integer> callbackCtxList = new ArrayList<>();
+        LinkedHashMap<PositionImpl, ArrayList<Position>> callbackPositions =
+                new LinkedHashMap<PositionImpl, ArrayList<Position>>();
+        AsyncCallbacks.AddEntryCallback callback = new AsyncCallbacks.AddEntryCallback(){
+            @Override
+            public void addComplete(Position position, ByteBuf entryData, Object ctx) {
+                if (callbackCtxList.contains(Integer.valueOf(String.valueOf(ctx)))){
+                    return;
+                }
+                callbackCtxList.add((int)ctx);
+                PositionImpl lightPosition = PositionImpl.get(position.getLedgerId(), position.getEntryId());
+                callbackPositions.computeIfAbsent(lightPosition, p -> new ArrayList<>());
+                callbackPositions.get(lightPosition).add(position);
+            }
+            @Override
+            public void addFailed(ManagedLedgerException exception, Object ctx) {
+            }
+        };
+        // Loop write data.  Holds variable dataArrayProvided just for release.
+        List<ByteBuf> dataArrayProvided = new ArrayList<>();
+        int cmdAddExecutedCount = 100000;
+        for (int i = 0; i < cmdAddExecutedCount; i++){
+            ByteBuf byteBuf = PulsarByteBufAllocator.DEFAULT.buffer(8);
+            byteBuf.writeInt(i);
+            dataArrayProvided.add(byteBuf);
+            txLogBufferedWriter.asyncAddData(byteBuf, callback, i);
+        }
+        // Wait for all cmd-write finish.
+        Awaitility.await().atMost(20, TimeUnit.SECONDS).until(() -> callbackCtxList.size() == cmdAddExecutedCount);
+        // Release data provided.
+        for (ByteBuf byteBuf : dataArrayProvided){
+            byteBuf.release();
+        }
+        // Assert callback ctx correct.
+        Assert.assertEquals(callbackCtxList.size(), cmdAddExecutedCount);
+        for (int ctxIndex = 0; ctxIndex < cmdAddExecutedCount; ctxIndex++){
+            Assert.assertEquals(callbackCtxList.get(ctxIndex).intValue(), ctxIndex);
+        }
+        // Assert callback positions correct.
+        Assert.assertEquals(callbackPositions.values().stream().flatMap(l -> l.stream()).count(), cmdAddExecutedCount);
+        Iterator<ArrayList<Position>> callbackPositionIterator = callbackPositions.values().iterator();
+        for (int batchedEntryIndex = 0; batchedEntryIndex < stringBatchedEntryDataList.size(); batchedEntryIndex++){
+            String stringBatchedEntryData = stringBatchedEntryDataList.get(batchedEntryIndex);
+            String[] entryDataArray = stringBatchedEntryData.split(",");
+            ArrayList<Position> innerPositions = callbackPositionIterator.next();
+            int batchSize = entryDataArray.length;
+            for(int i = 0; i < entryDataArray.length; i++){
+                TxLogBufferedWriter.TxBatchedPositionImpl innerPosition =
+                        (TxLogBufferedWriter.TxBatchedPositionImpl) innerPositions.get(i);
+                Assert.assertEquals(innerPosition.getBatchSize(), batchSize);
+                Assert.assertEquals(innerPosition.getBatchIndex(), i);
+            }
+        }
+        // Assert content correct.
+        int batchedEntryIndex = 0;
+        Iterator<PositionImpl> expectedBatchedPositionIterator = callbackPositions.keySet().iterator();
+        while (managedCursor.hasMoreEntries()) {
+            List<Entry> entries = managedCursor.readEntries(1);
+            if (entries == null || entries.isEmpty()) {
+                continue;
+            }
+            for (int m = 0; m < entries.size(); m++) {
+                String stringBatchedEntryContent = stringBatchedEntryDataList.get(batchedEntryIndex);
+                Entry entry = entries.get(m);
+                ByteBuf entryByteBuf = entry.getDataBuffer();
+                entryByteBuf.skipBytes(4);
+                // Assert entry content correct.
+                byte[] entryContentBytes = new byte[entryByteBuf.readableBytes()];
+                entryByteBuf.readBytes(entryContentBytes);
+                String entryContentString = new String(entryContentBytes, Charset.defaultCharset());
+                Assert.assertEquals(entryContentString, stringBatchedEntryContent);
+                // Assert position correct.
+                PositionImpl expectPosition = expectedBatchedPositionIterator.next();
+                Assert.assertEquals(entry.getLedgerId(), expectPosition.getLedgerId());
+                Assert.assertEquals(entry.getEntryId(), expectPosition.getEntryId());
+                entry.release();
+                batchedEntryIndex++;
+            }
+        }
+        Assert.assertEquals(batchedEntryIndex, stringBatchedEntryDataList.size());
+        // cleanup.
+        txLogBufferedWriter.close();
+        managedLedger.close();
+    }
+
+    /**
+     * Test main process when disabled batch feature.
+     */
+    @Test
+    public void testDisabled() throws Exception {
+        // Create components.
+        ManagedLedger managedLedger = factory.open("tx_test_ledger");
+        ManagedCursor managedCursor = managedLedger.openCursor("tx_test_cursor");
+        // Create TxLogBufferedWriter.
+        TxLogBufferedWriter txLogBufferedWriter =
+                new TxLogBufferedWriter<ByteBuf>(managedLedger, null, null,
+                        new TxLogBufferedWriter.DataSerializer<ByteBuf>() {
+                            @Override
+                            public int getSerializedSize(ByteBuf byteBuf) {
+                                return 0;
+                            }
+
+                            @Override
+                            public ByteBuf serialize(ByteBuf byteBuf) {
+                                return byteBuf;
+                            }
+
+                            @Override
+                            public ByteBuf serialize(ArrayList<ByteBuf> dataArray) {
+                                return null;
+                            }
+                        }, false);
+        // Create callback.
+        CompletableFuture<Triple<Position, ByteBuf, Object>> future = new CompletableFuture<>();
+        AsyncCallbacks.AddEntryCallback callback = new AsyncCallbacks.AddEntryCallback(){
+            @Override
+            public void addComplete(Position position, ByteBuf entryData, Object ctx) {
+                future.complete(Triple.of(position, entryData, ctx));
+            }
+            @Override
+            public void addFailed(ManagedLedgerException exception, Object ctx) {
+                future.completeExceptionally(exception);
+            }
+        };
+        // Async add data
+        ByteBuf byteBuf = PulsarByteBufAllocator.DEFAULT.buffer(8);
+        byteBuf.writeInt(1);
+        txLogBufferedWriter.asyncAddData(byteBuf, callback, 1);
+        // Wait add finish.
+        Triple<Position, ByteBuf, Object> triple = future.get(2, TimeUnit.SECONDS);
+        // Assert callback ctx correct.
+        Assert.assertEquals(triple.getMiddle(), byteBuf);
+        Assert.assertEquals(triple.getRight(), 1);
+        // Assert read entries correct.
+        List<Entry> entries = managedCursor.readEntriesOrWait(1);
+        Assert.assertEquals(entries.size(), 1);
+        Entry entry = entries.get(0);
+        Assert.assertEquals(entry.getLedgerId(), triple.getLeft().getLedgerId());
+        Assert.assertEquals(entry.getEntryId(), triple.getLeft().getEntryId());
+        Assert.assertEquals(entry.getDataBuffer().readInt(), 1);
+        entry.release();
+        // cleanup.
+        txLogBufferedWriter.close();
+        managedLedger.close();
+    }
+}
