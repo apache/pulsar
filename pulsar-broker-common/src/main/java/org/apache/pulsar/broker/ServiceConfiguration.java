@@ -325,9 +325,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_SERVER,
-            doc = "enable compression when the HTTP service responds to the client"
+            doc = "enable compression metrics data when the HTTP service responds to the client"
     )
-    private boolean enableCompress = false;
+    private boolean enableCompressMetricsData = false;
 
     @FieldContext(category = CATEGORY_SERVER, doc = "Whether to enable the delayed delivery for messages.")
     private boolean delayedDeliveryEnabled = true;
