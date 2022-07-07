@@ -25,7 +25,6 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.timeout;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
@@ -672,16 +671,13 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
                 + this.testLocalNamespaces.get(2).toString() + "/unload");
         doReturn(uri).when(uriInfo).getRequestUri();
 
-        try {
-            namespaces.unloadNamespaceBundle(response, this.testTenant, this.testOtherCluster,
-                    this.testLocalNamespaces.get(2).getLocalName(), "0x00000000_0xffffffff", false);
-            fail("Should have raised exception to redirect request");
-        } catch (WebApplicationException wae) {
-            // OK
-            assertEquals(wae.getResponse().getStatus(), Status.TEMPORARY_REDIRECT.getStatusCode());
-            assertEquals(wae.getResponse().getLocation().toString(),
-                    UriBuilder.fromUri(uri).host("broker-usc.com").port(8080).toString());
-        }
+        namespaces.unloadNamespaceBundle(response, this.testTenant, this.testOtherCluster,
+                this.testLocalNamespaces.get(2).getLocalName(), "0x00000000_0xffffffff", false);
+        captor = ArgumentCaptor.forClass(WebApplicationException.class);
+        verify(response, timeout(5000).atLeast(1)).resume(captor.capture());
+        assertEquals(captor.getValue().getResponse().getStatus(), Status.TEMPORARY_REDIRECT.getStatusCode());
+        assertEquals(captor.getValue().getResponse().getLocation().toString(),
+                UriBuilder.fromUri(uri).host("broker-usc.com").port(8080).toString());
 
         uri = URI.create(pulsar.getWebServiceAddress() + "/admin/namespace/"
                 + this.testGlobalNamespaces.get(0).toString() + "/configversion");
@@ -986,14 +982,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         AsyncResponse response = mock(AsyncResponse.class);
         namespaces.unloadNamespaceBundle(response, testTenant, testLocalCluster, bundledNsLocal, "0x00000000_0x80000000",
                 false);
-        verify(nsSvc, times(1)).unloadNamespaceBundle(testBundle);
-        try {
-            namespaces.unloadNamespaceBundle(response, testTenant, testLocalCluster, bundledNsLocal, "0x00000000_0x88000000",
-                    false);
-            fail("should have failed");
-        } catch (RestException re) {
-            // ok
-        }
+        verify(response, timeout(5000).times(1)).resume(any(RestException.class));
     }
 
     private void createBundledTestNamespaces(String property, String cluster, String namespace, BundlesData bundle)

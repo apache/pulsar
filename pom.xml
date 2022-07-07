@@ -2349,18 +2349,6 @@ flexible messaging model and an intuitive client API.</description>
         </plugins>
       </reporting>
     </profile>
-    <profile>
-      <id>mac-apple-silicon</id>
-      <activation>
-        <os>
-          <family>mac</family>
-          <arch>aarch64</arch>
-        </os>
-      </activation>
-      <properties>
-        <os.detected.classifier>osx-x86_64</os.detected.classifier>
-      </properties>
-    </profile>
 
     <profile>
       <id>pulsar-io-tests</id>

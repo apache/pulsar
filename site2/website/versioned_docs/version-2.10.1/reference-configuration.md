@@ -8,7 +8,7 @@ original_id: reference-configuration
 
 
 
-You can manage Pulsar configuration by configuration files in the [`conf`](https://github.com/apache/pulsar/tree/master/conf) directory of a Pulsar [installation](getting-started-standalone).
+You can manage Pulsar configuration by configuration files in the [`conf`](https://github.com/apache/pulsar/tree/master/conf) directory of a Pulsar [installation](getting-started-standalone.md).
 
 - [BookKeeper](#bookkeeper)
 - [Broker](#broker)
@@ -810,6 +810,8 @@ The [Pulsar proxy](concepts-architecture-overview.md#pulsar-proxy) can be config
 |tokenAudienceClaim| The token audience "claim" name, e.g. "aud". It is used to get the audience from token. If it is not set, the audience is not verified. ||
 | tokenAudience | The token audience stands for this broker. The field `tokenAudienceClaim` of a valid token need contains this parameter.| |
 |haProxyProtocolEnabled | Enable or disable the [HAProxy](http://www.haproxy.org/) protocol. |false|
+| numIOThreads | Number of threads used for Netty IO. | 2 * Runtime.getRuntime().availableProcessors() |
+| numAcceptorThreads | Number of threads used for Netty Acceptor. | 1 |
 
 #### Deprecated parameters of Pulsar proxy
 The following parameters have been deprecated in the `conf/proxy.conf` file.
