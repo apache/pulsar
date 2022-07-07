@@ -109,17 +109,17 @@ public class PrometheusMetricsGenerator {
             generateSystemMetrics(stream, pulsar.getConfiguration().getClusterName());
 
             NamespaceStatsAggregator.generate(pulsar, includeTopicMetrics, includeConsumerMetrics,
-                    includeProducerMetrics, splitTopicAndPartitionIndexLabel, metricStream);
+                    includeProducerMetrics, splitTopicAndPartitionIndexLabel, metricStreams);
 
             if (pulsar.getWorkerServiceOpt().isPresent()) {
                 pulsar.getWorkerService().generateFunctionsStats(stream);
             }
 
             if (pulsar.getConfiguration().isTransactionCoordinatorEnabled()) {
-                TransactionAggregator.generate(pulsar, metricStream, includeTopicMetrics);
+                TransactionAggregator.generate(pulsar, metricStreams, includeTopicMetrics);
             }
 
-            metricStream.flushAllToStream(stream);
+            metricStreams.flushAllToStream(stream);
 
             generateBrokerBasicMetrics(pulsar, stream);
 

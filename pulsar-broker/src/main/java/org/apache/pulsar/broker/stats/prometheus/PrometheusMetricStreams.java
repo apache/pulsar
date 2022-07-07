@@ -25,6 +25,8 @@ import org.apache.pulsar.common.util.SimpleTextOutputStream;
 
 /**
  * Helper class to ensure that metrics of the same name are grouped together under the same TYPE header when written.
+ * Those are the requirements of the
+ * <a href="https://github.com/prometheus/docs/blob/master/content/docs/instrumenting/exposition_formats.md#grouping-and-sorting">Prometheus Exposition Format</a>.
  */
 public class PrometheusMetricStreams {
     private final Map<String, SimpleTextOutputStream> metricStreamMap = new HashMap<>();
@@ -53,7 +55,6 @@ public class PrometheusMetricStreams {
      */
     void flushAllToStream(SimpleTextOutputStream stream) {
         metricStreamMap.values().forEach(s -> stream.write(s.getBuffer()));
-        releaseAll();
     }
 
     /**
