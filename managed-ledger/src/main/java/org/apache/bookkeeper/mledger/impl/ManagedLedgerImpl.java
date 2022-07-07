@@ -1550,16 +1550,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     private void updateLedgersListAfterRollover(MetaStoreCallback<Void> callback) {
-        if (!metadataMutex.tryLock()) {
-            // Defer update for later
-            scheduledExecutor.schedule(() -> updateLedgersListAfterRollover(callback), 100, TimeUnit.MILLISECONDS);
-            return;
-        }
-
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] Updating ledgers ids with new ledger. version={}", name, ledgersStat);
-        }
-        store.asyncUpdateLedgerIds(name, getManagedLedgerInfo(), ledgersStat, callback);
+        updateLedgersListAfterRollover(callback, getManagedLedgerInfo(ledgers));
     }
 
     private void updateLedgersListAfterRollover(MetaStoreCallback<Void> callback, ManagedLedgerInfo mlInfo) {
