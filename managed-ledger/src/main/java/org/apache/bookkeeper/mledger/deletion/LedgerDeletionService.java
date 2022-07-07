@@ -32,7 +32,7 @@ public interface LedgerDeletionService {
     void start() throws PulsarClientException, PulsarAdminException;
 
 
-    CompletableFuture<?> appendRubbishLedger(String topicName, long ledgerId, LedgerInfo context, LedgerComponent source,
+    CompletableFuture<?> appendRubbishLedger(String topicName, long ledgerId, LedgerInfo context, LedgerComponent component,
                                              LedgerType type, boolean checkLedgerStillInUse);
 
     void close() throws Exception;
@@ -57,7 +57,7 @@ public interface LedgerDeletionService {
 
         @Override
         public CompletableFuture<?> appendRubbishLedger(String topicName, long ledgerId, LedgerInfo context,
-                                                        LedgerComponent source, LedgerType type,
+                                                        LedgerComponent component, LedgerType type,
                                                         boolean checkLedgerStillInUse) {
             return COMPLETABLE_FUTURE;
         }

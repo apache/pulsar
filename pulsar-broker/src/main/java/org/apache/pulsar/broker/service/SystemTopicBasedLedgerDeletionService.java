@@ -169,13 +169,13 @@ public class SystemTopicBasedLedgerDeletionService implements LedgerDeletionServ
 
     @Override
     public CompletableFuture<?> appendRubbishLedger(String topicName, long ledgerId, LedgerInfo context,
-                                                    LedgerComponent source, LedgerType type,
+                                                    LedgerComponent component, LedgerType type,
                                                     boolean checkLedgerStillInUse) {
         topicName = tuneTopicName(topicName);
         RubbishLedger rubbishLedger = null;
         if (LedgerType.LEDGER == type) {
             ManagedLedgerInfo.LedgerInfo ledgerInfo = ManagedLedgerInfo.LedgerInfo.buildLedger(ledgerId);
-            rubbishLedger = new RubbishLedger(topicName, source, type, ledgerInfo, checkLedgerStillInUse);
+            rubbishLedger = new RubbishLedger(topicName, component, type, ledgerInfo, checkLedgerStillInUse);
         } else if (LedgerType.OFFLOAD_LEDGER == type) {
             if (!context.getOffloadContext().hasUidMsb()) {
                 CompletableFuture<?> future = new CompletableFuture<>();
@@ -186,7 +186,7 @@ public class SystemTopicBasedLedgerDeletionService implements LedgerDeletionServ
             UUID uuid = new UUID(context.getOffloadContext().getUidMsb(), context.getOffloadContext().getUidLsb());
             ManagedLedgerInfo.LedgerInfo ledgerInfo =
                     ManagedLedgerInfo.LedgerInfo.buildOffloadLedger(ledgerId, uuid.toString());
-            rubbishLedger = new RubbishLedger(topicName, source, type, ledgerInfo, checkLedgerStillInUse);
+            rubbishLedger = new RubbishLedger(topicName, component, type, ledgerInfo, checkLedgerStillInUse);
         }
         return sendRubbishMsg(rubbishLedger);
     }
