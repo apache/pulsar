@@ -2680,7 +2680,9 @@ public class BrokerService implements Closeable {
                                         pulsar.getBrokerService()
                                                 .checkIfPartitionExist(topicName)
                                                 .thenCompose(exist -> {
-                                                    if (!exist) return createDefaultPartitionedTopicAsync(topicName);
+                                                    if (!exist) {
+                                                        return createDefaultPartitionedTopicAsync(topicName);
+                                                    }
                                                     String msg = String.format(
                                                             "Failed to create already existing topic %s", topicName);
                                                     log.warn(msg);
