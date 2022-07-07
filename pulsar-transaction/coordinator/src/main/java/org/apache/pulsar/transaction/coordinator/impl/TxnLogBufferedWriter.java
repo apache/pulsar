@@ -39,8 +39,10 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.util.SafeRunnable;
 import org.apache.commons.lang3.tuple.Triple;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
+import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 
 /***
+ * See PIP-160: https://github.com/apache/pulsar/issues/15516.
  * Buffer requests and flush to Managed Ledger. Transaction Log Store And Pending Ack Store will no longer write to
  * Managed Ledger directly, Change to using this class to write Ledger data.
  * Caches “write requests” for a certain number or a certain size of request data and then writes them to the
@@ -54,6 +56,10 @@ import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
  */
 @Slf4j
 public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback, Closeable {
+
+    public static final int BATCHED_ENTRY_DATA_PREFIX_MAGIC_NUMBER = -100;
+
+    public static final int BATCHED_ENTRY_DATA_PREFIX_VERSION = 1;
 
     /**
      * Enable or disabled the batch feature, will use Managed Ledger directly and without batching when disabled.
@@ -230,8 +236,8 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
     private void doFlush(){
         // Combine data.
         ByteBuf prefix = PulsarByteBufAllocator.DEFAULT.buffer(4);
-        prefix.writeChar(-100);
-        prefix.writeChar(1);
+        prefix.writeChar(BATCHED_ENTRY_DATA_PREFIX_MAGIC_NUMBER);
+        prefix.writeChar(BATCHED_ENTRY_DATA_PREFIX_VERSION);
         ByteBuf actualContent = this.dataSerializer.serialize(this.dataArray);
         ByteBuf pairByteBuf = Unpooled.wrappedUnmodifiableBuffer(prefix, actualContent);
         FlushContext<T> flushContext = FlushContext.newInstance(this.dataArray, this.asyncAddArgsList);
@@ -250,10 +256,15 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
     public void addComplete(Position position, ByteBuf entryData, Object ctx) {
         final FlushContext<T> flushContext = (FlushContext<T>) ctx;
         try {
-            final int len = flushContext.asyncAddArgsList.size();
-            for (int i = 0; i < len; i++) {
-                final AsyncAddArgs asyncAddArgs = flushContext.asyncAddArgsList.get(i);
-                final TxBatchedPositionImpl txBatchedPosition = new TxBatchedPositionImpl(position, len, i);
+            final int batchSize = flushContext.asyncAddArgsList.size();
+            for (int batchIndex = 0; batchIndex < batchSize; batchIndex++) {
+                final AsyncAddArgs asyncAddArgs = flushContext.asyncAddArgsList.get(batchIndex);
+                BitSetRecyclable bitSetRecyclable = BitSetRecyclable.create();
+                bitSetRecyclable.set(batchIndex);
+                long[] ackSet = bitSetRecyclable.toLongArray();
+                bitSetRecyclable.recycle();
+                final TxnBatchedPositionImpl txBatchedPosition = new TxnBatchedPositionImpl(position, batchSize,
+                        batchIndex, ackSet);
                 // Because this task already running at ordered task, so just "run".
                 SafeRunnable.safeRun(() -> {
                     asyncAddArgs.callback.addComplete(txBatchedPosition, null, asyncAddArgs.ctx);
@@ -376,7 +387,7 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
      * The difference with {@link PositionImpl} is that there are two more parameters:
      * {@link #batchSize}, {@link #batchIndex}.
      */
-    public static class TxBatchedPositionImpl extends PositionImpl {
+    public static class TxnBatchedPositionImpl extends PositionImpl {
 
         /** The data length of current batch. **/
         @Getter
@@ -386,16 +397,16 @@ public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback,
         @Getter
         private final int batchIndex;
 
-        public TxBatchedPositionImpl(Position position, int batchSize, int batchIndex) {
-            super(position.getLedgerId(), position.getEntryId());
+        public TxnBatchedPositionImpl(Position position, int batchSize, int batchIndex, long[] ackSet){
+            super(position.getLedgerId(), position.getEntryId(), ackSet);
             this.batchIndex = batchIndex;
             this.batchSize = batchSize;
         }
 
         @Override
         public boolean equals(Object o) {
-            if (o instanceof TxBatchedPositionImpl) {
-                TxBatchedPositionImpl other = (TxBatchedPositionImpl) o;
+            if (o instanceof TxnLogBufferedWriter.TxnBatchedPositionImpl) {
+                TxnBatchedPositionImpl other = (TxnBatchedPositionImpl) o;
                 return super.equals(o) && batchSize == other.batchSize && batchIndex == other.batchIndex;
             }
             return false;
