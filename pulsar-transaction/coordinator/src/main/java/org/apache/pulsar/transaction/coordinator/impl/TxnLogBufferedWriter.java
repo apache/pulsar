@@ -53,7 +53,7 @@ import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
  * You can enable or disabled the batch feature, will use Managed Ledger directly and without batching when disabled.
  */
 @Slf4j
-public class TxLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback, Closeable {
+public class TxnLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback, Closeable {
 
     /**
      * Enable or disabled the batch feature, will use Managed Ledger directly and without batching when disabled.
@@ -95,9 +95,9 @@ public class TxLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback, 
     /** Bytes size of data in current batch. Will reset to 0 after each batched writes. **/
     private long bytesSize;
 
-    public TxLogBufferedWriter(ManagedLedger managedLedger, OrderedExecutor orderedExecutor,
-                               ScheduledExecutorService scheduledExecutorService, DataSerializer<T> dataSerializer,
-                               boolean batchEnabled){
+    public TxnLogBufferedWriter(ManagedLedger managedLedger, OrderedExecutor orderedExecutor,
+                                ScheduledExecutorService scheduledExecutorService, DataSerializer<T> dataSerializer,
+                                boolean batchEnabled){
         this(managedLedger, orderedExecutor, scheduledExecutorService, dataSerializer,
                 512, 1024 * 1024 * 4, 1, batchEnabled);
     }
@@ -113,10 +113,10 @@ public class TxLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback, 
      * @param batchEnabled Enable or disabled the batch feature, will use Managed Ledger directly and without batching
      *                    when disabled.
      */
-    public TxLogBufferedWriter(ManagedLedger managedLedger, OrderedExecutor orderedExecutor,
-                               ScheduledExecutorService scheduledExecutorService, DataSerializer<T> dataSerializer,
-                               int batchedWriteMaxRecords, int batchedWriteMaxSize, int writeMaxDelayInMillis,
-                               boolean batchEnabled){
+    public TxnLogBufferedWriter(ManagedLedger managedLedger, OrderedExecutor orderedExecutor,
+                                ScheduledExecutorService scheduledExecutorService, DataSerializer<T> dataSerializer,
+                                int batchedWriteMaxRecords, int batchedWriteMaxSize, int writeMaxDelayInMillis,
+                                boolean batchEnabled){
         this.batchEnabled = batchEnabled;
         this.managedLedger = managedLedger;
         this.orderedExecutor = orderedExecutor;
@@ -148,10 +148,10 @@ public class TxLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback, 
             managedLedger.asyncAddEntry(byteBuf, DisabledBatchCallback.INSTANCE, Triple.of(byteBuf, callback, ctx));
             return;
         }
-        orderedExecutor.executeOrdered(managedLedger.getName(), () -> asyncAddData0(data, callback, ctx));
+        orderedExecutor.executeOrdered(managedLedger.getName(), () -> internalAsyncAddData(data, callback, ctx));
     }
 
-    private void asyncAddData0(T data, AsyncCallbacks.AddEntryCallback callback, Object ctx){
+    private void internalAsyncAddData(T data, AsyncCallbacks.AddEntryCallback callback, Object ctx){
         // Add data.
         if (this.dataArray == null){
             this.dataArray = new ArrayList<>();
@@ -166,7 +166,7 @@ public class TxLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback, 
         // Calculate bytes-size.
         this.bytesSize += dataSerializer.getSerializedSize(data);
         // trig flush.
-        trigFlush0();
+        doTrigFlush();
     }
 
     /***
@@ -205,10 +205,10 @@ public class TxLogBufferedWriter<T> implements AsyncCallbacks.AddEntryCallback, 
      * Trigger write to bookie once, If the conditions are not met, nothing will be done.
      */
     public void trigFlush(){
-        orderedExecutor.executeOrdered(managedLedger.getName(), this::trigFlush0);
+        orderedExecutor.executeOrdered(managedLedger.getName(), this::doTrigFlush);
     }
 
-    private void trigFlush0(){
+    private void doTrigFlush(){
         if (asyncAddArgsList == null || asyncAddArgsList.isEmpty()) {
             return;
         }

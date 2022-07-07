@@ -47,12 +47,12 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 @Slf4j
-public class TxLogBufferedWriterTest extends MockedBookKeeperTestCase {
+public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
 
     /**
      * Tests all operations from write to callback, including
-     * {@link TxLogBufferedWriter#asyncAddData(Object, AsyncCallbacks.AddEntryCallback, Object)}
-     * {@link TxLogBufferedWriter#trigFlush()}
+     * {@link TxnLogBufferedWriter#asyncAddData(Object, AsyncCallbacks.AddEntryCallback, Object)}
+     * {@link TxnLogBufferedWriter#trigFlush()}
      * and so on.
      */
     @Test
@@ -68,9 +68,9 @@ public class TxLogBufferedWriterTest extends MockedBookKeeperTestCase {
         ArrayList<String> stringBatchedEntryDataList = new ArrayList<>();
         // Holds variable byteBufBatchedEntryDataList just for release.
         ArrayList<ByteBuf> byteBufBatchedEntryDataList = new ArrayList<>();
-        TxLogBufferedWriter txLogBufferedWriter =
-                new TxLogBufferedWriter<ByteBuf>(managedLedger, orderedExecutor, scheduledExecutorService,
-                        new TxLogBufferedWriter.DataSerializer<ByteBuf>(){
+        TxnLogBufferedWriter txnLogBufferedWriter =
+                new TxnLogBufferedWriter<ByteBuf>(managedLedger, orderedExecutor, scheduledExecutorService,
+                        new TxnLogBufferedWriter.DataSerializer<ByteBuf>(){
 
                             @Override
                             public int getSerializedSize(ByteBuf byteBuf) {
@@ -128,7 +128,7 @@ public class TxLogBufferedWriterTest extends MockedBookKeeperTestCase {
             ByteBuf byteBuf = PulsarByteBufAllocator.DEFAULT.buffer(8);
             byteBuf.writeInt(i);
             dataArrayProvided.add(byteBuf);
-            txLogBufferedWriter.asyncAddData(byteBuf, callback, i);
+            txnLogBufferedWriter.asyncAddData(byteBuf, callback, i);
         }
         // Wait for all cmd-write finish.
         Awaitility.await().atMost(20, TimeUnit.SECONDS).until(() -> callbackCtxList.size() == cmdAddExecutedCount);
@@ -150,8 +150,8 @@ public class TxLogBufferedWriterTest extends MockedBookKeeperTestCase {
             ArrayList<Position> innerPositions = callbackPositionIterator.next();
             int batchSize = entryDataArray.length;
             for(int i = 0; i < entryDataArray.length; i++){
-                TxLogBufferedWriter.TxBatchedPositionImpl innerPosition =
-                        (TxLogBufferedWriter.TxBatchedPositionImpl) innerPositions.get(i);
+                TxnLogBufferedWriter.TxBatchedPositionImpl innerPosition =
+                        (TxnLogBufferedWriter.TxBatchedPositionImpl) innerPositions.get(i);
                 Assert.assertEquals(innerPosition.getBatchSize(), batchSize);
                 Assert.assertEquals(innerPosition.getBatchIndex(), i);
             }
@@ -184,7 +184,7 @@ public class TxLogBufferedWriterTest extends MockedBookKeeperTestCase {
         }
         Assert.assertEquals(batchedEntryIndex, stringBatchedEntryDataList.size());
         // cleanup.
-        txLogBufferedWriter.close();
+        txnLogBufferedWriter.close();
         managedLedger.close();
     }
 
@@ -197,9 +197,9 @@ public class TxLogBufferedWriterTest extends MockedBookKeeperTestCase {
         ManagedLedger managedLedger = factory.open("tx_test_ledger");
         ManagedCursor managedCursor = managedLedger.openCursor("tx_test_cursor");
         // Create TxLogBufferedWriter.
-        TxLogBufferedWriter txLogBufferedWriter =
-                new TxLogBufferedWriter<ByteBuf>(managedLedger, null, null,
-                        new TxLogBufferedWriter.DataSerializer<ByteBuf>() {
+        TxnLogBufferedWriter txnLogBufferedWriter =
+                new TxnLogBufferedWriter<ByteBuf>(managedLedger, null, null,
+                        new TxnLogBufferedWriter.DataSerializer<ByteBuf>() {
                             @Override
                             public int getSerializedSize(ByteBuf byteBuf) {
                                 return 0;
@@ -230,7 +230,7 @@ public class TxLogBufferedWriterTest extends MockedBookKeeperTestCase {
         // Async add data
         ByteBuf byteBuf = PulsarByteBufAllocator.DEFAULT.buffer(8);
         byteBuf.writeInt(1);
-        txLogBufferedWriter.asyncAddData(byteBuf, callback, 1);
+        txnLogBufferedWriter.asyncAddData(byteBuf, callback, 1);
         // Wait add finish.
         Triple<Position, ByteBuf, Object> triple = future.get(2, TimeUnit.SECONDS);
         // Assert callback ctx correct.
@@ -245,7 +245,7 @@ public class TxLogBufferedWriterTest extends MockedBookKeeperTestCase {
         Assert.assertEquals(entry.getDataBuffer().readInt(), 1);
         entry.release();
         // cleanup.
-        txLogBufferedWriter.close();
+        txnLogBufferedWriter.close();
         managedLedger.close();
     }
 }
