@@ -52,6 +52,13 @@ jobs:
         with:
           args: site2 deployment .asf.yaml .ci ct.yaml
 
+      - name: Set up JDK 8
+        uses: actions/setup-java@v3
+        if: steps.docs.outputs.changed_only == 'no'
+        with:
+          distribution: 'temurin'
+          java-version: 8
+
       - name: build and run unit tests exclude pulsar-broker and pulsar-proxy
         if: steps.docs.outputs.changed_only == 'no'
         run: ./build/retry.sh mvn -B -ntp install -PbrokerSkipTest -Dexclude="org/apache/pulsar/proxy/**/*.java,**/KafkaProducerSimpleConsumerTest.java,**/ManagedLedgerTest.java,**/TestPulsarKeyValueSchemaHandler.java,**/PrimitiveSchemaTest.java,**/BlobStoreManagedLedgerOffloaderTest.java"
