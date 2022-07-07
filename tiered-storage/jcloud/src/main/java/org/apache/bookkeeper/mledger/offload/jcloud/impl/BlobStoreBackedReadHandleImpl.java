@@ -195,7 +195,7 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
     }
 
     private void seekToEntry(long nextExpectedId) throws IOException {
-        Long knownOffset = entryOffsets.get(nextExpectedId);
+        Long knownOffset = entryOffsets.getIfPresent(nextExpectedId);
         if (knownOffset != null) {
             inputStream.seek(knownOffset);
         } else {
