@@ -1483,6 +1483,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         } else {
             log.info("[{}] Created new ledger {}", name, lh.getId());
             NavigableMap<Long, LedgerInfo> ledgersTmp = new ConcurrentSkipListMap<>(ledgers);
+            ledgersTmp.put(lh.getId(), LedgerInfo.newBuilder().setLedgerId(lh.getId()).setTimestamp(0).build());
             final MetaStoreCallback<Void> cb = new MetaStoreCallback<Void>() {
                 @Override
                 public void operationComplete(Void v, Stat stat) {
@@ -1548,11 +1549,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             updateLedgersListAfterRollover(cb, getManagedLedgerInfo(ledgersTmp));
         }
     }
-
-    private void updateLedgersListAfterRollover(MetaStoreCallback<Void> callback) {
-        updateLedgersListAfterRollover(callback, getManagedLedgerInfo(ledgers));
-    }
-
     private void updateLedgersListAfterRollover(MetaStoreCallback<Void> callback, ManagedLedgerInfo mlInfo) {
         if (!metadataMutex.tryLock()) {
             // Defer update for later
