@@ -2740,53 +2740,50 @@ public class PersistentTopicsBase extends AdminResource {
                 });
     }
 
-    protected CompletableFuture<MessageId> internalGetMessageIdByTimestamp(long timestamp, boolean authoritative) {
-        try {
-            if (topicName.isGlobal()) {
-                validateGlobalNamespaceOwnership(namespaceName);
-            }
-
-            if (!topicName.isPartitioned() && getPartitionedTopicMetadata(topicName,
-                    authoritative, false).partitions > 0) {
-                throw new RestException(Status.METHOD_NOT_ALLOWED,
-                        "Get message ID by timestamp on a partitioned topic is not allowed, "
-                                + "please try do it on specific topic partition");
-            }
-
-            validateTopicOwnership(topicName, authoritative);
-            validateTopicOperation(topicName, TopicOperation.PEEK_MESSAGES);
-
-            Topic topic = getTopicReference(topicName);
-            if (!(topic instanceof PersistentTopic)) {
-                log.error("[{}] Not supported operation of non-persistent topic {} ", clientAppId(), topicName);
-                throw new RestException(Status.METHOD_NOT_ALLOWED,
-                        "Get message ID by timestamp on a non-persistent topic is not allowed");
-            }
-
-            ManagedLedger ledger = ((PersistentTopic) topic).getManagedLedger();
-            return ledger.asyncFindPosition(entry -> {
-                try {
-                    long entryTimestamp = Commands.getEntryTimestamp(entry.getDataBuffer());
-                    return MessageImpl.isEntryPublishedEarlierThan(entryTimestamp, timestamp);
-                } catch (Exception e) {
-                    log.error("[{}] Error deserializing message for message position find", topicName, e);
-                } finally {
-                    entry.release();
-                }
-                return false;
-            }).thenApply(position -> {
-                if (position == null) {
-                    return null;
-                } else {
-                    return new MessageIdImpl(position.getLedgerId(), position.getEntryId(),
-                            topicName.getPartitionIndex());
-                }
-            });
-        } catch (WebApplicationException exception) {
-            return FutureUtil.failedFuture(exception);
-        } catch (Exception exception) {
-            return FutureUtil.failedFuture(new RestException(exception));
+    protected CompletableFuture<MessageId> internalGetMessageIdByTimestampAsync(long timestamp, boolean authoritative) {
+        CompletableFuture<Void> future;
+        if (topicName.isGlobal()) {
+            future = validateGlobalNamespaceOwnershipAsync(namespaceName);
+        } else {
+            future = CompletableFuture.completedFuture(null);
         }
+
+        return future.thenCompose(__ -> getPartitionedTopicMetadataAsync(topicName, authoritative, false))
+            .thenAccept(metadata -> {
+                if (!topicName.isPartitioned() && metadata.partitions > 0) {
+                    throw new RestException(Status.METHOD_NOT_ALLOWED,
+                        "Get message ID by timestamp on a partitioned topic is not allowed, "
+                            + "please try do it on specific topic partition");
+                }
+            }).thenCompose(__ -> validateTopicOwnershipAsync(topicName, authoritative))
+            .thenCompose(__ -> validateTopicOperationAsync(topicName, TopicOperation.PEEK_MESSAGES))
+            .thenCompose(__ -> getTopicReferenceAsync(topicName))
+            .thenCompose(topic -> {
+                if (!(topic instanceof PersistentTopic)) {
+                    log.error("[{}] Not supported operation of non-persistent topic {} ", clientAppId(), topicName);
+                    throw new RestException(Status.METHOD_NOT_ALLOWED,
+                        "Get message ID by timestamp on a non-persistent topic is not allowed");
+                }
+                ManagedLedger ledger = ((PersistentTopic) topic).getManagedLedger();
+                return ledger.asyncFindPosition(entry -> {
+                    try {
+                        long entryTimestamp = Commands.getEntryTimestamp(entry.getDataBuffer());
+                        return MessageImpl.isEntryPublishedEarlierThan(entryTimestamp, timestamp);
+                    } catch (Exception e) {
+                        log.error("[{}] Error deserializing message for message position find", topicName, e);
+                    } finally {
+                        entry.release();
+                    }
+                    return false;
+                }).thenApply(position -> {
+                    if (position == null) {
+                        return null;
+                    } else {
+                        return new MessageIdImpl(position.getLedgerId(), position.getEntryId(),
+                            topicName.getPartitionIndex());
+                    }
+                });
+            });
     }
 
     protected CompletableFuture<Response> internalPeekNthMessageAsync(String subName, int messagePosition,
