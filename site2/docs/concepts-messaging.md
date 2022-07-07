@@ -919,7 +919,7 @@ Apache Pulsar avoids these and other message delivery failures using at-least-on
 To utilize message redelivery, you need to enable this mechanism before the broker can resend the unacknowledged messages in Apache Pulsar client. You can activate the message redelivery mechanism in Apache Pulsar using three methods. 
 
 - [Negative Acknowledgment](#negative-acknowledgment)
-- [acknowledgment Timeout](#acknowledgment-timeout)
+- [Acknowledgment Timeout](#acknowledgment-timeout)
 - [Retry letter topic](#retry-letter-topic)
 
 
