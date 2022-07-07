@@ -1543,13 +1543,13 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 }
             };
 
-            updateLedgersListAfterRollover(cb, getManagedLedgerInfo(newLedger));
+            updateLedgersListAfterRollover(cb, newLedger);
         }
     }
-    private void updateLedgersListAfterRollover(MetaStoreCallback<Void> callback, ManagedLedgerInfo mlInfo) {
+    private void updateLedgersListAfterRollover(MetaStoreCallback<Void> callback, LedgerInfo newLedger) {
         if (!metadataMutex.tryLock()) {
             // Defer update for later
-            scheduledExecutor.schedule(() -> updateLedgersListAfterRollover(callback, mlInfo),
+            scheduledExecutor.schedule(() -> updateLedgersListAfterRollover(callback, newLedger),
                     100, TimeUnit.MILLISECONDS);
             return;
         }
@@ -1557,6 +1557,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         if (log.isDebugEnabled()) {
             log.debug("[{}] Updating ledgers ids with new ledger. version={}", name, ledgersStat);
         }
+        ManagedLedgerInfo mlInfo = getManagedLedgerInfo(newLedger);
         store.asyncUpdateLedgerIds(name, mlInfo, ledgersStat, callback);
     }
 
