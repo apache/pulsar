@@ -735,55 +735,62 @@ public abstract class PulsarWebResource {
     protected CompletableFuture<Void> validateTopicOwnershipAsync(TopicName topicName, boolean authoritative) {
         NamespaceService nsService = pulsar().getNamespaceService();
 
-        LookupOptions options = LookupOptions.builder()
-                .authoritative(authoritative)
-                .requestHttps(isRequestHttps())
-                .readOnly(false)
-                .loadTopicsInBundle(false)
-                .build();
+        return nsService.isServiceUnitOwnedAsync(topicName)
+            .thenCompose(owned -> {
+                if (owned) {
+                    return CompletableFuture.completedFuture(null);
+                } else {
+                    LookupOptions options = LookupOptions.builder()
+                        .authoritative(authoritative)
+                        .requestHttps(isRequestHttps())
+                        .readOnly(false)
+                        .loadTopicsInBundle(false)
+                        .build();
+                    return nsService.getWebServiceUrlAsync(topicName, options)
+                        .thenApply(webUrl -> {
+                            // Ensure we get a url
+                            if (webUrl == null || !webUrl.isPresent()) {
+                                log.info("Unable to get web service url");
+                                throw new RestException(Status.PRECONDITION_FAILED,
+                                    "Failed to find ownership for topic:" + topicName);
+                            }
+                            return webUrl.get();
+                        }).thenCompose(webUrl -> nsService.isServiceUnitOwnedAsync(topicName)
+                            .thenApply(isTopicOwned -> Pair.of(webUrl, isTopicOwned))
+                        ).thenAccept(pair -> {
+                            URL webUrl = pair.getLeft();
+                            boolean isTopicOwned = pair.getRight();
 
-        return nsService.getWebServiceUrlAsync(topicName, options)
-                .thenApply(webUrl -> {
-                    // Ensure we get a url
-                    if (webUrl == null || !webUrl.isPresent()) {
-                        log.info("Unable to get web service url");
-                        throw new RestException(Status.PRECONDITION_FAILED,
-                                "Failed to find ownership for topic:" + topicName);
+                            if (!isTopicOwned) {
+                                boolean newAuthoritative = isLeaderBroker(pulsar());
+                                // Replace the host and port of the current request and redirect
+                                URI redirect = UriBuilder.fromUri(uri.getRequestUri())
+                                    .host(webUrl.getHost())
+                                    .port(webUrl.getPort())
+                                    .replaceQueryParam("authoritative", newAuthoritative)
+                                    .build();
+                                // Redirect
+                                if (log.isDebugEnabled()) {
+                                    log.debug("Redirecting the rest call to {}", redirect);
+                                }
+                                throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
+                            }
+                        });
+                }
+            })
+            .exceptionally(ex -> {
+                if (ex.getCause() instanceof IllegalArgumentException
+                    || ex.getCause() instanceof IllegalStateException) {
+                    if (log.isDebugEnabled()) {
+                        log.debug("Failed to find owner for topic: {}", topicName, ex);
                     }
-                    return webUrl.get();
-                }).thenCompose(webUrl -> nsService.isServiceUnitOwnedAsync(topicName)
-                        .thenApply(isTopicOwned -> Pair.of(webUrl, isTopicOwned))
-                ).thenAccept(pair -> {
-                    URL webUrl = pair.getLeft();
-                    boolean isTopicOwned = pair.getRight();
-
-                    if (!isTopicOwned) {
-                        boolean newAuthoritative = isLeaderBroker(pulsar());
-                        // Replace the host and port of the current request and redirect
-                        URI redirect = UriBuilder.fromUri(uri.getRequestUri())
-                                .host(webUrl.getHost())
-                                .port(webUrl.getPort())
-                                .replaceQueryParam("authoritative", newAuthoritative)
-                                .build();
-                        // Redirect
-                        if (log.isDebugEnabled()) {
-                            log.debug("Redirecting the rest call to {}", redirect);
-                        }
-                        throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
-                    }
-                }).exceptionally(ex -> {
-                    if (ex.getCause() instanceof IllegalArgumentException
-                            || ex.getCause() instanceof IllegalStateException) {
-                        if (log.isDebugEnabled()) {
-                            log.debug("Failed to find owner for topic: {}", topicName, ex);
-                        }
-                        throw new RestException(Status.PRECONDITION_FAILED, "Can't find owner for topic " + topicName);
-                    } else if (ex.getCause() instanceof WebApplicationException) {
-                        throw (WebApplicationException) ex.getCause();
-                    } else {
-                        throw new RestException(ex.getCause());
-                    }
-                });
+                    throw new RestException(Status.PRECONDITION_FAILED, "Can't find owner for topic " + topicName);
+                } else if (ex.getCause() instanceof WebApplicationException) {
+                    throw (WebApplicationException) ex.getCause();
+                } else {
+                    throw new RestException(ex.getCause());
+                }
+            });
     }
 
     /**
