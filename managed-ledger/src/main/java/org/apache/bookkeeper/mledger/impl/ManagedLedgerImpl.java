@@ -127,9 +127,9 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.NestedPositionInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.OffloadContext;
-import org.apache.bookkeeper.mledger.rubbish.RubbishCleanService;
-import org.apache.bookkeeper.mledger.rubbish.RubbishSource;
-import org.apache.bookkeeper.mledger.rubbish.RubbishType;
+import org.apache.bookkeeper.mledger.deletion.LedgerDeletionService;
+import org.apache.bookkeeper.mledger.deletion.LedgerComponent;
+import org.apache.bookkeeper.mledger.deletion.LedgerType;
 import org.apache.bookkeeper.mledger.util.CallbackMutex;
 import org.apache.bookkeeper.mledger.util.Futures;
 import org.apache.bookkeeper.net.BookieId;
@@ -162,7 +162,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     protected ManagedLedgerConfig config;
     protected Map<String, String> propertiesMap;
     protected final MetaStore store;
-    protected final RubbishCleanService rubbishCleanService;
+    protected final LedgerDeletionService ledgerDeletionService;
 
     final ConcurrentLongHashMap<CompletableFuture<ReadHandle>> ledgerCache =
             ConcurrentLongHashMap.<CompletableFuture<ReadHandle>>newBuilder()
@@ -311,12 +311,12 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     public ManagedLedgerImpl(ManagedLedgerFactoryImpl factory, BookKeeper bookKeeper, MetaStore store,
                              ManagedLedgerConfig config, OrderedScheduler scheduledExecutor, final String name,
-                             RubbishCleanService rubbishCleanService) {
-        this(factory, bookKeeper, store, config, scheduledExecutor, name, null, rubbishCleanService);
+                             LedgerDeletionService ledgerDeletionService) {
+        this(factory, bookKeeper, store, config, scheduledExecutor, name, null, ledgerDeletionService);
     }
     public ManagedLedgerImpl(ManagedLedgerFactoryImpl factory, BookKeeper bookKeeper, MetaStore store,
                              ManagedLedgerConfig config, OrderedScheduler scheduledExecutor, final String name,
-                             final Supplier<Boolean> mlOwnershipChecker, RubbishCleanService rubbishCleanService) {
+                             final Supplier<Boolean> mlOwnershipChecker, LedgerDeletionService ledgerDeletionService) {
         this.factory = factory;
         this.bookKeeper = bookKeeper;
         this.config = config;
@@ -349,8 +349,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             this.managedLedgerInterceptor = config.getManagedLedgerInterceptor();
         }
         this.inactiveLedgerRollOverTimeMs = config.getInactiveLedgerRollOverTimeMs();
-        this.rubbishCleanService = rubbishCleanService;
-        this.rubbishCleanService.setUpOffloadConfig(config);
+        this.ledgerDeletionService = ledgerDeletionService;
+        this.ledgerDeletionService.setUpOffloadConfig(config);
     }
 
     synchronized void initialize(final ManagedLedgerInitializeLedgerCallback callback, final Object ctx) {
@@ -2628,7 +2628,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                         ledgersStat = stat;
                         metadataMutex.unlock();
                         trimmerMutex.unlock();
-                        if (rubbishCleanService instanceof RubbishCleanService.RubbishCleanServiceDisable) {
+                        if (ledgerDeletionService instanceof LedgerDeletionService.LedgerDeletionServiceDisable) {
                             for (LedgerInfo ls : ledgersToDelete) {
                                 log.info("[{}] Removing ledger {} - size: {}", name, ls.getLedgerId(), ls.getSize());
                                 asyncDeleteLedger(ls.getLedgerId(), ls);
@@ -2665,13 +2665,13 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                                      Collection<Long> deletableOffloadedLedgerIds) {
         List<CompletableFuture<?>> futures = new ArrayList<>();
         for (Long ledgerId : deletableLedgerIds) {
-            futures.add(rubbishCleanService.appendRubbishLedger(name, ledgerId, null, RubbishSource.MANAGED_LEDGER,
-                    RubbishType.LEDGER, true));
+            futures.add(ledgerDeletionService.appendRubbishLedger(name, ledgerId, null, LedgerComponent.MANAGED_LEDGER,
+                    LedgerType.LEDGER, true));
         }
         for (Long ledgerId : deletableOffloadedLedgerIds) {
             futures.add(
-                    rubbishCleanService.appendRubbishLedger(name, ledgerId, ledgers.get(ledgerId),
-                            RubbishSource.MANAGED_LEDGER, RubbishType.OFFLOAD_LEDGER, true));
+                    ledgerDeletionService.appendRubbishLedger(name, ledgerId, ledgers.get(ledgerId),
+                            LedgerComponent.MANAGED_LEDGER, LedgerType.OFFLOAD_LEDGER, true));
         }
         return FutureUtil.waitForAll(futures);
     }
@@ -2861,7 +2861,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             });
             return;
         }
-        if (rubbishCleanService instanceof RubbishCleanService.RubbishCleanServiceDisable) {
+        if (ledgerDeletionService instanceof LedgerDeletionService.LedgerDeletionServiceDisable) {
             AtomicInteger ledgersToDelete = new AtomicInteger(ledgers.size());
             for (LedgerInfo ls : ledgers) {
                 if (log.isDebugEnabled()) {
@@ -3092,14 +3092,14 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                         log.error("[{}] Failed to offload data for the ledgerId {}",
                                                 name, ledgerId, exception);
                                         //not delete offload ledger, it will delete at next offload.
-                                        if (rubbishCleanService instanceof
-                                                RubbishCleanService.RubbishCleanServiceDisable) {
+                                        if (ledgerDeletionService instanceof
+                                                LedgerDeletionService.LedgerDeletionServiceDisable) {
                                             cleanupOffloaded(ledgerId, uuid, driverName, driverMetadata,
                                                     "Metastore failure");
                                         } else {
-                                            rubbishCleanService.appendRubbishLedger(name, ledgerId,
-                                                            ledgers.get(ledgerId), RubbishSource.MANAGED_LEDGER,
-                                                            RubbishType.OFFLOAD_LEDGER, false)
+                                            ledgerDeletionService.appendRubbishLedger(name, ledgerId,
+                                                            ledgers.get(ledgerId), LedgerComponent.MANAGED_LEDGER,
+                                                            LedgerType.OFFLOAD_LEDGER, false)
                                                     .exceptionally(e -> {
                                                         log.warn("[{}]-{} Failed to append rubbish ledger.",
                                                                 this.name, ledgerId);
@@ -3223,7 +3223,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                 oldInfo.getOffloadContext().getUidLsb());
                         log.info("[{}] Found previous offload attempt for ledger {}, uuid {} old uuid {}"
                                 + ", cleaning up", name, ledgerId, uuid, oldUuid);
-                        if (rubbishCleanService instanceof RubbishCleanService.RubbishCleanServiceDisable) {
+                        if (ledgerDeletionService instanceof LedgerDeletionService.LedgerDeletionServiceDisable) {
                             cleanupOffloaded(
                                     ledgerId,
                                     oldUuid,
@@ -3233,8 +3233,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                             config.getLedgerOffloader().getOffloadDriverMetadata()),
                                     "Previous failed offload");
                         } else {
-                            rubbishCleanService.appendRubbishLedger(name, ledgerId, oldInfo,
-                                    RubbishSource.MANAGED_LEDGER, RubbishType.OFFLOAD_LEDGER, false)
+                            ledgerDeletionService.appendRubbishLedger(name, ledgerId, oldInfo,
+                                    LedgerComponent.MANAGED_LEDGER, LedgerType.OFFLOAD_LEDGER, false)
                                     .exceptionally(e -> {
                                         log.warn("[{}]-{} Failed to append rubbish ledger.", this.name, ledgerId);
                                         return null;
@@ -3914,11 +3914,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             } else {
                 if (rc == BKException.Code.OK) {
                     log.warn("[{}]-{} ledger creation timed-out, deleting ledger", this.name, lh.getId());
-                    if (rubbishCleanService instanceof RubbishCleanService.RubbishCleanServiceDisable) {
+                    if (ledgerDeletionService instanceof LedgerDeletionService.LedgerDeletionServiceDisable) {
                         asyncDeleteLedger(lh.getId(), DEFAULT_LEDGER_DELETE_RETRIES);
                     } else {
-                        rubbishCleanService.appendRubbishLedger(name, lh.getId(), null, RubbishSource.MANAGED_LEDGER,
-                                RubbishType.LEDGER, false).exceptionally(e -> {
+                        ledgerDeletionService.appendRubbishLedger(name, lh.getId(), null, LedgerComponent.MANAGED_LEDGER,
+                                LedgerType.LEDGER, false).exceptionally(e -> {
                             log.warn("[{}]-{} Failed to append rubbish ledger.", this.name, lh.getId());
                             return null;
                         });

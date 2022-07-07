@@ -2518,15 +2518,16 @@ public class ServiceConfiguration implements PulsarConfiguration {
             dynamic = true,
             category = CATEGORY_SERVER,
             doc = "Using two phase deletion when delete ledger. if true, "
-                    + "rubbish clean service will take over ledger deletion. (Default false)"
+                    + "LedgerDeletionService will take over ledger deletion. (Default false)"
     )
     private boolean twoPhaseDeletionEnabled;
 
     @FieldContext(
             category = CATEGORY_SERVER,
-            doc = "Rubbish clean workers."
+            doc = "Ledger deletion parallelism. Create partitioned system topic with this value when "
+                    + "twoPhaseDeletionEnabled is true."
     )
-    private int rubbishCleanWorkers = 4;
+    private int ledgerDeletionParallelismOfTwoPhaseDeletion = 4;
 
     @FieldContext(
             category = CATEGORY_STORAGE_ML,

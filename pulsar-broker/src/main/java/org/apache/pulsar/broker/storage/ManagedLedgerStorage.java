@@ -22,7 +22,7 @@ import io.netty.channel.EventLoopGroup;
 import java.io.IOException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
-import org.apache.bookkeeper.mledger.rubbish.RubbishCleanService;
+import org.apache.bookkeeper.mledger.deletion.LedgerDeletionService;
 import org.apache.bookkeeper.stats.StatsProvider;
 import org.apache.pulsar.broker.BookKeeperClientFactory;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -94,5 +94,5 @@ public interface ManagedLedgerStorage extends AutoCloseable {
         return storage;
     }
 
-    void setUpRubbishCleanService(RubbishCleanService rubbishCleanService);
+    void setUpLedgerDeletionService(LedgerDeletionService ledgerDeletionService);
 }

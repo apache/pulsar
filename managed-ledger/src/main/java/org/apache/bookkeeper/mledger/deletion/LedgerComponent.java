@@ -16,11 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.bookkeeper.mledger.rubbish;
+package org.apache.bookkeeper.mledger.deletion;
 
-public enum RubbishType {
+public enum LedgerComponent {
 
-    LEDGER,
+    MANAGED_LEDGER,
 
-    OFFLOAD_LEDGER
+    MANAGED_CURSOR,
+
+    SCHEMA_STORAGE
 }

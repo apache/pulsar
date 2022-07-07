@@ -34,7 +34,7 @@ public enum EventType {
     TRANSACTION_BUFFER_SNAPSHOT,
 
 
-    RUBBISH_CLEANER
+    LEDGER_DELETION
 
 
 }

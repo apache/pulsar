@@ -21,7 +21,7 @@ package org.apache.pulsar.broker.systopic;
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import org.apache.bookkeeper.mledger.rubbish.RubbishLedger;
+import org.apache.bookkeeper.mledger.deletion.RubbishLedger;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.DeadLetterPolicy;
 import org.apache.pulsar.client.api.Message;
@@ -41,11 +41,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * System topic for rubbish cleaner.
+ * System topic for ledger deletion.
  */
-public class RubbishCleanSystemTopicClient extends SystemTopicClientBase<RubbishLedger> {
+public class LedgerDeletionSystemTopicClient extends SystemTopicClientBase<RubbishLedger> {
 
-    public RubbishCleanSystemTopicClient(PulsarClient client, TopicName topicName) {
+    public LedgerDeletionSystemTopicClient(PulsarClient client, TopicName topicName) {
         super(client, topicName);
     }
 
@@ -59,7 +59,7 @@ public class RubbishCleanSystemTopicClient extends SystemTopicClientBase<Rubbish
                         log.debug("[{}] A new writer is created", topicName);
                     }
                     return CompletableFuture.completedFuture(new RubbishLedgerWriter(producer,
-                            RubbishCleanSystemTopicClient.this));
+                            LedgerDeletionSystemTopicClient.this));
                 });
     }
 
@@ -67,10 +67,10 @@ public class RubbishCleanSystemTopicClient extends SystemTopicClientBase<Rubbish
     protected CompletableFuture<Reader<RubbishLedger>> newReaderAsyncInternal() {
         return client.newConsumer(Schema.AVRO(RubbishLedger.class))
                 .topic(topicName.toString())
-                .subscriptionName("rubbish-cleaner-worker")
+                .subscriptionName("ledger-deletion-worker")
                 .subscriptionType(SubscriptionType.Shared)
                 .deadLetterPolicy(DeadLetterPolicy.builder()
-                        .deadLetterTopic(SystemTopicNames.RUBBISH_CLEANER_ARCHIVE_TOPIC.getPartitionedTopicName())
+                        .deadLetterTopic(SystemTopicNames.LEDGER_DELETION_ARCHIVE_TOPIC.getPartitionedTopicName())
                         .maxRedeliverCount(10).build())
                 .subscribeAsync()
                 .thenCompose(consumer -> {
@@ -78,7 +78,7 @@ public class RubbishCleanSystemTopicClient extends SystemTopicClientBase<Rubbish
                         log.debug("[{}] A new reader is created", topicName);
                     }
                     return CompletableFuture.completedFuture(new RubbishLedgerReader(consumer,
-                            RubbishCleanSystemTopicClient.this));
+                            LedgerDeletionSystemTopicClient.this));
                 });
     }
 
@@ -131,11 +131,11 @@ public class RubbishCleanSystemTopicClient extends SystemTopicClientBase<Rubbish
     public static class RubbishLedgerReader implements Reader<RubbishLedger> {
 
         private final Consumer<RubbishLedger> consumer;
-        private final RubbishCleanSystemTopicClient systemTopic;
+        private final LedgerDeletionSystemTopicClient systemTopic;
         private final int reconsumeLaterMin = 10;
 
         private RubbishLedgerReader(Consumer<RubbishLedger> consumer,
-                                    RubbishCleanSystemTopicClient systemTopic) {
+                                    LedgerDeletionSystemTopicClient systemTopic) {
             this.consumer = consumer;
             this.systemTopic = systemTopic;
         }
@@ -200,5 +200,5 @@ public class RubbishCleanSystemTopicClient extends SystemTopicClientBase<Rubbish
         }
     }
 
-    private static final Logger log = LoggerFactory.getLogger(RubbishCleanSystemTopicClient.class);
+    private static final Logger log = LoggerFactory.getLogger(LedgerDeletionSystemTopicClient.class);
 }

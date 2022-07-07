@@ -25,7 +25,6 @@ import java.util.concurrent.Executors;
 import org.apache.bookkeeper.client.PulsarMockBookKeeper;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
-import org.apache.bookkeeper.mledger.rubbish.RubbishCleanService;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;

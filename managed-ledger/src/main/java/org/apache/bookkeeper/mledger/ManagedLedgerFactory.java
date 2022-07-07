@@ -27,7 +27,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.ManagedLedgerInfoCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenLedgerCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenReadOnlyCursorCallback;
 import org.apache.bookkeeper.mledger.impl.cache.EntryCacheManager;
-import org.apache.bookkeeper.mledger.rubbish.RubbishCleanService;
+import org.apache.bookkeeper.mledger.deletion.LedgerDeletionService;
 
 /**
  * A factory to open/create managed ledgers and delete them.
@@ -198,6 +198,6 @@ public interface ManagedLedgerFactory {
      * */
     long getCacheEvictionTimeThreshold();
 
-    void setUpRubbishCleanService(RubbishCleanService rubbishCleanService);
+    void setUpLedgerDeletionService(LedgerDeletionService ledgerDeletionService);
 
 }

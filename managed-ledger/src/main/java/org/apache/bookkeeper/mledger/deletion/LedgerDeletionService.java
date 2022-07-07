@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.bookkeeper.mledger.rubbish;
+package org.apache.bookkeeper.mledger.deletion;
 
 import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
@@ -24,7 +24,7 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.Ledge
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.PulsarClientException;
 
-public interface RubbishCleanService {
+public interface LedgerDeletionService {
 
     /**
      *
@@ -32,8 +32,8 @@ public interface RubbishCleanService {
     void start() throws PulsarClientException, PulsarAdminException;
 
 
-    CompletableFuture<?> appendRubbishLedger(String topicName, long ledgerId, LedgerInfo context, RubbishSource source,
-                                             RubbishType type, boolean checkLedgerStillInUse);
+    CompletableFuture<?> appendRubbishLedger(String topicName, long ledgerId, LedgerInfo context, LedgerComponent source,
+                                             LedgerType type, boolean checkLedgerStillInUse);
 
     void close() throws Exception;
 
@@ -46,7 +46,7 @@ public interface RubbishCleanService {
 
     void setUpOffloadConfig(ManagedLedgerConfig managedLedgerConfig);
 
-    class RubbishCleanServiceDisable implements RubbishCleanService {
+    class LedgerDeletionServiceDisable implements LedgerDeletionService {
 
         @Override
         public void start() {
@@ -57,7 +57,7 @@ public interface RubbishCleanService {
 
         @Override
         public CompletableFuture<?> appendRubbishLedger(String topicName, long ledgerId, LedgerInfo context,
-                                                        RubbishSource source, RubbishType type,
+                                                        LedgerComponent source, LedgerType type,
                                                         boolean checkLedgerStillInUse) {
             return COMPLETABLE_FUTURE;
         }

@@ -34,8 +34,7 @@ import org.apache.bookkeeper.mledger.ReadOnlyCursor;
 import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
-import org.apache.bookkeeper.mledger.rubbish.RubbishCleanService;
-import org.apache.pulsar.metadata.api.MetadataStore;
+import org.apache.bookkeeper.mledger.deletion.LedgerDeletionService;
 import org.apache.pulsar.metadata.api.Stat;
 
 @Slf4j
@@ -43,8 +42,8 @@ public class ReadOnlyManagedLedgerImpl extends ManagedLedgerImpl {
 
     public ReadOnlyManagedLedgerImpl(ManagedLedgerFactoryImpl factory, BookKeeper bookKeeper, MetaStore store,
                                      ManagedLedgerConfig config, OrderedScheduler scheduledExecutor,
-                                     String name, RubbishCleanService rubbishCleanService) {
-        super(factory, bookKeeper, store, config, scheduledExecutor, name, rubbishCleanService);
+                                     String name, LedgerDeletionService ledgerDeletionService) {
+        super(factory, bookKeeper, store, config, scheduledExecutor, name, ledgerDeletionService);
     }
 
     CompletableFuture<ReadOnlyCursor> initializeAndCreateCursor(PositionImpl startPosition) {

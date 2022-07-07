@@ -51,11 +51,11 @@ public class NamespaceEventsSystemTopicFactory {
         return new TransactionBufferSystemTopicClient(client, topicName, transactionBufferSnapshotService);
     }
 
-    public RubbishCleanSystemTopicClient createRubbishCleanSystemTopicClient(NamespaceName namespaceName) {
+    public LedgerDeletionSystemTopicClient createLedgerDeletionSystemTopicClient(NamespaceName namespaceName) {
         TopicName topicName =
-                TopicName.get(TopicDomain.persistent.value(), namespaceName, SystemTopicNames.RUBBISH_CLEANER);
+                TopicName.get(TopicDomain.persistent.value(), namespaceName, SystemTopicNames.LEDGER_DELETION);
         log.info("Create rubbish cleaner client, topicName: {}", topicName.toString());
-        return new RubbishCleanSystemTopicClient(client, topicName);
+        return new LedgerDeletionSystemTopicClient(client, topicName);
     }
 
     public static TopicName getSystemTopicName(NamespaceName namespaceName, EventType eventType) {
@@ -66,9 +66,9 @@ public class NamespaceEventsSystemTopicFactory {
             case TRANSACTION_BUFFER_SNAPSHOT:
                 return TopicName.get(TopicDomain.persistent.value(), namespaceName,
                         SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT);
-            case RUBBISH_CLEANER:
+            case LEDGER_DELETION:
                     return TopicName.get(TopicDomain.persistent.value(), namespaceName,
-                            SystemTopicNames.RUBBISH_CLEANER);
+                            SystemTopicNames.LEDGER_DELETION);
             default:
                 return null;
         }

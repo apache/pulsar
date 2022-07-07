@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.bookkeeper.mledger.rubbish;
+package org.apache.bookkeeper.mledger.deletion;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -35,14 +35,14 @@ public class RubbishLedger {
     private String topicName;
 
     /**
-     * The rubbish source. managed-ledger, managed-cursor and schema-storage.
+     * The ledger component . managed-ledger, managed-cursor and schema-storage.
      */
-    private RubbishSource rubbishSource;
+    private LedgerComponent ledgerComponent;
 
     /**
-     * The rubbish type. ledger or offload-ledger.
+     * The ledger type. ledger or offload-ledger.
      */
-    private RubbishType rubbishType;
+    private LedgerType ledgerType;
 
     /**
      * ledgerInfo. If ledger, just holds ledgerId. If offload-ledger, holds ledgerId and offload context uuid.
@@ -63,11 +63,11 @@ public class RubbishLedger {
     public RubbishLedger() {
     }
 
-    public RubbishLedger(String topicName, RubbishSource rubbishSource, RubbishType rubbishType,
+    public RubbishLedger(String topicName, LedgerComponent ledgerComponent, LedgerType ledgerType,
                          ManagedLedgerInfo.LedgerInfo ledgerInfo, boolean checkLedgerStillInUse) {
         this.topicName = topicName;
-        this.rubbishSource = rubbishSource;
-        this.rubbishType = rubbishType;
+        this.ledgerComponent = ledgerComponent;
+        this.ledgerType = ledgerType;
         this.ledgerInfo = ledgerInfo;
         this.checkLedgerStillInUse = checkLedgerStillInUse;
     }

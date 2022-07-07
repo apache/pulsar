@@ -74,7 +74,7 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.LongProperty;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedCursorInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.MessageRange;
-import org.apache.bookkeeper.mledger.rubbish.RubbishCleanService;
+import org.apache.bookkeeper.mledger.deletion.LedgerDeletionService;
 import org.apache.bookkeeper.mledger.util.Futures;
 import org.apache.bookkeeper.stats.NullStatsLogger;
 import org.apache.bookkeeper.stats.StatsLogger;
@@ -98,7 +98,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
 
     private final ExecutorService cacheEvictionExecutor;
 
-    private RubbishCleanService rubbishCleanService;
+    private LedgerDeletionService ledgerDeletionService;
 
     @Getter
     protected final ManagedLedgerFactoryMBeanImpl mbean;
@@ -390,7 +390,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                     bookkeeperFactory.get(
                             new EnsemblePlacementPolicyConfig(config.getBookKeeperEnsemblePlacementPolicyClassName(),
                                     config.getBookKeeperEnsemblePlacementPolicyProperties())),
-                    store, config, scheduledExecutor, name, mlOwnershipChecker, rubbishCleanService);
+                    store, config, scheduledExecutor, name, mlOwnershipChecker, ledgerDeletionService);
             PendingInitializeManagedLedger pendingLedger = new PendingInitializeManagedLedger(newledger);
             pendingInitializeLedgers.put(name, pendingLedger);
             newledger.initialize(new ManagedLedgerInitializeLedgerCallback() {
@@ -483,7 +483,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                 bookkeeperFactory
                         .get(new EnsemblePlacementPolicyConfig(config.getBookKeeperEnsemblePlacementPolicyClassName(),
                                 config.getBookKeeperEnsemblePlacementPolicyProperties())),
-                store, config, scheduledExecutor, managedLedgerName, rubbishCleanService);
+                store, config, scheduledExecutor, managedLedgerName, ledgerDeletionService);
 
         roManagedLedger.initializeAndCreateCursor((PositionImpl) startPosition)
                 .thenAccept(roCursor -> callback.openReadOnlyCursorComplete(roCursor, ctx))
@@ -972,8 +972,8 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     }
 
     @Override
-    public void setUpRubbishCleanService(RubbishCleanService rubbishCleanService) {
-        this.rubbishCleanService = rubbishCleanService;
+    public void setUpLedgerDeletionService(LedgerDeletionService ledgerDeletionService) {
+        this.ledgerDeletionService = ledgerDeletionService;
     }
 
     public ManagedLedgerFactoryMXBean getCacheStats() {

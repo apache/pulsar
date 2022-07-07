@@ -78,7 +78,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.impl.NullLedgerOffloader;
 import org.apache.bookkeeper.mledger.offload.Offloaders;
 import org.apache.bookkeeper.mledger.offload.OffloadersCache;
-import org.apache.bookkeeper.mledger.rubbish.RubbishCleanService;
+import org.apache.bookkeeper.mledger.deletion.LedgerDeletionService;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
@@ -104,7 +104,7 @@ import org.apache.pulsar.broker.rest.Topics;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.GracefulExecutorServicesShutdown;
 import org.apache.pulsar.broker.service.SystemTopicBaseTxnBufferSnapshotService;
-import org.apache.pulsar.broker.service.SystemTopicBasedRubbishCleanService;
+import org.apache.pulsar.broker.service.SystemTopicBasedLedgerDeletionService;
 import org.apache.pulsar.broker.service.SystemTopicBasedTopicPoliciesService;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.TopicPoliciesService;
@@ -234,7 +234,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private final Optional<WorkerService> functionWorkerService;
     private ProtocolHandlers protocolHandlers = null;
 
-    private RubbishCleanService rubbishCleanService;
+    private LedgerDeletionService ledgerDeletionService;
 
     private final Consumer<Integer> processTerminator;
     protected final EventLoopGroup ioEventLoopGroup;
@@ -483,9 +483,9 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             // shutdown loadmanager before shutting down the broker
             executorServicesShutdown.shutdown(loadManagerExecutor);
 
-            if (rubbishCleanService != null)  {
-                rubbishCleanService.close();
-                rubbishCleanService = null;
+            if (ledgerDeletionService != null)  {
+                ledgerDeletionService.close();
+                ledgerDeletionService = null;
             }
 
             if (adminClient != null) {
@@ -784,13 +784,13 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             this.topicPoliciesService.start();
 
             if (config.isTwoPhaseDeletionEnabled() && config.isTopicLevelPoliciesEnabled()) {
-                this.rubbishCleanService = new SystemTopicBasedRubbishCleanService(getClient(), getAdminClient(),
-                        getBookKeeperClient(), config.getRubbishCleanWorkers());
+                this.ledgerDeletionService = new SystemTopicBasedLedgerDeletionService(getClient(), getAdminClient(),
+                        getBookKeeperClient(), config.getLedgerDeletionParallelismOfTwoPhaseDeletion());
             } else {
-                this.rubbishCleanService = new RubbishCleanService.RubbishCleanServiceDisable();
+                this.ledgerDeletionService = new LedgerDeletionService.LedgerDeletionServiceDisable();
             }
-            this.managedLedgerClientFactory.setUpRubbishCleanService(this.rubbishCleanService);
-            this.rubbishCleanService.start();
+            this.managedLedgerClientFactory.setUpLedgerDeletionService(this.ledgerDeletionService);
+            this.ledgerDeletionService.start();
 
 
             // Start the leader election service

@@ -31,7 +31,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl.BookkeeperFactoryForCustomEnsemblePlacementPolicy;
-import org.apache.bookkeeper.mledger.rubbish.RubbishCleanService;
+import org.apache.bookkeeper.mledger.deletion.LedgerDeletionService;
 import org.apache.bookkeeper.stats.NullStatsProvider;
 import org.apache.bookkeeper.stats.StatsLogger;
 import org.apache.bookkeeper.stats.StatsProvider;
@@ -172,7 +172,7 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
     }
 
     @Override
-    public void setUpRubbishCleanService(RubbishCleanService rubbishCleanService) {
-        this.managedLedgerFactory.setUpRubbishCleanService(rubbishCleanService);
+    public void setUpLedgerDeletionService(LedgerDeletionService ledgerDeletionService) {
+        this.managedLedgerFactory.setUpLedgerDeletionService(ledgerDeletionService);
     }
 }
