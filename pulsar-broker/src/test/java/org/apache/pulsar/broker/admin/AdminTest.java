@@ -792,16 +792,21 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
 
         AsyncResponse response = mock(AsyncResponse.class);
         persistentTopics.getList(response, property, cluster, namespace, null);
-        verify(response, times(1)).resume(Lists.newArrayList());
+        verify(response, timeout(5000).times(1)).resume(Lists.newArrayList());
         // create topic
-        assertEquals(persistentTopics.getPartitionedTopicList(property, cluster, namespace), Lists.newArrayList());
+        response = mock(AsyncResponse.class);
+        persistentTopics.getPartitionedTopicList(response, property, cluster, namespace);
+        verify(response, timeout(5000).times(1)).resume(Lists.newArrayList());
         response = mock(AsyncResponse.class);
         ArgumentCaptor<Response> responseCaptor = ArgumentCaptor.forClass(Response.class);
         persistentTopics.createPartitionedTopic(response, property, cluster, namespace, topic, 5, false);
         verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
         assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
-        assertEquals(persistentTopics.getPartitionedTopicList(property, cluster, namespace), Lists
-                .newArrayList(String.format("persistent://%s/%s/%s/%s", property, cluster, namespace, topic)));
+        response = mock(AsyncResponse.class);
+        persistentTopics.getPartitionedTopicList(response, property, cluster, namespace);
+        verify(response, timeout(5000).times(1))
+                .resume(Lists
+                        .newArrayList(String.format("persistent://%s/%s/%s/%s", property, cluster, namespace, topic)));
 
         TopicName topicName = TopicName.get("persistent", property, cluster, namespace, topic);
         assertEquals(persistentTopics.getPartitionedTopicMetadata(topicName, true, false).partitions, 5);

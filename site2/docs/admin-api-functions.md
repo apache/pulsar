@@ -32,7 +32,7 @@ Method | Description
 ---|---
 **Admin CLI** | The `functions` command of the [`pulsar-admin`](/tools/pulsar-admin/) tool.
 **REST API** |The `/admin/v3/functions` endpoint of the admin {@inject: rest:REST:/} API.
-**Java Admin API**| The `functions` method of the `PulsarAdmin` object in the [Java API](client-libraries-java).
+**Java Admin API**| The `functions` method of the `PulsarAdmin` object in the [Java API](client-libraries-java.md).
 
 ## Function resources
 

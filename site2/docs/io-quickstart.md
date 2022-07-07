@@ -6,7 +6,7 @@ sidebar_label: "Get started"
 
 This tutorial provides a hands-on look at how you can move data out of Pulsar without writing a single line of code.  
 
-It is helpful to review the [concepts](io-overview) for Pulsar I/O with running the steps in this guide to gain a deeper understanding.   
+It is helpful to review the [concepts](io-overview.md) for Pulsar I/O with running the steps in this guide to gain a deeper understanding.   
 
 At the end of this tutorial, you are able to:
 
@@ -16,7 +16,7 @@ At the end of this tutorial, you are able to:
 
 :::tip
 
-* These instructions assume you are running Pulsar in [standalone mode](getting-started-standalone). However, all
+* These instructions assume you are running Pulsar in [standalone mode](getting-started-standalone.md). However, all
 the commands used in this tutorial can be used in a multi-node Pulsar cluster without any changes.
 * All the instructions are assumed to run at the root directory of a Pulsar binary distribution.
 

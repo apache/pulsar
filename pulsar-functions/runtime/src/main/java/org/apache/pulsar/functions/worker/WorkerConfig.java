@@ -242,7 +242,7 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
     private Boolean validateConnectorConfig = false;
     @FieldContext(
         category = CATEGORY_FUNCTIONS,
-        doc = "Should the builtin sources/sinks be uploaded for the externally managed runtimes?"
+        doc = "Should the builtin sources/sinks/functions be uploaded for the externally managed runtimes?"
     )
     private Boolean uploadBuiltinSinksSources = true;
     @FieldContext(

@@ -47,12 +47,6 @@
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-client-admin-original</artifactId>
       <version>${project.version}</version>
-      <exclusions>
-        <exclusion>
-          <groupId>junit</groupId>
-          <artifactId>junit</artifactId>
-        </exclusion>
-      </exclusions>
     </dependency>
     <dependency>
       <groupId>commons-io</groupId>
@@ -71,6 +65,10 @@
     <dependency>
       <groupId>org.asynchttpclient</groupId>
       <artifactId>async-http-client</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.typesafe.netty</groupId>
+      <artifactId>netty-reactive-streams</artifactId>
     </dependency>
     <dependency>
       <groupId>org.apache.commons</groupId>

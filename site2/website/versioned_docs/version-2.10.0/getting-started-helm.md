@@ -13,7 +13,7 @@ This section guides you through every step of installing and running Apache Puls
 - Produce and consume messages using Pulsar clients
 - Monitor Apache Pulsar status with Prometheus and Grafana
 
-For deploying a Pulsar cluster for production usage, read the documentation on [how to configure and install a Pulsar Helm chart](helm-deploy).
+For deploying a Pulsar cluster for production usage, read the documentation on [how to configure and install a Pulsar Helm chart](helm-deploy.md).
 
 ## Prerequisite
 
@@ -29,7 +29,7 @@ For the following steps, step 2 and step 3 are for **developers** and step 4 and
 
 ## Step 0: Prepare a Kubernetes cluster
 
-Before installing a Pulsar Helm chart, you have to create a Kubernetes cluster. You can follow [the instructions](helm-prepare) to prepare a Kubernetes cluster.
+Before installing a Pulsar Helm chart, you have to create a Kubernetes cluster. You can follow [the instructions](helm-prepare.md) to prepare a Kubernetes cluster.
 
 We use [Minikube](https://minikube.sigs.k8s.io/docs/start/) in this quick start guide. To prepare a Kubernetes cluster, follow these steps:
 
@@ -409,7 +409,7 @@ Then you can proceed with the following steps:
 
 ## Step 4: Use Pulsar Manager to manage the cluster
 
-[Pulsar Manager](administration-pulsar-manager) is a web-based GUI management tool for managing and monitoring Pulsar.
+[Pulsar Manager](administration-pulsar-manager.md) is a web-based GUI management tool for managing and monitoring Pulsar.
 
 1. By default, the `Pulsar Manager` is exposed as a separate `LoadBalancer`. You can open the Pulsar Manager UI using the following command:
 
@@ -428,7 +428,7 @@ Then you can proceed with the following steps:
    - Type `http://pulsar-mini-broker:8080` for the field `Service URL` in the popup window.
    - Click `Confirm` button in the popup window.
 
-4. After successfully created an environment, you are redirected to the `tenants` page of that environment. Then you can create `tenants`, `namespaces` and `topics` using the Pulsar Manager.
+4. After successfully creating an environment, you are redirected to the `tenants` page of that environment. Then you can create `tenants`, `namespaces` and `topics` using the Pulsar Manager.
 
 ## Step 5: Use Prometheus and Grafana to monitor cluster
 

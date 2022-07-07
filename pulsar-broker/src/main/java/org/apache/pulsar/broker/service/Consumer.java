@@ -624,10 +624,12 @@ public class Consumer {
     private Consumer getAckOwnerConsumer(long ledgerId, long entryId) {
         Consumer ackOwnerConsumer = this;
         if (Subscription.isIndividualAckMode(subType)) {
-            for (Consumer consumer : subscription.getConsumers()) {
-                if (consumer != this && consumer.getPendingAcks().containsKey(ledgerId, entryId)) {
-                    ackOwnerConsumer = consumer;
-                    break;
+            if (!getPendingAcks().containsKey(ledgerId, entryId)) {
+                for (Consumer consumer : subscription.getConsumers()) {
+                    if (consumer != this && consumer.getPendingAcks().containsKey(ledgerId, entryId)) {
+                        ackOwnerConsumer = consumer;
+                        break;
+                    }
                 }
             }
         }
@@ -794,6 +796,14 @@ public class Consumer {
             stats.readPositionWhenJoining = readPositionWhenJoining.toString();
         }
         return stats;
+    }
+
+    public long getMsgOutCounter() {
+        return msgOutCounter.longValue();
+    }
+
+    public long getBytesOutCounter() {
+        return bytesOutCounter.longValue();
     }
 
     public int getUnackedMessages() {

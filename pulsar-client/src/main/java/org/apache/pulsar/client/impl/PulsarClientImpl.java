@@ -77,6 +77,7 @@ import org.apache.pulsar.client.impl.schema.generic.MultiVersionSchemaInfoProvid
 import org.apache.pulsar.client.impl.transaction.TransactionBuilderImpl;
 import org.apache.pulsar.client.impl.transaction.TransactionCoordinatorClientImpl;
 import org.apache.pulsar.client.util.ExecutorProvider;
+import org.apache.pulsar.client.util.ScheduledExecutorProvider;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace.Mode;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
@@ -101,6 +102,8 @@ public class PulsarClientImpl implements PulsarClient {
 
     protected final ClientConfigurationData conf;
     private final boolean createdExecutorProviders;
+
+    private final boolean createdScheduledProviders;
     private LookupService lookup;
     private final ConnectionPool cnxPool;
     @Getter
@@ -108,6 +111,8 @@ public class PulsarClientImpl implements PulsarClient {
     private boolean needStopTimer;
     private final ExecutorProvider externalExecutorProvider;
     private final ExecutorProvider internalExecutorProvider;
+
+    private final ScheduledExecutorProvider scheduledExecutorProvider;
     private final boolean createdEventLoopGroup;
     private final boolean createdCnxPool;
 
@@ -122,6 +127,7 @@ public class PulsarClientImpl implements PulsarClient {
 
     private final AtomicLong producerIdGenerator = new AtomicLong();
     private final AtomicLong consumerIdGenerator = new AtomicLong();
+    private final AtomicLong topicListWatcherIdGenerator = new AtomicLong();
     private final AtomicLong requestIdGenerator =
             new AtomicLong(ThreadLocalRandom.current().nextLong(0, Long.MAX_VALUE / 2));
 
@@ -145,28 +151,29 @@ public class PulsarClientImpl implements PulsarClient {
     private TransactionCoordinatorClientImpl tcClient;
 
     public PulsarClientImpl(ClientConfigurationData conf) throws PulsarClientException {
-        this(conf, null, null, null, null, null);
+        this(conf, null, null, null, null, null, null);
     }
 
     public PulsarClientImpl(ClientConfigurationData conf, EventLoopGroup eventLoopGroup) throws PulsarClientException {
-        this(conf, eventLoopGroup, null, null, null, null);
+        this(conf, eventLoopGroup, null, null, null, null, null);
     }
 
     public PulsarClientImpl(ClientConfigurationData conf, EventLoopGroup eventLoopGroup, ConnectionPool cnxPool)
             throws PulsarClientException {
-        this(conf, eventLoopGroup, cnxPool, null, null, null);
+        this(conf, eventLoopGroup, cnxPool, null, null, null, null);
     }
 
     public PulsarClientImpl(ClientConfigurationData conf, EventLoopGroup eventLoopGroup, ConnectionPool cnxPool,
                             Timer timer)
             throws PulsarClientException {
-        this(conf, eventLoopGroup, cnxPool, timer, null, null);
+        this(conf, eventLoopGroup, cnxPool, timer, null, null, null);
     }
 
     @Builder(builderClassName = "PulsarClientImplBuilder")
     private PulsarClientImpl(ClientConfigurationData conf, EventLoopGroup eventLoopGroup, ConnectionPool connectionPool,
                              Timer timer, ExecutorProvider externalExecutorProvider,
-                             ExecutorProvider internalExecutorProvider) throws PulsarClientException {
+                             ExecutorProvider internalExecutorProvider,
+                             ScheduledExecutorProvider scheduledExecutorProvider) throws PulsarClientException {
         EventLoopGroup eventLoopGroupReference = null;
         ConnectionPool connectionPoolReference = null;
         try {
@@ -177,9 +184,10 @@ public class PulsarClientImpl implements PulsarClient {
                         "Both externalExecutorProvider and internalExecutorProvider must be specified or unspecified.");
             }
             this.createdExecutorProviders = externalExecutorProvider == null;
+            this.createdScheduledProviders = scheduledExecutorProvider == null;
             eventLoopGroupReference = eventLoopGroup != null ? eventLoopGroup : getEventLoopGroup(conf);
             this.eventLoopGroup = eventLoopGroupReference;
-            if (conf == null || isBlank(conf.getServiceUrl()) || this.eventLoopGroup == null) {
+            if (conf == null || isBlank(conf.getServiceUrl())) {
                 throw new PulsarClientException.InvalidConfigurationException("Invalid client configuration");
             }
             setAuth(conf);
@@ -193,6 +201,8 @@ public class PulsarClientImpl implements PulsarClient {
                     new ExecutorProvider(conf.getNumListenerThreads(), "pulsar-external-listener");
             this.internalExecutorProvider = internalExecutorProvider != null ? internalExecutorProvider :
                     new ExecutorProvider(conf.getNumIoThreads(), "pulsar-client-internal");
+            this.scheduledExecutorProvider = scheduledExecutorProvider != null ? scheduledExecutorProvider :
+                    new ScheduledExecutorProvider(conf.getNumIoThreads(), "pulsar-client-scheduled");
             if (conf.getServiceUrl().startsWith("http")) {
                 lookup = new HttpLookupService(conf, this.eventLoopGroup);
             } else {
@@ -862,8 +872,8 @@ public class PulsarClientImpl implements PulsarClient {
     }
 
     private void shutdownExecutors() throws PulsarClientException {
+        PulsarClientException pulsarClientException = null;
         if (createdExecutorProviders) {
-            PulsarClientException pulsarClientException = null;
 
             if (externalExecutorProvider != null && !externalExecutorProvider.isShutdown()) {
                 try {
@@ -881,10 +891,17 @@ public class PulsarClientImpl implements PulsarClient {
                     pulsarClientException = PulsarClientException.unwrap(t);
                 }
             }
-
-            if (pulsarClientException != null) {
-                throw pulsarClientException;
+        }
+        if (createdScheduledProviders && scheduledExecutorProvider != null && !scheduledExecutorProvider.isShutdown()) {
+            try {
+                externalExecutorProvider.shutdownNow();
+            } catch (Throwable t) {
+                log.warn("Failed to shutdown scheduledExecutorProvider", t);
+                pulsarClientException = PulsarClientException.unwrap(t);
             }
+        }
+        if (pulsarClientException != null) {
+            throw pulsarClientException;
         }
     }
 
@@ -929,6 +946,11 @@ public class PulsarClientImpl implements PulsarClient {
                 .thenCompose(pair -> getConnection(pair.getLeft(), pair.getRight()));
     }
 
+    public CompletableFuture<ClientCnx> getConnectionToServiceUrl() {
+        InetSocketAddress address = lookup.resolveHost();
+        return getConnection(address, address);
+    }
+
     public CompletableFuture<ClientCnx> getConnection(final InetSocketAddress logicalAddress,
                                                       final InetSocketAddress physicalAddress) {
         return cnxPool.getConnection(logicalAddress, physicalAddress);
@@ -949,6 +971,10 @@ public class PulsarClientImpl implements PulsarClient {
 
     long newConsumerId() {
         return consumerIdGenerator.getAndIncrement();
+    }
+
+    long newTopicListWatcherId() {
+        return topicListWatcherIdGenerator.getAndIncrement();
     }
 
     public long newRequestId() {
@@ -1020,7 +1046,7 @@ public class PulsarClientImpl implements PulsarClient {
             }
             previousExceptions.add(e);
 
-            ((ScheduledExecutorService) externalExecutorProvider.getExecutor()).schedule(() -> {
+            ((ScheduledExecutorService) scheduledExecutorProvider.getExecutor()).schedule(() -> {
                 log.warn("[topic: {}] Could not get connection while getPartitionedTopicMetadata -- "
                         + "Will try again in {} ms", topicName, nextDelay);
                 remainingTime.addAndGet(-nextDelay);
@@ -1142,6 +1168,11 @@ public class PulsarClientImpl implements PulsarClient {
     public ExecutorService getInternalExecutorService() {
         return internalExecutorProvider.getExecutor();
     }
+
+    public ScheduledExecutorProvider getScheduledExecutorProvider() {
+        return scheduledExecutorProvider;
+    }
+
     //
     // Transaction related API
     //

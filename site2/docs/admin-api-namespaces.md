@@ -26,7 +26,7 @@ Namespaces can be managed via:
 
 * The `namespaces` command of the [`pulsar-admin`](/tools/pulsar-admin/) tool
 * The `/admin/v2/namespaces` endpoint of the admin {@inject: rest:REST:/} API
-* The `namespaces` method of the `PulsarAdmin` object in the [Java API](client-libraries-java)
+* The `namespaces` method of the `PulsarAdmin` object in the [Java API](client-libraries-java.md)
 
 ## Namespaces resources
 
@@ -1354,7 +1354,7 @@ admin.namespaces().removeDeduplicationSnapshotInterval(namespace)
 
 ### Namespace isolation
 
-You can use the [Pulsar isolation policy](administration-isolation) to allocate resources (broker and bookie) for a namespace. 
+You can use the [Pulsar isolation policy](administration-isolation.md) to allocate resources (broker and bookie) for a namespace. 
 
 ### Unload namespaces from a broker
 

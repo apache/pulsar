@@ -1279,5 +1279,13 @@ class SchemaTest(TestCase):
         self.assertTrue(b'_default' not in b)
         self.assertTrue(b'_required' not in b)
         self.assertTrue(b'_required_default' not in b)
+
+    def test_schema_array_wrong_type(self):
+        class SomeSchema(Record):
+            some_field = Array(Integer(), required=False, default=[])
+        # descriptive error message
+        with self.assertRaises(TypeError) as e:
+            SomeSchema(some_field=["not", "integer"])
+        self.assertEqual(str(e.exception), "Array field some_field items should all be of type int")
 if __name__ == '__main__':
     main()
