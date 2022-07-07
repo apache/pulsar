@@ -24,8 +24,6 @@ on:
     types:
       - opened
       - edited
-      - labeled
-      - unlabeled
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
