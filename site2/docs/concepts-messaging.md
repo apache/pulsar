@@ -294,7 +294,7 @@ If batching is enabled, all messages in one batch are redelivered to the consume
 
 :::
 
-### acknowledgment timeout
+### Acknowledgment timeout
 
 The acknowledgment timeout mechanism allows you to set a time range during which the client tracks the unacknowledged messages. After this acknowledgment timeout (`ackTimeout`) period, the client sends `redeliver unacknowledged messages` request to the broker, thus the broker resends the unacknowledged messages to the consumer.
 
