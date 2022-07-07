@@ -18,12 +18,12 @@
  */
 package org.apache.pulsar.tests.integration.cli;
 
+import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.pulsar.tests.TestRetrySupport;
 import org.apache.pulsar.tests.integration.containers.BrokerContainer;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
-import org.testcontainers.shaded.org.apache.commons.lang.RandomStringUtils;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;

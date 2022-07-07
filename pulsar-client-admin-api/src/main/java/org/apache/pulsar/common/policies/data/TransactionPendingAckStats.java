@@ -18,8 +18,24 @@
  */
 package org.apache.pulsar.common.policies.data;
 
+import java.util.Map;
+
 public class TransactionPendingAckStats {
 
     /** The state of this pending ack. */
     public String state;
+
+    /**
+     * (Optional) The lowWaterMark details of the transaction pending ack.
+     */
+    public Map<Long, Long> lowWaterMarks;
+
+    /**
+     * The total number of ongoing transactions in this transaction pending ack.
+     */
+    public long ongoingTxnSize;
+    //Start timestamp of  transaction pendingAck recovery. 0L means no startup.
+    public long recoverStartTime;
+    //End timestamp of transaction pendingAck recovery. 0L means no startup.
+    public long recoverEndTime;
 }

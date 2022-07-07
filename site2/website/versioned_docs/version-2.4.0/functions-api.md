@@ -127,7 +127,7 @@ Both the [Java](#java-sdk-functions) and [Python](#python-sdk-functions) SDKs pr
 * The version of the function
 * The [logger object](functions-overview.md#logging) used by the function, which can be used to create function log messages
 * Access to arbitrary [user config](#user-config) values supplied via the CLI
-* An interface for recording [metrics](functions-metrics)
+* An interface for recording [metrics](functions-metrics.md)
 * An interface for storing and retrieving state in [state storage](functions-overview.md#state-storage)
 * A function to publish new messages onto arbitrary topics.
 * A function to acknowledge the message being processed (if auto-acknowledgement is disabled).

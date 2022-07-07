@@ -339,9 +339,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         this.maximumRolloverTimeMs = getMaximumRolloverTimeMs(config);
         this.mlOwnershipChecker = mlOwnershipChecker;
         this.propertiesMap = Maps.newHashMap();
-        if (config.getManagedLedgerInterceptor() != null) {
-            this.managedLedgerInterceptor = config.getManagedLedgerInterceptor();
-        }
         this.inactiveLedgerRollOverTimeMs = config.getInactiveLedgerRollOverTimeMs();
     }
 
@@ -1206,6 +1203,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 } catch (IOException e) {
                     log.error("Error deserializing message for message position {}", nextPos, e);
                     future.completeExceptionally(e);
+                } finally {
+                    entry.release();
                 }
             }
 
@@ -3749,8 +3748,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             }
         }
         createdLedgerCustomMetadata = finalMetadata;
-        log.info("[{}] Creating ledger, metadata: {} - metadata ops timeout : {} seconds",
-            name, finalMetadata, config.getMetadataOperationsTimeoutSeconds());
+
         try {
             bookKeeper.asyncCreateLedger(config.getEnsembleSize(), config.getWriteQuorumSize(),
                     config.getAckQuorumSize(), digestType, config.getPassword(), cb, ledgerCreated, finalMetadata);

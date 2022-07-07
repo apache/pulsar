@@ -53,7 +53,7 @@ The default size of a message is 5 MB. You can configure the max size of a messa
   
   ```
 
-> For more information on Pulsar messages, see Pulsar [binary protocol](developing-binary-protocol).
+> For more information on Pulsar messages, see Pulsar [binary protocol](developing-binary-protocol.md).
 
 ## Producers
 
@@ -102,7 +102,7 @@ You can compress messages published by producers during transportation. Pulsar c
 
 When batching is enabled, the producer accumulates and sends a batch of messages in a single request. The batch size is defined by the maximum number of messages and the maximum publish latency. Therefore, the backlog size represents the total number of batches instead of the total number of messages.
 
-In Pulsar, batches are tracked and stored as single units rather than as individual messages. Consumer unbundles a batch into individual messages. However, scheduled messages (configured through the `deliverAt` or the `deliverAfter` parameter) are always sent as individual messages even batching is enabled.
+In Pulsar, batches are tracked and stored as single units rather than as individual messages. Consumers unbundle a batch into individual messages. However, scheduled messages (configured through the `deliverAt` or the `deliverAfter` parameter) are always sent as individual messages even when batching is enabled.
 
 In general, a batch is acknowledged when all of its messages are acknowledged by a consumer. It means that when **not all** batch messages are acknowledged, then unexpected failures, negative acknowledgements, or acknowledgement timeouts can result in a redelivery of all messages in this batch.
 
@@ -172,7 +172,7 @@ Messages are received from [brokers](reference-terminology.md#broker) either syn
 
 ### Listeners
 
-Client libraries provide listener implementation for consumers. For example, the [Java client](client-libraries-java) provides a {@inject: javadoc:MesssageListener:/client/org/apache/pulsar/client/api/MessageListener} interface. In this interface, the `received` method is called whenever a new message is received.
+Client libraries provide listener implementation for consumers. For example, the [Java client](client-libraries-java.md) provides a {@inject: javadoc:MesssageListener:/client/org/apache/pulsar/client/api/MessageListener} interface. In this interface, the `received` method is called whenever a new message is received.
 
 ### Acknowledgement
 
@@ -254,6 +254,7 @@ Consumer<byte[]> consumer = pulsarClient.newConsumer()
         .negativeAckRedeliveryBackoff(MultiplierRedeliveryBackoff.builder()
             .minDelayMs(1000)
             .maxDelayMs(60 * 1000)
+            .multiplier(2)
             .build())
         .subscribe();
 
@@ -263,14 +264,15 @@ The message redelivery behavior should be as follows.
 
 Redelivery count | Redelivery delay
 :--------------------|:-----------
-1 | 10 + 1 seconds
-2 | 10 + 2 seconds
-3 | 10 + 4 seconds
-4 | 10 + 8 seconds
-5 | 10 + 16 seconds
-6 | 10 + 32 seconds
-7 | 10 + 60 seconds
-8 | 10 + 60 seconds
+1 | 1 seconds
+2 | 2 seconds
+3 | 4 seconds
+4 | 8 seconds
+5 | 16 seconds
+6 | 32 seconds
+7 | 60 seconds
+8 | 60 seconds
+
 :::note
 
 If batching is enabled, all messages in one batch are redelivered to the consumer.
@@ -293,8 +295,9 @@ If you want to use redelivery backoff, you can use the following API.
 consumer.ackTimeout(10, TimeUnit.SECOND)
         .ackTimeoutRedeliveryBackoff(MultiplierRedeliveryBackoff.builder()
         .minDelayMs(1000)
-        .maxDelayMs(60000)
-        .multiplier(2).build())
+        .maxDelayMs(60 * 1000)
+        .multiplier(2)
+        .build())
 
 ```
 
@@ -345,7 +348,7 @@ The retry letter topic allows you to store the messages that failed to be consum
 The diagram below illustrates the concept of the retry letter topic.
 ![](/assets/retry-letter-topic.svg)
 
-The intention of using retry letter topic is different from using [delayed message delivery](#delayed-message-delivery), even though both are aiming to consume a message later. Retry letter topic serves failure handling through message redelivery to ensure critical data is not lost, while delayed message delivery is intended to deliver a message with a specified time of delay.
+The intention of using retry letter topic is different from using [delayed message delivery](#delayed-message-delivery), even though both are aiming to consume a message later. Retry letter topic serves failure handling through message redelivery to ensure critical data is not lost, while delayed message delivery is intended to deliver a message with a specified time delay.
 
 By default, automatic retry is disabled. You can set `enableRetry` to `true` to enable automatic retry on the consumer.
 
@@ -437,7 +440,7 @@ consumer.reconsumeLater(msg, customProperties, 3, TimeUnit.SECONDS);
 
 ### Dead letter topic
 
-Dead letter topic allows you to continue message consumption even some messages are not consumed successfully. The messages that are failed to be consumed are stored in a specific topic, which is called dead letter topic. You can decide how to handle the messages in the dead letter topic.
+Dead letter topic allows you to continue message consumption even when some messages are not consumed successfully. The messages that have failed to be consumed are stored in a specific topic, which is called the dead letter topic. You can decide how to handle the messages in the dead letter topic.
 
 Enable dead letter topic in a Java client using the default dead letter topic.
 
@@ -478,7 +481,7 @@ Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
 
 ```
 
-By default, there is no subscription during a DLQ topic creation. Without a just-in-time subscription to the DLQ topic, you may lose messages. To automatically create an initial subscription for the DLQ, you can specify the `initialSubscriptionName` parameter. If this parameter is set but the broker's `allowAutoSubscriptionCreation` is disabled, the DLQ producer will fail to be created.
+By default, there is no subscription during DLQ topic creation. Without a just-in-time subscription to the DLQ topic, you may lose messages. To automatically create an initial subscription for the DLQ, you can specify the `initialSubscriptionName` parameter. If this parameter is set but the broker's `allowAutoSubscriptionCreation` is disabled, the DLQ producer will fail to be created.
 
 ```java
 
@@ -495,7 +498,7 @@ Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
 
 ```
 
-Dead letter topic serves message redelivery, which is triggered by [acknowledgement timeout](#acknowledgement-timeout) or [negative acknowledgement](#negative-acknowledgement) or [retry letter topic](#retry-letter-topic) . 
+Dead letter topic serves message redelivery, which is triggered by [acknowledgement timeout](#acknowledgement-timeout) or [negative acknowledgement](#negative-acknowledgement) or [retry letter topic](#retry-letter-topic). 
 :::note
 
 * Currently, dead letter topic is enabled in Shared and Key_Shared subscription types.
@@ -516,7 +519,7 @@ Topic name component | Description
 :--------------------|:-----------
 `persistent` / `non-persistent` | This identifies the type of topic. Pulsar supports two kind of topics: [persistent](concepts-architecture-overview.md#persistent-storage) and [non-persistent](#non-persistent-topics). The default is persistent, so if you do not specify a type, the topic is persistent. With persistent topics, all messages are durably persisted on disks (if the broker is not standalone, messages are durably persisted on multiple disks), whereas data for non-persistent topics is not persisted to storage disks.
 `tenant`             | The topic tenant within the instance. Tenants are essential to multi-tenancy in Pulsar, and spread across clusters.
-`namespace`          | The administrative unit of the topic, which acts as a grouping mechanism for related topics. Most topic configuration is performed at the [namespace](#namespaces) level. Each tenant has one or multiple namespaces.
+`namespace`          | The administrative unit of the topic, which acts as a grouping mechanism for related topics. Most topic configuration is performed at the [namespace](#namespaces) level. Each tenant has one or more namespaces.
 `topic`              | The final part of the name. Topic names have no special meaning in a Pulsar instance.
 
 > **No need to explicitly create new topics**  
@@ -525,7 +528,7 @@ Topic name component | Description
 
 ## Namespaces
 
-A namespace is a logical nomenclature within a tenant. A tenant creates multiple namespaces via the [admin API](admin-api-namespaces.md#create). For instance, a tenant with different applications can create a separate namespace for each application. A namespace allows the application to create and manage a hierarchy of topics. The topic `my-tenant/app1` is a namespace for the application `app1` for `my-tenant`. You can create any number of [topics](#topics) under the namespace.
+A namespace is a logical nomenclature within a tenant. A tenant creates namespaces via the [admin API](admin-api-namespaces.md#create). For instance, a tenant with different applications can create a separate namespace for each application. A namespace allows the application to create and manage a hierarchy of topics. The topic `my-tenant/app1` is a namespace for the application `app1` for `my-tenant`. You can create any number of [topics](#topics) under the namespace.
 
 ## Subscriptions
 
@@ -582,7 +585,7 @@ In the diagram below, **Consumer-C-1** and **Consumer-C-2** are able to subscrib
 
 #### Key_Shared
 
-In *Key_Shared* type, multiple consumers can attach to the same subscription. Messages are delivered in a distribution across consumers and message with same key or same ordering key are delivered to only one consumer. No matter how many times the message is re-delivered, it is delivered to the same consumer. When a consumer connected or disconnected will cause served consumer change for some key of message.
+In *Key_Shared* type, multiple consumers can attach to the same subscription. Messages are delivered in a distribution across consumers and messages with the same key or same ordering key are delivered to only one consumer. No matter how many times the message is re-delivered, it is delivered to the same consumer. When a consumer connects or disconnects, it causes the served consumer to change some message keys.
 
 ![Key_Shared subscriptions](/assets/pulsar-key-shared-subscriptions.png)
 
@@ -651,15 +654,15 @@ The subscription mode indicates the cursor type.
 - When a consumer of the subscription restarts, it can continue consuming from the last message it consumes.
 
 Subscription mode | Description | Note
-|---|---|---
-`Durable`|The cursor is durable, which retains messages and persists the current position. <br />If a broker restarts from a failure, it can recover the cursor from the persistent storage (BookKeeper), so that messages can continue to be consumed from the last consumed position.|`Durable` is the **default** subscription mode.
-`NonDurable`|The cursor is non-durable. <br />Once a broker stops, the cursor is lost and can never be recovered, so that messages **can not** continue to be consumed from the last consumed position.|Reader’s subscription mode is `NonDurable` in nature and it does not prevent data in a topic from being deleted. Reader’s subscription mode **can not** be changed. 
+:-----------------|:------------|:------------
+`Durable` | The cursor is durable, which retains messages and persists the current position. <br />If a broker restarts from a failure, it can recover the cursor from the persistent storage (BookKeeper), so that messages can continue to be consumed from the last consumed position. | `Durable` is the **default** subscription mode.
+`NonDurable` | The cursor is non-durable. <br />Once a broker stops, the cursor is lost and can never be recovered, so that messages **can not** continue to be consumed from the last consumed position. | Reader’s subscription mode is `NonDurable` in nature and it does not prevent data in a topic from being deleted. Reader’s subscription mode **can not** be changed. 
 
 A [subscription](#subscriptions) can have one or more consumers. When a consumer subscribes to a topic, it must specify the subscription name. A durable subscription and a non-durable subscription can have the same name, they are independent of each other. If a consumer specifies a subscription which does not exist before, the subscription is automatically created.
 
 #### When to use
 
-By default, messages of a topic without any durable subscriptions are marked as deleted. If you want to prevent the messages being marked as deleted, you can create a durable subscription for this topic. In this case, only acknowledged messages are marked as deleted. For more information, see [message retention and expiry](cookbooks-retention-expiry).
+By default, messages of a topic without any durable subscriptions are marked as deleted. If you want to prevent the messages being marked as deleted, you can create a durable subscription for this topic. In this case, only acknowledged messages are marked as deleted. For more information, see [message retention and expiry](cookbooks-retention-expiry.md).
 
 #### How to use
 
@@ -763,7 +766,7 @@ Decisions about routing and subscription modes can be made separately in most ca
 
 There is no difference between partitioned topics and normal topics in terms of how subscription types work, as partitioning only determines what happens between when a message is published by a producer and processed and acknowledged by a consumer.
 
-Partitioned topics need to be explicitly created via the [admin API](admin-api-overview). The number of partitions can be specified when creating the topic.
+Partitioned topics need to be explicitly created via the [admin API](admin-api-overview.md). The number of partitions can be specified when creating the topic.
 
 ### Routing modes
 
@@ -775,7 +778,7 @@ Mode     | Description
 :--------|:------------
 `RoundRobinPartition` | If no key is provided, the producer will publish messages across all partitions in round-robin fashion to achieve maximum throughput. Please note that round-robin is not done per individual message but rather it's set to the same boundary of batching delay, to ensure batching is effective. While if a key is specified on the message, the partitioned producer will hash the key and assign message to a particular partition. This is the default mode. 
 `SinglePartition`     | If no key is provided, the producer will randomly pick one single partition and publish all the messages into that partition. While if a key is specified on the message, the partitioned producer will hash the key and assign message to a particular partition.
-`CustomPartition`     | Use custom message router implementation that will be called to determine the partition for a particular message. User can create a custom routing mode by using the [Java client](client-libraries-java) and implementing the {@inject: javadoc:MessageRouter:/client/org/apache/pulsar/client/api/MessageRouter} interface.
+`CustomPartition`     | Use custom message router implementation that will be called to determine the partition for a particular message. User can create a custom routing mode by using the [Java client](client-libraries-java.md) and implementing the {@inject: javadoc:MessageRouter:/client/org/apache/pulsar/client/api/MessageRouter} interface.
 
 ### Ordering guarantee
 
@@ -812,7 +815,7 @@ non-persistent://tenant/namespace/topic
 
 ```
 
-> For more info on using non-persistent topics, see the [Non-persistent messaging cookbook](cookbooks-non-persistent).
+> For more info on using non-persistent topics, see the [Non-persistent messaging cookbook](cookbooks-non-persistent.md).
 
 In non-persistent topics, brokers immediately deliver messages to all connected subscribers *without persisting them* in [BookKeeper](concepts-architecture-overview.md#persistent-storage). If a subscriber is disconnected, the broker will not be able to deliver those in-transit messages, and subscribers will never be able to receive those messages again. Eliminating the persistent storage step makes messaging on non-persistent topics slightly faster than on persistent topics in some cases, but with the caveat that some core benefits of Pulsar are lost. 
 
@@ -917,7 +920,7 @@ Pulsar has two features, however, that enable you to override this default behav
 * Message **retention** enables you to store messages that have been acknowledged by a consumer
 * Message **expiry** enables you to set a time to live (TTL) for messages that have not yet been acknowledged
 
-> All message retention and expiry is managed at the [namespace](#namespaces) level. For a how-to, see the [Message retention and expiry](cookbooks-retention-expiry) cookbook.
+> All message retention and expiry is managed at the [namespace](#namespaces) level. For a how-to, see the [Message retention and expiry](cookbooks-retention-expiry.md) cookbook.
 
 The diagram below illustrates both concepts:
 
@@ -940,12 +943,12 @@ Message deduplication is disabled in the scenario shown at the top. Here, a prod
 
 In the second scenario at the bottom, the producer publishes message 1, which is received by the broker and persisted, as in the first scenario. When the producer attempts to publish the message again, however, the broker knows that it has already seen message 1 and thus does not persist the message.
 
-> Message deduplication is handled at the namespace level or the topic level. For more instructions, see the [message deduplication cookbook](cookbooks-deduplication).
+> Message deduplication is handled at the namespace level or the topic level. For more instructions, see the [message deduplication cookbook](cookbooks-deduplication.md).
 > You can read the design of Message Deduplication in [PIP-6](https://github.com/aahmed-se/pulsar-wiki/blob/master/PIP-6:-Guaranteed-Message-Deduplication.md)
 
 ### Producer idempotency
 
-The other available approach to message deduplication is to ensure that each message is *only produced once*. This approach is typically called **producer idempotency**. The drawback of this approach is that it defers the work of message deduplication to the application. In Pulsar, this is handled at the [broker](reference-terminology.md#broker) level, so you do not need to modify your Pulsar client code. Instead, you only need to make administrative changes. For details, see [Managing message deduplication](cookbooks-deduplication).
+The other available approach to message deduplication is to ensure that each message is *only produced once*. This approach is typically called **producer idempotency**. The drawback of this approach is that it defers the work of message deduplication to the application. In Pulsar, this is handled at the [broker](reference-terminology.md#broker) level, so you do not need to modify your Pulsar client code. Instead, you only need to make administrative changes. For details, see [Managing message deduplication](cookbooks-deduplication.md).
 
 ### Deduplication and effectively-once semantics
 

@@ -30,6 +30,7 @@ import org.apache.pulsar.common.policies.data.TransactionInPendingAckStats;
 import org.apache.pulsar.common.policies.data.TransactionMetadata;
 import org.apache.pulsar.common.policies.data.TransactionPendingAckInternalStats;
 import org.apache.pulsar.common.policies.data.TransactionPendingAckStats;
+import org.apache.pulsar.common.stats.PositionInPendingAckStats;
 
 public interface Transactions {
 
@@ -121,9 +122,29 @@ public interface Transactions {
      * Get transaction buffer stats.
      *
      * @param topic the topic of getting transaction buffer stats
+     * @param  lowWaterMarks Whether to get information about lowWaterMarks stored in transaction pending ack.
      * @return the future stats of transaction buffer in topic.
      */
-    CompletableFuture<TransactionBufferStats> getTransactionBufferStatsAsync(String topic);
+    CompletableFuture<TransactionBufferStats> getTransactionBufferStatsAsync(String topic, boolean lowWaterMarks);
+
+    /**
+     * Get transaction buffer stats.
+     *
+     * @param topic the topic of getting transaction buffer stats
+     * @return the future stats of transaction buffer in topic.
+     */
+    default CompletableFuture<TransactionBufferStats> getTransactionBufferStatsAsync(String topic) {
+        return getTransactionBufferStatsAsync(topic, false);
+    }
+
+    /**
+     * Get transaction buffer stats.
+     *
+     * @param topic the topic of getting transaction buffer stats
+     * @param  lowWaterMarks Whether to get information about lowWaterMarks stored in transaction buffer.
+     * @return the stats of transaction buffer in topic.
+     */
+    TransactionBufferStats getTransactionBufferStats(String topic, boolean lowWaterMarks) throws PulsarAdminException;
 
     /**
      * Get transaction buffer stats.
@@ -131,7 +152,20 @@ public interface Transactions {
      * @param topic the topic of getting transaction buffer stats
      * @return the stats of transaction buffer in topic.
      */
-    TransactionBufferStats getTransactionBufferStats(String topic) throws PulsarAdminException;
+    default TransactionBufferStats getTransactionBufferStats(String topic) throws PulsarAdminException {
+        return getTransactionBufferStats(topic, false);
+    }
+
+    /**
+     * Get transaction pending ack stats.
+     *
+     * @param topic the topic of this transaction pending ack stats
+     * @param subName the subscription name of this transaction pending ack stats
+     * @param  lowWaterMarks Whether to get information about lowWaterMarks stored in transaction pending ack.
+     * @return the stats of transaction pending ack.
+     */
+    CompletableFuture<TransactionPendingAckStats> getPendingAckStatsAsync(String topic, String subName,
+                                                                          boolean lowWaterMarks);
 
     /**
      * Get transaction pending ack stats.
@@ -140,7 +174,20 @@ public interface Transactions {
      * @param subName the subscription name of this transaction pending ack stats
      * @return the stats of transaction pending ack.
      */
-    CompletableFuture<TransactionPendingAckStats> getPendingAckStatsAsync(String topic, String subName);
+    default CompletableFuture<TransactionPendingAckStats> getPendingAckStatsAsync(String topic, String subName) {
+        return getPendingAckStatsAsync(topic, subName, false);
+    }
+
+    /**
+     * Get transaction pending ack stats.
+     *
+     * @param topic the topic of this transaction pending ack stats
+     * @param subName the subscription name of this transaction pending ack stats
+     * @param  lowWaterMarks Whether to get information about lowWaterMarks stored in transaction pending ack.
+     * @return the stats of transaction pending ack.
+     */
+    TransactionPendingAckStats getPendingAckStats(String topic, String subName, boolean lowWaterMarks)
+            throws PulsarAdminException;
 
     /**
      * Get transaction pending ack stats.
@@ -149,7 +196,9 @@ public interface Transactions {
      * @param subName the subscription name of this transaction pending ack stats
      * @return the stats of transaction pending ack.
      */
-    TransactionPendingAckStats getPendingAckStats(String topic, String subName) throws PulsarAdminException;
+    default TransactionPendingAckStats getPendingAckStats(String topic, String subName) throws PulsarAdminException {
+        return getPendingAckStats(topic, subName, false);
+    }
 
     /**
      * Get slow transactions by coordinator id.
@@ -258,4 +307,30 @@ public interface Transactions {
      */
     CompletableFuture<Void> scaleTransactionCoordinatorsAsync(int replicas);
 
+    /**
+     * Check whether the position is in pending ack stats.
+     *
+     * @param topic the topic of checking position in pending ack state
+     * @param subName the subscription name of this pending ack
+     * @param ledgerId the ledger id of the message position.
+     * @param entryId the entry id of the message position.
+     * @param batchIndex the batch index of the message position, `null` means not batch message.
+     * @return {@link PositionInPendingAckStats} a state identified whether the position state.
+     */
+    PositionInPendingAckStats checkPositionInPendingAckState(String topic, String subName, Long ledgerId, Long entryId,
+                                                             Integer batchIndex) throws PulsarAdminException;
+
+    /**
+     * Check whether the position is in pending ack stats.
+     *
+     * @param topic the topic of checking position in pending ack state
+     * @param subName the subscription name of this pending ack
+     * @param ledgerId the ledger id of the message position.
+     * @param entryId the entry id of the message position.
+     * @param batchIndex the batch index of the message position, `null` means not batch message.
+     * @return {@link PositionInPendingAckStats} a state identified whether the position state.
+     */
+    CompletableFuture<PositionInPendingAckStats> checkPositionInPendingAckStateAsync(String topic, String subName,
+                                                                                     Long ledgerId, Long entryId,
+                                                                                     Integer batchIndex);
 }

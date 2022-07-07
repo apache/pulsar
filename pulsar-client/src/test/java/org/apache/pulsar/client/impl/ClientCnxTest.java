@@ -20,8 +20,10 @@ package org.apache.pulsar.client.impl;
 
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import io.netty.buffer.ByteBuf;
@@ -34,12 +36,16 @@ import java.lang.reflect.Field;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ThreadFactory;
+import java.util.function.Consumer;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.BrokerMetadataException;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.api.proto.CommandCloseConsumer;
 import org.apache.pulsar.common.api.proto.CommandCloseProducer;
+import org.apache.pulsar.common.api.proto.CommandConnected;
 import org.apache.pulsar.common.api.proto.CommandError;
+import org.apache.pulsar.common.api.proto.CommandWatchTopicListSuccess;
+import org.apache.pulsar.common.api.proto.CommandWatchTopicUpdate;
 import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.PulsarHandler;
@@ -190,4 +196,107 @@ public class ClientCnxTest {
 
         eventLoop.shutdownGracefully();
     }
+
+    @Test
+    public void testNoWatchersWhenNoServerSupport() {
+        withConnection("testNoWatchersWhenNoServerSupport", cnx -> {
+            cnx.handleConnected(new CommandConnected()
+                    .setServerVersion("Some old Server")
+                    .setProtocolVersion(1));
+
+            CompletableFuture<CommandWatchTopicListSuccess> result =
+                    cnx.newWatchTopicList(Commands.newWatchTopicList(7, 5, "tenant/ns",
+                            ".*", null), 7);
+            assertTrue(result.isCompletedExceptionally());
+            assertFalse(cnx.getTopicListWatchers().containsKey(5));
+        });
+    }
+
+    @Test
+    public void testCreateWatcher() {
+        withConnection("testCreateWatcher", cnx -> {
+            CommandConnected connected = new CommandConnected()
+                    .setServerVersion("Some strange Server")
+                    .setProtocolVersion(1);
+            connected.setFeatureFlags().setSupportsTopicWatchers(true);
+            cnx.handleConnected(connected);
+
+            CompletableFuture<CommandWatchTopicListSuccess> result =
+                    cnx.newWatchTopicList(Commands.newWatchTopicList(7, 5, "tenant/ns",
+                            ".*", null), 7);
+            verify(cnx.ctx()).writeAndFlush(any(ByteBuf.class));
+            assertFalse(result.isDone());
+
+            CommandWatchTopicListSuccess success = new CommandWatchTopicListSuccess()
+                    .setRequestId(7)
+                    .setWatcherId(5).setTopicsHash("f00");
+            cnx.handleCommandWatchTopicListSuccess(success);
+            assertEquals(result.getNow(null), success);
+        });
+    }
+
+
+
+    @Test
+    public void testUpdateWatcher() {
+        withConnection("testUpdateWatcher", cnx -> {
+            CommandConnected connected = new CommandConnected()
+                    .setServerVersion("Some Strange Server")
+                    .setProtocolVersion(1);
+            connected.setFeatureFlags().setSupportsTopicWatchers(true);
+            cnx.handleConnected(connected);
+
+            cnx.newWatchTopicList(Commands.newWatchTopicList(7, 5, "tenant/ns", ".*", null), 7);
+
+            CommandWatchTopicListSuccess success = new CommandWatchTopicListSuccess()
+                    .setRequestId(7)
+                    .setWatcherId(5).setTopicsHash("f00");
+            cnx.handleCommandWatchTopicListSuccess(success);
+
+            TopicListWatcher watcher = mock(TopicListWatcher.class);
+            cnx.registerTopicListWatcher(5, watcher);
+
+            CommandWatchTopicUpdate update = new CommandWatchTopicUpdate()
+                    .setWatcherId(5)
+                    .setTopicsHash("ADD");
+            update.addNewTopic("persistent://tenant/ns/topic");
+            cnx.handleCommandWatchTopicUpdate(update);
+            verify(watcher).handleCommandWatchTopicUpdate(update);
+        });
+    }
+
+    private void withConnection(String testName, Consumer<ClientCnx> test) {
+        ThreadFactory threadFactory = new DefaultThreadFactory(testName);
+        EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, false, threadFactory);
+        try {
+
+            ClientConfigurationData conf = new ClientConfigurationData();
+            ClientCnx cnx = new ClientCnx(conf, eventLoop);
+
+            ChannelHandlerContext ctx = mock(ChannelHandlerContext.class);
+            Channel channel = mock(Channel.class);
+            when(ctx.channel()).thenReturn(channel);
+
+            ChannelFuture listenerFuture = mock(ChannelFuture.class);
+            when(listenerFuture.addListener(any())).thenReturn(listenerFuture);
+            when(ctx.writeAndFlush(any())).thenReturn(listenerFuture);
+
+            Field ctxField = PulsarHandler.class.getDeclaredField("ctx");
+            ctxField.setAccessible(true);
+            ctxField.set(cnx, ctx);
+
+            // set connection as SentConnectFrame
+            Field cnxField = ClientCnx.class.getDeclaredField("state");
+            cnxField.setAccessible(true);
+            cnxField.set(cnx, ClientCnx.State.SentConnectFrame);
+
+            test.accept(cnx);
+
+        } catch (NoSuchFieldException | IllegalAccessException e) {
+            fail("Error using reflection on ClientCnx", e);
+        } finally {
+            eventLoop.shutdownGracefully();
+        }
+    }
+
 }

@@ -51,7 +51,7 @@ public class ModularLoadManagerStrategyTest {
         brokerDataMap.put("2", brokerData2);
         brokerDataMap.put("3", brokerData3);
         ServiceConfiguration conf = new ServiceConfiguration();
-        ModularLoadManagerStrategy strategy = new LeastLongTermMessageRate(conf);
+        ModularLoadManagerStrategy strategy = new LeastLongTermMessageRate();
         assertEquals(strategy.selectBroker(brokerDataMap.keySet(), bundleData, loadData, conf), Optional.of("1"));
         brokerData1.getTimeAverageData().setLongTermMsgRateIn(400);
         assertEquals(strategy.selectBroker(brokerDataMap.keySet(), bundleData, loadData, conf), Optional.of("2"));

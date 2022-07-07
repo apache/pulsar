@@ -10,7 +10,7 @@ If you want to submit and run functions in cluster mode, you need to package you
 
 Before running a Pulsar function, you need to start Pulsar. 
 
-You can [run a standalone Pulsar in Docker](getting-started-docker), or [run Pulsar in Kubernetes](getting-started-helm). To check whether the Docker image starts, you can use the `docker ps` command.
+You can [run a standalone Pulsar in Docker](getting-started-docker.md), or [run Pulsar in Kubernetes](getting-started-helm.md). To check whether the Docker image starts, you can use the `docker ps` command.
 
 ## Package functions by programming language
 
