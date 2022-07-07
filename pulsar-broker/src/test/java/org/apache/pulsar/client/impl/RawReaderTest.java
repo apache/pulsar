@@ -107,6 +107,34 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    public void testHasMessageAvailable() throws Exception {
+        int numKeys = 10;
+
+        String topic = "persistent://my-property/my-ns/my-raw-topic";
+
+        Set<String> keys = publishMessages(topic, numKeys);
+
+        RawReader reader = RawReader.create(pulsarClient, topic, subscription).get();
+
+        while (true) {
+            boolean hasMsg = reader.hasMessageAvailableAsync().get();
+            if (hasMsg && keys.isEmpty()) {
+                Assert.fail("HasMessageAvailable shows still has message");
+            }
+            if (hasMsg) {
+                try (RawMessage m = reader.readNextAsync().get()) {
+                    Assert.assertTrue(keys.remove(extractKey(m)));
+                }
+            }
+            if (!hasMsg) {
+                break;
+            }
+        }
+
+        Assert.assertTrue(keys.isEmpty());
+    }
+
+    @Test
     public void testRawReader() throws Exception {
         int numKeys = 10;
 
