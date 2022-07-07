@@ -46,6 +46,7 @@ import org.apache.bookkeeper.stats.NullStatsProvider;
 import org.apache.bookkeeper.stats.StatsProvider;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.stats.MetricsDataFlowController;
 import org.apache.pulsar.broker.stats.TimeWindow;
 import org.apache.pulsar.broker.stats.WindowWrap;
 import org.apache.pulsar.broker.stats.metrics.ManagedCursorMetrics;
@@ -114,6 +115,7 @@ public class PrometheusMetricsGenerator {
                                              List<PrometheusRawMetricsProvider> metricsProviders) throws IOException {
         ByteBuf buffer;
         boolean exposeBufferMetrics = pulsar.getConfiguration().isMetricsBufferResponse();
+        int flowPermit = pulsar.getConfiguration().getMetricsDataFlowPermitPerSecond();
 
         if (!exposeBufferMetrics) {
             buffer = generate0(pulsar, includeTopicMetrics, includeConsumerMetrics, includeProducerMetrics,
@@ -149,29 +151,7 @@ public class PrometheusMetricsGenerator {
             log.debug("Current window start {}, current cached buf size {}", window.start(), buffer.readableBytes());
         }
 
-        try {
-            if (out instanceof HttpOutput) {
-                HttpOutput output = (HttpOutput) out;
-                //no mem_copy and memory allocations here
-                ByteBuffer[] buffers = buffer.nioBuffers();
-                for (ByteBuffer buffer0 : buffers) {
-                    output.write(buffer0);
-                }
-            } else {
-                //read data from buffer and write it to output stream, with no more heap buffer(byte[]) allocation.
-                //not modify buffer readIndex/writeIndex here.
-                int readIndex = buffer.readerIndex();
-                int readableBytes = buffer.readableBytes();
-                for (int i = 0; i < readableBytes; i++) {
-                    out.write(buffer.getByte(readIndex + i));
-                }
-            }
-        } finally {
-            if (!exposeBufferMetrics && buffer.refCnt() > 0) {
-                buffer.release();
-                log.debug("Metrics buffer released.");
-            }
-        }
+        writeBuffer(out, buffer, exposeBufferMetrics, flowPermit);
     }
 
     private static ByteBuf generate0(PulsarService pulsar, boolean includeTopicMetrics, boolean includeConsumerMetrics,
@@ -316,6 +296,38 @@ public class PrometheusMetricsGenerator {
             stream.write(writer.toString());
         } catch (IOException e) {
             // nop
+        }
+    }
+
+    private static void writeBuffer(OutputStream out, ByteBuf buffer, boolean exposeBufferMetrics,
+                                    int flowPermit) throws IOException {
+        try {
+            if (flowPermit > 0) {
+                MetricsDataFlowController flowController = new MetricsDataFlowController(buffer, out, flowPermit);
+                flowController.flushBuffer();
+            } else {
+                if (out instanceof HttpOutput) {
+                    HttpOutput output = (HttpOutput) out;
+                    //no mem_copy and memory allocations here
+                    ByteBuffer[] buffers = buffer.nioBuffers();
+                    for (ByteBuffer buffer0 : buffers) {
+                        output.write(buffer0);
+                    }
+                } else {
+                    //read data from buffer and write it to output stream, with no more heap buffer(byte[]) allocation.
+                    //not modify buffer readIndex/writeIndex here.
+                    int readIndex = buffer.readerIndex();
+                    int readableBytes = buffer.readableBytes();
+                    for (int i = 0; i < readableBytes; i++) {
+                        out.write(buffer.getByte(readIndex + i));
+                    }
+                }
+            }
+        } finally {
+            if (!exposeBufferMetrics && buffer.refCnt() > 0) {
+                buffer.release();
+                log.debug("Metrics buffer released.");
+            }
         }
     }
 }

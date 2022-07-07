@@ -32,6 +32,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.math.RoundingMode;
+import java.net.HttpURLConnection;
 import java.nio.charset.StandardCharsets;
 import java.text.NumberFormat;
 import java.util.Arrays;
@@ -72,6 +73,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.compaction.Compactor;
+import org.apache.pulsar.functions.worker.PulsarFunctionTestUtils;
 import org.awaitility.Awaitility;
 import org.mockito.Mockito;
 import org.testng.Assert;
@@ -1510,6 +1512,27 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         });
         consumer1.close();
         consumer2.close();
+    }
+
+
+    @Test
+    public void testMetricsDataFlowController() throws Exception {
+        int flowPermit = 1024 * 5;
+        pulsar.getConfiguration().setMetricsDataFlowPermitPerSecond(flowPermit);
+        long start = System.currentTimeMillis();
+        HttpURLConnection conn = PulsarFunctionTestUtils.getPrometheusMetrics0(pulsar.getListenPortHTTP().get());
+        byte[] bytes = conn.getInputStream().readAllBytes();
+        long cost = System.currentTimeMillis() - start;
+        int length = bytes.length;
+
+        double actual = (double) length / flowPermit;
+        Assert.assertEquals(actual, cost / 1000D, actual * 0.2D);
+
+        String metricStr = new String(bytes, StandardCharsets.UTF_8);
+        Assert.assertTrue(metricStr.length() > 0);
+
+        Multimap<String, Metric> metrics = parseMetrics(metricStr);
+        Assert.assertTrue(metrics.size() > 0);
     }
 
     private void compareCompactionStateCount(List<Metric> cm, double count) {

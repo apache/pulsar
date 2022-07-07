@@ -2407,6 +2407,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private boolean metricsBufferResponse = false;
     @FieldContext(
+            category = CATEGORY_METRICS,
+            doc = "Max number of bytes that metrics data send to client every second"
+    )
+    private int metricsDataFlowPermitPerSecond = 0;
+    @FieldContext(
         category = CATEGORY_METRICS,
         doc = "If true, export consumer level metrics otherwise namespace level"
     )
