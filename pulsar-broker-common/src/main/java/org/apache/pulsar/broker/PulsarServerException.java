@@ -44,4 +44,14 @@ public class PulsarServerException extends IOException {
             super(t);
         }
     }
+
+    public static class ConflictException extends PulsarServerException {
+        public ConflictException(String msg) {
+            super(msg);
+        }
+
+        public ConflictException(Throwable t) {
+            super(t);
+        }
+    }
 }

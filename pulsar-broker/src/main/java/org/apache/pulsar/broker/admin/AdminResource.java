@@ -623,7 +623,7 @@ public abstract class AdminResource extends PulsarWebResource {
         }
 
         CompletableFuture<Void> createLocalFuture = new CompletableFuture<>();
-        checkTopicExistsAsync(topicName).thenAccept(exists -> {
+        pulsar().getBrokerService().checkIfPartitionExist(topicName).thenAccept(exists -> {
             if (exists) {
                 log.warn("[{}] Failed to create already existing topic {}", clientAppId(), topicName);
                 asyncResponse.resume(new RestException(Status.CONFLICT, "This topic already exists"));
@@ -682,30 +682,6 @@ public abstract class AdminResource extends PulsarWebResource {
                     clientAppId(), topicName, pulsar().getConfiguration().getClusterName());
             asyncResponse.resume(Response.noContent().build());
         });
-    }
-
-    /**
-     * Check the exists topics contains the given topic.
-     * Since there are topic partitions and non-partitioned topics in Pulsar, must ensure both partitions
-     * and non-partitioned topics are not duplicated. So, if compare with a partition name, we should compare
-     * to the partitioned name of this partition.
-     *
-     * @param topicName given topic name
-     */
-    protected CompletableFuture<Boolean> checkTopicExistsAsync(TopicName topicName) {
-        return pulsar().getNamespaceService().getListOfTopics(topicName.getNamespaceObject(),
-                CommandGetTopicsOfNamespace.Mode.ALL)
-                .thenCompose(topics -> {
-                    boolean exists = false;
-                    for (String topic : topics) {
-                        if (topicName.getPartitionedTopicName().equals(
-                                TopicName.get(topic).getPartitionedTopicName())) {
-                            exists = true;
-                            break;
-                        }
-                    }
-                    return CompletableFuture.completedFuture(exists);
-                });
     }
 
     private CompletableFuture<Void> provisionPartitionedTopicPath(AsyncResponse asyncResponse, int numPartitions,

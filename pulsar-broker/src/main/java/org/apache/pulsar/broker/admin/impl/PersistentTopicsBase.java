@@ -3541,7 +3541,7 @@ public class PersistentTopicsBase extends AdminResource {
             ret = CompletableFuture.completedFuture(null);
         }
         return ret
-                .thenCompose(__ -> checkTopicExistsAsync(topicName))
+                .thenCompose(__ -> pulsar().getBrokerService().checkIfPartitionExist(topicName))
                 .thenCompose(exist -> {
                     if (!exist) {
                         throw new RestException(Status.NOT_FOUND, getTopicNotFoundErrorMessage(topicName.toString()));

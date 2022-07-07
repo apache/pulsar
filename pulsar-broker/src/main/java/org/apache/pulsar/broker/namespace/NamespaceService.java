@@ -1106,10 +1106,7 @@ public class NamespaceService implements AutoCloseable {
 
     public CompletableFuture<List<String>> getFullListOfTopics(NamespaceName namespaceName) {
         return getListOfPersistentTopics(namespaceName)
-                .thenCombine(getListOfNonPersistentTopics(namespaceName),
-                        (persistentTopics, nonPersistentTopics) -> {
-                            return ListUtils.union(persistentTopics, nonPersistentTopics);
-                        });
+                .thenCombine(getListOfNonPersistentTopics(namespaceName), ListUtils::union);
     }
 
     public CompletableFuture<List<String>> getOwnedTopicListForNamespaceBundle(NamespaceBundle bundle) {

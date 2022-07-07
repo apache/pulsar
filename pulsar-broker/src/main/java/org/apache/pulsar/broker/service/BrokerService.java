@@ -130,6 +130,7 @@ import org.apache.pulsar.client.impl.ClientBuilderImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.internal.PropertiesUtils;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
+import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
 import org.apache.pulsar.common.configuration.BindAddress;
 import org.apache.pulsar.common.configuration.FieldContext;
 import org.apache.pulsar.common.intercept.AppendIndexMetadataInterceptor;
@@ -2676,8 +2677,17 @@ public class BrokerService implements Closeable {
                                             && pulsar.getBrokerService().isAllowAutoTopicCreation(topicName)
                                             && pulsar.getBrokerService().isDefaultTopicTypePartitioned(topicName)) {
 
-                                        pulsar.getBrokerService().createDefaultPartitionedTopicAsync(topicName)
-                                                .thenAccept(md -> future.complete(md))
+                                        pulsar.getBrokerService()
+                                                .checkIfPartitionExist(topicName)
+                                                .thenCompose(exist -> {
+                                                    if (!exist) return createDefaultPartitionedTopicAsync(topicName);
+                                                    String msg = String.format(
+                                                            "Failed to create already existing topic %s", topicName);
+                                                    log.warn(msg);
+                                                    throw FutureUtil.wrapToCompletionException(
+                                                            new PulsarServerException.ConflictException(msg));
+                                                })
+                                                .thenAccept(future::complete)
                                                 .exceptionally(ex -> {
                                                     if (ex.getCause()
                                                             instanceof MetadataStoreException.AlreadyExistsException) {
@@ -2703,6 +2713,22 @@ public class BrokerService implements Closeable {
                                 return future;
                             });
                 });
+    }
+
+    /**
+     * Check the exists topics contains the given topic.
+     * Since there are topic partitions and non-partitioned topics in Pulsar, must ensure both partitions
+     * and non-partitioned topics are not duplicated. So, if compare with a partition name, we should compare
+     * to the partitioned name of this partition.
+     *
+     * @param rootTopicName given topic name
+     */
+    public CompletableFuture<Boolean> checkIfPartitionExist(TopicName rootTopicName) {
+        return getPulsar()
+                .getNamespaceService()
+                .getListOfTopics(rootTopicName.getNamespaceObject(), CommandGetTopicsOfNamespace.Mode.ALL)
+                .thenApply(topics -> topics.stream().anyMatch(topic -> TopicName.get(topic)
+                                .getPartitionedTopicName().equals(rootTopicName.toString())));
     }
 
     @SuppressWarnings("deprecation")
