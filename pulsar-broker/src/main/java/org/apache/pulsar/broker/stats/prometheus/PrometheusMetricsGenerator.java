@@ -174,24 +174,24 @@ public class PrometheusMetricsGenerator {
         ByteBuf buf = UnpooledByteBufAllocator.DEFAULT.compositeDirectBuffer(MAX_COMPONENTS);
         boolean exceptionHappens = false;
         //Used in namespace/topic and transaction aggregators as share metric names
-        PrometheusMetricStreams metricStream = new PrometheusMetricStreams();
+        PrometheusMetricStreams metricStreams = new PrometheusMetricStreams();
         try {
             SimpleTextOutputStream stream = new SimpleTextOutputStream(buf);
 
             generateSystemMetrics(stream, pulsar.getConfiguration().getClusterName());
 
             NamespaceStatsAggregator.generate(pulsar, includeTopicMetrics, includeConsumerMetrics,
-                    includeProducerMetrics, splitTopicAndPartitionIndexLabel, metricStream);
+                    includeProducerMetrics, splitTopicAndPartitionIndexLabel, metricStreams);
 
             if (pulsar.getWorkerServiceOpt().isPresent()) {
                 pulsar.getWorkerService().generateFunctionsStats(stream);
             }
 
             if (pulsar.getConfiguration().isTransactionCoordinatorEnabled()) {
-                TransactionAggregator.generate(pulsar, metricStream, includeTopicMetrics);
+                TransactionAggregator.generate(pulsar, metricStreams, includeTopicMetrics);
             }
 
-            metricStream.flushAllToStream(stream);
+            metricStreams.flushAllToStream(stream);
 
             generateBrokerBasicMetrics(pulsar, stream);
 
@@ -204,10 +204,11 @@ public class PrometheusMetricsGenerator {
             }
             out.write(buf.array(), buf.arrayOffset(), buf.readableBytes());
         } finally {
+            //release all the metrics buffers
+            metricStreams.releaseAll();
             //if exception happens, release buffer
             if (exceptionHappens) {
                 buf.release();
-                metricStream.releaseAll();
             }
         }
     }
