@@ -22,12 +22,12 @@ import java.util.HashMap;
 import java.util.Map;
 import lombok.Getter;
 import lombok.Setter;
-import org.apache.bookkeeper.mledger.ManagedLedgerInfo;
+import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 
 
 @Getter
 @Setter
-public class RubbishLedger {
+public class PendingDeleteLedgerInfo {
     /**
      * Partitioned topic name without domain. Likes public/default/test-topic-partition-1 or
      * public/default/test-topic
@@ -45,12 +45,17 @@ public class RubbishLedger {
     private LedgerType ledgerType;
 
     /**
-     * ledgerInfo. If ledger, just holds ledgerId. If offload-ledger, holds ledgerId and offload context uuid.
+     * LedgerId.
      */
-    private ManagedLedgerInfo.LedgerInfo ledgerInfo;
+    private Long ledgerId;
 
     /**
-     * When consumer received rubbish ledger, maybe the ledger still in use, we need check the ledger is in use.
+     * Context, holds offload info. If bk ledger, the context is null.
+     */
+    private MLDataFormats.ManagedLedgerInfo.LedgerInfo context;
+
+    /**
+     * When consumer received pending delete ledger, maybe the ledger still in use, we need check the ledger is in use.
      * In some cases, we needn't check the ledger still in use.
      */
     private boolean checkLedgerStillInUse;
@@ -60,15 +65,17 @@ public class RubbishLedger {
      */
     private Map<String, String> properties = new HashMap<>();
 
-    public RubbishLedger() {
+    public PendingDeleteLedgerInfo() {
     }
 
-    public RubbishLedger(String topicName, LedgerComponent ledgerComponent, LedgerType ledgerType,
-                         ManagedLedgerInfo.LedgerInfo ledgerInfo, boolean checkLedgerStillInUse) {
+    public PendingDeleteLedgerInfo(String topicName, LedgerComponent ledgerComponent, LedgerType ledgerType,
+                                   Long ledgerId, MLDataFormats.ManagedLedgerInfo.LedgerInfo context,
+                                   boolean checkLedgerStillInUse) {
         this.topicName = topicName;
         this.ledgerComponent = ledgerComponent;
         this.ledgerType = ledgerType;
-        this.ledgerInfo = ledgerInfo;
+        this.ledgerId = ledgerId;
+        this.context = context;
         this.checkLedgerStillInUse = checkLedgerStillInUse;
     }
 }

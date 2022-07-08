@@ -19,40 +19,58 @@
 package org.apache.pulsar.broker.service;
 
 import static org.apache.bookkeeper.mledger.util.Errors.isNoSuchLedgerExistsException;
+import com.github.benmanes.caffeine.cache.CacheLoader;
+import com.github.benmanes.caffeine.cache.Caffeine;
+import com.github.benmanes.caffeine.cache.LoadingCache;
 import com.google.common.collect.Maps;
 import java.security.InvalidParameterException;
+import java.util.Collections;
 import java.util.Map;
-import java.util.Set;
+import java.util.TreeSet;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
-import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
+import org.apache.bookkeeper.conf.ClientConfiguration;
+import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
-import org.apache.bookkeeper.mledger.ManagedLedgerInfo;
-import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
-import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
-import org.apache.bookkeeper.mledger.deletion.LedgerDeletionService;
-import org.apache.bookkeeper.mledger.deletion.RubbishLedger;
 import org.apache.bookkeeper.mledger.deletion.LedgerComponent;
+import org.apache.bookkeeper.mledger.deletion.LedgerDeletionService;
 import org.apache.bookkeeper.mledger.deletion.LedgerType;
-import org.apache.pulsar.broker.systopic.NamespaceEventsSystemTopicFactory;
+import org.apache.bookkeeper.mledger.deletion.PendingDeleteLedgerInfo;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.bookkeeper.mledger.offload.OffloadUtils;
+import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
+import org.apache.bookkeeper.stats.NullStatsProvider;
+import org.apache.bookkeeper.stats.OpStatsLogger;
+import org.apache.bookkeeper.stats.StatsLogger;
+import org.apache.bookkeeper.stats.StatsProvider;
+import org.apache.bookkeeper.util.MathUtils;
+import org.apache.commons.configuration.Configuration;
+import org.apache.pulsar.broker.PulsarServerException;
+import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.stats.prometheus.metrics.PrometheusMetricsProvider;
 import org.apache.pulsar.broker.systopic.LedgerDeletionSystemTopicClient;
+import org.apache.pulsar.broker.systopic.NamespaceEventsSystemTopicFactory;
 import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.events.EventType;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -64,33 +82,47 @@ public class SystemTopicBasedLedgerDeletionService implements LedgerDeletionServ
 
     private final PulsarAdmin pulsarAdmin;
 
-    private final int workers;
+    private final int ledgerDeletionParallelism;
 
-    private final Map<String, Set<Long>> managedLedgerExistsCache = new ConcurrentHashMap<>();
+    private StatsProvider statsProvider = new NullStatsProvider();
 
-    private final Map<String, Set<Long>> managedCursorExistsCache = new ConcurrentHashMap<>();
+    private OpStatsLogger deleteLedgerOpLogger;
 
-    private final Map<String, Set<Long>> schemaStorageExistsCache = new ConcurrentHashMap<>();
+    private OpStatsLogger deleteOffloadLedgerOpLogger;
 
-    private ManagedLedgerConfig config;
+    private ServiceConfiguration serviceConfiguration;
+
+    private Map<OffloadPoliciesImpl, LedgerOffloader> offloaderMap = new ConcurrentHashMap<>();
+
+    private final LoadingCache<String, TreeSet<Long>> ledgersCache = Caffeine.newBuilder()
+            .expireAfterWrite(10, TimeUnit.MINUTES)
+            .build(new CacheLoader<>() {
+                @Override
+                public @Nullable TreeSet<Long> load(@NonNull String key) throws Exception {
+                    return fetchInUseLedgerIds(key);
+                }
+            });
 
     private final BookKeeper bookKeeper;
 
-    private SystemTopicClient<RubbishLedger> ledgerDeletionTopicClient;
+    private final PulsarService pulsarService;
 
-    private transient CompletableFuture<SystemTopicClient.Reader<RubbishLedger>> readerFuture;
+    private SystemTopicClient<PendingDeleteLedgerInfo> ledgerDeletionTopicClient;
 
-    private transient CompletableFuture<SystemTopicClient.Writer<RubbishLedger>> writerFuture;
+    private transient CompletableFuture<SystemTopicClient.Reader<PendingDeleteLedgerInfo>> readerFuture;
 
-    public SystemTopicBasedLedgerDeletionService(PulsarClient client, PulsarAdmin pulsarAdmin,
-                                                 BookKeeper bookKeeper, int workers) {
-        this.namespaceEventsSystemTopicFactory = new NamespaceEventsSystemTopicFactory(client);
-        this.pulsarAdmin = pulsarAdmin;
-        this.bookKeeper = bookKeeper;
-        this.workers = Math.max(1, workers);
+    private transient CompletableFuture<SystemTopicClient.Writer<PendingDeleteLedgerInfo>> writerFuture;
+
+    public SystemTopicBasedLedgerDeletionService(PulsarService pulsarService, int workers)
+            throws PulsarServerException {
+        this.namespaceEventsSystemTopicFactory = new NamespaceEventsSystemTopicFactory(pulsarService.getClient());
+        this.pulsarService = pulsarService;
+        this.pulsarAdmin = pulsarService.getAdminClient();
+        this.bookKeeper = pulsarService.getBookKeeperClient();
+        this.ledgerDeletionParallelism = Math.max(1, workers);
     }
 
-    private SystemTopicClient<RubbishLedger> getLedgerDeletionTopicClient() throws PulsarClientException {
+    private SystemTopicClient<PendingDeleteLedgerInfo> getLedgerDeletionTopicClient() throws PulsarClientException {
         TopicName systemTopicName =
                 NamespaceEventsSystemTopicFactory.getSystemTopicName(NamespaceName.SYSTEM_NAMESPACE,
                         EventType.LEDGER_DELETION);
@@ -105,14 +137,32 @@ public class SystemTopicBasedLedgerDeletionService implements LedgerDeletionServ
     @Override
     public void start() throws PulsarClientException, PulsarAdminException {
         this.ledgerDeletionTopicClient = getLedgerDeletionTopicClient();
+        initStatsLogger();
         initSystemTopic();
+    }
+
+    private void initStatsLogger() {
+        Configuration configuration = new ClientConfiguration();
+        if (serviceConfiguration.isBookkeeperClientExposeStatsToPrometheus()) {
+            configuration.addProperty(PrometheusMetricsProvider.PROMETHEUS_STATS_LATENCY_ROLLOVER_SECONDS,
+                    serviceConfiguration.getManagedLedgerPrometheusStatsLatencyRolloverSeconds());
+            configuration.addProperty(PrometheusMetricsProvider.CLUSTER_NAME, serviceConfiguration.getClusterName());
+            this.statsProvider = new PrometheusMetricsProvider();
+        }
+        this.statsProvider.start(configuration);
+        StatsLogger statsLogger = statsProvider.getStatsLogger("pulsar_ledger_deletion");
+        this.deleteLedgerOpLogger = statsLogger.getOpStatsLogger("delete_ledger");
+        this.deleteOffloadLedgerOpLogger = statsLogger.getOpStatsLogger("delete_offload_ledger");
     }
 
     private void initSystemTopic() {
         this.pulsarAdmin.topics()
-                .createPartitionedTopicAsync(SystemTopicNames.LEDGER_DELETION_TOPIC.getPartitionedTopicName(), workers)
+                .createPartitionedTopicAsync(SystemTopicNames.LEDGER_DELETION_TOPIC.getPartitionedTopicName(),
+                        ledgerDeletionParallelism)
                 .whenComplete((res, e) -> {
                     if (e != null && !(e instanceof PulsarAdminException.ConflictException)) {
+                        log.error("Initial system topic "
+                                + SystemTopicNames.LEDGER_DELETION_TOPIC.getPartitionedTopicName() + "failed.", e);
                         initSystemTopic();
                         return;
                     }
@@ -121,20 +171,20 @@ public class SystemTopicBasedLedgerDeletionService implements LedgerDeletionServ
                 });
     }
 
-    private void readMoreRubbishLedger(LedgerDeletionSystemTopicClient.RubbishLedgerReader reader) {
+    private void readMorePendingDeleteLedger(LedgerDeletionSystemTopicClient.PendingDeleteLedgerReader reader) {
         reader.readNextAsync().whenComplete((msg, ex) -> {
             if (ex == null) {
-                deleteRubbishLedger(reader, msg);
-                readMoreRubbishLedger(reader);
+                deleteLedger(reader, msg);
+                readMorePendingDeleteLedger(reader);
             } else {
                 Throwable cause = FutureUtil.unwrapCompletionException(ex);
                 if (cause instanceof PulsarClientException.AlreadyClosedException) {
-                    log.error("Read more rubbish ledger exception, close the read now!", ex);
+                    log.error("Read more pending delete ledger exception, close the read now!", ex);
                     reader.closeAsync();
                     initReaderFuture();
                 } else {
-                    log.warn("Read more rubbish ledger exception, read again.", ex);
-                    readMoreRubbishLedger(reader);
+                    log.warn("Read more pending delete ledger exception, read again.", ex);
+                    readMorePendingDeleteLedger(reader);
                 }
             }
         });
@@ -146,7 +196,7 @@ public class SystemTopicBasedLedgerDeletionService implements LedgerDeletionServ
                 log.error("Failed to create reader on ledger deletion system topic", ex);
                 initReaderFuture();
             } else {
-                readMoreRubbishLedger((LedgerDeletionSystemTopicClient.RubbishLedgerReader) reader);
+                readMorePendingDeleteLedger((LedgerDeletionSystemTopicClient.PendingDeleteLedgerReader) reader);
             }
         });
     }
@@ -168,14 +218,14 @@ public class SystemTopicBasedLedgerDeletionService implements LedgerDeletionServ
     }
 
     @Override
-    public CompletableFuture<?> appendRubbishLedger(String topicName, long ledgerId, LedgerInfo context,
-                                                    LedgerComponent component, LedgerType type,
-                                                    boolean checkLedgerStillInUse) {
+    public CompletableFuture<?> appendPendingDeleteLedger(String topicName, long ledgerId, LedgerInfo context,
+                                                          LedgerComponent component, LedgerType type,
+                                                          boolean checkLedgerStillInUse) {
         topicName = tuneTopicName(topicName);
-        RubbishLedger rubbishLedger = null;
+        PendingDeleteLedgerInfo pendingDeleteLedger = null;
         if (LedgerType.LEDGER == type) {
-            ManagedLedgerInfo.LedgerInfo ledgerInfo = ManagedLedgerInfo.LedgerInfo.buildLedger(ledgerId);
-            rubbishLedger = new RubbishLedger(topicName, component, type, ledgerInfo, checkLedgerStillInUse);
+            pendingDeleteLedger =
+                    new PendingDeleteLedgerInfo(topicName, component, type, ledgerId, context, checkLedgerStillInUse);
         } else if (LedgerType.OFFLOAD_LEDGER == type) {
             if (!context.getOffloadContext().hasUidMsb()) {
                 CompletableFuture<?> future = new CompletableFuture<>();
@@ -183,12 +233,10 @@ public class SystemTopicBasedLedgerDeletionService implements LedgerDeletionServ
                         new IllegalArgumentException("The ledger " + ledgerId + " didn't offload."));
                 return future;
             }
-            UUID uuid = new UUID(context.getOffloadContext().getUidMsb(), context.getOffloadContext().getUidLsb());
-            ManagedLedgerInfo.LedgerInfo ledgerInfo =
-                    ManagedLedgerInfo.LedgerInfo.buildOffloadLedger(ledgerId, uuid.toString());
-            rubbishLedger = new RubbishLedger(topicName, component, type, ledgerInfo, checkLedgerStillInUse);
+            pendingDeleteLedger =
+                    new PendingDeleteLedgerInfo(topicName, component, type, ledgerId, context, checkLedgerStillInUse);
         }
-        return sendRubbishMsg(rubbishLedger);
+        return sendMessage(pendingDeleteLedger);
     }
 
     @Override
@@ -204,27 +252,22 @@ public class SystemTopicBasedLedgerDeletionService implements LedgerDeletionServ
         return CompletableFuture.completedFuture(null);
     }
 
-    @Override
-    public void setUpOffloadConfig(ManagedLedgerConfig managedLedgerConfig) {
-        this.config = managedLedgerConfig;
-    }
-
-    private CompletableFuture<?> deleteRubbishLedger(LedgerDeletionSystemTopicClient.RubbishLedgerReader reader,
-                                                     Message<RubbishLedger> message) {
-        RubbishLedger rubbishLedger = message.getValue();
-        if (isToDeleteLedger(rubbishLedger)) {
-            if (LedgerType.LEDGER == rubbishLedger.getLedgerType()) {
-                return asyncDeleteLedger(rubbishLedger.getTopicName(),
-                        rubbishLedger.getLedgerInfo().getLedgerId()).whenComplete((res, e) -> {
+    private CompletableFuture<?> deleteLedger(LedgerDeletionSystemTopicClient.PendingDeleteLedgerReader reader,
+                                              Message<PendingDeleteLedgerInfo> message) {
+        PendingDeleteLedgerInfo pendingDeleteLedger = message.getValue();
+        if (isToDeleteLedger(pendingDeleteLedger)) {
+            if (LedgerType.LEDGER == pendingDeleteLedger.getLedgerType()) {
+                return asyncDeleteLedger(pendingDeleteLedger.getTopicName(),
+                        pendingDeleteLedger.getContext().getLedgerId()).whenComplete((res, e) -> {
                     if (e == null) {
                         reader.ackMessageAsync(message);
                         return;
                     }
                     reader.reconsumeLaterAsync(message);
                 });
-            } else if (LedgerType.OFFLOAD_LEDGER == rubbishLedger.getLedgerType()) {
-                return asyncDeleteOffloadedLedger(rubbishLedger.getTopicName(),
-                        rubbishLedger.getLedgerInfo()).whenComplete((res, e) -> {
+            } else if (LedgerType.OFFLOAD_LEDGER == pendingDeleteLedger.getLedgerType()) {
+                return asyncDeleteOffloadedLedger(pendingDeleteLedger.getTopicName(),
+                        pendingDeleteLedger.getContext()).whenComplete((res, e) -> {
                     if (e == null) {
                         reader.ackMessageAsync(message);
                         return;
@@ -234,86 +277,60 @@ public class SystemTopicBasedLedgerDeletionService implements LedgerDeletionServ
             }
             reader.ackMessageAsync(message);
             return FutureUtil.failedFuture(
-                    new InvalidParameterException("Received rubbish ledger message with invalid ledger type."));
+                    new InvalidParameterException("Received pending delete ledger message with invalid ledger type."));
         }
         if (log.isDebugEnabled()) {
-            log.debug("[{}] ledger {} still in use, delete it later.", rubbishLedger.getTopicName(),
-                    rubbishLedger.getLedgerInfo().getLedgerId());
+            log.debug("[{}] ledger {} still in use, delete it later.", pendingDeleteLedger.getTopicName(),
+                    pendingDeleteLedger.getContext().getLedgerId());
         }
         return reader.reconsumeLaterAsync(message);
     }
 
-    private boolean isToDeleteLedger(RubbishLedger rubbishLedger) {
-        if (!rubbishLedger.isCheckLedgerStillInUse()) {
+    private boolean isToDeleteLedger(PendingDeleteLedgerInfo pendingDeleteLedger) {
+        if (!pendingDeleteLedger.isCheckLedgerStillInUse()) {
             return true;
         }
-        Set<Long> ledgerIds;
+        TreeSet<Long> ledgerIds;
         try {
-            ledgerIds = getLedgerIds(rubbishLedger);
-        } catch (Exception e) {
+            ledgerIds = getLedgerIds(pendingDeleteLedger);
+        } catch (PulsarAdminException e) {
+            log.error("Fetch metadata for {} failed.", pendingDeleteLedger.getTopicName(), e);
             return false;
         }
-
-        if (ledgerIds.contains(rubbishLedger.getLedgerInfo().getLedgerId())) {
-            try {
-                updateRubbishExistsCache(rubbishLedger.getTopicName());
-            } catch (Exception e) {
-                return false;
-            }
-            try {
-                ledgerIds = getLedgerIds(rubbishLedger);
-            } catch (Exception e) {
-                return false;
-            }
-            return !ledgerIds.contains(rubbishLedger.getLedgerInfo().getLedgerId());
+        //means the current cache is out of date.
+        if (pendingDeleteLedger.getLedgerId() > ledgerIds.last()) {
+            return false;
         }
-        return true;
+        return !ledgerIds.contains(pendingDeleteLedger.getContext().getLedgerId());
     }
 
-    private Set<Long> getLedgerIds(RubbishLedger rubbishLedger) throws PulsarAdminException {
-        if (LedgerComponent.MANAGED_LEDGER == rubbishLedger.getLedgerComponent()) {
-            Set<Long> ledgerIds = managedLedgerExistsCache.get(rubbishLedger.getTopicName());
-            if (ledgerIds == null) {
-                updateRubbishExistsCache(rubbishLedger.getTopicName());
-            }
-            return managedLedgerExistsCache.get(rubbishLedger.getTopicName());
-        } else if (LedgerComponent.MANAGED_CURSOR == rubbishLedger.getLedgerComponent()) {
-            Set<Long> ledgerIds = managedCursorExistsCache.get(rubbishLedger.getTopicName());
-            if (ledgerIds == null) {
-                updateRubbishExistsCache(rubbishLedger.getTopicName());
-            }
-            return managedCursorExistsCache.get(rubbishLedger.getTopicName());
-        } else if (LedgerComponent.SCHEMA_STORAGE == rubbishLedger.getLedgerComponent()) {
-            Set<Long> ledgerIds = schemaStorageExistsCache.get(rubbishLedger.getTopicName());
-            if (ledgerIds == null) {
-                updateRubbishExistsCache(rubbishLedger.getTopicName());
-            }
-            return schemaStorageExistsCache.get(rubbishLedger.getTopicName());
-        }
-        throw new IllegalArgumentException("Unknown rubbish source: " + rubbishLedger.getLedgerComponent());
+    private TreeSet<Long> getLedgerIds(PendingDeleteLedgerInfo pendingDeleteLedger) throws PulsarAdminException {
+        return ledgersCache.get(pendingDeleteLedger.getTopicName());
     }
 
-    private void updateRubbishExistsCache(String topicName) throws PulsarAdminException {
+    private TreeSet<Long> fetchInUseLedgerIds(String topicName) throws PulsarAdminException {
+        TreeSet<Long> ledgerIds = new TreeSet<>();
 
         PersistentTopicInternalStats internalStats = pulsarAdmin.topics().getInternalStats(topicName);
-        Set<Long> ledgerIds = internalStats.ledgers.stream().map(ele1 -> ele1.ledgerId).collect(Collectors.toSet());
 
-        Set<Long> cursorIds =
-                internalStats.cursors.values().stream().map(ele -> ele.cursorLedger).collect(Collectors.toSet());
-        Set<Long> schemaIds = internalStats.schemaLedgers.stream().map(ele -> ele.ledgerId).collect(Collectors.toSet());
+        ledgerIds.addAll(internalStats.ledgers.stream().map(ele1 -> ele1.ledgerId).collect(Collectors.toSet()));
+        ledgerIds.addAll(
+                internalStats.cursors.values().stream().map(ele -> ele.cursorLedger).collect(Collectors.toSet()));
+        ledgerIds.addAll(internalStats.schemaLedgers.stream().map(ele -> ele.ledgerId).collect(Collectors.toSet()));
 
-        managedLedgerExistsCache.put(topicName, ledgerIds);
-        managedCursorExistsCache.put(topicName, cursorIds);
-        schemaStorageExistsCache.put(topicName, schemaIds);
+        return ledgerIds;
     }
 
-    private CompletableFuture<?> sendRubbishMsg(RubbishLedger rubbishLedger) {
+    private CompletableFuture<?> sendMessage(PendingDeleteLedgerInfo pendingDeleteLedger) {
         CompletableFuture<Void> result = new CompletableFuture<>();
+        if (writerFuture == null) {
+            result.completeExceptionally(new IllegalStateException("Writer not initialize"));
+        }
         writerFuture.whenComplete((writer, ex) -> {
             if (ex != null) {
                 result.completeExceptionally(ex);
             } else {
-                writer.writeAsync(rubbishLedger).whenComplete(((messageId, e) -> {
+                writer.writeAsync(pendingDeleteLedger).whenComplete(((messageId, e) -> {
                             if (e != null) {
                                 result.completeExceptionally(e);
                             } else {
@@ -331,6 +348,7 @@ public class SystemTopicBasedLedgerDeletionService implements LedgerDeletionServ
     }
 
     private CompletableFuture<?> asyncDeleteLedger(String topicName, long ledgerId) {
+        final long startTime = MathUtils.nowInNano();
         CompletableFuture<?> future = new CompletableFuture<>();
         log.info("[{}] Start async delete ledger {}", topicName, ledgerId);
         bookKeeper.asyncDeleteLedger(ledgerId, (rc, ctx) -> {
@@ -338,62 +356,73 @@ public class SystemTopicBasedLedgerDeletionService implements LedgerDeletionServ
                 log.warn("[{}] Ledger was already deleted {}", topicName, ledgerId);
             } else if (rc != BKException.Code.OK) {
                 log.error("[{}] Error delete ledger {} : {}", topicName, ledgerId, BKException.getMessage(rc));
+                deleteLedgerOpLogger.registerFailedEvent(MathUtils.elapsedNanos(startTime), TimeUnit.NANOSECONDS);
                 future.completeExceptionally(ManagedLedgerImpl.createManagedLedgerException(rc));
                 return;
             }
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Deleted ledger {}", topicName, ledgerId);
             }
+            deleteLedgerOpLogger.registerSuccessfulEvent(MathUtils.elapsedNanos(startTime), TimeUnit.NANOSECONDS);
             future.complete(null);
         }, null);
         return future;
     }
 
-    private CompletableFuture<?> asyncDeleteOffloadedLedger(String topicName, ManagedLedgerInfo.LedgerInfo ledgerInfo) {
-        CompletableFuture<?> future = new CompletableFuture<>();
-        if (config == null) {
-            future.completeExceptionally(
-                    new IllegalArgumentException("Offload config didn't setup, can't delete offload ledger."));
-            return future;
-        }
-        if (!ledgerInfo.isOffloaded()) {
-            future.completeExceptionally(new IllegalArgumentException(
-                    String.format("[%s] Failed delete offload for ledgerId %s, can't find offload context.", topicName,
-                            ledgerInfo.getLedgerId())));
-            return future;
-        }
-        String cleanupReason = "Trash-Trimming";
+    private CompletableFuture<?> asyncDeleteOffloadedLedger(String topicName, LedgerInfo ledgerInfo) {
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        final long startTime = MathUtils.nowInNano();
+        OffloadPoliciesImpl offloadPolicies = buildOffloadPolicies(ledgerInfo);
 
+        LedgerOffloader ledgerOffloader = offloaderMap.get(offloadPolicies);
+        if (ledgerOffloader == null) {
+            synchronized (this) {
+                ledgerOffloader = offloaderMap.get(offloadPolicies);
+                if (ledgerOffloader == null) {
+                    try {
+                        ledgerOffloader = pulsarService.createManagedLedgerOffloader(offloadPolicies);
+                        offloaderMap.put(offloadPolicies, ledgerOffloader);
+                    } catch (PulsarServerException e) {
+                        deleteOffloadLedgerOpLogger.registerFailedEvent(MathUtils.elapsedNanos(startTime),
+                                TimeUnit.NANOSECONDS);
+                        future.completeExceptionally(new IllegalStateException("Failed to create ledger offload", e));
+                        return future;
+                    }
+                }
+            }
+        }
+
+        UUID uuid = new UUID(ledgerInfo.getOffloadContext().getUidMsb(), ledgerInfo.getOffloadContext().getUidLsb());
         Long ledgerId = ledgerInfo.getLedgerId();
-        UUID uuid = UUID.fromString(ledgerInfo.getOffloadedContextUuid());
-        log.info("[{}] Start async delete offloaded ledger, ledgerId {} uuid {} because of the reason {}.", topicName,
-                ledgerId, uuid, cleanupReason);
+        log.info("[{}] Start async delete offloaded ledger, ledgerId {} uuid {}.", topicName, ledgerId, uuid);
 
         Map<String, String> metadataMap = Maps.newHashMap();
-        metadataMap.putAll(config.getLedgerOffloader().getOffloadDriverMetadata());
+        Map<String, String> metadata = OffloadUtils.getOffloadDriverMetadata(ledgerInfo, Collections.emptyMap());
+        metadataMap.putAll(metadata);
         metadataMap.put("ManagedLedgerName", topicName);
-
         try {
-            config.getLedgerOffloader()
-                    .deleteOffloaded(ledgerId, uuid, metadataMap)
-                    .whenComplete((ignored, exception) -> {
-                        if (exception != null) {
-                            log.warn("[{}] Failed delete offload for ledgerId {} uuid {}, (cleanup reason: {})",
-                                    topicName, ledgerId, uuid, cleanupReason, exception);
-                            future.completeExceptionally(
-                                    new ManagedLedgerException("Failed to delete offloaded ledger"));
-                            return;
-                        }
-                        future.complete(null);
-                    });
+            ledgerOffloader.deleteOffloaded(ledgerId, uuid, metadataMap).whenComplete((ignored, exception) -> {
+                if (exception != null) {
+                    deleteOffloadLedgerOpLogger.registerFailedEvent(MathUtils.elapsedNanos(startTime),
+                            TimeUnit.NANOSECONDS);
+                    log.warn("[{}] Failed delete offload for ledgerId {} uuid {}.)",
+                            topicName, ledgerId, uuid, exception);
+                    future.completeExceptionally(new ManagedLedgerException("Failed to delete offloaded ledger"));
+                    return;
+                }
+                deleteOffloadLedgerOpLogger.registerSuccessfulEvent(MathUtils.elapsedNanos(startTime),
+                        TimeUnit.NANOSECONDS);
+                future.complete(null);
+            });
         } catch (Exception e) {
             log.warn("[{}] Failed to delete offloaded ledgers.", topicName, e);
         }
         return future;
     }
 
-    static class Tuple<K, V> {
-        private K ledgerIds;
-        private V cursorIds;
+    private OffloadPoliciesImpl buildOffloadPolicies(LedgerInfo ledgerInfo) {
+        OffloadPoliciesImpl offloadPolicies = new OffloadPoliciesImpl();
+
+        return offloadPolicies;
     }
 }

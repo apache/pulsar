@@ -46,39 +46,6 @@ public class ManagedLedgerInfo {
         public Long timestamp;
         public boolean isOffloaded;
         public String offloadedContextUuid;
-
-        public LedgerInfo() {
-        }
-
-        private LedgerInfo(long ledgerId) {
-            this.ledgerId = ledgerId;
-        }
-
-        private LedgerInfo(long ledgerId, boolean isOffloaded, String offloadedContextUuid) {
-            this.ledgerId = ledgerId;
-            this.isOffloaded = isOffloaded;
-            this.offloadedContextUuid = offloadedContextUuid;
-        }
-
-        public static LedgerInfo buildLedger(long ledgerId) {
-            return new LedgerInfo(ledgerId);
-        }
-
-        public static LedgerInfo buildOffloadLedger(long ledgerId, String uuid) {
-            return new LedgerInfo(ledgerId, true, uuid);
-        }
-
-        public long getLedgerId() {
-            return ledgerId;
-        }
-
-        public boolean isOffloaded() {
-            return isOffloaded;
-        }
-
-        public String getOffloadedContextUuid() {
-            return offloadedContextUuid;
-        }
     }
 
     public static class CursorInfo {

@@ -19,7 +19,6 @@
 package org.apache.bookkeeper.mledger.deletion;
 
 import java.util.concurrent.CompletableFuture;
-import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -27,13 +26,23 @@ import org.apache.pulsar.client.api.PulsarClientException;
 public interface LedgerDeletionService {
 
     /**
-     *
+     * Start.
      */
     void start() throws PulsarClientException, PulsarAdminException;
 
-
-    CompletableFuture<?> appendRubbishLedger(String topicName, long ledgerId, LedgerInfo context, LedgerComponent component,
-                                             LedgerType type, boolean checkLedgerStillInUse);
+    /**
+     *
+     * @param topicName
+     * @param ledgerId
+     * @param context
+     * @param component
+     * @param type
+     * @param checkLedgerStillInUse
+     * @return
+     */
+    CompletableFuture<?> appendPendingDeleteLedger(String topicName, long ledgerId, LedgerInfo context,
+                                                   LedgerComponent component,
+                                                   LedgerType type, boolean checkLedgerStillInUse);
 
     void close() throws Exception;
 
@@ -43,8 +52,6 @@ public interface LedgerDeletionService {
      * @return
      */
     CompletableFuture<?> asyncClose();
-
-    void setUpOffloadConfig(ManagedLedgerConfig managedLedgerConfig);
 
     class LedgerDeletionServiceDisable implements LedgerDeletionService {
 
@@ -56,9 +63,9 @@ public interface LedgerDeletionService {
         private static final CompletableFuture<?> COMPLETABLE_FUTURE = CompletableFuture.completedFuture(null);
 
         @Override
-        public CompletableFuture<?> appendRubbishLedger(String topicName, long ledgerId, LedgerInfo context,
-                                                        LedgerComponent component, LedgerType type,
-                                                        boolean checkLedgerStillInUse) {
+        public CompletableFuture<?> appendPendingDeleteLedger(String topicName, long ledgerId, LedgerInfo context,
+                                                              LedgerComponent component, LedgerType type,
+                                                              boolean checkLedgerStillInUse) {
             return COMPLETABLE_FUTURE;
         }
 
@@ -70,11 +77,6 @@ public interface LedgerDeletionService {
         @Override
         public CompletableFuture<?> asyncClose() {
             return COMPLETABLE_FUTURE;
-        }
-
-        @Override
-        public void setUpOffloadConfig(ManagedLedgerConfig managedLedgerConfig) {
-            //No op
         }
     }
 

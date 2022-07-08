@@ -54,7 +54,7 @@ public class NamespaceEventsSystemTopicFactory {
     public LedgerDeletionSystemTopicClient createLedgerDeletionSystemTopicClient(NamespaceName namespaceName) {
         TopicName topicName =
                 TopicName.get(TopicDomain.persistent.value(), namespaceName, SystemTopicNames.LEDGER_DELETION);
-        log.info("Create rubbish cleaner client, topicName: {}", topicName.toString());
+        log.info("Create ledger deletion client, topicName: {}", topicName.toString());
         return new LedgerDeletionSystemTopicClient(client, topicName);
     }
 

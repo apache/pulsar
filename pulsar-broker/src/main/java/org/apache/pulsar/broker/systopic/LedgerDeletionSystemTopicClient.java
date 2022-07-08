@@ -21,7 +21,7 @@ package org.apache.pulsar.broker.systopic;
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import org.apache.bookkeeper.mledger.deletion.RubbishLedger;
+import org.apache.bookkeeper.mledger.deletion.PendingDeleteLedgerInfo;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.DeadLetterPolicy;
 import org.apache.pulsar.client.api.Message;
@@ -43,29 +43,30 @@ import org.slf4j.LoggerFactory;
 /**
  * System topic for ledger deletion.
  */
-public class LedgerDeletionSystemTopicClient extends SystemTopicClientBase<RubbishLedger> {
+public class LedgerDeletionSystemTopicClient extends SystemTopicClientBase<PendingDeleteLedgerInfo> {
 
     public LedgerDeletionSystemTopicClient(PulsarClient client, TopicName topicName) {
         super(client, topicName);
     }
 
     @Override
-    protected CompletableFuture<Writer<RubbishLedger>> newWriterAsyncInternal() {
-        return client.newProducer(Schema.AVRO(RubbishLedger.class))
+    protected CompletableFuture<Writer<PendingDeleteLedgerInfo>> newWriterAsyncInternal() {
+        return client.newProducer(Schema.AVRO(PendingDeleteLedgerInfo.class))
                 .topic(topicName.toString())
                 .enableBatching(false)
                 .createAsync().thenCompose(producer -> {
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] A new writer is created", topicName);
                     }
-                    return CompletableFuture.completedFuture(new RubbishLedgerWriter(producer,
+                    return CompletableFuture.completedFuture(new PendingDeleteLedgerWriter(producer,
                             LedgerDeletionSystemTopicClient.this));
                 });
     }
 
     @Override
-    protected CompletableFuture<Reader<RubbishLedger>> newReaderAsyncInternal() {
-        return client.newConsumer(Schema.AVRO(RubbishLedger.class))
+    protected CompletableFuture<Reader<PendingDeleteLedgerInfo>> newReaderAsyncInternal() {
+        // TODO: 2022/7/7 死信队列发消息batch情况
+        return client.newConsumer(Schema.AVRO(PendingDeleteLedgerInfo.class))
                 .topic(topicName.toString())
                 .subscriptionName("ledger-deletion-worker")
                 .subscriptionType(SubscriptionType.Shared)
@@ -77,33 +78,33 @@ public class LedgerDeletionSystemTopicClient extends SystemTopicClientBase<Rubbi
                     if (log.isDebugEnabled()) {
                         log.debug("[{}] A new reader is created", topicName);
                     }
-                    return CompletableFuture.completedFuture(new RubbishLedgerReader(consumer,
+                    return CompletableFuture.completedFuture(new PendingDeleteLedgerReader(consumer,
                             LedgerDeletionSystemTopicClient.this));
                 });
     }
 
-    public static class RubbishLedgerWriter implements Writer<RubbishLedger> {
+    public static class PendingDeleteLedgerWriter implements Writer<PendingDeleteLedgerInfo> {
 
-        private final Producer<RubbishLedger> producer;
-        private final SystemTopicClient<RubbishLedger> systemTopicClient;
+        private final Producer<PendingDeleteLedgerInfo> producer;
+        private final SystemTopicClient<PendingDeleteLedgerInfo> systemTopicClient;
         private final int sendDelayMinutes = 1;
 
-        private RubbishLedgerWriter(Producer<RubbishLedger> producer, SystemTopicClient<RubbishLedger> systemTopicClient) {
+        private PendingDeleteLedgerWriter(Producer<PendingDeleteLedgerInfo> producer, SystemTopicClient<PendingDeleteLedgerInfo> systemTopicClient) {
             this.producer = producer;
             this.systemTopicClient = systemTopicClient;
         }
 
         @Override
-        public MessageId write(RubbishLedger rubbishLedger) throws PulsarClientException {
-            TypedMessageBuilder<RubbishLedger> builder =
-                    producer.newMessage().value(rubbishLedger).deliverAfter(sendDelayMinutes, TimeUnit.MINUTES);
+        public MessageId write(PendingDeleteLedgerInfo pendingDeleteLedgerInfo) throws PulsarClientException {
+            TypedMessageBuilder<PendingDeleteLedgerInfo> builder =
+                    producer.newMessage().value(pendingDeleteLedgerInfo).deliverAfter(sendDelayMinutes, TimeUnit.MINUTES);
             return builder.send();
         }
 
         @Override
-        public CompletableFuture<MessageId> writeAsync(RubbishLedger rubbishLedger) {
-            TypedMessageBuilder<RubbishLedger> builder =
-                    producer.newMessage().value(rubbishLedger).deliverAfter(1, TimeUnit.MINUTES);
+        public CompletableFuture<MessageId> writeAsync(PendingDeleteLedgerInfo pendingDeleteLedgerInfo) {
+            TypedMessageBuilder<PendingDeleteLedgerInfo> builder =
+                    producer.newMessage().value(pendingDeleteLedgerInfo).deliverAfter(1, TimeUnit.MINUTES);
             return builder.sendAsync();
         }
 
@@ -111,61 +112,61 @@ public class LedgerDeletionSystemTopicClient extends SystemTopicClientBase<Rubbi
         @Override
         public void close() throws IOException {
             this.producer.close();
-            systemTopicClient.getWriters().remove(RubbishLedgerWriter.this);
+            systemTopicClient.getWriters().remove(PendingDeleteLedgerWriter.this);
         }
 
         @Override
         public CompletableFuture<Void> closeAsync() {
             return producer.closeAsync().thenCompose(v -> {
-                systemTopicClient.getWriters().remove(RubbishLedgerWriter.this);
+                systemTopicClient.getWriters().remove(PendingDeleteLedgerWriter.this);
                 return CompletableFuture.completedFuture(null);
             });
         }
 
         @Override
-        public SystemTopicClient<RubbishLedger> getSystemTopicClient() {
+        public SystemTopicClient<PendingDeleteLedgerInfo> getSystemTopicClient() {
             return systemTopicClient;
         }
     }
 
-    public static class RubbishLedgerReader implements Reader<RubbishLedger> {
+    public static class PendingDeleteLedgerReader implements Reader<PendingDeleteLedgerInfo> {
 
-        private final Consumer<RubbishLedger> consumer;
+        private final Consumer<PendingDeleteLedgerInfo> consumer;
         private final LedgerDeletionSystemTopicClient systemTopic;
         private final int reconsumeLaterMin = 10;
 
-        private RubbishLedgerReader(Consumer<RubbishLedger> consumer,
-                                    LedgerDeletionSystemTopicClient systemTopic) {
+        private PendingDeleteLedgerReader(Consumer<PendingDeleteLedgerInfo> consumer,
+                                          LedgerDeletionSystemTopicClient systemTopic) {
             this.consumer = consumer;
             this.systemTopic = systemTopic;
         }
 
         @Override
-        public Message<RubbishLedger> readNext() throws PulsarClientException {
+        public Message<PendingDeleteLedgerInfo> readNext() throws PulsarClientException {
             return consumer.receive();
         }
 
         @Override
-        public CompletableFuture<Message<RubbishLedger>> readNextAsync() {
+        public CompletableFuture<Message<PendingDeleteLedgerInfo>> readNextAsync() {
             return consumer.receiveAsync();
         }
 
         @Override
         public boolean hasMoreEvents() throws PulsarClientException {
-            if (consumer instanceof ConsumerImpl<RubbishLedger>) {
-                return ((ConsumerImpl<RubbishLedger>) consumer).hasMessageAvailable();
-            } else if (consumer instanceof MultiTopicsConsumerImpl<RubbishLedger>) {
-                return ((MultiTopicsConsumerImpl<RubbishLedger>) consumer).hasMessageAvailable();
+            if (consumer instanceof ConsumerImpl<PendingDeleteLedgerInfo>) {
+                return ((ConsumerImpl<PendingDeleteLedgerInfo>) consumer).hasMessageAvailable();
+            } else if (consumer instanceof MultiTopicsConsumerImpl<PendingDeleteLedgerInfo>) {
+                return ((MultiTopicsConsumerImpl<PendingDeleteLedgerInfo>) consumer).hasMessageAvailable();
             }
             throw new PulsarClientException.NotSupportedException("The consumer not support hasMoreEvents.");
         }
 
         @Override
         public CompletableFuture<Boolean> hasMoreEventsAsync() {
-            if (consumer instanceof ConsumerImpl<RubbishLedger>) {
-                return ((ConsumerImpl<RubbishLedger>) consumer).hasMessageAvailableAsync();
-            } else if (consumer instanceof MultiTopicsConsumerImpl<RubbishLedger>) {
-                return ((MultiTopicsConsumerImpl<RubbishLedger>) consumer).hasMessageAvailableAsync();
+            if (consumer instanceof ConsumerImpl<PendingDeleteLedgerInfo>) {
+                return ((ConsumerImpl<PendingDeleteLedgerInfo>) consumer).hasMessageAvailableAsync();
+            } else if (consumer instanceof MultiTopicsConsumerImpl<PendingDeleteLedgerInfo>) {
+                return ((MultiTopicsConsumerImpl<PendingDeleteLedgerInfo>) consumer).hasMessageAvailableAsync();
             }
             return FutureUtil.failedFuture(
                     new PulsarClientException.NotSupportedException("The consumer not support hasMoreEvents."));
@@ -175,27 +176,27 @@ public class LedgerDeletionSystemTopicClient extends SystemTopicClientBase<Rubbi
         @Override
         public void close() throws IOException {
             this.consumer.close();
-            systemTopic.getReaders().remove(RubbishLedgerReader.this);
+            systemTopic.getReaders().remove(PendingDeleteLedgerReader.this);
         }
 
         @Override
         public CompletableFuture<Void> closeAsync() {
             return consumer.closeAsync().thenCompose(v -> {
-                systemTopic.getReaders().remove(RubbishLedgerReader.this);
+                systemTopic.getReaders().remove(PendingDeleteLedgerReader.this);
                 return CompletableFuture.completedFuture(null);
             });
         }
 
-        public CompletableFuture<Void> ackMessageAsync(Message<RubbishLedger> message) {
+        public CompletableFuture<Void> ackMessageAsync(Message<PendingDeleteLedgerInfo> message) {
             return this.consumer.acknowledgeAsync(message);
         }
 
-        public CompletableFuture<Void> reconsumeLaterAsync(Message<RubbishLedger> message) {
+        public CompletableFuture<Void> reconsumeLaterAsync(Message<PendingDeleteLedgerInfo> message) {
             return this.consumer.reconsumeLaterAsync(message, reconsumeLaterMin, TimeUnit.MINUTES);
         }
 
         @Override
-        public SystemTopicClient<RubbishLedger> getSystemTopic() {
+        public SystemTopicClient<PendingDeleteLedgerInfo> getSystemTopic() {
             return systemTopic;
         }
     }

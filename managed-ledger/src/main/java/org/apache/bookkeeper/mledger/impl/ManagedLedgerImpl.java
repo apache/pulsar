@@ -350,7 +350,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
         this.inactiveLedgerRollOverTimeMs = config.getInactiveLedgerRollOverTimeMs();
         this.ledgerDeletionService = ledgerDeletionService;
-        this.ledgerDeletionService.setUpOffloadConfig(config);
     }
 
     synchronized void initialize(final ManagedLedgerInitializeLedgerCallback callback, final Object ctx) {
@@ -2588,7 +2587,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     .map(LedgerInfo::getLedgerId).collect(Collectors.toSet());
 
             CompletableFuture<?> updateTrashFuture =
-                    appendRubbishLedger(deletableLedgers, deletableOffloadedLedgers);
+                    appendPendingDeleteLedger(deletableLedgers, deletableOffloadedLedgers);
             updateTrashFuture.thenAccept(ignore -> {
                 for (LedgerInfo ls : ledgersToDelete) {
                     if (currentLastConfirmedEntry != null
@@ -2661,16 +2660,16 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
     }
 
-    private CompletableFuture<?> appendRubbishLedger(Collection<Long> deletableLedgerIds,
-                                                     Collection<Long> deletableOffloadedLedgerIds) {
+    private CompletableFuture<?> appendPendingDeleteLedger(Collection<Long> deletableLedgerIds,
+                                                           Collection<Long> deletableOffloadedLedgerIds) {
         List<CompletableFuture<?>> futures = new ArrayList<>();
         for (Long ledgerId : deletableLedgerIds) {
-            futures.add(ledgerDeletionService.appendRubbishLedger(name, ledgerId, null, LedgerComponent.MANAGED_LEDGER,
+            futures.add(ledgerDeletionService.appendPendingDeleteLedger(name, ledgerId, null, LedgerComponent.MANAGED_LEDGER,
                     LedgerType.LEDGER, true));
         }
         for (Long ledgerId : deletableOffloadedLedgerIds) {
             futures.add(
-                    ledgerDeletionService.appendRubbishLedger(name, ledgerId, ledgers.get(ledgerId),
+                    ledgerDeletionService.appendPendingDeleteLedger(name, ledgerId, ledgers.get(ledgerId),
                             LedgerComponent.MANAGED_LEDGER, LedgerType.OFFLOAD_LEDGER, true));
         }
         return FutureUtil.waitForAll(futures);
@@ -2909,7 +2908,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     .filter(ls -> ls.getOffloadContext().hasUidMsb())
                     .map(LedgerInfo::getLedgerId).collect(Collectors.toSet());
 
-            appendRubbishLedger(deletableLedgers, deletableOffloadedLedgers).thenCompose(ignore -> {
+            appendPendingDeleteLedger(deletableLedgers, deletableOffloadedLedgers).thenCompose(ignore -> {
                 return deleteMetadata();
             }).whenComplete((res, e) -> {
                 if (e != null) {
@@ -3091,17 +3090,16 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                     if (exception != null) {
                                         log.error("[{}] Failed to offload data for the ledgerId {}",
                                                 name, ledgerId, exception);
-                                        //not delete offload ledger, it will delete at next offload.
                                         if (ledgerDeletionService instanceof
                                                 LedgerDeletionService.LedgerDeletionServiceDisable) {
                                             cleanupOffloaded(ledgerId, uuid, driverName, driverMetadata,
                                                     "Metastore failure");
                                         } else {
-                                            ledgerDeletionService.appendRubbishLedger(name, ledgerId,
+                                            ledgerDeletionService.appendPendingDeleteLedger(name, ledgerId,
                                                             ledgers.get(ledgerId), LedgerComponent.MANAGED_LEDGER,
                                                             LedgerType.OFFLOAD_LEDGER, false)
                                                     .exceptionally(e -> {
-                                                        log.warn("[{}]-{} Failed to append rubbish ledger.",
+                                                        log.warn("[{}]-{} Failed to append pending delete ledger.",
                                                                 this.name, ledgerId);
                                                         return null;
                                                     });
@@ -3233,10 +3231,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                             config.getLedgerOffloader().getOffloadDriverMetadata()),
                                     "Previous failed offload");
                         } else {
-                            ledgerDeletionService.appendRubbishLedger(name, ledgerId, oldInfo,
+                            ledgerDeletionService.appendPendingDeleteLedger(name, ledgerId, oldInfo,
                                     LedgerComponent.MANAGED_LEDGER, LedgerType.OFFLOAD_LEDGER, false)
                                     .exceptionally(e -> {
-                                        log.warn("[{}]-{} Failed to append rubbish ledger.", this.name, ledgerId);
+                                        log.warn("[{}]-{} Failed to append pending delete ledger.", this.name, ledgerId);
                                         return null;
                                     });
                         }
@@ -3917,9 +3915,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     if (ledgerDeletionService instanceof LedgerDeletionService.LedgerDeletionServiceDisable) {
                         asyncDeleteLedger(lh.getId(), DEFAULT_LEDGER_DELETE_RETRIES);
                     } else {
-                        ledgerDeletionService.appendRubbishLedger(name, lh.getId(), null, LedgerComponent.MANAGED_LEDGER,
+                        ledgerDeletionService.appendPendingDeleteLedger(name, lh.getId(), null, LedgerComponent.MANAGED_LEDGER,
                                 LedgerType.LEDGER, false).exceptionally(e -> {
-                            log.warn("[{}]-{} Failed to append rubbish ledger.", this.name, lh.getId());
+                            log.warn("[{}]-{} Failed to append pending delete ledger.", this.name, lh.getId());
                             return null;
                         });
                     }
