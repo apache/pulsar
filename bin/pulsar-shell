@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+
 # need this for relative symlinks
 PRG="$0"
 while [ -h "$PRG" ] ; do
