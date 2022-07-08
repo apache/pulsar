@@ -387,7 +387,11 @@ It's possible to configure some clients by using the appropriate prefix.
 |brokerClient_| Configure **all** the broker's Pulsar Clients and Pulsar Admin Clients. These configurations are applied after hard coded configuration and before the above broker client configurations named above.|
 |bookkeeper_| Configure the broker's bookkeeper clients used by managed ledgers and the BookkeeperPackagesStorage bookkeeper client. Takes precedence over most other configuration values.|
 
-Note: when running the function worker within the broker, these prefixed configurations do not apply to any of those clients. You must instead configure those clients using the `functions_worker.yml`.
+::: Note
+
+When running the function worker within the broker, these prefixed configurations do not apply to any of those clients. You must configure those clients using the `functions_worker.yml` file.
+
+:::
 
 #### Deprecated parameters of Broker
 The following parameters have been deprecated in the `conf/broker.conf` file.
