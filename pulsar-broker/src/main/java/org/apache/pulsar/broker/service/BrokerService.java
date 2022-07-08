@@ -2015,7 +2015,7 @@ public class BrokerService implements Closeable {
                         if (namespace.includes(TopicName.get(name))) {
                             // If the topic is already created, immediately apply the updated policies, otherwise
                             // once the topic is created it'll apply the policies update
-                            topicFuture.thenAcceptAsync(topic -> {
+                            topicFuture.thenAccept(topic -> {
                                 if (log.isDebugEnabled()) {
                                     log.debug("Notifying topic that local policies have changed: {}", name);
                                 }
@@ -2025,7 +2025,7 @@ public class BrokerService implements Closeable {
                                         topic1.onLocalPoliciesUpdate();
                                     }
                                 });
-                            }, pulsar.getExecutor());
+                            });
                         }
                     });
                 }, pulsar.getExecutor());
@@ -2045,13 +2045,13 @@ public class BrokerService implements Closeable {
                         if (namespace.includes(TopicName.get(name))) {
                             // If the topic is already created, immediately apply the updated policies, otherwise
                             // once the topic is created it'll apply the policies update
-                            topicFuture.thenAcceptAsync(topic -> {
+                            topicFuture.thenAccept(topic -> {
                                 if (log.isDebugEnabled()) {
                                     log.debug("Notifying topic that policies have changed: {}", name);
                                 }
 
                                 topic.ifPresent(t -> t.onPoliciesUpdate(policies));
-                            }, pulsar.getExecutor());
+                            });
                         }
                     });
 
