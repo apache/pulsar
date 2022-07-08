@@ -89,9 +89,9 @@ public abstract class SinkTester<ServiceContainerT extends GenericContainer> imp
         return serviceContainer;
     }
 
-    public void stopServiceContainer(PulsarCluster cluster) {
+    public void stopServiceContainer() {
         if (null != serviceContainer) {
-            cluster.stopService(networkAlias, serviceContainer);
+            PulsarCluster.stopService(networkAlias, serviceContainer);
         }
     }
 
