@@ -28,6 +28,7 @@ The configuration of all JDBC sink connectors has the following properties.
 | `batchSize` | int    | false    | 200                | The batch size of updates made to the database.                                                                          |
 | `insertMode` | enum( INSERT,UPSERT,UPDATE) | false    | INSERT | If it is configured as UPSERT, the sink uses upsert semantics rather than plain INSERT/UPDATE statements. Upsert semantics refer to atomically adding a new row or updating the existing row if there is a primary key constraint violation, which provides idempotence. |
 | `nullValueAction` | enum(FAIL, DELETE) | false    | FAIL | How to handle records with NULL values. Possible options are `DELETE` or `FAIL`. |
+| `useTransactions` | boolean | false    | true               | Enable transactions of the database.
 
 ### Example for ClickHouse
 
@@ -41,6 +42,7 @@ The configuration of all JDBC sink connectors has the following properties.
         "password": "password",
         "jdbcUrl": "jdbc:clickhouse://localhost:8123/pulsar_clickhouse_jdbc_sink",
         "tableName": "pulsar_clickhouse_jdbc_sink"
+        "useTransactions": "false"
      }
   }
   
@@ -60,6 +62,7 @@ The configuration of all JDBC sink connectors has the following properties.
       password: "password"
       jdbcUrl: "jdbc:clickhouse://localhost:8123/pulsar_clickhouse_jdbc_sink"
       tableName: "pulsar_clickhouse_jdbc_sink"
+      useTransactions: "false"
   
   ```
 

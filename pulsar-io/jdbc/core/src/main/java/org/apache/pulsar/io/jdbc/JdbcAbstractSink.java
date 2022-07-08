@@ -23,7 +23,6 @@ import com.google.common.collect.Lists;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
-import java.sql.SQLFeatureNotSupportedException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -93,11 +92,7 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
 
         Class.forName(JdbcUtils.getDriverClassName(jdbcSinkConfig.getJdbcUrl()));
         connection = DriverManager.getConnection(jdbcSinkConfig.getJdbcUrl(), properties);
-        try {
-            connection.setAutoCommit(false);
-        } catch (SQLFeatureNotSupportedException e) {
-            log.warn(e.getMessage());
-        }
+        connection.setAutoCommit(!jdbcSinkConfig.isUseTransactions());
         log.info("Opened jdbc connection: {}, autoCommit: {}", jdbcUrl, connection.getAutoCommit());
 
         tableName = jdbcSinkConfig.getTableName();
@@ -267,7 +262,9 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
                             throw new IllegalArgumentException(msg);
                     }
                 }
-                connection.commit();
+                if (!connection.getAutoCommit()) {
+                    connection.commit();
+                }
                 swapList.forEach(Record::ack);
             } catch (Exception e) {
                 log.error("Got exception ", e.getMessage(), e);
