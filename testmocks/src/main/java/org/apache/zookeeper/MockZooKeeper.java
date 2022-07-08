@@ -805,56 +805,60 @@ public class MockZooKeeper extends ZooKeeper {
         }
 
         executor.execute(() -> {
-            final Set<Watcher> toNotify = Sets.newHashSet();
-            Stat stat;
-            lock();
             try {
+                final Set<Watcher> toNotify = Sets.newHashSet();
+                Stat stat;
+                lock();
+                try {
+                    Optional<KeeperException.Code> failure = programmedFailure(Op.SET, path);
+                    if (failure.isPresent()) {
+                        unlockIfLocked();
+                        cb.processResult(failure.get().intValue(), path, ctx, null);
+                        return;
+                    } else if (stopped) {
+                        unlockIfLocked();
+                        cb.processResult(KeeperException.Code.CONNECTIONLOSS.intValue(), path, ctx, null);
+                        return;
+                    }
 
-                Optional<KeeperException.Code> failure = programmedFailure(Op.SET, path);
-                if (failure.isPresent()) {
+                    if (!tree.containsKey(path)) {
+                        unlockIfLocked();
+                        cb.processResult(KeeperException.Code.NONODE.intValue(), path, ctx, null);
+                        return;
+                    }
+
+                    MockZNode mockZNode = tree.get(path);
+                    int currentVersion = mockZNode.getVersion();
+
+                    // Check version
+                    if (version != -1 && version != currentVersion) {
+                        log.debug("[{}] Current version: {} -- Expected: {}", path, currentVersion, version);
+                        unlockIfLocked();
+                        cb.processResult(KeeperException.Code.BADVERSION.intValue(), path, ctx, null);
+                        return;
+                    }
+
+                    log.debug("[{}] Updating -- current version: {}", path, currentVersion);
+                    MockZNode newZNode = MockZNode.of(data, currentVersion + 1, mockZNode.getEphemeralOwner());
+                    tree.put(path, newZNode);
+                    stat = createStatForZNode(newZNode);
+                } finally {
                     unlockIfLocked();
-                    cb.processResult(failure.get().intValue(), path, ctx, null);
-                    return;
-                } else if (stopped) {
-                    unlockIfLocked();
-                    cb.processResult(KeeperException.Code.CONNECTIONLOSS.intValue(), path, ctx, null);
-                    return;
+                }
+                cb.processResult(0, path, ctx, stat);
+
+                toNotify.addAll(watchers.get(path));
+                watchers.removeAll(path);
+
+                for (Watcher watcher : toNotify) {
+                    watcher.process(new WatchedEvent(EventType.NodeDataChanged, KeeperState.SyncConnected, path));
                 }
 
-                if (!tree.containsKey(path)) {
-                    unlockIfLocked();
-                    cb.processResult(KeeperException.Code.NONODE.intValue(), path, ctx, null);
-                    return;
-                }
-
-                MockZNode mockZNode = tree.get(path);
-                int currentVersion = mockZNode.getVersion();
-
-                // Check version
-                if (version != -1 && version != currentVersion) {
-                    log.debug("[{}] Current version: {} -- Expected: {}", path, currentVersion, version);
-                    unlockIfLocked();
-                    cb.processResult(KeeperException.Code.BADVERSION.intValue(), path, ctx, null);
-                    return;
-                }
-
-                log.debug("[{}] Updating -- current version: {}", path, currentVersion);
-                MockZNode newZNode = MockZNode.of(data, currentVersion + 1, mockZNode.getEphemeralOwner());
-                tree.put(path, newZNode);
-                stat = createStatForZNode(newZNode);
-            } finally {
-                unlockIfLocked();
+                triggerPersistentWatches(path, null, EventType.NodeDataChanged);
+            } catch (Throwable ex) {
+                log.error("Update path : {} error", path, ex);
+                cb.processResult(KeeperException.Code.SYSTEMERROR.intValue(), path, ctx, null);
             }
-            cb.processResult(0, path, ctx, stat);
-
-            toNotify.addAll(watchers.get(path));
-            watchers.removeAll(path);
-
-            for (Watcher watcher : toNotify) {
-                watcher.process(new WatchedEvent(EventType.NodeDataChanged, KeeperState.SyncConnected, path));
-            }
-
-            triggerPersistentWatches(path, null, EventType.NodeDataChanged);
         });
     }
 
