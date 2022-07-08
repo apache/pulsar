@@ -655,6 +655,10 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                 bundles.forEach(bundle -> {
                     final String namespaceName = LoadManagerShared.getNamespaceNameFromBundleName(bundle);
                     final String bundleRange = LoadManagerShared.getBundleRangeFromBundleName(bundle);
+                    if (!shouldNamespacePoliciesUnload(namespaceName, bundleRange, broker)) {
+                        return;
+                    }
+
                     if (!shouldAntiAffinityNamespaceUnload(namespaceName, bundleRange, broker)) {
                         return;
                     }
@@ -693,6 +697,20 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         m.put("brk_lb_unload_bundle_count", unloadBundleCount);
         metrics.add(m);
         this.bundleUnloadMetrics.set(metrics);
+    }
+
+    public boolean shouldNamespacePoliciesUnload(String namespace, String bundle, String currentBroker) {
+        synchronized (brokerCandidateCache) {
+            brokerCandidateCache.clear();
+            ServiceUnitId serviceUnit = pulsar.getNamespaceService().getNamespaceBundleFactory()
+                    .getBundle(namespace, bundle);
+            LoadManagerShared.applyNamespacePolicies(serviceUnit, policies, brokerCandidateCache,
+                    getAvailableBrokers(), brokerTopicLoadingPredicate);
+
+            // if only current broker satisfy the NamespacePolicies should not unload.
+            brokerCandidateCache.remove(currentBroker);
+            return !brokerCandidateCache.isEmpty();
+        }
     }
 
     public boolean shouldAntiAffinityNamespaceUnload(String namespace, String bundle, String currentBroker) {
