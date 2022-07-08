@@ -378,7 +378,7 @@ brokerServiceCompactionThresholdInBytes|If the estimated backlog size is greater
 | strictBookieAffinityEnabled | Enable or disable the strict bookie isolation strategy. If enabled, <br /> - `bookie-ensemble` first tries to choose bookies that belong to a namespace's affinity group. If the number of bookies is not enough, then the rest bookies are chosen. <br /> - If namespace has no affinity group, `bookie-ensemble` only chooses bookies that belong to no region. If the number of bookies is not enough, `BKNotEnoughBookiesException` is thrown.| false |
 |narExtractionDirectory | The extraction directory of the nar package. <br />Available for Protocol Handler, Additional Servlets, Entry Filter, Offloaders, Broker Interceptor. | System.getProperty("java.io.tmpdir") |
 
-#### Configuration Override For Clients Internal to Broker
+#### Configuration override for clients internal to broker
 
 It's possible to configure some clients by using the appropriate prefix.
 
