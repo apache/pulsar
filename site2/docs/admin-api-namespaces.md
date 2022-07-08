@@ -1177,14 +1177,6 @@ $ pulsar-admin namespaces set-deduplication-snapshot-interval test-tenant/ns1 --
 
 {@inject: endpoint|POST|/admin/v2/namespaces/:tenant/:namespace/deduplicationSnapshotInterval|operation/setDeduplicationSnapshotInterval?version=@pulsar:version_number@}
 
-```json
-
-{
-  "interval": 1000
-}
-
-```
-
 </TabItem>
 <TabItem value="Java">
 
