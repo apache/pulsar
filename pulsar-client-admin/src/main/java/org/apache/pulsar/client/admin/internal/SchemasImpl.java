@@ -60,7 +60,8 @@ public class SchemasImpl extends BaseResource implements Schemas {
     @Override
     public CompletableFuture<SchemaInfo> getSchemaInfoAsync(String topic) {
         TopicName tn = TopicName.get(topic);
-        return asyncGetRequest(schemaPath(tn), new FutureCallback<SchemaInfo>(){});
+        return asyncGetRequest(schemaPath(tn), new FutureCallback<GetSchemaResponse>(){})
+                .thenApply(response -> convertGetSchemaResponseToSchemaInfo(tn, response));
     }
 
     @Override
@@ -71,7 +72,8 @@ public class SchemasImpl extends BaseResource implements Schemas {
     @Override
     public CompletableFuture<SchemaInfoWithVersion> getSchemaInfoWithVersionAsync(String topic) {
         TopicName tn = TopicName.get(topic);
-        return asyncGetRequest(schemaPath(tn), new FutureCallback<SchemaInfoWithVersion>(){});
+        return asyncGetRequest(schemaPath(tn), new FutureCallback<GetSchemaResponse>(){})
+                .thenApply(response -> convertGetSchemaResponseToSchemaInfoWithVersion(tn, response));
     }
 
     @Override
@@ -83,7 +85,8 @@ public class SchemasImpl extends BaseResource implements Schemas {
     public CompletableFuture<SchemaInfo> getSchemaInfoAsync(String topic, long version) {
         TopicName tn = TopicName.get(topic);
         WebTarget path = schemaPath(tn).path(Long.toString(version));
-        return asyncGetRequest(path, new FutureCallback<SchemaInfo>(){});
+        return asyncGetRequest(path, new FutureCallback<GetSchemaResponse>(){})
+                .thenApply(response -> convertGetSchemaResponseToSchemaInfo(tn, response));
     }
 
     @Override
