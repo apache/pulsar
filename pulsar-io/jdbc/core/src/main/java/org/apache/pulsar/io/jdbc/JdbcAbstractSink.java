@@ -269,6 +269,13 @@ public abstract class JdbcAbstractSink<T> implements Sink<T> {
             } catch (Exception e) {
                 log.error("Got exception ", e.getMessage(), e);
                 swapList.forEach(Record::fail);
+                try {
+                    if (!connection.getAutoCommit()) {
+                        connection.rollback();
+                    }
+                } catch (Exception ex) {
+                    throw new RuntimeException(ex);
+                }
             }
 
             if (swapList.size() != count) {
