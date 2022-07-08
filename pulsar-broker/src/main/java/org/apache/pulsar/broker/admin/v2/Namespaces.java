@@ -218,7 +218,9 @@ public class Namespaces extends NamespacesBase {
         internalDeleteNamespaceBundleAsync(bundleRange, authoritative, force)
                 .thenRun(() -> response.resume(Response.noContent().build()))
                 .exceptionally(ex -> {
-                    log.error("[{}] Failed to delete namespace bundle {}", clientAppId(), namespaceName, ex);
+                    if (!isRedirectException(ex)) {
+                        log.error("[{}] Failed to delete namespace bundle {}", clientAppId(), namespaceName, ex);
+                    }
                     resumeAsyncResponseExceptionally(response, ex);
                     return null;
                 });
