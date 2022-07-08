@@ -254,6 +254,11 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
             setManagedLedgerOffloadDeletionLagInMillis(
                     Long.parseLong(properties.getProperty(DELETION_LAG_NAME_IN_CONF_FILE)));
         }
+
+        if (properties.containsKey("managedLedgerDataReadPriority")) {
+            setManagedLedgerOffloadedReadPriority(
+                    OffloadedReadPriority.fromString(properties.getProperty("managedLedgerDataReadPriority")));
+        }
     }
 
     public boolean driverSupported() {
