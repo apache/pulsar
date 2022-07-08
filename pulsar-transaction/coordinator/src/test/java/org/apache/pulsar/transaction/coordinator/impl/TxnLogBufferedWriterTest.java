@@ -150,8 +150,8 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
             ArrayList<Position> innerPositions = callbackPositionIterator.next();
             int batchSize = entryDataArray.length;
             for(int i = 0; i < entryDataArray.length; i++){
-                TxnLogBufferedWriter.TxBatchedPositionImpl innerPosition =
-                        (TxnLogBufferedWriter.TxBatchedPositionImpl) innerPositions.get(i);
+                TxnLogBufferedWriter.TxnBatchedPositionImpl innerPosition =
+                        (TxnLogBufferedWriter.TxnBatchedPositionImpl) innerPositions.get(i);
                 Assert.assertEquals(innerPosition.getBatchSize(), batchSize);
                 Assert.assertEquals(innerPosition.getBatchIndex(), i);
             }
