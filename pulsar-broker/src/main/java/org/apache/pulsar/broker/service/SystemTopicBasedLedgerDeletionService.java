@@ -7,7 +7,7 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
@@ -113,13 +113,14 @@ public class SystemTopicBasedLedgerDeletionService implements LedgerDeletionServ
 
     private transient CompletableFuture<SystemTopicClient.Writer<PendingDeleteLedgerInfo>> writerFuture;
 
-    public SystemTopicBasedLedgerDeletionService(PulsarService pulsarService, int workers)
+    public SystemTopicBasedLedgerDeletionService(PulsarService pulsarService, ServiceConfiguration serviceConfiguration)
             throws PulsarServerException {
         this.namespaceEventsSystemTopicFactory = new NamespaceEventsSystemTopicFactory(pulsarService.getClient());
         this.pulsarService = pulsarService;
         this.pulsarAdmin = pulsarService.getAdminClient();
         this.bookKeeper = pulsarService.getBookKeeperClient();
-        this.ledgerDeletionParallelism = Math.max(1, workers);
+        this.serviceConfiguration = serviceConfiguration;
+        this.ledgerDeletionParallelism = serviceConfiguration.getLedgerDeletionParallelismOfTwoPhaseDeletion();
     }
 
     private SystemTopicClient<PendingDeleteLedgerInfo> getLedgerDeletionTopicClient() throws PulsarClientException {

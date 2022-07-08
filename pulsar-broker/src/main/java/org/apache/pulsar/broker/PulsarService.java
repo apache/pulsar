@@ -784,8 +784,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             this.topicPoliciesService.start();
 
             if (config.isTwoPhaseDeletionEnabled() && config.isTopicLevelPoliciesEnabled()) {
-                this.ledgerDeletionService = new SystemTopicBasedLedgerDeletionService(getClient(), getAdminClient(),
-                        getBookKeeperClient(), config.getLedgerDeletionParallelismOfTwoPhaseDeletion());
+                this.ledgerDeletionService = new SystemTopicBasedLedgerDeletionService(this, config);
             } else {
                 this.ledgerDeletionService = new LedgerDeletionService.LedgerDeletionServiceDisable();
             }
