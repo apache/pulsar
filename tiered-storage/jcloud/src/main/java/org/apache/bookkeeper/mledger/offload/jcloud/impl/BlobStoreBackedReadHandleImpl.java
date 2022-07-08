@@ -51,6 +51,8 @@ import org.slf4j.LoggerFactory;
 
 public class BlobStoreBackedReadHandleImpl implements ReadHandle {
     private static final Logger log = LoggerFactory.getLogger(BlobStoreBackedReadHandleImpl.class);
+    private static final int CACHE_TTL_SECONDS =
+            Integer.getInteger("pulsar.jclouds.readhandleimpl.offsetsscache.ttl.seconds", 30 * 60);
 
     private final long ledgerId;
     private final OffloadIndexBlock index;
@@ -60,7 +62,7 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
     // this Cache is accessed only by one thread
     private final Cache<Long, Long> entryOffsets = CacheBuilder
             .newBuilder()
-            .expireAfterAccess(10, TimeUnit.MINUTES)
+            .expireAfterAccess(CACHE_TTL_SECONDS, TimeUnit.SECONDS)
             .build();
 
     enum State {
