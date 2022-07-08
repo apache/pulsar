@@ -810,7 +810,7 @@ msg-payload
 </TabItem>
 <TabItem value="REST API">
 
-{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/subscription/:subName/position/:messagePosition|operation?version=@pulsar:version_number@/peekNthMessage}
+{@inject: endpoint|GET|/admin/v2/:schema/:tenant/:namespace/:topic/subscription/:subName/position/:messagePosition|operation/peekNthMessage?version=@pulsar:version_number@}
 
 </TabItem>
 <TabItem value="Java">
@@ -1330,7 +1330,7 @@ pulsar-admin topics get-deduplication-snapshot-interval options
 
 ```
 
-{@inject: endpoint|GET|/admin/v2/topics/:tenant/:namespace/:topic/deduplicationSnapshotInterval?version=@pulsar:version_number@}
+{@inject: endpoint|GET|/admin/v2/topics/:tenant/:namespace/:topic/deduplicationSnapshotInterval|operation/getDeduplicationSnapshotInterval?version=@pulsar:version_number@}
 
 ```
 
@@ -1371,7 +1371,7 @@ pulsar-admin topics set-deduplication-snapshot-interval options
 
 ```
 
-{@inject: endpoint|POST|/admin/v2/topics/:tenant/:namespace/:topic/deduplicationSnapshotInterval?version=@pulsar:version_number@}
+{@inject: endpoint|POST|/admin/v2/topics/:tenant/:namespace/:topic/deduplicationSnapshotInterval|operation/setDeduplicationSnapshotInterval?version=@pulsar:version_number@}
 
 ```
 
@@ -1418,7 +1418,7 @@ pulsar-admin topics remove-deduplication-snapshot-interval options
 
 ```
 
-{@inject: endpoint|DELETE|/admin/v2/topics/:tenant/:namespace/:topic/deduplicationSnapshotInterval?version=@pulsar:version_number@}
+{@inject: endpoint|DELETE|/admin/v2/topics/:tenant/:namespace/:topic/deduplicationSnapshotInterval|operation|deleteDeduplicationSnapshotInterval?version=@pulsar:version_number@}
 
 ```
 
@@ -1460,7 +1460,7 @@ pulsar-admin topics get-inactive-topic-policies options
 
 ```
 
-{@inject: endpoint|GET|/admin/v2/topics/:tenant/:namespace/:topic/inactiveTopicPolicies?version=@pulsar:version_number@}
+{@inject: endpoint|GET|/admin/v2/topics/:tenant/:namespace/:topic/inactiveTopicPolicies|operation/getInactiveTopicPolicies?version=@pulsar:version_number@}
 
 ```
 
@@ -1499,7 +1499,7 @@ pulsar-admin topics set-inactive-topic-policies options
 
 ```
 
-{@inject: endpoint|POST|/admin/v2/topics/:tenant/:namespace/:topic/inactiveTopicPolicies?version=@pulsar:version_number@}
+{@inject: endpoint|POST|/admin/v2/topics/:tenant/:namespace/:topic/inactiveTopicPolicies|operation/setInactiveTopicPolicies?version=@pulsar:version_number@}
 
 ```
 
@@ -1538,7 +1538,7 @@ pulsar-admin topics remove-inactive-topic-policies options
 
 ```
 
-{@inject: endpoint|DELETE|/admin/v2/topics/:tenant/:namespace/:topic/inactiveTopicPolicies?version=@pulsar:version_number@}
+{@inject: endpoint|DELETE|/admin/v2/topics/:tenant/:namespace/:topic/inactiveTopicPolicies|operation/deleteInactiveTopicPolicies?version=@pulsar:version_number@}
 
 ```
 
@@ -1580,7 +1580,7 @@ pulsar-admin topics get-offload-policies options
 
 ```
 
-{@inject: endpoint|GET|/admin/v2/topics/:tenant/:namespace/:topic/offloadPolicies?version=@pulsar:version_number@}
+{@inject: endpoint|GET|/admin/v2/topics/:tenant/:namespace/:topic/offloadPolicies|operation/getOffloadPolicies?version=@pulsar:version_number@}
 
 ```
 
@@ -1619,7 +1619,7 @@ pulsar-admin topics set-offload-policies options
 
 ```
 
-{@inject: endpoint|POST|/admin/v2/topics/:tenant/:namespace/:topic/offloadPolicies?version=@pulsar:version_number@}
+{@inject: endpoint|POST|/admin/v2/topics/:tenant/:namespace/:topic/offloadPolicies|operation/setOffloadPolicies?version=@pulsar:version_number@}
 
 ```
 
@@ -1658,7 +1658,7 @@ pulsar-admin topics remove-offload-policies options
 
 ```
 
-{@inject: endpoint|DELETE|/admin/v2/topics/:tenant/:namespace/:topic/offloadPolicies?version=@pulsar:version_number@}
+{@inject: endpoint|DELETE|/admin/v2/topics/:tenant/:namespace/:topic/offloadPolicies|operation/removeOffloadPolicies?version=@pulsar:version_number@}
 
 ```
 
