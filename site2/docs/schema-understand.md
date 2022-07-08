@@ -478,7 +478,7 @@ Once a version is assigned/fetched to/for a schema, all subsequent messages prod
 
 The following example illustrates how the schema version works.
 
-Suppose that a Pulsar [Java client](client-libraries-java) created using the code below attempts to connect to Pulsar and begins to send messages:
+Suppose that a Pulsar [Java client](client-libraries-java.md) created using the code below attempts to connect to Pulsar and begins to send messages:
 
 ```java
 
@@ -516,7 +516,7 @@ This diagram illustrates how does schema work on the Producer side.
 
    The schema instance defines the schema for the data being produced using the producer instance. 
 
-   Take AVRO as an example, Pulsar extract schema definition from the POJO class and construct the `SchemaInfo` that the producer needs to pass to a broker when it connects.
+   Take AVRO as an example, Pulsar extracts schema definition from the POJO class and constructs the `SchemaInfo` that the producer needs to pass to a broker when it connects.
 
 2. The producer connects to the broker with the `SchemaInfo` extracted from the passed-in schema instance.
    

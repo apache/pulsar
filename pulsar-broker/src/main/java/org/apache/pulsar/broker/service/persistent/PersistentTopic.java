@@ -301,7 +301,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     @Override
     public CompletableFuture<Void> initialize() {
         List<CompletableFuture<Void>> futures = new ArrayList<>();
-        futures.add(initTopicPolicy());
         for (ManagedCursor cursor : ledger.getCursors()) {
             if (cursor.getName().startsWith(replicatorPrefix)) {
                 String localCluster = brokerService.pulsar().getConfiguration().getClusterName();
@@ -337,7 +336,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     this.isEncryptionRequired = policies.encryption_required;
 
                     isAllowAutoUpdateSchema = policies.is_allow_auto_update_schema;
-                }).exceptionally(ex -> {
+                })
+                .thenCompose(ignore -> initTopicPolicy())
+                .exceptionally(ex -> {
                     log.warn("[{}] Error getting policies {} and isEncryptionRequired will be set to false",
                             topic, ex.getMessage());
                     isEncryptionRequired = false;
@@ -801,7 +802,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                 new BrokerServiceException("Connection was closed while the opening the cursor "));
                     } else {
                         checkReplicatedSubscriptionControllerState();
-                        log.info("[{}][{}] Created new subscription for {}", topic, subscriptionName, consumerId);
+                        if (log.isDebugEnabled()) {
+                            log.debug("[{}][{}] Created new subscription for {}", topic, subscriptionName, consumerId);
+                        }
                         return CompletableFuture.completedFuture(consumer);
                     }
                 });
@@ -2356,6 +2359,12 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     @Override
+    public void updateDispatchRateLimiter() {
+        initializeDispatchRateLimiterIfNeeded();
+        dispatchRateLimiter.ifPresent(DispatchRateLimiter::updateDispatchRate);
+    }
+
+    @Override
     public CompletableFuture<Void> onPoliciesUpdate(Policies data) {
         if (log.isDebugEnabled()) {
             log.debug("[{}] isEncryptionRequired changes: {} -> {}", topic, isEncryptionRequired,
@@ -2372,7 +2381,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
         isAllowAutoUpdateSchema = data.is_allow_auto_update_schema;
 
-        initializeDispatchRateLimiterIfNeeded();
+        updateDispatchRateLimiter();
 
         updateSubscribeRateLimiter();
 
@@ -2391,8 +2400,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 CompletableFuture<Void> replicationFuture = checkReplicationAndRetryOnFailure();
                 CompletableFuture<Void> dedupFuture = checkDeduplicationStatus();
                 CompletableFuture<Void> persistentPoliciesFuture = checkPersistencePolicies();
-                // update rate-limiter if policies updated
-                dispatchRateLimiter.ifPresent(DispatchRateLimiter::updateDispatchRate);
                 return CompletableFuture.allOf(replicationFuture, dedupFuture, persistentPoliciesFuture,
                         preCreateSubscriptionForCompactionIfNeeded());
             });
@@ -2813,7 +2820,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         });
 
         if (!shouldBeEnabled.get()) {
-            log.info("[{}] There are no replicated subscriptions on the topic", topic);
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] There are no replicated subscriptions on the topic", topic);
+            }
         }
 
         checkReplicatedSubscriptionControllerState(shouldBeEnabled.get());
@@ -3009,18 +3018,13 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
         updateTopicPolicy(policies);
 
-        initializeTopicDispatchRateLimiterIfNeeded(policies);
-
-        dispatchRateLimiter.ifPresent(DispatchRateLimiter::updateDispatchRate);
-
+        updateDispatchRateLimiter();
         updateSubscriptionsDispatcherRateLimiter().thenRun(() -> {
             updatePublishDispatcher();
             updateSubscribeRateLimiter();
             replicators.forEach((name, replicator) -> replicator.updateRateLimiter());
             checkMessageExpiry();
-            if (policies.getReplicationClusters() != null) {
-                checkReplicationAndRetryOnFailure();
-            }
+            checkReplicationAndRetryOnFailure();
 
             checkDeduplicationStatus();
 
@@ -3048,14 +3052,6 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             }));
         });
         return FutureUtil.waitForAll(subscriptionCheckFutures);
-    }
-
-    private void initializeTopicDispatchRateLimiterIfNeeded(TopicPolicies policies) {
-        synchronized (dispatchRateLimiterLock) {
-            if (!dispatchRateLimiter.isPresent() && policies.getDispatchRate() != null) {
-                this.dispatchRateLimiter = Optional.of(new DispatchRateLimiter(this, Type.TOPIC));
-            }
-        }
     }
 
     protected CompletableFuture<Void> initTopicPolicy() {

@@ -235,7 +235,7 @@ io.kubernetes.client.ApiException: Forbidden
 
 ### Integrate Kubernetes secrets
 
-In order to safely distribute secrets, Pulasr Functions can reference Kubernetes secrets. To enable this, set the `secretsProviderConfiguratorClassName` to `org.apache.pulsar.functions.secretsproviderconfigurator.KubernetesSecretsProviderConfigurator`.
+In order to safely distribute secrets, Pulsar Functions can reference Kubernetes secrets. To enable this, set the `secretsProviderConfiguratorClassName` to `org.apache.pulsar.functions.secretsproviderconfigurator.KubernetesSecretsProviderConfigurator`.
 
 You can create a secret in the namespace where your functions are deployed. For example, you deploy functions to the `pulsar-func` Kubernetes namespace, and you have a secret named `database-creds` with a field name `password`, which you want to mount in the pod as an environment variable called `DATABASE_PASSWORD`. The following functions configuration enables you to reference that secret and mount the value as an environment variable in the pod.
 

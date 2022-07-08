@@ -102,6 +102,7 @@ import org.apache.pulsar.common.api.proto.CommandSendReceipt;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.CommandSuccess;
+import org.apache.pulsar.common.api.proto.CommandWatchTopicListSuccess;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.ProtocolVersion;
 import org.apache.pulsar.common.api.proto.ServerError;
@@ -213,9 +214,12 @@ public class ServerCnxTest {
         doReturn(namespaceService).when(pulsar).getNamespaceService();
         doReturn(true).when(namespaceService).isServiceUnitOwned(any());
         doReturn(true).when(namespaceService).isServiceUnitActive(any());
+        doReturn(CompletableFuture.completedFuture(true)).when(namespaceService).isServiceUnitActiveAsync(any());
         doReturn(CompletableFuture.completedFuture(true)).when(namespaceService).checkTopicOwnership(any());
         doReturn(CompletableFuture.completedFuture(topics)).when(namespaceService).getListOfTopics(
                 NamespaceName.get("use", "ns-abc"), CommandGetTopicsOfNamespace.Mode.ALL);
+        doReturn(CompletableFuture.completedFuture(topics)).when(namespaceService).getListOfPersistentTopics(
+                NamespaceName.get("use", "ns-abc"));
 
         setupMLAsyncCallbackMocks();
 
@@ -486,7 +490,8 @@ public class ServerCnxTest {
         setChannelConnected();
 
         // Force the case where the broker doesn't own any topic
-        doReturn(false).when(namespaceService).isServiceUnitActive(any(TopicName.class));
+        doReturn(CompletableFuture.completedFuture(false)).when(namespaceService)
+                .isServiceUnitActiveAsync(any(TopicName.class));
 
         // test PRODUCER failure case
         ByteBuf clientCommand = Commands.newProducer(nonOwnedTopicName, 1 /* producer id */, 1 /* request id */,
@@ -1956,6 +1961,26 @@ public class ServerCnxTest {
         assertEquals(response.getTopicsHash(), TopicList.calculateHash(matchingTopics));
         assertFalse(response.isChanged());
         assertTrue(response.isFiltered());
+
+        channel.finish();
+    }
+
+    @Test
+    public void testWatchTopicList() throws Exception {
+        svcConfig.setEnableBrokerSideSubscriptionPatternEvaluation(true);
+        resetChannel();
+        setChannelConnected();
+        BaseCommand command = Commands.newWatchTopicList(1, 3, "use/ns-abc", "use/ns-abc/topic-.*", null);
+        ByteBuf serializedCommand = Commands.serializeWithSize(command);
+
+        channel.writeInbound(serializedCommand);
+        Object resp = getResponse();
+        System.out.println(resp);
+        CommandWatchTopicListSuccess response = (CommandWatchTopicListSuccess) resp;
+
+        assertEquals(response.getTopicsList(), matchingTopics);
+        assertEquals(response.getTopicsHash(), TopicList.calculateHash(matchingTopics));
+        assertEquals(response.getWatcherId(), 3);
 
         channel.finish();
     }

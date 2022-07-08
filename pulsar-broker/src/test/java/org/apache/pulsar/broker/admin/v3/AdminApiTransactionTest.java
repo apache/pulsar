@@ -71,6 +71,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertFalse;
@@ -619,6 +620,61 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         }
     }
 
+    @Test
+    public void testGetRecoveryTime() throws Exception {
+        initTransaction(1);
+        final String topic = "persistent://public/default/testGetRecoveryTime";
+        final String subName = "test";
+
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .subscriptionName(subName)
+                .topic(topic)
+                .subscribe();
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .sendTimeout(0, TimeUnit.SECONDS)
+                .topic(topic)
+                .create();
+
+        Awaitility.await().untilAsserted(() -> {
+            Map<Integer, TransactionCoordinatorStats> transactionCoordinatorStatsMap =
+                    admin.transactions().getCoordinatorStats();
+            assertNotEquals(transactionCoordinatorStatsMap.get(0).recoverStartTime, 0L);
+            assertNotEquals(transactionCoordinatorStatsMap.get(0).recoverEndTime, 0L);
+            assertNotEquals(transactionCoordinatorStatsMap.get(0).recoverEndTime, -1L);
+        });
+        Awaitility.await().untilAsserted(() -> {
+            TransactionBufferStats transactionBufferStats = admin.transactions().getTransactionBufferStats(topic);
+            assertNotEquals(transactionBufferStats.recoverStartTime, 0L);
+            assertNotEquals(transactionBufferStats.recoverEndTime, 0L);
+            assertNotEquals(transactionBufferStats.recoverEndTime, -1L);
+        });
+
+        TransactionPendingAckStats transactionPendingAckStats =
+                admin.transactions().getPendingAckStats(topic, subName);
+        assertEquals(transactionPendingAckStats.recoverStartTime, 0L);
+        assertEquals(transactionPendingAckStats.recoverEndTime, 0L);
+
+        Transaction transaction1 = pulsarClient.newTransaction()
+                .withTransactionTimeout(5, TimeUnit.MINUTES)
+                .build()
+                .get();
+
+        producer.newMessage().send();
+        Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
+
+        consumer.acknowledgeAsync(message.getMessageId(), transaction1);
+        transaction1.commit().get();
+
+        transactionPendingAckStats =
+                admin.transactions().getPendingAckStats(topic, subName);
+        assertNotEquals(transactionPendingAckStats.recoverStartTime, 0L);
+        assertNotEquals(transactionPendingAckStats.recoverEndTime, 0L);
+        assertNotEquals(transactionPendingAckStats.recoverEndTime, -1L);
+    }
+
 
     @Test
     public void testCheckPositionInPendingAckState() throws Exception {
@@ -647,16 +703,16 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
          Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
          MessageIdImpl messageId = (MessageIdImpl) message.getMessageId();
 
-         PositionInPendingAckStats result = admin.transactions().checkPositionInPendingAckState(topic, subName,
+         PositionInPendingAckStats result = admin.transactions().getPositionStatsInPendingAck(topic, subName,
                  messageId.getLedgerId(), messageId.getEntryId(), null);
          assertEquals(result.state, PositionInPendingAckStats.State.PendingAckNotReady);
 
          consumer.acknowledgeAsync(messageId, transaction).get();
-         result = admin.transactions().checkPositionInPendingAckState(topic, subName,
+         result = admin.transactions().getPositionStatsInPendingAck(topic, subName,
                 messageId.getLedgerId(), messageId.getEntryId(), null);
          assertEquals(result.state, PositionInPendingAckStats.State.PendingAck);
          transaction.commit().get();
-         result = admin.transactions().checkPositionInPendingAckState(topic, subName,
+         result = admin.transactions().getPositionStatsInPendingAck(topic, subName,
                  messageId.getLedgerId(), messageId.getEntryId(), null);
          assertEquals(result.state, PositionInPendingAckStats.State.MarkDelete);
     }
@@ -715,16 +771,16 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         consumer.acknowledgeAsync(messageId, transaction).get();
 
         PositionInPendingAckStats positionStatsInPendingAckStats =
-                admin.transactions().checkPositionInPendingAckState(topic, subscriptionName,
+                admin.transactions().getPositionStatsInPendingAck(topic, subscriptionName,
                 messageId.getLedgerId(), messageId.getEntryId(), 1);
         assertEquals(positionStatsInPendingAckStats.state, PositionInPendingAckStats.State.PendingAck);
-        
+
         positionStatsInPendingAckStats =
-                admin.transactions().checkPositionInPendingAckState(topic, subscriptionName,
+                admin.transactions().getPositionStatsInPendingAck(topic, subscriptionName,
                         messageId.getLedgerId(), messageId.getEntryId(), 2);
         assertEquals(positionStatsInPendingAckStats.state, PositionInPendingAckStats.State.NotInPendingAck);
         positionStatsInPendingAckStats =
-                admin.transactions().checkPositionInPendingAckState(topic, subscriptionName,
+                admin.transactions().getPositionStatsInPendingAck(topic, subscriptionName,
                         messageId.getLedgerId(), messageId.getEntryId(), 10);
         assertEquals(positionStatsInPendingAckStats.state, PositionInPendingAckStats.State.InvalidPosition);
 

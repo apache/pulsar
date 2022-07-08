@@ -1325,7 +1325,7 @@ public class BrokerService implements Closeable {
                     final Semaphore topicLoadSemaphore = topicLoadRequestSemaphore.get();
 
                     if (topicLoadSemaphore.tryAcquire()) {
-                        createPersistentTopic(topic, createIfMissing, topicFuture, properties);
+                        checkOwnershipAndCreatePersistentTopic(topic, createIfMissing, topicFuture, properties);
                         topicFuture.handle((persistentTopic, ex) -> {
                             // release permit and process pending topic
                             topicLoadSemaphore.release();
@@ -1346,20 +1346,32 @@ public class BrokerService implements Closeable {
         return topicFuture;
     }
 
+    private void checkOwnershipAndCreatePersistentTopic(final String topic, boolean createIfMissing,
+                                       CompletableFuture<Optional<Topic>> topicFuture,
+                                       Map<String, String> properties) {
+        TopicName topicName = TopicName.get(topic);
+        pulsar.getNamespaceService().isServiceUnitActiveAsync(topicName)
+                .thenAccept(isActive -> {
+                    if (isActive) {
+                        createPersistentTopic(topic, createIfMissing, topicFuture, properties);
+                    } else {
+                        // namespace is being unloaded
+                        String msg = String.format("Namespace is being unloaded, cannot add topic %s", topic);
+                        log.warn(msg);
+                        pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
+                        topicFuture.completeExceptionally(new ServiceUnitNotReadyException(msg));
+                    }
+                }).exceptionally(ex -> {
+                    topicFuture.completeExceptionally(ex);
+                    return null;
+                });
+    }
+
     private void createPersistentTopic(final String topic, boolean createIfMissing,
                                        CompletableFuture<Optional<Topic>> topicFuture,
                                        Map<String, String> properties) {
-
-        final long topicCreateTimeMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime());
         TopicName topicName = TopicName.get(topic);
-        if (!pulsar.getNamespaceService().isServiceUnitActive(topicName)) {
-            // namespace is being unloaded
-            String msg = String.format("Namespace is being unloaded, cannot add topic %s", topic);
-            log.warn(msg);
-            pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
-            topicFuture.completeExceptionally(new ServiceUnitNotReadyException(msg));
-            return;
-        }
+        final long topicCreateTimeMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime());
 
         if (isTransactionInternalName(topicName)) {
             String msg = String.format("Can not create transaction system topic %s", topic);
@@ -2307,7 +2319,37 @@ public class BrokerService implements Closeable {
         // add listener to notify topic subscriptionTypesEnabled changed.
         registerConfigurationListener("subscriptionTypesEnabled", this::updateBrokerSubscriptionTypesEnabled);
 
+        // add listener to notify partitioned topic defaultNumPartitions changed
+        registerConfigurationListener("defaultNumPartitions", defaultNumPartitions -> {
+            this.updateDefaultNumPartitions((int) defaultNumPartitions);
+        });
+
+        // add listener to notify partitioned topic maxNumPartitionsPerPartitionedTopic changed
+        registerConfigurationListener("maxNumPartitionsPerPartitionedTopic", maxNumPartitions -> {
+            this.updateMaxNumPartitionsPerPartitionedTopic((int) maxNumPartitions);
+        });
+
         // add more listeners here
+    }
+
+    private void updateDefaultNumPartitions(int numPartitions) {
+        int maxNumPartitions = pulsar.getConfiguration().getMaxNumPartitionsPerPartitionedTopic();
+        if (maxNumPartitions == 0 || maxNumPartitions > numPartitions) {
+            this.pulsar.getConfiguration().setDefaultNumPartitions(numPartitions);
+        } else {
+            this.pulsar.getConfiguration().setDefaultNumPartitions(maxNumPartitions);
+        }
+    }
+
+    private void updateMaxNumPartitionsPerPartitionedTopic(int maxNumPartitions) {
+        if (maxNumPartitions == 0) {
+            this.pulsar.getConfiguration().setMaxNumPartitionsPerPartitionedTopic(maxNumPartitions);
+            return;
+        }
+        if (this.pulsar.getConfiguration().getDefaultNumPartitions() > maxNumPartitions) {
+            this.pulsar.getConfiguration().setDefaultNumPartitions(maxNumPartitions);
+        }
+        this.pulsar.getConfiguration().setMaxNumPartitionsPerPartitionedTopic(maxNumPartitions);
     }
 
     private void updateBrokerDispatchThrottlingMaxRate() {
@@ -2372,9 +2414,7 @@ public class BrokerService implements Closeable {
             forEachTopic(topic -> {
                 if (topic instanceof AbstractTopic) {
                     ((AbstractTopic) topic).updateBrokerDispatchRate();
-                }
-                if (topic.getDispatchRateLimiter().isPresent()) {
-                    topic.getDispatchRateLimiter().get().updateDispatchRate();
+                    ((AbstractTopic) topic).updateDispatchRateLimiter();
                 }
             });
         });
@@ -2595,7 +2635,7 @@ public class BrokerService implements Closeable {
             CompletableFuture<Optional<Topic>> pendingFuture = pendingTopic.getTopicFuture();
             final Semaphore topicLoadSemaphore = topicLoadRequestSemaphore.get();
             final boolean acquiredPermit = topicLoadSemaphore.tryAcquire();
-            createPersistentTopic(topic, true, pendingFuture, pendingTopic.getProperties());
+            checkOwnershipAndCreatePersistentTopic(topic, true, pendingFuture, pendingTopic.getProperties());
             pendingFuture.handle((persistentTopic, ex) -> {
                 // release permit and process next pending topic
                 if (acquiredPermit) {
