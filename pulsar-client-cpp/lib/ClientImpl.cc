@@ -185,9 +185,6 @@ void ClientImpl::handleCreateProducer(const Result result, const LookupDataResul
         producer->getProducerCreatedFuture().addListener(
             std::bind(&ClientImpl::handleProducerCreated, shared_from_this(), std::placeholders::_1,
                       std::placeholders::_2, callback, producer));
-        Lock lock(mutex_);
-        producers_.push_back(producer);
-        lock.unlock();
         producer->start();
     } else {
         LOG_ERROR("Error Checking/Getting Partition Metadata while creating producer on "
@@ -198,7 +195,14 @@ void ClientImpl::handleCreateProducer(const Result result, const LookupDataResul
 
 void ClientImpl::handleProducerCreated(Result result, ProducerImplBaseWeakPtr producerBaseWeakPtr,
                                        CreateProducerCallback callback, ProducerImplBasePtr producer) {
-    callback(result, Producer(producer));
+    if (result == ResultOk) {
+        Lock lock(mutex_);
+        producers_.push_back(producer);
+        lock.unlock();
+        callback(result, Producer(producer));
+    } else {
+        callback(result, {});
+    }
 }
 
 void ClientImpl::createReaderAsync(const std::string& topic, const MessageId& startMessageId,
@@ -241,10 +245,13 @@ void ClientImpl::handleReaderMetadataLookup(const Result result, const LookupDat
 
     ReaderImplPtr reader = std::make_shared<ReaderImpl>(shared_from_this(), topicName->toString(), conf,
                                                         getListenerExecutorProvider()->get(), callback);
-    reader->start(startMessageId);
-
-    Lock lock(mutex_);
-    consumers_.push_back(reader->getConsumer());
+    ConsumerImplBasePtr consumer = reader->getConsumer().lock();
+    auto self = shared_from_this();
+    reader->start(startMessageId, [this, self](const ConsumerImplBaseWeakPtr& weakConsumerPtr) {
+        Lock lock(mutex_);
+        consumers_.push_back(weakConsumerPtr);
+        lock.unlock();
+    });
 }
 
 void ClientImpl::subscribeWithRegexAsync(const std::string& regexPattern, const std::string& subscriptionName,
@@ -291,9 +298,6 @@ void ClientImpl::createPatternMultiTopicsConsumer(const Result result, const Nam
         consumer->getConsumerCreatedFuture().addListener(
             std::bind(&ClientImpl::handleConsumerCreated, shared_from_this(), std::placeholders::_1,
                       std::placeholders::_2, callback, consumer));
-        Lock lock(mutex_);
-        consumers_.push_back(consumer);
-        lock.unlock();
         consumer->start();
     } else {
         LOG_ERROR("Error Getting topicsOfNameSpace while createPatternMultiTopicsConsumer:  " << result);
@@ -317,6 +321,7 @@ void ClientImpl::subscribeAsync(const std::vector<std::string>& topics, const st
             return;
         }
     }
+    lock.unlock();
 
     if (topicNamePtr) {
         std::string randomName = generateRandomName();
@@ -331,8 +336,6 @@ void ClientImpl::subscribeAsync(const std::vector<std::string>& topics, const st
     consumer->getConsumerCreatedFuture().addListener(std::bind(&ClientImpl::handleConsumerCreated,
                                                                shared_from_this(), std::placeholders::_1,
                                                                std::placeholders::_2, callback, consumer));
-    consumers_.push_back(consumer);
-    lock.unlock();
     consumer->start();
 }
 
@@ -389,9 +392,6 @@ void ClientImpl::handleSubscribe(const Result result, const LookupDataResultPtr 
         consumer->getConsumerCreatedFuture().addListener(
             std::bind(&ClientImpl::handleConsumerCreated, shared_from_this(), std::placeholders::_1,
                       std::placeholders::_2, callback, consumer));
-        Lock lock(mutex_);
-        consumers_.push_back(consumer);
-        lock.unlock();
         consumer->start();
     } else {
         LOG_ERROR("Error Checking/Getting Partition Metadata while Subscribing on " << topicName->toString()
@@ -402,7 +402,14 @@ void ClientImpl::handleSubscribe(const Result result, const LookupDataResultPtr 
 
 void ClientImpl::handleConsumerCreated(Result result, ConsumerImplBaseWeakPtr consumerImplBaseWeakPtr,
                                        SubscribeCallback callback, ConsumerImplBasePtr consumer) {
-    callback(result, Consumer(consumer));
+    if (result == ResultOk) {
+        Lock lock(mutex_);
+        consumers_.push_back(consumer);
+        lock.unlock();
+        callback(result, Consumer(consumer));
+    } else {
+        callback(result, {});
+    }
 }
 
 Future<Result, ClientConnectionWeakPtr> ClientImpl::getConnection(const std::string& topic) {

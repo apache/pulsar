@@ -16,31 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.policies.data;
+package org.apache.pulsar.common.util;
 
-import lombok.Data;
 
-/**
- * Transaction coordinator stats.
- */
-@Data
-public class TransactionCoordinatorStats {
+import lombok.Getter;
+import lombok.Setter;
 
-    /** The state of this transaction metadataStore. */
-    public String state;
+@Getter
+@Setter
+public class RecoverTimeRecord {
 
-    /** The sequenceId of transaction metadataStore. */
-    public long leastSigBits;
+    private long recoverStartTime;
 
-    /** The low water mark of transaction metadataStore. */
-    public long lowWaterMark;
-
-    /**
-     *  The total number of ongoing transactions in this transaction coordinator.
-     */
-    public long ongoingTxnSize;
-    //Start timestamp of  transaction coordinator recovery. 0L means no startup.
-    public long recoverStartTime;
-    //End timestamp of transaction coordinator recovery. 0L means no startup.
-    public long recoverEndTime;
+    private long recoverEndTime;
 }

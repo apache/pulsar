@@ -359,13 +359,13 @@ public class TransactionsImpl extends BaseResource implements Transactions {
     }
 
     @Override
-    public CompletableFuture<PositionInPendingAckStats> checkPositionInPendingAckStateAsync(String topic,
-                                                                                            String subName,
-                                                                                            Long ledgerId,
-                                                                                            Long entryId,
-                                                                                            Integer batchIndex) {
+    public CompletableFuture<PositionInPendingAckStats> getPositionStatsInPendingAckAsync(String topic,
+                                                                                          String subName,
+                                                                                          Long ledgerId,
+                                                                                          Long entryId,
+                                                                                          Integer batchIndex) {
         TopicName tn = TopicName.get(topic);
-        WebTarget path = adminV3Transactions.path("pendingAckStats");
+        WebTarget path = adminV3Transactions.path("positionStatsInPendingAck");
         path = path.path(tn.getRestPath(false));
         path = path.path(subName);
         path = path.path(ledgerId.toString());
@@ -389,9 +389,9 @@ public class TransactionsImpl extends BaseResource implements Transactions {
 
 
     @Override
-    public PositionInPendingAckStats checkPositionInPendingAckState(String topic, String subName, Long ledgerId,
-                                                                    Long entryId, Integer batchIndex)
+    public PositionInPendingAckStats getPositionStatsInPendingAck(String topic, String subName, Long ledgerId,
+                                                                  Long entryId, Integer batchIndex)
             throws PulsarAdminException {
-        return sync(() -> checkPositionInPendingAckStateAsync(topic, subName, ledgerId, entryId, batchIndex));
+        return sync(() -> getPositionStatsInPendingAckAsync(topic, subName, ledgerId, entryId, batchIndex));
     }
 }
