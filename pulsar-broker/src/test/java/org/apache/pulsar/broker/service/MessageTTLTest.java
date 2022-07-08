@@ -31,6 +31,7 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats.CursorStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.Policies;
@@ -83,6 +84,7 @@ public class MessageTTLTest extends BrokerTestBase {
             sendFutureList.add(producer.sendAsync(message));
         }
         FutureUtil.waitForAll(sendFutureList).get();
+        MessageIdImpl firstMessageId = (MessageIdImpl) sendFutureList.get(0).get();
         producer.close();
         // unload a reload the topic
         // this action created a new ledger
@@ -94,7 +96,8 @@ public class MessageTTLTest extends BrokerTestBase {
         PersistentTopicInternalStats internalStatsBeforeExpire = admin.topics().getInternalStats(topicName);
         CursorStats statsBeforeExpire = internalStatsBeforeExpire.cursors.get(subscriptionName);
         log.info("markDeletePosition before expire {}", statsBeforeExpire.markDeletePosition);
-        assertEquals(statsBeforeExpire.markDeletePosition, PositionImpl.get(3, -1).toString());
+        assertEquals(statsBeforeExpire.markDeletePosition,
+                PositionImpl.get(firstMessageId.getLedgerId(), -1).toString());
 
         // wall clock time, we have to make the message to be considered "expired"
         Thread.sleep(this.conf.getTtlDurationDefaultInSeconds() * 2000L);
