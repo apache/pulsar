@@ -174,6 +174,12 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
     @JsonProperty(access = JsonProperty.Access.READ_WRITE)
     private Integer managedLedgerOffloadReadBufferSizeInBytes;
 
+    public static OffloadPoliciesImpl create(String driver, String region, String bucket, String endpoint) {
+        return create(driver, region, bucket, endpoint, null, null, null, null, DEFAULT_MAX_BLOCK_SIZE_IN_BYTES,
+                DEFAULT_READ_BUFFER_SIZE_IN_BYTES, DEFAULT_OFFLOAD_THRESHOLD_IN_BYTES,
+                DEFAULT_OFFLOAD_DELETION_LAG_IN_MILLIS, DEFAULT_OFFLOADED_READ_PRIORITY);
+    }
+
     public static OffloadPoliciesImpl create(String driver, String region, String bucket, String endpoint,
                                              String role, String roleSessionName,
                                              String credentialId, String credentialSecret,

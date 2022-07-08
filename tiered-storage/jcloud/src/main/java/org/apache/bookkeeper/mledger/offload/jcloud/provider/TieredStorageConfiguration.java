@@ -303,7 +303,7 @@ public class TieredStorageConfiguration {
 
     public Map<String, String> getOffloadDriverMetadata() {
         return ImmutableMap.of(
-                BLOB_STORE_PROVIDER_KEY, (getProvider() != null) ? getProvider().toString() : "",
+                BLOB_STORE_PROVIDER_KEY, (getProvider() != null) ? getProvider().getDriver() : "",
                 METADATA_FIELD_BUCKET,  (getBucket() != null) ?  getBucket() : "",
                 METADATA_FIELD_REGION, (getRegion() != null) ? getRegion() : "",
                 METADATA_FIELD_ENDPOINT, (getServiceEndpoint() != null) ? getServiceEndpoint() : ""

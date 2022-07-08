@@ -50,6 +50,7 @@ import org.apache.bookkeeper.stats.StatsLogger;
 import org.apache.bookkeeper.stats.StatsProvider;
 import org.apache.bookkeeper.util.MathUtils;
 import org.apache.commons.configuration.Configuration;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -84,15 +85,15 @@ public class SystemTopicBasedLedgerDeletionService implements LedgerDeletionServ
 
     private final int ledgerDeletionParallelism;
 
+    private final ServiceConfiguration serviceConfiguration;
+
+    private final Map<OffloadPoliciesImpl, LedgerOffloader> offloaderMap = new ConcurrentHashMap<>();
+
     private StatsProvider statsProvider = new NullStatsProvider();
 
     private OpStatsLogger deleteLedgerOpLogger;
 
     private OpStatsLogger deleteOffloadLedgerOpLogger;
-
-    private ServiceConfiguration serviceConfiguration;
-
-    private Map<OffloadPoliciesImpl, LedgerOffloader> offloaderMap = new ConcurrentHashMap<>();
 
     private final LoadingCache<String, TreeSet<Long>> ledgersCache = Caffeine.newBuilder()
             .expireAfterWrite(10, TimeUnit.MINUTES)
@@ -124,15 +125,14 @@ public class SystemTopicBasedLedgerDeletionService implements LedgerDeletionServ
     }
 
     private SystemTopicClient<PendingDeleteLedgerInfo> getLedgerDeletionTopicClient() throws PulsarClientException {
-        TopicName systemTopicName =
+        TopicName ledgerDeletionSystemTopic =
                 NamespaceEventsSystemTopicFactory.getSystemTopicName(NamespaceName.SYSTEM_NAMESPACE,
                         EventType.LEDGER_DELETION);
-        if (systemTopicName == null) {
+        if (ledgerDeletionSystemTopic == null) {
             throw new PulsarClientException.InvalidTopicNameException(
-                    "Can't create SystemTopicBaseTxnBufferSnapshotService, "
-                            + "because the topicName is null!");
+                    "Can't create SystemTopicBasedLedgerDeletionService, " + "because the topicName is null!");
         }
-        return namespaceEventsSystemTopicFactory.createLedgerDeletionSystemTopicClient(NamespaceName.SYSTEM_NAMESPACE);
+        return namespaceEventsSystemTopicFactory.createLedgerDeletionSystemTopicClient(ledgerDeletionSystemTopic);
     }
 
     @Override
@@ -373,7 +373,13 @@ public class SystemTopicBasedLedgerDeletionService implements LedgerDeletionServ
     private CompletableFuture<?> asyncDeleteOffloadedLedger(String topicName, LedgerInfo ledgerInfo) {
         CompletableFuture<Void> future = new CompletableFuture<>();
         final long startTime = MathUtils.nowInNano();
-        OffloadPoliciesImpl offloadPolicies = buildOffloadPolicies(ledgerInfo);
+        OffloadPoliciesImpl offloadPolicies;
+        try {
+            offloadPolicies = buildOffloadPolicies(ledgerInfo);
+        } catch (IllegalArgumentException e) {
+            future.completeExceptionally(e);
+            return future;
+        }
 
         LedgerOffloader ledgerOffloader = offloaderMap.get(offloadPolicies);
         if (ledgerOffloader == null) {
@@ -421,9 +427,25 @@ public class SystemTopicBasedLedgerDeletionService implements LedgerDeletionServ
         return future;
     }
 
-    private OffloadPoliciesImpl buildOffloadPolicies(LedgerInfo ledgerInfo) {
-        OffloadPoliciesImpl offloadPolicies = new OffloadPoliciesImpl();
-
-        return offloadPolicies;
+    private OffloadPoliciesImpl buildOffloadPolicies(LedgerInfo ledgerInfo) throws IllegalArgumentException {
+        String driverName = OffloadUtils.getOffloadDriverName(ledgerInfo, "");
+        Map<String, String> metadata = OffloadUtils.getOffloadDriverMetadata(ledgerInfo, Collections.emptyMap());
+        String bucket = metadata.get(METADATA_FIELD_BUCKET);
+        String region = metadata.get(METADATA_FIELD_REGION);
+        String endpoint = metadata.get(METADATA_FIELD_ENDPOINT);
+        if (StringUtils.isBlank(driverName) || StringUtils.isBlank(bucket) || StringUtils.isBlank(region)
+                || StringUtils.isBlank(endpoint)) {
+            throw new IllegalArgumentException("Failed get offload policies param from ledgerInfo failed.");
+        }
+        return OffloadPoliciesImpl.create(driverName, bucket, region, endpoint);
     }
+
+    //TieredStorageConfiguration.METADATA_FIELD_BUCKET
+    private static final String METADATA_FIELD_BUCKET = "bucket";
+    //TieredStorageConfiguration.METADATA_FIELD_REGION
+    private static final String METADATA_FIELD_REGION = "region";
+    //TieredStorageConfiguration.METADATA_FIELD_ENDPOINT
+    private static final String METADATA_FIELD_ENDPOINT = "serviceEndpoint";
+
+
 }
