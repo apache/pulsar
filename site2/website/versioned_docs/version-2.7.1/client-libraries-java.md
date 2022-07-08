@@ -940,7 +940,7 @@ Pulsar currently supports three authentication schemes: [TLS](security-tls-authe
 
 ### TLS Authentication
 
-To use [TLS](security-tls-authentication), you need to set TLS to `true` using the `enableTls` method, point your Pulsar client to a TLS cert path, and provide paths to cert and key files.
+To use [TLS](security-tls-authentication.md), you need to set TLS to `true` using the `enableTls` method, point your Pulsar client to a TLS cert path, and provide paths to cert and key files.
 
 The following is an example.
 
