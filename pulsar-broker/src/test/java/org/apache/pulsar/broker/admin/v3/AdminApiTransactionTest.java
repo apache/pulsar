@@ -703,16 +703,16 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
          Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
          MessageIdImpl messageId = (MessageIdImpl) message.getMessageId();
 
-         PositionInPendingAckStats result = admin.transactions().checkPositionInPendingAckState(topic, subName,
+         PositionInPendingAckStats result = admin.transactions().getPositionStatsInPendingAck(topic, subName,
                  messageId.getLedgerId(), messageId.getEntryId(), null);
          assertEquals(result.state, PositionInPendingAckStats.State.PendingAckNotReady);
 
          consumer.acknowledgeAsync(messageId, transaction).get();
-         result = admin.transactions().checkPositionInPendingAckState(topic, subName,
+         result = admin.transactions().getPositionStatsInPendingAck(topic, subName,
                 messageId.getLedgerId(), messageId.getEntryId(), null);
          assertEquals(result.state, PositionInPendingAckStats.State.PendingAck);
          transaction.commit().get();
-         result = admin.transactions().checkPositionInPendingAckState(topic, subName,
+         result = admin.transactions().getPositionStatsInPendingAck(topic, subName,
                  messageId.getLedgerId(), messageId.getEntryId(), null);
          assertEquals(result.state, PositionInPendingAckStats.State.MarkDelete);
     }
@@ -771,16 +771,16 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         consumer.acknowledgeAsync(messageId, transaction).get();
 
         PositionInPendingAckStats positionStatsInPendingAckStats =
-                admin.transactions().checkPositionInPendingAckState(topic, subscriptionName,
+                admin.transactions().getPositionStatsInPendingAck(topic, subscriptionName,
                 messageId.getLedgerId(), messageId.getEntryId(), 1);
         assertEquals(positionStatsInPendingAckStats.state, PositionInPendingAckStats.State.PendingAck);
 
         positionStatsInPendingAckStats =
-                admin.transactions().checkPositionInPendingAckState(topic, subscriptionName,
+                admin.transactions().getPositionStatsInPendingAck(topic, subscriptionName,
                         messageId.getLedgerId(), messageId.getEntryId(), 2);
         assertEquals(positionStatsInPendingAckStats.state, PositionInPendingAckStats.State.NotInPendingAck);
         positionStatsInPendingAckStats =
-                admin.transactions().checkPositionInPendingAckState(topic, subscriptionName,
+                admin.transactions().getPositionStatsInPendingAck(topic, subscriptionName,
                         messageId.getLedgerId(), messageId.getEntryId(), 10);
         assertEquals(positionStatsInPendingAckStats.state, PositionInPendingAckStats.State.InvalidPosition);
 
