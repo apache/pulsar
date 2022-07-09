@@ -19,9 +19,9 @@
 package org.apache.pulsar.sql.presto;
 
 import com.google.common.collect.Sets;
-import io.prestosql.spi.connector.ConnectorContext;
-import io.prestosql.spi.predicate.TupleDomain;
-import io.prestosql.testing.TestingConnectorContext;
+import io.trino.spi.connector.ConnectorContext;
+import io.trino.spi.predicate.TupleDomain;
+import io.trino.testing.TestingConnectorContext;
 import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -143,9 +143,6 @@ public class TestReadChunkedMessages extends MockedPulsarServiceBaseTest {
         for (int i = 0; i < messageCnt; i++) {
             final double dataTimes = (i % 5) * 0.5;
             byte[] movieBinaryData = RandomUtils.nextBytes((int) (MAX_MESSAGE_SIZE * dataTimes));
-            final int length = movieBinaryData.length;
-            final int index = i;
-
             Movie movie = new Movie();
             movie.setName("movie-" + i);
             movie.setPublishTime(System.currentTimeMillis());

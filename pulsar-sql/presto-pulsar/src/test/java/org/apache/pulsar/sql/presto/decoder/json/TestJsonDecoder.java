@@ -20,10 +20,10 @@ package org.apache.pulsar.sql.presto.decoder.json;
 
 import com.google.common.collect.ImmutableList;
 import io.netty.buffer.ByteBuf;
-import io.prestosql.decoder.DecoderColumnHandle;
-import io.prestosql.decoder.FieldValueProvider;
-import io.prestosql.spi.PrestoException;
-import io.prestosql.spi.type.*;
+import io.trino.decoder.DecoderColumnHandle;
+import io.trino.decoder.FieldValueProvider;
+import io.trino.spi.TrinoException;
+import io.trino.spi.type.*;
 import java.math.BigDecimal;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
 import org.apache.pulsar.client.impl.schema.generic.GenericJsonRecord;
@@ -40,12 +40,12 @@ import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 
-import static io.prestosql.spi.type.BigintType.BIGINT;
-import static io.prestosql.spi.type.BooleanType.BOOLEAN;
-import static io.prestosql.spi.type.DoubleType.DOUBLE;
-import static io.prestosql.spi.type.IntegerType.INTEGER;
-import static io.prestosql.spi.type.RealType.REAL;
-import static io.prestosql.spi.type.VarcharType.VARCHAR;
+import static io.trino.spi.type.BigintType.BIGINT;
+import static io.trino.spi.type.BooleanType.BOOLEAN;
+import static io.trino.spi.type.DoubleType.DOUBLE;
+import static io.trino.spi.type.IntegerType.INTEGER;
+import static io.trino.spi.type.RealType.REAL;
+import static io.trino.spi.type.VarcharType.VARCHAR;
 import static java.lang.Float.floatToIntBits;
 import static org.apache.pulsar.sql.presto.TestPulsarConnector.getPulsarConnectorId;
 import static org.testng.Assert.assertEquals;
@@ -290,7 +290,7 @@ public class TestJsonDecoder extends AbstractDecoderTester {
     @Test(singleThreaded = true)
     public void testCyclicDefinitionDetect() {
         JSONSchema cyclicSchema = JSONSchema.of(DecoderTestMessage.CyclicFoo.class);
-        PrestoException exception = expectThrows(PrestoException.class,
+        TrinoException exception = expectThrows(TrinoException.class,
                 () -> {
                     decoderFactory.extractColumnMetadata(topicName, cyclicSchema.getSchemaInfo(),
                             PulsarColumnHandle.HandleKeyValueType.NONE);

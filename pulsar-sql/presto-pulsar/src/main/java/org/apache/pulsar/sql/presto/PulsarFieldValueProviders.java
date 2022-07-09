@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.sql.presto;
 
-import io.prestosql.decoder.FieldValueProvider;
+import io.trino.decoder.FieldValueProvider;
 
 /**
  * custom FieldValueProvider for Pulsar.

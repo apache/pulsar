@@ -22,9 +22,9 @@ import static java.util.Objects.requireNonNull;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.prestosql.decoder.DecoderColumnHandle;
-import io.prestosql.spi.connector.ColumnMetadata;
-import io.prestosql.spi.type.Type;
+import io.trino.decoder.DecoderColumnHandle;
+import io.trino.spi.connector.ColumnMetadata;
+import io.trino.spi.type.Type;
 import java.util.Objects;
 
 /**
@@ -55,21 +55,21 @@ public class PulsarColumnHandle implements DecoderColumnHandle {
     private final boolean internal;
 
 
-    private HandleKeyValueType handleKeyValueType;
+    private final HandleKeyValueType handleKeyValueType;
 
     /**
      * {@link org.apache.pulsar.sql.presto.PulsarColumnMetadata.DecoderExtraInfo#mapping}.
      */
-    private String mapping;
+    private final String mapping;
     /**
      * {@link org.apache.pulsar.sql.presto.PulsarColumnMetadata.DecoderExtraInfo#dataFormat}.
      */
-    private String dataFormat;
+    private final String dataFormat;
 
     /**
      * {@link org.apache.pulsar.sql.presto.PulsarColumnMetadata.DecoderExtraInfo#formatHint}.
      */
-    private String formatHint;
+    private final String formatHint;
 
     /**
      * Column Handle keyValue type, used for keyValue schema.
@@ -108,11 +108,7 @@ public class PulsarColumnHandle implements DecoderColumnHandle {
         this.mapping = mapping;
         this.dataFormat = dataFormat;
         this.formatHint = formatHint;
-        if (handleKeyValueType == null) {
-            this.handleKeyValueType = HandleKeyValueType.NONE;
-        } else {
-            this.handleKeyValueType = handleKeyValueType;
-        }
+        this.handleKeyValueType = Objects.requireNonNullElse(handleKeyValueType, HandleKeyValueType.NONE);
     }
 
     @JsonProperty

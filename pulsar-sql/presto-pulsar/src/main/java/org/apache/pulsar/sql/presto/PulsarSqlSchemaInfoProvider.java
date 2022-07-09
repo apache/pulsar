@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -51,12 +51,12 @@ public class PulsarSqlSchemaInfoProvider implements SchemaInfoProvider {
     private final PulsarAdmin pulsarAdmin;
 
     private final LoadingCache<BytesSchemaVersion, SchemaInfo> cache = CacheBuilder.newBuilder().maximumSize(100000)
-            .expireAfterAccess(30, TimeUnit.MINUTES).build(new CacheLoader<BytesSchemaVersion, SchemaInfo>() {
-                @Override
-                public SchemaInfo load(BytesSchemaVersion schemaVersion) throws Exception {
-                    return loadSchema(schemaVersion);
-                }
-            });
+        .expireAfterAccess(30, TimeUnit.MINUTES).build(new CacheLoader<>() {
+            @Override
+            public SchemaInfo load(BytesSchemaVersion schemaVersion) throws Exception {
+                return loadSchema(schemaVersion);
+            }
+        });
 
     public PulsarSqlSchemaInfoProvider(TopicName topicName, PulsarAdmin pulsarAdmin) {
         this.topicName = topicName;
@@ -72,7 +72,7 @@ public class PulsarSqlSchemaInfoProvider implements SchemaInfoProvider {
             return completedFuture(cache.get(BytesSchemaVersion.of(schemaVersion)));
         } catch (ExecutionException e) {
             LOG.error("Can't get generic schema for topic {} schema version {}",
-                    topicName.toString(), new String(schemaVersion, StandardCharsets.UTF_8), e);
+                topicName.toString(), new String(schemaVersion, StandardCharsets.UTF_8), e);
             return FutureUtil.failedFuture(e.getCause());
         }
     }
@@ -80,11 +80,9 @@ public class PulsarSqlSchemaInfoProvider implements SchemaInfoProvider {
     @Override
     public CompletableFuture<SchemaInfo> getLatestSchema() {
         try {
-            return completedFuture(pulsarAdmin.schemas()
-                    .getSchemaInfo(topicName.toString()));
+            return completedFuture(pulsarAdmin.schemas().getSchemaInfo(topicName.toString()));
         } catch (PulsarAdminException e) {
-            LOG.error("Can't get current schema for topic {}",
-                    topicName.toString(), e);
+            LOG.error("Can't get current schema for topic {}", topicName, e);
             return FutureUtil.failedFuture(e.getCause());
         }
     }
@@ -101,8 +99,7 @@ public class PulsarSqlSchemaInfoProvider implements SchemaInfoProvider {
             long version = ByteBuffer.wrap(bytesSchemaVersion.get()).getLong();
             SchemaInfo schemaInfo = pulsarAdmin.schemas().getSchemaInfo(topicName.toString(), version);
             if (schemaInfo == null) {
-                throw new RuntimeException(
-                        "The specific version (" + version + ") schema of the topic " + topicName + " is null");
+                throw new RuntimeException("The specific version (" + version + ") schema of the topic " + topicName + " is null");
             }
             return schemaInfo;
         } finally {
@@ -110,8 +107,7 @@ public class PulsarSqlSchemaInfoProvider implements SchemaInfoProvider {
         }
     }
 
-
-    public static SchemaInfo defaultSchema(){
+    public static SchemaInfo defaultSchema() {
         return Schema.BYTES.getSchemaInfo();
     }
 

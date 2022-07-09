@@ -26,10 +26,10 @@ import com.fasterxml.jackson.databind.deser.std.FromStringDeserializer;
 import com.google.inject.Binder;
 import com.google.inject.Module;
 import com.google.inject.Scopes;
-import io.prestosql.decoder.DecoderModule;
-import io.prestosql.spi.type.Type;
-import io.prestosql.spi.type.TypeId;
-import io.prestosql.spi.type.TypeManager;
+import io.trino.decoder.DecoderModule;
+import io.trino.spi.type.Type;
+import io.trino.spi.type.TypeId;
+import io.trino.spi.type.TypeManager;
 import javax.inject.Inject;
 
 /**
@@ -70,8 +70,7 @@ public class PulsarConnectorModule implements Module {
     /**
      * A wrapper to deserialize the Presto types.
      */
-    public static final class TypeDeserializer
-            extends FromStringDeserializer<Type> {
+    public static final class TypeDeserializer extends FromStringDeserializer<Type> {
         private static final long serialVersionUID = 1L;
 
         private final TypeManager typeManager;
