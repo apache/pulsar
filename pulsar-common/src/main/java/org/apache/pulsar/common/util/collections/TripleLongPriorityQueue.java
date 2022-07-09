@@ -155,7 +155,7 @@ public class TripleLongPriorityQueue implements AutoCloseable {
     }
 
     /**
-     * The amount of memory used to back the priority queue
+     * The amount of memory used to back the priority queue.
      */
     public long bytesCapacity() {
         return array.bytesCapacity();

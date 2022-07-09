@@ -113,7 +113,7 @@ public class SegmentedLongArray implements AutoCloseable {
     }
 
     /**
-     * The amount of memory used to back the array of longs
+     * The amount of memory used to back the array of longs.
      */
     public long bytesCapacity() {
         return capacity * SIZE_OF_LONG;
