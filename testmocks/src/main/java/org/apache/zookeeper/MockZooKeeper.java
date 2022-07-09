@@ -540,15 +540,14 @@ public class MockZooKeeper extends ZooKeeper {
                 if (watcher != null) {
                     watchers.put(path, watcher);
                 }
+                cb.processResult(0, path, ctx, children);
             } catch (Throwable ex) {
                 log.error("get children : {} error", path, ex);
                 cb.processResult(KeeperException.Code.SYSTEMERROR.intValue(), path, ctx, null);
-                return;
             } finally {
                 unlockIfLocked();
             }
 
-            cb.processResult(0, path, ctx, children);
         });
     }
 
@@ -645,14 +644,13 @@ public class MockZooKeeper extends ZooKeeper {
                     String child = relativePath.split("/", 2)[0];
                     children.add(child);
                 });
+                cb.processResult(0, path, ctx, new ArrayList<>(children), new Stat());
             } catch (Throwable ex) {
                 log.error("get children : {} error", path, ex);
                 cb.processResult(KeeperException.Code.SYSTEMERROR.intValue(), path, ctx, null, null);
-                return;
             } finally {
                 unlockIfLocked();
             }
-            cb.processResult(0, path, ctx, new ArrayList<>(children), new Stat());
         });
 
     }
@@ -988,7 +986,7 @@ public class MockZooKeeper extends ZooKeeper {
                                     parent)));
                     triggerPersistentWatches(path, parent, EventType.NodeDeleted);
                 }
-            } catch (Exception ex) {
+            } catch (Throwable ex) {
                 log.error("delete path : {} error", path, ex);
                 cb.processResult(KeeperException.Code.SYSTEMERROR.intValue(), path, ctx);
             } finally {
