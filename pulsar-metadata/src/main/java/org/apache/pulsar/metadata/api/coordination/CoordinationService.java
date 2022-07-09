@@ -56,4 +56,21 @@ public interface CoordinationService extends AutoCloseable {
      *             if there's a failure in incrementing the counter
      */
     CompletableFuture<Long> getNextCounterValue(String path);
+
+    /**
+     * Increment a counter identified by the specified path and return the current value.
+     * The counter value will be guaranteed to be unique within the context of the path.
+     * It will retry when {@link org.apache.pulsar.metadata.api.MetadataStoreException} happened.
+     *
+     * If the maximum number of retries is reached and still failed,
+     * the feature will complete with exception {@link org.apache.pulsar.metadata.api.MetadataStoreException}.
+     *
+     * @param path
+     *            The path that identifies a particular counter
+     * @param count
+     *            The retry count.
+     * @return
+     *            A future that will track the completion of the operation
+     */
+    CompletableFuture<Long> getNextCounterValueWithRetry(String path, int count);
 }
