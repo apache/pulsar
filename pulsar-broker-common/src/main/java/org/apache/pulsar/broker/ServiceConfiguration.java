@@ -51,7 +51,6 @@ import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.sasl.SaslConstants;
 import org.apache.pulsar.common.util.DirectMemoryUtils;
 import org.apache.pulsar.metadata.api.MetadataStoreFactory;
-import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 
 /**
  * Pulsar service configuration object.
@@ -506,7 +505,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @Deprecated
     @FieldContext(
         category = CATEGORY_POLICIES,
-        doc = "@deprecated - Use backlogQuotaDefaultLimitByte instead.\""
+        doc = "@deprecated - Use backlogQuotaDefaultLimitByte instead."
     )
     private double backlogQuotaDefaultLimitGB = -1;
 
@@ -646,7 +645,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
         category = CATEGORY_POLICIES,
         dynamic = true,
-        doc = "Enable Key_Shared subscription (default is enabled)"
+        doc = "Enable Key_Shared subscription (default is enabled).\n"
+            + "@deprecated - use subscriptionTypesEnabled instead."
     )
     private boolean subscriptionKeySharedEnable = true;
 
@@ -1896,7 +1896,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
         deprecated = true,
         doc = "Max number of `acknowledgment holes` that can be stored in Zookeeper.\n\n"
             + "If number of unack message range is higher than this limit then broker will persist"
-            + " unacked ranges into bookkeeper to avoid additional data overhead into zookeeper.")
+            + " unacked ranges into bookkeeper to avoid additional data overhead into zookeeper.\n"
+            + "@deprecated - use managedLedgerMaxUnackedRangesToPersistInMetadataStore.")
     private int managedLedgerMaxUnackedRangesToPersistInZooKeeper = -1;
     @FieldContext(
             category = CATEGORY_STORAGE_ML,
@@ -2288,7 +2289,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_POLICIES,
         deprecated = true,
         doc = "How often broker checks for inactive topics to be deleted (topics with no subscriptions and no one "
-                + "connected) Deprecated in favor of using `brokerDeleteInactiveTopicsFrequencySeconds`"
+                + "connected) Deprecated in favor of using `brokerDeleteInactiveTopicsFrequencySeconds`\n"
+                + "@deprecated - unused."
     )
     private int brokerServicePurgeInactiveFrequencyInSeconds = 60;
     @FieldContext(
@@ -2779,6 +2781,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private Set<String> additionalServlets = new TreeSet<>();
 
+    public boolean isSubscriptionKeySharedEnable() {
+        return subscriptionKeySharedEnable && subscriptionTypesEnabled.contains("Key_Shared");
+    }
+
     public String getMetadataStoreUrl() {
         if (StringUtils.isNotBlank(metadataStoreUrl)) {
             return metadataStoreUrl;
@@ -2822,15 +2828,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
         } else {
             // Fallback to same metadata service used by broker, adding the "metadata-store" to specify the BK
             // metadata adapter
-            String suffix;
-            if (StringUtils.isNotBlank(metadataStoreUrl)) {
-                suffix = metadataStoreUrl;
-            } else {
-                // Fallback to old setting
-                // Note: chroot is not settable by using 'zookeeperServers' config.
-                suffix = ZKMetadataStore.ZK_SCHEME_IDENTIFIER + zookeeperServers;
-            }
-            return "metadata-store:" + suffix + BookKeeperConstants.DEFAULT_ZK_LEDGERS_ROOT_PATH;
+            // Note: chroot is not settable by using 'zookeeperServers' config.
+            return "metadata-store:" + getMetadataStoreUrl() + BookKeeperConstants.DEFAULT_ZK_LEDGERS_ROOT_PATH;
         }
     }
 
