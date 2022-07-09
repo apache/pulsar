@@ -1023,7 +1023,8 @@ public class TopicsImpl extends BaseResource implements Topics {
     public CompletableFuture<MessageId> getMessageIdByTimestampAsync(String topic, long timestamp) {
         TopicName tn = validateTopic(topic);
         WebTarget path = topicPath(tn, "messageid", Long.toString(timestamp));
-        return asyncGetRequest(path, new FutureCallback<MessageId>(){});
+        return asyncGetRequest(path, new FutureCallback<MessageIdImpl>(){})
+                .thenApply(messageIdImpl -> messageIdImpl);
     }
 
 
@@ -1805,7 +1806,8 @@ public class TopicsImpl extends BaseResource implements Topics {
         TopicName topicName = validateTopic(topic);
         WebTarget path = topicPath(topicName, "offloadPolicies");
         path = path.queryParam("applied", applied);
-        return asyncGetRequest(path, new FutureCallback<OffloadPolicies>(){});
+        return asyncGetRequest(path, new FutureCallback<OffloadPoliciesImpl>(){})
+                .thenApply(offloadPolicies -> offloadPolicies);
     }
 
     @Override

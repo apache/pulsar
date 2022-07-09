@@ -326,7 +326,8 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
         TopicName topicName = validateTopic(topic);
         WebTarget path = topicPath(topicName, "offloadPolicies");
         path = path.queryParam("applied", applied);
-        return asyncGetRequest(path, new FutureCallback<OffloadPolicies>(){});
+        return asyncGetRequest(path, new FutureCallback<OffloadPoliciesImpl>(){})
+                .thenApply(offloadPolicies -> offloadPolicies);
     }
 
     @Override

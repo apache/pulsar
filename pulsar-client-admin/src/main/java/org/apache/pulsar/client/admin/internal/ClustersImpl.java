@@ -69,7 +69,8 @@ public class ClustersImpl extends BaseResource implements Clusters {
     @Override
     public CompletableFuture<ClusterData> getClusterAsync(String cluster) {
         WebTarget path = adminClusters.path(cluster);
-        return asyncGetRequest(path, new FutureCallback<ClusterData>(){});
+        return asyncGetRequest(path, new FutureCallback<ClusterDataImpl>(){})
+                .thenApply(clusterData -> clusterData);
     }
 
     @Override
@@ -195,7 +196,8 @@ public class ClustersImpl extends BaseResource implements Clusters {
     public CompletableFuture<BrokerNamespaceIsolationData> getBrokerWithNamespaceIsolationPolicyAsync(
             String cluster, String broker) {
         WebTarget path = adminClusters.path(cluster).path("namespaceIsolationPolicies").path("brokers").path(broker);
-        return asyncGetRequest(path, new FutureCallback<BrokerNamespaceIsolationData>(){});
+        return asyncGetRequest(path, new FutureCallback<BrokerNamespaceIsolationDataImpl>(){})
+                .thenApply(brokerNamespaceIsolationData -> brokerNamespaceIsolationData);
     }
 
     @Override
@@ -254,7 +256,8 @@ public class ClustersImpl extends BaseResource implements Clusters {
     public CompletableFuture<NamespaceIsolationData> getNamespaceIsolationPolicyAsync(
             String cluster, String policyName) {
         WebTarget path = adminClusters.path(cluster).path("namespaceIsolationPolicies").path(policyName);
-        return asyncGetRequest(path, new FutureCallback<NamespaceIsolationData>(){});
+        return asyncGetRequest(path, new FutureCallback<NamespaceIsolationDataImpl>(){})
+                .thenApply(namespaceIsolationData -> namespaceIsolationData);
     }
 
     @Override
@@ -325,7 +328,8 @@ public class ClustersImpl extends BaseResource implements Clusters {
     @Override
     public CompletableFuture<FailureDomain> getFailureDomainAsync(String cluster, String domainName) {
         WebTarget path = adminClusters.path(cluster).path("failureDomains").path(domainName);
-        return asyncGetRequest(path, new FutureCallback<FailureDomain>(){});
+        return asyncGetRequest(path, new FutureCallback<FailureDomainImpl>(){})
+                .thenApply(failureDomain -> failureDomain);
     }
 
     private void setDomain(String cluster, String domainName,
