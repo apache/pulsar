@@ -42,12 +42,19 @@ public class SegmentedLongArray implements AutoCloseable {
     public SegmentedLongArray(long initialCapacity) {
         long remainingToAdd = initialCapacity;
 
+        // Add first segment
+        int sizeToAdd = (int) Math.min(remainingToAdd, MAX_SEGMENT_SIZE);
+        ByteBuf buffer = PooledByteBufAllocator.DEFAULT.directBuffer(sizeToAdd * SIZE_OF_LONG);
+        buffer.writerIndex(sizeToAdd * SIZE_OF_LONG);
+        buffers.add(buffer);
+        remainingToAdd -= sizeToAdd;
+
+        // Add the remaining segments, all at full segment size, if necessary
         while (remainingToAdd > 0) {
-            int sizeToAdd = (int) Math.min(remainingToAdd, MAX_SEGMENT_SIZE);
-            ByteBuf buffer = PooledByteBufAllocator.DEFAULT.directBuffer(sizeToAdd * SIZE_OF_LONG);
-            buffer.writerIndex(sizeToAdd * SIZE_OF_LONG);
+            buffer = PooledByteBufAllocator.DEFAULT.directBuffer(MAX_SEGMENT_SIZE * SIZE_OF_LONG);
+            buffer.writerIndex(MAX_SEGMENT_SIZE * SIZE_OF_LONG);
             buffers.add(buffer);
-            remainingToAdd -= sizeToAdd;
+            remainingToAdd -= MAX_SEGMENT_SIZE;
         }
 
         this.initialCapacity = initialCapacity;
